@@ -1,0 +1,17 @@
+{
+  "project": "Antique Trail",
+  "handoff_version": "1.0",
+  "generated_date": "2026-07-27",
+  "files": [
+    "README.md",
+    "CODEX_START_PROMPT.md",
+    "PRD.md",
+    "PRODUCT_DECISIONS.md",
+    "USER_RESEARCH.md",
+    "SECURITY_AND_TRUST.md",
+    "COMPETITIVE_LANDSCAPE.md",
+    "IMPLEMENTATION_PLAN.md",
+    "SEED_STORE_NOTES.md"
+  ],
+  "purpose": "Codex-ready product, security, research, and implementation context"
+}

@@ -1,0 +1,334 @@
+# Security, Privacy, Trust, and Operations
+
+Security is a product requirement and launch gate.
+
+## Security objectives
+
+- Prevent unauthorized access to private user data
+- Prevent store owners from accessing shopper-private data
+- Prevent clients from bypassing authorization
+- Limit abuse of ratings and reviews
+- Protect account recovery
+- Protect uploaded images
+- Protect administrative functions
+- Minimize precise location collection
+- Maintain recoverability and auditability
+- Support responsible vulnerability reporting
+
+## Data classification
+
+### Public
+
+- Approved store details
+- Approved public reviews
+- Approved public store photos
+- Store-owner public responses
+- Public event details
+- Aggregate public rating
+- Claimed-listing indicator
+
+### Private to user
+
+- Personal rating
+- Private notes
+- Saved stores
+- Finds
+- Purchases
+- Collection
+- Trip history
+- Preference profile
+- Home photos
+- Location-derived itinerary details unless explicitly shared
+
+### Household-shared
+
+Only records explicitly shared with an accepted household member.
+
+### Sensitive operational data
+
+- Moderation cases
+- Business verification evidence
+- Audit logs
+- Fraud signals
+- Account-recovery events
+- Security alerts
+- Administrative actions
+
+## Privacy by default
+
+Private content must never become public because it is connected to a public store record.
+
+Every new field must receive:
+
+- Data classification
+- Allowed readers
+- Allowed writers
+- Retention period
+- Deletion behavior
+- Logging restrictions
+- Export behavior
+
+## Location privacy
+
+- Request only while needed
+- Explain the feature purpose
+- Prefer while-in-use permission
+- No background tracking in MVP
+- Do not sell or share precise location
+- Do not include exact location in analytics logs
+- Save trips only through explicit user action
+- Allow deletion of saved trip history
+- Avoid storing raw movement history
+
+## Authentication
+
+- Email verification
+- Secure managed authentication
+- Optional passkeys
+- Optional social sign-in
+- Optional MFA for users
+- Required MFA for administrators and verified business accounts
+- Login rate limiting
+- Password-recovery rate limiting
+- Session revocation
+- Recent-auth checks for sensitive operations
+- No account enumeration
+- No password storage in application tables
+
+## Authorization
+
+Use deny-by-default policies.
+
+Authorization must be enforced at:
+
+- Database
+- Storage
+- Server function
+- Administrative tool
+
+Never rely only on frontend visibility.
+
+Required authorization test cases:
+
+- User A cannot read User B private records
+- Former household member loses access immediately
+- Store owner cannot read user notes or trips
+- Store owner cannot alter reviews
+- Reviewer cannot alter aggregate rating directly
+- Client cannot assign roles
+- Client cannot approve its own public photo
+- Moderator scope is limited
+- Administrator actions are audited
+- Signed private image URLs expire
+
+## Database separation
+
+Prefer separation between public and private entities.
+
+Suggested domains:
+
+- Public stores
+- Public hours
+- Public reviews
+- Public photos
+- Private profiles
+- User-store preferences
+- Private notes
+- Private finds
+- Private collections
+- Private trips
+- Households
+- Business claims
+- Moderation
+- Auditing
+
+## Upload security
+
+- Private and public buckets separated
+- Private buckets by default
+- Expiring signed URLs
+- File-size limits
+- Dimension limits
+- MIME validation by file contents
+- Re-encoding images
+- EXIF and GPS removal
+- Malware scanning where feasible
+- Server-side thumbnails
+- Rate limits
+- Abuse reporting
+- Public publication requires explicit action and moderation rules
+- No AI training use without explicit consent
+
+## Reviews and abuse
+
+- One active review per user per store
+- Edit history
+- Rate limiting
+- Bot protection
+- Spam detection
+- Suspicious-rating analysis
+- Report workflow
+- Moderation queue
+- Appeals
+- Soft deletion
+- Audit history
+- Conflict-of-interest disclosure
+- Store-owner response
+- No owner editing of reviews
+- No purchase of rating improvements
+
+## Business claims
+
+Verification options may include:
+
+- Published business phone
+- Business-domain email
+- Postcard
+- Business documents
+- Trusted third-party source
+- Manual review
+
+A social-media account alone should not automatically grant ownership.
+
+## API security
+
+- Input schema validation
+- Parameterized database access
+- Strict CORS
+- Secure headers
+- CSRF protections when applicable
+- Rate limits
+- Request-size limits
+- Output encoding
+- Short-lived tokens
+- Idempotency for critical writes
+- Secret rotation
+- No secrets in clients
+- No private data in errors
+- Server-side rating aggregation
+- Server-side role assignment
+- Server-side signed URL generation
+
+## Supply-chain security
+
+Every change should pass:
+
+- Type checking
+- Unit tests
+- Integration tests
+- Authorization tests
+- Static security analysis
+- Dependency scanning
+- Secret scanning
+- License checks
+- Infrastructure checks
+- Migration review
+- Build verification
+
+## Git and release controls
+
+- Private repository during development
+- Protected main branch
+- Pull requests required
+- Reviews required
+- CI checks required
+- No direct production deployment from a developer machine
+- Separate development, test, staging, and production
+- Production secrets only in deployment secret storage
+- Traceable releases
+- Rollback procedure
+
+## Required pre-launch testing
+
+- Threat model review
+- Authorization matrix review
+- OWASP ASVS-based review
+- OWASP MASVS review for Android package
+- File-upload testing
+- Account-recovery testing
+- Review-abuse testing
+- Business-claim testing
+- Manual penetration test
+- Backup restore test
+- Incident-response exercise
+- Accessibility testing
+
+## Operations
+
+### Backups
+
+- Automated
+- Encrypted
+- Retention documented
+- Restore tested
+- Recovery targets documented
+- Emergency export procedure
+
+### Monitoring
+
+Detect:
+
+- Login abuse
+- Signup spikes
+- Review spam
+- Authorization failures
+- Upload abuse
+- API cost spikes
+- Database failures
+- Storage failures
+- Administrative anomalies
+- Background-job failures
+- Stale business data
+
+Do not log:
+
+- Passwords
+- Tokens
+- Private notes
+- Full private image URLs
+- Exact location history
+- Sensitive verification documents
+
+### Incident response
+
+Required:
+
+- Security contact
+- Vulnerability intake
+- Severity levels
+- Credential revocation
+- User notification process
+- Store notification process
+- Containment playbook
+- Rollback and recovery
+- Post-incident review
+
+## User controls
+
+- Export data
+- Delete account
+- Delete private photos
+- Delete trip history
+- Delete finds and collections
+- Leave household
+- Revoke household members
+- Manage public reviews
+- Manage personalization
+- Manage location permission
+- Manage notifications
+
+## Legal and trust documents
+
+Before public marketing:
+
+- Privacy policy
+- Terms of service
+- Community guidelines
+- Review policy
+- Store-owner terms
+- Photo and copyright policy
+- Data deletion policy
+- Data export policy
+- Analytics disclosure
+- Vulnerability disclosure policy
+- Support contact and dispute process
