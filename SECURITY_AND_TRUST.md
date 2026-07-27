@@ -27,6 +27,14 @@ Security is a product requirement and launch gate.
 - Aggregate public rating
 - Claimed-listing indicator
 
+### Pilot-restricted
+
+- Pilot Store Record core listing data
+- Store Partner identity and contact needed for the pilot
+- Pilot consent and participation status
+
+Pilot-restricted data is readable only by invited Private Beta participants and authorized operational roles. Approval inside the pilot does not make it anonymously or publicly readable.
+
 ### Private to user
 
 - Personal rating
@@ -202,6 +210,9 @@ First Store Partner pilot:
 - Require owner-controlled verified email and MFA; prohibit shared credentials
 - Audit consent, verification result, scope grant, withdrawal, and revocation without logging unnecessary identity evidence
 - On withdrawal, revoke access and remove the real store from the active pilot
+- Administrator creates the Pilot Store Record from owner-confirmed core fields with provenance and verification date
+- Deny anonymous/public access to the Pilot Store Record
+- Exclude photos, ratings/reviews, events, owner responses, and analytics
 
 Verification options may include:
 

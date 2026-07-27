@@ -100,6 +100,10 @@ Before first-owner contact, require dated passing evidence approved by the Prima
 
 Demonstrate the product using Synthetic Stores only. Before creating a real store record or representative account, obtain Store Partner Pilot Consent and verify the representative's authority both in person and through a published business contact. The representative must use an owner-controlled verified email and MFA; shared credentials are prohibited. Consent states that the pilot is voluntary, invitation-only, unpaid, non-endorsing, and not public advertising. On withdrawal, revoke representative access and remove the real store from the active pilot. Audit onboarding, scope grants, withdrawal, and revocation.
 
+### First Pilot Store Record
+
+After consent and authority verification, an Administrator creates one Pilot Store Record using owner-confirmed name, address, phone, website, regular and holiday hours, official description, and category tags. Record the source/provenance and verification date. The Store Representative then tests only the already-approved Representative-Managed Field workflow; Controlled Store Fields still require Store Change Requests. Restrict the record to invited Private Beta participants. Exclude photos, ratings/reviews, events, owner responses, and analytics.
+
 ## Unresolved decisions
 
 1. Final product name

@@ -129,6 +129,15 @@ First Store Partner onboarding:
 - On withdrawal, revoke representative access and remove the real store from the active pilot
 - Audit onboarding, scope grants, withdrawal, and revocation
 
+First Pilot Store Record:
+
+- Administrator creates one record after consent and authority verification
+- Owner confirms name, address, phone, website, regular and holiday hours, official description, and category tags
+- Record source/provenance and verification date
+- Restrict visibility to invited Private Beta participants; deny anonymous/public access
+- Preserve Representative-Managed Field and Controlled Store Field authorization rules
+- Exclude photos, ratings/reviews, events, owner responses, and analytics
+
 ## Phase 2 — Public reviews and store claims
 
 Features:

@@ -80,6 +80,10 @@ _Avoid_: Vendor, beta tester
 Plain-language written consent signed before any real store record or representative account is created. It states that participation is voluntary, invitation-only, unpaid, non-endorsing, and non-advertised; identifies permitted store data and contact; and explains withdrawal.
 _Avoid_: Verbal interest, public partnership
 
+**Pilot Store Record**:
+The first real Store Partner listing, created by an Administrator only after Store Partner Pilot Consent. It contains owner-confirmed core listing data with provenance and verification date, is visible only to invited Private Beta participants, and excludes public user-generated or promotional features.
+_Avoid_: Synthetic Store, public listing
+
 **Store Representative**:
 An authorized owner or manager who acts for one Store Partner; Internal Alpha simulates this role against one Synthetic Store.
 _Avoid_: Vendor, store account

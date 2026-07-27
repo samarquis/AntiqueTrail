@@ -7,6 +7,7 @@ Important:
 - Topeka city limits is the future Private Beta Pilot Area.
 - These names are research candidates only; this file does not authorize import, outreach, or partnership claims.
 - Do not use these businesses in Internal Alpha; Internal Alpha uses clearly fictional Synthetic Stores only.
+- The first real Pilot Store Record may be created only by an Administrator after External Testing Readiness, Store Partner Pilot Consent, and authority verification; this candidate list does not select that store.
 - Verify every business from current public sources before import.
 - Do not import private household ratings.
 - Do not import private notes.
