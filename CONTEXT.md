@@ -80,6 +80,10 @@ _Avoid_: Vendor, beta tester
 Plain-language written consent signed before any real store record or representative account is created. It states that participation is voluntary, invitation-only, unpaid, non-endorsing, and non-advertised; identifies permitted store data and contact; and explains withdrawal.
 _Avoid_: Verbal interest, public partnership
 
+**Pilot Consent Receipt**:
+An immutable, versioned record and owner copy of Store Partner Pilot Consent containing the required acknowledgments, typed name, business title, store name, verified email, timestamp, invitation identifier, and policy version. Material term changes require a new receipt.
+_Avoid_: Editable admin note, verbal confirmation
+
 **Store Partner Invitation**:
 An Administrator-generated, 30-minute, single-redemption QR invitation containing only an opaque random token. It opens the PWA partner-onboarding flow but grants no role, store scope, or pilot-data access.
 _Avoid_: Download code, role grant, public QR code

@@ -182,6 +182,17 @@ Store Partner Invitation:
 - Show PWA installation instructions after approved sign-in
 - Audit every invitation and authorization transition
 
+Pilot consent capture:
+
+- Render a phone-friendly plain-language summary and full-policy links
+- Require separate authority, voluntary-participation, permitted-data-use, no-payment/endorsement, and withdrawal acknowledgments
+- Capture typed name, business title, and store name
+- Create an immutable Pilot Consent Receipt bound to verified email, timestamp, invitation identifier, and policy version
+- Email a receipt/PDF copy without internal verification evidence
+- Permit Administrator read access but no update/delete
+- Require fresh consent after material term changes
+- Complete legal review of final wording before external use
+
 ## Phase 2 — Public reviews and store claims
 
 Features:

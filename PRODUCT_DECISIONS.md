@@ -94,7 +94,7 @@ Do not contact or include a store owner, import a real store, or add any externa
 
 ### External Testing Readiness gate
 
-Before first-owner contact, require dated passing evidence approved by the Primary Internal Tester for all seven checks: both Internal Alpha stages; the complete authorization and security test set; zero open Blocking Defects or known privacy, security, or data-loss defects; successful backup-restore and rollback rehearsals; working pilot-environment monitoring, error reporting, and support intake; ready pilot privacy notice and owner consent; and one successful External Testing Dress Rehearsal. A failed check blocks outreach. AI Test Agents may collect evidence but cannot approve the gate.
+Before first-owner contact, require dated passing evidence approved by the Primary Internal Tester for all seven checks: both Internal Alpha stages; the complete authorization and security test set; zero open Blocking Defects or known privacy, security, or data-loss defects; successful backup-restore and rollback rehearsals; working pilot-environment monitoring, error reporting, and support intake; legally reviewed final pilot privacy notice and owner-consent wording; and one successful External Testing Dress Rehearsal. A failed check blocks outreach. AI Test Agents may collect evidence but cannot approve the gate.
 
 ### First Store Partner onboarding
 
@@ -119,6 +119,10 @@ After the Initial Private Beta Expansion Gate passes, add one Store Partner and 
 ### In-person Store Partner QR invitation
 
 After a Synthetic Store demonstration and verbal interest, the recently authenticated MFA-protected Administrator creates a Store Partner Invitation and displays its QR code. The QR contains only an opaque random token, expires after 30 minutes or one successful redemption, and contains no owner, store, email, or role data. Scanning opens the same PWA's partner-onboarding page; it does not install the PWA or grant access. The owner reviews the pilot privacy notice and terms, gives Store Partner Pilot Consent, creates an owner-controlled Pending Partner Identity, verifies email, and configures MFA. The invitation remains pending until the Administrator independently verifies authority through the published business contact and approves it. Only then may the system create the Pilot Store Record and grant the store-scoped Store Representative role. Installation instructions appear after approved sign-in. Expiry, redemption, consent, verification, approval, role grant, and installation handoff are audited. See ADR 0002.
+
+### Store Partner pilot-consent capture
+
+Use a phone-friendly consent screen with a plain-language summary and links to the full, legally reviewed pilot privacy notice and terms. Require separate acknowledgments of authority, voluntary participation, permitted store-data use, no payment or endorsement, and withdrawal. Require typed name, business title, and store name; bind the immutable Pilot Consent Receipt to the verified email, timestamp, invitation identifier, and policy version. Email the owner a receipt/PDF copy without internal verification evidence. Administrators may view but never edit submitted consent. A material term change requires fresh consent before continued participation.
 
 ## Unresolved decisions
 

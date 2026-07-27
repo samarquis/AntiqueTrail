@@ -531,6 +531,16 @@ Store Representatives may not:
 - Show device-appropriate PWA installation instructions after approved sign-in
 - Audit generation, expiry, revocation, redemption, consent, verification, approval, role grant, and installation handoff
 
+### Pilot consent capture
+
+- Phone-friendly plain-language summary with links to the full, legally reviewed pilot privacy notice and terms
+- Separate required acknowledgments for authority, voluntary participation, permitted store-data use, no payment/endorsement, and withdrawal
+- Typed name, business title, and store name
+- Immutable Pilot Consent Receipt bound to verified email, timestamp, invitation identifier, and policy version
+- Email owner a receipt/PDF copy without internal verification evidence
+- Administrator may view but cannot edit submitted consent
+- Material term changes require fresh consent before continued participation
+
 ## Moderation
 
 The product requires:

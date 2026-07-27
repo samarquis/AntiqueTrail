@@ -32,6 +32,7 @@ Security is a product requirement and launch gate.
 - Pilot Store Record core listing data
 - Store Partner identity and contact needed for the pilot
 - Pilot consent and participation status
+- Immutable Pilot Consent Receipt and delivery status
 
 Pilot-restricted data is readable only by invited Private Beta participants and authorized operational roles. Approval inside the pilot does not make it anonymously or publicly readable.
 
@@ -158,6 +159,8 @@ Required authorization test cases:
 - Expired, revoked, or redeemed invitation tokens are denied
 - Pending Partner Identity cannot read pilot-restricted data or perform Store Representative actions
 - Store Representative grant requires verified email, MFA, published-contact authority verification, and Administrator approval
+- Pilot Consent Receipt cannot be updated or deleted by Administrator, Store Representative, Pending Partner Identity, or client
+- Material pilot-term changes require a new consent version before continued Store Representative access
 
 ## Database separation
 
@@ -229,6 +232,16 @@ Suggested domains:
 - Keep the pending identity unprivileged until published-contact verification and Administrator approval
 - Audit generation, expiry, revocation, redemption, consent, verification, approval, and grant events
 - A photographed token cannot bypass email verification, MFA, authority verification, or Administrator approval
+
+### Pilot consent integrity
+
+- Complete legal review of final wording before external use
+- Present the policy version and required acknowledgments before submission
+- Bind the immutable receipt to verified email, timestamp, invitation identifier, typed name/title/store, and policy version
+- Administrator may read but cannot edit or delete submitted consent
+- Email the owner a receipt/PDF without internal verification evidence or security notes
+- Material term changes invalidate continued reliance on the old version and require fresh consent
+- Audit receipt creation, delivery result, policy version, and re-consent without logging unnecessary identity evidence
 
 First Store Partner pilot:
 
