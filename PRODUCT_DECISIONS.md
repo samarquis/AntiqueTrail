@@ -76,6 +76,10 @@ Store Representatives may directly publish regular hours, holiday hours, phone, 
 
 Use a fourth, separate Administrator Test Account to approve or reject Store Change Requests, grant or revoke representative roles, and inspect audit records. It uses a separate session with MFA and cannot access shopper-private data. Defer a Moderator role until review volume requires one.
 
+### Internal Alpha feature boundary
+
+Internal Alpha includes four-role authentication; Synthetic Store directory, search, map, details, and hours; private saves, personal ratings, and notes; hours-aware trip planning; active-trip navigation handoff; offline recovery; Store Representative and Administrator workflows; and audit records. It excludes public reviews and photos, households, finds and collections, events, notifications, owner analytics, advanced personalization, and real stores.
+
 ## Unresolved decisions
 
 1. Final product name

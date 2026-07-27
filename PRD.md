@@ -482,6 +482,31 @@ The product requires:
 - Store-owner dispute workflow
 - Duplicate-store merge workflow
 
+## Internal Alpha
+
+Required:
+
+- Four-role authentication: Test User A, Test User B, Representative Test Account, and Administrator Test Account
+- Synthetic Store directory, search, map, details, and hours
+- Private saved stores, personal ratings, and notes
+- Hours-aware trip planning
+- Active-trip navigation handoff
+- Offline active-trip recovery
+- Store Representative direct publishing and Store Change Requests
+- Administrator approval and representative-role management
+- Audit records for privileged actions
+
+Excluded:
+
+- Real stores or external participants
+- Public ratings, reviews, or photos
+- Households
+- Finds and collections
+- Events
+- Notifications
+- Owner analytics
+- Advanced personalization
+
 ## MVP
 
 Required:

@@ -61,6 +61,26 @@ Exit criteria:
 - Saved stores remain private
 - Seed data has provenance and verification fields
 
+## Internal Alpha gate
+
+Assemble and test this gate before public reviews, real-store import, or owner outreach.
+
+Required:
+
+- Phase 1 directory/authentication/private-data foundation using Synthetic Stores only
+- Hours-aware trip planning, active-trip navigation handoff, and offline recovery
+- Test User A, Test User B, Representative Test Account, and Administrator Test Account
+- Representative-Managed Field publishing and Store Change Request approval workflow
+- Audit records for privileged actions
+
+Excluded:
+
+- Public reviews/photos and other public user-generated content
+- Real stores or external participants
+- Households, finds/collections, events, notifications, owner analytics, and advanced personalization
+
+Exit criteria remain to be defined during grilling.
+
 ## Phase 2 — Public reviews and store claims
 
 Features:

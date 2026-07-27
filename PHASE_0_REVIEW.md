@@ -214,6 +214,7 @@ Do not create a monorepo, shared packages, or a second admin application until a
 - Internal Alpha includes a third Representative Test Account scoped to one Synthetic Store. Either tester may operate it, but it cannot access shopper-private records or share Test User A/B sessions. Approved 2026-07-27.
 - Store Representative publishing uses a field-risk split: hours, phone, website, description, and temporary closure publish directly; identity, location, ownership, permanent closure, categories, and public photos require approval. Reviews and shopper-private data remain inaccessible. ADR 0001. Approved 2026-07-27.
 - A fourth Administrator Test Account exclusively approves Store Change Requests and grants/revokes representative roles during Internal Alpha and Private Beta. It uses a separate MFA session and cannot access shopper-private data; Moderator role is deferred until volume requires it. ADR 0001. Approved 2026-07-27.
+- Internal Alpha scope is locked to four-role authentication, Synthetic Store discovery/details/hours, shopper-private saves/ratings/notes, trip planning/active navigation/offline recovery, representative/admin workflows, and auditing. Public UGC, households, finds/collections, events, notifications, owner analytics, advanced personalization, and real stores are excluded. Approved 2026-07-27.
 
 ### Before scaffolding or schema design
 
