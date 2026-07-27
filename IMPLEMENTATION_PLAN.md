@@ -138,6 +138,16 @@ First Pilot Store Record:
 - Preserve Representative-Managed Field and Controlled Store Field authorization rules
 - Exclude photos, ratings/reviews, events, owner responses, and analytics
 
+Initial Private Beta Cohort:
+
+- Scott uses separate shopper and Administrator accounts
+- Scott's wife uses a separate shopper account
+- First owner uses a Store Representative account only
+- Restrict the cohort to one Pilot Store Record
+- Require separate approval and a separate account before owner shopper activity
+- Keep AI and Agent-Assisted Test Accounts restricted to Synthetic Store data
+- Block additional users and real stores until a separate expansion gate passes
+
 ## Phase 2 — Public reviews and store claims
 
 Features:

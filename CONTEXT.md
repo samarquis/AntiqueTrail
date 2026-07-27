@@ -84,6 +84,10 @@ _Avoid_: Verbal interest, public partnership
 The first real Store Partner listing, created by an Administrator only after Store Partner Pilot Consent. It contains owner-confirmed core listing data with provenance and verification date, is visible only to invited Private Beta participants, and excludes public user-generated or promotional features.
 _Avoid_: Synthetic Store, public listing
 
+**Initial Private Beta Cohort**:
+The first controlled external test: Scott's separate shopper and administrator accounts, Scott's wife's separate shopper account, and one Store Partner representative account, with one Pilot Store Record. AI accounts, additional users, and additional real stores are excluded.
+_Avoid_: Public beta, open signup
+
 **Store Representative**:
 An authorized owner or manager who acts for one Store Partner; Internal Alpha simulates this role against one Synthetic Store.
 _Avoid_: Vendor, store account

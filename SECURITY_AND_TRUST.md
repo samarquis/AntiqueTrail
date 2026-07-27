@@ -35,6 +35,8 @@ Security is a product requirement and launch gate.
 
 Pilot-restricted data is readable only by invited Private Beta participants and authorized operational roles. Approval inside the pilot does not make it anonymously or publicly readable.
 
+The Initial Private Beta Cohort contains only Scott's separate shopper and Administrator accounts, Scott's wife's shopper account, and one Store Representative account. AI and Agent-Assisted Test Accounts cannot read Pilot Store Records or other pilot-restricted data.
+
 ### Private to user
 
 - Personal rating
@@ -134,6 +136,9 @@ Required authorization test cases:
 - Representative writes from an existing session are denied after the Administrator revokes store scope
 - Every privileged action produces an audit record
 - Representative and Administrator Test Accounts cannot read or modify either Test User's shopper-private data
+- During the Initial Private Beta Cohort, the Store Representative account cannot perform shopper activity; a separately approved shopper account is required
+- AI and Agent-Assisted Test Accounts cannot read Pilot Store Records or pilot-restricted participant data
+- Only Initial Private Beta Cohort accounts can read the Pilot Store Record
 - Former household member loses access immediately
 - Store owner cannot read user notes or trips
 - Store owner cannot alter reviews

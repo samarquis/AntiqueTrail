@@ -104,6 +104,10 @@ Demonstrate the product using Synthetic Stores only. Before creating a real stor
 
 After consent and authority verification, an Administrator creates one Pilot Store Record using owner-confirmed name, address, phone, website, regular and holiday hours, official description, and category tags. Record the source/provenance and verification date. The Store Representative then tests only the already-approved Representative-Managed Field workflow; Controlled Store Fields still require Store Change Requests. Restrict the record to invited Private Beta participants. Exclude photos, ratings/reviews, events, owner responses, and analytics.
 
+### Initial Private Beta Cohort
+
+Limit the Initial Private Beta Cohort to four human accounts and one Pilot Store Record: Scott's separate shopper and Administrator accounts, Scott's wife's separate shopper account, and the first owner's Store Representative account. The owner does not use the representative account for shopper activity; any future shopper testing requires a separately approved account. AI and Agent-Assisted Test Accounts remain restricted to Synthetic Store data. Do not add another user or real store until a separate expansion gate passes.
+
 ## Unresolved decisions
 
 1. Final product name

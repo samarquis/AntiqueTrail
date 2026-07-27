@@ -485,6 +485,16 @@ Store Representatives may not:
 - Representative tests only Representative-Managed Fields; Controlled Store Fields still require Store Change Requests
 - Exclude photos, ratings/reviews, events, owner responses, and analytics
 
+### Initial Private Beta Cohort
+
+- Scott: separate shopper and Administrator accounts
+- Scott's wife: separate shopper account
+- First owner: Store Representative account only
+- One Pilot Store Record
+- Owner shopper activity requires a separately approved shopper account
+- AI and Agent-Assisted Test Accounts remain restricted to Synthetic Store data
+- No additional user or real store before a separate expansion gate passes
+
 ## Moderation
 
 The product requires:
