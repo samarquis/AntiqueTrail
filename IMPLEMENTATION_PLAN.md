@@ -160,6 +160,15 @@ Initial Private Beta Expansion Gate:
 - Primary Internal Tester approves dated evidence for every check
 - No minimum calendar duration; any failed check blocks expansion
 
+Controlled Private Beta Expansion:
+
+- Add one verified Store Partner and one Pilot Store Record at a time
+- Repeat consent, authority verification, onboarding, owner workflow, shopper-trip, security, audit, support, and recovery checks for each addition
+- Block the next addition until the current one passes
+- Cap at three total Store Partners and Pilot Store Records
+- Keep access invitation-only with no public advertising
+- Stop after all three pass and conduct a separate public-readiness review
+
 ## Phase 2 — Public reviews and store claims
 
 Features:

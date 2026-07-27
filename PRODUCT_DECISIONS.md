@@ -112,6 +112,10 @@ Limit the Initial Private Beta Cohort to four human accounts and one Pilot Store
 
 Before adding any user or real store, require dated evidence approved by the Primary Internal Tester that: the owner completed Representative-Managed Field edits, submitted two Store Change Requests that the Administrator approved and rejected respectively, used MFA, and participated in a scheduled revoke/regrant test; Scott and the Independent Internal Tester each completed two shopper trip runs containing the Pilot Store Record; support and feedback intake worked; privileged audit records were complete; monitoring, backup restore, and rollback checks remained passing; no Blocking Defect or known privacy, security, or data-loss defect remained open; and the owner confirmed that the workflow was understandable. No minimum calendar duration applies. A failed check blocks expansion.
 
+### Controlled Private Beta Expansion
+
+After the Initial Private Beta Expansion Gate passes, add one Store Partner and one Pilot Store Record at a time. Apply the same consent, authority verification, account onboarding, owner workflow, shopper-trip, security, audit, support, and recovery checks to each addition before adding the next. Cap the controlled Private Beta at three total Store Partners and stores. Keep it invitation-only with no public advertising. After all three pass, stop expansion and conduct a separate public-readiness review; passing the pilot does not automatically authorize public access.
+
 ## Unresolved decisions
 
 1. Final product name

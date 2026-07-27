@@ -39,6 +39,8 @@ The Initial Private Beta Cohort contains only Scott's separate shopper and Admin
 
 Expansion requires a passed Initial Private Beta Expansion Gate. No additional account or Pilot Store Record is authorized merely because time has elapsed.
 
+Controlled Private Beta Expansion adds one Store Partner and Pilot Store Record at a time, repeats the same security and acceptance checks, and stops at three total stores for a separate public-readiness review. Pilot passage never changes pilot-restricted data to public data automatically.
+
 ### Private to user
 
 - Personal rating

@@ -507,6 +507,16 @@ Store Representatives may not:
 - Primary Internal Tester approves dated evidence for every check
 - No minimum calendar duration; any failed check blocks expansion
 
+### Controlled Private Beta Expansion
+
+- Add one verified Store Partner and one Pilot Store Record at a time
+- Repeat consent, authority verification, onboarding, owner workflow, shopper-trip, security, audit, support, and recovery checks for each addition
+- Do not add the next store until the current addition passes
+- Cap at three total Store Partners and Pilot Store Records
+- Remain invitation-only with no public advertising
+- After all three pass, stop and conduct a separate public-readiness review
+- Do not treat pilot passage as authorization for public access
+
 ## Moderation
 
 The product requires:

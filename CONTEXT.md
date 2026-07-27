@@ -92,6 +92,10 @@ _Avoid_: Public beta, open signup
 A Primary Internal Tester-approved evidence gate that the first owner workflow, shopper use of the Pilot Store Record, support, auditing, monitoring, recovery controls, and defect status all passed before any additional user or real store may be added. It has no minimum calendar duration.
 _Avoid_: Automatic expansion, public launch gate
 
+**Controlled Private Beta Expansion**:
+The post-gate addition of one verified Store Partner and one Pilot Store Record at a time, using the same onboarding and acceptance checks, capped at three total Store Partners before a separate public-readiness review.
+_Avoid_: Bulk onboarding, public launch
+
 **Store Representative**:
 An authorized owner or manager who acts for one Store Partner; Internal Alpha simulates this role against one Synthetic Store.
 _Avoid_: Vendor, store account
