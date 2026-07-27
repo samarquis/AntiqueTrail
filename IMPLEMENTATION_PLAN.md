@@ -79,7 +79,15 @@ Excluded:
 - Real stores or external participants
 - Households, finds/collections, events, notifications, owner analytics, and advanced personalization
 
-Exit criteria remain to be defined during grilling.
+Shopper-trip exit criteria:
+
+- Test User A and Test User B each complete three successful Shopper Trip Acceptance Runs using separate accounts on separate phones
+- Each account proves active-trip recovery after refresh or app restart and while offline in at least one run
+- Across the runs, exercise Synthetic Store discovery, details and hours, private save/rating/note creation, hours-aware multi-stop planning, trip start, navigation handoff, arrived/completed/skipped/closed stop states, and route recalculation
+- Zero Blocking Defects
+- Zero cross-account exposure or modification of shopper-private data
+
+Representative, administrator, audit, and broader security exit criteria remain to be defined during grilling.
 
 ## Phase 2 — Public reviews and store claims
 

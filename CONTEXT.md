@@ -56,6 +56,14 @@ _Avoid_: Shopper account, shared owner login
 A distinct privileged Internal Alpha identity that reviews Store Change Requests, grants or revokes representative roles, and inspects audit records without shopper-private access.
 _Avoid_: Moderator, Representative Test Account
 
+**Shopper Trip Acceptance Run**:
+One complete Synthetic Store shopper journey performed by Test User A or Test User B on that tester's phone: discover stores, inspect details and hours, create private records, build and run an hours-aware trip, hand off navigation, update stop status, recalculate, and recover the active trip.
+_Avoid_: Spot check, demo
+
+**Blocking Defect**:
+A defect that prevents a required acceptance journey from completing or causes required data to be lost, corrupted, or exposed to the wrong account.
+_Avoid_: Cosmetic defect, non-blocking defect
+
 **Representative-Managed Field**:
 A public store field that its Store Representative may publish directly: regular hours, holiday hours, phone, website, official description, or temporary closure.
 _Avoid_: Controlled Store Field

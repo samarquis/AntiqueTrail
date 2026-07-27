@@ -80,6 +80,10 @@ Use a fourth, separate Administrator Test Account to approve or reject Store Cha
 
 Internal Alpha includes four-role authentication; Synthetic Store directory, search, map, details, and hours; private saves, personal ratings, and notes; hours-aware trip planning; active-trip navigation handoff; offline recovery; Store Representative and Administrator workflows; and audit records. It excludes public reviews and photos, households, finds and collections, events, notifications, owner analytics, advanced personalization, and real stores.
 
+### Internal Alpha shopper-trip exit gate
+
+Test User A and Test User B must each complete three successful Shopper Trip Acceptance Runs using separate accounts on separate phones. For each account, at least one run must prove active-trip recovery after refresh or app restart and while offline. Across the runs, the tester must exercise navigation handoff, arrived/completed/skipped/closed stop states, and route recalculation. The gate requires zero Blocking Defects and zero cross-account exposure or modification of shopper-private data.
+
 ## Unresolved decisions
 
 1. Final product name

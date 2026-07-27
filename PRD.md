@@ -507,6 +507,14 @@ Excluded:
 - Owner analytics
 - Advanced personalization
 
+Shopper-trip exit gate:
+
+- Test User A and Test User B each complete three successful Shopper Trip Acceptance Runs on separate accounts and phones
+- Each account proves active-trip recovery after refresh or app restart and while offline in at least one run
+- The six runs collectively exercise navigation handoff, arrived/completed/skipped/closed stop states, and route recalculation
+- Zero Blocking Defects
+- Zero cross-account exposure or modification of shopper-private data
+
 ## MVP
 
 Required:
