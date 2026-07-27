@@ -72,6 +72,10 @@ Internal Alpha includes a third, separate Representative Test Account scoped to 
 
 Store Representatives may directly publish regular hours, holiday hours, phone, website, official description, and temporary closure for their assigned store. Name, address or coordinates, ownership, permanent closure, category tags, and public photos require an approved Store Change Request. Store Representatives never edit reviews or access shopper-private data. See `docs/adr/0001-split-store-representative-publishing-by-field-risk.md`.
 
+### Administrator approval during Internal Alpha and Private Beta
+
+Use a fourth, separate Administrator Test Account to approve or reject Store Change Requests, grant or revoke representative roles, and inspect audit records. It uses a separate session with MFA and cannot access shopper-private data. Defer a Moderator role until review volume requires one.
+
 ## Unresolved decisions
 
 1. Final product name

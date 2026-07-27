@@ -52,6 +52,10 @@ _Avoid_: Vendor, store account
 A distinct Internal Alpha account scoped to one Synthetic Store and used to test Store Representative permissions without granting shopper-private access.
 _Avoid_: Shopper account, shared owner login
 
+**Administrator Test Account**:
+A distinct privileged Internal Alpha identity that reviews Store Change Requests, grants or revokes representative roles, and inspects audit records without shopper-private access.
+_Avoid_: Moderator, Representative Test Account
+
 **Representative-Managed Field**:
 A public store field that its Store Representative may publish directly: regular hours, holiday hours, phone, website, official description, or temporary closure.
 _Avoid_: Controlled Store Field

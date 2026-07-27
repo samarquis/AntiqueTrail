@@ -105,7 +105,7 @@ Assessment: direction is sound, but it is not yet an implementable privacy or se
 |---|---|---|---|---|---|---|---|
 | Approved store/profile/hours read | Read | Read | Read | Read | Read | Read | Read |
 | Store correction report | Rate-limited create only if approved | Create/read own status | Same as user | Create for claimed store | Triage/update assigned | Full | Validate/notify |
-| Public store data write | None | None | None | Directly publish Representative-Managed Fields for assigned store; submit Store Change Requests for Controlled Store Fields | Review/approve assigned requests | Full | Validate/apply approved transitions |
+| Public store data write | None | None | None | Directly publish Representative-Managed Fields for assigned store; submit Store Change Requests for Controlled Store Fields | Deferred during Internal Alpha/Private Beta | Review/approve Store Change Requests | Validate/apply approved transitions |
 | Approved review/rating read | Read | Read | Read | Read | Read | Read | Read |
 | Review create/edit/delete | None | Own only; one active review per store | Own review only | Own shopper review only; never another user's | Hide/restore; never impersonate author | Exceptional audited action | Aggregate/status transitions only |
 | Owner response | Read | Read | Read | Create/edit own response on claimed store | Hide/restore | Full | Publish/status transitions |
@@ -119,7 +119,7 @@ Assessment: direction is sound, but it is not yet an implementable privacy or se
 | Moderation report/case | None or rate-limited create, per policy | Create; read own public status | Same as user | Create; read own public status | Read/update assigned cases | Full | Queue/notify/retain |
 | Audit records | None | None | None | None | Read own moderation-action subset | Read/search | Append only; no application-role update/delete |
 | Aggregate public rating | Read | Read | Read | Read | Read | Read | Write/rebuild only |
-| Role grants and scopes | None | None | None | None | None | Request/administer within approved scope | Apply validated grants/revocations |
+| Role grants and scopes | None | None | None | None | Deferred during Internal Alpha/Private Beta | Grant/revoke representative roles | Apply validated grants/revocations |
 | Seed import/duplicate merge | None | None | None | None | Propose/review | Approve | Execute and record rollback data |
 
 Break-glass access to shopper-private data requires a separate approved policy, reason, time limit, user/security notification rules, and immutable audit record. It is not normal administrator access.
@@ -213,6 +213,7 @@ Do not create a monorepo, shared packages, or a second admin application until a
 - Internal Testers use separate Test Accounts. Test User A and Test User B may duplicate actions or values, but private records remain separately owned and inaccessible across accounts; household sharing is disabled for this test. Approved 2026-07-27.
 - Internal Alpha includes a third Representative Test Account scoped to one Synthetic Store. Either tester may operate it, but it cannot access shopper-private records or share Test User A/B sessions. Approved 2026-07-27.
 - Store Representative publishing uses a field-risk split: hours, phone, website, description, and temporary closure publish directly; identity, location, ownership, permanent closure, categories, and public photos require approval. Reviews and shopper-private data remain inaccessible. ADR 0001. Approved 2026-07-27.
+- A fourth Administrator Test Account exclusively approves Store Change Requests and grants/revokes representative roles during Internal Alpha and Private Beta. It uses a separate MFA session and cannot access shopper-private data; Moderator role is deferred until volume requires it. ADR 0001. Approved 2026-07-27.
 
 ### Before scaffolding or schema design
 

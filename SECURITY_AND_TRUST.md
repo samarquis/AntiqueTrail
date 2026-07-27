@@ -116,6 +116,8 @@ Required authorization test cases:
 - Store Representative can directly change only Representative-Managed Fields for the assigned store
 - Controlled Store Fields remain unchanged until an authorized reviewer approves a Store Change Request
 - Store Representative cannot approve their own Store Change Request
+- Administrator Test Account alone approves Store Change Requests and grants or revokes representative roles during Internal Alpha and Private Beta
+- Administrator Test Account uses MFA, a separate session, and no shopper-private access
 - Former household member loses access immediately
 - Store owner cannot read user notes or trips
 - Store owner cannot alter reviews
