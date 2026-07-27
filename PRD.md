@@ -484,9 +484,16 @@ The product requires:
 
 ## Internal Alpha
 
+Stages:
+
+- Solo Agent-Assisted Alpha: the Primary Internal Tester operates every separate role account; AI Test Agents may execute supervised repeatable tests but cannot replace human acceptance or approve a gate
+- Two-Person Acceptance: the Independent Internal Tester completes shopper acceptance on her own phone using a newly created Test User B account; no solo-stage account is reassigned to her
+- No store owner, real store, or external participant before both stages and the separately approved External Testing Readiness gate pass
+
 Required:
 
 - Four-role authentication: Test User A, Test User B, Representative Test Account, and Administrator Test Account
+- Optional Agent-Assisted Shopper Account for isolated user-two simulation during Solo Agent-Assisted Alpha
 - Synthetic Store directory, search, map, details, and hours
 - Private saved stores, personal ratings, and notes
 - Hours-aware trip planning
@@ -509,15 +516,16 @@ Excluded:
 
 Shopper-trip exit gate:
 
-- Test User A and Test User B each complete three successful Shopper Trip Acceptance Runs on separate accounts and phones
+- Primary Internal Tester as Test User A and Independent Internal Tester as Test User B each complete three successful Shopper Trip Acceptance Runs on separate accounts and phones
 - Each account proves active-trip recovery after refresh or app restart and while offline in at least one run
 - The six runs collectively exercise navigation handoff, arrived/completed/skipped/closed stop states, and route recalculation
+- AI-assisted or Primary Internal Tester runs as Test User B are supplemental and cannot replace the Independent Internal Tester's runs
 - Zero Blocking Defects
 - Zero cross-account exposure or modification of shopper-private data
 
 Privileged-workflow exit gate:
 
-- Each Internal Tester operates one complete Privileged Workflow Acceptance Cycle
+- Primary Internal Tester operates two complete Privileged Workflow Acceptance Cycles; Independent Internal Tester is not required to operate privileged accounts
 - Every Representative-Managed Field publishes directly for the assigned Synthetic Store
 - At least one Store Change Request is approved and one rejected; unapproved Controlled Store Fields remain unpublished
 - Representative self-approval is denied

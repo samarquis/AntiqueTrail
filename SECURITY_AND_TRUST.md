@@ -118,7 +118,8 @@ Required authorization test cases:
 - Store Representative cannot approve their own Store Change Request
 - Administrator Test Account alone approves Store Change Requests and grants or revokes representative roles during Internal Alpha and Private Beta
 - Administrator Test Account uses MFA, a separate session, and no shopper-private access
-- Each Internal Tester completes one Privileged Workflow Acceptance Cycle
+- Primary Internal Tester completes two Privileged Workflow Acceptance Cycles; AI execution is supervised and cannot approve a gate
+- Independent Internal Tester uses her own shopper account and phone and is not required to access privileged accounts
 - Every Representative-Managed Field publishes directly only for the assigned Synthetic Store
 - Approved Controlled Store Fields publish; rejected and pending changes do not
 - Representative self-approval is denied

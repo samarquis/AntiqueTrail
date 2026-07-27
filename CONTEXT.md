@@ -16,9 +16,37 @@ _Avoid_: Private Beta, public preview
 A trusted person authorized to use the Internal Alpha; Internal Testers are not external Beta Testers or Store Partner representatives.
 _Avoid_: Beta Tester, Store Partner
 
+**Primary Internal Tester**:
+Scott, who operates all separate role accounts during the Solo Agent-Assisted Alpha and performs the privileged-workflow acceptance tests.
+_Avoid_: Independent Internal Tester, AI Test Agent
+
+**Independent Internal Tester**:
+Scott's wife, who later performs independent shopper acceptance on her own phone and Test Account before any external testing.
+_Avoid_: AI Test Agent, Store Partner
+
+**Solo Agent-Assisted Alpha**:
+The first Internal Alpha stage, in which the Primary Internal Tester operates separate shopper, representative, and administrator accounts while an AI Test Agent may execute supervised repeatable tests.
+_Avoid_: Two-Person Acceptance, Private Beta
+
+**AI Test Agent**:
+Automation supervised by the Primary Internal Tester that may execute repeatable test actions and collect evidence but cannot substitute for independent human acceptance or approve a release gate.
+_Avoid_: Internal Tester, Administrator
+
+**Two-Person Acceptance**:
+The final Internal Alpha stage, in which the Independent Internal Tester completes the required shopper tests using her own account and phone. Store owners and other external participants remain excluded.
+_Avoid_: Solo Agent-Assisted Alpha, Private Beta
+
+**External Testing Readiness**:
+A future pre-pilot gate that must be explicitly defined and passed before any store-owner outreach, real-store import, or external participant is allowed.
+_Avoid_: Public launch, automatic approval
+
 **Test Account**:
 A distinct Internal Alpha user identity whose synthetic private data and actions remain isolated from every other Test Account.
 _Avoid_: Shared login, household account
+
+**Agent-Assisted Shopper Account**:
+A temporary shopper Test Account used only during Solo Agent-Assisted Alpha by the Primary Internal Tester or a supervised AI Test Agent. It is never reassigned to the Independent Internal Tester and its results do not replace Two-Person Acceptance.
+_Avoid_: Test User B, shared account
 
 **Synthetic Store**:
 A clearly fictional store record that models a business type or workflow without copying or implying affiliation with a real business.
@@ -49,7 +77,7 @@ An authorized owner or manager who acts for one Store Partner; Internal Alpha si
 _Avoid_: Vendor, store account
 
 **Representative Test Account**:
-A distinct Internal Alpha account scoped to one Synthetic Store and used to test Store Representative permissions without granting shopper-private access.
+A distinct Internal Alpha account scoped to one Synthetic Store and operated by the Primary Internal Tester to test Store Representative permissions without granting shopper-private access.
 _Avoid_: Shopper account, shared owner login
 
 **Administrator Test Account**:
@@ -65,7 +93,7 @@ A defect that prevents a required acceptance journey from completing or causes r
 _Avoid_: Cosmetic defect, non-blocking defect
 
 **Privileged Workflow Acceptance Cycle**:
-One complete Internal Alpha authorization test in which an Administrator Test Account grants one Synthetic Store scope, a Representative Test Account directly publishes allowed fields and submits controlled changes, the administrator approves and rejects requests, the administrator revokes the scope, and the existing representative session is denied further writes; every privileged action is audited and shopper-private data remains inaccessible.
+One complete Internal Alpha authorization test operated by the Primary Internal Tester in which an Administrator Test Account grants one Synthetic Store scope, a Representative Test Account directly publishes allowed fields and submits controlled changes, the administrator approves and rejects requests, the administrator revokes the scope, and the existing representative session is denied further writes; every privileged action is audited and shopper-private data remains inaccessible.
 _Avoid_: Owner demo, happy-path test
 
 **Representative-Managed Field**:
