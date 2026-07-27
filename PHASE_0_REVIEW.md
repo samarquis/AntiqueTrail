@@ -210,6 +210,7 @@ Do not create a monorepo, shared packages, or a second admin application until a
 - Pilot sequence: choose a small area for in-person owner outreach, recruit consenting Store Partners, invite owner/manager Beta Testers, prove the Private Beta, then advertise. Candidate shops remain prospective until explicit agreement. Approved 2026-07-27.
 - Topeka city limits is the future Private Beta Pilot Area. No outreach, partnership claim, or real-location import begins until pre-pilot readiness is defined and passed. Approved 2026-07-27.
 - Internal Alpha precedes Private Beta: two designated Internal Testers use personally controlled phones and clearly fictional Synthetic Stores; no real-store records or external participants. Approved 2026-07-27.
+- Internal Testers use separate Test Accounts. Test User A and Test User B may duplicate actions or values, but private records remain separately owned and inaccessible across accounts; household sharing is disabled for this test. Approved 2026-07-27.
 
 ### Before scaffolding or schema design
 

@@ -16,6 +16,10 @@ _Avoid_: Private Beta, public preview
 A trusted person authorized to use the Internal Alpha; Internal Testers are not external Beta Testers or Store Partner representatives.
 _Avoid_: Beta Tester, Store Partner
 
+**Test Account**:
+A distinct Internal Alpha user identity whose synthetic private data and actions remain isolated from every other Test Account.
+_Avoid_: Shared login, household account
+
 **Synthetic Store**:
 A clearly fictional store record that models a business type or workflow without copying or implying affiliation with a real business.
 _Avoid_: Seed store, Prospective Store Partner

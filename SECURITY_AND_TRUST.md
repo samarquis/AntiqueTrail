@@ -111,6 +111,7 @@ Never rely only on frontend visibility.
 Required authorization test cases:
 
 - User A cannot read User B private records
+- Test User A and Test User B may create duplicate values without sharing record ownership or private-data visibility
 - Former household member loses access immediately
 - Store owner cannot read user notes or trips
 - Store owner cannot alter reviews
