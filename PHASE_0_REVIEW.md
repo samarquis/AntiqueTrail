@@ -204,6 +204,10 @@ Do not create a monorepo, shared packages, or a second admin application until a
 
 ## 7. Decisions requiring approval
 
+### Resolved during grilling
+
+- Private Beta launches without public user-generated content. Regional Public MVP adds text-only public ratings and reviews only after moderation and abuse controls pass. Approved 2026-07-27.
+
 ### Before scaffolding or schema design
 
 1. Which implementation phases collectively define public MVP?
@@ -211,19 +215,18 @@ Do not create a monorepo, shared packages, or a second admin application until a
 3. Store-data source, license, attribution, refresh, and Google Places constraints.
 4. Mapping/routing provider and whether the product may send precise coordinates to it as a disclosed processor.
 5. Include the proposed transparent match score in MVP, or remove match indicators from MVP.
-6. Private beta without reviews versus public MVP with text-only reviews.
-7. Claim intake only versus verified owner editing; approved verification methods.
-8. Review identity, eligibility, conflict disclosure, deletion behavior, moderation rules, and appeal policy.
-9. Retention/deletion/backup schedule, RPO, RTO, and break-glass access policy.
-10. Route feasibility semantics, traffic assumptions, and time-zone/temporary-market behavior.
-11. Offline cache, logout purge, revocation, and sync-conflict behavior.
-12. Minimum age, launch countries, accessibility target, and supported browser/device baseline.
+6. Claim intake only versus verified owner editing; approved verification methods.
+7. Review identity, eligibility, conflict disclosure, deletion behavior, moderation rules, and appeal policy.
+8. Retention/deletion/backup schedule, RPO, RTO, and break-glass access policy.
+9. Route feasibility semantics, traffic assumptions, and time-zone/temporary-market behavior.
+10. Offline cache, logout purge, revocation, and sync-conflict behavior.
+11. Minimum age, launch countries, accessibility target, and supported browser/device baseline.
 
 ### May wait until after scaffold approval
 
-13. Final product name.
-14. Hosting, analytics, transactional email, and image-moderation providers, provided no related feature is built first.
-15. Monetization and free/paid owner features.
-16. Households, finds, public photos, events, exports beyond baseline JSON/CSV, and Android release timing.
+12. Final product name.
+13. Hosting, analytics, transactional email, and image-moderation providers, provided no related feature is built first.
+14. Monetization and free/paid owner features.
+15. Households, finds, public photos, events, exports beyond baseline JSON/CSV, and Android release timing.
 
-Implementation remains blocked pending approval of items 1–12.
+Implementation remains blocked pending approval of items 1–11.

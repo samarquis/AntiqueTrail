@@ -44,6 +44,10 @@ Security, privacy, moderation, backups, logs, incident response, and authorizati
 
 Start with one strong region and verified store data rather than a sparse national launch.
 
+### Staged release gates
+
+Launch first as a controlled-access Private Beta without public user-generated content. After directory, trip planning, moderation, and abuse controls are proven, launch a Regional Public MVP with text-only public ratings and reviews.
+
 ## Unresolved decisions
 
 1. Final product name
@@ -53,21 +57,20 @@ Start with one strong region and verified store data rather than a sparse nation
 5. Store discovery source
 6. Whether Google Places data may be stored and displayed under provider terms
 7. Business verification methods
-8. Whether public reviews are available in the first private beta
-9. Whether household sharing belongs in MVP
-10. Whether find capture belongs in MVP
-11. Monetization model
-12. Free versus paid store-owner features
-13. Analytics provider
-14. Email and transactional notification provider
-15. Image moderation provider
-16. Hosting platform
-17. Legal entity and insurance requirements
-18. Minimum age
-19. Whether the service launches only in the United States
-20. Data retention periods
-21. Review appeal policy
-22. Public photo approval workflow
-23. Store-event model
-24. Accessibility information source
-25. Export formats and portability
+8. Whether household sharing belongs in MVP
+9. Whether find capture belongs in MVP
+10. Monetization model
+11. Free versus paid store-owner features
+12. Analytics provider
+13. Email and transactional notification provider
+14. Image moderation provider
+15. Hosting platform
+16. Legal entity and insurance requirements
+17. Minimum age
+18. Whether the service launches only in the United States
+19. Data retention periods
+20. Review appeal policy
+21. Public photo approval workflow
+22. Store-event model
+23. Accessibility information source
+24. Export formats and portability
