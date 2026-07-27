@@ -8,6 +8,18 @@ Antique Trail is a public regional product for discovering antique stores, plann
 A controlled-access pre-release used to prove directory and trip-planning behavior without public user-generated content.
 _Avoid_: Public beta, public MVP
 
+**Internal Alpha**:
+A pre-partner product stage limited to designated Internal Testers using Synthetic Stores on personally controlled devices.
+_Avoid_: Private Beta, public preview
+
+**Internal Tester**:
+A trusted person authorized to use the Internal Alpha; Internal Testers are not external Beta Testers or Store Partner representatives.
+_Avoid_: Beta Tester, Store Partner
+
+**Synthetic Store**:
+A clearly fictional store record that models a business type or workflow without copying or implying affiliation with a real business.
+_Avoid_: Seed store, Prospective Store Partner
+
 **Regional Public MVP**:
 The first publicly accessible release, limited to one approved region; it includes text-only public ratings and reviews after moderation and abuse controls pass.
 _Avoid_: Private beta, national launch

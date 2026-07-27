@@ -56,6 +56,10 @@ Choose a Pilot Area where direct shop-owner outreach is practical before public 
 
 Use Topeka city limits as the future Private Beta Pilot Area. Store outreach, partner claims, and real-location import remain deferred until a separate pre-pilot readiness gate is defined and passed.
 
+### Internal Alpha before external participation
+
+Run an Internal Alpha with two designated Internal Testers on personally controlled phones before adding real stores or contacting any owner or public entity. Test with Synthetic Stores only. Synthetic records may represent store types and owner workflows, but must not use real names, logos, photos, reviews, or imply affiliation.
+
 ## Unresolved decisions
 
 1. Final product name

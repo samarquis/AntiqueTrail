@@ -209,6 +209,7 @@ Do not create a monorepo, shared packages, or a second admin application until a
 - Private Beta launches without public user-generated content. Regional Public MVP adds text-only public ratings and reviews only after moderation and abuse controls pass. Approved 2026-07-27.
 - Pilot sequence: choose a small area for in-person owner outreach, recruit consenting Store Partners, invite owner/manager Beta Testers, prove the Private Beta, then advertise. Candidate shops remain prospective until explicit agreement. Approved 2026-07-27.
 - Topeka city limits is the future Private Beta Pilot Area. No outreach, partnership claim, or real-location import begins until pre-pilot readiness is defined and passed. Approved 2026-07-27.
+- Internal Alpha precedes Private Beta: two designated Internal Testers use personally controlled phones and clearly fictional Synthetic Stores; no real-store records or external participants. Approved 2026-07-27.
 
 ### Before scaffolding or schema design
 
