@@ -44,6 +44,14 @@ _Avoid_: Partner, vendor
 An antique shop whose authorized owner or manager explicitly agrees to participate and provide product feedback.
 _Avoid_: Vendor, beta tester
 
+**Store Representative**:
+An authorized owner or manager who acts for one Store Partner; Internal Alpha simulates this role against one Synthetic Store.
+_Avoid_: Vendor, store account
+
+**Representative Test Account**:
+A distinct Internal Alpha account scoped to one Synthetic Store and used to test Store Representative permissions without granting shopper-private access.
+_Avoid_: Shopper account, shared owner login
+
 **Beta Tester**:
 An invited person who uses the Private Beta and provides feedback; a Store Partner's owner or manager may be a Beta Tester.
 _Avoid_: Store, partner business

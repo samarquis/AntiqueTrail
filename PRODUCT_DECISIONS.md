@@ -64,6 +64,10 @@ Run an Internal Alpha with two designated Internal Testers on personally control
 
 Each Internal Tester uses a separate Test Account. Test User A and Test User B may intentionally perform identical actions or enter duplicate values, but each account owns separate records and cannot read or change the other's private data. Household sharing remains disabled during this isolation test.
 
+### Representative Test Account
+
+Internal Alpha includes a third, separate Representative Test Account scoped to one Synthetic Store. Either Internal Tester may operate it, but it is never shared with Test User A or Test User B sessions. It cannot access shopper saves, personal ratings, notes, trips, or other private records. Exact Store Representative capabilities remain unresolved.
+
 ## Unresolved decisions
 
 1. Final product name

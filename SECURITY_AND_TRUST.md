@@ -112,6 +112,7 @@ Required authorization test cases:
 
 - User A cannot read User B private records
 - Test User A and Test User B may create duplicate values without sharing record ownership or private-data visibility
+- Representative Test Account is scoped to one Synthetic Store and cannot read either Test User's private records
 - Former household member loses access immediately
 - Store owner cannot read user notes or trips
 - Store owner cannot alter reviews
