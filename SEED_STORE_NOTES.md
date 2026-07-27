@@ -4,6 +4,8 @@ These businesses were discussed during product discovery and may be candidates f
 
 Important:
 
+- Topeka city limits is the future Private Beta Pilot Area.
+- These names are research candidates only; this file does not authorize import, outreach, or partnership claims.
 - Verify every business from current public sources before import.
 - Do not import private household ratings.
 - Do not import private notes.

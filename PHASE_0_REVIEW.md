@@ -208,11 +208,12 @@ Do not create a monorepo, shared packages, or a second admin application until a
 
 - Private Beta launches without public user-generated content. Regional Public MVP adds text-only public ratings and reviews only after moderation and abuse controls pass. Approved 2026-07-27.
 - Pilot sequence: choose a small area for in-person owner outreach, recruit consenting Store Partners, invite owner/manager Beta Testers, prove the Private Beta, then advertise. Candidate shops remain prospective until explicit agreement. Approved 2026-07-27.
+- Topeka city limits is the future Private Beta Pilot Area. No outreach, partnership claim, or real-location import begins until pre-pilot readiness is defined and passed. Approved 2026-07-27.
 
 ### Before scaffolding or schema design
 
 1. Which implementation phases collectively define public MVP?
-2. Exact launch metro/corridor.
+2. Exact Regional Public MVP launch metro/corridor; Private Beta Pilot Area is Topeka city limits.
 3. Store-data source, license, attribution, refresh, and Google Places constraints.
 4. Mapping/routing provider and whether the product may send precise coordinates to it as a disclosed processor.
 5. Include the proposed transparent match score in MVP, or remove match indicators from MVP.

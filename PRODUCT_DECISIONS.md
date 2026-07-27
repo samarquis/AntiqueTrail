@@ -52,6 +52,10 @@ Launch first as a controlled-access Private Beta without public user-generated c
 
 Choose a Pilot Area where direct shop-owner outreach is practical before public advertising. A candidate shop is a Prospective Store Partner until an authorized owner or manager explicitly agrees to participate; that person may then join the Private Beta as a Beta Tester. Do not imply a partnership before consent.
 
+### Topeka Private Beta Pilot Area
+
+Use Topeka city limits as the future Private Beta Pilot Area. Store outreach, partner claims, and real-location import remain deferred until a separate pre-pilot readiness gate is defined and passed.
+
 ## Unresolved decisions
 
 1. Final product name
