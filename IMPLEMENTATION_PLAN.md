@@ -148,6 +148,18 @@ Initial Private Beta Cohort:
 - Keep AI and Agent-Assisted Test Accounts restricted to Synthetic Store data
 - Block additional users and real stores until a separate expansion gate passes
 
+Initial Private Beta Expansion Gate:
+
+- Owner completes Representative-Managed Field edits, submits two Store Change Requests respectively approved and rejected by the Administrator, uses MFA, and participates in scheduled revoke/regrant testing
+- Scott and Independent Internal Tester each complete two shopper trip runs containing the Pilot Store Record
+- Support and feedback intake works
+- Privileged audit records are complete
+- Monitoring, backup restore, and rollback checks remain passing
+- Zero open Blocking Defects or known privacy, security, or data-loss defects
+- Owner confirms that the workflow is understandable
+- Primary Internal Tester approves dated evidence for every check
+- No minimum calendar duration; any failed check blocks expansion
+
 ## Phase 2 — Public reviews and store claims
 
 Features:

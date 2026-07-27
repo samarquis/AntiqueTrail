@@ -108,6 +108,10 @@ After consent and authority verification, an Administrator creates one Pilot Sto
 
 Limit the Initial Private Beta Cohort to four human accounts and one Pilot Store Record: Scott's separate shopper and Administrator accounts, Scott's wife's separate shopper account, and the first owner's Store Representative account. The owner does not use the representative account for shopper activity; any future shopper testing requires a separately approved account. AI and Agent-Assisted Test Accounts remain restricted to Synthetic Store data. Do not add another user or real store until a separate expansion gate passes.
 
+### Initial Private Beta Expansion Gate
+
+Before adding any user or real store, require dated evidence approved by the Primary Internal Tester that: the owner completed Representative-Managed Field edits, submitted two Store Change Requests that the Administrator approved and rejected respectively, used MFA, and participated in a scheduled revoke/regrant test; Scott and the Independent Internal Tester each completed two shopper trip runs containing the Pilot Store Record; support and feedback intake worked; privileged audit records were complete; monitoring, backup restore, and rollback checks remained passing; no Blocking Defect or known privacy, security, or data-loss defect remained open; and the owner confirmed that the workflow was understandable. No minimum calendar duration applies. A failed check blocks expansion.
+
 ## Unresolved decisions
 
 1. Final product name

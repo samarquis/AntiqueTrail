@@ -37,6 +37,8 @@ Pilot-restricted data is readable only by invited Private Beta participants and 
 
 The Initial Private Beta Cohort contains only Scott's separate shopper and Administrator accounts, Scott's wife's shopper account, and one Store Representative account. AI and Agent-Assisted Test Accounts cannot read Pilot Store Records or other pilot-restricted data.
 
+Expansion requires a passed Initial Private Beta Expansion Gate. No additional account or Pilot Store Record is authorized merely because time has elapsed.
+
 ### Private to user
 
 - Personal rating
@@ -139,6 +141,8 @@ Required authorization test cases:
 - During the Initial Private Beta Cohort, the Store Representative account cannot perform shopper activity; a separately approved shopper account is required
 - AI and Agent-Assisted Test Accounts cannot read Pilot Store Records or pilot-restricted participant data
 - Only Initial Private Beta Cohort accounts can read the Pilot Store Record
+- Scheduled representative revoke/regrant test denies the existing session during revocation and restores only the approved store scope after regrant
+- Initial Private Beta Expansion Gate retains dated evidence for owner workflow, shopper Pilot Store Record trips, support intake, audit completeness, recovery controls, defect status, and owner usability confirmation
 - Former household member loses access immediately
 - Store owner cannot read user notes or trips
 - Store owner cannot alter reviews

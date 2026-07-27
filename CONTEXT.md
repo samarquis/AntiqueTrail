@@ -88,6 +88,10 @@ _Avoid_: Synthetic Store, public listing
 The first controlled external test: Scott's separate shopper and administrator accounts, Scott's wife's separate shopper account, and one Store Partner representative account, with one Pilot Store Record. AI accounts, additional users, and additional real stores are excluded.
 _Avoid_: Public beta, open signup
 
+**Initial Private Beta Expansion Gate**:
+A Primary Internal Tester-approved evidence gate that the first owner workflow, shopper use of the Pilot Store Record, support, auditing, monitoring, recovery controls, and defect status all passed before any additional user or real store may be added. It has no minimum calendar duration.
+_Avoid_: Automatic expansion, public launch gate
+
 **Store Representative**:
 An authorized owner or manager who acts for one Store Partner; Internal Alpha simulates this role against one Synthetic Store.
 _Avoid_: Vendor, store account
