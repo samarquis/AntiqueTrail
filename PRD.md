@@ -466,6 +466,16 @@ Store Representatives may not:
 - Buy a higher public rating
 - Identify anonymous browsing behavior
 
+### First Store Partner onboarding
+
+- Demonstrate with Synthetic Stores only
+- Obtain Store Partner Pilot Consent before creating a real store record or representative account
+- Verify representative authority in person and through a published business contact
+- Require an owner-controlled verified email and MFA; prohibit shared credentials
+- State that participation is voluntary, invitation-only, unpaid, non-endorsing, and not public advertising
+- On withdrawal, revoke representative access and remove the real store from the active pilot
+- Audit onboarding, scope grants, withdrawal, and revocation
+
 ## Moderation
 
 The product requires:

@@ -76,6 +76,10 @@ _Avoid_: Partner, vendor
 An antique shop whose authorized owner or manager explicitly agrees to participate and provide product feedback.
 _Avoid_: Vendor, beta tester
 
+**Store Partner Pilot Consent**:
+Plain-language written consent signed before any real store record or representative account is created. It states that participation is voluntary, invitation-only, unpaid, non-endorsing, and non-advertised; identifies permitted store data and contact; and explains withdrawal.
+_Avoid_: Verbal interest, public partnership
+
 **Store Representative**:
 An authorized owner or manager who acts for one Store Partner; Internal Alpha simulates this role against one Synthetic Store.
 _Avoid_: Vendor, store account

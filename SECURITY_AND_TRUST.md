@@ -194,6 +194,15 @@ Suggested domains:
 
 ## Business claims
 
+First Store Partner pilot:
+
+- Use Synthetic Stores for the demonstration; do not create a real record during initial interest
+- Obtain Store Partner Pilot Consent before creating a real store record or representative account
+- Verify authority in person and through a published business contact
+- Require owner-controlled verified email and MFA; prohibit shared credentials
+- Audit consent, verification result, scope grant, withdrawal, and revocation without logging unnecessary identity evidence
+- On withdrawal, revoke access and remove the real store from the active pilot
+
 Verification options may include:
 
 - Published business phone

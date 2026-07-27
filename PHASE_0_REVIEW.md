@@ -219,6 +219,7 @@ Do not create a monorepo, shared packages, or a second admin application until a
 - Internal Alpha privileged-workflow exit gate requires two complete Privileged Workflow Acceptance Cycles operated by the Primary Internal Tester; the Independent Internal Tester is not required to use privileged accounts. The cycles prove direct versus approval-controlled publishing, approve and reject paths, self-approval denial, MFA-protected administration, existing-session write denial after revocation, complete privileged-action auditing, and denial of shopper-private access to both privileged accounts. Zero Blocking Defects are allowed; every allowed action must succeed and every forbidden action must be denied. Approved 2026-07-27.
 - No store-owner outreach, real-store import, or external participant is allowed until both Internal Alpha stages and a separate External Testing Readiness gate pass. Then one consenting Store Partner representative may join the controlled, invitation-only Private Beta to test the real owner workflow before public access. This does not authorize public advertising. Approved 2026-07-27.
 - External Testing Readiness requires dated Primary Internal Tester approval of both Internal Alpha stages; all authorization/security tests; zero open Blocking Defects or known privacy, security, or data-loss defects; successful backup-restore and rollback rehearsals; working monitoring, error reporting, and support intake; ready pilot privacy notice and owner consent; and a successful end-to-end External Testing Dress Rehearsal. AI may collect evidence but cannot approve. Any failed check blocks first-owner outreach. Approved 2026-07-27.
+- First Store Partner onboarding uses a Synthetic Store demonstration, written Store Partner Pilot Consent before any real record/account, in-person plus published-business-contact authority verification, owner-controlled verified email, required MFA, and no shared credentials. Participation is voluntary, invitation-only, unpaid, non-endorsing, and non-advertised. Withdrawal revokes access and removes the real store from the active pilot; onboarding and withdrawal actions are audited. Approved 2026-07-27.
 
 ### Before scaffolding or schema design
 
@@ -227,7 +228,7 @@ Do not create a monorepo, shared packages, or a second admin application until a
 3. Store-data source, license, attribution, refresh, and Google Places constraints.
 4. Mapping/routing provider and whether the product may send precise coordinates to it as a disclosed processor.
 5. Include the proposed transparent match score in MVP, or remove match indicators from MVP.
-6. Business-claim intake and verification methods; verified Store Representative field permissions are resolved by ADR 0001.
+6. Scalable business-claim intake and verification after the first Store Partner pilot; the first pilot's onboarding method and verified Store Representative field permissions are resolved.
 7. Review identity, eligibility, conflict disclosure, deletion behavior, moderation rules, and appeal policy.
 8. Retention/deletion/backup schedule, RPO, RTO, and break-glass access policy.
 9. Route feasibility semantics, traffic assumptions, and time-zone/temporary-market behavior.

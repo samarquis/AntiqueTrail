@@ -119,6 +119,16 @@ External Testing Readiness criteria before first-owner contact:
 
 Any failed check blocks owner outreach, real-store import, and external participation.
 
+First Store Partner onboarding:
+
+- Demonstrate with Synthetic Stores only
+- Obtain Store Partner Pilot Consent before creating a real store record or representative account
+- Verify representative authority in person and through a published business contact
+- Require owner-controlled verified email and MFA; prohibit shared credentials
+- Record voluntary, invitation-only, unpaid, non-endorsing, and non-advertised pilot terms
+- On withdrawal, revoke representative access and remove the real store from the active pilot
+- Audit onboarding, scope grants, withdrawal, and revocation
+
 ## Phase 2 — Public reviews and store claims
 
 Features:

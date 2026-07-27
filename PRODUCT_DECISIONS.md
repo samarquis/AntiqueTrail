@@ -96,6 +96,10 @@ Do not contact or include a store owner, import a real store, or add any externa
 
 Before first-owner contact, require dated passing evidence approved by the Primary Internal Tester for all seven checks: both Internal Alpha stages; the complete authorization and security test set; zero open Blocking Defects or known privacy, security, or data-loss defects; successful backup-restore and rollback rehearsals; working pilot-environment monitoring, error reporting, and support intake; ready pilot privacy notice and owner consent; and one successful External Testing Dress Rehearsal. A failed check blocks outreach. AI Test Agents may collect evidence but cannot approve the gate.
 
+### First Store Partner onboarding
+
+Demonstrate the product using Synthetic Stores only. Before creating a real store record or representative account, obtain Store Partner Pilot Consent and verify the representative's authority both in person and through a published business contact. The representative must use an owner-controlled verified email and MFA; shared credentials are prohibited. Consent states that the pilot is voluntary, invitation-only, unpaid, non-endorsing, and not public advertising. On withdrawal, revoke representative access and remove the real store from the active pilot. Audit onboarding, scope grants, withdrawal, and revocation.
+
 ## Unresolved decisions
 
 1. Final product name
@@ -104,7 +108,7 @@ Before first-owner contact, require dated passing evidence approved by the Prima
 4. Route-optimization provider or custom algorithm
 5. Store discovery source
 6. Whether Google Places data may be stored and displayed under provider terms
-7. Business verification methods
+7. Scalable business-verification methods after the first Store Partner pilot
 8. Whether household sharing belongs in MVP
 9. Whether find capture belongs in MVP
 10. Monetization model
