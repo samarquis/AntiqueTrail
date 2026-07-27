@@ -433,18 +433,29 @@ Fields:
 
 ## Business accounts
 
-Verified owners may:
+Verified Store Representatives may directly publish for their assigned store:
 
-- Edit verified public details
 - Maintain regular and holiday hours
-- Add official description
-- Upload official photos
+- Maintain phone and website
+- Maintain official description
+- Mark temporary closure
+
+Verified Store Representatives must submit a Store Change Request for:
+
+- Store name
+- Address or coordinates
+- Ownership
+- Permanent closure
+- Category tags
+- Public photos
+
+Subject to separate feature requirements, verified Store Representatives may:
+
 - Respond to reviews
 - Add events
-- Mark temporary closure
 - View aggregated privacy-safe engagement metrics
 
-Owners may not:
+Store Representatives may not:
 
 - Edit or delete user reviews
 - Access private notes

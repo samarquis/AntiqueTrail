@@ -52,6 +52,18 @@ _Avoid_: Vendor, store account
 A distinct Internal Alpha account scoped to one Synthetic Store and used to test Store Representative permissions without granting shopper-private access.
 _Avoid_: Shopper account, shared owner login
 
+**Representative-Managed Field**:
+A public store field that its Store Representative may publish directly: regular hours, holiday hours, phone, website, official description, or temporary closure.
+_Avoid_: Controlled Store Field
+
+**Controlled Store Field**:
+A store identity, location, ownership, permanence, classification, or public-media field that requires approval before publication.
+_Avoid_: Representative-Managed Field
+
+**Store Change Request**:
+A proposed change to a Controlled Store Field that remains unpublished until an authorized reviewer approves it.
+_Avoid_: Direct edit, correction report
+
 **Beta Tester**:
 An invited person who uses the Private Beta and provides feedback; a Store Partner's owner or manager may be a Beta Tester.
 _Avoid_: Store, partner business

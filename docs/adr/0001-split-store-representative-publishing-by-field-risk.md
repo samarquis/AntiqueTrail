@@ -1,0 +1,3 @@
+# Split Store Representative Publishing by Field Risk
+
+Store Representatives may directly publish time-sensitive, low-risk fields for their assigned store: regular hours, holiday hours, phone, website, official description, and temporary closure. Store identity, address or coordinates, ownership, permanent closure, category tags, and public photos require an approved Store Change Request. This split keeps routine information current without allowing an account compromise or mistake to silently change store identity, discovery, ownership, permanence, or public media; Store Representatives never edit reviews or access shopper-private data.

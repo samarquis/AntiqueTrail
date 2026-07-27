@@ -66,7 +66,11 @@ Each Internal Tester uses a separate Test Account. Test User A and Test User B m
 
 ### Representative Test Account
 
-Internal Alpha includes a third, separate Representative Test Account scoped to one Synthetic Store. Either Internal Tester may operate it, but it is never shared with Test User A or Test User B sessions. It cannot access shopper saves, personal ratings, notes, trips, or other private records. Exact Store Representative capabilities remain unresolved.
+Internal Alpha includes a third, separate Representative Test Account scoped to one Synthetic Store. Either Internal Tester may operate it, but it is never shared with Test User A or Test User B sessions. It cannot access shopper saves, personal ratings, notes, trips, or other private records.
+
+### Store Representative publishing split
+
+Store Representatives may directly publish regular hours, holiday hours, phone, website, official description, and temporary closure for their assigned store. Name, address or coordinates, ownership, permanent closure, category tags, and public photos require an approved Store Change Request. Store Representatives never edit reviews or access shopper-private data. See `docs/adr/0001-split-store-representative-publishing-by-field-risk.md`.
 
 ## Unresolved decisions
 

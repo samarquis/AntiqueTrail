@@ -105,7 +105,7 @@ Assessment: direction is sound, but it is not yet an implementable privacy or se
 |---|---|---|---|---|---|---|---|
 | Approved store/profile/hours read | Read | Read | Read | Read | Read | Read | Read |
 | Store correction report | Rate-limited create only if approved | Create/read own status | Same as user | Create for claimed store | Triage/update assigned | Full | Validate/notify |
-| Public store data write | None | None | None | Update allowed claimed fields or submit proposal, per approved policy | Correct/moderate | Full | Import/merge/publish |
+| Public store data write | None | None | None | Directly publish Representative-Managed Fields for assigned store; submit Store Change Requests for Controlled Store Fields | Review/approve assigned requests | Full | Validate/apply approved transitions |
 | Approved review/rating read | Read | Read | Read | Read | Read | Read | Read |
 | Review create/edit/delete | None | Own only; one active review per store | Own review only | Own shopper review only; never another user's | Hide/restore; never impersonate author | Exceptional audited action | Aggregate/status transitions only |
 | Owner response | Read | Read | Read | Create/edit own response on claimed store | Hide/restore | Full | Publish/status transitions |
@@ -211,7 +211,8 @@ Do not create a monorepo, shared packages, or a second admin application until a
 - Topeka city limits is the future Private Beta Pilot Area. No outreach, partnership claim, or real-location import begins until pre-pilot readiness is defined and passed. Approved 2026-07-27.
 - Internal Alpha precedes Private Beta: two designated Internal Testers use personally controlled phones and clearly fictional Synthetic Stores; no real-store records or external participants. Approved 2026-07-27.
 - Internal Testers use separate Test Accounts. Test User A and Test User B may duplicate actions or values, but private records remain separately owned and inaccessible across accounts; household sharing is disabled for this test. Approved 2026-07-27.
-- Internal Alpha includes a third Representative Test Account scoped to one Synthetic Store. Either tester may operate it, but it cannot access shopper-private records or share Test User A/B sessions. Exact representative capabilities remain unresolved. Approved 2026-07-27.
+- Internal Alpha includes a third Representative Test Account scoped to one Synthetic Store. Either tester may operate it, but it cannot access shopper-private records or share Test User A/B sessions. Approved 2026-07-27.
+- Store Representative publishing uses a field-risk split: hours, phone, website, description, and temporary closure publish directly; identity, location, ownership, permanent closure, categories, and public photos require approval. Reviews and shopper-private data remain inaccessible. ADR 0001. Approved 2026-07-27.
 
 ### Before scaffolding or schema design
 
@@ -220,7 +221,7 @@ Do not create a monorepo, shared packages, or a second admin application until a
 3. Store-data source, license, attribution, refresh, and Google Places constraints.
 4. Mapping/routing provider and whether the product may send precise coordinates to it as a disclosed processor.
 5. Include the proposed transparent match score in MVP, or remove match indicators from MVP.
-6. Claim intake only versus verified owner editing; approved verification methods.
+6. Business-claim intake and verification methods; verified Store Representative field permissions are resolved by ADR 0001.
 7. Review identity, eligibility, conflict disclosure, deletion behavior, moderation rules, and appeal policy.
 8. Retention/deletion/backup schedule, RPO, RTO, and break-glass access policy.
 9. Route feasibility semantics, traffic assumptions, and time-zone/temporary-market behavior.
