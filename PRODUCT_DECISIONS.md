@@ -90,7 +90,7 @@ The Primary Internal Tester must operate two complete Privileged Workflow Accept
 
 ### No store-owner participation before readiness
 
-Do not contact or include a store owner, import a real store, or add any external participant until Solo Agent-Assisted Alpha and Two-Person Acceptance pass and a separate External Testing Readiness gate is defined and passed. Whether the first owner joins a controlled Private Beta or waits until public access remains unresolved.
+Do not contact or include a store owner, import a real store, or add any external participant until Solo Agent-Assisted Alpha and Two-Person Acceptance pass and a separate External Testing Readiness gate is defined and passed. After that gate passes, invite one consenting Store Partner representative into the controlled, invitation-only Private Beta to test the real owner workflow before public access. The gate does not authorize public advertising.
 
 ## Unresolved decisions
 

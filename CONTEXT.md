@@ -37,7 +37,7 @@ The final Internal Alpha stage, in which the Independent Internal Tester complet
 _Avoid_: Solo Agent-Assisted Alpha, Private Beta
 
 **External Testing Readiness**:
-A future pre-pilot gate that must be explicitly defined and passed before any store-owner outreach, real-store import, or external participant is allowed.
+A future pre-pilot gate that must be explicitly defined and passed before any store-owner outreach, real-store import, or external participant is allowed. Passing it permits invitation of one consenting Store Partner representative into the controlled Private Beta; it does not authorize public access or advertising.
 _Avoid_: Public launch, automatic approval
 
 **Test Account**:

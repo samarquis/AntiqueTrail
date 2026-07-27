@@ -488,7 +488,7 @@ Stages:
 
 - Solo Agent-Assisted Alpha: the Primary Internal Tester operates every separate role account; AI Test Agents may execute supervised repeatable tests but cannot replace human acceptance or approve a gate
 - Two-Person Acceptance: the Independent Internal Tester completes shopper acceptance on her own phone using a newly created Test User B account; no solo-stage account is reassigned to her
-- No store owner, real store, or external participant before both stages and the separately approved External Testing Readiness gate pass
+- No store owner, real store, or external participant before both stages and the separately approved External Testing Readiness gate pass; afterward, invite one consenting Store Partner representative into controlled Private Beta before public access
 
 Required:
 
