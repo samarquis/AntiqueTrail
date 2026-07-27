@@ -48,6 +48,10 @@ Start with one strong region and verified store data rather than a sparse nation
 
 Launch first as a controlled-access Private Beta without public user-generated content. After directory, trip planning, moderation, and abuse controls are proven, launch a Regional Public MVP with text-only public ratings and reviews.
 
+### In-person store-partner pilot
+
+Choose a Pilot Area where direct shop-owner outreach is practical before public advertising. A candidate shop is a Prospective Store Partner until an authorized owner or manager explicitly agrees to participate; that person may then join the Private Beta as a Beta Tester. Do not imply a partnership before consent.
+
 ## Unresolved decisions
 
 1. Final product name

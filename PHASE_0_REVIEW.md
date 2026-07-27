@@ -207,6 +207,7 @@ Do not create a monorepo, shared packages, or a second admin application until a
 ### Resolved during grilling
 
 - Private Beta launches without public user-generated content. Regional Public MVP adds text-only public ratings and reviews only after moderation and abuse controls pass. Approved 2026-07-27.
+- Pilot sequence: choose a small area for in-person owner outreach, recruit consenting Store Partners, invite owner/manager Beta Testers, prove the Private Beta, then advertise. Candidate shops remain prospective until explicit agreement. Approved 2026-07-27.
 
 ### Before scaffolding or schema design
 
