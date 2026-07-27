@@ -154,6 +154,10 @@ Required authorization test cases:
 - Moderator scope is limited
 - Administrator actions are audited
 - Signed private image URLs expire
+- Store Partner Invitation token alone cannot create a role, store scope, Pilot Store Record, or pilot-data access
+- Expired, revoked, or redeemed invitation tokens are denied
+- Pending Partner Identity cannot read pilot-restricted data or perform Store Representative actions
+- Store Representative grant requires verified email, MFA, published-contact authority verification, and Administrator approval
 
 ## Database separation
 
@@ -212,6 +216,19 @@ Suggested domains:
 - No purchase of rating improvements
 
 ## Business claims
+
+### Store Partner Invitation security
+
+- Administrator must use MFA and recent authentication to generate or revoke an invitation
+- QR contains a high-entropy opaque token only; no identity, store, email, or role data
+- Store only a token hash; do not log the raw token
+- Expire after 30 minutes or one successful redemption; rate-limit redemption attempts
+- Scanning opens onboarding but cannot grant access, install software, or create a Pilot Store Record
+- Collect consent before creating the Pending Partner Identity
+- Bind successful redemption to the verified owner-controlled identity
+- Keep the pending identity unprivileged until published-contact verification and Administrator approval
+- Audit generation, expiry, revocation, redemption, consent, verification, approval, and grant events
+- A photographed token cannot bypass email verification, MFA, authority verification, or Administrator approval
 
 First Store Partner pilot:
 

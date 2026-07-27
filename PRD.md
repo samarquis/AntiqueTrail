@@ -517,6 +517,20 @@ Store Representatives may not:
 - After all three pass, stop and conduct a separate public-readiness review
 - Do not treat pilot passage as authorization for public access
 
+### Store Partner Invitation
+
+- Administrator requires MFA and recent authentication to generate an invitation in person after a Synthetic Store demonstration and verbal interest
+- Display a QR code containing only an opaque random token; no owner, store, email, or role data
+- Expire after 30 minutes or one successful redemption; allow Administrator revocation and regeneration
+- Open the existing PWA partner-onboarding page; do not directly install the PWA or grant a role
+- Obtain Store Partner Pilot Consent before creating the Pending Partner Identity
+- Verify owner-controlled email and configure MFA
+- Keep the identity pending with no store role, scope, or pilot-data access
+- Administrator independently verifies authority through the published business contact and approves
+- Only after approval, create the Pilot Store Record and grant the store-scoped Store Representative role
+- Show device-appropriate PWA installation instructions after approved sign-in
+- Audit generation, expiry, revocation, redemption, consent, verification, approval, role grant, and installation handoff
+
 ## Moderation
 
 The product requires:

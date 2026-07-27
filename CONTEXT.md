@@ -80,6 +80,14 @@ _Avoid_: Vendor, beta tester
 Plain-language written consent signed before any real store record or representative account is created. It states that participation is voluntary, invitation-only, unpaid, non-endorsing, and non-advertised; identifies permitted store data and contact; and explains withdrawal.
 _Avoid_: Verbal interest, public partnership
 
+**Store Partner Invitation**:
+An Administrator-generated, 30-minute, single-redemption QR invitation containing only an opaque random token. It opens the PWA partner-onboarding flow but grants no role, store scope, or pilot-data access.
+_Avoid_: Download code, role grant, public QR code
+
+**Pending Partner Identity**:
+An owner-controlled identity created after pilot consent, verified email, and MFA setup but before authority approval. It has no Store Representative role, store scope, or pilot-data access.
+_Avoid_: Store Representative, approved claim
+
 **Pilot Store Record**:
 The first real Store Partner listing, created by an Administrator only after Store Partner Pilot Consent. It contains owner-confirmed core listing data with provenance and verification date, is visible only to invited Private Beta participants, and excludes public user-generated or promotional features.
 _Avoid_: Synthetic Store, public listing

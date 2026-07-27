@@ -169,6 +169,19 @@ Controlled Private Beta Expansion:
 - Keep access invitation-only with no public advertising
 - Stop after all three pass and conduct a separate public-readiness review
 
+Store Partner Invitation:
+
+- Require Administrator MFA and recent authentication to generate an in-person invitation
+- Generate a high-entropy opaque token, store only its hash, and embed no identity, store, email, or role data in the QR
+- Expire after 30 minutes or one successful redemption; support revocation and regeneration
+- Route the QR to the existing PWA partner-onboarding page without granting access or triggering installation
+- Collect Store Partner Pilot Consent before creating a Pending Partner Identity
+- Require verified owner-controlled email and MFA while keeping the identity unprivileged
+- Require published-business-contact authority verification and separate Administrator approval
+- Create the Pilot Store Record and store-scoped Store Representative grant only after approval
+- Show PWA installation instructions after approved sign-in
+- Audit every invitation and authorization transition
+
 ## Phase 2 — Public reviews and store claims
 
 Features:

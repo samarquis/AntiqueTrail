@@ -84,6 +84,7 @@ Assessment: direction is sound, but it is not yet an implementable privacy or se
 |---|---|---|---|
 | Critical | Cross-user private-data access through missing RLS, leaky views/RPCs, storage paths, or service-role use | Deny-by-default policies; non-exposed operational schemas; stable owner IDs; authorization tests for every table, view, RPC, function, and bucket | Policy regression remains possible; CI and pre-release tests are mandatory. |
 | Critical | Role escalation or business-claim hijack | Server-only role changes; MFA and recent auth; multi-channel/manual claim evidence; audited grant/revoke; no role fields writable by clients | Social engineering and compromised business channels. |
+| High | Photographed, stolen, replayed, or phished Store Partner Invitation | Opaque high-entropy token; hash-only storage; 30-minute/single-redemption expiry; revocation; rate limits; consent; verified email; MFA; independent authority verification; separate Administrator approval | A stolen token may cause nuisance or attempted social engineering but cannot grant pilot access by itself. |
 | High | Store owner accesses private shopper data or alters criticism | Store-scoped grants; separate owner-response records; no review/private-data policies for owners; moderation appeal path | Legal/support pressure must not become ad hoc access. |
 | High | Rating manipulation, review spam, and coordinated abuse | Unique active-review constraint; server aggregate; rate limits; verified accounts; anomaly signals; reports; moderation history | Sybil accounts cannot be eliminated completely. |
 | High | Location leakage through logs, analytics, provider calls, or trip history | Ephemeral coordinates; explicit save; provider disclosure; log redaction; no raw movement history; deletion controls | Routing providers necessarily receive selected coordinates. |
@@ -99,11 +100,14 @@ Assessment: direction is sound, but it is not yet an implementable privacy or se
 
 ## 4. Authorization matrix
 
-`Own` means the authenticated user owns the row. `Shared` means an active explicit household grant covers that record. `Business` means a currently verified claim covers that store. All unspecified access is denied.
+`Own` means the authenticated user owns the row. `Shared` means an active explicit household grant covers that record. `Business` means a currently verified claim covers that store. A Pending Partner Identity owns only its onboarding record and is not a Verified business owner. All unspecified access is denied.
 
 | Resource/action | Anonymous | Authenticated owner | Shared household member | Verified business owner | Moderator | Administrator | Trusted service |
 |---|---|---|---|---|---|---|---|
 | Approved store/profile/hours read | Read | Read | Read | Read | Read | Read | Read |
+| Pilot Store Record read | None | Initial Private Beta invited shopper accounts only | None | Assigned Pilot Store Record only | Deferred during Private Beta | Read | Enforce cohort/scope |
+| Store Partner Invitation generate/revoke | None | None | None | None | None | Generate/revoke with MFA and recent auth | Create hash/expire/consume |
+| Partner onboarding/consent/status | Valid unexpired invitation may open consent flow only | Pending Partner Identity reads/updates own onboarding status only | None | Read own approved status | None | Verify/approve/reject/revoke | Verify email/MFA; apply approved grant |
 | Store correction report | Rate-limited create only if approved | Create/read own status | Same as user | Create for claimed store | Triage/update assigned | Full | Validate/notify |
 | Public store data write | None | None | None | Directly publish Representative-Managed Fields for assigned store; submit Store Change Requests for Controlled Store Fields | Deferred during Internal Alpha/Private Beta | Review/approve Store Change Requests | Validate/apply approved transitions |
 | Approved review/rating read | Read | Read | Read | Read | Read | Read | Read |
@@ -224,6 +228,7 @@ Do not create a monorepo, shared packages, or a second admin application until a
 - Initial Private Beta Cohort is limited to four human accounts and one Pilot Store Record: Scott's separate shopper and Administrator accounts, Scott's wife's shopper account, and the first owner's Store Representative account. The representative account is not used for shopper activity; a separate approved account would be required. AI accounts remain Synthetic Store-only. No additional user or real store is allowed before an expansion gate passes. Approved 2026-07-27.
 - Initial Private Beta Expansion Gate requires owner completion of direct edits, two Store Change Requests respectively approved and rejected by the Administrator, MFA, and scheduled revoke/regrant workflows; two Pilot Store Record trip runs each by Scott and the Independent Internal Tester; successful support/feedback intake; complete privileged auditing; continuing monitoring, backup-restore, and rollback checks; zero open Blocking Defects or known privacy, security, or data-loss defects; and owner confirmation that the workflow is understandable. Dated Primary Internal Tester approval is required. No minimum calendar duration applies. Approved 2026-07-27.
 - Controlled Private Beta expansion adds one verified Store Partner and Pilot Store Record at a time, repeating the full onboarding and acceptance checks before the next addition. Cap at three total Store Partners/stores, remain invitation-only without advertising, then stop for a separate public-readiness review. Pilot passage does not authorize public access. Approved 2026-07-27.
+- Store Partner Invitation is an in-person, Administrator-generated 30-minute/single-redemption QR with an opaque token and no embedded identity, store, email, or role data. It opens PWA onboarding but grants nothing. Consent, verified email, MFA, published-contact authority verification, and separate Administrator approval precede Pilot Store Record creation and store-scoped role grant. All transitions are audited. ADR 0002. Approved 2026-07-27.
 
 ### Before scaffolding or schema design
 
