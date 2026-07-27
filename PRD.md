@@ -535,6 +535,17 @@ Privileged-workflow exit gate:
 - Representative and Administrator Test Accounts cannot read or modify Test User A or Test User B shopper-private data
 - Zero Blocking Defects; every allowed action succeeds and every forbidden action is denied
 
+External Testing Readiness gate before first-owner contact:
+
+- Dated passing evidence for Solo Agent-Assisted Alpha and Two-Person Acceptance
+- Complete authorization and security test set passes
+- Zero open Blocking Defects or known privacy, security, or data-loss defects
+- Backup restore and rollback rehearsals pass
+- Pilot-environment monitoring, error reporting, and support intake work
+- Pilot privacy notice and owner consent are ready
+- One External Testing Dress Rehearsal passes
+- Primary Internal Tester approves every check; AI Test Agents may collect evidence but cannot approve the gate
+
 ## MVP
 
 Required:

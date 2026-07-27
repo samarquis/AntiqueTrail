@@ -268,6 +268,20 @@ Every change should pass:
 - Incident-response exercise
 - Accessibility testing
 
+## External Testing Readiness
+
+Before first-owner contact, retain dated evidence that:
+
+- Solo Agent-Assisted Alpha and Two-Person Acceptance passed
+- The complete authorization and security test set passed
+- No Blocking Defect or known privacy, security, or data-loss defect remains open
+- Backup restore and rollback rehearsals passed
+- Pilot-environment monitoring, error reporting, and support intake work
+- The pilot privacy notice and owner consent are ready
+- One External Testing Dress Rehearsal passed end to end
+
+The Primary Internal Tester approves every check. AI Test Agents may execute tests and collect evidence but cannot approve the gate. Any failed check blocks owner outreach, real-store import, and external participation.
+
 ## Operations
 
 ### Backups

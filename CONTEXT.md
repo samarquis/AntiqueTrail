@@ -37,8 +37,12 @@ The final Internal Alpha stage, in which the Independent Internal Tester complet
 _Avoid_: Solo Agent-Assisted Alpha, Private Beta
 
 **External Testing Readiness**:
-A future pre-pilot gate that must be explicitly defined and passed before any store-owner outreach, real-store import, or external participant is allowed. Passing it permits invitation of one consenting Store Partner representative into the controlled Private Beta; it does not authorize public access or advertising.
+A release-blocking pre-pilot gate requiring both Internal Alpha stages, authorization/security tests, clean defect status, recovery rehearsals, operational monitoring/support, pilot privacy and consent materials, and an External Testing Dress Rehearsal to have dated passing evidence approved by the Primary Internal Tester. Passing permits invitation of one consenting Store Partner representative into the controlled Private Beta; it does not authorize public access or advertising.
 _Avoid_: Public launch, automatic approval
+
+**External Testing Dress Rehearsal**:
+One end-to-end Synthetic Store exercise covering representative invitation, verified sign-in and MFA, store-scope grant, representative-managed publishing, controlled-change approval and rejection, scope revocation, access denial, audit review, support intake, and rollback without using a real owner or store.
+_Avoid_: Owner outreach, production pilot
 
 **Test Account**:
 A distinct Internal Alpha user identity whose synthetic private data and actions remain isolated from every other Test Account.

@@ -92,6 +92,10 @@ The Primary Internal Tester must operate two complete Privileged Workflow Accept
 
 Do not contact or include a store owner, import a real store, or add any external participant until Solo Agent-Assisted Alpha and Two-Person Acceptance pass and a separate External Testing Readiness gate is defined and passed. After that gate passes, invite one consenting Store Partner representative into the controlled, invitation-only Private Beta to test the real owner workflow before public access. The gate does not authorize public advertising.
 
+### External Testing Readiness gate
+
+Before first-owner contact, require dated passing evidence approved by the Primary Internal Tester for all seven checks: both Internal Alpha stages; the complete authorization and security test set; zero open Blocking Defects or known privacy, security, or data-loss defects; successful backup-restore and rollback rehearsals; working pilot-environment monitoring, error reporting, and support intake; ready pilot privacy notice and owner consent; and one successful External Testing Dress Rehearsal. A failed check blocks outreach. AI Test Agents may collect evidence but cannot approve the gate.
+
 ## Unresolved decisions
 
 1. Final product name

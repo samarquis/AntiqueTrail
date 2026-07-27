@@ -106,7 +106,18 @@ Privileged-workflow exit criteria:
 - Representative and Administrator Test Accounts cannot read or modify either shopper Test Account's private data
 - Zero Blocking Defects; every allowed action succeeds and every forbidden action is denied
 
-Broader security and operational exit criteria remain to be defined during grilling.
+External Testing Readiness criteria before first-owner contact:
+
+- Dated passing evidence for Solo Agent-Assisted Alpha and Two-Person Acceptance
+- Complete authorization and security test set passes
+- Zero open Blocking Defects or known privacy, security, or data-loss defects
+- Backup restore and rollback rehearsals pass
+- Pilot-environment monitoring, error reporting, and support intake work
+- Pilot privacy notice and owner consent are ready
+- One External Testing Dress Rehearsal passes end to end
+- Primary Internal Tester approves every check; AI Test Agents may collect evidence but cannot approve the gate
+
+Any failed check blocks owner outreach, real-store import, and external participation.
 
 ## Phase 2 — Public reviews and store claims
 
