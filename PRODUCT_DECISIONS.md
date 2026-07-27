@@ -84,6 +84,10 @@ Internal Alpha includes four-role authentication; Synthetic Store directory, sea
 
 Test User A and Test User B must each complete three successful Shopper Trip Acceptance Runs using separate accounts on separate phones. For each account, at least one run must prove active-trip recovery after refresh or app restart and while offline. Across the runs, the tester must exercise navigation handoff, arrived/completed/skipped/closed stop states, and route recalculation. The gate requires zero Blocking Defects and zero cross-account exposure or modification of shopper-private data.
 
+### Internal Alpha privileged-workflow exit gate
+
+Each Internal Tester must operate one complete Privileged Workflow Acceptance Cycle using the separate Representative Test Account and MFA-protected Administrator Test Account. Across each cycle, every Representative-Managed Field must publish directly; at least one Store Change Request must be approved and one rejected; unapproved Controlled Store Fields must remain unpublished; representative self-approval must fail; revocation must block further writes from the representative's existing session; and all privileged actions must have audit records. Both privileged accounts must remain unable to read or modify Test User A or Test User B shopper-private data. The gate requires zero Blocking Defects; every allowed action must succeed and every forbidden action must be denied.
+
 ## Unresolved decisions
 
 1. Final product name

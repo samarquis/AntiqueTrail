@@ -87,7 +87,18 @@ Shopper-trip exit criteria:
 - Zero Blocking Defects
 - Zero cross-account exposure or modification of shopper-private data
 
-Representative, administrator, audit, and broader security exit criteria remain to be defined during grilling.
+Privileged-workflow exit criteria:
+
+- Each Internal Tester operates one complete Privileged Workflow Acceptance Cycle using separate representative and MFA-protected administrator sessions
+- Every Representative-Managed Field publishes directly for the assigned Synthetic Store
+- At least one Store Change Request is approved and one rejected; unapproved Controlled Store Fields remain unpublished
+- Representative self-approval is denied
+- Administrator grants and revokes the representative's store scope; revocation denies further writes from the representative's existing session
+- Every privileged action has an audit record
+- Representative and Administrator Test Accounts cannot read or modify either shopper Test Account's private data
+- Zero Blocking Defects; every allowed action succeeds and every forbidden action is denied
+
+Broader security and operational exit criteria remain to be defined during grilling.
 
 ## Phase 2 — Public reviews and store claims
 

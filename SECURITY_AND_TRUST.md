@@ -118,6 +118,13 @@ Required authorization test cases:
 - Store Representative cannot approve their own Store Change Request
 - Administrator Test Account alone approves Store Change Requests and grants or revokes representative roles during Internal Alpha and Private Beta
 - Administrator Test Account uses MFA, a separate session, and no shopper-private access
+- Each Internal Tester completes one Privileged Workflow Acceptance Cycle
+- Every Representative-Managed Field publishes directly only for the assigned Synthetic Store
+- Approved Controlled Store Fields publish; rejected and pending changes do not
+- Representative self-approval is denied
+- Representative writes from an existing session are denied after the Administrator revokes store scope
+- Every privileged action produces an audit record
+- Representative and Administrator Test Accounts cannot read or modify either Test User's shopper-private data
 - Former household member loses access immediately
 - Store owner cannot read user notes or trips
 - Store owner cannot alter reviews

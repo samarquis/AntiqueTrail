@@ -515,6 +515,18 @@ Shopper-trip exit gate:
 - Zero Blocking Defects
 - Zero cross-account exposure or modification of shopper-private data
 
+Privileged-workflow exit gate:
+
+- Each Internal Tester operates one complete Privileged Workflow Acceptance Cycle
+- Every Representative-Managed Field publishes directly for the assigned Synthetic Store
+- At least one Store Change Request is approved and one rejected; unapproved Controlled Store Fields remain unpublished
+- Representative self-approval is denied
+- Administrator uses a separate MFA-protected session to grant and revoke the representative's store scope
+- Revocation denies further writes from the representative's existing session
+- Every privileged action has an audit record
+- Representative and Administrator Test Accounts cannot read or modify Test User A or Test User B shopper-private data
+- Zero Blocking Defects; every allowed action succeeds and every forbidden action is denied
+
 ## MVP
 
 Required:

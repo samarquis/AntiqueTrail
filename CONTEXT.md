@@ -64,6 +64,10 @@ _Avoid_: Spot check, demo
 A defect that prevents a required acceptance journey from completing or causes required data to be lost, corrupted, or exposed to the wrong account.
 _Avoid_: Cosmetic defect, non-blocking defect
 
+**Privileged Workflow Acceptance Cycle**:
+One complete Internal Alpha authorization test in which an Administrator Test Account grants one Synthetic Store scope, a Representative Test Account directly publishes allowed fields and submits controlled changes, the administrator approves and rejects requests, the administrator revokes the scope, and the existing representative session is denied further writes; every privileged action is audited and shopper-private data remains inaccessible.
+_Avoid_: Owner demo, happy-path test
+
 **Representative-Managed Field**:
 A public store field that its Store Representative may publish directly: regular hours, holiday hours, phone, website, official description, or temporary closure.
 _Avoid_: Controlled Store Field
