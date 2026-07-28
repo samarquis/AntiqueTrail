@@ -30,6 +30,7 @@ Security is a product requirement and launch gate.
 ### Pilot-restricted
 
 - Pilot Store Record core listing data
+- Pilot Store Draft, review comments, and submitted snapshots
 - Store Partner identity and contact needed for the pilot
 - Pilot consent and participation status
 - Immutable Pilot Consent Receipt and delivery status
@@ -161,6 +162,10 @@ Required authorization test cases:
 - Store Representative grant requires verified email, MFA, published-contact authority verification, and Administrator approval
 - Pilot Consent Receipt cannot be updated or deleted by Administrator, Store Representative, Pending Partner Identity, or client
 - Material pilot-term changes require a new consent version before continued Store Representative access
+- Pending Partner Identity can create/read/edit only its own Pilot Store Draft and only while draft or changes-requested
+- Administrator can read, comment, return, or approve a Pilot Store Draft but cannot edit owner-submitted fields
+- Pilot Store Draft approval requires Administrator MFA, recent authentication, and an exact final preview
+- Pilot Store Record creation and store-scoped Store Representative grant succeed atomically or neither is created
 
 ## Database separation
 
@@ -243,6 +248,17 @@ Suggested domains:
 - Material term changes invalidate continued reliance on the old version and require fresh consent
 - Audit receipt creation, delivery result, policy version, and re-consent without logging unnecessary identity evidence
 
+### Pilot Store Draft integrity
+
+- Authorize every read/write by onboarding identity and draft ownership
+- Enforce server-side state transitions: draft, submitted, changes-requested, resubmitted, approved
+- Reject owner edits while submitted or approved
+- Reject Administrator edits to owner-submitted fields
+- Preserve the exact submitted and approved snapshots with provenance
+- Require MFA and recent authentication for approval
+- Create the Pilot Store Record and scoped role grant in one transaction; rollback both on failure
+- Audit comments, transitions, actor, timestamp, and result
+
 First Store Partner pilot:
 
 - Use Synthetic Stores for the demonstration; do not create a real record during initial interest
@@ -251,7 +267,7 @@ First Store Partner pilot:
 - Require owner-controlled verified email and MFA; prohibit shared credentials
 - Audit consent, verification result, scope grant, withdrawal, and revocation without logging unnecessary identity evidence
 - On withdrawal, revoke access and remove the real store from the active pilot
-- Administrator creates the Pilot Store Record from owner-confirmed core fields with provenance and verification date
+- Atomic Administrator approval creates the Pilot Store Record from the approved owner-submitted draft with provenance and verification date
 - Deny anonymous/public access to the Pilot Store Record
 - Exclude photos, ratings/reviews, events, owner responses, and analytics
 

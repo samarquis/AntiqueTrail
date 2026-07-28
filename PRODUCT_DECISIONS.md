@@ -102,7 +102,7 @@ Demonstrate the product using Synthetic Stores only. Before creating a real stor
 
 ### First Pilot Store Record
 
-After consent and authority verification, an Administrator creates one Pilot Store Record using owner-confirmed name, address, phone, website, regular and holiday hours, official description, and category tags. Record the source/provenance and verification date. The Store Representative then tests only the already-approved Representative-Managed Field workflow; Controlled Store Fields still require Store Change Requests. Restrict the record to invited Private Beta participants. Exclude photos, ratings/reviews, events, owner responses, and analytics.
+After consent and authority verification, atomic Administrator approval of the owner-submitted Pilot Store Draft creates one Pilot Store Record using owner-confirmed name, address, phone, website, regular and holiday hours, official description, and category tags. Record the source/provenance and verification date. The Store Representative then tests only the already-approved Representative-Managed Field workflow; Controlled Store Fields still require Store Change Requests. Restrict the record to invited Private Beta participants. Exclude photos, ratings/reviews, events, owner responses, and analytics.
 
 ### Initial Private Beta Cohort
 
@@ -123,6 +123,10 @@ After a Synthetic Store demonstration and verbal interest, the recently authenti
 ### Store Partner pilot-consent capture
 
 Use a phone-friendly consent screen with a plain-language summary and links to the full, legally reviewed pilot privacy notice and terms. Require separate acknowledgments of authority, voluntary participation, permitted store-data use, no payment or endorsement, and withdrawal. Require typed name, business title, and store name; bind the immutable Pilot Consent Receipt to the verified email, timestamp, invitation identifier, and policy version. Email the owner a receipt/PDF copy without internal verification evidence. Administrators may view but never edit submitted consent. A material term change requires fresh consent before continued participation.
+
+### Pilot Store Draft review and approval
+
+After consent, verified email, and MFA, the Pending Partner Identity enters the owner-confirmed core listing fields into a Pilot Store Draft. Only that identity and Administrators may read it. The owner may edit while draft or changes-requested and submits it for review. The Administrator verifies the submission against the published business contact and may approve it or return comments, but may not silently edit owner-submitted values. The owner corrects and resubmits. Approval requires MFA, recent authentication, and an exact final preview. One atomic transaction freezes the approved draft snapshot and provenance, creates the Pilot Store Record, and grants only its store-scoped Store Representative role; any failure creates neither record nor grant. Preserve comments and all state transitions in the audit history. See ADR 0003.
 
 ## Unresolved decisions
 

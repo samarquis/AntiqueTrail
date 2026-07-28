@@ -478,7 +478,7 @@ Store Representatives may not:
 
 ### First Pilot Store Record
 
-- Administrator creates the record only after Store Partner Pilot Consent and authority verification
+- Atomic Administrator approval of the owner-submitted Pilot Store Draft creates the record only after Store Partner Pilot Consent and authority verification
 - Owner confirms name, address, phone, website, regular and holiday hours, official description, and category tags
 - Record source/provenance and verification date
 - Restrict visibility to invited Private Beta participants; deny anonymous/public access
@@ -540,6 +540,18 @@ Store Representatives may not:
 - Email owner a receipt/PDF copy without internal verification evidence
 - Administrator may view but cannot edit submitted consent
 - Material term changes require fresh consent before continued participation
+
+### Pilot Store Draft
+
+- Pending Partner Identity enters the owner-confirmed core listing fields after consent, verified email, and MFA
+- Draft is readable only by that identity and Administrators
+- Owner may edit in draft or changes-requested state and may submit/resubmit
+- Administrator verifies against the published business contact and may approve or return comments, but cannot edit owner-submitted fields
+- Owner corrects and resubmits returned drafts
+- Approval requires Administrator MFA, recent authentication, and an exact final preview
+- One atomic approval freezes the draft snapshot/provenance, creates the Pilot Store Record, and grants only its store-scoped Store Representative role
+- Any approval failure creates neither the Pilot Store Record nor the role grant
+- Preserve comments, state transitions, approval identity, and timestamps in audit history
 
 ## Moderation
 

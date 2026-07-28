@@ -92,6 +92,10 @@ _Avoid_: Download code, role grant, public QR code
 An owner-controlled identity created after pilot consent, verified email, and MFA setup but before authority approval. It has no Store Representative role, store scope, or pilot-data access.
 _Avoid_: Store Representative, approved claim
 
+**Pilot Store Draft**:
+Owner-submitted onboarding data for a proposed Pilot Store Record. It is visible only to its Pending Partner Identity and Administrators, may move through draft, submitted, changes-requested, resubmitted, or approved states, and never grants pilot access by itself.
+_Avoid_: Pilot Store Record, public listing
+
 **Pilot Store Record**:
 The first real Store Partner listing, created by an Administrator only after Store Partner Pilot Consent. It contains owner-confirmed core listing data with provenance and verification date, is visible only to invited Private Beta participants, and excludes public user-generated or promotional features.
 _Avoid_: Synthetic Store, public listing

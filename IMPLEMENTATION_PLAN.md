@@ -131,7 +131,7 @@ First Store Partner onboarding:
 
 First Pilot Store Record:
 
-- Administrator creates one record after consent and authority verification
+- Atomic Administrator approval of the owner-submitted Pilot Store Draft creates one record after consent and authority verification
 - Owner confirms name, address, phone, website, regular and holiday hours, official description, and category tags
 - Record source/provenance and verification date
 - Restrict visibility to invited Private Beta participants; deny anonymous/public access
@@ -192,6 +192,17 @@ Pilot consent capture:
 - Permit Administrator read access but no update/delete
 - Require fresh consent after material term changes
 - Complete legal review of final wording before external use
+
+Pilot Store Draft:
+
+- Allow Pending Partner Identity to create/read/edit only its own draft after consent, verified email, and MFA
+- Support draft, submitted, changes-requested, resubmitted, and approved states
+- Permit Administrator read/comment/return/approve but no owner-field edits
+- Require the owner to correct and resubmit returned drafts
+- Require Administrator MFA, recent authentication, and exact final preview for approval
+- Atomically freeze the submitted snapshot and provenance, create the Pilot Store Record, and grant its store-scoped Store Representative role
+- Fail closed: create neither the store nor grant if any approval step fails
+- Audit comments, transitions, submitted snapshots, approval identity, and timestamps
 
 ## Phase 2 — Public reviews and store claims
 
