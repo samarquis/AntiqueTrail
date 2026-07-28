@@ -215,6 +215,18 @@ Representative activation and first login:
 - Keep changes-requested/rejected emails status-only; require authenticated portal access for details
 - Audit delivery, first approved sign-in, installation handoff, and checklist progress
 
+Store Partner Pilot Support:
+
+- Create categorized pilot-restricted tickets for bug, confusing workflow, store-data correction, feature idea, and security/privacy concern
+- Attach an allowlist only: store/account identifiers, app version, timestamp, and basic device/browser details
+- Exclude tokens, shopper data, precise location, and internal logs
+- Permit optional screenshot only after owner preview; re-encode and strip metadata before storage
+- Restrict ticket/reply/status access to submitting Store Representative and Administrators
+- Send status-only notification email
+- Alert Administrator urgently for security/privacy concern
+- Accept sign-in-failure fallback email without disclosing pilot data until identity verification
+- Allow owner resolution confirmation and reopen
+
 ## Phase 2 — Public reviews and store claims
 
 Features:

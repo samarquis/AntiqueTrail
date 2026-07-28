@@ -31,6 +31,7 @@ Security is a product requirement and launch gate.
 
 - Pilot Store Record core listing data
 - Pilot Store Draft, review comments, and submitted snapshots
+- Pilot Support Tickets, replies, and sanitized attachments
 - Store Partner identity and contact needed for the pilot
 - Pilot consent and participation status
 - Immutable Pilot Consent Receipt and delivery status
@@ -168,6 +169,8 @@ Required authorization test cases:
 - Pilot Store Record creation and store-scoped Store Representative grant succeed atomically or neither is created
 - Representative activation email contains no bearer credential, reusable invitation, role token, store details, or review comments
 - Representative portal requires verified-email and MFA sign-in and exposes only the granted store scope
+- Pilot Support Ticket diagnostics use an explicit allowlist and exclude tokens, shopper data, precise location, and internal logs
+- Pilot Support Ticket access is limited to the submitting Store Representative, Administrators, and narrow notification/media services
 
 ## Database separation
 
@@ -269,6 +272,18 @@ Suggested domains:
 - Recheck the active store-scoped grant on every portal request
 - Do not expose shopper-private data in the owner portal or notification content
 - Audit notification result, first approved sign-in, installation handoff, and checklist progress
+
+### Store Partner Pilot Support security
+
+- Authorize each ticket/reply by submitting representative and assigned store scope
+- Attach only allowlisted context: store/account identifiers, app version, timestamp, and basic device/browser details
+- Never collect tokens, shopper data, precise location, or internal logs automatically
+- Warn the owner and require preview before optional screenshot submission
+- Re-encode screenshots, strip metadata, validate content and size, and store as pilot-restricted media
+- Keep email notifications status-only; require authenticated portal access for content
+- Treat fallback email as unverified intake and disclose no pilot data until identity verification
+- Urgently alert the Administrator for security/privacy concerns without copying sensitive report content into email
+- Audit ticket creation, replies, status changes, resolution confirmation, reopen, alerts, and attachment deletion
 
 First Store Partner pilot:
 

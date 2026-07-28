@@ -564,6 +564,18 @@ Store Representatives may not:
 - Keep changes-requested/rejected email content status-only; require authenticated portal access for comments and store data
 - Audit delivery, first approved sign-in, installation handoff, and checklist progress
 
+### Store Partner Pilot Support
+
+- In-app categories: bug, confusing workflow, store-data correction, feature idea, security/privacy concern
+- Attach only store/account identifiers, app version, timestamp, and basic device/browser details
+- Never attach tokens, shopper data, precise location, or internal logs
+- Optional screenshot requires owner preview before submission
+- Submitting Store Representative and Administrators can read ticket, replies, and status in the authenticated portal
+- Notification email contains status only
+- Security/privacy concern triggers urgent Administrator alert
+- Fallback support email accepts sign-in-failure reports but returns no pilot data before identity verification
+- Owner can confirm resolution or reopen the ticket
+
 ## Moderation
 
 The product requires:

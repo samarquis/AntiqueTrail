@@ -92,6 +92,10 @@ _Avoid_: Download code, role grant, public QR code
 The post-approval owner experience: a status-only email links to normal PWA sign-in, verified-email/MFA authentication opens the exact approved store scope, and a guided first-login checklist starts pilot acceptance work.
 _Avoid_: Magic role link, emailed access token
 
+**Pilot Support Ticket**:
+A pilot-restricted Store Partner request categorized as bug, confusing workflow, store-data correction, feature idea, or security/privacy concern. It contains minimized diagnostics, optional owner-previewed media, authenticated replies, and an owner-visible resolution history.
+_Avoid_: Public review, internal log dump
+
 **Pending Partner Identity**:
 An owner-controlled identity created after pilot consent, verified email, and MFA setup but before authority approval. It has no Store Representative role, store scope, or pilot-data access.
 _Avoid_: Store Representative, approved claim
