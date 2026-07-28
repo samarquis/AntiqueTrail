@@ -204,6 +204,17 @@ Pilot Store Draft:
 - Fail closed: create neither the store nor grant if any approval step fails
 - Audit comments, transitions, submitted snapshots, approval identity, and timestamps
 
+Representative activation and first login:
+
+- Send status-only approval email with the normal PWA sign-in link
+- Do not email a reusable invitation, magic role link, or authorization token
+- Require verified-email and MFA sign-in
+- Render only the exact approved Pilot Store Record, scoped permissions, Pilot Consent Receipt, and approval history
+- Offer device-appropriate PWA installation instructions
+- Guide listing confirmation, hours review, one Representative-Managed Field edit, one Store Change Request, and pilot-support use
+- Keep changes-requested/rejected emails status-only; require authenticated portal access for details
+- Audit delivery, first approved sign-in, installation handoff, and checklist progress
+
 ## Phase 2 — Public reviews and store claims
 
 Features:

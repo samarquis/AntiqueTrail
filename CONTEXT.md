@@ -88,6 +88,10 @@ _Avoid_: Editable admin note, verbal confirmation
 An Administrator-generated, 30-minute, single-redemption QR invitation containing only an opaque random token. It opens the PWA partner-onboarding flow but grants no role, store scope, or pilot-data access.
 _Avoid_: Download code, role grant, public QR code
 
+**Representative Activation Handoff**:
+The post-approval owner experience: a status-only email links to normal PWA sign-in, verified-email/MFA authentication opens the exact approved store scope, and a guided first-login checklist starts pilot acceptance work.
+_Avoid_: Magic role link, emailed access token
+
 **Pending Partner Identity**:
 An owner-controlled identity created after pilot consent, verified email, and MFA setup but before authority approval. It has no Store Representative role, store scope, or pilot-data access.
 _Avoid_: Store Representative, approved claim

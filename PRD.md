@@ -553,6 +553,17 @@ Store Representatives may not:
 - Any approval failure creates neither the Pilot Store Record nor the role grant
 - Preserve comments, state transitions, approval identity, and timestamps in audit history
 
+### Representative activation and first login
+
+- Send a status-only approval email containing the normal PWA sign-in link
+- Never email a reusable invitation, magic role link, or authorization token
+- Require sign-in with the verified email and MFA
+- Show the exact approved Pilot Store Record, store-scoped Representative permissions, Pilot Consent Receipt, and approval history
+- Offer device-appropriate PWA installation instructions after sign-in
+- Start a guided checklist: confirm listing, review hours, make one Representative-Managed Field edit, submit one Store Change Request, and use pilot support
+- Keep changes-requested/rejected email content status-only; require authenticated portal access for comments and store data
+- Audit delivery, first approved sign-in, installation handoff, and checklist progress
+
 ## Moderation
 
 The product requires:

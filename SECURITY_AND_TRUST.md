@@ -166,6 +166,8 @@ Required authorization test cases:
 - Administrator can read, comment, return, or approve a Pilot Store Draft but cannot edit owner-submitted fields
 - Pilot Store Draft approval requires Administrator MFA, recent authentication, and an exact final preview
 - Pilot Store Record creation and store-scoped Store Representative grant succeed atomically or neither is created
+- Representative activation email contains no bearer credential, reusable invitation, role token, store details, or review comments
+- Representative portal requires verified-email and MFA sign-in and exposes only the granted store scope
 
 ## Database separation
 
@@ -258,6 +260,15 @@ Suggested domains:
 - Require MFA and recent authentication for approval
 - Create the Pilot Store Record and scoped role grant in one transaction; rollback both on failure
 - Audit comments, transitions, actor, timestamp, and result
+
+### Representative activation security
+
+- Send status-only approval, changes-requested, and rejection emails
+- Use the normal PWA sign-in route; do not place authorization or reusable invitation tokens in email links
+- Require verified email and MFA before showing the approved store, permissions, consent receipt, history, or comments
+- Recheck the active store-scoped grant on every portal request
+- Do not expose shopper-private data in the owner portal or notification content
+- Audit notification result, first approved sign-in, installation handoff, and checklist progress
 
 First Store Partner pilot:
 
