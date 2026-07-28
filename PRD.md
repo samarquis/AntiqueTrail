@@ -720,10 +720,10 @@ Launch dense, not broad.
 Approved sequence:
 
 1. Topeka city limits Regional Public MVP
-2. Small-Community Expansion to nearby local antique and vintage shops, one community at a time
-3. Larger-city/metro expansion, with Kansas City as a candidate only after the small-community stage passes review
+2. Small-Community Expansion to one Eligible Small Community at a time
+3. Stop after three communities for a larger-metro readiness review; Kansas City is only a candidate after that review passes
 
-Exact small-community boundaries, selection criteria, and success gate remain to be approved.
+An Eligible Small Community must be outside a larger metro, roughly within a 60-minute drive of Topeka, contain at least two antique or vintage shops, and have at least one willing anchor Store Partner before activation. Add and validate only one community at a time. Exact community choices and the per-community success gate remain to be approved.
 
 Earlier discovery candidates, not an approved launch sequence:
 
@@ -734,6 +734,6 @@ Earlier discovery candidates, not an approved launch sequence:
 - Joplin
 - Oklahoma City
 
-Only Topeka city limits is approved for the Regional Public MVP. Later community and metro geography requires separate approval.
+Only Topeka city limits is approved for the Regional Public MVP. Each later community requires selection under the approved eligibility rule, and larger-metro geography requires separate approval after the three-community review.
 
 The seeded store database may include known stores from product discovery, but all seeded records must use public business information only. No private household ratings or notes should be included.

@@ -121,8 +121,12 @@ The post-gate addition of one verified Store Partner and one Pilot Store Record 
 _Avoid_: Bulk onboarding, public launch
 
 **Small-Community Expansion**:
-The second regional growth stage after the Topeka public launch, adding nearby smaller-community antique and vintage shops one community at a time before considering a larger metro.
+The second regional growth stage after the Topeka public launch, adding one Eligible Small Community at a time before considering a larger metro. It stops after three communities for a separate larger-metro readiness review.
 _Avoid_: Kansas City launch, statewide expansion
+
+**Eligible Small Community**:
+A community outside a larger metro, roughly within a 60-minute drive of Topeka, with at least two antique or vintage shops and one willing anchor Store Partner before activation.
+_Avoid_: Any nearby town, metro suburb
 
 **Store Representative**:
 An authorized owner or manager who acts for one Store Partner; Internal Alpha simulates this role against one Synthetic Store.

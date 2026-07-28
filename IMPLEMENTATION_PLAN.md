@@ -342,10 +342,12 @@ Rules:
 Regional growth order after launch readiness:
 
 1. Launch Topeka city limits
-2. Add nearby small-community shops one community at a time under a separately approved gate
-3. Consider a larger metro such as Kansas City only after the small-community stage passes review
+2. Select a community outside a larger metro and roughly within a 60-minute drive of Topeka, with at least two antique/vintage shops and one willing anchor Store Partner
+3. Add and validate only that community under the separately approved per-community gate
+4. Repeat one community at a time, stopping after three communities
+5. Conduct a separate larger-metro readiness review before considering Kansas City or another larger metro
 
-Exact small-community boundary and gate remain unresolved.
+Exact community choices and the per-community success gate remain unresolved.
 
 ## Suggested repository structure
 
