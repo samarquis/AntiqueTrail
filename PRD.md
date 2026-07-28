@@ -723,7 +723,19 @@ Approved sequence:
 2. Small-Community Expansion to one Eligible Small Community at a time
 3. Stop after three communities for a larger-metro readiness review; Kansas City is only a candidate after that review passes
 
-An Eligible Small Community must be outside a larger metro, roughly within a 60-minute drive of Topeka, contain at least two antique or vintage shops, and have at least one willing anchor Store Partner before activation. Add and validate only one community at a time. Exact community choices and the per-community success gate remain to be approved.
+An Eligible Small Community must be outside a larger metro, roughly within a 60-minute drive of Topeka, contain at least two antique or vintage shops, and have at least one willing anchor Store Partner before activation. Add and validate only one community at a time.
+
+Before activating another community, the Community Expansion Gate requires:
+
+- At least two verified active shop listings
+- One anchor Store Partner who completed onboarding, one direct edit, one controlled change, and one support request
+- One multi-stop community trip each by Scott and the Independent Internal Tester using separate accounts and phones
+- Voluntary trip-use confirmation from five additional shoppers without requiring precise-location tracking
+- Passing monitoring, support, and store-data accuracy checks
+- Zero open Blocking Defects or known privacy, security, or data-loss defects
+- Dated Primary Internal Tester approval
+
+No minimum calendar duration applies. Any failed or incomplete check blocks the next community. Exact community choices remain to be approved.
 
 Earlier discovery candidates, not an approved launch sequence:
 

@@ -128,6 +128,10 @@ _Avoid_: Kansas City launch, statewide expansion
 A community outside a larger metro, roughly within a 60-minute drive of Topeka, with at least two antique or vintage shops and one willing anchor Store Partner before activation.
 _Avoid_: Any nearby town, metro suburb
 
+**Community Expansion Gate**:
+A dated Primary Internal Tester approval that one active small-community rollout has passed its store, partner, shopper, support, monitoring, data-accuracy, and defect checks before another community may be activated.
+_Avoid_: Automatic regional expansion, time-based gate
+
 **Store Representative**:
 An authorized owner or manager who acts for one Store Partner; Internal Alpha simulates this role against one Synthetic Store.
 _Avoid_: Vendor, store account

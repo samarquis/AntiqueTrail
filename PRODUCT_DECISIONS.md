@@ -118,7 +118,11 @@ After the Initial Private Beta Expansion Gate passes, add one Store Partner and 
 
 ### Regional growth sequence
 
-Use Topeka city limits for the first Regional Public MVP. After Topeka succeeds, run a Small-Community Expansion that recruits nearby local antique and vintage shops one community at a time to build store and shopper traction. An Eligible Small Community is outside a larger metro, roughly within a 60-minute drive of Topeka, has at least two antique or vintage shops, and has at least one willing anchor Store Partner before activation. Add and validate one community at a time. Stop after three communities and conduct a separate larger-metro readiness review before considering Kansas City or another larger metro. Exact communities and the per-community success gate remain unresolved.
+Use Topeka city limits for the first Regional Public MVP. After Topeka succeeds, run a Small-Community Expansion that recruits nearby local antique and vintage shops one community at a time to build store and shopper traction. An Eligible Small Community is outside a larger metro, roughly within a 60-minute drive of Topeka, has at least two antique or vintage shops, and has at least one willing anchor Store Partner before activation. Add and validate one community at a time under the Community Expansion Gate. Stop after three communities and conduct a separate larger-metro readiness review before considering Kansas City or another larger metro. Exact communities remain unresolved.
+
+### Community Expansion Gate
+
+Before activating another small community, require dated Primary Internal Tester approval that the current community has: at least two verified active shop listings; one anchor Store Partner who completed onboarding, one direct edit, one controlled change, and one support request; separate-phone/account multi-stop trip runs completed by Scott and the Independent Internal Tester; voluntary trip-use confirmation from five additional shoppers without requiring precise-location tracking; passing monitoring, support, and store-data accuracy checks; and zero open Blocking Defects or known privacy, security, or data-loss defects. No minimum calendar duration applies. A failed or incomplete check blocks the next community.
 
 ### In-person Store Partner QR invitation
 

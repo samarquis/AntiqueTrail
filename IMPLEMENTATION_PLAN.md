@@ -343,11 +343,11 @@ Regional growth order after launch readiness:
 
 1. Launch Topeka city limits
 2. Select a community outside a larger metro and roughly within a 60-minute drive of Topeka, with at least two antique/vintage shops and one willing anchor Store Partner
-3. Add and validate only that community under the separately approved per-community gate
+3. Add only that community, then pass its Community Expansion Gate: two verified active listings; completed anchor-partner onboarding, direct-edit, controlled-change, and support workflows; separate-account/phone multi-stop trips by Scott and the Independent Internal Tester; voluntary trip-use confirmation from five additional shoppers without precise-location tracking; passing monitoring, support, and data-accuracy checks; zero Blocking/privacy/security/data-loss defects; and dated Primary Internal Tester approval
 4. Repeat one community at a time, stopping after three communities
 5. Conduct a separate larger-metro readiness review before considering Kansas City or another larger metro
 
-Exact community choices and the per-community success gate remain unresolved.
+No minimum calendar duration applies to the Community Expansion Gate. Exact community choices remain unresolved.
 
 ## Suggested repository structure
 
