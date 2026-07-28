@@ -116,6 +116,10 @@ Before adding any user or real store, require dated evidence approved by the Pri
 
 After the Initial Private Beta Expansion Gate passes, add one Store Partner and one Pilot Store Record at a time. Apply the same consent, authority verification, account onboarding, owner workflow, shopper-trip, security, audit, support, and recovery checks to each addition before adding the next. Cap the controlled Private Beta at three total Store Partners and stores. Keep it invitation-only with no public advertising. After all three pass, stop expansion and conduct a separate public-readiness review; passing the pilot does not automatically authorize public access.
 
+### Regional growth sequence
+
+Use Topeka city limits for the first Regional Public MVP. After Topeka succeeds, run a Small-Community Expansion that recruits nearby local antique and vintage shops one community at a time to build store and shopper traction. Do not begin a larger-city or metro expansion, including Kansas City, until the small-community stage passes its own future expansion review. Exact communities, selection radius, and success gate remain unresolved.
+
 ### In-person Store Partner QR invitation
 
 After a Synthetic Store demonstration and verbal interest, the recently authenticated MFA-protected Administrator creates a Store Partner Invitation and displays its QR code. The QR contains only an opaque random token, expires after 30 minutes or one successful redemption, and contains no owner, store, email, or role data. Scanning opens the same PWA's partner-onboarding page; it does not install the PWA or grant access. The owner reviews the pilot privacy notice and terms, gives Store Partner Pilot Consent, creates an owner-controlled Pending Partner Identity, verifies email, and configures MFA. The invitation remains pending until the Administrator independently verifies authority through the published business contact and approves it. Only then may the system create the Pilot Store Record and grant the store-scoped Store Representative role. Installation instructions appear after approved sign-in. Expiry, redemption, consent, verification, approval, role grant, and installation handoff are audited. See ADR 0002.
@@ -139,7 +143,7 @@ Provide an in-app Pilot Support Ticket workflow with categories for bug, confusi
 ## Unresolved decisions
 
 1. Final product name
-2. Exact launch region
+2. Exact Small-Community Expansion boundary, selection rule, and success gate
 3. Mapping provider
 4. Route-optimization provider or custom algorithm
 5. Store discovery source

@@ -717,7 +717,15 @@ Excluded:
 
 Launch dense, not broad.
 
-Suggested initial area:
+Approved sequence:
+
+1. Topeka city limits Regional Public MVP
+2. Small-Community Expansion to nearby local antique and vintage shops, one community at a time
+3. Larger-city/metro expansion, with Kansas City as a candidate only after the small-community stage passes review
+
+Exact small-community boundaries, selection criteria, and success gate remain to be approved.
+
+Earlier discovery candidates, not an approved launch sequence:
 
 - Topeka
 - Kansas City metro
@@ -726,6 +734,6 @@ Suggested initial area:
 - Joplin
 - Oklahoma City
 
-Exact launch geography should be validated before implementation.
+Only Topeka city limits is approved for the Regional Public MVP. Later community and metro geography requires separate approval.
 
 The seeded store database may include known stores from product discovery, but all seeded records must use public business information only. No private household ratings or notes should be included.

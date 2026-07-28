@@ -120,6 +120,10 @@ _Avoid_: Automatic expansion, public launch gate
 The post-gate addition of one verified Store Partner and one Pilot Store Record at a time, using the same onboarding and acceptance checks, capped at three total Store Partners before a separate public-readiness review.
 _Avoid_: Bulk onboarding, public launch
 
+**Small-Community Expansion**:
+The second regional growth stage after the Topeka public launch, adding nearby smaller-community antique and vintage shops one community at a time before considering a larger metro.
+_Avoid_: Kansas City launch, statewide expansion
+
 **Store Representative**:
 An authorized owner or manager who acts for one Store Partner; Internal Alpha simulates this role against one Synthetic Store.
 _Avoid_: Vendor, store account

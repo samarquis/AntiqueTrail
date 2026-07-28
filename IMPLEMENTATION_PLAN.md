@@ -339,6 +339,14 @@ Rules:
 - Launch runbook
 - Incident response rehearsal
 
+Regional growth order after launch readiness:
+
+1. Launch Topeka city limits
+2. Add nearby small-community shops one community at a time under a separately approved gate
+3. Consider a larger metro such as Kansas City only after the small-community stage passes review
+
+Exact small-community boundary and gate remain unresolved.
+
 ## Suggested repository structure
 
 ```text
