@@ -20,7 +20,7 @@ Status: proposal pending product-owner approval. The handoff documents remain th
 
 ### Missing launch requirements
 
-1. Store-data provenance, licensing, refresh cadence, stale-data policy, and source attribution.
+1. Store-data refresh cadence and stale-data policy.
 2. Review identity, eligibility, anonymity, conflict disclosure, account-deletion effect, and aggregation rules.
 3. Moderation standards, service levels, evidence access, appeals, and legal escalation.
 4. Business-claim creation, verification, transfer, expiration, revocation, and disputed-control workflow.
@@ -94,7 +94,7 @@ Assessment: direction is sound, but it is not yet an implementable privacy or se
 | High | Malicious upload, EXIF/GPS leak, decompression bomb, or unsafe public content | Private quarantine; content sniffing; re-encode; metadata strip; decoded-pixel limits; malware scan; moderation before publication | Copyright and harmful-content disputes require process, not only technical controls. |
 | High | Session theft, XSS, or account-recovery takeover | Strict CSP; output encoding; dependency controls; managed session rotation/revocation; recovery rate limits; account-change alerts; recent auth | Compromised user devices remain outside application control. |
 | High | Moderator/admin misuse or compromised privileged account | Least privilege; required MFA; separate admin actions; append-only audit; anomaly alerts; break-glass procedure | Trusted-insider risk remains. |
-| High | Store-data poisoning, false closure, or duplicate merge damage | Provenance; verification timestamps; audited edits; owner scope; reversible merges; dispute workflow | Public sources can themselves be wrong. |
+| High | Store-data poisoning, false closure, or duplicate merge damage | Owner-confirmed facts or manually verified official public facts only; source URL/confirmation, verifier, and verification date; no unlicensed scraping/bulk import; no stored Google Places catalog; audited edits; owner scope; reversible merges; dispute workflow | Official public sources and owners can still be wrong or compromised. |
 | High | API-cost or availability denial of service | Edge rate limits; quotas; caching of public data; provider budgets/alerts; request-size limits; graceful provider failure | Regional events can still create legitimate spikes. |
 | Medium | Secret/service-role leakage or compromised provider webhook | Server-only secret storage; narrow functions; secret rotation; authenticated webhooks; environment separation | A privileged function compromise has broad impact. |
 | Medium | Incomplete deletion through logs, backups, derived aggregates, or providers | Data inventory; deletion workflow; backup expiry; provider deletion terms; verification receipt | Immediate removal from immutable backups is generally impossible. |
@@ -129,7 +129,7 @@ Assessment: direction is sound, but it is not yet an implementable privacy or se
 | Audit records | None | None | None | None | Read own moderation-action subset | Read/search | Append only; no application-role update/delete |
 | Aggregate public rating | Read | Read | Read | Read | Read | Read | Write/rebuild only |
 | Role grants and scopes | None | None | None | None | Deferred during Internal Alpha/Private Beta | Grant/revoke representative roles | Apply validated grants/revocations |
-| Seed import/duplicate merge | None | None | None | None | Propose/review | Approve | Execute and record rollback data |
+| Seed import/duplicate merge | None | None | None | None | Propose/review facts, source evidence, and license status | Approve only provenance-complete, fact-only, licensed input | Validate approval; execute; record provenance and rollback data |
 
 Break-glass access to shopper-private data requires a separate approved policy, reason, time limit, user/security notification rules, and immutable audit record. It is not normal administrator access.
 
@@ -239,11 +239,12 @@ Do not create a monorepo, shared packages, or a second admin application until a
 - Representative Activation Handoff uses a status-only email and normal PWA sign-in with verified email/MFA; no reusable access or role token is emailed. The portal shows only the approved store scope, consent receipt, and approval history, offers PWA installation guidance, and starts a listing/hours/direct-edit/controlled-change/support checklist. Change-request comments require authenticated portal access. Handoff events are audited. ADR 0002. Approved 2026-07-28.
 - Store Partner Pilot Support uses categorized, pilot-restricted tickets with allowlisted diagnostics and optional owner-previewed screenshots. Ticket details/replies require authenticated owner/admin access; email is status-only. Security/privacy concerns alert the Administrator urgently. Fallback email handles sign-in failure without disclosing pilot data before identity verification. Owners may confirm resolution or reopen. Approved 2026-07-28.
 - Regional Public MVP comprises completed Implementation Phases 0–3 plus Phase 6 release gates. Phase 6 is not a feature bundle. Phase 4 finds/households, Phase 5 preference onboarding/personalization, public photos, and owner review responses are deferred. Approved 2026-07-29.
+- Store Partners provide and confirm their records. Non-partner records contain only manually verified public facts—name, address, phone, hours, website, and categories—with source, verifier, and verification date. Descriptions, photos, and reviews require permission. Scraping or bulk import requires written license review. Google Places is not the stored catalog; only an optional place ID may be retained for a later approved live lookup under current provider and attribution terms. Approved 2026-07-29.
 
 ### Before scaffolding or schema design
 
 1. Exact Small-Community Expansion community choices; eligibility, the per-community gate, and the three-community stop/review point are resolved.
-2. Store-data source, license, attribution, refresh, and Google Places constraints.
+2. Store-data refresh cadence and stale-listing behavior; source, license, attribution, and Google Places constraints are resolved.
 3. Mapping/routing provider and whether the product may send precise coordinates to it as a disclosed processor.
 4. Scalable business-claim intake and verification after the first Store Partner pilot; the first pilot's onboarding method and verified Store Representative field permissions are resolved.
 5. Review identity, eligibility, conflict disclosure, deletion behavior, moderation rules, and appeal policy.

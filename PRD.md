@@ -154,6 +154,15 @@ Public store records may include:
 - Active, temporarily closed, or permanently closed status
 - Claimed or unclaimed listing status
 
+### Store data provenance
+
+- Store Partners provide and confirm their records.
+- Non-partner listings use only manually verified public facts: name, address, phone, hours, website, and categories.
+- Record owner confirmation or source URL, verifier, and verification date for each imported or manually entered fact set.
+- Do not copy descriptions, photos, or reviews without permission.
+- Do not scrape or bulk-import any source without written license review.
+- Do not use Google Places content as the stored catalog. A Google place ID may be retained only for a separately approved live lookup that follows current attribution and provider terms.
+
 ## Store categories and attributes
 
 Possible tags:
@@ -749,4 +758,4 @@ Earlier discovery candidates, not an approved launch sequence:
 
 Only Topeka city limits is approved for the Regional Public MVP. Each later community requires selection under the approved eligibility rule, and larger-metro geography requires separate approval after the three-community review.
 
-The seeded store database may include known stores from product discovery, but all seeded records must use public business information only. No private household ratings or notes should be included.
+The seeded store database may include known stores from product discovery only under the Store Data Provenance policy. It must contain no private household ratings, notes, photos, copied descriptions, third-party reviews, or unlicensed provider content.

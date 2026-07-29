@@ -41,7 +41,7 @@ Features:
 - Categories
 - Last-verified information
 - Report incorrect information
-- Seed import
+- Provenance-controlled seed import
 - Authentication
 - Private saved stores
 - Personal ratings
@@ -61,6 +61,7 @@ Exit criteria:
 - Public browsing works without an account
 - Saved stores remain private
 - Seed data has provenance and verification fields
+- Seed validation rejects copied descriptions, photos, reviews, and unlicensed provider content
 
 ## Internal Alpha gate
 

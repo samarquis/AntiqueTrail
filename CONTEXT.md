@@ -108,6 +108,10 @@ _Avoid_: Pilot Store Record, public listing
 The first real Store Partner listing, created by an Administrator only after Store Partner Pilot Consent. It contains owner-confirmed core listing data with provenance and verification date, is visible only to invited Private Beta participants, and excludes public user-generated or promotional features.
 _Avoid_: Synthetic Store, public listing
 
+**Store Data Provenance**:
+The evidence for each catalog fact: Store Partner confirmation or manual verification from an official public business source, together with the source reference, verifier, and verification date.
+_Avoid_: Copied listing, Google Places snapshot
+
 **Initial Private Beta Cohort**:
 The first controlled external test: Scott's separate shopper and administrator accounts, Scott's wife's separate shopper account, and one Store Partner representative account, with one Pilot Store Record. AI accounts, additional users, and additional real stores are excluded.
 _Avoid_: Public beta, open signup

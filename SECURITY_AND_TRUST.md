@@ -308,6 +308,16 @@ Verification options may include:
 
 A social-media account alone should not automatically grant ownership.
 
+Directory data provenance:
+
+- Accept Store Partner-confirmed listing data after the applicable consent and authority checks.
+- Limit non-partner records to manually verified public facts: name, address, phone, hours, website, and categories.
+- Preserve owner confirmation or source URL, verifier, and verification date.
+- Do not copy descriptions, photos, or reviews without permission.
+- Require written license review before scraping or bulk import.
+- Do not persist Google Places content as the catalog. A place ID may be retained only for a separately approved live lookup that follows current provider and attribution terms.
+- Treat conflicting sources, closures, and duplicate merges as reviewable, audited, and reversible changes.
+
 ## API security
 
 - Input schema validation
