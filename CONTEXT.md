@@ -112,6 +112,10 @@ _Avoid_: Synthetic Store, public listing
 The evidence for each catalog fact: Store Partner confirmation or manual verification from an official public business source, together with the source reference, verifier, and verification date.
 _Avoid_: Copied listing, Google Places snapshot
 
+**Listing Freshness**:
+The trust state derived from a listing's last verification: verified through day 180, verification overdue through day 365, then hidden from normal discovery until reverified; the record and provenance are never automatically deleted.
+_Avoid_: Permanent verification, automatic deletion
+
 **Initial Private Beta Cohort**:
 The first controlled external test: Scott's separate shopper and administrator accounts, Scott's wife's separate shopper account, and one Store Partner representative account, with one Pilot Store Record. AI accounts, additional users, and additional real stores are excluded.
 _Avoid_: Public beta, open signup

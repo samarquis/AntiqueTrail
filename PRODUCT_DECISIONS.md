@@ -28,6 +28,10 @@ Every user's taste model is private and individualized.
 
 Store Partners provide and confirm their own listing data. A non-partner listing may contain only manually verified public business facts: name, address, phone, hours, website, and categories. Preserve Store Data Provenance with the source URL or owner confirmation, verifier, and verification date. Do not copy descriptions, photos, or reviews without permission. Do not scrape or bulk-import a source without written license review. Google Places content is not the stored catalog; an optional Google place ID may be retained for a later approved live lookup that follows current [Google Places policies](https://developers.google.com/maps/documentation/places/web-service/policies), attribution, and provider terms.
 
+### Listing freshness and stale behavior
+
+A listing remains verified for 180 days after Store Partner confirmation or manual source verification. A correction or closure report triggers immediate review. From day 181 through day 365, label the listing `Verification overdue`, keep it searchable with a warning, and exclude it from Open Now and automatic trip ordering. After day 365, hide it from normal discovery until reverified. Never automatically delete the listing or its provenance. Successful reverification resets the clock.
+
 ### Trip app owns the itinerary
 
 Navigation providers handle only the current leg.
@@ -154,20 +158,19 @@ Provide an in-app Pilot Support Ticket workflow with categories for bug, confusi
 2. Exact Small-Community Expansion community choices
 3. Mapping provider
 4. Route-optimization provider or custom algorithm
-5. Store-data refresh cadence and stale-listing behavior
-6. Scalable business-verification methods after the first Store Partner pilot
-7. Monetization model
-8. Free versus paid store-owner features
-9. Analytics provider
-10. Email and transactional notification provider
-11. Image moderation provider
-12. Hosting platform
-13. Legal entity and insurance requirements
-14. Minimum age
-15. Whether the service launches only in the United States
-16. Data retention periods
-17. Review appeal policy
-18. Public photo approval workflow after Regional Public MVP
-19. Store-event model
-20. Accessibility information source
-21. Export formats and portability
+5. Scalable business-verification methods after the first Store Partner pilot
+6. Monetization model
+7. Free versus paid store-owner features
+8. Analytics provider
+9. Email and transactional notification provider
+10. Image moderation provider
+11. Hosting platform
+12. Legal entity and insurance requirements
+13. Minimum age
+14. Whether the service launches only in the United States
+15. Data retention periods
+16. Review appeal policy
+17. Public photo approval workflow after Regional Public MVP
+18. Store-event model
+19. Accessibility information source
+20. Export formats and portability

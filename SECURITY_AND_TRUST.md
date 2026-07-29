@@ -317,6 +317,9 @@ Directory data provenance:
 - Require written license review before scraping or bulk import.
 - Do not persist Google Places content as the catalog. A place ID may be retained only for a separately approved live lookup that follows current provider and attribution terms.
 - Treat conflicting sources, closures, and duplicate merges as reviewable, audited, and reversible changes.
+- Treat verification as current for 180 days. Corrections and closure reports trigger immediate review.
+- From day 181 through day 365, warn that verification is overdue and exclude the listing from Open Now and automatic trip ordering.
+- After day 365, hide the listing from normal discovery until reverified; never automatically delete the record or provenance.
 
 ## API security
 

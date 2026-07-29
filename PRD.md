@@ -163,6 +163,15 @@ Public store records may include:
 - Do not scrape or bulk-import any source without written license review.
 - Do not use Google Places content as the stored catalog. A Google place ID may be retained only for a separately approved live lookup that follows current attribution and provider terms.
 
+### Listing freshness
+
+- Treat a listing as verified for 180 days after Store Partner confirmation or manual source verification.
+- A correction or closure report triggers immediate review regardless of age.
+- From day 181 through day 365, show `Verification overdue`, keep the listing searchable with a warning, and exclude it from Open Now and automatic trip ordering.
+- After day 365, hide the listing from normal discovery until reverified.
+- Never automatically delete the listing or its provenance.
+- Successful reverification resets the freshness clock.
+
 ## Store categories and attributes
 
 Possible tags:

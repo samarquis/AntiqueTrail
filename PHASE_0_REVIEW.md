@@ -20,18 +20,17 @@ Status: proposal pending product-owner approval. The handoff documents remain th
 
 ### Missing launch requirements
 
-1. Store-data refresh cadence and stale-data policy.
-2. Review identity, eligibility, anonymity, conflict disclosure, account-deletion effect, and aggregation rules.
-3. Moderation standards, service levels, evidence access, appeals, and legal escalation.
-4. Business-claim creation, verification, transfer, expiration, revocation, and disputed-control workflow.
-5. Route objective and edge semantics: infeasible stops, time zones, daylight saving, overnight hours, temporary markets, traffic assumptions, provider failure, and manual overrides.
-6. Offline data boundary, local retention, logout purge, sync conflicts, and multi-device behavior.
-7. Retention and deletion schedule for every private and operational data class, including backup expiry.
-8. Accessibility conformance target, supported browsers/devices, performance budgets, and public availability targets.
-9. Recovery point and recovery time objectives, support coverage, incident contacts, and status communication.
-10. Minimum age, launch countries, analytics consent, email consent, and processor disclosures.
-11. Duplicate-store merge rules and preservation of reviews, saves, trips, claims, and audit history.
-12. Account suspension, compromised-account recovery, data export format, and deletion verification.
+1. Review identity, eligibility, anonymity, conflict disclosure, account-deletion effect, and aggregation rules.
+2. Moderation standards, service levels, evidence access, appeals, and legal escalation.
+3. Business-claim creation, verification, transfer, expiration, revocation, and disputed-control workflow.
+4. Route objective and edge semantics: infeasible stops, time zones, daylight saving, overnight hours, temporary markets, traffic assumptions, provider failure, and manual overrides.
+5. Offline data boundary, local retention, logout purge, sync conflicts, and multi-device behavior.
+6. Retention and deletion schedule for every private and operational data class, including backup expiry.
+7. Accessibility conformance target, supported browsers/devices, performance budgets, and public availability targets.
+8. Recovery point and recovery time objectives, support coverage, incident contacts, and status communication.
+9. Minimum age, launch countries, analytics consent, email consent, and processor disclosures.
+10. Duplicate-store merge rules and preservation of reviews, saves, trips, claims, and audit history.
+11. Account suspension, compromised-account recovery, data export format, and deletion verification.
 
 ## 2. Security and privacy plan review
 
@@ -94,7 +93,7 @@ Assessment: direction is sound, but it is not yet an implementable privacy or se
 | High | Malicious upload, EXIF/GPS leak, decompression bomb, or unsafe public content | Private quarantine; content sniffing; re-encode; metadata strip; decoded-pixel limits; malware scan; moderation before publication | Copyright and harmful-content disputes require process, not only technical controls. |
 | High | Session theft, XSS, or account-recovery takeover | Strict CSP; output encoding; dependency controls; managed session rotation/revocation; recovery rate limits; account-change alerts; recent auth | Compromised user devices remain outside application control. |
 | High | Moderator/admin misuse or compromised privileged account | Least privilege; required MFA; separate admin actions; append-only audit; anomaly alerts; break-glass procedure | Trusted-insider risk remains. |
-| High | Store-data poisoning, false closure, or duplicate merge damage | Owner-confirmed facts or manually verified official public facts only; source URL/confirmation, verifier, and verification date; no unlicensed scraping/bulk import; no stored Google Places catalog; audited edits; owner scope; reversible merges; dispute workflow | Official public sources and owners can still be wrong or compromised. |
+| High | Store-data poisoning, false closure, stale hours, or duplicate merge damage | Owner-confirmed facts or manually verified official public facts only; source URL/confirmation, verifier, and verification date; 180-day verification window; overdue warning and hours-dependent feature exclusion through day 365; then hide until reverified; immediate correction/closure review; no unlicensed scraping/bulk import; no stored Google Places catalog; audited edits; reversible merges | Official public sources and owners can still be wrong, compromised, or change before the 180-day window ends. |
 | High | API-cost or availability denial of service | Edge rate limits; quotas; caching of public data; provider budgets/alerts; request-size limits; graceful provider failure | Regional events can still create legitimate spikes. |
 | Medium | Secret/service-role leakage or compromised provider webhook | Server-only secret storage; narrow functions; secret rotation; authenticated webhooks; environment separation | A privileged function compromise has broad impact. |
 | Medium | Incomplete deletion through logs, backups, derived aggregates, or providers | Data inventory; deletion workflow; backup expiry; provider deletion terms; verification receipt | Immediate removal from immutable backups is generally impossible. |
@@ -240,24 +239,24 @@ Do not create a monorepo, shared packages, or a second admin application until a
 - Store Partner Pilot Support uses categorized, pilot-restricted tickets with allowlisted diagnostics and optional owner-previewed screenshots. Ticket details/replies require authenticated owner/admin access; email is status-only. Security/privacy concerns alert the Administrator urgently. Fallback email handles sign-in failure without disclosing pilot data before identity verification. Owners may confirm resolution or reopen. Approved 2026-07-28.
 - Regional Public MVP comprises completed Implementation Phases 0–3 plus Phase 6 release gates. Phase 6 is not a feature bundle. Phase 4 finds/households, Phase 5 preference onboarding/personalization, public photos, and owner review responses are deferred. Approved 2026-07-29.
 - Store Partners provide and confirm their records. Non-partner records contain only manually verified public facts—name, address, phone, hours, website, and categories—with source, verifier, and verification date. Descriptions, photos, and reviews require permission. Scraping or bulk import requires written license review. Google Places is not the stored catalog; only an optional place ID may be retained for a later approved live lookup under current provider and attribution terms. Approved 2026-07-29.
+- Listing verification lasts 180 days. From day 181 through day 365, show `Verification overdue`, keep the listing searchable with a warning, and exclude it from Open Now and automatic trip ordering. After day 365, hide it from normal discovery until reverified. Corrections and closure reports trigger immediate review. Reverification resets the clock; records and provenance are never automatically deleted. Approved 2026-07-29.
 
 ### Before scaffolding or schema design
 
 1. Exact Small-Community Expansion community choices; eligibility, the per-community gate, and the three-community stop/review point are resolved.
-2. Store-data refresh cadence and stale-listing behavior; source, license, attribution, and Google Places constraints are resolved.
-3. Mapping/routing provider and whether the product may send precise coordinates to it as a disclosed processor.
-4. Scalable business-claim intake and verification after the first Store Partner pilot; the first pilot's onboarding method and verified Store Representative field permissions are resolved.
-5. Review identity, eligibility, conflict disclosure, deletion behavior, moderation rules, and appeal policy.
-6. Retention/deletion/backup schedule, RPO, RTO, and break-glass access policy.
-7. Route feasibility semantics, traffic assumptions, and time-zone/temporary-market behavior.
-8. Offline cache, logout purge, revocation, and sync-conflict behavior.
-9. Minimum age, launch countries, accessibility target, and supported browser/device baseline.
+2. Mapping/routing provider and whether the product may send precise coordinates to it as a disclosed processor.
+3. Scalable business-claim intake and verification after the first Store Partner pilot; the first pilot's onboarding method and verified Store Representative field permissions are resolved.
+4. Review identity, eligibility, conflict disclosure, deletion behavior, moderation rules, and appeal policy.
+5. Retention/deletion/backup schedule, RPO, RTO, and break-glass access policy.
+6. Route feasibility semantics, traffic assumptions, and time-zone/temporary-market behavior.
+7. Offline cache, logout purge, revocation, and sync-conflict behavior.
+8. Minimum age, launch countries, accessibility target, and supported browser/device baseline.
 
 ### May wait until after scaffold approval
 
-10. Final product name.
-11. Hosting, analytics, transactional email, and image-moderation providers, provided no related feature is built first.
-12. Monetization and free/paid owner features.
-13. Deferred-feature timing after Regional Public MVP: households, finds, preference onboarding/personalization, public photos, owner responses, events, exports beyond baseline JSON/CSV, and Android release.
+9. Final product name.
+10. Hosting, analytics, transactional email, and image-moderation providers, provided no related feature is built first.
+11. Monetization and free/paid owner features.
+12. Deferred-feature timing after Regional Public MVP: households, finds, preference onboarding/personalization, public photos, owner responses, events, exports beyond baseline JSON/CSV, and Android release.
 
-Implementation remains blocked pending approval of items 1–9.
+Implementation remains blocked pending approval of items 1–8.

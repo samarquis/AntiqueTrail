@@ -40,6 +40,7 @@ Features:
 - Hours
 - Categories
 - Last-verified information
+- Listing freshness state and warnings
 - Report incorrect information
 - Provenance-controlled seed import
 - Authentication
@@ -62,6 +63,7 @@ Exit criteria:
 - Saved stores remain private
 - Seed data has provenance and verification fields
 - Seed validation rejects copied descriptions, photos, reviews, and unlicensed provider content
+- Freshness rules enforce the 180-day verified window, overdue hours-feature exclusion through day 365, and discovery hiding after day 365 without deleting provenance
 
 ## Internal Alpha gate
 
