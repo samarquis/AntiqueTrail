@@ -57,7 +57,7 @@ A clearly fictional store record that models a business type or workflow without
 _Avoid_: Seed store, Prospective Store Partner
 
 **Regional Public MVP**:
-The first publicly accessible release, limited to one approved region; it includes text-only public ratings and reviews after moderation and abuse controls pass.
+The first publicly accessible release, limited to Topeka city limits, with the directory, private account basics, text-only public reviews, verified store claims, and trip planning. Finds, households, personalization, public photos, and owner review responses are excluded.
 _Avoid_: Private beta, national launch
 
 **Public User-Generated Content**:

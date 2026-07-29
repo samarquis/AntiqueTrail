@@ -139,8 +139,7 @@ Break-glass access to shopper-private data requires a separate approved policy, 
 
 - One contiguous, store-dense metro or corridor with manually verified seed data, provenance, and freshness status.
 - Anonymous directory, search, map, filters, store profile, hours/exceptions, closure state, last verified date, and correction reports.
-- Managed authentication with verified email; private saved stores, personal ratings, explicit preferences, and visit history.
-- Transparent rule-based preference match using declared category/store attributes. No machine learning or behavioral inference in MVP.
+- Managed authentication with verified email; private saved stores, personal ratings, and visit history.
 - Trip creation, departure/start/optional return, required and optional stops, browsing time, manual reorder, provider travel times, hours-aware feasible ordering, warnings, active-trip state, and one-leg Waze/Google Maps handoff.
 - Offline recovery of the current active trip only.
 - Text-only public star ratings/reviews, one active review per user/store, edit history, reporting, rate limits, server aggregation, and a minimal moderation queue.
@@ -156,7 +155,7 @@ Private beta may disable all public user-generated content. That beta does not s
 - Public/review photos and image moderation provider.
 - Owner self-service publishing, events, engagement analytics, and paid features.
 - Push notifications.
-- Advanced personalization, behavior-based learning, and similar-store recommendations.
+- Preference onboarding, match indicators, advanced personalization, behavior-based learning, and similar-store recommendations.
 - Android packaging, AI identification/appraisal, marketplace, social feed, and national expansion.
 
 ## 6. Proposed architecture and repository structure
@@ -239,26 +238,25 @@ Do not create a monorepo, shared packages, or a second admin application until a
 - A Pending Partner Identity creates and submits its own Pilot Store Draft after consent/email/MFA. Administrators verify and comment/return/approve but cannot edit submitted values. The owner corrects and resubmits. MFA/recent-auth approval of an exact final preview atomically freezes the draft snapshot, creates the Pilot Store Record, and grants only its store scope; failure creates neither. Comments and transitions are audited. ADR 0003. Approved 2026-07-28.
 - Representative Activation Handoff uses a status-only email and normal PWA sign-in with verified email/MFA; no reusable access or role token is emailed. The portal shows only the approved store scope, consent receipt, and approval history, offers PWA installation guidance, and starts a listing/hours/direct-edit/controlled-change/support checklist. Change-request comments require authenticated portal access. Handoff events are audited. ADR 0002. Approved 2026-07-28.
 - Store Partner Pilot Support uses categorized, pilot-restricted tickets with allowlisted diagnostics and optional owner-previewed screenshots. Ticket details/replies require authenticated owner/admin access; email is status-only. Security/privacy concerns alert the Administrator urgently. Fallback email handles sign-in failure without disclosing pilot data before identity verification. Owners may confirm resolution or reopen. Approved 2026-07-28.
+- Regional Public MVP comprises completed Implementation Phases 0–3 plus Phase 6 release gates. Phase 6 is not a feature bundle. Phase 4 finds/households, Phase 5 preference onboarding/personalization, public photos, and owner review responses are deferred. Approved 2026-07-29.
 
 ### Before scaffolding or schema design
 
-1. Which implementation phases collectively define public MVP?
-2. Exact Small-Community Expansion community choices; eligibility, the per-community gate, and the three-community stop/review point are resolved.
-3. Store-data source, license, attribution, refresh, and Google Places constraints.
-4. Mapping/routing provider and whether the product may send precise coordinates to it as a disclosed processor.
-5. Include the proposed transparent match score in MVP, or remove match indicators from MVP.
-6. Scalable business-claim intake and verification after the first Store Partner pilot; the first pilot's onboarding method and verified Store Representative field permissions are resolved.
-7. Review identity, eligibility, conflict disclosure, deletion behavior, moderation rules, and appeal policy.
-8. Retention/deletion/backup schedule, RPO, RTO, and break-glass access policy.
-9. Route feasibility semantics, traffic assumptions, and time-zone/temporary-market behavior.
-10. Offline cache, logout purge, revocation, and sync-conflict behavior.
-11. Minimum age, launch countries, accessibility target, and supported browser/device baseline.
+1. Exact Small-Community Expansion community choices; eligibility, the per-community gate, and the three-community stop/review point are resolved.
+2. Store-data source, license, attribution, refresh, and Google Places constraints.
+3. Mapping/routing provider and whether the product may send precise coordinates to it as a disclosed processor.
+4. Scalable business-claim intake and verification after the first Store Partner pilot; the first pilot's onboarding method and verified Store Representative field permissions are resolved.
+5. Review identity, eligibility, conflict disclosure, deletion behavior, moderation rules, and appeal policy.
+6. Retention/deletion/backup schedule, RPO, RTO, and break-glass access policy.
+7. Route feasibility semantics, traffic assumptions, and time-zone/temporary-market behavior.
+8. Offline cache, logout purge, revocation, and sync-conflict behavior.
+9. Minimum age, launch countries, accessibility target, and supported browser/device baseline.
 
 ### May wait until after scaffold approval
 
-12. Final product name.
-13. Hosting, analytics, transactional email, and image-moderation providers, provided no related feature is built first.
-14. Monetization and free/paid owner features.
-15. Households, finds, public photos, events, exports beyond baseline JSON/CSV, and Android release timing.
+10. Final product name.
+11. Hosting, analytics, transactional email, and image-moderation providers, provided no related feature is built first.
+12. Monetization and free/paid owner features.
+13. Deferred-feature timing after Regional Public MVP: households, finds, preference onboarding/personalization, public photos, owner responses, events, exports beyond baseline JSON/CSV, and Android release.
 
-Implementation remains blocked pending approval of items 1–11.
+Implementation remains blocked pending approval of items 1–9.

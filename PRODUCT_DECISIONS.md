@@ -48,6 +48,10 @@ Start with one strong region and verified store data rather than a sparse nation
 
 Launch first as a controlled-access Private Beta without public user-generated content. After directory, trip planning, moderation, and abuse controls are proven, launch a Regional Public MVP with text-only public ratings and reviews.
 
+### Regional Public MVP boundary
+
+The Regional Public MVP requires completed Implementation Phases 0–3: product/security foundation, public directory and private account basics, text-only public reviews and verified store-claim workflows, and the trip planner. Phase 6 supplies security, privacy, legal, recovery, accessibility, operations, and launch-readiness gates; it is a release gate rather than another feature bundle. Defer Phase 4 finds/households, Phase 5 preference onboarding/personalization, public photos, and owner review responses until after the Regional Public MVP.
+
 ### In-person store-partner pilot
 
 Choose a Pilot Area where direct shop-owner outreach is practical before public advertising. A candidate shop is a Prospective Store Partner until an authorized owner or manager explicitly agrees to participate; that person may then join the Private Beta as a Beta Tester. Do not imply a partnership before consent.

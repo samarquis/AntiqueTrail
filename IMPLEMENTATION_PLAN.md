@@ -1,5 +1,7 @@
 # Implementation Plan
 
+Regional Public MVP boundary: complete Phases 0–3, then pass the Phase 6 release gates. Phases 4–5 do not block launch and remain deferred.
+
 ## Phase 0 — Product and security foundation
 
 Deliverables:
@@ -43,7 +45,6 @@ Features:
 - Authentication
 - Private saved stores
 - Personal ratings
-- Basic preference onboarding
 
 Security:
 
@@ -236,11 +237,11 @@ Features:
 - Review editing
 - Reporting
 - Moderation queue
-- Store responses
 - Claim listing
 - Verification workflow
 - Owner-managed hours and public details
-- Public photos
+
+Deferred beyond the Regional Public MVP: store responses and public photos.
 
 Security and trust:
 
@@ -309,6 +310,7 @@ Security:
 
 Features:
 
+- Preference onboarding
 - Match score
 - Explainable reasons
 - Recommendation feedback
@@ -324,6 +326,8 @@ Rules:
 - No sensitive inference beyond product purpose
 
 ## Phase 6 — Regional launch
+
+Phase 6 is a release gate for the completed Phase 0–3 feature set, not another feature bundle. Phases 4–5 remain deferred.
 
 - External security review
 - Legal review

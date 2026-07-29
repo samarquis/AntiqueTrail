@@ -247,7 +247,7 @@ The map must support:
 - Pins
 - Clustering
 - Public ratings
-- Personal match indicators
+- Personal match indicators after Phase 5
 - Open-now filtering
 - Visited/unvisited filtering
 - Saved-store filtering
@@ -281,7 +281,7 @@ The map must support:
 - Travel time
 - Expected browsing duration
 - User priority
-- Personal match score
+- Personal match score after Phase 5
 - Required stops
 - Backtracking
 - Return destination
@@ -326,8 +326,8 @@ Each store profile must support:
 - Public average rating
 - Review count
 - Approved reviews
-- Official owner response
-- Public photos
+- Official owner response after the Regional Public MVP
+- Public photos after the Regional Public MVP
 - Store tags and attributes
 - Hours and exceptions
 - Last verified date
@@ -339,7 +339,7 @@ Each store profile must support:
 - Personal rating
 - Private notes
 - Visit history
-- Private finds and purchases
+- Private finds and purchases after Phase 4
 
 ## Review requirements
 
@@ -348,10 +348,10 @@ Each store profile must support:
 - Review edit history retained internally
 - Rating from 1 to 5
 - Optional review text
-- Optional public photos submitted separately
+- Optional public photos submitted separately after the Regional Public MVP
 - Report action
 - Moderation status
-- Store-owner response
+- Store-owner response after the Regional Public MVP
 - Conflict-of-interest disclosure
 - Rate limiting
 - Bot and spam defenses
@@ -658,6 +658,8 @@ External Testing Readiness gate before first-owner contact:
 
 ## MVP
 
+The Regional Public MVP comprises completed Implementation Phases 0–3 plus the Phase 6 release gates. Phase 6 is a release gate, not a feature phase.
+
 Required:
 
 - Public directory
@@ -667,7 +669,6 @@ Required:
 - Private saved stores
 - Public ratings and reviews
 - Personal ratings
-- Basic preference onboarding
 - Today's Trip
 - Hours-aware route ordering
 - Schedule warnings
@@ -678,14 +679,15 @@ Required:
 - Offline active trip
 - Secure database policies
 - Moderation basics
-- Listing claim intake
+- Listing claim intake and claimant verification
 
-Strongly preferred:
+Deferred until after the Regional Public MVP:
 
 - Household accounts
 - Find capture
 - Public photos
-- Store-owner verification
+- Store-owner review responses
+- Preference onboarding and personalization
 - Push or in-app schedule warnings
 
 Excluded:
@@ -703,7 +705,6 @@ Excluded:
 - Trip creation under three minutes
 - Navigation handoff in one tap
 - Visit review under one minute
-- Find capture under 30 seconds
 - Accurate warning when a stop is unlikely before closing
 - No private-data exposure
 - Offline active trip continuity
