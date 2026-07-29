@@ -292,6 +292,16 @@ The map must support:
 - User priority for each stop
 - Maximum drive distance or total trip duration
 
+### Location privacy
+
+- Request device location only after explicit while-in-use permission for a user-requested route.
+- Allow manual start entry; denying device location must not block directory browsing or manual trip planning.
+- Send only coordinates necessary for the requested route to the routing provider named in the privacy notice.
+- Never collect background or continuous location or raw movement history.
+- Never place precise coordinates in analytics, application logs, email, or support records.
+- Keep saved trip locations private to their shopper.
+- Apply the separately approved retention policy to completed-trip location data.
+
 ### Planning factors
 
 - Opening and closing time

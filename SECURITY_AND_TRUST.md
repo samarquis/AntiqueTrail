@@ -87,15 +87,17 @@ Every new field must receive:
 
 ## Location privacy
 
-- Request only while needed
-- Explain the feature purpose
-- Prefer while-in-use permission
-- No background tracking in MVP
-- Do not sell or share precise location
-- Do not include exact location in analytics logs
-- Save trips only through explicit user action
+- Request device location only after explicit while-in-use permission for a user-requested route
+- Explain the feature purpose and name the routing provider in the privacy notice
+- Send the provider only coordinates necessary for the requested route
+- Provide manual start entry; denial must not block directory browsing or manual trip planning
+- No background or continuous tracking
+- Do not sell precise location or share it for unrelated purposes
+- Do not include precise coordinates in analytics, application logs, email, or support records
+- Save trips only through explicit user action and keep them shopper-private
 - Allow deletion of saved trip history
 - Avoid storing raw movement history
+- Apply the separately approved retention policy to completed-trip location data
 
 ## Authentication
 

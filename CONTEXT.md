@@ -60,6 +60,10 @@ _Avoid_: Seed store, Prospective Store Partner
 The first publicly accessible release, limited to Topeka city limits, with the directory, private account basics, text-only public reviews, verified store claims, and trip planning. Finds, households, personalization, public photos, and owner review responses are excluded.
 _Avoid_: Private beta, national launch
 
+**Route Location Disclosure**:
+The explicit notice that a user-requested route sends only its necessary coordinates to the named routing provider. It never authorizes background tracking, analytics/log collection, or unrelated sharing.
+_Avoid_: Location consent, background tracking
+
 **Public User-Generated Content**:
 Shopper-created ratings, review text, or media made visible to other users or anonymous visitors.
 _Avoid_: Personal content, owner content

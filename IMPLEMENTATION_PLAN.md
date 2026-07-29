@@ -266,6 +266,7 @@ Exit criteria:
 Features:
 
 - Add stops
+- Explicit while-in-use device-location request with manual start fallback
 - Departure time
 - Return destination
 - Browse-duration estimates
@@ -286,6 +287,8 @@ Exit criteria:
 - Offline trip recovery
 - Schedule warnings tested across time zones and daylight-saving changes
 - No hidden background tracking
+- No precise coordinates in analytics, application logs, email, or support records
+- Directory and manual trip planning work when device-location permission is denied
 
 ## Phase 4 — Personal finds and households
 

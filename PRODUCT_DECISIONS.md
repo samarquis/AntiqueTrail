@@ -36,6 +36,10 @@ A listing remains verified for 180 days after Store Partner confirmation or manu
 
 Navigation providers handle only the current leg.
 
+### Routing location privacy
+
+Antique Trail may send only the coordinates necessary for a user-requested route to a named routing provider disclosed in the privacy notice. Device location requires explicit while-in-use permission; users may instead enter a start location manually. Directory browsing and manual trip planning work without device-location permission. Do not collect background or continuous location, raw movement history, or precise coordinates in analytics, application logs, email, or support records. Saved trip locations remain private to their shopper. Completed-trip location data follows a separately approved retention policy.
+
 ### Professional and commercial standard
 
 The application must be secure, maintainable, moderated, monitored, and polished enough to advertise through printed flyers in participating stores.
