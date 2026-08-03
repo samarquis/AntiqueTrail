@@ -15,11 +15,14 @@ export function AuthProvider({
   authStore,
   registry,
   provider = unavailableAuthProvider,
+  onLocalSignOut,
 }: {
   children: ReactNode
   authStore?: AuthStore
   registry?: SessionRegistryClient
   provider?: AuthProviderAdapter
+  /** Purges account/install-bound local data (for example encrypted trip caches). */
+  onLocalSignOut?: (session: AuthSession) => Promise<void> | void
 }) {
   const authStoreRef = useRef<AuthStore>(authStore ?? new InMemoryAuthStore())
   const registryRef = useRef<SessionRegistryClient>(registry ?? new InMemorySessionRegistry())
@@ -38,13 +41,14 @@ export function AuthProvider({
         const current = resolvedStore.getSession()
         if (current) {
           await provider.signOut(current)
+          await onLocalSignOut?.(current)
           await resolvedRegistry.revoke(current, 'user_sign_out')
         }
         resolvedStore.clearSession()
         setSession(null)
       },
     }),
-    [provider, resolvedRegistry, resolvedStore, session],
+    [onLocalSignOut, provider, resolvedRegistry, resolvedStore, session],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
