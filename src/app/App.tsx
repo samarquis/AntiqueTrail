@@ -14,6 +14,11 @@ import {
   RequireSession,
   SignInPage,
   unavailableAuthProvider,
+  CancelDeletionPage,
+  DeleteAccountPage,
+  ExportPage,
+  PrivacyPage,
+  unavailableLifecycleClient,
 } from '../features/auth'
 
 const catalogClient = configuredCatalogClient() ?? demoCatalogClient
@@ -77,6 +82,38 @@ export default function App() {
             element={
               <RequireSession>
                 <AccountPlaceholder />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/account/privacy"
+            element={
+              <RequireSession>
+                <PrivacyPage client={unavailableLifecycleClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/account/export"
+            element={
+              <RequireSession>
+                <ExportPage client={unavailableLifecycleClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/account/delete"
+            element={
+              <RequireSession>
+                <DeleteAccountPage client={unavailableLifecycleClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/account/delete/cancel"
+            element={
+              <RequireSession>
+                <CancelDeletionPage client={unavailableLifecycleClient} />
               </RequireSession>
             }
           />
