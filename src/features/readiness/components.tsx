@@ -54,8 +54,9 @@ export function ReadinessStatusPage({
         <p className="eyebrow">Private readiness evidence</p>
         <h1 id="readiness-heading">Readiness status</h1>
         <p className="lede">
-          Evidence and decisions are calculated and stored by protected services. This page cannot
-          upload evidence or mark a signature as verified.
+          Evidence is frozen from append-only service facts, and decisions are calculated and stored
+          by protected services. This page cannot upload facts, totals, or mark a signature as
+          verified.
         </p>
         {loading && <p role="status">Loading server-owned evidence…</p>}
         {error && <p role="alert">{GENERIC_READINESS_ERROR}</p>}

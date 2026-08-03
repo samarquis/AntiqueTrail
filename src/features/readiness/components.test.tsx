@@ -44,6 +44,12 @@ describe('ReadinessStatusPage', () => {
     expect(await screen.findByText(/configured signing provider/i)).toBeInTheDocument()
   })
 
+  it('states that the browser cannot upload facts or totals', async () => {
+    render(<ReadinessStatusPage runId="run-1" client={client()} />)
+
+    expect(await screen.findByText(/cannot upload facts, totals/i)).toBeInTheDocument()
+  })
+
   it('fails closed when status cannot be loaded', async () => {
     const unavailable: DurableReadinessClient = {
       getStatus: vi.fn(async () => {
