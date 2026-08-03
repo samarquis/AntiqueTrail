@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import {
   GENERIC_CANDIDATE_ERROR,
+  normalizeCandidateRecipient,
   unavailableCandidateClient,
   validateCandidateInput,
 } from './candidateClient'
@@ -47,8 +48,11 @@ export function CapturePage({ client = unavailableCandidateClient }: { client?: 
   const [url, setUrl] = useState('')
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
+  const [candidateId, setCandidateId] = useState<string | null>(null)
+  const [recipientEmail, setRecipientEmail] = useState('')
   const [error, setError] = useState<string[]>([])
   const [status, setStatus] = useState<string | null>(null)
+  const [shareStatus, setShareStatus] = useState<string | null>(null)
   async function submit(event: FormEvent) {
     event.preventDefault()
     const errors = validateCandidateInput({ url, title, note })
@@ -58,7 +62,8 @@ export function CapturePage({ client = unavailableCandidateClient }: { client?: 
     }
     setError([])
     try {
-      await client.saveCandidate({ url, title: title.trim(), note })
+      const candidate = await client.saveCandidate({ url, title: title.trim(), note })
+      setCandidateId(candidate.id)
       setStatus('Candidate saved privately.')
     } catch {
       setError([GENERIC_CANDIDATE_ERROR])
@@ -104,25 +109,57 @@ export function CapturePage({ client = unavailableCandidateClient }: { client?: 
           Save candidate
         </button>
       </form>
+      {candidateId && (
+        <form
+          onSubmit={async (event) => {
+            event.preventDefault()
+            const normalizedEmail = normalizeCandidateRecipient(recipientEmail)
+            if (!normalizedEmail.includes('@')) {
+              setShareStatus('Enter a valid recipient email.')
+              return
+            }
+            setShareStatus(null)
+            try {
+              await client.sendShare({ candidateId, recipientEmail: normalizedEmail })
+              setShareStatus(
+                'Share sent. If the recipient can receive it, it will appear in their inbox.',
+              )
+              setRecipientEmail('')
+            } catch {
+              setShareStatus(GENERIC_CANDIDATE_ERROR)
+            }
+          }}
+        >
+          <label htmlFor="candidate-recipient">Share with recipient email</label>
+          <input
+            id="candidate-recipient"
+            type="email"
+            autoComplete="email"
+            value={recipientEmail}
+            onChange={(event) => setRecipientEmail(event.target.value)}
+            required
+          />
+          {shareStatus && <p role="status">{shareStatus}</p>}
+          <button type="submit">Send private share</button>
+        </form>
+      )}
     </CandidateCard>
   )
 }
 
 function ShareActions({
   share,
-  userId,
   client,
   onChanged,
 }: {
   share: CandidateShareView
-  userId: string
   client: CandidateClient
   onChanged: (next: CandidateShareView) => void
 }) {
   const [error, setError] = useState(false)
   async function act(action: 'acceptShare' | 'dismissShare' | 'blockShare' | 'reportShare') {
     try {
-      const result = await client[action](userId, share.id)
+      const result = await client[action](share.id)
       onChanged({ ...share, state: result.state })
     } catch {
       setError(true)
@@ -149,21 +186,15 @@ function ShareActions({
   )
 }
 
-export function SharesPage({
-  userId = '',
-  client = unavailableCandidateClient,
-}: {
-  userId?: string
-  client?: CandidateClient
-}) {
+export function SharesPage({ client = unavailableCandidateClient }: { client?: CandidateClient }) {
   const [shares, setShares] = useState<CandidateShareView[] | null>(null)
   const [error, setError] = useState(false)
   useEffect(() => {
     client
-      .listShares(userId)
+      .listShares()
       .then(setShares)
       .catch(() => setError(true))
-  }, [client, userId])
+  }, [client])
   return (
     <CandidateCard
       title="Candidate shares"
@@ -183,7 +214,6 @@ export function SharesPage({
               {share.state}
               <ShareActions
                 share={share}
-                userId={userId}
                 client={client}
                 onChanged={(next) =>
                   setShares(shares.map((item) => (item.id === next.id ? next : item)))
@@ -198,10 +228,8 @@ export function SharesPage({
 }
 
 export function ShareDetailsPage({
-  userId = '',
   client = unavailableCandidateClient,
 }: {
-  userId?: string
   client?: CandidateClient
 }) {
   const { shareId = '' } = useParams()
@@ -209,10 +237,10 @@ export function ShareDetailsPage({
   const [error, setError] = useState(false)
   useEffect(() => {
     client
-      .getShare(userId, shareId)
+      .getShare(shareId)
       .then(setShare)
       .catch(() => setError(true))
-  }, [client, shareId, userId])
+  }, [client, shareId])
   return (
     <CandidateCard
       title="Candidate share"
@@ -227,7 +255,7 @@ export function ShareDetailsPage({
           <p>
             {share.title} · {share.direction} · {share.state}
           </p>
-          <ShareActions share={share} userId={userId} client={client} onChanged={setShare} />
+          <ShareActions share={share} client={client} onChanged={setShare} />
         </>
       )}
     </CandidateCard>
@@ -235,23 +263,21 @@ export function ShareDetailsPage({
 }
 
 export function TripIdeasPage({
-  userId = '',
   client = unavailableCandidateClient,
 }: {
-  userId?: string
   client?: CandidateClient
 }) {
   const [ideas, setIdeas] = useState<TripIdea[] | null>(null)
   const [error, setError] = useState(false)
   useEffect(() => {
     client
-      .listTripIdeas(userId)
+      .listTripIdeas()
       .then(setIdeas)
       .catch(() => setError(true))
-  }, [client, userId])
+  }, [client])
   async function remove(id: string) {
     try {
-      await client.deleteTripIdea(userId, id)
+      await client.deleteTripIdea(id)
       setIdeas((current) => current?.filter((idea) => idea.id !== id) ?? current)
     } catch {
       setError(true)

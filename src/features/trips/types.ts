@@ -15,6 +15,8 @@ export interface TripStop {
   id: string
   kind: 'store' | 'rest'
   label: string
+  /** Optional private address used only for an explicit external-map handoff. */
+  address?: string
   position: number
   priority: StopPriority
   plannedDwellMinutes: number

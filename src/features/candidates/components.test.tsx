@@ -110,15 +110,31 @@ describe('candidate private routes', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(/saved privately/i)
   })
 
+  it('sends a private share only after the candidate is saved', async () => {
+    const user = userEvent.setup()
+    const candidateClient = client()
+    render(<CapturePage client={candidateClient} />)
+    await user.type(screen.getByLabelText(/store link/i), 'https://example.com/oak')
+    await user.type(screen.getByLabelText(/^title$/i), 'Oak Antiques')
+    await user.click(screen.getByRole('button', { name: /save candidate/i }))
+    await user.type(await screen.findByLabelText(/recipient email/i), ' RECIPIENT@Example.COM ')
+    await user.click(screen.getByRole('button', { name: /send private share/i }))
+    expect(candidateClient.sendShare).toHaveBeenCalledWith({
+      candidateId: 'candidate-1',
+      recipientEmail: 'recipient@example.com',
+    })
+    expect(await screen.findByText(/share sent/i)).toBeInTheDocument()
+  })
+
   it('shows explicit recipient actions and sends state transitions through the client', async () => {
     const user = userEvent.setup()
     const candidateClient = client()
     render(
       <MemoryRouter>
-        <SharesPage userId="user-1" client={candidateClient} />
+        <SharesPage client={candidateClient} />
       </MemoryRouter>,
     )
     await user.click(await screen.findByRole('button', { name: /accept/i }))
-    expect(candidateClient.acceptShare).toHaveBeenCalledWith('user-1', 'share-1')
+    expect(candidateClient.acceptShare).toHaveBeenCalledWith('share-1')
   })
 })

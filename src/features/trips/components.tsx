@@ -34,6 +34,13 @@ function TripError() {
   return <p role="alert">{GENERIC_TRIP_ERROR}</p>
 }
 
+function mapHandoffUrl(provider: 'google' | 'waze', destination: string): string {
+  const query = encodeURIComponent(destination.trim())
+  return provider === 'google'
+    ? `https://www.google.com/maps/search/?api=1&query=${query}`
+    : `https://www.waze.com/ul?q=${query}&navigate=yes`
+}
+
 export function TripsPage({ client = unavailableTripClient }: { client?: TripClient }) {
   const [trips, setTrips] = useState<Trip[] | null>(null)
   const [error, setError] = useState(false)
@@ -423,6 +430,9 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
         <p role="status">Loading…</p>
       </TripCard>
     )
+  const currentStop = trip.stops.find(
+    (stop) => stop.state === 'planned' || stop.state === 'arrived',
+  )
   return (
     <TripCard
       title="Go"
@@ -449,6 +459,26 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
       )}
       {offlineQueue.state === 'conflict' && (
         <p role="alert">{offlineQueue.conflict?.summary ?? 'An offline action needs review.'}</p>
+      )}
+      {currentStop && (
+        <section aria-labelledby="current-stop-navigation">
+          <h2 id="current-stop-navigation">Navigate to current stop</h2>
+          <p>{currentStop.address ?? currentStop.label}</p>
+          <a
+            href={mapHandoffUrl('google', currentStop.address ?? currentStop.label)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open in Google Maps
+          </a>{' '}
+          <a
+            href={mapHandoffUrl('waze', currentStop.address ?? currentStop.label)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open in Waze
+          </a>
+        </section>
       )}
       <ol aria-label="Trip stops">
         {trip.stops.map((stop) => (

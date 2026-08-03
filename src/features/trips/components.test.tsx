@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../auth'
-import { NewTripPage, PlanPage } from './components'
+import { GoPage, NewTripPage, PlanPage } from './components'
 import { normalizeTripName } from './tripClient'
 import type { Trip, TripClient } from './types'
 
@@ -135,5 +135,46 @@ describe('manual trips', () => {
     expect(reorderStop).toHaveBeenCalledWith('trip-1', 'stop-b', 0)
     await user.click(screen.getByRole('button', { name: /simulate offline queue/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/queued offline/i)
+  })
+
+  it('offers explicit one-stop Google Maps and Waze handoff links', async () => {
+    const handoffTrip: Trip = {
+      ...trip,
+      state: 'active',
+      stops: [
+        {
+          id: 'stop-1',
+          kind: 'store',
+          label: 'Oak Antiques',
+          address: '123 Main St, Topeka KS',
+          position: 0,
+          priority: 'must',
+          plannedDwellMinutes: 60,
+          state: 'planned',
+        },
+      ],
+    }
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/go']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/go"
+            element={<GoPage client={client({ get: vi.fn(async () => handoffTrip) })} />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const google = await screen.findByRole('link', { name: /open in google maps/i })
+    const waze = screen.getByRole('link', { name: /open in waze/i })
+    expect(google).toHaveAttribute(
+      'href',
+      expect.stringContaining(encodeURIComponent(handoffTrip.stops[0].address!)),
+    )
+    expect(waze).toHaveAttribute(
+      'href',
+      expect.stringContaining(encodeURIComponent(handoffTrip.stops[0].address!)),
+    )
+    expect(google).toHaveAttribute('target', '_blank')
+    expect(waze).toHaveAttribute('target', '_blank')
   })
 })

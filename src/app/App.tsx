@@ -28,6 +28,7 @@ import {
   MemoryPage,
   SavedPage,
   unavailableShopperClient,
+  type ShopperPrivateClient,
 } from '../features/shopper'
 import {
   CandidateSessionGuard,
@@ -36,6 +37,7 @@ import {
   SharesPage,
   TripIdeasPage,
   unavailableCandidateClient,
+  type CandidateClient,
 } from '../features/candidates'
 import {
   GoPage,
@@ -45,6 +47,7 @@ import {
   SummaryPage,
   TripsPage,
   unavailableTripClient,
+  type TripClient,
 } from '../features/trips'
 import { AccessSafetyPage, AdminGuard, ReviewQueuePage } from '../features/admin'
 import { AlphaGuard, AlphaReadinessPage } from '../features/alpha'
@@ -60,6 +63,7 @@ import {
   PartnerStatusPage,
   PartnerVerifyPage,
   unavailablePartnerClient,
+  type PartnerClient,
 } from '../features/partners'
 import {
   PortalControlledChangesPage,
@@ -126,28 +130,25 @@ function RestrictionAppeal() {
   return <ReviewAppealPage restrictionId={restrictionId} client={unavailableReviewClient} />
 }
 
-function CandidateCaptureRoute() {
+function CandidateCaptureRoute({ client }: { client: CandidateClient }) {
   const { session } = useAuth()
   return (
     <CandidateSessionGuard userId={session?.userId}>
-      <CapturePage client={unavailableCandidateClient} />
+      <CapturePage client={client} />
     </CandidateSessionGuard>
   )
 }
 
-function CandidateSharesRoute() {
-  const { session } = useAuth()
-  return <SharesPage userId={session?.userId} client={unavailableCandidateClient} />
+function CandidateSharesRoute({ client }: { client: CandidateClient }) {
+  return <SharesPage client={client} />
 }
 
-function CandidateShareDetailsRoute() {
-  const { session } = useAuth()
-  return <ShareDetailsPage userId={session?.userId} client={unavailableCandidateClient} />
+function CandidateShareDetailsRoute({ client }: { client: CandidateClient }) {
+  return <ShareDetailsPage client={client} />
 }
 
-function CandidateIdeasRoute() {
-  const { session } = useAuth()
-  return <TripIdeasPage userId={session?.userId} client={unavailableCandidateClient} />
+function CandidateIdeasRoute({ client }: { client: CandidateClient }) {
+  return <TripIdeasPage client={client} />
 }
 
 function NotFound() {
@@ -161,7 +162,19 @@ function NotFound() {
   )
 }
 
-export default function App() {
+export interface AppClients {
+  candidate?: CandidateClient
+  shopper?: ShopperPrivateClient
+  trips?: TripClient
+  partner?: PartnerClient
+}
+
+export default function App({ clients = {} }: { clients?: AppClients }) {
+  const candidateClient = clients.candidate ?? unavailableCandidateClient
+  const shopperClient = clients.shopper ?? unavailableShopperClient
+  const tripClient = clients.trips ?? unavailableTripClient
+  const partnerClient = clients.partner ?? unavailablePartnerClient
+
   return (
     <AuthProvider provider={unavailableAuthProvider}>
       <AppShell>
@@ -173,13 +186,13 @@ export default function App() {
             path="/stores/:slug/memory"
             element={
               <RequireSession>
-                <MemoryPage client={unavailableShopperClient} />
+                <MemoryPage client={shopperClient} />
               </RequireSession>
             }
           />
           <Route
             path="/stores/:slug/correction"
-            element={<CorrectionPage client={unavailableShopperClient} />}
+            element={<CorrectionPage client={shopperClient} />}
           />
           <Route path="/auth/sign-in" element={<SignInPage provider={unavailableAuthProvider} />} />
           <Route
@@ -231,7 +244,7 @@ export default function App() {
             path="/saved"
             element={
               <RequireSession>
-                <SavedPage client={unavailableShopperClient} />
+                <SavedPage client={shopperClient} />
               </RequireSession>
             }
           />
@@ -239,7 +252,7 @@ export default function App() {
             path="/account/history"
             element={
               <RequireSession>
-                <HistoryPage client={unavailableShopperClient} />
+                <HistoryPage client={shopperClient} />
               </RequireSession>
             }
           />
@@ -247,7 +260,7 @@ export default function App() {
             path="/corrections/:correctionId"
             element={
               <RequireSession>
-                <CorrectionStatusPage client={unavailableShopperClient} />
+                <CorrectionStatusPage client={shopperClient} />
               </RequireSession>
             }
           />
@@ -255,7 +268,7 @@ export default function App() {
             path="/capture"
             element={
               <RequireSession>
-                <CandidateCaptureRoute />
+                <CandidateCaptureRoute client={candidateClient} />
               </RequireSession>
             }
           />
@@ -263,7 +276,7 @@ export default function App() {
             path="/shares"
             element={
               <RequireSession>
-                <CandidateSharesRoute />
+                <CandidateSharesRoute client={candidateClient} />
               </RequireSession>
             }
           />
@@ -271,7 +284,7 @@ export default function App() {
             path="/shares/:shareId"
             element={
               <RequireSession>
-                <CandidateShareDetailsRoute />
+                <CandidateShareDetailsRoute client={candidateClient} />
               </RequireSession>
             }
           />
@@ -279,7 +292,7 @@ export default function App() {
             path="/trip-ideas"
             element={
               <RequireSession>
-                <CandidateIdeasRoute />
+                <CandidateIdeasRoute client={candidateClient} />
               </RequireSession>
             }
           />
@@ -327,22 +340,10 @@ export default function App() {
             path="/reviews/restrictions/:restrictionId/appeal"
             element={<RestrictionAppeal />}
           />
-          <Route
-            path="/partner/join"
-            element={<PartnerJoinPage client={unavailablePartnerClient} />}
-          />
-          <Route
-            path="/partner/verify"
-            element={<PartnerVerifyPage client={unavailablePartnerClient} />}
-          />
-          <Route
-            path="/partner/draft"
-            element={<PartnerDraftPage client={unavailablePartnerClient} />}
-          />
-          <Route
-            path="/partner/status"
-            element={<PartnerStatusPage client={unavailablePartnerClient} />}
-          />
+          <Route path="/partner/join" element={<PartnerJoinPage client={partnerClient} />} />
+          <Route path="/partner/verify" element={<PartnerVerifyPage client={partnerClient} />} />
+          <Route path="/partner/draft" element={<PartnerDraftPage client={partnerClient} />} />
+          <Route path="/partner/status" element={<PartnerStatusPage client={partnerClient} />} />
           <Route path="/partner/activate" element={<PartnerActivatePage />} />
           <Route
             path="/store-portal"
@@ -380,7 +381,7 @@ export default function App() {
             path="/trips"
             element={
               <GuardedTrips>
-                <TripsPage client={unavailableTripClient} />
+                <TripsPage client={tripClient} />
               </GuardedTrips>
             }
           />
@@ -388,7 +389,7 @@ export default function App() {
             path="/trips/new"
             element={
               <GuardedTrips>
-                <NewTripPage client={unavailableTripClient} />
+                <NewTripPage client={tripClient} />
               </GuardedTrips>
             }
           />
@@ -396,7 +397,7 @@ export default function App() {
             path="/trips/:tripId/plan"
             element={
               <GuardedTrips>
-                <PlanPage client={unavailableTripClient} />
+                <PlanPage client={tripClient} />
               </GuardedTrips>
             }
           />
@@ -404,7 +405,7 @@ export default function App() {
             path="/trips/:tripId/go"
             element={
               <GuardedTrips>
-                <GoPage client={unavailableTripClient} />
+                <GoPage client={tripClient} />
               </GuardedTrips>
             }
           />
@@ -412,7 +413,7 @@ export default function App() {
             path="/trips/:tripId/summary"
             element={
               <GuardedTrips>
-                <SummaryPage client={unavailableTripClient} />
+                <SummaryPage client={tripClient} />
               </GuardedTrips>
             }
           />

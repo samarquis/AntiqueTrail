@@ -50,10 +50,11 @@ export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?
     email: '',
   })
   const [acknowledgements, setAcknowledgements] = useState<PartnerConsentAcknowledgements>({
+    authority: false,
     voluntary: false,
-    unpaid: false,
-    invitationOnly: false,
-    grantsNothing: false,
+    permittedData: false,
+    noPayment: false,
+    withdrawal: false,
   })
   const [error, setError] = useState(false)
   const [pending, setPending] = useState(false)
@@ -147,6 +148,16 @@ export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?
             <label>
               <input
                 type="checkbox"
+                checked={acknowledgements.authority}
+                onChange={(event) =>
+                  setAcknowledgements({ ...acknowledgements, authority: event.target.checked })
+                }
+              />{' '}
+              I understand this does not grant store authority or access.
+            </label>
+            <label>
+              <input
+                type="checkbox"
                 checked={acknowledgements.voluntary}
                 onChange={(event) =>
                   setAcknowledgements({ ...acknowledgements, voluntary: event.target.checked })
@@ -157,32 +168,32 @@ export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?
             <label>
               <input
                 type="checkbox"
-                checked={acknowledgements.unpaid}
+                checked={acknowledgements.permittedData}
                 onChange={(event) =>
-                  setAcknowledgements({ ...acknowledgements, unpaid: event.target.checked })
+                  setAcknowledgements({ ...acknowledgements, permittedData: event.target.checked })
                 }
               />{' '}
-              I understand this is unpaid.
+              I consent to sharing only the requested store draft data.
             </label>
             <label>
               <input
                 type="checkbox"
-                checked={acknowledgements.invitationOnly}
+                checked={acknowledgements.noPayment}
                 onChange={(event) =>
-                  setAcknowledgements({ ...acknowledgements, invitationOnly: event.target.checked })
+                  setAcknowledgements({ ...acknowledgements, noPayment: event.target.checked })
                 }
               />{' '}
-              I understand this is invitation-only.
+              I understand this is unpaid and does not promise payment.
             </label>
             <label>
               <input
                 type="checkbox"
-                checked={acknowledgements.grantsNothing}
+                checked={acknowledgements.withdrawal}
                 onChange={(event) =>
-                  setAcknowledgements({ ...acknowledgements, grantsNothing: event.target.checked })
+                  setAcknowledgements({ ...acknowledgements, withdrawal: event.target.checked })
                 }
               />{' '}
-              I understand this grants no access by itself.
+              I understand I can withdraw this onboarding request before approval.
             </label>
           </fieldset>
           {error && <GenericPartnerError />}

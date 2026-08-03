@@ -83,10 +83,11 @@ describe('partner onboarding boundary', () => {
     await user.type(screen.getByLabelText(/^store name$/i), 'Oak Antiques')
     await user.type(screen.getByLabelText(/owner-controlled email/i), ' OWNER@Example.COM ')
     for (const label of [
+      /does not grant store authority/i,
       /participating voluntarily/i,
-      /unpaid/i,
-      /invitation-only/i,
-      /grants no access/i,
+      /sharing only the requested store draft data/i,
+      /unpaid and does not promise payment/i,
+      /withdraw this onboarding request/i,
     ])
       await user.click(screen.getByLabelText(label))
     await user.click(screen.getByRole('button', { name: /continue/i }))
@@ -94,10 +95,11 @@ describe('partner onboarding boundary', () => {
       expect.objectContaining({
         identity: expect.objectContaining({ email: 'owner@example.com' }),
         acknowledgements: {
+          authority: true,
           voluntary: true,
-          unpaid: true,
-          invitationOnly: true,
-          grantsNothing: true,
+          permittedData: true,
+          noPayment: true,
+          withdrawal: true,
         },
       }),
     )

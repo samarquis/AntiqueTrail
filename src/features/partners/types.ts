@@ -30,10 +30,11 @@ export interface PartnerTypedIdentity {
 }
 
 export interface PartnerConsentAcknowledgements {
+  authority: boolean
   voluntary: boolean
-  unpaid: boolean
-  invitationOnly: boolean
-  grantsNothing: boolean
+  permittedData: boolean
+  noPayment: boolean
+  withdrawal: boolean
 }
 
 export interface PartnerStatus {
