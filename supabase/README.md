@@ -13,6 +13,8 @@ Package 2B adds provider-neutral admission receipts, quarantine state, export/de
 
 Package 3 shopper-private rows live in the non-API `shopper_private` schema. Saves, memories, last-seen, dismissals, and correction reports require the authenticated owner’s active application session; correction case events are service-only and append-only.
 
+Package 5A trip state lives in the non-API `trip_private` schema. Trips and stops are owner/active-participant scoped; invitations store only token hashes, one partner and one active Navigator/device are bounded server-side, and offline/idempotency/conflict records contain hashes and metadata rather than bearer or location payloads.
+
 With Docker and the Supabase CLI installed:
 
 ```text
