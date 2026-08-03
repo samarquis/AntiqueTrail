@@ -20,6 +20,14 @@ import {
   PrivacyPage,
   unavailableLifecycleClient,
 } from '../features/auth'
+import {
+  CorrectionPage,
+  CorrectionStatusPage,
+  HistoryPage,
+  MemoryPage,
+  SavedPage,
+  unavailableShopperClient,
+} from '../features/shopper'
 
 const catalogClient = configuredCatalogClient() ?? demoCatalogClient
 
@@ -71,6 +79,18 @@ export default function App() {
         <Routes>
           <Route path="/stores" element={<StoreBrowser />} />
           <Route path="/stores/:slug" element={<StoreDetails />} />
+          <Route
+            path="/stores/:slug/memory"
+            element={
+              <RequireSession>
+                <MemoryPage client={unavailableShopperClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/stores/:slug/correction"
+            element={<CorrectionPage client={unavailableShopperClient} />}
+          />
           <Route path="/auth/sign-in" element={<SignInPage provider={unavailableAuthProvider} />} />
           <Route
             path="/auth/recovery"
@@ -114,6 +134,30 @@ export default function App() {
             element={
               <RequireSession>
                 <CancelDeletionPage client={unavailableLifecycleClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/saved"
+            element={
+              <RequireSession>
+                <SavedPage client={unavailableShopperClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/account/history"
+            element={
+              <RequireSession>
+                <HistoryPage client={unavailableShopperClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/corrections/:correctionId"
+            element={
+              <RequireSession>
+                <CorrectionStatusPage client={unavailableShopperClient} />
               </RequireSession>
             }
           />
