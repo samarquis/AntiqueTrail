@@ -11,11 +11,11 @@ export interface AlphaAccount {
 }
 export interface AlphaCapabilities {
   syntheticAlpha: true
-  publicReviewsEnabled: false
-  publicPromotionEnabled: false
-  externalProvidersEnabled: false
-  preciseLocationEnabled: false
-  catalogResponseCaching: false
+  publicReviewsEnabled: boolean
+  publicPromotionEnabled: boolean
+  externalProvidersEnabled: boolean
+  preciseLocationEnabled: boolean
+  catalogResponseCaching: boolean
 }
 export interface SyntheticArtifact {
   id: string

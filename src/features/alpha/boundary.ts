@@ -23,8 +23,7 @@ export function validateTwoAccountMatrix(accounts: AlphaAccount[]): boolean {
     roles.has('TestUserA') &&
     roles.has('TestUserB') &&
     new Set(accounts.map((account) => account.pseudonymousId)).size === 2 &&
-    accounts.every((account) => account.verifiedEmail && account.age18Attested) &&
-    !accounts.some((account) => account.role === 'TestUserA' && account.role === 'TestUserB')
+    accounts.every((account) => account.verifiedEmail && account.age18Attested)
   )
 }
 
