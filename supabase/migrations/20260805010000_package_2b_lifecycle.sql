@@ -49,6 +49,7 @@ create table app_private.account_admission_receipts (
   token_hash bytea not null,
   purpose text not null check (purpose in ('shopper','initial_admin')),
   email_hmac bytea not null,
+  hmac_key_version smallint not null default 1 check (hmac_key_version>0),
   age_18_attested_at timestamptz not null,
   idempotency_key text not null unique,
   provider_user_id uuid references auth.users(id) on delete set null,
