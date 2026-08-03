@@ -37,10 +37,6 @@ join app_public.store_categories c on c.slug = case
   when s.slug in ('juniper-junction','northstar-nook') then 'collectibles'
   when s.slug in ('paper-moon-market','tin-roof-trove') then 'flea-market'
   else 'home-decor' end;
-insert into app_public.store_category_assignments (store_id,category_id)
-select s.id,c.id from app_public.stores s join app_public.store_categories c on c.slug='home-decor'
-where s.slug in ('prairie-patina','foundry-and-fable','velvet-veranda');
-
 insert into app_public.store_fact_verifications (store_id,verification_group,verified_at,provenance_label,verifier_kind)
 select s.id,g.group_name,'2026-07-15 12:00:00+00','Synthetic fixture generated for Antique Trail Package 1','synthetic_fixture'
 from app_public.stores s cross join (values
