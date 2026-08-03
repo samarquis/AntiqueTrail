@@ -42,7 +42,7 @@ function toStore(value: unknown): CatalogStore {
   const area = asRow(row.area ?? { slug: row.area_slug, label: row.area_label });
   const categories = asArray(row.categories ?? row.category_labels);
   const media = asArray(row.media);
-  const hours = asArray(row.hours ?? row.weekly_hours);
+  const hours = mapHours(row);
   return {
     id: String(row.id ?? row.store_id ?? ''),
     slug: String(row.slug ?? ''),
@@ -57,15 +57,10 @@ function toStore(value: unknown): CatalogStore {
     phone: stringOrNull(row.phone),
     website: stringOrNull(row.website),
     timeZone: stringOrNull(row.time_zone ?? row.timeZone),
-    freshness: parseFreshness(row.freshness, row.verified_at),
+    freshness: parseFreshness(row.freshness ?? row.freshness_state, row.verified_at ?? row.oldest_verified_at),
     asOfUtc: stringOrNull(row.as_of_utc),
-    hours: hours.map((value, index: number) => { const day = asRow(value); const weekday = Number(day.weekday ?? day.iso_weekday ?? index + 1); return {
-      weekday,
-      label: String(day.label ?? displayDay(weekday)),
-      status: (day.status ?? (day.is_closed ? 'closed' : asArray(day.intervals).length ? 'open' : 'unavailable')) as 'open' | 'closed' | 'unavailable',
-      intervals: asArray(day.intervals).map((value) => { const interval = asRow(value); return { opensAt: String(interval.opens_at ?? interval.opensAt ?? ''), closesAt: String(interval.closes_at ?? interval.closesAt ?? '') }; }),
-    }; }),
-    media: media.map((value) => { const item = asRow(value); return { src: String(item.src ?? item.path ?? ''), alt: String(item.alt ?? item.alt_text ?? ''), kind: item.kind as 'cover' | 'gallery' | undefined }; }),
+    hours,
+    media: media.map((value) => { const item = asRow(value); return { src: String(item.src ?? item.path ?? item.asset_path ?? ''), alt: String(item.alt ?? item.alt_text ?? ''), kind: item.kind as 'cover' | 'gallery' | undefined }; }),
   };
 }
 
@@ -77,7 +72,22 @@ function parseFreshness(value: unknown, verifiedAt: unknown) {
     const row = asRow(value);
     return { label: String(row.label ?? 'Freshness unavailable'), verifiedAt: stringOrNull(row.verified_at ?? row.verifiedAt), daysOld: typeof row.days_old === 'number' ? row.days_old : null };
   }
-  return typeof verifiedAt === 'string' ? { label: `Verified ${new Date(verifiedAt).toLocaleDateString()}`, verifiedAt, daysOld: null } : undefined;
+  const state = typeof value === 'string' ? value : undefined;
+  return typeof verifiedAt === 'string' ? { label: state ? freshnessStateLabel(state) : `Verified ${new Date(verifiedAt).toLocaleDateString()}`, verifiedAt, daysOld: null } : state ? { label: freshnessStateLabel(state), verifiedAt: null, daysOld: null } : undefined;
+}
+
+function freshnessStateLabel(state: string) { return state === 'current' ? 'Verified recently' : state === 'overdue' ? 'Verification overdue' : 'Freshness unavailable'; }
+
+function mapHours(row: LooseRow): CatalogStore['hours'] {
+  const raw = row.hours ?? row.weekly_hours;
+  if (raw && !Array.isArray(raw) && typeof raw === 'object') {
+    const today = asRow(raw);
+    const weekday = Number(today.weekday ?? 1);
+    return [{ weekday, label: displayDay(weekday), status: today.hours_state === 'unavailable' ? 'unavailable' : today.is_closed ? 'closed' : 'open', intervals: asArray(today.intervals).map((value) => { const interval = asRow(value); return { opensAt: String(interval.opens_at ?? ''), closesAt: String(interval.closes_at ?? '') }; }) }];
+  }
+  const grouped = new Map<number, { closed: boolean; intervals: Array<{ opensAt: string; closesAt: string }> }>();
+  for (const value of asArray(raw)) { const item = asRow(value); const weekday = Number(item.weekday ?? item.iso_weekday ?? 0); if (!weekday) continue; const existing = grouped.get(weekday) ?? { closed: Boolean(item.is_closed), intervals: [] }; if (!item.is_closed && item.opens_at && item.closes_at) existing.intervals.push({ opensAt: String(item.opens_at), closesAt: String(item.closes_at) }); grouped.set(weekday, existing); }
+  return [...grouped.entries()].sort(([a], [b]) => a - b).map(([weekday, day]) => ({ weekday, label: displayDay(weekday), status: day.closed ? 'closed' : day.intervals.length ? 'open' : 'unavailable', intervals: day.intervals }));
 }
 
 function displayDay(weekday: number) {
