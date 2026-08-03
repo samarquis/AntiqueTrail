@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildGeocodeRequest, buildMapRequest, buildProviderPayload, mapFallback, suggestCheckMyDay } from './boundary'
+import { boundMapPoints, buildGeocodeRequest, buildMapRequest, buildProviderPayload, mapFallback, suggestCheckMyDay } from './boundary'
 
 describe('provider-neutral routing boundary', () => {
   it('blocks all provider calls until R-01 is accepted and preserves list fallback', () => {
@@ -7,6 +7,7 @@ describe('provider-neutral routing boundary', () => {
     expect(buildGeocodeRequest('unavailable', '  Topeka  ', 'start')).toBeNull()
     expect(buildProviderPayload('blocked', { id: 'a', name: 'A', latitude: 1, longitude: 2 }, [])).toBeNull()
     expect(mapFallback('blocked').mapVisible).toBe(false)
+    expect(boundMapPoints(Array.from({ length: 501 }, (_, index) => ({ id: String(index), name: 'store', latitude: 1, longitude: 2 })))).toEqual({ kind: 'too_many_results' })
   })
 
   it('minimizes provider payload to approved public coordinates and place text', () => {
@@ -23,4 +24,3 @@ describe('provider-neutral routing boundary', () => {
     expect(result.feasible).toBe(true)
   })
 })
-

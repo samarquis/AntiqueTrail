@@ -2,6 +2,10 @@ import type { GeocodeRequest, MapRequest, PublicPoint, RoutingCapability, Routin
 
 export const ROUTING_BLOCKED_MESSAGE = 'Map and travel-time suggestions are not available yet. Your list is still available.'
 
+export function boundMapPoints(points: PublicPoint[], max = 500): { kind: 'ok'; points: PublicPoint[] } | { kind: 'too_many_results' } {
+  return points.length > max ? { kind: 'too_many_results' } : { kind: 'ok', points }
+}
+
 export function buildMapRequest(capability: RoutingCapability, request: MapRequest): MapRequest | null {
   return capability === 'available' ? { ...request, q: request.q?.trim() || undefined } : null
 }
@@ -58,4 +62,3 @@ function evaluate(order: CheckMyDayStop[], input: CheckMyDayInput): Scored {
 
 function compare(a: Scored, b: Scored): number { for (let i = 0; i < a.score.length; i += 1) { if (a.score[i] === b.score[i]) continue; if (typeof a.score[i] === 'string') return String(a.score[i]).localeCompare(String(b.score[i])); return Number(a.score[i]) - Number(b.score[i]) } return 0 }
 function permutations<T>(items: T[]): T[][] { if (items.length === 1) return [items]; return items.flatMap((item, index) => permutations([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [item, ...rest])) }
-
