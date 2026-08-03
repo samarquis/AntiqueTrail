@@ -201,6 +201,29 @@ end; $$;
 create trigger trip_device_member_scope before insert or update on trip_private.trip_device_bindings
 for each row execute function trip_private.validate_trip_device_binding();
 
+create or replace function trip_private.validate_trip_navigator_assignment()
+returns trigger language plpgsql set search_path = pg_catalog, trip_private as $$
+begin
+  if new.navigator_user_id is not null and not exists(select 1 from trip_private.trip_device_bindings b where b.trip_id=new.trip_id and b.user_id=new.navigator_user_id and b.state='active') then
+    raise exception 'navigator_assignment_requires_active_device_binding';
+  end if;
+  return new;
+end; $$;
+create constraint trigger trip_navigator_assignment_scope after insert or update on trip_private.trips
+deferrable initially deferred for each row execute function trip_private.validate_trip_navigator_assignment();
+
+create or replace function trip_private.validate_trip_binding_removal()
+returns trigger language plpgsql set search_path = pg_catalog, trip_private as $$
+begin
+  if exists(select 1 from trip_private.trips t where t.trip_id=old.trip_id and t.navigator_user_id is not null)
+     and not exists(select 1 from trip_private.trip_device_bindings b where b.trip_id=old.trip_id and b.state='active') then
+    raise exception 'navigator_assignment_requires_active_device_binding';
+  end if;
+  return old;
+end; $$;
+create constraint trigger trip_navigator_binding_removal after delete or update on trip_private.trip_device_bindings
+deferrable initially deferred for each row execute function trip_private.validate_trip_binding_removal();
+
 create or replace function trip_private.trip_owner_can_access(p_trip_id uuid)
 returns boolean language sql stable security definer
 set search_path = pg_catalog, trip_private, app_private, auth as $$

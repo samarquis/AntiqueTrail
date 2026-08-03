@@ -1,5 +1,5 @@
 begin;
-select plan(36);
+select plan(37);
 
 select has_schema('trip_private','private trip schema exists');
 select has_table('trip_private','trips','trips table exists');
@@ -36,6 +36,7 @@ select ok(exists(select 1 from pg_constraint c join pg_class r on r.oid=c.conrel
 select ok(exists(select 1 from pg_indexes where schemaname='trip_private' and tablename='trip_mutation_receipts' and indexdef like '%trip_id%idempotency_key%'),'mutation receipt idempotency key is unique per trip');
 select ok(exists(select 1 from pg_trigger t join pg_class r on r.oid=t.tgrelid join pg_namespace n on n.oid=r.relnamespace where n.nspname='trip_private' and r.relname='trip_participants' and t.tgname='trip_participant_scope'),'participant owner/partner scope trigger exists');
 select ok(exists(select 1 from pg_trigger t join pg_class r on r.oid=t.tgrelid join pg_namespace n on n.oid=r.relnamespace where n.nspname='trip_private' and r.relname='trip_device_bindings' and t.tgname='trip_device_member_scope'),'Navigator membership trigger exists');
+select ok(exists(select 1 from pg_trigger t join pg_class r on r.oid=t.tgrelid join pg_namespace n on n.oid=r.relnamespace where n.nspname='trip_private' and r.relname='trips' and t.tgname='trip_navigator_assignment_scope'),'Navigator assignment requires active binding');
 
 set local role anon;
 select throws_ok($$select * from trip_private.trips$$,'42501','anonymous trip reads denied');
