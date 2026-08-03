@@ -63,7 +63,10 @@ revoke all on all tables in schema release_private from public,anon,authenticate
 
 create or replace function release_private.reject_release_evidence_mutation()
 returns trigger language plpgsql set search_path='' as $$
-begin raise exception 'release_evidence_append_only'; end; $$;
+begin
+  raise exception 'release_evidence_append_only';
+end
+$$;
 create trigger release_commands_append_only before update or delete on release_private.release_commands
 for each row execute function release_private.reject_release_evidence_mutation();
 
@@ -94,7 +97,8 @@ begin
   insert into release_private.release_commands(command_id,release_id,step,artifact_digest,catalog_digest,result_state)
     values(p_command_id,v_release_id,'freeze',p_artifact_digest,p_catalog_digest,'frozen');
   return v_release_id;
-end; $$;
+end
+$$;
 
 create or replace function release_private.advance_regional_release(
   p_command_id uuid,p_release_id uuid,p_step text,p_signed_receipt text default null
@@ -134,7 +138,8 @@ begin
   insert into release_private.release_commands(command_id,release_id,step,artifact_digest,catalog_digest,result_state)
     values(p_command_id,p_release_id,p_step,v_release.artifact_digest,v_release.catalog_digest,v_release.state);
   return v_release.state;
-end; $$;
+end
+$$;
 
 create or replace function release_private.rollback_regional_release(
   p_command_id uuid,p_release_id uuid,p_reason text
@@ -163,7 +168,8 @@ begin
   insert into release_private.release_commands(command_id,release_id,step,artifact_digest,catalog_digest,result_state)
     values(p_command_id,p_release_id,'rollback',v_release.artifact_digest,v_release.catalog_digest,'rolled_back');
   return 'rolled_back';
-end; $$;
+end
+$$;
 
 alter function release_private.freeze_regional_release(uuid,text,text,text) owner to postgres;
 alter function release_private.advance_regional_release(uuid,uuid,text,text) owner to postgres;
