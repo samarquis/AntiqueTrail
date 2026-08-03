@@ -58,7 +58,7 @@ select ok(exists(
     and policyname='pilot_draft_bound_owner_update'
     and coalesce(with_check,'') like '%draft%submitted%resubmitted%withdrawn%'
 ),'owner update policy excludes approval states');
-select ok((select count(*)=3 from pg_policies where schemaname='partner_private' and tablename='pilot_store_drafts' and policyname in ('pilot_draft_bound_owner_read','pilot_draft_bound_owner_insert','pilot_draft_bound_owner_update') and (coalesce(qual,'') || coalesce(with_check,'')) like '%pilot_draft_belongs_to_user%'),
+select ok((select count(*)=3 from pg_policies where schemaname='partner_private' and tablename='pilot_store_drafts' and policyname in ('pilot_draft_bound_owner','pilot_draft_bound_owner_insert','pilot_draft_bound_owner_update') and (coalesce(qual,'') || coalesce(with_check,'')) like '%pilot_draft_belongs_to_user%'),
   'partner owner policies use the definer ownership helper');
 select ok(exists(
   select 1 from pg_policies

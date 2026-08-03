@@ -177,7 +177,7 @@ before insert or update on partner_private.pilot_store_drafts
 for each row execute function partner_private.enforce_pilot_store_draft_write();
 
 drop policy if exists pilot_draft_bound_owner on partner_private.pilot_store_drafts;
-create policy pilot_draft_bound_owner_read on partner_private.pilot_store_drafts for select to authenticated
+create policy pilot_draft_bound_owner on partner_private.pilot_store_drafts for select to authenticated
   using (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,auth.uid()) and app_private.current_session_is_active());
 create policy pilot_draft_bound_owner_insert on partner_private.pilot_store_drafts for insert to authenticated
   with check (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,auth.uid()) and state='draft' and reviewed_at is null and reviewed_by is null and assigned_admin_id is null and app_private.current_session_is_active());
