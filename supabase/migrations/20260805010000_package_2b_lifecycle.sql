@@ -93,7 +93,9 @@ create table app_private.registration_provider_operations (
 create index provider_operations_admission_idx on app_private.registration_provider_operations(admission_id,state);
 
 create table app_private.registration_quarantine_subjects (
-  provider_user_id uuid primary key references auth.users(id) on delete restrict,
+  -- Provider identities may be deleted while their quarantine record is retained;
+  -- this opaque UUID is therefore deliberately not an FK to auth.users.
+  provider_user_id uuid primary key,
   deletion_ticket_id uuid not null default extensions.gen_random_uuid(),
   quarantined_at timestamptz not null default statement_timestamp(),
   resolved_absent_at timestamptz
