@@ -49,5 +49,7 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Start local Supabase
+        run: npx supabase@2.33.9 start
       - name: Reset local Supabase and run pgTAP authorization tests
         run: npx supabase@2.33.9 db reset --local
