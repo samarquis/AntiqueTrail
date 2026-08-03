@@ -62,9 +62,19 @@ export function CapturePage({ client = unavailableCandidateClient }: { client?: 
     }
     setError([])
     try {
-      const candidate = await client.saveCandidate({ url, title: title.trim(), note })
+      const extraction = await client.extractCandidate({ url, note })
+      const candidate = await client.saveCandidate({
+        url: extraction.originalLink,
+        title: title.trim(),
+        note: extraction.originalNote,
+        extraction,
+      })
       setCandidateId(candidate.id)
-      setStatus('Candidate saved privately.')
+      setStatus(
+        extraction.mode === 'manual_fallback'
+          ? 'Candidate saved privately. We could not safely read that link, so your original link and note were kept for manual review.'
+          : 'Candidate saved privately. Extracted details are unverified suggestions.',
+      )
     } catch {
       setError([GENERIC_CANDIDATE_ERROR])
     }

@@ -1,3 +1,5 @@
+import type { CandidateExtractionOutcome } from './candidateExtraction'
+
 export type CandidateExtractionState = 'manual_draft' | 'extracting' | 'needs_review' | 'saved'
 export type CandidateShareState = 'pending' | 'accepted' | 'closed'
 
@@ -49,7 +51,13 @@ export interface CandidateShareView {
 }
 
 export interface CandidateClient {
-  saveCandidate(input: { url: string; title: string; note: string }): Promise<CandidateLink>
+  extractCandidate(input: { url: string; note: string }): Promise<CandidateExtractionOutcome>
+  saveCandidate(input: {
+    url: string
+    title: string
+    note: string
+    extraction: CandidateExtractionOutcome
+  }): Promise<CandidateLink>
   listShares(): Promise<CandidateShareView[]>
   getShare(shareId: string): Promise<CandidateShareView | null>
   sendShare(input: { candidateId: string; recipientEmail: string }): Promise<GenericShareEnvelope>

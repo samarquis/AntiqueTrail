@@ -1,8 +1,5 @@
-import {
-  GENERIC_CANDIDATE_FAILURE,
-  normalizeCandidateUrl,
-  normalizeRecipientEmail,
-} from './boundary'
+import { GENERIC_CANDIDATE_FAILURE, normalizeRecipientEmail } from './boundary'
+import { isCandidateHttpLink } from './candidateExtraction'
 import type { CandidateClient } from './types'
 
 export const GENERIC_CANDIDATE_ERROR = 'We could not update this private item. Please try again.'
@@ -12,6 +9,7 @@ function unavailable<T>(): Promise<T> {
 }
 
 export const unavailableCandidateClient: CandidateClient = {
+  extractCandidate: unavailable,
   saveCandidate: unavailable,
   listShares: unavailable,
   getShare: unavailable,
@@ -30,7 +28,7 @@ export function validateCandidateInput(input: {
   note: string
 }): string[] {
   const errors: string[] = []
-  if (!normalizeCandidateUrl(input.url)) errors.push('Enter an eligible HTTP or HTTPS link.')
+  if (!isCandidateHttpLink(input.url)) errors.push('Enter an eligible HTTP or HTTPS link.')
   if (!input.title.trim()) errors.push('Add a title so you can recognize this candidate.')
   if (input.title.length > 160) errors.push('Title is too long.')
   if (input.note.length > 2000) errors.push('Note is too long.')

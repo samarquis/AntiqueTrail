@@ -3,10 +3,27 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CandidateSessionGuard, CapturePage, SharesPage } from './components'
+import type { CandidateExtractionOutcome } from './candidateExtraction'
 import type { CandidateClient } from './types'
+
+const extracted: CandidateExtractionOutcome = {
+  mode: 'suggestions',
+  originalLink: 'https://example.com/oak',
+  originalNote: '',
+  normalizedUrl: 'https://example.com/oak',
+  destinationHost: 'example.com',
+  suggestions: {
+    title: 'Oak Antiques',
+    description: null,
+    canonicalUrl: null,
+    verified: false,
+  },
+  publicWriteAllowed: false,
+}
 
 function client(overrides: Partial<CandidateClient> = {}): CandidateClient {
   return {
+    extractCandidate: vi.fn(async () => extracted),
     saveCandidate: vi.fn(async () => ({
       id: 'candidate-1',
       ownerUserId: 'user-1',
@@ -106,8 +123,42 @@ describe('candidate private routes', () => {
       url: 'https://example.com/oak',
       title: 'Oak Antiques',
       note: '',
+      extraction: extracted,
     })
     expect(await screen.findByRole('status')).toHaveTextContent(/saved privately/i)
+  })
+
+  it('preserves the submitted link and note when extraction requires manual fallback', async () => {
+    const user = userEvent.setup()
+    const fallback: CandidateExtractionOutcome = {
+      mode: 'manual_fallback',
+      reason: 'private_destination',
+      originalLink: 'https://internal.example/find',
+      originalNote: 'Call before visiting',
+      normalizedUrl: 'https://internal.example/find',
+      destinationHost: 'internal.example',
+      suggestions: {
+        title: null,
+        description: null,
+        canonicalUrl: null,
+        verified: false,
+      },
+      publicWriteAllowed: false,
+    }
+    const candidateClient = client({ extractCandidate: vi.fn(async () => fallback) })
+    render(<CapturePage client={candidateClient} />)
+    await user.type(screen.getByLabelText(/store link/i), fallback.originalLink)
+    await user.type(screen.getByLabelText(/^title$/i), 'Manual lead')
+    await user.type(screen.getByLabelText(/private note/i), fallback.originalNote)
+    await user.click(screen.getByRole('button', { name: /save candidate/i }))
+
+    expect(candidateClient.saveCandidate).toHaveBeenCalledWith({
+      url: fallback.originalLink,
+      title: 'Manual lead',
+      note: fallback.originalNote,
+      extraction: fallback,
+    })
+    expect(await screen.findByText(/could not safely read that link/i)).toBeInTheDocument()
   })
 
   it('sends a private share only after the candidate is saved', async () => {

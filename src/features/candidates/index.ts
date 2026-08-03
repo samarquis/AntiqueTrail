@@ -1,4 +1,6 @@
 export * from './types'
 export * from './boundary'
 export * from './candidateClient'
+export * from './candidateExtraction'
+export * from './candidateCleanup'
 export * from './components'
