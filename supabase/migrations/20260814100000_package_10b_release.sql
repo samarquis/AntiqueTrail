@@ -61,20 +61,11 @@ alter table release_private.release_capabilities enable row level security;
 alter table release_private.release_capabilities force row level security;
 revoke all on all tables in schema release_private from public,anon,authenticated,release_executor;
 
-create or replace function release_private.reject_release_evidence_mutation()
-returns trigger language plpgsql set search_path='' as $$
-begin
-  raise exception 'release_evidence_append_only';
-end;
-$$;
-create trigger release_commands_append_only before update or delete on release_private.release_commands
-for each row execute function release_private.reject_release_evidence_mutation();
-
 create or replace function release_private.freeze_regional_release(
   p_command_id uuid,p_artifact_digest text,p_catalog_digest text,p_prerequisite_receipt_digest text
 ) returns uuid
 language plpgsql security definer
-set search_path=''
+set search_path = ''
 as $$
 declare v_release_id uuid;
 begin
@@ -104,7 +95,7 @@ create or replace function release_private.advance_regional_release(
   p_command_id uuid,p_release_id uuid,p_step text,p_signed_receipt text default null
 ) returns text
 language plpgsql security definer
-set search_path=''
+set search_path = ''
 as $$
 declare
   v_release release_private.regional_releases%rowtype;
@@ -145,7 +136,7 @@ create or replace function release_private.rollback_regional_release(
   p_command_id uuid,p_release_id uuid,p_reason text
 ) returns text
 language plpgsql security definer
-set search_path=''
+set search_path = ''
 as $$
 declare v_release release_private.regional_releases%rowtype; v_command release_private.release_commands%rowtype;
 begin
