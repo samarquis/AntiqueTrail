@@ -211,7 +211,7 @@ $$;
 create type app_public.catalog_list_row as (
   id uuid, slug text, name text, town text, state_code text, area_slug text, area_label text,
   summary text, phone text, website text, timezone_name text, cover_asset_path text,
-  cover_alt_text text, categories jsonb, today_hours jsonb, hours_state text,
+  cover_alt_text text, media jsonb, categories jsonb, today_hours jsonb, hours_state text,
   is_open_now boolean, freshness_state text, oldest_verified_at timestamptz, as_of_utc timestamptz
 );
 create type app_public.catalog_details_row as (
@@ -279,6 +279,7 @@ begin
   select s.id,s.slug,s.name,s.town,s.state_code,a.slug,a.label,s.summary,s.phone,s.website,s.timezone_name,
     (select m.asset_path from app_public.store_media m where m.store_id=s.id and m.kind='cover' order by m.display_order limit 1),
     (select m.alt_text from app_public.store_media m where m.store_id=s.id and m.kind='cover' order by m.display_order limit 1),
+    (select coalesce(jsonb_agg(jsonb_build_object('src',m.asset_path,'alt',m.alt_text,'kind',m.kind) order by m.display_order),'[]'::jsonb) from app_public.store_media m where m.store_id=s.id),
     (select coalesce(jsonb_agg(jsonb_build_object('slug',c.slug,'label',c.label) order by c.sort_order,c.slug),'[]'::jsonb) from app_public.store_category_assignments ca join app_public.store_categories c on c.id=ca.category_id where ca.store_id=s.id),
     today.hours,today.hours_state,today.is_open_now,f.freshness_state,f.oldest_verified_at,as_of
   from app_public.stores s join app_public.catalog_areas a on a.id=s.area_id cross join lateral app_public.catalog_freshness(s.id,as_of) f cross join lateral app_public.catalog_today(s.id,as_of,s.timezone_name) today
