@@ -278,7 +278,7 @@ create policy trip_owner_or_participant on trip_private.trips for select to auth
   using (trip_private.trip_member_can_access(trip_private.trips.trip_id));
 create policy trip_owner_write on trip_private.trips for all to authenticated
   using (trip_private.trip_owner_can_access(trip_private.trips.trip_id))
-  with check (trip_private.trip_owner_can_access(trip_private.trips.trip_id));
+  with check (app_private.current_session_is_active() and owner_id=auth.uid());
 create policy stop_member_read on trip_private.trip_stops for select to authenticated
   using (trip_private.trip_member_can_access(trip_private.trip_stops.trip_id));
 create policy invitation_owner_read on trip_private.trip_invitations for select to authenticated
