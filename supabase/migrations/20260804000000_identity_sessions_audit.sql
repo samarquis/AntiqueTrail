@@ -11,7 +11,10 @@ begin
   end if;
 end
 $$;
+grant identity_service to postgres;
+grant usage on schema app_private to postgres;
 grant usage on schema app_private to identity_service;
+grant create on schema app_private to identity_service;
 
 create type app_private.account_status as enum ('active','suspended','deletion_pending','deleted');
 create type app_private.session_state as enum ('active','revoked','expired');
@@ -248,6 +251,9 @@ set search_path = pg_catalog, app_private, auth as $$
   );
 $$;
 alter function app_private.current_user_has_role(app_private.app_role,uuid) owner to identity_service;
+revoke identity_service from postgres;
+revoke usage on schema app_private from postgres;
+revoke create on schema app_private from identity_service;
 
 grant execute on function app_private.current_session_is_active() to anon, authenticated;
 grant execute on function app_private.current_session_recent_auth(interval) to authenticated;
