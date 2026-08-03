@@ -37,4 +37,3 @@ export interface GenericShareEnvelope {
   state: 'accepted' | 'pending' | 'closed'
   message: string
 }
-

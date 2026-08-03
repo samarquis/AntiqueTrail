@@ -4,7 +4,6 @@ import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../auth'
-import { InMemoryAuthStore, toAuthSession } from '../auth/authClient'
 import { CorrectionPage, MemoryPage, SavedPage } from './components'
 import type { ShopperPrivateClient } from './types'
 

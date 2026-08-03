@@ -8,7 +8,14 @@ describe('candidate private routes', () => {
     render(
       <MemoryRouter initialEntries={['/capture']}>
         <Routes>
-          <Route path="/capture" element={<CandidateSessionGuard><CapturePage /></CandidateSessionGuard>} />
+          <Route
+            path="/capture"
+            element={
+              <CandidateSessionGuard>
+                <CapturePage />
+              </CandidateSessionGuard>
+            }
+          />
           <Route path="/auth/sign-in" element={<h1>Sign in</h1>} />
         </Routes>
       </MemoryRouter>,
@@ -18,8 +25,13 @@ describe('candidate private routes', () => {
   })
 
   it('renders capture only for an authenticated owner', () => {
-    render(<MemoryRouter><CandidateSessionGuard userId="user-1"><CapturePage /></CandidateSessionGuard></MemoryRouter>)
+    render(
+      <MemoryRouter>
+        <CandidateSessionGuard userId="user-1">
+          <CapturePage />
+        </CandidateSessionGuard>
+      </MemoryRouter>,
+    )
     expect(screen.getByRole('heading', { name: 'Save a candidate' })).toBeInTheDocument()
   })
 })
-

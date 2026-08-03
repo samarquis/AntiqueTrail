@@ -28,6 +28,13 @@ import {
   SavedPage,
   unavailableShopperClient,
 } from '../features/shopper'
+import {
+  CandidateSessionGuard,
+  CapturePage,
+  ShareDetailsPage,
+  SharesPage,
+  TripIdeasPage,
+} from '../features/candidates'
 
 const catalogClient = configuredCatalogClient() ?? demoCatalogClient
 
@@ -158,6 +165,40 @@ export default function App() {
             element={
               <RequireSession>
                 <CorrectionStatusPage client={unavailableShopperClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/capture"
+            element={
+              <RequireSession>
+                <CandidateSessionGuard>
+                  <CapturePage />
+                </CandidateSessionGuard>
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/shares"
+            element={
+              <RequireSession>
+                <SharesPage />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/shares/:shareId"
+            element={
+              <RequireSession>
+                <ShareDetailsPage />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/trip-ideas"
+            element={
+              <RequireSession>
+                <TripIdeasPage />
               </RequireSession>
             }
           />
