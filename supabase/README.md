@@ -17,6 +17,8 @@ Package 4 candidate data lives in the non-API `candidate_private` schema. Candid
 
 Package 5A trip state lives in the non-API `trip_private` schema. Trips and stops are owner/active-participant scoped; invitations store only token hashes, one partner and one active Navigator/device are bounded server-side, and offline/idempotency/conflict records contain hashes and metadata rather than bearer or location payloads.
 
+Package 6A partner onboarding state lives in the non-API `partner_private` schema. Invitations contain only 32-byte token/email HMACs and expire after 30 minutes or one atomic consumption; immutable provisional/final consent receipts, pending identities, owner drafts, authority signals, claims/conflicts, revocations, and exact one-store Representative grants are service-owned and FORCE-RLS protected. Provider/email calls, raw credentials/evidence, public claims, and broad role scope are intentionally absent.
+
 With Docker and the Supabase CLI installed:
 
 ```text
