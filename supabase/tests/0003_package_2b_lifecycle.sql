@@ -1,5 +1,5 @@
 begin;
-select plan(19);
+select plan(21);
 
 select has_table('app_private','account_registration_config','registration config exists');
 select has_table('app_private','registration_quarantine_latch','quarantine latch exists');
@@ -26,6 +26,8 @@ select is(app_private.current_user_has_role('administrator'::app_private.app_rol
 reset role;
 
 set local role identity_service;
+select lives_ok($$insert into app_private.account_admission_receipts(token_hash,purpose,email_hmac,age_18_attested_at,idempotency_key,claim_expires_at) values (extensions.digest('token','sha256'), 'shopper', extensions.digest('email','sha256'), statement_timestamp(), 'valid-fixture', statement_timestamp() + interval '30 minutes')$$,'valid admission stores only hash/HMAC material');
+select throws_ok($$update app_private.account_admission_receipts set state='claimed'$$,'42501','admission rows cannot be directly updated by runtime role');
 select throws_ok($$insert into app_private.account_admission_receipts(token_hash,purpose,email_hmac,age_18_attested_at,idempotency_key,claim_expires_at) values (extensions.digest('short','sha256') || decode('00','hex'), 'shopper', extensions.digest('email','sha256'), statement_timestamp(), 'invalid', statement_timestamp())$$,'23514','invalid admission hash is rejected');
 select * from finish();
 rollback;

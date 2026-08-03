@@ -1,6 +1,8 @@
 -- Package 2B: provider-neutral admission, recovery, privacy, and lifecycle state.
 -- Raw receipt/password/email tokens and provider credentials never enter these tables.
 
+grant usage on schema extensions to identity_service;
+
 alter table app_private.profiles drop constraint if exists profiles_deletion_shape;
 alter table app_private.profiles add constraint profiles_deletion_shape check (
   (status in ('deletion_pending','deletion_scheduled') and deletion_due_at is not null)
