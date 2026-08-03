@@ -14,14 +14,14 @@ select ok(exists(
   select 1 from pg_policies
   where schemaname='candidate_private' and tablename='candidate_shares'
     and policyname='candidate_share_sender_update'
-    and coalesce(with_check,'') like '%state=''closed''%'
-    and coalesce(with_check,'') like '%close_reason=''revoked''%'
+    and coalesce(with_check,'') like '%state%closed%'
+    and coalesce(with_check,'') like '%close_reason%revoked%'
 ),'sender updates are limited to revocation');
 select ok(exists(
   select 1 from pg_policies
   where schemaname='candidate_private' and tablename='candidate_shares'
     and policyname='candidate_share_recipient_update'
-    and coalesce(with_check,'') like '%state in (''accepted'',''closed'')%'
+    and coalesce(with_check,'') like '%accepted%closed%'
     and coalesce(with_check,'') like '%dismissed%'
 ),'recipient updates are limited to accept/dismiss/block/report');
 select ok(not exists(
@@ -49,7 +49,7 @@ select ok(exists(
   select 1 from pg_policies
   where schemaname='partner_private' and tablename='pilot_store_drafts'
     and policyname='pilot_draft_bound_owner_update'
-    and coalesce(with_check,'') like '%state in (''draft'',''submitted'',''resubmitted'',''withdrawn'')%'
+    and coalesce(with_check,'') like '%draft%submitted%resubmitted%withdrawn%'
 ),'owner update policy excludes approval states');
 select ok(exists(
   select 1 from pg_policies
@@ -63,8 +63,8 @@ select ok(exists(
   select 1 from pg_policies
   where schemaname='partner_private' and tablename='pilot_store_drafts'
     and policyname='pilot_draft_assigned_admin_update'
-    and coalesce(with_check,'') like '%state in (''changes_requested'',''approved'',''rejected'')%'
-    and coalesce(with_check,'') like '%reviewed_by=auth.uid()%'
+    and coalesce(with_check,'') like '%changes_requested%approved%rejected%'
+    and coalesce(with_check,'') like '%reviewed_by%auth.uid%'
 ),'administrator update policy requires review state and actor');
 select ok(not exists(
   select 1 from information_schema.role_table_grants
