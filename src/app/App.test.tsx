@@ -25,4 +25,16 @@ describe('app shell', () => {
     ).toBeGreaterThan(0)
     expect(screen.queryByRole('heading', { name: /review queue/i })).not.toBeInTheDocument()
   })
+
+  it('exposes partner onboarding routes while keeping provider access gated', async () => {
+    render(
+      <MemoryRouter initialEntries={['/partner/verify']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { name: /create and verify account/i })).toBeInTheDocument()
+    expect(
+      screen.getByText(/provider email verification is intentionally disabled/i),
+    ).toBeInTheDocument()
+  })
 })

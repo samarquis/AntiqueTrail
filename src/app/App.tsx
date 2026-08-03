@@ -45,6 +45,14 @@ import {
   unavailableTripClient,
 } from '../features/trips'
 import { AccessSafetyPage, AdminGuard, ReviewQueuePage } from '../features/admin'
+import {
+  PartnerActivatePage,
+  PartnerDraftPage,
+  PartnerJoinPage,
+  PartnerStatusPage,
+  PartnerVerifyPage,
+  unavailablePartnerClient,
+} from '../features/partners'
 
 const catalogClient = configuredCatalogClient() ?? demoCatalogClient
 // The current provider-neutral shell has no privileged session source. Keep the
@@ -231,6 +239,23 @@ export default function App() {
               </AdminGuard>
             }
           />
+          <Route
+            path="/partner/join"
+            element={<PartnerJoinPage client={unavailablePartnerClient} />}
+          />
+          <Route
+            path="/partner/verify"
+            element={<PartnerVerifyPage client={unavailablePartnerClient} />}
+          />
+          <Route
+            path="/partner/draft"
+            element={<PartnerDraftPage client={unavailablePartnerClient} />}
+          />
+          <Route
+            path="/partner/status"
+            element={<PartnerStatusPage client={unavailablePartnerClient} />}
+          />
+          <Route path="/partner/activate" element={<PartnerActivatePage />} />
           <Route
             path="/trips"
             element={
