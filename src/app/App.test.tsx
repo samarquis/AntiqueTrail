@@ -37,4 +37,18 @@ describe('app shell', () => {
       screen.getByText(/provider email verification is intentionally disabled/i),
     ).toBeInTheDocument()
   })
+
+  it('keeps Internal Alpha readiness unavailable until an approved test account exists', async () => {
+    render(
+      <MemoryRouter initialEntries={['/alpha/readiness']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(
+      (await screen.findAllByRole('heading', { name: /browse stores/i })).length,
+    ).toBeGreaterThan(0)
+    expect(
+      screen.queryByRole('heading', { name: /synthetic internal alpha/i }),
+    ).not.toBeInTheDocument()
+  })
 })
