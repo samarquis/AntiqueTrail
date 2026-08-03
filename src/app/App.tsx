@@ -44,8 +44,12 @@ import {
   TripsPage,
   unavailableTripClient,
 } from '../features/trips'
+import { AccessSafetyPage, AdminGuard, ReviewQueuePage } from '../features/admin'
 
 const catalogClient = configuredCatalogClient() ?? demoCatalogClient
+// The current provider-neutral shell has no privileged session source. Keep the
+// boundary explicitly unavailable until authenticated Admin wiring is approved.
+const unavailableAdminSession = null
 
 function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -209,6 +213,22 @@ export default function App() {
               <RequireSession>
                 <TripIdeasPage />
               </RequireSession>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <AdminGuard session={unavailableAdminSession}>
+                <ReviewQueuePage />
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/access"
+            element={
+              <AdminGuard session={unavailableAdminSession}>
+                <AccessSafetyPage />
+              </AdminGuard>
             }
           />
           <Route
