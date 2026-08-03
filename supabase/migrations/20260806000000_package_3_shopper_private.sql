@@ -99,7 +99,8 @@ create policy identity_service_memories on shopper_private.private_store_memorie
 create policy identity_service_last_seen on shopper_private.catalog_last_seen for all to identity_service using (true) with check (true);
 create policy identity_service_dismissals on shopper_private.catalog_new_dismissals for all to identity_service using (true) with check (true);
 create policy identity_service_correction_reports on shopper_private.store_correction_reports for all to identity_service using (true) with check (true);
-create policy identity_service_correction_events on shopper_private.correction_case_events for insert to identity_service with check (true);
+create policy identity_service_correction_events on shopper_private.correction_case_events for all to identity_service using (true) with check (true);
+revoke update, delete, truncate on shopper_private.correction_case_events from identity_service;
 
 create policy shopper_saved_stores_owner on shopper_private.saved_stores for all to authenticated
   using (user_id=auth.uid() and app_private.current_session_is_active())
