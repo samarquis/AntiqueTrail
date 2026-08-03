@@ -198,9 +198,7 @@ describe('partner onboarding boundary', () => {
       verifiedSignalCount: 1,
       requiredSignalCount: 2 as const,
     }))
-    renderPage(
-      <PartnerClaimPage client={client({ getClaimStatus, submitAuthoritySignal })} />,
-    )
+    renderPage(<PartnerClaimPage client={client({ getClaimStatus, submitAuthoritySignal })} />)
 
     expect(await screen.findByText(/1 of 2 authority signals verified/i)).toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText(/authority signal channel/i), 'callback')
@@ -242,7 +240,9 @@ describe('partner onboarding boundary', () => {
     )
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/needs administrator review/i)
-    expect(screen.queryByText(/another claimant|other claimant|owner@example/i)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/another claimant|other claimant|owner@example/i),
+    ).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /request authority recheck/i }))
     expect(requestAuthorityRecheck).toHaveBeenCalledWith('claim-1')
   })

@@ -556,35 +556,35 @@ export function PartnerClaimPage({
           )}
           {status.state !== 'conflict' &&
             !['approved', 'rejected', 'withdrawn', 'revoked'].includes(status.state) && (
-            <form onSubmit={submitSignal}>
-            <label htmlFor="claim-signal-channel">Authority signal channel</label>
-            <select
-              id="claim-signal-channel"
-              value={signalChannel}
-              onChange={(event) =>
-                setSignalChannel(event.target.value as PartnerClaimSignalInput['channelClass'])
-              }
-            >
-              <option value="published_business_contact">Published business contact</option>
-              <option value="callback">Callback</option>
-              <option value="mailed_code">Mailed code</option>
-              <option value="filing_lookup">Filing lookup</option>
-              <option value="in_person">In person</option>
-            </select>
-            <label htmlFor="claim-evidence-reference">Evidence reference</label>
-            <input
-              id="claim-evidence-reference"
-              maxLength={240}
-              value={evidenceReference}
-              onChange={(event) => setEvidenceReference(event.target.value)}
-              required
-            />
-            <p>Only a minimized reference is sent; evidence content is not displayed here.</p>
-            <button type="submit" disabled={pending}>
-              Submit authority signal
-            </button>
-            </form>
-          )}
+              <form onSubmit={submitSignal}>
+                <label htmlFor="claim-signal-channel">Authority signal channel</label>
+                <select
+                  id="claim-signal-channel"
+                  value={signalChannel}
+                  onChange={(event) =>
+                    setSignalChannel(event.target.value as PartnerClaimSignalInput['channelClass'])
+                  }
+                >
+                  <option value="published_business_contact">Published business contact</option>
+                  <option value="callback">Callback</option>
+                  <option value="mailed_code">Mailed code</option>
+                  <option value="filing_lookup">Filing lookup</option>
+                  <option value="in_person">In person</option>
+                </select>
+                <label htmlFor="claim-evidence-reference">Evidence reference</label>
+                <input
+                  id="claim-evidence-reference"
+                  maxLength={240}
+                  value={evidenceReference}
+                  onChange={(event) => setEvidenceReference(event.target.value)}
+                  required
+                />
+                <p>Only a minimized reference is sent; evidence content is not displayed here.</p>
+                <button type="submit" disabled={pending}>
+                  Submit authority signal
+                </button>
+              </form>
+            )}
         </>
       )}
       <form onSubmit={submit}>
