@@ -95,6 +95,7 @@ export function HistoryPage({
   client?: ShopperPrivateClient
 }) {
   const [memories, setMemories] = useState<PrivateStoreMemory[] | null>(null)
+  const [error, setError] = useState(false)
   useEffect(() => {
     let cancelled = false
     client
@@ -105,7 +106,7 @@ export function HistoryPage({
           setMemories(result.filter((item): item is PrivateStoreMemory => item !== null))
       })
       .catch(() => {
-        if (!cancelled) setMemories([])
+        if (!cancelled) setError(true)
       })
     return () => {
       cancelled = true
@@ -116,7 +117,9 @@ export function HistoryPage({
       title="Your private history"
       description="Ratings, notes, and visit memories belong only to your account."
     >
-      {memories === null ? (
+      {error ? (
+        <GenericError />
+      ) : memories === null ? (
         <p role="status">Loading…</p>
       ) : memories.length ? (
         <ul aria-label="Private store memories">
