@@ -49,34 +49,35 @@ describe('regional public release state machine', () => {
       'config_secret_digest_sbom',
       'canary',
       'production_migration',
-      'smoke',
-      'monitoring',
     ]
 
     expect(() => advanceRegionalRelease(state, 'canary')).toThrow(/step_out_of_order/)
     for (const step of steps) state = advanceRegionalRelease(state, step)
-    expect(advanceRegionalRelease(state, 'monitoring')).toEqual(state)
+    expect(advanceRegionalRelease(state, 'production_migration')).toEqual(state)
     expect(state.status).toBe('deploying')
     expect(state.artifactDigest).toBe('artifact-sha256')
     expect(state.catalogDigest).toBe('catalog-sha256')
     expect(Object.values(state.capabilities).every((enabled) => !enabled)).toBe(true)
   })
 
-  it('enables every public capability atomically only after a verified receipt', () => {
+  it('enables capabilities before smoke and activates only after the final verified receipt', () => {
     let state = freezeRegionalRelease(
       createRegionalRelease('artifact-sha256', 'catalog-sha256'),
       passingPrerequisites(),
     )
-    const beforeReceipt: RegionalReleaseStep[] = [
+    const beforeEnablement: RegionalReleaseStep[] = [
       'recovery_point',
       'migration_dry_run',
       'config_secret_digest_sbom',
       'canary',
       'production_migration',
-      'smoke',
-      'monitoring',
     ]
-    for (const step of beforeReceipt) state = advanceRegionalRelease(state, step)
+    for (const step of beforeEnablement) state = advanceRegionalRelease(state, step)
+    state = advanceRegionalRelease(state, 'capability_enablement')
+    expect(state.status).toBe('deploying')
+    expect(Object.values(state.capabilities).every(Boolean)).toBe(true)
+    state = advanceRegionalRelease(state, 'smoke')
+    state = advanceRegionalRelease(state, 'monitoring')
 
     expect(() =>
       advanceRegionalRelease(state, 'signed_release_receipt', {
@@ -88,7 +89,6 @@ describe('regional public release state machine', () => {
       receipt: 'signed:artifact-sha256:catalog-sha256',
       verifyReceipt: (receipt, artifact, catalog) => receipt === `signed:${artifact}:${catalog}`,
     })
-    state = advanceRegionalRelease(state, 'capability_enablement')
 
     expect(state.status).toBe('active')
     expect(Object.values(state.capabilities).every(Boolean)).toBe(true)

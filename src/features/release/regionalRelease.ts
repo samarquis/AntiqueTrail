@@ -55,10 +55,10 @@ const deploymentOrder: RegionalReleaseStep[] = [
   'config_secret_digest_sbom',
   'canary',
   'production_migration',
+  'capability_enablement',
   'smoke',
   'monitoring',
   'signed_release_receipt',
-  'capability_enablement',
 ]
 
 function disabledCapabilities(): RegionalReleaseCapabilities {
@@ -122,7 +122,7 @@ export function advanceRegionalRelease(
   if (step === 'capability_enablement') {
     return {
       ...state,
-      status: 'active',
+      status: 'deploying',
       completedSteps,
       capabilities: {
         publicCatalog: true,
@@ -136,7 +136,7 @@ export function advanceRegionalRelease(
 
   return {
     ...state,
-    status: 'deploying',
+    status: step === 'signed_release_receipt' ? 'active' : 'deploying',
     completedSteps,
     ...(step === 'signed_release_receipt' && verification
       ? { signedReceipt: verification.receipt }
