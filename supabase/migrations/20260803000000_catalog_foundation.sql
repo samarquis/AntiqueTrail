@@ -34,7 +34,7 @@ create table app_public.catalog_areas (
   constraint catalog_areas_label_format check (char_length(btrim(label)) between 1 and 80 and label = btrim(label)),
   constraint catalog_areas_state_code_format check (state_code ~ '^[A-Z]{2}$'),
   constraint catalog_areas_sort_order_nonnegative check (sort_order >= 0),
-  constraint catalog_areas_label_normalized unique (lower(label))
+  constraint catalog_areas_label_not_empty check (label <> '')
 );
 
 create table app_public.store_categories (
@@ -45,8 +45,11 @@ create table app_public.store_categories (
   constraint store_categories_slug_format check (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$' and char_length(slug) between 1 and 64),
   constraint store_categories_label_format check (char_length(btrim(label)) between 1 and 80 and label = btrim(label)),
   constraint store_categories_sort_order_nonnegative check (sort_order >= 0),
-  constraint store_categories_label_normalized unique (lower(label))
+  constraint store_categories_label_not_empty check (label <> '')
 );
+
+create unique index catalog_areas_label_normalized on app_public.catalog_areas (lower(label));
+create unique index store_categories_label_normalized on app_public.store_categories (lower(label));
 
 create table app_public.stores (
   id uuid primary key default extensions.gen_random_uuid(),
