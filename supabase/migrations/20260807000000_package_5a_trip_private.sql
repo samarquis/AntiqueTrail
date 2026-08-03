@@ -4,6 +4,8 @@
 create schema if not exists trip_private;
 revoke all on schema trip_private from public, anon, authenticated;
 grant usage on schema trip_private to identity_service;
+grant identity_service to postgres;
+grant create on schema trip_private to identity_service;
 
 create table trip_private.trips (
   trip_id uuid primary key default extensions.gen_random_uuid(),
@@ -246,6 +248,8 @@ set search_path = pg_catalog, trip_private, app_private, auth as $$
   );
 $$;
 alter function trip_private.trip_member_can_access(uuid) owner to identity_service;
+revoke identity_service from postgres;
+revoke create on schema trip_private from identity_service;
 grant execute on function trip_private.trip_owner_can_access(uuid) to authenticated;
 grant execute on function trip_private.trip_member_can_access(uuid) to authenticated;
 
