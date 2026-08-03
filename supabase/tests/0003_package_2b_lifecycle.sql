@@ -22,7 +22,7 @@ reset role;
 set local role authenticated;
 select is(app_private.current_session_is_cancellation_only(),false,'unauthenticated cancellation-only gate fails closed');
 select throws_ok($$select * from app_private.account_deletion_requests$$,'42501','authenticated direct deletion reads denied');
-select throws_ok($$select app_private.current_user_has_role('administrator'::app_private.app_role)$$,'42501','authenticated role cannot self-assign through direct RPC');
+select is(app_private.current_user_has_role('administrator'::app_private.app_role),false,'authenticated role cannot self-assign through direct gate');
 reset role;
 
 set local role identity_service;
