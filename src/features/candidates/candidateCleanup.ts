@@ -1,11 +1,14 @@
 const PAYLOAD_CLEANUP_WINDOW_MS = 24 * 60 * 60 * 1_000
 
 export type CandidatePayloadState = 'pending' | 'accepted' | 'closed'
+export type CandidatePayloadTerminalReason = 'revoked' | 'dismissed' | 'expired'
 
 export interface CandidatePayloadCleanupItem {
   shareId: string
   state: CandidatePayloadState
   expiresAt: number
+  terminalAt: number | null
+  terminalReason: CandidatePayloadTerminalReason | null
   cleanupDueAt: number
   storageKeys: readonly string[]
 }
@@ -27,10 +30,10 @@ export interface CandidatePayloadCleanupResult {
   skipped: string[]
 }
 
-/** The scheduler persists this deadline when a pending share is created. */
-export function cleanupDeadlineFor(expiresAt: number): number {
-  assertTimestamp(expiresAt)
-  return expiresAt + PAYLOAD_CLEANUP_WINDOW_MS
+/** The scheduler persists this deadline from expiry or the terminal transition. */
+export function cleanupDeadlineFor(cleanupBasisAt: number): number {
+  assertTimestamp(cleanupBasisAt)
+  return cleanupBasisAt + PAYLOAD_CLEANUP_WINDOW_MS
 }
 
 /**
@@ -56,10 +59,23 @@ export async function runCandidatePayloadCleanup(
 
   for (const item of items) {
     assertCleanupItem(item)
-    if (item.cleanupDueAt > cleanupDeadlineFor(item.expiresAt)) {
+
+    // Acceptance transfers the Trip Idea to the recipient. Any stale cleanup
+    // schedule must be ignored before deadline validation can reject the row.
+    if (item.state === 'accepted') {
+      result.skipped.push(item.shareId)
+      continue
+    }
+
+    const cleanupBasisAt = item.state === 'closed' ? item.terminalAt : item.expiresAt
+    if (
+      cleanupBasisAt === null ||
+      item.cleanupDueAt < cleanupBasisAt ||
+      item.cleanupDueAt > cleanupDeadlineFor(cleanupBasisAt)
+    ) {
       throw new Error('candidate_cleanup_deadline_violation')
     }
-    if (item.state !== 'pending' || item.expiresAt > input.now || item.cleanupDueAt > input.now) {
+    if (item.cleanupDueAt > input.now || (item.state === 'pending' && item.expiresAt > input.now)) {
       result.skipped.push(item.shareId)
       continue
     }
@@ -80,6 +96,14 @@ function assertCleanupItem(item: CandidatePayloadCleanupItem): void {
   }
   assertTimestamp(item.expiresAt)
   assertTimestamp(item.cleanupDueAt)
+  if (item.state === 'closed') {
+    if (item.terminalAt === null || item.terminalReason === null) {
+      throw new Error('candidate_cleanup_item_invalid')
+    }
+    assertTimestamp(item.terminalAt)
+  } else if (item.terminalAt !== null || item.terminalReason !== null) {
+    throw new Error('candidate_cleanup_item_invalid')
+  }
 }
 
 function isCandidateStorageKey(shareId: string, key: string): boolean {

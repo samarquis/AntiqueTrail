@@ -54,6 +54,122 @@ describe('candidate payload cleanup contract', () => {
     expect(completed).toEqual(['pending-share'])
   })
 
+  it.each(['revoked', 'dismissed', 'expired'] as const)(
+    'deletes storage and payload for a due %s terminal share',
+    async (terminalReason) => {
+      const now = Date.UTC(2026, 7, 3, 12)
+      const terminal = item({
+        shareId: `${terminalReason}-share`,
+        state: 'closed',
+        terminalReason,
+        terminalAt: now - HOUR,
+        cleanupDueAt: now,
+        storageKeys: [`candidate/${terminalReason}-share/preview.html`],
+      })
+      const operations: string[] = []
+
+      const result = await runCandidatePayloadCleanup(
+        {
+          listDue: async () => [terminal],
+          deleteStorageObjects: async (keys) => {
+            operations.push(`storage:${keys.join(',')}`)
+          },
+          deleteEncryptedPayload: async (shareId) => {
+            operations.push(`payload:${shareId}`)
+          },
+          markComplete: async (shareId) => {
+            operations.push(`complete:${shareId}`)
+          },
+        },
+        { now, limit: 50 },
+      )
+
+      expect(result).toEqual({ examined: 1, cleaned: [`${terminalReason}-share`], skipped: [] })
+      expect(operations).toEqual([
+        `storage:candidate/${terminalReason}-share/preview.html`,
+        `payload:${terminalReason}-share`,
+        `complete:${terminalReason}-share`,
+      ])
+    },
+  )
+
+  it('preserves accepted-share storage regardless of an obsolete cleanup schedule', async () => {
+    const now = Date.UTC(2026, 7, 3, 12)
+    const accepted = item({
+      shareId: 'accepted-share',
+      state: 'accepted',
+      expiresAt: now - 7 * 24 * HOUR,
+      cleanupDueAt: now + 7 * 24 * HOUR,
+      storageKeys: ['candidate/accepted-share/preview.html'],
+    })
+
+    const result = await runCandidatePayloadCleanup(
+      {
+        listDue: async () => [accepted],
+        deleteStorageObjects: async () => {
+          throw new Error('accepted storage must remain')
+        },
+        deleteEncryptedPayload: async () => {
+          throw new Error('accepted payload must remain')
+        },
+        markComplete: async () => {
+          throw new Error('accepted cleanup must not complete')
+        },
+      },
+      { now, limit: 50 },
+    )
+
+    expect(result).toEqual({ examined: 1, cleaned: [], skipped: ['accepted-share'] })
+  })
+
+  it('rejects a terminal cleanup scheduled more than 24 hours after closure', async () => {
+    const now = Date.UTC(2026, 7, 3, 12)
+
+    await expect(
+      runCandidatePayloadCleanup(
+        {
+          listDue: async () => [
+            item({
+              shareId: 'late-revocation',
+              state: 'closed',
+              terminalReason: 'revoked',
+              terminalAt: now - 25 * HOUR,
+              cleanupDueAt: now + HOUR,
+            }),
+          ],
+          deleteStorageObjects: async () => undefined,
+          deleteEncryptedPayload: async () => undefined,
+          markComplete: async () => undefined,
+        },
+        { now, limit: 50 },
+      ),
+    ).rejects.toThrow('candidate_cleanup_deadline_violation')
+  })
+
+  it('rejects terminal cleanup scheduled before the terminal transition', async () => {
+    const now = Date.UTC(2026, 7, 3, 12)
+
+    await expect(
+      runCandidatePayloadCleanup(
+        {
+          listDue: async () => [
+            item({
+              shareId: 'premature-dismissal',
+              state: 'closed',
+              terminalReason: 'dismissed',
+              terminalAt: now + HOUR,
+              cleanupDueAt: now,
+            }),
+          ],
+          deleteStorageObjects: async () => undefined,
+          deleteEncryptedPayload: async () => undefined,
+          markComplete: async () => undefined,
+        },
+        { now, limit: 50 },
+      ),
+    ).rejects.toThrow('candidate_cleanup_deadline_violation')
+  })
+
   it('fails the run when a repository returns a cleanup schedule outside the 24-hour contract', async () => {
     const now = Date.UTC(2026, 7, 3, 12)
     const expiresAt = now - 25 * HOUR
@@ -106,6 +222,8 @@ function item(overrides: Partial<CandidatePayloadCleanupItem>): CandidatePayload
     shareId: 'share-1',
     state: 'pending',
     expiresAt: Date.UTC(2026, 7, 1),
+    terminalAt: null,
+    terminalReason: null,
     cleanupDueAt: Date.UTC(2026, 7, 2),
     storageKeys: [],
     ...overrides,
