@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthContext'
 import { GENERIC_MFA_ERROR, GENERIC_RECOVERY_MESSAGE } from './authClient'
-import { MfaPage, RecoveryPage, RequireSession, SignInPage } from './components'
+import { MfaPage, RecoveryPage, RequireSession, safeReturnTo, SignInPage } from './components'
 import type { AuthProviderAdapter } from './types'
 
 function renderAuth(element: ReactNode, provider: AuthProviderAdapter) {
@@ -24,6 +24,12 @@ const unavailableProvider: AuthProviderAdapter = {
 }
 
 describe('auth states', () => {
+  it('rejects cross-origin post-login return targets', () => {
+    expect(safeReturnTo('https://example.test')).toBe('/stores')
+    expect(safeReturnTo('//example.test')).toBe('/stores')
+    expect(safeReturnTo('/account/privacy')).toBe('/account/privacy')
+  })
+
   it('uses generic recovery copy regardless of account existence', async () => {
     const user = userEvent.setup()
     renderAuth(<RecoveryPage provider={unavailableProvider} />, unavailableProvider)
