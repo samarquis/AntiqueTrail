@@ -60,7 +60,13 @@ create table trip_private.trip_stops (
   constraint stop_rest_coordinates_pair check ((rest_latitude is null and rest_longitude is null) or (rest_latitude between -90 and 90 and rest_longitude between -180 and 180)),
   constraint stop_position_bound check (position between 0 and 7),
   constraint stop_dwell_bound check (planned_dwell_minutes between 5 and 720),
-  constraint stop_state_timestamps check ((state='arrived' and arrived_at is not null) or (state<>'arrived') or state in ('completed','observed_closed'))
+  constraint stop_state_timestamps check (
+    (state='planned' and arrived_at is null and completed_at is null and closed_observed_at is null)
+    or (state='arrived' and arrived_at is not null and completed_at is null and closed_observed_at is null)
+    or (state='completed' and completed_at is not null)
+    or (state='skipped' and completed_at is null and closed_observed_at is null)
+    or (state='observed_closed' and closed_observed_at is not null)
+  )
 );
 create unique index trip_stop_position_unique on trip_private.trip_stops(trip_id,position);
 create index trip_stops_trip_state_idx on trip_private.trip_stops(trip_id,state);
