@@ -102,11 +102,7 @@ set search_path = pg_catalog,partner_private as $$
     where p.pending_identity_id=p_pending_identity_id and p.auth_user_id=p_user_id
   )
 $$;
-grant usage on schema partner_private to postgres;
-grant identity_service to postgres;
-alter function partner_private.pilot_draft_belongs_to_user(uuid,uuid) owner to identity_service;
-revoke identity_service from postgres;
-revoke create on schema partner_private from identity_service;
+revoke execute on function partner_private.pilot_draft_belongs_to_user(uuid,uuid) from public, anon;
 grant execute on function partner_private.pilot_draft_belongs_to_user(uuid,uuid) to authenticated;
 
 create or replace function partner_private.enforce_pilot_store_draft_write()
