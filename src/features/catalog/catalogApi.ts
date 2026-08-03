@@ -79,11 +79,11 @@ function parseFreshness(value: unknown, verifiedAt: unknown) {
 function freshnessStateLabel(state: string) { return state === 'current' ? 'Verified recently' : state === 'overdue' ? 'Verification overdue' : 'Freshness unavailable'; }
 
 function mapHours(row: LooseRow): CatalogStore['hours'] {
-  const raw = row.hours ?? row.weekly_hours;
+  const raw = row.hours ?? row.weekly_hours ?? row.today_hours;
   if (raw && !Array.isArray(raw) && typeof raw === 'object') {
     const today = asRow(raw);
     const weekday = Number(today.weekday ?? 1);
-    return [{ weekday, label: displayDay(weekday), status: today.hours_state === 'unavailable' ? 'unavailable' : today.is_closed ? 'closed' : 'open', intervals: asArray(today.intervals).map((value) => { const interval = asRow(value); return { opensAt: String(interval.opens_at ?? ''), closesAt: String(interval.closes_at ?? '') }; }) }];
+    return [{ weekday, label: displayDay(weekday), status: row.hours_state === 'unavailable' || today.hours_state === 'unavailable' ? 'unavailable' : today.is_closed ? 'closed' : 'open', intervals: asArray(today.intervals).map((value) => { const interval = asRow(value); return { opensAt: String(interval.opens_at ?? ''), closesAt: String(interval.closes_at ?? '') }; }) }];
   }
   const grouped = new Map<number, { closed: boolean; intervals: Array<{ opensAt: string; closesAt: string }> }>();
   for (const value of asArray(raw)) { const item = asRow(value); const weekday = Number(item.weekday ?? item.iso_weekday ?? 0); if (!weekday) continue; const existing = grouped.get(weekday) ?? { closed: Boolean(item.is_closed), intervals: [] }; if (!item.is_closed && item.opens_at && item.closes_at) existing.intervals.push({ opensAt: String(item.opens_at), closesAt: String(item.closes_at) }); grouped.set(weekday, existing); }
