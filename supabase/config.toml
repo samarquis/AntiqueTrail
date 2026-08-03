@@ -1,0 +1,30 @@
+project_id = "antique-trail"
+
+[api]
+enabled = true
+schemas = ["public", "app_public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 50
+
+[db]
+major_version = 15
+
+[db.pooler]
+enabled = false
+
+[studio]
+enabled = true
+
+[inbucket]
+enabled = true
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+
+[analytics]
+enabled = false
