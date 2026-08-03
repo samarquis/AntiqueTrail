@@ -6,6 +6,15 @@ import {
   configuredCatalogClient,
   demoCatalogClient,
 } from '../features/catalog'
+import {
+  AccountPlaceholder,
+  AuthProvider,
+  MfaPage,
+  RecoveryPage,
+  RequireSession,
+  SignInPage,
+  unavailableAuthProvider,
+} from '../features/auth'
 
 const catalogClient = configuredCatalogClient() ?? demoCatalogClient
 
@@ -52,12 +61,18 @@ function NotFound() {
 
 export default function App() {
   return (
-    <AppShell>
-      <Routes>
-        <Route path="/stores" element={<StoreBrowser />} />
-        <Route path="/stores/:slug" element={<StoreDetails />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AppShell>
+    <AuthProvider provider={unavailableAuthProvider}>
+      <AppShell>
+        <Routes>
+          <Route path="/stores" element={<StoreBrowser />} />
+          <Route path="/stores/:slug" element={<StoreDetails />} />
+          <Route path="/auth/sign-in" element={<SignInPage provider={unavailableAuthProvider} />} />
+          <Route path="/auth/recovery" element={<RecoveryPage provider={unavailableAuthProvider} />} />
+          <Route path="/auth/mfa" element={<MfaPage provider={unavailableAuthProvider} />} />
+          <Route path="/account/*" element={<RequireSession><AccountPlaceholder /></RequireSession>} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AppShell>
+    </AuthProvider>
   )
 }
