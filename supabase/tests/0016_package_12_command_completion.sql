@@ -32,7 +32,7 @@ insert into community_private.community_evidence_receipts(
  decode(repeat('01',32),'hex'),true,'{"eligible_small_community":true}'::jsonb),
 ('16000000-0000-4000-8000-000000000003','catalog_freeze','ProductOwner','pass','osage-city','16000000-0000-4000-8000-000000000101',null,
  decode(repeat('03',32),'hex'),decode(repeat('04',32),'hex'),decode(repeat('05',32),'hex'),true,
- '{"artifact_binding_frozen":true,"store_set_frozen":true}'::jsonb),
+ '{"artifact_binding_frozen":true,"store_set_frozen":true,"canonical_route":"/stores?area=osage-city"}'::jsonb),
 ('16000000-0000-4000-8000-000000000004','readiness','ProductOwner','pass','osage-city','16000000-0000-4000-8000-000000000101',null,
  decode(repeat('03',32),'hex'),decode(repeat('04',32),'hex'),decode(repeat('06',32),'hex'),true,
  '{"all_predicates_pass":true}'::jsonb),

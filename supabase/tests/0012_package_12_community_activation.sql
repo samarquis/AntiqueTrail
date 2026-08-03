@@ -127,7 +127,7 @@ insert into community_private.community_evidence_receipts(
  '{"all_predicates_pass":true}'::jsonb),
 ('12000000-0000-4000-8000-000000000004','activation','ProductOwner','pass','osage-city','12000000-0000-4000-8000-000000000101',null,
  decode(repeat('03',32),'hex'),decode(repeat('04',32),'hex'),decode(repeat('06',32),'hex'),true,
- '{"signed_frozen_artifacts":true,"recovery_capacity":true,"channel_consents":true,"canonical_route_bound":true,"schema_config_bound":true,"zero_blocking_defects":true}'::jsonb);
+ '{"signed_frozen_artifacts":true,"recovery_capacity":true,"channel_consents":true,"canonical_route_bound":true,"canonical_route":"/stores?area=osage-city","schema_config_bound":true,"zero_blocking_defects":true}'::jsonb);
 
 insert into community_private.community_activation_runs(
   run_id,attempt_sequence,target_ordinal,area_slug,selection_receipt_id,rg01_receipt_id,
@@ -183,10 +183,10 @@ insert into community_private.community_evidence_receipts(
 ) values
 ('12000000-0000-4000-8000-000000000005','rollback','ProductOwner','pass','osage-city','12000000-0000-4000-8000-000000000101',null,
  decode(repeat('03',32),'hex'),decode(repeat('04',32),'hex'),decode(repeat('07',32),'hex'),true,
- '{"rollback_authorized":true,"projection_stop_confirmed":true,"artifact_bound":true}'::jsonb),
+ '{"rollback_authorized":true,"projection_stop_confirmed":true,"artifact_bound":true,"canonical_route":"/stores?area=osage-city"}'::jsonb),
 ('12000000-0000-4000-8000-000000000006','reactivation','ProductOwner','pass','osage-city','12000000-0000-4000-8000-000000000101',null,
  decode(repeat('03',32),'hex'),decode(repeat('04',32),'hex'),decode(repeat('08',32),'hex'),true,
- '{"repair_readiness":true,"recovery_capacity":true,"same_store_set":true,"channel_consents":true}'::jsonb);
+ '{"repair_readiness":true,"recovery_capacity":true,"same_store_set":true,"channel_consents":true,"canonical_route":"/stores?area=osage-city"}'::jsonb);
 
 set local role community_deployment_service;
 select lives_ok(
@@ -213,7 +213,7 @@ insert into community_private.community_evidence_receipts(
 ) values (
   '12000000-0000-4000-8000-000000000007','rollback','ProductOwner','pass','osage-city','12000000-0000-4000-8000-000000000101',null,
   decode(repeat('03',32),'hex'),decode(repeat('04',32),'hex'),decode(repeat('09',32),'hex'),false,
-  '{"rollback_authorized":true,"projection_stop_confirmed":true,"artifact_bound":true}'::jsonb
+  '{"rollback_authorized":true,"projection_stop_confirmed":true,"artifact_bound":true,"canonical_route":"/stores?area=osage-city"}'::jsonb
 );
 set local role community_deployment_service;
 select throws_ok(

@@ -79,7 +79,7 @@ const actionReceipt = (
   configDigest: 'config:v1',
   recoveryAndCapacityConfirmed: true,
   channelConsentsConfirmed: true,
-  canonicalRoute: '/areas/osage-city',
+  canonicalRoute: '/stores?area=osage-city',
   allowlistedSourceCodes: ['osage-flyer'],
   ...overrides,
 })
@@ -370,6 +370,15 @@ describe('one-community activation state machine', () => {
         expectedRootVersion: 4,
         expectedRunVersion: 3,
         idempotencyKey: 'wrong-area-activation',
+      }),
+    ).toThrow('community_action_receipt_binding_invalid')
+    expect(() =>
+      machine.activate({
+        runId: 'community-run-1',
+        receipt: actionReceipt({ canonicalRoute: '/areas/osage-city' }),
+        expectedRootVersion: 4,
+        expectedRunVersion: 3,
+        idempotencyKey: 'legacy-area-route-activation',
       }),
     ).toThrow('community_action_receipt_binding_invalid')
     expect(machine.publicStores('osage-city')).toEqual([])
@@ -733,7 +742,7 @@ function activateRun(
       areaSlug,
       storeIds: [`${suffix}-anchor`, `${suffix}-store`],
       artifactBindingDigest: `artifact:${suffix}:v1`,
-      canonicalRoute: `/areas/${areaSlug}`,
+      canonicalRoute: `/stores?area=${areaSlug}`,
       allowlistedSourceCodes: [`${suffix}-flyer`],
     }),
     expectedRootVersion: snapshot.root.version,

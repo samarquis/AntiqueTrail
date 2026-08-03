@@ -693,7 +693,7 @@ function assertActionReceipt(receipt: CommunityActionReceipt, run: CommunityActi
     !receipt.configDigest ||
     !receipt.recoveryAndCapacityConfirmed ||
     !receipt.channelConsentsConfirmed ||
-    receipt.canonicalRoute !== `/areas/${run.areaSlug}` ||
+    receipt.canonicalRoute !== `/stores?area=${run.areaSlug}` ||
     new Set(receipt.allowlistedSourceCodes).size !== receipt.allowlistedSourceCodes.length ||
     receipt.allowlistedSourceCodes.some((code) => !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(code))
   ) {
