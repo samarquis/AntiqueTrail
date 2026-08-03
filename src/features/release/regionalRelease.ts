@@ -119,11 +119,12 @@ export function advanceRegionalRelease(
   }
 
   const completedSteps = [...state.completedSteps, step]
-  if (step === 'capability_enablement') {
+  if (step === 'signed_release_receipt' && verification) {
     return {
       ...state,
-      status: 'deploying',
+      status: 'active',
       completedSteps,
+      signedReceipt: verification.receipt,
       capabilities: {
         publicCatalog: true,
         publicClaims: true,
@@ -136,11 +137,8 @@ export function advanceRegionalRelease(
 
   return {
     ...state,
-    status: step === 'signed_release_receipt' ? 'active' : 'deploying',
+    status: 'deploying',
     completedSteps,
-    ...(step === 'signed_release_receipt' && verification
-      ? { signedReceipt: verification.receipt }
-      : {}),
   }
 }
 

@@ -75,7 +75,7 @@ describe('regional public release state machine', () => {
     for (const step of beforeEnablement) state = advanceRegionalRelease(state, step)
     state = advanceRegionalRelease(state, 'capability_enablement')
     expect(state.status).toBe('deploying')
-    expect(Object.values(state.capabilities).every(Boolean)).toBe(true)
+    expect(Object.values(state.capabilities).every((enabled) => !enabled)).toBe(true)
     state = advanceRegionalRelease(state, 'smoke')
     state = advanceRegionalRelease(state, 'monitoring')
 
