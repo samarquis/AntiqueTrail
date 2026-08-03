@@ -59,6 +59,21 @@ describe('account lifecycle screens', () => {
     expect(screen.queryByText(/token|bearer|signed_url/i)).not.toBeInTheDocument()
   })
 
+  it('uses the same generic lifecycle error when export fails', async () => {
+    const user = userEvent.setup()
+    const lifecycleClient = client({
+      requestExport: vi.fn(async () => {
+        throw new Error('provider account exists')
+      }),
+    })
+    renderPage(<ExportPage client={lifecycleClient} />)
+    await user.click(screen.getByRole('button', { name: /request export/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /couldn't complete that account request/i,
+    )
+    expect(screen.queryByText(/provider account exists/i)).not.toBeInTheDocument()
+  })
+
   it('requires explicit confirmation before scheduling deletion', async () => {
     const user = userEvent.setup()
     const requestDeletion = vi.fn(async () => ({ state: 'deletion_scheduled' as const }))
