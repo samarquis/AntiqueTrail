@@ -18,6 +18,21 @@ export const unavailableShopperClient: ShopperPrivateClient = {
   async deleteMemory() {
     throw new Error(GENERIC_SHOPPER_ERROR)
   },
+  async undoDeleteMemory() {
+    throw new Error(GENERIC_SHOPPER_ERROR)
+  },
+  async listCatalogAreas() {
+    throw new Error(GENERIC_SHOPPER_ERROR)
+  },
+  async getNewSince() {
+    throw new Error(GENERIC_SHOPPER_ERROR)
+  },
+  async markCatalogSeen() {
+    throw new Error(GENERIC_SHOPPER_ERROR)
+  },
+  async dismissNewStore() {
+    throw new Error(GENERIC_SHOPPER_ERROR)
+  },
   async submitCorrection() {
     throw new Error(GENERIC_SHOPPER_ERROR)
   },

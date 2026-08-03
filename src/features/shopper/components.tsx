@@ -3,8 +3,11 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { GENERIC_SHOPPER_ERROR, unavailableShopperClient } from './shopperClient'
 import type {
+  CatalogAreaChoice,
   CorrectionDraft,
   CorrectionStatus,
+  NewSinceResult,
+  PrivateDeleteReceipt,
   PrivateActionState,
   PrivateStoreMemory,
   SavedStore,
@@ -34,6 +37,60 @@ function ShopperCard({
 
 function GenericError() {
   return <p role="alert">{GENERIC_SHOPPER_ERROR}</p>
+}
+
+export function SaveStoreAction({
+  storeId,
+  initialSaved = false,
+  client = unavailableShopperClient,
+}: {
+  storeId: string
+  initialSaved?: boolean
+  client?: ShopperPrivateClient
+}) {
+  const [saved, setSaved] = useState(initialSaved)
+  const [state, setState] = useState<
+    'idle' | 'saving' | 'saved' | 'save-undone' | 'removed' | 'remove-undone' | 'error'
+  >('idle')
+
+  async function toggle() {
+    const wasSaved = saved
+    setState('saving')
+    try {
+      const result = await client.toggleSave(storeId)
+      setSaved(result.saved)
+      if (wasSaved && !result.saved) {
+        setState(state === 'saved' ? 'save-undone' : 'removed')
+      } else if (!wasSaved && result.saved) {
+        setState(state === 'removed' ? 'remove-undone' : 'saved')
+      } else {
+        setState('error')
+      }
+    } catch {
+      setState('error')
+    }
+  }
+
+  return (
+    <section aria-label="Private save action">
+      <button className="button" type="button" disabled={state === 'saving'} onClick={toggle}>
+        {state === 'saving'
+          ? 'Saving…'
+          : state === 'removed'
+            ? 'Undo removal'
+            : saved
+              ? state === 'saved'
+                ? 'Undo save'
+                : 'Remove saved store'
+              : 'Save store'}
+      </button>
+      {state === 'saved' && <p role="status">Store saved. Undo is available.</p>}
+      {state === 'save-undone' && <p role="status">Save undone.</p>}
+      {state === 'removed' && <p role="status">Store removed. Undo is available.</p>}
+      {state === 'remove-undone' && <p role="status">Removal undone.</p>}
+      {state === 'error' && <GenericError />}
+    </section>
+  )
 }
 
 // Correction text is safe to retain only in this in-memory tab while JIT auth completes.
@@ -82,12 +139,132 @@ export function SavedPage({
           {stores.map((store) => (
             <li key={store.storeId}>
               <Link to={`/stores/${encodeURIComponent(store.slug)}`}>{store.name}</Link>
+              <SaveStoreAction storeId={store.storeId} initialSaved client={client} />
             </li>
           ))}
         </ul>
       ) : (
         <p role="status">You have no saved stores yet.</p>
       )}
+    </ShopperCard>
+  )
+}
+
+export function NewSincePage({
+  client = unavailableShopperClient,
+}: {
+  client?: ShopperPrivateClient
+}) {
+  const [areas, setAreas] = useState<CatalogAreaChoice[] | null>(null)
+  const [selectedAreaId, setSelectedAreaId] = useState('')
+  const [result, setResult] = useState<NewSinceResult | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [caughtUp, setCaughtUp] = useState(false)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    client
+      .listCatalogAreas()
+      .then((choices) => {
+        if (!cancelled) setAreas(choices)
+      })
+      .catch(() => {
+        if (!cancelled) setError(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [client])
+
+  async function chooseArea(areaId: string) {
+    setSelectedAreaId(areaId)
+    setResult(null)
+    setCaughtUp(false)
+    setError(false)
+    if (!areaId) return
+    setLoading(true)
+    try {
+      setResult(await client.getNewSince(areaId))
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function dismiss(storeId: string) {
+    try {
+      await client.dismissNewStore(storeId)
+      setResult((current) =>
+        current
+          ? { ...current, stores: current.stores.filter((store) => store.storeId !== storeId) }
+          : current,
+      )
+    } catch {
+      setError(true)
+    }
+  }
+
+  async function markSeen() {
+    if (!result) return
+    try {
+      await client.markCatalogSeen(result.area.id)
+      setCaughtUp(true)
+    } catch {
+      setError(true)
+    }
+  }
+
+  return (
+    <ShopperCard
+      title="New since your last visit"
+      description="Choose an area yourself. Antique Trail does not use background location or send notifications."
+    >
+      <label htmlFor="new-since-area">Choose an area</label>
+      <select
+        id="new-since-area"
+        value={selectedAreaId}
+        disabled={areas === null}
+        onChange={(event) => void chooseArea(event.target.value)}
+      >
+        <option value="">Select an area</option>
+        {areas?.map((area) => (
+          <option key={area.id} value={area.id}>
+            {area.label}
+          </option>
+        ))}
+      </select>
+      {areas === null && !error && <p role="status">Loading areas…</p>}
+      {loading && <p role="status">Checking for new stores…</p>}
+      {error && <GenericError />}
+      {result && !caughtUp && (
+        <>
+          <p>
+            {result.lastSeenAt
+              ? `Showing stores added after your last visit to ${result.area.label}.`
+              : `Showing recently added stores in ${result.area.label}.`}
+          </p>
+          {result.stores.length ? (
+            <ul aria-label={`New stores in ${result.area.label}`}>
+              {result.stores.map((store) => (
+                <li key={store.storeId}>
+                  <Link to={`/stores/${encodeURIComponent(store.slug)}`}>{store.name}</Link>{' '}
+                  <button type="button" onClick={() => void dismiss(store.storeId)}>
+                    Dismiss {store.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p role="status">No new stores in this area.</p>
+          )}
+          <button className="button" type="button" onClick={() => void markSeen()}>
+            Mark {result.area.label} as seen
+          </button>
+        </>
+      )}
+      {result && caughtUp && <p role="status">You are caught up in {result.area.label}.</p>}
     </ShopperCard>
   )
 }
@@ -154,6 +331,7 @@ export function MemoryPage({
     version: 0,
   })
   const [state, setState] = useState<PrivateActionState>('loading')
+  const [deleteReceipt, setDeleteReceipt] = useState<PrivateDeleteReceipt | null>(null)
   const [error, setError] = useState(false)
   useEffect(() => {
     let cancelled = false
@@ -189,8 +367,21 @@ export function MemoryPage({
   async function remove() {
     setState('delete-pending')
     try {
-      await client.deleteMemory(slug)
+      setDeleteReceipt(await client.deleteMemory(slug))
       setState('deleted')
+    } catch {
+      setError(true)
+      setState('error')
+    }
+  }
+  async function undoRemove() {
+    if (!deleteReceipt) return
+    setState('loading')
+    setError(false)
+    try {
+      setMemory(await client.undoDeleteMemory(slug, deleteReceipt.undoToken))
+      setDeleteReceipt(null)
+      setState('undone')
     } catch {
       setError(true)
       setState('error')
@@ -211,7 +402,12 @@ export function MemoryPage({
       description="Your rating, note, and visit month are visible only to you."
     >
       {state === 'deleted' ? (
-        <p role="status">Private memory deleted.</p>
+        <div>
+          <p role="status">Private memory deleted.</p>
+          <button className="button" type="button" onClick={() => void undoRemove()}>
+            Undo memory deletion
+          </button>
+        </div>
       ) : (
         <form onSubmit={save}>
           <label htmlFor="memory-rating">Rating</label>
@@ -256,6 +452,7 @@ export function MemoryPage({
             {state === 'delete-pending' ? 'Deleting…' : 'Delete memory'}
           </button>
           {state === 'saved' && <p role="status">Private memory saved.</p>}
+          {state === 'undone' && <p role="status">Private memory restored.</p>}
         </form>
       )}
     </ShopperCard>

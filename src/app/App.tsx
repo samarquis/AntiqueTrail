@@ -26,6 +26,7 @@ import {
   CorrectionStatusPage,
   HistoryPage,
   MemoryPage,
+  NewSincePage,
   SavedPage,
   unavailableShopperClient,
   type ShopperPrivateClient,
@@ -102,6 +103,8 @@ function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <nav aria-label="Primary navigation">
           <Link to="/stores">Browse stores</Link>
+          <Link to="/saved">Saved stores</Link>
+          <Link to="/new-since">New since</Link>
         </nav>
       </header>
       <div id="main-content">{children}</div>
@@ -245,6 +248,14 @@ export default function App({ clients = {} }: { clients?: AppClients }) {
             element={
               <RequireSession>
                 <SavedPage client={shopperClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/new-since"
+            element={
+              <RequireSession>
+                <NewSincePage client={shopperClient} />
               </RequireSession>
             }
           />
