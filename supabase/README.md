@@ -13,6 +13,8 @@ Package 2B adds provider-neutral admission receipts, quarantine state, export/de
 
 Package 3 shopper-private rows live in the non-API `shopper_private` schema. Saves, memories, last-seen, dismissals, and correction reports require the authenticated owner’s active application session; correction case events are service-only and append-only.
 
+Package 4 candidate data lives in the non-API `candidate_private` schema. Candidate Links are owner-only, shares resolve to one recipient and expire after 30 days, encrypted share payloads are recipient-pending-only, and accepted shares can produce only a recipient-owned Trip Idea. Sender/recipient terminal reasons, abuse evidence, and share idempotency records stay service-scoped; no candidate row grants public writes or publishes a catalog record.
+
 Package 5A trip state lives in the non-API `trip_private` schema. Trips and stops are owner/active-participant scoped; invitations store only token hashes, one partner and one active Navigator/device are bounded server-side, and offline/idempotency/conflict records contain hashes and metadata rather than bearer or location payloads.
 
 With Docker and the Supabase CLI installed:
