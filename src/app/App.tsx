@@ -35,6 +35,15 @@ import {
   SharesPage,
   TripIdeasPage,
 } from '../features/candidates'
+import {
+  GoPage,
+  GuardedTrips,
+  NewTripPage,
+  PlanPage,
+  SummaryPage,
+  TripsPage,
+  unavailableTripClient,
+} from '../features/trips'
 
 const catalogClient = configuredCatalogClient() ?? demoCatalogClient
 
@@ -200,6 +209,46 @@ export default function App() {
               <RequireSession>
                 <TripIdeasPage />
               </RequireSession>
+            }
+          />
+          <Route
+            path="/trips"
+            element={
+              <GuardedTrips>
+                <TripsPage client={unavailableTripClient} />
+              </GuardedTrips>
+            }
+          />
+          <Route
+            path="/trips/new"
+            element={
+              <GuardedTrips>
+                <NewTripPage client={unavailableTripClient} />
+              </GuardedTrips>
+            }
+          />
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <GuardedTrips>
+                <PlanPage client={unavailableTripClient} />
+              </GuardedTrips>
+            }
+          />
+          <Route
+            path="/trips/:tripId/go"
+            element={
+              <GuardedTrips>
+                <GoPage client={unavailableTripClient} />
+              </GuardedTrips>
+            }
+          />
+          <Route
+            path="/trips/:tripId/summary"
+            element={
+              <GuardedTrips>
+                <SummaryPage client={unavailableTripClient} />
+              </GuardedTrips>
             }
           />
           <Route path="*" element={<NotFound />} />
