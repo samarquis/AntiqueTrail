@@ -144,7 +144,7 @@ create table trip_private.trip_offline_grants (
   state text not null default 'active' check (state in ('active','revoked','expired')),
   constraint offline_device_hash_size check (octet_length(device_hash)=32),
   constraint offline_grant_hash_size check (octet_length(grant_hash)=32),
-  constraint offline_expiry_bound check (expires_at<=issued_at+interval '36 hours'),
+  constraint offline_expiry_bound check (expires_at>issued_at and expires_at<=issued_at+interval '36 hours'),
   constraint offline_state_shape check ((state='active' and revoked_at is null) or (state<>'active' and revoked_at is not null))
 );
 create unique index one_active_offline_grant on trip_private.trip_offline_grants(trip_id,user_id,device_hash) where state='active';
