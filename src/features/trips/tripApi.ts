@@ -1,0 +1,398 @@
+import {
+  GENERIC_TRIP_ERROR,
+  normalizeTripName,
+  normalizeTripPartnerEmail,
+  validDwellMinutes,
+} from './tripClient'
+import type {
+  OfflineQueueSnapshot,
+  Trip,
+  TripClient,
+  TripCollaboration,
+  TripInvitation,
+  TripParticipant,
+  TripStop,
+} from './types'
+
+export type TripApiCommand =
+  | 'list_trips'
+  | 'get_trip'
+  | 'create_trip'
+  | 'add_trip_stop'
+  | 'reorder_trip_stop'
+  | 'review_trip_hours'
+  | 'start_trip'
+  | 'mark_arrived'
+  | 'complete_trip_stop'
+  | 'skip_trip_stop'
+  | 'replay_trip_mutations'
+  | 'get_offline_trip_queue'
+  | 'queue_offline_trip_action'
+  | 'resolve_trip_conflict'
+  | 'purge_offline_trip'
+  | 'get_trip_collaboration'
+  | 'invite_trip_partner'
+  | 'revoke_trip_invitation'
+  | 'accept_trip_invitation'
+  | 'assign_navigator'
+  | 'leave_trip'
+
+/** The transport derives the current actor from its authenticated session. */
+export interface TripTransport {
+  invoke(command: TripApiCommand, payload: Readonly<Record<string, unknown>>): Promise<unknown>
+}
+
+type Parser<T> = (value: unknown) => T
+
+const TRIP_STATES = new Set(['draft', 'ready', 'active', 'completed', 'cancelled'])
+const STOP_STATES = new Set(['planned', 'arrived', 'completed', 'skipped', 'observed_closed'])
+const PRIORITIES = new Set(['must', 'prefer', 'flexible'])
+const QUEUE_STATES = new Set(['empty', 'queued', 'replaying', 'conflict', 'purged', 'blocked'])
+
+function genericFailure(): Error {
+  return new Error(GENERIC_TRIP_ERROR)
+}
+
+function record(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw genericFailure()
+  return value as Record<string, unknown>
+}
+
+function string(value: unknown, maximum = 2_000): string {
+  if (typeof value !== 'string' || value.length < 1 || value.length > maximum)
+    throw genericFailure()
+  return value
+}
+
+function optionalString(value: unknown, maximum = 2_000): string | undefined {
+  return value == null ? undefined : string(value, maximum)
+}
+
+function integer(value: unknown, minimum = 0, maximum = Number.MAX_SAFE_INTEGER): number {
+  if (!Number.isInteger(value) || Number(value) < minimum || Number(value) > maximum)
+    throw genericFailure()
+  return Number(value)
+}
+
+function enumValue<T extends string>(value: unknown, allowed: Set<string>): T {
+  const parsed = string(value, 64)
+  if (!allowed.has(parsed)) throw genericFailure()
+  return parsed as T
+}
+
+function parseStop(value: unknown): TripStop {
+  const source = record(value)
+  return {
+    id: string(source.id, 128),
+    kind: enumValue<TripStop['kind']>(source.kind, new Set(['store', 'rest'])),
+    label: string(source.label, 160),
+    address: optionalString(source.address, 500),
+    position: integer(source.position, 0, 7),
+    priority: enumValue<TripStop['priority']>(source.priority, PRIORITIES),
+    plannedDwellMinutes: integer(source.plannedDwellMinutes, 5, 720),
+    state: enumValue<TripStop['state']>(source.state, STOP_STATES),
+  }
+}
+
+const parseTrip: Parser<Trip> = (value) => {
+  const source = record(value)
+  if (!Array.isArray(source.stops) || source.stops.length > 8) throw genericFailure()
+  return {
+    id: string(source.id, 128),
+    name: string(source.name, 80),
+    localDate: boundedDate(string(source.localDate, 10)),
+    state: enumValue<Trip['state']>(source.state, TRIP_STATES),
+    stops: source.stops.map(parseStop),
+    version: integer(source.version, 0),
+  }
+}
+
+function parseTripList(value: unknown): Trip[] {
+  if (!Array.isArray(value) || value.length > 500) throw genericFailure()
+  return value.map(parseTrip)
+}
+
+function parseNullableTrip(value: unknown): Trip | null {
+  return value == null ? null : parseTrip(value)
+}
+
+function parseParticipant(value: unknown): TripParticipant {
+  const source = record(value)
+  return {
+    userId: string(source.userId, 128),
+    displayName: string(source.displayName, 160),
+    role: enumValue<TripParticipant['role']>(source.role, new Set(['creator', 'partner'])),
+  }
+}
+
+function parseInvitation(value: unknown): TripInvitation {
+  const source = record(value)
+  return {
+    id: string(source.id, 128),
+    state: enumValue<TripInvitation['state']>(
+      source.state,
+      new Set(['pending', 'accepted', 'revoked', 'expired']),
+    ),
+    expiresAt: string(source.expiresAt, 64),
+  }
+}
+
+function parseCollaboration(value: unknown): TripCollaboration {
+  const source = record(value)
+  if (
+    !Array.isArray(source.participants) ||
+    source.participants.length < 1 ||
+    source.participants.length > 2
+  )
+    throw genericFailure()
+  const participants = source.participants.map(parseParticipant)
+  if (new Set(participants.map((participant) => participant.userId)).size !== participants.length)
+    throw genericFailure()
+  const currentUserId = string(source.currentUserId, 128)
+  const navigatorUserId = optionalString(source.navigatorUserId, 128)
+  if (!participants.some((participant) => participant.userId === currentUserId))
+    throw genericFailure()
+  if (
+    navigatorUserId &&
+    !participants.some((participant) => participant.userId === navigatorUserId)
+  )
+    throw genericFailure()
+  if (participants.filter((participant) => participant.role === 'creator').length !== 1)
+    throw genericFailure()
+  return {
+    tripId: string(source.tripId, 128),
+    currentUserId,
+    participants,
+    navigatorUserId,
+    invitation: source.invitation == null ? undefined : parseInvitation(source.invitation),
+  }
+}
+
+function parseQueue(value: unknown): OfflineQueueSnapshot {
+  const source = record(value)
+  const conflictSource = source.conflict == null ? undefined : record(source.conflict)
+  return {
+    state: enumValue<OfflineQueueSnapshot['state']>(source.state, QUEUE_STATES),
+    pendingCount: integer(source.pendingCount, 0, 10_000),
+    conflict: conflictSource
+      ? { id: string(conflictSource.id, 128), summary: string(conflictSource.summary, 500) }
+      : undefined,
+    lastUpdatedAt: optionalString(source.lastUpdatedAt, 64),
+    purgeReason: optionalString(source.purgeReason, 128),
+  }
+}
+
+function boundedId(value: string): string {
+  const normalized = value.normalize('NFKC').trim()
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(normalized)) throw genericFailure()
+  return normalized
+}
+
+function hasControlCharacters(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const code = character.codePointAt(0) ?? 0
+    return code <= 0x1f || code === 0x7f
+  })
+}
+
+function boundedLabel(value: string): string {
+  const normalized = value.normalize('NFKC').trim().replace(/\s+/gu, ' ')
+  if (!normalized || normalized.length > 160 || hasControlCharacters(normalized))
+    throw genericFailure()
+  return normalized
+}
+
+function boundedDate(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) throw genericFailure()
+  const parsed = new Date(`${value}T00:00:00Z`)
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value)
+    throw genericFailure()
+  return value
+}
+
+function boundedEmail(value: string): string {
+  const normalized = normalizeTripPartnerEmail(value)
+  if (
+    normalized.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(normalized) ||
+    hasControlCharacters(normalized)
+  )
+    throw genericFailure()
+  return normalized
+}
+
+function boundedToken(value: string): string {
+  if (!/^[A-Za-z0-9._~=-]{16,4096}$/u.test(value)) throw genericFailure()
+  return value
+}
+
+function boundedCode(value: string): string {
+  if (!/^[a-z][a-z0-9_]{0,63}$/u.test(value)) throw genericFailure()
+  return value
+}
+
+export function createTripApi(transport: TripTransport): TripClient {
+  async function execute<T>(
+    command: TripApiCommand,
+    payload: () => Readonly<Record<string, unknown>>,
+    parse: Parser<T>,
+  ): Promise<T> {
+    try {
+      return parse(await transport.invoke(command, payload()))
+    } catch {
+      throw genericFailure()
+    }
+  }
+
+  return {
+    list() {
+      return execute('list_trips', () => ({}), parseTripList)
+    },
+    get(id) {
+      return execute('get_trip', () => ({ trip_id: boundedId(id) }), parseNullableTrip)
+    },
+    create(input) {
+      return execute(
+        'create_trip',
+        () => {
+          const name = normalizeTripName(input.name)
+          if (!name) throw genericFailure()
+          return { name, local_date: boundedDate(input.localDate) }
+        },
+        parseTrip,
+      )
+    },
+    addStop(tripId, input) {
+      return execute(
+        'add_trip_stop',
+        () => {
+          if (!validDwellMinutes(input.plannedDwellMinutes)) throw genericFailure()
+          return {
+            trip_id: boundedId(tripId),
+            kind: enumValue<TripStop['kind']>(input.kind, new Set(['store', 'rest'])),
+            label: boundedLabel(input.label),
+            priority: enumValue<TripStop['priority']>(input.priority, PRIORITIES),
+            planned_dwell_minutes: input.plannedDwellMinutes,
+          }
+        },
+        parseTrip,
+      )
+    },
+    reorderStop(tripId, stopId, position) {
+      return execute(
+        'reorder_trip_stop',
+        () => ({
+          trip_id: boundedId(tripId),
+          stop_id: boundedId(stopId),
+          position: integer(position, 0, 7),
+        }),
+        parseTrip,
+      )
+    },
+    reviewHours(tripId) {
+      return execute('review_trip_hours', () => ({ trip_id: boundedId(tripId) }), parseTrip)
+    },
+    start(tripId) {
+      return execute('start_trip', () => ({ trip_id: boundedId(tripId) }), parseTrip)
+    },
+    markArrived(tripId, stopId) {
+      return execute(
+        'mark_arrived',
+        () => ({ trip_id: boundedId(tripId), stop_id: boundedId(stopId) }),
+        parseTrip,
+      )
+    },
+    completeStop(tripId, stopId) {
+      return execute(
+        'complete_trip_stop',
+        () => ({ trip_id: boundedId(tripId), stop_id: boundedId(stopId) }),
+        parseTrip,
+      )
+    },
+    skipStop(tripId, stopId) {
+      return execute(
+        'skip_trip_stop',
+        () => ({ trip_id: boundedId(tripId), stop_id: boundedId(stopId) }),
+        parseTrip,
+      )
+    },
+    replayOffline(tripId) {
+      return execute('replay_trip_mutations', () => ({ trip_id: boundedId(tripId) }), parseTrip)
+    },
+    getOfflineQueue(tripId) {
+      return execute('get_offline_trip_queue', () => ({ trip_id: boundedId(tripId) }), parseQueue)
+    },
+    queueOfflineAction(tripId, action) {
+      return execute(
+        'queue_offline_trip_action',
+        () => ({
+          trip_id: boundedId(tripId),
+          action: {
+            kind: boundedCode(action.kind),
+            ...(action.stopId ? { stop_id: boundedId(action.stopId) } : {}),
+          },
+        }),
+        parseQueue,
+      )
+    },
+    resolveOfflineConflict(tripId, choice) {
+      return execute(
+        'resolve_trip_conflict',
+        () => {
+          if (choice !== 'phone' && choice !== 'saved') throw genericFailure()
+          return { trip_id: boundedId(tripId), choice }
+        },
+        parseQueue,
+      )
+    },
+    purgeOffline(tripId, reason) {
+      return execute(
+        'purge_offline_trip',
+        () => ({ trip_id: boundedId(tripId), reason: boundedCode(reason) }),
+        parseQueue,
+      )
+    },
+    getCollaboration(tripId) {
+      return execute(
+        'get_trip_collaboration',
+        () => ({ trip_id: boundedId(tripId) }),
+        parseCollaboration,
+      )
+    },
+    invitePartner(tripId, verifiedEmail) {
+      return execute(
+        'invite_trip_partner',
+        () => ({ trip_id: boundedId(tripId), verified_email: boundedEmail(verifiedEmail) }),
+        parseCollaboration,
+      )
+    },
+    revokeInvitation(tripId, invitationId) {
+      return execute(
+        'revoke_trip_invitation',
+        () => ({ trip_id: boundedId(tripId), invitation_id: boundedId(invitationId) }),
+        parseCollaboration,
+      )
+    },
+    acceptInvitation(fragmentToken) {
+      return execute(
+        'accept_trip_invitation',
+        () => ({ fragment_token: boundedToken(fragmentToken) }),
+        parseCollaboration,
+      )
+    },
+    assignNavigator(tripId, participantUserId) {
+      return execute(
+        'assign_navigator',
+        () => ({ trip_id: boundedId(tripId), participant_id: boundedId(participantUserId) }),
+        parseCollaboration,
+      )
+    },
+    leaveTrip(tripId) {
+      return execute(
+        'leave_trip',
+        () => ({ trip_id: boundedId(tripId) }),
+        () => undefined,
+      )
+    },
+  }
+}
