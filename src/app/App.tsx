@@ -61,6 +61,7 @@ import {
 } from '../features/external'
 import {
   PartnerActivatePage,
+  PartnerClaimPage,
   PartnerDraftPage,
   PartnerJoinPage,
   PartnerStatusPage,
@@ -357,6 +358,14 @@ export default function App({ clients = {} }: { clients?: AppClients }) {
           <Route path="/partner/verify" element={<PartnerVerifyPage client={partnerClient} />} />
           <Route path="/partner/draft" element={<PartnerDraftPage client={partnerClient} />} />
           <Route path="/partner/status" element={<PartnerStatusPage client={partnerClient} />} />
+          <Route
+            path="/partner/claim"
+            element={
+              <RequireSession>
+                <PartnerClaimPage client={partnerClient} />
+              </RequireSession>
+            }
+          />
           <Route path="/partner/activate" element={<PartnerActivatePage />} />
           <Route
             path="/store-portal"
