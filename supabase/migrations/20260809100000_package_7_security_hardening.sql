@@ -69,6 +69,22 @@ create index if not exists pilot_store_drafts_assigned_admin_idx
   on partner_private.pilot_store_drafts(assigned_admin_id,updated_at desc)
   where assigned_admin_id is not null;
 
+-- The trigger itself runs as the caller, while this narrowly scoped lookup
+-- uses the service owner because authenticated roles intentionally have no
+-- direct table grants on partner_private.
+create or replace function partner_private.pilot_draft_belongs_to_user(p_pending_identity_id uuid, p_user_id uuid)
+returns boolean language sql stable security definer
+set search_path = pg_catalog,partner_private as $$
+  select exists (
+    select 1 from partner_private.pending_partner_identities p
+    where p.pending_identity_id=p_pending_identity_id and p.auth_user_id=p_user_id
+  )
+$$;
+alter function partner_private.pilot_draft_belongs_to_user(uuid,uuid) owner to identity_service;
+revoke identity_service from postgres;
+revoke create on schema partner_private from identity_service;
+grant execute on function partner_private.pilot_draft_belongs_to_user(uuid,uuid) to authenticated;
+
 create or replace function partner_private.enforce_pilot_store_draft_write()
 returns trigger language plpgsql set search_path = pg_catalog,partner_private,auth as $$
 declare
@@ -90,11 +106,7 @@ begin
     raise exception 'pilot_draft_identity_immutable';
   end if;
 
-  select exists (
-    select 1
-    from partner_private.pending_partner_identities p
-    where p.pending_identity_id=old.pending_identity_id and p.auth_user_id=auth.uid()
-  ) into v_owner;
+  v_owner := partner_private.pilot_draft_belongs_to_user(old.pending_identity_id, auth.uid());
 
   if v_owner then
     if new.state not in ('draft','submitted','resubmitted','withdrawn') then

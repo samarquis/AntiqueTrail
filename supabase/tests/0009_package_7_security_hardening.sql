@@ -1,5 +1,5 @@
 begin;
-select plan(22);
+select plan(23);
 
 select ok(exists(
   select 1 from pg_trigger
@@ -39,6 +39,7 @@ select ok(exists(
   where tgname='pilot_store_drafts_write_guard'
     and tgrelid='partner_private.pilot_store_drafts'::regclass
 ),'pilot draft write guard is installed');
+select ok((select p.prosecdef from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='partner_private' and p.proname='pilot_draft_belongs_to_user'),'owner lookup is a narrowly scoped security-definer helper');
 select ok(position('pilot_draft_review_fields_owner_forbidden' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
   'partner cannot mutate reviewer evidence');
 select ok(position('pilot_draft_owner_fields_admin_forbidden' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
