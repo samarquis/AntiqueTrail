@@ -5,6 +5,10 @@ export const GENERIC_PARTNER_ERROR =
 export const EMAIL_GATE_MESSAGE =
   'Email verification is unavailable until the approved email provider gate passes.'
 
+export function normalizePartnerEmail(email: string): string {
+  return email.normalize('NFKC').trim().toLocaleLowerCase()
+}
+
 export const unavailablePartnerClient: PartnerClient = {
   async exchangeInvitation() {
     throw new Error(GENERIC_PARTNER_ERROR)

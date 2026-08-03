@@ -1,6 +1,15 @@
 export type TripState = 'draft' | 'ready' | 'active' | 'completed' | 'cancelled'
 export type StopState = 'planned' | 'arrived' | 'completed' | 'skipped' | 'observed_closed'
 export type StopPriority = 'must' | 'prefer' | 'flexible'
+export type OfflineQueueState = 'empty' | 'queued' | 'replaying' | 'conflict' | 'purged' | 'blocked'
+
+export interface OfflineQueueSnapshot {
+  state: OfflineQueueState
+  pendingCount: number
+  conflict?: { id: string; summary: string }
+  lastUpdatedAt?: string
+  purgeReason?: string
+}
 
 export interface TripStop {
   id: string
@@ -41,4 +50,11 @@ export interface TripClient {
   completeStop(tripId: string, stopId: string): Promise<Trip>
   skipStop(tripId: string, stopId: string): Promise<Trip>
   replayOffline(tripId: string): Promise<Trip>
+  getOfflineQueue?(tripId: string): Promise<OfflineQueueSnapshot>
+  queueOfflineAction?(
+    tripId: string,
+    action: { kind: string; stopId?: string },
+  ): Promise<OfflineQueueSnapshot>
+  resolveOfflineConflict?(tripId: string, choice: 'phone' | 'saved'): Promise<OfflineQueueSnapshot>
+  purgeOffline?(tripId: string, reason: string): Promise<OfflineQueueSnapshot>
 }

@@ -68,6 +68,40 @@ describe('partner onboarding boundary', () => {
     expect(window.location.hash).toBe('')
     expect(screen.queryByText('opaque-123456789')).not.toBeInTheDocument()
   })
+  it('requires typed identity and each separate consent acknowledgement', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState({}, '', '/partner/join#token=opaque-123456789')
+    const acceptConsent = vi.fn(async () => ({
+      invitation: 'registration_pending' as const,
+      pendingIdentity: 'provisional' as const,
+      onboarding: 'draft' as const,
+    }))
+    renderPage(<PartnerJoinPage client={client({ acceptConsent })} />)
+    await screen.findByRole('heading', { name: /review invitation/i })
+    await user.type(screen.getByLabelText(/your name/i), 'Sam Marquis')
+    await user.type(screen.getByLabelText(/title or role/i), 'Owner')
+    await user.type(screen.getByLabelText(/^store name$/i), 'Oak Antiques')
+    await user.type(screen.getByLabelText(/owner-controlled email/i), ' OWNER@Example.COM ')
+    for (const label of [
+      /participating voluntarily/i,
+      /unpaid/i,
+      /invitation-only/i,
+      /grants no access/i,
+    ])
+      await user.click(screen.getByLabelText(label))
+    await user.click(screen.getByRole('button', { name: /continue/i }))
+    expect(acceptConsent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identity: expect.objectContaining({ email: 'owner@example.com' }),
+        acknowledgements: {
+          voluntary: true,
+          unpaid: true,
+          invitationOnly: true,
+          grantsNothing: true,
+        },
+      }),
+    )
+  })
   it('keeps E-01 provider work clearly gated', async () => {
     const user = userEvent.setup()
     renderPage(<PartnerVerifyPage client={client()} />)
@@ -81,6 +115,8 @@ describe('partner onboarding boundary', () => {
     await user.type(screen.getByLabelText(/address/i), '123 Main Street')
     await user.click(screen.getByRole('button', { name: /save draft/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/draft/i)
+    await user.click(screen.getByRole('button', { name: /submit draft for review/i }))
+    expect(await screen.findByRole('status')).toHaveTextContent(/submitted/i)
     cleanup()
     renderPage(<PartnerStatusPage client={client()} />)
     expect(await screen.findByText(/onboarding: submitted/i)).toBeInTheDocument()

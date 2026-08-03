@@ -25,7 +25,7 @@ export interface PrivateStoreMemory {
 
 export interface CorrectionDraft {
   storeId: string
-  type: 'hours' | 'address' | 'contact' | 'other'
+  type: 'identity' | 'contact' | 'hours' | 'categories' | 'other'
   description: string
   publicSourceUrl?: string
 }

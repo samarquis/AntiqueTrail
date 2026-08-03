@@ -8,7 +8,7 @@ import {
   unavailableTripClient,
   validDwellMinutes,
 } from './tripClient'
-import type { StopPriority, Trip, TripClient } from './types'
+import type { OfflineQueueSnapshot, StopPriority, Trip, TripClient } from './types'
 
 function TripCard({
   title,
@@ -141,7 +141,10 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
   const [label, setLabel] = useState('')
   const [priority, setPriority] = useState<StopPriority>('prefer')
   const [dwell, setDwell] = useState(60)
-  const [offline, setOffline] = useState(false)
+  const [offlineQueue, setOfflineQueue] = useState<OfflineQueueSnapshot>({
+    state: 'empty',
+    pendingCount: 0,
+  })
   useEffect(() => {
     let cancelled = false
     client
@@ -155,6 +158,13 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     return () => {
       cancelled = true
     }
+  }, [client, tripId])
+  useEffect(() => {
+    const getQueue = client.getOfflineQueue
+    if (getQueue)
+      getQueue(tripId)
+        .then(setOfflineQueue)
+        .catch(() => undefined)
   }, [client, tripId])
   async function addStop(event: FormEvent) {
     event.preventDefault()
@@ -189,9 +199,38 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
   }
   async function replay() {
     if (!trip) return
+    setOfflineQueue((current) => ({ ...current, state: 'replaying' }))
     try {
       setTrip(await client.replayOffline(trip.id))
-      setOffline(false)
+      setOfflineQueue({ state: 'empty', pendingCount: 0, lastUpdatedAt: new Date().toISOString() })
+    } catch {
+      setOfflineQueue((current) => ({
+        ...current,
+        state: 'conflict',
+        conflict: { id: 'replay', summary: 'Saved changes could not be replayed automatically.' },
+      }))
+    }
+  }
+  async function queueOffline() {
+    if (!trip) return
+    if (client.queueOfflineAction) {
+      try {
+        setOfflineQueue(await client.queueOfflineAction(trip.id, { kind: 'plan_edit' }))
+      } catch {
+        setError(true)
+      }
+    } else {
+      setOfflineQueue((current) => ({
+        ...current,
+        state: 'queued',
+        pendingCount: current.pendingCount + 1,
+      }))
+    }
+  }
+  async function resolveConflict(choice: 'phone' | 'saved') {
+    if (!trip || !client.resolveOfflineConflict) return
+    try {
+      setOfflineQueue(await client.resolveOfflineConflict(trip.id, choice))
     } catch {
       setError(true)
     }
@@ -214,11 +253,72 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       description="Review Hours shows store hours only. Travel time is not included, and no feasible-order or arrival claim is made."
     >
       <p>Trip date: {trip.localDate}</p>
-      {offline && <p role="status">Changes are queued offline. Reconnect to replay them.</p>}
+      {offlineQueue.state === 'queued' && (
+        <p role="status">
+          {offlineQueue.pendingCount} change{offlineQueue.pendingCount === 1 ? '' : 's'} queued
+          offline. Reconnect to replay them.
+        </p>
+      )}
+      {offlineQueue.state === 'replaying' && <p role="status">Replaying offline changes…</p>}
+      {offlineQueue.state === 'conflict' && (
+        <>
+          <p role="alert">
+            {offlineQueue.conflict?.summary ?? 'An offline change needs your choice.'}
+          </p>
+          <button type="button" onClick={() => void resolveConflict('phone')}>
+            Keep This Phone&apos;s Version
+          </button>
+          <button type="button" onClick={() => void resolveConflict('saved')}>
+            Keep Saved Version
+          </button>
+        </>
+      )}
+      {offlineQueue.state === 'purged' && (
+        <p role="status">Offline data was purged. Reconnect before making another change.</p>
+      )}
+      {offlineQueue.state !== 'empty' && client.purgeOffline && (
+        <button
+          type="button"
+          onClick={() =>
+            client
+              .purgeOffline?.(trip.id, 'owner_requested')
+              .then(setOfflineQueue)
+              .catch(() => setError(true))
+          }
+        >
+          Purge offline copy
+        </button>
+      )}
       <ol aria-label="Ordered trip stops">
-        {trip.stops.map((stop) => (
+        {trip.stops.map((stop, index) => (
           <li key={stop.id}>
             {stop.label} — {stop.priority}, {stop.plannedDwellMinutes} minutes, {stop.state}
+            <button
+              type="button"
+              disabled={index === 0}
+              aria-label={`Move ${stop.label} up`}
+              onClick={() =>
+                client
+                  .reorderStop(trip.id, stop.id, index - 1)
+                  .then(setTrip)
+                  .catch(() => setError(true))
+              }
+            >
+              Move Up
+            </button>
+            <button
+              type="button"
+              disabled={index === trip.stops.length - 1}
+              aria-label={`Move ${stop.label} down`}
+              onClick={() =>
+                client
+                  .reorderStop(trip.id, stop.id, index + 1)
+                  .then(setTrip)
+                  .catch(() => setError(true))
+              }
+            >
+              Move Down
+            </button>
           </li>
         ))}
       </ol>
@@ -258,12 +358,12 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       <button type="button" onClick={() => void reviewHours()}>
         Review Hours
       </button>
-      {offline ? (
+      {offlineQueue.state === 'queued' || offlineQueue.state === 'conflict' ? (
         <button type="button" onClick={() => void replay()}>
           Replay queued changes
         </button>
       ) : (
-        <button type="button" onClick={() => setOffline(true)}>
+        <button type="button" onClick={() => void queueOffline()}>
           Simulate offline queue
         </button>
       )}
@@ -278,7 +378,10 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
   const { tripId = '' } = useParams()
   const [trip, setTrip] = useState<Trip | null>(null)
   const [error, setError] = useState(false)
-  const [offline, setOffline] = useState(false)
+  const [offlineQueue, setOfflineQueue] = useState<OfflineQueueSnapshot>({
+    state: 'empty',
+    pendingCount: 0,
+  })
   useEffect(() => {
     let cancelled = false
     client
@@ -292,6 +395,13 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
     return () => {
       cancelled = true
     }
+  }, [client, tripId])
+  useEffect(() => {
+    const getQueue = client.getOfflineQueue
+    if (getQueue)
+      getQueue(tripId)
+        .then(setOfflineQueue)
+        .catch(() => undefined)
   }, [client, tripId])
   async function mutate(action: (tripId: string, stopId: string) => Promise<Trip>, stopId: string) {
     if (!trip) return
@@ -331,7 +441,15 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
       >
         Start trip
       </button>
-      {offline && <p role="status">Offline: actions will replay in order when you reconnect.</p>}
+      {offlineQueue.state === 'queued' && (
+        <p role="status">
+          Offline: {offlineQueue.pendingCount} action{offlineQueue.pendingCount === 1 ? '' : 's'}{' '}
+          will replay in order when you reconnect.
+        </p>
+      )}
+      {offlineQueue.state === 'conflict' && (
+        <p role="alert">{offlineQueue.conflict?.summary ?? 'An offline action needs review.'}</p>
+      )}
       <ol aria-label="Trip stops">
         {trip.stops.map((stop) => (
           <li key={stop.id}>
@@ -354,8 +472,21 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
           </li>
         ))}
       </ol>
-      <button type="button" onClick={() => setOffline(!offline)}>
-        {offline ? 'Reconnect' : 'Work offline'}
+      <button
+        type="button"
+        onClick={() => {
+          if (offlineQueue.state === 'queued') setOfflineQueue({ state: 'empty', pendingCount: 0 })
+          else {
+            const queue = client.queueOfflineAction
+            if (queue)
+              queue(trip.id, { kind: 'go_action' })
+                .then(setOfflineQueue)
+                .catch(() => setError(true))
+            else setOfflineQueue({ state: 'queued', pendingCount: 1 })
+          }
+        }}
+      >
+        {offlineQueue.state === 'queued' ? 'Reconnect' : 'Work offline'}
       </button>
       {error && <TripError />}
       <p>

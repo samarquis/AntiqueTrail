@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { GENERIC_SHOPPER_ERROR, unavailableShopperClient } from './shopperClient'
 import type {
@@ -35,6 +35,9 @@ function ShopperCard({
 function GenericError() {
   return <p role="alert">{GENERIC_SHOPPER_ERROR}</p>
 }
+
+// Correction text is safe to retain only in this in-memory tab while JIT auth completes.
+const correctionDraftCache = new Map<string, CorrectionDraft>()
 
 export function SavedPage({
   client = unavailableShopperClient,
@@ -266,22 +269,28 @@ export function CorrectionPage({
 }) {
   const { slug = '' } = useParams()
   const { session } = useAuth()
-  const [draft, setDraft] = useState<CorrectionDraft>({
-    storeId: slug,
-    type: 'hours',
-    description: '',
-  })
+  const location = useLocation()
+  const [draft, setDraft] = useState<CorrectionDraft>(
+    () =>
+      correctionDraftCache.get(slug) ?? {
+        storeId: slug,
+        type: 'hours',
+        description: '',
+      },
+  )
   const [result, setResult] = useState<CorrectionStatus | null>(null)
   const [error, setError] = useState(false)
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (!session) {
+      correctionDraftCache.set(slug, draft)
       setError(true)
       return
     }
     setError(false)
     try {
       setResult(await client.submitCorrection(draft))
+      correctionDraftCache.delete(slug)
     } catch {
       setError(true)
     }
@@ -303,9 +312,10 @@ export function CorrectionPage({
               setDraft({ ...draft, type: event.target.value as CorrectionDraft['type'] })
             }
           >
+            <option value="identity">Store identity</option>
             <option value="hours">Hours</option>
-            <option value="address">Address</option>
             <option value="contact">Contact</option>
+            <option value="categories">Categories</option>
             <option value="other">Other</option>
           </select>
           <label htmlFor="correction-description">Description</label>
@@ -321,6 +331,16 @@ export function CorrectionPage({
               {session
                 ? GENERIC_SHOPPER_ERROR
                 : 'Sign in to submit this correction. Your draft stays on this device.'}
+            </p>
+          )}
+          {!session && (
+            <p>
+              <Link
+                to={`/auth/sign-in?returnTo=${encodeURIComponent(location.pathname)}`}
+                state={{ correctionDraft: draft }}
+              >
+                Sign in to submit this correction
+              </Link>
             </p>
           )}
           <button className="button" type="submit">

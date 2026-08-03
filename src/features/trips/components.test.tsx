@@ -92,4 +92,48 @@ describe('manual trips', () => {
     expect(addStop).toHaveBeenCalled()
     expect(screen.getByText(/travel time is not included/i)).toBeInTheDocument()
   })
+
+  it('provides keyboard-accessible move controls and queues offline changes as state', async () => {
+    const user = userEvent.setup()
+    const orderedTrip: Trip = {
+      ...trip,
+      stops: [
+        {
+          id: 'stop-a',
+          kind: 'store',
+          label: 'A',
+          position: 0,
+          priority: 'prefer',
+          plannedDwellMinutes: 60,
+          state: 'planned',
+        },
+        {
+          id: 'stop-b',
+          kind: 'store',
+          label: 'B',
+          position: 1,
+          priority: 'prefer',
+          plannedDwellMinutes: 60,
+          state: 'planned',
+        },
+      ],
+    }
+    const reorderStop = vi.fn(async () => orderedTrip)
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <PlanPage client={client({ get: vi.fn(async () => orderedTrip), reorderStop })} />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('button', { name: /move b up/i }))
+    expect(reorderStop).toHaveBeenCalledWith('trip-1', 'stop-b', 0)
+    await user.click(screen.getByRole('button', { name: /simulate offline queue/i }))
+    expect(await screen.findByRole('status')).toHaveTextContent(/queued offline/i)
+  })
 })

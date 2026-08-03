@@ -70,5 +70,16 @@ describe('private shopper screens', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/sign in to submit/i)
     expect(submitCorrection).not.toHaveBeenCalled()
     expect(screen.getByDisplayValue('Hours have changed')).toBeInTheDocument()
+    cleanup()
+    render(
+      <MemoryRouter initialEntries={['/stores/oak/correction']}>
+        <AuthProvider>
+          <Routes>
+            <Route path="/stores/:slug/correction" element={<CorrectionPage client={client()} />} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    expect(screen.getByDisplayValue('Hours have changed')).toBeInTheDocument()
   })
 })

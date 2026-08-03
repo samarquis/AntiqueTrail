@@ -22,6 +22,20 @@ export interface PartnerDraft {
   description: string
 }
 
+export interface PartnerTypedIdentity {
+  name: string
+  title: string
+  store: string
+  email: string
+}
+
+export interface PartnerConsentAcknowledgements {
+  voluntary: boolean
+  unpaid: boolean
+  invitationOnly: boolean
+  grantsNothing: boolean
+}
+
 export interface PartnerStatus {
   invitation: InvitationState
   pendingIdentity: PendingIdentityState
@@ -33,8 +47,8 @@ export interface PartnerClient {
   exchangeInvitation(token: string): Promise<PartnerInvitation>
   acceptConsent(input: {
     token: string
-    email: string
-    acknowledged: boolean
+    identity: PartnerTypedIdentity
+    acknowledgements: PartnerConsentAcknowledgements
   }): Promise<PartnerStatus>
   bindIdentity(): Promise<PartnerStatus>
   getStatus(): Promise<PartnerStatus>

@@ -37,3 +37,26 @@ export interface GenericShareEnvelope {
   state: 'accepted' | 'pending' | 'closed'
   message: string
 }
+
+export type CandidateShareDirection = 'sent' | 'received'
+
+export interface CandidateShareView {
+  id: string
+  direction: CandidateShareDirection
+  state: CandidateShareState
+  title: string
+  expiresAt: number
+}
+
+export interface CandidateClient {
+  saveCandidate(input: { url: string; title: string; note: string }): Promise<CandidateLink>
+  listShares(userId: string): Promise<CandidateShareView[]>
+  getShare(userId: string, shareId: string): Promise<CandidateShareView | null>
+  sendShare(input: { candidateId: string; recipientEmail: string }): Promise<GenericShareEnvelope>
+  acceptShare(userId: string, shareId: string): Promise<GenericShareEnvelope>
+  dismissShare(userId: string, shareId: string): Promise<GenericShareEnvelope>
+  blockShare(userId: string, shareId: string): Promise<GenericShareEnvelope>
+  reportShare(userId: string, shareId: string): Promise<GenericShareEnvelope>
+  listTripIdeas(userId: string): Promise<TripIdea[]>
+  deleteTripIdea(userId: string, ideaId: string): Promise<void>
+}

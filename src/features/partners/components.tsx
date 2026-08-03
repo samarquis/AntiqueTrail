@@ -3,11 +3,18 @@ import { Link } from 'react-router-dom'
 import {
   EMAIL_GATE_MESSAGE,
   GENERIC_PARTNER_ERROR,
+  normalizePartnerEmail,
   readInvitationToken,
   scrubInvitationUrl,
   unavailablePartnerClient,
 } from './partnerClient'
-import type { PartnerClient, PartnerDraft, PartnerStatus } from './types'
+import type {
+  PartnerClient,
+  PartnerConsentAcknowledgements,
+  PartnerDraft,
+  PartnerStatus,
+  PartnerTypedIdentity,
+} from './types'
 
 function PartnerCard({
   title,
@@ -36,8 +43,18 @@ function GenericPartnerError() {
 export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?: PartnerClient }) {
   const [token, setToken] = useState<string | null>(null)
   const [invitation, setInvitation] = useState<{ state: string } | null>(null)
-  const [email, setEmail] = useState('')
-  const [acknowledged, setAcknowledged] = useState(false)
+  const [identity, setIdentity] = useState<PartnerTypedIdentity>({
+    name: '',
+    title: '',
+    store: '',
+    email: '',
+  })
+  const [acknowledgements, setAcknowledgements] = useState<PartnerConsentAcknowledgements>({
+    voluntary: false,
+    unpaid: false,
+    invitationOnly: false,
+    grantsNothing: false,
+  })
   const [error, setError] = useState(false)
   const [pending, setPending] = useState(false)
   useEffect(() => {
@@ -53,11 +70,29 @@ export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?
   }, [client])
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (!token || !acknowledged || !email.trim()) return
+    if (
+      !token ||
+      Object.values(acknowledgements).some((value) => !value) ||
+      !identity.name.trim() ||
+      !identity.title.trim() ||
+      !identity.store.trim() ||
+      !identity.email.trim()
+    )
+      return
     setPending(true)
     setError(false)
     try {
-      await client.acceptConsent({ token, email: email.trim(), acknowledged })
+      await client.acceptConsent({
+        token,
+        identity: {
+          ...identity,
+          name: identity.name.trim(),
+          title: identity.title.trim(),
+          store: identity.store.trim(),
+          email: normalizePartnerEmail(identity.email),
+        },
+        acknowledgements,
+      })
     } catch {
       setError(true)
     } finally {
@@ -77,25 +112,85 @@ export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?
         <p role="status">This invitation is no longer available.</p>
       ) : (
         <form onSubmit={submit}>
-          <label htmlFor="partner-email">Your verified email</label>
+          <label htmlFor="partner-name">Your name</label>
+          <input
+            id="partner-name"
+            value={identity.name}
+            onChange={(event) => setIdentity({ ...identity, name: event.target.value })}
+            required
+          />
+          <label htmlFor="partner-title">Your title or role</label>
+          <input
+            id="partner-title"
+            value={identity.title}
+            onChange={(event) => setIdentity({ ...identity, title: event.target.value })}
+            required
+          />
+          <label htmlFor="partner-store">Store name</label>
+          <input
+            id="partner-store"
+            value={identity.store}
+            onChange={(event) => setIdentity({ ...identity, store: event.target.value })}
+            required
+          />
+          <label htmlFor="partner-email">Owner-controlled email</label>
           <input
             id="partner-email"
             type="email"
             autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            value={identity.email}
+            onChange={(event) => setIdentity({ ...identity, email: event.target.value })}
             required
           />
-          <label>
-            <input
-              type="checkbox"
-              checked={acknowledged}
-              onChange={(event) => setAcknowledged(event.target.checked)}
-            />{' '}
-            I understand this is a private onboarding invitation and does not grant store access.
-          </label>
+          <fieldset>
+            <legend>Consent acknowledgements</legend>
+            <label>
+              <input
+                type="checkbox"
+                checked={acknowledgements.voluntary}
+                onChange={(event) =>
+                  setAcknowledgements({ ...acknowledgements, voluntary: event.target.checked })
+                }
+              />{' '}
+              I am participating voluntarily.
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={acknowledgements.unpaid}
+                onChange={(event) =>
+                  setAcknowledgements({ ...acknowledgements, unpaid: event.target.checked })
+                }
+              />{' '}
+              I understand this is unpaid.
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={acknowledgements.invitationOnly}
+                onChange={(event) =>
+                  setAcknowledgements({ ...acknowledgements, invitationOnly: event.target.checked })
+                }
+              />{' '}
+              I understand this is invitation-only.
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={acknowledgements.grantsNothing}
+                onChange={(event) =>
+                  setAcknowledgements({ ...acknowledgements, grantsNothing: event.target.checked })
+                }
+              />{' '}
+              I understand this grants no access by itself.
+            </label>
+          </fieldset>
           {error && <GenericPartnerError />}
-          <button className="button" type="submit" disabled={pending || !acknowledged}>
+          <button
+            className="button"
+            type="submit"
+            disabled={pending || Object.values(acknowledgements).some((value) => !value)}
+          >
             {pending ? 'Saving…' : 'Continue'}
           </button>
         </form>
@@ -155,6 +250,7 @@ export function PartnerDraftPage({
   const [status, setStatus] = useState<PartnerStatus | null>(null)
   const [error, setError] = useState(false)
   const [pending, setPending] = useState(false)
+  const [submitPending, setSubmitPending] = useState(false)
   async function save(event: FormEvent) {
     event.preventDefault()
     setPending(true)
@@ -215,6 +311,21 @@ export function PartnerDraftPage({
         {status && <p role="status">Draft status: {status.onboarding}.</p>}
         <button className="button" type="submit" disabled={pending}>
           {pending ? 'Saving…' : 'Save draft'}
+        </button>
+        <button
+          type="button"
+          disabled={pending || submitPending}
+          onClick={() => {
+            setSubmitPending(true)
+            setError(false)
+            client
+              .submitDraft()
+              .then(setStatus)
+              .catch(() => setError(true))
+              .finally(() => setSubmitPending(false))
+          }}
+        >
+          {submitPending ? 'Submitting…' : 'Submit draft for review'}
         </button>
       </form>
     </PartnerCard>

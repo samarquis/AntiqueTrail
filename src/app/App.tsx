@@ -12,6 +12,7 @@ import {
   MfaPage,
   RecoveryPage,
   RequireSession,
+  useAuth,
   SignInPage,
   unavailableAuthProvider,
   CancelDeletionPage,
@@ -34,6 +35,7 @@ import {
   ShareDetailsPage,
   SharesPage,
   TripIdeasPage,
+  unavailableCandidateClient,
 } from '../features/candidates'
 import {
   GoPage,
@@ -122,6 +124,30 @@ function StoreReviews() {
 function RestrictionAppeal() {
   const { restrictionId = '' } = useParams()
   return <ReviewAppealPage restrictionId={restrictionId} client={unavailableReviewClient} />
+}
+
+function CandidateCaptureRoute() {
+  const { session } = useAuth()
+  return (
+    <CandidateSessionGuard userId={session?.userId}>
+      <CapturePage client={unavailableCandidateClient} />
+    </CandidateSessionGuard>
+  )
+}
+
+function CandidateSharesRoute() {
+  const { session } = useAuth()
+  return <SharesPage userId={session?.userId} client={unavailableCandidateClient} />
+}
+
+function CandidateShareDetailsRoute() {
+  const { session } = useAuth()
+  return <ShareDetailsPage userId={session?.userId} client={unavailableCandidateClient} />
+}
+
+function CandidateIdeasRoute() {
+  const { session } = useAuth()
+  return <TripIdeasPage userId={session?.userId} client={unavailableCandidateClient} />
 }
 
 function NotFound() {
@@ -229,9 +255,7 @@ export default function App() {
             path="/capture"
             element={
               <RequireSession>
-                <CandidateSessionGuard>
-                  <CapturePage />
-                </CandidateSessionGuard>
+                <CandidateCaptureRoute />
               </RequireSession>
             }
           />
@@ -239,7 +263,7 @@ export default function App() {
             path="/shares"
             element={
               <RequireSession>
-                <SharesPage />
+                <CandidateSharesRoute />
               </RequireSession>
             }
           />
@@ -247,7 +271,7 @@ export default function App() {
             path="/shares/:shareId"
             element={
               <RequireSession>
-                <ShareDetailsPage />
+                <CandidateShareDetailsRoute />
               </RequireSession>
             }
           />
@@ -255,7 +279,7 @@ export default function App() {
             path="/trip-ideas"
             element={
               <RequireSession>
-                <TripIdeasPage />
+                <CandidateIdeasRoute />
               </RequireSession>
             }
           />

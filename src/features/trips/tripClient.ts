@@ -37,6 +37,18 @@ export const unavailableTripClient: TripClient = {
   async replayOffline() {
     throw new Error(GENERIC_TRIP_ERROR)
   },
+  async getOfflineQueue() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async queueOfflineAction() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async resolveOfflineConflict() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async purgeOffline() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
 }
 
 export function normalizeTripName(value: string): string {
