@@ -2,6 +2,9 @@
 -- The trusted verification service binds each verified signal to one normalized
 -- authority object and one verification event; neither identifier is exposed.
 
+drop policy if exists listing_claim_claimant_write
+  on partner_private.listing_claims;
+
 alter table partner_private.claim_authority_signals
   add column if not exists authority_object_hmac bytea,
   add column if not exists verification_event_id uuid;
