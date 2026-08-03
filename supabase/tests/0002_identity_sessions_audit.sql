@@ -23,7 +23,7 @@ select is(app_private.current_session_is_active(), false, 'malformed session cla
 reset role;
 set local role identity_service;
 insert into app_private.privileged_audit_events(action,outcome,resource_kind,event_hash)
-values ('session_revoke','completed','session',repeat(E'\\x00',32)::bytea);
+values ('session_revoke','completed','session',extensions.digest('fixture','sha256'));
 select ok((select event_hash is not null and octet_length(event_hash)=32 from app_private.privileged_audit_events limit 1), 'audit hash trigger writes a 32-byte event hash');
 select throws_ok($$update app_private.privileged_audit_events set action='tampered'$$, '42501', 'audit updates are denied');
 
