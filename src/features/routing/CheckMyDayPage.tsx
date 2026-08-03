@@ -16,11 +16,12 @@ export function CheckMyDayPage({
 }: {
   request: CheckMyDayRequest | null
   provider: CheckMyDayProvider
-  onUseSuggestedOrder?: (stopIds: string[]) => void
-  onKeepMyOrder?: (stopIds: string[]) => void
+  onUseSuggestedOrder?: (stopIds: string[]) => void | Promise<void>
+  onKeepMyOrder?: (stopIds: string[]) => void | Promise<void>
 }) {
   const [outcome, setOutcome] = useState<CheckMyDayOutcome | null>(null)
   const [pending, setPending] = useState(false)
+  const [saved, setSaved] = useState<string | null>(null)
 
   if (!request)
     return (
@@ -79,9 +80,18 @@ export function CheckMyDayPage({
             </ul>
             <p>Provider attribution: {outcome.evidence.attribution}</p>
             <CheckMyDayChoice
-              onUseSuggested={() => onUseSuggestedOrder?.(outcome.choices.useSuggestedOrder)}
-              onKeepOrder={() => onKeepMyOrder?.(outcome.choices.keepMyOrder)}
+              onUseSuggested={() =>
+                Promise.resolve(onUseSuggestedOrder?.(outcome.choices.useSuggestedOrder)).then(() =>
+                  setSaved('Suggested order saved.'),
+                )
+              }
+              onKeepOrder={() =>
+                Promise.resolve(onKeepMyOrder?.(outcome.choices.keepMyOrder)).then(() =>
+                  setSaved('Manual order saved.'),
+                )
+              }
             />
+            {saved && <p role="status">{saved}</p>}
           </section>
         )}
       </section>

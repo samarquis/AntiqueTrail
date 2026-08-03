@@ -3,10 +3,11 @@ import {
   IndexedDbOfflineDatabase,
   type OfflineGrantVerifier,
   type OfflineRestoreResult,
+  type OfflineReplayResult,
   type OfflineTripDatabase,
   type SignedOfflineGrant,
 } from './offlineTripStore'
-import type { Trip } from './types'
+import type { OfflineQueueSnapshot, Trip, TripClient } from './types'
 
 export const DEFAULT_TRIP_INSTALL_ID = 'antique-trail-pwa-install-v1'
 export const GENERIC_OFFLINE_TRIP_ERROR = 'The offline trip could not be prepared safely.'
@@ -24,6 +25,12 @@ export interface TripOfflineRuntime {
   readonly deviceKeyId: string
   start(accountId: string, tripId: string, source: TripOfflineGrantSource): Promise<Trip>
   recover(accountId: string, tripId: string, now?: Date): Promise<OfflineRestoreResult>
+  queueMutation?(
+    accountId: string,
+    trip: Trip,
+    action: { kind: 'mark_arrived' | 'complete_stop' | 'skip_stop'; stopId: string },
+  ): Promise<OfflineQueueSnapshot>
+  replay?(accountId: string, tripId: string, client: TripClient): Promise<OfflineReplayResult>
   prepareSignOut(
     accountId: string,
   ): Promise<{ requiresConfirmation: boolean; pendingCount: number }>
@@ -77,6 +84,35 @@ export function createTripOfflineRuntime(
     },
     recover(accountId, tripId, now) {
       return store.restore(accountId, tripId, now)
+    },
+    async queueMutation(accountId, trip, action) {
+      const result = await store.queueMutation(accountId, trip, action)
+      return {
+        state: 'queued',
+        pendingCount: result.pendingCount,
+        lastUpdatedAt: new Date().toISOString(),
+      }
+    },
+    replay(accountId, tripId, client) {
+      return store.replay(accountId, tripId, async (mutation) => {
+        try {
+          const stopId = mutation.stopId
+          if (!stopId) return { state: 'conflict', summary: 'The offline action is incomplete.' }
+          const next =
+            mutation.kind === 'mark_arrived'
+              ? await client.markArrived(tripId, stopId)
+              : mutation.kind === 'complete_stop'
+                ? await client.completeStop(tripId, stopId)
+                : mutation.kind === 'skip_stop'
+                  ? await client.skipStop(tripId, stopId)
+                  : null
+          return next
+            ? { state: 'accepted', trip: next }
+            : { state: 'conflict', summary: 'The offline action is no longer supported.' }
+        } catch {
+          return { state: 'conflict', summary: 'This change conflicts with the saved trip.' }
+        }
+      })
     },
     prepareSignOut(accountId) {
       return store.prepareLogout(accountId)

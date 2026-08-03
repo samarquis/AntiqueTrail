@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   InMemoryOfflineDatabase,
   WebCryptoOfflineGrantVerifier,
@@ -8,6 +8,7 @@ import {
 } from './offlineTripStore'
 import { createTripOfflineRuntime, type TripOfflineGrantSource } from './tripRuntime'
 import type { Trip } from './types'
+import { unavailableTripClient } from './tripClient'
 
 const trip: Trip = {
   id: 'trip-1',
@@ -108,5 +109,31 @@ describe('browser trip offline runtime', () => {
     await expect(
       runtime.recover('shopper-a', 'trip-1', new Date('2026-08-04T12:00:00Z')),
     ).resolves.toEqual({ state: 'absent' })
+  })
+
+  it('encrypts queued Go mutations across restart and replays them in order', async () => {
+    const database = new InMemoryOfflineDatabase()
+    const options = { database, installId: 'install-a', verifier, deviceKeyId: 'device-key-a' }
+    const first = createTripOfflineRuntime(options)
+    await first.start('shopper-a', trip.id, {
+      async startTripWithOfflineGrant() {
+        return { trip, grant: await grant() }
+      },
+    })
+    const arrived = { ...trip, stops: [], version: 5 }
+    await first.queueMutation?.('shopper-a', arrived, {
+      kind: 'mark_arrived',
+      stopId: 'stop-1',
+    })
+
+    const restarted = createTripOfflineRuntime(options)
+    await expect(
+      restarted.recover('shopper-a', trip.id, new Date('2026-08-04T12:00:00Z')),
+    ).resolves.toMatchObject({ state: 'available', pendingCount: 1, trip: arrived })
+    const markArrived = vi.fn().mockResolvedValue(arrived)
+    await expect(
+      restarted.replay?.('shopper-a', trip.id, { ...unavailableTripClient, markArrived }),
+    ).resolves.toMatchObject({ state: 'empty', pendingCount: 0, trip: arrived })
+    expect(markArrived).toHaveBeenCalledWith(trip.id, 'stop-1')
   })
 })

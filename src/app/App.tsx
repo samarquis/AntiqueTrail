@@ -57,7 +57,11 @@ import {
   type TripOfflineRuntime,
   type TripClient,
 } from '../features/trips'
-import { CheckMyDayPage, type CheckMyDayProvider } from '../features/routing'
+import {
+  CheckMyDayPage,
+  type CheckMyDayProvider,
+  type CheckMyDayRequest,
+} from '../features/routing'
 import { AccessSafetyPage, AdminGuard, ReviewQueuePage } from '../features/admin'
 import { AlphaGuard, AlphaReadinessPage } from '../features/alpha'
 import {
@@ -247,6 +251,63 @@ function TripGoRoute({
   )
 }
 
+function TripCheckMyDayRoute({
+  client,
+  provider,
+  capability,
+}: {
+  client: TripClient
+  provider: CheckMyDayProvider
+  capability: CheckMyDayRequest['capability']
+}) {
+  const { tripId = '' } = useParams()
+  const [request, setRequest] = useState<CheckMyDayRequest | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    client
+      .get(tripId)
+      .then((trip) => {
+        if (cancelled || !trip?.origin || trip.stops.some((stop) => !stop.coordinate)) return
+        setRequest({
+          capability,
+          providerContract: { version: 'v1', maxRequests: 1, maxCostUnits: 1, timeoutMs: 8_000 },
+          origin: trip.origin,
+          returnCoordinate: trip.returnCoordinate,
+          departureMinute: trip.departureMinute ?? 9 * 60,
+          transitionMinutes: trip.transitionMinutes ?? 10,
+          maxDriveMiles: trip.maxDriveMiles,
+          maxTotalMinutes: trip.maxTotalMinutes,
+          stops: trip.stops.map((stop, originalIndex) => ({
+            id: stop.id,
+            name: stop.label,
+            coordinate: stop.coordinate!,
+            kind: stop.kind,
+            priority: stop.priority,
+            dwellMinutes: stop.plannedDwellMinutes,
+            originalIndex,
+            hours: stop.hours,
+          })),
+        })
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [capability, client, tripId])
+  const persist = async (choice: 'suggested' | 'manual', stopIds: string[]) => {
+    if (!client.saveCheckMyDayChoice) throw new Error('Trip choice persistence is unavailable.')
+    await client.saveCheckMyDayChoice(tripId, choice, stopIds)
+  }
+  return (
+    <CheckMyDayPage
+      request={request}
+      provider={provider}
+      onUseSuggestedOrder={(ids) => persist('suggested', ids)}
+      onKeepMyOrder={(ids) => persist('manual', ids)}
+    />
+  )
+}
+
 function NotFound() {
   return (
     <section className="page-card" aria-labelledby="not-found-heading">
@@ -264,6 +325,7 @@ export interface AppClients {
   trips?: TripClient
   partner?: PartnerClient
   tripOfflineGrants?: TripOfflineGrantSource
+  routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
 }
 
 export interface AppRuntime {
@@ -284,6 +346,7 @@ export default function App({
   const shopperClient = clients.shopper ?? unavailableShopperClient
   const tripClient = clients.trips ?? unavailableTripClient
   const partnerClient = clients.partner ?? unavailablePartnerClient
+  const authProvider = runtime.authProvider ?? unavailableAuthProvider
   const tripOfflineRef = useRef<TripOfflineRuntime>(
     runtime.tripOffline ?? createTripOfflineRuntime(),
   )
@@ -291,7 +354,7 @@ export default function App({
 
   return (
     <AuthProvider
-      provider={runtime.authProvider ?? unavailableAuthProvider}
+      provider={authProvider}
       authStore={runtime.authStore}
       registry={runtime.sessionRegistry}
       onLocalSignOut={async (session) => {
@@ -317,12 +380,9 @@ export default function App({
             path="/stores/:slug/correction"
             element={<CorrectionPage client={shopperClient} />}
           />
-          <Route path="/auth/sign-in" element={<SignInPage provider={unavailableAuthProvider} />} />
-          <Route
-            path="/auth/recovery"
-            element={<RecoveryPage provider={unavailableAuthProvider} />}
-          />
-          <Route path="/auth/mfa" element={<MfaPage provider={unavailableAuthProvider} />} />
+          <Route path="/auth/sign-in" element={<SignInPage provider={authProvider} />} />
+          <Route path="/auth/recovery" element={<RecoveryPage provider={authProvider} />} />
+          <Route path="/auth/mfa" element={<MfaPage provider={authProvider} />} />
           <Route
             path="/account/*"
             element={
@@ -576,7 +636,11 @@ export default function App({
             path="/trips/:tripId/check-my-day"
             element={
               <GuardedTrips>
-                <CheckMyDayPage request={null} provider={blockedCheckMyDayProvider} />
+                <TripCheckMyDayRoute
+                  client={tripClient}
+                  provider={clients.routing?.provider ?? blockedCheckMyDayProvider}
+                  capability={clients.routing?.capability ?? 'blocked'}
+                />
               </GuardedTrips>
             }
           />

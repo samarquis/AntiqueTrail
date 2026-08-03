@@ -21,6 +21,8 @@ export interface TripStop {
   priority: StopPriority
   plannedDwellMinutes: number
   state: StopState
+  coordinate?: { latitude: number; longitude: number }
+  hours?: { state: 'verified' | 'unknown' | 'stale'; opensAt?: number; closesAt?: number }
 }
 
 export interface Trip {
@@ -30,6 +32,12 @@ export interface Trip {
   state: TripState
   stops: TripStop[]
   version: number
+  origin?: { latitude: number; longitude: number }
+  returnCoordinate?: { latitude: number; longitude: number }
+  departureMinute?: number
+  transitionMinutes?: number
+  maxDriveMiles?: number
+  maxTotalMinutes?: number
 }
 
 export type TripParticipantRole = 'creator' | 'partner'
@@ -89,4 +97,9 @@ export interface TripClient {
   acceptInvitation(fragmentToken: string): Promise<TripCollaboration>
   assignNavigator(tripId: string, participantUserId: string): Promise<TripCollaboration>
   leaveTrip(tripId: string): Promise<void>
+  saveCheckMyDayChoice?(
+    tripId: string,
+    choice: 'suggested' | 'manual',
+    stopIds: string[],
+  ): Promise<Trip>
 }

@@ -100,6 +100,29 @@ describe('app shell', () => {
     expect(screen.queryByRole('heading', { name: /claim a listing/i })).not.toBeInTheDocument()
   })
 
+  it('uses the injected auth provider on the sign-in route', async () => {
+    const user = userEvent.setup()
+    const signIn = vi.fn(async () => ({ kind: 'error' as const }))
+    render(
+      <MemoryRouter initialEntries={['/auth/sign-in']}>
+        <App
+          runtime={{
+            authProvider: {
+              signIn,
+              sendRecovery: vi.fn(),
+              verifyMfa: vi.fn(),
+              signOut: vi.fn(),
+            },
+          }}
+        />
+      </MemoryRouter>,
+    )
+    await user.type(screen.getByLabelText(/email/i), 'shopper@example.com')
+    await user.type(screen.getByLabelText(/password/i), 'secret-password')
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+    expect(signIn).toHaveBeenCalledWith('shopper@example.com', 'secret-password')
+  })
+
   it('wires authenticated sign-out to the trip offline purge runtime', async () => {
     const user = userEvent.setup()
     const authStore = new InMemoryAuthStore()

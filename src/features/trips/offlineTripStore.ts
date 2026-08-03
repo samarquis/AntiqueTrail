@@ -402,6 +402,35 @@ export class EncryptedTripOfflineStore {
     return { state: 'available', trip: payload.trip, pendingCount }
   }
 
+  async queueMutation(
+    accountId: string,
+    trip: Trip,
+    action: Pick<OfflineMutation, 'kind' | 'stopId'>,
+  ): Promise<{ trip: Trip; pendingCount: number }> {
+    const payload = await this.payload(accountId, trip.id)
+    if (!payload) throw new Error('Offline trip unavailable.')
+    const restored = await this.restore(accountId, trip.id)
+    if (restored.state !== 'available') throw new Error('Offline trip unavailable.')
+    const localSequence =
+      payload.mutations.reduce(
+        (highest, mutation) => Math.max(highest, mutation.localSequence),
+        0,
+      ) + 1
+    payload.trip = trip
+    payload.mutations.push({
+      idempotencyKey: `${payload.grant.claims.deviceId}:${crypto.randomUUID()}`,
+      tripId: trip.id,
+      baseVersion: payload.trip.version,
+      deviceId: payload.grant.claims.deviceId,
+      localSequence,
+      kind: action.kind,
+      stopId: action.stopId,
+    })
+    payload.lastObservedAt = new Date().toISOString()
+    await this.write(payload)
+    return { trip, pendingCount: payload.mutations.length }
+  }
+
   async replay(
     accountId: string,
     tripId: string,

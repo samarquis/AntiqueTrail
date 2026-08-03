@@ -401,6 +401,7 @@ export function GoPage({
     pendingCount: 0,
   })
   const [collaboration, setCollaboration] = useState<TripCollaboration | null>(null)
+  const [workingOffline, setWorkingOffline] = useState(false)
   useEffect(() => {
     let cancelled = false
     client
@@ -419,6 +420,7 @@ export function GoPage({
                 state: recovered.pendingCount > 0 ? 'queued' : 'empty',
                 pendingCount: recovered.pendingCount,
               })
+              setWorkingOffline(true)
               return
             }
           } catch {
@@ -443,10 +445,23 @@ export function GoPage({
       .then(setCollaboration)
       .catch(() => setError(true))
   }, [client, tripId])
-  async function mutate(action: (tripId: string, stopId: string) => Promise<Trip>, stopId: string) {
+  async function mutate(
+    kind: 'mark_arrived' | 'complete_stop' | 'skip_stop',
+    action: (tripId: string, stopId: string) => Promise<Trip>,
+    stopId: string,
+  ) {
     if (!trip) return
     try {
-      setTrip(await action(trip.id, stopId))
+      if (workingOffline && offlineRuntime?.queueMutation && accountId) {
+        const state: Trip['stops'][number]['state'] =
+          kind === 'mark_arrived' ? 'arrived' : kind === 'complete_stop' ? 'completed' : 'skipped'
+        const next = {
+          ...trip,
+          stops: trip.stops.map((stop) => (stop.id === stopId ? { ...stop, state } : stop)),
+        }
+        setOfflineQueue(await offlineRuntime.queueMutation(accountId, next, { kind, stopId }))
+        setTrip(next)
+      } else setTrip(await action(trip.id, stopId))
     } catch {
       setError(true)
     }
@@ -530,16 +545,25 @@ export function GoPage({
             {stop.label} — {stop.state}
             {stop.state === 'planned' && isNavigator && (
               <>
-                <button type="button" onClick={() => void mutate(client.markArrived, stop.id)}>
+                <button
+                  type="button"
+                  onClick={() => void mutate('mark_arrived', client.markArrived, stop.id)}
+                >
                   Arrived
                 </button>
-                <button type="button" onClick={() => void mutate(client.skipStop, stop.id)}>
+                <button
+                  type="button"
+                  onClick={() => void mutate('skip_stop', client.skipStop, stop.id)}
+                >
                   Skip
                 </button>
               </>
             )}
             {stop.state === 'arrived' && isNavigator && (
-              <button type="button" onClick={() => void mutate(client.completeStop, stop.id)}>
+              <button
+                type="button"
+                onClick={() => void mutate('complete_stop', client.completeStop, stop.id)}
+              >
                 Done
               </button>
             )}
@@ -550,22 +574,23 @@ export function GoPage({
         <button
           type="button"
           onClick={() => {
-            if (offlineQueue.state === 'queued')
-              client
-                .replayOffline(trip.id)
-                .then((next) => {
-                  setTrip(next)
+            if (offlineQueue.state === 'queued' && offlineRuntime?.replay && accountId)
+              offlineRuntime
+                .replay(accountId, trip.id, client)
+                .then((result) => {
+                  if (result.state === 'empty') setTrip(result.trip)
                   setOfflineQueue({ state: 'empty', pendingCount: 0 })
+                  setWorkingOffline(false)
                 })
                 .catch(() => setError(true))
-            else
-              client
-                .queueOfflineAction(trip.id, { kind: 'go_action' })
-                .then(setOfflineQueue)
-                .catch(() => setError(true))
+            else setWorkingOffline(true)
           }}
         >
-          {offlineQueue.state === 'queued' ? 'Reconnect and replay' : 'Work offline'}
+          {offlineQueue.state === 'queued'
+            ? 'Reconnect and replay'
+            : workingOffline
+              ? 'Working offline'
+              : 'Work offline'}
         </button>
       )}
       {error && <TripError />}

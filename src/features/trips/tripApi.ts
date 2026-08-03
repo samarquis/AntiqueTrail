@@ -36,6 +36,7 @@ export type TripApiCommand =
   | 'accept_trip_invitation'
   | 'assign_navigator'
   | 'leave_trip'
+  | 'save_check_my_day_choice'
 
 /** The transport derives the current actor from its authenticated session. */
 export interface TripTransport {
@@ -74,6 +75,21 @@ function integer(value: unknown, minimum = 0, maximum = Number.MAX_SAFE_INTEGER)
   return Number(value)
 }
 
+function finite(value: unknown, minimum: number, maximum: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < minimum || value > maximum)
+    throw genericFailure()
+  return value
+}
+
+function parseCoordinate(value: unknown): { latitude: number; longitude: number } | undefined {
+  if (value == null) return undefined
+  const source = record(value)
+  return {
+    latitude: finite(source.latitude, -90, 90),
+    longitude: finite(source.longitude, -180, 180),
+  }
+}
+
 function enumValue<T extends string>(value: unknown, allowed: Set<string>): T {
   const parsed = string(value, 64)
   if (!allowed.has(parsed)) throw genericFailure()
@@ -91,6 +107,7 @@ function parseStop(value: unknown): TripStop {
     priority: enumValue<TripStop['priority']>(source.priority, PRIORITIES),
     plannedDwellMinutes: integer(source.plannedDwellMinutes, 5, 720),
     state: enumValue<TripStop['state']>(source.state, STOP_STATES),
+    coordinate: parseCoordinate(source.coordinate),
   }
 }
 
@@ -104,6 +121,12 @@ const parseTrip: Parser<Trip> = (value) => {
     state: enumValue<Trip['state']>(source.state, TRIP_STATES),
     stops: source.stops.map(parseStop),
     version: integer(source.version, 0),
+    origin: parseCoordinate(source.origin),
+    returnCoordinate: parseCoordinate(source.returnCoordinate),
+    departureMinute:
+      source.departureMinute == null ? undefined : integer(source.departureMinute, 0, 1_439),
+    transitionMinutes:
+      source.transitionMinutes == null ? undefined : integer(source.transitionMinutes, 0, 180),
   }
 }
 
@@ -392,6 +415,17 @@ export function createTripApi(transport: TripTransport): TripClient {
         'leave_trip',
         () => ({ trip_id: boundedId(tripId) }),
         () => undefined,
+      )
+    },
+    saveCheckMyDayChoice(tripId, choice, stopIds) {
+      return execute(
+        'save_check_my_day_choice',
+        () => ({
+          trip_id: boundedId(tripId),
+          choice: enumValue(choice, new Set(['suggested', 'manual'])),
+          stop_ids: stopIds.map(boundedId),
+        }),
+        parseTrip,
       )
     },
   }
