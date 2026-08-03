@@ -54,6 +54,17 @@ import {
   PartnerVerifyPage,
   unavailablePartnerClient,
 } from '../features/partners'
+import {
+  PortalControlledChangesPage,
+  PortalHomePage,
+  PortalHoursPage,
+  PortalLinksPage,
+  PortalManagedFieldsPage,
+  PortalPreviewPage,
+  PortalSupportPage,
+  PortalUpdatesPage,
+  unavailablePortalClient,
+} from '../features/portal'
 
 const catalogClient = configuredCatalogClient() ?? demoCatalogClient
 // The current provider-neutral shell has no privileged session source. Keep the
@@ -266,6 +277,38 @@ export default function App() {
             element={<PartnerStatusPage client={unavailablePartnerClient} />}
           />
           <Route path="/partner/activate" element={<PartnerActivatePage />} />
+          <Route
+            path="/store-portal"
+            element={<PortalHomePage client={unavailablePortalClient} />}
+          />
+          <Route
+            path="/store-portal/hours"
+            element={<PortalHoursPage client={unavailablePortalClient} />}
+          />
+          <Route
+            path="/store-portal/info"
+            element={<PortalManagedFieldsPage client={unavailablePortalClient} />}
+          />
+          <Route
+            path="/store-portal/changes"
+            element={<PortalControlledChangesPage client={unavailablePortalClient} />}
+          />
+          <Route
+            path="/store-portal/updates"
+            element={<PortalUpdatesPage client={unavailablePortalClient} />}
+          />
+          <Route
+            path="/store-portal/links"
+            element={<PortalLinksPage client={unavailablePortalClient} />}
+          />
+          <Route
+            path="/store-portal/support"
+            element={<PortalSupportPage client={unavailablePortalClient} />}
+          />
+          <Route
+            path="/store-portal/preview"
+            element={<PortalPreviewPage client={unavailablePortalClient} />}
+          />
           <Route
             path="/trips"
             element={

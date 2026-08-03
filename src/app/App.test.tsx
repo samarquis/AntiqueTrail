@@ -51,4 +51,14 @@ describe('app shell', () => {
       screen.queryByRole('heading', { name: /synthetic internal alpha/i }),
     ).not.toBeInTheDocument()
   })
+
+  it('exposes Store Portal home while keeping privileged reads unavailable by default', async () => {
+    render(
+      <MemoryRouter initialEntries={['/store-portal']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { name: /store portal/i })).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't update this store portal/i)
+  })
 })
