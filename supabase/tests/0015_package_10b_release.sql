@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 select has_schema('release_private','private release schema exists');
 select has_table('release_private','regional_releases','exact frozen releases are durable');
@@ -14,6 +14,7 @@ select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pron
 select ok(not has_function_privilege('authenticated','release_private.promote_regional_release(uuid,uuid,uuid[])','EXECUTE'),'browser sessions cannot promote releases');
 select ok(has_function_privilege('release_executor','release_private.promote_regional_release(uuid,uuid,uuid[])','EXECUTE'),'deployment executor has execute-only atomic promotion access');
 select ok((select r.rolsuper=false and r.rolbypassrls=false and r.rolcanlogin=false from pg_roles r where r.rolname='release_automation'),'release functions use a dedicated constrained owner');
+select ok(not has_schema_privilege('release_automation','release_private','CREATE'),'release automation cannot create new private objects after ownership transfer');
 
 select * from finish();
 rollback;
