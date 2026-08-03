@@ -1,5 +1,5 @@
 begin;
-select plan(16);
+select plan(17);
 
 select has_schema('app_private', 'private identity schema exists');
 select has_table('app_private', 'profiles', 'server-owned profiles table exists');
