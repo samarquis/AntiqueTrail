@@ -14,6 +14,8 @@ begin
   end if;
 end
 $$;
+-- The migration role must be a member long enough to transfer function ownership.
+grant catalog_reader to postgres;
 grant usage on schema app_public to catalog_reader;
 revoke all on schema app_public from anon, authenticated;
 grant usage on schema app_public to anon, authenticated;
@@ -316,6 +318,7 @@ alter function app_public.catalog_details(text) owner to catalog_reader;
 alter function app_public.catalog_freshness(uuid,timestamptz) owner to catalog_reader;
 alter function app_public.catalog_today(uuid,timestamptz,text) owner to catalog_reader;
 alter function app_public.normalize_catalog_query(text) owner to catalog_reader;
+revoke catalog_reader from postgres;
 
 do $$ declare t text; begin
   foreach t in array array['catalog_areas','store_categories','stores','store_category_assignments','store_fact_verifications','store_weekly_hours','store_hour_exceptions','store_media'] loop
