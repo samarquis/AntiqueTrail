@@ -1,5 +1,5 @@
 begin;
-select plan(27);
+select plan(29);
 
 select ok(exists(
   select 1 from pg_trigger
@@ -44,6 +44,8 @@ select ok(exists(
     and tgrelid='partner_private.pilot_store_drafts'::regclass
 ),'pilot draft write guard is installed');
 select ok((select p.prosecdef from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='partner_private' and p.proname='pilot_draft_belongs_to_user'),'owner lookup is a narrowly scoped security-definer helper');
+select ok(position('p_user_id=auth.uid()' in pg_get_functiondef('partner_private.pilot_draft_belongs_to_user(uuid,uuid)'::regprocedure))>0,
+  'owner lookup cannot query an arbitrary user binding');
 select ok(position('pilot_draft_review_fields_owner_forbidden' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
   'partner cannot mutate reviewer evidence');
 select ok(position('new.provenance is distinct from old.provenance' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
@@ -52,6 +54,8 @@ select ok(position('pilot_draft_owner_fields_admin_forbidden' in pg_get_function
   'administrator cannot mutate partner draft content');
 select ok(position('pilot_draft_admin_state_forbidden' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
   'draft state transitions are actor constrained');
+select ok(position('old.state in (''submitted'',''resubmitted'')' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
+  'administrator decisions require a submitted or resubmitted draft');
 select ok(exists(
   select 1 from pg_policies
   where schemaname='partner_private' and tablename='pilot_store_drafts'

@@ -96,10 +96,10 @@ create index if not exists pilot_store_drafts_assigned_admin_idx
 -- direct table grants on partner_private.
 create or replace function partner_private.pilot_draft_belongs_to_user(p_pending_identity_id uuid, p_user_id uuid)
 returns boolean language sql stable security definer
-set search_path = pg_catalog,partner_private as $$
+set search_path = pg_catalog,partner_private,auth as $$
   select exists (
     select 1 from partner_private.pending_partner_identities p
-    where p.pending_identity_id=p_pending_identity_id and p.auth_user_id=p_user_id
+    where p.pending_identity_id=p_pending_identity_id and p.auth_user_id=p_user_id and p_user_id=auth.uid()
   )
 $$;
 revoke execute on function partner_private.pilot_draft_belongs_to_user(uuid,uuid) from public, anon;
@@ -159,7 +159,11 @@ begin
       or new.assigned_admin_id is distinct from old.assigned_admin_id then
       raise exception 'pilot_draft_owner_fields_admin_forbidden';
     end if;
-    if new.state not in ('changes_requested','approved','rejected') then
+    if old.state in ('approved','rejected') then
+      if new.state <> old.state then
+        raise exception 'pilot_draft_terminal_state';
+      end if;
+    elsif old.state not in ('submitted','resubmitted') or new.state not in ('changes_requested','approved','rejected') then
       raise exception 'pilot_draft_admin_state_forbidden';
     end if;
     if new.reviewed_by is distinct from auth.uid() or new.reviewed_at is null then
