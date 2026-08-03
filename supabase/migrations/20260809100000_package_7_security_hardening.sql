@@ -162,18 +162,18 @@ create policy pilot_draft_assigned_admin_read on partner_private.pilot_store_dra
     and app_private.current_user_has_role('administrator'::app_private.app_role)
     and app_private.current_session_is_active()
     and app_private.current_session_has_mfa()
-    and app_private.current_session_recent_auth(interval '10 minutes'));
+    and app_private.current_session_recent_auth(interval '15 minutes'));
 create policy pilot_draft_assigned_admin_update on partner_private.pilot_store_drafts for update to authenticated
   using (assigned_admin_id=auth.uid()
     and app_private.current_user_has_role('administrator'::app_private.app_role)
     and app_private.current_session_is_active()
     and app_private.current_session_has_mfa()
-    and app_private.current_session_recent_auth(interval '10 minutes'))
+    and app_private.current_session_recent_auth(interval '15 minutes'))
   with check (assigned_admin_id=auth.uid()
     and app_private.current_user_has_role('administrator'::app_private.app_role)
     and app_private.current_session_is_active()
     and app_private.current_session_has_mfa()
-    and app_private.current_session_recent_auth(interval '10 minutes')
+    and app_private.current_session_recent_auth(interval '15 minutes')
     and state in ('changes_requested','approved','rejected')
     and reviewed_by=auth.uid()
     and reviewed_at is not null);
