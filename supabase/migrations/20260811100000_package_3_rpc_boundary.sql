@@ -3,6 +3,7 @@
 
 grant identity_service to postgres;
 grant create on schema app_public to identity_service;
+grant create on schema shopper_private to identity_service;
 grant usage on schema app_public to identity_service;
 grant select on app_public.catalog_areas, app_public.stores to identity_service;
 
@@ -365,4 +366,5 @@ grant execute on function app_public.shopper_submit_correction(uuid,text,text,te
 grant execute on function app_public.shopper_get_correction(uuid) to authenticated;
 
 revoke create on schema app_public from identity_service;
+revoke create on schema shopper_private from identity_service;
 revoke identity_service from postgres;
