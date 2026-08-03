@@ -19,6 +19,8 @@ Package 5A trip state lives in the non-API `trip_private` schema. Trips and stop
 
 Package 6A partner onboarding state lives in the non-API `partner_private` schema. Invitations contain only 32-byte token/email HMACs and expire after 30 minutes or one atomic consumption; immutable provisional/final consent receipts, pending identities, owner drafts, authority signals, claims/conflicts, revocations, and exact one-store Representative grants are service-owned and FORCE-RLS protected. Provider/email calls, raw credentials/evidence, public claims, and broad role scope are intentionally absent.
 
+Package 7 administrator review state lives in the non-API `admin_private` schema. Typed cases carry only target metadata and snapshot hashes; field-change approvals, duplicate-merge previews/ledgers/tombstones, exact grant revoke/regrant prerequisites, append-only privileged actions, audit outbox, and root-anchor health are service-owned and FORCE-RLS protected. Review locks are bounded to 15 minutes, every future admin read/action rechecks assignment, exact scope, MFA, and recent authentication, and public promotion or shopper-private browsing is absent.
+
 With Docker and the Supabase CLI installed:
 
 ```text
