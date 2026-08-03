@@ -35,14 +35,18 @@ describe('auth local sign-out cleanup', () => {
       signIn: vi.fn(async () => ({ kind: 'error' as const })),
       sendRecovery: vi.fn(async () => undefined),
       verifyMfa: vi.fn(async () => null),
-      signOut: vi.fn(async () => events.push('provider')),
+      signOut: vi.fn(async () => {
+        events.push('provider')
+      }),
     }
 
     render(
       <AuthProvider
         provider={provider}
         authStore={store}
-        onLocalSignOut={async (current) => events.push(`purge:${current.userId}`)}
+        onLocalSignOut={async (current) => {
+          events.push(`purge:${current.userId}`)
+        }}
       >
         <SignOutProbe />
       </AuthProvider>,
