@@ -26,6 +26,7 @@ export function authorizeRoute(
   session?: AppSession,
 ): 'public' | 'authenticated' | 'forbidden' {
   if (/^\/stores(?:\/|$)/.test(path)) return 'public'
+  if (/^\/auth\/(?:sign-in|recovery|callback|verify|register)(?:\/|$)/.test(path)) return 'public'
   if (!session || !isSessionActive(session)) return 'forbidden'
   if (/^\/admin(?:\/|$)/.test(path) && session.role !== 'administrator') return 'forbidden'
   if (

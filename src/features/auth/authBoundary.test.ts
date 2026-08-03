@@ -19,6 +19,8 @@ describe('auth route boundary', () => {
   it('allows anonymous catalog browsing but fails private routes closed', () => {
     expect(authorizeRoute('/stores')).toBe('public')
     expect(authorizeRoute('/stores/blue-finch')).toBe('public')
+    expect(authorizeRoute('/auth/sign-in')).toBe('public')
+    expect(authorizeRoute('/auth/recovery')).toBe('public')
     expect(authorizeRoute('/account/privacy')).toBe('forbidden')
     expect(authorizeRoute('/admin')).toBe('forbidden')
   })
