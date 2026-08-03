@@ -75,4 +75,14 @@ describe('app shell', () => {
       screen.queryByRole('heading', { name: /external testing readiness/i }),
     ).not.toBeInTheDocument()
   })
+
+  it('keeps public review entry unavailable before regional promotion', async () => {
+    render(
+      <MemoryRouter initialEntries={['/stores/oak-antiques/reviews']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText(/not available in this release/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /preview review/i })).not.toBeInTheDocument()
+  })
 })

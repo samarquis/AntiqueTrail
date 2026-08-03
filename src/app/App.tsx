@@ -119,6 +119,11 @@ function StoreReviews() {
   return <PublicReviewsPage client={unavailableReviewClient} storeId={slug} />
 }
 
+function RestrictionAppeal() {
+  const { restrictionId = '' } = useParams()
+  return <ReviewAppealPage restrictionId={restrictionId} client={unavailableReviewClient} />
+}
+
 function NotFound() {
   return (
     <section className="page-card" aria-labelledby="not-found-heading">
@@ -271,6 +276,14 @@ export default function App() {
             }
           />
           <Route
+            path="/admin/reviews"
+            element={
+              <AdminGuard session={unavailableAdminSession}>
+                <ModerationQueuePage client={unavailableReviewClient} />
+              </AdminGuard>
+            }
+          />
+          <Route
             path="/alpha/readiness"
             element={
               <AlphaGuard account={unavailableAlphaAccount}>
@@ -285,6 +298,10 @@ export default function App() {
                 <ExternalReadinessPage />
               </ExternalReadinessGuard>
             }
+          />
+          <Route
+            path="/reviews/restrictions/:restrictionId/appeal"
+            element={<RestrictionAppeal />}
           />
           <Route
             path="/partner/join"
