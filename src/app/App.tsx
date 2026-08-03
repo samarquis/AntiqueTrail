@@ -46,7 +46,11 @@ import {
 } from '../features/trips'
 import { AccessSafetyPage, AdminGuard, ReviewQueuePage } from '../features/admin'
 import { AlphaGuard, AlphaReadinessPage } from '../features/alpha'
-import { ExternalReadinessGuard, ExternalReadinessPage } from '../features/external'
+import {
+  ExternalReadinessGuard,
+  ExternalReadinessPage,
+  type SyntheticTestAccount,
+} from '../features/external'
 import {
   PartnerActivatePage,
   PartnerDraftPage,
@@ -66,13 +70,19 @@ import {
   PortalUpdatesPage,
   unavailablePortalClient,
 } from '../features/portal'
+import {
+  ModerationQueuePage,
+  PublicReviewsPage,
+  ReviewAppealPage,
+  unavailableReviewClient,
+} from '../features/reviews'
 
 const catalogClient = configuredCatalogClient() ?? demoCatalogClient
 // The current provider-neutral shell has no privileged session source. Keep the
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
 const unavailableAdminSession = null
 const unavailableAlphaAccount = null
-const unavailableExternalAccounts = []
+const unavailableExternalAccounts: SyntheticTestAccount[] = []
 
 function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -104,6 +114,11 @@ function StoreDetails() {
   return <CatalogDetailsPage client={catalogClient} slug={slug} />
 }
 
+function StoreReviews() {
+  const { slug = '' } = useParams()
+  return <PublicReviewsPage client={unavailableReviewClient} storeId={slug} />
+}
+
 function NotFound() {
   return (
     <section className="page-card" aria-labelledby="not-found-heading">
@@ -122,6 +137,7 @@ export default function App() {
         <Routes>
           <Route path="/stores" element={<StoreBrowser />} />
           <Route path="/stores/:slug" element={<StoreDetails />} />
+          <Route path="/stores/:slug/reviews" element={<StoreReviews />} />
           <Route
             path="/stores/:slug/memory"
             element={
