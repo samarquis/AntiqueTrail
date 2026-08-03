@@ -31,6 +31,21 @@ export const unavailablePartnerClient: PartnerClient = {
   async withdraw() {
     throw new Error(GENERIC_PARTNER_ERROR)
   },
+  async submitClaim() {
+    throw new Error(GENERIC_PARTNER_ERROR)
+  },
+  async getClaimStatus() {
+    throw new Error(GENERIC_PARTNER_ERROR)
+  },
+  async submitAuthoritySignal() {
+    throw new Error(GENERIC_PARTNER_ERROR)
+  },
+  async withdrawClaim() {
+    throw new Error(GENERIC_PARTNER_ERROR)
+  },
+  async requestAuthorityRecheck() {
+    throw new Error(GENERIC_PARTNER_ERROR)
+  },
 }
 
 /** Reads one opaque fragment once. The raw value must never be rendered, logged, or persisted. */

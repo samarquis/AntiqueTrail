@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  PartnerClaimPage,
   PartnerDraftPage,
   PartnerJoinPage,
   PartnerStatusPage,
@@ -42,6 +43,35 @@ function client(overrides: Partial<PartnerClient> = {}): PartnerClient {
       invitation: 'consumed' as const,
       pendingIdentity: 'bound' as const,
       onboarding: 'withdrawn' as const,
+    })),
+    submitClaim: vi.fn(async () => ({
+      claimId: 'claim-1',
+      state: 'submitted' as const,
+      riskTier: 'standard' as const,
+      verifiedSignalCount: 0,
+      requiredSignalCount: 2 as const,
+    })),
+    getClaimStatus: vi.fn(async () => null),
+    submitAuthoritySignal: vi.fn(async () => ({
+      claimId: 'claim-1',
+      state: 'verification_pending' as const,
+      riskTier: 'standard' as const,
+      verifiedSignalCount: 0,
+      requiredSignalCount: 2 as const,
+    })),
+    withdrawClaim: vi.fn(async () => ({
+      claimId: 'claim-1',
+      state: 'withdrawn' as const,
+      riskTier: 'standard' as const,
+      verifiedSignalCount: 0,
+      requiredSignalCount: 2 as const,
+    })),
+    requestAuthorityRecheck: vi.fn(async () => ({
+      claimId: 'claim-1',
+      state: 'verification_pending' as const,
+      riskTier: 'standard' as const,
+      verifiedSignalCount: 0,
+      requiredSignalCount: 2 as const,
     })),
     ...overrides,
   }
@@ -122,5 +152,98 @@ describe('partner onboarding boundary', () => {
     cleanup()
     renderPage(<PartnerStatusPage client={client()} />)
     expect(await screen.findByText(/onboarding: submitted/i)).toBeInTheDocument()
+  })
+
+  it('submits a minimized store claim without implying endorsement or access', async () => {
+    const user = userEvent.setup()
+    const submitClaim = vi.fn(async () => ({
+      claimId: 'claim-1',
+      state: 'submitted' as const,
+      riskTier: 'standard' as const,
+      verifiedSignalCount: 0,
+      requiredSignalCount: 2 as const,
+    }))
+    renderPage(<PartnerClaimPage client={client({ submitClaim })} />)
+
+    await user.type(screen.getByLabelText(/store reference/i), ' synthetic-store-1 ')
+    await user.type(screen.getByLabelText(/relationship to the store/i), ' Owner ')
+    await user.type(
+      screen.getByLabelText(/authority statement/i),
+      'I am authorized to maintain this store listing.',
+    )
+    await user.click(screen.getByRole('button', { name: /submit claim/i }))
+
+    expect(submitClaim).toHaveBeenCalledWith({
+      storeReference: 'synthetic-store-1',
+      relationship: 'Owner',
+      authorityStatement: 'I am authorized to maintain this store listing.',
+    })
+    expect(await screen.findByRole('status')).toHaveTextContent(/submitted/i)
+    expect(screen.getByText(/does not grant access or imply endorsement/i)).toBeInTheDocument()
+  })
+
+  it('submits independent authority signals without rendering evidence details', async () => {
+    const user = userEvent.setup()
+    const getClaimStatus = vi.fn(async () => ({
+      claimId: 'claim-1',
+      state: 'verification_pending' as const,
+      riskTier: 'elevated' as const,
+      verifiedSignalCount: 1,
+      requiredSignalCount: 2 as const,
+    }))
+    const submitAuthoritySignal = vi.fn(async () => ({
+      claimId: 'claim-1',
+      state: 'verification_pending' as const,
+      riskTier: 'elevated' as const,
+      verifiedSignalCount: 1,
+      requiredSignalCount: 2 as const,
+    }))
+    renderPage(
+      <PartnerClaimPage client={client({ getClaimStatus, submitAuthoritySignal })} />,
+    )
+
+    expect(await screen.findByText(/1 of 2 authority signals verified/i)).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText(/authority signal channel/i), 'callback')
+    await user.type(screen.getByLabelText(/evidence reference/i), 'case-ref-17')
+    await user.click(screen.getByRole('button', { name: /submit authority signal/i }))
+
+    expect(submitAuthoritySignal).toHaveBeenCalledWith({
+      claimId: 'claim-1',
+      channelClass: 'callback',
+      evidenceReference: 'case-ref-17',
+    })
+    expect(screen.queryByText('case-ref-17')).not.toBeInTheDocument()
+  })
+
+  it('shows reason-neutral conflict and recheck actions without another claimant identity', async () => {
+    const user = userEvent.setup()
+    const requestAuthorityRecheck = vi.fn(async () => ({
+      claimId: 'claim-1',
+      state: 'verification_pending' as const,
+      riskTier: 'high' as const,
+      verifiedSignalCount: 0,
+      requiredSignalCount: 2 as const,
+    }))
+    renderPage(
+      <PartnerClaimPage
+        client={client({
+          requestAuthorityRecheck,
+          getClaimStatus: vi.fn(async () => ({
+            claimId: 'claim-1',
+            state: 'conflict' as const,
+            riskTier: 'high' as const,
+            verifiedSignalCount: 2,
+            requiredSignalCount: 2 as const,
+            recheckDueAt: '2026-09-01T00:00:00.000Z',
+            conflict: { state: 'open' as const },
+          })),
+        })}
+      />,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/needs administrator review/i)
+    expect(screen.queryByText(/another claimant|other claimant|owner@example/i)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /request authority recheck/i }))
+    expect(requestAuthorityRecheck).toHaveBeenCalledWith('claim-1')
   })
 })

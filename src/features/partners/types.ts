@@ -44,6 +44,47 @@ export interface PartnerStatus {
   storeScope?: string
 }
 
+export type PartnerClaimState =
+  | 'draft'
+  | 'submitted'
+  | 'verification_pending'
+  | 'changes_requested'
+  | 'conflict'
+  | 'approved'
+  | 'rejected'
+  | 'withdrawn'
+  | 'revoked'
+
+export type PartnerClaimRiskTier = 'standard' | 'elevated' | 'high'
+
+export interface PartnerClaimDraft {
+  storeReference: string
+  relationship: string
+  authorityStatement: string
+}
+
+export interface PartnerClaimSignalInput {
+  claimId: string
+  channelClass:
+    | 'published_business_contact'
+    | 'callback'
+    | 'mailed_code'
+    | 'filing_lookup'
+    | 'in_person'
+  evidenceReference: string
+}
+
+export interface PartnerClaimStatus {
+  claimId: string
+  state: PartnerClaimState
+  riskTier: PartnerClaimRiskTier
+  verifiedSignalCount: number
+  requiredSignalCount: 2
+  recheckDueAt?: string
+  exactStoreScope?: string
+  conflict?: { state: 'open' | 'resolved' | 'rejected' | 'withdrawn' }
+}
+
 export interface PartnerClient {
   exchangeInvitation(token: string): Promise<PartnerInvitation>
   acceptConsent(input: {
@@ -56,4 +97,9 @@ export interface PartnerClient {
   saveDraft(draft: PartnerDraft): Promise<PartnerStatus>
   submitDraft(): Promise<PartnerStatus>
   withdraw(): Promise<PartnerStatus>
+  submitClaim(draft: PartnerClaimDraft): Promise<PartnerClaimStatus>
+  getClaimStatus(): Promise<PartnerClaimStatus | null>
+  submitAuthoritySignal(input: PartnerClaimSignalInput): Promise<PartnerClaimStatus>
+  withdrawClaim(claimId: string): Promise<PartnerClaimStatus>
+  requestAuthorityRecheck(claimId: string): Promise<PartnerClaimStatus>
 }

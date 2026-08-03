@@ -10,6 +10,9 @@ import {
 } from './partnerClient'
 import type {
   PartnerClient,
+  PartnerClaimDraft,
+  PartnerClaimSignalInput,
+  PartnerClaimStatus,
   PartnerConsentAcknowledgements,
   PartnerDraft,
   PartnerStatus,
@@ -419,6 +422,200 @@ export function PartnerActivatePage() {
       <Link className="button" to="/stores">
         Back to store list
       </Link>
+    </PartnerCard>
+  )
+}
+
+export function PartnerClaimPage({
+  client = unavailablePartnerClient,
+}: {
+  client?: PartnerClient
+}) {
+  const [draft, setDraft] = useState<PartnerClaimDraft>({
+    storeReference: '',
+    relationship: '',
+    authorityStatement: '',
+  })
+  const [status, setStatus] = useState<PartnerClaimStatus | null>(null)
+  const [signalChannel, setSignalChannel] = useState<PartnerClaimSignalInput['channelClass']>(
+    'published_business_contact',
+  )
+  const [evidenceReference, setEvidenceReference] = useState('')
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    client
+      .getClaimStatus()
+      .then((result) => {
+        if (!cancelled && result) setStatus(result)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [client])
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    setPending(true)
+    setError(false)
+    try {
+      setStatus(
+        await client.submitClaim({
+          storeReference: draft.storeReference.trim(),
+          relationship: draft.relationship.trim(),
+          authorityStatement: draft.authorityStatement.trim(),
+        }),
+      )
+    } catch {
+      setError(true)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function submitSignal(event: FormEvent) {
+    event.preventDefault()
+    if (!status) return
+    setPending(true)
+    setError(false)
+    try {
+      setStatus(
+        await client.submitAuthoritySignal({
+          claimId: status.claimId,
+          channelClass: signalChannel,
+          evidenceReference: evidenceReference.trim(),
+        }),
+      )
+      setEvidenceReference('')
+    } catch {
+      setError(true)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function requestRecheck() {
+    if (!status) return
+    setPending(true)
+    setError(false)
+    try {
+      setStatus(await client.requestAuthorityRecheck(status.claimId))
+    } catch {
+      setError(true)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function withdrawClaim() {
+    if (!status) return
+    setPending(true)
+    setError(false)
+    try {
+      setStatus(await client.withdrawClaim(status.claimId))
+    } catch {
+      setError(true)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <PartnerCard
+      title="Request exact store scope"
+      description="A claim starts an authority review. It does not grant access or imply endorsement."
+    >
+      {error && <GenericPartnerError />}
+      {status && (
+        <>
+          <p role="status">Claim status: {status.state}.</p>
+          <p>
+            {status.verifiedSignalCount} of {status.requiredSignalCount} authority signals verified.
+          </p>
+          {status.state === 'conflict' && (
+            <p role="alert">This claim needs administrator review before it can continue.</p>
+          )}
+          {status.exactStoreScope && (
+            <p>Approved scope: this store only ({status.exactStoreScope}).</p>
+          )}
+          {status.recheckDueAt && (
+            <p>Authority recheck due {new Date(status.recheckDueAt).toLocaleDateString()}.</p>
+          )}
+          {!['approved', 'rejected', 'withdrawn', 'revoked'].includes(status.state) && (
+            <button type="button" onClick={() => void requestRecheck()} disabled={pending}>
+              Request authority recheck
+            </button>
+          )}
+          {!['approved', 'rejected', 'withdrawn', 'revoked'].includes(status.state) && (
+            <button type="button" onClick={() => void withdrawClaim()} disabled={pending}>
+              Withdraw claim
+            </button>
+          )}
+          {status.state !== 'conflict' &&
+            !['approved', 'rejected', 'withdrawn', 'revoked'].includes(status.state) && (
+            <form onSubmit={submitSignal}>
+            <label htmlFor="claim-signal-channel">Authority signal channel</label>
+            <select
+              id="claim-signal-channel"
+              value={signalChannel}
+              onChange={(event) =>
+                setSignalChannel(event.target.value as PartnerClaimSignalInput['channelClass'])
+              }
+            >
+              <option value="published_business_contact">Published business contact</option>
+              <option value="callback">Callback</option>
+              <option value="mailed_code">Mailed code</option>
+              <option value="filing_lookup">Filing lookup</option>
+              <option value="in_person">In person</option>
+            </select>
+            <label htmlFor="claim-evidence-reference">Evidence reference</label>
+            <input
+              id="claim-evidence-reference"
+              maxLength={240}
+              value={evidenceReference}
+              onChange={(event) => setEvidenceReference(event.target.value)}
+              required
+            />
+            <p>Only a minimized reference is sent; evidence content is not displayed here.</p>
+            <button type="submit" disabled={pending}>
+              Submit authority signal
+            </button>
+            </form>
+          )}
+        </>
+      )}
+      <form onSubmit={submit}>
+        <label htmlFor="claim-store-reference">Store reference</label>
+        <input
+          id="claim-store-reference"
+          maxLength={160}
+          value={draft.storeReference}
+          onChange={(event) => setDraft({ ...draft, storeReference: event.target.value })}
+          required
+        />
+        <label htmlFor="claim-relationship">Relationship to the store</label>
+        <input
+          id="claim-relationship"
+          maxLength={120}
+          value={draft.relationship}
+          onChange={(event) => setDraft({ ...draft, relationship: event.target.value })}
+          required
+        />
+        <label htmlFor="claim-authority">Authority statement</label>
+        <textarea
+          id="claim-authority"
+          maxLength={1000}
+          value={draft.authorityStatement}
+          onChange={(event) => setDraft({ ...draft, authorityStatement: event.target.value })}
+          required
+        />
+        <button className="button" type="submit" disabled={pending}>
+          {pending ? 'Submitting…' : 'Submit claim'}
+        </button>
+      </form>
     </PartnerCard>
   )
 }
