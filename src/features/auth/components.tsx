@@ -9,7 +9,15 @@ import {
 import { useAuth } from './AuthContext'
 import type { AuthProviderAdapter, ProviderSession } from './types'
 
-function AuthCard({ children, title, description }: { children: ReactNode; title: string; description: string }) {
+function AuthCard({
+  children,
+  title,
+  description,
+}: {
+  children: ReactNode
+  title: string
+  description: string
+}) {
   return (
     <main>
       <section className="page-card" aria-labelledby="auth-heading">
@@ -41,7 +49,9 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
       if (result.kind === 'error') {
         setError(GENERIC_SIGN_IN_ERROR)
       } else if (result.kind === 'mfa_required') {
-        navigate('/auth/mfa', { state: { challengeId: result.challengeId, providerSession: result.session, returnTo } })
+        navigate('/auth/mfa', {
+          state: { challengeId: result.challengeId, providerSession: result.session, returnTo },
+        })
       } else {
         await signIn(toAuthSession(result.session))
         navigate(returnTo, { replace: true })
@@ -57,13 +67,33 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
     <AuthCard title="Sign in" description="Use your verified email and password to continue.">
       <form onSubmit={submit} noValidate>
         <label htmlFor="auth-email">Email</label>
-        <input id="auth-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        <input
+          id="auth-email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+        />
         <label htmlFor="auth-password">Password</label>
-        <input id="auth-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+        <input
+          id="auth-password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
         {error && <p role="alert">{error}</p>}
-        <button className="button" type="submit" disabled={pending}>{pending ? 'Signing in…' : 'Sign in'}</button>
+        <button className="button" type="submit" disabled={pending}>
+          {pending ? 'Signing in…' : 'Sign in'}
+        </button>
       </form>
-      <p><a href={`/auth/recovery${email ? `?email=${encodeURIComponent(email)}` : ''}`}>Forgot your password?</a></p>
+      <p>
+        <a href={`/auth/recovery${email ? `?email=${encodeURIComponent(email)}` : ''}`}>
+          Forgot your password?
+        </a>
+      </p>
     </AuthCard>
   )
 }
@@ -83,8 +113,28 @@ export function RecoveryPage({ provider }: { provider: AuthProviderAdapter }) {
     }
   }
   return (
-    <AuthCard title="Recover your account" description="Enter your email and we’ll help you get back in.">
-      {sent ? <p role="status">{GENERIC_RECOVERY_MESSAGE}</p> : <form onSubmit={submit}><label htmlFor="recovery-email">Email</label><input id="recovery-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required /><button className="button" type="submit" disabled={pending}>{pending ? 'Sending…' : 'Send recovery email'}</button></form>}
+    <AuthCard
+      title="Recover your account"
+      description="Enter your email and we’ll help you get back in."
+    >
+      {sent ? (
+        <p role="status">{GENERIC_RECOVERY_MESSAGE}</p>
+      ) : (
+        <form onSubmit={submit}>
+          <label htmlFor="recovery-email">Email</label>
+          <input
+            id="recovery-email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+          <button className="button" type="submit" disabled={pending}>
+            {pending ? 'Sending…' : 'Send recovery email'}
+          </button>
+        </form>
+      )}
     </AuthCard>
   )
 }
@@ -93,7 +143,11 @@ export function MfaPage({ provider }: { provider: AuthProviderAdapter }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { signIn } = useAuth()
-  const state = location.state as { challengeId?: string; providerSession?: ProviderSession; returnTo?: string } | null
+  const state = location.state as {
+    challengeId?: string
+    providerSession?: ProviderSession
+    returnTo?: string
+  } | null
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -114,17 +168,57 @@ export function MfaPage({ provider }: { provider: AuthProviderAdapter }) {
       setPending(false)
     }
   }
-  return <AuthCard title="Verify your sign-in" description="Enter the six-digit code from your authenticator."><form onSubmit={submit}><label htmlFor="mfa-code">Authentication code</label><input id="mfa-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value)} required />{error && <p role="alert">{error}</p>}<button className="button" type="submit" disabled={pending}>{pending ? 'Checking…' : 'Verify code'}</button></form></AuthCard>
+  return (
+    <AuthCard
+      title="Verify your sign-in"
+      description="Enter the six-digit code from your authenticator."
+    >
+      <form onSubmit={submit}>
+        <label htmlFor="mfa-code">Authentication code</label>
+        <input
+          id="mfa-code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]{6}"
+          maxLength={6}
+          value={code}
+          onChange={(event) => setCode(event.target.value)}
+          required
+        />
+        {error && <p role="alert">{error}</p>}
+        <button className="button" type="submit" disabled={pending}>
+          {pending ? 'Checking…' : 'Verify code'}
+        </button>
+      </form>
+    </AuthCard>
+  )
 }
 
 export function RequireSession({ children }: { children: ReactNode }) {
   const location = useLocation()
   const { session } = useAuth()
-  if (!session) return <Navigate to={`/auth/sign-in?returnTo=${encodeURIComponent(location.pathname + location.search)}`} replace state={{ from: location }} />
+  if (!session)
+    return (
+      <Navigate
+        to={`/auth/sign-in?returnTo=${encodeURIComponent(location.pathname + location.search)}`}
+        replace
+        state={{ from: location }}
+      />
+    )
   return <>{children}</>
 }
 
 export function AccountPlaceholder() {
   const { session, signOut } = useAuth()
-  return <AuthCard title="Your account" description="Private account controls are being prepared for the Synthetic milestone."><p>Signed in as a private {session?.role} account.</p><button className="button" type="button" onClick={() => void signOut()}>Sign out</button></AuthCard>
+  return (
+    <AuthCard
+      title="Your account"
+      description="Private account controls are being prepared for the Synthetic milestone."
+    >
+      <p>Signed in as a private {session?.role} account.</p>
+      <button className="button" type="button" onClick={() => void signOut()}>
+        Sign out
+      </button>
+    </AuthCard>
+  )
 }

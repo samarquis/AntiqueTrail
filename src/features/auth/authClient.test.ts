@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { InMemoryAuthStore, InMemorySessionRegistry, toAuthSession } from './authClient'
 
-const providerSession = { userId: 'user-1', accessToken: 'secret-token', expiresAt: Date.now() + 60_000 }
+const providerSession = {
+  userId: 'user-1',
+  accessToken: 'secret-token',
+  expiresAt: Date.now() + 60_000,
+}
 
 describe('in-memory auth boundary', () => {
   it('keeps access tokens out of browser storage and clears on sign out', () => {

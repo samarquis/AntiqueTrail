@@ -40,15 +40,21 @@ export class InMemorySessionRegistry implements SessionRegistryClient {
   }
 
   async isActive(session: AuthSession): Promise<boolean> {
-    return this.#active.get(session.userId) === session.accessToken && session.expiresAt > Date.now()
+    return (
+      this.#active.get(session.userId) === session.accessToken && session.expiresAt > Date.now()
+    )
   }
 
   async revoke(session: AuthSession): Promise<void> {
-    if (this.#active.get(session.userId) === session.accessToken) this.#active.delete(session.userId)
+    if (this.#active.get(session.userId) === session.accessToken)
+      this.#active.delete(session.userId)
   }
 }
 
-export function toAuthSession(provider: ProviderSession, defaults?: { role?: AccountRole; mfaVerified?: boolean }): AuthSession {
+export function toAuthSession(
+  provider: ProviderSession,
+  defaults?: { role?: AccountRole; mfaVerified?: boolean },
+): AuthSession {
   return {
     userId: provider.userId,
     accessToken: provider.accessToken,

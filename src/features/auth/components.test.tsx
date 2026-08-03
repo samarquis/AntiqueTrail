@@ -9,7 +9,11 @@ import { MfaPage, RecoveryPage, RequireSession, SignInPage } from './components'
 import type { AuthProviderAdapter } from './types'
 
 function renderAuth(element: ReactNode, provider: AuthProviderAdapter) {
-  return render(<MemoryRouter><AuthProvider provider={provider}>{element}</AuthProvider></MemoryRouter>)
+  return render(
+    <MemoryRouter>
+      <AuthProvider provider={provider}>{element}</AuthProvider>
+    </MemoryRouter>,
+  )
 }
 
 const unavailableProvider: AuthProviderAdapter = {
@@ -41,7 +45,14 @@ describe('auth states', () => {
       <MemoryRouter initialEntries={['/account/privacy']}>
         <AuthProvider provider={unavailableProvider}>
           <Routes>
-            <Route path="/account/privacy" element={<RequireSession><p>private</p></RequireSession>} />
+            <Route
+              path="/account/privacy"
+              element={
+                <RequireSession>
+                  <p>private</p>
+                </RequireSession>
+              }
+            />
             <Route path="/auth/sign-in" element={<p>sign-in</p>} />
           </Routes>
         </AuthProvider>
