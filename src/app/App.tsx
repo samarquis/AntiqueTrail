@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import {
   CatalogBrowserPage,
@@ -7,7 +7,6 @@ import {
   demoCatalogClient,
 } from '../features/catalog'
 import {
-  AccountPlaceholder,
   AuthProvider,
   MfaPage,
   RecoveryPage,
@@ -20,6 +19,9 @@ import {
   ExportPage,
   PrivacyPage,
   unavailableLifecycleClient,
+  type AuthProviderAdapter,
+  type AuthStore,
+  type SessionRegistryClient,
 } from '../features/auth'
 import {
   CorrectionPage,
@@ -50,8 +52,12 @@ import {
   SummaryPage,
   TripsPage,
   unavailableTripClient,
+  createTripOfflineRuntime,
+  type TripOfflineGrantSource,
+  type TripOfflineRuntime,
   type TripClient,
 } from '../features/trips'
+import { CheckMyDayPage, type CheckMyDayProvider } from '../features/routing'
 import { AccessSafetyPage, AdminGuard, ReviewQueuePage } from '../features/admin'
 import { AlphaGuard, AlphaReadinessPage } from '../features/alpha'
 import {
@@ -93,6 +99,12 @@ const catalogClient = configuredCatalogClient() ?? demoCatalogClient
 const unavailableAdminSession = null
 const unavailableAlphaAccount = null
 const unavailableExternalAccounts: SyntheticTestAccount[] = []
+const publicListingClaimsEnabled = false
+const blockedCheckMyDayProvider: CheckMyDayProvider = {
+  async getCoordinateMatrix() {
+    throw new Error('Routing provider is disabled until R-01 is approved.')
+  },
+}
 
 function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -157,6 +169,84 @@ function CandidateIdeasRoute({ client }: { client: CandidateClient }) {
   return <TripIdeasPage client={client} />
 }
 
+function TripAccountLifecycle({ runtime }: { runtime: TripOfflineRuntime }) {
+  const { session } = useAuth()
+  const priorAccount = useRef(session?.userId)
+  useEffect(() => {
+    const previous = priorAccount.current
+    if (previous && session?.userId && previous !== session.userId)
+      void runtime.purgeAccount(previous, 'account_switch')
+    priorAccount.current = session?.userId
+  }, [runtime, session?.userId])
+  return null
+}
+
+function TripAwareAccountPage({ runtime }: { runtime: TripOfflineRuntime }) {
+  const { session, signOut } = useAuth()
+  const [unsyncedCount, setUnsyncedCount] = useState(0)
+  const [error, setError] = useState(false)
+
+  async function requestSignOut() {
+    if (!session) return
+    try {
+      const status = await runtime.prepareSignOut(session.userId)
+      if (status.requiresConfirmation) setUnsyncedCount(status.pendingCount)
+      else await signOut()
+    } catch {
+      setError(true)
+    }
+  }
+
+  return (
+    <main>
+      <section className="page-card" aria-labelledby="account-heading">
+        <h1 id="account-heading">Your account</h1>
+        <p>Signed in as a private {session?.role} account.</p>
+        {unsyncedCount > 0 && (
+          <div role="alert">
+            <p>
+              {unsyncedCount} offline change{unsyncedCount === 1 ? '' : 's'} will be permanently
+              lost if you sign out.
+            </p>
+            <button className="button" type="button" onClick={() => void signOut()}>
+              Sign out and discard offline changes
+            </button>
+            <button type="button" onClick={() => setUnsyncedCount(0)}>
+              Keep working
+            </button>
+          </div>
+        )}
+        {error && <p role="alert">We couldn&apos;t safely prepare sign-out. Please try again.</p>}
+        {unsyncedCount === 0 && (
+          <button className="button" type="button" onClick={() => void requestSignOut()}>
+            Sign out
+          </button>
+        )}
+      </section>
+    </main>
+  )
+}
+
+function TripGoRoute({
+  client,
+  runtime,
+  grantSource,
+}: {
+  client: TripClient
+  runtime: TripOfflineRuntime
+  grantSource?: TripOfflineGrantSource
+}) {
+  const { session } = useAuth()
+  return (
+    <GoPage
+      client={client}
+      offlineRuntime={runtime}
+      offlineGrantSource={grantSource}
+      accountId={session?.userId}
+    />
+  )
+}
+
 function NotFound() {
   return (
     <section className="page-card" aria-labelledby="not-found-heading">
@@ -173,16 +263,43 @@ export interface AppClients {
   shopper?: ShopperPrivateClient
   trips?: TripClient
   partner?: PartnerClient
+  tripOfflineGrants?: TripOfflineGrantSource
 }
 
-export default function App({ clients = {} }: { clients?: AppClients }) {
+export interface AppRuntime {
+  tripOffline?: TripOfflineRuntime
+  authStore?: AuthStore
+  authProvider?: AuthProviderAdapter
+  sessionRegistry?: SessionRegistryClient
+}
+
+export default function App({
+  clients = {},
+  runtime = {},
+}: {
+  clients?: AppClients
+  runtime?: AppRuntime
+}) {
   const candidateClient = clients.candidate ?? unavailableCandidateClient
   const shopperClient = clients.shopper ?? unavailableShopperClient
   const tripClient = clients.trips ?? unavailableTripClient
   const partnerClient = clients.partner ?? unavailablePartnerClient
+  const tripOfflineRef = useRef<TripOfflineRuntime>(
+    runtime.tripOffline ?? createTripOfflineRuntime(),
+  )
+  const tripOffline = tripOfflineRef.current
 
   return (
-    <AuthProvider provider={unavailableAuthProvider}>
+    <AuthProvider
+      provider={runtime.authProvider ?? unavailableAuthProvider}
+      authStore={runtime.authStore}
+      registry={runtime.sessionRegistry}
+      onLocalSignOut={async (session) => {
+        await tripOffline.prepareSignOut(session.userId)
+        await tripOffline.purgeAccount(session.userId, 'confirmed_logout')
+      }}
+    >
+      <TripAccountLifecycle runtime={tripOffline} />
       <AppShell>
         <Routes>
           <Route path="/stores" element={<StoreBrowser />} />
@@ -210,7 +327,7 @@ export default function App({ clients = {} }: { clients?: AppClients }) {
             path="/account/*"
             element={
               <RequireSession>
-                <AccountPlaceholder />
+                <TripAwareAccountPage runtime={tripOffline} />
               </RequireSession>
             }
           />
@@ -361,9 +478,13 @@ export default function App({ clients = {} }: { clients?: AppClients }) {
           <Route
             path="/partner/claim"
             element={
-              <RequireSession>
-                <PartnerClaimPage client={partnerClient} />
-              </RequireSession>
+              publicListingClaimsEnabled ? (
+                <RequireSession>
+                  <PartnerClaimPage client={partnerClient} />
+                </RequireSession>
+              ) : (
+                <NotFound />
+              )
             }
           />
           <Route path="/partner/activate" element={<PartnerActivatePage />} />
@@ -443,7 +564,19 @@ export default function App({ clients = {} }: { clients?: AppClients }) {
             path="/trips/:tripId/go"
             element={
               <GuardedTrips>
-                <GoPage client={tripClient} />
+                <TripGoRoute
+                  client={tripClient}
+                  runtime={tripOffline}
+                  grantSource={clients.tripOfflineGrants}
+                />
+              </GuardedTrips>
+            }
+          />
+          <Route
+            path="/trips/:tripId/check-my-day"
+            element={
+              <GuardedTrips>
+                <CheckMyDayPage request={null} provider={blockedCheckMyDayProvider} />
               </GuardedTrips>
             }
           />

@@ -18,12 +18,32 @@ export interface OfflineMutation {
 }
 
 export interface OfflineTripInput {
-  accountId: string
-  deviceId: string
   trip: Trip
-  grantExpiresAt: string
-  reauthorizeBy: string
+  grant: SignedOfflineGrant
   mutations: OfflineMutation[]
+}
+
+export interface OfflineGrantClaims {
+  accountId: string
+  tripId: string
+  installId: string
+  deviceId: string
+  deviceKeyId: string
+  sessionSecurityVersion: number
+  issuedAt: string
+  expiresAt: string
+  reauthorizeBy: string
+  nonce: string
+}
+
+export interface SignedOfflineGrant {
+  keyId: string
+  claims: OfflineGrantClaims
+  signature: string
+}
+
+export interface OfflineGrantVerifier {
+  verify(grant: SignedOfflineGrant): Promise<boolean>
 }
 
 interface OfflineTripPayload extends OfflineTripInput {
@@ -158,6 +178,58 @@ function text(value: string): Uint8Array {
   return new TextEncoder().encode(value)
 }
 
+export function offlineGrantBytes(claims: OfflineGrantClaims): Uint8Array {
+  return text(
+    JSON.stringify([
+      claims.accountId,
+      claims.tripId,
+      claims.installId,
+      claims.deviceId,
+      claims.deviceKeyId,
+      claims.sessionSecurityVersion,
+      claims.issuedAt,
+      claims.expiresAt,
+      claims.reauthorizeBy,
+      claims.nonce,
+    ]),
+  )
+}
+
+function decodeBase64Url(value: string): Uint8Array {
+  if (!/^[A-Za-z0-9_-]+$/u.test(value)) throw new Error('Invalid offline grant signature.')
+  const padded = value
+    .replace(/-/gu, '+')
+    .replace(/_/gu, '/')
+    .padEnd(Math.ceil(value.length / 4) * 4, '=')
+  const binary = atob(padded)
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0))
+}
+
+export class WebCryptoOfflineGrantVerifier implements OfflineGrantVerifier {
+  constructor(private readonly publicKeys: ReadonlyMap<string, CryptoKey>) {}
+
+  async verify(grant: SignedOfflineGrant): Promise<boolean> {
+    const key = this.publicKeys.get(grant.keyId)
+    if (!key) return false
+    try {
+      return await crypto.subtle.verify(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        key,
+        decodeBase64Url(grant.signature),
+        offlineGrantBytes(grant.claims),
+      )
+    } catch {
+      return false
+    }
+  }
+}
+
+class RejectOfflineGrantVerifier implements OfflineGrantVerifier {
+  async verify() {
+    return false
+  }
+}
+
 function recordId(installId: string, tripId: string): string {
   return `${installId}:${tripId}`
 }
@@ -171,6 +243,8 @@ export class EncryptedTripOfflineStore {
   constructor(
     private readonly database: OfflineTripDatabase = new IndexedDbOfflineDatabase(),
     private readonly installId: string,
+    private readonly grantVerifier: OfflineGrantVerifier = new RejectOfflineGrantVerifier(),
+    private readonly deviceKeyId: string = installId,
   ) {}
 
   private async binding(accountId: string) {
@@ -198,7 +272,7 @@ export class EncryptedTripOfflineStore {
   }
 
   private async encrypt(payload: OfflineTripPayload): Promise<EncryptedOfflineRecord> {
-    const accountBinding = await this.binding(payload.accountId)
+    const accountBinding = await this.binding(payload.grant.claims.accountId)
     const metadata = {
       id: recordId(this.installId, payload.trip.id),
       tripId: payload.trip.id,
@@ -234,7 +308,7 @@ export class EncryptedTripOfflineStore {
   }
 
   private async purgeTrip(payload: OfflineTripPayload) {
-    const binding = await this.binding(payload.accountId)
+    const binding = await this.binding(payload.grant.claims.accountId)
     await this.database.deleteRecord(recordId(this.installId, payload.trip.id))
     const stillUsed = (await this.database.listRecords()).some(
       (record) => record.installId === this.installId && record.accountBinding === binding,
@@ -243,12 +317,40 @@ export class EncryptedTripOfflineStore {
   }
 
   async save(input: OfflineTripInput): Promise<void> {
+    const claims = input.grant.claims
+    const issuedAt = Date.parse(claims.issuedAt)
+    const expiresAt = Date.parse(claims.expiresAt)
+    const reauthorizeBy = Date.parse(claims.reauthorizeBy)
+    const maximumGrantMs = 36 * 60 * 60 * 1000
+    const maximumReauthorizationMs = 7 * 24 * 60 * 60 * 1000
+    const now = Date.now()
+    if (
+      !(await this.grantVerifier.verify(input.grant)) ||
+      claims.accountId.length < 1 ||
+      claims.tripId !== input.trip.id ||
+      claims.installId !== this.installId ||
+      claims.deviceId.length < 1 ||
+      claims.deviceKeyId !== this.deviceKeyId ||
+      !Number.isInteger(claims.sessionSecurityVersion) ||
+      claims.sessionSecurityVersion < 0 ||
+      claims.nonce.length < 8 ||
+      !Number.isFinite(issuedAt) ||
+      !Number.isFinite(expiresAt) ||
+      !Number.isFinite(reauthorizeBy) ||
+      issuedAt > now + CLOCK_ROLLBACK_TOLERANCE_MS ||
+      expiresAt <= now ||
+      expiresAt <= issuedAt ||
+      expiresAt - issuedAt > maximumGrantMs ||
+      reauthorizeBy < expiresAt ||
+      reauthorizeBy - issuedAt > maximumReauthorizationMs
+    )
+      throw new Error('Offline grant verification failed.')
     const keys = new Set<string>()
     const sequences = new Set<number>()
     for (const mutation of input.mutations) {
       if (mutation.tripId !== input.trip.id)
         throw new Error('Offline mutation belongs to another trip.')
-      if (mutation.deviceId !== input.deviceId)
+      if (mutation.deviceId !== claims.deviceId)
         throw new Error('Offline mutation does not match the active Navigator device.')
       if (keys.has(mutation.idempotencyKey) || sequences.has(mutation.localSequence))
         throw new Error('Offline mutation identity or sequence is duplicated.')
@@ -267,7 +369,9 @@ export class EncryptedTripOfflineStore {
   ): Promise<OfflineTripPayload | undefined> {
     const record = await this.database.getRecord(recordId(this.installId, tripId))
     if (!record || record.accountBinding !== (await this.binding(accountId))) return undefined
-    return this.decrypt(record)
+    const payload = await this.decrypt(record)
+    if (!(await this.grantVerifier.verify(payload.grant))) return undefined
+    return payload
   }
 
   async restore(
@@ -280,14 +384,18 @@ export class EncryptedTripOfflineStore {
     if (record.accountBinding !== (await this.binding(accountId)))
       return { state: 'account_mismatch' }
     const payload = await this.decrypt(record)
-    if (now.getTime() > new Date(payload.reauthorizeBy).getTime()) {
+    if (!(await this.grantVerifier.verify(payload.grant))) {
+      await this.purgeAccount(accountId, 'authorization_lost')
+      return { state: 'absent' }
+    }
+    if (now.getTime() > new Date(payload.grant.claims.reauthorizeBy).getTime()) {
       await this.purgeAccount(accountId, 'expired')
       return { state: 'absent' }
     }
     const pendingCount = payload.mutations.length
     if (new Date(payload.lastObservedAt).getTime() - now.getTime() > CLOCK_ROLLBACK_TOLERANCE_MS)
       return { state: 'locked_pending_sync', pendingCount, reason: 'clock_rollback' }
-    if (now.getTime() > new Date(payload.grantExpiresAt).getTime())
+    if (now.getTime() > new Date(payload.grant.claims.expiresAt).getTime())
       return { state: 'locked_pending_sync', pendingCount, reason: 'expired' }
     payload.lastObservedAt = now.toISOString()
     await this.write(payload)

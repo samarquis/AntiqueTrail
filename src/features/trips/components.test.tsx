@@ -13,6 +13,7 @@ import {
 } from './components'
 import { normalizeTripName } from './tripClient'
 import type { Trip, TripClient } from './types'
+import type { TripOfflineGrantSource, TripOfflineRuntime } from './tripRuntime'
 
 const trip: Trip = {
   id: 'trip-1',
@@ -286,6 +287,41 @@ describe('manual trips', () => {
     expect(await screen.findByText(/read-only progress/i)).toHaveAttribute('role', 'status')
     expect(screen.queryByRole('button', { name: /arrived/i })).not.toBeInTheDocument()
     expect(markArrived).not.toHaveBeenCalled()
+  })
+
+  it('starts Go through the verified offline-grant runtime when it is wired', async () => {
+    const user = userEvent.setup()
+    const startedTrip = { ...trip, state: 'active' as const }
+    const remoteStart = vi.fn(async () => startedTrip)
+    const runtime: TripOfflineRuntime = {
+      installId: 'install-a',
+      deviceKeyId: 'device-key-a',
+      start: vi.fn(async () => startedTrip),
+      recover: vi.fn(async () => ({ state: 'absent' as const })),
+      prepareSignOut: vi.fn(async () => ({ requiresConfirmation: false, pendingCount: 0 })),
+      purgeAccount: vi.fn(async () => undefined),
+    }
+    const source = {} as TripOfflineGrantSource
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/go']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/go"
+            element={
+              <GoPage
+                client={client({ get: vi.fn(async () => trip), start: remoteStart })}
+                offlineRuntime={runtime}
+                offlineGrantSource={source}
+                accountId="shopper-a"
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('button', { name: /start trip/i }))
+    expect(runtime.start).toHaveBeenCalledWith('shopper-a', 'trip-1', source)
+    expect(remoteStart).not.toHaveBeenCalled()
   })
 
   it('invites one verified-email partner and assigns exactly one Navigator', async () => {

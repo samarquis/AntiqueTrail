@@ -1,9 +1,13 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { InMemoryAuthStore, type AuthSession } from '../features/auth'
+import type { TripOfflineRuntime } from '../features/trips'
 import App from './App'
 
 describe('app shell', () => {
+  afterEach(cleanup)
   it('renders the browse route with a skip-free accessible heading', () => {
     render(
       <MemoryRouter initialEntries={['/stores']}>
@@ -84,5 +88,67 @@ describe('app shell', () => {
     )
     expect(await screen.findByText(/not available in this release/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /preview review/i })).not.toBeInTheDocument()
+  })
+
+  it('returns not-found for the disabled public listing claim route', () => {
+    render(
+      <MemoryRouter initialEntries={['/partner/claim']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { name: /page not found/i })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /claim a listing/i })).not.toBeInTheDocument()
+  })
+
+  it('wires authenticated sign-out to the trip offline purge runtime', async () => {
+    const user = userEvent.setup()
+    const authStore = new InMemoryAuthStore()
+    const session: AuthSession = {
+      userId: 'shopper-a',
+      accessToken: 'memory-only',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaVerified: true,
+    }
+    authStore.setSession(session)
+    const offline: TripOfflineRuntime = {
+      installId: 'test-install',
+      deviceKeyId: 'test-device-key',
+      start: vi.fn(),
+      recover: vi.fn(async () => ({ state: 'absent' as const })),
+      prepareSignOut: vi.fn(async () => ({ requiresConfirmation: true, pendingCount: 1 })),
+      purgeAccount: vi.fn(async () => undefined),
+    }
+    render(
+      <MemoryRouter initialEntries={['/account']}>
+        <App runtime={{ authStore, tripOffline: offline }} />
+      </MemoryRouter>,
+    )
+    await user.click(screen.getByRole('button', { name: /sign out/i }))
+    expect(offline.prepareSignOut).toHaveBeenCalledWith('shopper-a')
+    expect(screen.getByRole('alert')).toHaveTextContent(/offline change.*permanently lost/i)
+    expect(offline.purgeAccount).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /sign out and discard/i }))
+    expect(offline.purgeAccount).toHaveBeenCalledWith('shopper-a', 'confirmed_logout')
+  })
+
+  it('exposes Check My Day as a provider-blocked authenticated route until R-01', () => {
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'shopper-a',
+      accessToken: 'memory-only',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaVerified: true,
+    })
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/check-my-day']}>
+        <App runtime={{ authStore }} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { name: /check my day/i })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/not available yet/i)
   })
 })

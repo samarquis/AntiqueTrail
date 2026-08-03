@@ -16,6 +16,7 @@ import type {
   TripClient,
   TripCollaboration,
 } from './types'
+import type { TripOfflineGrantSource, TripOfflineRuntime } from './tripRuntime'
 
 function TripCard({
   title,
@@ -374,13 +375,24 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       )}
       <p>
         <Link to={`/trips/${trip.id}/invite`}>Trip Partner and Navigator</Link> ·{' '}
+        <Link to={`/trips/${trip.id}/check-my-day`}>Check My Day</Link> ·{' '}
         <Link to={`/trips/${trip.id}/go`}>Go</Link> · <Link to="/trips">My trips</Link>
       </p>
     </TripCard>
   )
 }
 
-export function GoPage({ client = unavailableTripClient }: { client?: TripClient }) {
+export function GoPage({
+  client = unavailableTripClient,
+  offlineRuntime,
+  offlineGrantSource,
+  accountId,
+}: {
+  client?: TripClient
+  offlineRuntime?: TripOfflineRuntime
+  offlineGrantSource?: TripOfflineGrantSource
+  accountId?: string
+}) {
   const { tripId = '' } = useParams()
   const [trip, setTrip] = useState<Trip | null>(null)
   const [error, setError] = useState(false)
@@ -396,13 +408,29 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
       .then((result) => {
         if (!cancelled) setTrip(result)
       })
-      .catch(() => {
-        if (!cancelled) setError(true)
+      .catch(async () => {
+        if (cancelled) return
+        if (offlineRuntime && accountId) {
+          try {
+            const recovered = await offlineRuntime.recover(accountId, tripId)
+            if (recovered.state === 'available') {
+              setTrip(recovered.trip)
+              setOfflineQueue({
+                state: recovered.pendingCount > 0 ? 'queued' : 'empty',
+                pendingCount: recovered.pendingCount,
+              })
+              return
+            }
+          } catch {
+            // The generic unavailable state below remains reason-neutral.
+          }
+        }
+        setError(true)
       })
     return () => {
       cancelled = true
     }
-  }, [client, tripId])
+  }, [accountId, client, offlineRuntime, tripId])
   useEffect(() => {
     client
       .getOfflineQueue(tripId)
@@ -454,7 +482,11 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
           type="button"
           onClick={async () => {
             try {
-              setTrip(await client.start(trip.id))
+              setTrip(
+                offlineRuntime && offlineGrantSource && accountId
+                  ? await offlineRuntime.start(accountId, trip.id, offlineGrantSource)
+                  : await client.start(trip.id),
+              )
             } catch {
               setError(true)
             }
