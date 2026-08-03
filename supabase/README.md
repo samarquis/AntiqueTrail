@@ -7,6 +7,8 @@ Package 1 is intentionally local and synthetic. The migration creates the `app_p
 
 The browser Supabase client must set its database schema to `app_public`. Direct table reads and all anonymous writes are denied by grants and `FORCE ROW LEVEL SECURITY`.
 
+Package 2A identity state lives in the private `app_private` schema. `profiles`, `active_sessions`, `role_grants`, and the append-only `privileged_audit_events` chain are server-owned and are not exposed through PostgREST. The boolean session/role gates are the only client-callable boundary; account admission, recovery, and deletion remain Package 2B work.
+
 With Docker and the Supabase CLI installed:
 
 ```text
