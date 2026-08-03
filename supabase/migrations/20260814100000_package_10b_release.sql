@@ -76,6 +76,15 @@ as $$
 declare v_release_id uuid;
 begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('release:topeka-ks',0));
+  if exists(
+    select 1 from release_private.release_commands c
+    join release_private.regional_releases r using(release_id)
+    where c.command_id=p_command_id and (
+      c.step<>'freeze' or c.artifact_digest<>p_artifact_digest
+      or c.catalog_digest<>p_catalog_digest
+      or r.prerequisite_receipt_digest<>p_prerequisite_receipt_digest
+    )
+  ) then raise exception 'release_idempotency_mismatch'; end if;
   select release_id into v_release_id from release_private.release_commands where command_id=p_command_id;
   if found then return v_release_id; end if;
   insert into release_private.regional_releases(region_key,artifact_digest,catalog_digest,prerequisite_receipt_digest)
@@ -95,12 +104,17 @@ set search_path=''
 as $$
 declare
   v_release release_private.regional_releases%rowtype;
-  v_existing text;
+  v_command release_private.release_commands%rowtype;
   v_expected text[] := array['recovery_point','migration_dry_run','config_secret_digest_sbom','canary','production_migration','capability_enablement','smoke','monitoring','signed_release_receipt'];
 begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('release:topeka-ks',0));
-  select result_state into v_existing from release_private.release_commands where command_id=p_command_id;
-  if found then return v_existing; end if;
+  select * into v_command from release_private.release_commands where command_id=p_command_id;
+  if found then
+    if v_command.release_id<>p_release_id or v_command.step<>p_step then
+      raise exception 'release_idempotency_mismatch';
+    end if;
+    return v_command.result_state;
+  end if;
   select * into v_release from release_private.regional_releases where release_id=p_release_id for update;
   if not found or v_release.state not in ('frozen','deploying') then raise exception 'release_not_deployable'; end if;
   if p_step is distinct from v_expected[v_release.step_ordinal+1] then raise exception 'release_step_out_of_order'; end if;
@@ -128,11 +142,16 @@ create or replace function release_private.rollback_regional_release(
 language plpgsql security definer
 set search_path=''
 as $$
-declare v_release release_private.regional_releases%rowtype; v_existing text;
+declare v_release release_private.regional_releases%rowtype; v_command release_private.release_commands%rowtype;
 begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('release:topeka-ks',0));
-  select result_state into v_existing from release_private.release_commands where command_id=p_command_id;
-  if found then return v_existing; end if;
+  select * into v_command from release_private.release_commands where command_id=p_command_id;
+  if found then
+    if v_command.release_id<>p_release_id or v_command.step<>'rollback' then
+      raise exception 'release_idempotency_mismatch';
+    end if;
+    return v_command.result_state;
+  end if;
   if nullif(btrim(p_reason),'') is null then raise exception 'rollback_reason_required'; end if;
   select * into v_release from release_private.regional_releases where release_id=p_release_id for update;
   if not found then raise exception 'release_not_found'; end if;
