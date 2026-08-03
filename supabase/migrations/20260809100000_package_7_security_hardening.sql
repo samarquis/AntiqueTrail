@@ -26,11 +26,33 @@ begin
     ) then
       raise exception 'candidate_share_parties_immutable';
     end if;
+    if current_user not in ('identity_service','postgres') and (
+      new.recipient_email_hmac is distinct from old.recipient_email_hmac
+      or new.key_version is distinct from old.key_version
+      or new.expires_at is distinct from old.expires_at
+      or new.created_at is distinct from old.created_at
+      or new.version is distinct from old.version
+      or new.updated_at is distinct from old.updated_at
+    ) then
+      raise exception 'candidate_share_lifecycle_immutable';
+    end if;
     if old.state in ('accepted','closed') and (new.state<>old.state or new.close_reason is distinct from old.close_reason) then
       raise exception 'candidate_share_terminal';
     end if;
     if old.state='pending' and new.state='accepted' and (new.recipient_id is null or new.recipient_id is not distinct from new.sender_id) then
       raise exception 'candidate_share_recipient_required';
+    end if;
+    if current_user not in ('identity_service','postgres') and old.state='pending' and new.state in ('accepted','closed') then
+      if new.accepted_at is not null or new.closed_at is not null then
+        raise exception 'candidate_share_lifecycle_server_owned';
+      end if;
+      if new.state='accepted' then
+        new.accepted_at := statement_timestamp();
+      else
+        new.closed_at := statement_timestamp();
+      end if;
+      new.version := old.version + 1;
+      new.updated_at := statement_timestamp();
     end if;
   end if;
 
@@ -115,7 +137,12 @@ begin
     end if;
     if new.reviewed_at is distinct from old.reviewed_at
       or new.reviewed_by is distinct from old.reviewed_by
-      or new.assigned_admin_id is distinct from old.assigned_admin_id then
+      or new.assigned_admin_id is distinct from old.assigned_admin_id
+      or new.provenance is distinct from old.provenance
+      or new.submitted_at is distinct from old.submitted_at
+      or new.version is distinct from old.version
+      or new.created_at is distinct from old.created_at
+      or new.updated_at is distinct from old.updated_at then
       raise exception 'pilot_draft_review_fields_owner_forbidden';
     end if;
   else
@@ -151,12 +178,12 @@ for each row execute function partner_private.enforce_pilot_store_draft_write();
 
 drop policy if exists pilot_draft_bound_owner on partner_private.pilot_store_drafts;
 create policy pilot_draft_bound_owner_read on partner_private.pilot_store_drafts for select to authenticated
-  using (exists(select 1 from partner_private.pending_partner_identities p where p.pending_identity_id=pilot_store_drafts.pending_identity_id and p.auth_user_id=auth.uid()) and app_private.current_session_is_active());
+  using (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,auth.uid()) and app_private.current_session_is_active());
 create policy pilot_draft_bound_owner_insert on partner_private.pilot_store_drafts for insert to authenticated
-  with check (exists(select 1 from partner_private.pending_partner_identities p where p.pending_identity_id=pilot_store_drafts.pending_identity_id and p.auth_user_id=auth.uid()) and state='draft' and reviewed_at is null and reviewed_by is null and assigned_admin_id is null and app_private.current_session_is_active());
+  with check (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,auth.uid()) and state='draft' and reviewed_at is null and reviewed_by is null and assigned_admin_id is null and app_private.current_session_is_active());
 create policy pilot_draft_bound_owner_update on partner_private.pilot_store_drafts for update to authenticated
-  using (exists(select 1 from partner_private.pending_partner_identities p where p.pending_identity_id=pilot_store_drafts.pending_identity_id and p.auth_user_id=auth.uid()) and state in ('draft','submitted','changes_requested','resubmitted','withdrawn') and app_private.current_session_is_active())
-  with check (exists(select 1 from partner_private.pending_partner_identities p where p.pending_identity_id=pilot_store_drafts.pending_identity_id and p.auth_user_id=auth.uid()) and state in ('draft','submitted','resubmitted','withdrawn') and app_private.current_session_is_active());
+  using (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,auth.uid()) and state in ('draft','submitted','changes_requested','resubmitted','withdrawn') and app_private.current_session_is_active())
+  with check (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,auth.uid()) and state in ('draft','submitted','resubmitted','withdrawn') and app_private.current_session_is_active());
 
 create policy pilot_draft_assigned_admin_read on partner_private.pilot_store_drafts for select to authenticated
   using (assigned_admin_id=auth.uid()

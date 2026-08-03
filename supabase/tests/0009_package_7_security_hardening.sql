@@ -1,5 +1,5 @@
 begin;
-select plan(23);
+select plan(27);
 
 select ok(exists(
   select 1 from pg_trigger
@@ -8,6 +8,10 @@ select ok(exists(
 ),'candidate share state trigger remains installed');
 select ok(position('candidate_share_parties_immutable' in pg_get_functiondef('candidate_private.enforce_share_state()'::regprocedure))>0,
   'candidate share trigger rejects client retargeting');
+select ok(position('candidate_share_lifecycle_immutable' in pg_get_functiondef('candidate_private.enforce_share_state()'::regprocedure))>0,
+  'candidate share trigger protects lifecycle metadata');
+select ok(position('candidate_share_lifecycle_server_owned' in pg_get_functiondef('candidate_private.enforce_share_state()'::regprocedure))>0,
+  'candidate share lifecycle timestamps are server-owned');
 select ok(position('candidate_share_self_recipient' in pg_get_functiondef('candidate_private.enforce_share_state()'::regprocedure))>0,
   'candidate share trigger rejects sender as recipient');
 select ok(exists(
@@ -42,6 +46,8 @@ select ok(exists(
 select ok((select p.prosecdef from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='partner_private' and p.proname='pilot_draft_belongs_to_user'),'owner lookup is a narrowly scoped security-definer helper');
 select ok(position('pilot_draft_review_fields_owner_forbidden' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
   'partner cannot mutate reviewer evidence');
+select ok(position('new.provenance is distinct from old.provenance' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
+  'partner cannot mutate server provenance/metadata');
 select ok(position('pilot_draft_owner_fields_admin_forbidden' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
   'administrator cannot mutate partner draft content');
 select ok(position('pilot_draft_admin_state_forbidden' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
@@ -52,6 +58,8 @@ select ok(exists(
     and policyname='pilot_draft_bound_owner_update'
     and coalesce(with_check,'') like '%draft%submitted%resubmitted%withdrawn%'
 ),'owner update policy excludes approval states');
+select ok((select count(*)=3 from pg_policies where schemaname='partner_private' and tablename='pilot_store_drafts' and policyname in ('pilot_draft_bound_owner_read','pilot_draft_bound_owner_insert','pilot_draft_bound_owner_update') and (coalesce(qual,'') || coalesce(with_check,'')) like '%pilot_draft_belongs_to_user%'),
+  'partner owner policies use the definer ownership helper');
 select ok(exists(
   select 1 from pg_policies
   where schemaname='partner_private' and tablename='pilot_store_drafts'
