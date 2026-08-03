@@ -1,14 +1,21 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { RequireSession } from '../auth'
 import {
   GENERIC_TRIP_ERROR,
   MAX_ACTIVE_STOPS,
   normalizeTripName,
+  normalizeTripPartnerEmail,
   unavailableTripClient,
   validDwellMinutes,
 } from './tripClient'
-import type { OfflineQueueSnapshot, StopPriority, Trip, TripClient } from './types'
+import type {
+  OfflineQueueSnapshot,
+  StopPriority,
+  Trip,
+  TripClient,
+  TripCollaboration,
+} from './types'
 
 function TripCard({
   title,
@@ -167,11 +174,10 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     }
   }, [client, tripId])
   useEffect(() => {
-    const getQueue = client.getOfflineQueue
-    if (getQueue)
-      getQueue(tripId)
-        .then(setOfflineQueue)
-        .catch(() => undefined)
+    client
+      .getOfflineQueue(tripId)
+      .then(setOfflineQueue)
+      .catch(() => undefined)
   }, [client, tripId])
   async function addStop(event: FormEvent) {
     event.preventDefault()
@@ -220,22 +226,14 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
   }
   async function queueOffline() {
     if (!trip) return
-    if (client.queueOfflineAction) {
-      try {
-        setOfflineQueue(await client.queueOfflineAction(trip.id, { kind: 'plan_edit' }))
-      } catch {
-        setError(true)
-      }
-    } else {
-      setOfflineQueue((current) => ({
-        ...current,
-        state: 'queued',
-        pendingCount: current.pendingCount + 1,
-      }))
+    try {
+      setOfflineQueue(await client.queueOfflineAction(trip.id, { kind: 'plan_edit' }))
+    } catch {
+      setError(true)
     }
   }
   async function resolveConflict(choice: 'phone' | 'saved') {
-    if (!trip || !client.resolveOfflineConflict) return
+    if (!trip) return
     try {
       setOfflineQueue(await client.resolveOfflineConflict(trip.id, choice))
     } catch {
@@ -283,12 +281,12 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       {offlineQueue.state === 'purged' && (
         <p role="status">Offline data was purged. Reconnect before making another change.</p>
       )}
-      {offlineQueue.state !== 'empty' && client.purgeOffline && (
+      {offlineQueue.state !== 'empty' && (
         <button
           type="button"
           onClick={() =>
             client
-              .purgeOffline?.(trip.id, 'owner_requested')
+              .purgeOffline(trip.id, 'owner_requested')
               .then(setOfflineQueue)
               .catch(() => setError(true))
           }
@@ -371,10 +369,11 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
         </button>
       ) : (
         <button type="button" onClick={() => void queueOffline()}>
-          Simulate offline queue
+          Save a change offline
         </button>
       )}
       <p>
+        <Link to={`/trips/${trip.id}/invite`}>Trip Partner and Navigator</Link> ·{' '}
         <Link to={`/trips/${trip.id}/go`}>Go</Link> · <Link to="/trips">My trips</Link>
       </p>
     </TripCard>
@@ -389,6 +388,7 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
     state: 'empty',
     pendingCount: 0,
   })
+  const [collaboration, setCollaboration] = useState<TripCollaboration | null>(null)
   useEffect(() => {
     let cancelled = false
     client
@@ -404,11 +404,16 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
     }
   }, [client, tripId])
   useEffect(() => {
-    const getQueue = client.getOfflineQueue
-    if (getQueue)
-      getQueue(tripId)
-        .then(setOfflineQueue)
-        .catch(() => undefined)
+    client
+      .getOfflineQueue(tripId)
+      .then(setOfflineQueue)
+      .catch(() => undefined)
+  }, [client, tripId])
+  useEffect(() => {
+    client
+      .getCollaboration(tripId)
+      .then(setCollaboration)
+      .catch(() => setError(true))
   }, [client, tripId])
   async function mutate(action: (tripId: string, stopId: string) => Promise<Trip>, stopId: string) {
     if (!trip) return
@@ -433,24 +438,31 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
   const currentStop = trip.stops.find(
     (stop) => stop.state === 'planned' || stop.state === 'arrived',
   )
+  const isNavigator =
+    collaboration !== null && collaboration.currentUserId === collaboration.navigatorUserId
   return (
     <TripCard
       title="Go"
       description="Manual arrival tracking only. Antique Trail does not claim route feasibility or travel time."
     >
-      <button
-        className="button"
-        type="button"
-        onClick={async () => {
-          try {
-            setTrip(await client.start(trip.id))
-          } catch {
-            setError(true)
-          }
-        }}
-      >
-        Start trip
-      </button>
+      {collaboration && !isNavigator && (
+        <p role="status">Read-only progress. Only the assigned Navigator can control Go.</p>
+      )}
+      {isNavigator && (
+        <button
+          className="button"
+          type="button"
+          onClick={async () => {
+            try {
+              setTrip(await client.start(trip.id))
+            } catch {
+              setError(true)
+            }
+          }}
+        >
+          Start trip
+        </button>
+      )}
       {offlineQueue.state === 'queued' && (
         <p role="status">
           Offline: {offlineQueue.pendingCount} action{offlineQueue.pendingCount === 1 ? '' : 's'}{' '}
@@ -460,7 +472,7 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
       {offlineQueue.state === 'conflict' && (
         <p role="alert">{offlineQueue.conflict?.summary ?? 'An offline action needs review.'}</p>
       )}
-      {currentStop && (
+      {currentStop && isNavigator && (
         <section aria-labelledby="current-stop-navigation">
           <h2 id="current-stop-navigation">Navigate to current stop</h2>
           <p>{currentStop.address ?? currentStop.label}</p>
@@ -484,7 +496,7 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
         {trip.stops.map((stop) => (
           <li key={stop.id}>
             {stop.label} — {stop.state}
-            {stop.state === 'planned' && (
+            {stop.state === 'planned' && isNavigator && (
               <>
                 <button type="button" onClick={() => void mutate(client.markArrived, stop.id)}>
                   Arrived
@@ -494,7 +506,7 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
                 </button>
               </>
             )}
-            {stop.state === 'arrived' && (
+            {stop.state === 'arrived' && isNavigator && (
               <button type="button" onClick={() => void mutate(client.completeStop, stop.id)}>
                 Done
               </button>
@@ -502,22 +514,28 @@ export function GoPage({ client = unavailableTripClient }: { client?: TripClient
           </li>
         ))}
       </ol>
-      <button
-        type="button"
-        onClick={() => {
-          if (offlineQueue.state === 'queued') setOfflineQueue({ state: 'empty', pendingCount: 0 })
-          else {
-            const queue = client.queueOfflineAction
-            if (queue)
-              queue(trip.id, { kind: 'go_action' })
+      {isNavigator && (
+        <button
+          type="button"
+          onClick={() => {
+            if (offlineQueue.state === 'queued')
+              client
+                .replayOffline(trip.id)
+                .then((next) => {
+                  setTrip(next)
+                  setOfflineQueue({ state: 'empty', pendingCount: 0 })
+                })
+                .catch(() => setError(true))
+            else
+              client
+                .queueOfflineAction(trip.id, { kind: 'go_action' })
                 .then(setOfflineQueue)
                 .catch(() => setError(true))
-            else setOfflineQueue({ state: 'queued', pendingCount: 1 })
-          }
-        }}
-      >
-        {offlineQueue.state === 'queued' ? 'Reconnect' : 'Work offline'}
-      </button>
+          }}
+        >
+          {offlineQueue.state === 'queued' ? 'Reconnect and replay' : 'Work offline'}
+        </button>
+      )}
       {error && <TripError />}
       <p>
         <Link to={`/trips/${trip.id}/summary`}>Summary</Link>
@@ -554,6 +572,185 @@ export function SummaryPage({ client = unavailableTripClient }: { client?: TripC
         <p role="status">Trip summary unavailable.</p>
       )}
       <Link to="/trips">Back to trips</Link>
+    </TripCard>
+  )
+}
+
+export function InviteTripPartnerPage({ client = unavailableTripClient }: { client?: TripClient }) {
+  const { tripId = '' } = useParams()
+  const [collaboration, setCollaboration] = useState<TripCollaboration | null>(null)
+  const [email, setEmail] = useState('')
+  const [notice, setNotice] = useState('')
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    client
+      .getCollaboration(tripId)
+      .then((result) => {
+        if (!cancelled) setCollaboration(result)
+      })
+      .catch(() => {
+        if (!cancelled) setError(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [client, tripId])
+
+  async function invite(event: FormEvent) {
+    event.preventDefault()
+    const normalized = normalizeTripPartnerEmail(email)
+    if (!normalized) return
+    try {
+      setCollaboration(await client.invitePartner(tripId, normalized))
+      setEmail('')
+      setNotice(
+        'Invitation submitted. If that verified account can join, the invitation expires in seven days.',
+      )
+    } catch {
+      setError(true)
+    }
+  }
+
+  async function assignNavigator(userId: string) {
+    try {
+      const next = await client.assignNavigator(tripId, userId)
+      setCollaboration(next)
+      const navigator = next.participants.find((participant) => participant.userId === userId)
+      setNotice(`${navigator?.displayName ?? 'Selected participant'} is Navigator.`)
+    } catch {
+      setError(true)
+    }
+  }
+
+  return (
+    <TripCard
+      title="Trip Partner and Navigator"
+      description="Invite one verified account to this trip only. Exactly one participant controls Go."
+    >
+      {error && <TripError />}
+      {!collaboration ? (
+        <p role="status">Loading collaboration…</p>
+      ) : (
+        <>
+          {!collaboration.participants.some((participant) => participant.role === 'partner') &&
+            collaboration.invitation?.state !== 'pending' && (
+              <form onSubmit={invite}>
+                <label htmlFor="trip-partner-email">Partner verified email</label>
+                <input
+                  id="trip-partner-email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+                <button type="submit">Send invitation</button>
+              </form>
+            )}
+          {collaboration.invitation?.state === 'pending' && (
+            <p>
+              One invitation is pending until{' '}
+              {new Date(collaboration.invitation.expiresAt).toLocaleDateString()}.
+              <button
+                type="button"
+                onClick={() =>
+                  client
+                    .revokeInvitation(tripId, collaboration.invitation!.id)
+                    .then(setCollaboration)
+                    .catch(() => setError(true))
+                }
+              >
+                Revoke invitation
+              </button>
+            </p>
+          )}
+          <h2>Participants</h2>
+          <ul>
+            {collaboration.participants.map((participant) => (
+              <li key={participant.userId}>
+                {participant.displayName} — {participant.role}
+                {collaboration.navigatorUserId === participant.userId ? (
+                  <strong> — Navigator</strong>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void assignNavigator(participant.userId)}
+                    aria-label={`Make ${participant.displayName} Navigator`}
+                  >
+                    Make Navigator
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {notice && <p role="status">{notice}</p>}
+          <p>
+            The non-Navigator can read progress but cannot control Go. Private ratings and notes are
+            never shared.
+          </p>
+          <Link to={`/trips/${tripId}/plan`}>Back to trip plan</Link>
+        </>
+      )}
+    </TripCard>
+  )
+}
+
+export function AcceptTripInvitationPage({
+  client = unavailableTripClient,
+}: {
+  client?: TripClient
+}) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [token] = useState(() => new URLSearchParams(location.hash.slice(1)).get('token') ?? '')
+  const started = useRef(false)
+  const [collaboration, setCollaboration] = useState<TripCollaboration | null>(null)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    if (location.hash) {
+      navigate('/trip-invitations', { replace: true })
+      return
+    }
+    if (!token) {
+      setError(true)
+      return
+    }
+    if (started.current) return
+    started.current = true
+    let cancelled = false
+    client
+      .acceptInvitation(token)
+      .then((result) => {
+        if (!cancelled) setCollaboration(result)
+      })
+      .catch(() => {
+        if (!cancelled) setError(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [client, location.hash, navigate, token])
+
+  return (
+    <TripCard
+      title={collaboration ? 'Trip invitation accepted' : 'Trip invitation'}
+      description="This invitation grants access to one trip only."
+    >
+      {error ? (
+        <TripError />
+      ) : collaboration ? (
+        <>
+          <p role="status">You joined this one trip as Trip Partner.</p>
+          <Link className="button" to={`/trips/${collaboration.tripId}/plan`}>
+            Open shared trip
+          </Link>
+        </>
+      ) : (
+        <p role="status">Accepting invitation…</p>
+      )}
     </TripCard>
   )
 }

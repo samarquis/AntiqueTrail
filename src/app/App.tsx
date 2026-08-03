@@ -41,8 +41,10 @@ import {
   type CandidateClient,
 } from '../features/candidates'
 import {
+  AcceptTripInvitationPage,
   GoPage,
   GuardedTrips,
+  InviteTripPartnerPage,
   NewTripPage,
   PlanPage,
   SummaryPage,
@@ -409,6 +411,22 @@ export default function App({ clients = {} }: { clients?: AppClients }) {
             element={
               <GuardedTrips>
                 <PlanPage client={tripClient} />
+              </GuardedTrips>
+            }
+          />
+          <Route
+            path="/trips/:tripId/invite"
+            element={
+              <GuardedTrips>
+                <InviteTripPartnerPage client={tripClient} />
+              </GuardedTrips>
+            }
+          />
+          <Route
+            path="/trip-invitations"
+            element={
+              <GuardedTrips>
+                <AcceptTripInvitationPage client={tripClient} />
               </GuardedTrips>
             }
           />

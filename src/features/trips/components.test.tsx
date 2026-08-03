@@ -4,7 +4,13 @@ import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../auth'
-import { GoPage, NewTripPage, PlanPage } from './components'
+import {
+  AcceptTripInvitationPage,
+  GoPage,
+  InviteTripPartnerPage,
+  NewTripPage,
+  PlanPage,
+} from './components'
 import { normalizeTripName } from './tripClient'
 import type { Trip, TripClient } from './types'
 
@@ -32,6 +38,54 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     completeStop: vi.fn(async () => trip),
     skipStop: vi.fn(async () => trip),
     replayOffline: vi.fn(async () => trip),
+    getOfflineQueue: vi.fn(async () => ({ state: 'empty' as const, pendingCount: 0 })),
+    queueOfflineAction: vi.fn(async () => ({ state: 'queued' as const, pendingCount: 1 })),
+    resolveOfflineConflict: vi.fn(async () => ({ state: 'empty' as const, pendingCount: 0 })),
+    purgeOffline: vi.fn(async () => ({ state: 'purged' as const, pendingCount: 0 })),
+    getCollaboration: vi.fn(async () => ({
+      tripId: trip.id,
+      currentUserId: 'creator-a',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+      ],
+      navigatorUserId: 'creator-a',
+    })),
+    invitePartner: vi.fn(async () => ({
+      tripId: trip.id,
+      currentUserId: 'creator-a',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+      ],
+      navigatorUserId: 'creator-a',
+      invitation: { id: 'invite-1', state: 'pending' as const, expiresAt: '2026-08-10T00:00:00Z' },
+    })),
+    revokeInvitation: vi.fn(async () => ({
+      tripId: trip.id,
+      currentUserId: 'creator-a',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+      ],
+      navigatorUserId: 'creator-a',
+    })),
+    acceptInvitation: vi.fn(async () => ({
+      tripId: trip.id,
+      currentUserId: 'partner-b',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+        { userId: 'partner-b', displayName: 'Trip partner', role: 'partner' as const },
+      ],
+      navigatorUserId: 'creator-a',
+    })),
+    assignNavigator: vi.fn(async () => ({
+      tripId: trip.id,
+      currentUserId: 'creator-a',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+        { userId: 'partner-b', displayName: 'Trip partner', role: 'partner' as const },
+      ],
+      navigatorUserId: 'partner-b',
+    })),
+    leaveTrip: vi.fn(async () => undefined),
     ...overrides,
   }
 }
@@ -133,7 +187,7 @@ describe('manual trips', () => {
     )
     await user.click(await screen.findByRole('button', { name: /move b up/i }))
     expect(reorderStop).toHaveBeenCalledWith('trip-1', 'stop-b', 0)
-    await user.click(screen.getByRole('button', { name: /simulate offline queue/i }))
+    await user.click(screen.getByRole('button', { name: /save a change offline/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/queued offline/i)
   })
 
@@ -176,5 +230,135 @@ describe('manual trips', () => {
     )
     expect(google).toHaveAttribute('target', '_blank')
     expect(waze).toHaveAttribute('target', '_blank')
+  })
+
+  it('keeps the accepted Trip Partner read-only in Go when the creator is Navigator', async () => {
+    const handoffTrip: Trip = {
+      ...trip,
+      state: 'active',
+      stops: [
+        {
+          id: 'stop-1',
+          kind: 'store',
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'must',
+          plannedDwellMinutes: 60,
+          state: 'planned',
+        },
+      ],
+    }
+    const markArrived = vi.fn(async () => handoffTrip)
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/go']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/go"
+            element={
+              <GoPage
+                client={client({
+                  get: vi.fn(async () => handoffTrip),
+                  markArrived,
+                  getCollaboration: vi.fn(async () => ({
+                    tripId: trip.id,
+                    currentUserId: 'partner-b',
+                    participants: [
+                      {
+                        userId: 'creator-a',
+                        displayName: 'Trip creator',
+                        role: 'creator' as const,
+                      },
+                      {
+                        userId: 'partner-b',
+                        displayName: 'Trip partner',
+                        role: 'partner' as const,
+                      },
+                    ],
+                    navigatorUserId: 'creator-a',
+                  })),
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText(/read-only progress/i)).toHaveAttribute('role', 'status')
+    expect(screen.queryByRole('button', { name: /arrived/i })).not.toBeInTheDocument()
+    expect(markArrived).not.toHaveBeenCalled()
+  })
+
+  it('invites one verified-email partner and assigns exactly one Navigator', async () => {
+    const user = userEvent.setup()
+    const collaboration = {
+      tripId: trip.id,
+      currentUserId: 'creator-a',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+        { userId: 'partner-b', displayName: 'Trip partner', role: 'partner' as const },
+      ],
+      navigatorUserId: 'creator-a',
+    }
+    const creatorOnly = {
+      ...collaboration,
+      participants: collaboration.participants.slice(0, 1),
+    }
+    const invitePartner = vi.fn(async () => collaboration)
+    const assignNavigator = vi.fn(async () => ({ ...collaboration, navigatorUserId: 'partner-b' }))
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/invite']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/invite"
+            element={
+              <InviteTripPartnerPage
+                client={client({
+                  getCollaboration: vi.fn(async () => creatorOnly),
+                  invitePartner,
+                  assignNavigator,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.type(await screen.findByLabelText(/partner verified email/i), 'Partner@Example.com ')
+    await user.click(screen.getByRole('button', { name: /send invitation/i }))
+    expect(invitePartner).toHaveBeenCalledWith('trip-1', 'partner@example.com')
+    await user.click(screen.getByRole('button', { name: /make trip partner navigator/i }))
+    expect(assignNavigator).toHaveBeenCalledWith('trip-1', 'partner-b')
+    expect(await screen.findByText(/trip partner is navigator/i)).toBeInTheDocument()
+  })
+
+  it('accepts a fragment invitation into only the returned trip', async () => {
+    const acceptInvitation = vi.fn(async () => ({
+      tripId: 'trip-1',
+      currentUserId: 'partner-b',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+        { userId: 'partner-b', displayName: 'Trip partner', role: 'partner' as const },
+      ],
+      navigatorUserId: 'creator-a',
+    }))
+    render(
+      <MemoryRouter initialEntries={['/trip-invitations#token=opaque-secret']}>
+        <Routes>
+          <Route
+            path="/trip-invitations"
+            element={<AcceptTripInvitationPage client={client({ acceptInvitation })} />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(
+      await screen.findByRole('heading', { name: /trip invitation accepted/i }),
+    ).toBeInTheDocument()
+    expect(acceptInvitation).toHaveBeenCalledWith('opaque-secret')
+    expect(screen.getByRole('link', { name: /open shared trip/i })).toHaveAttribute(
+      'href',
+      '/trips/trip-1/plan',
+    )
   })
 })

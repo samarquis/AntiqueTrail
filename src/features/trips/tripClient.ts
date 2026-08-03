@@ -49,6 +49,24 @@ export const unavailableTripClient: TripClient = {
   async purgeOffline() {
     throw new Error(GENERIC_TRIP_ERROR)
   },
+  async getCollaboration() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async invitePartner() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async revokeInvitation() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async acceptInvitation() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async assignNavigator() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async leaveTrip() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
 }
 
 export function normalizeTripName(value: string): string {
@@ -61,4 +79,8 @@ export function normalizeTripName(value: string): string {
 
 export function validDwellMinutes(value: number): boolean {
   return Number.isInteger(value) && value >= 5 && value <= 720
+}
+
+export function normalizeTripPartnerEmail(value: string): string {
+  return value.normalize('NFKC').trim().toLocaleLowerCase('en-US')
 }

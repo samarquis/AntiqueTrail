@@ -32,6 +32,30 @@ export interface Trip {
   version: number
 }
 
+export type TripParticipantRole = 'creator' | 'partner'
+export type TripInvitationState = 'pending' | 'accepted' | 'revoked' | 'expired'
+
+export interface TripParticipant {
+  userId: string
+  displayName: string
+  role: TripParticipantRole
+}
+
+export interface TripInvitation {
+  id: string
+  state: TripInvitationState
+  expiresAt: string
+}
+
+/** The server returns collaboration state for exactly one authorized trip. */
+export interface TripCollaboration {
+  tripId: string
+  currentUserId: string
+  participants: TripParticipant[]
+  navigatorUserId?: string
+  invitation?: TripInvitation
+}
+
 export interface TripClient {
   list(): Promise<Trip[]>
   get(id: string): Promise<Trip | null>
@@ -52,11 +76,17 @@ export interface TripClient {
   completeStop(tripId: string, stopId: string): Promise<Trip>
   skipStop(tripId: string, stopId: string): Promise<Trip>
   replayOffline(tripId: string): Promise<Trip>
-  getOfflineQueue?(tripId: string): Promise<OfflineQueueSnapshot>
-  queueOfflineAction?(
+  getOfflineQueue(tripId: string): Promise<OfflineQueueSnapshot>
+  queueOfflineAction(
     tripId: string,
     action: { kind: string; stopId?: string },
   ): Promise<OfflineQueueSnapshot>
-  resolveOfflineConflict?(tripId: string, choice: 'phone' | 'saved'): Promise<OfflineQueueSnapshot>
-  purgeOffline?(tripId: string, reason: string): Promise<OfflineQueueSnapshot>
+  resolveOfflineConflict(tripId: string, choice: 'phone' | 'saved'): Promise<OfflineQueueSnapshot>
+  purgeOffline(tripId: string, reason: string): Promise<OfflineQueueSnapshot>
+  getCollaboration(tripId: string): Promise<TripCollaboration>
+  invitePartner(tripId: string, verifiedEmail: string): Promise<TripCollaboration>
+  revokeInvitation(tripId: string, invitationId: string): Promise<TripCollaboration>
+  acceptInvitation(fragmentToken: string): Promise<TripCollaboration>
+  assignNavigator(tripId: string, participantUserId: string): Promise<TripCollaboration>
+  leaveTrip(tripId: string): Promise<void>
 }
