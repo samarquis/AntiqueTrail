@@ -9,6 +9,8 @@ The browser Supabase client must set its database schema to `app_public`. Direct
 
 Package 2A identity state lives in the private `app_private` schema. `profiles`, `active_sessions`, `role_grants`, and the append-only `privileged_audit_events` chain are server-owned and are not exposed through PostgREST. The boolean session/role gates are the only client-callable boundary; account admission, recovery, and deletion remain Package 2B work.
 
+Package 2B adds provider-neutral admission receipts, quarantine state, export/deletion jobs, deletion receipts, and notification/revocation outboxes in the same private schema. Only token hashes/HMACs and content-free lifecycle metadata are persisted; provider calls and delivery are separate gated jobs.
+
 With Docker and the Supabase CLI installed:
 
 ```text
