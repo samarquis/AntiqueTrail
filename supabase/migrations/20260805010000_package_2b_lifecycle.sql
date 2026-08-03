@@ -2,6 +2,9 @@
 -- Raw receipt/password/email tokens and provider credentials never enter these tables.
 
 grant usage on schema extensions to identity_service;
+grant identity_service to postgres;
+grant usage on schema app_private to postgres;
+grant create on schema app_private to identity_service;
 
 alter table app_private.profiles drop constraint if exists profiles_deletion_shape;
 alter table app_private.profiles add constraint profiles_deletion_shape check (
@@ -259,6 +262,9 @@ set search_path = pg_catalog, app_private, auth as $$
   );
 $$;
 alter function app_private.current_session_is_cancellation_only() owner to identity_service;
+revoke identity_service from postgres;
+revoke usage on schema app_private from postgres;
+revoke create on schema app_private from identity_service;
 grant execute on function app_private.current_session_is_cancellation_only() to authenticated;
 
 drop policy if exists profile_self_read on app_private.profiles;
