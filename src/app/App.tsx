@@ -46,6 +46,7 @@ import {
 } from '../features/trips'
 import { AccessSafetyPage, AdminGuard, ReviewQueuePage } from '../features/admin'
 import { AlphaGuard, AlphaReadinessPage } from '../features/alpha'
+import { ExternalReadinessGuard, ExternalReadinessPage } from '../features/external'
 import {
   PartnerActivatePage,
   PartnerDraftPage,
@@ -71,6 +72,7 @@ const catalogClient = configuredCatalogClient() ?? demoCatalogClient
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
 const unavailableAdminSession = null
 const unavailableAlphaAccount = null
+const unavailableExternalAccounts = []
 
 function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -258,6 +260,14 @@ export default function App() {
               <AlphaGuard account={unavailableAlphaAccount}>
                 <AlphaReadinessPage />
               </AlphaGuard>
+            }
+          />
+          <Route
+            path="/external/readiness"
+            element={
+              <ExternalReadinessGuard accounts={unavailableExternalAccounts}>
+                <ExternalReadinessPage />
+              </ExternalReadinessGuard>
             }
           />
           <Route

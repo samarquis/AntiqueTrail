@@ -61,4 +61,18 @@ describe('app shell', () => {
     expect(screen.getByRole('heading', { name: /store portal/i })).toBeInTheDocument()
     expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't update this store portal/i)
   })
+
+  it('keeps External Testing Readiness unavailable until the human gates exist', async () => {
+    render(
+      <MemoryRouter initialEntries={['/external/readiness']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(
+      (await screen.findAllByRole('heading', { name: /browse stores/i })).length,
+    ).toBeGreaterThan(0)
+    expect(
+      screen.queryByRole('heading', { name: /external testing readiness/i }),
+    ).not.toBeInTheDocument()
+  })
 })
