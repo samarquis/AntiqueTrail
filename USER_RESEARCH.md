@@ -21,6 +21,12 @@ This revealed a key workflow:
 
 > Candidate stores → hours-aware itinerary → one-leg navigation → arrival and visit tracking → route recalculation → preference learning
 
+### Reported baseline context and controlled SLM-01 protocol
+
+Reported historical context: Scott estimated about 45 minutes for his planning work after his wife spent at least one hour researching stores, copying names/addresses/hours, and sending them to him. Scott then transferred that material to AI for route planning and moved between the document and maps during the day. This is firsthand anecdotal context, not a controlled benchmark.
+
+SLM-01 compares only the planning work both paths can perform without provider routing or store sourcing. Freeze one fixture containing the same six Synthetic Stores, hours/exceptions, fictional starting place, desired visit date/departure, priority/dwell inputs, and end condition. For the legacy run, give each tester the fixture as the same plain source list and allow only the previously used document/manual-map workflow; for the Antique Trail run, preload the identical stores and use Packages 1/2/3/5A. Exclude finding stores, Candidate Share, travel-time calculation, suggested optimization, and live navigation from both measured intervals. Start when the tester begins transferring/selecting fixture stores; stop when a saved ordered hours-aware trip is ready for external-map Go and private-memory entry. Record tester identity, fixture/version, start/end time, manual field transfers, application/tool switches, hours warnings shown and correctly explained, lost/re-entered input, outside planning document used, and stated reuse. Run both paths on the same phone class and network condition in counterbalanced order; do not replace a failed run. Compare only like-for-like fields and preserve the signed raw worksheet with the SLM-01 receipt.
+
 ## Observed preference dimensions
 
 The initial discovery household strongly valued:

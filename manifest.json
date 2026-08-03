@@ -1,17 +1,31 @@
 {
   "project": "Antique Trail",
-  "handoff_version": "1.0",
-  "generated_date": "2026-07-27",
+  "handoff_version": "2.5",
+  "generated_date": "2026-08-03",
   "files": [
     "README.md",
     "CODEX_START_PROMPT.md",
     "PRD.md",
+    "DESIGN.md",
+    "DESIGN_SYSTEM.md",
+    "PRODUCT.md",
     "PRODUCT_DECISIONS.md",
+    "CONTEXT.md",
     "USER_RESEARCH.md",
     "SECURITY_AND_TRUST.md",
     "COMPETITIVE_LANDSCAPE.md",
     "IMPLEMENTATION_PLAN.md",
-    "SEED_STORE_NOTES.md"
+    "PACKAGE_CONTRACTS.md",
+    "PHASE_0_REVIEW.md",
+    "PLAN_ACCEPTANCE.md",
+    "SEED_STORE_NOTES.md",
+    "docs/adr/0001-split-store-representative-publishing-by-field-risk.md",
+    "docs/adr/0002-qr-partner-invitations-start-onboarding-not-authorization.md",
+    "docs/adr/0003-owner-controlled-pilot-store-draft-with-atomic-approval.md",
+    "docs/adr/0004-start-with-one-react-pwa-and-server-enforced-role-boundaries.md",
+    "docs/adr/0005-host-free-first-on-cloudflare-pages-and-supabase.md",
+    "docs/design/README.md",
+    "docs/design/antique-trail-flow-lab.html"
   ],
-  "purpose": "Codex-ready product, security, research, and implementation context"
+  "purpose": "Approved product, design, security, architecture, and implementation context"
 }
