@@ -10,7 +10,7 @@ describe('app shell', () => {
         <App />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('heading', { name: /find your next treasure/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /browse stores/i })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument()
   })
 })

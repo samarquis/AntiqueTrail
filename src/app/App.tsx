@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { Link, Route, Routes } from 'react-router-dom'
+import { Link, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { CatalogBrowserPage, CatalogDetailsPage, demoCatalogClient } from '../features/catalog'
 
 function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -19,25 +20,14 @@ function AppShell({ children }: { children: ReactNode }) {
   )
 }
 
-function StoreBrowserPlaceholder() {
-  return (
-    <section className="page-card" aria-labelledby="browser-heading">
-      <p className="eyebrow">Explore nearby</p>
-      <h1 id="browser-heading">Find your next treasure</h1>
-      <p className="lede">Store browsing is coming online. Check back soon for the Synthetic Store catalog.</p>
-    </section>
-  )
+function StoreBrowser() {
+  const location = useLocation()
+  return <CatalogBrowserPage client={demoCatalogClient} initialSearch={location.search} />
 }
 
-function StoreDetailsPlaceholder() {
-  return (
-    <section className="page-card" aria-labelledby="details-heading">
-      <p className="eyebrow">Store details</p>
-      <h1 id="details-heading">This store is not available yet</h1>
-      <p className="lede">The requested store could not be found in the current catalog.</p>
-      <Link className="button" to="/stores">Return to stores</Link>
-    </section>
-  )
+function StoreDetails() {
+  const { slug = '' } = useParams()
+  return <CatalogDetailsPage client={demoCatalogClient} slug={slug} />
 }
 
 function NotFound() {
@@ -53,8 +43,8 @@ export default function App() {
   return (
     <AppShell>
       <Routes>
-        <Route path="/stores" element={<StoreBrowserPlaceholder />} />
-        <Route path="/stores/:slug" element={<StoreDetailsPlaceholder />} />
+        <Route path="/stores" element={<StoreBrowser />} />
+        <Route path="/stores/:slug" element={<StoreDetails />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>
