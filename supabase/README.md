@@ -11,6 +11,8 @@ Package 2A identity state lives in the private `app_private` schema. `profiles`,
 
 Package 2B adds provider-neutral admission receipts, quarantine state, export/deletion jobs, deletion receipts, and notification/revocation outboxes in the same private schema. Only token hashes/HMACs and content-free lifecycle metadata are persisted; provider calls and delivery are separate gated jobs.
 
+Package 3 shopper-private rows live in the non-API `shopper_private` schema. Saves, memories, last-seen, dismissals, and correction reports require the authenticated owner’s active application session; correction case events are service-only and append-only.
+
 With Docker and the Supabase CLI installed:
 
 ```text
