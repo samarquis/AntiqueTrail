@@ -1,6 +1,7 @@
-export * from './types';
-export * from './query';
-export * from './catalogApi';
-export * from './demoClient';
-export * from './components';
-export { BrowsePage as CatalogBrowserPage, DetailsPage as CatalogDetailsPage } from './components';
+export * from './types'
+export * from './query'
+export * from './catalogApi'
+export * from './demoClient'
+export * from './components'
+export * from './supabaseClient'
+export { BrowsePage as CatalogBrowserPage, DetailsPage as CatalogDetailsPage } from './components'

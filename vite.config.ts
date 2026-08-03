@@ -16,7 +16,9 @@ export default defineConfig({
         background_color: '#f7f4ee',
         display: 'standalone',
         start_url: '/stores',
-        icons: [{ src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
+        icons: [
+          { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
+        ],
       },
     }),
   ],

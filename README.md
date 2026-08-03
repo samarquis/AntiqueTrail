@@ -1,6 +1,18 @@
 # Antique Trail — Codex Handoff
 
-This repository contains the approved product, design, security, architecture, and implementation baseline for Antique Trail. Planning work is active; application coding remains held until Scott gives a separate explicit start instruction.
+This repository contains the approved product, design, security, architecture, and implementation baseline for Antique Trail plus the first local Synthetic Store application slice.
+
+## Run the local Synthetic Store journey
+
+```bash
+npm ci
+npm run check
+npm run dev
+```
+
+Open `http://127.0.0.1:4173/stores`. With no environment file, the app uses the deterministic 12-store fictional catalog so the browser journey is reproducible without external services. To exercise the bounded Supabase RPC transport, copy `.env.example` to `.env.local`, set the local anonymous key, and run `npx supabase@2.33.9 start` followed by `npx supabase@2.33.9 db reset`.
+
+Focused commands are `npm run typecheck`, `npm run lint`, `npm run format`, `npm run test`, `npm run test:e2e`, and `npm run build`. Browser tests install Chromium with `npx playwright install --with-deps chromium` when needed. Database tests require a Docker-compatible runtime and the Supabase CLI; they intentionally fail rather than silently skip when that runtime is unavailable.
 
 ## Start here
 
