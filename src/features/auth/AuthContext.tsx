@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { InMemoryAuthStore, InMemorySessionRegistry, unavailableAuthProvider } from './authClient'
 import type { AuthProviderAdapter, AuthSession, AuthStore, SessionRegistryClient } from './types'
 
@@ -12,8 +12,8 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({
   children,
-  authStore = new InMemoryAuthStore(),
-  registry = new InMemorySessionRegistry(),
+  authStore,
+  registry,
   provider = unavailableAuthProvider,
 }: {
   children: ReactNode
@@ -21,26 +21,30 @@ export function AuthProvider({
   registry?: SessionRegistryClient
   provider?: AuthProviderAdapter
 }) {
-  const [session, setSession] = useState<AuthSession | null>(() => authStore.getSession())
+  const authStoreRef = useRef<AuthStore>(authStore ?? new InMemoryAuthStore())
+  const registryRef = useRef<SessionRegistryClient>(registry ?? new InMemorySessionRegistry())
+  const resolvedStore = authStoreRef.current
+  const resolvedRegistry = registryRef.current
+  const [session, setSession] = useState<AuthSession | null>(() => resolvedStore.getSession())
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
       async signIn(next) {
-        authStore.setSession(next)
-        await registry.registerCurrentSession(next)
+        resolvedStore.setSession(next)
+        await resolvedRegistry.registerCurrentSession(next)
         setSession(next)
       },
       async signOut() {
-        const current = authStore.getSession()
+        const current = resolvedStore.getSession()
         if (current) {
           await provider.signOut(current)
-          await registry.revoke(current, 'user_sign_out')
+          await resolvedRegistry.revoke(current, 'user_sign_out')
         }
-        authStore.clearSession()
+        resolvedStore.clearSession()
         setSession(null)
       },
     }),
-    [authStore, provider, registry, session],
+    [provider, resolvedRegistry, resolvedStore, session],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

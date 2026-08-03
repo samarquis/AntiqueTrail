@@ -67,9 +67,19 @@ export default function App() {
           <Route path="/stores" element={<StoreBrowser />} />
           <Route path="/stores/:slug" element={<StoreDetails />} />
           <Route path="/auth/sign-in" element={<SignInPage provider={unavailableAuthProvider} />} />
-          <Route path="/auth/recovery" element={<RecoveryPage provider={unavailableAuthProvider} />} />
+          <Route
+            path="/auth/recovery"
+            element={<RecoveryPage provider={unavailableAuthProvider} />}
+          />
           <Route path="/auth/mfa" element={<MfaPage provider={unavailableAuthProvider} />} />
-          <Route path="/account/*" element={<RequireSession><AccountPlaceholder /></RequireSession>} />
+          <Route
+            path="/account/*"
+            element={
+              <RequireSession>
+                <AccountPlaceholder />
+              </RequireSession>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppShell>

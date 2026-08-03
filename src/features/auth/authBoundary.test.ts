@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { authorizeRoute, genericAuthFailure, isSessionActive, parseAuthCallback, scrubCallbackUrl } from './authBoundary'
+import {
+  authorizeRoute,
+  genericAuthFailure,
+  isSessionActive,
+  parseAuthCallback,
+  scrubCallbackUrl,
+} from './authBoundary'
 
-const activeShopper = { state: 'active' as const, accountState: 'active' as const, role: 'shopper' as const, sessionEpoch: 2, currentEpoch: 2 }
+const activeShopper = {
+  state: 'active' as const,
+  accountState: 'active' as const,
+  role: 'shopper' as const,
+  sessionEpoch: 2,
+  currentEpoch: 2,
+}
 
 describe('auth route boundary', () => {
   it('allows anonymous catalog browsing but fails private routes closed', () => {
@@ -22,8 +34,14 @@ describe('auth route boundary', () => {
 
 describe('callback and failure privacy boundaries', () => {
   it('accepts only verify/recovery callback types and keeps bearer in memory', () => {
-    expect(parseAuthCallback('#token_hash=abc123&type=verify')).toEqual({ kind: 'verify', tokenHash: 'abc123' })
-    expect(parseAuthCallback('#token_hash=abc123&type=recovery')).toEqual({ kind: 'recovery', tokenHash: 'abc123' })
+    expect(parseAuthCallback('#token_hash=abc123&type=verify')).toEqual({
+      kind: 'verify',
+      tokenHash: 'abc123',
+    })
+    expect(parseAuthCallback('#token_hash=abc123&type=recovery')).toEqual({
+      kind: 'recovery',
+      tokenHash: 'abc123',
+    })
     expect(parseAuthCallback('#token_hash=abc123&type=signup')).toBeNull()
     expect(scrubCallbackUrl()).toBe('/auth/verify')
     expect(scrubCallbackUrl('recovery')).toBe('/auth/recovery')
