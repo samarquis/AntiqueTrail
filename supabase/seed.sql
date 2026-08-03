@@ -11,7 +11,7 @@ insert into app_public.store_categories (id,slug,label,sort_order) values
  ('00000000-0000-4000-8000-000000000106','flea-market','Flea Market',6);
 
 insert into app_public.stores (id,slug,name,town,state_code,address,area_id,summary,description,phone,website,timezone_name,synthetic,audience,publication_state)
-select id,slug,name,'Topeka','KS',address,'00000000-0000-4000-8000-000000000001',summary,description,phone,website,'America/Chicago',true,'synthetic','active'
+select id::uuid,slug,name,'Topeka','KS',address,'00000000-0000-4000-8000-000000000001'::uuid,summary,description,phone,website,'America/Chicago',true,'synthetic','active'
 from (values
  ('00000000-0000-4000-8000-000000001001','clockwork-cabinet','Clockwork Cabinet','101 Fiction Lane','A warm cabinet of imaginary clocks, brass curios, and storybook finds.','A fictional neighborhood shop for testing the complete Store Browser journey. Every object, description, and image is synthetic.','+1 785 555 0101','https://example.com/antique-trail/clockwork-cabinet'),
  ('00000000-0000-4000-8000-000000001002','prairie-patina','Prairie Patina','202 Make-Believe Avenue','Painted furniture and gentle vintage colors for a slow Saturday browse.','Prairie Patina is a rights-safe fictional store fixture with a calm furniture and home-decor mix.','+1 785 555 0102','https://example.com/antique-trail/prairie-patina'),
