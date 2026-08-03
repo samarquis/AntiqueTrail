@@ -1,8 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
 import { InMemoryAuthStore, toAuthSession } from './authClient'
-import { canAccessOwnedResource, canRequestExport, exportDownloadAllowed, GENERIC_ADMISSION_FAILURE, IdempotencyLedger } from './lifecycleBoundary'
+import {
+  canAccessOwnedResource,
+  canRequestExport,
+  exportDownloadAllowed,
+  GENERIC_ADMISSION_FAILURE,
+  IdempotencyLedger,
+} from './lifecycleBoundary'
 
-const session = toAuthSession({ userId: 'owner-1', accessToken: 'memory-only', expiresAt: 2_000_000 })
+const session = toAuthSession({
+  userId: 'owner-1',
+  accessToken: 'memory-only',
+  expiresAt: 2_000_000,
+})
 
 describe('account lifecycle privacy boundary', () => {
   it('isolates account-owned resources and requires recent reauthentication for privacy actions', () => {
@@ -34,6 +44,8 @@ describe('lifecycle idempotency boundary', () => {
     expect(ledger.execute('key-1', { owner: 'owner-1' }, operation)).toEqual({ state: 'queued' })
     expect(ledger.execute('key-1', { owner: 'owner-1' }, operation)).toEqual({ state: 'queued' })
     expect(operation).toHaveBeenCalledTimes(1)
-    expect(() => ledger.execute('key-1', { owner: 'owner-2' }, operation)).toThrow('idempotency_mismatch')
+    expect(() => ledger.execute('key-1', { owner: 'owner-2' }, operation)).toThrow(
+      'idempotency_mismatch',
+    )
   })
 })

@@ -1,5 +1,5 @@
 export type AccountLifecycleState = 'active' | 'deletion_scheduled' | 'deleted'
-export type ExportState = 'queued' | 'building' | 'ready' | 'failed' | 'expired'
+export type AccountExportState = 'queued' | 'building' | 'ready' | 'failed' | 'expired'
 
 export interface InactivityWarning {
   daysRemaining: number
@@ -13,7 +13,7 @@ export interface AccountLifecycleSnapshot {
 
 export interface ExportJob {
   id: string
-  state: ExportState
+  state: AccountExportState
   createdAt: string
   expiresAt?: string
 }
