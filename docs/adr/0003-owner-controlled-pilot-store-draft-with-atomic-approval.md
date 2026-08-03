@@ -1,0 +1,3 @@
+# Owner-Controlled Pilot Store Draft with Atomic Approval
+
+After pilot consent, verified email, and MFA, a Pending Partner Identity enters the core listing data into its own Pilot Store Draft. Administrators may verify, comment, return, and approve but cannot silently alter owner-submitted fields; the owner corrects and resubmits. Approval requires MFA, recent authentication, and an exact final preview, then one transaction freezes the approved snapshot and provenance, creates the Pilot Store Record, and grants only its store-scoped Store Representative role. If any step fails, neither the record nor grant exists. This adds a short review loop but preserves owner attestation, prevents partial authorization state, and leaves an auditable source for every initial field.
