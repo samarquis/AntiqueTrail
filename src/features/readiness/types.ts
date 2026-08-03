@@ -159,3 +159,23 @@ export interface SignedReadinessReceipt extends Omit<ReadinessReceipt, 'state'> 
 export interface ReadinessReceiptVerifier {
   verify(receipt: ReadinessReceipt): Promise<boolean>
 }
+
+export interface DurableReadinessStatus {
+  runId: string
+  state: 'frozen' | 'signed' | 'rejected'
+  frozenDigest: string
+  blockers: string[]
+  calculatedAt: string
+  receiptId: string | null
+}
+
+export interface ReadinessSigningChallenge {
+  challengeId: string
+  payloadDigest: string
+  expiresAt: string
+}
+
+export interface DurableReadinessClient {
+  getStatus(runId: string): Promise<DurableReadinessStatus>
+  requestSigningChallenge(runId: string): Promise<ReadinessSigningChallenge>
+}
