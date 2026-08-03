@@ -1,3 +1,4 @@
 export * from './types'
 export * from './partnerClient'
+export * from './partnerApi'
 export * from './components'
