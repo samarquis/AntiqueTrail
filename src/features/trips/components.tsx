@@ -8,7 +8,7 @@ import {
   unavailableTripClient,
   validDwellMinutes,
 } from './tripClient'
-import type { StopPriority, Trip, TripClient, TripStop } from './types'
+import type { StopPriority, Trip, TripClient } from './types'
 
 function TripCard({
   title,

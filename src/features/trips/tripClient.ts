@@ -40,12 +40,11 @@ export const unavailableTripClient: TripClient = {
 }
 
 export function normalizeTripName(value: string): string {
-  return value
-    .normalize('NFKC')
-    .replace(/[\u0000-\u001f\u007f]/gu, ' ')
-    .trim()
-    .replace(/\s+/gu, ' ')
-    .slice(0, 80)
+  const withoutControls = Array.from(value.normalize('NFKC'), (character) => {
+    const code = character.codePointAt(0) ?? 0
+    return code <= 0x1f || code === 0x7f ? ' ' : character
+  }).join('')
+  return withoutControls.trim().replace(/\s+/gu, ' ').slice(0, 80)
 }
 
 export function validDwellMinutes(value: number): boolean {
