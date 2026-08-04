@@ -59,6 +59,7 @@ import {
   type TripClient,
 } from '../features/trips'
 import {
+  AuthoritativeCheckMyDayPage,
   CheckMyDayPage,
   type CheckMyDayProvider,
   type CheckMyDayRequest,
@@ -252,65 +253,27 @@ function TripGoRoute({
   )
 }
 
-function TripCheckMyDayRoute({
-  client,
-  provider,
-  capability,
-}: {
-  client: TripClient
-  provider: CheckMyDayProvider
-  capability: CheckMyDayRequest['capability']
-}) {
+function TripCheckMyDayRoute({ client }: { client: TripClient }) {
   const { tripId = '' } = useParams()
-  const [request, setRequest] = useState<CheckMyDayRequest | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    client
-      .get(tripId)
-      .then((trip) => {
-        if (
-          cancelled ||
-          !trip?.origin ||
-          trip.departureMinute == null ||
-          trip.stops.some((stop) => !stop.coordinate)
-        )
-          return
-        setRequest({
-          capability,
-          providerContract: { version: 'v1', maxRequests: 1, maxCostUnits: 1, timeoutMs: 8_000 },
-          origin: trip.origin,
-          returnCoordinate: trip.returnCoordinate,
-          departureMinute: trip.departureMinute,
-          transitionMinutes: trip.transitionMinutes ?? 10,
-          maxDriveMiles: trip.maxDriveMiles,
-          maxTotalMinutes: trip.maxTotalMinutes,
-          stops: trip.stops.map((stop, originalIndex) => ({
-            id: stop.id,
-            name: stop.label,
-            coordinate: stop.coordinate!,
-            kind: stop.kind,
-            priority: stop.priority,
-            dwellMinutes: stop.plannedDwellMinutes,
-            originalIndex,
-            hours: stop.hours,
-          })),
-        })
-      })
-      .catch(() => undefined)
-    return () => {
-      cancelled = true
-    }
-  }, [capability, client, tripId])
   const persist = async (choice: 'suggested' | 'manual', stopIds: string[]) => {
     if (!client.saveCheckMyDayChoice) throw new Error('Trip choice persistence is unavailable.')
     await client.saveCheckMyDayChoice(tripId, choice, stopIds)
   }
+  if (!client.requestCheckMyDay || !client.getCheckMyDaySuggestion)
+    return <CheckMyDayPage request={null} provider={blockedCheckMyDayProvider} />
   return (
-    <CheckMyDayPage
-      request={request}
-      provider={provider}
+    <AuthoritativeCheckMyDayPage
+      requestServer={() => client.requestCheckMyDay!(tripId)}
+      pollServer={(requestId) => client.getCheckMyDaySuggestion!(requestId)}
       onUseSuggestedOrder={(ids) => persist('suggested', ids)}
-      onKeepMyOrder={(ids) => persist('manual', ids)}
+      onKeepMyOrder={async () => {
+        const trip = await client.get(tripId)
+        if (trip)
+          await persist(
+            'manual',
+            trip.stops.map((stop) => stop.id),
+          )
+      }}
     />
   )
 }
@@ -648,11 +611,7 @@ export default function App({
             path="/trips/:tripId/check-my-day"
             element={
               <GuardedTrips>
-                <TripCheckMyDayRoute
-                  client={tripClient}
-                  provider={clients.routing?.provider ?? blockedCheckMyDayProvider}
-                  capability={clients.routing?.capability ?? 'blocked'}
-                />
+                <TripCheckMyDayRoute client={tripClient} />
               </GuardedTrips>
             }
           />

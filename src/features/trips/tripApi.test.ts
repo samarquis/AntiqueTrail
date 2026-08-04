@@ -165,6 +165,38 @@ describe('implicit-actor TripClient transport', () => {
     ])
   })
 
+  it('covers private planning, observed-closed, completion, and visit memory commands', async () => {
+    const wire = transport(trip)
+    const api = createTripApi(wire)
+    await api.setStart?.('trip-1', { kind: 'manual', label: 'Home', departureMinute: 540 })
+    await api.setReturn?.('trip-1', { label: 'Home' })
+    await api.setLimits?.('trip-1', { maxDriveMiles: 80, maxTotalMinutes: 600 })
+    await api.addRestStop?.('trip-1', {
+      label: 'Lunch',
+      address: '123 Main St',
+      priority: 'flexible',
+      plannedDwellMinutes: 45,
+    })
+    await api.markObservedClosed?.('trip-1', 'stop-1')
+    await api.restoreStop?.('trip-1', 'stop-1')
+    await api.completeTrip?.('trip-1')
+    await api.saveVisitMemory?.('trip-1', 'store-1', {
+      rating: 5,
+      returnChoice: 'yes',
+      note: 'Great booths.',
+    })
+    expect(wire.invoke.mock.calls.map(([command]) => command)).toEqual([
+      'set_trip_start',
+      'set_trip_return',
+      'set_trip_limits',
+      'add_rest_stop',
+      'mark_trip_stop_closed',
+      'restore_trip_stop',
+      'complete_trip',
+      'save_trip_visit_memory',
+    ])
+  })
+
   it('normalizes transport, malformed-response, and local-validation failures reason-neutrally', async () => {
     const denied: TripTransport = {
       async invoke() {

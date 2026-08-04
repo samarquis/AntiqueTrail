@@ -54,7 +54,10 @@ export interface TripOfflineRuntime {
   queueMutation?(
     accountId: string,
     trip: Trip,
-    action: { kind: 'mark_arrived' | 'complete_stop' | 'skip_stop'; stopId: string },
+    action: {
+      kind: 'mark_arrived' | 'complete_stop' | 'skip_stop' | 'mark_observed_closed' | 'restore_stop'
+      stopId: string
+    },
   ): Promise<OfflineQueueSnapshot>
   replay?(accountId: string, tripId: string, client: TripClient): Promise<OfflineReplayResult>
   prepareSignOut(
@@ -127,7 +130,9 @@ export function createTripOfflineRuntime(
           if (
             mutation.kind !== 'mark_arrived' &&
             mutation.kind !== 'complete_stop' &&
-            mutation.kind !== 'skip_stop'
+            mutation.kind !== 'skip_stop' &&
+            mutation.kind !== 'mark_observed_closed' &&
+            mutation.kind !== 'restore_stop'
           )
             return { state: 'conflict', summary: 'The offline action is no longer supported.' }
           if (client.replayOfflineMutation)
@@ -139,7 +144,9 @@ export function createTripOfflineRuntime(
                 ? await client.completeStop(tripId, stopId)
                 : mutation.kind === 'skip_stop'
                   ? await client.skipStop(tripId, stopId)
-                  : null
+                  : mutation.kind === 'mark_observed_closed'
+                    ? await client.markObservedClosed?.(tripId, stopId)
+                    : await client.restoreStop?.(tripId, stopId)
           return next
             ? { state: 'accepted', trip: next }
             : { state: 'conflict', summary: 'The offline action is no longer supported.' }

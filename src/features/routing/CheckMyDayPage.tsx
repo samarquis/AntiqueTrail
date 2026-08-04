@@ -7,6 +7,66 @@ import {
   type CheckMyDayRequest,
 } from './checkMyDay'
 import { ROUTING_BLOCKED_MESSAGE } from './boundary'
+import type { CheckMyDayServerResult } from '../trips'
+
+export function AuthoritativeCheckMyDayPage({
+  requestServer,
+  pollServer,
+  onUseSuggestedOrder,
+  onKeepMyOrder,
+}: {
+  requestServer: () => Promise<CheckMyDayServerResult>
+  pollServer: (requestId: string) => Promise<CheckMyDayServerResult>
+  onUseSuggestedOrder?: (stopIds: string[]) => void | Promise<void>
+  onKeepMyOrder?: () => void | Promise<void>
+}) {
+  const [result, setResult] = useState<CheckMyDayServerResult | null>(null)
+  const [pending, setPending] = useState(false)
+  async function run() {
+    setPending(true)
+    try {
+      let next = await requestServer()
+      for (
+        let attempt = 0;
+        attempt < 3 && (next.state === 'ready' || next.state === 'running');
+        attempt += 1
+      ) {
+        next = await pollServer(next.requestId)
+      }
+      setResult(next)
+    } finally {
+      setPending(false)
+    }
+  }
+  return (
+    <main>
+      <section className="page-card" aria-labelledby="authoritative-check-my-day-heading">
+        <h1 id="authoritative-check-my-day-heading">Check My Day</h1>
+        <p>Antique Trail sends only the server-approved trip coordinates after you ask.</p>
+        <button className="button" type="button" disabled={pending} onClick={() => void run()}>
+          {pending ? 'Checking…' : 'Check My Day'}
+        </button>
+        {result?.state === 'blocked' && <p role="status">{ROUTING_BLOCKED_MESSAGE}</p>}
+        {(result?.state === 'ready' || result?.state === 'running') && (
+          <p role="status">Preparing your suggestion…</p>
+        )}
+        {result?.state === 'failed' && (
+          <p role="status">The trip changed. Your manual order is unchanged.</p>
+        )}
+        {result?.state === 'suggested' && result.orderedStopIds && (
+          <section aria-labelledby="authoritative-suggestion-heading">
+            <h2 id="authoritative-suggestion-heading">Suggested order</h2>
+            <ul>{result.explanation?.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+            <CheckMyDayChoice
+              onUseSuggested={() => onUseSuggestedOrder?.(result.orderedStopIds!)}
+              onKeepOrder={() => onKeepMyOrder?.()}
+            />
+          </section>
+        )}
+      </section>
+    </main>
+  )
+}
 
 export function CheckMyDayPage({
   request,

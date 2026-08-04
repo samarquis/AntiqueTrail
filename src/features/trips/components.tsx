@@ -557,19 +557,74 @@ export function GoPage({
                 >
                   Skip
                 </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    client
+                      .markObservedClosed?.(trip.id, stop.id)
+                      .then(setTrip)
+                      .catch(() => setError(true))
+                  }
+                >
+                  Store is closed
+                </button>
               </>
             )}
             {stop.state === 'arrived' && isNavigator && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void mutate('complete_stop', client.completeStop, stop.id)}
+                >
+                  Done
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    client
+                      .markObservedClosed?.(trip.id, stop.id)
+                      .then(setTrip)
+                      .catch(() => setError(true))
+                  }
+                >
+                  Store is closed
+                </button>
+              </>
+            )}
+            {stop.state === 'observed_closed' && isNavigator && (
               <button
                 type="button"
-                onClick={() => void mutate('complete_stop', client.completeStop, stop.id)}
+                onClick={() =>
+                  client
+                    .restoreStop?.(trip.id, stop.id)
+                    .then(setTrip)
+                    .catch(() => setError(true))
+                }
               >
-                Done
+                Restore stop
               </button>
             )}
           </li>
         ))}
       </ol>
+      {isNavigator &&
+        trip.state === 'active' &&
+        trip.stops.every((stop) =>
+          ['completed', 'skipped', 'observed_closed'].includes(stop.state),
+        ) && (
+          <button
+            className="button"
+            type="button"
+            onClick={() =>
+              client
+                .completeTrip?.(trip.id)
+                .then(setTrip)
+                .catch(() => setError(true))
+            }
+          >
+            Complete trip
+          </button>
+        )}
       {isNavigator && (
         <button
           type="button"

@@ -70,7 +70,7 @@ export interface TripMutationEnvelope {
   baseVersion: number
   deviceId: string
   localSequence: number
-  kind: 'mark_arrived' | 'complete_stop' | 'skip_stop'
+  kind: 'mark_arrived' | 'complete_stop' | 'skip_stop' | 'mark_observed_closed' | 'restore_stop'
   stopId: string
   conflictResolution?: 'phone'
 }
@@ -108,6 +108,43 @@ export interface TripClient {
   markArrived(tripId: string, stopId: string): Promise<Trip>
   completeStop(tripId: string, stopId: string): Promise<Trip>
   skipStop(tripId: string, stopId: string): Promise<Trip>
+  setStart?(
+    tripId: string,
+    input: {
+      kind: 'manual' | 'current_location'
+      label?: string
+      latitude?: number
+      longitude?: number
+      departureMinute: number
+    },
+  ): Promise<Trip>
+  setReturn?(
+    tripId: string,
+    input: { label?: string; latitude?: number; longitude?: number } | null,
+  ): Promise<Trip>
+  setLimits?(
+    tripId: string,
+    input: { maxDriveMiles?: number; maxTotalMinutes?: number },
+  ): Promise<Trip>
+  addRestStop?(
+    tripId: string,
+    input: {
+      label: string
+      address: string
+      latitude?: number
+      longitude?: number
+      priority: StopPriority
+      plannedDwellMinutes: number
+    },
+  ): Promise<Trip>
+  markObservedClosed?(tripId: string, stopId: string): Promise<Trip>
+  restoreStop?(tripId: string, stopId: string): Promise<Trip>
+  completeTrip?(tripId: string): Promise<Trip>
+  saveVisitMemory?(
+    tripId: string,
+    storeId: string,
+    input: { rating?: number; returnChoice?: 'no' | 'maybe' | 'yes'; note?: string },
+  ): Promise<Trip>
   replayOffline(tripId: string): Promise<Trip>
   replayOfflineMutation?(envelope: TripMutationEnvelope): Promise<TripMutationReplayResult>
   getOfflineQueue(tripId: string): Promise<OfflineQueueSnapshot>

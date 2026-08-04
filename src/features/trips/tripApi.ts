@@ -27,6 +27,14 @@ export type TripApiCommand =
   | 'mark_arrived'
   | 'complete_trip_stop'
   | 'skip_trip_stop'
+  | 'set_trip_start'
+  | 'set_trip_return'
+  | 'set_trip_limits'
+  | 'add_rest_stop'
+  | 'mark_trip_stop_closed'
+  | 'restore_trip_stop'
+  | 'complete_trip'
+  | 'save_trip_visit_memory'
   | 'replay_trip_mutations'
   | 'replay_trip_mutation'
   | 'get_offline_trip_queue'
@@ -390,6 +398,90 @@ export function createTripApi(transport: TripTransport): TripClient {
         parseTrip,
       )
     },
+    setStart(tripId, input) {
+      return execute(
+        'set_trip_start',
+        () => ({
+          trip_id: boundedId(tripId),
+          kind: enumValue(input.kind, new Set(['manual', 'current_location'])),
+          label: input.label == null ? null : boundedLabel(input.label),
+          latitude: input.latitude == null ? null : finite(input.latitude, -90, 90),
+          longitude: input.longitude == null ? null : finite(input.longitude, -180, 180),
+          departure_minute: integer(input.departureMinute, 0, 1439),
+        }),
+        parseTrip,
+      )
+    },
+    setReturn(tripId, input) {
+      return execute(
+        'set_trip_return',
+        () => ({
+          trip_id: boundedId(tripId),
+          clear: input == null,
+          label: input?.label == null ? null : boundedLabel(input.label),
+          latitude: input?.latitude == null ? null : finite(input.latitude, -90, 90),
+          longitude: input?.longitude == null ? null : finite(input.longitude, -180, 180),
+        }),
+        parseTrip,
+      )
+    },
+    setLimits(tripId, input) {
+      return execute(
+        'set_trip_limits',
+        () => ({
+          trip_id: boundedId(tripId),
+          max_drive_miles: input.maxDriveMiles == null ? null : finite(input.maxDriveMiles, 1, 500),
+          max_total_minutes:
+            input.maxTotalMinutes == null ? null : integer(input.maxTotalMinutes, 30, 1440),
+        }),
+        parseTrip,
+      )
+    },
+    addRestStop(tripId, input) {
+      return execute(
+        'add_rest_stop',
+        () => ({
+          trip_id: boundedId(tripId),
+          label: boundedLabel(input.label),
+          address: boundedLabel(input.address),
+          priority: enumValue(input.priority, PRIORITIES),
+          planned_dwell_minutes: integer(input.plannedDwellMinutes, 5, 720),
+          latitude: input.latitude == null ? null : finite(input.latitude, -90, 90),
+          longitude: input.longitude == null ? null : finite(input.longitude, -180, 180),
+        }),
+        parseTrip,
+      )
+    },
+    markObservedClosed(tripId, stopId) {
+      return execute(
+        'mark_trip_stop_closed',
+        () => ({ trip_id: boundedId(tripId), stop_id: boundedId(stopId) }),
+        parseTrip,
+      )
+    },
+    restoreStop(tripId, stopId) {
+      return execute(
+        'restore_trip_stop',
+        () => ({ trip_id: boundedId(tripId), stop_id: boundedId(stopId) }),
+        parseTrip,
+      )
+    },
+    completeTrip(tripId) {
+      return execute('complete_trip', () => ({ trip_id: boundedId(tripId) }), parseTrip)
+    },
+    saveVisitMemory(tripId, storeId, input) {
+      return execute(
+        'save_trip_visit_memory',
+        () => ({
+          trip_id: boundedId(tripId),
+          store_id: boundedId(storeId),
+          rating: input.rating == null ? null : integer(input.rating, 1, 5),
+          return_choice: input.returnChoice ?? null,
+          note: input.note == null ? null : string(input.note.normalize('NFKC').trim(), 2000),
+        }),
+        parseTrip,
+      )
+    },
     replayOffline(tripId) {
       return execute('replay_trip_mutations', () => ({ trip_id: boundedId(tripId) }), parseTrip)
     },
@@ -403,7 +495,16 @@ export function createTripApi(transport: TripTransport): TripClient {
             base_version: integer(envelope.baseVersion, 1),
             device_id: boundedId(envelope.deviceId),
             local_sequence: integer(envelope.localSequence, 1),
-            kind: enumValue(envelope.kind, new Set(['mark_arrived', 'complete_stop', 'skip_stop'])),
+            kind: enumValue(
+              envelope.kind,
+              new Set([
+                'mark_arrived',
+                'complete_stop',
+                'skip_stop',
+                'mark_observed_closed',
+                'restore_stop',
+              ]),
+            ),
             stop_id: boundedId(envelope.stopId),
             ...(envelope.conflictResolution ? { conflict_resolution: 'phone' } : {}),
           },

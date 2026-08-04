@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CheckMyDayPage } from './CheckMyDayPage'
+import { AuthoritativeCheckMyDayPage, CheckMyDayPage } from './CheckMyDayPage'
 import type { CheckMyDayProvider, CheckMyDayRequest } from './checkMyDay'
 
 const request: CheckMyDayRequest = {
@@ -66,5 +66,30 @@ describe('Check My Day page', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/not available yet/i)
     expect(screen.queryByRole('button', { name: /^check my day$/i })).not.toBeInTheDocument()
     expect(provider.getCoordinateMatrix).not.toHaveBeenCalled()
+  })
+
+  it('requests and polls only the authoritative server boundary', async () => {
+    const user = userEvent.setup()
+    const requestServer = vi.fn(async () => ({ requestId: 'request-1', state: 'ready' as const }))
+    const pollServer = vi.fn(async () => ({
+      requestId: 'request-1',
+      state: 'suggested' as const,
+      orderedStopIds: ['oak'],
+      explanation: ['Fits the approved route evidence.'],
+    }))
+    const apply = vi.fn()
+    render(
+      <AuthoritativeCheckMyDayPage
+        requestServer={requestServer}
+        pollServer={pollServer}
+        onUseSuggestedOrder={apply}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /^check my day$/i }))
+    expect(requestServer).toHaveBeenCalledOnce()
+    expect(pollServer).toHaveBeenCalledWith('request-1')
+    expect(await screen.findByText(/fits the approved route evidence/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /use suggested order/i }))
+    expect(apply).toHaveBeenCalledWith(['oak'])
   })
 })
