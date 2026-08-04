@@ -53,6 +53,7 @@ import {
   TripsPage,
   unavailableTripClient,
   createTripOfflineRuntime,
+  installBackgroundPlaintextClearer,
   type TripOfflineGrantSource,
   type TripOfflineRuntime,
   type TripClient,
@@ -351,6 +352,11 @@ export default function App({
     runtime.tripOffline ?? createTripOfflineRuntime(),
   )
   const tripOffline = tripOfflineRef.current
+  const [privacyEpoch, setPrivacyEpoch] = useState(0)
+  useEffect(
+    () => installBackgroundPlaintextClearer(document, () => setPrivacyEpoch((value) => value + 1)),
+    [],
+  )
 
   return (
     <AuthProvider
@@ -363,7 +369,7 @@ export default function App({
       }}
     >
       <TripAccountLifecycle runtime={tripOffline} />
-      <AppShell>
+      <AppShell key={privacyEpoch}>
         <Routes>
           <Route path="/stores" element={<StoreBrowser />} />
           <Route path="/stores/:slug" element={<StoreDetails />} />

@@ -33,16 +33,30 @@ export function AuthProvider({
     () => ({
       session,
       async signIn(next) {
-        resolvedStore.setSession(next)
         await resolvedRegistry.registerCurrentSession(next)
+        resolvedStore.setSession(next)
         setSession(next)
       },
       async signOut() {
         const current = resolvedStore.getSession()
         if (current) {
-          await provider.signOut(current)
-          await onLocalSignOut?.(current)
-          await resolvedRegistry.revoke(current, 'user_sign_out')
+          try {
+            await onLocalSignOut?.(current)
+          } finally {
+            try {
+              await resolvedRegistry.revoke(current, 'user_sign_out')
+            } finally {
+              resolvedStore.clearSession()
+              setSession(null)
+            }
+          }
+          // Provider logout is best-effort after the application has become locally signed out.
+          try {
+            await provider.signOut(current)
+          } catch {
+            // The revoked application session and local purge remain authoritative.
+          }
+          return
         }
         resolvedStore.clearSession()
         setSession(null)

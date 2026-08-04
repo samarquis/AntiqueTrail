@@ -11,6 +11,32 @@ import type { OfflineQueueSnapshot, Trip, TripClient } from './types'
 
 export const DEFAULT_TRIP_INSTALL_ID = 'antique-trail-pwa-install-v1'
 export const GENERIC_OFFLINE_TRIP_ERROR = 'The offline trip could not be prepared safely.'
+export const BACKGROUND_PLAINTEXT_TTL_MS = 15 * 60_000
+
+interface VisibilityTarget {
+  visibilityState: string
+  addEventListener(name: 'visibilitychange', listener: () => void): void
+  removeEventListener(name: 'visibilitychange', listener: () => void): void
+}
+
+/** Clears mounted private trip plaintext after a bounded background interval. */
+export function installBackgroundPlaintextClearer(
+  target: VisibilityTarget,
+  clear: () => void,
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const changed = () => {
+    if (timer) clearTimeout(timer)
+    timer = undefined
+    if (target.visibilityState === 'hidden') timer = setTimeout(clear, BACKGROUND_PLAINTEXT_TTL_MS)
+  }
+  target.addEventListener('visibilitychange', changed)
+  changed()
+  return () => {
+    if (timer) clearTimeout(timer)
+    target.removeEventListener('visibilitychange', changed)
+  }
+}
 
 export interface TripOfflineGrantSource {
   startTripWithOfflineGrant(
@@ -98,6 +124,14 @@ export function createTripOfflineRuntime(
         try {
           const stopId = mutation.stopId
           if (!stopId) return { state: 'conflict', summary: 'The offline action is incomplete.' }
+          if (
+            mutation.kind !== 'mark_arrived' &&
+            mutation.kind !== 'complete_stop' &&
+            mutation.kind !== 'skip_stop'
+          )
+            return { state: 'conflict', summary: 'The offline action is no longer supported.' }
+          if (client.replayOfflineMutation)
+            return await client.replayOfflineMutation({ ...mutation, kind: mutation.kind, stopId })
           const next =
             mutation.kind === 'mark_arrived'
               ? await client.markArrived(tripId, stopId)

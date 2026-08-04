@@ -12,6 +12,7 @@ import type {
   TripInvitation,
   TripParticipant,
   TripStop,
+  TripMutationReplayResult,
 } from './types'
 
 export type TripApiCommand =
@@ -26,6 +27,7 @@ export type TripApiCommand =
   | 'complete_trip_stop'
   | 'skip_trip_stop'
   | 'replay_trip_mutations'
+  | 'replay_trip_mutation'
   | 'get_offline_trip_queue'
   | 'queue_offline_trip_action'
   | 'resolve_trip_conflict'
@@ -205,6 +207,14 @@ function parseQueue(value: unknown): OfflineQueueSnapshot {
   }
 }
 
+function parseMutationReplay(value: unknown): TripMutationReplayResult {
+  const source = record(value)
+  const state = enumValue(source.state, new Set(['accepted', 'conflict', 'unauthorized']))
+  if (state === 'unauthorized') return { state } as const
+  if (state === 'conflict') return { state, summary: string(source.summary, 500) } as const
+  return { state: 'accepted', trip: parseTrip(source.trip) }
+}
+
 function boundedId(value: string): string {
   const normalized = value.normalize('NFKC').trim()
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(normalized)) throw genericFailure()
@@ -341,6 +351,24 @@ export function createTripApi(transport: TripTransport): TripClient {
     },
     replayOffline(tripId) {
       return execute('replay_trip_mutations', () => ({ trip_id: boundedId(tripId) }), parseTrip)
+    },
+    replayOfflineMutation(envelope) {
+      return execute(
+        'replay_trip_mutation',
+        () => ({
+          trip_id: boundedId(envelope.tripId),
+          envelope: {
+            idempotency_key: boundedId(envelope.idempotencyKey),
+            base_version: integer(envelope.baseVersion, 1),
+            device_id: boundedId(envelope.deviceId),
+            local_sequence: integer(envelope.localSequence, 1),
+            kind: enumValue(envelope.kind, new Set(['mark_arrived', 'complete_stop', 'skip_stop'])),
+            stop_id: boundedId(envelope.stopId),
+            ...(envelope.conflictResolution ? { conflict_resolution: 'phone' } : {}),
+          },
+        }),
+        parseMutationReplay,
+      )
     },
     getOfflineQueue(tripId) {
       return execute('get_offline_trip_queue', () => ({ trip_id: boundedId(tripId) }), parseQueue)

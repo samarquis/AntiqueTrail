@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import { InMemoryAuthStore, InMemorySessionRegistry, toAuthSession } from './authClient'
+import { describe, expect, it, vi } from 'vitest'
+import {
+  InMemoryAuthStore,
+  InMemorySessionRegistry,
+  createRpcSessionRegistry,
+  toAuthSession,
+} from './authClient'
 
 const providerSession = {
   userId: 'user-1',
@@ -25,5 +30,20 @@ describe('in-memory auth boundary', () => {
     expect(await registry.isActive(session)).toBe(true)
     await registry.revoke(session)
     expect(await registry.isActive(session)).toBe(false)
+  })
+
+  it('uses the server session registry without sending access tokens', async () => {
+    const invoke = vi.fn(async () => true)
+    const registry = createRpcSessionRegistry({ invoke })
+    const session = toAuthSession(providerSession)
+    await registry.registerCurrentSession(session)
+    await expect(registry.isActive(session)).resolves.toBe(true)
+    await registry.revoke(session, 'user_sign_out')
+    expect(invoke.mock.calls).toEqual([
+      ['register_current_session', { access_token_expires_at: session.expiresAt }],
+      ['current_session_is_active', {}],
+      ['revoke_current_session', { reason: 'user_sign_out' }],
+    ])
+    expect(JSON.stringify(invoke.mock.calls)).not.toContain(session.accessToken)
   })
 })

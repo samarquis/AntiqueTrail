@@ -9,7 +9,12 @@ import {
   type Trip,
   type TripOfflineGrantSource,
 } from '../features/trips'
-import type { AccountRole, AuthProviderAdapter, ProviderSession } from '../features/auth'
+import {
+  createRpcSessionRegistry,
+  type AccountRole,
+  type AuthProviderAdapter,
+  type ProviderSession,
+} from '../features/auth'
 
 export interface ConfiguredComposition {
   clients: AppClients
@@ -132,6 +137,13 @@ export async function configuredComposition(): Promise<ConfiguredComposition | n
       return result.data
     },
   })
+  const sessionRegistry = createRpcSessionRegistry({
+    async invoke(command, payload) {
+      const result = await supabase.rpc(command, payload)
+      if (result.error) throw result.error
+      return result.data
+    },
+  })
   const shopper = createShopperClient({
     async rpc(name, args) {
       const result = await supabase.rpc(name, args)
@@ -157,6 +169,10 @@ export async function configuredComposition(): Promise<ConfiguredComposition | n
   }
   return {
     clients: { shopper, trips, tripOfflineGrants: source },
-    runtime: { authProvider: createAuthProvider(supabase), tripOffline: offline.runtime },
+    runtime: {
+      authProvider: createAuthProvider(supabase),
+      sessionRegistry,
+      tripOffline: offline.runtime,
+    },
   }
 }

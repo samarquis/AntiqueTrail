@@ -64,6 +64,22 @@ export interface TripCollaboration {
   invitation?: TripInvitation
 }
 
+export interface TripMutationEnvelope {
+  tripId: string
+  idempotencyKey: string
+  baseVersion: number
+  deviceId: string
+  localSequence: number
+  kind: 'mark_arrived' | 'complete_stop' | 'skip_stop'
+  stopId: string
+  conflictResolution?: 'phone'
+}
+
+export type TripMutationReplayResult =
+  | { state: 'accepted'; trip: Trip }
+  | { state: 'conflict'; summary: string }
+  | { state: 'unauthorized' }
+
 export interface TripClient {
   list(): Promise<Trip[]>
   get(id: string): Promise<Trip | null>
@@ -84,6 +100,7 @@ export interface TripClient {
   completeStop(tripId: string, stopId: string): Promise<Trip>
   skipStop(tripId: string, stopId: string): Promise<Trip>
   replayOffline(tripId: string): Promise<Trip>
+  replayOfflineMutation?(envelope: TripMutationEnvelope): Promise<TripMutationReplayResult>
   getOfflineQueue(tripId: string): Promise<OfflineQueueSnapshot>
   queueOfflineAction(
     tripId: string,

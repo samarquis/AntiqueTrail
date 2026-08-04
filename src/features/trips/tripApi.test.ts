@@ -98,6 +98,33 @@ describe('implicit-actor TripClient transport', () => {
     ])
   })
 
+  it('sends the bounded offline mutation envelope to the authoritative replay command', async () => {
+    const wire = transport({ state: 'unauthorized' })
+    const api = createTripApi(wire)
+    await expect(
+      api.replayOfflineMutation?.({
+        tripId: 'trip-1',
+        idempotencyKey: 'device-a:1',
+        baseVersion: 4,
+        deviceId: 'device-a',
+        localSequence: 1,
+        kind: 'mark_arrived',
+        stopId: 'stop-1',
+      }),
+    ).resolves.toEqual({ state: 'unauthorized' })
+    expect(wire.invoke).toHaveBeenCalledWith('replay_trip_mutation', {
+      trip_id: 'trip-1',
+      envelope: {
+        idempotency_key: 'device-a:1',
+        base_version: 4,
+        device_id: 'device-a',
+        local_sequence: 1,
+        kind: 'mark_arrived',
+        stop_id: 'stop-1',
+      },
+    })
+  })
+
   it('covers one-trip invitation and Navigator operations with an implicit current actor', async () => {
     const wire = transport(collaboration)
     const api = createTripApi(wire)

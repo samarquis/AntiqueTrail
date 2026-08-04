@@ -136,4 +136,45 @@ describe('browser trip offline runtime', () => {
     ).resolves.toMatchObject({ state: 'empty', pendingCount: 0, trip: arrived })
     expect(markArrived).toHaveBeenCalledWith(trip.id, 'stop-1')
   })
+
+  it('submits a server-verifiable envelope and purges on typed authorization loss', async () => {
+    const database = new InMemoryOfflineDatabase()
+    const runtime = createTripOfflineRuntime({
+      database,
+      installId: 'install-a',
+      verifier,
+      deviceKeyId: 'device-key-a',
+    })
+    await runtime.start('shopper-a', trip.id, {
+      async startTripWithOfflineGrant() {
+        return { trip, grant: await grant() }
+      },
+    })
+    await runtime.queueMutation?.('shopper-a', trip, {
+      kind: 'mark_arrived',
+      stopId: 'stop-1',
+    })
+    const replayOfflineMutation = vi.fn(async () => ({ state: 'unauthorized' as const }))
+    await expect(
+      runtime.replay?.('shopper-a', trip.id, {
+        ...unavailableTripClient,
+        replayOfflineMutation,
+      }),
+    ).resolves.toEqual({
+      state: 'purged',
+      pendingCount: 0,
+      purgeReason: 'authorization_lost',
+    })
+    expect(replayOfflineMutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tripId: trip.id,
+        deviceId: 'install-a',
+        idempotencyKey: expect.any(String),
+        localSequence: 1,
+        kind: 'mark_arrived',
+        stopId: 'stop-1',
+      }),
+    )
+    await expect(runtime.recover('shopper-a', trip.id)).resolves.toEqual({ state: 'absent' })
+  })
 })
