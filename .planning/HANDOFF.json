@@ -1,0 +1,103 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-08-04T19:45:55.324Z",
+  "phase": "open-ticket-closure",
+  "phase_name": "Open GitHub ticket closure",
+  "phase_dir": ".planning/phases/open-ticket-closure",
+  "plan": 1,
+  "task": 4,
+  "total_tasks": 6,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Implement agent-actionable package gaps",
+      "status": "done",
+      "commit": "6dd36b1"
+    },
+    {
+      "id": 2,
+      "name": "Run two-axis Matt Pocock review",
+      "status": "done",
+      "commit": "6dd36b1"
+    },
+    {
+      "id": 3,
+      "name": "Resolve standards and PRD regression findings",
+      "status": "done",
+      "commit": "05d8077"
+    },
+    {
+      "id": 4,
+      "name": "Final whole-tree verification",
+      "status": "in_progress",
+      "progress": "Full npm check was green at 51/280 app tests and 24 release tests before the final three regression commits. Those commits passed focused typecheck, lint, 31 catalog/App tests, 46 trip tests, 18 auth/export tests, SQL parsing, and diff checks. A final whole-tree npm check and all-SQL parse remain."
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 4,
+      "name": "Run final npm check, parse every migration/pgTAP file, and inspect clean status",
+      "status": "in_progress"
+    },
+    {
+      "id": 5,
+      "name": "Push main and watch GitHub database/CI workflows to completion",
+      "status": "not_started"
+    },
+    {
+      "id": 6,
+      "name": "Update issue comments/labels and hand off real provider and human evidence gates",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Local pgTAP cannot execute because Docker/Podman is unavailable.",
+      "type": "technical",
+      "workaround": "Push and let GitHub CI run Supabase reset and pgTAP, then repair any migration failures."
+    },
+    {
+      "description": "Provider gates require authenticated Supabase, Cloudflare, routing, email, media, support, and audit-anchor configuration plus real rehearsals.",
+      "type": "external",
+      "workaround": "Keep fail-closed capabilities disabled and tickets open until provider receipts exist."
+    },
+    {
+      "description": "Named Product, Security, HC, legal, insurance, beta, promotion, and RG approvals/evidence do not exist yet.",
+      "type": "human_action",
+      "workaround": "Move code-complete package tickets to ready-for-human and request exact signed evidence without fabricating it."
+    }
+  ],
+  "human_actions_pending": [
+    {
+      "action": "Authenticate/link the intended Supabase and Cloudflare production resources when deployment work resumes.",
+      "context": "No remote Supabase project, Wrangler deployment configuration, GitHub secrets/variables, or environments were verified during this session.",
+      "blocking": true
+    },
+    {
+      "action": "Provide named approvers and real signed gate/provider evidence for H-01, E-01, R-01, M-01, L-01, S-01, HC-01/02, SEC-01, B-01, beta, release, promotion, RG-01, and activation.",
+      "context": "These are intentionally external gates and must not be closed from synthetic/local evidence.",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Keep all external provider/human gates fail closed and open.",
+      "rationale": "Local code and synthetic receipts cannot substitute for real provider state or named human approvals.",
+      "phase": "open-ticket-closure"
+    },
+    {
+      "decision": "Use scheduled H-01 monitoring only with a configuration-safe preflight.",
+      "rationale": "Absent configuration exits successfully without checkout/provider calls or recurring failure email noise.",
+      "phase": "open-ticket-closure"
+    },
+    {
+      "decision": "Resolve public slugs to immutable store IDs and derive privileged sessions from authoritative provider evidence.",
+      "rationale": "URL parameters and mutable registration timestamps cannot authorize private or privileged actions.",
+      "phase": "open-ticket-closure"
+    }
+  ],
+  "uncommitted_files": [],
+  "next_action": "Run npm run check, parse all supabase/migrations and supabase/tests with pglast, verify unique migration versions and a clean tree, then push main and watch GitHub CI through completion.",
+  "context_notes": "The code-level findings for #15, #16, #17, #19, #20, and #29 were implemented through commit 05d8077. Candidate-cleanup workflow remains disabled. H-01 deployment and quota workflows are fail closed/configuration safe. Do not close package tickets until their hosted/provider/human acceptance evidence exists; change ready-for-agent to ready-for-human after CI is green. No background processes are running."
+}
