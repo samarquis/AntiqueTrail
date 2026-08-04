@@ -16,8 +16,7 @@ function client(overrides: Partial<PartnerAdminClient> = {}): PartnerAdminClient
     })),
     decide: vi.fn(async (input) => ({
       claimId: input.claimId,
-      state:
-        input.operation === 'approve' ? ('approved' as const) : ('changes_requested' as const),
+      state: input.operation === 'approve' ? ('approved' as const) : ('changes_requested' as const),
       version: input.expectedVersion + 1,
       exactStoreScope: 'synthetic-store',
     })),
