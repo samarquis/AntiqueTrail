@@ -29,8 +29,8 @@ select ok(position('release_frozen_stores' in lower(pg_get_functiondef(
 select ok(position('target_kind=''trip''' in replace(lower(pg_get_functiondef(
   'rg01_private.support_case_in_scope(uuid,uuid)'::regprocedure)),' ',''))>0
   and position('target_kind=''account''' in replace(lower(pg_get_functiondef(
-  'rg01_private.support_case_in_scope(uuid,uuid)'::regprocedure)),' ',''))>0,
-  'trip and account support cases are included through release-scoped trips');
+  'rg01_private.support_case_in_scope(uuid,uuid)'::regprocedure)),' ',''))=0,
+  'support cases require an exact release-scoped trip rather than broad account ownership');
 select ok(position('regional_release' in lower(pg_get_functiondef(
   'rg01_private.support_case_in_scope(uuid,uuid)'::regprocedure)))>0,
   'general support requires an explicit current-release target');

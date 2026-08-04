@@ -59,6 +59,16 @@ export const syntheticMapPoints: CatalogMapPoint[] = syntheticStores.map((store,
   name: store.name,
   latitude: 39.03 + index * 0.004,
   longitude: -95.72 + index * 0.004,
+  store,
+  rating: 4.2,
+  ratingCount: 12,
+  hoursLabel: '10:00 AM–6:00 PM',
+  openState: 'open',
+  categoryLabel: store.categories[0].label,
+  distanceMiles: 1 + index * 0.4,
+  claimed: index % 2 === 0,
+  saved: null,
+  visited: null,
 }))
 
 export const demoCatalogClient: CatalogClient = {

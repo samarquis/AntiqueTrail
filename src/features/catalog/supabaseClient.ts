@@ -6,7 +6,9 @@ import type { CatalogClient } from './types'
  * present. Production catalog traffic goes through the abuse-controlled Edge
  * gateway; the browser never receives execution rights on catalog RPCs.
  */
-export function configuredCatalogClient(): CatalogClient | null {
+export function configuredCatalogClient(
+  currentAccessToken: () => string | null = () => null,
+): CatalogClient | null {
   const url = import.meta.env.VITE_SUPABASE_URL
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   if (!url || !anonKey || anonKey.startsWith('replace-with-')) return null
@@ -18,7 +20,7 @@ export function configuredCatalogClient(): CatalogClient | null {
           ? 'list'
           : name === 'catalog_details'
             ? 'details'
-            : name === 'get_browse_map'
+            : name === 'get_browse_map_v2'
               ? 'map'
               : null
       if (!operation) return { data: null, error: { code: 'INVALID_OPERATION' } }
@@ -26,7 +28,7 @@ export function configuredCatalogClient(): CatalogClient | null {
         const response = await fetch(`${url}/functions/v1/public-catalog`, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${anonKey}`,
+            Authorization: `Bearer ${currentAccessToken() ?? anonKey}`,
             apikey: anonKey,
             'Content-Type': 'application/json',
           },

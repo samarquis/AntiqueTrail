@@ -17,10 +17,21 @@ export function normalizeQueryParams(input: URLSearchParams | string): CatalogFi
   const q = removeControlCharacters(trimUnicode(params.get('q') ?? '')).slice(0, MAX_QUERY_LENGTH)
   const category = trimUnicode(params.get('category') ?? '').toLowerCase()
   const area = trimUnicode(params.get('area') ?? '').toLowerCase()
+  const visited = params.get('visited')
+  const distance = Number(params.get('distance'))
+  const state = trimUnicode(params.get('state') ?? '').toUpperCase()
   return {
     ...(q ? { q } : {}),
     ...(category && SLUG_RE.test(category) ? { category } : {}),
     ...(area && SLUG_RE.test(area) ? { area } : {}),
+    ...(params.get('openNow') === '1' ? { openNow: true } : {}),
+    ...(visited === 'visited' || visited === 'unvisited' ? { visited } : {}),
+    ...(params.get('saved') === '1' ? { saved: true } : {}),
+    ...(params.get('claimed') === '1' ? { claimed: true } : {}),
+    ...(Number.isFinite(distance) && distance >= 1 && distance <= 500
+      ? { maxAreaCentroidMiles: distance }
+      : {}),
+    ...(state.match(/^[A-Z]{2}$/) ? { state } : {}),
   }
 }
 
@@ -29,6 +40,12 @@ export function queryParams(filters: CatalogFilters): URLSearchParams {
   if (filters.q) result.set('q', trimUnicode(filters.q).slice(0, MAX_QUERY_LENGTH))
   if (filters.category && SLUG_RE.test(filters.category)) result.set('category', filters.category)
   if (filters.area && SLUG_RE.test(filters.area)) result.set('area', filters.area)
+  if (filters.openNow) result.set('openNow', '1')
+  if (filters.visited) result.set('visited', filters.visited)
+  if (filters.saved) result.set('saved', '1')
+  if (filters.claimed) result.set('claimed', '1')
+  if (filters.maxAreaCentroidMiles) result.set('distance', String(filters.maxAreaCentroidMiles))
+  if (filters.state?.match(/^[A-Z]{2}$/)) result.set('state', filters.state)
   return result
 }
 

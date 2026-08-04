@@ -3,10 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
 declare const Deno: {
   env: { get(name: string): string | undefined }
   serve(
-    handler: (
-      request: Request,
-      info: { remoteAddr?: { hostname?: string } },
-    ) => Promise<Response>,
+    handler: (request: Request, info: { remoteAddr?: { hostname?: string } }) => Promise<Response>,
   ): void
 }
 
@@ -49,6 +46,17 @@ Deno.serve(async (request, connection) => {
     db: { schema: 'app_public' },
     auth: { persistSession: false, autoRefreshToken: false },
   })
+  const authorization = request.headers.get('authorization')
+  const bearer = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]
+  const actor =
+    body.operation === 'map' && bearer
+      ? (await client.auth.getUser(bearer)).data.user?.id
+      : undefined
+  // The actor binding is derived from a provider-verified token. A caller can
+  // never inject another shopper id into saved/visited map filters.
+  const safeArgs = { ...(body.args ?? {}) }
+  delete safeArgs.p_actor_user_id
+  if (body.operation === 'map' && actor) safeArgs.p_actor_user_id = actor
   const digest = await crypto.subtle.digest(
     'SHA-256',
     new TextEncoder().encode(`${rateSalt}|${platformAddress}`),
@@ -59,7 +67,7 @@ Deno.serve(async (request, connection) => {
   const result = await client.rpc('public_catalog_gateway_request', {
     p_key_hash: keyHash,
     p_operation: body.operation,
-    p_args: body.args ?? {},
+    p_args: safeArgs,
   })
   if (result.error?.message?.includes('catalog_rate_limited'))
     return Response.json(

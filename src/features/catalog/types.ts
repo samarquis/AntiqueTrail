@@ -37,6 +37,12 @@ export interface CatalogFilters {
   q?: string
   category?: string
   area?: string
+  openNow?: boolean
+  visited?: 'visited' | 'unvisited'
+  saved?: boolean
+  claimed?: boolean
+  maxAreaCentroidMiles?: number
+  state?: string
 }
 
 export interface CatalogListResult {
@@ -57,7 +63,23 @@ export interface CatalogMapPoint {
   name: string
   latitude: number
   longitude: number
+  store: CatalogStore
+  rating: number | null
+  ratingCount: number
+  hoursLabel: string
+  openState: CatalogHoursStatus
+  categoryLabel: string
+  distanceMiles: number
+  claimed: boolean
+  saved: boolean | null
+  visited: boolean | null
 }
+
+/** Public coordinates are the only data handed to the map provider adapter. */
+export type CatalogProviderMapPoint = Pick<
+  CatalogMapPoint,
+  'storeId' | 'slug' | 'name' | 'latitude' | 'longitude'
+>
 
 export interface CatalogMapResult {
   points: CatalogMapPoint[]
@@ -72,12 +94,15 @@ export interface CatalogMapCluster {
 }
 
 export interface CatalogMapRenderInput {
-  points: CatalogMapPoint[]
+  points: CatalogProviderMapPoint[]
   searchedBounds: CatalogMapBounds
   pendingBounds: CatalogMapBounds
+  searchedZoom: number
+  pendingZoom: number
   selectedStoreId?: string
   previewStore?: CatalogStore
   onBoundsChange: (bounds: CatalogMapBounds) => void
+  onZoomChange: (zoom: number) => void
   onClusterZoom: (cluster: CatalogMapCluster) => void
   onPreview: (storeId: string) => void
   onSelect: (storeId: string) => void
@@ -86,7 +111,9 @@ export interface CatalogMapRenderInput {
 export interface CatalogMapAdapter {
   capability: CatalogMapCapability
   bounds?: CatalogMapBounds
+  zoom?: number
   attribution?: string
+  navigationHref?: (point: CatalogProviderMapPoint) => string
   render?: (input: CatalogMapRenderInput) => import('react').ReactNode
 }
 
@@ -101,5 +128,5 @@ export interface CatalogError {
 export interface CatalogClient {
   list(filters: CatalogFilters): Promise<CatalogListResult>
   details(slug: string): Promise<CatalogStore | null>
-  map?(filters: CatalogFilters, bounds: CatalogMapBounds): Promise<CatalogMapResult>
+  map?(filters: CatalogFilters, bounds: CatalogMapBounds, zoom: number): Promise<CatalogMapResult>
 }

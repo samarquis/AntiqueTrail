@@ -13,6 +13,23 @@ describe('catalog query normalization', () => {
     expect(filters.q).toHaveLength(100)
     expect(canonicalQueryString(filters)).toBe(`?q=${'x'.repeat(100)}&area=topeka-ks`)
   })
+
+  it('round-trips the complete server-side map filter set', () => {
+    const filters = normalizeQueryParams(
+      '?openNow=1&visited=unvisited&saved=1&claimed=1&distance=25&state=ks',
+    )
+    expect(filters).toEqual({
+      openNow: true,
+      visited: 'unvisited',
+      saved: true,
+      claimed: true,
+      maxAreaCentroidMiles: 25,
+      state: 'KS',
+    })
+    expect(canonicalQueryString(filters)).toBe(
+      '?openNow=1&visited=unvisited&saved=1&claimed=1&distance=25&state=KS',
+    )
+  })
 })
 
 describe('hours formatter', () => {

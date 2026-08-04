@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import {
   CatalogBrowserPage,
   CatalogDetailsPage,
   configuredCatalogClient,
   demoCatalogClient,
+  type CatalogClient,
 } from '../features/catalog'
 import {
   AuthProvider,
@@ -111,7 +112,6 @@ import {
   unavailableReviewClient,
 } from '../features/reviews'
 
-const catalogClient = configuredCatalogClient() ?? demoCatalogClient
 // The current provider-neutral shell has no privileged session source. Keep the
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
 const unavailableAlphaAccount = null
@@ -145,11 +145,27 @@ function AppShell({ children }: { children: ReactNode }) {
   )
 }
 
-function StoreBrowser({ shopperClient }: { shopperClient: ShopperPrivateClient }) {
+function useCatalogClient(override?: CatalogClient) {
+  const { session } = useAuth()
+  return useMemo(
+    () =>
+      override ?? configuredCatalogClient(() => session?.accessToken ?? null) ?? demoCatalogClient,
+    [override, session?.accessToken],
+  )
+}
+
+function StoreBrowser({
+  shopperClient,
+  catalog,
+}: {
+  shopperClient: ShopperPrivateClient
+  catalog?: CatalogClient
+}) {
   const location = useLocation()
+  const client = useCatalogClient(catalog)
   return (
     <CatalogBrowserPage
-      client={catalogClient}
+      client={client}
       initialSearch={location.search}
       renderPrivateActions={(store) => (
         <CatalogPrivateActions storeId={store.id} slug={store.slug} client={shopperClient} />
@@ -158,11 +174,18 @@ function StoreBrowser({ shopperClient }: { shopperClient: ShopperPrivateClient }
   )
 }
 
-function StoreDetails({ shopperClient }: { shopperClient: ShopperPrivateClient }) {
+function StoreDetails({
+  shopperClient,
+  catalog,
+}: {
+  shopperClient: ShopperPrivateClient
+  catalog?: CatalogClient
+}) {
   const { slug = '' } = useParams()
+  const client = useCatalogClient(catalog)
   return (
     <CatalogDetailsPage
-      client={catalogClient}
+      client={client}
       slug={slug}
       renderPrivateActions={(store) => (
         <CatalogPrivateActions storeId={store.id} slug={store.slug} client={shopperClient} />
@@ -173,19 +196,22 @@ function StoreDetails({ shopperClient }: { shopperClient: ShopperPrivateClient }
 
 function ResolvedStorePrivateRoute({
   shopperClient,
+  catalog,
   action,
 }: {
   shopperClient: ShopperPrivateClient
+  catalog?: CatalogClient
   action: 'memory' | 'correction'
 }) {
   const { slug = '' } = useParams()
+  const client = useCatalogClient(catalog)
   const [state, setState] = useState<
     { kind: 'loading' } | { kind: 'ready'; storeId: string } | { kind: 'unavailable' }
   >({ kind: 'loading' })
   useEffect(() => {
     let cancelled = false
     setState({ kind: 'loading' })
-    catalogClient
+    client
       .details(slug)
       .then((store) => {
         if (!cancelled)
@@ -197,7 +223,7 @@ function ResolvedStorePrivateRoute({
     return () => {
       cancelled = true
     }
-  }, [slug])
+  }, [client, slug])
   if (state.kind === 'loading') return <p role="status">Loading store…</p>
   if (state.kind === 'unavailable') return <NotFound />
   return action === 'memory' ? (
@@ -400,6 +426,7 @@ function NotFound() {
 }
 
 export interface AppClients {
+  catalog?: CatalogClient
   candidate?: CandidateClient
   shopper?: ShopperPrivateClient
   trips?: TripClient
@@ -456,21 +483,35 @@ export default function App({
       <TripAccountLifecycle runtime={tripOffline} />
       <AppShell key={privacyEpoch}>
         <Routes>
-          <Route path="/stores" element={<StoreBrowser shopperClient={shopperClient} />} />
-          <Route path="/stores/:slug" element={<StoreDetails shopperClient={shopperClient} />} />
+          <Route
+            path="/stores"
+            element={<StoreBrowser shopperClient={shopperClient} catalog={clients.catalog} />}
+          />
+          <Route
+            path="/stores/:slug"
+            element={<StoreDetails shopperClient={shopperClient} catalog={clients.catalog} />}
+          />
           <Route path="/stores/:slug/reviews" element={<StoreReviews />} />
           <Route
             path="/stores/:slug/memory"
             element={
               <RequireSession>
-                <ResolvedStorePrivateRoute shopperClient={shopperClient} action="memory" />
+                <ResolvedStorePrivateRoute
+                  shopperClient={shopperClient}
+                  catalog={clients.catalog}
+                  action="memory"
+                />
               </RequireSession>
             }
           />
           <Route
             path="/stores/:slug/correction"
             element={
-              <ResolvedStorePrivateRoute shopperClient={shopperClient} action="correction" />
+              <ResolvedStorePrivateRoute
+                shopperClient={shopperClient}
+                catalog={clients.catalog}
+                action="correction"
+              />
             }
           />
           <Route path="/auth/sign-in" element={<SignInPage provider={authProvider} />} />

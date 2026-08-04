@@ -8,7 +8,7 @@ import type {
   CatalogStore,
 } from './types'
 
-export const MAX_BROWSE_MAP_RESULTS = 50
+export const MAX_BROWSE_MAP_RESULTS = 500
 export const MAX_BROWSE_MAP_SPAN_DEGREES = 2
 
 type RpcClient = {
@@ -44,16 +44,28 @@ export function createCatalogClient(client: RpcClient): CatalogClient {
       if (data == null || (Array.isArray(data) && data.length === 0)) return null
       return toStore(Array.isArray(data) ? data[0] : data)
     },
-    async map(filters: CatalogFilters, bounds: CatalogMapBounds): Promise<CatalogMapResult> {
-      if (!validMapBounds(bounds)) throw new Error('Invalid map bounds.')
-      const { data, error } = await client.rpc('get_browse_map', {
+    async map(
+      filters: CatalogFilters,
+      bounds: CatalogMapBounds,
+      zoom: number,
+    ): Promise<CatalogMapResult> {
+      if (!validMapBounds(bounds) || !Number.isInteger(zoom) || zoom < 0 || zoom > 22)
+        throw new Error('Invalid map viewport.')
+      const { data, error } = await client.rpc('get_browse_map_v2', {
         p_q: filters.q ?? null,
         p_category: filters.category ?? null,
         p_area: filters.area ?? null,
+        p_open_now: filters.openNow ?? null,
+        p_visited: filters.visited ?? null,
+        p_saved: filters.saved ?? null,
+        p_claimed: filters.claimed ?? null,
+        p_max_area_centroid_miles: filters.maxAreaCentroidMiles ?? null,
+        p_state: filters.state ?? null,
         p_north: bounds.north,
         p_south: bounds.south,
         p_east: bounds.east,
         p_west: bounds.west,
+        p_zoom: zoom,
         p_limit: MAX_BROWSE_MAP_RESULTS,
       })
       if (error) throw catalogError(error)
@@ -90,12 +102,24 @@ function toMapPoint(value: unknown, bounds: CatalogMapBounds): CatalogMapPoint {
   const row = asRow(value)
   const latitude = Number(row.latitude)
   const longitude = Number(row.longitude)
-  const point = {
+  const point: CatalogMapPoint = {
     storeId: String(row.store_id ?? row.storeId ?? ''),
     slug: String(row.slug ?? ''),
     name: String(row.name ?? ''),
     latitude,
     longitude,
+    store: toStore(row),
+    rating:
+      typeof row.rating === 'number' ? row.rating : row.rating == null ? null : Number(row.rating),
+    ratingCount: Number(row.rating_count ?? row.ratingCount ?? 0),
+    hoursLabel: String(row.hours_label ?? row.hoursLabel ?? 'Hours unavailable'),
+    openState:
+      row.open_state === 'open' || row.open_state === 'closed' ? row.open_state : 'unavailable',
+    categoryLabel: String(row.category_label ?? row.categoryLabel ?? 'Uncategorized'),
+    distanceMiles: Number(row.distance_miles ?? row.distanceMiles ?? 0),
+    claimed: Boolean(row.claimed),
+    saved: typeof row.saved === 'boolean' ? row.saved : null,
+    visited: typeof row.visited === 'boolean' ? row.visited : null,
   }
   if (
     !point.storeId ||
@@ -103,6 +127,8 @@ function toMapPoint(value: unknown, bounds: CatalogMapBounds): CatalogMapPoint {
     !point.name ||
     !Number.isFinite(latitude) ||
     !Number.isFinite(longitude) ||
+    !Number.isFinite(point.ratingCount) ||
+    !Number.isFinite(point.distanceMiles) ||
     latitude < bounds.south ||
     latitude > bounds.north ||
     longitude < bounds.west ||

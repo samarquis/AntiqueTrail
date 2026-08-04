@@ -51,25 +51,59 @@ describe('catalog RPC client', () => {
             name: 'Public Store',
             latitude: 39.05,
             longitude: -95.68,
+            town: 'Topeka',
+            state_code: 'KS',
+            address: '1 Main St',
+            area_slug: 'topeka-ks',
+            area_label: 'Topeka',
+            categories: [{ slug: 'vintage', label: 'Vintage' }],
+            hours: [],
+            media: [],
+            rating: 4.5,
+            rating_count: 8,
+            hours_label: '10:00 AM–6:00 PM',
+            open_state: 'open',
+            category_label: 'Vintage',
+            distance_miles: 2.4,
+            claimed: true,
+            saved: false,
+            visited: true,
           },
         ],
       },
       error: null,
     })
     const result = await createCatalogClient({ rpc }).map!(
-      { q: 'public', area: 'topeka-ks' },
+      {
+        q: 'public',
+        area: 'topeka-ks',
+        openNow: true,
+        visited: 'visited',
+        saved: true,
+        claimed: true,
+        maxAreaCentroidMiles: 10,
+        state: 'KS',
+      },
       { north: 40, south: 39, east: -95, west: -96 },
+      13,
     )
 
-    expect(rpc).toHaveBeenCalledWith('get_browse_map', {
+    expect(rpc).toHaveBeenCalledWith('get_browse_map_v2', {
       p_q: 'public',
       p_category: null,
       p_area: 'topeka-ks',
+      p_open_now: true,
+      p_visited: 'visited',
+      p_saved: true,
+      p_claimed: true,
+      p_max_area_centroid_miles: 10,
+      p_state: 'KS',
       p_north: 40,
       p_south: 39,
       p_east: -95,
       p_west: -96,
-      p_limit: 50,
+      p_zoom: 13,
+      p_limit: 500,
     })
     expect(result).toEqual({
       asOfUtc: '2026-08-04T12:00:00Z',
@@ -80,6 +114,19 @@ describe('catalog RPC client', () => {
           name: 'Public Store',
           latitude: 39.05,
           longitude: -95.68,
+          store: expect.objectContaining({
+            id: '00000000-0000-4000-8000-000000000001',
+            state: 'KS',
+          }),
+          rating: 4.5,
+          ratingCount: 8,
+          hoursLabel: '10:00 AM–6:00 PM',
+          openState: 'open',
+          categoryLabel: 'Vintage',
+          distanceMiles: 2.4,
+          claimed: true,
+          saved: false,
+          visited: true,
         },
       ],
     })
@@ -88,7 +135,7 @@ describe('catalog RPC client', () => {
   it('fails closed on an invalid or oversized map projection', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
-        points: Array.from({ length: 51 }, (_, index) => ({
+        points: Array.from({ length: 501 }, (_, index) => ({
           store_id: String(index),
           slug: `store-${index}`,
           name: `Store ${index}`,
@@ -99,7 +146,7 @@ describe('catalog RPC client', () => {
       error: null,
     })
     await expect(
-      createCatalogClient({ rpc }).map!({}, { north: 40, south: 39, east: -95, west: -96 }),
+      createCatalogClient({ rpc }).map!({}, { north: 40, south: 39, east: -95, west: -96 }, 12),
     ).rejects.toThrow(/map response/i)
   })
 })

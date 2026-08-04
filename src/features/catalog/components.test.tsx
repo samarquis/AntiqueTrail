@@ -17,6 +17,16 @@ function client(): CatalogClient {
           name: syntheticStores[0].name,
           latitude: 39.05,
           longitude: -95.68,
+          store: syntheticStores[0],
+          rating: 4.5,
+          ratingCount: 8,
+          hoursLabel: '10:00 AM–6:00 PM',
+          openState: 'open' as const,
+          categoryLabel: 'Antique mall',
+          distanceMiles: 2.4,
+          claimed: true,
+          saved: true,
+          visited: false,
         },
       ],
       asOfUtc: '2026-08-04T12:00:00Z',
@@ -95,7 +105,7 @@ describe('catalog private-action integration seam', () => {
 
     expect(await screen.findByTestId('provider-map')).toBeVisible()
     expect(screen.getByText('Map data: approved test provider')).toBeVisible()
-    expect(catalog.map).toHaveBeenCalledWith({}, { north: 40, south: 39, east: -95, west: -96 })
+    expect(catalog.map).toHaveBeenCalledWith({}, { north: 40, south: 39, east: -95, west: -96 }, 12)
 
     await user.click(screen.getByRole('button', { name: `Map marker ${syntheticStores[0].name}` }))
     const card = screen.getByRole('article')
@@ -107,6 +117,7 @@ describe('catalog private-action integration seam', () => {
     expect(catalog.map).toHaveBeenLastCalledWith(
       { category: 'vintage' },
       { north: 40, south: 39, east: -95, west: -96 },
+      12,
     )
     expect(
       within(screen.getByRole('main')).getByRole('heading', { name: /browse stores/i }),
@@ -182,7 +193,7 @@ describe('catalog private-action integration seam', () => {
     expect(searchArea).toBeEnabled()
     expect(catalog.map).toHaveBeenCalledTimes(1)
     await user.click(searchArea)
-    expect(catalog.map).toHaveBeenLastCalledWith({}, changedBounds)
+    expect(catalog.map).toHaveBeenLastCalledWith({}, changedBounds, 12)
 
     await screen.findByRole('button', { name: /zoom cluster: downtown/i })
     await user.click(screen.getByRole('button', { name: /zoom cluster: downtown/i }))
@@ -196,5 +207,62 @@ describe('catalog private-action integration seam', () => {
       'href',
       `/stores/${syntheticStores[0].slug}`,
     )
+    expect(screen.getByRole('complementary', { name: /map marker preview/i })).toHaveTextContent(
+      /4.5 from 8 ratings.*open now.*antique mall.*2.4 miles.*claimed listing.*saved.*not visited/i,
+    )
+    expect(screen.getByRole('link', { name: /add to trip/i })).toHaveAttribute(
+      'href',
+      `/trips/new?addStoreId=${syntheticStores[0].id}`,
+    )
+  })
+
+  it('replaces the accessible result list only after Search this map area', async () => {
+    const catalog = client()
+    const second = syntheticStores[1]
+    catalog.map = vi.fn(async (_filters, bounds) => ({
+      points: [
+        {
+          storeId: second.id,
+          slug: second.slug,
+          name: second.name,
+          latitude: Math.min(bounds.north, 39.2),
+          longitude: Math.max(bounds.west, -95.7),
+          store: second,
+          rating: null,
+          ratingCount: 0,
+          hoursLabel: 'Closed',
+          openState: 'closed' as const,
+          categoryLabel: second.categories[0].label,
+          distanceMiles: 4,
+          claimed: false,
+          saved: null,
+          visited: null,
+        },
+      ],
+    }))
+    const user = userEvent.setup()
+    const changedBounds = { north: 39.5, south: 39, east: -95.4, west: -96 }
+    render(
+      <BrowsePage
+        client={catalog}
+        map={{
+          capability: 'available',
+          bounds: { north: 40, south: 39, east: -95, west: -96 },
+          attribution: 'Approved map',
+          render: ({ onBoundsChange }) => (
+            <button type="button" onClick={() => onBoundsChange(changedBounds)}>
+              Pan map
+            </button>
+          ),
+        }}
+      />,
+    )
+    expect(await screen.findByRole('heading', { name: syntheticStores[0].name })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: /show map/i }))
+    await user.click(await screen.findByRole('button', { name: /pan map/i }))
+    expect(screen.getByRole('heading', { name: syntheticStores[0].name })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: /search this map area/i }))
+    expect(await screen.findByRole('heading', { name: second.name })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: syntheticStores[0].name })).not.toBeInTheDocument()
   })
 })

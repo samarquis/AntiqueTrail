@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   CatalogClient,
   CatalogFilters,
@@ -66,6 +66,71 @@ export function CatalogFiltersForm({
       >
         <option value="">All areas</option>
         <option value="topeka-ks">Topeka</option>
+      </select>
+      <label>
+        <input
+          type="checkbox"
+          checked={Boolean(filters.openNow)}
+          onChange={(event) => onChange({ ...filters, openNow: event.target.checked || undefined })}
+        />
+        Open now
+      </label>
+      <label htmlFor="catalog-visited">Visit status</label>
+      <select
+        id="catalog-visited"
+        value={filters.visited ?? ''}
+        onChange={(event) =>
+          onChange({
+            ...filters,
+            visited: (event.target.value || undefined) as CatalogFilters['visited'],
+          })
+        }
+      >
+        <option value="">Any visit status</option>
+        <option value="visited">Visited</option>
+        <option value="unvisited">Unvisited</option>
+      </select>
+      <label>
+        <input
+          type="checkbox"
+          checked={Boolean(filters.saved)}
+          onChange={(event) => onChange({ ...filters, saved: event.target.checked || undefined })}
+        />
+        Saved only
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          checked={Boolean(filters.claimed)}
+          onChange={(event) => onChange({ ...filters, claimed: event.target.checked || undefined })}
+        />
+        Claimed only
+      </label>
+      <label htmlFor="catalog-distance">Within miles of area center</label>
+      <select
+        id="catalog-distance"
+        value={filters.maxAreaCentroidMiles ?? ''}
+        onChange={(event) =>
+          onChange({
+            ...filters,
+            maxAreaCentroidMiles: event.target.value ? Number(event.target.value) : undefined,
+          })
+        }
+      >
+        <option value="">Any distance</option>
+        <option value="5">5 miles</option>
+        <option value="10">10 miles</option>
+        <option value="25">25 miles</option>
+        <option value="50">50 miles</option>
+      </select>
+      <label htmlFor="catalog-state">State</label>
+      <select
+        id="catalog-state"
+        value={filters.state ?? ''}
+        onChange={(event) => onChange({ ...filters, state: event.target.value || undefined })}
+      >
+        <option value="">All states</option>
+        <option value="KS">Kansas</option>
       </select>
     </form>
   )
@@ -184,6 +249,9 @@ export function BrowsePage({
   const [pendingMapBounds, setPendingMapBounds] = useState<CatalogMapBounds | undefined>(
     map?.bounds,
   )
+  const [searchedMapZoom, setSearchedMapZoom] = useState(map?.zoom ?? 12)
+  const [pendingMapZoom, setPendingMapZoom] = useState(map?.zoom ?? 12)
+  const replaceListFromMap = useRef(false)
   const [mapAnnouncement, setMapAnnouncement] = useState('')
   const [mapState, setMapState] = useState<{
     kind: 'idle' | 'loading' | 'success' | 'error'
@@ -226,9 +294,16 @@ export function BrowsePage({
     let cancelled = false
     setMapState({ kind: 'loading' })
     client
-      .map(filters, mapBounds)
+      .map(filters, mapBounds, searchedMapZoom)
       .then((result) => {
-        if (!cancelled) setMapState({ kind: 'success', points: result.points })
+        if (!cancelled) {
+          setMapState({ kind: 'success', points: result.points })
+          if (replaceListFromMap.current) {
+            setState({ kind: 'success', stores: result.points.map((point) => point.store) })
+            replaceListFromMap.current = false
+            setMapAnnouncement(`${result.points.length} stores shown in the result list.`)
+          }
+        }
       })
       .catch(() => {
         if (!cancelled) setMapState({ kind: 'error' })
@@ -244,6 +319,7 @@ export function BrowsePage({
     mapCapability,
     mapExpanded,
     renderMap,
+    searchedMapZoom,
     state.kind,
   ])
   useEffect(() => {
@@ -304,14 +380,26 @@ export function BrowsePage({
             ) : (
               <>
                 {renderMap({
-                  points: (mapState.points ?? []).filter((point) =>
-                    state.stores?.some((store) => store.id === point.storeId),
+                  points: (mapState.points ?? []).map(
+                    ({ storeId, slug, name, latitude, longitude }) => ({
+                      storeId,
+                      slug,
+                      name,
+                      latitude,
+                      longitude,
+                    }),
                   ),
                   selectedStoreId,
                   searchedBounds: mapBounds,
                   pendingBounds: pendingMapBounds,
-                  previewStore: state.stores?.find((store) => store.id === selectedStoreId),
+                  searchedZoom: searchedMapZoom,
+                  pendingZoom: pendingMapZoom,
+                  previewStore: mapState.points?.find((point) => point.storeId === selectedStoreId)
+                    ?.store,
                   onBoundsChange: acceptMapBounds,
+                  onZoomChange: (zoom) => {
+                    if (Number.isInteger(zoom) && zoom >= 0 && zoom <= 22) setPendingMapZoom(zoom)
+                  },
                   onClusterZoom: (cluster) => {
                     if (!validMapBounds(cluster.bounds) || !cluster.label.trim()) return
                     setPendingMapBounds(cluster.bounds)
@@ -320,21 +408,25 @@ export function BrowsePage({
                     )
                   },
                   onPreview: (storeId) => {
-                    if (!state.stores?.some((store) => store.id === storeId)) return
+                    if (!mapState.points?.some((point) => point.storeId === storeId)) return
                     setSelectedStoreId(storeId)
                     setMapAnnouncement('Store preview selected from map.')
                   },
                   onSelect: (storeId) => {
-                    if (!state.stores?.some((store) => store.id === storeId)) return
+                    if (!mapState.points?.some((point) => point.storeId === storeId)) return
                     setSelectedStoreId(storeId)
                     setMapFocusStoreId(storeId)
                   },
                 })}
                 <button
                   type="button"
-                  disabled={sameMapBounds(mapBounds, pendingMapBounds)}
+                  disabled={
+                    sameMapBounds(mapBounds, pendingMapBounds) && searchedMapZoom === pendingMapZoom
+                  }
                   onClick={() => {
+                    replaceListFromMap.current = true
                     setSearchedMapBounds(pendingMapBounds)
+                    setSearchedMapZoom(pendingMapZoom)
                     setMapAnnouncement('Searching the visible map area.')
                   }}
                 >
@@ -343,21 +435,53 @@ export function BrowsePage({
                 <p aria-live="polite" className="sr-only">
                   {mapAnnouncement}
                 </p>
-                {selectedStoreId && state.stores?.find((store) => store.id === selectedStoreId) && (
-                  <aside aria-label="Map marker preview">
-                    <strong>
-                      {state.stores.find((store) => store.id === selectedStoreId)?.name}
-                    </strong>{' '}
-                    <a
-                      href={`/stores/${state.stores.find((store) => store.id === selectedStoreId)?.slug}`}
-                    >
-                      View store details
-                    </a>
-                    {renderPrivateActions?.(
-                      state.stores.find((store) => store.id === selectedStoreId)!,
-                    )}
-                  </aside>
-                )}
+                {selectedStoreId &&
+                  mapState.points?.find((point) => point.storeId === selectedStoreId) && (
+                    <aside aria-label="Map marker preview">
+                      {(() => {
+                        const point = mapState.points!.find(
+                          (candidate) => candidate.storeId === selectedStoreId,
+                        )!
+                        return (
+                          <>
+                            <strong>{point.name}</strong>{' '}
+                            <p>
+                              {point.rating == null
+                                ? 'Not yet rated'
+                                : `${point.rating.toFixed(1)} from ${point.ratingCount} ratings`}
+                            </p>
+                            <p>
+                              {point.hoursLabel} ·{' '}
+                              {point.openState === 'unavailable'
+                                ? 'Open state unavailable'
+                                : point.openState === 'open'
+                                  ? 'Open now'
+                                  : 'Closed now'}
+                            </p>
+                            <p>
+                              {point.categoryLabel} · {point.distanceMiles.toFixed(1)} miles from{' '}
+                              {point.store.area.label} center
+                            </p>
+                            <p>
+                              {point.claimed ? 'Claimed listing' : 'Unclaimed listing'}
+                              {point.saved != null
+                                ? ` · ${point.saved ? 'Saved' : 'Not saved'}`
+                                : ''}
+                              {point.visited != null
+                                ? ` · ${point.visited ? 'Visited' : 'Not visited'}`
+                                : ''}
+                            </p>
+                            <a href={`/stores/${point.slug}`}>View store details</a>
+                            {renderPrivateActions?.(point.store)}
+                            <a href={`/trips/new?addStoreId=${encodeURIComponent(point.storeId)}`}>
+                              Add to Trip
+                            </a>
+                            {map.navigationHref && <a href={map.navigationHref(point)}>Navigate</a>}
+                          </>
+                        )
+                      })()}
+                    </aside>
+                  )}
                 <p className="catalog-map-attribution">{mapAttribution}</p>
               </>
             )}
