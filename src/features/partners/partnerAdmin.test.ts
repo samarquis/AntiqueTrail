@@ -3,10 +3,11 @@ import { createPartnerAdminClient } from './partnerAdmin'
 
 describe('partner administrator boundary', () => {
   it('uses one exact claim per read and never exposes a bulk operation', async () => {
-    const rpc = vi.fn(async (..._args: unknown[]) => ({
-      claimId: 'claim-1',
-      state: 'verification_pending',
-    }))
+    const rpc = vi.fn(async (command: string, payload: Readonly<Record<string, unknown>>) => {
+      void command
+      void payload
+      return { claimId: 'claim-1', state: 'verification_pending' }
+    })
     const client = createPartnerAdminClient({ rpc })
 
     await client.getCase('claim-1')
@@ -16,10 +17,11 @@ describe('partner administrator boundary', () => {
   })
 
   it('binds every decision to version, idempotency key, and reason', async () => {
-    const rpc = vi.fn(async (..._args: unknown[]) => ({
-      claimId: 'claim-1',
-      state: 'changes_requested',
-    }))
+    const rpc = vi.fn(async (command: string, payload: Readonly<Record<string, unknown>>) => {
+      void command
+      void payload
+      return { claimId: 'claim-1', state: 'changes_requested' }
+    })
     const client = createPartnerAdminClient({ rpc })
 
     await client.decide({
@@ -41,7 +43,11 @@ describe('partner administrator boundary', () => {
   })
 
   it('makes transfer source explicit without accepting actor or store scope', async () => {
-    const rpc = vi.fn(async (..._args: unknown[]) => ({ claimId: 'claim-new', state: 'approved' }))
+    const rpc = vi.fn(async (command: string, payload: Readonly<Record<string, unknown>>) => {
+      void command
+      void payload
+      return { claimId: 'claim-new', state: 'approved' }
+    })
     const client = createPartnerAdminClient({ rpc })
 
     await client.decide({
