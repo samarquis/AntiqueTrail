@@ -64,4 +64,27 @@ describe('partner administrator boundary', () => {
     expect(payload).not.toHaveProperty('storeId')
     expect(payload.p_transfer_from_claim_id).toBe('claim-old')
   })
+
+  it('sends the exact invitation email only to the bounded Edge operation', async () => {
+    const rpc = vi.fn()
+    const edge = vi.fn(async () => ({
+      invitationId: 'invitation-1',
+      token: 'opaque-one-time-token',
+      expiresAt: '2026-08-04T12:30:00Z',
+    }))
+    const client = createPartnerAdminClient({ rpc, edge })
+
+    await expect(
+      client.issueSyntheticInvitation({
+        email: 'owner@example.com',
+        idempotencyKey: 'invite-owner-1',
+      }),
+    ).resolves.toMatchObject({ invitationId: 'invitation-1' })
+
+    expect(edge).toHaveBeenCalledWith('partner-admin-invitation', {
+      email: 'owner@example.com',
+      idempotencyKey: 'invite-owner-1',
+    })
+    expect(rpc).not.toHaveBeenCalled()
+  })
 })

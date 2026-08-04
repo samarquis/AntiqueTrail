@@ -19,9 +19,32 @@ export interface PartnerAdminCase {
 
 export interface PartnerAdminTransport {
   rpc(command: string, payload: Readonly<Record<string, unknown>>): Promise<unknown>
+  edge?(command: string, payload: Readonly<Record<string, unknown>>): Promise<unknown>
 }
 
-export function createPartnerAdminClient(transport: PartnerAdminTransport) {
+export interface SyntheticPartnerInvitation {
+  invitationId: string
+  token: string
+  expiresAt: string
+}
+
+export interface PartnerAdminClient {
+  getCase(claimId: string): Promise<PartnerAdminCase>
+  decide(input: {
+    operation: PartnerAdminOperation
+    claimId: string
+    expectedVersion: number
+    idempotencyKey: string
+    reasonCode: string
+    transferFromClaimId?: string
+  }): Promise<PartnerAdminCase>
+  issueSyntheticInvitation(input: {
+    email: string
+    idempotencyKey: string
+  }): Promise<SyntheticPartnerInvitation>
+}
+
+export function createPartnerAdminClient(transport: PartnerAdminTransport): PartnerAdminClient {
   return {
     getCase(claimId: string): Promise<PartnerAdminCase> {
       return transport.rpc('partner_admin_claim_case', {
@@ -45,5 +68,19 @@ export function createPartnerAdminClient(transport: PartnerAdminTransport) {
         p_transfer_from_claim_id: input.transferFromClaimId ?? null,
       }) as Promise<PartnerAdminCase>
     },
+    issueSyntheticInvitation(input) {
+      if (!transport.edge) return Promise.reject(new Error('partner_invitation_unavailable'))
+      return transport.edge('partner-admin-invitation', {
+        email: input.email,
+        idempotencyKey: input.idempotencyKey,
+      }) as Promise<SyntheticPartnerInvitation>
+    },
   }
+}
+
+export const unavailablePartnerAdminClient: PartnerAdminClient = {
+  getCase: async () => Promise.reject(new Error('partner_administration_unavailable')),
+  decide: async () => Promise.reject(new Error('partner_administration_unavailable')),
+  issueSyntheticInvitation: async () =>
+    Promise.reject(new Error('partner_administration_unavailable')),
 }

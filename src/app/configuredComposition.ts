@@ -2,7 +2,11 @@ import { createClient, type Session } from '@supabase/supabase-js'
 import type { AppClients, AppRuntime } from './App'
 import { createShopperClient } from '../features/shopper'
 import { createCandidateProductionClient } from '../features/candidates'
-import { createPartnerClient, createPartnerProductionTransport } from '../features/partners'
+import {
+  createPartnerAdminClient,
+  createPartnerClient,
+  createPartnerProductionTransport,
+} from '../features/partners'
 import {
   WebCryptoOfflineGrantVerifier,
   InMemoryOfflineDatabase,
@@ -335,6 +339,7 @@ export async function configuredComposition(
       syntheticEnabled: import.meta.env.VITE_PARTNER_SYNTHETIC_ENABLED === 'true',
     }),
   )
+  const partnerAdmin = createPartnerAdminClient({ rpc, edge })
   let source: TripOfflineGrantSource | undefined
   if (offline.enabled) {
     source = {
@@ -354,7 +359,15 @@ export async function configuredComposition(
     }
   }
   return {
-    clients: { candidate, lifecycle, partner, shopper, trips, tripOfflineGrants: source },
+    clients: {
+      candidate,
+      lifecycle,
+      partner,
+      partnerAdmin,
+      shopper,
+      trips,
+      tripOfflineGrants: source,
+    },
     runtime: {
       authProvider: createAuthProvider(supabase),
       sessionRegistry,

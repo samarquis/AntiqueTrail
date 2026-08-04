@@ -67,7 +67,7 @@ import {
   type CheckMyDayProvider,
   type CheckMyDayRequest,
 } from '../features/routing'
-import { AccessSafetyPage, AdminGuard, ReviewQueuePage } from '../features/admin'
+import { AccessSafetyPage, AdminGuard, ReviewQueuePage, type AdminSession } from '../features/admin'
 import { AlphaGuard, AlphaReadinessPage } from '../features/alpha'
 import {
   ExternalReadinessGuard,
@@ -79,9 +79,12 @@ import {
   PartnerClaimPage,
   PartnerDraftPage,
   PartnerJoinPage,
+  PartnerAdminPage,
   PartnerStatusPage,
   PartnerVerifyPage,
   unavailablePartnerClient,
+  unavailablePartnerAdminClient,
+  type PartnerAdminClient,
   type PartnerClient,
 } from '../features/partners'
 import {
@@ -105,7 +108,6 @@ import {
 const catalogClient = configuredCatalogClient() ?? demoCatalogClient
 // The current provider-neutral shell has no privileged session source. Keep the
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
-const unavailableAdminSession = null
 const unavailableAlphaAccount = null
 const unavailableExternalAccounts: SyntheticTestAccount[] = []
 const publicListingClaimsEnabled = false
@@ -317,6 +319,7 @@ export interface AppClients {
   shopper?: ShopperPrivateClient
   trips?: TripClient
   partner?: PartnerClient
+  partnerAdmin?: PartnerAdminClient
   lifecycle?: AccountLifecycleClient
   tripOfflineGrants?: TripOfflineGrantSource
   routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
@@ -327,6 +330,8 @@ export interface AppRuntime {
   authStore?: AuthStore
   authProvider?: AuthProviderAdapter
   sessionRegistry?: SessionRegistryClient
+  /** Supplied only by an authoritative active-session + recent-auth verifier. */
+  adminSession?: AdminSession
 }
 
 export default function App({
@@ -340,6 +345,7 @@ export default function App({
   const shopperClient = clients.shopper ?? unavailableShopperClient
   const tripClient = clients.trips ?? unavailableTripClient
   const partnerClient = clients.partner ?? unavailablePartnerClient
+  const partnerAdminClient = clients.partnerAdmin ?? unavailablePartnerAdminClient
   const lifecycleClient = clients.lifecycle ?? unavailableLifecycleClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
   const tripOfflineRef = useRef<TripOfflineRuntime>(
@@ -498,7 +504,7 @@ export default function App({
           <Route
             path="/admin"
             element={
-              <AdminGuard session={unavailableAdminSession}>
+              <AdminGuard session={runtime.adminSession ?? null}>
                 <ReviewQueuePage />
               </AdminGuard>
             }
@@ -506,15 +512,23 @@ export default function App({
           <Route
             path="/admin/access"
             element={
-              <AdminGuard session={unavailableAdminSession}>
+              <AdminGuard session={runtime.adminSession ?? null}>
                 <AccessSafetyPage />
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/partners"
+            element={
+              <AdminGuard session={runtime.adminSession ?? null}>
+                <PartnerAdminPage client={partnerAdminClient} />
               </AdminGuard>
             }
           />
           <Route
             path="/admin/reviews"
             element={
-              <AdminGuard session={unavailableAdminSession}>
+              <AdminGuard session={runtime.adminSession ?? null}>
                 <ModerationQueuePage client={unavailableReviewClient} />
               </AdminGuard>
             }

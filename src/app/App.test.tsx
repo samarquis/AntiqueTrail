@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { InMemoryAuthStore, type AuthSession } from '../features/auth'
 import type { TripOfflineRuntime } from '../features/trips'
+import type { PartnerAdminClient } from '../features/partners'
 import App from './App'
 
 describe('app shell', () => {
@@ -41,6 +42,45 @@ describe('app shell', () => {
       (await screen.findAllByRole('heading', { name: /browse stores/i })).length,
     ).toBeGreaterThan(0)
     expect(screen.queryByRole('heading', { name: /review queue/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps partner administration closed without authoritative recent-auth evidence', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/partners']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(
+      (await screen.findAllByRole('heading', { name: /browse stores/i })).length,
+    ).toBeGreaterThan(0)
+    expect(
+      screen.queryByRole('heading', { name: /partner administration/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('opens exact partner administration for an injected active MFA recent-auth session', () => {
+    const partnerAdmin: PartnerAdminClient = {
+      getCase: vi.fn(),
+      decide: vi.fn(),
+      issueSyntheticInvitation: vi.fn(),
+    }
+    render(
+      <MemoryRouter initialEntries={['/admin/partners']}>
+        <App
+          clients={{ partnerAdmin }}
+          runtime={{
+            adminSession: {
+              userId: 'admin-1',
+              role: 'Administrator',
+              mfaVerified: true,
+              recentAuthAt: Date.now(),
+              sessionActive: true,
+            },
+          }}
+        />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { name: /partner administration/i })).toBeInTheDocument()
   })
 
   it('exposes partner onboarding routes while keeping provider access gated', async () => {
