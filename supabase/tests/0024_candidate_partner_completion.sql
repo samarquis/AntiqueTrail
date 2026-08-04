@@ -1,0 +1,30 @@
+begin;
+select plan(24);
+
+select has_table('candidate_private','candidate_lifecycle_receipts','content-free lifecycle receipts exist');
+select has_function('app_public','candidate_delete_trip_idea',array['uuid','boolean'],'confirmed Trip Idea deletion exists');
+select has_function('app_public','candidate_edge_share_source',array['uuid'],'share source boundary exists');
+select has_function('app_public','candidate_edge_payload',array['uuid'],'recipient payload boundary exists');
+select has_function('app_public','candidate_edge_send_share',array['uuid','uuid','bytea','bytea','text'],'resolved send command exists');
+select has_function('app_public','candidate_edge_accept_share',array['uuid','text','text','text'],'accept command exists');
+select has_function('app_public','candidate_edge_close_share',array['uuid','text','bytea','bytea','text'],'block/report command exists');
+select has_function('app_public','partner_synthetic_command',array['text','jsonb'],'Synthetic partner command exists');
+select ok(exists(select 1 from pg_trigger where tgname='candidate_lifecycle_append_only'),'lifecycle receipts are append-only');
+select ok((select relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='candidate_private' and c.relname='candidate_lifecycle_receipts'),'lifecycle receipts force RLS');
+select ok(not exists(select 1 from information_schema.columns where table_schema='candidate_private' and table_name='candidate_lifecycle_receipts' and column_name in ('title','url','note','content')),'lifecycle receipts contain no deleted content');
+select ok(not has_table_privilege('authenticated','candidate_private.candidate_lifecycle_receipts','SELECT'),'browser cannot read lifecycle receipts');
+select ok(not has_function_privilege('authenticated','app_public.candidate_delete_trip_idea(uuid)','EXECUTE'),'legacy unconfirmed delete is denied');
+select ok(has_function_privilege('authenticated','app_public.candidate_delete_trip_idea(uuid,boolean)','EXECUTE'),'confirmed delete is callable');
+select ok(not has_function_privilege('anon','app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text)','EXECUTE'),'anonymous send is denied');
+select ok(not has_function_privilege('anon','app_public.partner_synthetic_command(text,jsonb)','EXECUTE'),'anonymous Synthetic partner command is denied');
+select ok(position('p_confirmed is not true' in lower(pg_get_functiondef('app_public.candidate_delete_trip_idea(uuid,boolean)'::regprocedure)))>0,'delete fails closed without explicit confirmation');
+select ok(position('candidate_lifecycle_receipts' in pg_get_functiondef('app_public.candidate_delete_trip_idea(uuid,boolean)'::regprocedure))>0,'delete records lifecycle evidence');
+select ok(position('recipient_id=auth.uid()' in replace(pg_get_functiondef('app_public.candidate_edge_payload(uuid)'::regprocedure),' ',''))>0,'payload is recipient bound');
+select ok(position('owner_user_id=auth.uid()' in replace(pg_get_functiondef('app_public.candidate_edge_share_source(uuid)'::regprocedure),' ',''))>0,'share source is sender bound');
+select ok(position('partner_synthetic_denied' in pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure))>0,'Synthetic command requires explicit marker');
+select ok(position('submit_authority_signal' in pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure))>0,'Synthetic authority submission is handled');
+select ok(position("status='verified'" in replace(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure),' ',''))=0,'Synthetic command never fabricates verified authority evidence');
+select ok(exists(select 1 from pg_constraint where conname='candidate_cleanup_jobs_terminal_reason_check' and pg_get_constraintdef(oid) like '%blocked%' and pg_get_constraintdef(oid) like '%reported%'),'block/report payloads enter durable cleanup');
+
+select * from finish();
+rollback;

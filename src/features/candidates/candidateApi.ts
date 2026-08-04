@@ -36,19 +36,44 @@ export function createCandidateProductionClient(
         transport.rpc<CandidateShareView | null>('candidate_get_share', { p_share_id: shareId }),
       ),
     sendShare: (input) =>
-      bounded(() => transport.edge<GenericShareEnvelope>('candidate-send-share', input)),
+      bounded(() =>
+        transport.edge<GenericShareEnvelope>('candidate-send-share', {
+          ...input,
+          idempotencyKey: `send-${input.candidateId}`,
+        }),
+      ),
     acceptShare: (shareId) =>
-      bounded(() => transport.edge<GenericShareEnvelope>('candidate-accept-share', { shareId })),
+      bounded(() =>
+        transport.edge<GenericShareEnvelope>('candidate-accept-share', {
+          shareId,
+          idempotencyKey: `accept-${shareId}`,
+        }),
+      ),
     dismissShare: (shareId) =>
       bounded(() =>
         transport.rpc<GenericShareEnvelope>('candidate_dismiss_share', { p_share_id: shareId }),
       ),
     blockShare: (shareId) =>
-      bounded(() => transport.edge<GenericShareEnvelope>('candidate-block-share', { shareId })),
+      bounded(() =>
+        transport.edge<GenericShareEnvelope>('candidate-block-share', {
+          shareId,
+          idempotencyKey: `block-${shareId}`,
+        }),
+      ),
     reportShare: (shareId) =>
-      bounded(() => transport.edge<GenericShareEnvelope>('candidate-report-share', { shareId })),
+      bounded(() =>
+        transport.edge<GenericShareEnvelope>('candidate-report-share', {
+          shareId,
+          idempotencyKey: `report-${shareId}`,
+        }),
+      ),
     listTripIdeas: () => bounded(() => transport.rpc<TripIdea[]>('candidate_list_trip_ideas', {})),
-    deleteTripIdea: (ideaId) =>
-      bounded(() => transport.rpc<void>('candidate_delete_trip_idea', { p_idea_id: ideaId })),
+    deleteTripIdea: (ideaId, confirmation) =>
+      bounded(() =>
+        transport.rpc<void>('candidate_delete_trip_idea', {
+          p_idea_id: ideaId,
+          p_confirmed: confirmation.confirmed,
+        }),
+      ),
   }
 }

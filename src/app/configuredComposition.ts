@@ -175,6 +175,7 @@ export async function configuredComposition(): Promise<ConfiguredComposition | n
       edge,
       emailProviderEnabled: import.meta.env.VITE_PARTNER_EMAIL_PROVIDER_ENABLED === 'true',
       mediaProviderEnabled: import.meta.env.VITE_PARTNER_MEDIA_PROVIDER_ENABLED === 'true',
+      syntheticEnabled: import.meta.env.VITE_PARTNER_SYNTHETIC_ENABLED === 'true',
     }),
   )
   let source: TripOfflineGrantSource | undefined

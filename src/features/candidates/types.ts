@@ -66,5 +66,5 @@ export interface CandidateClient {
   blockShare(shareId: string): Promise<GenericShareEnvelope>
   reportShare(shareId: string): Promise<GenericShareEnvelope>
   listTripIdeas(): Promise<TripIdea[]>
-  deleteTripIdea(ideaId: string): Promise<void>
+  deleteTripIdea(ideaId: string, confirmation: { confirmed: true }): Promise<void>
 }

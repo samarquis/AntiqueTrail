@@ -38,6 +38,7 @@ describe('candidate production client', () => {
       {
         candidateId: 'candidate-1',
         recipientEmail: 'owner@example.com',
+        idempotencyKey: 'send-candidate-1',
       },
     ])
   })

@@ -2,7 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CandidateSessionGuard, CapturePage, SharesPage } from './components'
+import { CandidateSessionGuard, CapturePage, SharesPage, TripIdeasPage } from './components'
 import type { CandidateExtractionOutcome } from './candidateExtraction'
 import type { CandidateClient } from './types'
 
@@ -187,5 +187,30 @@ describe('candidate private routes', () => {
     )
     await user.click(await screen.findByRole('button', { name: /accept/i }))
     expect(candidateClient.acceptShare).toHaveBeenCalledWith('share-1')
+  })
+
+  it('requires explicit confirmation before deleting a Trip Idea', async () => {
+    const user = userEvent.setup()
+    const deleteTripIdea = vi.fn(async () => undefined)
+    const candidateClient = client({
+      listTripIdeas: vi.fn(async () => [
+        {
+          id: 'idea-1',
+          ownerUserId: 'user-1',
+          title: 'Oak Antiques',
+          urlNote: 'https://example.com/oak',
+          version: 1,
+        },
+      ]),
+      deleteTripIdea,
+    })
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
+    render(<TripIdeasPage client={candidateClient} />)
+    const button = await screen.findByRole('button', { name: /delete/i })
+    await user.click(button)
+    expect(deleteTripIdea).not.toHaveBeenCalled()
+    await user.click(button)
+    expect(deleteTripIdea).toHaveBeenCalledWith('idea-1', { confirmed: true })
+    confirm.mockRestore()
   })
 })

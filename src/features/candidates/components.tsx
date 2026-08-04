@@ -286,8 +286,9 @@ export function TripIdeasPage({
       .catch(() => setError(true))
   }, [client])
   async function remove(id: string) {
+    if (!window.confirm('Delete this private Trip Idea? This cannot be undone.')) return
     try {
-      await client.deleteTripIdea(id)
+      await client.deleteTripIdea(id, { confirmed: true })
       setIdeas((current) => current?.filter((idea) => idea.id !== id) ?? current)
     } catch {
       setError(true)
