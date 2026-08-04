@@ -11,6 +11,9 @@ $$;
 grant identity_service to postgres;
 grant create on schema candidate_private to identity_service;
 grant usage on schema candidate_private to candidate_cleanup_service;
+grant community_automation to postgres;
+grant create on schema community_private to community_automation;
+alter function community_private.assert_action_receipt(uuid,text,uuid,text,bytea,bytea,text[]) owner to postgres;
 
 create table candidate_private.candidate_share_storage_objects (
   share_id uuid not null references candidate_private.candidate_shares(share_id) on delete cascade,
@@ -274,3 +277,5 @@ revoke all on candidate_private.candidate_cleanup_jobs,candidate_private.candida
   from candidate_cleanup_service,public,anon,authenticated;
 revoke create on schema candidate_private from identity_service;
 revoke identity_service from postgres;
+revoke create on schema community_private from community_automation;
+revoke community_automation from postgres;

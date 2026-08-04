@@ -1,5 +1,5 @@
 begin;
-select plan(26);
+select plan(27);
 
 select has_table('candidate_private','candidate_share_storage_objects','private Storage object registry exists');
 select has_table('candidate_private','candidate_cleanup_jobs','durable cleanup queue exists');
@@ -17,6 +17,7 @@ select ok(not has_table_privilege('authenticated','candidate_private.candidate_s
 select ok(has_function_privilege('candidate_cleanup_service','candidate_private.claim_candidate_cleanup(timestamp with time zone,integer)','EXECUTE'),'cleanup service can claim');
 select ok(has_function_privilege('candidate_cleanup_service','candidate_private.complete_candidate_cleanup(uuid,uuid,uuid,text,bytea,timestamp with time zone)','EXECUTE'),'cleanup service can complete');
 select ok(exists(select 1 from pg_trigger where tgname='community_evidence_canonical_route_guard'),'community evidence has canonical route guard');
+select ok(not has_schema_privilege('community_automation','community_private','CREATE'),'community automation cannot create private objects after route guard replacement');
 
 insert into auth.users(id) values ('17000000-0000-4000-8000-000000000001');
 insert into candidate_private.candidate_links(candidate_id,owner_user_id,title)
