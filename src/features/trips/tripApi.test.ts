@@ -197,6 +197,57 @@ describe('implicit-actor TripClient transport', () => {
     ])
   })
 
+  it('exposes bounded versioned planning and stable-device commands', async () => {
+    const wire = transport(trip)
+    const api = createTripApi(wire, { installId: 'install-a', deviceKeyId: 'device-key-a' })
+    await api.renameTrip('trip-1', '  Sunday\nTrail ', 4, 'rename-1')
+    await api.removeStop('trip-1', 'stop-1', 5)
+    await api.setStopPriority('trip-1', 'stop-1', 'must', 6)
+    await api.setStopDwell('trip-1', 'stop-1', 45, 7)
+    await api.updateSchedule('trip-1', { localDate: '2026-08-11', departureMinute: 540 }, 8)
+    wire.invoke.mockResolvedValueOnce(collaboration)
+    await api.bindNavigatorDevice('trip-1')
+    wire.invoke.mockResolvedValueOnce({ trip, grant: { keyId: 'key-v1' } })
+    await api.transferNavigatorDevice('trip-1')
+    expect(wire.invoke.mock.calls).toEqual([
+      [
+        'rename_trip',
+        {
+          trip_id: 'trip-1',
+          new_name: 'Sunday Trail',
+          expected_version: 4,
+          idempotency_key: 'rename-1',
+        },
+      ],
+      ['remove_trip_stop', { trip_id: 'trip-1', stop_id: 'stop-1', expected_version: 5 }],
+      [
+        'set_trip_stop_priority',
+        { trip_id: 'trip-1', stop_id: 'stop-1', priority: 'must', expected_version: 6 },
+      ],
+      [
+        'set_trip_stop_dwell',
+        { trip_id: 'trip-1', stop_id: 'stop-1', dwell_minutes: 45, expected_version: 7 },
+      ],
+      [
+        'update_trip_schedule',
+        { trip_id: 'trip-1', local_date: '2026-08-11', departure_minute: 540, expected_version: 8 },
+      ],
+      ['bind_navigator_device', { trip_id: 'trip-1', device_id: 'install-a' }],
+      [
+        'transfer_navigator_device',
+        { trip_id: 'trip-1', install_id: 'install-a', device_key_id: 'device-key-a' },
+      ],
+    ])
+  })
+
+  it('unwraps the signed server envelope for fallback start', async () => {
+    const wire = transport({ trip: { ...trip, state: 'active' }, grant: { keyId: 'key-v1' } })
+    await expect(createTripApi(wire).start('trip-1')).resolves.toMatchObject({
+      id: 'trip-1',
+      state: 'active',
+    })
+  })
+
   it('normalizes transport, malformed-response, and local-validation failures reason-neutrally', async () => {
     const denied: TripTransport = {
       async invoke() {

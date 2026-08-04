@@ -156,6 +156,9 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
   const [label, setLabel] = useState('')
   const [priority, setPriority] = useState<StopPriority>('prefer')
   const [dwell, setDwell] = useState(60)
+  const [tripName, setTripName] = useState('')
+  const [scheduleDate, setScheduleDate] = useState('')
+  const [departureTime, setDepartureTime] = useState('')
   const [offlineQueue, setOfflineQueue] = useState<OfflineQueueSnapshot>({
     state: 'empty',
     pendingCount: 0,
@@ -165,7 +168,15 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     client
       .get(tripId)
       .then((result) => {
-        if (!cancelled) setTrip(result)
+        if (!cancelled) {
+          setTrip(result)
+          setTripName(result?.name ?? '')
+          setScheduleDate(result?.localDate ?? '')
+          if (result?.departureMinute != null)
+            setDepartureTime(
+              `${String(Math.floor(result.departureMinute / 60)).padStart(2, '0')}:${String(result.departureMinute % 60).padStart(2, '0')}`,
+            )
+        }
       })
       .catch(() => {
         if (!cancelled) setError(true)
@@ -207,6 +218,34 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     if (!trip) return
     try {
       setTrip(await client.reviewHours(trip.id))
+    } catch {
+      setError(true)
+    }
+  }
+  async function rename(event: FormEvent) {
+    event.preventDefault()
+    if (!trip || !normalizeTripName(tripName)) return
+    try {
+      setTrip(await client.renameTrip(trip.id, tripName, trip.version, crypto.randomUUID()))
+    } catch {
+      setError(true)
+    }
+  }
+  async function saveSchedule(event: FormEvent) {
+    event.preventDefault()
+    if (!trip || !scheduleDate) return
+    const [hours, minutes] = departureTime ? departureTime.split(':').map(Number) : []
+    try {
+      setTrip(
+        await client.updateSchedule(
+          trip.id,
+          {
+            localDate: scheduleDate,
+            departureMinute: hours == null || minutes == null ? undefined : hours * 60 + minutes,
+          },
+          trip.version,
+        ),
+      )
     } catch {
       setError(true)
     }
@@ -259,6 +298,35 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       description="Review Hours shows store hours only. Travel time is not included, and no feasible-order or arrival claim is made."
     >
       <p>Trip date: {trip.localDate}</p>
+      <form onSubmit={rename}>
+        <label htmlFor="plan-trip-name">Trip name</label>
+        <input
+          id="plan-trip-name"
+          value={tripName}
+          maxLength={80}
+          required
+          onChange={(event) => setTripName(event.target.value)}
+        />
+        <button type="submit">Rename trip</button>
+      </form>
+      <form onSubmit={saveSchedule}>
+        <label htmlFor="plan-trip-date">Trip date</label>
+        <input
+          id="plan-trip-date"
+          type="date"
+          value={scheduleDate}
+          required
+          onChange={(event) => setScheduleDate(event.target.value)}
+        />
+        <label htmlFor="plan-departure-time">Departure time</label>
+        <input
+          id="plan-departure-time"
+          type="time"
+          value={departureTime}
+          onChange={(event) => setDepartureTime(event.target.value)}
+        />
+        <button type="submit">Update schedule</button>
+      </form>
       {offlineQueue.state === 'queued' && (
         <p role="status">
           {offlineQueue.pendingCount} change{offlineQueue.pendingCount === 1 ? '' : 's'} queued
@@ -299,6 +367,43 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
         {trip.stops.map((stop, index) => (
           <li key={stop.id}>
             {stop.label} — {stop.priority}, {stop.plannedDwellMinutes} minutes, {stop.state}
+            <label htmlFor={`priority-${stop.id}`}>Priority for {stop.label}</label>
+            <select
+              id={`priority-${stop.id}`}
+              value={stop.priority}
+              onChange={(event) =>
+                client
+                  .setStopPriority(
+                    trip.id,
+                    stop.id,
+                    event.target.value as StopPriority,
+                    trip.version,
+                  )
+                  .then(setTrip)
+                  .catch(() => setError(true))
+              }
+            >
+              <option value="must">Must</option>
+              <option value="prefer">Prefer</option>
+              <option value="flexible">Flexible</option>
+            </select>
+            <label htmlFor={`dwell-${stop.id}`}>Dwell minutes for {stop.label}</label>
+            <input
+              id={`dwell-${stop.id}`}
+              type="number"
+              min={5}
+              max={720}
+              step={1}
+              defaultValue={stop.plannedDwellMinutes}
+              onBlur={(event) => {
+                const next = Number(event.target.value)
+                if (!validDwellMinutes(next)) return setError(true)
+                void client
+                  .setStopDwell(trip.id, stop.id, next, trip.version)
+                  .then(setTrip)
+                  .catch(() => setError(true))
+              }}
+            />
             <button
               type="button"
               disabled={index === 0}
@@ -324,6 +429,18 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
               }
             >
               Move Down
+            </button>
+            <button
+              type="button"
+              aria-label={`Remove ${stop.label}`}
+              onClick={() =>
+                client
+                  .removeStop(trip.id, stop.id, trip.version)
+                  .then(setTrip)
+                  .catch(() => setError(true))
+              }
+            >
+              Remove
             </button>
           </li>
         ))}
@@ -363,6 +480,29 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       {error && <TripError />}
       <button type="button" onClick={() => void reviewHours()}>
         Review Hours
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          client
+            .bindNavigatorDevice(trip.id)
+            .then(() => client.get(trip.id))
+            .then(setTrip)
+            .catch(() => setError(true))
+        }
+      >
+        Bind this device
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          client
+            .transferNavigatorDevice(trip.id)
+            .then(setTrip)
+            .catch(() => setError(true))
+        }
+      >
+        Transfer Navigator to this device
       </button>
       {offlineQueue.state === 'queued' || offlineQueue.state === 'conflict' ? (
         <button type="button" onClick={() => void replay()}>

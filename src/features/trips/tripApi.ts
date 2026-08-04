@@ -22,6 +22,13 @@ export type TripApiCommand =
   | 'create_trip'
   | 'add_trip_stop'
   | 'reorder_trip_stop'
+  | 'rename_trip'
+  | 'remove_trip_stop'
+  | 'set_trip_stop_priority'
+  | 'set_trip_stop_dwell'
+  | 'update_trip_schedule'
+  | 'bind_navigator_device'
+  | 'transfer_navigator_device'
   | 'review_trip_hours'
   | 'start_trip'
   | 'mark_arrived'
@@ -54,6 +61,11 @@ export type TripApiCommand =
 /** The transport derives the current actor from its authenticated session. */
 export interface TripTransport {
   invoke(command: TripApiCommand, payload: Readonly<Record<string, unknown>>): Promise<unknown>
+}
+
+export interface TripDeviceIdentity {
+  installId: string
+  deviceKeyId: string
 }
 
 type Parser<T> = (value: unknown) => T
@@ -141,6 +153,11 @@ const parseTrip: Parser<Trip> = (value) => {
     transitionMinutes:
       source.transitionMinutes == null ? undefined : integer(source.transitionMinutes, 0, 180),
   }
+}
+
+function parseGrantWrappedTrip(value: unknown): Trip {
+  const source = record(value)
+  return source.trip == null ? parseTrip(value) : parseTrip(source.trip)
 }
 
 function parseTripList(value: unknown): Trip[] {
@@ -313,7 +330,10 @@ function boundedCode(value: string): string {
   return value
 }
 
-export function createTripApi(transport: TripTransport): TripClient {
+export function createTripApi(
+  transport: TripTransport,
+  deviceIdentity?: TripDeviceIdentity,
+): TripClient {
   async function execute<T>(
     command: TripApiCommand,
     payload: () => Readonly<Record<string, unknown>>,
@@ -371,11 +391,99 @@ export function createTripApi(transport: TripTransport): TripClient {
         parseTrip,
       )
     },
+    renameTrip(tripId, name, expectedVersion, idempotencyKey) {
+      return execute(
+        'rename_trip',
+        () => {
+          const normalized = normalizeTripName(name)
+          if (!normalized) throw genericFailure()
+          return {
+            trip_id: boundedId(tripId),
+            new_name: normalized,
+            expected_version: integer(expectedVersion, 1),
+            idempotency_key: boundedId(idempotencyKey),
+          }
+        },
+        parseTrip,
+      )
+    },
+    removeStop(tripId, stopId, expectedVersion) {
+      return execute(
+        'remove_trip_stop',
+        () => ({
+          trip_id: boundedId(tripId),
+          stop_id: boundedId(stopId),
+          expected_version: integer(expectedVersion, 1),
+        }),
+        parseTrip,
+      )
+    },
+    setStopPriority(tripId, stopId, priority, expectedVersion) {
+      return execute(
+        'set_trip_stop_priority',
+        () => ({
+          trip_id: boundedId(tripId),
+          stop_id: boundedId(stopId),
+          priority: enumValue(priority, PRIORITIES),
+          expected_version: integer(expectedVersion, 1),
+        }),
+        parseTrip,
+      )
+    },
+    setStopDwell(tripId, stopId, dwellMinutes, expectedVersion) {
+      return execute(
+        'set_trip_stop_dwell',
+        () => ({
+          trip_id: boundedId(tripId),
+          stop_id: boundedId(stopId),
+          dwell_minutes: integer(dwellMinutes, 5, 720),
+          expected_version: integer(expectedVersion, 1),
+        }),
+        parseTrip,
+      )
+    },
+    updateSchedule(tripId, input, expectedVersion) {
+      return execute(
+        'update_trip_schedule',
+        () => ({
+          trip_id: boundedId(tripId),
+          local_date: boundedDate(input.localDate),
+          departure_minute:
+            input.departureMinute == null ? null : integer(input.departureMinute, 0, 1439),
+          expected_version: integer(expectedVersion, 1),
+        }),
+        parseTrip,
+      )
+    },
+    bindNavigatorDevice(tripId) {
+      return execute(
+        'bind_navigator_device',
+        () => {
+          if (!deviceIdentity) throw genericFailure()
+          return { trip_id: boundedId(tripId), device_id: boundedId(deviceIdentity.installId) }
+        },
+        parseCollaboration,
+      )
+    },
+    transferNavigatorDevice(tripId) {
+      return execute(
+        'transfer_navigator_device',
+        () => {
+          if (!deviceIdentity) throw genericFailure()
+          return {
+            trip_id: boundedId(tripId),
+            install_id: boundedId(deviceIdentity.installId),
+            device_key_id: boundedId(deviceIdentity.deviceKeyId),
+          }
+        },
+        parseGrantWrappedTrip,
+      )
+    },
     reviewHours(tripId) {
       return execute('review_trip_hours', () => ({ trip_id: boundedId(tripId) }), parseTrip)
     },
     start(tripId) {
-      return execute('start_trip', () => ({ trip_id: boundedId(tripId) }), parseTrip)
+      return execute('start_trip', () => ({ trip_id: boundedId(tripId) }), parseGrantWrappedTrip)
     },
     markArrived(tripId, stopId) {
       return execute(

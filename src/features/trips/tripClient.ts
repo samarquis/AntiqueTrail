@@ -19,6 +19,27 @@ export const unavailableTripClient: TripClient = {
   async reorderStop() {
     throw new Error(GENERIC_TRIP_ERROR)
   },
+  async renameTrip() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async removeStop() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async setStopPriority() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async setStopDwell() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async updateSchedule() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async bindNavigatorDevice() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
+  async transferNavigatorDevice() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
   async reviewHours() {
     throw new Error(GENERIC_TRIP_ERROR)
   },

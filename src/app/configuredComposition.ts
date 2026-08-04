@@ -132,13 +132,58 @@ export async function configuredComposition(): Promise<ConfiguredComposition | n
     auth: { persistSession: false, autoRefreshToken: true, detectSessionInUrl: true },
   })
   const offline = await offlineConfiguration()
-  const trips = createTripApi({
-    async invoke(command, payload) {
-      const result = await supabase.rpc(command, payload)
-      if (result.error) throw result.error
-      return result.data
+  const consumeSignedTripGrant = async (
+    command: 'start_trip_with_offline_grant' | 'transfer_navigator_device',
+    tripId: string,
+    installId: string,
+    deviceKeyId: string,
+  ): Promise<unknown> => {
+    const preflight = await supabase.functions.invoke('trip-grant-signer', {
+      body: { tripId, installId, deviceId: installId, deviceKeyId },
+    })
+    if (
+      preflight.error ||
+      !preflight.data ||
+      typeof preflight.data !== 'object' ||
+      preflight.data.state !== 'ready' ||
+      typeof preflight.data.receiptId !== 'string'
+    )
+      throw new Error('Offline trip grant unavailable.')
+    const result = await supabase.rpc(command, {
+      trip_id: tripId,
+      install_id: installId,
+      device_key_id: deviceKeyId,
+    })
+    if (result.error) throw result.error
+    return result.data
+  }
+  const trips = createTripApi(
+    {
+      async invoke(command, payload) {
+        if (command === 'start_trip')
+          return consumeSignedTripGrant(
+            'start_trip_with_offline_grant',
+            String(payload.trip_id),
+            offline.runtime.installId,
+            offline.runtime.deviceKeyId,
+          )
+        if (command === 'transfer_navigator_device')
+          return consumeSignedTripGrant(
+            command,
+            String(payload.trip_id),
+            offline.runtime.installId,
+            offline.runtime.deviceKeyId,
+          )
+        const result = await supabase.rpc(command, payload)
+        if (result.error) throw result.error
+        return result.data
+      },
     },
-  })
+    {
+      installId: offline.runtime.installId,
+      deviceKeyId: offline.runtime.deviceKeyId,
+    },
+  )
   const sessionRegistry = createRpcSessionRegistry({
     async invoke(command, payload) {
       const result = await supabase.rpc(command, payload)
@@ -182,14 +227,15 @@ export async function configuredComposition(): Promise<ConfiguredComposition | n
   if (offline.enabled) {
     source = {
       async startTripWithOfflineGrant(tripId, installId, deviceKeyId) {
-        const result = await supabase.rpc('start_trip_with_offline_grant', {
-          trip_id: tripId,
-          install_id: installId,
-          device_key_id: deviceKeyId,
-        })
-        if (result.error || !result.data || typeof result.data !== 'object')
+        const result = await consumeSignedTripGrant(
+          'start_trip_with_offline_grant',
+          tripId,
+          installId,
+          deviceKeyId,
+        )
+        if (!result || typeof result !== 'object')
           throw new Error('Offline trip grant unavailable.')
-        const data = result.data as { trip?: Trip; grant?: SignedOfflineGrant }
+        const data = result as { trip?: Trip; grant?: SignedOfflineGrant }
         if (!data.trip || !data.grant) throw new Error('Offline trip grant unavailable.')
         return { trip: data.trip, grant: data.grant }
       },

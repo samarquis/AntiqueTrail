@@ -33,6 +33,20 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
       stops: [{ id: 'stop-1', ...input, position: 0, state: 'planned' as const }],
     })),
     reorderStop: vi.fn(async () => trip),
+    renameTrip: vi.fn(async () => trip),
+    removeStop: vi.fn(async () => trip),
+    setStopPriority: vi.fn(async () => trip),
+    setStopDwell: vi.fn(async () => trip),
+    updateSchedule: vi.fn(async () => trip),
+    bindNavigatorDevice: vi.fn(async () => ({
+      tripId: trip.id,
+      currentUserId: 'creator-a',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+      ],
+      navigatorUserId: 'creator-a',
+    })),
+    transferNavigatorDevice: vi.fn(async () => trip),
     reviewHours: vi.fn(async (): Promise<Trip> => ({ ...trip, state: 'ready' })),
     start: vi.fn(async (): Promise<Trip> => ({ ...trip, state: 'active' })),
     markArrived: vi.fn(async (): Promise<Trip> => trip),
@@ -190,6 +204,90 @@ describe('manual trips', () => {
     expect(reorderStop).toHaveBeenCalledWith('trip-1', 'stop-b', 0)
     await user.click(screen.getByRole('button', { name: /save a change offline/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/queued offline/i)
+  })
+
+  it('provides usable versioned planning and Navigator device controls', async () => {
+    const user = userEvent.setup()
+    const planned: Trip = {
+      ...trip,
+      stops: [
+        {
+          id: 'stop-a',
+          kind: 'store',
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'prefer',
+          plannedDwellMinutes: 60,
+          state: 'planned',
+        },
+      ],
+    }
+    const renameTrip = vi.fn(async () => planned)
+    const updateSchedule = vi.fn(async () => planned)
+    const setStopPriority = vi.fn(async () => planned)
+    const setStopDwell = vi.fn(async () => planned)
+    const removeStop = vi.fn(async () => ({ ...planned, stops: [] }))
+    const bindNavigatorDevice = vi.fn(async () => ({
+      tripId: planned.id,
+      currentUserId: 'creator-a',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+      ],
+      navigatorUserId: 'creator-a',
+    }))
+    const transferNavigatorDevice = vi.fn(async () => planned)
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <PlanPage
+                client={client({
+                  get: vi.fn(async () => planned),
+                  renameTrip,
+                  updateSchedule,
+                  setStopPriority,
+                  setStopDwell,
+                  removeStop,
+                  bindNavigatorDevice,
+                  transferNavigatorDevice,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const name = await screen.findByLabelText(/^trip name$/i)
+    await user.clear(name)
+    await user.type(name, 'Sunday Trail')
+    await user.click(screen.getByRole('button', { name: /rename trip/i }))
+    expect(renameTrip).toHaveBeenCalledWith('trip-1', 'Sunday Trail', 1, expect.any(String))
+
+    await user.clear(screen.getByLabelText(/^trip date$/i))
+    await user.type(screen.getByLabelText(/^trip date$/i), '2026-08-11')
+    await user.type(screen.getByLabelText(/departure time/i), '09:00')
+    await user.click(screen.getByRole('button', { name: /update schedule/i }))
+    expect(updateSchedule).toHaveBeenCalledWith(
+      'trip-1',
+      { localDate: '2026-08-11', departureMinute: 540 },
+      1,
+    )
+
+    await user.selectOptions(screen.getByLabelText(/priority for oak antiques/i), 'must')
+    expect(setStopPriority).toHaveBeenCalledWith('trip-1', 'stop-a', 'must', 1)
+    const dwellInput = screen.getByLabelText(/dwell minutes for oak antiques/i)
+    await user.clear(dwellInput)
+    await user.type(dwellInput, '45')
+    await user.tab()
+    expect(setStopDwell).toHaveBeenCalledWith('trip-1', 'stop-a', 45, 1)
+    await user.click(screen.getByRole('button', { name: /remove oak antiques/i }))
+    expect(removeStop).toHaveBeenCalledWith('trip-1', 'stop-a', 1)
+    await user.click(screen.getByRole('button', { name: /bind this device/i }))
+    expect(bindNavigatorDevice).toHaveBeenCalledWith('trip-1')
+    await user.click(screen.getByRole('button', { name: /transfer navigator/i }))
+    expect(transferNavigatorDevice).toHaveBeenCalledWith('trip-1')
   })
 
   it('offers explicit one-stop Google Maps and Waze handoff links', async () => {

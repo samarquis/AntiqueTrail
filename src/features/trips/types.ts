@@ -103,6 +103,32 @@ export interface TripClient {
     },
   ): Promise<Trip>
   reorderStop(tripId: string, stopId: string, position: number): Promise<Trip>
+  renameTrip(
+    tripId: string,
+    name: string,
+    expectedVersion: number,
+    idempotencyKey: string,
+  ): Promise<Trip>
+  removeStop(tripId: string, stopId: string, expectedVersion: number): Promise<Trip>
+  setStopPriority(
+    tripId: string,
+    stopId: string,
+    priority: StopPriority,
+    expectedVersion: number,
+  ): Promise<Trip>
+  setStopDwell(
+    tripId: string,
+    stopId: string,
+    dwellMinutes: number,
+    expectedVersion: number,
+  ): Promise<Trip>
+  updateSchedule(
+    tripId: string,
+    input: { localDate: string; departureMinute?: number },
+    expectedVersion: number,
+  ): Promise<Trip>
+  bindNavigatorDevice(tripId: string): Promise<TripCollaboration>
+  transferNavigatorDevice(tripId: string): Promise<Trip>
   reviewHours(tripId: string): Promise<Trip>
   start(tripId: string): Promise<Trip>
   markArrived(tripId: string, stopId: string): Promise<Trip>
