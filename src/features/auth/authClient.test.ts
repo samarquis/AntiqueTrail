@@ -23,6 +23,22 @@ describe('in-memory auth boundary', () => {
     expect(store.getSession()).toBeNull()
   })
 
+  it('carries fail-closed provider authentication metadata for privileged composition', () => {
+    const session = toAuthSession({
+      ...providerSession,
+      role: 'Administrator',
+      passwordAuthenticatedAt: '2026-08-04T12:00:00Z',
+      mfaEnrolled: true,
+      mfaVerifiedAt: '2026-08-04T12:01:00Z',
+    })
+    expect(session).toMatchObject({
+      role: 'Administrator',
+      passwordAuthenticatedAt: '2026-08-04T12:00:00Z',
+      mfaEnrolled: true,
+      mfaVerifiedAt: '2026-08-04T12:01:00Z',
+    })
+  })
+
   it('registers and revokes one exact session', async () => {
     const registry = new InMemorySessionRegistry()
     const session = toAuthSession(providerSession)

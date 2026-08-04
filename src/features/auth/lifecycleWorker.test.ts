@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  buildPortableExport,
   runAccountLifecycleWorker,
   sha256,
   verifiedArchive,
@@ -14,6 +15,7 @@ function dependencies(
       { job_id: 'job-1', claim_token: 'claim-1', object_key: 'account-exports/a/job-1.json' },
     ]),
     buildExport: vi.fn(async () => '{"schemaVersion":1}'),
+    getExportMedia: vi.fn(async () => new Uint8Array()),
     putArchive: vi.fn(async () => undefined),
     completeExport: vi.fn(async () => undefined),
     failExport: vi.fn(async () => undefined),
@@ -48,7 +50,7 @@ describe('account lifecycle worker', () => {
   it('uploads canonical bytes before recording their exact digest and completion', async () => {
     const boundary = dependencies()
     const summary = await runAccountLifecycleWorker(boundary, '2026-08-04T12:00:00Z')
-    const expected = new TextEncoder().encode('{"schemaVersion":1}')
+    const expected = await buildPortableExport('{"schemaVersion":1}', boundary.getExportMedia)
     expect(boundary.putArchive).toHaveBeenCalledWith('account-exports/a/job-1.json', expected)
     expect(boundary.completeExport).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -157,5 +159,32 @@ describe('account lifecycle worker', () => {
     await expect(verifiedArchive(bytes, bytes.byteLength, checksum)).resolves.toBe(true)
     await expect(verifiedArchive(bytes, bytes.byteLength + 1, checksum)).resolves.toBe(false)
     await expect(verifiedArchive(bytes, bytes.byteLength, '0'.repeat(64))).resolves.toBe(false)
+  })
+
+  it('creates a ZIP with canonical JSON, convenience CSV, media, and a checksum manifest', async () => {
+    const bytes = await buildPortableExport(
+      JSON.stringify({
+        canonical: {
+          shopper: { savedStores: [{ name: 'Scott\'s "Shop"', note: '=cmd()' }] },
+          candidate: {},
+        },
+        media: [
+          {
+            bucketId: 'candidate-private',
+            objectKey: 'candidate/a/photo.jpg',
+            path: 'media/a/photo.jpg',
+          },
+        ],
+      }),
+      async () => new Uint8Array([1, 2, 3]),
+    )
+    const text = new TextDecoder().decode(bytes)
+    expect([...bytes.slice(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04])
+    expect(text).toContain('user-data.json')
+    expect(text).toContain('tables/saved-stores.csv')
+    expect(text).toContain("'=cmd()")
+    expect(text).toContain('media/a/photo.jpg')
+    expect(text).toContain('manifest.json')
+    expect(text).toContain('SHA-256')
   })
 })

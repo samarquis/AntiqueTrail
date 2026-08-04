@@ -54,9 +54,17 @@ describe('account lifecycle screens', () => {
 
   it('requests an export and exposes only its bounded state', async () => {
     const user = userEvent.setup()
-    renderPage(<ExportPage client={client()} />)
+    const getExportStatus = vi.fn(async () => ({
+      id: 'export-1',
+      state: 'building' as const,
+      createdAt: '2026-01-01',
+    }))
+    renderPage(<ExportPage client={client({ getExportStatus })} />)
     await user.click(screen.getByRole('button', { name: /request export/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/export status: queued/i)
+    await user.click(screen.getByRole('button', { name: /refresh status/i }))
+    expect(await screen.findByRole('status')).toHaveTextContent(/export status: building/i)
+    expect(getExportStatus).toHaveBeenCalledWith('export-1')
     expect(screen.queryByText(/token|bearer|signed_url/i)).not.toBeInTheDocument()
   })
 
@@ -77,15 +85,16 @@ describe('account lifecycle screens', () => {
 
   it('downloads a ready archive without rendering a bearer or signed URL', async () => {
     const user = userEvent.setup()
-    const downloadExport = vi.fn(
-      async () => new Blob(['{"schemaVersion":1}'], { type: 'application/json' }),
-    )
+    const downloadExport = vi.fn(async () => new Blob(['PK'], { type: 'application/zip' }))
     const lifecycleClient = client({
       requestExport: vi.fn(async () => ({
         id: 'export-1',
         state: 'ready' as const,
         createdAt: '2026-01-01',
         expiresAt: '2026-01-08',
+        generatedAt: '2026-01-01T12:00:00Z',
+        fileSizeBytes: 4096,
+        checksumSha256: 'ab'.repeat(32),
       })),
       downloadExport,
     })
@@ -96,12 +105,46 @@ describe('account lifecycle screens', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
     renderPage(<ExportPage client={lifecycleClient} />)
     await user.click(screen.getByRole('button', { name: /request export/i }))
-    await user.click(screen.getByRole('button', { name: /download export/i }))
+    expect(await screen.findByText(/4,096 bytes/i)).toBeInTheDocument()
+    expect(screen.getByText('ab'.repeat(32))).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /download zip/i }))
     expect(downloadExport).toHaveBeenCalledWith('export-1')
     expect(createObjectURL).toHaveBeenCalledOnce()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:private')
     expect(document.body).not.toHaveTextContent(/bearer|signed[_ -]?url|token=/i)
     click.mockRestore()
+  })
+
+  it('offers bounded retry/support and replacement actions for failed and expired jobs', async () => {
+    const user = userEvent.setup()
+    const failed = client({
+      requestExport: vi.fn(async () => ({
+        id: 'failed-1',
+        state: 'failed' as const,
+        createdAt: '2026-01-01',
+      })),
+    })
+    const view = renderPage(<ExportPage client={failed} />)
+    await user.click(screen.getByRole('button', { name: /request export/i }))
+    expect(await screen.findByRole('button', { name: /try again/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /contact support/i })).toHaveAttribute(
+      'href',
+      '/account/privacy?help=export',
+    )
+    view.unmount()
+    renderPage(
+      <ExportPage
+        client={client({
+          requestExport: vi.fn(async () => ({
+            id: 'expired-1',
+            state: 'expired' as const,
+            createdAt: '2026-01-01',
+          })),
+        })}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /request export/i }))
+    expect(await screen.findByRole('button', { name: /create new export/i })).toBeInTheDocument()
   })
 
   it('requires explicit confirmation before scheduling deletion', async () => {

@@ -52,6 +52,13 @@ function exportJob(value: unknown) {
     state: state as 'queued' | 'building' | 'ready' | 'failed' | 'expired',
     createdAt: text(source.createdAt),
     ...(typeof source.expiresAt === 'string' ? { expiresAt: source.expiresAt } : {}),
+    ...(typeof source.generatedAt === 'string' ? { generatedAt: source.generatedAt } : {}),
+    ...(Number.isSafeInteger(source.fileSizeBytes) && Number(source.fileSizeBytes) >= 0
+      ? { fileSizeBytes: Number(source.fileSizeBytes) }
+      : {}),
+    ...(typeof source.checksumSha256 === 'string' && /^[0-9a-f]{64}$/u.test(source.checksumSha256)
+      ? { checksumSha256: source.checksumSha256 }
+      : {}),
   }
 }
 

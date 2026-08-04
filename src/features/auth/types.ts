@@ -8,6 +8,9 @@ export interface AuthSession {
   role: AccountRole
   mfaRequired: boolean
   mfaVerified: boolean
+  passwordAuthenticatedAt?: string
+  mfaEnrolled?: boolean
+  mfaVerifiedAt?: string
 }
 
 export interface ProviderSession {
@@ -16,6 +19,9 @@ export interface ProviderSession {
   expiresAt: number
   role?: AccountRole
   mfaRequired?: boolean
+  passwordAuthenticatedAt?: string
+  mfaEnrolled?: boolean
+  mfaVerifiedAt?: string
 }
 
 export type ProviderSignInResult =

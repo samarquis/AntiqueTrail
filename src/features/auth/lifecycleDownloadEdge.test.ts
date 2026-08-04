@@ -13,5 +13,10 @@ describe('account export download Edge boundary', () => {
     expect(source).toContain("Vary: 'Authorization, Origin'")
     expect(source).toContain("'Access-Control-Allow-Methods': 'POST, OPTIONS'")
     expect(source).not.toContain("'Access-Control-Allow-Origin': '*'")
+    expect(source).toContain("'Content-Type': 'application/zip'")
+    expect(source).toContain('.zip"`')
+    expect(source.indexOf('consume_account_export_handoff')).toBeLessThan(
+      source.indexOf('.download(objectKey)'),
+    )
   })
 })

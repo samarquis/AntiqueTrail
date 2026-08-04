@@ -45,9 +45,16 @@ Deno.serve(async (request) => {
       claimExports: (now, limit) => rpc('claim_account_exports', { p_now: now, p_limit: limit }),
       buildExport: (jobId, claimToken) =>
         rpc('build_account_export', { p_job_id: jobId, p_claim_token: claimToken }),
+      async getExportMedia(bucketId, objectKey) {
+        if (bucketId !== 'candidate-private' || !candidateBucket)
+          throw new Error('account_export_media_unavailable')
+        const result = await client.storage.from(candidateBucket).download(objectKey)
+        if (result.error) throw result.error
+        return new Uint8Array(await result.data.arrayBuffer())
+      },
       async putArchive(objectKey, bytes) {
         const result = await client.storage.from(bucket).upload(objectKey, bytes, {
-          contentType: 'application/json',
+          contentType: 'application/zip',
           cacheControl: '0',
           upsert: true,
         })

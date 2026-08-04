@@ -118,8 +118,8 @@ export function ExportPage({
   const [pending, setPending] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState(false)
-  async function request(event: FormEvent) {
-    event.preventDefault()
+  async function request(event?: Pick<FormEvent, 'preventDefault'>) {
+    event?.preventDefault()
     setPending(true)
     setError(false)
     try {
@@ -139,7 +139,7 @@ export function ExportPage({
       const objectUrl = URL.createObjectURL(archive)
       const link = document.createElement('a')
       link.href = objectUrl
-      link.download = `antique-trail-export-${job.id}.json`
+      link.download = `antique-trail-export-${job.id}.zip`
       link.click()
       URL.revokeObjectURL(objectUrl)
     } catch {
@@ -148,10 +148,22 @@ export function ExportPage({
       setDownloading(false)
     }
   }
+  async function refresh() {
+    if (!job) return
+    setPending(true)
+    setError(false)
+    try {
+      setJob(await client.getExportStatus(job.id))
+    } catch {
+      setError(true)
+    } finally {
+      setPending(false)
+    }
+  }
   return (
     <LifecycleCard
       title="Export your account data"
-      description="Request a copy of the account data you can access. Private secrets, provider credentials, and other people’s data are never included."
+      description="Create a ZIP with canonical UTF-8 JSON, convenience CSV tables, and your eligible media. Private secrets, provider credentials, moderation evidence, purged location data, and other people’s private data are never included."
     >
       {error && <ErrorMessage />}
       {!job ? (
@@ -165,19 +177,57 @@ export function ExportPage({
           <p>
             Export status: <strong>{job.state}</strong>.
           </p>
+          {(job.state === 'queued' || job.state === 'building') && (
+            <button type="button" disabled={pending} onClick={() => void refresh()}>
+              {pending ? 'Refreshing…' : 'Refresh status'}
+            </button>
+          )}
           {job.state === 'ready' && (
             <>
               <p>
                 Your export is ready through the secure account download flow. No access token is
                 shown here.
               </p>
+              <dl>
+                <dt>Generated</dt>
+                <dd>
+                  {job.generatedAt ? new Date(job.generatedAt).toLocaleString() : 'Unavailable'}
+                </dd>
+                <dt>File size</dt>
+                <dd>
+                  {job.fileSizeBytes !== undefined
+                    ? `${job.fileSizeBytes.toLocaleString()} bytes`
+                    : 'Unavailable'}
+                </dd>
+                <dt>SHA-256 checksum</dt>
+                <dd>
+                  <code>{job.checksumSha256 ?? 'Unavailable'}</code>
+                </dd>
+                <dt>Expires</dt>
+                <dd>{job.expiresAt ? new Date(job.expiresAt).toLocaleString() : 'Unavailable'}</dd>
+              </dl>
               <button type="button" disabled={downloading} onClick={() => void download()}>
-                {downloading ? 'Preparing download…' : 'Download export'}
+                {downloading ? 'Preparing download…' : 'Download ZIP'}
               </button>
             </>
           )}
           {job.state === 'failed' && (
-            <p>We could not prepare that export. You can try again later.</p>
+            <>
+              <p role="alert">
+                We could not prepare that export. No internal failure details are shown.
+              </p>
+              <button type="button" disabled={pending} onClick={(event) => void request(event)}>
+                Try Again
+              </button>
+              <p>
+                <Link to="/account/privacy?help=export">Contact support</Link>
+              </p>
+            </>
+          )}
+          {job.state === 'expired' && (
+            <button type="button" disabled={pending} onClick={(event) => void request(event)}>
+              Create New Export
+            </button>
           )}
         </div>
       )}

@@ -16,6 +16,9 @@ export interface ExportJob {
   state: AccountExportState
   createdAt: string
   expiresAt?: string
+  generatedAt?: string
+  fileSizeBytes?: number
+  checksumSha256?: string
 }
 
 /** Provider-neutral application lifecycle contract. No provider tokens or signed URLs cross this seam. */

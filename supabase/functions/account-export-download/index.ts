@@ -74,8 +74,8 @@ Deno.serve(async (request) => {
     if (!(await verifiedArchive(payload, bytes, checksum))) return unavailable(request)
     return new Response(payload, {
       headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Content-Disposition': `attachment; filename="antique-trail-export-${body.jobId}.json"`,
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="antique-trail-export-${body.jobId}.zip"`,
         'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff',
         ...responseHeaders(request),

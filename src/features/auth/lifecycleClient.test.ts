@@ -17,6 +17,9 @@ function transport(): AccountLifecycleTransport {
           state: 'ready',
           createdAt: '2026-08-04T12:00:00Z',
           expiresAt: '2026-08-11T12:00:00Z',
+          generatedAt: '2026-08-04T12:01:00Z',
+          fileSizeBytes: 4096,
+          checksumSha256: 'ab'.repeat(32),
         }
       if (name === 'request_account_deletion')
         return { state: 'deletion_scheduled', deletionDueAt: '2026-08-11T12:00:00Z' }
@@ -32,7 +35,11 @@ describe('account lifecycle production client', () => {
     const client = createAccountLifecycleClient(boundary)
     await expect(client.getStatus()).resolves.toEqual({ state: 'active' })
     await expect(client.requestExport()).resolves.toMatchObject({ id: 'export-1', state: 'queued' })
-    await expect(client.getExportStatus('export-1')).resolves.toMatchObject({ state: 'ready' })
+    await expect(client.getExportStatus('export-1')).resolves.toMatchObject({
+      state: 'ready',
+      fileSizeBytes: 4096,
+      checksumSha256: 'ab'.repeat(32),
+    })
     await expect(client.downloadExport('export-1')).resolves.toBeInstanceOf(Blob)
     await expect(client.requestDeletion()).resolves.toMatchObject({ state: 'deletion_scheduled' })
     await expect(client.cancelDeletion()).resolves.toEqual({ state: 'active' })

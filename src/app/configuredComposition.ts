@@ -42,12 +42,44 @@ function role(value: unknown): AccountRole {
   return value === 'Representative' || value === 'Administrator' ? value : 'Shopper'
 }
 
+function authenticationMetadata(
+  accessToken: string,
+): Pick<ProviderSession, 'passwordAuthenticatedAt' | 'mfaVerifiedAt'> {
+  try {
+    const raw = accessToken.split('.')[1]
+    const normalized = raw.replaceAll('-', '+').replaceAll('_', '/')
+    const claims = JSON.parse(
+      atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')),
+    ) as {
+      amr?: Array<{ method?: string; timestamp?: number }>
+    }
+    const latest = (method: string) =>
+      claims.amr
+        ?.filter((entry) => entry.method === method && Number.isSafeInteger(entry.timestamp))
+        .sort((left, right) => Number(right.timestamp) - Number(left.timestamp))[0]?.timestamp
+    const password = latest('password')
+    const mfa = latest('totp') ?? latest('recovery_code')
+    return {
+      ...(password ? { passwordAuthenticatedAt: new Date(password * 1_000).toISOString() } : {}),
+      ...(mfa ? { mfaVerifiedAt: new Date(mfa * 1_000).toISOString() } : {}),
+    }
+  } catch {
+    return {}
+  }
+}
+
 function providerSession(session: Session): ProviderSession {
+  const mfaEnrolled =
+    session.user.factors?.some(
+      (factor) => factor.factor_type === 'totp' && factor.status === 'verified',
+    ) ?? false
   return {
     userId: session.user.id,
     accessToken: session.access_token,
     expiresAt: (session.expires_at ?? Math.floor(Date.now() / 1_000) + 300) * 1_000,
     role: role(session.user.app_metadata.role),
+    mfaEnrolled,
+    ...authenticationMetadata(session.access_token),
   }
 }
 

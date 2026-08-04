@@ -85,6 +85,11 @@ export function toAuthSession(
     role: provider.role ?? defaults?.role ?? 'Shopper',
     mfaRequired: provider.mfaRequired ?? false,
     mfaVerified: defaults?.mfaVerified ?? !provider.mfaRequired,
+    ...(provider.passwordAuthenticatedAt
+      ? { passwordAuthenticatedAt: provider.passwordAuthenticatedAt }
+      : {}),
+    ...(provider.mfaEnrolled !== undefined ? { mfaEnrolled: provider.mfaEnrolled } : {}),
+    ...(provider.mfaVerifiedAt ? { mfaVerifiedAt: provider.mfaVerifiedAt } : {}),
   }
 }
 
