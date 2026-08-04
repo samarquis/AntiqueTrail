@@ -66,4 +66,3 @@ $$;
 alter function trip_private.apply_go_stop_command(uuid,uuid,text) owner to identity_service;
 
 revoke identity_service from postgres;
-
