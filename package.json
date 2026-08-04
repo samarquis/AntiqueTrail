@@ -13,12 +13,13 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
-    "format": "prettier --check \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"*.{js,ts,json,html}\"",
-    "format:write": "prettier --write \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"*.{js,ts,json,html}\"",
+    "format": "prettier --check \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"scripts/**/*.mjs\" \"*.{js,ts,json,html}\"",
+    "format:write": "prettier --write \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"scripts/**/*.mjs\" \"*.{js,ts,json,html}\"",
     "test": "vitest run",
+    "test:release": "node --test scripts/*.test.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "npm run typecheck && npm run lint && npm run format && npm run test && npm run build"
+    "check": "npm run typecheck && npm run lint && npm run format && npm run test && npm run test:release && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.49.1",

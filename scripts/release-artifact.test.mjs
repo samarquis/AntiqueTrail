@@ -1,0 +1,124 @@
+import assert from 'node:assert/strict'
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import test from 'node:test'
+import { createReceipt, createRelease, verifyRelease } from './release-artifact.mjs'
+
+const SOURCE_SHA = '0123456789abcdef0123456789abcdef01234567'
+
+async function fixture() {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'antique-trail-release-'))
+  const dist = path.join(root, 'dist')
+  const bundle = path.join(root, 'bundle')
+  const lockfile = path.join(root, 'package-lock.json')
+  await mkdir(path.join(dist, 'assets'), { recursive: true })
+  await writeFile(path.join(dist, 'index.html'), '<h1>Antique Trail</h1>\n')
+  await writeFile(path.join(dist, 'assets', 'app.js'), 'console.log("trail")\n')
+  await writeFile(lockfile, '{}\n')
+  return { root, dist, bundle, lockfile }
+}
+
+test('creates and verifies a deterministic exact-file manifest', async () => {
+  const first = await fixture()
+  const second = await fixture()
+  const common = {
+    'source-sha': SOURCE_SHA,
+    repository: 'samarquis/AntiqueTrail',
+    'node-version': 'v20.19.0',
+    'npm-version': '11.13.1',
+    'runner-os': 'Linux',
+    'runner-arch': 'X64',
+  }
+  const firstManifest = await createRelease({
+    ...common,
+    dist: first.dist,
+    out: first.bundle,
+    lockfile: first.lockfile,
+  })
+  const secondManifest = await createRelease({
+    ...common,
+    dist: second.dist,
+    out: second.bundle,
+    lockfile: second.lockfile,
+  })
+
+  assert.equal(firstManifest.artifactDigest, secondManifest.artifactDigest)
+  const verified = await verifyRelease({
+    bundle: first.bundle,
+    'expected-digest': firstManifest.artifactDigest,
+    'expected-source-sha': SOURCE_SHA,
+  })
+  assert.deepEqual(verified.files, firstManifest.files)
+})
+
+test('fails closed when artifact bytes change', async () => {
+  const item = await fixture()
+  const manifest = await createRelease({
+    dist: item.dist,
+    out: item.bundle,
+    'source-sha': SOURCE_SHA,
+    repository: 'samarquis/AntiqueTrail',
+    'node-version': 'v20.19.0',
+    'npm-version': '11.13.1',
+    'runner-os': 'Linux',
+    'runner-arch': 'X64',
+    lockfile: item.lockfile,
+  })
+  await writeFile(path.join(item.bundle, 'dist', 'index.html'), 'tampered\n')
+
+  await assert.rejects(
+    verifyRelease({
+      bundle: item.bundle,
+      'expected-digest': manifest.artifactDigest,
+      'expected-source-sha': SOURCE_SHA,
+    }),
+    /digest does not match/,
+  )
+})
+
+test('binds a deployment receipt to the verified artifact digest', async () => {
+  const item = await fixture()
+  const manifest = await createRelease({
+    dist: item.dist,
+    out: item.bundle,
+    'source-sha': SOURCE_SHA,
+    repository: 'samarquis/AntiqueTrail',
+    'node-version': 'v20.19.0',
+    'npm-version': '11.13.1',
+    'runner-os': 'Linux',
+    'runner-arch': 'X64',
+    lockfile: item.lockfile,
+  })
+  const providerFile = path.join(item.root, 'provider.json')
+  const receiptFile = path.join(item.root, 'receipt.json')
+  await writeFile(
+    providerFile,
+    JSON.stringify({
+      deploymentId: 'deployment-id',
+      deploymentUrl: 'https://deployment.example.test',
+      canonicalHostname: 'https://shared.example.test',
+      projectName: 'antique-trail',
+      branch: 'shared-alpha',
+      environment: 'shared-alpha',
+      wranglerVersion: '4.28.1',
+      mode: 'rollback',
+      reasonCode: 'restore-prior-accepted',
+      sourceRunId: '1234',
+      deployedAt: '2026-08-04T12:00:00Z',
+      deploymentAccessStatus: '302',
+      canonicalAccessStatus: '403',
+    }),
+  )
+
+  const receipt = await createReceipt({
+    bundle: item.bundle,
+    'provider-file': providerFile,
+    out: receiptFile,
+    'expected-digest': manifest.artifactDigest,
+    'expected-source-sha': SOURCE_SHA,
+  })
+  assert.equal(receipt.artifact.artifactDigest, manifest.artifactDigest)
+  assert.match(receipt.receiptDigest, /^[a-f0-9]{64}$/)
+  assert.deepEqual(JSON.parse(await readFile(receiptFile, 'utf8')), receipt)
+})

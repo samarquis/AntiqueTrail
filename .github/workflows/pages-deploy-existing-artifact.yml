@@ -1,0 +1,247 @@
+name: Deploy existing H-01 Pages artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Workflow run ID that produced the accepted antique-trail-pages artifact
+        required: true
+        type: string
+      expected_source_sha:
+        description: Exact 40-character source commit SHA from that artifact
+        required: true
+        type: string
+      expected_artifact_digest:
+        description: Exact 64-character SHA-256 tree digest from that artifact
+        required: true
+        type: string
+      mode:
+        description: Promotion uploads a newly accepted artifact; rollback re-uploads a prior accepted artifact
+        required: true
+        default: promotion
+        type: choice
+        options:
+          - promotion
+          - rollback
+      reason_code:
+        description: Content-free receipt reason code (letters, numbers, dot, colon, underscore, or hyphen)
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: antique-trail-pages-shared-alpha-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy-existing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: shared-alpha
+    env:
+      WRANGLER_VERSION: 4.28.1
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+      EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+      EXPECTED_ARTIFACT_DIGEST: ${{ inputs.expected_artifact_digest }}
+      DEPLOYMENT_MODE: ${{ inputs.mode }}
+      REASON_CODE: ${{ inputs.reason_code }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+      PAGES_BRANCH: ${{ vars.CLOUDFLARE_PAGES_BRANCH }}
+      CANONICAL_HOSTNAME: ${{ vars.CLOUDFLARE_PAGES_HOSTNAME }}
+    steps:
+      - name: Fail-closed deployment preflight
+        id: preflight
+        shell: bash
+        run: |
+          missing=()
+          test -n "$CLOUDFLARE_API_TOKEN" || missing+=(CLOUDFLARE_API_TOKEN)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || missing+=(CLOUDFLARE_ACCOUNT_ID)
+          test -n "$PAGES_PROJECT" || missing+=(CLOUDFLARE_PAGES_PROJECT)
+          test -n "$PAGES_BRANCH" || missing+=(CLOUDFLARE_PAGES_BRANCH)
+          test -n "$CANONICAL_HOSTNAME" || missing+=(CLOUDFLARE_PAGES_HOSTNAME)
+
+          valid=true
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]] || valid=false
+          [[ "$EXPECTED_SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]] || valid=false
+          [[ "$EXPECTED_ARTIFACT_DIGEST" =~ ^[a-f0-9]{64}$ ]] || valid=false
+          [[ "$REASON_CODE" =~ ^[A-Za-z0-9._:-]{1,64}$ ]] || valid=false
+          [[ "$CANONICAL_HOSTNAME" =~ ^https://[^/]+/?$ ]] || valid=false
+
+          if (( ${#missing[@]} > 0 )) || [[ "$valid" != true ]]; then
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            {
+              echo '## Deployment blocked safely'
+              echo
+              echo 'No provider call was made. The protected environment is missing required configuration or an input is invalid.'
+              if (( ${#missing[@]} > 0 )); then
+                echo
+                printf -- '- Missing protected names: `%s`\n' "$(IFS=', '; echo "${missing[*]}")"
+              fi
+              if [[ "$valid" != true ]]; then
+                echo '- One or more non-secret dispatch inputs failed strict validation.'
+              fi
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+      - name: Checkout verifier only
+        if: steps.preflight.outputs.ready == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Download the selected prior artifact
+        if: steps.preflight.outputs.ready == 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: antique-trail-pages
+          path: release-bundle
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.source_run_id }}
+      - name: Verify exact artifact and source binding
+        if: steps.preflight.outputs.ready == 'true'
+        run: |
+          node scripts/release-artifact.mjs verify \
+            --bundle release-bundle \
+            --expected-digest "$EXPECTED_ARTIFACT_DIGEST" \
+            --expected-source-sha "$EXPECTED_SOURCE_SHA"
+      - name: Direct Upload the verified directory without rebuilding
+        if: steps.preflight.outputs.ready == 'true'
+        id: upload
+        shell: bash
+        run: |
+          started_epoch="$(date +%s)"
+          echo "started_epoch=$started_epoch" >> "$GITHUB_OUTPUT"
+          npx --yes "wrangler@$WRANGLER_VERSION" pages deploy release-bundle/dist \
+            --project-name "$PAGES_PROJECT" \
+            --branch "$PAGES_BRANCH" \
+            --commit-hash "$EXPECTED_SOURCE_SHA" \
+            --commit-message "$DEPLOYMENT_MODE:$EXPECTED_ARTIFACT_DIGEST" \
+            --commit-dirty=false
+      - name: Resolve successful Cloudflare deployment
+        if: steps.preflight.outputs.ready == 'true'
+        id: deployment
+        shell: bash
+        env:
+          STARTED_EPOCH: ${{ steps.upload.outputs.started_epoch }}
+        run: |
+          response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            --header 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PAGES_PROJECT/deployments")"
+          deployment="$(jq -c \
+            --arg sha "$EXPECTED_SOURCE_SHA" \
+            --arg branch "$PAGES_BRANCH" \
+            '[.result[] | select(.deployment_trigger.metadata.commit_hash == $sha and .deployment_trigger.metadata.branch == $branch)] | sort_by(.created_on) | last' \
+            <<< "$response")"
+          test "$deployment" != null
+          test "$(jq -r '.latest_stage.status' <<< "$deployment")" = success
+          deployment_id="$(jq -r '.id' <<< "$deployment")"
+          deployment_url="$(jq -r '.url' <<< "$deployment")"
+          deployed_at="$(jq -r '.created_on' <<< "$deployment")"
+          test -n "$deployment_id"
+          [[ "$deployment_url" =~ ^https:// ]]
+          deployed_epoch="$(date --date="$deployed_at" +%s)"
+          test "$deployed_epoch" -ge "$STARTED_EPOCH"
+          echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
+          echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
+          echo "deployed_at=$deployed_at" >> "$GITHUB_OUTPUT"
+      - name: Prove logged-out denial on deployment and canonical hosts
+        if: steps.preflight.outputs.ready == 'true'
+        id: access
+        shell: bash
+        env:
+          DEPLOYMENT_URL: ${{ steps.deployment.outputs.deployment_url }}
+        run: |
+          check_denied() {
+            local label="$1"
+            local url="$2"
+            local headers
+            headers="$(mktemp)"
+            local status
+            status="$(curl --silent --show-error --output /dev/null --dump-header "$headers" \
+              --write-out '%{http_code}' --max-time 20 "$url")"
+            case "$status" in
+              401|403) ;;
+              301|302|303|307|308)
+                grep -Eiq '^location: https://[^/]*\.cloudflareaccess\.com/' "$headers" || {
+                  echo "$label redirected outside Cloudflare Access" >&2
+                  return 1
+                }
+                ;;
+              *)
+                echo "$label was not denied before application access (HTTP $status)" >&2
+                return 1
+                ;;
+            esac
+            printf '%s' "$status"
+          }
+          deployment_status="$(check_denied deployment "$DEPLOYMENT_URL")"
+          canonical_status="$(check_denied canonical "$CANONICAL_HOSTNAME")"
+          echo "deployment_status=$deployment_status" >> "$GITHUB_OUTPUT"
+          echo "canonical_status=$canonical_status" >> "$GITHUB_OUTPUT"
+      - name: Create digest-bound deployment receipt
+        if: steps.preflight.outputs.ready == 'true'
+        env:
+          DEPLOYMENT_ID: ${{ steps.deployment.outputs.deployment_id }}
+          DEPLOYMENT_URL: ${{ steps.deployment.outputs.deployment_url }}
+          DEPLOYED_AT: ${{ steps.deployment.outputs.deployed_at }}
+          DEPLOYMENT_ACCESS_STATUS: ${{ steps.access.outputs.deployment_status }}
+          CANONICAL_ACCESS_STATUS: ${{ steps.access.outputs.canonical_status }}
+        shell: bash
+        run: |
+          jq -n \
+            --arg deploymentId "$DEPLOYMENT_ID" \
+            --arg deploymentUrl "$DEPLOYMENT_URL" \
+            --arg canonicalHostname "$CANONICAL_HOSTNAME" \
+            --arg projectName "$PAGES_PROJECT" \
+            --arg branch "$PAGES_BRANCH" \
+            --arg environment shared-alpha \
+            --arg wranglerVersion "$WRANGLER_VERSION" \
+            --arg mode "$DEPLOYMENT_MODE" \
+            --arg reasonCode "$REASON_CODE" \
+            --arg sourceRunId "$SOURCE_RUN_ID" \
+            --arg deployedAt "$DEPLOYED_AT" \
+            --arg deploymentAccessStatus "$DEPLOYMENT_ACCESS_STATUS" \
+            --arg canonicalAccessStatus "$CANONICAL_ACCESS_STATUS" \
+            '{$deploymentId,$deploymentUrl,$canonicalHostname,$projectName,$branch,$environment,$wranglerVersion,$mode,$reasonCode,$sourceRunId,$deployedAt,$deploymentAccessStatus,$canonicalAccessStatus}' \
+            > provider-deployment.json
+          node scripts/release-artifact.mjs receipt \
+            --bundle release-bundle \
+            --provider-file provider-deployment.json \
+            --out deployment-receipt.json \
+            --expected-digest "$EXPECTED_ARTIFACT_DIGEST" \
+            --expected-source-sha "$EXPECTED_SOURCE_SHA"
+      - name: Upload deployment receipt
+        if: steps.preflight.outputs.ready == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: antique-trail-deployment-receipt-${{ github.run_id }}
+          path: deployment-receipt.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Summarize accepted provider response
+        if: steps.preflight.outputs.ready == 'true'
+        env:
+          DEPLOYMENT_ID: ${{ steps.deployment.outputs.deployment_id }}
+          DEPLOYMENT_URL: ${{ steps.deployment.outputs.deployment_url }}
+        run: |
+          receipt_digest="$(jq -r '.receiptDigest' deployment-receipt.json)"
+          {
+            echo '## H-01 Pages deployment receipt'
+            echo
+            echo "- Mode: \`$DEPLOYMENT_MODE\`"
+            echo "- Source run: \`$SOURCE_RUN_ID\`"
+            echo "- Source SHA: \`$EXPECTED_SOURCE_SHA\`"
+            echo "- Artifact SHA-256: \`$EXPECTED_ARTIFACT_DIGEST\`"
+            echo "- Cloudflare deployment ID: \`$DEPLOYMENT_ID\`"
+            echo "- Cloudflare deployment URL: $DEPLOYMENT_URL"
+            echo "- Receipt SHA-256: \`$receipt_digest\`"
+            echo '- Logged-out denial: observed on both deployment and canonical hostnames.'
+          } >> "$GITHUB_STEP_SUMMARY"
