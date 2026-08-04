@@ -78,12 +78,12 @@ begin
 end $$;
 
 create or replace function partner_private.record_synthetic_claim_signal(p_claim_id uuid,p_channel_class text,p_signal_type text,p_evidence_ref_hmac bytea)
-returns uuid language plpgsql volatile security definer set search_path='' as $$ declare c partner_private.listing_claims%rowtype; sid uuid; begin
+returns uuid language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=auth.uid(); c partner_private.listing_claims%rowtype; sid uuid; begin
   select * into c from partner_private.listing_claims where claim_id=p_claim_id;
   if not found then raise exception using errcode='55000',message='partner_synthetic_signal_denied'; end if;
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('partner-store:'||c.store_id,0));
   select * into c from partner_private.listing_claims where claim_id=p_claim_id for update;
-  if not found or not partner_private.claim_stage_allowed(c.store_id) or not exists(select 1 from app_public.stores where id=c.store_id and synthetic)
+  if not found or actor is null or c.claimant_id<>actor or not partner_private.claim_stage_allowed(c.store_id) or not exists(select 1 from app_public.stores where id=c.store_id and synthetic)
     or c.state not in ('submitted','verification_pending') or octet_length(p_evidence_ref_hmac)<>32 then raise exception using errcode='55000',message='partner_synthetic_signal_denied'; end if;
   insert into partner_private.claim_authority_signals(claim_id,channel_class,signal_type,status,evidence_ref_hmac)
     values(p_claim_id,p_channel_class,p_signal_type,'submitted',p_evidence_ref_hmac) returning signal_id into sid;
@@ -273,8 +273,8 @@ alter function partner_private.record_synthetic_claim_signal(uuid,text,text,byte
 alter function app_public.partner_admin_claim_case(uuid) owner to identity_service; alter function app_public.partner_admin_claim_command(text,uuid,bigint,text,text,uuid) owner to identity_service; alter function partner_private.enforce_listing_claim_release_gate() owner to identity_service;
 alter function app_public.partner_synthetic_command(text,jsonb) owner to identity_service;
 
-revoke all on function partner_private.record_synthetic_claim_signal(uuid,text,text,bytea),partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text) from public,anon,authenticated;
-grant execute on function partner_private.record_synthetic_claim_signal(uuid,text,text,bytea),partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text) to partner_authority_service;
+revoke all on function partner_private.record_synthetic_claim_signal(uuid,text,text,bytea),partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text) from public,anon,authenticated,partner_authority_service;
+grant execute on function partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text) to partner_authority_service;
 revoke all on function app_public.issue_synthetic_partner_invitation(bytea,smallint,text),app_public.partner_start_claim(uuid,text,text,text),app_public.partner_claim_status(uuid),app_public.partner_claimant_claim_command(text,uuid,bigint,text),app_public.partner_admin_claim_case(uuid),app_public.partner_admin_claim_command(text,uuid,bigint,text,text,uuid) from public,anon;
 grant execute on function app_public.issue_synthetic_partner_invitation(bytea,smallint,text),app_public.partner_start_claim(uuid,text,text,text),app_public.partner_claim_status(uuid),app_public.partner_claimant_claim_command(text,uuid,bigint,text),app_public.partner_admin_claim_case(uuid),app_public.partner_admin_claim_command(text,uuid,bigint,text,text,uuid) to authenticated;
 

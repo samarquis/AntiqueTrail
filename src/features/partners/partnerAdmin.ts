@@ -1,3 +1,5 @@
+import type { PartnerClaimState } from './types'
+
 export type PartnerAdminOperation =
   | 'changes'
   | 'conflict'
@@ -9,7 +11,7 @@ export type PartnerAdminOperation =
 
 export interface PartnerAdminCase {
   claimId: string
-  state: string
+  state: PartnerClaimState
   version?: number
   exactStoreScope?: string
   verifiedSignals?: ReadonlyArray<{ channelClass: string; signalType: string }>

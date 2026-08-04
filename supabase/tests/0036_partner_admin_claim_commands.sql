@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(53);
 
 select has_column('partner_private','partner_invitations','synthetic','invitations distinguish the bounded Synthetic path');
 select has_column('partner_private','partner_invitations','issuance_idempotency_key','invitation issuance is one-use keyed');
@@ -22,7 +22,8 @@ select ok(not has_function_privilege('anon','app_public.issue_synthetic_partner_
 select ok(has_function_privilege('authenticated','app_public.issue_synthetic_partner_invitation(bytea,smallint,text)','EXECUTE'),'authenticated sessions reach the internal Administrator checks');
 select ok(not has_function_privilege('authenticated','partner_private.record_synthetic_claim_signal(uuid,text,text,bytea)','EXECUTE'),'claimants cannot insert operational authority signals');
 select ok(not has_function_privilege('authenticated','partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text)','EXECUTE'),'claimants cannot mark authority verified');
-select ok(has_function_privilege('partner_authority_service','partner_private.record_synthetic_claim_signal(uuid,text,text,bytea)','EXECUTE') and has_function_privilege('partner_authority_service','partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text)','EXECUTE'),'only the narrow operations service can submit and verify signals');
+select ok(not has_function_privilege('partner_authority_service','partner_private.record_synthetic_claim_signal(uuid,text,text,bytea)','EXECUTE'),'the operations verifier cannot submit a claimant signal');
+select ok(has_function_privilege('partner_authority_service','partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text)','EXECUTE'),'the narrow operations service can verify submitted signals');
 select ok(not has_table_privilege('authenticated','partner_private.listing_claims','SELECT') and not has_table_privilege('authenticated','partner_private.claim_authority_signals','SELECT'),'clients cannot bypass reason-neutral projections or read evidence rows');
 
 select ok(position('current_user_has_role' in pg_get_functiondef('partner_private.require_claim_admin()'::regprocedure))>0,'Administrator role is required');
@@ -34,6 +35,7 @@ select ok(position('store_id' in pg_get_function_arguments('app_public.issue_syn
 select ok(position('partner_invitation_raw_secret_not_replayable' in pg_get_functiondef('app_public.issue_synthetic_partner_invitation(bytea,smallint,text)'::regprocedure))>0,'raw invitation material cannot be replayed');
 
 select ok(position("values (p_claim_id, p_channel_class, p_signal_type, 'submitted'" in lower(pg_get_functiondef('partner_private.record_synthetic_claim_signal(uuid,text,text,bytea)'::regprocedure)))>0,'signal submission can only create submitted state');
+select ok(position('c.claimant_id <> actor' in lower(pg_get_functiondef('partner_private.record_synthetic_claim_signal(uuid,text,text,bytea)'::regprocedure)))>0,'signal submission denies sibling claim identifiers');
 select ok(position("s.status <> 'submitted'" in lower(pg_get_functiondef('partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text)'::regprocedure)))>0,'verification consumes only a submitted signal');
 select ok(position('p_verifier_user_id = c.claimant_id' in lower(pg_get_functiondef('partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text)'::regprocedure)))>0,'claimant self-verification is denied');
 select ok(position("role = 'administrator'" in lower(pg_get_functiondef('partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text)'::regprocedure)))>0,'signal verifier must be an active Administrator');
