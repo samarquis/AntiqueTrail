@@ -13,13 +13,21 @@ A repository administrator must create and protect the GitHub environment
 named `shared-alpha`. Require designated reviewers, prevent self-review when
 the GitHub plan supports it, restrict deployment branches to `main`, and store:
 
-| Kind   | Name                        | Meaning                                      |
-| ------ | --------------------------- | -------------------------------------------- |
-| Secret | `CLOUDFLARE_API_TOKEN`      | Least-privilege Pages deployment token       |
-| Secret | `CLOUDFLARE_ACCOUNT_ID`     | Cloudflare account identifier                |
-| Var    | `CLOUDFLARE_PAGES_PROJECT`  | Existing Direct Upload Pages project name    |
-| Var    | `CLOUDFLARE_PAGES_BRANCH`   | Direct Upload production branch, `main`      |
-| Var    | `CLOUDFLARE_PAGES_HOSTNAME` | Full HTTPS canonical shared-stage origin URL |
+| Kind   | Name                                         | Meaning                                      |
+| ------ | -------------------------------------------- | -------------------------------------------- |
+| Secret | `CLOUDFLARE_API_TOKEN`                       | Least-privilege Pages deployment token       |
+| Secret | `CLOUDFLARE_ACCOUNT_ID`                      | Cloudflare account identifier                |
+| Secret | `H01_PASS_RECEIPT_BASE64`                    | Exact current signed PASS receipt, base64    |
+| Var    | `CLOUDFLARE_PAGES_PROJECT`                   | Existing Direct Upload Pages project name    |
+| Var    | `CLOUDFLARE_PAGES_BRANCH`                    | Direct Upload production branch, `main`      |
+| Var    | `CLOUDFLARE_PAGES_HOSTNAME`                  | Full HTTPS canonical shared-stage origin URL |
+| Var    | `H01_PRODUCT_SIGNER_ID`                      | Registered Product human identifier          |
+| Var    | `H01_PRODUCT_SIGNER_FINGERPRINT`             | SHA-256 of Product Ed25519 SPKI DER          |
+| Var    | `H01_PRODUCT_SIGNER_PUBLIC_KEY_SPKI_BASE64`  | Product public key only                      |
+| Var    | `H01_SECURITY_SIGNER_ID`                     | Registered Security human identifier         |
+| Var    | `H01_SECURITY_SIGNER_FINGERPRINT`            | SHA-256 of Security Ed25519 SPKI DER         |
+| Var    | `H01_SECURITY_SIGNER_PUBLIC_KEY_SPKI_BASE64` | Security public key only                     |
+| Var    | `H01_REVOKED_SIGNER_FINGERPRINTS_JSON`       | JSON array of revoked signer keys            |
 
 Do not configure these names at repository scope. Environment-scoped values
 ensure that the reviewer gate is crossed before they are released to a job.
@@ -29,6 +37,12 @@ a `Deployment blocked safely` summary; it never performs a provider call.
 The token must allow only the selected account/project's Pages deployment and
 deployment inspection operations. Record its identifier, custodian, version,
 activation, rotation, and revocation receipt without recording its value.
+
+The signer identities must be two named, distinct humans. Their Ed25519 private
+keys remain offline under separate custody. Only public SPKI bytes and their
+SHA-256 fingerprints belong in protected configuration. A revoked, inactive,
+duplicated, substituted, or malformed key blocks deployment. Never put a private
+signing key in GitHub, the repository, Supabase, logs, or a backup.
 
 ## Build the immutable artifact
 
@@ -53,10 +67,17 @@ An unavailable prior bundle means rollback is not proven and keeps H-01 NO-GO.
 ## Promote without rebuilding
 
 Manually run `Deploy existing H-01 Pages artifact` with the three recorded
-coordinates, `mode=promotion`, and a content-free reason code. The fixed
+coordinates, the signed receipt digest, exact deployment version,
+`mode=promotion`, and the same content-free reason code present in the signature payload. The fixed
 `shared-alpha` GitHub environment must require human approval.
 
-The workflow downloads the bundle from the specified prior workflow run,
+Before any Cloudflare call, the workflow decodes the protected exact PASS
+receipt; checks its digest, source SHA, artifact digest, environment, mode,
+operation, reason, 30-minute validity, quota controls, journal/fence and
+operation/subject bindings; re-verifies both signatures against the protected
+registry; and consumes the nonce in a repository artifact marker. A prior marker
+blocks replay. The deployment concurrency group serializes marker checks and
+creation. The workflow then downloads the bundle from the specified prior run,
 recomputes and checks every byte, and invokes exactly
 `wrangler@4.28.1 pages deploy` against its existing `dist/`. It then obtains the
 successful deployment through the Cloudflare API and fails unless a logged-out
@@ -96,13 +117,38 @@ rehearsal; do not edit versions only in a workflow run.
 deployment and recovery rehearsal. It never queries a provider and cannot turn
 an assertion into evidence. Start with
 `docs/operations/H01_GATE_EVIDENCE.template.json`, replace every placeholder
-with witnessed facts and content-free evidence references, then run:
+with witnessed facts and content-free evidence references. Record exact
+artifact/source/lockfile, two-layer backup, fence deployment/version, latch
+version, journal high-water/root, operation-set digest, subject-set digest,
+operation, mode, transition, reason, a fresh random 32-byte nonce, issue time,
+and an expiry no more than 30 minutes later.
+
+Export the exact canonical bytes for both offline signers:
+
+```powershell
+node scripts/h01-gate.mjs payload `
+  --evidence docs/operations/H01_GATE_EVIDENCE.json `
+  > h01-authorization-payload.json
+```
+
+Each named human independently signs those exact bytes with their registered
+offline Ed25519 private key. Insert only the base64 signatures, roles, public
+fingerprints, and public registry data. Do not normalize or reformat the bytes
+between signatures. Then run:
 
 ```powershell
 node scripts/h01-gate.mjs receipt `
   --evidence docs/operations/H01_GATE_EVIDENCE.json `
   --out-dir receipts
 ```
+
+The receipt command must run inside the signed 30-minute interval. It refuses a
+nonce present in the optional content-free JSON ledger passed via
+`--used-nonce-ledger`. Before dispatch, base64-encode the exact PASS receipt into
+the protected `H01_PASS_RECEIPT_BASE64` environment secret and supply its
+`receiptDigest` as the workflow input. The workflow verifies it again and
+creates its one-use nonce marker before Wrangler executes. A failed run after
+nonce consumption requires a newly signed nonce; never reuse the old receipt.
 
 A passing receipt is written to
 `receipts/<evidence-date>/h01-<stage>-<receipt-digest>.json`. The evidence and
@@ -147,7 +193,7 @@ and Recovery Custodian outer encryption and denial with either key alone.
 
 This local evaluator does not satisfy the human/provider portion of H-01. A
 passing input still requires provider-authenticated observations, named and
-separate Product/Security signers, named Product Owner and Recovery Custodian
+separate Product/Security signers with registered offline keys, named Product Owner and Recovery Custodian
 key holders, witnessed backup/decrypt/restore and rollback runs, current plan
 and `$0` no-overage evidence, secret custody and rotation evidence, Access
 coverage/denial checks, and the remaining registration journal/fence/provider

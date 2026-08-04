@@ -128,5 +128,49 @@
         "evidenceRef": ""
       }
     }
+  },
+  "registrationSafety": {
+    "fenceDeploymentId": "",
+    "fenceVersion": "",
+    "targetLatchVersion": "",
+    "journalHighWaterMark": null,
+    "journalRoot": "",
+    "operationSetDigest": "",
+    "subjectSetDigest": ""
+  },
+  "signerRegistry": {
+    "schemaVersion": 1,
+    "signers": [
+      {
+        "role": "Product",
+        "humanId": "",
+        "publicKeySpkiBase64": "",
+        "fingerprint": "",
+        "status": "inactive"
+      },
+      {
+        "role": "Security",
+        "humanId": "",
+        "publicKeySpkiBase64": "",
+        "fingerprint": "",
+        "status": "inactive"
+      }
+    ],
+    "revokedFingerprints": []
+  },
+  "authorization": {
+    "schemaVersion": 1,
+    "nonce": "",
+    "issuedAt": "",
+    "expiresAt": "",
+    "deploymentVersion": "",
+    "operation": "pages-direct-upload",
+    "mode": "promotion",
+    "allowedTransition": "no-registration-transition",
+    "reasonCode": "",
+    "signatures": [
+      { "role": "Product", "fingerprint": "", "signature": "" },
+      { "role": "Security", "fingerprint": "", "signature": "" }
+    ]
   }
 }
