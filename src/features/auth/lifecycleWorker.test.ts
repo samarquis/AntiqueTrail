@@ -187,4 +187,17 @@ describe('account lifecycle worker', () => {
     expect(text).toContain('manifest.json')
     expect(text).toContain('SHA-256')
   })
+
+  it('fails before archiving an export that exceeds bounded media limits', async () => {
+    const tooMany = Array.from({ length: 101 }, (_, index) => ({
+      bucketId: 'candidate-private',
+      objectKey: `candidate/a/${index}.jpg`,
+      path: `media/a/${index}.jpg`,
+    }))
+    const getMedia = vi.fn(async () => new Uint8Array())
+    await expect(
+      buildPortableExport(JSON.stringify({ canonical: {}, media: tooMany }), getMedia),
+    ).rejects.toThrow('account_export_media_count_exceeded')
+    expect(getMedia).not.toHaveBeenCalled()
+  })
 })

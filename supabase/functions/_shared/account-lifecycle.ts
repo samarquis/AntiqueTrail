@@ -26,7 +26,7 @@ export interface AccountDeletionClaim {
 export interface AccountLifecycleWorkerDependencies {
   claimExports(now: string, limit: number): Promise<ExportClaim[]>
   buildExport(jobId: string, claimToken: string): Promise<string>
-  getExportMedia(bucketId: string, objectKey: string): Promise<Uint8Array>
+  getExportMedia(bucketId: string, objectKey: string, maxBytes: number): Promise<Uint8Array>
   putArchive(objectKey: string, bytes: Uint8Array): Promise<void>
   completeExport(input: {
     jobId: string
@@ -66,6 +66,10 @@ interface ZipEntry {
   path: string
   bytes: Uint8Array
 }
+
+export const PORTABLE_EXPORT_MAX_MEDIA_FILES = 100
+export const PORTABLE_EXPORT_MAX_FILE_BYTES = 8 * 1024 * 1024
+export const PORTABLE_EXPORT_MAX_SOURCE_BYTES = 32 * 1024 * 1024
 
 export interface AccountLifecycleRunSummary {
   exportsClaimed: number
@@ -207,8 +211,10 @@ function csv(value: unknown): string {
 
 export async function buildPortableExport(
   raw: string,
-  getMedia: (bucketId: string, objectKey: string) => Promise<Uint8Array>,
+  getMedia: (bucketId: string, objectKey: string, maxBytes: number) => Promise<Uint8Array>,
 ): Promise<Uint8Array> {
+  if (new TextEncoder().encode(raw).byteLength > PORTABLE_EXPORT_MAX_FILE_BYTES)
+    throw new Error('account_export_canonical_too_large')
   const parsed = JSON.parse(raw) as PortableExportSource
   const canonical = Object.hasOwn(parsed, 'canonical') ? parsed.canonical : parsed
   const canonicalBytes = new TextEncoder().encode(JSON.stringify(canonical))
@@ -223,6 +229,7 @@ export async function buildPortableExport(
       ? (root.candidate as Record<string, unknown>)
       : {}
   const entries: ZipEntry[] = [{ path: 'user-data.json', bytes: canonicalBytes }]
+  let sourceBytes = canonicalBytes.byteLength
   for (const [path, value] of [
     ['tables/saved-stores.csv', shopper.savedStores],
     ['tables/memories.csv', shopper.memories],
@@ -230,12 +237,30 @@ export async function buildPortableExport(
     ['tables/candidate-links.csv', candidate.links],
     ['tables/candidate-shares.csv', candidate.shares],
     ['tables/trip-ideas.csv', candidate.tripIdeas],
-  ] as const)
-    entries.push({ path, bytes: new TextEncoder().encode(csv(value)) })
-  for (const media of parsed.media ?? []) {
+  ] as const) {
+    const bytes = new TextEncoder().encode(csv(value))
+    sourceBytes += bytes.byteLength
+    if (sourceBytes > PORTABLE_EXPORT_MAX_SOURCE_BYTES)
+      throw new Error('account_export_source_too_large')
+    entries.push({ path, bytes })
+  }
+  const mediaFiles = parsed.media ?? []
+  if (mediaFiles.length > PORTABLE_EXPORT_MAX_MEDIA_FILES)
+    throw new Error('account_export_media_count_exceeded')
+  for (const media of mediaFiles) {
     if (media.bucketId !== 'candidate-private' || !/^media\/[a-z0-9._/-]+$/u.test(media.path))
       throw new Error('unsafe_export_media')
-    entries.push({ path: media.path, bytes: await getMedia(media.bucketId, media.objectKey) })
+    const remaining = PORTABLE_EXPORT_MAX_SOURCE_BYTES - sourceBytes
+    if (remaining <= 0) throw new Error('account_export_source_too_large')
+    const bytes = await getMedia(
+      media.bucketId,
+      media.objectKey,
+      Math.min(PORTABLE_EXPORT_MAX_FILE_BYTES, remaining),
+    )
+    if (bytes.byteLength > PORTABLE_EXPORT_MAX_FILE_BYTES || bytes.byteLength > remaining)
+      throw new Error('account_export_media_too_large')
+    sourceBytes += bytes.byteLength
+    entries.push({ path: media.path, bytes })
   }
   const manifestFiles = await Promise.all(
     entries.map(async (entry) => ({

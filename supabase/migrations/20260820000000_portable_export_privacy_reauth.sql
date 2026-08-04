@@ -142,12 +142,17 @@ revoke all on function app_public.build_account_export_canonical_json(uuid,uuid)
 
 create or replace function app_public.build_account_export(p_job_id uuid,p_claim_token uuid)
 returns text language plpgsql stable security definer set search_path='' as $$
-declare job app_private.account_export_jobs%rowtype; canonical jsonb; media jsonb;
+declare job app_private.account_export_jobs%rowtype; canonical jsonb; media jsonb; media_count bigint;
 begin
   select * into job from app_private.account_export_jobs where export_job_id=p_job_id and state='building'
     and claim_token=p_claim_token and lease_expires_at>statement_timestamp();
   if not found then raise exception using errcode='42501',message='account_export_claim_invalid'; end if;
   canonical:=app_public.build_account_export_canonical_json(p_job_id,p_claim_token)::jsonb;
+  select count(*) into media_count
+  from candidate_private.candidate_share_storage_objects o
+  join candidate_private.candidate_shares s on s.share_id=o.share_id
+  where s.sender_id=job.user_id and s.state in ('pending','accepted');
+  if media_count>100 then raise exception using errcode='54000',message='account_export_media_count_exceeded'; end if;
   select coalesce(jsonb_agg(jsonb_build_object(
     'bucketId','candidate-private','objectKey',o.object_key,
     'path','media/'||s.share_id::text||'/'||encode(extensions.digest(o.object_key,'sha256'),'hex')||'.bin')
