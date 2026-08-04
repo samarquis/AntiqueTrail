@@ -2,6 +2,9 @@ name: Run H-01 quota monitor and actuator
 
 on:
   workflow_dispatch:
+  schedule:
+    # A missing provider boundary is a successful blocked-safe no-op below.
+    - cron: '17 */6 * * *'
 
 permissions:
   contents: read

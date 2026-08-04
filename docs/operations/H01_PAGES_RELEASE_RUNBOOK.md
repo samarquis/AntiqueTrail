@@ -187,23 +187,26 @@ and nonessential email while preserving core browse/account safety; at 100% it
 also blocks unsafe dependent work. It never automatically re-enables a feature.
 A later recovery requires a fresh observation and a separately reviewed release.
 
-`Run H-01 quota monitor and actuator` is intentionally manual-only and therefore
-disabled as a recurring production control by default. This prevents an empty
-repository from generating recurring failed-run email. After H-01 acceptance,
-an administrator may arrange a protected external recurring dispatch at a
-cadence shorter than 15 minutes. Do not add a GitHub `schedule` until the whole
-boundary below is live and its failure alert has an accountable human owner.
+`Run H-01 quota monitor and actuator` runs every six hours and also supports a
+manual dispatch. The scheduled job performs its configuration preflight before
+checkout or script execution. When any protected input is absent it exits
+successfully, reports a blocked-safe no-op, uploads nothing, and makes no
+provider or actuator call, so an unconfigured repository does not generate
+recurring failed-run email. Six hours is only a configuration-safe backstop;
+before shared activation, an accountable operator must provide an external
+provider observation/dispatch cadence shorter than the observation's 15-minute
+validity window and own failure alerts.
 
 The protected `shared-alpha` environment requires:
 
-| Kind   | Name                                             | Meaning |
-| ------ | ------------------------------------------------ | ------- |
-| Secret | `H01_QUOTA_OBSERVATION_BASE64`                   | Exact signed, current observation; replaced each run |
-| Var    | `H01_QUOTA_OBSERVER_KEY_ID`                      | Allowlisted observation signer key identifier |
-| Var    | `H01_QUOTA_OBSERVER_FINGERPRINT`                 | SHA-256 of observer Ed25519 SPKI DER |
-| Var    | `H01_QUOTA_OBSERVER_PUBLIC_KEY_SPKI_BASE64`      | Observer public key only |
-| Var    | `H01_QUOTA_ACTUATOR_URL`                         | HTTPS endpoint dedicated to quota restrictions |
-| Secret | `H01_QUOTA_ACTUATOR_TOKEN`                       | Environment-scoped least-privilege actuator credential |
+| Kind   | Name                                        | Meaning                                                |
+| ------ | ------------------------------------------- | ------------------------------------------------------ |
+| Secret | `H01_QUOTA_OBSERVATION_BASE64`              | Exact signed, current observation; replaced each run   |
+| Var    | `H01_QUOTA_OBSERVER_KEY_ID`                 | Allowlisted observation signer key identifier          |
+| Var    | `H01_QUOTA_OBSERVER_FINGERPRINT`            | SHA-256 of observer Ed25519 SPKI DER                   |
+| Var    | `H01_QUOTA_OBSERVER_PUBLIC_KEY_SPKI_BASE64` | Observer public key only                               |
+| Var    | `H01_QUOTA_ACTUATOR_URL`                    | HTTPS endpoint dedicated to quota restrictions         |
+| Secret | `H01_QUOTA_ACTUATOR_TOKEN`                  | Environment-scoped least-privilege actuator credential |
 
 The actuator endpoint is a required provider boundary, not implemented by this
 repository. It must authenticate the request, accept only
@@ -217,7 +220,7 @@ without any network call and records a blocked-safe workflow summary.
 The real provider residuals are therefore explicit: provider-authenticated usage
 collection, the registered observer key/custodian and rotation receipt, the
 constrained actuator deployment/token/allowlist, wiring each action to tested
-runtime kill switches, recurring dispatch and alert ownership, and witnessed
+runtime kill switches, production-frequency dispatch and alert ownership, and witnessed
 75%/90%/100% rehearsals. None exists merely because this code is present; until
 all are configured and witnessed, H-01 and shared activation remain NO-GO.
 

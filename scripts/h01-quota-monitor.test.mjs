@@ -207,18 +207,20 @@ test('actuator queries idempotent status and persists unknown finality fail clos
   assert.match(unknown.receiptDigest, /^[a-f0-9]{64}$/)
 })
 
-test('workflow is manual-only and skips every provider call when unconfigured', async () => {
+test('workflow recurs and skips every provider call when unconfigured', async () => {
   const workflow = await readFile(
     new URL('../.github/workflows/h01-quota-monitor.yml', import.meta.url),
     'utf8',
   )
   assert.match(workflow, /workflow_dispatch:/)
-  assert.doesNotMatch(workflow, /schedule:/)
+  assert.match(workflow, /schedule:/)
+  assert.match(workflow, /cron: '17 \*\/6 \* \* \*'/)
   const preflight = workflow.indexOf('Configuration-safe preflight')
   const checkout = workflow.indexOf('Checkout exact revision')
   const actuator = workflow.indexOf('h01-quota-monitor.mjs actuate')
   assert.ok(preflight > 0)
   assert.ok(checkout > preflight)
   assert.ok(actuator > checkout)
+  assert.match(workflow, /if: steps\.preflight\.outputs\.configured == 'true'/)
   assert.match(workflow, /No observation was evaluated and no actuator\/provider call was made/)
 })

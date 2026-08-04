@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react'
 import type {
   CatalogClient,
   CatalogFilters,
+  CatalogMapAdapter,
   CatalogMapBounds,
-  CatalogMapCapability,
   CatalogMapPoint,
   CatalogStore,
 } from './types'
@@ -167,16 +167,7 @@ export function BrowsePage({
   client: CatalogClient
   initialSearch?: string
   renderPrivateActions?: (store: CatalogStore) => React.ReactNode
-  map?: {
-    capability: CatalogMapCapability
-    bounds?: CatalogMapBounds
-    attribution?: string
-    render?: (input: {
-      points: CatalogMapPoint[]
-      selectedStoreId?: string
-      onSelect: (storeId: string) => void
-    }) => React.ReactNode
-  }
+  map?: CatalogMapAdapter
 }) {
   const [filters, setFilters] = useState(() => normalizeQueryParams(initialSearch))
   const [state, setState] = useState<{
@@ -187,6 +178,13 @@ export function BrowsePage({
   const [mapExpanded, setMapExpanded] = useState(false)
   const [selectedStoreId, setSelectedStoreId] = useState<string>()
   const [mapFocusStoreId, setMapFocusStoreId] = useState<string>()
+  const [searchedMapBounds, setSearchedMapBounds] = useState<CatalogMapBounds | undefined>(
+    map?.bounds,
+  )
+  const [pendingMapBounds, setPendingMapBounds] = useState<CatalogMapBounds | undefined>(
+    map?.bounds,
+  )
+  const [mapAnnouncement, setMapAnnouncement] = useState('')
   const [mapState, setMapState] = useState<{
     kind: 'idle' | 'loading' | 'success' | 'error'
     points?: CatalogMapPoint[]
@@ -208,9 +206,12 @@ export function BrowsePage({
     load()
   }, [load])
   const mapCapability = map?.capability ?? 'blocked'
-  const mapBounds = map?.bounds
+  const mapBounds = searchedMapBounds
   const mapAttribution = map?.attribution?.trim()
   const renderMap = map?.render
+  const acceptMapBounds = (bounds: CatalogMapBounds) => {
+    if (validMapBounds(bounds)) setPendingMapBounds(bounds)
+  }
   useEffect(() => {
     if (
       !mapExpanded ||
@@ -290,7 +291,7 @@ export function BrowsePage({
                 Map and travel-time suggestions are not available yet. Your store list and filters
                 remain available.
               </p>
-            ) : !mapBounds || !mapAttribution || !renderMap || !client.map ? (
+            ) : !mapBounds || !pendingMapBounds || !mapAttribution || !renderMap || !client.map ? (
               <p role="status">
                 Map configuration is unavailable. Your store list and filters remain available.
               </p>
@@ -307,12 +308,56 @@ export function BrowsePage({
                     state.stores?.some((store) => store.id === point.storeId),
                   ),
                   selectedStoreId,
+                  searchedBounds: mapBounds,
+                  pendingBounds: pendingMapBounds,
+                  previewStore: state.stores?.find((store) => store.id === selectedStoreId),
+                  onBoundsChange: acceptMapBounds,
+                  onClusterZoom: (cluster) => {
+                    if (!validMapBounds(cluster.bounds) || !cluster.label.trim()) return
+                    setPendingMapBounds(cluster.bounds)
+                    setMapAnnouncement(
+                      `${cluster.label} expanded. Search this map area to update results.`,
+                    )
+                  },
+                  onPreview: (storeId) => {
+                    if (!state.stores?.some((store) => store.id === storeId)) return
+                    setSelectedStoreId(storeId)
+                    setMapAnnouncement('Store preview selected from map.')
+                  },
                   onSelect: (storeId) => {
                     if (!state.stores?.some((store) => store.id === storeId)) return
                     setSelectedStoreId(storeId)
                     setMapFocusStoreId(storeId)
                   },
                 })}
+                <button
+                  type="button"
+                  disabled={sameMapBounds(mapBounds, pendingMapBounds)}
+                  onClick={() => {
+                    setSearchedMapBounds(pendingMapBounds)
+                    setMapAnnouncement('Searching the visible map area.')
+                  }}
+                >
+                  Search this map area
+                </button>
+                <p aria-live="polite" className="sr-only">
+                  {mapAnnouncement}
+                </p>
+                {selectedStoreId && state.stores?.find((store) => store.id === selectedStoreId) && (
+                  <aside aria-label="Map marker preview">
+                    <strong>
+                      {state.stores.find((store) => store.id === selectedStoreId)?.name}
+                    </strong>{' '}
+                    <a
+                      href={`/stores/${state.stores.find((store) => store.id === selectedStoreId)?.slug}`}
+                    >
+                      View store details
+                    </a>
+                    {renderPrivateActions?.(
+                      state.stores.find((store) => store.id === selectedStoreId)!,
+                    )}
+                  </aside>
+                )}
                 <p className="catalog-map-attribution">{mapAttribution}</p>
               </>
             )}
@@ -347,6 +392,27 @@ export function BrowsePage({
           />
         ))}
     </main>
+  )
+}
+
+function validMapBounds(bounds: CatalogMapBounds) {
+  return (
+    [bounds.north, bounds.south, bounds.east, bounds.west].every(Number.isFinite) &&
+    bounds.north > bounds.south &&
+    bounds.east > bounds.west &&
+    bounds.north <= 90 &&
+    bounds.south >= -90 &&
+    bounds.east <= 180 &&
+    bounds.west >= -180
+  )
+}
+
+function sameMapBounds(left: CatalogMapBounds, right: CatalogMapBounds) {
+  return (
+    left.north === right.north &&
+    left.south === right.south &&
+    left.east === right.east &&
+    left.west === right.west
   )
 }
 

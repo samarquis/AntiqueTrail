@@ -66,6 +66,30 @@ export interface CatalogMapResult {
 
 export type CatalogMapCapability = 'blocked' | 'available' | 'unavailable'
 
+export interface CatalogMapCluster {
+  bounds: CatalogMapBounds
+  label: string
+}
+
+export interface CatalogMapRenderInput {
+  points: CatalogMapPoint[]
+  searchedBounds: CatalogMapBounds
+  pendingBounds: CatalogMapBounds
+  selectedStoreId?: string
+  previewStore?: CatalogStore
+  onBoundsChange: (bounds: CatalogMapBounds) => void
+  onClusterZoom: (cluster: CatalogMapCluster) => void
+  onPreview: (storeId: string) => void
+  onSelect: (storeId: string) => void
+}
+
+export interface CatalogMapAdapter {
+  capability: CatalogMapCapability
+  bounds?: CatalogMapBounds
+  attribution?: string
+  render?: (input: CatalogMapRenderInput) => import('react').ReactNode
+}
+
 export type CatalogErrorCode = 'catalog_too_large' | 'not_found' | 'network' | 'unknown'
 
 export interface CatalogError {

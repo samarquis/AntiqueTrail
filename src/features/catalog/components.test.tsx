@@ -136,4 +136,65 @@ describe('catalog private-action integration seam', () => {
     expect(screen.getByLabelText('Search stores')).toHaveValue('finch')
     expect(screen.getByRole('heading', { name: syntheticStores[0].name })).toBeVisible()
   })
+
+  it('searches changed bounds only on request and exposes cluster and marker-preview actions', async () => {
+    const catalog = client()
+    const user = userEvent.setup()
+    const changedBounds = { north: 39.5, south: 39, east: -95.4, west: -96 }
+    const clusterBounds = { north: 39.3, south: 39.1, east: -95.5, west: -95.8 }
+    render(
+      <BrowsePage
+        client={catalog}
+        map={{
+          capability: 'available',
+          bounds: { north: 40, south: 39, east: -95, west: -96 },
+          attribution: 'Map data: approved test provider',
+          render: ({ onBoundsChange, onClusterZoom, onPreview }) => (
+            <div>
+              <button type="button" onClick={() => onBoundsChange(changedBounds)}>
+                Pan map
+              </button>
+              <button
+                type="button"
+                aria-label="Zoom cluster: Downtown, 4 stores"
+                onClick={() =>
+                  onClusterZoom({ bounds: clusterBounds, label: 'Downtown cluster, 4 stores' })
+                }
+              >
+                4
+              </button>
+              <button type="button" onClick={() => onPreview(syntheticStores[0].id)}>
+                Preview marker
+              </button>
+            </div>
+          ),
+        }}
+      />,
+    )
+    await screen.findByRole('heading', { name: syntheticStores[0].name })
+    await user.click(screen.getByRole('button', { name: /show map/i }))
+    await screen.findByRole('button', { name: /pan map/i })
+    expect(catalog.map).toHaveBeenCalledTimes(1)
+
+    const searchArea = screen.getByRole('button', { name: /search this map area/i })
+    expect(searchArea).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: /pan map/i }))
+    expect(searchArea).toBeEnabled()
+    expect(catalog.map).toHaveBeenCalledTimes(1)
+    await user.click(searchArea)
+    expect(catalog.map).toHaveBeenLastCalledWith({}, changedBounds)
+
+    await screen.findByRole('button', { name: /zoom cluster: downtown/i })
+    await user.click(screen.getByRole('button', { name: /zoom cluster: downtown/i }))
+    expect(screen.getByRole('button', { name: /search this map area/i })).toBeEnabled()
+    expect(screen.getByText(/downtown cluster, 4 stores expanded/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /preview marker/i }))
+    expect(screen.getByRole('complementary', { name: /map marker preview/i })).toHaveTextContent(
+      syntheticStores[0].name,
+    )
+    expect(screen.getByRole('link', { name: /view store details/i })).toHaveAttribute(
+      'href',
+      `/stores/${syntheticStores[0].slug}`,
+    )
+  })
 })
