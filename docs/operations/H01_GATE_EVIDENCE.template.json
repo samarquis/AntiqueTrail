@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "evidenceDate": "YYYY-MM-DD",
+  "stage": "shared-alpha",
+  "environment": {
+    "name": "shared-alpha",
+    "supabaseProjectRef": "",
+    "restoreProjectRef": "",
+    "hostnames": [],
+    "directUpload": false,
+    "denyByDefaultAccess": false,
+    "usRegion": false
+  },
+  "capabilities": {
+    "registrationMode": "closed",
+    "registrationLatch": "draining",
+    "optionalMapsEnabled": false,
+    "mediaUploadsEnabled": false,
+    "nonessentialEmailEnabled": false,
+    "providerKillSwitchesVerified": false
+  },
+  "secrets": {
+    "environmentScoped": false,
+    "leastPrivilegeVerified": false,
+    "noPrivateKeysInCi": false,
+    "rotationEvidenceRef": ""
+  },
+  "cost": {
+    "recurringMonthlyUsd": null,
+    "hardCeilingUsd": null,
+    "automaticChargesEnabled": null,
+    "evidenceRef": ""
+  },
+  "artifact": {
+    "sourceSha": "",
+    "artifactDigest": "",
+    "lockfileDigest": "",
+    "deploymentId": "",
+    "loggedOutAccessDenied": false
+  },
+  "rollback": {
+    "priorArtifactDigest": "",
+    "observedArtifactDigest": "",
+    "deploymentId": "",
+    "rebuilt": false,
+    "loggedOutAccessDenied": false,
+    "evidenceRef": ""
+  },
+  "quotas": [
+    {
+      "name": "database_mb",
+      "unit": "MB",
+      "allowance": null,
+      "safeLimit": 375,
+      "current": null,
+      "forecastNormal": null,
+      "forecastAbuse": null,
+      "automaticPaidOverage": null
+    },
+    {
+      "name": "storage_mb",
+      "unit": "MB",
+      "allowance": null,
+      "safeLimit": 750,
+      "current": null,
+      "forecastNormal": null,
+      "forecastAbuse": null,
+      "automaticPaidOverage": null
+    },
+    {
+      "name": "actions_minutes_month",
+      "unit": "minutes",
+      "allowance": null,
+      "safeLimit": 1500,
+      "current": null,
+      "forecastNormal": null,
+      "forecastAbuse": null,
+      "automaticPaidOverage": null
+    },
+    {
+      "name": "actions_artifacts_mb",
+      "unit": "MB",
+      "allowance": null,
+      "safeLimit": 400,
+      "current": null,
+      "forecastNormal": null,
+      "forecastAbuse": null,
+      "automaticPaidOverage": null
+    },
+    {
+      "name": "cloudflare_builds_month",
+      "unit": "builds",
+      "allowance": null,
+      "safeLimit": 375,
+      "current": null,
+      "forecastNormal": null,
+      "forecastAbuse": null,
+      "automaticPaidOverage": null
+    }
+  ],
+  "recovery": {
+    "restoreTargetUnroutable": false,
+    "registrationFenceEnabled": false,
+    "preRestoreSessionsInvalidated": false,
+    "deletionReceiptsReplayed": false,
+    "revocationReceiptsReplayed": false,
+    "backupSetId": "",
+    "backupDigest": "",
+    "twoLayerEncryptionVerified": false,
+    "singleKeyDecryptionDenied": false,
+    "assets": {
+      "database": {
+        "observedRpoMinutes": null,
+        "observedRtoMinutes": null,
+        "integrityVerified": false,
+        "evidenceRef": ""
+      },
+      "auth": {
+        "observedRpoMinutes": null,
+        "observedRtoMinutes": null,
+        "integrityVerified": false,
+        "evidenceRef": ""
+      },
+      "storage": {
+        "observedRpoMinutes": null,
+        "observedRtoMinutes": null,
+        "integrityVerified": false,
+        "evidenceRef": ""
+      }
+    }
+  }
+}

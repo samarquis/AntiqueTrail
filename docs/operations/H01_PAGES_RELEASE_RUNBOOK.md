@@ -89,3 +89,67 @@ Every GitHub Action reference is a full commit SHA with its major-version
 comment. Wrangler is invoked at exact version `4.28.1`. Upgrades require a
 reviewed commit, all checks, a new artifact, and a new deployment/rollback
 rehearsal; do not edit versions only in a workflow run.
+
+## Build the complete local gate receipt
+
+`scripts/h01-gate.mjs` evaluates the provider observations after the real
+deployment and recovery rehearsal. It never queries a provider and cannot turn
+an assertion into evidence. Start with
+`docs/operations/H01_GATE_EVIDENCE.template.json`, replace every placeholder
+with witnessed facts and content-free evidence references, then run:
+
+```powershell
+node scripts/h01-gate.mjs receipt `
+  --evidence docs/operations/H01_GATE_EVIDENCE.json `
+  --out-dir receipts
+```
+
+A passing receipt is written to
+`receipts/<evidence-date>/h01-<stage>-<receipt-digest>.json`. The evidence and
+receipt digests use canonical JSON, so identical evidence produces the same
+content address. The command exits `2` for a `BLOCKED` receipt and still writes
+the receipt so missing facts remain reviewable. It exits `1` only when the
+input or filesystem operation itself is invalid. Never commit provider secrets,
+private keys, passwords, tokens, raw personal data, or an invented provider
+identifier to make the evaluator pass.
+
+The evaluator applies the lower of the provider allowance and the documented
+safe limit. Forecast normal and abuse usage must both retain 25% headroom. Live
+usage below 75% may continue; at 75% promotion and nonessential growth pause;
+at 90% optional maps, route suggestions, media, and nonessential email degrade;
+at 100% the dependent operation blocks. Any automatic paid overage blocks the
+gate. Documented startup safe limits are:
+
+| Resource                   | Safe limit             |
+| -------------------------- | ---------------------- |
+| Supabase database          | 375 MB                 |
+| Supabase Storage           | 750 MB                 |
+| GitHub Actions             | 1,500 minutes/month    |
+| Retained Actions artifacts | 400 MB                 |
+| Cloudflare builds          | 375 builds/month       |
+| Resend, only after E-01    | 70/day and 2,100/month |
+
+The template deliberately describes a blocked state. A real receipt must also
+prove separate active and unroutable restore projects, U.S. region, Direct
+Upload, deny-by-default Access on every hostname, environment-scoped
+least-privilege credentials, provider kill switches, registration closed with
+the latch draining, and exact no-rebuild rollback digest matching.
+
+Recovery is evaluated independently for Database, Auth, and Storage. The
+maximum observed targets are 24-hour RPO/eight-hour RTO for Shared Synthetic
+Alpha, four-hour RPO/eight-hour RTO for Private Beta, and 15-minute RPO/four-hour
+RTO for Regional Public. The one-business-day Alpha RTO is represented as an
+eight-hour working day. All three assets require integrity evidence; the
+restore target must remain unroutable behind a deployment-level registration
+fence, pre-restore sessions must be invalidated, and deletion/revocation
+receipts must be replayed. The backup set must also prove Product Owner inner
+and Recovery Custodian outer encryption and denial with either key alone.
+
+This local evaluator does not satisfy the human/provider portion of H-01. A
+passing input still requires provider-authenticated observations, named and
+separate Product/Security signers, named Product Owner and Recovery Custodian
+key holders, witnessed backup/decrypt/restore and rollback runs, current plan
+and `$0` no-overage evidence, secret custody and rotation evidence, Access
+coverage/denial checks, and the remaining registration journal/fence/provider
+finality fixtures required by ADR 0005. If any cannot be supplied, retain the
+`BLOCKED` receipt and keep the shared stage disabled.
