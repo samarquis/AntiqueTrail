@@ -24,6 +24,22 @@ function dependencies(
     completeMemoryPurge: vi.fn(async () => undefined),
     failMemoryPurge: vi.fn(async () => undefined),
     purgeDismissals: vi.fn(async () => 2),
+    claimAccountDeletions: vi.fn(async () => [
+      {
+        deletion_request_id: 'delete-1',
+        claim_token: 'delete-claim-1',
+        user_id: 'user-1',
+        storage_objects: [
+          { bucket_id: 'account-exports', object_key: 'account-exports/user-1/export.json' },
+          { bucket_id: 'candidate-private', object_key: 'candidate/share-1/image.jpg' },
+        ],
+      },
+    ]),
+    deleteAccountStorageObject: vi.fn(async () => undefined),
+    prepareAccountDeletion: vi.fn(async () => undefined),
+    deleteProviderUser: vi.fn(async () => undefined),
+    completeAccountDeletion: vi.fn(async () => undefined),
+    failAccountDeletion: vi.fn(async () => undefined),
     ...overrides,
   }
 }
@@ -52,7 +68,31 @@ describe('account lifecycle worker', () => {
       memoriesPurged: 1,
       memoriesFailed: 0,
       dismissalsPurged: 2,
+      accountsClaimed: 1,
+      accountsDeleted: 1,
+      accountsFailed: 0,
     })
+    expect(boundary.deleteAccountStorageObject).toHaveBeenNthCalledWith(
+      1,
+      'account-exports',
+      'account-exports/user-1/export.json',
+    )
+    expect(boundary.deleteAccountStorageObject).toHaveBeenNthCalledWith(
+      2,
+      'candidate-private',
+      'candidate/share-1/image.jpg',
+    )
+    expect(boundary.prepareAccountDeletion).toHaveBeenCalledWith(
+      'delete-1',
+      'delete-claim-1',
+      '2026-08-04T12:00:00Z',
+    )
+    expect(boundary.deleteProviderUser).toHaveBeenCalledWith('user-1')
+    expect(boundary.completeAccountDeletion).toHaveBeenCalledWith(
+      'delete-1',
+      'delete-claim-1',
+      '2026-08-04T12:00:00Z',
+    )
   })
 
   it('records retry-safe failures and leaves failed archive deletion retryable', async () => {
@@ -77,6 +117,36 @@ describe('account lifecycle worker', () => {
       '2026-08-04T12:00:00Z',
     )
     expect(summary).toMatchObject({ exportsFailed: 1, archivesExpired: 0, memoriesFailed: 1 })
+  })
+
+  it('leaves account deletion retryable when Storage or provider deletion fails', async () => {
+    const storageFailure = dependencies({
+      deleteAccountStorageObject: vi.fn(async () => {
+        throw new Error('storage unavailable')
+      }),
+    })
+    await expect(
+      runAccountLifecycleWorker(storageFailure, '2026-08-04T12:00:00Z'),
+    ).resolves.toMatchObject({ accountsDeleted: 0, accountsFailed: 1 })
+    expect(storageFailure.prepareAccountDeletion).not.toHaveBeenCalled()
+    expect(storageFailure.deleteProviderUser).not.toHaveBeenCalled()
+    expect(storageFailure.completeAccountDeletion).not.toHaveBeenCalled()
+    expect(storageFailure.failAccountDeletion).toHaveBeenCalledWith(
+      'delete-1',
+      'delete-claim-1',
+      '2026-08-04T12:00:00Z',
+      'storage_or_provider_unavailable',
+    )
+
+    const providerFailure = dependencies({
+      deleteProviderUser: vi.fn(async () => {
+        throw new Error('provider unavailable')
+      }),
+    })
+    await runAccountLifecycleWorker(providerFailure, '2026-08-04T12:00:00Z')
+    expect(providerFailure.prepareAccountDeletion).toHaveBeenCalled()
+    expect(providerFailure.completeAccountDeletion).not.toHaveBeenCalled()
+    expect(providerFailure.failAccountDeletion).toHaveBeenCalled()
   })
 
   it('accepts only exact archive size and digest', async () => {

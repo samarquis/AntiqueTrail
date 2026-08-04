@@ -16,6 +16,13 @@ export interface ExpiredArchive {
   object_key: string
 }
 
+export interface AccountDeletionClaim {
+  deletion_request_id: string
+  claim_token: string
+  user_id: string
+  storage_objects: Array<{ bucket_id: string; object_key: string }>
+}
+
 export interface AccountLifecycleWorkerDependencies {
   claimExports(now: string, limit: number): Promise<ExportClaim[]>
   buildExport(jobId: string, claimToken: string): Promise<string>
@@ -36,6 +43,17 @@ export interface AccountLifecycleWorkerDependencies {
   completeMemoryPurge(undoToken: string, claimToken: string, completedAt: string): Promise<void>
   failMemoryPurge(undoToken: string, claimToken: string, now: string): Promise<void>
   purgeDismissals(now: string, limit: number): Promise<number>
+  claimAccountDeletions(now: string, limit: number): Promise<AccountDeletionClaim[]>
+  deleteAccountStorageObject(bucketId: string, objectKey: string): Promise<void>
+  prepareAccountDeletion(requestId: string, claimToken: string, preparedAt: string): Promise<void>
+  deleteProviderUser(userId: string): Promise<void>
+  completeAccountDeletion(requestId: string, claimToken: string, completedAt: string): Promise<void>
+  failAccountDeletion(
+    requestId: string,
+    claimToken: string,
+    now: string,
+    errorCode: string,
+  ): Promise<void>
 }
 
 export interface AccountLifecycleRunSummary {
@@ -47,6 +65,9 @@ export interface AccountLifecycleRunSummary {
   memoriesPurged: number
   memoriesFailed: number
   dismissalsPurged: number
+  accountsClaimed: number
+  accountsDeleted: number
+  accountsFailed: number
 }
 
 export async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
@@ -80,6 +101,9 @@ export async function runAccountLifecycleWorker(
     memoriesPurged: 0,
     memoriesFailed: 0,
     dismissalsPurged: 0,
+    accountsClaimed: 0,
+    accountsDeleted: 0,
+    accountsFailed: 0,
   }
   const encoder = new TextEncoder()
   const exports = await dependencies.claimExports(now, 10)
@@ -128,5 +152,27 @@ export async function runAccountLifecycleWorker(
     }
   }
   summary.dismissalsPurged = await dependencies.purgeDismissals(now, 100)
+
+  const accounts = await dependencies.claimAccountDeletions(now, 10)
+  summary.accountsClaimed = accounts.length
+  for (const claim of accounts) {
+    try {
+      for (const object of claim.storage_objects) {
+        await dependencies.deleteAccountStorageObject(object.bucket_id, object.object_key)
+      }
+      await dependencies.prepareAccountDeletion(claim.deletion_request_id, claim.claim_token, now)
+      await dependencies.deleteProviderUser(claim.user_id)
+      await dependencies.completeAccountDeletion(claim.deletion_request_id, claim.claim_token, now)
+      summary.accountsDeleted += 1
+    } catch {
+      await dependencies.failAccountDeletion(
+        claim.deletion_request_id,
+        claim.claim_token,
+        now,
+        'storage_or_provider_unavailable',
+      )
+      summary.accountsFailed += 1
+    }
+  }
   return summary
 }

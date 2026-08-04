@@ -9,6 +9,7 @@ declare const Deno: {
 const url = Deno.env.get('SUPABASE_URL')
 const workerJwt = Deno.env.get('ACCOUNT_LIFECYCLE_WORKER_JWT')
 const bucket = Deno.env.get('ACCOUNT_EXPORT_BUCKET')
+const candidateBucket = Deno.env.get('CANDIDATE_CLEANUP_BUCKET')
 const schedulerToken = Deno.env.get('ACCOUNT_LIFECYCLE_SCHEDULER_TOKEN')
 
 async function schedulerAuthorized(request: Request): Promise<boolean> {
@@ -95,6 +96,49 @@ Deno.serve(async (request) => {
         }),
       purgeDismissals: (now, limit) =>
         rpc('purge_due_catalog_dismissals', { p_now: now, p_limit: limit }),
+      claimAccountDeletions: (now, limit) =>
+        rpc('claim_due_account_deletions', { p_now: now, p_limit: limit }),
+      async deleteAccountStorageObject(bucketId, objectKey) {
+        const providerBucket =
+          bucketId === 'account-exports'
+            ? bucket
+            : bucketId === 'candidate-private'
+              ? candidateBucket
+              : undefined
+        if (!providerBucket) throw new Error('account_deletion_storage_unavailable')
+        const result = await client.storage.from(providerBucket).remove([objectKey])
+        if (result.error) throw result.error
+      },
+      prepareAccountDeletion: (requestId, claimToken, preparedAt) =>
+        rpc('prepare_account_deletion', {
+          p_deletion_request_id: requestId,
+          p_claim_token: claimToken,
+          p_prepared_at: preparedAt,
+        }),
+      async deleteProviderUser(userId) {
+        const deletion = await client.auth.admin.deleteUser(userId, false)
+        if (deletion.error) {
+          const detail = deletion.error as { status?: number; code?: string }
+          if (detail.status !== 404 && detail.code !== 'user_not_found') throw deletion.error
+        }
+        const verification = await client.auth.admin.getUserById(userId)
+        if (!verification.error) throw new Error('provider_user_still_present')
+        const detail = verification.error as { status?: number; code?: string }
+        if (detail.status !== 404 && detail.code !== 'user_not_found') throw verification.error
+      },
+      completeAccountDeletion: (requestId, claimToken, completedAt) =>
+        rpc('complete_account_deletion', {
+          p_deletion_request_id: requestId,
+          p_claim_token: claimToken,
+          p_completed_at: completedAt,
+        }),
+      failAccountDeletion: (requestId, claimToken, now, errorCode) =>
+        rpc('fail_account_deletion', {
+          p_deletion_request_id: requestId,
+          p_claim_token: claimToken,
+          p_now: now,
+          p_error_code: errorCode,
+        }),
     })
     return Response.json(summary, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch {
