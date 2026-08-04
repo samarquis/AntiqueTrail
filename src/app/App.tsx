@@ -496,7 +496,7 @@ export default function App({
             path="/account/export"
             element={
               <RequireSession>
-                <ExportPage client={lifecycleClient} />
+                <ExportPage client={lifecycleClient} provider={authProvider} />
               </RequireSession>
             }
           />
@@ -504,7 +504,7 @@ export default function App({
             path="/account/delete"
             element={
               <RequireSession>
-                <DeleteAccountPage client={lifecycleClient} />
+                <DeleteAccountPage client={lifecycleClient} provider={authProvider} />
               </RequireSession>
             }
           />

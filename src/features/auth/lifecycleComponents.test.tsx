@@ -10,6 +10,8 @@ import {
   PrivacyPage,
 } from './lifecycleComponents'
 import type { AccountLifecycleClient } from './lifecycle'
+import { AuthProvider } from './AuthContext'
+import type { AuthProviderAdapter } from './types'
 
 function client(overrides: Partial<AccountLifecycleClient> = {}): AccountLifecycleClient {
   return {
@@ -36,6 +38,30 @@ function client(overrides: Partial<AccountLifecycleClient> = {}): AccountLifecyc
 
 function renderPage(page: ReactNode) {
   return render(<MemoryRouter>{page}</MemoryRouter>)
+}
+
+const authenticatedProvider: AuthProviderAdapter = {
+  signIn: vi.fn(async () => ({
+    kind: 'authenticated' as const,
+    session: {
+      userId: 'user-1',
+      accessToken: 'private-token',
+      expiresAt: Date.now() + 60_000,
+      passwordAuthenticatedAt: new Date().toISOString(),
+      mfaEnrolled: false,
+    },
+  })),
+  sendRecovery: vi.fn(async () => undefined),
+  verifyMfa: vi.fn(async () => null),
+  signOut: vi.fn(async () => undefined),
+}
+
+function renderSecure(page: ReactNode) {
+  return render(
+    <MemoryRouter>
+      <AuthProvider provider={authenticatedProvider}>{page}</AuthProvider>
+    </MemoryRouter>,
+  )
 }
 
 describe('account lifecycle screens', () => {
@@ -157,6 +183,85 @@ describe('account lifecycle screens', () => {
     await user.click(button)
     expect(await screen.findByRole('status')).toHaveTextContent(/request was received/i)
     expect(requestDeletion).toHaveBeenCalledOnce()
+  })
+
+  it('requires provider password reauthentication before creating an export', async () => {
+    const user = userEvent.setup()
+    const requestExport = vi.fn(async () => ({
+      id: 'export-1',
+      state: 'queued' as const,
+      createdAt: '2026-01-01',
+    }))
+    renderSecure(<ExportPage client={client({ requestExport })} provider={authenticatedProvider} />)
+    expect(screen.queryByRole('button', { name: /request export/i })).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText(/email/i), 'owner@example.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'private-password')
+    await user.click(screen.getByRole('button', { name: /confirm password/i }))
+    await user.click(await screen.findByRole('button', { name: /request export/i }))
+    expect(authenticatedProvider.signIn).toHaveBeenCalledWith(
+      'owner@example.com',
+      'private-password',
+    )
+    expect(requestExport).toHaveBeenCalledOnce()
+  })
+
+  it('requires an already-enrolled MFA factor and supports its recovery-code path', async () => {
+    const user = userEvent.setup()
+    const mfaProvider: AuthProviderAdapter = {
+      ...authenticatedProvider,
+      signIn: vi.fn(async () => ({
+        kind: 'mfa_required' as const,
+        challengeId: 'challenge-1',
+        session: {
+          userId: 'user-1',
+          accessToken: 'password-token',
+          expiresAt: Date.now() + 60_000,
+          mfaRequired: true,
+          mfaEnrolled: true,
+        },
+      })),
+      verifyMfa: vi.fn(async () => ({
+        userId: 'user-1',
+        accessToken: 'aal2-token',
+        expiresAt: Date.now() + 60_000,
+        passwordAuthenticatedAt: new Date().toISOString(),
+        mfaEnrolled: true,
+        mfaVerifiedAt: new Date().toISOString(),
+      })),
+    }
+    render(
+      <MemoryRouter>
+        <AuthProvider provider={mfaProvider}>
+          <DeleteAccountPage client={client()} provider={mfaProvider} />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await user.type(screen.getByLabelText(/email/i), 'owner@example.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'private-password')
+    await user.click(screen.getByRole('button', { name: /confirm password/i }))
+    expect(await screen.findByText(/already has mfa/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/recovery code/i)).toHaveLength(2)
+    await user.type(screen.getByLabelText(/authentication or recovery code/i), '12345678')
+    await user.click(screen.getByRole('button', { name: /verify and continue/i }))
+    expect(await screen.findByText(/what deletion affects/i)).toBeInTheDocument()
+    expect(mfaProvider.verifyMfa).toHaveBeenCalledWith('challenge-1', '12345678')
+  })
+
+  it('previews deletion effects and shows the exact scheduled date returned by the server', async () => {
+    const user = userEvent.setup()
+    const requestDeletion = vi.fn(async () => ({
+      state: 'deletion_scheduled' as const,
+      deletionDueAt: '2026-01-08T12:30:00Z',
+    }))
+    renderPage(<DeleteAccountPage client={client({ requestDeletion })} />)
+    expect(screen.getByText(/reviews are hidden immediately/i)).toBeInTheDocument()
+    expect(screen.getByText(/backups age out/i)).toBeInTheDocument()
+    expect(screen.getByText(/primary deletion runs on day 8/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox'))
+    await user.click(screen.getByRole('button', { name: /schedule deletion/i }))
+    expect(await screen.findByText(/scheduled for exactly/i)).toHaveTextContent(
+      new Date('2026-01-08T12:30:00Z').toLocaleString(),
+    )
   })
 
   it('shows cancellation-only completion without reopening privileged access', async () => {
