@@ -64,7 +64,13 @@ export function CatalogFiltersForm({
   )
 }
 
-export function CatalogCard({ store }: { store: CatalogStore }) {
+export function CatalogCard({
+  store,
+  privateActions,
+}: {
+  store: CatalogStore
+  privateActions?: React.ReactNode
+}) {
   const [imageFailed, setImageFailed] = useState(false)
   const cover = store.media.find((item) => item.kind === 'cover') ?? store.media[0]
   return (
@@ -91,6 +97,7 @@ export function CatalogCard({ store }: { store: CatalogStore }) {
         </p>
         {store.summary && <p>{store.summary}</p>}
         <p className="catalog-card__freshness">{freshnessLabel(store)}</p>
+        {privateActions}
       </div>
     </article>
   )
@@ -129,9 +136,11 @@ function EmptyState({ hasFilters, onClear }: { hasFilters: boolean; onClear: () 
 export function BrowsePage({
   client,
   initialSearch = '',
+  renderPrivateActions,
 }: {
   client: CatalogClient
   initialSearch?: string
+  renderPrivateActions?: (store: CatalogStore) => React.ReactNode
 }) {
   const [filters, setFilters] = useState(() => normalizeQueryParams(initialSearch))
   const [state, setState] = useState<{
@@ -177,7 +186,11 @@ export function BrowsePage({
         (state.stores?.length ? (
           <section aria-label="Store results" className="catalog-grid">
             {state.stores.map((store) => (
-              <CatalogCard key={store.id || store.slug} store={store} />
+              <CatalogCard
+                key={store.id || store.slug}
+                store={store}
+                privateActions={renderPrivateActions?.(store)}
+              />
             ))}
           </section>
         ) : (
@@ -190,7 +203,15 @@ export function BrowsePage({
   )
 }
 
-export function DetailsPage({ client, slug }: { client: CatalogClient; slug: string }) {
+export function DetailsPage({
+  client,
+  slug,
+  renderPrivateActions,
+}: {
+  client: CatalogClient
+  slug: string
+  renderPrivateActions?: (store: CatalogStore) => React.ReactNode
+}) {
   const [state, setState] = useState<{
     kind: 'loading' | 'success' | 'error' | 'not-found'
     store?: CatalogStore
@@ -245,6 +266,7 @@ export function DetailsPage({ client, slug }: { client: CatalogClient; slug: str
             {store.address}, {store.town}, {store.state}
           </p>
           <p>{freshnessLabel(store)}</p>
+          {renderPrivateActions?.(store)}
         </header>
         {cover ? (
           <img

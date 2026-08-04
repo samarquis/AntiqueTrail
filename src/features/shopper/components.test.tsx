@@ -4,7 +4,14 @@ import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../auth'
-import { CorrectionPage, MemoryPage, NewSincePage, SavedPage, SaveStoreAction } from './components'
+import {
+  CatalogPrivateActions,
+  CorrectionPage,
+  MemoryPage,
+  NewSincePage,
+  SavedPage,
+  SaveStoreAction,
+} from './components'
 import type { ShopperPrivateClient } from './types'
 
 function client(overrides: Partial<ShopperPrivateClient> = {}): ShopperPrivateClient {
@@ -54,7 +61,10 @@ function renderPage(page: ReactNode) {
 }
 
 describe('private shopper screens', () => {
-  afterEach(() => cleanup())
+  afterEach(() => {
+    cleanup()
+    window.sessionStorage.clear()
+  })
 
   it('renders saved stores from an account-scoped client', async () => {
     renderPage(<SavedPage client={client()} />)
@@ -92,6 +102,63 @@ describe('private shopper screens', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Save undone')
     expect(toggleSave).toHaveBeenNthCalledWith(1, 'store-1')
     expect(toggleSave).toHaveBeenNthCalledWith(2, 'store-1')
+  })
+
+  it('stores a bounded JIT Save intent for anonymous catalog visitors', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/stores/oak?from=trail']}>
+        <AuthProvider>
+          <CatalogPrivateActions storeId="store-1" slug="oak" client={client()} />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    const signIn = screen.getByRole('link', { name: /sign in to save store/i })
+    expect(signIn).toHaveAttribute('href', '/auth/sign-in?returnTo=%2Fstores%2Foak%3Ffrom%3Dtrail')
+    await user.click(signIn)
+    expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toContain(
+      '"storeId":"store-1"',
+    )
+  })
+
+  it('resumes exactly one pending Save after JIT authentication', async () => {
+    window.sessionStorage.setItem(
+      'antique-trail:jit-private-action:v1',
+      JSON.stringify({
+        kind: 'save-store',
+        storeId: 'store-1',
+        returnTo: '/stores/oak',
+        expiresAt: Date.now() + 60_000,
+      }),
+    )
+    const toggleSave = vi.fn(async () => ({ saved: true }))
+    const authStore = {
+      getSession: () => ({
+        userId: 'shopper-a',
+        accessToken: 'memory-only',
+        expiresAt: Date.now() + 60_000,
+        role: 'Shopper' as const,
+        mfaRequired: false,
+        mfaVerified: true,
+      }),
+      setSession: vi.fn(),
+      clearSession: vi.fn(),
+    }
+    render(
+      <MemoryRouter initialEntries={['/stores/oak']}>
+        <AuthProvider authStore={authStore}>
+          <CatalogPrivateActions storeId="store-1" slug="oak" client={client({ toggleSave })} />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText(/store saved after sign-in/i)).toHaveAttribute('role', 'status')
+    expect(toggleSave).toHaveBeenCalledTimes(1)
+    expect(toggleSave).toHaveBeenCalledWith('store-1')
+    expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toBeNull()
+    expect(screen.getByRole('link', { name: /private memory/i })).toHaveAttribute(
+      'href',
+      '/stores/oak/memory',
+    )
   })
 
   it('persists a private memory and restores it through deletion Undo', async () => {

@@ -95,6 +95,124 @@ export function SaveStoreAction({
 
 // Correction text is safe to retain only in this in-memory tab while JIT auth completes.
 const correctionDraftCache = new Map<string, CorrectionDraft>()
+const JIT_PRIVATE_ACTION_KEY = 'antique-trail:jit-private-action:v1'
+
+interface JitSaveIntent {
+  kind: 'save-store'
+  storeId: string
+  returnTo: string
+  expiresAt: number
+}
+
+function readJitSaveIntent(): JitSaveIntent | null {
+  try {
+    const parsed = JSON.parse(
+      window.sessionStorage.getItem(JIT_PRIVATE_ACTION_KEY) ?? 'null',
+    ) as Partial<JitSaveIntent> | null
+    if (
+      parsed?.kind !== 'save-store' ||
+      typeof parsed.storeId !== 'string' ||
+      typeof parsed.returnTo !== 'string' ||
+      !parsed.returnTo.startsWith('/') ||
+      parsed.returnTo.startsWith('//') ||
+      typeof parsed.expiresAt !== 'number' ||
+      parsed.expiresAt <= Date.now()
+    ) {
+      window.sessionStorage.removeItem(JIT_PRIVATE_ACTION_KEY)
+      return null
+    }
+    return parsed as JitSaveIntent
+  } catch {
+    window.sessionStorage.removeItem(JIT_PRIVATE_ACTION_KEY)
+    return null
+  }
+}
+
+function rememberJitSaveIntent(storeId: string, returnTo: string) {
+  const intent: JitSaveIntent = {
+    kind: 'save-store',
+    storeId,
+    returnTo,
+    expiresAt: Date.now() + 30 * 60_000,
+  }
+  window.sessionStorage.setItem(JIT_PRIVATE_ACTION_KEY, JSON.stringify(intent))
+}
+
+/** Public-catalog action group that safely resumes a Save after JIT sign-in/MFA. */
+export function CatalogPrivateActions({
+  storeId,
+  slug,
+  client = unavailableShopperClient,
+}: {
+  storeId: string
+  slug: string
+  client?: ShopperPrivateClient
+}) {
+  const { session } = useAuth()
+  const location = useLocation()
+  const [resumedSaved, setResumedSaved] = useState(false)
+  const [resumeState, setResumeState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const returnTo = `${location.pathname}${location.search}`
+
+  useEffect(() => {
+    if (!session) return
+    const intent = readJitSaveIntent()
+    if (!intent || intent.storeId !== storeId || intent.returnTo !== returnTo) return
+    window.sessionStorage.removeItem(JIT_PRIVATE_ACTION_KEY)
+    let cancelled = false
+    setResumeState('saving')
+    client
+      .toggleSave(storeId)
+      .then((result) => {
+        if (cancelled) return
+        if (!result.saved) throw new Error('save_not_applied')
+        setResumedSaved(true)
+        setResumeState('saved')
+      })
+      .catch(() => {
+        if (!cancelled) setResumeState('error')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [client, returnTo, session, storeId])
+
+  const memoryPath = `/stores/${encodeURIComponent(slug)}/memory`
+  const correctionPath = `/stores/${encodeURIComponent(slug)}/correction`
+  if (!session)
+    return (
+      <nav aria-label="Private store actions">
+        <Link
+          to={`/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`}
+          onClick={() => rememberJitSaveIntent(storeId, returnTo)}
+        >
+          Sign in to save store
+        </Link>{' '}
+        <Link to={`/auth/sign-in?returnTo=${encodeURIComponent(memoryPath)}`}>
+          Sign in for private memory
+        </Link>{' '}
+        <Link to={correctionPath}>Suggest a correction</Link>
+      </nav>
+    )
+
+  return (
+    <section aria-label="Private store actions">
+      <SaveStoreAction
+        key={resumedSaved ? 'resumed-saved' : 'ordinary-save'}
+        storeId={storeId}
+        initialSaved={resumedSaved}
+        client={client}
+      />
+      {resumeState === 'saving' && <p role="status">Finishing your saved-store action…</p>}
+      {resumeState === 'saved' && <p role="status">Store saved after sign-in.</p>}
+      {resumeState === 'error' && <GenericError />}
+      <p>
+        <Link to={memoryPath}>Private memory</Link> ·{' '}
+        <Link to={correctionPath}>Suggest a correction</Link>
+      </p>
+    </section>
+  )
+}
 
 export function SavedPage({
   client = unavailableShopperClient,
