@@ -19,6 +19,7 @@ end $$;
 grant identity_service,trip_grant_signer,trip_invitation_signer,trip_route_worker,trip_route_authorizer to postgres;
 grant usage on schema trip_private to identity_service,trip_grant_signer,trip_invitation_signer,trip_route_worker,trip_route_authorizer;
 grant create on schema trip_private to identity_service;
+grant create on schema app_public to identity_service;
 grant update on trip_private.trip_invitations,trip_private.trip_participants,
   trip_private.trip_device_bindings,trip_private.trip_offline_grants to identity_service;
 
@@ -436,4 +437,5 @@ alter function app_public.get_check_my_day_suggestion(text) owner to identity_se
 revoke all on function trip_private.collaboration_json(uuid),trip_private.current_verified_email_digest() from public,anon,authenticated;
 grant execute on function app_public.start_trip_with_offline_grant(text,text,text),app_public.get_offline_trip_queue(text),app_public.queue_offline_trip_action(text,jsonb),app_public.resolve_trip_conflict(text,text),app_public.purge_offline_trip(text,text),app_public.replay_trip_mutations(text),app_public.get_trip_collaboration(text),app_public.invite_trip_partner(text,text),app_public.revoke_trip_invitation(text,text),app_public.accept_trip_invitation(text),app_public.assign_navigator(text,text),app_public.leave_trip(text),app_public.request_check_my_day(text),app_public.get_check_my_day_suggestion(text) to authenticated;
 revoke create on schema trip_private from identity_service;
+revoke create on schema app_public from identity_service;
 revoke identity_service,trip_grant_signer,trip_invitation_signer,trip_route_worker,trip_route_authorizer from postgres;
