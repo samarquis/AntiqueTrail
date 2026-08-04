@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   EncryptedTripOfflineStore,
   InMemoryOfflineDatabase,
@@ -29,6 +29,15 @@ beforeAll(async () => {
   ])
   privateKey = pair.privateKey
   verifier = new WebCryptoOfflineGrantVerifier(new Map([['test-key-v1', pair.publicKey]]))
+})
+
+beforeEach(() => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-08-03T12:00:00.000Z'))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 function base64Url(bytes: ArrayBuffer): string {
