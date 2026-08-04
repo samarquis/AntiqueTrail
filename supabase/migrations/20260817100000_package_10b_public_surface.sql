@@ -202,9 +202,32 @@ drop policy if exists catalog_reader_media on app_public.store_media;
 create policy catalog_reader_media on app_public.store_media for select to catalog_reader using (exists(select 1 from app_public.stores s where s.id=store_id and s.publication_state='active' and ((s.synthetic and s.audience='synthetic') or (not s.synthetic and s.audience='public' and release_private.public_capability_enabled('catalog')))));
 
 drop policy if exists listing_claim_release_insert on partner_private.listing_claims;
-create policy listing_claim_release_insert on partner_private.listing_claims for insert to authenticated
-  with check (claimant_id=auth.uid() and app_private.current_session_is_active() and release_private.public_capability_enabled('claims'));
-grant insert on partner_private.listing_claims to authenticated;
+revoke insert on partner_private.listing_claims from authenticated;
+grant identity_service to postgres;
+grant create on schema app_public to identity_service;
+create or replace function app_public.submit_listing_claim(p_store_id text)
+returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare v_store_id uuid; v_claim partner_private.listing_claims%rowtype;
+begin
+  begin v_store_id:=p_store_id::uuid; exception when others then raise exception 'claim_input_invalid'; end;
+  if not app_private.current_session_is_active()
+    or not release_private.public_capability_enabled('claims')
+    or not release_private.public_store_visible(v_store_id) then
+    raise exception 'claim_stage_disabled';
+  end if;
+  insert into partner_private.listing_claims(claimant_id,store_id,state,submitted_at)
+    values(auth.uid(),v_store_id,'submitted',statement_timestamp()) returning * into v_claim;
+  return jsonb_build_object('claimId',v_claim.claim_id,'storeId',v_claim.store_id,
+    'state',v_claim.state,'version',v_claim.version,'submittedAt',v_claim.submitted_at);
+exception when unique_violation then
+  raise exception 'claim_already_exists';
+end;
+$$;
+alter function app_public.submit_listing_claim(text) owner to identity_service;
+revoke all on function app_public.submit_listing_claim(text) from public,anon;
+grant execute on function app_public.submit_listing_claim(text) to authenticated;
+revoke create on schema app_public from identity_service;
+revoke identity_service from postgres;
 
 create policy public_review_gateway_read on release_private.public_review_projection for select to public_catalog_gateway using (
   withdrawn_at is null and release_private.public_capability_enabled('reviews')
@@ -258,6 +281,54 @@ revoke create on schema app_public from catalog_reader;
 revoke all on function app_public.regional_catalog_list(text,text,text),app_public.regional_catalog_details(text) from public,anon,authenticated;
 grant execute on function app_public.regional_catalog_list(text,text,text),app_public.regional_catalog_details(text) to public_catalog_gateway;
 revoke execute on function app_public.catalog_list(text,text,text),app_public.catalog_details(text) from public_catalog_gateway;
+
+create table release_private.public_catalog_rate_windows(
+  key_hash bytea not null check(octet_length(key_hash)=32),
+  operation text not null check(operation in ('list','details')),
+  window_start timestamptz not null,
+  request_count integer not null check(request_count>0),
+  primary key(key_hash,operation,window_start)
+);
+alter table release_private.public_catalog_rate_windows enable row level security;
+alter table release_private.public_catalog_rate_windows force row level security;
+grant select,insert,update on release_private.public_catalog_rate_windows to release_automation;
+create policy release_automation_catalog_rate on release_private.public_catalog_rate_windows
+  for all to release_automation using(true) with check(true);
+
+grant create on schema app_public to release_automation;
+create or replace function app_public.public_catalog_gateway_request(
+  p_key_hash text,p_operation text,p_args jsonb
+)
+returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare v_hash bytea; v_window timestamptz; v_count integer; v_limit integer;
+begin
+  if p_key_hash !~ '^[0-9a-f]{64}$' or p_operation not in ('list','details')
+    or jsonb_typeof(p_args)<>'object' then raise exception 'gateway_request_invalid'; end if;
+  v_hash:=decode(p_key_hash,'hex');
+  v_window:=to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300);
+  v_limit:=case p_operation when 'list' then 60 else 120 end;
+  perform pg_advisory_xact_lock(hashtextextended(p_key_hash||p_operation||v_window::text,0));
+  insert into release_private.public_catalog_rate_windows(key_hash,operation,window_start,request_count)
+    values(v_hash,p_operation,v_window,1)
+    on conflict(key_hash,operation,window_start) do update
+      set request_count=release_private.public_catalog_rate_windows.request_count+1
+    returning request_count into v_count;
+  if v_count>v_limit then raise exception 'catalog_rate_limited'; end if;
+  if p_operation='list' then
+    return coalesce((select jsonb_agg(x) from app_public.regional_catalog_list(
+      p_args->>'p_q',p_args->>'p_category',p_args->>'p_area') x),'[]'::jsonb);
+  end if;
+  return coalesce((select jsonb_agg(x) from app_public.regional_catalog_details(p_args->>'p_slug') x),'[]'::jsonb);
+end;
+$$;
+alter function app_public.public_catalog_gateway_request(text,text,jsonb) owner to release_automation;
+revoke create on schema app_public from release_automation;
+revoke all on function app_public.public_catalog_gateway_request(text,text,jsonb) from public,anon,authenticated;
+grant execute on function app_public.public_catalog_gateway_request(text,text,jsonb) to public_catalog_gateway;
+grant execute on function app_public.regional_catalog_list(text,text,text),
+  app_public.regional_catalog_details(text) to release_automation;
+revoke execute on function app_public.regional_catalog_list(text,text,text),
+  app_public.regional_catalog_details(text) from public_catalog_gateway;
 
 create or replace function release_private.promote_regional_release(p_command_id uuid,p_release_id uuid,p_receipt_ids uuid[])
 returns text language plpgsql security definer set search_path='' as $$

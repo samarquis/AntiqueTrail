@@ -9,6 +9,17 @@ grant update on app_private.profiles, app_private.active_sessions to identity_se
 grant update on trip_private.trips, trip_private.trip_stops to identity_service;
 grant select on app_public.catalog_areas, app_public.stores to identity_service;
 
+create or replace function app_private.provider_session_created_at(
+  p_session_id uuid,p_user_id uuid
+)
+returns timestamptz language sql stable security definer set search_path='' as $$
+  select s.created_at from auth.sessions s
+  where s.id=p_session_id and s.user_id=p_user_id;
+$$;
+revoke all on function app_private.provider_session_created_at(uuid,uuid)
+  from public,anon,authenticated;
+grant execute on function app_private.provider_session_created_at(uuid,uuid) to identity_service;
+
 create or replace function app_public.register_current_session(access_token_expires_at bigint)
 returns boolean language plpgsql security definer
 set search_path = pg_catalog, app_private, auth as $$
@@ -17,6 +28,8 @@ declare
   v_session_id uuid := app_private.claim_session_id();
   v_epoch bigint;
   v_expires_at timestamptz;
+  v_provider_created_at timestamptz;
+  v_revoked_before timestamptz;
 begin
   if v_user_id is null or v_session_id is null then raise exception 'authentication_required'; end if;
   if access_token_expires_at <= (extract(epoch from statement_timestamp()) * 1000)::bigint
@@ -24,28 +37,51 @@ begin
     raise exception 'session_expiry_invalid';
   end if;
   v_expires_at := to_timestamp(access_token_expires_at::numeric / 1000);
-  insert into app_private.profiles(user_id,status,last_authenticated_at)
-  values (v_user_id,'active',statement_timestamp())
-  on conflict (user_id) do update set last_authenticated_at=excluded.last_authenticated_at,
-    updated_at=statement_timestamp(), version=app_private.profiles.version+1
-  where app_private.profiles.status='active';
-  select session_epoch into v_epoch from app_private.profiles where user_id=v_user_id and status='active';
+  v_provider_created_at:=app_private.provider_session_created_at(v_session_id,v_user_id);
+  if v_provider_created_at is null then raise exception 'provider_session_unavailable'; end if;
+  select session_epoch,sessions_revoked_before into v_epoch,v_revoked_before
+    from app_private.profiles where user_id=v_user_id and status='active' for update;
   if v_epoch is null then raise exception 'account_unavailable'; end if;
-  insert into app_private.role_grants(subject_user_id,role,state)
-  values (v_user_id,'shopper','active') on conflict do nothing;
+  if not exists(select 1 from app_private.role_grants g
+    where g.subject_user_id=v_user_id and g.role='shopper' and g.state='active') then
+    raise exception 'admission_required';
+  end if;
+  if v_revoked_before is not null and v_provider_created_at<=v_revoked_before then
+    raise exception 'provider_session_revoked';
+  end if;
   insert into app_private.active_sessions(
-    session_id,user_id,session_epoch,state,last_authenticated_at,access_token_expires_at
+    session_id,user_id,provider_created_at,session_epoch,state,last_authenticated_at,access_token_expires_at
   ) values (
-    v_session_id,v_user_id,v_epoch,'active',statement_timestamp(),v_expires_at
+    v_session_id,v_user_id,v_provider_created_at,v_epoch,'active',statement_timestamp(),v_expires_at
   ) on conflict (session_id) do update set
-    state='active', revoked_at=null, revocation_reason=null,
     last_authenticated_at=statement_timestamp(), access_token_expires_at=excluded.access_token_expires_at,
     version=app_private.active_sessions.version+1
   where app_private.active_sessions.user_id=excluded.user_id
-    and app_private.active_sessions.session_epoch=excluded.session_epoch;
+    and app_private.active_sessions.session_epoch=excluded.session_epoch
+    and app_private.active_sessions.provider_created_at=excluded.provider_created_at
+    and app_private.active_sessions.state='active';
   return app_private.current_session_is_active();
 end; $$;
 alter function app_public.register_current_session(bigint) owner to identity_service;
+
+grant create on schema app_private to identity_service;
+alter function app_private.current_session_is_active() owner to postgres;
+create or replace function app_private.current_session_is_active()
+returns boolean language sql stable security definer set search_path='' as $$
+  select auth.uid() is not null
+    and nullif(current_setting('request.jwt.claims',true),'') is not null
+    and exists(
+      select 1 from app_private.profiles p
+      join app_private.active_sessions s on s.user_id=p.user_id and s.session_epoch=p.session_epoch
+      where p.user_id=auth.uid() and p.status='active' and s.state='active'
+        and s.session_id=app_private.claim_session_id()
+        and s.provider_created_at is not null
+        and (s.access_token_expires_at is null or s.access_token_expires_at>statement_timestamp())
+        and (p.sessions_revoked_before is null or s.provider_created_at>p.sessions_revoked_before)
+    );
+$$;
+alter function app_private.current_session_is_active() owner to identity_service;
+revoke create on schema app_private from identity_service;
 
 create or replace function app_public.current_session_is_active()
 returns boolean language sql stable security definer

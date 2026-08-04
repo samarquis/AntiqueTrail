@@ -1,7 +1,22 @@
 begin;
-select plan(19);
+select plan(24);
 
 select has_function('app_public','register_current_session',array['bigint'],'server session registration RPC exists');
+select has_function('app_private','provider_session_created_at',array['uuid','uuid'],'exact provider-session helper exists');
+select is((select r.rolname from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  join pg_roles r on r.oid=p.proowner where n.nspname='app_private' and p.proname='provider_session_created_at'),
+  'postgres','managed Auth lookup helper remains postgres-owned');
+select ok(not has_table_privilege('identity_service','auth.sessions','SELECT'),
+  'custom application roles have no direct managed Auth-table access');
+select ok((select pg_get_functiondef(p.oid) like '%provider_session_created_at%'
+  and pg_get_functiondef(p.oid) not like '%insert into app_private.role_grants%'
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='app_public' and p.proname='register_current_session'),
+  'registration uses the exact helper and cannot create its own admission grant');
+select ok((select pg_get_functiondef(p.oid) like '%s.provider_created_at>p.sessions_revoked_before%'
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='app_private' and p.proname='current_session_is_active'),
+  'active-session checks use immutable provider time after the revocation fence');
 select has_function('app_public','current_session_is_active',array[]::text[],'server session check RPC exists');
 select has_function('app_public','revoke_current_session',array['text'],'server session revocation RPC exists');
 select has_function('app_public','list_trips',array[]::text[],'trip list RPC exists');

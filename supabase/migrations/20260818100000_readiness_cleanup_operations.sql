@@ -40,6 +40,7 @@ returns boolean language sql immutable set search_path='' as $$
     when 'itinerary' then
       p_payload ?& array['itineraryId','namedDay','storeSetDigest','scheduleValid']
       and p_payload->>'namedDay' in ('Tuesday','Friday','Saturday')
+      and (p_payload->>'storeSetDigest') ~ '^sha256:[0-9a-f]{64}$'
       and jsonb_typeof(p_payload->'scheduleValid')='boolean'
     when 'artifact' then nullif(p_payload->>'artifactKind','') is not null
       and (p_payload->>'artifactDigest') ~ '^sha256:[0-9a-f]{64}$'
@@ -106,6 +107,11 @@ begin
     where run_id=p_run_id and fact_kind='cat01_review';
   if total<>6 or (select count(distinct payload->>'reviewerId') from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='cat01_review')<>2
     or (select count(distinct payload->>'listingId') from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='cat01_review')<>3
+    or (select count(distinct concat(payload->>'reviewerId','|',payload->>'listingId')) from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='cat01_review')<>6
+    or exists(select 1 from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='cat01_review'
+      group by payload->>'reviewerId' having count(distinct payload->>'listingId')<>3)
+    or exists(select 1 from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='cat01_review'
+      group by payload->>'listingId' having count(distinct payload->>'reviewerId')<>2)
     or exists(select 1 from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='cat01_review' and not (payload->>'reconciliationComplete')::boolean)
   then result:=array_append(result,'cat01_reviews_incomplete'); end if;
   if (select count(*) from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='cat01_budget_receipt')<>1
@@ -149,6 +155,11 @@ begin
     and (payload->>'activeVerified')::boolean and not (payload->>'fresh')::boolean)
   then result:=array_append(result,'catalog_freshness_not_complete'); end if;
   if (select count(*) from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='itinerary' and (payload->>'scheduleValid')::boolean)<>9
+    or (select count(distinct payload->>'itineraryId') from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='itinerary' and (payload->>'scheduleValid')::boolean)<>9
+    or (select count(distinct payload->>'storeSetDigest') from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='itinerary' and (payload->>'scheduleValid')::boolean)<>9
+    or exists(select 1 from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='itinerary' and (payload->>'scheduleValid')::boolean
+      group by payload->>'namedDay' having count(*)<>3)
+    or (select count(distinct payload->>'namedDay') from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='itinerary' and (payload->>'scheduleValid')::boolean)<>3
   then result:=array_append(result,'itinerary_nine_required'); end if;
   if (select count(distinct payload->>'artifactKind') from readiness_private.readiness_fact_events where run_id=p_run_id and fact_kind='artifact')<>8
   then result:=array_append(result,'readiness_artifacts_incomplete'); end if;
@@ -188,6 +199,25 @@ alter table candidate_private.candidate_cleanup_jobs
     or (state='completed' and claim_token is not null and claimed_until is not null and completed_at is not null)
     or (state='exhausted' and claim_token is null and claimed_until is null and completed_at is null)
   );
+
+create table candidate_private.candidate_cleanup_operations_cases(
+  case_id uuid primary key default extensions.gen_random_uuid(),
+  share_id uuid not null references candidate_private.candidate_cleanup_jobs(share_id) on delete restrict,
+  error_code text not null check(error_code ~ '^[a-z0-9_]{1,80}$'),
+  state text not null default 'open' check(state in ('open','resolved')),
+  opened_at timestamptz not null,
+  resolved_at timestamptz,
+  constraint candidate_cleanup_case_shape check(
+    (state='open' and resolved_at is null) or (state='resolved' and resolved_at is not null)
+  )
+);
+create unique index one_open_candidate_cleanup_case
+  on candidate_private.candidate_cleanup_operations_cases(share_id) where state='open';
+alter table candidate_private.candidate_cleanup_operations_cases enable row level security;
+alter table candidate_private.candidate_cleanup_operations_cases force row level security;
+grant select,insert,update on candidate_private.candidate_cleanup_operations_cases to identity_service;
+create policy candidate_identity_cleanup_cases on candidate_private.candidate_cleanup_operations_cases
+  for all to identity_service using(true) with check(true);
 
 create or replace function candidate_private.expire_candidate_shares(p_now timestamptz,p_limit integer)
 returns integer language plpgsql volatile security definer set search_path='' as $$
@@ -230,6 +260,10 @@ begin
     claim_token=null,claimed_until=null,last_error_code=p_error_code,
     exhausted_at=case when next_state='exhausted' then p_now else null end,updated_at=statement_timestamp()
     where share_id=p_share_id;
+  if next_state='exhausted' then
+    insert into candidate_private.candidate_cleanup_operations_cases(share_id,error_code,opened_at)
+      values(p_share_id,p_error_code,p_now) on conflict do nothing;
+  end if;
   return next_state;
 exception when no_data_found then
   raise exception using errcode='55000', message='candidate_cleanup_claim_not_current';
@@ -242,5 +276,43 @@ revoke all on function candidate_private.expire_candidate_shares(timestamptz,int
 revoke all on function candidate_private.fail_candidate_cleanup(uuid,uuid,timestamptz,text) from public,anon,authenticated;
 grant execute on function candidate_private.expire_candidate_shares(timestamptz,integer) to candidate_cleanup_service;
 grant execute on function candidate_private.fail_candidate_cleanup(uuid,uuid,timestamptz,text) to candidate_cleanup_service;
+
+grant create on schema app_public to identity_service;
+create or replace function app_public.expire_candidate_shares(p_now timestamptz,p_limit integer)
+returns integer language sql volatile security definer set search_path='' as $$
+  select candidate_private.expire_candidate_shares(p_now,p_limit);
+$$;
+create or replace function app_public.claim_candidate_cleanup(p_now timestamptz,p_limit integer)
+returns table(share_id uuid,claim_token uuid,storage_keys text[])
+language sql volatile security definer set search_path='' as $$
+  select * from candidate_private.claim_candidate_cleanup(p_now,p_limit);
+$$;
+create or replace function app_public.complete_candidate_cleanup(
+  p_share_id uuid,p_claim_token uuid,p_receipt_id uuid,p_provider_receipt text,
+  p_storage_keys_digest bytea,p_completed_at timestamptz
+)
+returns void language sql volatile security definer set search_path='' as $$
+  select candidate_private.complete_candidate_cleanup(p_share_id,p_claim_token,p_receipt_id,
+    p_provider_receipt,p_storage_keys_digest,p_completed_at);
+$$;
+create or replace function app_public.fail_candidate_cleanup(
+  p_share_id uuid,p_claim_token uuid,p_now timestamptz,p_error_code text
+)
+returns text language sql volatile security definer set search_path='' as $$
+  select candidate_private.fail_candidate_cleanup(p_share_id,p_claim_token,p_now,p_error_code);
+$$;
+alter function app_public.expire_candidate_shares(timestamptz,integer) owner to identity_service;
+alter function app_public.claim_candidate_cleanup(timestamptz,integer) owner to identity_service;
+alter function app_public.complete_candidate_cleanup(uuid,uuid,uuid,text,bytea,timestamptz) owner to identity_service;
+alter function app_public.fail_candidate_cleanup(uuid,uuid,timestamptz,text) owner to identity_service;
+revoke all on function app_public.expire_candidate_shares(timestamptz,integer),
+  app_public.claim_candidate_cleanup(timestamptz,integer),
+  app_public.complete_candidate_cleanup(uuid,uuid,uuid,text,bytea,timestamptz),
+  app_public.fail_candidate_cleanup(uuid,uuid,timestamptz,text) from public,anon,authenticated;
+grant execute on function app_public.expire_candidate_shares(timestamptz,integer),
+  app_public.claim_candidate_cleanup(timestamptz,integer),
+  app_public.complete_candidate_cleanup(uuid,uuid,uuid,text,bytea,timestamptz),
+  app_public.fail_candidate_cleanup(uuid,uuid,timestamptz,text) to candidate_cleanup_service;
+revoke create on schema app_public from identity_service;
 revoke create on schema candidate_private from identity_service;
 revoke identity_service from postgres;

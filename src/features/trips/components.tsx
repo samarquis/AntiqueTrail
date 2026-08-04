@@ -443,7 +443,7 @@ export function GoPage({
     client
       .getCollaboration(tripId)
       .then(setCollaboration)
-      .catch(() => setError(true))
+      .catch(() => undefined)
   }, [client, tripId])
   async function mutate(
     kind: 'mark_arrived' | 'complete_stop' | 'skip_stop',
@@ -578,9 +578,24 @@ export function GoPage({
               offlineRuntime
                 .replay(accountId, trip.id, client)
                 .then((result) => {
-                  if (result.state === 'empty') setTrip(result.trip)
-                  setOfflineQueue({ state: 'empty', pendingCount: 0 })
-                  setWorkingOffline(false)
+                  if (result.state === 'empty') {
+                    setTrip(result.trip)
+                    setOfflineQueue({ state: 'empty', pendingCount: 0 })
+                    setWorkingOffline(false)
+                  } else if (result.state === 'conflict') {
+                    setOfflineQueue({
+                      state: 'conflict',
+                      pendingCount: offlineQueue.pendingCount,
+                      conflict: { id: 'offline-replay', summary: result.conflict.summary },
+                    })
+                  } else {
+                    setOfflineQueue({
+                      state: 'purged',
+                      pendingCount: 0,
+                      purgeReason: 'authorization_lost',
+                    })
+                    setWorkingOffline(false)
+                  }
                 })
                 .catch(() => setError(true))
             else setWorkingOffline(true)

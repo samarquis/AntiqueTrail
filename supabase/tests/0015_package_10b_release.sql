@@ -21,8 +21,11 @@ select has_table('release_private','release_gate_receipts','provider recovery ca
 select has_table('release_private','public_review_projection','approved public review projection has a rollback surface');
 select ok(exists(select 1 from pg_constraint where conname='stores_audience_stage'),'catalog rows distinguish readiness from public audience');
 select ok(not has_function_privilege('anon','app_public.catalog_list(text,text,text)','EXECUTE') and not has_function_privilege('authenticated','app_public.catalog_list(text,text,text)','EXECUTE'),'browser roles cannot bypass the typed catalog gateway');
-select ok(has_function_privilege('public_catalog_gateway','app_public.regional_catalog_list(text,text,text)','EXECUTE'),'typed catalog gateway alone can execute regional catalog list');
-select ok(exists(select 1 from pg_policies where schemaname='partner_private' and policyname='listing_claim_release_insert' and coalesce(with_check,'') like '%public_capability_enabled%'),'claim creation is server-gated by active release capability');
+select ok(has_function_privilege('public_catalog_gateway','app_public.public_catalog_gateway_request(text,text,jsonb)','EXECUTE')
+  and not has_function_privilege('anon','app_public.public_catalog_gateway_request(text,text,jsonb)','EXECUTE'),
+  'typed rate-limited catalog gateway is the only anonymous catalog boundary');
+select ok(position('public_capability_enabled' in pg_get_functiondef('app_public.submit_listing_claim(text)'::regprocedure))>0,
+  'bounded claim command is server-gated by active release capability');
 select ok(exists(select 1 from pg_policies where schemaname='release_private' and policyname='public_review_gateway_read' and coalesce(qual,'') like '%public_capability_enabled%'),'review publication is server-gated by active release capability');
 select ok(position('select state into v_latch_state from app_private.registration_quarantine_latch' in pg_get_functiondef('release_private.promote_regional_release(uuid,uuid,uuid[])'::regprocedure))<position('select * into v_release from release_private.regional_releases' in pg_get_functiondef('release_private.promote_regional_release(uuid,uuid,uuid[])'::regprocedure)),'promotion locks registration quarantine before release state');
 select ok(position('account_registration_config' in pg_get_functiondef('release_private.promote_regional_release(uuid,uuid,uuid[])'::regprocedure))>0,'promotion changes real registration mode in its transaction');
@@ -33,7 +36,9 @@ select ok((select count(*)=3 from pg_trigger where tgname in ('release_frozen_st
 select ok(has_function_privilege('release_executor','release_private.bind_release_candidate(uuid,text,text)','EXECUTE') and not has_function_privilege('authenticated','release_private.bind_release_candidate(uuid,text,text)','EXECUTE'),'execute-only deployment command seals the exact candidate set');
 select ok(position("audience='public'" in pg_get_functiondef('app_public.regional_catalog_list(text,text,text)'::regprocedure))>0 and position("not s.synthetic" in pg_get_functiondef('app_public.regional_catalog_list(text,text,text)'::regprocedure))>0,'regional gateway exposes only promoted non-synthetic rows');
 select ok(not has_function_privilege('public_catalog_gateway','app_public.catalog_list(text,text,text)','EXECUTE'),'public gateway cannot call the synthetic catalog RPC');
-select ok(has_table_privilege('authenticated','partner_private.listing_claims','INSERT'),'authenticated claims reach the capability-gated RLS policy');
+select ok(not has_table_privilege('authenticated','partner_private.listing_claims','INSERT')
+  and has_function_privilege('authenticated','app_public.submit_listing_claim(text)','EXECUTE'),
+  'authenticated claims use only the bounded command and cannot choose server fields');
 
 select * from finish();
 rollback;

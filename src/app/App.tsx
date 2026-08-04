@@ -268,13 +268,19 @@ function TripCheckMyDayRoute({
     client
       .get(tripId)
       .then((trip) => {
-        if (cancelled || !trip?.origin || trip.stops.some((stop) => !stop.coordinate)) return
+        if (
+          cancelled ||
+          !trip?.origin ||
+          trip.departureMinute == null ||
+          trip.stops.some((stop) => !stop.coordinate)
+        )
+          return
         setRequest({
           capability,
           providerContract: { version: 'v1', maxRequests: 1, maxCostUnits: 1, timeoutMs: 8_000 },
           origin: trip.origin,
           returnCoordinate: trip.returnCoordinate,
-          departureMinute: trip.departureMinute ?? 9 * 60,
+          departureMinute: trip.departureMinute,
           transitionMinutes: trip.transitionMinutes ?? 10,
           maxDriveMiles: trip.maxDriveMiles,
           maxTotalMinutes: trip.maxTotalMinutes,
