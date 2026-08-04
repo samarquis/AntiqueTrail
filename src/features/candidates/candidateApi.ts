@@ -3,6 +3,7 @@ import type {
   CandidateClient,
   CandidateLink,
   CandidateShareView,
+  BlockedCandidateSender,
   GenericShareEnvelope,
   TripIdea,
 } from './types'
@@ -91,6 +92,8 @@ export function createCandidateProductionClient(
           p_confirmed: confirmation.confirmed,
         }),
       ),
+    listBlockedCandidateSenders: () =>
+      bounded(() => transport.rpc<BlockedCandidateSender[]>('candidate_list_blocked_senders', {})),
     unblockCandidateSender: (blockedUserId, confirmation) =>
       bounded(() =>
         transport.rpc<void>('unblock_candidate_sender', {

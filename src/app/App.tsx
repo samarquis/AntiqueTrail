@@ -35,6 +35,7 @@ import {
 } from '../features/shopper'
 import {
   CandidateSessionGuard,
+  BlockedSendersPage,
   CapturePage,
   ShareDetailsPage,
   SharesPage,
@@ -173,6 +174,10 @@ function CandidateShareDetailsRoute({ client }: { client: CandidateClient }) {
 
 function CandidateIdeasRoute({ client }: { client: CandidateClient }) {
   return <TripIdeasPage client={client} />
+}
+
+function CandidateBlockedSendersRoute({ client }: { client: CandidateClient }) {
+  return <BlockedSendersPage client={client} />
 }
 
 function TripAccountLifecycle({ runtime }: { runtime: TripOfflineRuntime }) {
@@ -459,6 +464,14 @@ export default function App({
             element={
               <RequireSession>
                 <CandidateIdeasRoute client={candidateClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/account/privacy/blocked-senders"
+            element={
+              <RequireSession>
+                <CandidateBlockedSendersRoute client={candidateClient} />
               </RequireSession>
             }
           />

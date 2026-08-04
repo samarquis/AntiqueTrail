@@ -33,4 +33,20 @@ describe('candidate Edge outbound boundary', () => {
     )
     expect(handler).not.toMatch(/return (?!respond\()[^\n]*Response/)
   })
+
+  it('uses atomic server reservations and always releases extraction concurrency', () => {
+    expect(source).toContain("client.rpc('candidate_reserve_operation'")
+    expect(source).toContain("client.rpc('candidate_release_operation'")
+    expect(source).toContain('finally')
+    expect(source).toContain("operation === 'extract'")
+    expect(source).toContain('coarseIpKey(forwarded)')
+    expect(source).toContain('.0/24`')
+    expect(source).toContain('::/64`')
+  })
+
+  it('uses an exact service-only recipient lookup without scanning Auth pages', () => {
+    expect(source).not.toContain('auth.admin.listUsers')
+    expect(source).not.toContain('.find((item: any) => item.email')
+    expect(source).toContain("admin.rpc('candidate_edge_exact_recipient'")
+  })
 })

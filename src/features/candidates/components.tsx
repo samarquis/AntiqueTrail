@@ -6,7 +6,7 @@ import {
   unavailableCandidateClient,
   validateCandidateInput,
 } from './candidateClient'
-import type { CandidateClient, CandidateShareView, TripIdea } from './types'
+import type { BlockedCandidateSender, CandidateClient, CandidateShareView, TripIdea } from './types'
 
 export function CandidateSessionGuard({
   userId,
@@ -221,6 +221,9 @@ export function SharesPage({ client = unavailableCandidateClient }: { client?: C
       title="Candidate shares"
       description="Sent shares show only Pending, Accepted, or Closed. Received shares have explicit actions."
     >
+      <p>
+        <Link to="/account/privacy/blocked-senders">Manage blocked Candidate senders</Link>
+      </p>
       {error ? (
         <CandidateError />
       ) : shares === null ? (
@@ -290,6 +293,9 @@ export function TripIdeasPage({
 }) {
   const [ideas, setIdeas] = useState<TripIdea[] | null>(null)
   const [error, setError] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editUrlNote, setEditUrlNote] = useState('')
   useEffect(() => {
     client
       .listTripIdeas()
@@ -301,6 +307,28 @@ export function TripIdeasPage({
     try {
       await client.deleteTripIdea(id, { confirmed: true })
       setIdeas((current) => current?.filter((idea) => idea.id !== id) ?? current)
+    } catch {
+      setError(true)
+    }
+  }
+  function beginEdit(idea: TripIdea) {
+    setEditingId(idea.id)
+    setEditTitle(idea.title)
+    setEditUrlNote(idea.urlNote)
+  }
+  async function saveEdit(event: FormEvent, idea: TripIdea) {
+    event.preventDefault()
+    if (!editTitle.trim()) return
+    try {
+      const updated = await client.updateTripIdea(idea.id, {
+        title: editTitle.trim(),
+        urlNote: editUrlNote,
+        expectedVersion: idea.version,
+      })
+      setIdeas(
+        (current) => current?.map((item) => (item.id === updated.id ? updated : item)) ?? current,
+      )
+      setEditingId(null)
     } catch {
       setError(true)
     }
@@ -319,9 +347,90 @@ export function TripIdeasPage({
         <ul>
           {ideas.map((idea) => (
             <li key={idea.id}>
-              <strong>{idea.title}</strong> — {idea.urlNote}{' '}
-              <button type="button" onClick={() => void remove(idea.id)}>
-                Delete
+              {editingId === idea.id ? (
+                <form onSubmit={(event) => void saveEdit(event, idea)}>
+                  <label htmlFor={`idea-title-${idea.id}`}>Idea title</label>
+                  <input
+                    id={`idea-title-${idea.id}`}
+                    value={editTitle}
+                    maxLength={160}
+                    onChange={(event) => setEditTitle(event.target.value)}
+                    required
+                  />
+                  <label htmlFor={`idea-note-${idea.id}`}>Link and note</label>
+                  <textarea
+                    id={`idea-note-${idea.id}`}
+                    value={editUrlNote}
+                    maxLength={4096}
+                    onChange={(event) => setEditUrlNote(event.target.value)}
+                  />
+                  <button type="submit">Save changes</button>{' '}
+                  <button type="button" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <strong>{idea.title}</strong> — {idea.urlNote}{' '}
+                  <button type="button" onClick={() => beginEdit(idea)}>
+                    Edit
+                  </button>{' '}
+                  <button type="button" onClick={() => void remove(idea.id)}>
+                    Delete
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </CandidateCard>
+  )
+}
+
+export function BlockedSendersPage({
+  client = unavailableCandidateClient,
+}: {
+  client?: CandidateClient
+}) {
+  const [senders, setSenders] = useState<BlockedCandidateSender[] | null>(null)
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    client
+      .listBlockedCandidateSenders()
+      .then(setSenders)
+      .catch(() => setError(true))
+  }, [client])
+  async function unblock(sender: BlockedCandidateSender) {
+    if (!window.confirm('Unblock this Candidate sender? They may share candidates with you again.'))
+      return
+    try {
+      await client.unblockCandidateSender(sender.blockedUserId, { confirmed: true })
+      setSenders(
+        (current) =>
+          current?.filter((item) => item.blockedUserId !== sender.blockedUserId) ?? current,
+      )
+    } catch {
+      setError(true)
+    }
+  }
+  return (
+    <CandidateCard
+      title="Blocked Candidate senders"
+      description="Review people you blocked from sending private Candidate shares."
+    >
+      {error && <CandidateError />}
+      {senders === null ? (
+        <p role="status">Loading blocked senders…</p>
+      ) : senders.length === 0 ? (
+        <p>No blocked Candidate senders.</p>
+      ) : (
+        <ul aria-label="Blocked Candidate senders">
+          {senders.map((sender) => (
+            <li key={sender.blockedUserId}>
+              {sender.label}{' '}
+              <button type="button" onClick={() => void unblock(sender)}>
+                Unblock
               </button>
             </li>
           ))}

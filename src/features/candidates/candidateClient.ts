@@ -22,6 +22,7 @@ export const unavailableCandidateClient: CandidateClient = {
   listTripIdeas: unavailable,
   updateTripIdea: unavailable,
   deleteTripIdea: unavailable,
+  listBlockedCandidateSenders: unavailable,
   unblockCandidateSender: unavailable,
 }
 

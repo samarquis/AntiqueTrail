@@ -25,6 +25,7 @@ export async function handleCandidate(operation: string, request: Request): Prom
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   })
+  let leaseId: string | null = null
   try {
     const context = await client.rpc('candidate_edge_context')
     if (
@@ -35,6 +36,13 @@ export async function handleCandidate(operation: string, request: Request): Prom
       return respond(new Response('Unauthorized', { status: 401 }))
     }
     const body = (await request.json()) as Record<string, unknown>
+    if ((operation === 'extract' || operation === 'send') && !hmacSecret)
+      return respond(unavailable())
+    if (operation === 'extract' || operation === 'send') {
+      const reservation = await reserve(client, operation, request, body)
+      if (!reservation.allowed) return respond(rateLimited(reservation.retryAfter))
+      leaseId = reservation.leaseId
+    }
     if (operation === 'extract') return respond(Response.json(await extract(body)))
     if (!serviceKey || !hmacSecret || !payloadSecret) return respond(unavailable())
     if (operation === 'send') return respond(Response.json(await send(client, body)))
@@ -45,7 +53,83 @@ export async function handleCandidate(operation: string, request: Request): Prom
     return respond(unavailable())
   } catch {
     return respond(new Response('Unavailable', { status: 503 }))
+  } finally {
+    if (leaseId) {
+      try {
+        await client.rpc('candidate_release_operation', { p_lease_id: leaseId })
+      } catch {
+        // The short server lease expires safely if the release request itself is interrupted.
+      }
+    }
   }
+}
+
+async function reserve(
+  client: any,
+  operation: 'extract' | 'send',
+  request: Request,
+  body: Record<string, unknown>,
+): Promise<Reservation> {
+  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? ''
+  if (!forwarded || forwarded.length > 64 || !/^[0-9a-f:.]+$/i.test(forwarded))
+    throw new Error('rate context unavailable')
+  let subject = 'invalid'
+  if (operation === 'extract' && typeof body.url === 'string') {
+    try {
+      const parsed = new URL(body.url)
+      if (['http:', 'https:'].includes(parsed.protocol)) subject = parsed.hostname.toLowerCase()
+    } catch {
+      // Invalid URLs still consume the account/IP attempt under one opaque sentinel host.
+    }
+  } else if (operation === 'send' && typeof body.recipientEmail === 'string') {
+    subject = body.recipientEmail.normalize('NFKC').trim().toLowerCase().slice(0, 320) || 'invalid'
+  }
+  const subjectHmac = await sign(`candidate-${operation}-subject:${subject}`, hmacSecret!)
+  const ipHmac = await sign(
+    `candidate-${operation}-ip:${coarseIpKey(forwarded)}`,
+    hmacSecret!,
+  )
+  const result = await client.rpc('candidate_reserve_operation', {
+    p_operation: operation === 'extract' ? 'extract' : 'share_send',
+    p_subject_hmac: `\\x${subjectHmac}`,
+    p_ip_hmac: `\\x${ipHmac}`,
+  })
+  if (result.error || typeof result.data?.allowed !== 'boolean')
+    throw new Error('rate context unavailable')
+  return {
+    allowed: result.data.allowed,
+    leaseId: typeof result.data.leaseId === 'string' ? result.data.leaseId : null,
+    retryAfter:
+      Number.isInteger(result.data.retryAfter) && result.data.retryAfter > 0
+        ? Math.min(result.data.retryAfter, 86_400)
+        : 1,
+  }
+}
+
+function coarseIpKey(value: string) {
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(value)
+  if (mapped) return coarseIpKey(mapped[1])
+  if (value.includes('.')) {
+    const parts = value.split('.')
+    if (
+      parts.length !== 4 ||
+      parts.some((part) => !/^\d{1,3}$/.test(part) || Number(part) > 255)
+    )
+      throw new Error('rate context unavailable')
+    return `${parts.slice(0, 3).join('.')}.0/24`
+  }
+  const halves = value.toLowerCase().split('::')
+  if (halves.length > 2) throw new Error('rate context unavailable')
+  const left = halves[0] ? halves[0].split(':') : []
+  const right = halves.length === 2 && halves[1] ? halves[1].split(':') : []
+  if (
+    [...left, ...right].some((word) => !/^[0-9a-f]{1,4}$/.test(word)) ||
+    (halves.length === 1 && left.length !== 8) ||
+    (halves.length === 2 && left.length + right.length >= 8)
+  )
+    throw new Error('rate context unavailable')
+  const expanded = [...left, ...Array(8 - left.length - right.length).fill('0'), ...right]
+  return `${expanded.slice(0, 4).map((word) => word.padStart(4, '0')).join(':')}::/64`
 }
 
 async function extract(body: Record<string, unknown>) {
@@ -142,13 +226,16 @@ async function send(client: any, body: Record<string, unknown>) {
   const source = await client.rpc('candidate_edge_share_source', { p_candidate_id: candidateId })
   if (source.error || !source.data) throw new Error('unavailable')
   const admin = createClient(url!, serviceKey!, {
+    db: { schema: 'app_public' },
     auth: { persistSession: false, autoRefreshToken: false },
   })
-  const users = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
-  if (users.error) throw users.error
-  const recipient =
-    users.data.users.find((item: any) => item.email?.toLowerCase() === email)?.id ?? null
   const hmac = await sign(email, hmacSecret!)
+  const lookup = await admin.rpc('candidate_edge_exact_recipient', {
+    p_normalized_email: email,
+    p_recipient_email_hmac: `\\x${hmac}`,
+  })
+  if (lookup.error) throw lookup.error
+  const recipient = typeof lookup.data?.recipientId === 'string' ? lookup.data.recipientId : null
   const encrypted = await encrypt(JSON.stringify(source.data), payloadSecret!)
   const result = await client.rpc('candidate_edge_send_share', {
     p_candidate_id: candidateId,
@@ -201,6 +288,11 @@ interface ProxyResult {
   contentType: string
   body: string
   destinations: Array<{ url: string; addresses: string[] }>
+}
+interface Reservation {
+  allowed: boolean
+  leaseId: string | null
+  retryAfter: number
 }
 function validPinnedDestination(value: { url: string; addresses: string[] }) {
   try {
@@ -327,6 +419,12 @@ function hex(value: ArrayBuffer | Uint8Array) {
 }
 function unavailable() {
   return new Response('Unavailable', { status: 503 })
+}
+function rateLimited(retryAfter: number) {
+  return new Response('Temporarily unavailable', {
+    status: 429,
+    headers: { 'Retry-After': String(Math.max(1, Math.min(retryAfter, 86_400))) },
+  })
 }
 async function timed(operation: string, startedAt: number, response: Response) {
   if (operation === 'send') {

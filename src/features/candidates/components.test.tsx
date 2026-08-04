@@ -2,7 +2,13 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CandidateSessionGuard, CapturePage, SharesPage, TripIdeasPage } from './components'
+import {
+  BlockedSendersPage,
+  CandidateSessionGuard,
+  CapturePage,
+  SharesPage,
+  TripIdeasPage,
+} from './components'
 import type { CandidateExtractionOutcome } from './candidateExtraction'
 import type { CandidateClient } from './types'
 
@@ -84,6 +90,7 @@ function client(overrides: Partial<CandidateClient> = {}): CandidateClient {
       version: input.expectedVersion + 1,
     })),
     deleteTripIdea: vi.fn(async () => undefined),
+    listBlockedCandidateSenders: vi.fn(async () => []),
     unblockCandidateSender: vi.fn(async () => undefined),
     ...overrides,
   }
@@ -253,6 +260,62 @@ describe('candidate private routes', () => {
     expect(deleteTripIdea).not.toHaveBeenCalled()
     await user.click(button)
     expect(deleteTripIdea).toHaveBeenCalledWith('idea-1', { confirmed: true })
+    confirm.mockRestore()
+  })
+
+  it('edits a Trip Idea with its current optimistic version', async () => {
+    const user = userEvent.setup()
+    const updateTripIdea = vi.fn(async (_ideaId, input) => ({
+      id: 'idea-1',
+      ownerUserId: 'user-1',
+      title: input.title,
+      urlNote: input.urlNote,
+      version: input.expectedVersion + 1,
+    }))
+    const candidateClient = client({
+      listTripIdeas: vi.fn(async () => [
+        {
+          id: 'idea-1',
+          ownerUserId: 'user-1',
+          title: 'Oak Antiques',
+          urlNote: 'Call first',
+          version: 3,
+        },
+      ]),
+      updateTripIdea,
+    })
+    render(<TripIdeasPage client={candidateClient} />)
+    await user.click(await screen.findByRole('button', { name: /edit/i }))
+    const title = screen.getByLabelText(/idea title/i)
+    await user.clear(title)
+    await user.type(title, 'Updated Oak')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    expect(updateTripIdea).toHaveBeenCalledWith('idea-1', {
+      title: 'Updated Oak',
+      urlNote: 'Call first',
+      expectedVersion: 3,
+    })
+    expect(await screen.findByText('Updated Oak')).toBeInTheDocument()
+  })
+
+  it('lists and explicitly unblocks a blocked Candidate sender', async () => {
+    const user = userEvent.setup()
+    const unblockCandidateSender = vi.fn(async () => undefined)
+    const candidateClient = client({
+      listBlockedCandidateSenders: vi.fn(async () => [
+        {
+          blockedUserId: 'sender-1',
+          label: 'Blocked sender',
+          blockedAt: Date.now(),
+        },
+      ]),
+      unblockCandidateSender,
+    })
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<BlockedSendersPage client={candidateClient} />)
+    await user.click(await screen.findByRole('button', { name: /unblock/i }))
+    expect(unblockCandidateSender).toHaveBeenCalledWith('sender-1', { confirmed: true })
+    expect(await screen.findByText(/no blocked candidate senders/i)).toBeInTheDocument()
     confirm.mockRestore()
   })
 })

@@ -34,6 +34,12 @@ export interface TripIdea {
   version: number
 }
 
+export interface BlockedCandidateSender {
+  blockedUserId: string
+  label: string
+  blockedAt: number
+}
+
 export interface GenericShareEnvelope {
   accepted: boolean
   state: 'accepted' | 'pending' | 'closed'
@@ -72,5 +78,6 @@ export interface CandidateClient {
     input: { title: string; urlNote: string; expectedVersion: number },
   ): Promise<TripIdea>
   deleteTripIdea(ideaId: string, confirmation: { confirmed: true }): Promise<void>
+  listBlockedCandidateSenders(): Promise<BlockedCandidateSender[]>
   unblockCandidateSender(blockedUserId: string, confirmation: { confirmed: true }): Promise<void>
 }

@@ -73,6 +73,7 @@ describe('candidate production client', () => {
     })
     await client.unblockCandidateSender('sender-1', { confirmed: true })
     await client.revokeCandidateShare('share-1')
+    await client.listBlockedCandidateSenders()
 
     expect(rpcCalls).toContainEqual([
       'candidate_update_trip_idea',
@@ -91,5 +92,6 @@ describe('candidate production client', () => {
       'revoke_candidate_share',
       { p_share_id: 'share-1', p_idempotency_key: 'revoke-share-1' },
     ])
+    expect(rpcCalls).toContainEqual(['candidate_list_blocked_senders', {}])
   })
 })
