@@ -1,6 +1,8 @@
 import { createClient, type Session } from '@supabase/supabase-js'
 import type { AppClients, AppRuntime } from './App'
 import { createShopperClient } from '../features/shopper'
+import { createCandidateProductionClient } from '../features/candidates'
+import { createPartnerClient, createPartnerProductionTransport } from '../features/partners'
 import {
   WebCryptoOfflineGrantVerifier,
   createTripApi,
@@ -150,6 +152,31 @@ export async function configuredComposition(): Promise<ConfiguredComposition | n
       return { data: result.data, error: result.error }
     },
   })
+  const rpc = async <T>(
+    command: string,
+    payload: Readonly<Record<string, unknown>>,
+  ): Promise<T> => {
+    const result = await supabase.rpc(command, payload)
+    if (result.error) throw result.error
+    return result.data as T
+  }
+  const edge = async <T>(
+    command: string,
+    payload: Readonly<Record<string, unknown>>,
+  ): Promise<T> => {
+    const result = await supabase.functions.invoke(command, { body: payload })
+    if (result.error) throw result.error
+    return result.data as T
+  }
+  const candidate = createCandidateProductionClient({ rpc, edge })
+  const partner = createPartnerClient(
+    createPartnerProductionTransport({
+      rpc,
+      edge,
+      emailProviderEnabled: import.meta.env.VITE_PARTNER_EMAIL_PROVIDER_ENABLED === 'true',
+      mediaProviderEnabled: import.meta.env.VITE_PARTNER_MEDIA_PROVIDER_ENABLED === 'true',
+    }),
+  )
   let source: TripOfflineGrantSource | undefined
   if (offline.enabled) {
     source = {
@@ -168,7 +195,7 @@ export async function configuredComposition(): Promise<ConfiguredComposition | n
     }
   }
   return {
-    clients: { shopper, trips, tripOfflineGrants: source },
+    clients: { candidate, partner, shopper, trips, tripOfflineGrants: source },
     runtime: {
       authProvider: createAuthProvider(supabase),
       sessionRegistry,
