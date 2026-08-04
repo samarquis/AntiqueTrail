@@ -1,0 +1,97 @@
+name: Run H-01 quota monitor and actuator
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: antique-trail-h01-quota-control
+  cancel-in-progress: false
+
+jobs:
+  quota-control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: shared-alpha
+    env:
+      H01_QUOTA_OBSERVATION_BASE64: ${{ secrets.H01_QUOTA_OBSERVATION_BASE64 }}
+      H01_QUOTA_OBSERVER_KEY_ID: ${{ vars.H01_QUOTA_OBSERVER_KEY_ID }}
+      H01_QUOTA_OBSERVER_FINGERPRINT: ${{ vars.H01_QUOTA_OBSERVER_FINGERPRINT }}
+      H01_QUOTA_OBSERVER_PUBLIC_KEY_SPKI_BASE64: ${{ vars.H01_QUOTA_OBSERVER_PUBLIC_KEY_SPKI_BASE64 }}
+      H01_QUOTA_ACTUATOR_URL: ${{ vars.H01_QUOTA_ACTUATOR_URL }}
+      H01_QUOTA_ACTUATOR_TOKEN: ${{ secrets.H01_QUOTA_ACTUATOR_TOKEN }}
+    steps:
+      - name: Configuration-safe preflight
+        id: preflight
+        shell: bash
+        run: |
+          missing=()
+          for name in \
+            H01_QUOTA_OBSERVATION_BASE64 \
+            H01_QUOTA_OBSERVER_KEY_ID \
+            H01_QUOTA_OBSERVER_FINGERPRINT \
+            H01_QUOTA_OBSERVER_PUBLIC_KEY_SPKI_BASE64 \
+            H01_QUOTA_ACTUATOR_URL \
+            H01_QUOTA_ACTUATOR_TOKEN
+          do
+            test -n "${!name}" || missing+=("$name")
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            {
+              echo '## H-01 quota control blocked safely'
+              echo
+              echo 'No observation was evaluated and no actuator/provider call was made.'
+              echo 'Protected configuration is incomplete; see the H-01 runbook.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Checkout exact revision
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+      - name: Verify current signed observation and apply restrictions
+        if: steps.preflight.outputs.configured == 'true'
+        shell: bash
+        run: |
+          umask 077
+          printf '%s' "$H01_QUOTA_OBSERVATION_BASE64" | base64 --decode > quota-observation.json
+          jq -n \
+            --arg keyId "$H01_QUOTA_OBSERVER_KEY_ID" \
+            --arg fingerprint "$H01_QUOTA_OBSERVER_FINGERPRINT" \
+            --arg publicKey "$H01_QUOTA_OBSERVER_PUBLIC_KEY_SPKI_BASE64" \
+            '{schemaVersion: 1, signers: [{keyId: $keyId, fingerprint: $fingerprint, publicKeySpkiBase64: $publicKey, status: "active"}]}' \
+            > quota-observer-registry.json
+          node scripts/h01-quota-monitor.mjs actuate \
+            --observation quota-observation.json \
+            --registry quota-observer-registry.json \
+            --out quota-action-receipt.json
+          plan_digest="$(jq -r '.plan.planDigest' quota-action-receipt.json)"
+          receipt_digest="$(jq -r '.receipt.receiptDigest // "none"' quota-action-receipt.json)"
+          status="$(jq -r '.receipt.status' quota-action-receipt.json)"
+          {
+            echo '## H-01 quota restriction receipt'
+            echo
+            echo "- Status: \`$status\`"
+            echo "- Plan digest: \`$plan_digest\`"
+            echo "- Receipt digest: \`$receipt_digest\`"
+            echo '- Usage measurements and credentials are intentionally absent from this summary.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain content-free restriction receipt
+        if: steps.preflight.outputs.configured == 'true' && always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: h01-quota-action-receipt
+          path: quota-action-receipt.json
+          if-no-files-found: warn
+          retention-days: 90

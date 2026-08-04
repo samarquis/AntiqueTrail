@@ -175,6 +175,52 @@ gate. Documented startup safe limits are:
 | Cloudflare builds          | 375 builds/month       |
 | Resend, only after E-01    | 70/day and 2,100/month |
 
+## Running quota monitor and actuator
+
+The release gate is not the running-system control. `scripts/h01-quota-monitor.mjs`
+turns a current signed provider observation into a deterministic, content-free
+restriction plan. The observation window is at most 15 minutes and includes
+all five startup resources. Missing, stale, tampered, duplicated, or invalid
+measurements fail closed. At 75% the plan pauses new rollouts and recruitment;
+at 90% it additionally disables optional maps, route suggestions, media uploads,
+and nonessential email while preserving core browse/account safety; at 100% it
+also blocks unsafe dependent work. It never automatically re-enables a feature.
+A later recovery requires a fresh observation and a separately reviewed release.
+
+`Run H-01 quota monitor and actuator` is intentionally manual-only and therefore
+disabled as a recurring production control by default. This prevents an empty
+repository from generating recurring failed-run email. After H-01 acceptance,
+an administrator may arrange a protected external recurring dispatch at a
+cadence shorter than 15 minutes. Do not add a GitHub `schedule` until the whole
+boundary below is live and its failure alert has an accountable human owner.
+
+The protected `shared-alpha` environment requires:
+
+| Kind   | Name                                             | Meaning |
+| ------ | ------------------------------------------------ | ------- |
+| Secret | `H01_QUOTA_OBSERVATION_BASE64`                   | Exact signed, current observation; replaced each run |
+| Var    | `H01_QUOTA_OBSERVER_KEY_ID`                      | Allowlisted observation signer key identifier |
+| Var    | `H01_QUOTA_OBSERVER_FINGERPRINT`                 | SHA-256 of observer Ed25519 SPKI DER |
+| Var    | `H01_QUOTA_OBSERVER_PUBLIC_KEY_SPKI_BASE64`      | Observer public key only |
+| Var    | `H01_QUOTA_ACTUATOR_URL`                         | HTTPS endpoint dedicated to quota restrictions |
+| Secret | `H01_QUOTA_ACTUATOR_TOKEN`                       | Environment-scoped least-privilege actuator credential |
+
+The actuator endpoint is a required provider boundary, not implemented by this
+repository. It must authenticate the request, accept only
+`apply-h01-quota-restrictions`, allow only the seven enumerated restrictive
+actions, be idempotent by plan digest, reject any enable/delete/general-provider
+operation, and return an authenticated exact-action receipt bound to both the
+observation and plan digests. The client uses a ten-second deadline and rejects
+partial, extra, or unbound receipts. Incomplete configuration exits successfully
+without any network call and records a blocked-safe workflow summary.
+
+The real provider residuals are therefore explicit: provider-authenticated usage
+collection, the registered observer key/custodian and rotation receipt, the
+constrained actuator deployment/token/allowlist, wiring each action to tested
+runtime kill switches, recurring dispatch and alert ownership, and witnessed
+75%/90%/100% rehearsals. None exists merely because this code is present; until
+all are configured and witnessed, H-01 and shared activation remain NO-GO.
+
 The template deliberately describes a blocked state. A real receipt must also
 prove separate active and unroutable restore projects, U.S. region, Direct
 Upload, deny-by-default Access on every hostname, environment-scoped
