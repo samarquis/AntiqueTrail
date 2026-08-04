@@ -117,11 +117,11 @@ describe('private shopper screens', () => {
     expect(signIn).toHaveAttribute('href', '/auth/sign-in?returnTo=%2Fstores%2Foak%3Ffrom%3Dtrail')
     expect(screen.getByRole('link', { name: /sign in for private memory/i })).toHaveAttribute(
       'href',
-      '/auth/sign-in?returnTo=%2Fstores%2Foak%2Fmemory%3FstoreId%3Dstore-1',
+      '/auth/sign-in?returnTo=%2Fstores%2Foak%2Fmemory',
     )
     expect(screen.getByRole('link', { name: /suggest a correction/i })).toHaveAttribute(
       'href',
-      '/stores/oak/correction?storeId=store-1',
+      '/stores/oak/correction',
     )
     await user.click(signIn)
     expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toContain(
@@ -165,18 +165,18 @@ describe('private shopper screens', () => {
     expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toBeNull()
     expect(screen.getByRole('link', { name: /private memory/i })).toHaveAttribute(
       'href',
-      '/stores/oak/memory?storeId=store-1',
+      '/stores/oak/memory',
     )
   })
 
   it('uses the stable catalog id rather than the public slug for memory RPCs', async () => {
     const getMemory = vi.fn<ShopperPrivateClient['getMemory']>(async () => null)
     render(
-      <MemoryRouter initialEntries={['/stores/oak/memory?storeId=store-1']}>
+      <MemoryRouter initialEntries={['/stores/oak/memory']}>
         <Routes>
           <Route
             path="/stores/:slug/memory"
-            element={<MemoryPage client={client({ getMemory })} />}
+            element={<MemoryPage storeId="store-1" client={client({ getMemory })} />}
           />
         </Routes>
       </MemoryRouter>,
@@ -193,14 +193,14 @@ describe('private shopper screens', () => {
       undoUntil: '2026-08-03T22:05:00Z',
     }))
     const undo = vi.fn<ShopperPrivateClient['undoDeleteMemory']>(async () => ({
-      storeId: '',
+      storeId: 'store-1',
       rating: 5,
       note: null,
       lastVisitMonth: null,
       version: 2,
     }))
     const lifecycleClient = client({ deleteMemory: remove, undoDeleteMemory: undo })
-    renderPage(<MemoryPage client={lifecycleClient} />)
+    renderPage(<MemoryPage storeId="store-1" client={lifecycleClient} />)
     await user.selectOptions(await screen.findByLabelText(/rating/i), '5')
     await user.click(screen.getByRole('button', { name: /save private memory/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/saved/i)
@@ -209,8 +209,8 @@ describe('private shopper screens', () => {
     await user.click(screen.getByRole('button', { name: 'Undo memory deletion' }))
     expect(await screen.findByRole('status')).toHaveTextContent(/restored/i)
     expect(screen.getByLabelText(/rating/i)).toHaveValue('5')
-    expect(remove).toHaveBeenCalledWith('')
-    expect(undo).toHaveBeenCalledWith('', 'undo-memory-1')
+    expect(remove).toHaveBeenCalledWith('store-1')
+    expect(undo).toHaveBeenCalledWith('store-1', 'undo-memory-1')
   })
 
   it('loads New Since only after a shopper manually selects a coarse area', async () => {
@@ -257,7 +257,7 @@ describe('private shopper screens', () => {
           <Routes>
             <Route
               path="/stores/:slug/correction"
-              element={<CorrectionPage client={client({ submitCorrection })} />}
+              element={<CorrectionPage storeId="store-1" client={client({ submitCorrection })} />}
             />
           </Routes>
         </AuthProvider>
@@ -273,7 +273,10 @@ describe('private shopper screens', () => {
       <MemoryRouter initialEntries={['/stores/oak/correction']}>
         <AuthProvider>
           <Routes>
-            <Route path="/stores/:slug/correction" element={<CorrectionPage client={client()} />} />
+            <Route
+              path="/stores/:slug/correction"
+              element={<CorrectionPage storeId="store-1" client={client()} />}
+            />
           </Routes>
         </AuthProvider>
       </MemoryRouter>,

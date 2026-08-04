@@ -177,9 +177,8 @@ export function CatalogPrivateActions({
     }
   }, [client, returnTo, session, storeId])
 
-  const storeQuery = `storeId=${encodeURIComponent(storeId)}`
-  const memoryPath = `/stores/${encodeURIComponent(slug)}/memory?${storeQuery}`
-  const correctionPath = `/stores/${encodeURIComponent(slug)}/correction?${storeQuery}`
+  const memoryPath = `/stores/${encodeURIComponent(slug)}/memory`
+  const correctionPath = `/stores/${encodeURIComponent(slug)}/correction`
   if (!session)
     return (
       <nav aria-label="Private store actions">
@@ -437,13 +436,12 @@ export function HistoryPage({
 }
 
 export function MemoryPage({
+  storeId,
   client = unavailableShopperClient,
 }: {
+  storeId: string
   client?: ShopperPrivateClient
 }) {
-  const { slug = '' } = useParams()
-  const location = useLocation()
-  const storeId = new URLSearchParams(location.search).get('storeId') || slug
   const [memory, setMemory] = useState<PrivateStoreMemory>({
     storeId,
     rating: null,
@@ -581,14 +579,15 @@ export function MemoryPage({
 }
 
 export function CorrectionPage({
+  storeId,
   client = unavailableShopperClient,
 }: {
+  storeId: string
   client?: ShopperPrivateClient
 }) {
   const { slug = '' } = useParams()
   const { session } = useAuth()
   const location = useLocation()
-  const storeId = new URLSearchParams(location.search).get('storeId') || slug
   const [draft, setDraft] = useState<CorrectionDraft>(
     () =>
       correctionDraftCache.get(slug) ?? {

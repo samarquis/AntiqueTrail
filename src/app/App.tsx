@@ -165,6 +165,42 @@ function StoreDetails({ shopperClient }: { shopperClient: ShopperPrivateClient }
   )
 }
 
+function ResolvedStorePrivateRoute({
+  shopperClient,
+  action,
+}: {
+  shopperClient: ShopperPrivateClient
+  action: 'memory' | 'correction'
+}) {
+  const { slug = '' } = useParams()
+  const [state, setState] = useState<
+    { kind: 'loading' } | { kind: 'ready'; storeId: string } | { kind: 'unavailable' }
+  >({ kind: 'loading' })
+  useEffect(() => {
+    let cancelled = false
+    setState({ kind: 'loading' })
+    catalogClient
+      .details(slug)
+      .then((store) => {
+        if (!cancelled)
+          setState(store ? { kind: 'ready', storeId: store.id } : { kind: 'unavailable' })
+      })
+      .catch(() => {
+        if (!cancelled) setState({ kind: 'unavailable' })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [slug])
+  if (state.kind === 'loading') return <p role="status">Loading store…</p>
+  if (state.kind === 'unavailable') return <NotFound />
+  return action === 'memory' ? (
+    <MemoryPage storeId={state.storeId} client={shopperClient} />
+  ) : (
+    <CorrectionPage storeId={state.storeId} client={shopperClient} />
+  )
+}
+
 function StoreReviews() {
   const { slug = '' } = useParams()
   return <PublicReviewsPage client={unavailableReviewClient} storeId={slug} />
@@ -378,13 +414,15 @@ export default function App({
             path="/stores/:slug/memory"
             element={
               <RequireSession>
-                <MemoryPage client={shopperClient} />
+                <ResolvedStorePrivateRoute shopperClient={shopperClient} action="memory" />
               </RequireSession>
             }
           />
           <Route
             path="/stores/:slug/correction"
-            element={<CorrectionPage client={shopperClient} />}
+            element={
+              <ResolvedStorePrivateRoute shopperClient={shopperClient} action="correction" />
+            }
           />
           <Route path="/auth/sign-in" element={<SignInPage provider={authProvider} />} />
           <Route path="/auth/recovery" element={<RecoveryPage provider={authProvider} />} />
