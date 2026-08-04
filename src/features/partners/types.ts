@@ -77,9 +77,6 @@ export interface PartnerClaimSignalInput {
 export interface PartnerClaimStatus {
   claimId: string
   state: PartnerClaimState
-  riskTier: PartnerClaimRiskTier
-  verifiedSignalCount: number
-  requiredSignalCount: 2
   recheckDueAt?: string
   exactStoreScope?: string
   conflict?: { state: 'open' | 'resolved' | 'rejected' | 'withdrawn' }

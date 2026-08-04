@@ -532,9 +532,6 @@ export function PartnerClaimPage({
       {status && (
         <>
           <p role="status">Claim status: {status.state}.</p>
-          <p>
-            {status.verifiedSignalCount} of {status.requiredSignalCount} authority signals verified.
-          </p>
           {status.state === 'conflict' && (
             <p role="alert">This claim needs administrator review before it can continue.</p>
           )}

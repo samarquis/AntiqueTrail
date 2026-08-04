@@ -47,31 +47,19 @@ function client(overrides: Partial<PartnerClient> = {}): PartnerClient {
     submitClaim: vi.fn(async () => ({
       claimId: 'claim-1',
       state: 'submitted' as const,
-      riskTier: 'standard' as const,
-      verifiedSignalCount: 0,
-      requiredSignalCount: 2 as const,
     })),
     getClaimStatus: vi.fn(async () => null),
     submitAuthoritySignal: vi.fn(async () => ({
       claimId: 'claim-1',
       state: 'verification_pending' as const,
-      riskTier: 'standard' as const,
-      verifiedSignalCount: 0,
-      requiredSignalCount: 2 as const,
     })),
     withdrawClaim: vi.fn(async () => ({
       claimId: 'claim-1',
       state: 'withdrawn' as const,
-      riskTier: 'standard' as const,
-      verifiedSignalCount: 0,
-      requiredSignalCount: 2 as const,
     })),
     requestAuthorityRecheck: vi.fn(async () => ({
       claimId: 'claim-1',
       state: 'verification_pending' as const,
-      riskTier: 'standard' as const,
-      verifiedSignalCount: 0,
-      requiredSignalCount: 2 as const,
     })),
     ...overrides,
   }
@@ -159,9 +147,6 @@ describe('partner onboarding boundary', () => {
     const submitClaim = vi.fn(async () => ({
       claimId: 'claim-1',
       state: 'submitted' as const,
-      riskTier: 'standard' as const,
-      verifiedSignalCount: 0,
-      requiredSignalCount: 2 as const,
     }))
     renderPage(<PartnerClaimPage client={client({ submitClaim })} />)
 
@@ -187,20 +172,15 @@ describe('partner onboarding boundary', () => {
     const getClaimStatus = vi.fn(async () => ({
       claimId: 'claim-1',
       state: 'verification_pending' as const,
-      riskTier: 'elevated' as const,
-      verifiedSignalCount: 1,
-      requiredSignalCount: 2 as const,
     }))
     const submitAuthoritySignal = vi.fn(async () => ({
       claimId: 'claim-1',
       state: 'verification_pending' as const,
-      riskTier: 'elevated' as const,
-      verifiedSignalCount: 1,
-      requiredSignalCount: 2 as const,
     }))
     renderPage(<PartnerClaimPage client={client({ getClaimStatus, submitAuthoritySignal })} />)
 
-    expect(await screen.findByText(/1 of 2 authority signals verified/i)).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent(/verification_pending/i)
+    expect(screen.queryByText(/authority signals verified/i)).not.toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText(/authority signal channel/i), 'callback')
     await user.type(screen.getByLabelText(/evidence reference/i), 'case-ref-17')
     await user.click(screen.getByRole('button', { name: /submit authority signal/i }))
@@ -218,9 +198,6 @@ describe('partner onboarding boundary', () => {
     const requestAuthorityRecheck = vi.fn(async () => ({
       claimId: 'claim-1',
       state: 'verification_pending' as const,
-      riskTier: 'high' as const,
-      verifiedSignalCount: 0,
-      requiredSignalCount: 2 as const,
     }))
     renderPage(
       <PartnerClaimPage
@@ -229,9 +206,6 @@ describe('partner onboarding boundary', () => {
           getClaimStatus: vi.fn(async () => ({
             claimId: 'claim-1',
             state: 'conflict' as const,
-            riskTier: 'high' as const,
-            verifiedSignalCount: 2,
-            requiredSignalCount: 2 as const,
             recheckDueAt: '2026-09-01T00:00:00.000Z',
             conflict: { state: 'open' as const },
           })),
