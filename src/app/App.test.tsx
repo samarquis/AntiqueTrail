@@ -63,6 +63,7 @@ describe('app shell', () => {
       getCase: vi.fn(),
       decide: vi.fn(),
       issueSyntheticInvitation: vi.fn(),
+      verifySignal: vi.fn(),
     }
     render(
       <MemoryRouter initialEntries={['/admin/partners']}>
@@ -72,6 +73,7 @@ describe('app shell', () => {
             adminSession: {
               userId: 'admin-1',
               role: 'Administrator',
+              mfaEnrolled: true,
               mfaVerified: true,
               recentAuthAt: Date.now(),
               sessionActive: true,
@@ -81,6 +83,36 @@ describe('app shell', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('heading', { name: /partner administration/i })).toBeInTheDocument()
+  })
+
+  it('opens partner administration from the real AuthContext session metadata', () => {
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'admin-2',
+      accessToken: 'memory-only-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Administrator',
+      mfaRequired: true,
+      mfaEnrolled: true,
+      mfaVerified: true,
+      passwordAuthenticatedAt: new Date().toISOString(),
+      mfaVerifiedAt: new Date().toISOString(),
+    })
+    render(
+      <MemoryRouter initialEntries={['/admin/partners']}>
+        <App
+          runtime={{
+            authStore,
+            sessionRegistry: {
+              registerCurrentSession: vi.fn(),
+              isActive: vi.fn(async () => true),
+              revoke: vi.fn(),
+            },
+          }}
+        />
+      </MemoryRouter>,
+    )
+    return screen.findByRole('heading', { name: /partner administration/i })
   })
 
   it('exposes partner onboarding routes while keeping provider access gated', async () => {

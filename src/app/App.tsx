@@ -67,7 +67,13 @@ import {
   type CheckMyDayProvider,
   type CheckMyDayRequest,
 } from '../features/routing'
-import { AccessSafetyPage, AdminGuard, ReviewQueuePage, type AdminSession } from '../features/admin'
+import {
+  AccessSafetyPage,
+  AdminGuard,
+  ReviewQueuePage,
+  adminSessionFromAuth,
+  type AdminSession,
+} from '../features/admin'
 import { AlphaGuard, AlphaReadinessPage } from '../features/alpha'
 import {
   ExternalReadinessGuard,
@@ -236,6 +242,49 @@ function CandidateBlockedSendersRoute({ client }: { client: CandidateClient }) {
   return <BlockedSendersPage client={client} />
 }
 
+function AuthenticatedAdminGuard({
+  override,
+  registry,
+  children,
+}: {
+  override?: AdminSession
+  registry?: SessionRegistryClient
+  children: ReactNode
+}) {
+  const { session } = useAuth()
+  const [registryProof, setRegistryProof] = useState<{ key: string; active: boolean } | null>(null)
+  const testOverride = import.meta.env.MODE === 'test' ? override : undefined
+  useEffect(() => {
+    let current = true
+    setRegistryProof(null)
+    if (!session || !registry || testOverride) return () => undefined
+    const key = `${session.userId}:${session.accessToken}`
+    registry
+      .isActive(session)
+      .then((active) => {
+        if (current) setRegistryProof({ key, active })
+      })
+      .catch(() => {
+        if (current) setRegistryProof({ key, active: false })
+      })
+    return () => {
+      current = false
+    }
+  }, [registry, session, testOverride])
+  const derived = adminSessionFromAuth(session)
+  const sessionKey = session ? `${session.userId}:${session.accessToken}` : null
+  if (!testOverride && session && registry && registryProof?.key !== sessionKey)
+    return <p role="status">Verifying administrator session…</p>
+  const guarded = derived
+    ? {
+        ...derived,
+        sessionActive:
+          derived.sessionActive && registryProof?.key === sessionKey && registryProof.active,
+      }
+    : null
+  return <AdminGuard session={testOverride ?? guarded}>{children}</AdminGuard>
+}
+
 function TripAccountLifecycle({ runtime }: { runtime: TripOfflineRuntime }) {
   const { session } = useAuth()
   const priorAccount = useRef(session?.userId)
@@ -366,7 +415,7 @@ export interface AppRuntime {
   authStore?: AuthStore
   authProvider?: AuthProviderAdapter
   sessionRegistry?: SessionRegistryClient
-  /** Supplied only by an authoritative active-session + recent-auth verifier. */
+  /** Test-only override. Production administration is derived from AuthContext. */
   adminSession?: AdminSession
 }
 
@@ -542,33 +591,45 @@ export default function App({
           <Route
             path="/admin"
             element={
-              <AdminGuard session={runtime.adminSession ?? null}>
+              <AuthenticatedAdminGuard
+                override={runtime.adminSession}
+                registry={runtime.sessionRegistry}
+              >
                 <ReviewQueuePage />
-              </AdminGuard>
+              </AuthenticatedAdminGuard>
             }
           />
           <Route
             path="/admin/access"
             element={
-              <AdminGuard session={runtime.adminSession ?? null}>
+              <AuthenticatedAdminGuard
+                override={runtime.adminSession}
+                registry={runtime.sessionRegistry}
+              >
                 <AccessSafetyPage />
-              </AdminGuard>
+              </AuthenticatedAdminGuard>
             }
           />
           <Route
             path="/admin/partners"
             element={
-              <AdminGuard session={runtime.adminSession ?? null}>
+              <AuthenticatedAdminGuard
+                override={runtime.adminSession}
+                registry={runtime.sessionRegistry}
+              >
                 <PartnerAdminPage client={partnerAdminClient} />
-              </AdminGuard>
+              </AuthenticatedAdminGuard>
             }
           />
           <Route
             path="/admin/reviews"
             element={
-              <AdminGuard session={runtime.adminSession ?? null}>
+              <AuthenticatedAdminGuard
+                override={runtime.adminSession}
+                registry={runtime.sessionRegistry}
+              >
                 <ModerationQueuePage client={unavailableReviewClient} />
-              </AdminGuard>
+              </AuthenticatedAdminGuard>
             }
           />
           <Route

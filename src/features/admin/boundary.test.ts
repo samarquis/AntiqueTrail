@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  adminSessionFromAuth,
   canDecideCase,
   canOpenCase,
   canReadCaseField,
@@ -14,6 +15,7 @@ import {
 const admin = {
   userId: 'admin-1',
   role: 'Administrator' as const,
+  mfaEnrolled: true,
   mfaVerified: true,
   recentAuthAt: 9_500,
   sessionActive: true,
@@ -38,11 +40,48 @@ const grant = {
 }
 
 describe('admin review and access boundary', () => {
+  it('derives the guard from real auth metadata and fails closed when metadata is absent', () => {
+    const now = Date.parse('2026-08-04T12:05:00Z')
+    const session = {
+      userId: 'admin-1',
+      accessToken: 'memory-only',
+      expiresAt: now + 60_000,
+      role: 'Administrator' as const,
+      mfaRequired: true,
+      mfaEnrolled: true,
+      mfaVerified: true,
+      passwordAuthenticatedAt: '2026-08-04T12:00:00Z',
+      mfaVerifiedAt: '2026-08-04T12:01:00Z',
+    }
+    expect(canUseAdminBoundary(adminSessionFromAuth(session, now), now)).toBe(true)
+    expect(
+      canUseAdminBoundary(
+        adminSessionFromAuth({ ...session, passwordAuthenticatedAt: undefined }, now),
+        now,
+      ),
+    ).toBe(false)
+    expect(
+      canUseAdminBoundary(adminSessionFromAuth({ ...session, mfaVerifiedAt: undefined }, now), now),
+    ).toBe(false)
+    expect(
+      canUseAdminBoundary(
+        adminSessionFromAuth(
+          { ...session, mfaEnrolled: false, mfaVerified: false, mfaVerifiedAt: undefined },
+          now,
+        ),
+        now,
+      ),
+    ).toBe(true)
+  })
+
   it('requires Administrator MFA and recent authentication', () => {
     expect(canUseAdminBoundary(admin, 10_000)).toBe(true)
     expect(canUseAdminBoundary({ ...admin, mfaVerified: false }, 10_000)).toBe(false)
     expect(canUseAdminBoundary({ ...admin, recentAuthAt: 1 }, 700_000)).toBe(false)
     expect(canUseAdminBoundary({ ...admin, role: 'Representative' }, 10_000)).toBe(false)
+    expect(canUseAdminBoundary({ ...admin, mfaEnrolled: false, mfaVerified: false }, 10_000)).toBe(
+      true,
+    )
   })
 
   it('rechecks exact case assignment, target and field scope; self-approval is denied', () => {

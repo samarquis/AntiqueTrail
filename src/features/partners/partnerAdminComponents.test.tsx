@@ -13,6 +13,13 @@ function client(overrides: Partial<PartnerAdminClient> = {}): PartnerAdminClient
       version: 3,
       exactStoreScope: 'synthetic-store',
       verifiedSignals: [{ channelClass: 'callback', signalType: 'authority' }],
+      pendingSignals: [
+        {
+          signalId: '22222222-2222-4222-8222-222222222222',
+          channelClass: 'published_business_contact',
+          signalType: 'domain_response',
+        },
+      ],
     })),
     decide: vi.fn(async (input) => ({
       claimId: input.claimId,
@@ -24,6 +31,16 @@ function client(overrides: Partial<PartnerAdminClient> = {}): PartnerAdminClient
       invitationId: 'invitation-1',
       token: 'one-time-secret',
       expiresAt: '2026-08-04T12:30:00Z',
+    })),
+    verifySignal: vi.fn(async (input) => ({
+      claimId: input.claimId,
+      state: 'verification_pending' as const,
+      version: input.expectedVersion + 1,
+      exactStoreScope: 'synthetic-store',
+      verifiedSignals: [
+        { channelClass: 'published_business_contact', signalType: 'domain_response' },
+      ],
+      pendingSignals: [],
     })),
     ...overrides,
   }
@@ -71,7 +88,7 @@ describe('Partner Administrator screen', () => {
 
     await user.selectOptions(screen.getByLabelText(/^decision$/i), 'approve')
     await user.type(screen.getByLabelText(/reason code/i), 'verified_authority')
-    await user.type(screen.getByLabelText(/decision key/i), 'approve-claim-v3')
+    await user.type(screen.getByLabelText(/^decision key$/i), 'approve-claim-v3')
     await user.click(screen.getByRole('button', { name: /apply decision/i }))
 
     expect(boundary.decide).toHaveBeenCalledWith({
@@ -101,5 +118,39 @@ describe('Partner Administrator screen', () => {
     await user.click(screen.getByRole('button', { name: /open exact claim/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/item is not available/i)
     expect(screen.queryByText(/row secret/i)).not.toBeInTheDocument()
+  })
+
+  it('verifies a submitted signal without rendering or sending raw evidence', async () => {
+    const user = userEvent.setup()
+    const boundary = client()
+    render(
+      <MemoryRouter>
+        <PartnerAdminPage client={boundary} />
+      </MemoryRouter>,
+    )
+    await user.type(
+      screen.getByLabelText(/exact claim id/i),
+      '11111111-1111-4111-8111-111111111111',
+    )
+    await user.click(screen.getByRole('button', { name: /open exact claim/i }))
+    expect(
+      await screen.findByRole('heading', { name: /submitted authority signals/i }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/evidence ref|evidence hmac/i)).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText(/signal decision reason/i), 'authority_confirmed')
+    await user.type(screen.getByLabelText(/signal decision key/i), 'verify-signal-v3')
+    await user.click(
+      screen.getByRole('button', { name: /verify published business contact signal/i }),
+    )
+
+    expect(boundary.verifySignal).toHaveBeenCalledWith({
+      operation: 'verify',
+      claimId: '11111111-1111-4111-8111-111111111111',
+      signalId: '22222222-2222-4222-8222-222222222222',
+      expectedVersion: 3,
+      idempotencyKey: 'verify-signal-v3',
+      reasonCode: 'authority_confirmed',
+    })
   })
 })

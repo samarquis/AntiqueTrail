@@ -32,6 +32,8 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
   const [reasonCode, setReasonCode] = useState('')
   const [decisionKey, setDecisionKey] = useState('')
   const [transferFromClaimId, setTransferFromClaimId] = useState('')
+  const [signalReasonCode, setSignalReasonCode] = useState('')
+  const [signalDecisionKey, setSignalDecisionKey] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(false)
 
@@ -85,6 +87,29 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
           transferFromClaimId: operation === 'transfer' ? transferFromClaimId.trim() : undefined,
         }),
       )
+    } catch {
+      setError(true)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function decideSignal(signalId: string, signalOperation: 'verify' | 'reject') {
+    if (!claim?.version || !signalReasonCode.trim() || !signalDecisionKey.trim()) return
+    setPending(true)
+    setError(false)
+    try {
+      setClaim(
+        await client.verifySignal({
+          operation: signalOperation,
+          claimId: claim.claimId,
+          signalId,
+          expectedVersion: claim.version,
+          idempotencyKey: signalDecisionKey.trim(),
+          reasonCode: signalReasonCode.trim(),
+        }),
+      )
+      setSignalDecisionKey('')
     } catch {
       setError(true)
     } finally {
@@ -155,6 +180,54 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
             <p>{labelState(claim.state)}</p>
             {claim.exactStoreScope && <p>Exact store scope: {claim.exactStoreScope}.</p>}
             <p>Verified signals: {claim.verifiedSignals?.length ?? 0}.</p>
+            {(claim.pendingSignals?.length ?? 0) > 0 && (
+              <section aria-labelledby="pending-authority-signals-heading">
+                <h4 id="pending-authority-signals-heading">Submitted authority signals</h4>
+                <p>
+                  Only channel metadata is shown here. Raw evidence remains inside the trusted
+                  verification boundary.
+                </p>
+                <label htmlFor="partner-admin-signal-reason">Signal decision reason</label>
+                <input
+                  id="partner-admin-signal-reason"
+                  value={signalReasonCode}
+                  onChange={(event) => setSignalReasonCode(event.target.value)}
+                  pattern="[a-z][a-z0-9_]{1,63}"
+                  required
+                />
+                <label htmlFor="partner-admin-signal-key">Signal decision key</label>
+                <input
+                  id="partner-admin-signal-key"
+                  value={signalDecisionKey}
+                  onChange={(event) => setSignalDecisionKey(event.target.value)}
+                  pattern="[A-Za-z0-9][A-Za-z0-9._:-]{0,127}"
+                  required
+                />
+                <ul>
+                  {claim.pendingSignals?.map((signal) => (
+                    <li key={signal.signalId}>
+                      <span>
+                        {labelState(signal.channelClass)} · {labelState(signal.signalType)}
+                      </span>{' '}
+                      <button
+                        type="button"
+                        disabled={pending || !signalReasonCode.trim() || !signalDecisionKey.trim()}
+                        onClick={() => void decideSignal(signal.signalId, 'verify')}
+                      >
+                        Verify {labelState(signal.channelClass)} signal
+                      </button>{' '}
+                      <button
+                        type="button"
+                        disabled={pending || !signalReasonCode.trim() || !signalDecisionKey.trim()}
+                        onClick={() => void decideSignal(signal.signalId, 'reject')}
+                      >
+                        Reject {labelState(signal.channelClass)} signal
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <form onSubmit={decide}>
               <label htmlFor="partner-admin-decision">Decision</label>
               <select

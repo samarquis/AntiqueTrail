@@ -87,4 +87,33 @@ describe('partner administrator boundary', () => {
     })
     expect(rpc).not.toHaveBeenCalled()
   })
+
+  it('verifies one submitted signal through the server-authoritative command', async () => {
+    const rpc = vi.fn(async (command: string, payload: Readonly<Record<string, unknown>>) => {
+      void command
+      void payload
+      return { claimId: 'claim-1', state: 'verification_pending' }
+    })
+    const client = createPartnerAdminClient({ rpc })
+
+    await client.verifySignal({
+      operation: 'verify',
+      claimId: 'claim-1',
+      signalId: 'signal-1',
+      expectedVersion: 3,
+      idempotencyKey: 'verify-signal-1-v3',
+      reasonCode: 'independent_authority_confirmed',
+    })
+
+    expect(rpc).toHaveBeenCalledWith('partner_admin_signal_command', {
+      p_operation: 'verify',
+      p_claim_id: 'claim-1',
+      p_signal_id: 'signal-1',
+      p_expected_version: 3,
+      p_idempotency_key: 'verify-signal-1-v3',
+      p_reason_code: 'independent_authority_confirmed',
+    })
+    expect(rpc.mock.calls[0]?.[1]).not.toHaveProperty('evidence')
+    expect(rpc.mock.calls[0]?.[1]).not.toHaveProperty('actorUserId')
+  })
 })

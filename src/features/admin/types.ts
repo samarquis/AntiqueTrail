@@ -11,6 +11,7 @@ export type AuditField = 'identity' | 'contact' | 'hours' | 'categories' | 'medi
 export interface AdminSession {
   userId: string
   role: 'Administrator' | 'Representative' | 'Shopper'
+  mfaEnrolled: boolean
   mfaVerified: boolean
   recentAuthAt: number
   sessionActive: boolean
