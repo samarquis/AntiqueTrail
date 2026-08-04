@@ -159,6 +159,10 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
   const [tripName, setTripName] = useState('')
   const [scheduleDate, setScheduleDate] = useState('')
   const [departureTime, setDepartureTime] = useState('')
+  const [renameConflict, setRenameConflict] = useState<{
+    attemptedName: string
+    latest: { name: string; version: number }
+  } | null>(null)
   const [offlineQueue, setOfflineQueue] = useState<OfflineQueueSnapshot>({
     state: 'empty',
     pendingCount: 0,
@@ -222,14 +226,25 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       setError(true)
     }
   }
-  async function rename(event: FormEvent) {
-    event.preventDefault()
-    if (!trip || !normalizeTripName(tripName)) return
+  async function applyRename(name: string, expectedVersion: number) {
+    if (!trip || !normalizeTripName(name)) return
     try {
-      setTrip(await client.renameTrip(trip.id, tripName, trip.version, crypto.randomUUID()))
+      const result = await client.renameTrip(trip.id, name, expectedVersion, crypto.randomUUID())
+      if (result.state === 'conflict') {
+        setRenameConflict({ attemptedName: normalizeTripName(name), latest: result.latest })
+        return
+      }
+      setRenameConflict(null)
+      setTrip(result.trip)
+      setTripName(result.trip.name)
     } catch {
       setError(true)
     }
+  }
+  async function rename(event: FormEvent) {
+    event.preventDefault()
+    if (!trip) return
+    await applyRename(tripName, trip.version)
   }
   async function saveSchedule(event: FormEvent) {
     event.preventDefault()
@@ -309,6 +324,39 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
         />
         <button type="submit">Rename trip</button>
       </form>
+      {renameConflict && (
+        <section aria-label="Rename conflict">
+          <p role="alert">
+            This trip is now named “{renameConflict.latest.name}”. Choose which name to keep.
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              void applyRename(renameConflict.attemptedName, renameConflict.latest.version)
+            }
+          >
+            Reapply My Name
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTrip((current) =>
+                current
+                  ? {
+                      ...current,
+                      name: renameConflict.latest.name,
+                      version: renameConflict.latest.version,
+                    }
+                  : current,
+              )
+              setTripName(renameConflict.latest.name)
+              setRenameConflict(null)
+            }}
+          >
+            Keep Latest Name
+          </button>
+        </section>
+      )}
       <form onSubmit={saveSchedule}>
         <label htmlFor="plan-trip-date">Trip date</label>
         <input

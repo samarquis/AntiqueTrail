@@ -3,6 +3,7 @@ import type { Trip } from './types'
 const DATABASE_NAME = 'antique-trail-private-trip-v1'
 const RECORD_STORE = 'encrypted-trips'
 const KEY_STORE = 'device-keys'
+const INSTALLATION_IDENTITY_KEY = 'trip-installation-identity-v1'
 const CLOCK_ROLLBACK_TOLERANCE_MS = 5 * 60 * 1000
 
 export interface OfflineMutation {
@@ -67,11 +68,19 @@ export interface OfflineTripDatabase {
   getKey(id: string): Promise<CryptoKey | undefined>
   putKey(id: string, key: CryptoKey): Promise<void>
   deleteKey(id: string): Promise<void>
+  getInstallationIdentity(): Promise<TripInstallationIdentity | undefined>
+  putInstallationIdentity(identity: TripInstallationIdentity): Promise<void>
+}
+
+export interface TripInstallationIdentity {
+  installId: string
+  deviceKeyId: string
 }
 
 export class InMemoryOfflineDatabase implements OfflineTripDatabase {
   readonly records = new Map<string, EncryptedOfflineRecord>()
   readonly keys = new Map<string, CryptoKey>()
+  installationIdentity?: TripInstallationIdentity
 
   async getRecord(id: string) {
     return this.records.get(id)
@@ -93,6 +102,12 @@ export class InMemoryOfflineDatabase implements OfflineTripDatabase {
   }
   async deleteKey(id: string) {
     this.keys.delete(id)
+  }
+  async getInstallationIdentity() {
+    return this.installationIdentity
+  }
+  async putInstallationIdentity(identity: TripInstallationIdentity) {
+    this.installationIdentity = identity
   }
 }
 
@@ -152,6 +167,46 @@ export class IndexedDbOfflineDatabase implements OfflineTripDatabase {
   async deleteKey(id: string) {
     await requestResult((await this.store(KEY_STORE, 'readwrite')).delete(id))
   }
+  async getInstallationIdentity() {
+    return requestResult<TripInstallationIdentity | undefined>(
+      (await this.store(KEY_STORE, 'readonly')).get(INSTALLATION_IDENTITY_KEY),
+    )
+  }
+  async putInstallationIdentity(identity: TripInstallationIdentity) {
+    await requestResult(
+      (await this.store(KEY_STORE, 'readwrite')).put(identity, INSTALLATION_IDENTITY_KEY),
+    )
+  }
+}
+
+function validInstallationIdentity(value: TripInstallationIdentity | undefined): boolean {
+  return Boolean(
+    value &&
+      /^install-[0-9a-f-]{36}$/u.test(value.installId) &&
+      /^device-key-[0-9a-f-]{36}$/u.test(value.deviceKeyId),
+  )
+}
+
+/** Loads one installation identity whose key id resolves to a non-extractable persisted key. */
+export async function loadOrCreateTripInstallationIdentity(
+  database: OfflineTripDatabase,
+): Promise<TripInstallationIdentity> {
+  const existing = await database.getInstallationIdentity()
+  if (validInstallationIdentity(existing)) {
+    const key = await database.getKey(existing!.deviceKeyId)
+    if (key && !key.extractable) return existing!
+  }
+  const identity = {
+    installId: `install-${crypto.randomUUID()}`,
+    deviceKeyId: `device-key-${crypto.randomUUID()}`,
+  }
+  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+    'encrypt',
+    'decrypt',
+  ])
+  await database.putKey(identity.deviceKeyId, key)
+  await database.putInstallationIdentity(identity)
+  return identity
 }
 
 export type OfflineRestoreResult =

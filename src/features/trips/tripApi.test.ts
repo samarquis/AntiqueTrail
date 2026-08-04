@@ -248,6 +248,13 @@ describe('implicit-actor TripClient transport', () => {
     })
   })
 
+  it('preserves a typed rename conflict with only the latest shared name', async () => {
+    const wire = transport({ state: 'conflict', latest: { name: 'Server Name', version: 7 } })
+    await expect(
+      createTripApi(wire).renameTrip('trip-1', 'My Name', 4, 'rename-1'),
+    ).resolves.toEqual({ state: 'conflict', latest: { name: 'Server Name', version: 7 } })
+  })
+
   it('normalizes transport, malformed-response, and local-validation failures reason-neutrally', async () => {
     const denied: TripTransport = {
       async invoke() {

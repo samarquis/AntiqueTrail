@@ -55,6 +55,14 @@ const harness = vi.hoisted(() => {
 vi.mock('@supabase/supabase-js', () => ({ createClient: vi.fn(() => harness.supabase) }))
 
 import { configuredComposition } from './configuredComposition'
+import {
+  InMemoryOfflineDatabase,
+  loadOrCreateTripInstallationIdentity,
+  type TripInstallationIdentity,
+} from '../features/trips'
+
+let tripDatabase: InMemoryOfflineDatabase
+let tripIdentity: TripInstallationIdentity
 
 describe('configured Trip grant composition', () => {
   beforeEach(async () => {
@@ -67,8 +75,11 @@ describe('configured Trip grant composition', () => {
     ])
     vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co')
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'anon-key')
-    vi.stubEnv('VITE_TRIP_INSTALL_ID', 'install-a')
-    vi.stubEnv('VITE_TRIP_DEVICE_KEY_ID', 'device-key-a')
+    tripDatabase = new InMemoryOfflineDatabase()
+    tripIdentity = await loadOrCreateTripInstallationIdentity(tripDatabase)
+    harness.grant.claims.installId = tripIdentity.installId
+    harness.grant.claims.deviceId = tripIdentity.installId
+    harness.grant.claims.deviceKeyId = tripIdentity.deviceKeyId
     vi.stubEnv('VITE_TRIP_OFFLINE_GRANT_KEY_ID', 'key-v1')
     vi.stubEnv(
       'VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK',
@@ -79,7 +90,7 @@ describe('configured Trip grant composition', () => {
   afterEach(() => vi.unstubAllEnvs())
 
   it('preflights the signer before consumption and unwraps fallback and offline starts', async () => {
-    const composition = await configuredComposition()
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
     expect(composition).not.toBeNull()
 
     await expect(composition!.clients.trips!.start('trip-1')).resolves.toEqual(harness.trip)
@@ -87,9 +98,9 @@ describe('configured Trip grant composition', () => {
     expect(harness.supabase.functions.invoke).toHaveBeenLastCalledWith('trip-grant-signer', {
       body: {
         tripId: 'trip-1',
-        installId: 'install-a',
-        deviceId: 'install-a',
-        deviceKeyId: 'device-key-a',
+        installId: tripIdentity.installId,
+        deviceId: tripIdentity.installId,
+        deviceKeyId: tripIdentity.deviceKeyId,
       },
     })
 
@@ -97,8 +108,8 @@ describe('configured Trip grant composition', () => {
     await expect(
       composition!.clients.tripOfflineGrants!.startTripWithOfflineGrant(
         'trip-1',
-        'install-a',
-        'device-key-a',
+        tripIdentity.installId,
+        tripIdentity.deviceKeyId,
       ),
     ).resolves.toEqual({ trip: harness.trip, grant: harness.grant })
     expect(harness.events).toEqual(['edge:trip-grant-signer', 'rpc:start_trip_with_offline_grant'])
@@ -109,7 +120,7 @@ describe('configured Trip grant composition', () => {
       data: null,
       error: new Error('signer unavailable'),
     })
-    const composition = await configuredComposition()
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
     await expect(composition!.clients.trips!.start('trip-1')).rejects.toThrow()
     expect(harness.supabase.rpc).not.toHaveBeenCalled()
   })

@@ -5,8 +5,12 @@ import { createCandidateProductionClient } from '../features/candidates'
 import { createPartnerClient, createPartnerProductionTransport } from '../features/partners'
 import {
   WebCryptoOfflineGrantVerifier,
+  InMemoryOfflineDatabase,
+  IndexedDbOfflineDatabase,
   createTripApi,
   createTripOfflineRuntime,
+  loadOrCreateTripInstallationIdentity,
+  type OfflineTripDatabase,
   type SignedOfflineGrant,
   type Trip,
   type TripOfflineGrantSource,
@@ -92,17 +96,26 @@ function createAuthProvider<T extends { auth: ReturnType<typeof createClient>['a
   }
 }
 
-async function offlineConfiguration(): Promise<{
+async function offlineConfiguration(database: OfflineTripDatabase): Promise<{
   runtime: ReturnType<typeof createTripOfflineRuntime>
   enabled: boolean
+  identityReady: boolean
 }> {
-  const installId = configuredValue(import.meta.env.VITE_TRIP_INSTALL_ID) ?? undefined
-  const deviceKeyId = configuredValue(import.meta.env.VITE_TRIP_DEVICE_KEY_ID) ?? undefined
   const keyId = configuredValue(import.meta.env.VITE_TRIP_OFFLINE_GRANT_KEY_ID)
   const rawJwk = configuredValue(import.meta.env.VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK)
-  if (!keyId || !rawJwk || !deviceKeyId)
-    return { runtime: createTripOfflineRuntime({ installId, deviceKeyId }), enabled: false }
   try {
+    const identity = await loadOrCreateTripInstallationIdentity(database)
+    const runtimeOptions = {
+      database,
+      installId: identity.installId,
+      deviceKeyId: identity.deviceKeyId,
+    }
+    if (!keyId || !rawJwk)
+      return {
+        runtime: createTripOfflineRuntime(runtimeOptions),
+        enabled: false,
+        identityReady: true,
+      }
     const publicKey = await crypto.subtle.importKey(
       'jwk',
       JSON.parse(rawJwk) as JsonWebKey,
@@ -112,18 +125,26 @@ async function offlineConfiguration(): Promise<{
     )
     return {
       runtime: createTripOfflineRuntime({
-        installId,
-        deviceKeyId,
+        ...runtimeOptions,
         verifier: new WebCryptoOfflineGrantVerifier(new Map([[keyId, publicKey]])),
       }),
       enabled: true,
+      identityReady: true,
     }
   } catch {
-    return { runtime: createTripOfflineRuntime({ installId, deviceKeyId }), enabled: false }
+    return {
+      runtime: createTripOfflineRuntime({ database: new InMemoryOfflineDatabase() }),
+      enabled: false,
+      identityReady: false,
+    }
   }
 }
 
-export async function configuredComposition(): Promise<ConfiguredComposition | null> {
+export async function configuredComposition(
+  options: {
+    tripOfflineDatabase?: OfflineTripDatabase
+  } = {},
+): Promise<ConfiguredComposition | null> {
   const url = configuredValue(import.meta.env.VITE_SUPABASE_URL)
   const anonKey = configuredValue(import.meta.env.VITE_SUPABASE_ANON_KEY)
   if (!url || !anonKey) return null
@@ -131,13 +152,16 @@ export async function configuredComposition(): Promise<ConfiguredComposition | n
     db: { schema: 'app_public' },
     auth: { persistSession: false, autoRefreshToken: true, detectSessionInUrl: true },
   })
-  const offline = await offlineConfiguration()
+  const offline = await offlineConfiguration(
+    options.tripOfflineDatabase ?? new IndexedDbOfflineDatabase(),
+  )
   const consumeSignedTripGrant = async (
     command: 'start_trip_with_offline_grant' | 'transfer_navigator_device',
     tripId: string,
     installId: string,
     deviceKeyId: string,
   ): Promise<unknown> => {
+    if (!offline.identityReady) throw new Error('Offline trip grant unavailable.')
     const preflight = await supabase.functions.invoke('trip-grant-signer', {
       body: { tripId, installId, deviceId: installId, deviceKeyId },
     })

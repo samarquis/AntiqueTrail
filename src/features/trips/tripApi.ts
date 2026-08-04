@@ -13,6 +13,7 @@ import type {
   TripParticipant,
   TripStop,
   TripMutationReplayResult,
+  TripRenameResult,
   CheckMyDayServerResult,
 } from './types'
 
@@ -158,6 +159,16 @@ const parseTrip: Parser<Trip> = (value) => {
 function parseGrantWrappedTrip(value: unknown): Trip {
   const source = record(value)
   return source.trip == null ? parseTrip(value) : parseTrip(source.trip)
+}
+
+function parseRenameResult(value: unknown): TripRenameResult {
+  const source = record(value)
+  if (source.state !== 'conflict') return { state: 'applied', trip: parseTrip(value) }
+  const latest = record(source.latest)
+  return {
+    state: 'conflict',
+    latest: { name: string(latest.name, 80), version: integer(latest.version, 1) },
+  }
 }
 
 function parseTripList(value: unknown): Trip[] {
@@ -404,7 +415,7 @@ export function createTripApi(
             idempotency_key: boundedId(idempotencyKey),
           }
         },
-        parseTrip,
+        parseRenameResult,
       )
     },
     removeStop(tripId, stopId, expectedVersion) {

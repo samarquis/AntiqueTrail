@@ -40,6 +40,10 @@ export interface Trip {
   maxTotalMinutes?: number
 }
 
+export type TripRenameResult =
+  | { state: 'applied'; trip: Trip }
+  | { state: 'conflict'; latest: { name: string; version: number } }
+
 export type TripParticipantRole = 'creator' | 'partner'
 export type TripInvitationState = 'pending' | 'accepted' | 'revoked' | 'expired'
 
@@ -108,7 +112,7 @@ export interface TripClient {
     name: string,
     expectedVersion: number,
     idempotencyKey: string,
-  ): Promise<Trip>
+  ): Promise<TripRenameResult>
   removeStop(tripId: string, stopId: string, expectedVersion: number): Promise<Trip>
   setStopPriority(
     tripId: string,

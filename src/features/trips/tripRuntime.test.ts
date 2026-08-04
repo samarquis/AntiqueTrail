@@ -2,6 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import {
   InMemoryOfflineDatabase,
   WebCryptoOfflineGrantVerifier,
+  loadOrCreateTripInstallationIdentity,
   offlineGrantBytes,
   type OfflineGrantClaims,
   type SignedOfflineGrant,
@@ -45,13 +46,16 @@ function base64Url(bytes: ArrayBuffer): string {
   return btoa(binary).replace(/\+/gu, '-').replace(/\//gu, '_').replace(/=+$/u, '')
 }
 
-async function grant(accountId = 'shopper-a'): Promise<SignedOfflineGrant> {
+async function grant(
+  accountId = 'shopper-a',
+  identity = { installId: 'install-a', deviceKeyId: 'device-key-a' },
+): Promise<SignedOfflineGrant> {
   const claims: OfflineGrantClaims = {
     accountId,
     tripId: trip.id,
-    installId: 'install-a',
-    deviceId: 'install-a',
-    deviceKeyId: 'device-key-a',
+    installId: identity.installId,
+    deviceId: identity.installId,
+    deviceKeyId: identity.deviceKeyId,
     sessionSecurityVersion: 3,
     issuedAt: '2026-08-03T12:00:00.000Z',
     expiresAt: '2026-08-05T00:00:00.000Z',
@@ -185,5 +189,52 @@ describe('browser trip offline runtime', () => {
       }),
     )
     await expect(runtime.recover('shopper-a', trip.id)).resolves.toEqual({ state: 'absent' })
+  })
+
+  it('denies the old persisted installation replay after Navigator transfer', async () => {
+    const oldDatabase = new InMemoryOfflineDatabase()
+    const newDatabase = new InMemoryOfflineDatabase()
+    const oldIdentity = await loadOrCreateTripInstallationIdentity(oldDatabase)
+    const newIdentity = await loadOrCreateTripInstallationIdentity(newDatabase)
+    expect(newIdentity).not.toEqual(oldIdentity)
+    const oldRuntime = createTripOfflineRuntime({
+      database: oldDatabase,
+      verifier,
+      ...oldIdentity,
+    })
+    await oldRuntime.start('shopper-a', trip.id, {
+      async startTripWithOfflineGrant() {
+        return { trip, grant: await grant('shopper-a', oldIdentity) }
+      },
+    })
+    await oldRuntime.queueMutation?.('shopper-a', trip, {
+      kind: 'mark_arrived',
+      stopId: 'stop-1',
+    })
+    let activeDeviceId = oldIdentity.installId
+    const transferNavigatorDevice = vi.fn(async (targetTripId: string) => {
+      expect(targetTripId).toBe(trip.id)
+      activeDeviceId = newIdentity.installId
+      return trip
+    })
+    await transferNavigatorDevice(trip.id)
+    const replayOfflineMutation = vi.fn(async (envelope: { deviceId: string }) =>
+      envelope.deviceId === activeDeviceId
+        ? { state: 'accepted' as const, trip }
+        : { state: 'unauthorized' as const },
+    )
+    await expect(
+      oldRuntime.replay?.('shopper-a', trip.id, {
+        ...unavailableTripClient,
+        replayOfflineMutation,
+      }),
+    ).resolves.toEqual({
+      state: 'purged',
+      pendingCount: 0,
+      purgeReason: 'authorization_lost',
+    })
+    expect(replayOfflineMutation).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceId: oldIdentity.installId }),
+    )
   })
 })

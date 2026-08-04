@@ -33,7 +33,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
       stops: [{ id: 'stop-1', ...input, position: 0, state: 'planned' as const }],
     })),
     reorderStop: vi.fn(async () => trip),
-    renameTrip: vi.fn(async () => trip),
+    renameTrip: vi.fn(async () => ({ state: 'applied' as const, trip })),
     removeStop: vi.fn(async () => trip),
     setStopPriority: vi.fn(async () => trip),
     setStopDwell: vi.fn(async () => trip),
@@ -222,7 +222,7 @@ describe('manual trips', () => {
         },
       ],
     }
-    const renameTrip = vi.fn(async () => planned)
+    const renameTrip = vi.fn(async () => ({ state: 'applied' as const, trip: planned }))
     const updateSchedule = vi.fn(async () => planned)
     const setStopPriority = vi.fn(async () => planned)
     const setStopDwell = vi.fn(async () => planned)
@@ -288,6 +288,54 @@ describe('manual trips', () => {
     expect(bindNavigatorDevice).toHaveBeenCalledWith('trip-1')
     await user.click(screen.getByRole('button', { name: /transfer navigator/i }))
     expect(transferNavigatorDevice).toHaveBeenCalledWith('trip-1')
+  })
+
+  it('offers Reapply and Keep Latest for typed rename conflicts', async () => {
+    const user = userEvent.setup()
+    const renameTrip = vi
+      .fn()
+      .mockResolvedValueOnce({
+        state: 'conflict',
+        latest: { name: 'Server Name', version: 7 },
+      })
+      .mockResolvedValueOnce({
+        state: 'conflict',
+        latest: { name: 'Newer Server Name', version: 8 },
+      })
+      .mockResolvedValueOnce({
+        state: 'applied',
+        trip: { ...trip, name: 'My Reapplied Name', version: 9 },
+      })
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={<PlanPage client={client({ renameTrip })} />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const input = await screen.findByLabelText(/^trip name$/i)
+    await user.clear(input)
+    await user.type(input, 'Discarded Name')
+    await user.click(screen.getByRole('button', { name: /rename trip/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server Name')
+    await user.click(screen.getByRole('button', { name: /keep latest name/i }))
+    expect(input).toHaveValue('Server Name')
+
+    await user.clear(input)
+    await user.type(input, 'My Reapplied Name')
+    await user.click(screen.getByRole('button', { name: /rename trip/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Newer Server Name')
+    await user.click(screen.getByRole('button', { name: /reapply my name/i }))
+    expect(renameTrip).toHaveBeenLastCalledWith(
+      'trip-1',
+      'My Reapplied Name',
+      8,
+      expect.any(String),
+    )
+    expect(await screen.findByLabelText(/^trip name$/i)).toHaveValue('My Reapplied Name')
   })
 
   it('offers explicit one-stop Google Maps and Waze handoff links', async () => {

@@ -2,6 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import {
   EncryptedTripOfflineStore,
   InMemoryOfflineDatabase,
+  loadOrCreateTripInstallationIdentity,
   WebCryptoOfflineGrantVerifier,
   offlineGrantBytes,
   type OfflineGrantClaims,
@@ -92,6 +93,17 @@ function store(database = new InMemoryOfflineDatabase()) {
 }
 
 describe('encrypted active-trip recovery', () => {
+  it('creates different per-install identities and reloads the persisted non-extractable key', async () => {
+    const firstDatabase = new InMemoryOfflineDatabase()
+    const secondDatabase = new InMemoryOfflineDatabase()
+    const first = await loadOrCreateTripInstallationIdentity(firstDatabase)
+    const second = await loadOrCreateTripInstallationIdentity(secondDatabase)
+    expect(first).not.toEqual(second)
+    await expect(loadOrCreateTripInstallationIdentity(firstDatabase)).resolves.toEqual(first)
+    const deviceKey = await firstDatabase.getKey(first.deviceKeyId)
+    expect(deviceKey).toBeDefined()
+    expect(deviceKey?.extractable).toBe(false)
+  })
   it('verifies the server signature and every account/trip/install/device grant binding', async () => {
     const database = new InMemoryOfflineDatabase()
     const offline = store(database)

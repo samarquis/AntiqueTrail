@@ -9,7 +9,6 @@ import {
 } from './offlineTripStore'
 import type { OfflineQueueSnapshot, Trip, TripClient } from './types'
 
-export const DEFAULT_TRIP_INSTALL_ID = 'antique-trail-pwa-install-v1'
 export const GENERIC_OFFLINE_TRIP_ERROR = 'The offline trip could not be prepared safely.'
 export const BACKGROUND_PLAINTEXT_TTL_MS = 15 * 60_000
 
@@ -83,8 +82,8 @@ export function createTripOfflineRuntime(
     deviceKeyId?: string
   } = {},
 ): TripOfflineRuntime {
-  const installId = options.installId ?? DEFAULT_TRIP_INSTALL_ID
-  const deviceKeyId = options.deviceKeyId ?? `${installId}:device-key-v1`
+  const installId = options.installId ?? `install-${crypto.randomUUID()}`
+  const deviceKeyId = options.deviceKeyId ?? `device-key-${crypto.randomUUID()}`
   const store = new EncryptedTripOfflineStore(
     options.database ?? new IndexedDbOfflineDatabase(),
     installId,
