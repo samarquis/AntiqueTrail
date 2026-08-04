@@ -184,16 +184,46 @@ export async function actuateQuotaPlan(plan, configuration = {}, fetchImpl = glo
     planDigest: plan.planDigest,
     actions: plan.actions,
   }
-  const response = await fetchImpl(target, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${token}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(request),
-    signal: globalThis.AbortSignal.timeout(10_000),
-  })
-  const body = await response.json().catch(() => null)
+  const send = async (body) => {
+    const response = await fetchImpl(target, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/json',
+        'idempotency-key': plan.planDigest,
+      },
+      body: JSON.stringify(body),
+      signal: globalThis.AbortSignal.timeout(10_000),
+    })
+    return { response, body: await response.json().catch(() => null) }
+  }
+  let result
+  try {
+    result = await send(request)
+  } catch {
+    try {
+      result = await send({
+        schemaVersion: 1,
+        operation: 'get-h01-quota-restriction-status',
+        environment: plan.environment,
+        observationDigest: plan.observationDigest,
+        planDigest: plan.planDigest,
+      })
+    } catch {
+      const unknownBody = {
+        schemaVersion: 1,
+        gate: 'H-01-QUOTA',
+        status: 'UNKNOWN_BLOCKED',
+        reasonCode: 'actuator.finality_unknown',
+        planDigest: plan.planDigest,
+        observationDigest: plan.observationDigest,
+        requestId: null,
+        actions: [],
+      }
+      return { ...unknownBody, receiptDigest: digest(unknownBody) }
+    }
+  }
+  const { response, body } = result
   const exactActions =
     Array.isArray(body?.actions) && canonicalJson(body.actions) === canonicalJson(plan.actions)
   const valid =

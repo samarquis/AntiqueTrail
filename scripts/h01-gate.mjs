@@ -286,6 +286,7 @@ export function evaluateQuota(metric) {
   }
   const utilization = metric.current / effectiveLimit
   const forecastUtilization = Math.max(metric.forecastNormal, metric.forecastAbuse) / effectiveLimit
+  const automaticPaidOverage = metric.automaticPaidOverage === true
   let action = 'continue'
   if (utilization >= 1) action = 'block'
   else if (utilization >= 0.9) action = 'degrade'
@@ -299,13 +300,15 @@ export function evaluateQuota(metric) {
     forecastUtilization,
     headroomPass: forecastUtilization <= 0.75,
     action,
-    automaticPaidOverage: metric.automaticPaidOverage === true,
+    automaticPaidOverage,
   }
 }
 
 export function deriveQuotaControls(results) {
   const actions = results.map((result) => result.action)
-  const blocked = actions.includes('block') || results.some((result) => !result.valid)
+  const blocked =
+    actions.includes('block') ||
+    results.some((result) => !result.valid || result.automaticPaidOverage === true)
   const degraded = blocked || actions.includes('degrade')
   const paused = degraded || actions.includes('pause')
   return {

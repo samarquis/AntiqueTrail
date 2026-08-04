@@ -84,6 +84,19 @@ test('100 percent blocks unsafe work', () => {
   assert.equal(plan.controls.coreBrowseAndAccountSafetyAllowed, false)
 })
 
+test('automatic paid overage blocks runtime work at any utilization', () => {
+  const signed = observation(10)
+  signed.quotas[0].automaticPaidOverage = true
+  signed.signature.signature = sign(
+    null,
+    Buffer.from(canonicalJson(buildObservationPayload(signed))),
+    privateKey,
+  ).toString('base64')
+  const plan = evaluateQuotaObservation(signed, registry, { now: NOW })
+  assert.equal(plan.actions.at(-1), 'block_unsafe_work')
+  assert.equal(plan.controls.coreBrowseAndAccountSafetyAllowed, false)
+})
+
 test('missing, stale, tampered, and incomplete observations fail closed deterministically', () => {
   const stale = observation(10)
   const first = evaluateQuotaObservation(stale, registry, {
@@ -152,6 +165,46 @@ test('constrained actuator accepts only a digest-bound exact-action receipt', as
     }),
   )
   assert.equal(rejected.status, 'BLOCKED')
+})
+
+test('actuator queries idempotent status and persists unknown finality fail closed', async () => {
+  const plan = evaluateQuotaObservation(observation(90), registry, { now: NOW })
+  const calls = []
+  const recovered = await actuateQuotaPlan(
+    plan,
+    { endpoint: 'https://controls.example.test/h01/quota', token: 'x'.repeat(32) },
+    async (_url, options) => {
+      const request = JSON.parse(options.body)
+      calls.push(request.operation)
+      assert.equal(options.headers['idempotency-key'], plan.planDigest)
+      if (request.operation === 'apply-h01-quota-restrictions') throw new Error('response lost')
+      return {
+        ok: true,
+        json: async () => ({
+          schemaVersion: 1,
+          status: 'APPLIED',
+          authenticated: true,
+          requestId: 'request-recovered',
+          planDigest: plan.planDigest,
+          observationDigest: plan.observationDigest,
+          actions: plan.actions,
+        }),
+      }
+    },
+  )
+  assert.deepEqual(calls, ['apply-h01-quota-restrictions', 'get-h01-quota-restriction-status'])
+  assert.equal(recovered.status, 'APPLIED')
+
+  const unknown = await actuateQuotaPlan(
+    plan,
+    { endpoint: 'https://controls.example.test/h01/quota', token: 'x'.repeat(32) },
+    async () => {
+      throw new Error('network unavailable')
+    },
+  )
+  assert.equal(unknown.status, 'UNKNOWN_BLOCKED')
+  assert.equal(unknown.reasonCode, 'actuator.finality_unknown')
+  assert.match(unknown.receiptDigest, /^[a-f0-9]{64}$/)
 })
 
 test('workflow is manual-only and skips every provider call when unconfigured', async () => {
