@@ -37,6 +37,9 @@ describe('in-memory auth boundary', () => {
       mfaEnrolled: true,
       mfaVerifiedAt: '2026-08-04T12:01:00Z',
     })
+    expect(
+      toAuthSession({ ...providerSession, role: 'Administrator', mfaEnrolled: true }),
+    ).toMatchObject({ mfaRequired: true, mfaVerified: false })
   })
 
   it('registers and revokes one exact session', async () => {
