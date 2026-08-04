@@ -8,6 +8,7 @@ end $$;
 grant identity_service,trip_grant_signer,trip_invitation_signer,trip_email_key_manager to postgres;
 grant usage on schema trip_private to identity_service,trip_grant_signer,trip_invitation_signer,trip_email_key_manager;
 grant create on schema trip_private to identity_service;
+grant create on schema app_public to identity_service;
 grant update on trip_private.trips,trip_private.trip_stops,trip_private.trip_visit_memories to identity_service;
 grant insert on trip_private.offline_grant_signing_receipts,trip_private.invitation_signing_receipts to identity_service;
 
@@ -337,4 +338,5 @@ alter function app_public.replay_trip_mutation(text,jsonb) owner to identity_ser
 revoke all on function trip_private.go_actor_can_mutate(uuid) from public,anon,authenticated;
 grant execute on function app_public.set_trip_start(text,text,text,double precision,double precision,integer),app_public.set_trip_return(text,boolean,text,double precision,double precision),app_public.set_trip_limits(text,double precision,integer),app_public.add_rest_stop(text,text,text,text,integer,double precision,double precision),app_public.mark_trip_stop_closed(text,text),app_public.restore_trip_stop(text,text),app_public.complete_trip(text),app_public.save_trip_visit_memory(text,text,integer,text,text) to authenticated;
 revoke create on schema trip_private from identity_service;
+revoke create on schema app_public from identity_service;
 revoke identity_service,trip_grant_signer,trip_invitation_signer,trip_email_key_manager from postgres;
