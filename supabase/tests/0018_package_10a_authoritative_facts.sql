@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(26);
 
 select has_table('readiness_private','readiness_fact_collections','authoritative fact collections exist');
 select has_table('readiness_private','readiness_fact_events','authoritative per-source facts exist');
@@ -36,16 +36,20 @@ select throws_ok($$select readiness_private.append_authoritative_fact(
   '{"completedJourneys":8}'::jsonb,statement_timestamp())$$,'22023',
   'readiness_fact_invalid_or_aggregate_shaped','client-shaped aggregate totals are rejected');
 select lives_ok($$select readiness_private.append_authoritative_fact(
+  '17000000-0000-4000-8000-000000000001','cohort_subject','subject-1',
+  '{"subjectId":"subject-1","ageBand":"70+","adaptation":true,"eligible":true}'::jsonb,
+  '2026-08-03T11:00:00Z')$$,'a typed eligible cohort subject is accepted before attempts');
+select lives_ok($$select readiness_private.append_authoritative_fact(
   '17000000-0000-4000-8000-000000000001','journey_attempt','attempt-1',
-  '{"subjectId":"subject-1","attemptedCoreJourney":true,"completedWithoutBlockingDefect":true,"returnIntent":true}'::jsonb,
+  '{"subjectId":"subject-1","attemptSequence":1,"attemptedCoreJourney":true,"completedWithoutBlockingDefect":true,"returnIntent":true,"completedSecondTrip":false}'::jsonb,
   '2026-08-03T12:00:00Z')$$,'an individual journey fact is accepted');
 select lives_ok($$select readiness_private.append_authoritative_fact(
   '17000000-0000-4000-8000-000000000001','journey_attempt','attempt-1',
-  '{"subjectId":"subject-1","attemptedCoreJourney":true,"completedWithoutBlockingDefect":true,"returnIntent":true}'::jsonb,
+  '{"subjectId":"subject-1","attemptSequence":1,"attemptedCoreJourney":true,"completedWithoutBlockingDefect":true,"returnIntent":true,"completedSecondTrip":false}'::jsonb,
   '2026-08-03T12:00:00Z')$$,'an exact fact retry is idempotent');
 select throws_ok($$select readiness_private.append_authoritative_fact(
   '17000000-0000-4000-8000-000000000001','journey_attempt','attempt-1',
-  '{"subjectId":"subject-1","attemptedCoreJourney":true,"completedWithoutBlockingDefect":false,"returnIntent":true}'::jsonb,
+  '{"subjectId":"subject-1","attemptSequence":1,"attemptedCoreJourney":true,"completedWithoutBlockingDefect":false,"returnIntent":true,"completedSecondTrip":false}'::jsonb,
   '2026-08-03T12:00:00Z')$$,'22023','readiness_fact_idempotency_mismatch',
   'a duplicate source key cannot edit an authoritative fact');
 select lives_ok($$select readiness_private.freeze_authoritative_facts(
@@ -71,7 +75,7 @@ select ok(exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronames
     and pg_get_functiondef(p.oid) like '%run_row.source_digest%'),
   'one-use signing challenges remain bound to the canonical run digest');
 select is((select count(*)::integer from readiness_private.readiness_fact_events
-  where run_id='17000000-0000-4000-8000-000000000001'),1,
+  where run_id='17000000-0000-4000-8000-000000000001'),2,
   'idempotent retry did not duplicate an authoritative fact');
 
 select * from finish();

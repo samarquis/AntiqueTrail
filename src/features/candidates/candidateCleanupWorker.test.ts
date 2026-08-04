@@ -8,6 +8,7 @@ describe('candidate cleanup worker adapter', () => {
   it('claims due work, deletes Storage first, then records durable DB completion', async () => {
     const operations: string[] = []
     const queue: CandidateCleanupWorkerQueue = {
+      expireDue: vi.fn(async () => 0),
       claimDue: vi.fn(async () => [
         {
           shareId: 'share-1',
@@ -18,6 +19,7 @@ describe('candidate cleanup worker adapter', () => {
       complete: vi.fn(async (input) => {
         operations.push(`complete:${input.providerReceipt}`)
       }),
+      fail: vi.fn(async (): Promise<'pending'> => 'pending'),
     }
 
     const result = await runCandidateCleanupWorker(
@@ -54,10 +56,12 @@ describe('candidate cleanup worker adapter', () => {
 
   it('never records DB completion when Storage deletion fails', async () => {
     const complete = vi.fn()
+    const fail = vi.fn(async () => 'pending' as const)
 
     const result = await runCandidateCleanupWorker(
       {
         queue: {
+          expireDue: async () => 0,
           claimDue: async () => [
             {
               shareId: 'share-2',
@@ -66,6 +70,7 @@ describe('candidate cleanup worker adapter', () => {
             },
           ],
           complete,
+          fail,
         },
         storage: {
           deleteObjects: async () => {
@@ -77,6 +82,12 @@ describe('candidate cleanup worker adapter', () => {
     )
 
     expect(complete).not.toHaveBeenCalled()
+    expect(fail).toHaveBeenCalledWith({
+      shareId: 'share-2',
+      claimToken: 'claim-2',
+      failedAt: Date.UTC(2026, 7, 3),
+      errorCode: 'storage_unavailable',
+    })
     expect(result).toEqual({ claimed: 1, completed: [], failed: ['share-2'] })
   })
 })

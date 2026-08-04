@@ -11,6 +11,7 @@ export interface CandidateStorageDeletionReceipt {
 }
 
 export interface CandidateCleanupWorkerQueue {
+  expireDue(input: { now: number; limit: number }): Promise<number>
   claimDue(input: { now: number; limit: number }): Promise<readonly CandidateCleanupClaim[]>
   complete(input: {
     shareId: string
@@ -20,6 +21,12 @@ export interface CandidateCleanupWorkerQueue {
     deletedKeysDigest: string
     completedAt: number
   }): Promise<void>
+  fail(input: {
+    shareId: string
+    claimToken: string
+    failedAt: number
+    errorCode: 'storage_unavailable' | 'receipt_invalid' | 'completion_failed'
+  }): Promise<'pending' | 'exhausted'>
 }
 
 export interface CandidateCleanupStorage {
@@ -48,11 +55,39 @@ export async function runCandidateCleanupWorker(
         completedAt: input.now,
       })
       result.completed.push(claim.shareId)
-    } catch {
+    } catch (error) {
+      await dependencies.queue.fail({
+        shareId: claim.shareId,
+        claimToken: claim.claimToken,
+        failedAt: input.now,
+        errorCode: classifyFailure(error),
+      })
       result.failed.push(claim.shareId)
     }
   }
   return result
+}
+
+export async function runCandidateCleanupCycle(
+  dependencies: { queue: CandidateCleanupWorkerQueue; storage: CandidateCleanupStorage },
+  input: { now: number; limit: number },
+): Promise<{ expired: number; claimed: number; completed: string[]; failed: string[] }> {
+  assertInput(input)
+  const expired = await dependencies.queue.expireDue(input)
+  const result = await runCandidateCleanupWorker(dependencies, input)
+  return { expired, ...result }
+}
+
+function classifyFailure(
+  error: unknown,
+): 'storage_unavailable' | 'receipt_invalid' | 'completion_failed' {
+  if (error instanceof Error && error.message === 'candidate_cleanup_receipt_invalid') {
+    return 'receipt_invalid'
+  }
+  if (error instanceof Error && error.message === 'candidate_cleanup_completion_failed') {
+    return 'completion_failed'
+  }
+  return 'storage_unavailable'
 }
 
 function assertInput(input: { now: number; limit: number }): void {
