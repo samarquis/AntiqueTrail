@@ -9,8 +9,29 @@ declare const Deno: {
 const url = Deno.env.get('SUPABASE_URL')
 const cleanupJwt = Deno.env.get('CANDIDATE_CLEANUP_JWT')
 const bucket = Deno.env.get('CANDIDATE_CLEANUP_BUCKET')
+const schedulerToken = Deno.env.get('CANDIDATE_CLEANUP_SCHEDULER_TOKEN')
+
+async function schedulerAuthorized(request: Request): Promise<boolean> {
+  const supplied = request.headers.get('x-antique-trail-scheduler')
+  if (!schedulerToken || !supplied) return false
+  const [expectedDigest, suppliedDigest] = await Promise.all(
+    [schedulerToken, supplied].map((value) =>
+      crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)),
+    ),
+  )
+  const expected = new Uint8Array(expectedDigest)
+  const actual = new Uint8Array(suppliedDigest)
+  let difference = 0
+  for (let index = 0; index < expected.length; index += 1) {
+    difference |= expected[index] ^ actual[index]
+  }
+  return difference === 0
+}
 
 Deno.serve(async (request) => {
+  if (!(await schedulerAuthorized(request))) {
+    return new Response('Unauthorized', { status: 401 })
+  }
   if (request.method !== 'POST' || !url || !cleanupJwt || !bucket) {
     return new Response('Unavailable', { status: 503 })
   }

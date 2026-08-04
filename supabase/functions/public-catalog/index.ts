@@ -3,7 +3,12 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
-  serve(handler: (request: Request) => Promise<Response>): void
+  serve(
+    handler: (
+      request: Request,
+      info: { remoteAddr?: { hostname?: string } },
+    ) => Promise<Response>,
+  ): void
 }
 
 const url = Deno.env.get('SUPABASE_URL')
@@ -11,7 +16,7 @@ const gatewayJwt = Deno.env.get('PUBLIC_CATALOG_GATEWAY_JWT')
 const allowedOrigin = Deno.env.get('PUBLIC_APP_ORIGIN')
 const rateSalt = Deno.env.get('PUBLIC_CATALOG_RATE_SALT')
 
-Deno.serve(async (request) => {
+Deno.serve(async (request, connection) => {
   const origin = request.headers.get('origin')
   const headers = {
     'Content-Type': 'application/json',
@@ -21,7 +26,9 @@ Deno.serve(async (request) => {
   }
   if (request.method === 'OPTIONS')
     return new Response(null, { status: origin === allowedOrigin ? 204 : 403, headers })
-  const platformAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  // The connection address comes from the Edge runtime, not a caller-controlled
+  // forwarding header. It is used only to derive the rotating rate-limit key.
+  const platformAddress = connection.remoteAddr?.hostname?.trim()
   if (
     request.method !== 'POST' ||
     !url ||
@@ -55,6 +62,11 @@ Deno.serve(async (request) => {
     p_operation: body.operation,
     p_args: body.args ?? {},
   })
+  if (result.error?.message?.includes('catalog_rate_limited'))
+    return Response.json(
+      { error: { code: 'RATE_LIMITED' } },
+      { status: 429, headers: { ...headers, 'Retry-After': '300' } },
+    )
   if (result.error)
     return Response.json({ error: { code: 'CATALOG_UNAVAILABLE' } }, { status: 503, headers })
   return Response.json({ data: result.data }, { headers })

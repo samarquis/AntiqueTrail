@@ -1,0 +1,35 @@
+name: Candidate cleanup scheduler
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: antique-trail-candidate-cleanup
+  cancel-in-progress: false
+
+jobs:
+  invoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Invoke bounded Candidate cleanup worker
+        env:
+          CLEANUP_URL: ${{ secrets.SUPABASE_CANDIDATE_CLEANUP_URL }}
+          INVOKE_JWT: ${{ secrets.CANDIDATE_CLEANUP_INVOKE_JWT }}
+          SCHEDULER_TOKEN: ${{ secrets.CANDIDATE_CLEANUP_SCHEDULER_TOKEN }}
+        run: |
+          test -n "$CLEANUP_URL"
+          test -n "$INVOKE_JWT"
+          test -n "$SCHEDULER_TOKEN"
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $INVOKE_JWT" \
+            --header "x-antique-trail-scheduler: $SCHEDULER_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data '{}' \
+            "$CLEANUP_URL"
