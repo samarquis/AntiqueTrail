@@ -4,6 +4,7 @@
 grant identity_service to postgres;
 grant usage on schema app_private, trip_private, app_public to identity_service;
 grant create on schema app_public to identity_service;
+grant create on schema trip_private to identity_service;
 grant update on app_private.profiles, app_private.active_sessions to identity_service;
 grant update on trip_private.trips, trip_private.trip_stops to identity_service;
 grant select on app_public.catalog_areas, app_public.stores to identity_service;
@@ -287,4 +288,5 @@ revoke all on function app_public.register_current_session(bigint), app_public.c
 grant execute on function app_public.register_current_session(bigint), app_public.current_session_is_active(), app_public.revoke_current_session(text) to authenticated;
 grant execute on function app_public.list_trips(), app_public.get_trip(text), app_public.create_trip(text,text), app_public.add_trip_stop(text,text,text,text,integer), app_public.reorder_trip_stop(text,text,integer), app_public.review_trip_hours(text), app_public.start_trip(text), app_public.mark_arrived(text,text), app_public.complete_trip_stop(text,text), app_public.skip_trip_stop(text,text), app_public.replay_trip_mutation(text,jsonb), app_public.save_check_my_day_choice(text,text,text[]) to authenticated;
 revoke create on schema app_public from identity_service;
+revoke create on schema trip_private from identity_service;
 revoke identity_service from postgres;

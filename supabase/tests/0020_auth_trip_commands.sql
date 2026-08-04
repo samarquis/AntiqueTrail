@@ -1,5 +1,5 @@
 begin;
-select plan(18);
+select plan(19);
 
 select has_function('app_public','register_current_session',array['bigint'],'server session registration RPC exists');
 select has_function('app_public','current_session_is_active',array[]::text[],'server session check RPC exists');
@@ -17,6 +17,8 @@ select has_function('app_public','skip_trip_stop',array['text','text'],'skip com
 select has_function('app_public','replay_trip_mutation',array['text','jsonb'],'offline replay envelope RPC exists');
 select has_function('app_public','save_check_my_day_choice',array['text','text','text[]'],'Check My Day authoritative choice RPC exists');
 select has_table('trip_private','check_my_day_command_evidence','Check My Day evidence is durable');
+select ok(not has_schema_privilege('identity_service','trip_private','CREATE'),
+  'identity service cannot create private trip objects after ownership transfer');
 
 set local role anon;
 select throws_ok($$select app_public.register_current_session(9999999999999)$$,'42501','anonymous cannot register a session');
