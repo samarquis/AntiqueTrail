@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
+import { prepareSyntheticPartnerPayload } from '../_shared/partner-command-payload.ts'
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
@@ -8,6 +9,8 @@ declare const Deno: {
 const url = Deno.env.get('SUPABASE_URL')
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
 const syntheticEnabled = Deno.env.get('PARTNER_SYNTHETIC_ENABLED') === 'true'
+const emailHmacSecret = Deno.env.get('PARTNER_EMAIL_HMAC_SECRET')
+const evidenceHmacSecret = Deno.env.get('PARTNER_EVIDENCE_HMAC_SECRET')
 
 Deno.serve(async (request) => {
   if (request.method !== 'POST' || !url || !anonKey) return unavailable()
@@ -38,9 +41,13 @@ Deno.serve(async (request) => {
       global: { headers: { Authorization: authorization } },
       auth: { persistSession: false, autoRefreshToken: false },
     })
+    const payload = await prepareSyntheticPartnerPayload(body.operation, body.payload ?? {}, {
+      emailHmacSecret,
+      evidenceHmacSecret,
+    })
     const result = await client.rpc('partner_synthetic_command', {
       p_operation: body.operation,
-      p_payload: { ...(body.payload ?? {}), synthetic: true },
+      p_payload: payload,
     })
     if (result.error) return unavailable()
     return Response.json(result.data)
