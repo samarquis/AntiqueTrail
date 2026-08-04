@@ -1,5 +1,6 @@
 /* eslint-disable */
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
+import { acceptedSendResponse, timed } from './candidate-response.ts'
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
@@ -12,9 +13,18 @@ const hmacSecret = Deno.env.get('CANDIDATE_EMAIL_HMAC_SECRET')
 const payloadSecret = Deno.env.get('CANDIDATE_PAYLOAD_SECRET')
 const proxyUrl = Deno.env.get('CANDIDATE_OUTBOUND_PROXY_URL')
 const proxyCredential = Deno.env.get('CANDIDATE_OUTBOUND_PROXY_SIGNED_CREDENTIAL')
-const MINIMUM_SEND_RESPONSE_MS = 500
 
-export async function handleCandidate(operation: string, request: Request): Promise<Response> {
+export interface CandidateConnection {
+  hostname: string
+  port: number
+  transport: 'tcp' | 'udp'
+}
+
+export async function handleCandidate(
+  operation: string,
+  request: Request,
+  connection?: CandidateConnection,
+): Promise<Response> {
   const startedAt = Date.now()
   const respond = (response: Response) => timed(operation, startedAt, response)
   if (request.method !== 'POST' || !url || !anonKey) return respond(unavailable())
@@ -39,13 +49,16 @@ export async function handleCandidate(operation: string, request: Request): Prom
     if ((operation === 'extract' || operation === 'send') && !hmacSecret)
       return respond(unavailable())
     if (operation === 'extract' || operation === 'send') {
-      const reservation = await reserve(client, operation, request, body)
+      const reservation = await reserve(client, operation, connection, body)
       if (!reservation.allowed) return respond(rateLimited(reservation.retryAfter))
       leaseId = reservation.leaseId
     }
     if (operation === 'extract') return respond(Response.json(await extract(body)))
     if (!serviceKey || !hmacSecret || !payloadSecret) return respond(unavailable())
-    if (operation === 'send') return respond(Response.json(await send(client, body)))
+    if (operation === 'send') {
+      await send(context.data.userId, body)
+      return respond(acceptedSendResponse())
+    }
     if (operation === 'accept') return respond(Response.json(await accept(client, body)))
     if (operation === 'block' || operation === 'report') {
       return respond(Response.json(await close(client, operation, body)))
@@ -67,11 +80,16 @@ export async function handleCandidate(operation: string, request: Request): Prom
 async function reserve(
   client: any,
   operation: 'extract' | 'send',
-  request: Request,
+  connection: CandidateConnection | undefined,
   body: Record<string, unknown>,
 ): Promise<Reservation> {
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? ''
-  if (!forwarded || forwarded.length > 64 || !/^[0-9a-f:.]+$/i.test(forwarded))
+  if (
+    !connection ||
+    connection.transport !== 'tcp' ||
+    !connection.hostname ||
+    connection.hostname.length > 64 ||
+    !/^[0-9a-f:.]+$/i.test(connection.hostname)
+  )
     throw new Error('rate context unavailable')
   let subject = 'invalid'
   if (operation === 'extract' && typeof body.url === 'string') {
@@ -86,7 +104,7 @@ async function reserve(
   }
   const subjectHmac = await sign(`candidate-${operation}-subject:${subject}`, hmacSecret!)
   const ipHmac = await sign(
-    `candidate-${operation}-ip:${coarseIpKey(forwarded)}`,
+    `candidate-${operation}-ip:${coarseIpKey(connection.hostname)}`,
     hmacSecret!,
   )
   const result = await client.rpc('candidate_reserve_operation', {
@@ -150,6 +168,8 @@ async function extract(body: Record<string, unknown>) {
     publicWriteAllowed: false,
   })
   let parsed: URL
+  if (new TextEncoder().encode(originalLink).byteLength > 2_048)
+    return fallback('invalid_link')
   try {
     parsed = new URL(originalLink)
   } catch {
@@ -220,32 +240,24 @@ async function extract(body: Record<string, unknown>) {
   }
 }
 
-async function send(client: any, body: Record<string, unknown>) {
+async function send(senderUserId: unknown, body: Record<string, unknown>) {
+  const senderId = uuid(senderUserId)
   const candidateId = uuid(body.candidateId)
   const email = emailValue(body.recipientEmail)
-  const source = await client.rpc('candidate_edge_share_source', { p_candidate_id: candidateId })
-  if (source.error || !source.data) throw new Error('unavailable')
   const admin = createClient(url!, serviceKey!, {
     db: { schema: 'app_public' },
     auth: { persistSession: false, autoRefreshToken: false },
   })
   const hmac = await sign(email, hmacSecret!)
-  const lookup = await admin.rpc('candidate_edge_exact_recipient', {
-    p_normalized_email: email,
-    p_recipient_email_hmac: `\\x${hmac}`,
-  })
-  if (lookup.error) throw lookup.error
-  const recipient = typeof lookup.data?.recipientId === 'string' ? lookup.data.recipientId : null
-  const encrypted = await encrypt(JSON.stringify(source.data), payloadSecret!)
-  const result = await client.rpc('candidate_edge_send_share', {
+  const encryptedRecipient = await encrypt(email, payloadSecret!)
+  const queued = await admin.rpc('candidate_enqueue_share_delivery', {
+    p_sender_user_id: senderId,
     p_candidate_id: candidateId,
-    p_recipient_id: recipient,
     p_recipient_email_hmac: `\\x${hmac}`,
-    p_encrypted_payload: `\\x${encrypted}`,
+    p_encrypted_recipient: `\\x${encryptedRecipient}`,
     p_idempotency_key: key(body.idempotencyKey),
   })
-  if (result.error) throw result.error
-  return result.data
+  if (queued.error) throw queued.error
 }
 
 async function accept(client: any, body: Record<string, unknown>) {
@@ -425,11 +437,4 @@ function rateLimited(retryAfter: number) {
     status: 429,
     headers: { 'Retry-After': String(Math.max(1, Math.min(retryAfter, 86_400))) },
   })
-}
-async function timed(operation: string, startedAt: number, response: Response) {
-  if (operation === 'send') {
-    const remaining = MINIMUM_SEND_RESPONSE_MS - (Date.now() - startedAt)
-    if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining))
-  }
-  return response
 }
