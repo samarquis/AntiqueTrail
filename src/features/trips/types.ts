@@ -13,6 +13,8 @@ export interface OfflineQueueSnapshot {
 
 export interface TripStop {
   id: string
+  /** Present only for store stops; used for owner-scoped private visit memory. */
+  storeId?: string
   kind: 'store' | 'rest'
   label: string
   /** Optional private address used only for an explicit external-map handoff. */

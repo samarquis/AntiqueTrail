@@ -126,6 +126,7 @@ function parseStop(value: unknown): TripStop {
   const source = record(value)
   return {
     id: string(source.id, 128),
+    storeId: source.storeId == null ? undefined : string(source.storeId, 128),
     kind: enumValue<TripStop['kind']>(source.kind, new Set(['store', 'rest'])),
     label: string(source.label, 160),
     address: optionalString(source.address, 500),

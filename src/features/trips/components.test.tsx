@@ -10,6 +10,7 @@ import {
   InviteTripPartnerPage,
   NewTripPage,
   PlanPage,
+  SummaryPage,
 } from './components'
 import { normalizeTripName } from './tripClient'
 import type { Trip, TripClient } from './types'
@@ -433,6 +434,130 @@ describe('manual trips', () => {
     expect(await screen.findByText(/read-only progress/i)).toHaveAttribute('role', 'status')
     expect(screen.queryByRole('button', { name: /arrived/i })).not.toBeInTheDocument()
     expect(markArrived).not.toHaveBeenCalled()
+  })
+
+  it('lets a trip member save a private memory after a completed store stop', async () => {
+    const user = userEvent.setup()
+    const completedTrip: Trip = {
+      ...trip,
+      state: 'active',
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store',
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'must',
+          plannedDwellMinutes: 60,
+          state: 'completed',
+        },
+      ],
+    }
+    const saveVisitMemory = vi.fn(async () => completedTrip)
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/go']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/go"
+            element={
+              <GoPage
+                client={client({
+                  get: vi.fn(async () => completedTrip),
+                  saveVisitMemory,
+                  getCollaboration: vi.fn(async () => ({
+                    tripId: trip.id,
+                    currentUserId: 'partner-b',
+                    participants: [
+                      {
+                        userId: 'creator-a',
+                        displayName: 'Trip creator',
+                        role: 'creator' as const,
+                      },
+                      {
+                        userId: 'partner-b',
+                        displayName: 'Trip partner',
+                        role: 'partner' as const,
+                      },
+                    ],
+                    navigatorUserId: 'creator-a',
+                  })),
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await user.selectOptions(await screen.findByLabelText(/private rating for oak antiques/i), '5')
+    await user.selectOptions(screen.getByLabelText(/return to oak antiques/i), 'yes')
+    await user.type(screen.getByLabelText(/private note for oak antiques/i), 'Great lamps')
+    await user.click(screen.getByRole('button', { name: /save private memory for oak antiques/i }))
+    expect(saveVisitMemory).toHaveBeenCalledWith('trip-1', 'store-1', {
+      rating: 5,
+      returnChoice: 'yes',
+      note: 'Great lamps',
+    })
+    expect(await screen.findByRole('status', { name: /oak antiques memory/i })).toHaveTextContent(
+      /private memory saved/i,
+    )
+  })
+
+  it('lets the Navigator undo a skipped stop', async () => {
+    const user = userEvent.setup()
+    const skippedTrip: Trip = {
+      ...trip,
+      state: 'active',
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store',
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'must',
+          plannedDwellMinutes: 60,
+          state: 'skipped',
+        },
+      ],
+    }
+    const restoredTrip = {
+      ...skippedTrip,
+      stops: skippedTrip.stops.map((stop) => ({ ...stop, state: 'planned' as const })),
+    }
+    const restoreStop = vi.fn(async () => restoredTrip)
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/go']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/go"
+            element={
+              <GoPage client={client({ get: vi.fn(async () => skippedTrip), restoreStop })} />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('button', { name: /undo skip for oak antiques/i }))
+    expect(restoreStop).toHaveBeenCalledWith('trip-1', 'stop-1')
+    expect(await screen.findByText(/oak antiques — planned/i)).toBeInTheDocument()
+  })
+
+  it('offers Plan Again from a trip summary', async () => {
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/summary']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/summary"
+            element={<SummaryPage client={client({ get: vi.fn(async () => trip) })} />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('link', { name: /plan again/i })).toHaveAttribute(
+      'href',
+      '/trips/new',
+    )
   })
 
   it('starts Go through the verified offline-grant runtime when it is wired', async () => {

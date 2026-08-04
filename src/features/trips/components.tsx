@@ -792,6 +792,32 @@ export function GoPage({
                 Restore stop
               </button>
             )}
+            {stop.state === 'skipped' && isNavigator && (
+              <button
+                type="button"
+                aria-label={`Undo skip for ${stop.label}`}
+                onClick={() =>
+                  client
+                    .restoreStop?.(trip.id, stop.id)
+                    .then(setTrip)
+                    .catch(() => setError(true))
+                }
+              >
+                Undo skip
+              </button>
+            )}
+            {stop.kind === 'store' &&
+              stop.state === 'completed' &&
+              stop.storeId &&
+              client.saveVisitMemory && (
+                <VisitMemoryForm
+                  tripId={trip.id}
+                  storeId={stop.storeId}
+                  storeLabel={stop.label}
+                  save={client.saveVisitMemory}
+                  onSaved={setTrip}
+                />
+              )}
           </li>
         ))}
       </ol>
@@ -886,8 +912,102 @@ export function SummaryPage({ client = unavailableTripClient }: { client?: TripC
       ) : (
         <p role="status">Trip summary unavailable.</p>
       )}
-      <Link to="/trips">Back to trips</Link>
+      <p>
+        <Link className="button" to="/trips/new">
+          Plan Again
+        </Link>{' '}
+        <Link to="/trips">Back to trips</Link>
+      </p>
     </TripCard>
+  )
+}
+
+function VisitMemoryForm({
+  tripId,
+  storeId,
+  storeLabel,
+  save,
+  onSaved,
+}: {
+  tripId: string
+  storeId: string
+  storeLabel: string
+  save: NonNullable<TripClient['saveVisitMemory']>
+  onSaved: (trip: Trip) => void
+}) {
+  const fieldId = storeId.replace(/[^A-Za-z0-9_-]/g, '-')
+  const [rating, setRating] = useState('')
+  const [returnChoice, setReturnChoice] = useState('')
+  const [note, setNote] = useState('')
+  const [pending, setPending] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if (!rating && !returnChoice && !note.trim()) return
+    setPending(true)
+    setFailed(false)
+    setSaved(false)
+    try {
+      onSaved(
+        await save(tripId, storeId, {
+          rating: rating ? Number(rating) : undefined,
+          returnChoice: returnChoice ? (returnChoice as 'no' | 'maybe' | 'yes') : undefined,
+          note: note.trim() || undefined,
+        }),
+      )
+      setSaved(true)
+    } catch {
+      setFailed(true)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} aria-label={`Private memory for ${storeLabel}`}>
+      <label htmlFor={`visit-rating-${fieldId}`}>Private rating for {storeLabel}</label>
+      <select
+        id={`visit-rating-${fieldId}`}
+        value={rating}
+        onChange={(event) => setRating(event.target.value)}
+      >
+        <option value="">No rating</option>
+        {[1, 2, 3, 4, 5].map((value) => (
+          <option key={value} value={value}>
+            {value}
+          </option>
+        ))}
+      </select>
+      <label htmlFor={`visit-return-${fieldId}`}>Return to {storeLabel}</label>
+      <select
+        id={`visit-return-${fieldId}`}
+        value={returnChoice}
+        onChange={(event) => setReturnChoice(event.target.value)}
+      >
+        <option value="">Not selected</option>
+        <option value="yes">Yes</option>
+        <option value="maybe">Maybe</option>
+        <option value="no">No</option>
+      </select>
+      <label htmlFor={`visit-note-${fieldId}`}>Private note for {storeLabel}</label>
+      <textarea
+        id={`visit-note-${fieldId}`}
+        value={note}
+        maxLength={2000}
+        onChange={(event) => setNote(event.target.value)}
+      />
+      <button type="submit" disabled={pending || (!rating && !returnChoice && !note.trim())}>
+        {pending ? 'Saving…' : `Save private memory for ${storeLabel}`}
+      </button>
+      {saved && (
+        <p role="status" aria-label={`${storeLabel} memory`}>
+          Private memory saved.
+        </p>
+      )}
+      {failed && <TripError />}
+    </form>
   )
 }
 

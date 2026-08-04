@@ -30,6 +30,27 @@ function transport(result: unknown): TripTransport & { invoke: ReturnType<typeof
 }
 
 describe('implicit-actor TripClient transport', () => {
+  it('preserves the stable store identifier required for private visit memories', async () => {
+    const wire = transport({
+      ...trip,
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store',
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'must',
+          plannedDwellMinutes: 45,
+          state: 'completed',
+        },
+      ],
+    })
+    await expect(createTripApi(wire).get('trip-1')).resolves.toMatchObject({
+      stops: [{ id: 'stop-1', storeId: 'store-1' }],
+    })
+  })
+
   it('normalizes bounded create input and sends no caller-supplied actor identity', async () => {
     const wire = transport(trip)
     const api = createTripApi(wire)
