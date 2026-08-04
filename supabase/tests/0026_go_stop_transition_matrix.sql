@@ -41,10 +41,10 @@ select ok(
   'arrived stops have an explicit transition allowlist');
 
 select ok(
-  (select pg_get_functiondef(p.oid) like '%v_current_state=''observed_closed'' and target_state=''planned''%'
+  (select replace(pg_get_functiondef(p.oid),' ','') like '%current_statein(''skipped'',''observed_closed'')andtarget_state=''planned''%'
      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='trip_private' and p.proname='apply_go_stop_command'),
-  'only observed-closed stops can be restored to planned');
+  'skipped and observed-closed stops can be restored to planned');
 
 select ok(
   (select pg_get_functiondef(p.oid) like '%raise exception ''conflict''%'

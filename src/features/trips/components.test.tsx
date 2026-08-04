@@ -54,6 +54,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     markArrived: vi.fn(async (): Promise<Trip> => trip),
     completeStop: vi.fn(async () => trip),
     skipStop: vi.fn(async () => trip),
+    completeTrip: vi.fn(async () => ({ ...trip, state: 'completed' as const })),
     replayOffline: vi.fn(async () => trip),
     getOfflineQueue: vi.fn(async () => ({ state: 'empty' as const, pendingCount: 0 })),
     queueOfflineAction: vi.fn(async () => ({ state: 'queued' as const, pendingCount: 1 })),
@@ -641,6 +642,8 @@ describe('manual trips', () => {
       ...activeTrip,
       stops: activeTrip.stops.map((stop) => ({ ...stop, state: 'completed' as const })),
     }
+    const completed = { ...finished, state: 'completed' as const, durationMinutes: 60 }
+    const completeTrip = vi.fn(async () => completed)
     render(
       <MemoryRouter initialEntries={['/trips/trip-1/go']}>
         <Routes>
@@ -651,6 +654,7 @@ describe('manual trips', () => {
                 client={client({
                   get: vi.fn(async () => activeTrip),
                   completeStop: vi.fn(async () => finished),
+                  completeTrip,
                 })}
               />
             }
@@ -660,7 +664,78 @@ describe('manual trips', () => {
       </MemoryRouter>,
     )
     await user.click(await screen.findByRole('button', { name: /done/i }))
+    expect(completeTrip).toHaveBeenCalledWith('trip-1')
     expect(await screen.findByText('Automatic summary')).toBeInTheDocument()
+  })
+
+  it('keeps terminal offline work pending until replay authoritatively completes the trip', async () => {
+    const user = userEvent.setup()
+    const activeTrip: Trip = {
+      ...trip,
+      state: 'active',
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store',
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'must',
+          plannedDwellMinutes: 60,
+          state: 'arrived',
+        },
+      ],
+    }
+    const terminal = {
+      ...activeTrip,
+      version: 2,
+      stops: activeTrip.stops.map((stop) => ({ ...stop, state: 'completed' as const })),
+    }
+    const completed = { ...terminal, version: 3, state: 'completed' as const }
+    const queueMutation = vi.fn(async () => ({ state: 'queued' as const, pendingCount: 1 }))
+    const recordCompleted = vi.fn(async () => undefined)
+    const runtime: TripOfflineRuntime = {
+      installId: 'install-a',
+      deviceKeyId: 'device-key-a',
+      start: vi.fn(),
+      recover: vi.fn(async () => ({ state: 'absent' as const })),
+      queueMutation,
+      replay: vi.fn(async () => ({
+        state: 'empty' as const,
+        pendingCount: 0 as const,
+        trip: terminal,
+      })),
+      recordCompleted,
+      prepareSignOut: vi.fn(async () => ({ requiresConfirmation: false, pendingCount: 0 })),
+      purgeAccount: vi.fn(async () => undefined),
+    }
+    const completeTrip = vi.fn(async () => completed)
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/go']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/go"
+            element={
+              <GoPage
+                client={client({ get: vi.fn(async () => activeTrip), completeTrip })}
+                offlineRuntime={runtime}
+                accountId="shopper-a"
+              />
+            }
+          />
+          <Route path="/trips/:tripId/summary" element={<p>Completed offline summary</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('button', { name: /work offline/i }))
+    await user.click(screen.getByRole('button', { name: /done/i }))
+    expect(queueMutation).toHaveBeenCalled()
+    expect(completeTrip).not.toHaveBeenCalled()
+    expect(screen.queryByText('Completed offline summary')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /reconnect and replay/i }))
+    expect(await screen.findByText('Completed offline summary')).toBeInTheDocument()
+    expect(completeTrip).toHaveBeenCalledWith('trip-1')
+    expect(recordCompleted).toHaveBeenCalledWith('shopper-a', completed)
   })
 
   it('clones completed history into a new draft with Plan Again', async () => {
@@ -736,6 +811,52 @@ describe('manual trips', () => {
     await user.click(screen.getByRole('button', { name: /plan again/i }))
     expect(cloneCompleted).toHaveBeenCalledWith('trip-1')
     expect(await screen.findByText('Cloned plan')).toBeInTheDocument()
+  })
+
+  it('offers a private-memory action from completed immutable history when one is missing', async () => {
+    const completedTrip: Trip = {
+      ...trip,
+      state: 'completed',
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store',
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'must',
+          plannedDwellMinutes: 60,
+          state: 'completed',
+          memoryStatus: 'missing',
+        },
+      ],
+    }
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/summary']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/summary"
+            element={
+              <SummaryPage
+                client={client({
+                  get: vi.fn(async () => completedTrip),
+                  saveVisitMemory: vi.fn(async () => ({
+                    ...completedTrip,
+                    stops: completedTrip.stops.map((stop) => ({
+                      ...stop,
+                      memoryStatus: 'saved' as const,
+                    })),
+                  })),
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(
+      await screen.findByRole('button', { name: /save private memory for oak antiques/i }),
+    ).toBeInTheDocument()
   })
 
   it('starts Go through the verified offline-grant runtime when it is wired', async () => {

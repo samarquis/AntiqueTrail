@@ -663,8 +663,16 @@ export function GoPage({
       if (
         kind !== 'restore_stop' &&
         next.stops.every((stop) => ['completed', 'skipped', 'observed_closed'].includes(stop.state))
-      )
-        navigate(`/trips/${next.id}/summary`, { state: { trip: next } })
+      ) {
+        if (workingOffline) return
+        if (!client.completeTrip) throw new Error('trip_completion_unavailable')
+        const completed = await client.completeTrip(next.id)
+        if (completed.state !== 'completed') throw new Error('trip_completion_incomplete')
+        if (offlineRuntime?.recordCompleted && accountId)
+          await offlineRuntime.recordCompleted(accountId, completed)
+        setTrip(completed)
+        navigate(`/trips/${completed.id}/summary`, { state: { trip: completed } })
+      }
     } catch {
       setError(true)
     }
@@ -847,9 +855,30 @@ export function GoPage({
                 .replay(accountId, trip.id, client)
                 .then((result) => {
                   if (result.state === 'empty') {
-                    setTrip(result.trip)
-                    setOfflineQueue({ state: 'empty', pendingCount: 0 })
-                    setWorkingOffline(false)
+                    const finishReplay = async () => {
+                      let synchronized = result.trip
+                      if (
+                        synchronized.state === 'active' &&
+                        synchronized.stops.every((stop) =>
+                          ['completed', 'skipped', 'observed_closed'].includes(stop.state),
+                        )
+                      ) {
+                        if (!client.completeTrip) throw new Error('trip_completion_unavailable')
+                        synchronized = await client.completeTrip(synchronized.id)
+                        if (synchronized.state !== 'completed')
+                          throw new Error('trip_completion_incomplete')
+                      }
+                      if (synchronized.state === 'completed') {
+                        await offlineRuntime.recordCompleted?.(accountId, synchronized)
+                        navigate(`/trips/${synchronized.id}/summary`, {
+                          state: { trip: synchronized },
+                        })
+                      }
+                      setTrip(synchronized)
+                      setOfflineQueue({ state: 'empty', pendingCount: 0 })
+                      setWorkingOffline(false)
+                    }
+                    void finishReplay().catch(() => setError(true))
                   } else if (result.state === 'conflict') {
                     setOfflineQueue({
                       state: 'conflict',
@@ -924,6 +953,19 @@ export function SummaryPage({ client = unavailableTripClient }: { client?: TripC
             {trip.stops.map((stop) => (
               <li key={stop.id}>
                 {stop.label}: {summaryStopState(stop.state)} — {summaryMemoryStatus(stop)}
+                {stop.kind === 'store' &&
+                  stop.state === 'completed' &&
+                  stop.storeId &&
+                  stop.memoryStatus !== 'saved' &&
+                  client.saveVisitMemory && (
+                    <VisitMemoryForm
+                      tripId={trip.id}
+                      storeId={stop.storeId}
+                      storeLabel={stop.label}
+                      save={client.saveVisitMemory}
+                      onSaved={setTrip}
+                    />
+                  )}
               </li>
             ))}
           </ul>

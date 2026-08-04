@@ -59,6 +59,7 @@ export interface TripOfflineRuntime {
     },
   ): Promise<OfflineQueueSnapshot>
   replay?(accountId: string, tripId: string, client: TripClient): Promise<OfflineReplayResult>
+  recordCompleted?(accountId: string, trip: Trip): Promise<void>
   prepareSignOut(
     accountId: string,
   ): Promise<{ requiresConfirmation: boolean; pendingCount: number }>
@@ -153,6 +154,9 @@ export function createTripOfflineRuntime(
           return { state: 'conflict', summary: 'This change conflicts with the saved trip.' }
         }
       })
+    },
+    recordCompleted(accountId, trip) {
+      return store.recordCompleted(accountId, trip)
     },
     prepareSignOut(accountId) {
       return store.prepareLogout(accountId)

@@ -575,6 +575,14 @@ export class EncryptedTripOfflineStore {
     return { state: 'empty', pendingCount: 0, trip: payload.trip }
   }
 
+  async recordCompleted(accountId: string, trip: Trip): Promise<void> {
+    if (trip.state !== 'completed') throw new Error('trip_not_completed')
+    const payload = await this.payload(accountId, trip.id)
+    if (!payload) return
+    payload.trip = trip
+    await this.purgeTrip(payload)
+  }
+
   async resolveConflict(
     accountId: string,
     tripId: string,

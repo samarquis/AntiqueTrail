@@ -233,4 +233,17 @@ describe('encrypted active-trip recovery', () => {
       state: 'absent',
     })
   })
+
+  it('purges a terminal offline snapshot after the separate completion command succeeds', async () => {
+    const offline = store()
+    await offline.save(await signedInput([]))
+    await offline.recordCompleted('shopper-a', {
+      ...activeTrip,
+      state: 'completed',
+      version: 5,
+    })
+    expect(await offline.restore('shopper-a', 'trip-1', new Date('2026-08-04T12:00:00Z'))).toEqual({
+      state: 'absent',
+    })
+  })
 })
