@@ -167,7 +167,9 @@ function ShareActions({
   onChanged: (next: CandidateShareView) => void
 }) {
   const [error, setError] = useState(false)
-  async function act(action: 'acceptShare' | 'dismissShare' | 'blockShare' | 'reportShare') {
+  async function act(
+    action: 'acceptShare' | 'dismissShare' | 'blockShare' | 'reportShare' | 'revokeCandidateShare',
+  ) {
     try {
       const result = await client[action](share.id)
       onChanged({ ...share, state: result.state })
@@ -175,8 +177,17 @@ function ShareActions({
       setError(true)
     }
   }
-  if (share.direction !== 'received' || share.state !== 'pending')
-    return error ? <CandidateError /> : null
+  if (share.state !== 'pending') return error ? <CandidateError /> : null
+  if (share.direction === 'sent') {
+    return (
+      <div>
+        <button type="button" onClick={() => void act('revokeCandidateShare')}>
+          Revoke
+        </button>
+        {error && <CandidateError />}
+      </div>
+    )
+  }
   return (
     <div>
       <button type="button" onClick={() => void act('acceptShare')}>

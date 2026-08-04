@@ -67,11 +67,34 @@ export function createCandidateProductionClient(
           idempotencyKey: `report-${shareId}`,
         }),
       ),
+    revokeCandidateShare: (shareId) =>
+      bounded(() =>
+        transport.rpc<GenericShareEnvelope>('revoke_candidate_share', {
+          p_share_id: shareId,
+          p_idempotency_key: `revoke-${shareId}`,
+        }),
+      ),
     listTripIdeas: () => bounded(() => transport.rpc<TripIdea[]>('candidate_list_trip_ideas', {})),
+    updateTripIdea: (ideaId, input) =>
+      bounded(() =>
+        transport.rpc<TripIdea>('candidate_update_trip_idea', {
+          p_idea_id: ideaId,
+          p_title: input.title,
+          p_url_note: input.urlNote,
+          p_expected_version: input.expectedVersion,
+        }),
+      ),
     deleteTripIdea: (ideaId, confirmation) =>
       bounded(() =>
         transport.rpc<void>('candidate_delete_trip_idea', {
           p_idea_id: ideaId,
+          p_confirmed: confirmation.confirmed,
+        }),
+      ),
+    unblockCandidateSender: (blockedUserId, confirmation) =>
+      bounded(() =>
+        transport.rpc<void>('unblock_candidate_sender', {
+          p_blocked_user_id: blockedUserId,
           p_confirmed: confirmation.confirmed,
         }),
       ),

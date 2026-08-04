@@ -18,8 +18,11 @@ export const unavailableCandidateClient: CandidateClient = {
   dismissShare: unavailable,
   blockShare: unavailable,
   reportShare: unavailable,
+  revokeCandidateShare: unavailable,
   listTripIdeas: unavailable,
+  updateTripIdea: unavailable,
   deleteTripIdea: unavailable,
+  unblockCandidateSender: unavailable,
 }
 
 export function validateCandidateInput(input: {

@@ -70,8 +70,21 @@ function client(overrides: Partial<CandidateClient> = {}): CandidateClient {
       state: 'closed' as const,
       message: 'Closed',
     })),
+    revokeCandidateShare: vi.fn(async () => ({
+      accepted: false,
+      state: 'closed' as const,
+      message: 'Closed',
+    })),
     listTripIdeas: vi.fn(async () => []),
+    updateTripIdea: vi.fn(async (_ideaId, input) => ({
+      id: 'idea-1',
+      ownerUserId: 'user-1',
+      title: input.title,
+      urlNote: input.urlNote,
+      version: input.expectedVersion + 1,
+    })),
     deleteTripIdea: vi.fn(async () => undefined),
+    unblockCandidateSender: vi.fn(async () => undefined),
     ...overrides,
   }
 }
@@ -187,6 +200,35 @@ describe('candidate private routes', () => {
     )
     await user.click(await screen.findByRole('button', { name: /accept/i }))
     expect(candidateClient.acceptShare).toHaveBeenCalledWith('share-1')
+  })
+
+  it('lets a sender revoke a pending share', async () => {
+    const user = userEvent.setup()
+    const revokeCandidateShare = vi.fn(async () => ({
+      accepted: false,
+      state: 'closed' as const,
+      message: 'Closed',
+    }))
+    const candidateClient = client({
+      listShares: vi.fn(async () => [
+        {
+          id: 'share-1',
+          direction: 'sent' as const,
+          state: 'pending' as const,
+          title: 'Oak lead',
+          expiresAt: Date.now() + 10_000,
+        },
+      ]),
+      revokeCandidateShare,
+    })
+    render(
+      <MemoryRouter>
+        <SharesPage client={candidateClient} />
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('button', { name: /revoke/i }))
+    expect(revokeCandidateShare).toHaveBeenCalledWith('share-1')
+    expect(await screen.findByText(/sent · closed/i)).toBeInTheDocument()
   })
 
   it('requires explicit confirmation before deleting a Trip Idea', async () => {

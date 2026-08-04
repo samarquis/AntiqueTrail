@@ -3,7 +3,6 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
-  resolveDns(host: string, type: 'A' | 'AAAA'): Promise<string[]>
 }
 
 const url = Deno.env.get('SUPABASE_URL')
@@ -11,28 +10,41 @@ const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const hmacSecret = Deno.env.get('CANDIDATE_EMAIL_HMAC_SECRET')
 const payloadSecret = Deno.env.get('CANDIDATE_PAYLOAD_SECRET')
+const proxyUrl = Deno.env.get('CANDIDATE_OUTBOUND_PROXY_URL')
+const proxyCredential = Deno.env.get('CANDIDATE_OUTBOUND_PROXY_SIGNED_CREDENTIAL')
+const MINIMUM_SEND_RESPONSE_MS = 500
 
 export async function handleCandidate(operation: string, request: Request): Promise<Response> {
-  if (request.method !== 'POST' || !url || !anonKey) return unavailable()
+  const startedAt = Date.now()
+  const respond = (response: Response) => timed(operation, startedAt, response)
+  if (request.method !== 'POST' || !url || !anonKey) return respond(unavailable())
   const authorization = request.headers.get('authorization')
-  if (!authorization) return new Response('Unauthorized', { status: 401 })
+  if (!authorization) return respond(new Response('Unauthorized', { status: 401 }))
   const client = createClient(url, anonKey, {
     db: { schema: 'app_public' },
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   })
   try {
-    const body = (await request.json()) as Record<string, unknown>
-    if (operation === 'extract') return Response.json(await extract(body))
-    if (!serviceKey || !hmacSecret || !payloadSecret) return unavailable()
-    if (operation === 'send') return Response.json(await send(client, body))
-    if (operation === 'accept') return Response.json(await accept(client, body))
-    if (operation === 'block' || operation === 'report') {
-      return Response.json(await close(client, operation, body))
+    const context = await client.rpc('candidate_edge_context')
+    if (
+      context.error ||
+      context.data?.active !== true ||
+      !['Shopper', 'Representative', 'Administrator'].includes(context.data?.role)
+    ) {
+      return respond(new Response('Unauthorized', { status: 401 }))
     }
-    return unavailable()
+    const body = (await request.json()) as Record<string, unknown>
+    if (operation === 'extract') return respond(Response.json(await extract(body)))
+    if (!serviceKey || !hmacSecret || !payloadSecret) return respond(unavailable())
+    if (operation === 'send') return respond(Response.json(await send(client, body)))
+    if (operation === 'accept') return respond(Response.json(await accept(client, body)))
+    if (operation === 'block' || operation === 'report') {
+      return respond(Response.json(await close(client, operation, body)))
+    }
+    return respond(unavailable())
   } catch {
-    return new Response('Unavailable', { status: 503 })
+    return respond(new Response('Unavailable', { status: 503 }))
   }
 }
 
@@ -59,25 +71,53 @@ async function extract(body: Record<string, unknown>) {
   } catch {
     return fallback('invalid_link')
   }
-  if (!['http:', 'https:'].includes(parsed.protocol) || unsafeHost(parsed.hostname))
+  if (
+    !proxyUrl ||
+    !proxyCredential ||
+    !['http:', 'https:'].includes(parsed.protocol) ||
+    parsed.port !== '' ||
+    unsafeAddress(parsed.hostname)
+  )
     return fallback('private_destination')
   const normalizedUrl = parsed.toString()
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 5_000)
   try {
-    const before = await publicAddresses(parsed.hostname)
-    const response = await fetch(normalizedUrl, {
-      redirect: 'error',
+    const configuredProxy = new URL(proxyUrl)
+    if (configuredProxy.protocol !== 'https:' || configuredProxy.username || configuredProxy.password)
+      return fallback('fetch_failed', normalizedUrl, parsed.hostname)
+    const response = await fetch(configuredProxy.toString(), {
+      method: 'POST',
       signal: controller.signal,
-      headers: { Accept: 'text/html,text/plain' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Candidate-Proxy-Credential': proxyCredential,
+      },
+      body: JSON.stringify({ url: normalizedUrl, maxRedirects: 3, maxBytes: 256_000, timeoutMs: 5_000 }),
     })
-    const after = await publicAddresses(parsed.hostname)
-    if (before.join(',') !== after.join(','))
-      return fallback('dns_rebinding', normalizedUrl, parsed.hostname)
-    const type = response.headers.get('content-type') ?? ''
-    if (!response.ok || (!type.includes('text/html') && !type.includes('text/plain')))
+    if (!response.ok) return fallback('fetch_failed', normalizedUrl, parsed.hostname)
+    const result = (await response.json()) as ProxyResult
+    if (
+      result.pinned !== true ||
+      result.credentialVerified !== true ||
+      !Number.isInteger(result.redirectCount) ||
+      result.redirectCount < 0 ||
+      result.redirectCount > 3 ||
+      !Number.isInteger(result.byteLength) ||
+      result.byteLength < 0 ||
+      result.byteLength > 256_000 ||
+      typeof result.body !== 'string' ||
+      new TextEncoder().encode(result.body).byteLength > 256_000 ||
+      !Array.isArray(result.destinations) ||
+      result.destinations.length !== result.redirectCount + 1 ||
+      result.destinations[0]?.url !== normalizedUrl ||
+      result.destinations.some((destination) => !validPinnedDestination(destination))
+    )
+      return fallback('fetch_failed', normalizedUrl, parsed.hostname)
+    const type = result.contentType
+    if (!type.includes('text/html') && !type.includes('text/plain'))
       return fallback('unsupported_content', normalizedUrl, parsed.hostname)
-    const text = (await response.text()).slice(0, 256_000)
+    const text = result.body
     const title =
       /<title[^>]*>([^<]{1,300})<\/title>/i.exec(text)?.[1]?.trim().slice(0, 160) ?? null
     return {
@@ -153,28 +193,76 @@ async function close(client: any, operation: string, body: Record<string, unknow
   return result.data
 }
 
-function unsafeHost(host: string) {
-  const value = host.toLowerCase()
-  return (
-    value === 'localhost' ||
-    value.endsWith('.local') ||
-    value === '0.0.0.0' ||
-    value === '127.0.0.1' ||
-    value === '::1' ||
-    value.startsWith('fc') ||
-    value.startsWith('fd') ||
-    /^fe[89ab]/.test(value) ||
-    /^10\.|^192\.168\.|^169\.254\.|^172\.(1[6-9]|2\d|3[01])\./.test(value)
-  )
+interface ProxyResult {
+  pinned: boolean
+  credentialVerified: boolean
+  redirectCount: number
+  byteLength: number
+  contentType: string
+  body: string
+  destinations: Array<{ url: string; addresses: string[] }>
 }
-async function publicAddresses(host: string) {
-  const values = [
-    ...(await Deno.resolveDns(host, 'A').catch(() => [])),
-    ...(await Deno.resolveDns(host, 'AAAA').catch(() => [])),
-  ].sort()
-  if (!values.length) throw new Error('dns')
-  if (values.some(unsafeHost)) throw new Error('private')
-  return values
+function validPinnedDestination(value: { url: string; addresses: string[] }) {
+  try {
+    const url = new URL(value.url)
+    return (
+      ['http:', 'https:'].includes(url.protocol) &&
+      url.port === '' &&
+      !unsafeAddress(url.hostname) &&
+      Array.isArray(value.addresses) &&
+      value.addresses.length > 0 &&
+      value.addresses.every((address) => !unsafeAddress(address))
+    )
+  } catch {
+    return false
+  }
+}
+function unsafeAddress(input: string) {
+  const value = input.toLowerCase().replace(/^\[|\]$/g, '')
+  if (value === 'localhost' || value.endsWith('.local') || value === '::' || value === '::1')
+    return true
+  const mapped = /^::ffff:(.+)$/.exec(value)
+  if (mapped) {
+    if (mapped[1].includes('.')) return unsafeAddress(mapped[1])
+    const words = mapped[1].split(':')
+    if (words.length !== 2 || words.some((word) => !/^[0-9a-f]{1,4}$/.test(word))) return true
+    const high = Number.parseInt(words[0], 16)
+    const low = Number.parseInt(words[1], 16)
+    if (!Number.isInteger(high) || !Number.isInteger(low) || high > 0xffff || low > 0xffff)
+      return true
+    return unsafeAddress(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`)
+  }
+  if (value.includes(':'))
+    return (
+      /^(fc|fd|fe|ff)/.test(value) ||
+      value.startsWith('::') ||
+      value.startsWith('100:') ||
+      value.startsWith('2001:2:') ||
+      value.startsWith('2001:db8:')
+    )
+  const parts = value.split('.').map(Number)
+  if (
+    parts.length !== 4 ||
+    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+  )
+    return false
+  const [a, b, c] = parts
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    a >= 224 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 192 && b === 0) ||
+    (a === 192 && b === 88 && c === 99) ||
+    (a === 192 && b === 0 && c === 2) ||
+    (a === 198 && b >= 18 && b <= 19) ||
+    (a === 198 && b === 51 && c === 100) ||
+    (a === 203 && b === 0 && c === 113)
+  )
 }
 function uuid(value: unknown) {
   if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value))
@@ -239,4 +327,11 @@ function hex(value: ArrayBuffer | Uint8Array) {
 }
 function unavailable() {
   return new Response('Unavailable', { status: 503 })
+}
+async function timed(operation: string, startedAt: number, response: Response) {
+  if (operation === 'send') {
+    const remaining = MINIMUM_SEND_RESPONSE_MS - (Date.now() - startedAt)
+    if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining))
+  }
+  return response
 }

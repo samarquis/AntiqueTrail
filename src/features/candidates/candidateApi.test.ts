@@ -57,4 +57,39 @@ describe('candidate production client', () => {
       client.sendShare({ candidateId: 'x', recipientEmail: 'a@b.test' }),
     ).rejects.toThrow(/could not update this private item/i)
   })
+
+  it('maps update, unblock, and revoke to bounded private commands', async () => {
+    const rpcCalls: unknown[][] = []
+    const rpc = async <T>(...args: unknown[]): Promise<T> => {
+      rpcCalls.push(args)
+      return { accepted: false, state: 'closed', message: 'Closed' } as T
+    }
+    const client = createCandidateProductionClient({ rpc, edge: rpc })
+
+    await client.updateTripIdea('idea-1', {
+      title: 'Updated stop',
+      urlNote: 'Call first',
+      expectedVersion: 4,
+    })
+    await client.unblockCandidateSender('sender-1', { confirmed: true })
+    await client.revokeCandidateShare('share-1')
+
+    expect(rpcCalls).toContainEqual([
+      'candidate_update_trip_idea',
+      {
+        p_idea_id: 'idea-1',
+        p_title: 'Updated stop',
+        p_url_note: 'Call first',
+        p_expected_version: 4,
+      },
+    ])
+    expect(rpcCalls).toContainEqual([
+      'unblock_candidate_sender',
+      { p_blocked_user_id: 'sender-1', p_confirmed: true },
+    ])
+    expect(rpcCalls).toContainEqual([
+      'revoke_candidate_share',
+      { p_share_id: 'share-1', p_idempotency_key: 'revoke-share-1' },
+    ])
+  })
 })
