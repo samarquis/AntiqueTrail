@@ -582,6 +582,7 @@ export function GoPage({
   accountId?: string
 }) {
   const { tripId = '' } = useParams()
+  const navigate = useNavigate()
   const [trip, setTrip] = useState<Trip | null>(null)
   const [error, setError] = useState(false)
   const [offlineQueue, setOfflineQueue] = useState<OfflineQueueSnapshot>({
@@ -634,22 +635,36 @@ export function GoPage({
       .catch(() => undefined)
   }, [client, tripId])
   async function mutate(
-    kind: 'mark_arrived' | 'complete_stop' | 'skip_stop',
-    action: (tripId: string, stopId: string) => Promise<Trip>,
+    kind: 'mark_arrived' | 'complete_stop' | 'skip_stop' | 'mark_observed_closed' | 'restore_stop',
+    action: ((tripId: string, stopId: string) => Promise<Trip>) | undefined,
     stopId: string,
   ) {
-    if (!trip) return
+    if (!trip || !action) return
     try {
+      let next: Trip
       if (workingOffline && offlineRuntime?.queueMutation && accountId) {
         const state: Trip['stops'][number]['state'] =
-          kind === 'mark_arrived' ? 'arrived' : kind === 'complete_stop' ? 'completed' : 'skipped'
-        const next = {
+          kind === 'mark_arrived'
+            ? 'arrived'
+            : kind === 'complete_stop'
+              ? 'completed'
+              : kind === 'skip_stop'
+                ? 'skipped'
+                : kind === 'mark_observed_closed'
+                  ? 'observed_closed'
+                  : 'planned'
+        next = {
           ...trip,
           stops: trip.stops.map((stop) => (stop.id === stopId ? { ...stop, state } : stop)),
         }
         setOfflineQueue(await offlineRuntime.queueMutation(accountId, next, { kind, stopId }))
-        setTrip(next)
-      } else setTrip(await action(trip.id, stopId))
+      } else next = await action(trip.id, stopId)
+      setTrip(next)
+      if (
+        kind !== 'restore_stop' &&
+        next.stops.every((stop) => ['completed', 'skipped', 'observed_closed'].includes(stop.state))
+      )
+        navigate(`/trips/${next.id}/summary`, { state: { trip: next } })
     } catch {
       setError(true)
     }
@@ -748,10 +763,7 @@ export function GoPage({
                 <button
                   type="button"
                   onClick={() =>
-                    client
-                      .markObservedClosed?.(trip.id, stop.id)
-                      .then(setTrip)
-                      .catch(() => setError(true))
+                    void mutate('mark_observed_closed', client.markObservedClosed, stop.id)
                   }
                 >
                   Store is closed
@@ -769,10 +781,7 @@ export function GoPage({
                 <button
                   type="button"
                   onClick={() =>
-                    client
-                      .markObservedClosed?.(trip.id, stop.id)
-                      .then(setTrip)
-                      .catch(() => setError(true))
+                    void mutate('mark_observed_closed', client.markObservedClosed, stop.id)
                   }
                 >
                   Store is closed
@@ -782,12 +791,7 @@ export function GoPage({
             {stop.state === 'observed_closed' && isNavigator && (
               <button
                 type="button"
-                onClick={() =>
-                  client
-                    .restoreStop?.(trip.id, stop.id)
-                    .then(setTrip)
-                    .catch(() => setError(true))
-                }
+                onClick={() => void mutate('restore_stop', client.restoreStop, stop.id)}
               >
                 Restore stop
               </button>
@@ -796,12 +800,7 @@ export function GoPage({
               <button
                 type="button"
                 aria-label={`Undo skip for ${stop.label}`}
-                onClick={() =>
-                  client
-                    .restoreStop?.(trip.id, stop.id)
-                    .then(setTrip)
-                    .catch(() => setError(true))
-                }
+                onClick={() => void mutate('restore_stop', client.restoreStop, stop.id)}
               >
                 Undo skip
               </button>
@@ -887,12 +886,17 @@ export function GoPage({
 
 export function SummaryPage({ client = unavailableTripClient }: { client?: TripClient }) {
   const { tripId = '' } = useParams()
-  const [trip, setTrip] = useState<Trip | null>(null)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const navigatedTrip = (location.state as { trip?: Trip } | null)?.trip
+  const [trip, setTrip] = useState<Trip | null>(navigatedTrip?.id === tripId ? navigatedTrip : null)
+  const [cloning, setCloning] = useState(false)
+  const [cloneFailed, setCloneFailed] = useState(false)
   useEffect(() => {
     client
       .get(tripId)
       .then(setTrip)
-      .catch(() => setTrip(null))
+      .catch(() => undefined)
   }, [client, tripId])
   return (
     <TripCard title="Trip summary" description="Your private trip record.">
@@ -901,10 +905,25 @@ export function SummaryPage({ client = unavailableTripClient }: { client?: TripC
           <p>
             {trip.name} — {trip.state}
           </p>
+          <p>
+            Visited:{' '}
+            {
+              trip.stops.filter((stop) => stop.kind === 'store' && stop.state === 'completed')
+                .length
+            }{' '}
+            · Skipped:{' '}
+            {trip.stops.filter((stop) => stop.kind === 'store' && stop.state === 'skipped').length}{' '}
+            · Appeared closed:{' '}
+            {
+              trip.stops.filter((stop) => stop.kind === 'store' && stop.state === 'observed_closed')
+                .length
+            }{' '}
+            · Duration: {formatDuration(trip.durationMinutes)}
+          </p>
           <ul>
             {trip.stops.map((stop) => (
               <li key={stop.id}>
-                {stop.label}: {stop.state}
+                {stop.label}: {summaryStopState(stop.state)} — {summaryMemoryStatus(stop)}
               </li>
             ))}
           </ul>
@@ -912,14 +931,51 @@ export function SummaryPage({ client = unavailableTripClient }: { client?: TripC
       ) : (
         <p role="status">Trip summary unavailable.</p>
       )}
+      {cloneFailed && <TripError />}
       <p>
-        <Link className="button" to="/trips/new">
-          Plan Again
-        </Link>{' '}
+        {trip?.state === 'completed' && (
+          <button
+            className="button"
+            type="button"
+            disabled={cloning}
+            onClick={async () => {
+              setCloning(true)
+              setCloneFailed(false)
+              try {
+                const cloned = await client.cloneCompleted(trip.id)
+                navigate(`/trips/${cloned.id}/plan`)
+              } catch {
+                setCloneFailed(true)
+                setCloning(false)
+              }
+            }}
+          >
+            {cloning ? 'Planning again…' : 'Plan Again'}
+          </button>
+        )}{' '}
         <Link to="/trips">Back to trips</Link>
       </p>
     </TripCard>
   )
+}
+
+function formatDuration(minutes: number | undefined): string {
+  if (minutes == null) return 'Unavailable'
+  const hours = Math.floor(minutes / 60)
+  const remaining = minutes % 60
+  if (!hours) return `${remaining} min`
+  return remaining ? `${hours} hr ${remaining} min` : `${hours} hr`
+}
+
+function summaryStopState(state: Trip['stops'][number]['state']): string {
+  if (state === 'completed') return 'Visited'
+  if (state === 'observed_closed') return 'Appeared closed'
+  return state.charAt(0).toUpperCase() + state.slice(1)
+}
+
+function summaryMemoryStatus(stop: Trip['stops'][number]): string {
+  if (stop.kind !== 'store') return 'Private memory not applicable'
+  return stop.memoryStatus === 'saved' ? 'Private memory saved' : 'Private memory missing'
 }
 
 function VisitMemoryForm({

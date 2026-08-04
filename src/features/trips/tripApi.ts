@@ -21,6 +21,7 @@ export type TripApiCommand =
   | 'list_trips'
   | 'get_trip'
   | 'create_trip'
+  | 'clone_completed_trip'
   | 'add_trip_stop'
   | 'reorder_trip_stop'
   | 'rename_trip'
@@ -134,6 +135,13 @@ function parseStop(value: unknown): TripStop {
     priority: enumValue<TripStop['priority']>(source.priority, PRIORITIES),
     plannedDwellMinutes: integer(source.plannedDwellMinutes, 5, 720),
     state: enumValue<TripStop['state']>(source.state, STOP_STATES),
+    memoryStatus:
+      source.memoryStatus == null
+        ? undefined
+        : enumValue<NonNullable<TripStop['memoryStatus']>>(
+            source.memoryStatus,
+            new Set(['saved', 'missing', 'not_applicable']),
+          ),
     coordinate: parseCoordinate(source.coordinate),
   }
 }
@@ -148,6 +156,8 @@ const parseTrip: Parser<Trip> = (value) => {
     state: enumValue<Trip['state']>(source.state, TRIP_STATES),
     stops: source.stops.map(parseStop),
     version: integer(source.version, 0),
+    durationMinutes:
+      source.durationMinutes == null ? undefined : integer(source.durationMinutes, 0, 525_600),
     origin: parseCoordinate(source.origin),
     returnCoordinate: parseCoordinate(source.returnCoordinate),
     departureMinute:
@@ -375,6 +385,9 @@ export function createTripApi(
         },
         parseTrip,
       )
+    },
+    cloneCompleted(tripId) {
+      return execute('clone_completed_trip', () => ({ trip_id: boundedId(tripId) }), parseTrip)
     },
     addStop(tripId, input) {
       return execute(

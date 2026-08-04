@@ -64,6 +64,14 @@ describe('implicit-actor TripClient transport', () => {
     expect(JSON.stringify(wire.invoke.mock.calls[0][1])).not.toMatch(/actor|owner|current_user/i)
   })
 
+  it('clones completed history through one authoritative command', async () => {
+    const wire = transport({ ...trip, id: 'trip-2' })
+    await expect(createTripApi(wire).cloneCompleted('trip-1')).resolves.toMatchObject({
+      id: 'trip-2',
+    })
+    expect(wire.invoke).toHaveBeenCalledWith('clone_completed_trip', { trip_id: 'trip-1' })
+  })
+
   it('covers planning and Go commands using resource identifiers only', async () => {
     const wire = transport(trip)
     const api = createTripApi(wire)

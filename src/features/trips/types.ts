@@ -23,6 +23,7 @@ export interface TripStop {
   priority: StopPriority
   plannedDwellMinutes: number
   state: StopState
+  memoryStatus?: 'saved' | 'missing' | 'not_applicable'
   coordinate?: { latitude: number; longitude: number }
   hours?: { state: 'verified' | 'unknown' | 'stale'; opensAt?: number; closesAt?: number }
 }
@@ -34,6 +35,7 @@ export interface Trip {
   state: TripState
   stops: TripStop[]
   version: number
+  durationMinutes?: number
   origin?: { latitude: number; longitude: number }
   returnCoordinate?: { latitude: number; longitude: number }
   departureMinute?: number
@@ -99,6 +101,7 @@ export interface TripClient {
   list(): Promise<Trip[]>
   get(id: string): Promise<Trip | null>
   create(input: { name: string; localDate: string }): Promise<Trip>
+  cloneCompleted(tripId: string): Promise<Trip>
   addStop(
     tripId: string,
     input: {

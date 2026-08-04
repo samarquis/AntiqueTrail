@@ -13,6 +13,9 @@ export const unavailableTripClient: TripClient = {
   async create() {
     throw new Error(GENERIC_TRIP_ERROR)
   },
+  async cloneCompleted() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
   async addStop() {
     throw new Error(GENERIC_TRIP_ERROR)
   },

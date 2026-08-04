@@ -29,6 +29,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     list: vi.fn(async () => [trip]),
     get: vi.fn(async () => trip),
     create: vi.fn(async () => trip),
+    cloneCompleted: vi.fn(async () => ({ ...trip, id: 'trip-2' })),
     addStop: vi.fn(async (_id, input) => ({
       ...trip,
       stops: [{ id: 'stop-1', ...input, position: 0, state: 'planned' as const }],
@@ -543,21 +544,198 @@ describe('manual trips', () => {
     expect(await screen.findByText(/oak antiques — planned/i)).toBeInTheDocument()
   })
 
-  it('offers Plan Again from a trip summary', async () => {
+  it.each([
+    ['skipped', /undo skip for oak antiques/i],
+    ['observed_closed', /restore stop/i],
+  ] as const)(
+    'queues %s restoration through the protected offline pathway',
+    async (state, actionName) => {
+      const user = userEvent.setup()
+      const offlineTrip: Trip = {
+        ...trip,
+        state: 'active',
+        stops: [
+          {
+            id: 'stop-1',
+            storeId: 'store-1',
+            kind: 'store',
+            label: 'Oak Antiques',
+            position: 0,
+            priority: 'must',
+            plannedDwellMinutes: 60,
+            state,
+          },
+          {
+            id: 'stop-2',
+            storeId: 'store-2',
+            kind: 'store',
+            label: 'Pine Finds',
+            position: 1,
+            priority: 'prefer',
+            plannedDwellMinutes: 45,
+            state: 'planned',
+          },
+        ],
+      }
+      const queueMutation = vi.fn(async () => ({ state: 'queued' as const, pendingCount: 1 }))
+      const runtime: TripOfflineRuntime = {
+        installId: 'install-a',
+        deviceKeyId: 'device-key-a',
+        start: vi.fn(),
+        recover: vi.fn(async () => ({ state: 'absent' as const })),
+        queueMutation,
+        prepareSignOut: vi.fn(async () => ({ requiresConfirmation: false, pendingCount: 0 })),
+        purgeAccount: vi.fn(async () => undefined),
+      }
+      const restoreStop = vi.fn(async () => offlineTrip)
+      render(
+        <MemoryRouter initialEntries={['/trips/trip-1/go']}>
+          <Routes>
+            <Route
+              path="/trips/:tripId/go"
+              element={
+                <GoPage
+                  client={client({ get: vi.fn(async () => offlineTrip), restoreStop })}
+                  offlineRuntime={runtime}
+                  accountId="shopper-a"
+                />
+              }
+            />
+          </Routes>
+        </MemoryRouter>,
+      )
+      await user.click(await screen.findByRole('button', { name: /work offline/i }))
+      await user.click(screen.getByRole('button', { name: actionName }))
+      expect(queueMutation).toHaveBeenCalledWith(
+        'shopper-a',
+        expect.objectContaining({
+          stops: expect.arrayContaining([
+            expect.objectContaining({ id: 'stop-1', state: 'planned' }),
+          ]),
+        }),
+        { kind: 'restore_stop', stopId: 'stop-1' },
+      )
+      expect(restoreStop).not.toHaveBeenCalled()
+    },
+  )
+
+  it('opens Summary automatically after the final stop is completed', async () => {
+    const user = userEvent.setup()
+    const activeTrip: Trip = {
+      ...trip,
+      state: 'active',
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store',
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'must',
+          plannedDwellMinutes: 60,
+          state: 'arrived',
+        },
+      ],
+    }
+    const finished = {
+      ...activeTrip,
+      stops: activeTrip.stops.map((stop) => ({ ...stop, state: 'completed' as const })),
+    }
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/go']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/go"
+            element={
+              <GoPage
+                client={client({
+                  get: vi.fn(async () => activeTrip),
+                  completeStop: vi.fn(async () => finished),
+                })}
+              />
+            }
+          />
+          <Route path="/trips/:tripId/summary" element={<p>Automatic summary</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('button', { name: /done/i }))
+    expect(await screen.findByText('Automatic summary')).toBeInTheDocument()
+  })
+
+  it('clones completed history into a new draft with Plan Again', async () => {
+    const user = userEvent.setup()
+    const completedTrip: Trip = {
+      ...trip,
+      state: 'completed',
+      durationMinutes: 135,
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store',
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'must',
+          plannedDwellMinutes: 60,
+          state: 'completed',
+          memoryStatus: 'saved',
+        },
+        {
+          id: 'stop-2',
+          storeId: 'store-2',
+          kind: 'store',
+          label: 'Pine Finds',
+          position: 1,
+          priority: 'prefer',
+          plannedDwellMinutes: 45,
+          state: 'skipped',
+          memoryStatus: 'missing',
+        },
+        {
+          id: 'stop-3',
+          storeId: 'store-3',
+          kind: 'store',
+          label: 'Maple Market',
+          position: 2,
+          priority: 'flexible',
+          plannedDwellMinutes: 30,
+          state: 'observed_closed',
+          memoryStatus: 'missing',
+        },
+      ],
+    }
+    const cloned = {
+      ...completedTrip,
+      id: 'trip-2',
+      state: 'draft' as const,
+      stops: completedTrip.stops.map((stop) => ({ ...stop, state: 'planned' as const })),
+    }
+    const cloneCompleted = vi.fn(async () => cloned)
     render(
       <MemoryRouter initialEntries={['/trips/trip-1/summary']}>
         <Routes>
           <Route
             path="/trips/:tripId/summary"
-            element={<SummaryPage client={client({ get: vi.fn(async () => trip) })} />}
+            element={
+              <SummaryPage
+                client={client({ get: vi.fn(async () => completedTrip), cloneCompleted })}
+              />
+            }
           />
+          <Route path="/trips/:tripId/plan" element={<p>Cloned plan</p>} />
         </Routes>
       </MemoryRouter>,
     )
-    expect(await screen.findByRole('link', { name: /plan again/i })).toHaveAttribute(
-      'href',
-      '/trips/new',
-    )
+    expect(await screen.findByText(/visited: 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/skipped: 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/appeared closed: 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/duration: 2 hr 15 min/i)).toBeInTheDocument()
+    expect(screen.getByText(/oak antiques: visited — private memory saved/i)).toBeInTheDocument()
+    expect(screen.getByText(/pine finds: skipped — private memory missing/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /plan again/i }))
+    expect(cloneCompleted).toHaveBeenCalledWith('trip-1')
+    expect(await screen.findByText('Cloned plan')).toBeInTheDocument()
   })
 
   it('starts Go through the verified offline-grant runtime when it is wired', async () => {
