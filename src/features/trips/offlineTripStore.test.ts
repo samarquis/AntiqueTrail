@@ -3,12 +3,15 @@ import {
   EncryptedTripOfflineStore,
   InMemoryOfflineDatabase,
   loadOrCreateTripInstallationIdentity,
+  signTripDeviceProof,
+  tripDeviceKeyId,
   WebCryptoOfflineGrantVerifier,
   offlineGrantBytes,
   type OfflineGrantClaims,
   type OfflineMutation,
   type OfflineTripInput,
 } from './offlineTripStore'
+import { verifyDeviceProof } from '../../../supabase/functions/_shared/trip-device-proof'
 import type { Trip } from './types'
 
 const activeTrip: Trip = {
@@ -103,6 +106,48 @@ describe('encrypted active-trip recovery', () => {
     const deviceKey = await firstDatabase.getKey(first.deviceKeyId)
     expect(deviceKey).toBeDefined()
     expect(deviceKey?.extractable).toBe(false)
+    expect(deviceKey?.type).toBe('private')
+    expect(deviceKey?.algorithm.name).toBe('ECDSA')
+    await expect(tripDeviceKeyId(first.publicKeyJwk)).resolves.toBe(first.deviceKeyId)
+  })
+
+  it('rejects copied device labels and tampered proof while accepting the persisted key', async () => {
+    const database = new InMemoryOfflineDatabase()
+    const copiedDatabase = new InMemoryOfflineDatabase()
+    const identity = await loadOrCreateTripInstallationIdentity(database)
+    const copiedIdentity = await loadOrCreateTripInstallationIdentity(copiedDatabase)
+    const fields = ['trip-1', identity.installId] as const
+    const proof = await signTripDeviceProof(database, identity, 'grant-v1', fields)
+    await expect(
+      verifyDeviceProof({
+        publicKey: identity.publicKeyJwk,
+        deviceKeyId: identity.deviceKeyId,
+        purpose: 'grant-v1',
+        fields,
+        ...proof,
+        now: Date.parse(proof.issuedAt),
+      }),
+    ).resolves.toBe(true)
+    await expect(
+      verifyDeviceProof({
+        publicKey: copiedIdentity.publicKeyJwk,
+        deviceKeyId: identity.deviceKeyId,
+        purpose: 'grant-v1',
+        fields,
+        ...proof,
+        now: Date.parse(proof.issuedAt),
+      }),
+    ).resolves.toBe(false)
+    await expect(
+      verifyDeviceProof({
+        publicKey: identity.publicKeyJwk,
+        deviceKeyId: identity.deviceKeyId,
+        purpose: 'grant-v1',
+        fields: ['trip-tampered', identity.installId],
+        ...proof,
+        now: Date.parse(proof.issuedAt),
+      }),
+    ).resolves.toBe(false)
   })
   it('verifies the server signature and every account/trip/install/device grant binding', async () => {
     const database = new InMemoryOfflineDatabase()

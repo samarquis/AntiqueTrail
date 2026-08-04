@@ -471,7 +471,7 @@ export function createTripApi(
         'bind_navigator_device',
         () => {
           if (!deviceIdentity) throw genericFailure()
-          return { trip_id: boundedId(tripId), device_id: boundedId(deviceIdentity.installId) }
+          return { trip_id: boundedId(tripId), device_id: boundedId(deviceIdentity.deviceKeyId) }
         },
         parseCollaboration,
       )

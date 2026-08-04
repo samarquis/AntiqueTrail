@@ -10,7 +10,9 @@ import {
   createTripApi,
   createTripOfflineRuntime,
   loadOrCreateTripInstallationIdentity,
+  signTripDeviceProof,
   type OfflineTripDatabase,
+  type TripInstallationIdentity,
   type SignedOfflineGrant,
   type Trip,
   type TripOfflineGrantSource,
@@ -100,6 +102,8 @@ async function offlineConfiguration(database: OfflineTripDatabase): Promise<{
   runtime: ReturnType<typeof createTripOfflineRuntime>
   enabled: boolean
   identityReady: boolean
+  database: OfflineTripDatabase
+  identity?: TripInstallationIdentity
 }> {
   const keyId = configuredValue(import.meta.env.VITE_TRIP_OFFLINE_GRANT_KEY_ID)
   const rawJwk = configuredValue(import.meta.env.VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK)
@@ -115,6 +119,8 @@ async function offlineConfiguration(database: OfflineTripDatabase): Promise<{
         runtime: createTripOfflineRuntime(runtimeOptions),
         enabled: false,
         identityReady: true,
+        database,
+        identity,
       }
     const publicKey = await crypto.subtle.importKey(
       'jwk',
@@ -130,12 +136,15 @@ async function offlineConfiguration(database: OfflineTripDatabase): Promise<{
       }),
       enabled: true,
       identityReady: true,
+      database,
+      identity,
     }
   } catch {
     return {
       runtime: createTripOfflineRuntime({ database: new InMemoryOfflineDatabase() }),
       enabled: false,
       identityReady: false,
+      database: new InMemoryOfflineDatabase(),
     }
   }
 }
@@ -161,9 +170,20 @@ export async function configuredComposition(
     installId: string,
     deviceKeyId: string,
   ): Promise<unknown> => {
-    if (!offline.identityReady) throw new Error('Offline trip grant unavailable.')
+    if (!offline.identityReady || !offline.identity)
+      throw new Error('Offline trip grant unavailable.')
+    const proof = await signTripDeviceProof(offline.database, offline.identity, 'grant-v1', [
+      tripId,
+      installId,
+    ])
     const preflight = await supabase.functions.invoke('trip-grant-signer', {
-      body: { tripId, installId, deviceId: installId, deviceKeyId },
+      body: {
+        tripId,
+        installId,
+        deviceKeyId,
+        devicePublicKey: offline.identity.publicKeyJwk,
+        proof,
+      },
     })
     if (
       preflight.error ||
@@ -181,9 +201,56 @@ export async function configuredComposition(
     if (result.error) throw result.error
     return result.data
   }
+  const goActions = new Map<string, string>([
+    ['mark_arrived', 'mark_arrived'],
+    ['complete_trip_stop', 'complete_stop'],
+    ['skip_trip_stop', 'skip_stop'],
+    ['mark_trip_stop_closed', 'mark_observed_closed'],
+    ['restore_trip_stop', 'restore_stop'],
+    ['complete_trip', 'complete_trip'],
+  ])
+  const executeVerifiedGoCommand = async (
+    command: string,
+    payload: Readonly<Record<string, unknown>>,
+  ): Promise<unknown> => {
+    if (!offline.identityReady || !offline.identity) throw new Error('Device proof unavailable.')
+    const action = goActions.get(command)
+    if (!action) throw new Error('Device proof unavailable.')
+    const tripId = String(payload.trip_id)
+    const stopId = payload.stop_id == null ? '' : String(payload.stop_id)
+    const prepared = await supabase.rpc('prepare_go_device_command', {
+      trip_id: tripId,
+      action,
+      stop_id: stopId || null,
+      device_key_id: offline.identity.deviceKeyId,
+    })
+    const baseVersion = Number((prepared.data as { baseVersion?: unknown } | null)?.baseVersion)
+    if (prepared.error || !Number.isInteger(baseVersion) || baseVersion < 1)
+      throw new Error('Device proof unavailable.')
+    const proof = await signTripDeviceProof(offline.database, offline.identity, 'go-v1', [
+      tripId,
+      action,
+      stopId,
+      baseVersion,
+    ])
+    const result = await supabase.functions.invoke('trip-go-command', {
+      body: {
+        tripId,
+        action,
+        stopId: stopId || null,
+        baseVersion,
+        deviceKeyId: offline.identity.deviceKeyId,
+        devicePublicKey: offline.identity.publicKeyJwk,
+        proof,
+      },
+    })
+    if (result.error) throw result.error
+    return result.data
+  }
   const trips = createTripApi(
     {
       async invoke(command, payload) {
+        if (goActions.has(command)) return executeVerifiedGoCommand(command, payload)
         if (command === 'start_trip')
           return consumeSignedTripGrant(
             'start_trip_with_offline_grant',

@@ -54,7 +54,7 @@ async function grant(
     accountId,
     tripId: trip.id,
     installId: identity.installId,
-    deviceId: identity.installId,
+    deviceId: identity.deviceKeyId,
     deviceKeyId: identity.deviceKeyId,
     sessionSecurityVersion: 3,
     issuedAt: '2026-08-03T12:00:00.000Z',
@@ -181,7 +181,7 @@ describe('browser trip offline runtime', () => {
     expect(replayOfflineMutation).toHaveBeenCalledWith(
       expect.objectContaining({
         tripId: trip.id,
-        deviceId: 'install-a',
+        deviceId: 'device-key-a',
         idempotencyKey: expect.any(String),
         localSequence: 1,
         kind: 'mark_arrived',
@@ -211,10 +211,10 @@ describe('browser trip offline runtime', () => {
       kind: 'mark_arrived',
       stopId: 'stop-1',
     })
-    let activeDeviceId = oldIdentity.installId
+    let activeDeviceId = oldIdentity.deviceKeyId
     const transferNavigatorDevice = vi.fn(async (targetTripId: string) => {
       expect(targetTripId).toBe(trip.id)
-      activeDeviceId = newIdentity.installId
+      activeDeviceId = newIdentity.deviceKeyId
       return trip
     })
     await transferNavigatorDevice(trip.id)
@@ -234,7 +234,7 @@ describe('browser trip offline runtime', () => {
       purgeReason: 'authorization_lost',
     })
     expect(replayOfflineMutation).toHaveBeenCalledWith(
-      expect.objectContaining({ deviceId: oldIdentity.installId }),
+      expect.objectContaining({ deviceId: oldIdentity.deviceKeyId }),
     )
   })
 })

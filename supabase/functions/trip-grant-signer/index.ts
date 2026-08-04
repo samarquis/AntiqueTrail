@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
+import { verifyDeviceProof } from '../_shared/trip-device-proof.ts'
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
@@ -33,8 +34,27 @@ Deno.serve(async (request) => {
       installId?: string
       deviceId?: string
       deviceKeyId?: string
+      devicePublicKey?: JsonWebKey
+      proof?: { issuedAt?: string; nonce?: string; signature?: string }
     }
-    if (!body.tripId || !body.installId || !body.deviceId || !body.deviceKeyId)
+    if (
+      !body.tripId ||
+      !body.installId ||
+      !body.deviceKeyId ||
+      !body.devicePublicKey ||
+      !body.proof?.issuedAt ||
+      !body.proof.nonce ||
+      !body.proof.signature ||
+      !(await verifyDeviceProof({
+        publicKey: body.devicePublicKey,
+        deviceKeyId: body.deviceKeyId,
+        purpose: 'grant-v1',
+        fields: [body.tripId, body.installId],
+        issuedAt: body.proof.issuedAt,
+        nonce: body.proof.nonce,
+        signature: body.proof.signature,
+      }))
+    )
       return new Response('Invalid request', { status: 400 })
 
     const userClient = createClient(url, anonKey, {
@@ -45,7 +65,7 @@ Deno.serve(async (request) => {
     const claimsResult = await userClient.rpc('prepare_offline_grant_claims', {
       trip_id: body.tripId,
       install_id: body.installId,
-      device_id: body.deviceId,
+      device_id: body.deviceKeyId,
       device_key_id: body.deviceKeyId,
     })
     if (claimsResult.error || !claimsResult.data || typeof claimsResult.data !== 'object')
@@ -83,7 +103,7 @@ Deno.serve(async (request) => {
       global: { headers: { Authorization: `Bearer ${signerJwt}` } },
       auth: { persistSession: false, autoRefreshToken: false },
     })
-    const receipt = await signerClient.rpc('record_offline_grant_receipt', {
+    const receipt = await signerClient.rpc('record_verified_offline_grant_receipt', {
       target_trip_id: claims.tripId,
       target_user_id: claims.accountId,
       install_id: claims.installId,
@@ -91,6 +111,8 @@ Deno.serve(async (request) => {
       session_security_version: claims.sessionSecurityVersion,
       signed_grant: signedGrant,
       expires_at: claims.expiresAt,
+      proof_nonce: body.proof.nonce,
+      proof_issued_at: body.proof.issuedAt,
     })
     if (receipt.error) return unavailable()
     return Response.json({ state: 'ready', receiptId: receipt.data })

@@ -16,7 +16,7 @@ const harness = vi.hoisted(() => {
       accountId: 'shopper-a',
       tripId: 'trip-1',
       installId: 'install-a',
-      deviceId: 'install-a',
+      deviceId: 'device-key-a',
       deviceKeyId: 'device-key-a',
       sessionSecurityVersion: 3,
       issuedAt: '2026-08-04T12:00:00.000Z',
@@ -33,11 +33,12 @@ const harness = vi.hoisted(() => {
           name: string,
           options: unknown,
         ): Promise<{
-          data: { state: string; receiptId: string } | null
+          data: Record<string, unknown> | null
           error: Error | null
         }> => {
           events.push(`edge:${name}`)
           void options
+          if (name === 'trip-go-command') return { data: trip, error: null }
           return { data: { state: 'ready', receiptId: 'receipt-1' }, error: null }
         },
       ),
@@ -45,6 +46,9 @@ const harness = vi.hoisted(() => {
     rpc: vi.fn(async (name: string, payload: unknown) => {
       events.push(`rpc:${name}`)
       void payload
+      if (name === 'prepare_go_device_command') {
+        return { data: { baseVersion: trip.version }, error: null }
+      }
       return { data: { trip, grant }, error: null }
     }),
     auth: {},
@@ -78,7 +82,7 @@ describe('configured Trip grant composition', () => {
     tripDatabase = new InMemoryOfflineDatabase()
     tripIdentity = await loadOrCreateTripInstallationIdentity(tripDatabase)
     harness.grant.claims.installId = tripIdentity.installId
-    harness.grant.claims.deviceId = tripIdentity.installId
+    harness.grant.claims.deviceId = tripIdentity.deviceKeyId
     harness.grant.claims.deviceKeyId = tripIdentity.deviceKeyId
     vi.stubEnv('VITE_TRIP_OFFLINE_GRANT_KEY_ID', 'key-v1')
     vi.stubEnv(
@@ -96,12 +100,17 @@ describe('configured Trip grant composition', () => {
     await expect(composition!.clients.trips!.start('trip-1')).resolves.toEqual(harness.trip)
     expect(harness.events).toEqual(['edge:trip-grant-signer', 'rpc:start_trip_with_offline_grant'])
     expect(harness.supabase.functions.invoke).toHaveBeenLastCalledWith('trip-grant-signer', {
-      body: {
+      body: expect.objectContaining({
         tripId: 'trip-1',
         installId: tripIdentity.installId,
-        deviceId: tripIdentity.installId,
         deviceKeyId: tripIdentity.deviceKeyId,
-      },
+        devicePublicKey: tripIdentity.publicKeyJwk,
+        proof: expect.objectContaining({
+          issuedAt: expect.any(String),
+          nonce: expect.any(String),
+          signature: expect.any(String),
+        }),
+      }),
     })
 
     harness.events.length = 0
@@ -123,5 +132,24 @@ describe('configured Trip grant composition', () => {
     const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
     await expect(composition!.clients.trips!.start('trip-1')).rejects.toThrow()
     expect(harness.supabase.rpc).not.toHaveBeenCalled()
+  })
+
+  it('routes every ordinary online Go mutation through a fresh device proof gateway', async () => {
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    await expect(composition!.clients.trips!.markArrived('trip-1', 'stop-1')).resolves.toEqual(
+      harness.trip,
+    )
+    expect(harness.events).toEqual(['rpc:prepare_go_device_command', 'edge:trip-go-command'])
+    expect(harness.supabase.functions.invoke).toHaveBeenCalledWith('trip-go-command', {
+      body: expect.objectContaining({
+        tripId: 'trip-1',
+        action: 'mark_arrived',
+        stopId: 'stop-1',
+        baseVersion: 4,
+        deviceKeyId: tripIdentity.deviceKeyId,
+        devicePublicKey: tripIdentity.publicKeyJwk,
+        proof: expect.objectContaining({ nonce: expect.any(String) }),
+      }),
+    })
   })
 })

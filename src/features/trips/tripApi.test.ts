@@ -232,7 +232,7 @@ describe('implicit-actor TripClient transport', () => {
         'update_trip_schedule',
         { trip_id: 'trip-1', local_date: '2026-08-11', departure_minute: 540, expected_version: 8 },
       ],
-      ['bind_navigator_device', { trip_id: 'trip-1', device_id: 'install-a' }],
+      ['bind_navigator_device', { trip_id: 'trip-1', device_id: 'device-key-a' }],
       [
         'transfer_navigator_device',
         { trip_id: 'trip-1', install_id: 'install-a', device_key_id: 'device-key-a' },

@@ -75,6 +75,7 @@ export interface OfflineTripDatabase {
 export interface TripInstallationIdentity {
   installId: string
   deviceKeyId: string
+  publicKeyJwk: JsonWebKey
 }
 
 export class InMemoryOfflineDatabase implements OfflineTripDatabase {
@@ -183,8 +184,54 @@ function validInstallationIdentity(value: TripInstallationIdentity | undefined):
   return Boolean(
     value &&
       /^install-[0-9a-f-]{36}$/u.test(value.installId) &&
-      /^device-key-[0-9a-f-]{36}$/u.test(value.deviceKeyId),
+      /^device-key-[A-Za-z0-9_-]{43}$/u.test(value.deviceKeyId) &&
+      value.publicKeyJwk.kty === 'EC' &&
+      value.publicKeyJwk.crv === 'P-256' &&
+      value.publicKeyJwk.x &&
+      value.publicKeyJwk.y,
   )
+}
+
+function base64Url(bytes: ArrayBuffer): string {
+  let binary = ''
+  for (const value of new Uint8Array(bytes)) binary += String.fromCharCode(value)
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/u, '')
+}
+
+export async function tripDeviceKeyId(publicKey: JsonWebKey): Promise<string> {
+  if (publicKey.kty !== 'EC' || publicKey.crv !== 'P-256' || !publicKey.x || !publicKey.y)
+    throw new Error('Invalid trip device public key.')
+  const canonical = JSON.stringify({ crv: 'P-256', kty: 'EC', x: publicKey.x, y: publicKey.y })
+  return `device-key-${base64Url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical)))}`
+}
+
+export interface TripDeviceProof {
+  issuedAt: string
+  nonce: string
+  signature: string
+}
+
+export async function signTripDeviceProof(
+  database: OfflineTripDatabase,
+  identity: TripInstallationIdentity,
+  purpose: 'grant-v1' | 'go-v1',
+  fields: readonly (string | number)[],
+): Promise<TripDeviceProof> {
+  const privateKey = await database.getKey(identity.deviceKeyId)
+  if (!privateKey || privateKey.extractable || privateKey.type !== 'private')
+    throw new Error('Trip device key unavailable.')
+  const issuedAt = new Date().toISOString()
+  const nonce = crypto.randomUUID()
+  const bytes = new TextEncoder().encode(
+    JSON.stringify([purpose, ...fields, identity.deviceKeyId, issuedAt, nonce]),
+  )
+  return {
+    issuedAt,
+    nonce,
+    signature: base64Url(
+      await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, bytes),
+    ),
+  }
 }
 
 /** Loads one installation identity whose key id resolves to a non-extractable persisted key. */
@@ -194,17 +241,25 @@ export async function loadOrCreateTripInstallationIdentity(
   const existing = await database.getInstallationIdentity()
   if (validInstallationIdentity(existing)) {
     const key = await database.getKey(existing!.deviceKeyId)
-    if (key && !key.extractable) return existing!
+    if (
+      key &&
+      !key.extractable &&
+      key.type === 'private' &&
+      (await tripDeviceKeyId(existing!.publicKeyJwk)) === existing!.deviceKeyId
+    )
+      return existing!
   }
+  const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, [
+    'sign',
+    'verify',
+  ])
+  const publicKeyJwk = await crypto.subtle.exportKey('jwk', pair.publicKey)
   const identity = {
     installId: `install-${crypto.randomUUID()}`,
-    deviceKeyId: `device-key-${crypto.randomUUID()}`,
+    deviceKeyId: await tripDeviceKeyId(publicKeyJwk),
+    publicKeyJwk,
   }
-  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
-    'encrypt',
-    'decrypt',
-  ])
-  await database.putKey(identity.deviceKeyId, key)
+  await database.putKey(identity.deviceKeyId, pair.privateKey)
   await database.putInstallationIdentity(identity)
   return identity
 }
