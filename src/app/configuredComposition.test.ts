@@ -49,9 +49,18 @@ const harness = vi.hoisted(() => {
       if (name === 'prepare_go_device_command') {
         return { data: { baseVersion: trip.version }, error: null }
       }
+      if (name === 'account_lifecycle_status') {
+        return { data: { state: 'active' }, error: null }
+      }
+      if (name === 'request_account_export') {
+        return {
+          data: { id: 'export-1', state: 'queued', createdAt: '2026-08-04T12:00:00Z' },
+          error: null,
+        }
+      }
       return { data: { trip, grant }, error: null }
     }),
-    auth: {},
+    auth: { getSession: vi.fn(async () => ({ data: { session: null }, error: null })) },
   }
   return { events, trip, grant, supabase }
 })
@@ -151,5 +160,16 @@ describe('configured Trip grant composition', () => {
         proof: expect.objectContaining({ nonce: expect.any(String) }),
       }),
     })
+  })
+
+  it('composes the account lifecycle client through bounded RPCs', async () => {
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    await expect(composition!.clients.lifecycle!.getStatus()).resolves.toEqual({ state: 'active' })
+    await expect(composition!.clients.lifecycle!.requestExport()).resolves.toMatchObject({
+      id: 'export-1',
+      state: 'queued',
+    })
+    expect(harness.supabase.rpc).toHaveBeenCalledWith('account_lifecycle_status', undefined)
+    expect(harness.supabase.rpc).toHaveBeenCalledWith('request_account_export', undefined)
   })
 })

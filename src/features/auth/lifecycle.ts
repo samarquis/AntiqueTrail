@@ -23,6 +23,7 @@ export interface AccountLifecycleClient {
   getStatus(): Promise<AccountLifecycleSnapshot>
   requestExport(): Promise<ExportJob>
   getExportStatus(jobId: string): Promise<ExportJob>
+  downloadExport(jobId: string): Promise<Blob>
   requestDeletion(): Promise<AccountLifecycleSnapshot>
   cancelDeletion(): Promise<AccountLifecycleSnapshot>
 }

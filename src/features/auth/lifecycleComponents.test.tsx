@@ -24,6 +24,7 @@ function client(overrides: Partial<AccountLifecycleClient> = {}): AccountLifecyc
       state: 'ready' as const,
       createdAt: '2026-01-01',
     })),
+    downloadExport: vi.fn(async () => new Blob(['{}'], { type: 'application/json' })),
     requestDeletion: vi.fn(async () => ({
       state: 'deletion_scheduled' as const,
       deletionDueAt: '2026-01-08',
@@ -72,6 +73,35 @@ describe('account lifecycle screens', () => {
       /couldn't complete that account request/i,
     )
     expect(screen.queryByText(/provider account exists/i)).not.toBeInTheDocument()
+  })
+
+  it('downloads a ready archive without rendering a bearer or signed URL', async () => {
+    const user = userEvent.setup()
+    const downloadExport = vi.fn(
+      async () => new Blob(['{"schemaVersion":1}'], { type: 'application/json' }),
+    )
+    const lifecycleClient = client({
+      requestExport: vi.fn(async () => ({
+        id: 'export-1',
+        state: 'ready' as const,
+        createdAt: '2026-01-01',
+        expiresAt: '2026-01-08',
+      })),
+      downloadExport,
+    })
+    const createObjectURL = vi.fn(() => 'blob:private')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+    renderPage(<ExportPage client={lifecycleClient} />)
+    await user.click(screen.getByRole('button', { name: /request export/i }))
+    await user.click(screen.getByRole('button', { name: /download export/i }))
+    expect(downloadExport).toHaveBeenCalledWith('export-1')
+    expect(createObjectURL).toHaveBeenCalledOnce()
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:private')
+    expect(document.body).not.toHaveTextContent(/bearer|signed[_ -]?url|token=/i)
+    click.mockRestore()
   })
 
   it('requires explicit confirmation before scheduling deletion', async () => {

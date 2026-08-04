@@ -18,6 +18,7 @@ import {
   type TripOfflineGrantSource,
 } from '../features/trips'
 import {
+  createAccountLifecycleClient,
   createRpcSessionRegistry,
   type AccountRole,
   type AuthProviderAdapter,
@@ -305,6 +306,26 @@ export async function configuredComposition(
     return result.data as T
   }
   const candidate = createCandidateProductionClient({ rpc, edge })
+  const lifecycle = createAccountLifecycleClient({
+    rpc,
+    async download(jobId) {
+      const session = await supabase.auth.getSession()
+      const accessToken = session.data.session?.access_token
+      if (!accessToken) throw new Error('Account export unavailable.')
+      const response = await fetch(`${url}/functions/v1/account-export-download`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          apikey: anonKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ jobId }),
+        cache: 'no-store',
+      })
+      if (!response.ok) throw new Error('Account export unavailable.')
+      return response.blob()
+    },
+  })
   const partner = createPartnerClient(
     createPartnerProductionTransport({
       rpc,
@@ -333,7 +354,7 @@ export async function configuredComposition(
     }
   }
   return {
-    clients: { candidate, partner, shopper, trips, tripOfflineGrants: source },
+    clients: { candidate, lifecycle, partner, shopper, trips, tripOfflineGrants: source },
     runtime: {
       authProvider: createAuthProvider(supabase),
       sessionRegistry,

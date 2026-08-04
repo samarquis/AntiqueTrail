@@ -19,6 +19,7 @@ import {
   ExportPage,
   PrivacyPage,
   unavailableLifecycleClient,
+  type AccountLifecycleClient,
   type AuthProviderAdapter,
   type AuthStore,
   type SessionRegistryClient,
@@ -299,6 +300,7 @@ export interface AppClients {
   shopper?: ShopperPrivateClient
   trips?: TripClient
   partner?: PartnerClient
+  lifecycle?: AccountLifecycleClient
   tripOfflineGrants?: TripOfflineGrantSource
   routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
 }
@@ -321,6 +323,7 @@ export default function App({
   const shopperClient = clients.shopper ?? unavailableShopperClient
   const tripClient = clients.trips ?? unavailableTripClient
   const partnerClient = clients.partner ?? unavailablePartnerClient
+  const lifecycleClient = clients.lifecycle ?? unavailableLifecycleClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
   const tripOfflineRef = useRef<TripOfflineRuntime>(
     runtime.tripOffline ?? createTripOfflineRuntime(),
@@ -375,7 +378,7 @@ export default function App({
             path="/account/privacy"
             element={
               <RequireSession>
-                <PrivacyPage client={unavailableLifecycleClient} />
+                <PrivacyPage client={lifecycleClient} />
               </RequireSession>
             }
           />
@@ -383,7 +386,7 @@ export default function App({
             path="/account/export"
             element={
               <RequireSession>
-                <ExportPage client={unavailableLifecycleClient} />
+                <ExportPage client={lifecycleClient} />
               </RequireSession>
             }
           />
@@ -391,7 +394,7 @@ export default function App({
             path="/account/delete"
             element={
               <RequireSession>
-                <DeleteAccountPage client={unavailableLifecycleClient} />
+                <DeleteAccountPage client={lifecycleClient} />
               </RequireSession>
             }
           />
@@ -399,7 +402,7 @@ export default function App({
             path="/account/delete/cancel"
             element={
               <RequireSession>
-                <CancelDeletionPage client={unavailableLifecycleClient} />
+                <CancelDeletionPage client={lifecycleClient} />
               </RequireSession>
             }
           />

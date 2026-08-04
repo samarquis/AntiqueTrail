@@ -116,6 +116,7 @@ export function ExportPage({
 }) {
   const [job, setJob] = useState<ExportJob | null>(null)
   const [pending, setPending] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState(false)
   async function request(event: FormEvent) {
     event.preventDefault()
@@ -127,6 +128,24 @@ export function ExportPage({
       setError(true)
     } finally {
       setPending(false)
+    }
+  }
+  async function download() {
+    if (!job || job.state !== 'ready') return
+    setDownloading(true)
+    setError(false)
+    try {
+      const archive = await client.downloadExport(job.id)
+      const objectUrl = URL.createObjectURL(archive)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = `antique-trail-export-${job.id}.json`
+      link.click()
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      setError(true)
+    } finally {
+      setDownloading(false)
     }
   }
   return (
@@ -147,10 +166,15 @@ export function ExportPage({
             Export status: <strong>{job.state}</strong>.
           </p>
           {job.state === 'ready' && (
-            <p>
-              Your export is ready through the secure account download flow. No access token is
-              shown here.
-            </p>
+            <>
+              <p>
+                Your export is ready through the secure account download flow. No access token is
+                shown here.
+              </p>
+              <button type="button" disabled={downloading} onClick={() => void download()}>
+                {downloading ? 'Preparing download…' : 'Download export'}
+              </button>
+            </>
           )}
           {job.state === 'failed' && (
             <p>We could not prepare that export. You can try again later.</p>
