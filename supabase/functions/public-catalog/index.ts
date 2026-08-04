@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
 
 declare const Deno: {
@@ -44,7 +43,7 @@ Deno.serve(async (request, connection) => {
   } catch {
     return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
   }
-  if (body.operation !== 'list' && body.operation !== 'details')
+  if (body.operation !== 'list' && body.operation !== 'details' && body.operation !== 'map')
     return Response.json({ error: { code: 'INVALID_OPERATION' } }, { status: 400, headers })
   const client = createClient(url, gatewayJwt, {
     db: { schema: 'app_public' },

@@ -39,4 +39,67 @@ describe('catalog RPC client', () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: { code: 'NOT_FOUND' } })
     await expect(createCatalogClient({ rpc }).details('hidden-store')).resolves.toBeNull()
   })
+
+  it('requests only bounded Browse map coordinates with the active list filters', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        as_of_utc: '2026-08-04T12:00:00Z',
+        points: [
+          {
+            store_id: '00000000-0000-4000-8000-000000000001',
+            slug: 'public-store',
+            name: 'Public Store',
+            latitude: 39.05,
+            longitude: -95.68,
+          },
+        ],
+      },
+      error: null,
+    })
+    const result = await createCatalogClient({ rpc }).map!(
+      { q: 'public', area: 'topeka-ks' },
+      { north: 40, south: 39, east: -95, west: -96 },
+    )
+
+    expect(rpc).toHaveBeenCalledWith('get_browse_map', {
+      p_q: 'public',
+      p_category: null,
+      p_area: 'topeka-ks',
+      p_north: 40,
+      p_south: 39,
+      p_east: -95,
+      p_west: -96,
+      p_limit: 50,
+    })
+    expect(result).toEqual({
+      asOfUtc: '2026-08-04T12:00:00Z',
+      points: [
+        {
+          storeId: '00000000-0000-4000-8000-000000000001',
+          slug: 'public-store',
+          name: 'Public Store',
+          latitude: 39.05,
+          longitude: -95.68,
+        },
+      ],
+    })
+  })
+
+  it('fails closed on an invalid or oversized map projection', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        points: Array.from({ length: 51 }, (_, index) => ({
+          store_id: String(index),
+          slug: `store-${index}`,
+          name: `Store ${index}`,
+          latitude: 39,
+          longitude: -95,
+        })),
+      },
+      error: null,
+    })
+    await expect(
+      createCatalogClient({ rpc }).map!({}, { north: 40, south: 39, east: -95, west: -96 }),
+    ).rejects.toThrow(/map response/i)
+  })
 })

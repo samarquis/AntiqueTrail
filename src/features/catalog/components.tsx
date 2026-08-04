@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import type { CatalogClient, CatalogFilters, CatalogStore } from './types'
+import type {
+  CatalogClient,
+  CatalogFilters,
+  CatalogMapBounds,
+  CatalogMapCapability,
+  CatalogMapPoint,
+  CatalogStore,
+} from './types'
 import {
   displayDayLabel,
   formatHours,
@@ -67,14 +74,23 @@ export function CatalogFiltersForm({
 export function CatalogCard({
   store,
   privateActions,
+  mapSelected = false,
+  onShowOnMap,
 }: {
   store: CatalogStore
   privateActions?: React.ReactNode
+  mapSelected?: boolean
+  onShowOnMap?: () => void
 }) {
   const [imageFailed, setImageFailed] = useState(false)
   const cover = store.media.find((item) => item.kind === 'cover') ?? store.media[0]
   return (
-    <article className="catalog-card">
+    <article
+      id={mapCardId(store.id)}
+      className="catalog-card"
+      aria-current={mapSelected ? 'true' : undefined}
+      tabIndex={-1}
+    >
       {cover && !imageFailed ? (
         <img
           src={cover.src}
@@ -97,10 +113,19 @@ export function CatalogCard({
         </p>
         {store.summary && <p>{store.summary}</p>}
         <p className="catalog-card__freshness">{freshnessLabel(store)}</p>
+        {onShowOnMap && (
+          <button type="button" onClick={onShowOnMap}>
+            Show {store.name} on map
+          </button>
+        )}
         {privateActions}
       </div>
     </article>
   )
+}
+
+function mapCardId(storeId: string) {
+  return `catalog-map-store-${encodeURIComponent(storeId)}`
 }
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
@@ -137,10 +162,21 @@ export function BrowsePage({
   client,
   initialSearch = '',
   renderPrivateActions,
+  map,
 }: {
   client: CatalogClient
   initialSearch?: string
   renderPrivateActions?: (store: CatalogStore) => React.ReactNode
+  map?: {
+    capability: CatalogMapCapability
+    bounds?: CatalogMapBounds
+    attribution?: string
+    render?: (input: {
+      points: CatalogMapPoint[]
+      selectedStoreId?: string
+      onSelect: (storeId: string) => void
+    }) => React.ReactNode
+  }
 }) {
   const [filters, setFilters] = useState(() => normalizeQueryParams(initialSearch))
   const [state, setState] = useState<{
@@ -148,6 +184,13 @@ export function BrowsePage({
     stores?: CatalogStore[]
     message?: string
   }>({ kind: 'loading' })
+  const [mapExpanded, setMapExpanded] = useState(false)
+  const [selectedStoreId, setSelectedStoreId] = useState<string>()
+  const [mapFocusStoreId, setMapFocusStoreId] = useState<string>()
+  const [mapState, setMapState] = useState<{
+    kind: 'idle' | 'loading' | 'success' | 'error'
+    points?: CatalogMapPoint[]
+  }>({ kind: 'idle' })
   const load = useCallback(() => {
     setState({ kind: 'loading' })
     client
@@ -164,6 +207,57 @@ export function BrowsePage({
   useEffect(() => {
     load()
   }, [load])
+  const mapCapability = map?.capability ?? 'blocked'
+  const mapBounds = map?.bounds
+  const mapAttribution = map?.attribution?.trim()
+  const renderMap = map?.render
+  useEffect(() => {
+    if (
+      !mapExpanded ||
+      mapCapability !== 'available' ||
+      !mapBounds ||
+      !mapAttribution ||
+      !renderMap ||
+      !client.map ||
+      state.kind !== 'success'
+    )
+      return
+    let cancelled = false
+    setMapState({ kind: 'loading' })
+    client
+      .map(filters, mapBounds)
+      .then((result) => {
+        if (!cancelled) setMapState({ kind: 'success', points: result.points })
+      })
+      .catch(() => {
+        if (!cancelled) setMapState({ kind: 'error' })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    client,
+    filters,
+    mapAttribution,
+    mapBounds,
+    mapCapability,
+    mapExpanded,
+    renderMap,
+    state.kind,
+  ])
+  useEffect(() => {
+    if (!mapFocusStoreId) return
+    document.getElementById(mapCardId(mapFocusStoreId))?.focus()
+    setMapFocusStoreId(undefined)
+  }, [mapFocusStoreId])
+  useEffect(() => {
+    if (
+      selectedStoreId &&
+      state.kind === 'success' &&
+      !state.stores?.some((store) => store.id === selectedStoreId)
+    )
+      setSelectedStoreId(undefined)
+  }, [selectedStoreId, state.kind, state.stores])
   const updateFilters = (next: CatalogFilters) => {
     setFilters(normalizeQueryParams(queryParams(next)))
     const query = queryParams(next).toString()
@@ -178,6 +272,53 @@ export function BrowsePage({
         <p>Find antique and vintage stores with practical, current details.</p>
       </header>
       <CatalogFiltersForm filters={filters} onChange={updateFilters} />
+      <section aria-labelledby="browse-map-heading" className="catalog-map-panel">
+        <h2 id="browse-map-heading">Store map</h2>
+        <p>The store list remains the primary discovery view.</p>
+        <button
+          type="button"
+          aria-expanded={mapExpanded}
+          aria-controls="browse-map-content"
+          onClick={() => setMapExpanded((expanded) => !expanded)}
+        >
+          {mapExpanded ? 'Hide map' : 'Show map'}
+        </button>
+        {mapExpanded && (
+          <div id="browse-map-content">
+            {mapCapability !== 'available' ? (
+              <p role="status">
+                Map and travel-time suggestions are not available yet. Your store list and filters
+                remain available.
+              </p>
+            ) : !mapBounds || !mapAttribution || !renderMap || !client.map ? (
+              <p role="status">
+                Map configuration is unavailable. Your store list and filters remain available.
+              </p>
+            ) : mapState.kind === 'loading' || mapState.kind === 'idle' ? (
+              <p role="status">Loading the optional map…</p>
+            ) : mapState.kind === 'error' ? (
+              <p role="alert">
+                Map unavailable. Your store list, filters, and current results are unchanged.
+              </p>
+            ) : (
+              <>
+                {renderMap({
+                  points: (mapState.points ?? []).filter((point) =>
+                    state.stores?.some((store) => store.id === point.storeId),
+                  ),
+                  selectedStoreId,
+                  onSelect: (storeId) => {
+                    if (!state.stores?.some((store) => store.id === storeId)) return
+                    setSelectedStoreId(storeId)
+                    setMapFocusStoreId(storeId)
+                  },
+                })}
+                <p className="catalog-map-attribution">{mapAttribution}</p>
+              </>
+            )}
+          </div>
+        )}
+      </section>
       {state.kind === 'loading' && <LoadingState />}
       {state.kind === 'error' && (
         <ErrorState message={state.message ?? 'Catalog unavailable.'} onRetry={load} />
@@ -190,6 +331,12 @@ export function BrowsePage({
                 key={store.id || store.slug}
                 store={store}
                 privateActions={renderPrivateActions?.(store)}
+                mapSelected={selectedStoreId === store.id}
+                onShowOnMap={
+                  mapExpanded && mapState.points?.some((point) => point.storeId === store.id)
+                    ? () => setSelectedStoreId(store.id)
+                    : undefined
+                }
               />
             ))}
           </section>

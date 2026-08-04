@@ -1,4 +1,15 @@
-import type { CatalogClient, CatalogFilters, CatalogListResult, CatalogStore } from './types'
+import type {
+  CatalogClient,
+  CatalogFilters,
+  CatalogListResult,
+  CatalogMapBounds,
+  CatalogMapPoint,
+  CatalogMapResult,
+  CatalogStore,
+} from './types'
+
+export const MAX_BROWSE_MAP_RESULTS = 50
+export const MAX_BROWSE_MAP_SPAN_DEGREES = 2
 
 type RpcClient = {
   rpc: (
@@ -33,7 +44,72 @@ export function createCatalogClient(client: RpcClient): CatalogClient {
       if (data == null || (Array.isArray(data) && data.length === 0)) return null
       return toStore(Array.isArray(data) ? data[0] : data)
     },
+    async map(filters: CatalogFilters, bounds: CatalogMapBounds): Promise<CatalogMapResult> {
+      if (!validMapBounds(bounds)) throw new Error('Invalid map bounds.')
+      const { data, error } = await client.rpc('get_browse_map', {
+        p_q: filters.q ?? null,
+        p_category: filters.category ?? null,
+        p_area: filters.area ?? null,
+        p_north: bounds.north,
+        p_south: bounds.south,
+        p_east: bounds.east,
+        p_west: bounds.west,
+        p_limit: MAX_BROWSE_MAP_RESULTS,
+      })
+      if (error) throw catalogError(error)
+      const payload = Array.isArray(data) ? { points: data } : asRow(data)
+      const rawPoints = asArray(payload.points ?? payload.results)
+      if (rawPoints.length > MAX_BROWSE_MAP_RESULTS) throw new Error('Invalid map response.')
+      const points = rawPoints.map((value) => toMapPoint(value, bounds))
+      if (new Set(points.map((point) => point.storeId)).size !== points.length)
+        throw new Error('Invalid map response.')
+      return {
+        points,
+        asOfUtc: stringOrNull(payload.as_of_utc),
+      }
+    },
   }
+}
+
+export function validMapBounds(bounds: CatalogMapBounds): boolean {
+  const values = [bounds.north, bounds.south, bounds.east, bounds.west]
+  return (
+    values.every(Number.isFinite) &&
+    bounds.north <= 90 &&
+    bounds.south >= -90 &&
+    bounds.east <= 180 &&
+    bounds.west >= -180 &&
+    bounds.north > bounds.south &&
+    bounds.east > bounds.west &&
+    bounds.north - bounds.south <= MAX_BROWSE_MAP_SPAN_DEGREES &&
+    bounds.east - bounds.west <= MAX_BROWSE_MAP_SPAN_DEGREES
+  )
+}
+
+function toMapPoint(value: unknown, bounds: CatalogMapBounds): CatalogMapPoint {
+  const row = asRow(value)
+  const latitude = Number(row.latitude)
+  const longitude = Number(row.longitude)
+  const point = {
+    storeId: String(row.store_id ?? row.storeId ?? ''),
+    slug: String(row.slug ?? ''),
+    name: String(row.name ?? ''),
+    latitude,
+    longitude,
+  }
+  if (
+    !point.storeId ||
+    !point.slug ||
+    !point.name ||
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < bounds.south ||
+    latitude > bounds.north ||
+    longitude < bounds.west ||
+    longitude > bounds.east
+  )
+    throw new Error('Invalid map response.')
+  return point
 }
 
 function catalogError(error: { message?: string; code?: string }): Error & { code?: string } {

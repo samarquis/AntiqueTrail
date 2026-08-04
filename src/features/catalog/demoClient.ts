@@ -1,4 +1,10 @@
-import type { CatalogClient, CatalogFilters, CatalogListResult, CatalogStore } from './types'
+import type {
+  CatalogClient,
+  CatalogFilters,
+  CatalogListResult,
+  CatalogMapPoint,
+  CatalogStore,
+} from './types'
 
 const names = [
   'Blue Finch Curios',
@@ -47,6 +53,14 @@ export const syntheticStores: CatalogStore[] = names.map((name, index) => ({
   media: [],
 }))
 
+export const syntheticMapPoints: CatalogMapPoint[] = syntheticStores.map((store, index) => ({
+  storeId: store.id,
+  slug: store.slug,
+  name: store.name,
+  latitude: 39.03 + index * 0.004,
+  longitude: -95.72 + index * 0.004,
+}))
+
 export const demoCatalogClient: CatalogClient = {
   async list(filters: CatalogFilters): Promise<CatalogListResult> {
     const q = filters.q?.toLocaleLowerCase()
@@ -67,5 +81,19 @@ export const demoCatalogClient: CatalogClient = {
   },
   async details(slug: string) {
     return syntheticStores.find((store) => store.slug === slug) ?? null
+  },
+  async map(filters, bounds) {
+    const visible = new Set((await this.list(filters)).stores.map((store) => store.id))
+    return {
+      points: syntheticMapPoints.filter(
+        (point) =>
+          visible.has(point.storeId) &&
+          point.latitude >= bounds.south &&
+          point.latitude <= bounds.north &&
+          point.longitude >= bounds.west &&
+          point.longitude <= bounds.east,
+      ),
+      asOfUtc: '2026-01-01T00:00:00Z',
+    }
   },
 }

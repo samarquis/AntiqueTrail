@@ -20,7 +20,7 @@ describe('provider-neutral routing boundary', () => {
     expect(mapFallback('blocked').mapVisible).toBe(false)
     expect(
       boundMapPoints(
-        Array.from({ length: 501 }, (_, index) => ({
+        Array.from({ length: 51 }, (_, index) => ({
           id: String(index),
           name: 'store',
           latitude: 1,
@@ -28,6 +28,12 @@ describe('provider-neutral routing boundary', () => {
         })),
       ),
     ).toEqual({ kind: 'too_many_results' })
+    expect(
+      buildMapRequest('available', {
+        bounds: { north: 45, south: 39, east: -95, west: -96 },
+        zoom: 10,
+      }),
+    ).toBeNull()
   })
 
   it('minimizes provider payload to approved public coordinates and place text', () => {

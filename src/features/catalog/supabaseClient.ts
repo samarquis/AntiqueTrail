@@ -14,7 +14,13 @@ export function configuredCatalogClient(): CatalogClient | null {
   return createCatalogClient({
     rpc: async (name, args) => {
       const operation =
-        name === 'catalog_list' ? 'list' : name === 'catalog_details' ? 'details' : null
+        name === 'catalog_list'
+          ? 'list'
+          : name === 'catalog_details'
+            ? 'details'
+            : name === 'get_browse_map'
+              ? 'map'
+              : null
       if (!operation) return { data: null, error: { code: 'INVALID_OPERATION' } }
       try {
         const response = await fetch(`${url}/functions/v1/public-catalog`, {

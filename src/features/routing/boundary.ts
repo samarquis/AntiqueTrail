@@ -16,7 +16,7 @@ export const ROUTING_BLOCKED_MESSAGE =
 
 export function boundMapPoints(
   points: PublicPoint[],
-  max = 500,
+  max = 50,
 ): { kind: 'ok'; points: PublicPoint[] } | { kind: 'too_many_results' } {
   return points.length > max ? { kind: 'too_many_results' } : { kind: 'ok', points }
 }
@@ -25,7 +25,26 @@ export function buildMapRequest(
   capability: RoutingCapability,
   request: MapRequest,
 ): MapRequest | null {
-  return capability === 'available' ? { ...request, q: request.q?.trim() || undefined } : null
+  return capability === 'available' && validBounds(request)
+    ? { ...request, q: request.q?.trim() || undefined }
+    : null
+}
+
+function validBounds(request: MapRequest): boolean {
+  const { north, south, east, west } = request.bounds
+  return (
+    [north, south, east, west, request.zoom].every(Number.isFinite) &&
+    north <= 90 &&
+    south >= -90 &&
+    east <= 180 &&
+    west >= -180 &&
+    north > south &&
+    east > west &&
+    north - south <= 2 &&
+    east - west <= 2 &&
+    request.zoom >= 4 &&
+    request.zoom <= 20
+  )
 }
 
 export function buildGeocodeRequest(

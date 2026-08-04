@@ -44,6 +44,28 @@ export interface CatalogListResult {
   asOfUtc?: string | null
 }
 
+export interface CatalogMapBounds {
+  north: number
+  south: number
+  east: number
+  west: number
+}
+
+export interface CatalogMapPoint {
+  storeId: string
+  slug: string
+  name: string
+  latitude: number
+  longitude: number
+}
+
+export interface CatalogMapResult {
+  points: CatalogMapPoint[]
+  asOfUtc?: string | null
+}
+
+export type CatalogMapCapability = 'blocked' | 'available' | 'unavailable'
+
 export type CatalogErrorCode = 'catalog_too_large' | 'not_found' | 'network' | 'unknown'
 
 export interface CatalogError {
@@ -55,4 +77,5 @@ export interface CatalogError {
 export interface CatalogClient {
   list(filters: CatalogFilters): Promise<CatalogListResult>
   details(slug: string): Promise<CatalogStore | null>
+  map?(filters: CatalogFilters, bounds: CatalogMapBounds): Promise<CatalogMapResult>
 }
