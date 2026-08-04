@@ -1,0 +1,41 @@
+begin;
+select plan(32);
+
+select has_table('trip_private','offline_grant_signing_receipts','pre-issued offline grant receipts exist');
+select has_table('trip_private','invitation_signing_receipts','pre-issued invitation receipts exist');
+select has_table('trip_private','routing_contract_receipts','R-01 receipts exist');
+select has_table('trip_private','check_my_day_requests','authoritative Check My Day requests exist');
+select has_table('trip_private','check_my_day_route_runs','provider route runs are durable');
+select has_table('trip_private','check_my_day_suggestions','server suggestions are durable');
+select has_table('trip_private','trip_conflict_resolution_receipts','conflict choices are append-only receipts');
+select has_function('app_public','start_trip_with_offline_grant',array['text','text','text'],'offline start consumes a signer receipt');
+select has_function('app_public','get_offline_trip_queue',array['text'],'offline queue read exists');
+select has_function('app_public','queue_offline_trip_action',array['text','jsonb'],'legacy plaintext queue fails closed');
+select has_function('app_public','resolve_trip_conflict',array['text','text'],'offline conflict resolution exists');
+select has_function('app_public','purge_offline_trip',array['text','text'],'offline purge exists');
+select has_function('app_public','replay_trip_mutations',array['text'],'legacy replay read exists');
+select has_function('app_public','get_trip_collaboration',array['text'],'collaboration read exists');
+select has_function('app_public','invite_trip_partner',array['text','text'],'partner invitation consumes a signer receipt');
+select has_function('app_public','revoke_trip_invitation',array['text','text'],'invitation revoke exists');
+select has_function('app_public','accept_trip_invitation',array['text'],'verified-email invitation acceptance exists');
+select has_function('app_public','assign_navigator',array['text','text'],'navigator assignment exists');
+select has_function('app_public','leave_trip',array['text'],'partner leave exists');
+select has_function('app_public','request_check_my_day',array['text'],'authoritative route request exists');
+select has_function('app_public','get_check_my_day_suggestion',array['text'],'authoritative suggestion read exists');
+select has_function('trip_private','record_check_my_day_suggestion',array['uuid','text','text','integer','numeric','jsonb','timestamp with time zone','uuid[]','jsonb'],'route worker has one bounded evidence command');
+select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_roles where rolname='trip_grant_signer'),'offline grant signer role is constrained');
+select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_roles where rolname='trip_invitation_signer'),'invitation signer role is constrained');
+select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_roles where rolname='trip_route_worker'),'route worker role is constrained');
+select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_roles where rolname='trip_route_authorizer'),'R-01 authorizer role is constrained and separate');
+select ok((select pg_get_functiondef(p.oid) like '%offline_grant_signing_receipts%' and pg_get_functiondef(p.oid) not like '%sign(%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public' and p.proname='start_trip_with_offline_grant'),'browser command consumes but cannot mint a grant');
+select ok((select pg_get_functiondef(p.oid) like '%departure_required%' and pg_get_functiondef(p.oid) like '%r01_blocked%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public' and p.proname='request_check_my_day'),'Check My Day does not invent departure and remains R-01 gated');
+select ok(not has_schema_privilege('trip_grant_signer','trip_private','CREATE'),'offline signer cannot create private objects');
+select ok(not has_schema_privilege('trip_invitation_signer','trip_private','CREATE'),'invitation signer cannot create private objects');
+
+set local role anon;
+select throws_ok($$select app_public.get_trip_collaboration('00000000-0000-0000-0000-000000000000')$$,'42501','anonymous collaboration read denied');
+select throws_ok($$select app_public.request_check_my_day('00000000-0000-0000-0000-000000000000')$$,'42501','anonymous route request denied');
+
+reset role;
+select * from finish();
+rollback;

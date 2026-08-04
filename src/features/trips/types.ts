@@ -80,6 +80,15 @@ export type TripMutationReplayResult =
   | { state: 'conflict'; summary: string }
   | { state: 'unauthorized' }
 
+export type CheckMyDayServerState = 'blocked' | 'ready' | 'running' | 'suggested' | 'failed'
+export interface CheckMyDayServerResult {
+  requestId: string
+  state: CheckMyDayServerState
+  reason?: 'r01_blocked' | 'departure_required' | 'coordinates_required' | 'trip_changed'
+  orderedStopIds?: string[]
+  explanation?: string[]
+}
+
 export interface TripClient {
   list(): Promise<Trip[]>
   get(id: string): Promise<Trip | null>
@@ -119,4 +128,6 @@ export interface TripClient {
     choice: 'suggested' | 'manual',
     stopIds: string[],
   ): Promise<Trip>
+  requestCheckMyDay?(tripId: string): Promise<CheckMyDayServerResult>
+  getCheckMyDaySuggestion?(requestId: string): Promise<CheckMyDayServerResult>
 }

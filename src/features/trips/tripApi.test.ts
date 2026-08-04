@@ -146,6 +146,25 @@ describe('implicit-actor TripClient transport', () => {
     for (const [, payload] of wire.invoke.mock.calls) expect(payload).not.toHaveProperty('actor_id')
   })
 
+  it('uses the authoritative Check My Day request and suggestion commands', async () => {
+    const wire = transport({ requestId: 'request-1', state: 'blocked', reason: 'r01_blocked' })
+    const api = createTripApi(wire)
+    await expect(api.requestCheckMyDay?.('trip-1')).resolves.toEqual({
+      requestId: 'request-1',
+      state: 'blocked',
+      reason: 'r01_blocked',
+    })
+    await expect(api.getCheckMyDaySuggestion?.('request-1')).resolves.toEqual({
+      requestId: 'request-1',
+      state: 'blocked',
+      reason: 'r01_blocked',
+    })
+    expect(wire.invoke.mock.calls).toEqual([
+      ['request_check_my_day', { trip_id: 'trip-1' }],
+      ['get_check_my_day_suggestion', { request_id: 'request-1' }],
+    ])
+  })
+
   it('normalizes transport, malformed-response, and local-validation failures reason-neutrally', async () => {
     const denied: TripTransport = {
       async invoke() {

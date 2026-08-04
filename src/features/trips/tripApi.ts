@@ -13,6 +13,7 @@ import type {
   TripParticipant,
   TripStop,
   TripMutationReplayResult,
+  CheckMyDayServerResult,
 } from './types'
 
 export type TripApiCommand =
@@ -39,6 +40,8 @@ export type TripApiCommand =
   | 'assign_navigator'
   | 'leave_trip'
   | 'save_check_my_day_choice'
+  | 'request_check_my_day'
+  | 'get_check_my_day_suggestion'
 
 /** The transport derives the current actor from its authenticated session. */
 export interface TripTransport {
@@ -213,6 +216,44 @@ function parseMutationReplay(value: unknown): TripMutationReplayResult {
   if (state === 'unauthorized') return { state } as const
   if (state === 'conflict') return { state, summary: string(source.summary, 500) } as const
   return { state: 'accepted', trip: parseTrip(source.trip) }
+}
+
+function parseCheckMyDayServerResult(value: unknown): CheckMyDayServerResult {
+  const source = record(value)
+  const state = enumValue<CheckMyDayServerResult['state']>(
+    source.state,
+    new Set(['blocked', 'ready', 'running', 'suggested', 'failed']),
+  )
+  const reason =
+    source.reason == null
+      ? undefined
+      : enumValue<NonNullable<CheckMyDayServerResult['reason']>>(
+          source.reason,
+          new Set(['r01_blocked', 'departure_required', 'coordinates_required', 'trip_changed']),
+        )
+  const orderedStopIds =
+    source.orderedStopIds == null
+      ? undefined
+      : Array.isArray(source.orderedStopIds) && source.orderedStopIds.length <= 8
+        ? source.orderedStopIds.map((id) => boundedId(string(id, 128)))
+        : (() => {
+            throw genericFailure()
+          })()
+  const explanation =
+    source.explanation == null
+      ? undefined
+      : Array.isArray(source.explanation) && source.explanation.length <= 20
+        ? source.explanation.map((item) => string(item, 500))
+        : (() => {
+            throw genericFailure()
+          })()
+  return {
+    requestId: boundedId(string(source.requestId, 128)),
+    state,
+    reason,
+    orderedStopIds,
+    explanation,
+  }
 }
 
 function boundedId(value: string): string {
@@ -454,6 +495,20 @@ export function createTripApi(transport: TripTransport): TripClient {
           stop_ids: stopIds.map(boundedId),
         }),
         parseTrip,
+      )
+    },
+    requestCheckMyDay(tripId) {
+      return execute(
+        'request_check_my_day',
+        () => ({ trip_id: boundedId(tripId) }),
+        parseCheckMyDayServerResult,
+      )
+    },
+    getCheckMyDaySuggestion(requestId) {
+      return execute(
+        'get_check_my_day_suggestion',
+        () => ({ request_id: boundedId(requestId) }),
+        parseCheckMyDayServerResult,
       )
     },
   }
