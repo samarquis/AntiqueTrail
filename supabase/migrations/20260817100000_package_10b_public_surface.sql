@@ -7,6 +7,7 @@ do $$ begin
   end if;
 end $$;
 grant release_automation,catalog_reader to postgres;
+grant usage on schema app_public to release_automation;
 
 alter table app_public.stores drop constraint if exists stores_audience_synthetic;
 alter table app_public.stores add constraint stores_audience_stage check (
