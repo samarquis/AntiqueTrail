@@ -18,6 +18,21 @@ describe('app shell', () => {
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument()
   })
 
+  it('wires private shopper actions into public catalog results', async () => {
+    render(
+      <MemoryRouter initialEntries={['/stores']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(await screen.findAllByRole('link', { name: /sign in to save store/i })).not.toHaveLength(
+      0,
+    )
+    expect(screen.getAllByRole('link', { name: /sign in for private memory/i })).not.toHaveLength(
+      0,
+    )
+    expect(screen.getAllByRole('link', { name: /suggest a correction/i })).not.toHaveLength(0)
+  })
+
   it('fails the unavailable admin boundary closed without a role bypass', async () => {
     render(
       <MemoryRouter initialEntries={['/admin']}>

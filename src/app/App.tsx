@@ -25,6 +25,7 @@ import {
   type SessionRegistryClient,
 } from '../features/auth'
 import {
+  CatalogPrivateActions,
   CorrectionPage,
   CorrectionStatusPage,
   HistoryPage,
@@ -136,14 +137,30 @@ function AppShell({ children }: { children: ReactNode }) {
   )
 }
 
-function StoreBrowser() {
+function StoreBrowser({ shopperClient }: { shopperClient: ShopperPrivateClient }) {
   const location = useLocation()
-  return <CatalogBrowserPage client={catalogClient} initialSearch={location.search} />
+  return (
+    <CatalogBrowserPage
+      client={catalogClient}
+      initialSearch={location.search}
+      renderPrivateActions={(store) => (
+        <CatalogPrivateActions storeId={store.id} slug={store.slug} client={shopperClient} />
+      )}
+    />
+  )
 }
 
-function StoreDetails() {
+function StoreDetails({ shopperClient }: { shopperClient: ShopperPrivateClient }) {
   const { slug = '' } = useParams()
-  return <CatalogDetailsPage client={catalogClient} slug={slug} />
+  return (
+    <CatalogDetailsPage
+      client={catalogClient}
+      slug={slug}
+      renderPrivateActions={(store) => (
+        <CatalogPrivateActions storeId={store.id} slug={store.slug} client={shopperClient} />
+      )}
+    />
+  )
 }
 
 function StoreReviews() {
@@ -348,8 +365,11 @@ export default function App({
       <TripAccountLifecycle runtime={tripOffline} />
       <AppShell key={privacyEpoch}>
         <Routes>
-          <Route path="/stores" element={<StoreBrowser />} />
-          <Route path="/stores/:slug" element={<StoreDetails />} />
+          <Route path="/stores" element={<StoreBrowser shopperClient={shopperClient} />} />
+          <Route
+            path="/stores/:slug"
+            element={<StoreDetails shopperClient={shopperClient} />}
+          />
           <Route path="/stores/:slug/reviews" element={<StoreReviews />} />
           <Route
             path="/stores/:slug/memory"
