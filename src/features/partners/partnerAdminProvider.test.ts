@@ -9,6 +9,7 @@ function dependencies(
 ): PartnerAdminInvitationDependencies {
   return {
     syntheticEnabled: true,
+    appOrigin: 'https://app.example.test',
     emailHmacSecret: 'test-secret-at-least-32-characters',
     hmacKeyVersion: 1,
     issue: vi.fn(async () => ({
@@ -26,12 +27,18 @@ describe('partner Administrator invitation provider boundary', () => {
     const response = await handlePartnerAdminInvitation(
       new Request('https://example.test', {
         method: 'POST',
-        headers: { authorization: 'Bearer session', 'content-type': 'application/json' },
+        headers: {
+          authorization: 'Bearer session',
+          'content-type': 'application/json',
+          origin: 'https://app.example.test',
+        },
         body: JSON.stringify({ email: ' Owner@Example.COM ', idempotencyKey: 'invite-owner-1' }),
       }),
       boundary,
     )
     expect(response.status).toBe(200)
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://app.example.test')
+    expect(response.headers.get('Vary')).toBe('Authorization, Origin')
     expect(boundary.issue).toHaveBeenCalledWith(
       expect.objectContaining({
         authorization: 'Bearer session',
@@ -49,12 +56,60 @@ describe('partner Administrator invitation provider boundary', () => {
     const response = await handlePartnerAdminInvitation(
       new Request('https://example.test', {
         method: 'POST',
-        headers: { authorization: 'Bearer session', 'content-type': 'application/json' },
+        headers: {
+          authorization: 'Bearer session',
+          'content-type': 'application/json',
+          origin: 'https://app.example.test',
+        },
         body: JSON.stringify({ email: 'owner@example.com', idempotencyKey: 'invite-owner-1' }),
       }),
       boundary,
     )
     expect(response.status).toBe(503)
+    expect(boundary.issue).not.toHaveBeenCalled()
+  })
+
+  it('answers exact-origin preflight and rejects every other origin', async () => {
+    const boundary = dependencies()
+    const allowed = await handlePartnerAdminInvitation(
+      new Request('https://example.test', {
+        method: 'OPTIONS',
+        headers: { origin: 'https://app.example.test' },
+      }),
+      boundary,
+    )
+    expect(allowed.status).toBe(204)
+    expect(allowed.headers.get('Access-Control-Allow-Origin')).toBe('https://app.example.test')
+    expect(allowed.headers.get('Access-Control-Allow-Methods')).toBe('POST, OPTIONS')
+    expect(allowed.headers.get('Access-Control-Allow-Headers')).toContain('authorization')
+
+    const denied = await handlePartnerAdminInvitation(
+      new Request('https://example.test', {
+        method: 'OPTIONS',
+        headers: { origin: 'https://evil.example' },
+      }),
+      boundary,
+    )
+    expect(denied.status).toBe(403)
+    expect(denied.headers.get('Access-Control-Allow-Origin')).toBeNull()
+    expect(denied.headers.get('Vary')).toBe('Authorization, Origin')
+  })
+
+  it('rejects a cross-origin POST before invitation issuance', async () => {
+    const boundary = dependencies()
+    const response = await handlePartnerAdminInvitation(
+      new Request('https://example.test', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer session',
+          'content-type': 'application/json',
+          origin: 'https://evil.example',
+        },
+        body: JSON.stringify({ email: 'owner@example.com', idempotencyKey: 'invite-owner-1' }),
+      }),
+      boundary,
+    )
+    expect(response.status).toBe(403)
     expect(boundary.issue).not.toHaveBeenCalled()
   })
 })

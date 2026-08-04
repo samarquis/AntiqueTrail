@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
 import { prepareSyntheticPartnerPayload } from '../_shared/partner-command-payload.ts'
+import { partnerCors, partnerPreflight } from '../_shared/partner-cors.ts'
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
@@ -11,11 +12,15 @@ const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
 const syntheticEnabled = Deno.env.get('PARTNER_SYNTHETIC_ENABLED') === 'true'
 const emailHmacSecret = Deno.env.get('PARTNER_EMAIL_HMAC_SECRET')
 const evidenceHmacSecret = Deno.env.get('PARTNER_EVIDENCE_HMAC_SECRET')
+const appOrigin = Deno.env.get('APP_ORIGIN')
 
 Deno.serve(async (request) => {
-  if (request.method !== 'POST' || !url || !anonKey) return unavailable()
+  const cors = partnerCors(request, appOrigin)
+  if (request.method === 'OPTIONS') return partnerPreflight(cors)
+  if (!cors.allowed) return unavailable(cors.headers, 403)
+  if (request.method !== 'POST' || !url || !anonKey) return unavailable(cors.headers)
   const authorization = request.headers.get('authorization')
-  if (!authorization) return new Response('Unauthorized', { status: 401 })
+  if (!authorization) return new Response('Unauthorized', { status: 401, headers: cors.headers })
   try {
     const body = (await request.json()) as {
       operation?: string
@@ -24,7 +29,7 @@ Deno.serve(async (request) => {
     }
     // This deployment intentionally implements only Synthetic evidence. A
     // real E-01 path remains unavailable until its approved provider exists.
-    if (!body.synthetic || !syntheticEnabled) return unavailable()
+    if (!body.synthetic || !syntheticEnabled) return unavailable(cors.headers)
     if (
       !body.operation ||
       ![
@@ -35,7 +40,7 @@ Deno.serve(async (request) => {
         'request_authority_recheck',
       ].includes(body.operation)
     )
-      return unavailable()
+      return unavailable(cors.headers)
     const client = createClient(url, anonKey, {
       db: { schema: 'app_public' },
       global: { headers: { Authorization: authorization } },
@@ -49,13 +54,13 @@ Deno.serve(async (request) => {
       p_operation: body.operation,
       p_payload: payload,
     })
-    if (result.error) return unavailable()
-    return Response.json(result.data)
+    if (result.error) return unavailable(cors.headers)
+    return Response.json(result.data, { headers: cors.headers })
   } catch {
-    return unavailable()
+    return unavailable(cors.headers)
   }
 })
 
-function unavailable() {
-  return new Response('Unavailable', { status: 503 })
+function unavailable(headers: Record<string, string>, status = 503) {
+  return new Response('Unavailable', { status, headers })
 }

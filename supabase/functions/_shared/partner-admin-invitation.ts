@@ -6,6 +6,7 @@ export interface PartnerAdminInvitationResult {
 
 export interface PartnerAdminInvitationDependencies {
   syntheticEnabled: boolean
+  appOrigin?: string
   emailHmacSecret?: string
   hmacKeyVersion: number
   issue(input: {
@@ -23,9 +24,13 @@ export async function handlePartnerAdminInvitation(
   request: Request,
   dependencies: PartnerAdminInvitationDependencies,
 ): Promise<Response> {
-  if (request.method !== 'POST' || !dependencies.syntheticEnabled) return unavailable()
+  const cors = partnerCors(request, dependencies.appOrigin)
+  if (request.method === 'OPTIONS') return partnerPreflight(cors)
+  if (!cors.allowed) return unavailable(cors.headers, 403)
+  if (request.method !== 'POST' || !dependencies.syntheticEnabled) return unavailable(cors.headers)
   const authorization = request.headers.get('authorization')
-  if (!authorization?.startsWith('Bearer ') || !dependencies.emailHmacSecret) return unavailable()
+  if (!authorization?.startsWith('Bearer ') || !dependencies.emailHmacSecret)
+    return unavailable(cors.headers)
   try {
     const body = (await request.json()) as { email?: unknown; idempotencyKey?: unknown }
     if (
@@ -35,7 +40,7 @@ export async function handlePartnerAdminInvitation(
       !idempotencyPattern.test(body.idempotencyKey) ||
       dependencies.hmacKeyVersion < 1
     )
-      return unavailable()
+      return unavailable(cors.headers)
     const recipientEmailHmac = `\\x${await hmacHex(
       normalizeEmail(body.email),
       dependencies.emailHmacSecret,
@@ -47,10 +52,10 @@ export async function handlePartnerAdminInvitation(
       idempotencyKey: body.idempotencyKey,
     })
     return Response.json(result, {
-      headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+      headers: cors.headers,
     })
   } catch {
-    return unavailable()
+    return unavailable(cors.headers)
   }
 }
 
@@ -71,9 +76,11 @@ async function hmacHex(value: string, secret: string): Promise<string> {
   return [...digest].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-function unavailable() {
+function unavailable(headers: Record<string, string>, status = 503) {
   return new Response('Unavailable', {
-    status: 503,
-    headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+    status,
+    headers,
   })
 }
+// @ts-expect-error Deno Edge imports require an explicit TypeScript extension.
+import { partnerCors, partnerPreflight } from './partner-cors.ts'
