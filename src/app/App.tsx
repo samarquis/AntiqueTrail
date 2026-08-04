@@ -366,10 +366,7 @@ export default function App({
       <AppShell key={privacyEpoch}>
         <Routes>
           <Route path="/stores" element={<StoreBrowser shopperClient={shopperClient} />} />
-          <Route
-            path="/stores/:slug"
-            element={<StoreDetails shopperClient={shopperClient} />}
-          />
+          <Route path="/stores/:slug" element={<StoreDetails shopperClient={shopperClient} />} />
           <Route path="/stores/:slug/reviews" element={<StoreReviews />} />
           <Route
             path="/stores/:slug/memory"

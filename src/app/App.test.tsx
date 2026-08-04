@@ -27,9 +27,7 @@ describe('app shell', () => {
     expect(await screen.findAllByRole('link', { name: /sign in to save store/i })).not.toHaveLength(
       0,
     )
-    expect(screen.getAllByRole('link', { name: /sign in for private memory/i })).not.toHaveLength(
-      0,
-    )
+    expect(screen.getAllByRole('link', { name: /sign in for private memory/i })).not.toHaveLength(0)
     expect(screen.getAllByRole('link', { name: /suggest a correction/i })).not.toHaveLength(0)
   })
 

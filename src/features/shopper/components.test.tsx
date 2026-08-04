@@ -115,6 +115,14 @@ describe('private shopper screens', () => {
     )
     const signIn = screen.getByRole('link', { name: /sign in to save store/i })
     expect(signIn).toHaveAttribute('href', '/auth/sign-in?returnTo=%2Fstores%2Foak%3Ffrom%3Dtrail')
+    expect(screen.getByRole('link', { name: /sign in for private memory/i })).toHaveAttribute(
+      'href',
+      '/auth/sign-in?returnTo=%2Fstores%2Foak%2Fmemory%3FstoreId%3Dstore-1',
+    )
+    expect(screen.getByRole('link', { name: /suggest a correction/i })).toHaveAttribute(
+      'href',
+      '/stores/oak/correction?storeId=store-1',
+    )
     await user.click(signIn)
     expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toContain(
       '"storeId":"store-1"',
@@ -157,8 +165,25 @@ describe('private shopper screens', () => {
     expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toBeNull()
     expect(screen.getByRole('link', { name: /private memory/i })).toHaveAttribute(
       'href',
-      '/stores/oak/memory',
+      '/stores/oak/memory?storeId=store-1',
     )
+  })
+
+  it('uses the stable catalog id rather than the public slug for memory RPCs', async () => {
+    const getMemory = vi.fn<ShopperPrivateClient['getMemory']>(async () => null)
+    render(
+      <MemoryRouter initialEntries={['/stores/oak/memory?storeId=store-1']}>
+        <Routes>
+          <Route
+            path="/stores/:slug/memory"
+            element={<MemoryPage client={client({ getMemory })} />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: /private store memory/i })).toBeVisible()
+    expect(getMemory).toHaveBeenCalledWith('store-1')
   })
 
   it('persists a private memory and restores it through deletion Undo', async () => {

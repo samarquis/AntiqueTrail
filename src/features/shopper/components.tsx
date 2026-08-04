@@ -177,8 +177,9 @@ export function CatalogPrivateActions({
     }
   }, [client, returnTo, session, storeId])
 
-  const memoryPath = `/stores/${encodeURIComponent(slug)}/memory`
-  const correctionPath = `/stores/${encodeURIComponent(slug)}/correction`
+  const storeQuery = `storeId=${encodeURIComponent(storeId)}`
+  const memoryPath = `/stores/${encodeURIComponent(slug)}/memory?${storeQuery}`
+  const correctionPath = `/stores/${encodeURIComponent(slug)}/correction?${storeQuery}`
   if (!session)
     return (
       <nav aria-label="Private store actions">
@@ -441,8 +442,10 @@ export function MemoryPage({
   client?: ShopperPrivateClient
 }) {
   const { slug = '' } = useParams()
+  const location = useLocation()
+  const storeId = new URLSearchParams(location.search).get('storeId') || slug
   const [memory, setMemory] = useState<PrivateStoreMemory>({
-    storeId: slug,
+    storeId,
     rating: null,
     note: null,
     lastVisitMonth: null,
@@ -454,7 +457,7 @@ export function MemoryPage({
   useEffect(() => {
     let cancelled = false
     client
-      .getMemory(slug)
+      .getMemory(storeId)
       .then((result) => {
         if (!cancelled && result) setMemory(result)
         if (!cancelled) setState('updated')
@@ -468,7 +471,7 @@ export function MemoryPage({
     return () => {
       cancelled = true
     }
-  }, [client, slug])
+  }, [client, storeId])
   async function save(event: FormEvent) {
     event.preventDefault()
     setState('loading')
@@ -485,7 +488,7 @@ export function MemoryPage({
   async function remove() {
     setState('delete-pending')
     try {
-      setDeleteReceipt(await client.deleteMemory(slug))
+      setDeleteReceipt(await client.deleteMemory(storeId))
       setState('deleted')
     } catch {
       setError(true)
@@ -497,7 +500,7 @@ export function MemoryPage({
     setState('loading')
     setError(false)
     try {
-      setMemory(await client.undoDeleteMemory(slug, deleteReceipt.undoToken))
+      setMemory(await client.undoDeleteMemory(storeId, deleteReceipt.undoToken))
       setDeleteReceipt(null)
       setState('undone')
     } catch {
@@ -585,10 +588,11 @@ export function CorrectionPage({
   const { slug = '' } = useParams()
   const { session } = useAuth()
   const location = useLocation()
+  const storeId = new URLSearchParams(location.search).get('storeId') || slug
   const [draft, setDraft] = useState<CorrectionDraft>(
     () =>
       correctionDraftCache.get(slug) ?? {
-        storeId: slug,
+        storeId,
         type: 'hours',
         description: '',
       },
