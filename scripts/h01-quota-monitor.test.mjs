@@ -97,6 +97,19 @@ test('automatic paid overage blocks runtime work at any utilization', () => {
   assert.equal(plan.controls.coreBrowseAndAccountSafetyAllowed, false)
 })
 
+test('forecast pressure actuates the same thresholds before current usage reaches them', () => {
+  const signed = observation(10)
+  for (const metric of signed.quotas) metric.forecastAbuse = metric.safeLimit * 0.9
+  signed.signature.signature = sign(
+    null,
+    Buffer.from(canonicalJson(buildObservationPayload(signed))),
+    privateKey,
+  ).toString('base64')
+  const plan = evaluateQuotaObservation(signed, registry, { now: NOW })
+  assert.ok(plan.actions.includes('disable_optional_maps'))
+  assert.equal(plan.controls.coreBrowseAndAccountSafetyAllowed, true)
+})
+
 test('missing, stale, tampered, and incomplete observations fail closed deterministically', () => {
   const stale = observation(10)
   const first = evaluateQuotaObservation(stale, registry, {
@@ -164,7 +177,7 @@ test('constrained actuator accepts only a digest-bound exact-action receipt', as
       json: async () => ({ status: 'APPLIED', actions: ['enable_maps'] }),
     }),
   )
-  assert.equal(rejected.status, 'BLOCKED')
+  assert.equal(rejected.status, 'UNKNOWN_BLOCKED')
 })
 
 test('actuator queries idempotent status and persists unknown finality fail closed', async () => {

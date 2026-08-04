@@ -286,11 +286,12 @@ export function evaluateQuota(metric) {
   }
   const utilization = metric.current / effectiveLimit
   const forecastUtilization = Math.max(metric.forecastNormal, metric.forecastAbuse) / effectiveLimit
+  const pressureUtilization = Math.max(utilization, forecastUtilization)
   const automaticPaidOverage = metric.automaticPaidOverage === true
   let action = 'continue'
-  if (utilization >= 1) action = 'block'
-  else if (utilization >= 0.9) action = 'degrade'
-  else if (utilization >= 0.75) action = 'pause'
+  if (pressureUtilization >= 1) action = 'block'
+  else if (pressureUtilization >= 0.9) action = 'degrade'
+  else if (pressureUtilization >= 0.75) action = 'pause'
   return {
     name: metric.name,
     unit: metric.unit,

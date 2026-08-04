@@ -197,36 +197,14 @@ export async function actuateQuotaPlan(plan, configuration = {}, fetchImpl = glo
     })
     return { response, body: await response.json().catch(() => null) }
   }
-  let result
-  try {
-    result = await send(request)
-  } catch {
-    try {
-      result = await send({
-        schemaVersion: 1,
-        operation: 'get-h01-quota-restriction-status',
-        environment: plan.environment,
-        observationDigest: plan.observationDigest,
-        planDigest: plan.planDigest,
-      })
-    } catch {
-      const unknownBody = {
-        schemaVersion: 1,
-        gate: 'H-01-QUOTA',
-        status: 'UNKNOWN_BLOCKED',
-        reasonCode: 'actuator.finality_unknown',
-        planDigest: plan.planDigest,
-        observationDigest: plan.observationDigest,
-        requestId: null,
-        actions: [],
-      }
-      return { ...unknownBody, receiptDigest: digest(unknownBody) }
-    }
+  const statusRequest = {
+    schemaVersion: 1,
+    operation: 'get-h01-quota-restriction-status',
+    environment: plan.environment,
+    observationDigest: plan.observationDigest,
+    planDigest: plan.planDigest,
   }
-  const { response, body } = result
-  const exactActions =
-    Array.isArray(body?.actions) && canonicalJson(body.actions) === canonicalJson(plan.actions)
-  const valid =
+  const exactApplied = ({ response, body }) =>
     response.ok &&
     body?.schemaVersion === 1 &&
     body?.status === 'APPLIED' &&
@@ -234,12 +212,26 @@ export async function actuateQuotaPlan(plan, configuration = {}, fetchImpl = glo
     body?.planDigest === plan.planDigest &&
     body?.observationDigest === plan.observationDigest &&
     /^[A-Za-z0-9._:-]{1,96}$/.test(body?.requestId ?? '') &&
-    exactActions
+    Array.isArray(body?.actions) &&
+    canonicalJson(body.actions) === canonicalJson(plan.actions)
+  let result
+  try {
+    result = await send(request)
+    if (!exactApplied(result)) result = await send(statusRequest)
+  } catch {
+    try {
+      result = await send(statusRequest)
+    } catch {
+      result = null
+    }
+  }
+  const valid = result ? exactApplied(result) : false
+  const body = result?.body
   const receiptBody = {
     schemaVersion: 1,
     gate: 'H-01-QUOTA',
-    status: valid ? 'APPLIED' : 'BLOCKED',
-    reasonCode: valid ? 'actuator.applied_exact_plan' : 'actuator.receipt_invalid',
+    status: valid ? 'APPLIED' : 'UNKNOWN_BLOCKED',
+    reasonCode: valid ? 'actuator.applied_exact_plan' : 'actuator.finality_unknown',
     planDigest: plan.planDigest,
     observationDigest: plan.observationDigest,
     requestId: valid ? body.requestId : null,
@@ -282,7 +274,7 @@ async function main() {
       : { plan }
   await writeFile(path.resolve(options.out), `${JSON.stringify(result, null, 2)}\n`, { flag: 'wx' })
   process.stdout.write(`${JSON.stringify(result)}\n`)
-  if (command === 'actuate' && result.receipt.status === 'BLOCKED') process.exitCode = 2
+  if (command === 'actuate' && result.receipt.status !== 'APPLIED') process.exitCode = 2
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
