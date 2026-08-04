@@ -48,7 +48,18 @@ Deno.serve(async (request) => {
       async getExportMedia(bucketId, objectKey, maxBytes) {
         if (bucketId !== 'candidate-private' || !candidateBucket)
           throw new Error('account_export_media_unavailable')
-        const result = await client.storage.from(candidateBucket).download(objectKey)
+        const storage = client.storage.from(candidateBucket)
+        const info = await storage.info(objectKey)
+        if (info.error) throw info.error
+        const authoritativeBytes = info.data.size
+        if (
+          typeof authoritativeBytes !== 'number' ||
+          !Number.isSafeInteger(authoritativeBytes) ||
+          authoritativeBytes < 0 ||
+          authoritativeBytes > maxBytes
+        )
+          throw new Error('account_export_media_too_large')
+        const result = await storage.download(objectKey)
         if (result.error) throw result.error
         if (result.data.size > maxBytes) throw new Error('account_export_media_too_large')
         return new Uint8Array(await result.data.arrayBuffer())

@@ -440,8 +440,8 @@ export function DeleteAccountPage({
                 </li>
               </ul>
               <p>
-                Administrator and Representative grants are revoked and will not be restored
-                automatically if you cancel.
+                Cancellation restores ordinary account access only. Administrator and Representative
+                grants remain revoked and require normal re-verification.
               </p>
               <label>
                 <input

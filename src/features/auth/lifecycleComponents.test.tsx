@@ -244,6 +244,9 @@ describe('account lifecycle screens', () => {
     await user.type(screen.getByLabelText(/authentication or recovery code/i), '12345678')
     await user.click(screen.getByRole('button', { name: /verify and continue/i }))
     expect(await screen.findByText(/what deletion affects/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/cancellation restores ordinary account access only/i),
+    ).toBeInTheDocument()
     expect(mfaProvider.verifyMfa).toHaveBeenCalledWith('challenge-1', '12345678')
   })
 
