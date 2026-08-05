@@ -54,24 +54,21 @@ Deno.serve(async (request) => {
       headers: {
         'access-control-allow-origin': appOrigin,
         'access-control-allow-methods': 'POST',
-        'access-control-allow-headers': 'authorization,content-type',
+        'access-control-allow-headers': 'content-type',
         'access-control-max-age': '600',
         vary: 'origin',
       },
     })
   if (request.method !== 'POST' || !enabled || !supabaseUrl || !anonKey)
     return response(503, { status: 'disabled' }, appOrigin)
-  const bearer = request.headers.get('authorization')
-  if (!bearer?.startsWith('Bearer ')) return response(404, { status: 'unavailable' }, appOrigin)
   try {
     const command = parseReviewerCredentialCommand(await request.json())
-    const user = createClient(supabaseUrl, anonKey, {
+    const capability = createClient(supabaseUrl, anonKey, {
       db: { schema: 'app_public' },
-      global: { headers: { authorization: bearer } },
       auth: { persistSession: false, autoRefreshToken: false },
     })
     if (command.operation === 'request_registration' || command.operation === 'request_assertion') {
-      const rpc = await user.rpc('reviews_request_reviewer_capability_challenge', {
+      const rpc = await capability.rpc('reviews_request_reviewer_capability_challenge', {
         p_capability_token: command.payload.capabilityToken,
         p_ceremony: command.operation === 'request_assertion' ? 'assertion' : 'registration',
         p_idempotency_key: command.payload.idempotencyKey,
@@ -80,7 +77,7 @@ Deno.serve(async (request) => {
       return response(200, rpc.data, appOrigin)
     }
     if (command.operation === 'revoke' || command.operation === 'list') {
-      const rpc = await user.rpc('reviews_manage_reviewer_credentials', {
+      const rpc = await capability.rpc('reviews_manage_reviewer_credentials', {
         p_operation: command.operation,
         p_capability_token: command.payload.capabilityToken,
         p_credential_record_id:
