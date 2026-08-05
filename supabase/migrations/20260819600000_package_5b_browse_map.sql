@@ -153,6 +153,6 @@ $$;
 alter function app_public.public_catalog_gateway_request(text,text,jsonb) owner to release_automation;
 revoke create on schema app_public from catalog_reader;
 revoke create on schema app_public from release_automation;
-revoke catalog_reader,release_automation from postgres;
 revoke all on function app_public.public_catalog_gateway_request(text,text,jsonb) from public,anon,authenticated;
 grant execute on function app_public.public_catalog_gateway_request(text,text,jsonb) to public_catalog_gateway;
+revoke catalog_reader,release_automation from postgres;
