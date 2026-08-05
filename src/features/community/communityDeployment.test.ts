@@ -7,6 +7,28 @@ import {
 import edgeSource from '../../../supabase/functions/community-deployment-command/index.ts?raw'
 
 describe('community deployment command boundary', () => {
+  it('derives the next ordinal on the server and rejects caller ordinal authority', () => {
+    const command = {
+      operation: 'prepare',
+      payload: {
+        runId: '12000000-0000-4000-8000-000000000101',
+        areaSlug: 'osage-city',
+        selectionReceiptId: '12000000-0000-4000-8000-000000000001',
+        prerequisiteReceiptId: '12000000-0000-4000-8000-000000000002',
+        expectedRootVersion: 1,
+        idempotencyKey: 'prepare-osage',
+      },
+    } as const
+
+    expect(parseCommunityDeploymentCommand(command)).toEqual(command)
+    expect(() =>
+      parseCommunityDeploymentCommand({
+        ...command,
+        payload: { ...command.payload, targetOrdinal: 1 },
+      }),
+    ).toThrow('community_command_unavailable')
+  })
+
   it('accepts an exact freeze payload and rejects extra authority', () => {
     const command = {
       operation: 'freeze',

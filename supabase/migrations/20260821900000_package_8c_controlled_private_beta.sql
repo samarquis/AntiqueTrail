@@ -17,6 +17,7 @@ end $$;
 grant beta_automation,beta_evidence_service to postgres;
 grant authenticated,identity_service,catalog_reader to beta_automation;
 grant usage on schema beta_private,app_public,partner_private to beta_automation,beta_evidence_service;
+grant usage on schema auth,app_private to beta_automation;
 grant create on schema beta_private,app_public to beta_automation;
 grant execute on function app_private.current_session_is_active(),app_private.current_session_has_mfa(),
   app_private.current_session_recent_auth(interval) to beta_automation;
@@ -67,6 +68,21 @@ create table beta_private.pilot_cohorts (
   version bigint not null default 1 check(version>0),
   created_at timestamptz not null default statement_timestamp(),
   check(readiness_review='closed' or current_ordinal=3)
+);
+
+create table beta_private.pilot_cohort_accounts (
+  cohort_id uuid not null references beta_private.pilot_cohorts(cohort_id) on delete restrict,
+  user_id uuid not null references auth.users(id) on delete restrict,
+  account_role text not null check(account_role in ('shopper','administrator','store_representative')),
+  store_id uuid references app_public.stores(id) on delete restrict,
+  verified boolean not null check(verified),
+  human boolean not null check(human),
+  state text not null default 'active' check(state in ('active','revoked')),
+  invited_at timestamptz not null default statement_timestamp(),
+  revoked_at timestamptz,
+  primary key(cohort_id,user_id),
+  check((account_role='store_representative' and store_id is not null) or (account_role<>'store_representative' and store_id is null)),
+  check((state='active' and revoked_at is null) or (state='revoked' and revoked_at is not null))
 );
 
 create table beta_private.pilot_visibility_grants (
@@ -229,7 +245,7 @@ create trigger beta_audit_append_only before update or delete on beta_private.be
 
 do $$ declare t text; begin
   foreach t in array array[
-    'beta_capability','prerequisite_receipts','product_owner_bindings','pilot_cohorts',
+    'beta_capability','prerequisite_receipts','product_owner_bindings','pilot_cohorts','pilot_cohort_accounts',
     'pilot_visibility_grants','pilot_store_admissions','beta_evidence_events','gate_assessments',
     'beta_defect_events','operational_fact_events','gate_challenges','gate_receipts','expansion_receipts',
     'command_receipts','beta_audit_events'
@@ -240,12 +256,12 @@ do $$ declare t text; begin
   end loop;
 end $$;
 
-grant select on beta_private.beta_capability,beta_private.prerequisite_receipts,beta_private.pilot_cohorts,beta_private.pilot_visibility_grants,
+grant select on beta_private.beta_capability,beta_private.prerequisite_receipts,beta_private.pilot_cohorts,beta_private.pilot_cohort_accounts,beta_private.pilot_visibility_grants,
   beta_private.pilot_store_admissions,beta_private.beta_evidence_events,beta_private.gate_assessments,
   beta_private.beta_defect_events,beta_private.operational_fact_events,beta_private.product_owner_bindings,
   beta_private.gate_challenges,beta_private.gate_receipts,beta_private.expansion_receipts,beta_private.command_receipts to beta_automation;
 grant insert,select on beta_private.prerequisite_receipts,beta_private.product_owner_bindings,
-  beta_private.pilot_cohorts,beta_private.pilot_visibility_grants,
+  beta_private.pilot_cohorts,beta_private.pilot_cohort_accounts,beta_private.pilot_visibility_grants,
   beta_private.beta_evidence_events,beta_private.gate_assessments,beta_private.beta_defect_events,
   beta_private.operational_fact_events to beta_evidence_service;
 grant select,insert,update on beta_private.beta_capability,beta_private.pilot_cohorts,
@@ -254,13 +270,17 @@ grant select,insert,update on beta_private.beta_capability,beta_private.pilot_co
 grant insert,select on beta_private.beta_audit_events to beta_automation;
 
 do $$ declare t text; begin
-  foreach t in array array['beta_capability','prerequisite_receipts','pilot_cohorts','pilot_visibility_grants','pilot_store_admissions','beta_evidence_events','gate_assessments','beta_defect_events','operational_fact_events','product_owner_bindings','gate_challenges','gate_receipts','expansion_receipts','command_receipts','beta_audit_events'] loop
+  foreach t in array array['beta_capability','prerequisite_receipts','pilot_cohorts','pilot_cohort_accounts','pilot_visibility_grants','pilot_store_admissions','beta_evidence_events','gate_assessments','beta_defect_events','operational_fact_events','product_owner_bindings','gate_challenges','gate_receipts','expansion_receipts','command_receipts','beta_audit_events'] loop
     execute format('create policy beta_automation_%I on beta_private.%I for all to beta_automation using(true) with check(true)',t,t);
   end loop;
-  foreach t in array array['prerequisite_receipts','product_owner_bindings','pilot_cohorts','pilot_visibility_grants','beta_evidence_events','gate_assessments','beta_defect_events','operational_fact_events'] loop
+  foreach t in array array['prerequisite_receipts','product_owner_bindings','pilot_cohorts','pilot_cohort_accounts','pilot_visibility_grants','beta_evidence_events','gate_assessments','beta_defect_events','operational_fact_events'] loop
     execute format('create policy beta_evidence_%I on beta_private.%I for all to beta_evidence_service using(true) with check(true)',t,t);
   end loop;
 end $$;
+
+grant select(id,email_confirmed_at) on auth.users to beta_automation;
+grant select on app_private.role_grants to beta_automation;
+create policy beta_automation_role_grants on app_private.role_grants for select to beta_automation using(true);
 
 grant select on partner_private.pilot_consent_receipts,partner_private.store_partnerships,
   partner_private.store_partner_grants,partner_private.listing_claims,partner_private.claim_authority_signals to beta_automation;
@@ -319,6 +339,71 @@ language sql stable security definer set search_path='' as $$
 $$;
 alter function beta_private.gate_passable(uuid,smallint,timestamptz) owner to beta_automation;
 
+create or replace function beta_private.current_gate_digest(
+  p_cohort_id uuid,p_ordinal smallint,p_decision text,p_now timestamptz
+) returns bytea language sql stable security definer set search_path='' as $$
+  with latest_checks as (
+    select distinct on(check_code) evidence_event_id,check_code,status,artifact_digest,observed_at,valid_until
+    from beta_private.beta_evidence_events
+    where cohort_id=p_cohort_id and ordinal=p_ordinal and evidence_class='real' and observed_at<=p_now
+    order by check_code,observed_at desc,recorded_at desc
+  ), latest_assessment as (
+    select assessment_id,owner_continue,useful,understandable,direct_edit_or_reviewed_change,
+      channel_accept_decline_proven,support_load_accepted,artifact_digest,observed_at,valid_until
+    from beta_private.gate_assessments
+    where cohort_id=p_cohort_id and ordinal=p_ordinal and evidence_class='real' and observed_at<=p_now
+    order by observed_at desc,recorded_at desc limit 1
+  ), latest_defects as (
+    select distinct on(defect_key) defect_event_id,defect_key,severity,state,artifact_digest,observed_at
+    from beta_private.beta_defect_events
+    where cohort_id=p_cohort_id and evidence_class='real' and observed_at<=p_now
+    order by defect_key,observed_at desc,recorded_at desc
+  ), latest_operations as (
+    select distinct on(fact_kind) operational_event_id,fact_kind,status,artifact_digest,observed_at,valid_until
+    from beta_private.operational_fact_events
+    where evidence_class='real' and observed_at<=p_now
+    order by fact_kind,observed_at desc,recorded_at desc
+  ), packet as (
+    select jsonb_build_object(
+      'cohortId',p_cohort_id,'ordinal',p_ordinal,'decision',p_decision,
+      'checks',coalesce((select jsonb_agg(to_jsonb(c) order by c.check_code) from latest_checks c),'[]'::jsonb),
+      'assessment',coalesce((select to_jsonb(a) from latest_assessment a),'null'::jsonb),
+      'defects',coalesce((select jsonb_agg(to_jsonb(d) order by d.defect_key) from latest_defects d),'[]'::jsonb),
+      'operations',coalesce((select jsonb_agg(to_jsonb(o) order by o.fact_kind) from latest_operations o),'[]'::jsonb)
+    ) body
+  )
+  select extensions.digest(convert_to(body::text,'UTF8'),'sha256') from packet
+$$;
+alter function beta_private.current_gate_digest(uuid,smallint,text,timestamptz) owner to beta_automation;
+
+create or replace function beta_private.cohort_accounts_ready(
+  p_cohort_id uuid,p_store_id uuid,p_representative_user_id uuid,p_initial boolean
+) returns boolean language sql stable security definer set search_path='' as $$
+  with active_accounts as (
+    select a.* from beta_private.pilot_cohort_accounts a
+    join auth.users u on u.id=a.user_id and u.email_confirmed_at is not null
+    where a.cohort_id=p_cohort_id and a.state='active' and a.verified and a.human
+  ), role_aligned as (
+    select a.* from active_accounts a where exists (
+      select 1 from app_private.role_grants rg
+      where rg.subject_user_id=a.user_id and rg.state='active'
+        and rg.role::text=case a.account_role when 'store_representative' then 'representative' else a.account_role end
+        and ((a.account_role='store_representative' and rg.store_id=a.store_id) or (a.account_role<>'store_representative' and rg.store_id is null))
+    )
+  )
+  select case when p_initial then
+    (select count(*)=4 and count(distinct user_id)=4
+      and count(*) filter(where account_role='shopper')=2
+      and count(*) filter(where account_role='administrator')=1
+      and count(*) filter(where account_role='store_representative')=1
+      and bool_and(account_role<>'store_representative' or (user_id=p_representative_user_id and store_id=p_store_id))
+      from role_aligned)
+    and (select count(*) from beta_private.pilot_cohort_accounts where cohort_id=p_cohort_id and state='active')=4
+  else exists(select 1 from role_aligned where account_role='store_representative' and user_id=p_representative_user_id and store_id=p_store_id)
+  end
+$$;
+alter function beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean) owner to beta_automation;
+
 create or replace function beta_private.open_capability() returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare d bytea;
@@ -356,21 +441,14 @@ alter function app_public.beta_get_state(uuid) owner to beta_automation;
 
 create or replace function app_public.beta_request_gate_decision(p_cohort_id uuid,p_ordinal smallint,p_decision text) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare actor uuid:=beta_private.require_product_owner(); d bytea; cid uuid;
+declare actor uuid:=beta_private.require_product_owner(); d bytea; cid uuid; decision_now timestamptz:=statement_timestamp();
 begin
   if p_ordinal not between 1 and 3 or p_decision not in ('pass','reject')
     or not exists(select 1 from beta_private.pilot_store_admissions where cohort_id=p_cohort_id and ordinal=p_ordinal and state='active')
-    or (p_decision='pass' and not beta_private.gate_passable(p_cohort_id,p_ordinal,statement_timestamp())) then
+    or (p_decision='pass' and not beta_private.gate_passable(p_cohort_id,p_ordinal,decision_now)) then
     raise exception using errcode='55000',message='private_beta_gate_unavailable';
   end if;
-  select extensions.digest(convert_to(p_cohort_id::text||':'||p_ordinal::text||':'||p_decision||':'||
-    coalesce(string_agg(encode(x.artifact_digest,'hex'),'|' order by x.kind,x.observed_at),''),'UTF8'),'sha256') into d
-  from (
-    select check_code kind,artifact_digest,observed_at from beta_private.beta_evidence_events where cohort_id=p_cohort_id and ordinal=p_ordinal and evidence_class='real'
-    union all select 'assessment',artifact_digest,observed_at from beta_private.gate_assessments where cohort_id=p_cohort_id and ordinal=p_ordinal and evidence_class='real'
-    union all select 'defect:'||defect_key,artifact_digest,observed_at from beta_private.beta_defect_events where cohort_id=p_cohort_id and evidence_class='real'
-    union all select 'ops:'||fact_kind,artifact_digest,observed_at from beta_private.operational_fact_events where evidence_class='real'
-  ) x;
+  d:=beta_private.current_gate_digest(p_cohort_id,p_ordinal,p_decision,decision_now);
   insert into beta_private.gate_challenges(cohort_id,ordinal,decision,signer_user_id,frozen_payload_digest,expires_at)
     values(p_cohort_id,p_ordinal,p_decision,actor,d,statement_timestamp()+interval '30 minutes') returning challenge_id into cid;
   insert into beta_private.beta_audit_events(action,outcome,actor_user_id,cohort_id,ordinal,event_digest) values('gate_challenged','completed',actor,p_cohort_id,p_ordinal,d);
@@ -380,15 +458,16 @@ alter function app_public.beta_request_gate_decision(uuid,smallint,text) owner t
 
 create or replace function app_public.beta_complete_gate_decision(p_challenge_id uuid,p_payload_digest text,p_idempotency_key text) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare actor uuid:=beta_private.require_product_owner(); ch beta_private.gate_challenges%rowtype; req bytea; prior beta_private.command_receipts%rowtype; result jsonb; rid uuid;
+declare actor uuid:=beta_private.require_product_owner(); ch beta_private.gate_challenges%rowtype; req bytea; prior beta_private.command_receipts%rowtype; result jsonb; rid uuid; decision_now timestamptz:=statement_timestamp();
 begin
   req:=extensions.digest(convert_to(p_challenge_id::text||':'||p_payload_digest,'UTF8'),'sha256');
   select * into prior from beta_private.command_receipts where actor_user_id=actor and command_kind='complete_gate' and idempotency_key=p_idempotency_key;
   if found then if prior.request_digest<>req then raise exception using errcode='22000',message='idempotency_key_reused'; end if; return prior.response_body; end if;
   select * into ch from beta_private.gate_challenges where challenge_id=p_challenge_id for update;
-  if not found or ch.signer_user_id<>actor or ch.consumed_at is not null or ch.expires_at<statement_timestamp()
+  if not found or ch.signer_user_id<>actor or ch.consumed_at is not null or ch.expires_at<decision_now
     or encode(ch.frozen_payload_digest,'hex')<>lower(p_payload_digest)
-    or (ch.decision='pass' and not beta_private.gate_passable(ch.cohort_id,ch.ordinal,statement_timestamp())) then
+    or beta_private.current_gate_digest(ch.cohort_id,ch.ordinal,ch.decision,decision_now)<>ch.frozen_payload_digest
+    or (ch.decision='pass' and not beta_private.gate_passable(ch.cohort_id,ch.ordinal,decision_now)) then
     raise exception using errcode='55000',message='private_beta_gate_unavailable';
   end if;
   insert into beta_private.gate_receipts(challenge_id,cohort_id,ordinal,decision,signer_user_id,signer_responsibility,signature_kind,signed_payload_digest,signed_at)
@@ -415,6 +494,7 @@ begin
   if not found or c.version<>p_expected_cohort_version or c.state not in ('preparing','active') or next_ordinal not between 1 and 3
     or not exists(select 1 from beta_private.beta_capability where singleton and state='open' and operational_state='current')
     or not app_private.privileged_anchor_is_current()
+    or not beta_private.cohort_accounts_ready(p_cohort_id,p_store_id,p_representative_user_id,next_ordinal=1)
     or (next_ordinal>1 and not exists(select 1 from beta_private.gate_receipts where cohort_id=p_cohort_id and ordinal=next_ordinal-1 and decision='pass'))
     or exists(select 1 from beta_private.beta_defect_events d where d.cohort_id=p_cohort_id and d.evidence_class='real' and d.state='open' and d.severity in ('blocking','privacy','security','data_loss') and not exists(select 1 from beta_private.beta_defect_events newer where newer.cohort_id=d.cohort_id and newer.defect_key=d.defect_key and newer.evidence_class='real' and newer.observed_at>d.observed_at))
     or not exists(
@@ -428,7 +508,10 @@ begin
         and (select freshness_state from app_public.catalog_freshness(s.id,statement_timestamp()))='current'
     ) then raise exception using errcode='55000',message='private_beta_admission_unavailable'; end if;
   insert into beta_private.pilot_store_admissions(cohort_id,ordinal,store_id,representative_user_id) values(p_cohort_id,next_ordinal,p_store_id,p_representative_user_id);
-  insert into beta_private.pilot_visibility_grants(cohort_id,user_id,store_id) values(p_cohort_id,p_representative_user_id,p_store_id);
+  insert into beta_private.pilot_visibility_grants(cohort_id,user_id,store_id)
+    select p_cohort_id,user_id,p_store_id from beta_private.pilot_cohort_accounts
+    where cohort_id=p_cohort_id and state='active' and verified and human
+    on conflict(cohort_id,user_id,store_id) do nothing;
   insert into beta_private.expansion_receipts(cohort_id,ordinal,store_id,signer_user_id,signer_responsibility,signature_kind,signed_command_digest,signed_at)
     values(p_cohort_id,next_ordinal,p_store_id,actor,'ProductOwner','authenticated_product_owner_mfa',req,statement_timestamp());
   update app_public.stores set audience='private_beta',publication_state='active',updated_at=statement_timestamp() where id=p_store_id;

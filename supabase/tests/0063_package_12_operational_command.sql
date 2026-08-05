@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(36);
 
 select has_function('app_public','community_deployment_command',array['text','jsonb'],'one operational Package 12 command RPC exists');
 select has_function('community_private','validate_deployment_payload',array['text','jsonb'],'private exact-payload validator exists');
@@ -29,8 +29,9 @@ select ok(position("when 'prepare'" in lower(pg_get_functiondef('community_priva
   and position("when 'cancel'" in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0,'validator allowlists exactly the seven named operations');
 select ok(position('deployment_payload_exact' in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0,'unknown and extra payload fields fail closed');
 select ok(position("jsonb_typeof(p_payload -> 'expectedrootversion'" in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0,'versions must be JSON numbers rather than coercible strings');
-select ok(position("p_payload ->> 'targetordinal'" in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0
-  and position("not in ('1', '2', '3')" in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0,'prepare payload itself is bounded to ordinals one through three');
+select ok(position('targetordinal' in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))=0,'prepare rejects caller-authored ordinal authority');
+select ok(position('last_activation_ordinal + 1' in lower(pg_get_functiondef('app_public.community_deployment_command(text,jsonb)'::regprocedure)))>0
+  and position("p_payload ->> 'targetordinal'" in lower(pg_get_functiondef('app_public.community_deployment_command(text,jsonb)'::regprocedure)))=0,'prepare derives the exact next ordinal from server state');
 select ok(position("jsonb_array_length(p_payload -> 'storeids') < 2" in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0
   and position('count(distinct value)' in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0,'freeze requires at least two distinct typed stores');
 select ok(position("^[0-9a-f]{64}$" in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0,'artifact and exact store-set digests are constrained SHA-256 hex');
@@ -54,11 +55,19 @@ select throws_ok(
 );
 select throws_ok(
   $$select app_public.community_deployment_command('prepare',jsonb_build_object(
-    'runId','12000000-0000-4000-8000-000000000101','areaSlug','osage-city','targetOrdinal',1,
+    'runId','12000000-0000-4000-8000-000000000101','areaSlug','osage-city',
     'selectionReceiptId','12000000-0000-4000-8000-000000000001',
     'prerequisiteReceiptId','12000000-0000-4000-8000-000000000002',
     'expectedRootVersion',1,'idempotencyKey','prepare-osage','externalVerified',true))$$,
   '22023','community_command_input_invalid','caller cannot add evidence authority to an exact command'
+);
+select throws_ok(
+  $$select app_public.community_deployment_command('prepare',jsonb_build_object(
+    'runId','12000000-0000-4000-8000-000000000101','areaSlug','osage-city','targetOrdinal',1,
+    'selectionReceiptId','12000000-0000-4000-8000-000000000001',
+    'prerequisiteReceiptId','12000000-0000-4000-8000-000000000002',
+    'expectedRootVersion',1,'idempotencyKey','prepare-osage'))$$,
+  '22023','community_command_input_invalid','caller cannot choose the activation ordinal'
 );
 reset role;
 

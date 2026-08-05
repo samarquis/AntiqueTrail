@@ -22,7 +22,6 @@ export type CommunityDeploymentCommand =
       operation: 'prepare'
       payload: VersionedPayload & {
         areaSlug: string
-        targetOrdinal: 1 | 2 | 3
         selectionReceiptId: string
         prerequisiteReceiptId: string
       }
@@ -66,7 +65,6 @@ const operationKeys: Record<CommunityOperation, readonly string[]> = {
   prepare: [
     'runId',
     'areaSlug',
-    'targetOrdinal',
     'selectionReceiptId',
     'prerequisiteReceiptId',
     'expectedRootVersion',
@@ -140,8 +138,7 @@ export function parseCommunityDeploymentCommand(value: unknown): CommunityDeploy
     if (
       typeof payload.areaSlug !== 'string' ||
       payload.areaSlug.length > 80 ||
-      !AREA.test(payload.areaSlug) ||
-      ![1, 2, 3].includes(payload.targetOrdinal as number)
+      !AREA.test(payload.areaSlug)
     )
       unavailable()
     requireUuid(payload.selectionReceiptId)

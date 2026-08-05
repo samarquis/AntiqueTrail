@@ -14,7 +14,6 @@ describe('community deployment client', () => {
       payload: {
         runId: '12000000-0000-4000-8000-000000000101',
         areaSlug: 'osage-city',
-        targetOrdinal: 1,
         selectionReceiptId: '12000000-0000-4000-8000-000000000001',
         prerequisiteReceiptId: '12000000-0000-4000-8000-000000000002',
         expectedRootVersion: 1,
@@ -27,7 +26,6 @@ describe('community deployment client', () => {
       p_payload: {
         runId: '12000000-0000-4000-8000-000000000101',
         areaSlug: 'osage-city',
-        targetOrdinal: 1,
         selectionReceiptId: '12000000-0000-4000-8000-000000000001',
         prerequisiteReceiptId: '12000000-0000-4000-8000-000000000002',
         expectedRootVersion: 1,

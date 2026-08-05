@@ -25,7 +25,7 @@ declare
   receipt_key text;
 begin
   keys:=case p_operation
-    when 'prepare' then array['runId','areaSlug','targetOrdinal','selectionReceiptId','prerequisiteReceiptId','expectedRootVersion','idempotencyKey']
+    when 'prepare' then array['runId','areaSlug','selectionReceiptId','prerequisiteReceiptId','expectedRootVersion','idempotencyKey']
     when 'freeze' then array['runId','freezeReceiptId','expectedRootVersion','expectedRunVersion','artifactDigest','storeSetDigest','storeIds','idempotencyKey']
     when 'sign' then array['runId','readinessReceiptId','expectedRootVersion','expectedRunVersion','idempotencyKey']
     when 'activate' then array['runId','activationReceiptId','expectedRootVersion','expectedRunVersion','idempotencyKey']
@@ -47,8 +47,6 @@ begin
     if jsonb_typeof(p_payload->'areaSlug')<>'string'
       or (p_payload->>'areaSlug') !~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'
       or char_length(p_payload->>'areaSlug')>80
-      or jsonb_typeof(p_payload->'targetOrdinal')<>'number'
-      or (p_payload->>'targetOrdinal') not in ('1','2','3')
       or jsonb_typeof(p_payload->'selectionReceiptId')<>'string'
       or (p_payload->>'selectionReceiptId') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
       or jsonb_typeof(p_payload->'prerequisiteReceiptId')<>'string'
@@ -99,6 +97,7 @@ create or replace function app_public.community_deployment_command(
 declare
   input_digest bytea;
   result jsonb;
+  target_ordinal smallint;
 begin
   perform community_private.validate_deployment_payload(p_operation,p_payload);
   input_digest:=extensions.digest(
@@ -106,8 +105,10 @@ begin
   );
   case p_operation
     when 'prepare' then
+      select (last_activation_ordinal+1)::smallint into target_ordinal
+      from community_private.community_expansion_root where root_id=1;
       result:=community_private.prepare_community(
-        (p_payload->>'runId')::uuid,p_payload->>'areaSlug',(p_payload->>'targetOrdinal')::smallint,
+        (p_payload->>'runId')::uuid,p_payload->>'areaSlug',target_ordinal,
         (p_payload->>'selectionReceiptId')::uuid,(p_payload->>'prerequisiteReceiptId')::uuid,
         (p_payload->>'expectedRootVersion')::bigint,p_payload->>'idempotencyKey',input_digest);
     when 'freeze' then

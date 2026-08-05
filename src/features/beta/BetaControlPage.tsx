@@ -76,6 +76,10 @@ export function BetaControlPage({
           Expansion is server-owned, never automatic, and remains limited to three exact approved
           stores. Public capabilities stay off.
         </p>
+        <p>
+          Store 1 requires exactly two verified shopper accounts, one verified Administrator, and
+          one verified Store Representative—all separate. There is no open signup path.
+        </p>
         {error && <p role="alert">{GENERIC_BETA_ERROR}</p>}
         {!state ? (
           <p role="status">Loading private beta state…</p>

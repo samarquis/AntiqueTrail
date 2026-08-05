@@ -68,6 +68,10 @@ describe('controlled beta operations page', () => {
     const user = userEvent.setup()
     const boundary = client()
     render(<BetaControlPage cohortId="cohort-1" client={boundary} />)
+    expect(
+      screen.getByText(/exactly two verified shopper accounts.*one verified administrator/i),
+    ).toBeVisible()
+    expect(screen.getByText(/there is no open signup path/i)).toBeVisible()
     expect(await screen.findByText(/cohort active; current ordinal 1/i)).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: /request pass decision/i }))
