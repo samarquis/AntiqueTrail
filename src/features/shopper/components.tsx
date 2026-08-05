@@ -41,30 +41,48 @@ function GenericError() {
 
 export function SaveStoreAction({
   storeId,
-  initialSaved = false,
+  initialSaved,
   client = unavailableShopperClient,
 }: {
   storeId: string
   initialSaved?: boolean
   client?: ShopperPrivateClient
 }) {
-  const [saved, setSaved] = useState(initialSaved)
+  const [saved, setSaved] = useState<boolean | null>(initialSaved ?? null)
   const [state, setState] = useState<
     'idle' | 'saving' | 'saved' | 'save-undone' | 'removed' | 'remove-undone' | 'error'
   >('idle')
 
+  useEffect(() => {
+    if (initialSaved !== undefined) return
+    let cancelled = false
+    client
+      .getSaveState(storeId)
+      .then((result) => {
+        if (!cancelled) setSaved(result.saved)
+      })
+      .catch(() => {
+        if (!cancelled) setState('error')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [client, initialSaved, storeId])
+
   async function toggle() {
+    if (saved === null) return
     const wasSaved = saved
+    const requested = !wasSaved
     setState('saving')
     try {
-      const result = await client.toggleSave(storeId)
+      const result = await client.setSave(storeId, requested)
       setSaved(result.saved)
-      if (wasSaved && !result.saved) {
-        setState(state === 'saved' ? 'save-undone' : 'removed')
-      } else if (!wasSaved && result.saved) {
-        setState(state === 'removed' ? 'remove-undone' : 'saved')
-      } else {
+      if (result.saved !== requested) {
         setState('error')
+      } else if (wasSaved) {
+        setState(state === 'saved' ? 'save-undone' : 'removed')
+      } else {
+        setState(state === 'removed' ? 'remove-undone' : 'saved')
       }
     } catch {
       setState('error')
@@ -73,8 +91,15 @@ export function SaveStoreAction({
 
   return (
     <section aria-label="Private save action">
-      <button className="button" type="button" disabled={state === 'saving'} onClick={toggle}>
-        {state === 'saving'
+      <button
+        className="button"
+        type="button"
+        disabled={state === 'saving' || saved === null}
+        onClick={toggle}
+      >
+        {saved === null
+          ? 'Checking saved state…'
+          : state === 'saving'
           ? 'Saving…'
           : state === 'removed'
             ? 'Undo removal'
@@ -162,7 +187,7 @@ export function CatalogPrivateActions({
     let cancelled = false
     setResumeState('saving')
     client
-      .toggleSave(storeId)
+      .setSave(storeId, true)
       .then((result) => {
         if (cancelled) return
         if (!result.saved) throw new Error('save_not_applied')
@@ -397,11 +422,9 @@ export function HistoryPage({
   useEffect(() => {
     let cancelled = false
     client
-      .listSaved()
-      .then(async (stores) => Promise.all(stores.map((store) => client.getMemory(store.storeId))))
+      .listMemories()
       .then((result) => {
-        if (!cancelled)
-          setMemories(result.filter((item): item is PrivateStoreMemory => item !== null))
+        if (!cancelled) setMemories(result)
       })
       .catch(() => {
         if (!cancelled) setError(true)

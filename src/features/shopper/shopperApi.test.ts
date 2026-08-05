@@ -34,6 +34,24 @@ describe('shopper RPC boundary', () => {
     expect(rpc).toHaveBeenCalledWith('shopper_get_correction', { p_report_id: 'report-1' })
   })
 
+  it('uses explicit idempotent Save state and an independent memory-history RPC', async () => {
+    const rpc = vi.fn(async (name: string) => ({
+      data: name === 'shopper_list_memories' ? [] : { saved: true },
+      error: null,
+    }))
+    const client = createShopperClient({ rpc })
+
+    await expect(client.getSaveState('store-1')).resolves.toEqual({ saved: true })
+    await expect(client.setSave('store-1', true)).resolves.toEqual({ saved: true })
+    await expect(client.listMemories()).resolves.toEqual([])
+    expect(rpc).toHaveBeenNthCalledWith(1, 'shopper_save_state', { p_store_id: 'store-1' })
+    expect(rpc).toHaveBeenNthCalledWith(2, 'shopper_set_save', {
+      p_store_id: 'store-1',
+      p_saved: true,
+    })
+    expect(rpc).toHaveBeenNthCalledWith(3, 'shopper_list_memories', {})
+  })
+
   it('does not expose database error details', async () => {
     const client = createShopperClient({
       rpc: async () => ({ data: null, error: { message: 'private user id leaked' } }),

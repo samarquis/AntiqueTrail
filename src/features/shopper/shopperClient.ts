@@ -6,10 +6,16 @@ export const unavailableShopperClient: ShopperPrivateClient = {
   async listSaved() {
     throw new Error(GENERIC_SHOPPER_ERROR)
   },
-  async toggleSave() {
+  async getSaveState() {
+    throw new Error(GENERIC_SHOPPER_ERROR)
+  },
+  async setSave() {
     throw new Error(GENERIC_SHOPPER_ERROR)
   },
   async getMemory() {
+    throw new Error(GENERIC_SHOPPER_ERROR)
+  },
+  async listMemories() {
     throw new Error(GENERIC_SHOPPER_ERROR)
   },
   async upsertMemory() {

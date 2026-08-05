@@ -61,8 +61,10 @@ export interface CorrectionStatus {
 
 export interface ShopperPrivateClient {
   listSaved(): Promise<SavedStore[]>
-  toggleSave(storeId: string): Promise<{ saved: boolean }>
+  getSaveState(storeId: string): Promise<{ saved: boolean }>
+  setSave(storeId: string, saved: boolean): Promise<{ saved: boolean }>
   getMemory(storeId: string): Promise<PrivateStoreMemory | null>
+  listMemories(): Promise<PrivateStoreMemory[]>
   upsertMemory(
     memory: Omit<PrivateStoreMemory, 'version'> & { version?: number },
   ): Promise<PrivateStoreMemory>

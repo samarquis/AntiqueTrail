@@ -8,6 +8,7 @@ import {
   CatalogPrivateActions,
   CorrectionPage,
   MemoryPage,
+  HistoryPage,
   NewSincePage,
   SavedPage,
   SaveStoreAction,
@@ -19,8 +20,10 @@ function client(overrides: Partial<ShopperPrivateClient> = {}): ShopperPrivateCl
     listSaved: vi.fn(async () => [
       { storeId: 'store-1', slug: 'oak', name: 'Oak Antiques', savedAt: '2026-01-01' },
     ]),
-    toggleSave: vi.fn(async () => ({ saved: true })),
+    getSaveState: vi.fn(async () => ({ saved: false })),
+    setSave: vi.fn(async (_storeId, saved) => ({ saved })),
     getMemory: vi.fn(async () => null),
+    listMemories: vi.fn(async () => []),
     upsertMemory: vi.fn(async (memory) => ({ ...memory, version: 1 })),
     deleteMemory: vi.fn(async () => ({
       undoToken: 'undo-memory-1',
@@ -76,11 +79,11 @@ describe('private shopper screens', () => {
 
   it('removes a saved store and can undo the removal', async () => {
     const user = userEvent.setup()
-    const toggleSave = vi
-      .fn<ShopperPrivateClient['toggleSave']>()
+    const setSave = vi
+      .fn<ShopperPrivateClient['setSave']>()
       .mockResolvedValueOnce({ saved: false })
       .mockResolvedValueOnce({ saved: true })
-    renderPage(<SavedPage client={client({ toggleSave })} />)
+    renderPage(<SavedPage client={client({ setSave })} />)
 
     await user.click(await screen.findByRole('button', { name: 'Remove saved store' }))
     expect(await screen.findByRole('status')).toHaveTextContent('Store removed')
@@ -90,18 +93,19 @@ describe('private shopper screens', () => {
 
   it('saves a store and offers an accessible Undo action', async () => {
     const user = userEvent.setup()
-    const toggleSave = vi
-      .fn<ShopperPrivateClient['toggleSave']>()
+    const setSave = vi
+      .fn<ShopperPrivateClient['setSave']>()
       .mockResolvedValueOnce({ saved: true })
       .mockResolvedValueOnce({ saved: false })
 
-    renderPage(<SaveStoreAction storeId="store-1" client={client({ toggleSave })} />)
+    renderPage(<SaveStoreAction storeId="store-1" client={client({ setSave })} />)
+    expect(await screen.findByRole('button', { name: 'Save store' })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: 'Save store' }))
     expect(await screen.findByRole('status')).toHaveTextContent('Store saved')
     await user.click(screen.getByRole('button', { name: 'Undo save' }))
     expect(await screen.findByRole('status')).toHaveTextContent('Save undone')
-    expect(toggleSave).toHaveBeenNthCalledWith(1, 'store-1')
-    expect(toggleSave).toHaveBeenNthCalledWith(2, 'store-1')
+    expect(setSave).toHaveBeenNthCalledWith(1, 'store-1', true)
+    expect(setSave).toHaveBeenNthCalledWith(2, 'store-1', false)
   })
 
   it('stores a bounded JIT Save intent for anonymous catalog visitors', async () => {
@@ -139,7 +143,7 @@ describe('private shopper screens', () => {
         expiresAt: Date.now() + 60_000,
       }),
     )
-    const toggleSave = vi.fn(async () => ({ saved: true }))
+    const setSave = vi.fn(async (_storeId: string, saved: boolean) => ({ saved }))
     const authStore = {
       getSession: () => ({
         userId: 'shopper-a',
@@ -155,13 +159,13 @@ describe('private shopper screens', () => {
     render(
       <MemoryRouter initialEntries={['/stores/oak']}>
         <AuthProvider authStore={authStore}>
-          <CatalogPrivateActions storeId="store-1" slug="oak" client={client({ toggleSave })} />
+          <CatalogPrivateActions storeId="store-1" slug="oak" client={client({ setSave })} />
         </AuthProvider>
       </MemoryRouter>,
     )
     expect(await screen.findByText(/store saved after sign-in/i)).toHaveAttribute('role', 'status')
-    expect(toggleSave).toHaveBeenCalledTimes(1)
-    expect(toggleSave).toHaveBeenCalledWith('store-1')
+    expect(setSave).toHaveBeenCalledTimes(1)
+    expect(setSave).toHaveBeenCalledWith('store-1', true)
     expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toBeNull()
     expect(screen.getByRole('link', { name: /private memory/i })).toHaveAttribute(
       'href',
@@ -184,6 +188,24 @@ describe('private shopper screens', () => {
 
     expect(await screen.findByRole('heading', { name: /private store memory/i })).toBeVisible()
     expect(getMemory).toHaveBeenCalledWith('store-1')
+  })
+
+  it('lists visited memories even when the store is not currently saved', async () => {
+    const listMemories = vi.fn<ShopperPrivateClient['listMemories']>(async () => [
+      {
+        storeId: 'visited-only',
+        rating: 4,
+        note: 'Return for the cabinet',
+        lastVisitMonth: '2026-07',
+        version: 1,
+      },
+    ])
+    const listSaved = vi.fn<ShopperPrivateClient['listSaved']>(async () => [])
+    renderPage(<HistoryPage client={client({ listMemories, listSaved })} />)
+
+    expect(await screen.findByText(/4\/5 — Return for the cabinet/i)).toBeVisible()
+    expect(listMemories).toHaveBeenCalledTimes(1)
+    expect(listSaved).not.toHaveBeenCalled()
   })
 
   it('persists a private memory and restores it through deletion Undo', async () => {

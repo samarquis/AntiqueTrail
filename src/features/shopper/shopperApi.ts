@@ -3,8 +3,10 @@ import type { ShopperPrivateClient } from './types'
 
 type ShopperRpcName =
   | 'shopper_list_saved'
-  | 'shopper_toggle_save'
+  | 'shopper_save_state'
+  | 'shopper_set_save'
   | 'shopper_get_memory'
+  | 'shopper_list_memories'
   | 'shopper_upsert_memory'
   | 'shopper_delete_memory'
   | 'shopper_undo_delete_memory'
@@ -46,8 +48,11 @@ export function createShopperClient(transport: ShopperRpcTransport): ShopperPriv
 
   return {
     listSaved: () => call('shopper_list_saved', {}),
-    toggleSave: (storeId) => call('shopper_toggle_save', { p_store_id: storeId }),
+    getSaveState: (storeId) => call('shopper_save_state', { p_store_id: storeId }),
+    setSave: (storeId, saved) =>
+      call('shopper_set_save', { p_store_id: storeId, p_saved: saved }),
     getMemory: (storeId) => call('shopper_get_memory', { p_store_id: storeId }),
+    listMemories: () => call('shopper_list_memories', {}),
     upsertMemory: (memory) =>
       call('shopper_upsert_memory', {
         p_store_id: memory.storeId,
