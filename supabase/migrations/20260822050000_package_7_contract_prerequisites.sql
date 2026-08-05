@@ -2,6 +2,9 @@
 -- These relations keep private merge conflicts private and make privileged
 -- throttling and pilot approval transactional database concerns.
 
+grant identity_service to postgres;
+grant create on schema admin_private,partner_private to identity_service;
+
 create table admin_private.admin_privileged_rate_windows(
   actor_user_id uuid not null references auth.users(id) on delete cascade,
   target_id uuid not null,
@@ -198,3 +201,6 @@ end $$;
 alter function partner_private.approve_pilot_onboarding_exact(uuid,uuid,bytea) owner to identity_service;
 revoke all on function partner_private.approve_pilot_onboarding_exact(uuid,uuid,bytea) from public,anon,authenticated;
 grant execute on function partner_private.approve_pilot_onboarding_exact(uuid,uuid,bytea) to identity_service;
+
+revoke create on schema admin_private,partner_private from identity_service;
+revoke identity_service from postgres;
