@@ -26,6 +26,11 @@ function dependencies(
     completeMemoryPurge: vi.fn(async () => undefined),
     failMemoryPurge: vi.fn(async () => undefined),
     purgeDismissals: vi.fn(async () => 2),
+    runReviewLifecycle: vi.fn(async () => ({
+      reviewsFinalized: 3,
+      restrictionsExpired: 1,
+      appealsExpired: 2,
+    })),
     claimAccountDeletions: vi.fn(async () => [
       {
         deletion_request_id: 'delete-1',
@@ -70,6 +75,9 @@ describe('account lifecycle worker', () => {
       memoriesPurged: 1,
       memoriesFailed: 0,
       dismissalsPurged: 2,
+      reviewsFinalized: 3,
+      reviewRestrictionsExpired: 1,
+      reviewAppealsExpired: 2,
       accountsClaimed: 1,
       accountsDeleted: 1,
       accountsFailed: 0,

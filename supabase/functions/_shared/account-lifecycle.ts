@@ -44,6 +44,14 @@ export interface AccountLifecycleWorkerDependencies {
   completeMemoryPurge(undoToken: string, claimToken: string, completedAt: string): Promise<void>
   failMemoryPurge(undoToken: string, claimToken: string, now: string): Promise<void>
   purgeDismissals(now: string, limit: number): Promise<number>
+  runReviewLifecycle(
+    now: string,
+    limit: number,
+  ): Promise<{
+    reviewsFinalized: number
+    restrictionsExpired: number
+    appealsExpired: number
+  }>
   claimAccountDeletions(now: string, limit: number): Promise<AccountDeletionClaim[]>
   deleteAccountStorageObject(bucketId: string, objectKey: string): Promise<void>
   prepareAccountDeletion(requestId: string, claimToken: string, preparedAt: string): Promise<void>
@@ -80,6 +88,9 @@ export interface AccountLifecycleRunSummary {
   memoriesPurged: number
   memoriesFailed: number
   dismissalsPurged: number
+  reviewsFinalized: number
+  reviewRestrictionsExpired: number
+  reviewAppealsExpired: number
   accountsClaimed: number
   accountsDeleted: number
   accountsFailed: number
@@ -291,6 +302,9 @@ export async function runAccountLifecycleWorker(
     memoriesPurged: 0,
     memoriesFailed: 0,
     dismissalsPurged: 0,
+    reviewsFinalized: 0,
+    reviewRestrictionsExpired: 0,
+    reviewAppealsExpired: 0,
     accountsClaimed: 0,
     accountsDeleted: 0,
     accountsFailed: 0,
@@ -341,6 +355,10 @@ export async function runAccountLifecycleWorker(
     }
   }
   summary.dismissalsPurged = await dependencies.purgeDismissals(now, 100)
+  const reviewLifecycle = await dependencies.runReviewLifecycle(now, 100)
+  summary.reviewsFinalized = reviewLifecycle.reviewsFinalized
+  summary.reviewRestrictionsExpired = reviewLifecycle.restrictionsExpired
+  summary.reviewAppealsExpired = reviewLifecycle.appealsExpired
 
   const accounts = await dependencies.claimAccountDeletions(now, 10)
   summary.accountsClaimed = accounts.length

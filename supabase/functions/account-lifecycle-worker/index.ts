@@ -115,6 +115,8 @@ Deno.serve(async (request) => {
         }),
       purgeDismissals: (now, limit) =>
         rpc('purge_due_catalog_dismissals', { p_now: now, p_limit: limit }),
+      runReviewLifecycle: (now, limit) =>
+        rpc('run_due_review_lifecycle', { p_now: now, p_limit: limit }),
       claimAccountDeletions: (now, limit) =>
         rpc('claim_due_account_deletions', { p_now: now, p_limit: limit }),
       async deleteAccountStorageObject(bucketId, objectKey) {
