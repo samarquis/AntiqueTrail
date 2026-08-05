@@ -10,7 +10,9 @@ import {
 test('detects credential material without flagging ordinary configuration names', () => {
   assert.deepEqual(findSecretFindings([{ path: 'safe.ts', text: 'const H01_TOKEN = process.env.X' }]), [])
   assert.deepEqual(
-    findSecretFindings([{ path: 'leak.txt', text: 'token=ghp_abcdefghijklmnopqrstuvwxyz123456' }]),
+    findSecretFindings([
+      { path: 'leak.txt', text: `token=${'gh' + 'p_'}abcdefghijklmnopqrstuvwxyz123456` },
+    ]),
     ['leak.txt: possible GitHub token'],
   )
 })
