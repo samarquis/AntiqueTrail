@@ -6,6 +6,7 @@ import { InMemoryAuthStore, type AuthSession } from '../features/auth'
 import type { TripOfflineRuntime } from '../features/trips'
 import type { PartnerAdminClient } from '../features/partners'
 import { createAccessibleCatalogMapAdapter, demoCatalogClient } from '../features/catalog'
+import { unavailableReviewClient } from '../features/reviews'
 import App from './App'
 
 describe('app shell', () => {
@@ -190,12 +191,54 @@ describe('app shell', () => {
 
   it('keeps public review entry unavailable before regional promotion', async () => {
     render(
-      <MemoryRouter initialEntries={['/stores/oak-antiques/reviews']}>
+      <MemoryRouter initialEntries={['/stores/blue-finch-curios/reviews']}>
         <App />
       </MemoryRouter>,
     )
     expect(await screen.findByText(/not available in this release/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /preview review/i })).not.toBeInTheDocument()
+  })
+
+  it('resolves a public store slug before calling the injected durable review client', async () => {
+    const getStoreReviews = vi.fn(async () => ({
+      storeId: 'unused',
+      aggregate: { average: 0, count: 0 },
+      reviews: [],
+      ownReview: null,
+    }))
+    const getEligibility = vi.fn(async () => ({
+      verifiedEmail: true,
+      ageAttested: true,
+      completedVisit: true,
+      manualVisitAttested: false,
+      activeReviewExists: false,
+      ownStoreConflict: false,
+      accountDeletionScheduled: false,
+      rateLimited: false,
+    }))
+    render(
+      <MemoryRouter initialEntries={['/stores/blue-finch-curios/reviews']}>
+        <App
+          clients={{
+            catalog: demoCatalogClient,
+            reviews: {
+              ...unavailableReviewClient,
+              getCapability: async () => ({
+                stage: 'regional_public_mvp',
+                enabled: true,
+                source: 'server',
+              }),
+              getStoreReviews,
+              getEligibility,
+            },
+          }}
+        />
+      </MemoryRouter>,
+    )
+    const storeId = '00000000-0000-4000-8000-000000000001'
+    expect(await screen.findByText(/no approved reviews yet/i)).toBeVisible()
+    expect(getStoreReviews).toHaveBeenCalledWith(storeId)
+    expect(getEligibility).toHaveBeenCalledWith(storeId)
   })
 
   it('returns not-found for the disabled public listing claim route', () => {

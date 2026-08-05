@@ -111,6 +111,7 @@ import {
   PublicReviewsPage,
   ReviewAppealPage,
   unavailableReviewClient,
+  type ReviewClient,
 } from '../features/reviews'
 
 // The current provider-neutral shell has no privileged session source. Keep the
@@ -237,14 +238,37 @@ function ResolvedStorePrivateRoute({
   )
 }
 
-function StoreReviews() {
+function StoreReviews({ client, catalog }: { client: ReviewClient; catalog?: CatalogClient }) {
   const { slug = '' } = useParams()
-  return <PublicReviewsPage client={unavailableReviewClient} storeId={slug} />
+  const catalogClient = useCatalogClient(catalog)
+  const [storeId, setStoreId] = useState<string | null>(null)
+  const [unavailable, setUnavailable] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    setStoreId(null)
+    setUnavailable(false)
+    catalogClient
+      .details(slug)
+      .then((store) => {
+        if (cancelled) return
+        if (store) setStoreId(store.id)
+        else setUnavailable(true)
+      })
+      .catch(() => {
+        if (!cancelled) setUnavailable(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [catalogClient, slug])
+  if (unavailable) return <NotFound />
+  if (!storeId) return <p role="status">Loading store…</p>
+  return <PublicReviewsPage client={client} storeId={storeId} />
 }
 
-function RestrictionAppeal() {
+function RestrictionAppeal({ client }: { client: ReviewClient }) {
   const { restrictionId = '' } = useParams()
-  return <ReviewAppealPage restrictionId={restrictionId} client={unavailableReviewClient} />
+  return <ReviewAppealPage restrictionId={restrictionId} client={client} />
 }
 
 function CandidateCaptureRoute({ client }: { client: CandidateClient }) {
@@ -438,6 +462,7 @@ export interface AppClients {
   partner?: PartnerClient
   partnerAdmin?: PartnerAdminClient
   lifecycle?: AccountLifecycleClient
+  reviews?: ReviewClient
   tripOfflineGrants?: TripOfflineGrantSource
   routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
 }
@@ -464,6 +489,7 @@ export default function App({
   const partnerClient = clients.partner ?? unavailablePartnerClient
   const partnerAdminClient = clients.partnerAdmin ?? unavailablePartnerAdminClient
   const lifecycleClient = clients.lifecycle ?? unavailableLifecycleClient
+  const reviewClient = clients.reviews ?? unavailableReviewClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
   const tripOfflineRef = useRef<TripOfflineRuntime>(
     runtime.tripOffline ?? createTripOfflineRuntime(),
@@ -502,7 +528,10 @@ export default function App({
             path="/stores/:slug"
             element={<StoreDetails shopperClient={shopperClient} catalog={clients.catalog} />}
           />
-          <Route path="/stores/:slug/reviews" element={<StoreReviews />} />
+          <Route
+            path="/stores/:slug/reviews"
+            element={<StoreReviews client={reviewClient} catalog={clients.catalog} />}
+          />
           <Route
             path="/stores/:slug/memory"
             element={
@@ -680,7 +709,7 @@ export default function App({
                 override={runtime.adminSession}
                 registry={runtime.sessionRegistry}
               >
-                <ModerationQueuePage client={unavailableReviewClient} />
+                <ModerationQueuePage client={reviewClient} />
               </AuthenticatedAdminGuard>
             }
           />
@@ -702,7 +731,7 @@ export default function App({
           />
           <Route
             path="/reviews/restrictions/:restrictionId/appeal"
-            element={<RestrictionAppeal />}
+            element={<RestrictionAppeal client={reviewClient} />}
           />
           <Route path="/partner/join" element={<PartnerJoinPage client={partnerClient} />} />
           <Route path="/partner/verify" element={<PartnerVerifyPage client={partnerClient} />} />
