@@ -83,9 +83,12 @@ function providerSession(session: Session): ProviderSession {
   }
 }
 
-function createAuthProvider<T extends { auth: ReturnType<typeof createClient>['auth'] }>(
-  supabase: T,
-): AuthProviderAdapter {
+function createAuthProvider<
+  T extends {
+    auth: ReturnType<typeof createClient>['auth']
+    functions: ReturnType<typeof createClient>['functions']
+  },
+>(supabase: T): AuthProviderAdapter {
   const challenges = new Map<string, { factorId: string; session: ProviderSession }>()
   return {
     async signIn(email, password) {
@@ -113,8 +116,11 @@ function createAuthProvider<T extends { auth: ReturnType<typeof createClient>['a
       return { kind: 'authenticated', session }
     },
     async sendRecovery(email) {
-      await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/recovery`,
+      await supabase.functions.invoke('auth-recovery-request', {
+        body: {
+          email: email.normalize('NFKC').trim(),
+          requestId: crypto.randomUUID(),
+        },
       })
     },
     async verifyMfa(challengeId, code) {

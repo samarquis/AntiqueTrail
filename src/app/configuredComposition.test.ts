@@ -60,7 +60,10 @@ const harness = vi.hoisted(() => {
       }
       return { data: { trip, grant }, error: null }
     }),
-    auth: { getSession: vi.fn(async () => ({ data: { session: null }, error: null })) },
+    auth: {
+      getSession: vi.fn(async () => ({ data: { session: null }, error: null })),
+      resetPasswordForEmail: vi.fn(async () => ({ data: {}, error: null })),
+    },
   }
   return { events, trip, grant, supabase }
 })
@@ -68,6 +71,11 @@ const harness = vi.hoisted(() => {
 vi.mock('@supabase/supabase-js', () => ({ createClient: vi.fn(() => harness.supabase) }))
 
 import { configuredComposition } from './configuredComposition'
+import {
+  RECOVERY_ACCEPTED_BYTES,
+  handleAuthRecoveryRequest,
+} from '../../supabase/functions/_shared/auth-recovery-request'
+import recoveryEdgeSource from '../../supabase/functions/auth-recovery-request/index.ts?raw'
 import {
   InMemoryOfflineDatabase,
   loadOrCreateTripInstallationIdentity,
@@ -82,6 +90,7 @@ describe('configured Trip grant composition', () => {
     harness.events.length = 0
     harness.supabase.rpc.mockClear()
     harness.supabase.functions.invoke.mockClear()
+    harness.supabase.auth.resetPasswordForEmail.mockClear()
     const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
       'sign',
       'verify',
@@ -171,5 +180,148 @@ describe('configured Trip grant composition', () => {
     })
     expect(harness.supabase.rpc).toHaveBeenCalledWith('account_lifecycle_status', undefined)
     expect(harness.supabase.rpc).toHaveBeenCalledWith('request_account_export', undefined)
+  })
+
+  it('routes password recovery through the fail-closed Edge boundary', async () => {
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    const authProvider = composition?.runtime.authProvider
+    expect(authProvider).toBeDefined()
+    if (!authProvider) throw new Error('configured auth provider missing')
+
+    await expect(authProvider.sendRecovery(' Shopper@Example.COM ')).resolves.toBeUndefined()
+
+    expect(harness.supabase.functions.invoke).toHaveBeenCalledWith('auth-recovery-request', {
+      body: {
+        email: 'Shopper@Example.COM',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      },
+    })
+    expect(harness.supabase.auth.resetPasswordForEmail).not.toHaveBeenCalled()
+  })
+})
+
+describe('E-01 recovery HTTP boundary', () => {
+  it('deploys only the bounded service-role recovery operation', () => {
+    expect(recoveryEdgeSource).toContain("admin.rpc('reserve_auth_recovery_delivery'")
+    expect(recoveryEdgeSource).toContain("admin.rpc('complete_auth_recovery_delivery'")
+    expect(recoveryEdgeSource).toContain('RECOVERY_EMAIL_HMAC_SECRET')
+    expect(recoveryEdgeSource).not.toContain('resetPasswordForEmail')
+    expect(recoveryEdgeSource).not.toContain('auth.admin')
+    expect(recoveryEdgeSource).not.toContain('console.')
+  })
+
+  it('returns one indistinguishable response and makes no provider call while disabled', async () => {
+    const reserve = vi.fn(async () => ({ state: 'blocked' as const }))
+    const deliver = vi.fn()
+    const settle = vi.fn()
+    const recipientHmac = vi.fn(async () => `\\x${'ab'.repeat(32)}`)
+    const clockValues = [1_000, 1_125, 2_000, 2_125]
+    const sleep = vi.fn(async () => undefined)
+    const dependencies = {
+      reserve,
+      deliver,
+      settle,
+      recipientHmac,
+      now: () => clockValues.shift() ?? 2_125,
+      sleep,
+    }
+
+    const responses: Response[] = []
+    for (const [index, email] of ['known@example.com', 'missing@example.com'].entries()) {
+      responses.push(
+        await handleAuthRecoveryRequest(
+          new Request('https://example.test/functions/v1/auth-recovery-request', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              requestId: `00000000-0000-4000-8000-00000000000${index + 1}`,
+            }),
+          }),
+          dependencies,
+        ),
+      )
+    }
+
+    expect(responses.map((response) => response.status)).toEqual([202, 202])
+    expect(await responses[0].clone().text()).toBe(await responses[1].clone().text())
+    expect(new TextEncoder().encode(await responses[0].text())).toHaveLength(
+      RECOVERY_ACCEPTED_BYTES,
+    )
+    expect([...responses[0].headers]).toEqual([...responses[1].headers])
+    expect(deliver).not.toHaveBeenCalled()
+    expect(settle).not.toHaveBeenCalled()
+    expect(JSON.stringify(reserve.mock.calls)).not.toMatch(/known|missing|example\.com/i)
+    expect(sleep).toHaveBeenCalledTimes(2)
+  })
+
+  it('settles a reserved operation as no effect when no provider adapter is configured', async () => {
+    const settle = vi.fn(async () => undefined)
+    const response = await handleAuthRecoveryRequest(
+      new Request('https://example.test/functions/v1/auth-recovery-request', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: 'shopper@example.com',
+          requestId: '00000000-0000-4000-8000-000000000001',
+        }),
+      }),
+      {
+        recipientHmac: async () => `\\x${'ab'.repeat(32)}`,
+        reserve: async () => ({ state: 'reserved', operationId: 'operation-1' }),
+        settle,
+        now: () => 1_000,
+        sleep: async () => undefined,
+      },
+    )
+
+    expect(response.status).toBe(202)
+    expect(settle).toHaveBeenCalledWith(
+      'operation-1',
+      '00000000-0000-4000-8000-000000000001',
+      'confirmed_not_delivered',
+    )
+  })
+
+  it('rechecks the latch before delivery and never resends an unknown operation replay', async () => {
+    const reserve = vi
+      .fn()
+      .mockResolvedValueOnce({ state: 'reserved', operationId: 'operation-2' })
+      .mockResolvedValueOnce({ state: 'reconciliation_required', operationId: 'operation-2' })
+    const begin = vi.fn(async () => ({ state: 'calling' as const }))
+    const deliver = vi.fn(async () => 'unknown' as const)
+    const settle = vi.fn(async () => undefined)
+    const request = () =>
+      new Request('https://example.test/functions/v1/auth-recovery-request', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: 'shopper@example.com',
+          requestId: '00000000-0000-4000-8000-000000000002',
+        }),
+      })
+    const dependencies = {
+      recipientHmac: async () => `\\x${'cd'.repeat(32)}`,
+      reserve,
+      begin,
+      deliver,
+      settle,
+      now: () => 1_000,
+      sleep: async () => undefined,
+    }
+
+    const first = await handleAuthRecoveryRequest(request(), dependencies)
+    const replay = await handleAuthRecoveryRequest(request(), dependencies)
+
+    expect(first.status).toBe(202)
+    expect(await first.text()).toBe(await replay.text())
+    expect(begin).toHaveBeenCalledOnce()
+    expect(begin).toHaveBeenCalledWith('operation-2', '00000000-0000-4000-8000-000000000002')
+    expect(deliver).toHaveBeenCalledOnce()
+    expect(settle).toHaveBeenCalledWith(
+      'operation-2',
+      '00000000-0000-4000-8000-000000000002',
+      'unknown',
+    )
   })
 })
