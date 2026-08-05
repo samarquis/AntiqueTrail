@@ -10,6 +10,7 @@ end $$;
 grant account_lifecycle_service to authenticator;
 grant usage on schema app_public to account_lifecycle_service;
 grant identity_service to postgres;
+grant create on schema app_public to identity_service;
 
 -- The worker can access exactly one private bucket. It has no service-role key
 -- and no broad Storage bypass; browser roles receive neither table grants nor

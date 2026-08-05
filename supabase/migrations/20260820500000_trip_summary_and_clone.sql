@@ -2,6 +2,7 @@
 -- private-memory status, and atomic Plan Again cloning.
 
 grant identity_service to postgres;
+grant create on schema trip_private,app_public to identity_service;
 
 alter table trip_private.trips
   add column started_at timestamptz,
@@ -107,4 +108,5 @@ alter function app_public.clone_completed_trip(text) owner to identity_service;
 revoke all on function app_public.clone_completed_trip(text) from public,anon;
 grant execute on function app_public.clone_completed_trip(text) to authenticated;
 
+revoke create on schema trip_private,app_public from identity_service;
 revoke identity_service from postgres;

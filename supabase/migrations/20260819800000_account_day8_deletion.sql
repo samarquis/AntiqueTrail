@@ -2,6 +2,7 @@
 -- effects remain in the Edge worker; database commands are exact-claim and retry safe.
 
 grant identity_service to postgres;
+grant create on schema app_public,app_private to identity_service;
 
 alter table app_private.account_deletion_requests
   drop constraint account_deletion_requests_user_id_fkey,
