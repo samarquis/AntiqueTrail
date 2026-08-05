@@ -8,6 +8,7 @@ import type { PartnerAdminClient } from '../features/partners'
 import { createAccessibleCatalogMapAdapter, demoCatalogClient } from '../features/catalog'
 import { unavailableReviewClient } from '../features/reviews'
 import { unavailablePortalClient } from '../features/portal'
+import type { DurableReadinessClient } from '../features/readiness'
 import App from './App'
 
 describe('app shell', () => {
@@ -108,6 +109,42 @@ describe('app shell', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('heading', { name: /partner administration/i })).toBeInTheDocument()
+  })
+
+  it('exposes server-owned readiness status only through the authenticated admin boundary', async () => {
+    const readiness: DurableReadinessClient = {
+      getStatus: vi.fn(async (runId) => ({
+        runId,
+        state: 'frozen' as const,
+        frozenDigest: 'sha256:frozen',
+        blockers: ['provider_e'],
+        calculatedAt: '2026-08-05T00:00:00Z',
+        receiptId: null,
+      })),
+      requestSigningChallenge: vi.fn(),
+    }
+    render(
+      <MemoryRouter initialEntries={['/admin/readiness/run-1']}>
+        <App
+          clients={{ readiness }}
+          runtime={{
+            adminSession: {
+              userId: 'admin-1',
+              role: 'Administrator',
+              mfaEnrolled: true,
+              mfaVerified: true,
+              recentAuthAt: Date.now(),
+              sessionActive: true,
+            },
+          }}
+        />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: /readiness status/i })).toBeVisible()
+    expect(screen.getByRole('region', { name: /readiness blockers/i })).toHaveTextContent(
+      'provider_e',
+    )
+    expect(readiness.getStatus).toHaveBeenCalledWith('run-1')
   })
 
   it('opens partner administration from the real AuthContext session metadata', () => {

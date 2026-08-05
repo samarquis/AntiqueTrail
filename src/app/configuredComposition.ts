@@ -3,6 +3,7 @@ import type { AppClients, AppRuntime } from './App'
 import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
 import { createPortalClient, sanitizeDiagnostics } from '../features/portal'
+import { createReadinessClient } from '../features/readiness'
 import { createShopperClient } from '../features/shopper'
 import { createCandidateProductionClient } from '../features/candidates'
 import {
@@ -426,6 +427,12 @@ export async function configuredComposition(
             connection: navigator.onLine ? 'online' : 'offline',
           }),
       ),
+      readiness: createReadinessClient({
+        async rpc(name, args) {
+          const result = await supabase.rpc(name, args)
+          return { data: result.data, error: result.error }
+        },
+      }),
       trips,
       tripOfflineGrants: source,
       map: createAccessibleCatalogMapAdapter({

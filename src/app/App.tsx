@@ -114,6 +114,11 @@ import {
   unavailableReviewClient,
   type ReviewClient,
 } from '../features/reviews'
+import {
+  ReadinessStatusPage,
+  unavailableReadinessClient,
+  type DurableReadinessClient,
+} from '../features/readiness'
 
 // The current provider-neutral shell has no privileged session source. Keep the
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
@@ -270,6 +275,11 @@ function StoreReviews({ client, catalog }: { client: ReviewClient; catalog?: Cat
 function RestrictionAppeal({ client }: { client: ReviewClient }) {
   const { restrictionId = '' } = useParams()
   return <ReviewAppealPage restrictionId={restrictionId} client={client} />
+}
+
+function ReadinessStatus({ client }: { client: DurableReadinessClient }) {
+  const { runId = '' } = useParams()
+  return <ReadinessStatusPage runId={runId} client={client} />
 }
 
 function CandidateCaptureRoute({ client }: { client: CandidateClient }) {
@@ -465,6 +475,7 @@ export interface AppClients {
   lifecycle?: AccountLifecycleClient
   reviews?: ReviewClient
   portal?: PortalClient
+  readiness?: DurableReadinessClient
   tripOfflineGrants?: TripOfflineGrantSource
   routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
 }
@@ -493,6 +504,7 @@ export default function App({
   const lifecycleClient = clients.lifecycle ?? unavailableLifecycleClient
   const reviewClient = clients.reviews ?? unavailableReviewClient
   const portalClient = clients.portal ?? unavailablePortalClient
+  const readinessClient = clients.readiness ?? unavailableReadinessClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
   const tripOfflineRef = useRef<TripOfflineRuntime>(
     runtime.tripOffline ?? createTripOfflineRuntime(),
@@ -713,6 +725,17 @@ export default function App({
                 registry={runtime.sessionRegistry}
               >
                 <ModerationQueuePage client={reviewClient} />
+              </AuthenticatedAdminGuard>
+            }
+          />
+          <Route
+            path="/admin/readiness/:runId"
+            element={
+              <AuthenticatedAdminGuard
+                override={runtime.adminSession}
+                registry={runtime.sessionRegistry}
+              >
+                <ReadinessStatus client={readinessClient} />
               </AuthenticatedAdminGuard>
             }
           />
