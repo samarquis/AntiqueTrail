@@ -1,0 +1,40 @@
+name: M-01 media lifecycle
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m01-media-lifecycle
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    if: ${{ vars.M01_MEDIA_LIFECYCLE_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Invoke bounded media publish and purge sweep
+        env:
+          FUNCTION_URL: ${{ secrets.M01_MEDIA_LIFECYCLE_FUNCTION_URL }}
+          INVOKE_JWT: ${{ secrets.M01_MEDIA_FUNCTION_INVOKE_JWT }}
+          SCHEDULER_TOKEN: ${{ secrets.M01_MEDIA_SCHEDULER_TOKEN }}
+        run: |
+          test -n "$FUNCTION_URL"
+          test -n "$INVOKE_JWT"
+          test -n "$SCHEDULER_TOKEN"
+          curl --fail-with-body --silent --show-error \
+            --max-time 120 \
+            --retry 2 \
+            --retry-all-errors \
+            --retry-delay 10 \
+            -X POST "$FUNCTION_URL" \
+            -H "Authorization: Bearer $INVOKE_JWT" \
+            -H "Content-Type: application/json" \
+            -H "x-antique-trail-scheduler: $SCHEDULER_TOKEN" \
+            --data '{"operation":"sweep"}' \
+            --output /dev/null
