@@ -1,3 +1,4 @@
+/* global console, process */
 import { execFileSync } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
 import { extname } from 'node:path'
