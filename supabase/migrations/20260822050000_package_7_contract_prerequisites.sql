@@ -205,10 +205,106 @@ end $$;
 alter function admin_private.enforce_operational_admin_rate(uuid,uuid) owner to identity_service;
 revoke all on function admin_private.enforce_operational_admin_rate(uuid,uuid) from public,anon,authenticated;
 
+create or replace function admin_private.sync_package_7_audit_anchor_health()
+returns trigger language plpgsql volatile security definer set search_path='' as $$
+declare anchored_is_current boolean;
+begin
+  anchored_is_current:=new.state='open'
+    and new.watchdog_state='current'
+    and new.last_ack_root is not null
+    and new.last_ack_at is not null
+    and new.last_ack_at>=statement_timestamp()-interval '24 hours'
+    and new.last_ack_sequence=(select coalesce(max(sequence_no),0) from app_private.privileged_audit_events)
+    and exists(select 1 from app_private.audit_chain_roots r
+      where r.through_sequence_no=new.last_ack_sequence and r.root_hash=new.last_ack_root);
+
+  insert into admin_private.admin_audit_anchor_health(
+    id,state,through_sequence_no,root_hash,last_anchored_at,checked_at,version
+  ) values (
+    1,case when anchored_is_current then 'healthy' else 'blocked' end,
+    new.last_ack_sequence,new.last_ack_root,new.last_ack_at,
+    coalesce(new.watchdog_checked_at,statement_timestamp()),1
+  ) on conflict(id) do update set
+    state=excluded.state,
+    through_sequence_no=excluded.through_sequence_no,
+    root_hash=excluded.root_hash,
+    last_anchored_at=excluded.last_anchored_at,
+    checked_at=excluded.checked_at,
+    version=admin_private.admin_audit_anchor_health.version+1;
+  return new;
+end $$;
+alter function admin_private.sync_package_7_audit_anchor_health() owner to identity_service;
+revoke all on function admin_private.sync_package_7_audit_anchor_health() from public,anon,authenticated;
+
+create trigger sync_package_7_audit_anchor_health
+after insert or update on app_private.audit_anchor_capability
+for each row execute function admin_private.sync_package_7_audit_anchor_health();
+
+-- Synchronize the row created before this trigger existed. Future acknowledgements
+-- and watchdog updates flow through the trigger above.
+update app_private.audit_anchor_capability
+set watchdog_checked_at=watchdog_checked_at
+where id=1;
+
+create or replace function admin_private.lock_merge_reference_set(
+  p_canonical uuid,p_duplicate uuid,p_proposal uuid default null
+) returns void language plpgsql volatile security definer set search_path='' as $$
+begin
+  -- The parent row locks also make new child inserts wait on their FK key-share
+  -- locks, while the ordered child locks protect all rows already in the snapshot.
+  perform 1 from app_public.stores
+    where id in (p_canonical,p_duplicate) order by id for update;
+  perform 1 from shopper_private.saved_stores
+    where store_id in (p_canonical,p_duplicate) order by store_id,user_id for update;
+  perform 1 from shopper_private.private_store_memories
+    where store_id in (p_canonical,p_duplicate) order by store_id,user_id for update;
+  perform 1 from trip_private.trips t where exists(
+    select 1 from trip_private.trip_stops s
+    where s.trip_id=t.trip_id and s.store_id in (p_canonical,p_duplicate)
+  ) order by t.trip_id for update;
+  perform 1 from trip_private.trip_stops
+    where store_id in (p_canonical,p_duplicate) order by store_id,stop_id for update;
+  perform 1 from review_private.public_reviews
+    where store_id in (p_canonical,p_duplicate) order by store_id,review_id for update;
+  perform 1 from review_private.rating_aggregates
+    where store_id in (p_canonical,p_duplicate) order by store_id for update;
+  perform 1 from portal_private.store_updates
+    where store_id in (p_canonical,p_duplicate) order by store_id,update_id for update;
+  perform 1 from portal_private.support_tickets
+    where store_id in (p_canonical,p_duplicate) order by store_id,ticket_id for update;
+  perform 1 from partner_private.store_partner_grants
+    where store_id in (p_canonical,p_duplicate) order by store_id,grant_id for update;
+  perform 1 from partner_private.listing_claims
+    where store_id in (p_canonical,p_duplicate) order by store_id,claim_id for update;
+  perform 1 from app_private.role_grants r where exists(
+    select 1 from partner_private.store_partner_grants g
+    where g.auth_user_id=r.subject_user_id and r.role='representative'
+      and r.store_id=g.store_id and g.store_id in (p_canonical,p_duplicate)
+  ) order by r.store_id,r.subject_user_id,r.grant_id for update;
+
+  if p_proposal is not null then
+    perform 1 from shopper_private.private_memory_merge_conflicts
+      where proposal_id=p_proposal order by conflict_id for update;
+    perform 1 from trip_private.trip_duplicate_stop_warnings
+      where proposal_id=p_proposal order by warning_id for update;
+    perform 1 from review_private.review_merge_conflicts
+      where proposal_id=p_proposal order by conflict_id for update;
+    perform 1 from portal_private.store_update_merge_conflicts
+      where proposal_id=p_proposal order by conflict_id for update;
+    perform 1 from portal_private.support_ticket_merge_conflicts
+      where proposal_id=p_proposal order by conflict_id for update;
+    perform 1 from admin_private.store_tombstones
+      where proposal_id=p_proposal order by tombstone_id for update;
+  end if;
+end $$;
+alter function admin_private.lock_merge_reference_set(uuid,uuid,uuid) owner to identity_service;
+revoke all on function admin_private.lock_merge_reference_set(uuid,uuid,uuid) from public,anon,authenticated;
+
 create or replace function admin_private.merge_reference_snapshot(p_canonical uuid,p_duplicate uuid)
 returns jsonb language sql stable security definer set search_path='' as $$
   with refs(kind,id,payload,collision,resolution) as (
-    select 'store',s.id,to_jsonb(s),'none','preserve' from app_public.stores s where s.id=p_duplicate
+    select 'canonical_store',s.id,to_jsonb(s),'none','preserve' from app_public.stores s where s.id=p_canonical
+    union all select 'store',s.id,to_jsonb(s),'none','preserve' from app_public.stores s where s.id=p_duplicate
     union all select 'saved_store',s.user_id,to_jsonb(s)||jsonb_build_object('canonical',coalesce((select to_jsonb(x) from shopper_private.saved_stores x where x.user_id=s.user_id and x.store_id=p_canonical),'null'::jsonb)),case when exists(select 1 from shopper_private.saved_stores x where x.user_id=s.user_id and x.store_id=p_canonical) then 'duplicate_save' else 'none' end,case when exists(select 1 from shopper_private.saved_stores x where x.user_id=s.user_id and x.store_id=p_canonical) then 'collapse' else 'reparent' end from shopper_private.saved_stores s where s.store_id=p_duplicate
     union all select 'private_memory',m.user_id,to_jsonb(m)||jsonb_build_object('canonical',coalesce((select to_jsonb(x) from shopper_private.private_store_memories x where x.user_id=m.user_id and x.store_id=p_canonical),'null'::jsonb)),case when exists(select 1 from shopper_private.private_store_memories x where x.user_id=m.user_id and x.store_id=p_canonical) then 'memory_conflict' else 'none' end,case when exists(select 1 from shopper_private.private_store_memories x where x.user_id=m.user_id and x.store_id=p_canonical) then 'hide' else 'reparent' end from shopper_private.private_store_memories m where m.store_id=p_duplicate
     union all select 'trip_stop',s.stop_id,to_jsonb(s),case when exists(select 1 from trip_private.trip_stops x where x.trip_id=s.trip_id and x.store_id=p_canonical) then 'trip_stop' else 'none' end,'reparent' from trip_private.trip_stops s where s.store_id=p_duplicate
@@ -229,6 +325,7 @@ begin
   select * into i from admin_private.admin_duplicate_merge_plan_items where plan_item_id=p_item;
   select * into p from admin_private.admin_duplicate_merge_proposals where proposal_id=i.proposal_id;
   payload:=case i.reference_kind
+    when 'canonical_store' then (select to_jsonb(x) from app_public.stores x where x.id=i.reference_id)
     when 'store' then (select to_jsonb(x) from app_public.stores x where x.id=i.reference_id)
     when 'saved_store' then (select to_jsonb(x) from shopper_private.saved_stores x where x.user_id=i.reference_id and x.store_id=p.canonical_store_id)
     when 'private_memory' then coalesce((select to_jsonb(x) from shopper_private.private_store_memories x where x.user_id=i.reference_id and x.store_id=p.canonical_store_id),(select to_jsonb(x) from shopper_private.private_memory_merge_conflicts x where x.proposal_id=p.proposal_id and x.user_id=i.reference_id))

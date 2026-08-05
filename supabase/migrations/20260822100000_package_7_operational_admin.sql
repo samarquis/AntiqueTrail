@@ -71,7 +71,7 @@ create unique index one_live_admin_review_target on admin_private.admin_review_c
 
 create or replace function admin_private.enqueue_typed_review()
 returns trigger language plpgsql volatile security definer set search_path='' as $$
-declare kind text; target_kind text; target uuid; target_store uuid; digest bytea; case_id uuid;
+declare kind text; target_kind text; target uuid; target_store uuid; digest bytea; case_id uuid; case_version bigint;
 begin
   if tg_table_schema='media_private' and tg_table_name='media_uploads' then
     if new.state<>'awaiting_review' or (tg_op='UPDATE' and old.state='awaiting_review') then return new; end if;
@@ -88,10 +88,11 @@ begin
     values(kind,target_kind,target,target_store,digest)
     on conflict(case_type,target_id) where state in ('open','claimed','changes_requested') do update
       set snapshot_hash=excluded.snapshot_hash,state='open',assigned_admin_id=null,lock_owner_id=null,lock_acquired_at=null,lock_expires_at=null,version=admin_review_cases.version+1,updated_at=statement_timestamp()
-    returning admin_private.admin_review_cases.case_id into case_id;
+    returning admin_private.admin_review_cases.case_id,admin_private.admin_review_cases.version
+      into case_id,case_version;
   if case_id is not null then
     insert into admin_private.admin_case_events(case_id,event_kind,to_state,snapshot_hash,idempotency_key)
-      values(case_id,'created','open',digest,'enqueue-'||target);
+      values(case_id,'created','open',digest,'enqueue-v'||case_version||'-'||encode(digest,'hex'));
   end if;
   return new;
 end $$;
@@ -438,7 +439,7 @@ begin
   perform pg_advisory_xact_lock(least(hashtextextended('admin-merge:'||p.canonical_store_id,0),hashtextextended('admin-merge:'||p.duplicate_store_id,0)));
   perform pg_advisory_xact_lock(greatest(hashtextextended('admin-merge:'||p.canonical_store_id,0),hashtextextended('admin-merge:'||p.duplicate_store_id,0)));
   select * into p from admin_private.admin_duplicate_merge_proposals where proposal_id=id for update;
-  perform 1 from app_public.stores where id in (p.canonical_store_id,p.duplicate_store_id) for update;
+  perform admin_private.lock_merge_reference_set(p.canonical_store_id,p.duplicate_store_id,p.proposal_id);
   if p.state<>'previewed' or p.version<>p_expected_version then raise exception using errcode='40001',message='admin_unavailable'; end if;
   if p.preview_hash<>extensions.digest(convert_to(admin_private.merge_reference_snapshot(p.canonical_store_id,p.duplicate_store_id)::text,'utf8'),'sha256')
     then raise exception using errcode='40001',message='admin_unavailable'; end if;
@@ -562,6 +563,7 @@ begin
   perform pg_advisory_xact_lock(least(hashtextextended('admin-merge:'||p.canonical_store_id,0),hashtextextended('admin-merge:'||p.duplicate_store_id,0)));
   perform pg_advisory_xact_lock(greatest(hashtextextended('admin-merge:'||p.canonical_store_id,0),hashtextextended('admin-merge:'||p.duplicate_store_id,0)));
   select * into p from admin_private.admin_duplicate_merge_proposals where proposal_id=id for update;
+  perform admin_private.lock_merge_reference_set(p.canonical_store_id,p.duplicate_store_id,p.proposal_id);
   if p.state<>'executed' or p.version<>p_expected_version then raise exception using errcode='40001',message='admin_unavailable'; end if;
   if exists(select 1 from admin_private.admin_merge_execution_items x join admin_private.admin_duplicate_merge_plan_items i using(plan_item_id)
     where i.proposal_id=id and x.post_execute_digest<>admin_private.merge_current_item_digest(i.plan_item_id))

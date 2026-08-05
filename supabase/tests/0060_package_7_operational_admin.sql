@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(66);
+select plan(70);
 
 select has_table('admin_private','admin_command_receipts','Administrator commands have durable idempotency receipts');
 select has_table('admin_private','admin_break_glass_gate','break-glass has an explicit named gate');
@@ -21,7 +21,7 @@ select has_function('app_public','admin_rollback_duplicate_merge',array['text','
 select ok(position('current_user_has_role' in lower(pg_get_functiondef('admin_private.require_operational_admin()'::regprocedure)))>0
   and position('current_session_is_active' in lower(pg_get_functiondef('admin_private.require_operational_admin()'::regprocedure)))>0,'server requires an active Administrator session');
 select ok(position('current_session_has_mfa' in lower(pg_get_functiondef('admin_private.require_operational_admin()'::regprocedure)))>0
-  and position("current_session_recent_auth(interval '10 minutes')" in lower(pg_get_functiondef('admin_private.require_operational_admin()'::regprocedure)))>0,'every operational RPC inherits MFA and recent authentication');
+  and position('current_session_recent_auth(interval ''10 minutes'')' in lower(pg_get_functiondef('admin_private.require_operational_admin()'::regprocedure)))>0,'every operational RPC inherits MFA and recent authentication');
 select ok(position('admin_break_glass_gate' in lower(pg_get_functiondef('admin_private.require_operational_admin()'::regprocedure)))>0,'normal Administrator commands fail closed if break-glass is enabled');
 select ok(position('current_user_has_role' in lower(pg_get_functiondef('admin_private.require_operational_admin()'::regprocedure)))>0
   and position('privileged_anchor_is_current' in lower(pg_get_functiondef('app_private.current_user_has_role(app_private.app_role,uuid)'::regprocedure)))>0,
@@ -45,10 +45,10 @@ select ok(position('media_private.media_uploads' in lower(pg_get_functiondef('ad
 select ok(exists(select 1 from pg_trigger where tgname='enqueue_m01_admin_review' and tgrelid='media_private.media_uploads'::regclass),'M-01 awaiting-review uploads enter the typed queue');
 select ok(exists(select 1 from pg_trigger where tgname='enqueue_pilot_admin_review' and tgrelid='partner_private.pilot_store_drafts'::regclass)
   and exists(select 1 from pg_trigger where tgname='enqueue_claim_admin_review' and tgrelid='partner_private.listing_claims'::regclass),'onboarding and listing claims enter the typed queue');
-select ok(position("'immutablesubmission',true" in replace(lower(pg_get_functiondef('admin_private.review_case_json(uuid)'::regprocedure)),' ',''))>0,'submitted fields are explicitly immutable');
+select ok(position('''immutablesubmission'',true' in replace(lower(pg_get_functiondef('admin_private.review_case_json(uuid)'::regprocedure)),' ',''))>0,'submitted fields are explicitly immutable');
 select ok(position('shopper_private' in lower(pg_get_functiondef('admin_private.review_case_json(uuid)'::regprocedure)))=0,'review context cannot browse shopper-private records');
 
-select ok(position("p_action not in ('approve','return','reject')" in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0,'case decisions are type-specific approve, return, or reject only');
+select ok(position('p_action not in (''approve'',''return'',''reject'')' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0,'case decisions are type-specific approve, return, or reject only');
 select ok(position('p_expected_version' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0
   and position('admin_command_receipts' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0,'case decisions are optimistic and idempotent');
 select ok(position('requested_by=actor' in replace(lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)),' ',''))>0
@@ -66,8 +66,8 @@ select ok(not exists(select 1 from information_schema.routines where routine_sch
 
 select ok(position('partner_private.store_partner_grants' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
   and position('app_private.role_grants' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'scope commands keep both exact grant authorities aligned');
-select ok(position("p_operation not in ('revoke','regrant')" in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
-  and position("p_operation='grant'" in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))=0,
+select ok(position('p_operation not in (''revoke'',''regrant'')' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('p_operation=''grant''' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))=0,
   'Package 7 cannot bypass Package 6 onboarding or claim approval to create an initial grant');
 select ok(position('partner_access_revocations' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'revocation immediately denies an already-open Portal session');
 select ok(position('partner_consent_is_current' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'regrant requires current material consent');
@@ -100,7 +100,7 @@ select ok(position('trip_private.trip_stops' in lower(pg_get_functiondef('app_pu
 select ok(position('review_private.public_reviews' in lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)))>0
   and position('review_private.rating_aggregates' in lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)))>0,
   'merge handles review conflicts and aggregate deltas transactionally');
-select ok(position("publication_state='draft'" in replace(lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)),' ',''))>0,'duplicate listing is hidden atomically');
+select ok(position('publication_state=''draft''' in replace(lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)),' ',''))>0,'duplicate listing is hidden atomically');
 select ok(position('state=''rolled_back''' in lower(pg_get_functiondef('app_public.admin_rollback_duplicate_merge(text,bigint,text)'::regprocedure)))>0
   and position('admin_merge_ledgers' in lower(pg_get_functiondef('app_public.admin_rollback_duplicate_merge(text,bigint,text)'::regprocedure)))>0,'rollback is durable and provenance-backed');
 select ok(position('store_partner_grants' in lower(pg_get_functiondef('app_public.admin_rollback_duplicate_merge(text,bigint,text)'::regprocedure)))=0
@@ -131,16 +131,42 @@ select ok(position('admin_scope_previews' in lower(pg_get_functiondef('app_publi
   and position('consumed_at' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'regrant denies a missing, stale, mismatched, or replayed server preview');
 select ok(position('on conflict(case_type,target_id)' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0
   and position('snapshot_hash=excluded.snapshot_hash' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0,'resubmission refreshes and unlocks the exact review snapshot');
+select ok(position('encode(digest,''hex'')' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0
+  and position('case_version' in lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)))>0,
+  'each resubmitted draft snapshot receives a distinct idempotent queue event');
 select ok(position('admin_audit_anchor_health' in lower(pg_get_functiondef('admin_private.require_operational_admin()'::regprocedure)))>0
   and position('admin_privileged_audit_outbox' in lower(pg_get_functiondef('admin_private.require_operational_admin()'::regprocedure)))>0,'every command fails closed on Package 7 audit health or outbox failure');
-select ok(position("occurred_at>cutoff" in replace(lower(pg_get_functiondef('admin_private.enforce_operational_admin_rate(uuid,uuid)'::regprocedure)),' ',''))>0
+select ok(exists(select 1 from pg_trigger where tgname='sync_package_7_audit_anchor_health' and tgrelid='app_private.audit_anchor_capability'::regclass)
+  and position('admin_audit_anchor_health' in lower(pg_get_functiondef('admin_private.sync_package_7_audit_anchor_health()'::regprocedure)))>0
+  and position('audit_chain_roots' in lower(pg_get_functiondef('admin_private.sync_package_7_audit_anchor_health()'::regprocedure)))>0,
+  'the L-01 anchoring worker and watchdog update the Package 7 health latch');
+select ok(position('occurred_at>cutoff' in replace(lower(pg_get_functiondef('admin_private.enforce_operational_admin_rate(uuid,uuid)'::regprocedure)),' ',''))>0
   and position('retryafterseconds' in lower(pg_get_functiondef('admin_private.enforce_operational_admin_rate(uuid,uuid)'::regprocedure)))>0,'rate limits use a true sliding hour and bounded retry metadata');
 select ok(position('admin_duplicate_merge_plan_items' in lower(pg_get_functiondef('app_public.admin_preview_duplicate_merge(text,text)'::regprocedure)))>0
   and position('merge_reference_snapshot' in lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)))>0,'merge execution denies any mutation after its exact enumerated preview');
+select ok(position('''canonical_store''' in lower(pg_get_functiondef('admin_private.merge_reference_snapshot(uuid,uuid)'::regprocedure)))>0
+  and position('p_canonical' in lower(pg_get_functiondef('admin_private.merge_reference_snapshot(uuid,uuid)'::regprocedure)))>0
+  and position('p_duplicate' in lower(pg_get_functiondef('admin_private.merge_reference_snapshot(uuid,uuid)'::regprocedure)))>0,
+  'the exact merge preview binds the full canonical and duplicate Store Record snapshots');
 select ok(position('store_update_merge_conflicts' in lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)))>0
   and position('support_ticket_merge_conflicts' in lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)))>0,'portal collisions are durable and reparented before tombstoning');
 select ok(position('admin_merge_execution_items' in lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)))>0
   and position('merge_current_item_digest' in lower(pg_get_functiondef('app_public.admin_rollback_duplicate_merge(text,bigint,text)'::regprocedure)))>0,'rollback denies newer shopper, review, trip, or portal mutations using per-row post-execution digests');
+select ok(
+  position('lock_merge_reference_set' in lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)))>0
+  and position('lock_merge_reference_set' in lower(pg_get_functiondef('app_public.admin_rollback_duplicate_merge(text,bigint,text)'::regprocedure)))>0
+  and position('for update' in lower(pg_get_functiondef('admin_private.lock_merge_reference_set(uuid,uuid,uuid)'::regprocedure)))>0
+  and position('p_canonical,p_duplicate' in replace(lower(pg_get_functiondef('admin_private.lock_merge_reference_set(uuid,uuid,uuid)'::regprocedure)),' ',''))>0
+  and position('shopper_private.saved_stores' in lower(pg_get_functiondef('admin_private.lock_merge_reference_set(uuid,uuid,uuid)'::regprocedure)))>0
+  and position('trip_private.trip_stops' in lower(pg_get_functiondef('admin_private.lock_merge_reference_set(uuid,uuid,uuid)'::regprocedure)))>0
+  and position('review_private.public_reviews' in lower(pg_get_functiondef('admin_private.lock_merge_reference_set(uuid,uuid,uuid)'::regprocedure)))>0
+  and position('portal_private.store_updates' in lower(pg_get_functiondef('admin_private.lock_merge_reference_set(uuid,uuid,uuid)'::regprocedure)))>0
+  and position('partner_private.store_partner_grants' in lower(pg_get_functiondef('admin_private.lock_merge_reference_set(uuid,uuid,uuid)'::regprocedure)))>0
+  and position('lock_merge_reference_set' in lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)))
+    < position('merge_reference_snapshot' in lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)))
+  and position('lock_merge_reference_set' in lower(pg_get_functiondef('app_public.admin_rollback_duplicate_merge(text,bigint,text)'::regprocedure)))
+    < position('merge_current_item_digest' in lower(pg_get_functiondef('app_public.admin_rollback_duplicate_merge(text,bigint,text)'::regprocedure))),
+  'execute and rollback lock every merge child row before concurrent preview or digest validation');
 
 select * from finish();
 rollback;
