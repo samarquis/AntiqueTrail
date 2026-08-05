@@ -1,8 +1,9 @@
 -- Package 5B normative Browse map projection. Provider-safe coordinates stay
 -- separate from the authenticated/private preview fields in the application.
 
-grant release_automation to postgres;
+grant release_automation,rg01_automation to postgres;
 grant create on schema app_public to release_automation;
+grant create on schema rg01_private to rg01_automation;
 grant usage on schema shopper_private,trip_private,partner_private to release_automation;
 grant select on shopper_private.saved_stores,trip_private.trips,trip_private.trip_stops,
   trip_private.trip_participants,partner_private.listing_claims to release_automation;
@@ -187,4 +188,5 @@ $$;
 alter function rg01_private.support_case_in_scope(uuid,uuid) owner to rg01_automation;
 
 revoke create on schema app_public from release_automation;
-revoke release_automation from postgres;
+revoke create on schema rg01_private from rg01_automation;
+revoke release_automation,rg01_automation from postgres;

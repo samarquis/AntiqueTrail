@@ -24,7 +24,7 @@ do $$ begin
   end if;
 end $$;
 
-grant rg01_automation,identity_service to postgres;
+grant rg01_automation,identity_service,community_automation to postgres;
 create schema rg01_private;
 revoke all on schema rg01_private from public,anon,authenticated;
 grant usage on schema rg01_private to rg01_automation,rg01_source_service,
@@ -32,6 +32,7 @@ grant usage on schema rg01_private to rg01_automation,rg01_source_service,
   rg01_evidence_service,community_automation,community_evidence_service,release_executor;
 grant create on schema rg01_private to rg01_automation;
 grant create on schema app_public to identity_service;
+grant create on schema community_private to community_automation;
 
 create table rg01_private.rg01_capability (
   singleton_id smallint primary key default 1 check(singleton_id=1),
@@ -536,5 +537,5 @@ grant execute on function rg01_private.consume_decision_challenge(uuid,bytea,byt
 grant execute on function rg01_private.purge_run_linkage(uuid,text,bytea) to rg01_lifecycle_service;
 grant execute on function rg01_private.receipt_is_current_pass(uuid) to community_automation,community_evidence_service;
 
-revoke create on schema rg01_private from rg01_automation; revoke create on schema app_public from identity_service;
-revoke rg01_automation,identity_service from postgres;
+revoke create on schema rg01_private from rg01_automation; revoke create on schema app_public from identity_service; revoke create on schema community_private from community_automation;
+revoke rg01_automation,identity_service,community_automation from postgres;
