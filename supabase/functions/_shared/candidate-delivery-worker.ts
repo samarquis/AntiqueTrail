@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
 
 declare const Deno: { env: { get(name: string): string | undefined } }

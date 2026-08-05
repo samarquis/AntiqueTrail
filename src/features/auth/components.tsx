@@ -223,6 +223,7 @@ export function AccountPlaceholder() {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function safeReturnTo(value: string | null): string {
   // Preserve only same-origin application paths; never navigate to a protocol-relative URL.
   return value && value.startsWith('/') && !value.startsWith('//') ? value : '/stores'
