@@ -19,6 +19,8 @@
     "test:release": "node --test scripts/*.test.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "security:contract": "node scripts/security-contract.mjs",
+    "security:audit": "npm audit --audit-level=high",
     "check": "npm run typecheck && npm run lint && npm run format && npm run test && npm run test:release && npm run build"
   },
   "dependencies": {
