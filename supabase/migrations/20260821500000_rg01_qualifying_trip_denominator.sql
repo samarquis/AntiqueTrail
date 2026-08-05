@@ -2,7 +2,7 @@
 -- First/second-shopper thresholds remain per deduplicated shopper; trips three and
 -- later must not disappear from the independently reported qualifying-trip total.
 
-alter function rg01_private.freeze_run_derived_core(uuid) owner to postgres;
+set local role rg01_automation;
 
 create or replace function rg01_private.freeze_run_derived_core(p_run_id uuid)
 returns jsonb language plpgsql security definer set search_path='' as $$
@@ -53,7 +53,7 @@ begin
   return jsonb_build_object('runId',p_run_id,'manifestDigest',encode(md,'hex'),'blockers',b,'claimReport',jsonb_build_object('approved',ca,'rejected',cr,'abusive',cab));
 end $$;
 
-alter function rg01_private.freeze_run_derived_core(uuid) owner to rg01_automation;
 revoke all on function rg01_private.freeze_run_derived_core(uuid) from public,anon,authenticated,
   rg01_source_service,rg01_calculation_service,rg01_signature_service,rg01_lifecycle_service,
   rg01_evidence_service;
+reset role;
