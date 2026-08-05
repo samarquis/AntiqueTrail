@@ -4,6 +4,7 @@ import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
 import { createPortalClient, sanitizeDiagnostics } from '../features/portal'
 import { createReadinessClient } from '../features/readiness'
+import { createBetaClient } from '../features/beta'
 import { createShopperClient } from '../features/shopper'
 import { createCandidateProductionClient } from '../features/candidates'
 import {
@@ -428,6 +429,12 @@ export async function configuredComposition(
           }),
       ),
       readiness: createReadinessClient({
+        async rpc(name, args) {
+          const result = await supabase.rpc(name, args)
+          return { data: result.data, error: result.error }
+        },
+      }),
+      beta: createBetaClient({
         async rpc(name, args) {
           const result = await supabase.rpc(name, args)
           return { data: result.data, error: result.error }

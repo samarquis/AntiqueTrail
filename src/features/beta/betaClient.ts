@@ -22,18 +22,54 @@ export interface BetaAdmissionResult {
   state: 'active' | 'withdrawn' | 'rolled_back'
 }
 
+export interface DurableBetaState {
+  cohortId: string
+  state: 'disabled' | 'active' | 'paused' | 'withdrawn' | 'completed'
+  currentOrdinal: BetaOrdinal
+  version: number
+  regionalPublicReadinessReview: 'closed' | 'open'
+  admissions: Array<
+    BetaAdmissionResult & {
+      representativeAccountId: string
+      gateState: 'pending' | 'passed' | 'rejected'
+    }
+  >
+  capabilities: {
+    openSignup: false
+    publicReviews: false
+    anonymousRealStoreAccess: false
+    publicPromotion: false
+    ownerAnalytics: false
+    pilotStoreAudience: 'invited_cohort_only'
+  }
+}
+
+export interface BetaGateChallenge {
+  challengeId: string
+  payloadDigest: string
+  expiresInSeconds: number
+}
+
+export interface BetaGateDecisionReceipt {
+  receiptId: string
+  cohortId: string
+  ordinal: BetaOrdinal
+  decision: 'pass' | 'reject'
+  signatureKind: 'authenticated_product_owner_mfa'
+}
+
 export interface DurableBetaClient {
-  getState(cohortId: string): Promise<unknown>
+  getState(cohortId: string): Promise<DurableBetaState>
   requestGateDecision(input: {
     cohortId: string
     ordinal: BetaOrdinal
     decision: 'pass' | 'reject'
-  }): Promise<unknown>
+  }): Promise<BetaGateChallenge>
   completeGateDecision(input: {
     challengeId: string
     payloadDigest: string
     idempotencyKey: string
-  }): Promise<unknown>
+  }): Promise<BetaGateDecisionReceipt>
   admitNextStore(input: {
     cohortId: string
     storeId: string
@@ -52,7 +88,7 @@ export interface DurableBetaClient {
     cohortId: string
     expectedCohortVersion: number
     idempotencyKey: string
-  }): Promise<unknown>
+  }): Promise<DurableBetaState>
 }
 
 export const GENERIC_BETA_ERROR =
@@ -115,4 +151,17 @@ export function createBetaClient(transport: BetaRpcTransport): DurableBetaClient
         p_idempotency_key: input.idempotencyKey,
       }),
   }
+}
+
+const unavailable = async (): Promise<never> => {
+  throw new BetaApiError()
+}
+
+export const unavailableBetaClient: DurableBetaClient = {
+  getState: unavailable,
+  requestGateDecision: unavailable,
+  completeGateDecision: unavailable,
+  admitNextStore: unavailable,
+  withdrawStore: unavailable,
+  recoverCohort: unavailable,
 }

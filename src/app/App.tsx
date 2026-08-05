@@ -119,6 +119,7 @@ import {
   unavailableReadinessClient,
   type DurableReadinessClient,
 } from '../features/readiness'
+import { BetaControlPage, unavailableBetaClient, type DurableBetaClient } from '../features/beta'
 
 // The current provider-neutral shell has no privileged session source. Keep the
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
@@ -280,6 +281,11 @@ function RestrictionAppeal({ client }: { client: ReviewClient }) {
 function ReadinessStatus({ client }: { client: DurableReadinessClient }) {
   const { runId = '' } = useParams()
   return <ReadinessStatusPage runId={runId} client={client} />
+}
+
+function BetaControl({ client }: { client: DurableBetaClient }) {
+  const { cohortId = '' } = useParams()
+  return <BetaControlPage cohortId={cohortId} client={client} />
 }
 
 function CandidateCaptureRoute({ client }: { client: CandidateClient }) {
@@ -476,6 +482,7 @@ export interface AppClients {
   reviews?: ReviewClient
   portal?: PortalClient
   readiness?: DurableReadinessClient
+  beta?: DurableBetaClient
   tripOfflineGrants?: TripOfflineGrantSource
   routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
 }
@@ -505,6 +512,7 @@ export default function App({
   const reviewClient = clients.reviews ?? unavailableReviewClient
   const portalClient = clients.portal ?? unavailablePortalClient
   const readinessClient = clients.readiness ?? unavailableReadinessClient
+  const betaClient = clients.beta ?? unavailableBetaClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
   const tripOfflineRef = useRef<TripOfflineRuntime>(
     runtime.tripOffline ?? createTripOfflineRuntime(),
@@ -736,6 +744,17 @@ export default function App({
                 registry={runtime.sessionRegistry}
               >
                 <ReadinessStatus client={readinessClient} />
+              </AuthenticatedAdminGuard>
+            }
+          />
+          <Route
+            path="/admin/beta/:cohortId"
+            element={
+              <AuthenticatedAdminGuard
+                override={runtime.adminSession}
+                registry={runtime.sessionRegistry}
+              >
+                <BetaControl client={betaClient} />
               </AuthenticatedAdminGuard>
             }
           />
