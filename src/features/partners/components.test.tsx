@@ -141,8 +141,7 @@ describe('partner onboarding boundary', () => {
       onboarding: 'draft' as const,
     }))
     renderPage(<PartnerJoinPage client={client({ acceptConsent })} />)
-    await screen.findByRole('heading', { name: /review invitation/i })
-    await user.type(screen.getByLabelText(/your name/i), 'Sam Marquis')
+    await user.type(await screen.findByLabelText(/your name/i), 'Sam Marquis')
     await user.type(screen.getByLabelText(/title or role/i), 'Owner')
     await user.type(screen.getByLabelText(/^store name$/i), 'Oak Antiques')
     await user.type(screen.getByLabelText(/owner-controlled email/i), ' OWNER@Example.COM ')

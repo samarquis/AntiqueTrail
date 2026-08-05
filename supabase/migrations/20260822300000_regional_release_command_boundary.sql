@@ -1,6 +1,8 @@
 -- Package 10B operational boundary. The constrained executor can invoke one
 -- exact idempotent command but cannot directly mutate release evidence.
 
+grant release_automation to postgres;
+
 create or replace function app_public.execute_regional_release_command(
   p_operation text,
   p_command_id uuid,
@@ -34,3 +36,4 @@ revoke all on function app_public.execute_regional_release_command(text,uuid,uui
   from public,anon,authenticated;
 grant execute on function app_public.execute_regional_release_command(text,uuid,uuid,uuid[],text)
   to release_executor;
+revoke release_automation from postgres;

@@ -1,6 +1,8 @@
 -- Package 9 lifecycle completion is owned by the existing constrained account
 -- lifecycle worker. Browser and ordinary authenticated roles cannot run purges.
 
+grant review_automation to postgres;
+
 create or replace function app_public.run_due_review_lifecycle(
   p_now timestamptz,
   p_limit integer default 100
@@ -71,3 +73,4 @@ revoke all on function app_public.run_due_review_lifecycle(timestamptz,integer)
   from public,anon,authenticated;
 grant execute on function app_public.run_due_review_lifecycle(timestamptz,integer)
   to account_lifecycle_service;
+revoke review_automation from postgres;
