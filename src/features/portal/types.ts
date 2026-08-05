@@ -91,6 +91,27 @@ export interface PortalControlledChangeDraft {
   reason: string
 }
 
+export interface PortalMediaCapability {
+  enabled: boolean
+  source: 'server'
+}
+
+export type PortalMediaKind = 'cover' | 'gallery'
+
+export interface PortalMediaUploadInput {
+  storeId: string
+  kind: PortalMediaKind
+  altText: string
+  file: File
+  rightsConfirmed: true
+  idempotencyKey: string
+}
+
+export interface PortalMediaUploadReceipt {
+  uploadId: string
+  state: 'awaiting_review'
+}
+
 export type StoreUpdateType = 'new_finds' | 'sale' | 'announcement' | 'store_news'
 export type StoreUpdateState = 'live' | 'archived' | 'pending_review'
 
@@ -192,6 +213,8 @@ export interface PortalClient {
   saveHours(hours: PortalHours): Promise<PortalHours>
   saveManagedFields(fields: PortalManagedFields): Promise<PortalHomeSnapshot>
   submitControlledChange(change: PortalControlledChangeDraft): Promise<PortalPendingChange>
+  getMediaCapability(): Promise<PortalMediaCapability>
+  uploadOfficialMedia(input: PortalMediaUploadInput): Promise<PortalMediaUploadReceipt>
   listUpdates(): Promise<StoreUpdate[]>
   createUpdate(draft: StoreUpdateDraft): Promise<StoreUpdate>
   archiveUpdate(id: string): Promise<StoreUpdate>

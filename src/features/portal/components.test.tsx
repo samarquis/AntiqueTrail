@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -11,7 +11,7 @@ import {
   validateHours,
   validateUpdateDraft,
 } from './portalClient'
-import { PortalHomePage, PortalSupportPage } from './components'
+import { PortalControlledChangesPage, PortalHomePage, PortalSupportPage } from './components'
 import type { PortalClient, PortalHours, SupportTicket } from './types'
 
 function hours(): PortalHours {
@@ -74,6 +74,11 @@ function client(overrides: Partial<PortalClient> = {}): PortalClient {
       requestedValue: 'Oak',
       state: 'pending' as const,
       submittedAt: '2026-08-03',
+    })),
+    getMediaCapability: vi.fn(async () => ({ enabled: false, source: 'server' as const })),
+    uploadOfficialMedia: vi.fn(async () => ({
+      uploadId: '11111111-1111-4111-8111-111111111111',
+      state: 'awaiting_review' as const,
     })),
     listUpdates: vi.fn(async () => []),
     createUpdate: vi.fn(async (draft) => ({ ...draft, id: 'update-1', state: 'live' as const })),
@@ -184,5 +189,51 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(validateUpdateDraft({ type: 'sale', headline: 'Sale', details: 'Details' })).toContain(
       'Sales require an end date.',
     )
+  })
+
+  it('keeps official media fail closed until the server capability opens', async () => {
+    render(
+      <MemoryRouter>
+        <PortalControlledChangesPage client={client()} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText(new RegExp(MEDIA_GATE_MESSAGE))).toBeInTheDocument()
+    expect(screen.queryByLabelText(/official image file/i)).not.toBeInTheDocument()
+  })
+
+  it('uploads official media through M-01 and leaves publication pending review', async () => {
+    const user = userEvent.setup()
+    const uploadOfficialMedia = vi.fn(async () => ({
+      uploadId: '11111111-1111-4111-8111-111111111111',
+      state: 'awaiting_review' as const,
+    }))
+    render(
+      <MemoryRouter>
+        <PortalControlledChangesPage
+          client={client({
+            getMediaCapability: vi.fn(async () => ({ enabled: true, source: 'server' as const })),
+            uploadOfficialMedia,
+          })}
+        />
+      </MemoryRouter>,
+    )
+    const file = new File([new Uint8Array(32)], 'store.png', { type: 'image/png' })
+    await user.upload(await screen.findByLabelText(/official image file/i), file)
+    await user.type(screen.getByLabelText(/alternative text/i), 'Front entrance of Oak Antiques')
+    await user.click(screen.getByLabelText(/confirm.*rights/i))
+    const submitButton = screen.getByRole('button', { name: /submit image for review/i })
+    fireEvent.submit(submitButton.closest('form')!)
+
+    expect(uploadOfficialMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storeId: 'store-1',
+        kind: 'gallery',
+        altText: 'Front entrance of Oak Antiques',
+        file,
+        rightsConfirmed: true,
+        idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      }),
+    )
+    expect(await screen.findByRole('status')).toHaveTextContent(/processed derivative.*review/i)
   })
 })

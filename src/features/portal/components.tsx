@@ -1145,6 +1145,30 @@ export function PortalControlledChangesPage({
   })
   const [error, setError] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
+  const [mediaReady, setMediaReady] = useState<boolean | null>(null)
+  const [storeId, setStoreId] = useState<string | null>(null)
+  const [mediaFile, setMediaFile] = useState<File | null>(null)
+  const [mediaKind, setMediaKind] = useState<'cover' | 'gallery'>('gallery')
+  const [mediaAltText, setMediaAltText] = useState('')
+  const [mediaRights, setMediaRights] = useState(false)
+  const [mediaPending, setMediaPending] = useState(false)
+  const [mediaError, setMediaError] = useState<string | null>(null)
+  const [mediaStatus, setMediaStatus] = useState<string | null>(null)
+  useEffect(() => {
+    let active = true
+    Promise.all([client.getMediaCapability(), client.getHome()])
+      .then(([capability, home]) => {
+        if (!active) return
+        setMediaReady(capability.enabled)
+        setStoreId(capability.enabled ? home.store.id : null)
+      })
+      .catch(() => {
+        if (active) setMediaReady(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [client])
   function submit(event: FormEvent) {
     event.preventDefault()
     if (!draft.requestedValue.trim() || !draft.reason.trim()) return
@@ -1161,6 +1185,36 @@ export function PortalControlledChangesPage({
         setDraft({ ...draft, requestedValue: '', reason: '' })
       })
       .catch(() => setError(true))
+  }
+  function submitMedia(event: FormEvent) {
+    event.preventDefault()
+    const altText = mediaAltText.normalize('NFKC').trim()
+    if (!mediaReady || !storeId || !mediaFile || !mediaRights || !altText) {
+      setMediaError('Choose an image, describe it, and confirm that you have publishing rights.')
+      return
+    }
+    setMediaError(null)
+    setMediaStatus(null)
+    setMediaPending(true)
+    client
+      .uploadOfficialMedia({
+        storeId,
+        kind: mediaKind,
+        altText,
+        file: mediaFile,
+        rightsConfirmed: true,
+        idempotencyKey: crypto.randomUUID(),
+      })
+      .then(() => {
+        setMediaStatus(
+          'The processed derivative is awaiting Administrator review and is not published yet.',
+        )
+        setMediaFile(null)
+        setMediaAltText('')
+        setMediaRights(false)
+      })
+      .catch(() => setMediaError(GENERIC_PORTAL_ERROR))
+      .finally(() => setMediaPending(false))
   }
   return (
     <PortalCard
@@ -1185,7 +1239,6 @@ export function PortalControlledChangesPage({
           <option value="ownership">Ownership</option>
           <option value="permanent_closure">Permanent closure</option>
           <option value="categories">Categories</option>
-          <option value="official_media">Official photos (M-01 gated)</option>
         </select>
         <label htmlFor="controlled-value">Requested value</label>
         <textarea
@@ -1207,6 +1260,59 @@ export function PortalControlledChangesPage({
           Submit change request
         </button>
       </form>
+      <section aria-labelledby="official-media-heading">
+        <h2 id="official-media-heading">Official photos</h2>
+        {mediaReady ? (
+          <form onSubmit={submitMedia}>
+            <p>
+              Images are quarantined, scanned, metadata-stripped, and re-encoded before a separate
+              Administrator review. The original file is never published.
+            </p>
+            <label htmlFor="official-media-kind">Image placement</label>
+            <select
+              id="official-media-kind"
+              value={mediaKind}
+              onChange={(event) => setMediaKind(event.target.value as 'cover' | 'gallery')}
+            >
+              <option value="gallery">Gallery image</option>
+              <option value="cover">Cover image</option>
+            </select>
+            <label htmlFor="official-media-file">Official image file</label>
+            <input
+              id="official-media-file"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(event) => setMediaFile(event.target.files?.[0] ?? null)}
+              required
+            />
+            <label htmlFor="official-media-alt">Alternative text</label>
+            <input
+              id="official-media-alt"
+              value={mediaAltText}
+              maxLength={240}
+              onChange={(event) => setMediaAltText(event.target.value)}
+              required
+            />
+            <label>
+              <input
+                type="checkbox"
+                checked={mediaRights}
+                onChange={(event) => setMediaRights(event.target.checked)}
+              />{' '}
+              I confirm that I have rights to publish this image.
+            </label>
+            {mediaError && <p role="alert">{mediaError}</p>}
+            {mediaStatus && <p role="status">{mediaStatus}</p>}
+            <button className="button" type="submit" disabled={mediaPending}>
+              {mediaPending ? 'Submitting…' : 'Submit image for review'}
+            </button>
+          </form>
+        ) : (
+          <p role="status">
+            {mediaReady === null ? 'Checking the M-01 media capability…' : MEDIA_GATE_MESSAGE}
+          </p>
+        )}
+      </section>
     </PortalCard>
   )
 }

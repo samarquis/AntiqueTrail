@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { GENERIC_PORTAL_ERROR, createPortalClient } from './portalClient'
+import {
+  GENERIC_PORTAL_ERROR,
+  createPortalClient,
+  createPortalMediaHttpTransport,
+} from './portalClient'
 
 describe('production portal client', () => {
   it('routes every durable portal action through the bounded RPC contract', async () => {
@@ -7,9 +11,16 @@ describe('production portal client', () => {
       data: name === 'portal_remove_official_link' ? { removed: true } : { name, args },
       error: null,
     }))
-    const client = createPortalClient({ rpc }, () => [
-      { key: 'route', label: 'Current screen', value: '/store-portal' },
-    ])
+    const client = createPortalClient(
+      { rpc },
+      () => [{ key: 'route', label: 'Current screen', value: '/store-portal' }],
+      {
+        upload: vi.fn(async () => ({
+          uploadId: '11111111-1111-4111-8111-111111111111',
+          state: 'awaiting_review' as const,
+        })),
+      },
+    )
     const hours = { timeZone: 'America/Chicago', weekly: [], holidays: [], version: 4 }
 
     await client.getHome()
@@ -17,6 +28,15 @@ describe('production portal client', () => {
     await client.saveHours(hours)
     await client.saveManagedFields({ phone: '555-0100', website: '', description: 'Local store' })
     await client.submitControlledChange({ field: 'name', requestedValue: 'Oak', reason: 'Legal' })
+    await client.getMediaCapability()
+    await client.uploadOfficialMedia({
+      storeId: '11111111-1111-4111-8111-111111111111',
+      kind: 'gallery',
+      altText: 'Front entrance',
+      file: new File([new Uint8Array(32)], 'store.png', { type: 'image/png' }),
+      rightsConfirmed: true,
+      idempotencyKey: '22222222-2222-4222-8222-222222222222',
+    })
     await client.listUpdates()
     await client.createUpdate({ type: 'announcement', headline: 'Hello', details: 'Details' })
     await client.archiveUpdate('update-1')
@@ -42,6 +62,7 @@ describe('production portal client', () => {
       'portal_save_hours',
       'portal_save_managed_fields',
       'portal_submit_controlled_change',
+      'media_get_capability',
       'portal_list_updates',
       'portal_create_update',
       'portal_archive_update',
@@ -68,5 +89,43 @@ describe('production portal client', () => {
     })
     await expect(failed.getHome()).rejects.toThrow(GENERIC_PORTAL_ERROR)
     await expect(failed.removeOfficialLink('facebook')).rejects.toThrow(GENERIC_PORTAL_ERROR)
+  })
+
+  it('uploads only through the authenticated bounded media endpoint', async () => {
+    const requests: RequestInit[] = []
+    const fetcher: typeof fetch = vi.fn(async (_input, init) => {
+      requests.push(init ?? {})
+      return Response.json(
+        { uploadId: '11111111-1111-4111-8111-111111111111', state: 'awaiting_review' },
+        { status: 202 },
+      )
+    })
+    const transport = createPortalMediaHttpTransport({
+      endpoint: 'https://project.supabase.co/functions/v1/media-provider-command',
+      apiKey: 'public-anon-key',
+      getAccessToken: async () => 'user-access-token',
+      fetcher,
+    })
+    const file = new File([new Uint8Array(32)], 'store.png', { type: 'image/png' })
+    await expect(
+      transport.upload({
+        storeId: '11111111-1111-4111-8111-111111111111',
+        kind: 'gallery',
+        altText: 'Front entrance',
+        file,
+        rightsConfirmed: true,
+        idempotencyKey: '22222222-2222-4222-8222-222222222222',
+      }),
+    ).resolves.toMatchObject({ state: 'awaiting_review' })
+    const request = requests[0]
+    expect(request).toMatchObject({
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'omit',
+      redirect: 'error',
+      headers: { Authorization: 'Bearer user-access-token', apikey: 'public-anon-key' },
+    })
+    expect(request?.body).toBeInstanceOf(FormData)
+    expect((request?.body as FormData).get('image')).toBe(file)
   })
 })

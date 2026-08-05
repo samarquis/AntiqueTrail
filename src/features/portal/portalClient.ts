@@ -11,6 +11,8 @@ import type {
   StoreUpdateDraft,
   PortalControlledChangeDraft,
   PortalManagedFields,
+  PortalMediaUploadInput,
+  PortalMediaUploadReceipt,
   OfficialLink,
   SupportTicketDraft,
 } from './types'
@@ -19,7 +21,6 @@ export const GENERIC_PORTAL_ERROR = "We couldn't update this store portal. Pleas
 export const PORTAL_ACCESS_ERROR = 'Store Portal access is unavailable for this account or session.'
 export const MEDIA_GATE_MESSAGE =
   'Official images and screenshots are disabled until the M-01 media gate passes.'
-export const MEDIA_CAPABILITY = 'blocked' as const
 export const RECENT_AUTH_WINDOW_MS = 10 * 60 * 1000
 
 type PortalRpcName =
@@ -41,6 +42,7 @@ type PortalRpcName =
   | 'portal_confirm_support_resolution'
   | 'portal_reopen_support_ticket'
   | 'portal_preview_public_listing'
+  | 'media_get_capability'
 
 export interface PortalRpcTransport {
   rpc(
@@ -49,9 +51,63 @@ export interface PortalRpcTransport {
   ): Promise<{ data: unknown; error: unknown }>
 }
 
+export interface PortalMediaTransport {
+  upload(input: PortalMediaUploadInput): Promise<PortalMediaUploadReceipt>
+}
+
+export function createPortalMediaHttpTransport(options: {
+  endpoint: string
+  apiKey: string
+  getAccessToken: () => Promise<string>
+  fetcher?: typeof fetch
+}): PortalMediaTransport {
+  const endpoint = new URL(options.endpoint)
+  if (
+    (endpoint.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(endpoint.hostname)) ||
+    endpoint.username ||
+    endpoint.password ||
+    endpoint.hash
+  )
+    throw new Error(GENERIC_PORTAL_ERROR)
+  const fetcher = options.fetcher ?? fetch
+  return {
+    async upload(input) {
+      const accessToken = await options.getAccessToken()
+      if (!accessToken) throw new Error(GENERIC_PORTAL_ERROR)
+      const body = new FormData()
+      body.set('image', input.file)
+      body.set('storeId', input.storeId)
+      body.set('kind', input.kind)
+      body.set('altText', input.altText)
+      body.set('idempotencyKey', input.idempotencyKey)
+      body.set('rightsConfirmed', String(input.rightsConfirmed))
+      try {
+        const response = await fetcher(endpoint, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, apikey: options.apiKey },
+          body,
+          cache: 'no-store',
+          credentials: 'omit',
+          redirect: 'error',
+          referrerPolicy: 'no-referrer',
+        })
+        if (!response.ok || !response.headers.get('content-type')?.includes('application/json'))
+          throw new Error(GENERIC_PORTAL_ERROR)
+        const result = (await response.json()) as { uploadId?: unknown; state?: unknown }
+        if (typeof result.uploadId !== 'string' || result.state !== 'awaiting_review')
+          throw new Error(GENERIC_PORTAL_ERROR)
+        return { uploadId: result.uploadId, state: result.state }
+      } catch {
+        throw new Error(GENERIC_PORTAL_ERROR)
+      }
+    },
+  }
+}
+
 export function createPortalClient(
   transport: PortalRpcTransport,
   diagnostics: () => PortalDiagnostic[] = () => [],
+  media?: PortalMediaTransport,
 ): PortalClient {
   async function call<T>(
     name: PortalRpcName,
@@ -74,6 +130,23 @@ export function createPortalClient(
       call('portal_save_managed_fields', { p_fields: fields }),
     submitControlledChange: (change: PortalControlledChangeDraft) =>
       call('portal_submit_controlled_change', { p_change: change }),
+    getMediaCapability: () => call('media_get_capability'),
+    uploadOfficialMedia: async (input) => {
+      if (!media) throw new Error(GENERIC_PORTAL_ERROR)
+      try {
+        const receipt = await media.upload(input)
+        if (
+          receipt.state !== 'awaiting_review' ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+            receipt.uploadId,
+          )
+        )
+          throw new Error(GENERIC_PORTAL_ERROR)
+        return receipt
+      } catch {
+        throw new Error(GENERIC_PORTAL_ERROR)
+      }
+    },
     listUpdates: () => call('portal_list_updates'),
     createUpdate: (draft: StoreUpdateDraft) => call('portal_create_update', { p_update: draft }),
     archiveUpdate: (id) => call('portal_archive_update', { p_update_id: id }),
@@ -108,6 +181,8 @@ export const unavailablePortalClient: PortalClient = {
   saveHours: unavailable,
   saveManagedFields: unavailable,
   submitControlledChange: unavailable,
+  getMediaCapability: unavailable,
+  uploadOfficialMedia: unavailable,
   listUpdates: unavailable,
   createUpdate: unavailable,
   archiveUpdate: unavailable,

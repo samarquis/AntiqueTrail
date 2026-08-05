@@ -112,6 +112,7 @@ Deno.serve(async (request) => {
       return unavailable(headers)
     const bytes = new Uint8Array(await image.arrayBuffer())
     let staged = false
+    let acceptedUploadId = ''
     const dependencies: MediaPipelineDependencies = {
       reserve: async (input) => {
         const value = await rpc<Record<string, unknown>>(userClient, 'media_reserve_upload', {
@@ -136,6 +137,7 @@ Deno.serve(async (request) => {
           derivativeObjectKey !== `quarantine/${uploadId}/derivative.webp`
         )
           throw new Error('media_unavailable')
+        acceptedUploadId = uploadId
         return {
           uploadId,
           originalObjectKey,
@@ -235,7 +237,7 @@ Deno.serve(async (request) => {
       deletePublic: async () => Promise.reject(new Error('media_unavailable')),
       completePurge: async () => Promise.reject(new Error('media_unavailable')),
     }
-    await runMediaIngest(
+    const result = await runMediaIngest(
       {
         bytes,
         claimedMime: image.type,
@@ -247,7 +249,11 @@ Deno.serve(async (request) => {
       },
       dependencies,
     )
-    return Response.json({ state: 'accepted' }, { status: 202, headers })
+    if (!acceptedUploadId) throw new Error('media_unavailable')
+    return Response.json(
+      { state: result.state, uploadId: acceptedUploadId },
+      { status: 202, headers },
+    )
   } catch {
     return unavailable(headers)
   }

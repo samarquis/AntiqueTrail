@@ -20,6 +20,8 @@ describe('M-01 Edge wiring contract', () => {
       uploadSource.indexOf('await fetch(scanUrl'),
     )
     expect(uploadSource).not.toContain('.from(publicBucket)')
+    expect(uploadSource).toContain('uploadId: acceptedUploadId')
+    expect(uploadSource).toContain('state: result.state')
   })
 
   it('publishes and purges only behind the constant-time scheduler boundary', () => {

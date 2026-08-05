@@ -2,7 +2,11 @@ import { createClient, type Session } from '@supabase/supabase-js'
 import type { AppClients, AppRuntime } from './App'
 import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
-import { createPortalClient, sanitizeDiagnostics } from '../features/portal'
+import {
+  createPortalClient,
+  createPortalMediaHttpTransport,
+  sanitizeDiagnostics,
+} from '../features/portal'
 import { createReadinessClient } from '../features/readiness'
 import { createBetaClient } from '../features/beta'
 import { createShopperClient } from '../features/shopper'
@@ -427,6 +431,14 @@ export async function configuredComposition(
             route: window.location.pathname,
             connection: navigator.onLine ? 'online' : 'offline',
           }),
+        createPortalMediaHttpTransport({
+          endpoint: `${url}/functions/v1/media-provider-command`,
+          apiKey: anonKey,
+          async getAccessToken() {
+            const session = await supabase.auth.getSession()
+            return session.data.session?.access_token ?? ''
+          },
+        }),
       ),
       readiness: createReadinessClient({
         async rpc(name, args) {
