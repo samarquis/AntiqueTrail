@@ -2,6 +2,7 @@
 -- lifecycle worker. Browser and ordinary authenticated roles cannot run purges.
 
 grant review_automation to postgres;
+grant create on schema app_public to review_automation;
 
 create or replace function app_public.run_due_review_lifecycle(
   p_now timestamptz,
@@ -73,4 +74,5 @@ revoke all on function app_public.run_due_review_lifecycle(timestamptz,integer)
   from public,anon,authenticated;
 grant execute on function app_public.run_due_review_lifecycle(timestamptz,integer)
   to account_lifecycle_service;
+revoke create on schema app_public from review_automation;
 revoke review_automation from postgres;
