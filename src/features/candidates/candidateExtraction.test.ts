@@ -12,6 +12,8 @@ function response(
     status: 200,
     headers: { 'content-type': 'text/html; charset=utf-8' },
     connectedAddress: '93.184.216.34',
+    compressedBytes: 80,
+    decompressedBytes: 80,
     body: (async function* () {
       yield new TextEncoder().encode(
         '<html><head><title>Oak &amp; Pine Antiques</title></head></html>',
@@ -55,6 +57,78 @@ describe('candidate extraction service', () => {
         verified: false,
       },
       publicWriteAllowed: false,
+    })
+  })
+
+  it('enforces the normative pinned-request limits and strips ambient authority headers', async () => {
+    let observed:
+      | Parameters<CandidateExtractionDependencies['transport']['requestPinned']>[0]
+      | null = null
+    const service = new CandidateExtractionService(
+      dependencies({
+        transport: {
+          requestPinned: async (request) => {
+            observed = request
+            return response()
+          },
+        },
+      }),
+    )
+
+    await service.extract({ actorKey: 'shopper-1', link: 'https://example.com', note: '' })
+    expect(observed).toMatchObject({
+      connectTimeoutMs: 2_000,
+      maxCompressedBytes: 1_048_576,
+      maxDecompressedBytes: 2_097_152,
+      stripHeaders: ['authorization', 'cookie', 'origin', 'proxy-authorization', 'referer'],
+    })
+  })
+
+  it.each(['http://example.com:80/store', 'https://example.com:443/store'])(
+    'permits only the explicit default HTTP(S) ports: %s',
+    async (link) => {
+      const service = new CandidateExtractionService(dependencies())
+      await expect(
+        service.extract({ actorKey: 'shopper-1', link, note: '' }),
+      ).resolves.toMatchObject({
+        mode: 'suggestions',
+      })
+    },
+  )
+
+  it('rejects non-contract ports before DNS or transport', async () => {
+    const service = new CandidateExtractionService(
+      dependencies({
+        resolver: { resolve: async () => Promise.reject(new Error('must not resolve')) },
+      }),
+    )
+    await expect(
+      service.extract({ actorKey: 'shopper-1', link: 'https://example.com:8443/store', note: '' }),
+    ).resolves.toMatchObject({ mode: 'manual_fallback', reason: 'invalid_link' })
+  })
+
+  it('accepts bounded plain text as unverified private suggestions', async () => {
+    const body = new TextEncoder().encode('Oak Street Antiques\nFurniture and vintage tools')
+    const service = new CandidateExtractionService(
+      dependencies({
+        transport: {
+          requestPinned: async () =>
+            response({
+              headers: { 'content-type': 'text/plain' },
+              compressedBytes: body.byteLength,
+              decompressedBytes: body.byteLength,
+              body: (async function* () {
+                yield body
+              })(),
+            }),
+        },
+      }),
+    )
+    await expect(
+      service.extract({ actorKey: 'shopper-1', link: 'https://example.com/store.txt', note: '' }),
+    ).resolves.toMatchObject({
+      mode: 'suggestions',
+      suggestions: { title: 'Oak Street Antiques', description: 'Furniture and vintage tools' },
     })
   })
 
@@ -139,7 +213,8 @@ describe('candidate extraction service', () => {
     {
       name: 'oversized declared content',
       response: response({
-        headers: { 'content-type': 'text/html', 'content-length': '600000' },
+        headers: { 'content-type': 'text/html', 'content-length': '1048577' },
+        compressedBytes: 1_048_577,
       }),
       reason: 'response_too_large',
     },
@@ -164,8 +239,8 @@ describe('candidate extraction service', () => {
           requestPinned: async () =>
             response({
               body: (async function* () {
-                yield new Uint8Array(400_000)
-                yield new Uint8Array(200_000)
+                yield new Uint8Array(1_500_000)
+                yield new Uint8Array(700_000)
               })(),
             }),
         },

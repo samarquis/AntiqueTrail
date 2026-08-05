@@ -129,10 +129,7 @@ function coarseIpKey(value: string) {
   if (mapped) return coarseIpKey(mapped[1])
   if (value.includes('.')) {
     const parts = value.split('.')
-    if (
-      parts.length !== 4 ||
-      parts.some((part) => !/^\d{1,3}$/.test(part) || Number(part) > 255)
-    )
+    if (parts.length !== 4 || parts.some((part) => !/^\d{1,3}$/.test(part) || Number(part) > 255))
       throw new Error('rate context unavailable')
     return `${parts.slice(0, 3).join('.')}.0/24`
   }
@@ -147,7 +144,10 @@ function coarseIpKey(value: string) {
   )
     throw new Error('rate context unavailable')
   const expanded = [...left, ...Array(8 - left.length - right.length).fill('0'), ...right]
-  return `${expanded.slice(0, 4).map((word) => word.padStart(4, '0')).join(':')}::/64`
+  return `${expanded
+    .slice(0, 4)
+    .map((word) => word.padStart(4, '0'))
+    .join(':')}::/64`
 }
 
 async function extract(body: Record<string, unknown>) {
@@ -168,8 +168,7 @@ async function extract(body: Record<string, unknown>) {
     publicWriteAllowed: false,
   })
   let parsed: URL
-  if (new TextEncoder().encode(originalLink).byteLength > 2_048)
-    return fallback('invalid_link')
+  if (new TextEncoder().encode(originalLink).byteLength > 2_048) return fallback('invalid_link')
   try {
     parsed = new URL(originalLink)
   } catch {
@@ -179,16 +178,21 @@ async function extract(body: Record<string, unknown>) {
     !proxyUrl ||
     !proxyCredential ||
     !['http:', 'https:'].includes(parsed.protocol) ||
-    parsed.port !== '' ||
+    (parsed.protocol === 'http:' && parsed.port && parsed.port !== '80') ||
+    (parsed.protocol === 'https:' && parsed.port && parsed.port !== '443') ||
     unsafeAddress(parsed.hostname)
   )
     return fallback('private_destination')
   const normalizedUrl = parsed.toString()
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 5_000)
+  const timer = setTimeout(() => controller.abort(), 6_000)
   try {
     const configuredProxy = new URL(proxyUrl)
-    if (configuredProxy.protocol !== 'https:' || configuredProxy.username || configuredProxy.password)
+    if (
+      configuredProxy.protocol !== 'https:' ||
+      configuredProxy.username ||
+      configuredProxy.password
+    )
       return fallback('fetch_failed', normalizedUrl, parsed.hostname)
     const response = await fetch(configuredProxy.toString(), {
       method: 'POST',
@@ -197,7 +201,17 @@ async function extract(body: Record<string, unknown>) {
         'Content-Type': 'application/json',
         'X-Candidate-Proxy-Credential': proxyCredential,
       },
-      body: JSON.stringify({ url: normalizedUrl, maxRedirects: 3, maxBytes: 256_000, timeoutMs: 5_000 }),
+      body: JSON.stringify({
+        url: normalizedUrl,
+        maxRedirects: 3,
+        connectTimeoutMs: 2_000,
+        totalTimeoutMs: 6_000,
+        maxCompressedBytes: 1_048_576,
+        maxDecompressedBytes: 2_097_152,
+        maxExtractedTextBytes: 65_536,
+        allowedContentTypes: ['text/html', 'text/plain'],
+        stripHeaders: ['authorization', 'cookie', 'origin', 'proxy-authorization', 'referer'],
+      }),
     })
     if (!response.ok) return fallback('fetch_failed', normalizedUrl, parsed.hostname)
     const result = (await response.json()) as ProxyResult
@@ -207,23 +221,32 @@ async function extract(body: Record<string, unknown>) {
       !Number.isInteger(result.redirectCount) ||
       result.redirectCount < 0 ||
       result.redirectCount > 3 ||
-      !Number.isInteger(result.byteLength) ||
-      result.byteLength < 0 ||
-      result.byteLength > 256_000 ||
+      result.headersStripped !== true ||
+      !Number.isInteger(result.compressedByteLength) ||
+      result.compressedByteLength < 0 ||
+      result.compressedByteLength > 1_048_576 ||
+      !Number.isInteger(result.decompressedByteLength) ||
+      result.decompressedByteLength < 0 ||
+      result.decompressedByteLength > 2_097_152 ||
+      !Number.isInteger(result.extractedTextByteLength) ||
+      result.extractedTextByteLength < 0 ||
+      result.extractedTextByteLength > 65_536 ||
       typeof result.body !== 'string' ||
-      new TextEncoder().encode(result.body).byteLength > 256_000 ||
+      new TextEncoder().encode(result.body).byteLength !== result.extractedTextByteLength ||
       !Array.isArray(result.destinations) ||
       result.destinations.length !== result.redirectCount + 1 ||
       result.destinations[0]?.url !== normalizedUrl ||
       result.destinations.some((destination) => !validPinnedDestination(destination))
     )
       return fallback('fetch_failed', normalizedUrl, parsed.hostname)
-    const type = result.contentType
-    if (!type.includes('text/html') && !type.includes('text/plain'))
+    const type = result.contentType.split(';', 1)[0].trim().toLowerCase()
+    if (!['text/html', 'text/plain'].includes(type))
       return fallback('unsupported_content', normalizedUrl, parsed.hostname)
     const text = result.body
     const title =
-      /<title[^>]*>([^<]{1,300})<\/title>/i.exec(text)?.[1]?.trim().slice(0, 160) ?? null
+      type === 'text/plain'
+        ? text.split(/\r?\n/, 1)[0]?.trim().slice(0, 160) || null
+        : (/<title[^>]*>([^<]{1,300})<\/title>/i.exec(text)?.[1]?.trim().slice(0, 160) ?? null)
     return {
       mode: 'suggestions',
       originalLink,
@@ -234,7 +257,11 @@ async function extract(body: Record<string, unknown>) {
       publicWriteAllowed: false,
     }
   } catch {
-    return fallback('fetch_failed', normalizedUrl, parsed.hostname)
+    return fallback(
+      controller.signal.aborted ? 'timeout' : 'fetch_failed',
+      normalizedUrl,
+      parsed.hostname,
+    )
   } finally {
     clearTimeout(timer)
   }
@@ -295,8 +322,11 @@ async function close(client: any, operation: string, body: Record<string, unknow
 interface ProxyResult {
   pinned: boolean
   credentialVerified: boolean
+  headersStripped: boolean
   redirectCount: number
-  byteLength: number
+  compressedByteLength: number
+  decompressedByteLength: number
+  extractedTextByteLength: number
   contentType: string
   body: string
   destinations: Array<{ url: string; addresses: string[] }>
@@ -311,7 +341,10 @@ function validPinnedDestination(value: { url: string; addresses: string[] }) {
     const url = new URL(value.url)
     return (
       ['http:', 'https:'].includes(url.protocol) &&
-      url.port === '' &&
+      !(
+        (url.protocol === 'http:' && url.port && url.port !== '80') ||
+        (url.protocol === 'https:' && url.port && url.port !== '443')
+      ) &&
       !unsafeAddress(url.hostname) &&
       Array.isArray(value.addresses) &&
       value.addresses.length > 0 &&
@@ -345,10 +378,7 @@ function unsafeAddress(input: string) {
       value.startsWith('2001:db8:')
     )
   const parts = value.split('.').map(Number)
-  if (
-    parts.length !== 4 ||
-    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
-  )
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255))
     return false
   const [a, b, c] = parts
   return (

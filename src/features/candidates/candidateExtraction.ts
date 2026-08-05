@@ -45,6 +45,8 @@ export interface CandidateExtractionResponse {
   status: number
   headers: Readonly<Record<string, string | undefined>>
   connectedAddress: string
+  compressedBytes: number
+  decompressedBytes: number
   body: AsyncIterable<Uint8Array> | null
 }
 
@@ -63,22 +65,40 @@ export interface CandidateExtractionDependencies {
     requestPinned(input: {
       url: string
       approvedAddresses: readonly string[]
+      connectTimeoutMs: number
+      maxCompressedBytes: number
+      maxDecompressedBytes: number
+      stripHeaders: readonly string[]
       signal: AbortSignal
     }): Promise<CandidateExtractionResponse>
   }
 }
 
 export interface CandidateExtractionPolicy {
+  connectTimeoutMs: number
   requestTimeoutMs: number
+  maxCompressedBytes: number
   maxResponseBytes: number
+  maxExtractedTextBytes: number
   maxRedirects: number
 }
 
 const DEFAULT_POLICY: CandidateExtractionPolicy = {
-  requestTimeoutMs: 4_000,
-  maxResponseBytes: 512_000,
+  connectTimeoutMs: 2_000,
+  requestTimeoutMs: 6_000,
+  maxCompressedBytes: 1_048_576,
+  maxResponseBytes: 2_097_152,
+  maxExtractedTextBytes: 65_536,
   maxRedirects: 3,
 }
+
+const STRIPPED_REQUEST_HEADERS = [
+  'authorization',
+  'cookie',
+  'origin',
+  'proxy-authorization',
+  'referer',
+] as const
 
 const EMPTY_SUGGESTIONS: CandidateExtractionSuggestions = {
   title: null,
@@ -184,6 +204,10 @@ export class CandidateExtractionService {
         const response = await this.dependencies.transport.requestPinned({
           url: url.toString(),
           approvedAddresses,
+          connectTimeoutMs: this.#policy.connectTimeoutMs,
+          maxCompressedBytes: this.#policy.maxCompressedBytes,
+          maxDecompressedBytes: this.#policy.maxResponseBytes,
+          stripHeaders: STRIPPED_REQUEST_HEADERS,
           signal: controller.signal,
         })
         if (
@@ -221,12 +245,19 @@ export class CandidateExtractionService {
           throw new ExtractionFailure('fetch_failed')
         }
         assertSupportedContent(response.headers)
-        const body = await readBoundedBody(response, this.#policy.maxResponseBytes)
+        const body = await readBoundedBody(
+          response,
+          this.#policy.maxCompressedBytes,
+          this.#policy.maxResponseBytes,
+        )
         return {
           kind: 'suggestions' as const,
           suggestions: extractSuggestions(
-            new TextDecoder('utf-8', { fatal: false }).decode(body),
+            new TextDecoder('utf-8', { fatal: false }).decode(
+              body.slice(0, this.#policy.maxExtractedTextBytes),
+            ),
             url,
+            contentType(response.headers),
           ),
         }
       }
@@ -279,6 +310,12 @@ function parseHttpUrl(raw: string): URL {
   ) {
     throw new Error('invalid_link')
   }
+  if (
+    (parsed.protocol === 'http:' && parsed.port && parsed.port !== '80') ||
+    (parsed.protocol === 'https:' && parsed.port && parsed.port !== '443')
+  ) {
+    throw new Error('invalid_link')
+  }
   parsed.hostname = parsed.hostname.toLocaleLowerCase()
   return parsed
 }
@@ -304,19 +341,31 @@ function header(
 }
 
 function assertSupportedContent(headers: Readonly<Record<string, string | undefined>>): void {
-  const rawContentType = header(headers, 'content-type')
-  const contentType = rawContentType?.split(';', 1)[0]?.trim().toLocaleLowerCase()
-  if (!contentType || !['text/html', 'application/xhtml+xml'].includes(contentType)) {
+  const type = contentType(headers)
+  if (!type || !['text/html', 'text/plain'].includes(type)) {
     throw new ExtractionFailure('unsupported_content')
   }
 }
 
+function contentType(headers: Readonly<Record<string, string | undefined>>): string | null {
+  return header(headers, 'content-type')?.split(';', 1)[0]?.trim().toLocaleLowerCase() ?? null
+}
+
 async function readBoundedBody(
   response: CandidateExtractionResponse,
-  maxBytes: number,
+  maxCompressedBytes: number,
+  maxDecompressedBytes: number,
 ): Promise<Uint8Array> {
   const declaredLength = Number(header(response.headers, 'content-length'))
-  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+  if (
+    !Number.isInteger(response.compressedBytes) ||
+    response.compressedBytes < 0 ||
+    response.compressedBytes > maxCompressedBytes ||
+    !Number.isInteger(response.decompressedBytes) ||
+    response.decompressedBytes < 0 ||
+    response.decompressedBytes > maxDecompressedBytes ||
+    (Number.isFinite(declaredLength) && declaredLength > maxCompressedBytes)
+  ) {
     throw new ExtractionFailure('response_too_large')
   }
   if (!response.body) return new Uint8Array()
@@ -325,7 +374,7 @@ async function readBoundedBody(
   let total = 0
   for await (const chunk of response.body) {
     total += chunk.byteLength
-    if (total > maxBytes) throw new ExtractionFailure('response_too_large')
+    if (total > maxDecompressedBytes) throw new ExtractionFailure('response_too_large')
     chunks.push(chunk)
   }
   const merged = new Uint8Array(total)
@@ -337,7 +386,21 @@ async function readBoundedBody(
   return merged
 }
 
-function extractSuggestions(html: string, sourceUrl: URL): CandidateExtractionSuggestions {
+function extractSuggestions(
+  text: string,
+  sourceUrl: URL,
+  type: string | null,
+): CandidateExtractionSuggestions {
+  if (type === 'text/plain') {
+    const [firstLine = '', ...rest] = text.split(/\r?\n/u)
+    return {
+      title: cleanExtractedText(firstLine, 160),
+      description: cleanExtractedText(rest.join(' '), 500),
+      canonicalUrl: null,
+      verified: false,
+    }
+  }
+  const html = text
   const title = cleanExtractedText(firstMatch(html, /<title(?:\s[^>]*)?>([\s\S]*?)<\/title>/i), 160)
   const description = cleanExtractedText(
     firstMatch(

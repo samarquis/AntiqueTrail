@@ -15,7 +15,8 @@ describe('candidate Edge outbound boundary', () => {
 
   it('fails closed around active sessions, proxy pinning, ports, and reserved addresses', () => {
     expect(source).toContain("client.rpc('candidate_edge_context')")
-    expect(source).toContain("parsed.port !== ''")
+    expect(source).toContain("parsed.port !== '80'")
+    expect(source).toContain("parsed.port !== '443'")
     expect(source).toContain('result.pinned !== true')
     expect(source).toContain('result.destinations[0]?.url !== normalizedUrl')
     expect(source).toMatch(/::ffff:/)
@@ -24,6 +25,18 @@ describe('candidate Edge outbound boundary', () => {
     expect(source).toContain('a === 100 && b >= 64 && b <= 127')
     expect(source).toContain('a === 198 && b === 51 && c === 100')
     expect(source).toContain('a === 203 && b === 0 && c === 113')
+  })
+
+  it('binds the proxy to the normative timeout, size, MIME, and header-stripping contract', () => {
+    expect(source).toContain('connectTimeoutMs: 2_000')
+    expect(source).toContain('totalTimeoutMs: 6_000')
+    expect(source).toContain('maxCompressedBytes: 1_048_576')
+    expect(source).toContain('maxDecompressedBytes: 2_097_152')
+    expect(source).toContain('maxExtractedTextBytes: 65_536')
+    expect(source).toContain("allowedContentTypes: ['text/html', 'text/plain']")
+    expect(source).toContain("'proxy-authorization'")
+    expect(source).toContain('result.headersStripped !== true')
+    expect(source).toContain("!['text/html', 'text/plain'].includes(type)")
   })
 
   it('applies the generic send response timing floor to every response path', () => {
