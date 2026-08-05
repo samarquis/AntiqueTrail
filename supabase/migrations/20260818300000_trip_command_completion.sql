@@ -210,7 +210,6 @@ begin
   update trip_private.check_my_day_requests set state='suggested' where request_id=target_request_id;
   return v_suggestion;
 end; $$;
-alter function trip_private.record_check_my_day_suggestion(uuid,text,text,integer,numeric,jsonb,timestamptz,uuid[],jsonb) owner to identity_service;
 revoke all on function trip_private.record_check_my_day_suggestion(uuid,text,text,integer,numeric,jsonb,timestamptz,uuid[],jsonb) from public,anon,authenticated;
 grant execute on function trip_private.record_check_my_day_suggestion(uuid,text,text,integer,numeric,jsonb,timestamptz,uuid[],jsonb) to trip_route_worker;
 
@@ -417,7 +416,6 @@ begin
     returning request_id into v_request;
   return jsonb_build_object('requestId',v_request::text,'state',case when v_reason is null then 'ready' else 'blocked' end,'reason',v_reason);
 end; $$;
-alter function app_public.request_check_my_day(text) owner to identity_service;
 
 create or replace function app_public.get_check_my_day_suggestion(request_id text)
 returns jsonb language plpgsql stable security definer set search_path='' as $$
