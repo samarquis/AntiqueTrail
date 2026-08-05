@@ -3,6 +3,7 @@
 -- Navigator on the currently bound device before trip completion.
 
 grant identity_service to postgres;
+grant create on schema app_public to identity_service;
 
 create or replace function app_public.execute_verified_go_command(
   target_user_id text,target_session_id text,trip_id text,action text,stop_id text,
@@ -83,4 +84,5 @@ revoke all on function app_public.execute_verified_go_command(text,text,text,tex
 grant execute on function app_public.execute_verified_go_command(text,text,text,text,text,bigint,text,text,timestamptz)
   to trip_go_gateway;
 
+revoke create on schema app_public from identity_service;
 revoke identity_service from postgres;

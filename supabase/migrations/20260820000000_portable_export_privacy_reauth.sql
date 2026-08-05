@@ -3,6 +3,7 @@
 -- provider JWT AMR plus the provider-owned verified-factor table.
 
 grant identity_service to postgres;
+grant create on schema app_private, app_public to identity_service;
 
 create or replace function app_private.provider_user_has_verified_mfa(p_user_id uuid)
 returns boolean language sql stable security definer set search_path='' as $$
@@ -197,4 +198,5 @@ begin
   return jsonb_build_object('id',job.export_job_id,'state',job.state);
 end $$;
 
+revoke create on schema app_private, app_public from identity_service;
 revoke identity_service from postgres;

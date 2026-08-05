@@ -2,6 +2,7 @@
 -- and provider-owned MFA enrollment. Session registration cannot mint freshness.
 
 grant identity_service to postgres;
+grant create on schema app_private,app_public to identity_service;
 
 create or replace function app_private.current_jwt_has_recent_amr(
   p_methods text[],
@@ -88,4 +89,5 @@ begin
 end $$;
 alter function app_public.register_current_session(bigint) owner to identity_service;
 
+revoke create on schema app_private,app_public from identity_service;
 revoke identity_service from postgres;

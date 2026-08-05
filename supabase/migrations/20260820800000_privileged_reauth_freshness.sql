@@ -3,6 +3,7 @@
 -- request a shorter window, but can never widen the ten-minute ceiling.
 
 grant identity_service to postgres;
+grant create on schema app_private to identity_service;
 
 create or replace function app_private.current_session_has_privileged_reauth(
   p_window interval default interval '10 minutes'
@@ -54,4 +55,5 @@ $$;
 alter function app_private.current_session_has_privacy_reauth() owner to identity_service;
 revoke all on function app_private.current_session_has_privacy_reauth() from public,anon,authenticated;
 
+revoke create on schema app_private from identity_service;
 revoke identity_service from postgres;

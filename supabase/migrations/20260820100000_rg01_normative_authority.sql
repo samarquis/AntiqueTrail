@@ -4,6 +4,7 @@
 
 grant rg01_automation,identity_service to postgres;
 grant create on schema readiness_private,rg01_private,app_public to rg01_automation;
+grant create on schema app_public to identity_service;
 grant usage on schema release_private to rg01_automation;
 grant select on release_private.regional_releases,release_private.release_capabilities,
   release_private.release_evidence_receipts,release_private.release_frozen_stores,
@@ -477,4 +478,5 @@ grant execute on function rg01_private.consume_decision_challenge(uuid,bytea,byt
 
 revoke create on schema readiness_private,rg01_private from rg01_automation;
 revoke create on schema app_public from rg01_automation;
+revoke create on schema app_public from identity_service;
 revoke rg01_automation,identity_service from postgres;
