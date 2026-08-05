@@ -21,6 +21,33 @@ describe('app shell', () => {
     )
     expect(screen.getByRole('heading', { name: /browse stores/i })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /skip to main content/i })).toHaveAttribute(
+      'href',
+      '#main-content',
+    )
+    expect(screen.getByRole('navigation', { name: /primary navigation/i })).toHaveTextContent(
+      'BrowseMy TripMore',
+    )
+    expect(screen.getByRole('heading', { name: /browse stores/i })).toHaveFocus()
+  })
+
+  it('opens the stable More menu and focuses its page heading', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/stores']}>
+        <App />
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('link', { name: 'More' }))
+
+    expect(screen.getByRole('heading', { name: 'More' })).toHaveFocus()
+    expect(screen.getByRole('navigation', { name: /more destinations/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /saved stores/i })).toHaveAttribute('href', '/saved')
+    expect(screen.getByRole('link', { name: /account & privacy/i })).toHaveAttribute(
+      'href',
+      '/account/privacy',
+    )
   })
 
   it('wires private shopper actions into public catalog results', async () => {
