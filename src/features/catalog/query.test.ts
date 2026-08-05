@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { canonicalQueryString, formatHours, normalizeQueryParams, todayHoursSummary } from './query'
+import {
+  canonicalQueryString,
+  externalNavigationHref,
+  formatCatalogDate,
+  formatHours,
+  normalizeQueryParams,
+  todayHoursSummary,
+} from './query'
 import { syntheticStores } from './demoClient'
 
 describe('catalog query normalization', () => {
@@ -55,8 +62,8 @@ describe('hours formatter', () => {
     expect(todayHoursSummary(syntheticStores[0])).toEqual({
       dayLabel: 'Wednesday',
       hoursLabel: '10:00 AM–6:00 PM',
-      openState: 'closed',
-      openStateLabel: 'Closed now',
+      openState: 'open',
+      openStateLabel: 'Open now',
     })
 
     expect(
@@ -70,5 +77,35 @@ describe('hours formatter', () => {
       openState: 'unavailable',
       openStateLabel: 'Open state unavailable',
     })
+  })
+
+  it('uses date-specific exceptions instead of the weekly schedule', () => {
+    expect(
+      todayHoursSummary({
+        ...syntheticStores[0],
+        asOfUtc: '2026-01-01T18:00:00Z',
+        hoursExceptions: [
+          {
+            date: '2026-01-01',
+            label: "New Year's Day",
+            status: 'closed',
+            intervals: [],
+          },
+        ],
+      }),
+    ).toEqual({
+      dayLabel: "New Year's Day",
+      hoursLabel: 'Closed',
+      openState: 'closed',
+      openStateLabel: 'Closed today',
+    })
+  })
+
+  it('formats trustworthy dates and encodes a complete external map destination', () => {
+    expect(formatCatalogDate('2026-08-05T11:00:00Z')).toBe('August 5, 2026')
+    expect(formatCatalogDate('not-a-date')).toBeNull()
+    const href = externalNavigationHref(syntheticStores[0])
+    expect(href).toMatch(/^https:\/\/www\.google\.com\/maps\/search\//)
+    expect(decodeURIComponent(href)).toContain(syntheticStores[0].address)
   })
 })

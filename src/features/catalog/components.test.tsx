@@ -1,9 +1,9 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BrowsePage, DetailsPage } from './components'
 import { syntheticStores } from './demoClient'
-import type { CatalogClient } from './types'
+import type { CatalogClient, CatalogStore } from './types'
 
 function client(): CatalogClient {
   return {
@@ -35,7 +35,10 @@ function client(): CatalogClient {
 }
 
 describe('catalog private-action integration seam', () => {
-  afterEach(() => cleanup())
+  afterEach(() => {
+    cleanup()
+    window.sessionStorage.clear()
+  })
 
   it('renders account-aware actions on every Browse card', async () => {
     render(
@@ -84,9 +87,11 @@ describe('catalog private-action integration seam', () => {
     render(<BrowsePage client={client()} />)
     const card = await screen.findByRole('article')
     expect(card.querySelector('.catalog-card__hours')).toHaveTextContent(
-      /closed now.*wednesday: 10:00 am–6:00 pm/i,
+      /open now.*wednesday: 10:00 am–6:00 pm/i,
     )
-    expect(card.querySelector('.catalog-card__placeholder')).toHaveTextContent(/BF.*antique mall/i)
+    const cover = card.querySelector<HTMLImageElement>('.catalog-card__image')
+    expect(cover).toHaveAttribute('alt', expect.stringMatching(/\S+/))
+    expect(cover?.alt.toLowerCase()).not.toContain(syntheticStores[0].name.toLowerCase())
   })
 
   it('renders a distinct blocked state without requesting catalog data', async () => {
@@ -336,5 +341,192 @@ describe('catalog private-action integration seam', () => {
     await user.click(screen.getByRole('button', { name: /search this map area/i }))
     expect(await screen.findByRole('heading', { name: second.name })).toBeVisible()
     expect(screen.queryByRole('heading', { name: syntheticStores[0].name })).not.toBeInTheDocument()
+  })
+})
+
+describe('trustworthy Store Details contract', () => {
+  const detailedStore = {
+    ...syntheticStores[0],
+    phone: '785-555-0101',
+    email: 'hello@bluefinch.example',
+    website: 'https://bluefinch.example',
+    freshness: {
+      label: 'Verified this week',
+      verifiedAt: '2026-08-03T12:00:00Z',
+      daysOld: 2,
+      status: 'current' as const,
+    },
+    provenance: {
+      sourceLabel: 'Synthetic Store owner-approved profile',
+      updatedAt: '2026-08-02T12:00:00Z',
+      note: 'Fictional information for product review.',
+    },
+    accessibility: {
+      status: 'verified' as const,
+      details: ['Step-free front entrance', 'Seating available near checkout'],
+      verifiedAt: '2026-08-01T12:00:00Z',
+    },
+    hoursExceptions: [
+      {
+        date: '2026-08-09',
+        label: 'Summer market Sunday',
+        status: 'open' as const,
+        intervals: [{ opensAt: '11:00', closesAt: '15:00' }],
+        note: 'Closes early',
+      },
+    ],
+    updates: [
+      {
+        id: 'update-1',
+        title: 'New cabinet collection',
+        body: 'A new group of oak cabinets is now on the floor.',
+        publishedAt: '2026-08-04T12:00:00Z',
+      },
+    ],
+    socialLinks: [{ platform: 'Instagram' as const, href: 'https://instagram.com/bluefinch' }],
+    media: [
+      {
+        src: '/synthetic-stores/1280w/blue-finch-cover.webp',
+        alt: 'Blue Finch Curios storefront with a teal door',
+        kind: 'cover' as const,
+        caption: 'Front entrance',
+        rightsLabel: 'Synthetic image · approved for testing',
+      },
+      {
+        src: '/synthetic-stores/1280w/blue-finch-gallery-1.webp',
+        alt: 'Oak cabinets inside Blue Finch Curios',
+        kind: 'gallery' as const,
+      },
+    ],
+  }
+
+  function detailsClient(store: CatalogStore = detailedStore): CatalogClient {
+    return {
+      list: vi.fn(async () => ({ stores: [store] })),
+      details: vi.fn(async () => store),
+    }
+  }
+
+  afterEach(() => {
+    cleanup()
+    window.sessionStorage.clear()
+  })
+
+  it('puts visit-critical, provenance, accessibility, updates, and external links in order', async () => {
+    render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
+
+    expect(await screen.findByRole('heading', { level: 1, name: detailedStore.name })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Hours' })).toBeVisible()
+    expect(screen.getByText(/summer market sunday/i)).toBeVisible()
+    expect(screen.getByText(/step-free front entrance/i)).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Latest updates' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: /new cabinet collection/i })).toBeVisible()
+    expect(screen.getByText(/synthetic store owner-approved profile/i)).toBeVisible()
+    expect(screen.getByText('August 3, 2026')).toBeVisible()
+
+    const navigate = screen.getByRole('link', { name: /navigate in maps/i })
+    expect(navigate).toHaveAttribute('target', '_blank')
+    expect(decodeURIComponent(navigate.getAttribute('href') ?? '')).toContain(detailedStore.address)
+    expect(screen.getByRole('link', { name: /visit official website/i })).toHaveAttribute(
+      'rel',
+      'noreferrer',
+    )
+    expect(screen.getByRole('link', { name: /instagram/i })).toHaveAttribute('target', '_blank')
+  })
+
+  it('provides a keyboard-operable gallery with failure and enlargement behavior', async () => {
+    const user = userEvent.setup()
+    render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
+    await screen.findByRole('heading', { level: 1, name: detailedStore.name })
+
+    const second = screen.getByRole('button', { name: /show image 2: oak cabinets/i })
+    await user.click(second)
+    expect(second).toHaveAttribute('aria-pressed', 'true')
+    const selectedImage = screen.getByRole('img', { name: /oak cabinets inside/i })
+    expect(selectedImage).toBeVisible()
+    expect(selectedImage).toHaveAttribute('srcset', expect.stringContaining('/480w/'))
+
+    const enlarge = screen.getByRole('button', { name: /enlarge image: oak cabinets/i })
+    await user.click(enlarge)
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toBeVisible()
+    expect(screen.getByRole('button', { name: /close enlarged image/i })).toHaveFocus()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(enlarge).toHaveFocus())
+
+    fireEvent.error(selectedImage)
+    expect(screen.getByRole('img', { name: /store image unavailable/i })).toBeVisible()
+  })
+
+  it('reveals Add to Trip only after its backing package is enabled', async () => {
+    const packageOne = render(
+      <DetailsPage client={detailsClient()} slug={detailedStore.slug} stage="package-1" />,
+    )
+    await screen.findByRole('heading', { level: 1, name: detailedStore.name })
+    expect(screen.queryByRole('link', { name: /add to trip/i })).not.toBeInTheDocument()
+    packageOne.unmount()
+
+    render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} stage="package-5a" />)
+    await screen.findByRole('heading', { level: 1, name: detailedStore.name })
+    expect(screen.getByRole('link', { name: /add to trip/i })).toHaveAttribute(
+      'href',
+      `/trips/new?addStoreId=${detailedStore.id}`,
+    )
+  })
+
+  it('states missing decision information instead of silently omitting it', async () => {
+    const sparse = {
+      ...detailedStore,
+      description: null,
+      phone: null,
+      email: null,
+      website: null,
+      freshness: undefined,
+      provenance: undefined,
+      accessibility: undefined,
+      hours: [],
+      hoursExceptions: [],
+      updates: [],
+      media: [],
+    }
+    render(<DetailsPage client={detailsClient(sparse)} slug={sparse.slug} />)
+    await screen.findByRole('heading', { level: 1, name: sparse.name })
+
+    expect(screen.getByText(/store description has not been supplied/i)).toBeVisible()
+    expect(screen.getByText(/regular hours are unavailable/i)).toBeVisible()
+    expect(screen.getByText(/contact details have not been supplied/i)).toBeVisible()
+    expect(screen.getByText(/accessibility information is unavailable/i)).toBeVisible()
+    expect(screen.getByText(/has not published any updates/i)).toBeVisible()
+    expect(screen.getByText(/source information unavailable/i)).toBeVisible()
+    expect(screen.getByText(/verification date unavailable/i)).toBeVisible()
+  })
+
+  it('restores the exact Browse query, scroll position, and originating store focus', async () => {
+    window.history.replaceState({}, '', '/stores?q=finch&area=topeka-ks')
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 640 })
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
+    const browse = render(
+      <BrowsePage client={detailsClient()} initialSearch={window.location.search} />,
+    )
+    const storeLink = await screen.findByRole('link', { name: detailedStore.name })
+    fireEvent.click(storeLink)
+    browse.unmount()
+
+    window.history.replaceState({}, '', `/stores/${detailedStore.slug}`)
+    const details = render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
+    expect(await screen.findByRole('link', { name: /back to browse/i })).toHaveAttribute(
+      'href',
+      '/stores?q=finch&area=topeka-ks',
+    )
+    details.unmount()
+
+    window.history.replaceState({}, '', '/stores?q=finch&area=topeka-ks')
+    render(<BrowsePage client={detailsClient()} initialSearch={window.location.search} />)
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: detailedStore.name })).toHaveFocus(),
+    )
+    expect(scrollTo).toHaveBeenCalledWith({ top: 640, behavior: 'auto' })
+    scrollTo.mockRestore()
   })
 })

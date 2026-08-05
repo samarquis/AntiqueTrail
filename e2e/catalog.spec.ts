@@ -208,7 +208,10 @@ test.describe('Synthetic catalog design contract', () => {
       await expect(image).toHaveAccessibleName(/\S+/)
       if ((await image.evaluate((node) => node.tagName)) === 'IMG') {
         await expect(image).toHaveAttribute('alt', /\S+/)
-        expect(await image.getAttribute('alt')).toContain(name)
+        const alt = await image.getAttribute('alt')
+        expect(alt?.trim().length).toBeGreaterThan(20)
+        expect(alt?.toLocaleLowerCase()).not.toContain(name.toLocaleLowerCase())
+        await image.scrollIntoViewIfNeeded()
         await expect
           .poll(() => image.evaluate((node) => (node as HTMLImageElement).naturalWidth))
           .toBeGreaterThan(0)

@@ -1,4 +1,10 @@
-import type { CatalogFilters, CatalogHoursDay, CatalogHoursStatus, CatalogStore } from './types'
+import type {
+  CatalogFilters,
+  CatalogHoursDay,
+  CatalogHoursException,
+  CatalogHoursStatus,
+  CatalogStore,
+} from './types'
 
 const MAX_QUERY_LENGTH = 100
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -64,6 +70,33 @@ export function formatHours(day: CatalogHoursDay): string {
     .join(', ')
 }
 
+export function formatHoursException(exception: CatalogHoursException): string {
+  return formatHours({
+    weekday: 0,
+    label: exception.label,
+    status: exception.status,
+    intervals: exception.intervals,
+  })
+}
+
+export function formatCatalogDate(value?: string | null): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(date)
+}
+
+export function externalNavigationHref(store: CatalogStore): string {
+  if (store.navigationHref) return store.navigationHref
+  const destination = [store.address, store.town, store.state].filter(Boolean).join(', ')
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`
+}
+
 function formatTime(value: string): string {
   const match = /^(\d{1,2}):(\d{2})/.exec(value)
   if (!match) return value
@@ -104,7 +137,32 @@ export function todayHoursSummary(store: CatalogStore, now = new Date()): TodayH
   const reference = store.asOfUtc ? new Date(store.asOfUtc) : now
   const safeReference = Number.isNaN(reference.getTime()) ? now : reference
   const zoned = zonedDateParts(safeReference, store.timeZone)
+  const dateKey = zonedDateKey(safeReference, store.timeZone)
   const weekday = zoned.weekday
+  const exception = store.hoursExceptions?.find((candidate) => candidate.date === dateKey)
+  if (exception) {
+    const hoursLabel = formatHoursException(exception)
+    if (exception.status === 'unavailable' || !exception.intervals.length) {
+      return {
+        dayLabel: exception.label,
+        hoursLabel,
+        openState: exception.status === 'closed' ? 'closed' : 'unavailable',
+        openStateLabel: exception.status === 'closed' ? 'Closed today' : 'Open state unavailable',
+      }
+    }
+    const minuteOfDay = zoned.hour * 60 + zoned.minute
+    const isOpen = exception.intervals.some(({ opensAt, closesAt }) => {
+      const opens = minutesFromTime(opensAt)
+      const closes = minutesFromTime(closesAt)
+      return opens != null && closes != null && minuteOfDay >= opens && minuteOfDay < closes
+    })
+    return {
+      dayLabel: exception.label,
+      hoursLabel,
+      openState: isOpen ? 'open' : 'closed',
+      openStateLabel: isOpen ? 'Open now' : 'Closed now',
+    }
+  }
   const today = store.hours.find((day) => day.weekday === weekday)
   const dayLabel = today?.label || displayDayLabel(weekday)
 
@@ -131,6 +189,22 @@ export function todayHoursSummary(store: CatalogStore, now = new Date()): TodayH
     hoursLabel: formatHours(today),
     openState: isOpen ? 'open' : 'closed',
     openStateLabel: isOpen ? 'Open now' : 'Closed now',
+  }
+}
+
+function zonedDateKey(date: Date, timeZone?: string | null): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timeZone || 'UTC',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date)
+    return ['year', 'month', 'day']
+      .map((type) => parts.find((part) => part.type === type)?.value ?? '')
+      .join('-')
+  } catch {
+    return date.toISOString().slice(0, 10)
   }
 }
 

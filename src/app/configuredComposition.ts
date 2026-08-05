@@ -1,6 +1,6 @@
 import { createClient, type Session } from '@supabase/supabase-js'
 import type { AppClients, AppRuntime } from './App'
-import { createAccessibleCatalogMapAdapter } from '../features/catalog'
+import { createAccessibleCatalogMapAdapter, demoCatalogClient } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
 import {
   createPortalClient,
@@ -206,6 +206,37 @@ export async function configuredComposition(
     tripOfflineDatabase?: OfflineTripDatabase
   } = {},
 ): Promise<ConfiguredComposition | null> {
+  if (
+    import.meta.env.DEV &&
+    import.meta.env.MODE === 'review' &&
+    import.meta.env.VITE_REVIEW_HARNESS === 'true'
+  ) {
+    // A production replacement makes this branch unreachable, so Vite omits both
+    // local-only dynamic modules (including all fixture labels) from the bundle.
+    const [{ createReviewHarness }, { createReviewHarnessClients }] = await Promise.all([
+      import('../review-harness/harness'),
+      import('../review-harness/clients'),
+    ])
+    const reviewHarness = await createReviewHarness({
+      dev: import.meta.env.DEV,
+      mode: import.meta.env.MODE,
+      enabled: import.meta.env.VITE_REVIEW_HARNESS,
+      url: typeof window === 'undefined' ? 'http://127.0.0.1:4173/review' : window.location.href,
+    })
+    if (reviewHarness) {
+      return {
+        clients: {
+          catalog: demoCatalogClient,
+          ...createReviewHarnessClients(reviewHarness.scenario, reviewHarness.state),
+        },
+        runtime: {
+          reviewHarness,
+          authStore: reviewHarness.authStore,
+          sessionRegistry: reviewHarness.sessionRegistry,
+        },
+      }
+    }
+  }
   const url = configuredValue(import.meta.env.VITE_SUPABASE_URL)
   const anonKey = configuredValue(import.meta.env.VITE_SUPABASE_ANON_KEY)
   if (!url || !anonKey) return null

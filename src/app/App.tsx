@@ -121,6 +121,8 @@ import {
 } from '../features/readiness'
 import { BetaControlPage, unavailableBetaClient, type DurableBetaClient } from '../features/beta'
 import { OperationalStatusPage, type OperationalStatusConfig } from '../features/status'
+import { ReviewHarnessBanner, ReviewHarnessPage } from '../review-harness/components'
+import type { ReviewHarnessRuntime } from '../review-harness/types'
 
 // The current provider-neutral shell has no privileged session source. Keep the
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
@@ -133,7 +135,13 @@ const blockedCheckMyDayProvider: CheckMyDayProvider = {
   },
 }
 
-function AppShell({ children }: { children: ReactNode }) {
+function AppShell({
+  children,
+  reviewHarness,
+}: {
+  children: ReactNode
+  reviewHarness?: ReviewHarnessRuntime
+}) {
   const location = useLocation()
   const contentRef = useRef<HTMLDivElement>(null)
   const moreIsCurrent = [
@@ -188,6 +196,7 @@ function AppShell({ children }: { children: ReactNode }) {
           </Link>
         </nav>
       </header>
+      {reviewHarness && <ReviewHarnessBanner runtime={reviewHarness} />}
       <div id="main-content" ref={contentRef} tabIndex={-1}>
         {children}
       </div>
@@ -576,6 +585,8 @@ export interface AppRuntime {
   sessionRegistry?: SessionRegistryClient
   /** Test-only override. Production administration is derived from AuthContext. */
   adminSession?: AdminSession
+  /** Explicit local-only role and state fixtures; never configured by production composition. */
+  reviewHarness?: ReviewHarnessRuntime
 }
 
 export default function App({
@@ -617,8 +628,11 @@ export default function App({
       }}
     >
       <TripAccountLifecycle runtime={tripOffline} />
-      <AppShell key={privacyEpoch}>
+      <AppShell key={privacyEpoch} reviewHarness={runtime.reviewHarness}>
         <Routes>
+          {runtime.reviewHarness && (
+            <Route path="/review" element={<ReviewHarnessPage runtime={runtime.reviewHarness} />} />
+          )}
           <Route
             path="/status"
             element={

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   CatalogClient,
   CatalogBrowseStage,
+  CatalogDetailsStage,
   CatalogFilters,
   CatalogMapAdapter,
   CatalogMapBounds,
@@ -10,7 +11,10 @@ import type {
 } from './types'
 import {
   displayDayLabel,
+  externalNavigationHref,
+  formatCatalogDate,
   formatHours,
+  formatHoursException,
   freshnessLabel,
   normalizeQueryParams,
   queryParams,
@@ -22,6 +26,65 @@ const stageRank: Record<CatalogBrowseStage, number> = {
   'package-3': 3,
   'package-5b': 5,
   'package-10a': 10,
+}
+
+const detailsStageRank: Record<CatalogDetailsStage, number> = {
+  'package-1': 1,
+  'package-3': 3,
+  'package-5a': 5,
+  'package-10a': 10,
+}
+
+const BROWSE_RETURN_KEY = 'antique-trail:browse-return'
+
+interface BrowseReturnState {
+  href: string
+  scrollY: number
+  storeId: string
+  savedAt: number
+}
+
+function responsiveCatalogImage(src: string, sizes: string) {
+  if (!src.includes('/1280w/') || !src.endsWith('.webp')) return { sizes }
+  return {
+    srcSet: [480, 800, 1280]
+      .map((width) => `${src.replace('/1280w/', `/${width}w/`)} ${width}w`)
+      .join(', '),
+    sizes,
+  }
+}
+
+function readBrowseReturn(): BrowseReturnState | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const parsed = JSON.parse(
+      window.sessionStorage.getItem(BROWSE_RETURN_KEY) ?? 'null',
+    ) as Partial<BrowseReturnState> | null
+    if (
+      !parsed ||
+      typeof parsed.href !== 'string' ||
+      !/^\/stores(?:\?|$)/u.test(parsed.href) ||
+      typeof parsed.scrollY !== 'number' ||
+      !Number.isFinite(parsed.scrollY) ||
+      typeof parsed.storeId !== 'string' ||
+      typeof parsed.savedAt !== 'number' ||
+      Date.now() - parsed.savedAt > 30 * 60_000
+    )
+      return null
+    return parsed as BrowseReturnState
+  } catch {
+    return null
+  }
+}
+
+function rememberBrowseReturn(storeId: string) {
+  if (typeof window === 'undefined') return
+  const href = `${window.location.pathname}${window.location.search}`
+  if (!/^\/stores(?:\?|$)/u.test(href)) return
+  window.sessionStorage.setItem(
+    BROWSE_RETURN_KEY,
+    JSON.stringify({ href, scrollY: window.scrollY, storeId, savedAt: Date.now() }),
+  )
 }
 
 export function CatalogFiltersForm({
@@ -256,6 +319,10 @@ export function CatalogCard({
         <img
           className="catalog-card__image"
           src={cover.src}
+          {...responsiveCatalogImage(
+            cover.src,
+            '(max-width: 540px) 100vw, (max-width: 1023px) 34vw, 280px',
+          )}
           alt={cover.alt || `${store.name} storefront`}
           loading="lazy"
           onError={() => setImageFailed(true)}
@@ -269,7 +336,12 @@ export function CatalogCard({
       <div className="catalog-card__body">
         <p className="catalog-card__area">{store.area.label}</p>
         <h2>
-          <a href={`/stores/${encodeURIComponent(store.slug)}`}>{store.name}</a>
+          <a
+            href={`/stores/${encodeURIComponent(store.slug)}`}
+            onClick={() => rememberBrowseReturn(store.id)}
+          >
+            {store.name}
+          </a>
         </h2>
         <p>
           {store.town}, {store.state}
@@ -455,6 +527,20 @@ export function BrowsePage({
     )
       setSelectedStoreId(undefined)
   }, [selectedStoreId, state.kind, state.stores])
+  useEffect(() => {
+    if (state.kind !== 'success' || !state.stores?.length || typeof window === 'undefined') return
+    const saved = readBrowseReturn()
+    const currentHref = `${window.location.pathname}${window.location.search}`
+    if (!saved || saved.href !== currentHref) return
+    const card = document.getElementById(mapCardId(saved.storeId))
+    const returnTarget = card?.querySelector<HTMLElement>('h2 a')
+    if (!returnTarget) return
+    window.sessionStorage.removeItem(BROWSE_RETURN_KEY)
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
+      returnTarget.focus({ preventScroll: true })
+    })
+  }, [state.kind, state.stores])
   const updateFilters = (next: CatalogFilters) => {
     setFilters(normalizeQueryParams(queryParams(next)))
     const query = queryParams(next).toString()
@@ -591,7 +677,12 @@ export function BrowsePage({
                                 ? ` · ${point.visited ? 'Visited' : 'Not visited'}`
                                 : ''}
                             </p>
-                            <a href={`/stores/${point.slug}`}>View store details</a>
+                            <a
+                              href={`/stores/${point.slug}`}
+                              onClick={() => rememberBrowseReturn(point.storeId)}
+                            >
+                              View store details
+                            </a>
                             {renderPrivateActions?.(point.store)}
                             <a href={`/trips/new?addStoreId=${encodeURIComponent(point.storeId)}`}>
                               Add to Trip
@@ -679,14 +770,183 @@ function sameMapBounds(left: CatalogMapBounds, right: CatalogMapBounds) {
   )
 }
 
+function StoreGallery({ store }: { store: CatalogStore }) {
+  const media = store.media.slice(0, 6)
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [failed, setFailed] = useState<Set<number>>(() => new Set())
+  const [enlarged, setEnlarged] = useState(false)
+  const enlargeButton = useRef<HTMLButtonElement>(null)
+  const closeButton = useRef<HTMLButtonElement>(null)
+  const selected = media[selectedIndex]
+  const selectedFailed = !selected || failed.has(selectedIndex)
+
+  useEffect(() => {
+    if (enlarged) closeButton.current?.focus()
+  }, [enlarged])
+
+  const closeGallery = () => {
+    setEnlarged(false)
+    requestAnimationFrame(() => enlargeButton.current?.focus())
+  }
+
+  const markFailed = (index: number) =>
+    setFailed((current) => {
+      const next = new Set(current)
+      next.add(index)
+      return next
+    })
+
+  return (
+    <section className="store-gallery" aria-labelledby="gallery-heading">
+      <h2 id="gallery-heading" className="sr-only">
+        Store photos
+      </h2>
+      {selectedFailed ? (
+        <div className="store-gallery__missing" role="img" aria-label="Store image unavailable">
+          <strong aria-hidden="true">{store.name.slice(0, 1)}</strong>
+          <span>Photo unavailable</span>
+        </div>
+      ) : (
+        <figure className="store-gallery__hero">
+          <button
+            ref={enlargeButton}
+            type="button"
+            className="store-gallery__enlarge"
+            aria-label={`Enlarge image: ${selected.alt}`}
+            onClick={() => setEnlarged(true)}
+          >
+            <img
+              src={selected.src}
+              {...responsiveCatalogImage(selected.src, '(max-width: 800px) 100vw, 720px')}
+              alt={selected.alt}
+              onError={() => markFailed(selectedIndex)}
+            />
+          </button>
+          {(selected.caption || selected.rightsLabel) && (
+            <figcaption>
+              {selected.caption}
+              {selected.caption && selected.rightsLabel ? ' · ' : ''}
+              {selected.rightsLabel}
+            </figcaption>
+          )}
+        </figure>
+      )}
+      {media.length > 1 && (
+        <div className="store-gallery__choices" role="group" aria-label="Choose a store photo">
+          {media.map((item, index) => (
+            <button
+              key={`${item.src}-${index}`}
+              type="button"
+              aria-label={`Show image ${index + 1}: ${item.alt}`}
+              aria-pressed={selectedIndex === index}
+              onClick={() => setSelectedIndex(index)}
+            >
+              {failed.has(index) ? (
+                <span>Unavailable</span>
+              ) : (
+                <img
+                  src={item.src}
+                  {...responsiveCatalogImage(item.src, '96px')}
+                  alt=""
+                  onError={() => markFailed(index)}
+                />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      {enlarged && selected && !selectedFailed && (
+        <div
+          className="store-gallery__dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Enlarged store image: ${selected.alt}`}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') closeGallery()
+            if (event.key === 'Tab') {
+              event.preventDefault()
+              closeButton.current?.focus()
+            }
+          }}
+        >
+          <button ref={closeButton} type="button" onClick={closeGallery}>
+            Close enlarged image
+          </button>
+          <img src={selected.src} alt={selected.alt} />
+          {(selected.caption || selected.rightsLabel) && (
+            <p>
+              {selected.caption}
+              {selected.caption && selected.rightsLabel ? ' · ' : ''}
+              {selected.rightsLabel}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function StoreHours({ store }: { store: CatalogStore }) {
+  const today = todayHoursSummary(store)
+  return (
+    <section className="store-detail__panel" aria-labelledby="hours-heading">
+      <div className="store-detail__section-heading">
+        <div>
+          <p className="eyebrow">Plan your stop</p>
+          <h2 id="hours-heading">Hours</h2>
+        </div>
+        <p className={`status-badge status-badge--${today.openState}`}>
+          {today.openState === 'open' ? '✓' : today.openState === 'closed' ? '●' : '?'}{' '}
+          {today.openStateLabel}
+        </p>
+      </div>
+      <p className="store-detail__today">
+        <strong>{today.dayLabel}</strong> · {today.hoursLabel}
+      </p>
+      {store.hours.length ? (
+        <dl className="store-hours">
+          {store.hours.map((day) => (
+            <React.Fragment key={day.weekday}>
+              <dt>{day.label || displayDayLabel(day.weekday)}</dt>
+              <dd>{formatHours(day)}</dd>
+            </React.Fragment>
+          ))}
+        </dl>
+      ) : (
+        <p className="honesty-note">Regular hours are unavailable. Call before making a trip.</p>
+      )}
+      <div className="store-detail__exceptions">
+        <h3>Special hours &amp; exceptions</h3>
+        {store.hoursExceptions?.length ? (
+          <ul>
+            {store.hoursExceptions.map((exception) => (
+              <li key={`${exception.date}-${exception.label}`}>
+                <strong>{exception.label}</strong>
+                <span>
+                  {formatCatalogDate(exception.date)} · {formatHoursException(exception)}
+                  {exception.note ? ` · ${exception.note}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="honesty-note">No special-hours information has been supplied.</p>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export function DetailsPage({
   client,
   slug,
   renderPrivateActions,
+  stage = 'package-5a',
 }: {
   client: CatalogClient
   slug: string
   renderPrivateActions?: (store: CatalogStore) => React.ReactNode
+  stage?: CatalogDetailsStage
 }) {
   const [state, setState] = useState<{
     kind: 'loading' | 'success' | 'error' | 'not-found'
@@ -726,65 +986,216 @@ export function DetailsPage({
       <main>
         <h1>Store not found</h1>
         <p>That store is not available in the catalog.</p>
-        <a href="/stores">Back to stores</a>
+        <a href={readBrowseReturn()?.href ?? '/stores'}>Back to stores</a>
       </main>
     )
   const store = state.store!
-  const cover = store.media.find((item) => item.kind === 'cover') ?? store.media[0]
+  const browseReturn = readBrowseReturn()
+  const backHref = browseReturn?.href ?? '/stores'
+  const verifiedDate = formatCatalogDate(store.freshness?.verifiedAt)
+  const provenanceDate = formatCatalogDate(store.provenance?.updatedAt)
+  const hasContact = Boolean(store.website || store.phone || store.email)
+  const canAddToTrip = detailsStageRank[stage] >= detailsStageRank['package-5a']
   return (
-    <main>
-      <a href="/stores">← Back to stores</a>
-      <article>
-        <header>
-          <p>{store.area.label}</p>
+    <main className="store-detail">
+      <a className="store-detail__back" href={backHref}>
+        ← Back to Browse
+      </a>
+      <article className="store-detail__article">
+        <header className="store-detail__header">
+          <p className="eyebrow">{store.area.label} trail stop</p>
           <h1>{store.name}</h1>
-          <p>
+          <p className="store-detail__address">
             {store.address}, {store.town}, {store.state}
           </p>
-          <p>{freshnessLabel(store)}</p>
-          {renderPrivateActions?.(store)}
-        </header>
-        {cover ? (
-          <img
-            src={cover.src}
-            alt={cover.alt || `${store.name} storefront`}
-            onError={(event) => {
-              event.currentTarget.hidden = true
-              event.currentTarget.nextElementSibling?.removeAttribute('hidden')
-            }}
-          />
-        ) : null}
-        <div hidden={Boolean(cover)} role="img" aria-label="Store image unavailable">
-          Image unavailable
-        </div>
-        {store.description && <p>{store.description}</p>}
-        <section aria-labelledby="hours-heading">
-          <h2 id="hours-heading">Hours</h2>
-          <dl>
-            {store.hours.length ? (
-              store.hours.map((day) => (
-                <React.Fragment key={day.weekday}>
-                  <dt>{day.label || displayDayLabel(day.weekday)}</dt>
-                  <dd>{formatHours(day)}</dd>
-                </React.Fragment>
-              ))
-            ) : (
-              <p>Hours unavailable</p>
+          <div className="store-detail__trust" aria-label="Listing status">
+            <p className={`status-badge status-badge--${store.freshness?.status ?? 'unknown'}`}>
+              {store.freshness?.status === 'current' ? '✓' : 'i'} {freshnessLabel(store)}
+            </p>
+            {store.freshness?.status === 'stale' && (
+              <p className="honesty-note">
+                This listing may be out of date. Confirm before travel.
+              </p>
             )}
-          </dl>
+            {!store.freshness && (
+              <p className="honesty-note">Freshness information is unavailable.</p>
+            )}
+          </div>
+        </header>
+
+        <StoreGallery store={store} />
+
+        <section className="store-detail__intro" aria-labelledby="about-heading">
+          <p className="eyebrow">What you’ll find</p>
+          <h2 id="about-heading">About this store</h2>
+          <p>{store.description || 'A store description has not been supplied.'}</p>
+          {store.categories.length ? (
+            <ul className="catalog-card__categories" aria-label="Store categories">
+              {store.categories.map((category) => (
+                <li key={category.slug}>{category.label}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="honesty-note">Store categories are unavailable.</p>
+          )}
         </section>
-        {store.website && (
-          <p>
-            <a href={store.website} rel="noreferrer">
-              Visit store website
+
+        <nav className="store-detail__actions" aria-label="Store visit actions">
+          <a
+            className="button"
+            href={externalNavigationHref(store)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Navigate in Maps <span aria-hidden="true">↗</span>
+            <span className="sr-only"> (opens in a new window)</span>
+          </a>
+          {canAddToTrip && (
+            <a
+              className="button button--secondary"
+              href={`/trips/new?addStoreId=${encodeURIComponent(store.id)}`}
+            >
+              Add to Trip
             </a>
+          )}
+          {renderPrivateActions?.(store)}
+        </nav>
+
+        <StoreHours store={store} />
+
+        <section className="store-detail__panel" aria-labelledby="contact-heading">
+          <p className="eyebrow">Confirm your visit</p>
+          <h2 id="contact-heading">Contact &amp; location</h2>
+          <address>
+            {store.address}, {store.town}, {store.state}
+          </address>
+          {hasContact ? (
+            <ul className="store-detail__link-list">
+              {store.phone && (
+                <li>
+                  <a href={`tel:${store.phone}`}>Call {store.phone}</a>
+                </li>
+              )}
+              {store.email && (
+                <li>
+                  <a href={`mailto:${store.email}`}>Email the store</a>
+                </li>
+              )}
+              {store.website && (
+                <li>
+                  <a href={store.website} target="_blank" rel="noreferrer">
+                    Visit official website <span aria-hidden="true">↗</span>
+                    <span className="sr-only"> (opens in a new window)</span>
+                  </a>
+                </li>
+              )}
+            </ul>
+          ) : (
+            <p className="honesty-note">Contact details have not been supplied.</p>
+          )}
+        </section>
+
+        <section className="store-detail__panel" aria-labelledby="accessibility-heading">
+          <p className="eyebrow">Know before you go</p>
+          <h2 id="accessibility-heading">Accessibility</h2>
+          {store.accessibility?.status === 'verified' && store.accessibility.details.length ? (
+            <>
+              <ul>
+                {store.accessibility.details.map((detail) => (
+                  <li key={detail}>{detail}</li>
+                ))}
+              </ul>
+              <p className="store-detail__source">
+                Verified accessibility information
+                {formatCatalogDate(store.accessibility.verifiedAt)
+                  ? ` on ${formatCatalogDate(store.accessibility.verifiedAt)}`
+                  : ''}
+                .
+              </p>
+            </>
+          ) : store.accessibility?.status === 'unverified' && store.accessibility.details.length ? (
+            <>
+              <ul>
+                {store.accessibility.details.map((detail) => (
+                  <li key={detail}>{detail}</li>
+                ))}
+              </ul>
+              <p className="honesty-note">
+                These details have not yet been verified. Contact the store to confirm.
+              </p>
+            </>
+          ) : (
+            <p className="honesty-note">
+              Accessibility information is unavailable. Contact the store before visiting if you
+              need an accommodation.
+            </p>
+          )}
+        </section>
+
+        <section className="store-detail__panel" aria-labelledby="updates-heading">
+          <p className="eyebrow">From the store</p>
+          <h2 id="updates-heading">Latest updates</h2>
+          {store.updates?.length ? (
+            <>
+              <ol className="store-updates">
+                {store.updates.slice(0, 3).map((update) => (
+                  <li key={update.id}>
+                    <article>
+                      <h3>{update.title}</h3>
+                      <p>{update.body}</p>
+                      <time dateTime={update.publishedAt}>
+                        {formatCatalogDate(update.publishedAt) ?? 'Date unavailable'}
+                      </time>
+                      {update.href && <a href={update.href}>Read full update</a>}
+                    </article>
+                  </li>
+                ))}
+              </ol>
+              {store.updates.length > 3 && (
+                <a href={`/stores/${encodeURIComponent(store.slug)}/updates`}>
+                  See all store updates
+                </a>
+              )}
+            </>
+          ) : (
+            <p className="honesty-note">This store has not published any updates.</p>
+          )}
+        </section>
+
+        {store.socialLinks?.length ? (
+          <section className="store-detail__panel" aria-labelledby="social-heading">
+            <p className="eyebrow">Official profiles</p>
+            <h2 id="social-heading">Follow this store</h2>
+            <p>These links open the store’s official profile on an external service.</p>
+            <ul className="store-detail__link-list">
+              {store.socialLinks.map((social) => (
+                <li key={`${social.platform}-${social.href}`}>
+                  <a href={social.href} target="_blank" rel="noreferrer">
+                    {social.platform} <span aria-hidden="true">↗</span>
+                    <span className="sr-only"> (opens in a new window)</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <section className="store-detail__provenance" aria-labelledby="source-heading">
+          <p className="eyebrow">Why you can trust this listing</p>
+          <h2 id="source-heading">Source &amp; freshness</h2>
+          <dl>
+            <dt>Listing source</dt>
+            <dd>{store.provenance?.sourceLabel || 'Source information unavailable'}</dd>
+            <dt>Source updated</dt>
+            <dd>{provenanceDate || 'Update date unavailable'}</dd>
+            <dt>Details verified</dt>
+            <dd>{verifiedDate || 'Verification date unavailable'}</dd>
+          </dl>
+          {store.provenance?.note && <p>{store.provenance.note}</p>}
+          <p className="store-detail__source">
+            Photo rights are shown with each image when supplied.
           </p>
-        )}
-        {store.phone && (
-          <p>
-            <a href={`tel:${store.phone}`}>{store.phone}</a>
-          </p>
-        )}
+        </section>
       </article>
     </main>
   )
