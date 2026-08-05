@@ -120,6 +120,7 @@ import {
   type DurableReadinessClient,
 } from '../features/readiness'
 import { BetaControlPage, unavailableBetaClient, type DurableBetaClient } from '../features/beta'
+import { OperationalStatusPage, type OperationalStatusConfig } from '../features/status'
 
 // The current provider-neutral shell has no privileged session source. Keep the
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
@@ -149,7 +150,9 @@ function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </header>
       <div id="main-content">{children}</div>
-      <footer className="site-footer">Synthetic catalog · Built for curious local explorers</footer>
+      <footer className="site-footer">
+        Synthetic catalog · Built for curious local explorers · <Link to="/status">Status</Link>
+      </footer>
     </div>
   )
 }
@@ -483,6 +486,7 @@ export interface AppClients {
   portal?: PortalClient
   readiness?: DurableReadinessClient
   beta?: DurableBetaClient
+  operationalStatus?: OperationalStatusConfig
   tripOfflineGrants?: TripOfflineGrantSource
   routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
 }
@@ -537,6 +541,10 @@ export default function App({
       <TripAccountLifecycle runtime={tripOffline} />
       <AppShell key={privacyEpoch}>
         <Routes>
+          <Route
+            path="/status"
+            element={<OperationalStatusPage config={clients.operationalStatus ?? {}} />}
+          />
           <Route
             path="/stores"
             element={

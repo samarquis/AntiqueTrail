@@ -440,6 +440,13 @@ export async function configuredComposition(
           return { data: result.data, error: result.error }
         },
       }),
+      operationalStatus: {
+        supportUrl: configuredValue(import.meta.env.VITE_SUPPORT_URL) ?? undefined,
+        securityUrl: configuredValue(import.meta.env.VITE_SECURITY_CONTACT_URL) ?? undefined,
+        statusUrl: configuredValue(import.meta.env.VITE_STATUS_URL) ?? undefined,
+        responseCommitment:
+          configuredValue(import.meta.env.VITE_INCIDENT_RESPONSE_COMMITMENT) ?? undefined,
+      },
       trips,
       tripOfflineGrants: source,
       map: createAccessibleCatalogMapAdapter({
