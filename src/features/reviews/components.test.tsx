@@ -192,6 +192,23 @@ describe('provider-neutral public review boundary', () => {
     expect(screen.queryByRole('button', { name: /preview review/i })).not.toBeInTheDocument()
   })
 
+  it('keeps published reviews readable when anonymous eligibility is unavailable', async () => {
+    const reviewClient = client({
+      getEligibility: vi.fn(async () => Promise.reject(new Error('authentication required'))),
+    })
+    render(
+      <MemoryRouter>
+        <PublicReviewsPage storeId="store-1" client={reviewClient} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Lovely selection.')).toBeVisible()
+    expect(screen.getByRole('link', { name: /sign in to write a review/i })).toHaveAttribute(
+      'href',
+      '/auth/sign-in',
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('preserves composer fields through preview and publishes only after explicit confirmation', async () => {
     const user = userEvent.setup()
     const reviewClient = client()

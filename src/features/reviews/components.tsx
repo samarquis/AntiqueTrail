@@ -411,6 +411,7 @@ export function PublicReviewsPage({
   const [capability, setCapability] = useState<ReviewCapability | null>(null)
   const [snapshot, setSnapshot] = useState<StoreReviewsSnapshot | null>(null)
   const [eligibility, setEligibility] = useState<ReviewEligibility | null>(null)
+  const [eligibilityLoaded, setEligibilityLoaded] = useState(false)
   const [error, setError] = useState(false)
   const [editing, setEditing] = useState<PublicReview | null>(null)
   useEffect(() => {
@@ -421,14 +422,16 @@ export function PublicReviewsPage({
         if (cancelled) return
         setCapability(result)
         if (!isReviewCapabilityEnabled(result)) return
-        return Promise.all([client.getStoreReviews(storeId), client.getEligibility(storeId)]).then(
-          ([reviews, eligible]) => {
-            if (!cancelled) {
-              setSnapshot(reviews)
-              setEligibility(eligible)
-            }
-          },
-        )
+        return Promise.all([
+          client.getStoreReviews(storeId),
+          client.getEligibility(storeId).catch(() => null),
+        ]).then(([reviews, eligible]) => {
+          if (!cancelled) {
+            setSnapshot(reviews)
+            setEligibility(eligible)
+            setEligibilityLoaded(true)
+          }
+        })
       })
       .catch(() => {
         if (!cancelled) setError(true)
@@ -453,7 +456,7 @@ export function PublicReviewsPage({
       </ReviewCard>
     )
   if (!isReviewCapabilityEnabled(capability)) return <ReviewUnavailablePage />
-  if (!snapshot || !eligibility)
+  if (!snapshot || !eligibilityLoaded)
     return (
       <ReviewCard title="Reviews" description="Loading store reviews…">
         <p role="status">Loading…</p>
@@ -492,7 +495,7 @@ export function PublicReviewsPage({
             setEditing(null)
           }}
         />
-      ) : (
+      ) : eligibility ? (
         <ReviewComposer
           storeId={storeId}
           eligibility={eligibility}
@@ -509,6 +512,10 @@ export function PublicReviewsPage({
             })
           }
         />
+      ) : (
+        <p>
+          <Link to="/auth/sign-in">Sign in to write a review</Link>.
+        </p>
       )}
     </ReviewCard>
   )
