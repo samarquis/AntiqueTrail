@@ -1,0 +1,9 @@
+# Package 9 reviewer credential operations
+
+Status: **NO-GO / provider disabled by default**. No verifier, relying-party configuration, qualification evidence, or credential has been fabricated by the repository.
+
+An authorized configurator must provision a pending reviewer identity from real qualification evidence, accept the exact HTTPS origin, relying-party ID, verifier key ID, and evidence digest, deploy the verifier identity and secret, and only then set `REVIEW_CREDENTIAL_PROVIDER_ACCEPTED=true`. The configured origin must exactly match the application origin. Use the reviewed bounded timeout in `REVIEW_CREDENTIAL_TIMEOUT_MS`.
+
+The reviewer registers two distinct non-discoverable credentials through separate five-minute, server-generated challenges. Only the verifier service can record credential ID/public-key digests and provider verification IDs. The browser cannot submit a credential count or verification result. The identity becomes active only when the database counts two active durable credential rows.
+
+Every independent appeal decision requires a new case-bound assertion challenge. The provider response must echo the challenge, match the accepted verifier key, identify an active credential owned by the assigned reviewer, and advance its signature counter. Challenges and provider verification IDs are one-use; exact lost-response retries return the prior receipt. Credential revocation consumes outstanding assertions and disables the reviewer whenever fewer than two active credentials remain. Revoking the verifier disables all independent reviewers and fails closed; administrator appeal separation remains unchanged.

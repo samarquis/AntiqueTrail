@@ -16,7 +16,7 @@ select has_table('review_private','review_restrictions','review-only restriction
 select has_table('review_private','restriction_appeals','restriction appeals exist');
 select has_table('review_private','review_audit_events','narrow hash-chained audit exists');
 
-select ok((select count(*)=12 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+select ok((select count(*)=16 from pg_class c join pg_namespace n on n.oid=c.relnamespace
   where n.nspname='review_private' and c.relkind='r' and c.relrowsecurity and c.relforcerowsecurity),
   'all Package 9 tables force RLS');
 select ok(not exists(select 1 from information_schema.role_table_grants
@@ -71,7 +71,7 @@ select ok(position('original_moderator_id=actor' in replace(lower(pg_get_functio
   'the original moderator is denied appeal decisions');
 select ok(position('active_credential_count<2' in replace(lower(pg_get_functiondef('app_public.reviews_decide_appeal(uuid,text,text)'::regprocedure)),' ',''))>0
   and position('assertion_verified_at' in lower(pg_get_functiondef('app_public.reviews_decide_appeal(uuid,text,text)'::regprocedure)))>0,
-  'appeal decisions require an active independently asserted reviewer');
+  'appeal decisions require the verifier-derived active credential cache and a fresh assertion');
 select ok(position('gen_random_uuid()' in lower(pg_get_functiondef('review_private.deidentify_account_reviews(uuid,uuid)'::regprocedure)))>0
   and position('review_text=null' in replace(lower(pg_get_functiondef('review_private.deidentify_account_reviews(uuid,uuid)'::regprocedure)),' ',''))>0,
   'day-8 processing uses a random tombstone and purges display/text linkage');
