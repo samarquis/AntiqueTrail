@@ -6,13 +6,110 @@ import type {
   ReviewConflict,
   ReviewDraft,
   ReviewEligibility,
+  ReviewReportReason,
   ReviewStage,
 } from './types'
+import type { ReviewClient as DurableReviewClient } from './types'
 
 export const GENERIC_REVIEW_ERROR = "We couldn't complete this review action. Please try again."
 export const REVIEW_STAGE_DISABLED_MESSAGE = 'Public reviews are not available in this release.'
 export const REVIEW_RULES_MESSAGE =
   'Share an honest visit. Be accurate, respectful, and disclose material conflicts.'
+
+type ReviewRpcName =
+  | 'reviews_get_capability'
+  | 'reviews_get_eligibility'
+  | 'reviews_get_store'
+  | 'reviews_create'
+  | 'reviews_edit'
+  | 'reviews_request_delete'
+  | 'reviews_undo_delete'
+  | 'reviews_report'
+  | 'reviews_submit_appeal'
+  | 'reviews_list_moderation_cases'
+  | 'reviews_moderate'
+  | 'reviews_submit_restriction_appeal'
+  | 'reviews_decide_restriction_appeal'
+  | 'reviews_expire_restriction'
+
+export interface ReviewRpcTransport {
+  rpc(
+    name: ReviewRpcName,
+    args: Readonly<Record<string, unknown>>,
+  ): Promise<{ data: unknown; error: unknown }>
+}
+
+export class ReviewApiError extends Error {
+  constructor() {
+    super(GENERIC_REVIEW_ERROR)
+    this.name = 'ReviewApiError'
+  }
+}
+
+function reviewDraftArgs(draft: ReviewDraft): Readonly<Record<string, unknown>> {
+  return {
+    p_store_id: draft.storeId,
+    p_rating: draft.rating,
+    p_text: draft.text,
+    p_display_name: draft.displayName,
+    p_visit_month: draft.visitMonth,
+    p_visit_year: draft.visitYear,
+    p_conflict_kind: draft.conflict,
+    p_manual_visit_attested: draft.manualVisitAttested,
+  }
+}
+
+export function createReviewClient(transport: ReviewRpcTransport): DurableReviewClient {
+  async function call<T>(
+    name: ReviewRpcName,
+    args: Readonly<Record<string, unknown>> = {},
+  ): Promise<T> {
+    try {
+      const result = await transport.rpc(name, args)
+      if (result.error || result.data === null || result.data === undefined)
+        throw new ReviewApiError()
+      return result.data as T
+    } catch (error) {
+      if (error instanceof ReviewApiError) throw error
+      throw new ReviewApiError()
+    }
+  }
+
+  return {
+    getCapability: () => call('reviews_get_capability'),
+    getEligibility: (storeId) => call('reviews_get_eligibility', { p_store_id: storeId }),
+    getStoreReviews: (storeId) => call('reviews_get_store', { p_store_id: storeId }),
+    publishReview: (draft) => call('reviews_create', reviewDraftArgs(draft)),
+    editReview: (reviewId, draft) =>
+      call('reviews_edit', { p_review_id: reviewId, ...reviewDraftArgs(draft) }),
+    requestDeleteReview: (reviewId) => call('reviews_request_delete', { p_review_id: reviewId }),
+    undoDeleteReview: (reviewId) => call('reviews_undo_delete', { p_review_id: reviewId }),
+    reportReview: (reviewId, reason: ReviewReportReason) =>
+      call('reviews_report', { p_review_id: reviewId, p_reason_code: reason }),
+    submitAppeal: ({ reviewId, reason }) =>
+      call('reviews_submit_appeal', { p_review_id: reviewId, p_reason: reason }),
+    listModerationCases: () => call('reviews_list_moderation_cases'),
+    decideModerationCase: (caseId, input) =>
+      call('reviews_moderate', {
+        p_case_id: caseId,
+        p_action: input.action,
+        p_reason: input.reason,
+      }),
+    submitRestrictionAppeal: ({ restrictionId, reason }) =>
+      call('reviews_submit_restriction_appeal', {
+        p_restriction_id: restrictionId,
+        p_reason: reason,
+      }),
+    decideRestrictionAppeal: (appealId, input) =>
+      call('reviews_decide_restriction_appeal', {
+        p_appeal_id: appealId,
+        p_outcome: input.outcome,
+        p_reason: input.reason,
+      }),
+    expireFeatureRestriction: (restrictionId) =>
+      call('reviews_expire_restriction', { p_restriction_id: restrictionId }),
+  }
+}
 export const DISABLED_REVIEW_CAPABILITY: ReviewCapability = {
   stage: 'private_beta',
   enabled: false,
