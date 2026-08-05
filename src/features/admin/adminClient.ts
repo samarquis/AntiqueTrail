@@ -38,7 +38,7 @@ export interface AdminClient {
   ): Promise<AdminDecisionResult>
   listStoreGrants(): Promise<AdminStoreScope[]>
   changeStoreScope(
-    operation: 'grant' | 'revoke' | 'regrant',
+    operation: 'revoke' | 'regrant',
     subjectUserId: string,
     storeId: string,
     expectedVersion: number,

@@ -108,29 +108,18 @@ describe('Administrator workspace', () => {
     )
   })
 
-  it('grants a named representative only the entered exact store scope', async () => {
-    const changeStoreScope = vi.fn(async () => ({
-      grantId: 'grant-new',
-      state: 'active' as const,
-      version: 1,
-    }))
-    const user = userEvent.setup()
+  it('does not offer a Package 7 bypass for an initial representative grant', async () => {
     render(
       <MemoryRouter>
-        <AccessSafetyPage client={client({ changeStoreScope })} />
+        <AccessSafetyPage client={client()} />
       </MemoryRouter>,
     )
-    await user.type(screen.getByLabelText(/representative user id/i), 'rep-2')
-    await user.type(screen.getByLabelText(/store id for new scope/i), 'store-2')
-    await user.click(screen.getByRole('button', { name: /grant exact store scope/i }))
-    expect(changeStoreScope).toHaveBeenCalledWith(
-      'grant',
-      'rep-2',
-      'store-2',
-      0,
-      'authority_verified',
-      expect.stringMatching(/^admin-scope-new-/),
-    )
+    expect(
+      await screen.findByText(/initial store representative access is created only/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /grant exact store scope/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('previews one duplicate merge before execution and never offers authority reparenting', async () => {

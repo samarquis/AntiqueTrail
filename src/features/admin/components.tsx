@@ -135,8 +135,6 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
   const [canonicalStoreId, setCanonicalStoreId] = useState('')
   const [duplicateStoreId, setDuplicateStoreId] = useState('')
   const [merge, setMerge] = useState<AdminMergePlan | null>(null)
-  const [newSubjectUserId, setNewSubjectUserId] = useState('')
-  const [newStoreId, setNewStoreId] = useState('')
 
   useEffect(() => {
     let current = true
@@ -180,25 +178,6 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
     }
   }
 
-  async function grantScope() {
-    try {
-      await client.changeStoreScope(
-        'grant',
-        newSubjectUserId.trim(),
-        newStoreId.trim(),
-        0,
-        'authority_verified',
-        `admin-scope-new-${Date.now()}`,
-      )
-      setNewSubjectUserId('')
-      setNewStoreId('')
-      setMessage('Exact Store Representative scope granted.')
-      setGrants(await client.listStoreGrants())
-    } catch {
-      setMessage(GENERIC_ADMIN_FAILURE)
-    }
-  }
-
   async function advanceMerge(operation: 'execute' | 'rollback') {
     if (!merge) return
     try {
@@ -233,27 +212,10 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
       ) : (
         <p>No Store Representative scopes.</p>
       )}
-      <section aria-labelledby="grant-heading">
-        <h2 id="grant-heading">Grant an exact store scope</h2>
-        <label>
-          Representative user ID
-          <input
-            value={newSubjectUserId}
-            onChange={(event) => setNewSubjectUserId(event.target.value)}
-          />
-        </label>
-        <label>
-          Store ID for new scope
-          <input value={newStoreId} onChange={(event) => setNewStoreId(event.target.value)} />
-        </label>
-        <button
-          type="button"
-          disabled={!newSubjectUserId.trim() || !newStoreId.trim()}
-          onClick={() => void grantScope()}
-        >
-          Grant exact store scope
-        </button>
-      </section>
+      <p>
+        Initial Store Representative access is created only by an approved onboarding or listing
+        claim. This workspace can revoke or regrant an existing exact scope.
+      </p>
       <section aria-labelledby="merge-heading">
         <h2 id="merge-heading">Duplicate store merge</h2>
         <p>Preview one exact canonical and duplicate store before changing anything.</p>

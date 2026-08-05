@@ -12,13 +12,13 @@ alter table admin_private.admin_merge_ledgers drop constraint admin_merge_ledger
 alter table admin_private.admin_merge_ledgers add constraint admin_merge_ledgers_collision_kind_check
   check(collision_kind in ('none','duplicate_save','memory_conflict','trip_stop','review_conflict','claim_quarantine','grant_quarantine','update_conflict','support_conflict','media_conflict'));
 alter table admin_private.admin_scope_actions drop constraint admin_scope_actions_action_check;
-alter table admin_private.admin_scope_actions add constraint admin_scope_actions_action_check check(action in ('grant','revoke','regrant'));
+alter table admin_private.admin_scope_actions add constraint admin_scope_actions_action_check check(action in ('revoke','regrant'));
 alter table admin_private.admin_scope_actions drop constraint admin_scope_actions_expected_grant_version_check;
 alter table admin_private.admin_scope_actions add constraint admin_scope_actions_expected_grant_version_check
-  check(expected_grant_version>=0 and (action='grant')=(expected_grant_version=0));
+  check(expected_grant_version>0);
 alter table admin_private.admin_scope_actions drop constraint admin_scope_regrant_prerequisite;
 alter table admin_private.admin_scope_actions add constraint admin_scope_regrant_prerequisite check(
-  (action='regrant' and prior_grant_id is not null) or (action in ('grant','revoke') and prior_grant_id is null));
+  (action='regrant' and prior_grant_id is not null) or (action='revoke' and prior_grant_id is null));
 
 create table admin_private.admin_command_receipts(
   idempotency_key text primary key check(idempotency_key~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'),
@@ -137,7 +137,7 @@ begin
     select jsonb_build_object('kind',m.kind,'altText',m.alt_text,'sourceMime',m.source_mime,'width',m.derivative_width,'height',m.derivative_height,'state',m.state)
       into context from media_private.media_uploads m where m.upload_id=c.target_id and m.store_id=c.store_id;
   elsif c.case_type='partner_onboarding' then
-    select jsonb_build_object('name',d.name,'address',d.address,'phone',d.phone,'website',d.website,'description',d.description,'categoryTags',d.category_tags,'state',d.state)
+    select jsonb_build_object('name',d.name,'address',d.address,'phone',d.phone,'website',d.website,'description',d.description,'categoryTags',d.category_tags,'state',d.state,'exactPreviewHash',encode(c.snapshot_hash,'hex'))
       into context from partner_private.pilot_store_drafts d where d.draft_id=c.target_id;
   elsif c.case_type='listing_claim' then
     select jsonb_build_object('relationship',l.relationship,'authorityStatement',l.authority_statement,'riskTier',l.risk_tier,'state',l.state)
@@ -181,6 +181,7 @@ returns jsonb language plpgsql volatile security definer set search_path='' as $
 declare actor uuid:=admin_private.require_operational_admin(); id uuid; c admin_private.admin_review_cases%rowtype; digest bytea;
 begin
   begin id:=p_case_id::uuid; exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
+  perform admin_private.enforce_operational_admin_rate(actor,id);
   perform pg_advisory_xact_lock(hashtextextended('admin-case:'||id,0));
   select * into c from admin_private.admin_review_cases where case_id=id and state in ('open','claimed','changes_requested') for update;
   if not found or (c.assigned_admin_id is not null and c.assigned_admin_id<>actor) then raise exception using errcode='55000',message='admin_unavailable'; end if;
@@ -203,6 +204,7 @@ declare actor uuid:=admin_private.require_operational_admin(); id uuid; c admin_
   value_json jsonb; result jsonb; category_slugs text[]; prior_case_state text; prior_ticket_state text;
 begin
   begin id:=p_case_id::uuid; exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
+  perform admin_private.enforce_operational_admin_rate(actor,id);
   if p_action not in ('approve','return','reject') or p_reason is null or p_reason<>btrim(p_reason) or char_length(p_reason) not between 1 and 1000
     or p_reason~'[[:cntrl:]]' or p_expected_version<1 or p_idempotency_key!~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
   then raise exception using errcode='22023',message='admin_unavailable'; end if;
@@ -260,8 +262,12 @@ begin
   elsif c.case_type='partner_onboarding' then
     select d.* into draft from partner_private.pilot_store_drafts d where d.draft_id=c.target_id for update;
     if not found or exists(select 1 from partner_private.pending_partner_identities p where p.pending_identity_id=draft.pending_identity_id and p.auth_user_id=actor) then raise exception using errcode='42501',message='admin_unavailable'; end if;
-    update partner_private.pilot_store_drafts set state=case p_action when 'approve' then 'approved' when 'return' then 'changes_requested' else 'rejected' end,
-      reviewed_by=actor,reviewed_at=statement_timestamp(),updated_at=statement_timestamp(),version=version+1 where draft_id=draft.draft_id;
+    if p_action='approve' then
+      perform partner_private.approve_pilot_onboarding_exact(draft.draft_id,actor,c.snapshot_hash);
+    else
+      update partner_private.pilot_store_drafts set state=case p_action when 'return' then 'changes_requested' else 'rejected' end,
+        reviewed_by=actor,reviewed_at=statement_timestamp(),updated_at=statement_timestamp(),version=version+1 where draft_id=draft.draft_id;
+    end if;
   elsif c.case_type='listing_claim' then
     select * into claim from partner_private.listing_claims where claim_id=c.target_id and store_id=c.store_id;
     if not found or claim.claimant_id=actor then raise exception using errcode='42501',message='admin_unavailable'; end if;
@@ -298,24 +304,15 @@ declare actor uuid:=admin_private.require_operational_admin(); subject uuid; tar
   digest bytea; result jsonb; prior_app_grant uuid;
 begin
   begin subject:=p_subject_user_id::uuid; target_store:=p_store_id::uuid; exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
-  if p_operation not in ('grant','revoke','regrant') or subject=actor or p_expected_version<0 or (p_operation='grant')<>(p_expected_version=0) or p_reason_code!~'^[a-z][a-z0-9_]{1,63}$'
+  if p_operation not in ('revoke','regrant') or subject=actor or p_expected_version<1 or p_reason_code!~'^[a-z][a-z0-9_]{1,63}$'
     or p_idempotency_key!~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' then raise exception using errcode='22023',message='admin_unavailable'; end if;
   digest:=extensions.digest(convert_to(concat_ws('|',p_operation,subject,target_store,p_expected_version,p_reason_code,actor),'utf8'),'sha256');
+  perform admin_private.enforce_operational_admin_rate(actor,target_store);
   select * into prior from admin_private.admin_command_receipts where idempotency_key=p_idempotency_key;
   if found then if prior.actor_user_id<>actor or prior.command_kind<>'scope_change' or prior.input_digest<>digest then raise exception using errcode='22023',message='admin_unavailable'; end if; return prior.result; end if;
   perform pg_advisory_xact_lock(hashtextextended('admin-scope:'||subject||':'||target_store,0));
   select * into g from partner_private.store_partner_grants where auth_user_id=subject and store_id=target_store order by granted_at desc,grant_id desc limit 1 for update;
-  if p_operation='grant' then
-    if found and g.state in ('active','reconsent_required') then raise exception using errcode='40001',message='admin_unavailable'; end if;
-    if not partner_private.partner_consent_is_current(subject) then raise exception using errcode='42501',message='admin_unavailable'; end if;
-    select * into partnership from partner_private.store_partnerships where auth_user_id=subject and store_id=target_store and state='active' for update;
-    if not found then raise exception using errcode='42501',message='admin_unavailable'; end if;
-    insert into partner_private.store_partner_grants(partnership_id,auth_user_id,store_id,consent_policy_version)
-      values(partnership.partnership_id,subject,target_store,partnership.consent_policy_version) returning * into g;
-    insert into app_private.role_grants(subject_user_id,role,store_id,state,granted_by) values(subject,'representative',target_store,'active',actor) returning * into app_grant;
-  else
-    if not found or g.version<>p_expected_version then raise exception using errcode='40001',message='admin_unavailable'; end if;
-  end if;
+  if not found or g.version<>p_expected_version then raise exception using errcode='40001',message='admin_unavailable'; end if;
   if p_operation='revoke' then
     if g.state not in ('active','reconsent_required') then raise exception using errcode='55000',message='admin_unavailable'; end if;
     select * into app_grant from app_private.role_grants where subject_user_id=subject and role='representative' and store_id=target_store and state='active' for update;
@@ -327,7 +324,17 @@ begin
       where grant_id=app_grant.grant_id returning * into app_grant;
     prior_app_grant:=app_grant.grant_id;
   elsif p_operation='regrant' then
-    if g.state<>'revoked' or not partner_private.partner_consent_is_current(subject) then raise exception using errcode='42501',message='admin_unavailable'; end if;
+    if g.state<>'revoked' or not partner_private.partner_consent_is_current(subject)
+      or not app_private.provider_user_is_confirmed(subject)
+      or not app_private.provider_user_has_verified_mfa(subject)
+      or not exists(select 1 from partner_private.pending_partner_identities p where p.auth_user_id=subject and p.state='bound' and p.verified_email_at is not null and p.mfa_verified_at is not null)
+      or not (
+        exists(select 1 from partner_private.listing_claims c where c.claimant_id=subject and c.store_id=target_store and c.state='approved'
+          and (select count(distinct channel_class) from partner_private.claim_authority_signals s where s.claim_id=c.claim_id and s.status='verified')>=2)
+        or exists(select 1 from partner_private.pilot_approval_snapshots a join partner_private.pilot_store_drafts d on d.draft_id=a.draft_id
+          where a.subject_user_id=subject and a.store_id=target_store and d.state='approved'
+          and (select count(distinct channel_class) from partner_private.partner_authority_checks v where v.draft_id=d.draft_id and v.status='verified')>=2)
+      ) then raise exception using errcode='42501',message='admin_unavailable'; end if;
     select * into partnership from partner_private.store_partnerships where partnership_id=g.partnership_id and auth_user_id=subject and store_id=target_store and state='active' for update;
     if not found then raise exception using errcode='42501',message='admin_unavailable'; end if;
     select grant_id into prior_app_grant from app_private.role_grants where subject_user_id=subject and role='representative' and store_id=target_store order by granted_at desc limit 1;
@@ -352,6 +359,7 @@ declare actor uuid:=admin_private.require_operational_admin(); canonical uuid; d
   digest bytea; safe_count integer; conflict_count integer;
 begin
   begin canonical:=p_canonical_store_id::uuid; duplicate:=p_duplicate_store_id::uuid; exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
+  perform admin_private.enforce_operational_admin_rate(actor,duplicate);
   if canonical=duplicate then raise exception using errcode='22023',message='admin_unavailable'; end if;
   perform pg_advisory_xact_lock(least(hashtextextended('admin-merge:'||canonical,0),hashtextextended('admin-merge:'||duplicate,0)));
   perform pg_advisory_xact_lock(greatest(hashtextextended('admin-merge:'||canonical,0),hashtextextended('admin-merge:'||duplicate,0)));
@@ -360,11 +368,18 @@ begin
   select * into p from admin_private.admin_duplicate_merge_proposals where canonical_store_id=canonical and duplicate_store_id=duplicate and state='previewed' order by created_at desc limit 1;
   if found then return admin_private.merge_plan_json(p.proposal_id); end if;
   safe_count:=(select count(*) from portal_private.store_updates u where u.store_id=duplicate and not exists(select 1 from portal_private.store_updates x where x.store_id=canonical and x.content_digest=u.content_digest and x.state='live'))
-    +(select count(*) from portal_private.support_tickets t where t.store_id=duplicate and not exists(select 1 from portal_private.support_tickets x where x.store_id=canonical and x.opened_by=t.opened_by and x.request_digest=t.request_digest and x.state<>'resolved'));
+    +(select count(*) from portal_private.support_tickets t where t.store_id=duplicate and not exists(select 1 from portal_private.support_tickets x where x.store_id=canonical and x.opened_by=t.opened_by and x.request_digest=t.request_digest and x.state<>'resolved'))
+    +(select count(*) from shopper_private.saved_stores s where s.store_id=duplicate and not exists(select 1 from shopper_private.saved_stores x where x.user_id=s.user_id and x.store_id=canonical))
+    +(select count(*) from shopper_private.private_store_memories m where m.store_id=duplicate and not exists(select 1 from shopper_private.private_store_memories x where x.user_id=m.user_id and x.store_id=canonical))
+    +(select count(*) from trip_private.trip_stops where store_id=duplicate)
+    +(select count(*) from review_private.public_reviews r where r.store_id=duplicate and not exists(select 1 from review_private.public_reviews x where x.author_id=r.author_id and x.store_id=canonical and x.state<>'deleted'));
   conflict_count:=(select count(*) from partner_private.store_partner_grants where store_id=duplicate and state in ('active','reconsent_required'))
     +(select count(*) from partner_private.listing_claims where store_id=duplicate and state='approved')
     +(select count(*) from portal_private.store_updates u where u.store_id=duplicate and exists(select 1 from portal_private.store_updates x where x.store_id=canonical and x.content_digest=u.content_digest and x.state='live'))
-    +(select count(*) from portal_private.support_tickets t where t.store_id=duplicate and exists(select 1 from portal_private.support_tickets x where x.store_id=canonical and x.opened_by=t.opened_by and x.request_digest=t.request_digest and x.state<>'resolved'));
+    +(select count(*) from portal_private.support_tickets t where t.store_id=duplicate and exists(select 1 from portal_private.support_tickets x where x.store_id=canonical and x.opened_by=t.opened_by and x.request_digest=t.request_digest and x.state<>'resolved'))
+    +(select count(*) from shopper_private.saved_stores s where s.store_id=duplicate and exists(select 1 from shopper_private.saved_stores x where x.user_id=s.user_id and x.store_id=canonical))
+    +(select count(*) from shopper_private.private_store_memories m where m.store_id=duplicate and exists(select 1 from shopper_private.private_store_memories x where x.user_id=m.user_id and x.store_id=canonical))
+    +(select count(*) from review_private.public_reviews r where r.store_id=duplicate and r.author_id is not null and exists(select 1 from review_private.public_reviews x where x.author_id=r.author_id and x.store_id=canonical and x.state<>'deleted'));
   digest:=extensions.digest(convert_to(concat_ws('|',canonical,duplicate,safe_count,conflict_count),'utf8'),'sha256');
   insert into admin_private.admin_duplicate_merge_proposals(canonical_store_id,duplicate_store_id,preview_hash,collision_summary,requested_by,expected_canonical_version,expected_duplicate_version)
     values(canonical,duplicate,digest,jsonb_build_object('safeReferences',safe_count,'quarantinedConflicts',conflict_count),actor,1,1) returning * into p;
@@ -377,8 +392,10 @@ create or replace function app_public.admin_execute_duplicate_merge(p_proposal_i
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare actor uuid:=admin_private.require_operational_admin(); id uuid; p admin_private.admin_duplicate_merge_proposals%rowtype; prior admin_private.admin_command_receipts%rowtype;
   digest bytea; result jsonb; u portal_private.store_updates%rowtype; t portal_private.support_tickets%rowtype; g partner_private.store_partner_grants%rowtype; cl partner_private.listing_claims%rowtype; original_publication text;
+  saved record; memory record; stop record; review record; canonical_created timestamptz; has_collision boolean;
 begin
   begin id:=p_proposal_id::uuid; exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
+  perform admin_private.enforce_operational_admin_rate(actor,id);
   if p_expected_version<1 or p_idempotency_key!~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' then raise exception using errcode='22023',message='admin_unavailable'; end if;
   digest:=extensions.digest(convert_to(concat_ws('|','execute',id,p_expected_version,actor),'utf8'),'sha256');
   select * into prior from admin_private.admin_command_receipts where idempotency_key=p_idempotency_key;
@@ -393,6 +410,58 @@ begin
   select publication_state::text into original_publication from app_public.stores where id=p.duplicate_store_id;
   insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state,aggregate_delta)
     values(p.proposal_id,'store',p.duplicate_store_id,p.duplicate_store_id,p.canonical_store_id,'none','preserved',jsonb_build_object('publicationState',original_publication));
+  for saved in select * from shopper_private.saved_stores where store_id=p.duplicate_store_id for update loop
+    select created_at into canonical_created from shopper_private.saved_stores where user_id=saved.user_id and store_id=p.canonical_store_id for update;
+    if found then
+      update shopper_private.saved_stores set created_at=least(created_at,saved.created_at) where user_id=saved.user_id and store_id=p.canonical_store_id;
+      delete from shopper_private.saved_stores where user_id=saved.user_id and store_id=p.duplicate_store_id;
+      insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state,aggregate_delta)
+        values(p.proposal_id,'saved_store',saved.user_id,p.duplicate_store_id,p.canonical_store_id,'duplicate_save','hidden',jsonb_build_object('duplicateCreatedAt',saved.created_at,'canonicalCreatedAt',canonical_created));
+    else
+      update shopper_private.saved_stores set store_id=p.canonical_store_id where user_id=saved.user_id and store_id=p.duplicate_store_id;
+      insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state,aggregate_delta)
+        values(p.proposal_id,'saved_store',saved.user_id,p.duplicate_store_id,p.canonical_store_id,'none','reparented',jsonb_build_object('createdAt',saved.created_at));
+    end if;
+  end loop;
+  for memory in select * from shopper_private.private_store_memories where store_id=p.duplicate_store_id for update loop
+    has_collision:=exists(select 1 from shopper_private.private_store_memories x where x.user_id=memory.user_id and x.store_id=p.canonical_store_id);
+    if has_collision then
+      insert into shopper_private.private_memory_merge_conflicts(proposal_id,user_id,canonical_store_id,duplicate_store_id,rating,note,last_visit_month,source_version,source_created_at,source_updated_at)
+        values(p.proposal_id,memory.user_id,p.canonical_store_id,p.duplicate_store_id,memory.rating,memory.note,memory.last_visit_month,memory.version,memory.created_at,memory.updated_at);
+      delete from shopper_private.private_store_memories where user_id=memory.user_id and store_id=p.duplicate_store_id;
+      insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state)
+        values(p.proposal_id,'private_memory',memory.user_id,p.duplicate_store_id,p.canonical_store_id,'memory_conflict','hidden');
+    else
+      update shopper_private.private_store_memories set store_id=p.canonical_store_id,version=version+1,updated_at=statement_timestamp() where user_id=memory.user_id and store_id=p.duplicate_store_id;
+      insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state)
+        values(p.proposal_id,'private_memory',memory.user_id,p.duplicate_store_id,p.canonical_store_id,'none','reparented');
+    end if;
+  end loop;
+  for stop in select s.*,t.owner_id from trip_private.trip_stops s join trip_private.trips t using(trip_id) where s.store_id=p.duplicate_store_id for update of s loop
+    has_collision:=exists(select 1 from trip_private.trip_stops x where x.trip_id=stop.trip_id and x.store_id=p.canonical_store_id);
+    update trip_private.trip_stops set store_id=p.canonical_store_id,version=version+1 where stop_id=stop.stop_id;
+    if has_collision then
+      insert into trip_private.trip_duplicate_stop_warnings(proposal_id,owner_id,trip_id,stop_id,canonical_store_id) values(p.proposal_id,stop.owner_id,stop.trip_id,stop.stop_id,p.canonical_store_id);
+    end if;
+    insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state)
+      values(p.proposal_id,'trip_stop',stop.stop_id,p.duplicate_store_id,p.canonical_store_id,case when has_collision then 'trip_stop' else 'none' end,'reparented');
+  end loop;
+  for review in select * from review_private.public_reviews where store_id=p.duplicate_store_id for update loop
+    has_collision:=review.author_id is not null and exists(select 1 from review_private.public_reviews x where x.author_id=review.author_id and x.store_id=p.canonical_store_id and x.state<>'deleted');
+    if has_collision then
+      insert into review_private.review_merge_conflicts(proposal_id,review_id,author_id,original_store_id,canonical_store_id,original_state,aggregate_rating)
+        values(p.proposal_id,review.review_id,review.author_id,p.duplicate_store_id,p.canonical_store_id,review.state,case when review.state='published' then review.rating else null end);
+      update review_private.public_reviews set store_id=p.canonical_store_id,state='merge_conflict_hidden',version=version+1,updated_at=statement_timestamp() where review_id=review.review_id;
+    else
+      update review_private.public_reviews set store_id=p.canonical_store_id,version=version+1,updated_at=statement_timestamp() where review_id=review.review_id;
+    end if;
+    insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state,aggregate_delta)
+      values(p.proposal_id,'review',review.review_id,p.duplicate_store_id,p.canonical_store_id,case when has_collision then 'review_conflict' else 'none' end,
+        case when has_collision then 'hidden' else 'reparented' end,jsonb_build_object('originalState',review.state,'rating',review.rating));
+  end loop;
+  update review_private.rating_aggregates a set eligible_count=(select count(*) from review_private.public_reviews r where r.store_id=a.store_id and r.state='published'),
+    rating_sum=coalesce((select sum(r.rating) from review_private.public_reviews r where r.store_id=a.store_id and r.state='published'),0),version=version+1,updated_at=statement_timestamp()
+    where a.store_id in (p.canonical_store_id,p.duplicate_store_id);
   for u in select * from portal_private.store_updates where store_id=p.duplicate_store_id for update loop
     if exists(select 1 from portal_private.store_updates x where x.store_id=p.canonical_store_id and x.content_digest=u.content_digest and x.state='live') then
       insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state)
@@ -442,6 +511,7 @@ declare actor uuid:=admin_private.require_operational_admin(); id uuid; p admin_
   digest bytea; result jsonb; entry admin_private.admin_merge_ledgers%rowtype; original_publication app_public.publication_state;
 begin
   begin id:=p_proposal_id::uuid; exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
+  perform admin_private.enforce_operational_admin_rate(actor,id);
   if p_expected_version<1 or p_idempotency_key!~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' then raise exception using errcode='22023',message='admin_unavailable'; end if;
   digest:=extensions.digest(convert_to(concat_ws('|','rollback',id,p_expected_version,actor),'utf8'),'sha256');
   select * into prior from admin_private.admin_command_receipts where idempotency_key=p_idempotency_key;
@@ -461,10 +531,46 @@ begin
       if exists(select 1 from portal_private.support_tickets where ticket_id=entry.reference_id and store_id=p.canonical_store_id) then
         update portal_private.support_tickets set store_id=p.duplicate_store_id,version=version+1,updated_at=statement_timestamp() where ticket_id=entry.reference_id;
       else raise exception using errcode='40001',message='admin_unavailable'; end if;
+    elsif entry.reference_kind='saved_store' then
+      update shopper_private.saved_stores set store_id=p.duplicate_store_id where user_id=entry.reference_id and store_id=p.canonical_store_id;
+      if not found then raise exception using errcode='40001',message='admin_unavailable'; end if;
+    elsif entry.reference_kind='private_memory' then
+      update shopper_private.private_store_memories set store_id=p.duplicate_store_id,version=version+1,updated_at=statement_timestamp() where user_id=entry.reference_id and store_id=p.canonical_store_id;
+      if not found then raise exception using errcode='40001',message='admin_unavailable'; end if;
+    elsif entry.reference_kind='trip_stop' then
+      update trip_private.trip_stops set store_id=p.duplicate_store_id,version=version+1 where stop_id=entry.reference_id and store_id=p.canonical_store_id;
+      if not found then raise exception using errcode='40001',message='admin_unavailable'; end if;
+    elsif entry.reference_kind='review' then
+      update review_private.public_reviews set store_id=p.duplicate_store_id,state=entry.aggregate_delta->>'originalState',version=version+1,updated_at=statement_timestamp()
+        where review_id=entry.reference_id and store_id=p.canonical_store_id;
+      if not found then raise exception using errcode='40001',message='admin_unavailable'; end if;
     end if;
     insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state,aggregate_delta)
       values(id,entry.reference_kind,entry.reference_id,entry.original_store_id,entry.canonical_store_id,entry.collision_kind,'rolled_back',entry.aggregate_delta);
   end loop;
+  for entry in select * from admin_private.admin_merge_ledgers where proposal_id=id and resolution_state='hidden' order by created_at,ledger_entry_id loop
+    if entry.reference_kind='saved_store' then
+      update shopper_private.saved_stores set created_at=(entry.aggregate_delta->>'canonicalCreatedAt')::timestamptz where user_id=entry.reference_id and store_id=p.canonical_store_id;
+      insert into shopper_private.saved_stores(user_id,store_id,created_at) values(entry.reference_id,p.duplicate_store_id,(entry.aggregate_delta->>'duplicateCreatedAt')::timestamptz);
+    elsif entry.reference_kind='private_memory' then
+      insert into shopper_private.private_store_memories(user_id,store_id,rating,note,last_visit_month,version,created_at,updated_at)
+        select user_id,duplicate_store_id,rating,note,last_visit_month,source_version,source_created_at,source_updated_at
+        from shopper_private.private_memory_merge_conflicts where proposal_id=id and user_id=entry.reference_id and state='active';
+      if not found then raise exception using errcode='40001',message='admin_unavailable'; end if;
+      update shopper_private.private_memory_merge_conflicts set state='rolled_back' where proposal_id=id and user_id=entry.reference_id;
+    elsif entry.reference_kind='review' then
+      update review_private.public_reviews set store_id=p.duplicate_store_id,state=entry.aggregate_delta->>'originalState',version=version+1,updated_at=statement_timestamp()
+        where review_id=entry.reference_id and store_id=p.canonical_store_id and state='merge_conflict_hidden';
+      if not found then raise exception using errcode='40001',message='admin_unavailable'; end if;
+      update review_private.review_merge_conflicts set state='rolled_back' where proposal_id=id and review_id=entry.reference_id;
+    end if;
+    insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state,aggregate_delta)
+      values(id,entry.reference_kind,entry.reference_id,entry.original_store_id,entry.canonical_store_id,entry.collision_kind,'rolled_back',entry.aggregate_delta);
+  end loop;
+  update trip_private.trip_duplicate_stop_warnings set state='rolled_back' where proposal_id=id and state='active';
+  update review_private.rating_aggregates a set eligible_count=(select count(*) from review_private.public_reviews r where r.store_id=a.store_id and r.state='published'),
+    rating_sum=coalesce((select sum(r.rating) from review_private.public_reviews r where r.store_id=a.store_id and r.state='published'),0),version=version+1,updated_at=statement_timestamp()
+    where a.store_id in (p.canonical_store_id,p.duplicate_store_id);
   select (aggregate_delta->>'publicationState')::app_public.publication_state into original_publication from admin_private.admin_merge_ledgers where proposal_id=id and reference_kind='store' order by created_at limit 1;
   update app_public.stores set publication_state=original_publication,updated_at=statement_timestamp() where id=p.duplicate_store_id;
   update admin_private.store_tombstones set state='rolled_back',rolled_back_at=statement_timestamp() where proposal_id=id and state='active';
