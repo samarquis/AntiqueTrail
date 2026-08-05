@@ -1,4 +1,6 @@
 export type AdminCaseState =
+  | 'open'
+  | 'claimed'
   | 'queued'
   | 'assigned'
   | 'changes_requested'
@@ -46,5 +48,73 @@ export interface MergePreview {
   references: number
   collisions: number
   authorityReparented: false
+  version: number
+}
+
+export type AdminCaseType =
+  | 'partner_onboarding'
+  | 'store_change'
+  | 'image_review'
+  | 'support'
+  | 'listing_claim'
+  | 'duplicate_merge'
+  | 'access_safety'
+export type AdminDecision = 'approve' | 'return' | 'reject'
+
+export interface AdminReviewCaseSummary {
+  id: string
+  caseType: AdminCaseType
+  targetKind: string
+  storeLabel: string
+  state: AdminCaseState
+  version: number
+  createdAt: string
+}
+
+export interface AdminAuditEntry {
+  action: string
+  outcome: string
+  occurredAt: string
+}
+
+export interface AdminReviewCaseDetail extends AdminReviewCaseSummary {
+  immutableSubmission: true
+  context: Record<string, string | number | boolean | null>
+  allowedActions: AdminDecision[]
+  audit: AdminAuditEntry[]
+}
+
+export interface AdminDecisionResult {
+  id: string
+  state: AdminCaseState
+  version: number
+}
+
+export interface AdminStoreScope {
+  grantId: string
+  subjectUserId: string
+  subjectLabel: string
+  storeId: string
+  storeLabel: string
+  state: 'active' | 'revoked' | 'expired' | 'reconsent_required'
+  version: number
+}
+
+export interface AdminScopeResult {
+  grantId: string
+  state: AdminStoreScope['state']
+  version: number
+}
+
+export interface AdminMergePlan {
+  proposalId: string
+  canonicalStoreId: string
+  duplicateStoreId: string
+  canonicalLabel: string
+  duplicateLabel: string
+  safeReferences: number
+  quarantinedConflicts: number
+  authorityReparented: false
+  state: 'previewed' | 'executed' | 'rolled_back'
   version: number
 }
