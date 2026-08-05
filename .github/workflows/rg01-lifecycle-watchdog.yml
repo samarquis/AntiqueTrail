@@ -1,0 +1,34 @@
+name: RG-01 linkage lifecycle watchdog
+
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rg01-lifecycle-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    if: ${{ vars.RG01_LIFECYCLE_WATCHDOG_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check linkage purge deadlines
+        env:
+          FUNCTION_URL: ${{ secrets.RG01_LIFECYCLE_FUNCTION_URL }}
+          WORKER_SECRET: ${{ secrets.RG01_LIFECYCLE_WORKER_SECRET }}
+        run: |
+          test -n "$FUNCTION_URL"
+          test -n "$WORKER_SECRET"
+          curl --fail-with-body --silent --show-error \
+            --max-time 60 \
+            -X POST "$FUNCTION_URL" \
+            -H "Authorization: Bearer $WORKER_SECRET" \
+            -H 'Content-Type: application/json' \
+            --data '{"operation":"watchdog"}' \
+            --output /dev/null
