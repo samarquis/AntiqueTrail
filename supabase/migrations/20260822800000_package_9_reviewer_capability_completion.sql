@@ -104,7 +104,9 @@ begin
   marker:=extensions.hmac(convert_to(k.environment||'|'||encode(cred.credential_id_digest,'hex'),'utf8'),k.key_material,'sha256');
   insert into review_private.reviewer_credential_reuse_markers(reuse_hmac,key_version,created_at,purge_after)
     values(marker,k.key_version,p_now,p_now+interval '90 days')
-    on conflict(reuse_hmac,key_version) do update set purge_after=greatest(review_private.reviewer_credential_reuse_markers.purge_after,excluded.purge_after);
+    on conflict(reuse_hmac,key_version) do update
+      set created_at=excluded.created_at,purge_after=excluded.purge_after
+      where review_private.reviewer_credential_reuse_markers.purge_after<=excluded.created_at;
   update review_private.reviewer_assertion_receipts set consumed_at=coalesce(consumed_at,p_now),credential_record_id=null where credential_record_id=cred.credential_record_id;
   update review_private.reviewer_credential_command_receipts r set credential_record_id=null,input_digest=null,result=jsonb_build_object('state','expired')
     where r.capability_id in (select capability_id from review_private.reviewer_management_capabilities where reviewer_identity_id=cred.reviewer_identity_id);
@@ -212,9 +214,13 @@ begin
   if c.challenge_id is null or c.ceremony<>'registration' or c.consumed_at is not null or c.expires_at<=statement_timestamp() or cfg.singleton is null
     or c.rp_id<>cfg.rp_id or c.expected_origin<>cfg.expected_origin or p_provider_key_id<>cfg.provider_key_id or p_discoverable
     or octet_length(p_credential_id_digest)<>32 or octet_length(p_public_key_digest)<>32 or p_sign_count<0
-    or p_provider_credential_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$' or p_provider_verification_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$'
-    or exists(select 1 from review_private.reviewer_credential_reuse_markers m join review_private.reviewer_credential_reuse_keys k using(key_version)
-      where m.purge_after>statement_timestamp() and m.reuse_hmac=extensions.hmac(convert_to(k.environment||'|'||encode(p_credential_id_digest,'hex'),'utf8'),k.key_material,'sha256')) then
+    or p_provider_credential_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$' or p_provider_verification_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$' then
+    raise exception using errcode='42501',message='reviewer_registration_verification_invalid'; end if;
+  delete from review_private.reviewer_credential_reuse_markers m using review_private.reviewer_credential_reuse_keys k
+    where k.key_version=m.key_version and m.purge_after<=statement_timestamp()
+      and m.reuse_hmac=extensions.hmac(convert_to(k.environment||'|'||encode(p_credential_id_digest,'hex'),'utf8'),k.key_material,'sha256');
+  if exists(select 1 from review_private.reviewer_credential_reuse_markers m join review_private.reviewer_credential_reuse_keys k using(key_version)
+    where m.purge_after>statement_timestamp() and m.reuse_hmac=extensions.hmac(convert_to(k.environment||'|'||encode(p_credential_id_digest,'hex'),'utf8'),k.key_material,'sha256')) then
     raise exception using errcode='42501',message='reviewer_registration_verification_invalid'; end if;
   insert into review_private.reviewer_credentials(reviewer_identity_id,credential_id_digest,public_key_digest,provider_credential_id,provider_verification_id,discoverable,sign_count,registration_challenge_id)
     values(c.reviewer_identity_id,p_credential_id_digest,p_public_key_digest,p_provider_credential_id,p_provider_verification_id,false,p_sign_count,c.challenge_id) returning credential_record_id into crid;

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(36);
 
 select has_table('review_private','reviewer_credential_reuse_keys','environment reuse keys are isolated');
 select has_table('review_private','reviewer_credential_reuse_markers','credential reuse markers are isolated');
@@ -37,6 +37,28 @@ select ok(position('reviewer_credential_reuse_markers' in lower(pg_get_functiond
 select ok(position('retire_reviewer_credential' in lower(pg_get_functiondef('review_private.purge_reviewer_management_capabilities(timestamp with time zone,integer)'::regprocedure)))>0 and position('relationship_ended_at' in lower(pg_get_functiondef('review_private.purge_reviewer_management_capabilities(timestamp with time zone,integer)'::regprocedure)))>0,'relationship-end lifecycle deletes credential authority');
 select ok(position('for update of c skip locked' in lower(pg_get_functiondef('review_private.purge_reviewer_management_capabilities(timestamp with time zone,integer)'::regprocedure)))>0 and position('for update skip locked' in lower(pg_get_functiondef('review_private.purge_reviewer_management_capabilities(timestamp with time zone,integer)'::regprocedure)))>0,'credential and marker lifecycle claims serialize safely');
 select ok(position('delete from review_private.reviewer_credential_reuse_markers' in lower(pg_get_functiondef('review_private.purge_reviewer_management_capabilities(timestamp with time zone,integer)'::regprocedure)))>0 and position('purge_after<=p_now' in replace(lower(pg_get_functiondef('review_private.purge_reviewer_management_capabilities(timestamp with time zone,integer)'::regprocedure)),' ',''))>0,'ninety-day reuse markers are deleted when due');
+
+do $$
+declare marker bytea;
+begin
+  perform review_private.configure_reviewer_credential_reuse_key('test',9001,decode(repeat('aa',32),'hex'),decode(repeat('bb',32),'hex'));
+  perform review_private.configure_reviewer_verifier('reviewer.test','https://reviewer.test','provider-key',decode(repeat('cc',32),'hex'),1);
+  insert into review_private.reviewer_identities(reviewer_identity_id,qualification_receipt_digest)
+    values('71000000-0000-4000-8000-000000000001',decode(repeat('dd',32),'hex'));
+  insert into review_private.reviewer_management_capabilities(capability_id,reviewer_identity_id,scope,token_hash,delivery_verification_id,issuance_idempotency_key,expires_at)
+    values('71000000-0000-4000-8000-000000000002','71000000-0000-4000-8000-000000000001','enrollment',decode(repeat('ee',32),'hex'),'test-delivery','71000000-0000-4000-8000-000000000003',statement_timestamp()+interval '20 minutes');
+  insert into review_private.reviewer_credential_challenges(challenge_id,reviewer_identity_id,ceremony,idempotency_key,request_digest,challenge_nonce,challenge_digest,rp_id,expected_origin,expires_at,capability_id)
+    values('71000000-0000-4000-8000-000000000004','71000000-0000-4000-8000-000000000001','registration','71000000-0000-4000-8000-000000000005',decode(repeat('01',32),'hex'),decode(repeat('02',32),'hex'),decode(repeat('03',32),'hex'),'reviewer.test','https://reviewer.test',statement_timestamp()+interval '5 minutes','71000000-0000-4000-8000-000000000002');
+  marker:=extensions.hmac(convert_to('test|'||repeat('04',32),'utf8'),decode(repeat('aa',32),'hex'),'sha256');
+  insert into review_private.reviewer_credential_reuse_markers(reuse_hmac,key_version,created_at,purge_after)
+    values(marker,9001,statement_timestamp()-interval '91 days',statement_timestamp()-interval '1 day');
+end $$;
+
+select lives_ok($$select review_private.complete_reviewer_registration('71000000-0000-4000-8000-000000000004',decode(repeat('04',32),'hex'),decode(repeat('05',32),'hex'),'provider-credential-reused','provider-verification-reused','provider-key',false,0)$$,'an expired marker is atomically removed before credential re-registration');
+select is((select count(*) from review_private.reviewer_credential_reuse_markers where key_version=9001),0::bigint,'re-registration removed the exact expired reuse marker');
+select lives_ok($$select review_private.retire_reviewer_credential((select credential_record_id from review_private.reviewer_credentials where credential_id_digest=decode(repeat('04',32),'hex')),statement_timestamp())$$,'the re-registered credential can later retire and unlink successfully');
+select is((select count(*) from review_private.reviewer_credentials where credential_id_digest=decode(repeat('04',32),'hex')),0::bigint,'retirement deleted the re-registered credential authority row');
+select ok((select purge_after>created_at and purge_after<=created_at+interval '90 days' from review_private.reviewer_credential_reuse_markers where key_version=9001),'replacement reuse marker restarts one bounded ninety-day window');
 
 select * from finish();
 rollback;
