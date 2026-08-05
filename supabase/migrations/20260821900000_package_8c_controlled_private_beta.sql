@@ -243,6 +243,19 @@ create trigger beta_defect_append_only before update or delete on beta_private.b
 create trigger beta_operational_append_only before update or delete on beta_private.operational_fact_events for each row execute function beta_private.deny_mutation();
 create trigger beta_audit_append_only before update or delete on beta_private.beta_audit_events for each row execute function beta_private.deny_mutation();
 
+create or replace function beta_private.serialize_gate_evidence() returns trigger
+language plpgsql security definer set search_path='' as $$
+begin
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('beta-gate-evidence',0));
+  return new;
+end $$;
+alter function beta_private.serialize_gate_evidence() owner to beta_automation;
+revoke all on function beta_private.serialize_gate_evidence() from public,anon,authenticated,service_role,beta_evidence_service;
+create trigger beta_evidence_decision_lock before insert on beta_private.beta_evidence_events for each statement execute function beta_private.serialize_gate_evidence();
+create trigger beta_assessment_decision_lock before insert on beta_private.gate_assessments for each statement execute function beta_private.serialize_gate_evidence();
+create trigger beta_defect_decision_lock before insert on beta_private.beta_defect_events for each statement execute function beta_private.serialize_gate_evidence();
+create trigger beta_operational_decision_lock before insert on beta_private.operational_fact_events for each statement execute function beta_private.serialize_gate_evidence();
+
 do $$ declare t text; begin
   foreach t in array array[
     'beta_capability','prerequisite_receipts','product_owner_bindings','pilot_cohorts','pilot_cohort_accounts',
@@ -384,7 +397,9 @@ create or replace function beta_private.cohort_accounts_ready(
     join auth.users u on u.id=a.user_id and u.email_confirmed_at is not null
     where a.cohort_id=p_cohort_id and a.state='active' and a.verified and a.human
   ), role_aligned as (
-    select a.* from active_accounts a where exists (
+    select a.* from active_accounts a where
+      (select count(*) from app_private.role_grants rg where rg.subject_user_id=a.user_id and rg.state='active')=1
+      and exists (
       select 1 from app_private.role_grants rg
       where rg.subject_user_id=a.user_id and rg.state='active'
         and rg.role::text=case a.account_role when 'store_representative' then 'representative' else a.account_role end
@@ -441,8 +456,10 @@ alter function app_public.beta_get_state(uuid) owner to beta_automation;
 
 create or replace function app_public.beta_request_gate_decision(p_cohort_id uuid,p_ordinal smallint,p_decision text) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare actor uuid:=beta_private.require_product_owner(); d bytea; cid uuid; decision_now timestamptz:=statement_timestamp();
+declare actor uuid:=beta_private.require_product_owner(); d bytea; cid uuid; decision_now timestamptz;
 begin
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('beta-gate-evidence',0));
+  decision_now:=pg_catalog.clock_timestamp();
   if p_ordinal not between 1 and 3 or p_decision not in ('pass','reject')
     or not exists(select 1 from beta_private.pilot_store_admissions where cohort_id=p_cohort_id and ordinal=p_ordinal and state='active')
     or (p_decision='pass' and not beta_private.gate_passable(p_cohort_id,p_ordinal,decision_now)) then
@@ -450,7 +467,7 @@ begin
   end if;
   d:=beta_private.current_gate_digest(p_cohort_id,p_ordinal,p_decision,decision_now);
   insert into beta_private.gate_challenges(cohort_id,ordinal,decision,signer_user_id,frozen_payload_digest,expires_at)
-    values(p_cohort_id,p_ordinal,p_decision,actor,d,statement_timestamp()+interval '30 minutes') returning challenge_id into cid;
+    values(p_cohort_id,p_ordinal,p_decision,actor,d,decision_now+interval '30 minutes') returning challenge_id into cid;
   insert into beta_private.beta_audit_events(action,outcome,actor_user_id,cohort_id,ordinal,event_digest) values('gate_challenged','completed',actor,p_cohort_id,p_ordinal,d);
   return jsonb_build_object('challengeId',cid,'payloadDigest',encode(d,'hex'),'expiresInSeconds',1800);
 end $$;
@@ -458,11 +475,13 @@ alter function app_public.beta_request_gate_decision(uuid,smallint,text) owner t
 
 create or replace function app_public.beta_complete_gate_decision(p_challenge_id uuid,p_payload_digest text,p_idempotency_key text) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare actor uuid:=beta_private.require_product_owner(); ch beta_private.gate_challenges%rowtype; req bytea; prior beta_private.command_receipts%rowtype; result jsonb; rid uuid; decision_now timestamptz:=statement_timestamp();
+declare actor uuid:=beta_private.require_product_owner(); ch beta_private.gate_challenges%rowtype; req bytea; prior beta_private.command_receipts%rowtype; result jsonb; rid uuid; decision_now timestamptz;
 begin
   req:=extensions.digest(convert_to(p_challenge_id::text||':'||p_payload_digest,'UTF8'),'sha256');
   select * into prior from beta_private.command_receipts where actor_user_id=actor and command_kind='complete_gate' and idempotency_key=p_idempotency_key;
   if found then if prior.request_digest<>req then raise exception using errcode='22000',message='idempotency_key_reused'; end if; return prior.response_body; end if;
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('beta-gate-evidence',0));
+  decision_now:=pg_catalog.clock_timestamp();
   select * into ch from beta_private.gate_challenges where challenge_id=p_challenge_id for update;
   if not found or ch.signer_user_id<>actor or ch.consumed_at is not null or ch.expires_at<decision_now
     or encode(ch.frozen_payload_digest,'hex')<>lower(p_payload_digest)
@@ -471,8 +490,8 @@ begin
     raise exception using errcode='55000',message='private_beta_gate_unavailable';
   end if;
   insert into beta_private.gate_receipts(challenge_id,cohort_id,ordinal,decision,signer_user_id,signer_responsibility,signature_kind,signed_payload_digest,signed_at)
-    values(ch.challenge_id,ch.cohort_id,ch.ordinal,ch.decision,actor,'ProductOwner','authenticated_product_owner_mfa',ch.frozen_payload_digest,statement_timestamp()) returning receipt_id into rid;
-  update beta_private.gate_challenges set consumed_at=statement_timestamp() where challenge_id=ch.challenge_id;
+    values(ch.challenge_id,ch.cohort_id,ch.ordinal,ch.decision,actor,'ProductOwner','authenticated_product_owner_mfa',ch.frozen_payload_digest,decision_now) returning receipt_id into rid;
+  update beta_private.gate_challenges set consumed_at=decision_now where challenge_id=ch.challenge_id;
   update beta_private.pilot_store_admissions set gate_state=case when ch.decision='pass' then 'passed' else 'rejected' end where cohort_id=ch.cohort_id and ordinal=ch.ordinal;
   update beta_private.pilot_cohorts set readiness_review=case when ch.ordinal=3 and ch.decision='pass' then 'open' else readiness_review end,version=version+1 where cohort_id=ch.cohort_id;
   result:=jsonb_build_object('receiptId',rid,'cohortId',ch.cohort_id,'ordinal',ch.ordinal,'decision',ch.decision,'signatureKind','authenticated_product_owner_mfa');

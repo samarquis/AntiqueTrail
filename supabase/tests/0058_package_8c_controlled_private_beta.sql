@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(64);
+select plan(68);
 
 select has_schema('beta_private','Package 8C has a private beta schema');
 select has_table('beta_private','beta_capability','server-owned beta capability exists');
@@ -36,6 +36,7 @@ select has_function('app_public','beta_recover_cohort',array['uuid','bigint','te
 select has_function('app_public','beta_refresh_operational_latch',array['timestamp with time zone'],'bounded latch worker RPC exists');
 select has_function('beta_private','current_gate_digest',array['uuid','smallint','text','timestamp with time zone'],'server derives an exact frozen gate packet digest');
 select has_function('beta_private','cohort_accounts_ready',array['uuid','uuid','uuid','boolean'],'server validates the invited human cohort');
+select has_function('beta_private','serialize_gate_evidence',array[]::text[],'authoritative evidence mutation lock exists');
 select ok(not has_function_privilege('anon','app_public.beta_get_state(uuid)','EXECUTE') and has_function_privilege('authenticated','app_public.beta_get_state(uuid)','EXECUTE'),'beta state is authenticated only');
 select ok(not has_function_privilege('authenticated','app_public.beta_refresh_operational_latch(timestamp with time zone)','EXECUTE') and has_function_privilege('service_role','app_public.beta_refresh_operational_latch(timestamp with time zone)','EXECUTE'),'only the worker service role can refresh the latch');
 
@@ -58,9 +59,16 @@ select ok(position('count(*)=4' in replace(lower(pg_get_functiondef('beta_privat
   and position("account_role='store_representative'" in replace(lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)),' ',''))>0
   and position('email_confirmed_at is not null' in lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)))>0
   and position('role_grants' in lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)))>0,'Store 1 requires exactly four separate verified humans with two shopper, one Administrator, and one exact Representative role');
+select ok(position('count(*)=1' in replace(lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)),' ',''))>0
+  and position('subject_user_id=a.user_id' in replace(lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)),' ',''))>0,'each invited identity has only its one exact declared active application role');
 select ok(position('current_gate_digest' in lower(pg_get_functiondef('app_public.beta_request_gate_decision(uuid,smallint,text)'::regprocedure)))>0
   and position('current_gate_digest' in lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)))>0
   and position('frozen_payload_digest' in lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)))>0,'completion recomputes the exact server evidence packet so stale challenges fail');
+select ok((select count(*)=4 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='beta_private' and c.relname in ('beta_evidence_events','gate_assessments','beta_defect_events','operational_fact_events')
+    and not t.tgisinternal and pg_get_triggerdef(t.oid) ilike '%serialize_gate_evidence%'),'every authoritative evidence append participates in the decision lock');
+select ok(position("pg_advisory_xact_lock(hashtextextended('beta-gate-evidence'" in replace(lower(pg_get_functiondef('app_public.beta_request_gate_decision(uuid,smallint,text)'::regprocedure)),' ',''))>0
+  and position("pg_advisory_xact_lock(hashtextextended('beta-gate-evidence'" in replace(lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)),' ',''))>0,'freeze and completion hold the same evidence lock through challenge or receipt insertion');
 
 select ok(position('consumed_at is not null' in lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)))>0
   and position('expires_at < decision_now' in lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)))>0,'decision challenges are one-use and short-lived');
