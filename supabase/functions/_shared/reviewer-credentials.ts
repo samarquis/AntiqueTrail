@@ -10,7 +10,7 @@ export interface ReviewerBrowserCeremony {
 export type ReviewerCredentialCommand =
   | {
       operation: 'request_registration'
-      payload: { reviewerIdentityId: string; idempotencyKey: string }
+      payload: { capabilityToken: string; idempotencyKey: string }
     }
   | {
       operation: 'complete_registration' | 'complete_assertion'
@@ -18,16 +18,18 @@ export type ReviewerCredentialCommand =
     }
   | {
       operation: 'request_assertion'
-      payload: { reviewerIdentityId: string; caseId: string; idempotencyKey: string }
+      payload: { capabilityToken: string; idempotencyKey: string }
     }
   | {
       operation: 'revoke'
-      payload: { credentialRecordId: string; idempotencyKey: string }
+      payload: { capabilityToken: string; credentialRecordId: string; idempotencyKey: string }
     }
+  | { operation: 'list'; payload: { capabilityToken: string; idempotencyKey: string } }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 const B64 = /^[A-Za-z0-9_-]{1,8192}$/u
 const HEX = /^[0-9a-f]{64}$/u
+const CAPABILITY = /^[A-Za-z0-9_-]{32,512}$/u
 
 export type ReviewerVerification =
   | {
@@ -70,17 +72,38 @@ export function parseReviewerCredentialCommand(value: unknown): ReviewerCredenti
   exact(command, ['operation', 'payload'])
   const payload = object(command.payload)
   if (command.operation === 'request_registration') {
-    exact(payload, ['reviewerIdentityId', 'idempotencyKey'])
-    if (!uuid(payload.reviewerIdentityId) || !uuid(payload.idempotencyKey))
-      throw new Error('invalid id')
+    exact(payload, ['capabilityToken', 'idempotencyKey'])
+    if (
+      !uuid(payload.idempotencyKey) ||
+      typeof payload.capabilityToken !== 'string' ||
+      !CAPABILITY.test(payload.capabilityToken)
+    )
+      throw new Error('invalid capability')
   } else if (command.operation === 'request_assertion') {
-    exact(payload, ['reviewerIdentityId', 'caseId', 'idempotencyKey'])
-    if (!uuid(payload.reviewerIdentityId) || !uuid(payload.caseId) || !uuid(payload.idempotencyKey))
-      throw new Error('invalid id')
+    exact(payload, ['capabilityToken', 'idempotencyKey'])
+    if (
+      !uuid(payload.idempotencyKey) ||
+      typeof payload.capabilityToken !== 'string' ||
+      !CAPABILITY.test(payload.capabilityToken)
+    )
+      throw new Error('invalid capability')
   } else if (command.operation === 'revoke') {
-    exact(payload, ['credentialRecordId', 'idempotencyKey'])
-    if (!uuid(payload.credentialRecordId) || !uuid(payload.idempotencyKey))
-      throw new Error('invalid id')
+    exact(payload, ['capabilityToken', 'credentialRecordId', 'idempotencyKey'])
+    if (
+      !uuid(payload.credentialRecordId) ||
+      !uuid(payload.idempotencyKey) ||
+      typeof payload.capabilityToken !== 'string' ||
+      !CAPABILITY.test(payload.capabilityToken)
+    )
+      throw new Error('invalid capability')
+  } else if (command.operation === 'list') {
+    exact(payload, ['capabilityToken', 'idempotencyKey'])
+    if (
+      !uuid(payload.idempotencyKey) ||
+      typeof payload.capabilityToken !== 'string' ||
+      !CAPABILITY.test(payload.capabilityToken)
+    )
+      throw new Error('invalid capability')
   } else if (['complete_registration', 'complete_assertion'].includes(String(command.operation))) {
     exact(payload, ['challengeId', 'idempotencyKey', 'ceremony'])
     if (!uuid(payload.challengeId) || !uuid(payload.idempotencyKey)) throw new Error('invalid id')

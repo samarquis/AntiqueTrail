@@ -71,18 +71,20 @@ Deno.serve(async (request) => {
       auth: { persistSession: false, autoRefreshToken: false },
     })
     if (command.operation === 'request_registration' || command.operation === 'request_assertion') {
-      const rpc = await user.rpc('reviews_request_reviewer_credential_challenge', {
-        p_reviewer_identity_id: command.payload.reviewerIdentityId,
-        p_case_id: command.operation === 'request_assertion' ? command.payload.caseId : null,
+      const rpc = await user.rpc('reviews_request_reviewer_capability_challenge', {
+        p_capability_token: command.payload.capabilityToken,
         p_ceremony: command.operation === 'request_assertion' ? 'assertion' : 'registration',
         p_idempotency_key: command.payload.idempotencyKey,
       })
       if (rpc.error) throw new Error('unavailable')
       return response(200, rpc.data, appOrigin)
     }
-    if (command.operation === 'revoke') {
-      const rpc = await user.rpc('reviews_revoke_reviewer_credential', {
-        p_credential_record_id: command.payload.credentialRecordId,
+    if (command.operation === 'revoke' || command.operation === 'list') {
+      const rpc = await user.rpc('reviews_manage_reviewer_credentials', {
+        p_operation: command.operation,
+        p_capability_token: command.payload.capabilityToken,
+        p_credential_record_id:
+          command.operation === 'revoke' ? command.payload.credentialRecordId : null,
         p_idempotency_key: command.payload.idempotencyKey,
       })
       if (rpc.error) throw new Error('unavailable')

@@ -16,7 +16,7 @@ select has_table('review_private','review_restrictions','review-only restriction
 select has_table('review_private','restriction_appeals','restriction appeals exist');
 select has_table('review_private','review_audit_events','narrow hash-chained audit exists');
 
-select ok((select count(*)=16 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+select ok((select count(*)=18 from pg_class c join pg_namespace n on n.oid=c.relnamespace
   where n.nspname='review_private' and c.relkind='r' and c.relrowsecurity and c.relforcerowsecurity),
   'all Package 9 tables force RLS');
 select ok(not exists(select 1 from information_schema.role_table_grants

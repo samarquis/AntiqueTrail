@@ -9,10 +9,10 @@ export interface ReviewerCredentialTransport {
 
 export function createReviewerCredentialClient(transport: ReviewerCredentialTransport) {
   return {
-    requestRegistration: (reviewerIdentityId: string, idempotencyKey: string) =>
+    requestRegistration: (capabilityToken: string, idempotencyKey: string) =>
       transport.execute({
         operation: 'request_registration',
-        payload: { reviewerIdentityId, idempotencyKey },
+        payload: { capabilityToken, idempotencyKey },
       }),
     completeRegistration: (
       challengeId: string,
@@ -23,10 +23,10 @@ export function createReviewerCredentialClient(transport: ReviewerCredentialTran
         operation: 'complete_registration',
         payload: { challengeId, idempotencyKey, ceremony },
       }),
-    requestAssertion: (reviewerIdentityId: string, caseId: string, idempotencyKey: string) =>
+    requestAssertion: (capabilityToken: string, idempotencyKey: string) =>
       transport.execute({
         operation: 'request_assertion',
-        payload: { reviewerIdentityId, caseId, idempotencyKey },
+        payload: { capabilityToken, idempotencyKey },
       }),
     completeAssertion: (
       challengeId: string,
@@ -37,10 +37,12 @@ export function createReviewerCredentialClient(transport: ReviewerCredentialTran
         operation: 'complete_assertion',
         payload: { challengeId, idempotencyKey, ceremony },
       }),
-    revoke: (credentialRecordId: string, idempotencyKey: string) =>
+    list: (capabilityToken: string, idempotencyKey: string) =>
+      transport.execute({ operation: 'list', payload: { capabilityToken, idempotencyKey } }),
+    revoke: (capabilityToken: string, credentialRecordId: string, idempotencyKey: string) =>
       transport.execute({
         operation: 'revoke',
-        payload: { credentialRecordId, idempotencyKey },
+        payload: { capabilityToken, credentialRecordId, idempotencyKey },
       }),
   }
 }

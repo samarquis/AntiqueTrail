@@ -7,15 +7,30 @@ import {
 const identityId = '11111111-1111-4111-8111-111111111111'
 const caseId = '22222222-2222-4222-8222-222222222222'
 const key = '33333333-3333-4333-8333-333333333333'
+const capabilityToken = 'A'.repeat(43)
 
 describe('reviewer credential client', () => {
   it('requests server-bound challenges without counts or verification claims', async () => {
     const transport: ReviewerCredentialTransport = { execute: vi.fn(async () => ({})) }
     const client = createReviewerCredentialClient(transport)
-    await client.requestRegistration(identityId, key)
-    await client.requestAssertion(identityId, caseId, key)
+    await client.requestRegistration(capabilityToken, key)
+    await client.requestAssertion(capabilityToken, key)
     expect(JSON.stringify(vi.mocked(transport.execute).mock.calls)).not.toMatch(
       /credentialCount|verified|providerVerification|challengeDigest|assertionDigest/iu,
+    )
+  })
+
+  it('lists and revokes with scoped capabilities, not usernames or sessions', async () => {
+    const transport: ReviewerCredentialTransport = { execute: vi.fn(async () => ({})) }
+    const client = createReviewerCredentialClient(transport)
+    await client.list(capabilityToken, key)
+    await client.revoke(capabilityToken, identityId, key)
+    expect(transport.execute).toHaveBeenNthCalledWith(1, {
+      operation: 'list',
+      payload: { capabilityToken, idempotencyKey: key },
+    })
+    expect(JSON.stringify(vi.mocked(transport.execute).mock.calls)).not.toMatch(
+      /username|userId|session/iu,
     )
   })
 

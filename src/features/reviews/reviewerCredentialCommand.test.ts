@@ -6,6 +6,7 @@ import {
 
 const id = '11111111-1111-4111-8111-111111111111'
 const key = '22222222-2222-4222-8222-222222222222'
+const capabilityToken = 'A'.repeat(43)
 
 describe('reviewer credential command allowlist', () => {
   it.each(['activeCredentialCount', 'verified', 'providerVerificationId', 'assertionDigest'])(
@@ -14,7 +15,7 @@ describe('reviewer credential command allowlist', () => {
       expect(() =>
         parseReviewerCredentialCommand({
           operation: 'request_registration',
-          payload: { reviewerIdentityId: id, idempotencyKey: key, [field]: true },
+          payload: { capabilityToken, idempotencyKey: key, [field]: true },
         }),
       ).toThrow(/shape/iu)
     },
@@ -24,7 +25,7 @@ describe('reviewer credential command allowlist', () => {
     expect(
       parseReviewerCredentialCommand({
         operation: 'revoke',
-        payload: { credentialRecordId: id, idempotencyKey: key },
+        payload: { capabilityToken, credentialRecordId: id, idempotencyKey: key },
       }),
     ).toEqual(expect.objectContaining({ operation: 'revoke' }))
     expect(() =>
@@ -35,6 +36,21 @@ describe('reviewer credential command allowlist', () => {
           idempotencyKey: key,
           ceremony: { credentialId: 'a', clientDataJSON: 'b', attestationObject: 'c', extra: 'x' },
         },
+      }),
+    ).toThrow(/shape/iu)
+  })
+
+  it('rejects weak capabilities and normal-session identity fields', () => {
+    expect(() =>
+      parseReviewerCredentialCommand({
+        operation: 'request_registration',
+        payload: { capabilityToken: 'weak', idempotencyKey: key },
+      }),
+    ).toThrow(/capability/iu)
+    expect(() =>
+      parseReviewerCredentialCommand({
+        operation: 'list',
+        payload: { capabilityToken, idempotencyKey: key, username: 'reviewer' },
       }),
     ).toThrow(/shape/iu)
   })
