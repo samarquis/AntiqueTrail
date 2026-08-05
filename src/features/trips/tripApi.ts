@@ -23,6 +23,7 @@ export type TripApiCommand =
   | 'create_trip'
   | 'clone_completed_trip'
   | 'add_trip_stop'
+  | 'add_trip_store_stop'
   | 'reorder_trip_stop'
   | 'rename_trip'
   | 'remove_trip_stop'
@@ -125,6 +126,7 @@ function enumValue<T extends string>(value: unknown, allowed: Set<string>): T {
 
 function parseStop(value: unknown): TripStop {
   const source = record(value)
+  const hoursSource = source.hours == null ? undefined : record(source.hours)
   return {
     id: string(source.id, 128),
     storeId: source.storeId == null ? undefined : string(source.storeId, 128),
@@ -143,11 +145,22 @@ function parseStop(value: unknown): TripStop {
             new Set(['saved', 'missing', 'not_applicable']),
           ),
     coordinate: parseCoordinate(source.coordinate),
+    hours: hoursSource
+      ? {
+          state: enumValue(hoursSource.state, new Set(['verified', 'unknown', 'stale'])),
+          opensAt: hoursSource.opensAt == null ? undefined : integer(hoursSource.opensAt, 0, 1_439),
+          closesAt:
+            hoursSource.closesAt == null ? undefined : integer(hoursSource.closesAt, 0, 1_439),
+          closed: hoursSource.closed == null ? undefined : hoursSource.closed === true,
+          warning: optionalString(hoursSource.warning, 500),
+        }
+      : undefined,
   }
 }
 
 const parseTrip: Parser<Trip> = (value) => {
   const source = record(value)
+  const hoursReview = source.hoursReview == null ? undefined : record(source.hoursReview)
   if (!Array.isArray(source.stops) || source.stops.length > 8) throw genericFailure()
   return {
     id: string(source.id, 128),
@@ -158,12 +171,27 @@ const parseTrip: Parser<Trip> = (value) => {
     version: integer(source.version, 0),
     durationMinutes:
       source.durationMinutes == null ? undefined : integer(source.durationMinutes, 0, 525_600),
+    startKind:
+      source.startKind == null
+        ? undefined
+        : enumValue<NonNullable<Trip['startKind']>>(
+            source.startKind,
+            new Set(['manual', 'current_location']),
+          ),
+    startLabel: optionalString(source.startLabel, 240),
     origin: parseCoordinate(source.origin),
     returnCoordinate: parseCoordinate(source.returnCoordinate),
     departureMinute:
       source.departureMinute == null ? undefined : integer(source.departureMinute, 0, 1_439),
     transitionMinutes:
       source.transitionMinutes == null ? undefined : integer(source.transitionMinutes, 0, 180),
+    hoursReview: hoursReview
+      ? {
+          reviewedAt: string(hoursReview.reviewedAt, 64),
+          hasUnresolvedWarnings: hoursReview.hasUnresolvedWarnings === true,
+          acknowledged: hoursReview.acknowledged === true,
+        }
+      : undefined,
   }
 }
 
@@ -405,6 +433,13 @@ export function createTripApi(
         parseTrip,
       )
     },
+    addStoreStop(tripId, storeId) {
+      return execute(
+        'add_trip_store_stop',
+        () => ({ trip_id: boundedId(tripId), store_id: boundedId(storeId) }),
+        parseTrip,
+      )
+    },
     reorderStop(tripId, stopId, position) {
       return execute(
         'reorder_trip_stop',
@@ -504,8 +539,15 @@ export function createTripApi(
         parseGrantWrappedTrip,
       )
     },
-    reviewHours(tripId) {
-      return execute('review_trip_hours', () => ({ trip_id: boundedId(tripId) }), parseTrip)
+    reviewHours(tripId, acknowledgeWarnings = false) {
+      return execute(
+        'review_trip_hours',
+        () => ({
+          trip_id: boundedId(tripId),
+          acknowledge_warnings: acknowledgeWarnings === true,
+        }),
+        parseTrip,
+      )
     },
     start(tripId) {
       return execute('start_trip', () => ({ trip_id: boundedId(tripId) }), parseGrantWrappedTrip)

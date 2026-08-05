@@ -82,7 +82,7 @@ describe('implicit-actor TripClient transport', () => {
       plannedDwellMinutes: 45,
     })
     await api.reorderStop('trip-1', 'stop-1', 0)
-    await api.reviewHours('trip-1')
+    await api.reviewHours('trip-1', false)
     await api.start('trip-1')
     await api.markArrived('trip-1', 'stop-1')
     await api.completeStop('trip-1', 'stop-1')
@@ -100,11 +100,22 @@ describe('implicit-actor TripClient transport', () => {
         },
       ],
       ['reorder_trip_stop', { trip_id: 'trip-1', stop_id: 'stop-1', position: 0 }],
-      ['review_trip_hours', { trip_id: 'trip-1' }],
+      ['review_trip_hours', { trip_id: 'trip-1', acknowledge_warnings: false }],
       ['start_trip', { trip_id: 'trip-1' }],
       ['mark_arrived', { trip_id: 'trip-1', stop_id: 'stop-1' }],
       ['complete_trip_stop', { trip_id: 'trip-1', stop_id: 'stop-1' }],
       ['skip_trip_stop', { trip_id: 'trip-1', stop_id: 'stop-1' }],
+    ])
+  })
+
+  it('adds a catalog store by stable id and explicitly acknowledges reviewed warnings', async () => {
+    const wire = transport(trip)
+    const api = createTripApi(wire)
+    await api.addStoreStop('trip-1', 'store-1')
+    await api.reviewHours('trip-1', true)
+    expect(wire.invoke.mock.calls).toEqual([
+      ['add_trip_store_stop', { trip_id: 'trip-1', store_id: 'store-1' }],
+      ['review_trip_hours', { trip_id: 'trip-1', acknowledge_warnings: true }],
     ])
   })
 

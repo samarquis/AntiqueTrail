@@ -99,6 +99,8 @@ export function TripsPage({ client = unavailableTripClient }: { client?: TripCli
 
 export function NewTripPage({ client = unavailableTripClient }: { client?: TripClient }) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const addStoreId = new URLSearchParams(location.search).get('addStoreId')
   const [name, setName] = useState('')
   const [date, setDate] = useState('')
   const [error, setError] = useState(false)
@@ -111,6 +113,7 @@ export function NewTripPage({ client = unavailableTripClient }: { client?: TripC
     setError(false)
     try {
       const trip = await client.create({ name: normalized, localDate: date })
+      if (addStoreId) await client.addStoreStop(trip.id, addStoreId)
       navigate(`/trips/${trip.id}/plan`)
     } catch {
       setError(true)
@@ -159,6 +162,8 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
   const [tripName, setTripName] = useState('')
   const [scheduleDate, setScheduleDate] = useState('')
   const [departureTime, setDepartureTime] = useState('')
+  const [startLabel, setStartLabel] = useState('')
+  const [hoursAcknowledged, setHoursAcknowledged] = useState(false)
   const [renameConflict, setRenameConflict] = useState<{
     attemptedName: string
     latest: { name: string; version: number }
@@ -176,6 +181,7 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
           setTrip(result)
           setTripName(result?.name ?? '')
           setScheduleDate(result?.localDate ?? '')
+          setStartLabel(result?.startLabel ?? '')
           if (result?.departureMinute != null)
             setDepartureTime(
               `${String(Math.floor(result.departureMinute / 60)).padStart(2, '0')}:${String(result.departureMinute % 60).padStart(2, '0')}`,
@@ -218,10 +224,27 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       setError(true)
     }
   }
-  async function reviewHours() {
+  async function reviewHours(acknowledgeWarnings = false) {
     if (!trip) return
     try {
-      setTrip(await client.reviewHours(trip.id))
+      setTrip(await client.reviewHours(trip.id, acknowledgeWarnings))
+      setHoursAcknowledged(false)
+    } catch {
+      setError(true)
+    }
+  }
+  async function saveStart(event: FormEvent) {
+    event.preventDefault()
+    if (!trip || !client.setStart || !startLabel.trim() || !departureTime) return
+    const [hours, minutes] = departureTime.split(':').map(Number)
+    try {
+      setTrip(
+        await client.setStart(trip.id, {
+          kind: 'manual',
+          label: startLabel.trim(),
+          departureMinute: hours * 60 + minutes,
+        }),
+      )
     } catch {
       setError(true)
     }
@@ -375,6 +398,35 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
         />
         <button type="submit">Update schedule</button>
       </form>
+      <form onSubmit={saveStart}>
+        <fieldset>
+          <legend>Starting place for Go</legend>
+          <p>Enter a place yourself. Antique Trail does not request background location.</p>
+          <label htmlFor="plan-start-kind">Start kind</label>
+          <select id="plan-start-kind" value="manual" disabled>
+            <option value="manual">Manual starting place</option>
+          </select>
+          <label htmlFor="plan-start-label">Manual starting place</label>
+          <input
+            id="plan-start-label"
+            value={startLabel}
+            maxLength={240}
+            required
+            onChange={(event) => setStartLabel(event.target.value)}
+          />
+          <label htmlFor="plan-start-time">Start time</label>
+          <input
+            id="plan-start-time"
+            type="time"
+            value={departureTime}
+            required
+            onChange={(event) => setDepartureTime(event.target.value)}
+          />
+          <button type="submit" disabled={!client.setStart}>
+            Save starting place
+          </button>
+        </fieldset>
+      </form>
       {offlineQueue.state === 'queued' && (
         <p role="status">
           {offlineQueue.pendingCount} change{offlineQueue.pendingCount === 1 ? '' : 's'} queued
@@ -415,6 +467,17 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
         {trip.stops.map((stop, index) => (
           <li key={stop.id}>
             {stop.label} — {stop.priority}, {stop.plannedDwellMinutes} minutes, {stop.state}
+            {stop.kind === 'store' && stop.hours && (
+              <p>
+                {stop.hours.state === 'verified'
+                  ? stop.hours.closed
+                    ? 'Closed on this trip date.'
+                    : stop.hours.opensAt != null && stop.hours.closesAt != null
+                      ? `Trip-date hours: ${formatTripMinute(stop.hours.opensAt)}–${formatTripMinute(stop.hours.closesAt)}.`
+                      : 'Trip-date hours verified.'
+                  : (stop.hours.warning ?? 'Hours unavailable for this trip date.')}
+              </p>
+            )}
             <label htmlFor={`priority-${stop.id}`}>Priority for {stop.label}</label>
             <select
               id={`priority-${stop.id}`}
@@ -526,9 +589,30 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
         </button>
       </form>
       {error && <TripError />}
-      <button type="button" onClick={() => void reviewHours()}>
+      <button type="button" onClick={() => void reviewHours(false)}>
         Review Hours
       </button>
+      {trip.hoursReview?.hasUnresolvedWarnings && !trip.hoursReview.acknowledged && (
+        <fieldset>
+          <legend>Hours warnings</legend>
+          <label>
+            <input
+              type="checkbox"
+              checked={hoursAcknowledged}
+              onChange={(event) => setHoursAcknowledged(event.target.checked)}
+            />{' '}
+            I understand these hours warnings. Travel time is not included, and this does not claim
+            an optimal or feasible route.
+          </label>
+          <button
+            type="button"
+            disabled={!hoursAcknowledged}
+            onClick={() => void reviewHours(true)}
+          >
+            Acknowledge warnings and continue
+          </button>
+        </fieldset>
+      )}
       <button
         type="button"
         onClick={() =>
@@ -568,6 +652,13 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       </p>
     </TripCard>
   )
+}
+
+function formatTripMinute(value: number) {
+  const hour = Math.floor(value / 60)
+  const minute = value % 60
+  const suffix = hour >= 12 ? 'PM' : 'AM'
+  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${suffix}`
 }
 
 export function GoPage({

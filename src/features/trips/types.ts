@@ -25,7 +25,13 @@ export interface TripStop {
   state: StopState
   memoryStatus?: 'saved' | 'missing' | 'not_applicable'
   coordinate?: { latitude: number; longitude: number }
-  hours?: { state: 'verified' | 'unknown' | 'stale'; opensAt?: number; closesAt?: number }
+  hours?: {
+    state: 'verified' | 'unknown' | 'stale'
+    opensAt?: number
+    closesAt?: number
+    closed?: boolean
+    warning?: string
+  }
 }
 
 export interface Trip {
@@ -36,12 +42,19 @@ export interface Trip {
   stops: TripStop[]
   version: number
   durationMinutes?: number
+  startKind?: 'manual' | 'current_location'
+  startLabel?: string
   origin?: { latitude: number; longitude: number }
   returnCoordinate?: { latitude: number; longitude: number }
   departureMinute?: number
   transitionMinutes?: number
   maxDriveMiles?: number
   maxTotalMinutes?: number
+  hoursReview?: {
+    reviewedAt: string
+    hasUnresolvedWarnings: boolean
+    acknowledged: boolean
+  }
 }
 
 export type TripRenameResult =
@@ -111,6 +124,7 @@ export interface TripClient {
       plannedDwellMinutes: number
     },
   ): Promise<Trip>
+  addStoreStop(tripId: string, storeId: string): Promise<Trip>
   reorderStop(tripId: string, stopId: string, position: number): Promise<Trip>
   renameTrip(
     tripId: string,
@@ -138,7 +152,7 @@ export interface TripClient {
   ): Promise<Trip>
   bindNavigatorDevice(tripId: string): Promise<TripCollaboration>
   transferNavigatorDevice(tripId: string): Promise<Trip>
-  reviewHours(tripId: string): Promise<Trip>
+  reviewHours(tripId: string, acknowledgeWarnings?: boolean): Promise<Trip>
   start(tripId: string): Promise<Trip>
   markArrived(tripId: string, stopId: string): Promise<Trip>
   completeStop(tripId: string, stopId: string): Promise<Trip>

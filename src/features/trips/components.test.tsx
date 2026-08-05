@@ -29,6 +29,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     list: vi.fn(async () => [trip]),
     get: vi.fn(async () => trip),
     create: vi.fn(async () => trip),
+    addStoreStop: vi.fn(async () => trip),
     cloneCompleted: vi.fn(async () => ({ ...trip, id: 'trip-2' })),
     addStop: vi.fn(async (_id, input) => ({
       ...trip,
@@ -133,6 +134,156 @@ describe('manual trips', () => {
     await user.type(screen.getByLabelText(/date/i), '2026-08-10')
     await user.click(screen.getByRole('button', { name: /create trip/i }))
     expect(create).toHaveBeenCalledWith({ name: 'Saturday finds', localDate: '2026-08-10' })
+  })
+  it('seeds an Add-to-Trip store after creating the draft', async () => {
+    const user = userEvent.setup()
+    const create = vi.fn(async () => trip)
+    const addStoreStop = vi.fn(async () => ({
+      ...trip,
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store' as const,
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'prefer' as const,
+          plannedDwellMinutes: 60,
+          state: 'planned' as const,
+        },
+      ],
+    }))
+    render(
+      <MemoryRouter initialEntries={['/trips/new?addStoreId=store-1']}>
+        <AuthProvider>
+          <Routes>
+            <Route
+              path="/trips/new"
+              element={<NewTripPage client={client({ create, addStoreStop })} />}
+            />
+            <Route path="/trips/:tripId/plan" element={<p>Trip seeded</p>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await user.type(screen.getByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: /create trip/i }))
+    expect(addStoreStop).toHaveBeenCalledWith('trip-1', 'store-1')
+    expect(await screen.findByText('Trip seeded')).toBeInTheDocument()
+  })
+
+  it('saves a manual start before Go and requires explicit acknowledgement for hours warnings', async () => {
+    const user = userEvent.setup()
+    const reviewed: Trip = {
+      ...trip,
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store',
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'must',
+          plannedDwellMinutes: 45,
+          state: 'planned',
+          hours: {
+            state: 'stale',
+            warning: 'Hours need verification for this trip date.',
+          },
+        },
+        {
+          id: 'stop-2',
+          storeId: 'store-2',
+          kind: 'store',
+          label: 'Verified Vintage',
+          position: 1,
+          priority: 'prefer',
+          plannedDwellMinutes: 60,
+          state: 'planned',
+          hours: { state: 'verified', opensAt: 600, closesAt: 1_020, closed: false },
+        },
+        {
+          id: 'stop-3',
+          storeId: 'store-3',
+          kind: 'store',
+          label: 'Unknown Finds',
+          position: 2,
+          priority: 'flexible',
+          plannedDwellMinutes: 30,
+          state: 'planned',
+          hours: { state: 'unknown', warning: 'Hours unavailable for this trip date.' },
+        },
+        {
+          id: 'stop-4',
+          storeId: 'store-4',
+          kind: 'store',
+          label: 'Closed Today',
+          position: 3,
+          priority: 'prefer',
+          plannedDwellMinutes: 30,
+          state: 'planned',
+          hours: {
+            state: 'verified',
+            closed: true,
+            warning: 'Store is closed on this trip date.',
+          },
+        },
+      ],
+      hoursReview: {
+        reviewedAt: '2026-08-05T12:00:00Z',
+        hasUnresolvedWarnings: true,
+        acknowledged: false,
+      },
+    }
+    const setStart = vi.fn(async () => ({
+      ...reviewed,
+      startKind: 'manual' as const,
+      startLabel: 'Home',
+    }))
+    const reviewHours = vi
+      .fn<TripClient['reviewHours']>()
+      .mockResolvedValueOnce(reviewed)
+      .mockResolvedValueOnce({
+        ...reviewed,
+        state: 'ready',
+        hoursReview: { ...reviewed.hoursReview!, acknowledged: true },
+      })
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <AuthProvider>
+          <Routes>
+            <Route
+              path="/trips/:tripId/plan"
+              element={
+                <PlanPage
+                  client={client({ get: vi.fn(async () => reviewed), setStart, reviewHours })}
+                />
+              }
+            />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await user.type(await screen.findByLabelText(/manual starting place/i), 'Home')
+    await user.type(screen.getByLabelText(/^start time$/i), '09:00')
+    await user.click(screen.getByRole('button', { name: /save starting place/i }))
+    expect(setStart).toHaveBeenCalledWith('trip-1', {
+      kind: 'manual',
+      label: 'Home',
+      departureMinute: 540,
+    })
+
+    await user.click(screen.getByRole('button', { name: /^review hours$/i }))
+    expect(await screen.findByText(/hours need verification/i)).toBeInTheDocument()
+    expect(screen.getByText(/trip-date hours: 10:00 AM–5:00 PM/i)).toBeInTheDocument()
+    expect(screen.getByText(/hours unavailable for this trip date/i)).toBeInTheDocument()
+    expect(screen.getByText(/closed on this trip date/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/travel time is not included/i)).not.toHaveLength(0)
+    expect(reviewHours).toHaveBeenNthCalledWith(1, 'trip-1', false)
+    await user.click(screen.getByLabelText(/i understand these hours warnings/i))
+    await user.click(screen.getByRole('button', { name: /acknowledge warnings/i }))
+    expect(reviewHours).toHaveBeenNthCalledWith(2, 'trip-1', true)
   })
   it('adds an ordered stop and keeps review hours travel-time neutral', async () => {
     const user = userEvent.setup()

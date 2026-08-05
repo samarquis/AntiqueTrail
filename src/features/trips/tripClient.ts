@@ -19,6 +19,9 @@ export const unavailableTripClient: TripClient = {
   async addStop() {
     throw new Error(GENERIC_TRIP_ERROR)
   },
+  async addStoreStop() {
+    throw new Error(GENERIC_TRIP_ERROR)
+  },
   async reorderStop() {
     throw new Error(GENERIC_TRIP_ERROR)
   },
