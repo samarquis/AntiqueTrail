@@ -8,9 +8,9 @@ Antique Trail Regional Public MVP. Current focus: finish verification and GitHub
 
 - Phase: Open GitHub ticket closure
 - Plan: 1
-- Task: 5 of 6 — push and observe GitHub CI
-- Status: In progress
-- Progress: 4/6 tasks complete
+- Task: 6 of 6 — GitHub implementation handoff complete
+- Status: Paused at external acceptance gates
+- Progress: 6/6 agent-actionable tasks complete
 
 ## Recent Decisions
 
@@ -21,11 +21,11 @@ Antique Trail Regional Public MVP. Current focus: finish verification and GitHub
 
 ## Blockers and Concerns
 
-- Docker/Podman is unavailable locally; Supabase reset and pgTAP must run in GitHub CI.
+- Docker/Podman is unavailable locally; the full Supabase reset and pgTAP suite passed in GitHub CI run 31013802490.
 - Production Supabase/Cloudflare/provider resources and named approvals remain external human actions.
 
 ## Session Continuity
 
 - Last session: 2026-08-05
-- Stopped at: Final whole-tree verification passed; proceeding to push/CI observation and issue handoff.
+- Stopped at: CI green; #15, #16, #17, #19, #20, and #29 handed to human acceptance with evidence. All remaining open tickets require provider, hosted, operational, or named-human evidence.
 - Resume file: `.planning/phases/open-ticket-closure/.continue-here.md`
