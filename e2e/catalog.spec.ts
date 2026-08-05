@@ -1,6 +1,35 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('Synthetic catalog journey', () => {
+  test('applies the production catalog visual system', async ({ page }) => {
+    await page.goto('/stores')
+    await expect(page.locator('.catalog-card').first()).toBeVisible()
+
+    const visualContract = await page.evaluate(() => {
+      const nav = document.querySelector('nav')
+      const grid = document.querySelector('.catalog-grid')
+      const card = document.querySelector('.catalog-card')
+      const search = document.querySelector('#catalog-search')
+      return {
+        bodyBackground: getComputedStyle(document.body).backgroundColor,
+        navDisplay: nav ? getComputedStyle(nav).display : null,
+        gridDisplay: grid ? getComputedStyle(grid).display : null,
+        cardBackground: card ? getComputedStyle(card).backgroundColor : null,
+        cardRadius: card ? Number.parseFloat(getComputedStyle(card).borderRadius) : 0,
+        searchHeight: search ? Number.parseFloat(getComputedStyle(search).height) : 0,
+      }
+    })
+
+    expect(visualContract).toMatchObject({
+      bodyBackground: 'rgb(247, 243, 233)',
+      gridDisplay: 'grid',
+      cardBackground: 'rgb(255, 253, 247)',
+    })
+    expect(['flex', 'grid']).toContain(visualContract.navDisplay)
+    expect(visualContract.cardRadius).toBeGreaterThanOrEqual(18)
+    expect(visualContract.searchHeight).toBeGreaterThanOrEqual(48)
+  })
+
   test('browses, filters, and opens a store without permission prompts', async ({ page }) => {
     const permissionPrompts: string[] = []
     page.on('dialog', (dialog) => permissionPrompts.push(dialog.type()))

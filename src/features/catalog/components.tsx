@@ -33,41 +33,47 @@ export function CatalogFiltersForm({
         onChange({ ...filters, q: q.trim() || undefined })
       }}
     >
-      <label htmlFor="catalog-search">Search stores</label>
-      <div>
-        <input
-          id="catalog-search"
-          name="q"
-          value={q}
-          onChange={(event) => setQ(event.target.value)}
-          placeholder="Name, town, or category"
-        />
-        <button type="submit">Search</button>
+      <div className="catalog-field catalog-field--search">
+        <label htmlFor="catalog-search">Search stores</label>
+        <div className="catalog-search-control">
+          <input
+            id="catalog-search"
+            name="q"
+            value={q}
+            onChange={(event) => setQ(event.target.value)}
+            placeholder="Name, town, or category"
+          />
+          <button type="submit">Search</button>
+        </div>
       </div>
-      <label htmlFor="catalog-category">Category</label>
-      <select
-        id="catalog-category"
-        value={filters.category ?? ''}
-        onChange={(event) => onChange({ ...filters, category: event.target.value || undefined })}
-      >
-        <option value="">All categories</option>
-        <option value="antique-mall">Antique mall</option>
-        <option value="vintage">Vintage</option>
-        <option value="furniture">Furniture</option>
-        <option value="collectibles">Collectibles</option>
-        <option value="home-decor">Home decor</option>
-        <option value="flea-market">Flea market</option>
-      </select>
-      <label htmlFor="catalog-area">Area</label>
-      <select
-        id="catalog-area"
-        value={filters.area ?? ''}
-        onChange={(event) => onChange({ ...filters, area: event.target.value || undefined })}
-      >
-        <option value="">All areas</option>
-        <option value="topeka-ks">Topeka</option>
-      </select>
-      <label>
+      <div className="catalog-field">
+        <label htmlFor="catalog-category">Category</label>
+        <select
+          id="catalog-category"
+          value={filters.category ?? ''}
+          onChange={(event) => onChange({ ...filters, category: event.target.value || undefined })}
+        >
+          <option value="">All categories</option>
+          <option value="antique-mall">Antique mall</option>
+          <option value="vintage">Vintage</option>
+          <option value="furniture">Furniture</option>
+          <option value="collectibles">Collectibles</option>
+          <option value="home-decor">Home decor</option>
+          <option value="flea-market">Flea market</option>
+        </select>
+      </div>
+      <div className="catalog-field">
+        <label htmlFor="catalog-area">Area</label>
+        <select
+          id="catalog-area"
+          value={filters.area ?? ''}
+          onChange={(event) => onChange({ ...filters, area: event.target.value || undefined })}
+        >
+          <option value="">All areas</option>
+          <option value="topeka-ks">Topeka</option>
+        </select>
+      </div>
+      <label className="catalog-check">
         <input
           type="checkbox"
           checked={Boolean(filters.openNow)}
@@ -75,22 +81,24 @@ export function CatalogFiltersForm({
         />
         Open now
       </label>
-      <label htmlFor="catalog-visited">Visit status</label>
-      <select
-        id="catalog-visited"
-        value={filters.visited ?? ''}
-        onChange={(event) =>
-          onChange({
-            ...filters,
-            visited: (event.target.value || undefined) as CatalogFilters['visited'],
-          })
-        }
-      >
-        <option value="">Any visit status</option>
-        <option value="visited">Visited</option>
-        <option value="unvisited">Unvisited</option>
-      </select>
-      <label>
+      <div className="catalog-field">
+        <label htmlFor="catalog-visited">Visit status</label>
+        <select
+          id="catalog-visited"
+          value={filters.visited ?? ''}
+          onChange={(event) =>
+            onChange({
+              ...filters,
+              visited: (event.target.value || undefined) as CatalogFilters['visited'],
+            })
+          }
+        >
+          <option value="">Any visit status</option>
+          <option value="visited">Visited</option>
+          <option value="unvisited">Unvisited</option>
+        </select>
+      </div>
+      <label className="catalog-check">
         <input
           type="checkbox"
           checked={Boolean(filters.saved)}
@@ -98,7 +106,7 @@ export function CatalogFiltersForm({
         />
         Saved only
       </label>
-      <label>
+      <label className="catalog-check">
         <input
           type="checkbox"
           checked={Boolean(filters.claimed)}
@@ -106,32 +114,36 @@ export function CatalogFiltersForm({
         />
         Claimed only
       </label>
-      <label htmlFor="catalog-distance">Within miles of area center</label>
-      <select
-        id="catalog-distance"
-        value={filters.maxAreaCentroidMiles ?? ''}
-        onChange={(event) =>
-          onChange({
-            ...filters,
-            maxAreaCentroidMiles: event.target.value ? Number(event.target.value) : undefined,
-          })
-        }
-      >
-        <option value="">Any distance</option>
-        <option value="5">5 miles</option>
-        <option value="10">10 miles</option>
-        <option value="25">25 miles</option>
-        <option value="50">50 miles</option>
-      </select>
-      <label htmlFor="catalog-state">State</label>
-      <select
-        id="catalog-state"
-        value={filters.state ?? ''}
-        onChange={(event) => onChange({ ...filters, state: event.target.value || undefined })}
-      >
-        <option value="">All states</option>
-        <option value="KS">Kansas</option>
-      </select>
+      <div className="catalog-field">
+        <label htmlFor="catalog-distance">Distance from area center</label>
+        <select
+          id="catalog-distance"
+          value={filters.maxAreaCentroidMiles ?? ''}
+          onChange={(event) =>
+            onChange({
+              ...filters,
+              maxAreaCentroidMiles: event.target.value ? Number(event.target.value) : undefined,
+            })
+          }
+        >
+          <option value="">Any distance</option>
+          <option value="5">Within 5 miles</option>
+          <option value="10">Within 10 miles</option>
+          <option value="25">Within 25 miles</option>
+          <option value="50">Within 50 miles</option>
+        </select>
+      </div>
+      <div className="catalog-field">
+        <label htmlFor="catalog-state">State</label>
+        <select
+          id="catalog-state"
+          value={filters.state ?? ''}
+          onChange={(event) => onChange({ ...filters, state: event.target.value || undefined })}
+        >
+          <option value="">All states</option>
+          <option value="KS">Kansas</option>
+        </select>
+      </div>
     </form>
   )
 }
@@ -165,7 +177,8 @@ export function CatalogCard({
         />
       ) : (
         <div className="catalog-card__placeholder" role="img" aria-label="Store image unavailable">
-          Image unavailable
+          <span aria-hidden="true">AT</span>
+          <small>Photo coming soon</small>
         </div>
       )}
       <div className="catalog-card__body">
@@ -176,6 +189,11 @@ export function CatalogCard({
         <p>
           {store.town}, {store.state}
         </p>
+        <ul className="catalog-card__categories" aria-label="Store categories">
+          {store.categories.map((category) => (
+            <li key={category.slug}>{category.label}</li>
+          ))}
+        </ul>
         {store.summary && <p>{store.summary}</p>}
         <p className="catalog-card__freshness">{freshnessLabel(store)}</p>
         {onShowOnMap && (
@@ -494,21 +512,30 @@ export function BrowsePage({
       )}
       {state.kind === 'success' &&
         (state.stores?.length ? (
-          <section aria-label="Store results" className="catalog-grid">
-            {state.stores.map((store) => (
-              <CatalogCard
-                key={store.id || store.slug}
-                store={store}
-                privateActions={renderPrivateActions?.(store)}
-                mapSelected={selectedStoreId === store.id}
-                onShowOnMap={
-                  mapExpanded && mapState.points?.some((point) => point.storeId === store.id)
-                    ? () => setSelectedStoreId(store.id)
-                    : undefined
-                }
-              />
-            ))}
-          </section>
+          <>
+            <div className="catalog-results-heading">
+              <div>
+                <p className="eyebrow">Local directory</p>
+                <h2>{state.stores.length} stores to explore</h2>
+              </div>
+              <p>Fictional listings for safe product review</p>
+            </div>
+            <section aria-label="Store results" className="catalog-grid">
+              {state.stores.map((store) => (
+                <CatalogCard
+                  key={store.id || store.slug}
+                  store={store}
+                  privateActions={renderPrivateActions?.(store)}
+                  mapSelected={selectedStoreId === store.id}
+                  onShowOnMap={
+                    mapExpanded && mapState.points?.some((point) => point.storeId === store.id)
+                      ? () => setSelectedStoreId(store.id)
+                      : undefined
+                  }
+                />
+              ))}
+            </section>
+          </>
         ) : (
           <EmptyState
             hasFilters={Boolean(filters.q || filters.category || filters.area)}

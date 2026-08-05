@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import {
   CatalogBrowserPage,
   CatalogDetailsPage,
@@ -144,9 +144,9 @@ function AppShell({ children }: { children: ReactNode }) {
           <span>Antique Trail</span>
         </Link>
         <nav aria-label="Primary navigation">
-          <Link to="/stores">Browse stores</Link>
-          <Link to="/saved">Saved stores</Link>
-          <Link to="/new-since">New since</Link>
+          <NavLink to="/stores">Browse</NavLink>
+          <NavLink to="/saved">Saved</NavLink>
+          <NavLink to="/new-since">New since</NavLink>
         </nav>
       </header>
       <div id="main-content">{children}</div>
