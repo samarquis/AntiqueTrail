@@ -9,6 +9,7 @@ do $$ begin
 end $$;
 grant account_lifecycle_service to authenticator;
 grant usage on schema app_public to account_lifecycle_service;
+grant identity_service to postgres;
 
 -- The worker can access exactly one private bucket. It has no service-role key
 -- and no broad Storage bypass; browser roles receive neither table grants nor
@@ -426,3 +427,4 @@ grant execute on function app_public.claim_account_exports(timestamptz,integer),
   app_public.fail_private_memory_purge(uuid,uuid,timestamptz),app_public.purge_due_catalog_dismissals(timestamptz,integer)
   to account_lifecycle_service;
 revoke create on schema app_public from identity_service;
+revoke identity_service from postgres;

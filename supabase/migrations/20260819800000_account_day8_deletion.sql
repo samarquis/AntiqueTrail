@@ -1,6 +1,8 @@
 -- Executable day-8 account deletion and restore replay. External Storage/Auth
 -- effects remain in the Edge worker; database commands are exact-claim and retry safe.
 
+grant identity_service to postgres;
+
 alter table app_private.account_deletion_requests
   drop constraint account_deletion_requests_user_id_fkey,
   alter column user_id drop not null,
@@ -446,3 +448,4 @@ grant execute on function app_public.claim_due_account_deletions(timestamptz,int
   to account_lifecycle_service;
 
 revoke create on schema app_public,app_private from identity_service;
+revoke identity_service from postgres;

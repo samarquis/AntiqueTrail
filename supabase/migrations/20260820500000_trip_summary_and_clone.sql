@@ -1,6 +1,8 @@
 -- Complete Package 5A history: authoritative elapsed duration, per-author
 -- private-memory status, and atomic Plan Again cloning.
 
+grant identity_service to postgres;
+
 alter table trip_private.trips
   add column started_at timestamptz,
   add column completed_at timestamptz;
@@ -104,3 +106,5 @@ end; $$;
 alter function app_public.clone_completed_trip(text) owner to identity_service;
 revoke all on function app_public.clone_completed_trip(text) from public,anon;
 grant execute on function app_public.clone_completed_trip(text) to authenticated;
+
+revoke identity_service from postgres;

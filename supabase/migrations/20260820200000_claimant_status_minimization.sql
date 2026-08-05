@@ -1,4 +1,6 @@
 -- Keep claimant claim status reason-neutral and free of internal verification policy.
+grant identity_service to postgres;
+
 create or replace function app_public.partner_claim_status(p_claim_id uuid default null)
 returns jsonb
 language plpgsql
@@ -44,3 +46,4 @@ $$;
 
 alter function app_public.partner_claim_status(uuid) owner to identity_service;
 
+revoke identity_service from postgres;
