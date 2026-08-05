@@ -19,7 +19,7 @@ grant authenticated,identity_service,catalog_reader to beta_automation;
 grant usage on schema beta_private,app_public,partner_private to beta_automation,beta_evidence_service;
 grant create on schema beta_private,app_public to beta_automation;
 grant execute on function app_private.current_session_is_active(),app_private.current_session_has_mfa(),
-  app_private.current_session_recent_auth(interval),app_private.privileged_anchor_is_current() to beta_automation;
+  app_private.current_session_recent_auth(interval) to beta_automation;
 grant execute on function app_public.catalog_freshness(uuid,timestamptz) to beta_automation;
 
 alter table app_public.stores drop constraint if exists stores_audience_stage;

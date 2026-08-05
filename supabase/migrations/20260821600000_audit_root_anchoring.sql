@@ -5,6 +5,13 @@
 grant identity_service to postgres;
 grant create on schema app_private,app_public to identity_service;
 
+do $$ begin
+  if not exists(select 1 from pg_roles where rolname='beta_automation') then
+    create role beta_automation nologin noinherit nosuperuser nobypassrls;
+  end if;
+end $$;
+grant beta_automation to postgres;
+
 create table app_private.audit_anchor_capability (
   id smallint primary key default 1 check(id=1),
   deployment_environment text not null default 'local'
@@ -105,7 +112,7 @@ returns boolean language sql stable security definer set search_path='' as $$
 $$;
 alter function app_private.privileged_anchor_is_current() owner to identity_service;
 revoke all on function app_private.privileged_anchor_is_current() from public,anon,authenticated,service_role;
-grant execute on function app_private.privileged_anchor_is_current() to identity_service;
+grant execute on function app_private.privileged_anchor_is_current() to identity_service,beta_automation;
 
 create or replace function app_public.prepare_audit_anchor()
 returns jsonb language plpgsql security definer set search_path='' as $$
