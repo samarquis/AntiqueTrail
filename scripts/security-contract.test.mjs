@@ -8,7 +8,10 @@ import {
 } from './security-contract.mjs'
 
 test('detects credential material without flagging ordinary configuration names', () => {
-  assert.deepEqual(findSecretFindings([{ path: 'safe.ts', text: 'const H01_TOKEN = process.env.X' }]), [])
+  assert.deepEqual(
+    findSecretFindings([{ path: 'safe.ts', text: 'const H01_TOKEN = process.env.X' }]),
+    [],
+  )
   assert.deepEqual(
     findSecretFindings([
       { path: 'leak.txt', text: `token=${'gh' + 'p_'}abcdefghijklmnopqrstuvwxyz123456` },
@@ -30,10 +33,7 @@ test('allows the reviewed permissive license set and rejects missing or unknown 
         'node_modules/b': { license: 'GPL-3.0-only' },
       },
     }),
-    [
-      'node_modules/a: missing license metadata',
-      'node_modules/b: unapproved license GPL-3.0-only',
-    ],
+    ['node_modules/a: missing license metadata', 'node_modules/b: unapproved license GPL-3.0-only'],
   )
 })
 

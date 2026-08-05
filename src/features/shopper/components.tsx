@@ -100,14 +100,14 @@ export function SaveStoreAction({
         {saved === null
           ? 'Checking saved state…'
           : state === 'saving'
-          ? 'Saving…'
-          : state === 'removed'
-            ? 'Undo removal'
-            : saved
-              ? state === 'saved'
-                ? 'Undo save'
-                : 'Remove saved store'
-              : 'Save store'}
+            ? 'Saving…'
+            : state === 'removed'
+              ? 'Undo removal'
+              : saved
+                ? state === 'saved'
+                  ? 'Undo save'
+                  : 'Remove saved store'
+                : 'Save store'}
       </button>
       {state === 'saved' && <p role="status">Store saved. Undo is available.</p>}
       {state === 'save-undone' && <p role="status">Save undone.</p>}

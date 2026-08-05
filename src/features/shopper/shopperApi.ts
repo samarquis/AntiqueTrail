@@ -49,8 +49,7 @@ export function createShopperClient(transport: ShopperRpcTransport): ShopperPriv
   return {
     listSaved: () => call('shopper_list_saved', {}),
     getSaveState: (storeId) => call('shopper_save_state', { p_store_id: storeId }),
-    setSave: (storeId, saved) =>
-      call('shopper_set_save', { p_store_id: storeId, p_saved: saved }),
+    setSave: (storeId, saved) => call('shopper_set_save', { p_store_id: storeId, p_saved: saved }),
     getMemory: (storeId) => call('shopper_get_memory', { p_store_id: storeId }),
     listMemories: () => call('shopper_list_memories', {}),
     upsertMemory: (memory) =>

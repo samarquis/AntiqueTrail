@@ -91,9 +91,7 @@ export function findMigrationVersionFindings(paths) {
 }
 
 function trackedFiles() {
-  return execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
-    .split('\0')
-    .filter(Boolean)
+  return execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean)
 }
 
 function textEntries(paths) {
