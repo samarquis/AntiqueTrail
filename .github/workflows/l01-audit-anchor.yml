@@ -1,0 +1,44 @@
+name: L-01 audit anchor watchdog
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: l01-audit-anchor
+  cancel-in-progress: false
+
+jobs:
+  anchor:
+    if: vars.L01_ANCHOR_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Publish current content-free audit root
+        env:
+          FUNCTION_URL: ${{ secrets.SUPABASE_AUDIT_ANCHOR_FUNCTION_URL }}
+          WORKER_SECRET: ${{ secrets.AUDIT_ANCHOR_WORKER_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${FUNCTION_URL:-}" ] || [ -z "${WORKER_SECRET:-}" ]; then
+            echo "L-01 is enabled but its worker endpoint or credential is missing." >&2
+            exit 1
+          fi
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          status="$(curl --silent --show-error --max-time 30 \
+            --output "$response_file" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${WORKER_SECRET}" \
+            --header 'Content-Type: application/json' \
+            --data '{}' \
+            "$FUNCTION_URL")"
+          if [ "$status" != '200' ]; then
+            echo "L-01 worker failed with HTTP ${status}. Shared privileged mutations remain closed." >&2
+            exit 1
+          fi
+          jq -e '.status == "idle" or .status == "acknowledged" or .status == "retry_scheduled"' "$response_file" >/dev/null
