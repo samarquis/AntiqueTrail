@@ -752,7 +752,10 @@ export default function App({
               )
             }
           />
-          <Route path="/partner/activate" element={<PartnerActivatePage />} />
+          <Route
+            path="/partner/activate"
+            element={<PartnerActivatePage client={partnerClient} />}
+          />
           <Route path="/store-portal" element={<PortalHomePage client={portalClient} />} />
           <Route path="/store-portal/hours" element={<PortalHoursPage client={portalClient} />} />
           <Route
