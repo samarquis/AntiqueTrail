@@ -2,8 +2,6 @@
 -- First/second-shopper thresholds remain per deduplicated shopper; trips three and
 -- later must not disappear from the independently reported qualifying-trip total.
 
-set local role rg01_automation;
-
 create or replace function rg01_private.freeze_run_derived_core(p_run_id uuid)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare r rg01_private.rg01_runs%rowtype; cutoff timestamptz:=statement_timestamp(); md bytea; hd bytea; b text[]:=array[]::text[];
@@ -56,4 +54,3 @@ end $$;
 revoke all on function rg01_private.freeze_run_derived_core(uuid) from public,anon,authenticated,
   rg01_source_service,rg01_calculation_service,rg01_signature_service,rg01_lifecycle_service,
   rg01_evidence_service;
-reset role;
