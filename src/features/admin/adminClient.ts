@@ -5,6 +5,7 @@ import type {
   AdminReviewCaseDetail,
   AdminReviewCaseSummary,
   AdminScopeResult,
+  AdminScopePreview,
   AdminStoreScope,
 } from './types'
 import { GENERIC_ADMIN_FAILURE } from './boundary'
@@ -14,6 +15,7 @@ type AdminRpcName =
   | 'admin_get_review_case'
   | 'admin_decide_review_case'
   | 'admin_list_store_scopes'
+  | 'admin_preview_store_scope_change'
   | 'admin_change_store_scope'
   | 'admin_preview_duplicate_merge'
   | 'admin_execute_duplicate_merge'
@@ -37,6 +39,11 @@ export interface AdminClient {
     idempotencyKey: string,
   ): Promise<AdminDecisionResult>
   listStoreGrants(): Promise<AdminStoreScope[]>
+  previewStoreScopeChange(
+    subjectUserId: string,
+    storeId: string,
+    expectedVersion: number,
+  ): Promise<AdminScopePreview>
   changeStoreScope(
     operation: 'revoke' | 'regrant',
     subjectUserId: string,
@@ -44,6 +51,7 @@ export interface AdminClient {
     expectedVersion: number,
     reasonCode: string,
     idempotencyKey: string,
+    previewId: string | null,
   ): Promise<AdminScopeResult>
   previewDuplicateMerge(canonicalStoreId: string, duplicateStoreId: string): Promise<AdminMergePlan>
   executeDuplicateMerge(
@@ -82,6 +90,12 @@ export function createAdminClient(transport: AdminRpcTransport): AdminClient {
         p_idempotency_key: idempotencyKey,
       }),
     listStoreGrants: () => call('admin_list_store_scopes'),
+    previewStoreScopeChange: (subjectUserId, storeId, expectedVersion) =>
+      call('admin_preview_store_scope_change', {
+        p_subject_user_id: subjectUserId,
+        p_store_id: storeId,
+        p_expected_version: expectedVersion,
+      }),
     changeStoreScope: (
       operation,
       subjectUserId,
@@ -89,6 +103,7 @@ export function createAdminClient(transport: AdminRpcTransport): AdminClient {
       expectedVersion,
       reasonCode,
       idempotencyKey,
+      previewId,
     ) =>
       call('admin_change_store_scope', {
         p_operation: operation,
@@ -97,6 +112,7 @@ export function createAdminClient(transport: AdminRpcTransport): AdminClient {
         p_expected_version: expectedVersion,
         p_reason_code: reasonCode,
         p_idempotency_key: idempotencyKey,
+        p_preview_id: previewId,
       }),
     previewDuplicateMerge: (canonicalStoreId, duplicateStoreId) =>
       call('admin_preview_duplicate_merge', {
@@ -127,6 +143,7 @@ export const unavailableAdminClient: AdminClient = {
   getCase: unavailable,
   decideCase: unavailable,
   listStoreGrants: unavailable,
+  previewStoreScopeChange: unavailable,
   changeStoreScope: unavailable,
   previewDuplicateMerge: unavailable,
   executeDuplicateMerge: unavailable,

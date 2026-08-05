@@ -45,6 +45,15 @@ function client(overrides: Partial<AdminClient> = {}): AdminClient {
         version: 1,
       },
     ],
+    previewStoreScopeChange: async () => ({
+      previewId: 'preview-1',
+      subjectUserId: 'rep-1',
+      storeId: 'store-1',
+      grantId: 'grant-1',
+      grantVersion: 2,
+      previewHash: 'abc',
+      expiresAt: '2026-08-05T12:10:00Z',
+    }),
     changeStoreScope: async () => ({ grantId: 'grant-1', state: 'revoked', version: 2 }),
     previewDuplicateMerge: async () => {
       throw new Error('not used')
@@ -82,6 +91,7 @@ describe('Administrator workspace', () => {
       3,
       expect.stringMatching(/^admin-case-1-3-/),
     )
+    expect(screen.getByRole('heading', { name: /review queue/i })).toHaveFocus()
   })
 
   it('shows and revokes one exact representative store scope', async () => {
@@ -105,6 +115,7 @@ describe('Administrator workspace', () => {
       1,
       'administrator_revoked',
       expect.stringMatching(/^admin-scope-grant-1-1-/),
+      null,
     )
   })
 
@@ -122,6 +133,45 @@ describe('Administrator workspace', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('requires a server-issued exact preview before regrant', async () => {
+    const previewStoreScopeChange = vi.fn(client().previewStoreScopeChange)
+    const changeStoreScope = vi.fn(client().changeStoreScope)
+    const revoked = {
+      ...(await client().listStoreGrants())[0],
+      state: 'revoked' as const,
+      version: 2,
+    }
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <AccessSafetyPage
+          client={client({
+            listStoreGrants: async () => [revoked],
+            previewStoreScopeChange,
+            changeStoreScope,
+          })}
+        />
+      </MemoryRouter>,
+    )
+    await user.click(
+      await screen.findByRole('button', { name: /preview regrant prairie clockworks scope/i }),
+    )
+    expect(previewStoreScopeChange).toHaveBeenCalledWith('rep-1', 'store-1', 2)
+    expect(changeStoreScope).not.toHaveBeenCalled()
+    await user.click(
+      screen.getByRole('button', { name: /confirm regrant prairie clockworks scope/i }),
+    )
+    expect(changeStoreScope).toHaveBeenCalledWith(
+      'regrant',
+      'rep-1',
+      'store-1',
+      2,
+      'authority_reverified',
+      expect.any(String),
+      'preview-1',
+    )
+  })
+
   it('previews one duplicate merge before execution and never offers authority reparenting', async () => {
     const previewDuplicateMerge = vi.fn(async () => ({
       proposalId: 'proposal-1',
@@ -132,6 +182,9 @@ describe('Administrator workspace', () => {
       safeReferences: 4,
       quarantinedConflicts: 2,
       authorityReparented: false as const,
+      references: [
+        { ordinal: 1, kind: 'store_update', collisionKind: 'none', plannedResolution: 'reparent' },
+      ],
       state: 'previewed' as const,
       version: 1,
     }))

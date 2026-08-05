@@ -6,12 +6,35 @@ grant identity_service to postgres;
 grant create on schema admin_private,partner_private to identity_service;
 
 create table admin_private.admin_privileged_rate_windows(
+  event_id uuid primary key default extensions.gen_random_uuid(),
   actor_user_id uuid not null references auth.users(id) on delete cascade,
   target_id uuid not null,
-  window_started_at timestamptz not null,
-  request_count integer not null default 1 check(request_count between 1 and 30),
-  updated_at timestamptz not null default statement_timestamp(),
-  primary key(actor_user_id,target_id,window_started_at)
+  occurred_at timestamptz not null default statement_timestamp()
+);
+create index admin_rate_actor_window on admin_private.admin_privileged_rate_windows(actor_user_id,occurred_at);
+create index admin_rate_target_window on admin_private.admin_privileged_rate_windows(target_id,occurred_at);
+
+create table admin_private.admin_duplicate_merge_plan_items(
+  plan_item_id uuid primary key default extensions.gen_random_uuid(),
+  proposal_id uuid not null references admin_private.admin_duplicate_merge_proposals(proposal_id) on delete restrict,
+  ordinal integer not null check(ordinal>0),
+  reference_kind text not null,
+  reference_id uuid not null,
+  reference_digest bytea not null check(octet_length(reference_digest)=32),
+  collision_kind text not null,
+  planned_resolution text not null check(planned_resolution in ('reparent','collapse','hide','quarantine','preserve')),
+  unique(proposal_id,ordinal),unique(proposal_id,reference_kind,reference_id)
+);
+create table admin_private.admin_scope_previews(
+  preview_id uuid primary key default extensions.gen_random_uuid(),actor_user_id uuid not null references auth.users(id) on delete cascade,
+  subject_user_id uuid not null references auth.users(id) on delete restrict,store_id uuid not null references app_public.stores(id) on delete restrict,
+  grant_id uuid not null references partner_private.store_partner_grants(grant_id) on delete restrict,grant_version bigint not null check(grant_version>0),
+  preview_hash bytea not null check(octet_length(preview_hash)=32),expires_at timestamptz not null default statement_timestamp()+interval '10 minutes',
+  consumed_at timestamptz,created_at timestamptz not null default statement_timestamp(),check(expires_at>created_at and expires_at<=created_at+interval '10 minutes')
+);
+create table admin_private.admin_merge_execution_items(
+  execution_item_id uuid primary key default extensions.gen_random_uuid(),plan_item_id uuid not null unique references admin_private.admin_duplicate_merge_plan_items(plan_item_id) on delete restrict,
+  post_execute_digest bytea not null check(octet_length(post_execute_digest)=32),recorded_at timestamptz not null default statement_timestamp()
 );
 
 create table partner_private.pilot_approval_snapshots(
@@ -75,26 +98,46 @@ create table review_private.review_merge_conflicts(
   unique(proposal_id,review_id)
 );
 
+create table portal_private.store_update_merge_conflicts(
+  conflict_id uuid primary key default extensions.gen_random_uuid(),proposal_id uuid not null references admin_private.admin_duplicate_merge_proposals(proposal_id) on delete restrict,
+  update_id uuid not null references portal_private.store_updates(update_id) on delete restrict,original_store_id uuid not null references app_public.stores(id) on delete restrict,
+  canonical_store_id uuid not null references app_public.stores(id) on delete restrict,state text not null default 'active' check(state in ('active','rolled_back')),unique(proposal_id,update_id)
+);
+create table portal_private.support_ticket_merge_conflicts(
+  conflict_id uuid primary key default extensions.gen_random_uuid(),proposal_id uuid not null references admin_private.admin_duplicate_merge_proposals(proposal_id) on delete restrict,
+  ticket_id uuid not null references portal_private.support_tickets(ticket_id) on delete restrict,original_store_id uuid not null references app_public.stores(id) on delete restrict,
+  canonical_store_id uuid not null references app_public.stores(id) on delete restrict,state text not null default 'active' check(state in ('active','rolled_back')),unique(proposal_id,ticket_id)
+);
+
 do $$ declare relation regclass; begin
   foreach relation in array array[
     'admin_private.admin_privileged_rate_windows'::regclass,
+    'admin_private.admin_duplicate_merge_plan_items'::regclass,
+    'admin_private.admin_scope_previews'::regclass,
+    'admin_private.admin_merge_execution_items'::regclass,
     'partner_private.pilot_approval_snapshots'::regclass,
     'shopper_private.private_memory_merge_conflicts'::regclass,
     'trip_private.trip_duplicate_stop_warnings'::regclass,
-    'review_private.review_merge_conflicts'::regclass
+    'review_private.review_merge_conflicts'::regclass,
+    'portal_private.store_update_merge_conflicts'::regclass,
+    'portal_private.support_ticket_merge_conflicts'::regclass
   ] loop
     execute format('alter table %s enable row level security',relation);
     execute format('alter table %s force row level security',relation);
   end loop;
 end $$;
 
-revoke all on admin_private.admin_privileged_rate_windows,partner_private.pilot_approval_snapshots,
+revoke all on admin_private.admin_privileged_rate_windows,admin_private.admin_duplicate_merge_plan_items,admin_private.admin_scope_previews,admin_private.admin_merge_execution_items,partner_private.pilot_approval_snapshots,
   shopper_private.private_memory_merge_conflicts,trip_private.trip_duplicate_stop_warnings,
-  review_private.review_merge_conflicts from public,anon,authenticated;
-grant select,insert,update,delete on admin_private.admin_privileged_rate_windows to identity_service;
+  review_private.review_merge_conflicts,portal_private.store_update_merge_conflicts,portal_private.support_ticket_merge_conflicts from public,anon,authenticated;
+grant select,insert,delete on admin_private.admin_privileged_rate_windows to identity_service;
+grant select,insert on admin_private.admin_duplicate_merge_plan_items to identity_service;
+grant select,insert,update on admin_private.admin_scope_previews to identity_service;
+grant select,insert on admin_private.admin_merge_execution_items to identity_service;
 grant select,insert on partner_private.pilot_approval_snapshots to identity_service;
 grant select,insert,update,delete on shopper_private.private_memory_merge_conflicts,
   trip_private.trip_duplicate_stop_warnings,review_private.review_merge_conflicts to identity_service;
+grant select,insert,update on portal_private.store_update_merge_conflicts,portal_private.support_ticket_merge_conflicts to identity_service;
 grant select on shopper_private.private_memory_merge_conflicts,
   trip_private.trip_duplicate_stop_warnings,review_private.review_merge_conflicts to authenticated;
 grant insert(synthetic,audience,publication_state,slug,name,town,state_code,address,area_id,summary,description,phone,website,timezone_name)
@@ -103,6 +146,9 @@ grant select,update on review_private.public_reviews,review_private.rating_aggre
 
 create policy identity_service_admin_rate on admin_private.admin_privileged_rate_windows
   for all to identity_service using(true) with check(true);
+create policy identity_service_admin_merge_plan on admin_private.admin_duplicate_merge_plan_items for all to identity_service using(true) with check(true);
+create policy identity_service_admin_scope_preview on admin_private.admin_scope_previews for all to identity_service using(true) with check(true);
+create policy identity_service_admin_merge_execution on admin_private.admin_merge_execution_items for all to identity_service using(true) with check(true);
 create policy identity_service_pilot_approval on partner_private.pilot_approval_snapshots
   for all to identity_service using(true) with check(true);
 create policy identity_service_pilot_store_insert on app_public.stores
@@ -113,6 +159,8 @@ create policy identity_service_trip_merge_warning on trip_private.trip_duplicate
   for all to identity_service using(true) with check(true);
 create policy identity_service_review_merge_conflict on review_private.review_merge_conflicts
   for all to identity_service using(true) with check(true);
+create policy identity_service_portal_update_merge_conflict on portal_private.store_update_merge_conflicts for all to identity_service using(true) with check(true);
+create policy identity_service_portal_ticket_merge_conflict on portal_private.support_ticket_merge_conflicts for all to identity_service using(true) with check(true);
 create policy identity_service_admin_review_merge on review_private.public_reviews
   for select to identity_service using(true);
 create policy identity_service_admin_review_merge_update on review_private.public_reviews
@@ -138,22 +186,63 @@ grant execute on function app_private.provider_user_is_confirmed(uuid) to identi
 
 create or replace function admin_private.enforce_operational_admin_rate(p_actor uuid,p_target uuid)
 returns void language plpgsql volatile security definer set search_path='' as $$
-declare bucket timestamptz:=date_trunc('hour',statement_timestamp()); actor_count integer; target_count integer;
+declare cutoff timestamptz:=statement_timestamp()-interval '1 hour'; actor_count integer; target_count integer; retry_at timestamptz; retry_seconds integer;
 begin
   if p_actor is null or p_target is null then raise exception using errcode='22023',message='admin_unavailable'; end if;
   perform pg_advisory_xact_lock(hashtextextended('admin-rate-actor:'||p_actor,0));
   perform pg_advisory_xact_lock(hashtextextended('admin-rate-target:'||p_target,0));
-  delete from admin_private.admin_privileged_rate_windows where window_started_at<bucket-interval '90 days';
-  select coalesce(sum(request_count),0) into actor_count from admin_private.admin_privileged_rate_windows where actor_user_id=p_actor and window_started_at=bucket;
-  select coalesce(sum(request_count),0) into target_count from admin_private.admin_privileged_rate_windows where target_id=p_target and window_started_at=bucket;
-  if actor_count>=30 or target_count>=10 then raise exception using errcode='P0001',message='admin_unavailable'; end if;
-  insert into admin_private.admin_privileged_rate_windows(actor_user_id,target_id,window_started_at)
-    values(p_actor,p_target,bucket)
-    on conflict(actor_user_id,target_id,window_started_at) do update
-      set request_count=admin_private.admin_privileged_rate_windows.request_count+1,updated_at=statement_timestamp();
+  delete from admin_private.admin_privileged_rate_windows where occurred_at<statement_timestamp()-interval '90 days';
+  select count(*) into actor_count from admin_private.admin_privileged_rate_windows where actor_user_id=p_actor and occurred_at>cutoff;
+  select count(*) into target_count from admin_private.admin_privileged_rate_windows where target_id=p_target and occurred_at>cutoff;
+  if actor_count>=30 or target_count>=10 then
+    select min(occurred_at)+interval '1 hour' into retry_at from admin_private.admin_privileged_rate_windows
+      where occurred_at>cutoff and ((actor_count>=30 and actor_user_id=p_actor) or (target_count>=10 and target_id=p_target));
+    retry_seconds:=greatest(1,least(3600,ceil(extract(epoch from retry_at-statement_timestamp()))::integer));
+    raise exception using errcode='P0001',message='admin_unavailable',detail=jsonb_build_object('retryAfterSeconds',retry_seconds)::text;
+  end if;
+  insert into admin_private.admin_privileged_rate_windows(actor_user_id,target_id) values(p_actor,p_target);
 end $$;
 alter function admin_private.enforce_operational_admin_rate(uuid,uuid) owner to identity_service;
 revoke all on function admin_private.enforce_operational_admin_rate(uuid,uuid) from public,anon,authenticated;
+
+create or replace function admin_private.merge_reference_snapshot(p_canonical uuid,p_duplicate uuid)
+returns jsonb language sql stable security definer set search_path='' as $$
+  with refs(kind,id,payload,collision,resolution) as (
+    select 'store',s.id,to_jsonb(s),'none','preserve' from app_public.stores s where s.id=p_duplicate
+    union all select 'saved_store',s.user_id,to_jsonb(s)||jsonb_build_object('canonical',coalesce((select to_jsonb(x) from shopper_private.saved_stores x where x.user_id=s.user_id and x.store_id=p_canonical),'null'::jsonb)),case when exists(select 1 from shopper_private.saved_stores x where x.user_id=s.user_id and x.store_id=p_canonical) then 'duplicate_save' else 'none' end,case when exists(select 1 from shopper_private.saved_stores x where x.user_id=s.user_id and x.store_id=p_canonical) then 'collapse' else 'reparent' end from shopper_private.saved_stores s where s.store_id=p_duplicate
+    union all select 'private_memory',m.user_id,to_jsonb(m)||jsonb_build_object('canonical',coalesce((select to_jsonb(x) from shopper_private.private_store_memories x where x.user_id=m.user_id and x.store_id=p_canonical),'null'::jsonb)),case when exists(select 1 from shopper_private.private_store_memories x where x.user_id=m.user_id and x.store_id=p_canonical) then 'memory_conflict' else 'none' end,case when exists(select 1 from shopper_private.private_store_memories x where x.user_id=m.user_id and x.store_id=p_canonical) then 'hide' else 'reparent' end from shopper_private.private_store_memories m where m.store_id=p_duplicate
+    union all select 'trip_stop',s.stop_id,to_jsonb(s),case when exists(select 1 from trip_private.trip_stops x where x.trip_id=s.trip_id and x.store_id=p_canonical) then 'trip_stop' else 'none' end,'reparent' from trip_private.trip_stops s where s.store_id=p_duplicate
+    union all select 'review',r.review_id,to_jsonb(r),case when r.author_id is not null and exists(select 1 from review_private.public_reviews x where x.author_id=r.author_id and x.store_id=p_canonical and x.state<>'deleted') then 'review_conflict' else 'none' end,case when r.author_id is not null and exists(select 1 from review_private.public_reviews x where x.author_id=r.author_id and x.store_id=p_canonical and x.state<>'deleted') then 'hide' else 'reparent' end from review_private.public_reviews r where r.store_id=p_duplicate
+    union all select 'store_update',u.update_id,to_jsonb(u),case when exists(select 1 from portal_private.store_updates x where x.store_id=p_canonical and x.content_digest=u.content_digest and x.state='live') then 'update_conflict' else 'none' end,'reparent' from portal_private.store_updates u where u.store_id=p_duplicate
+    union all select 'support_ticket',t.ticket_id,to_jsonb(t),case when exists(select 1 from portal_private.support_tickets x where x.store_id=p_canonical and x.opened_by=t.opened_by and x.request_digest=t.request_digest and x.state<>'resolved') then 'support_conflict' else 'none' end,'reparent' from portal_private.support_tickets t where t.store_id=p_duplicate
+    union all select 'grant',g.grant_id,to_jsonb(g),'grant_quarantine','quarantine' from partner_private.store_partner_grants g where g.store_id=p_duplicate and g.state in ('active','reconsent_required')
+    union all select 'claim',c.claim_id,to_jsonb(c),'claim_quarantine','quarantine' from partner_private.listing_claims c where c.store_id=p_duplicate and c.state='approved'
+  ) select coalesce(jsonb_agg(jsonb_build_object('kind',kind,'referenceId',id,'referenceDigest',encode(extensions.digest(convert_to(payload::text,'utf8'),'sha256'),'hex'),'collisionKind',collision,'plannedResolution',resolution) order by kind,id),'[]'::jsonb) from refs;
+$$;
+alter function admin_private.merge_reference_snapshot(uuid,uuid) owner to identity_service;
+revoke all on function admin_private.merge_reference_snapshot(uuid,uuid) from public,anon,authenticated;
+
+create or replace function admin_private.merge_current_item_digest(p_item uuid)
+returns bytea language plpgsql stable security definer set search_path='' as $$
+declare i admin_private.admin_duplicate_merge_plan_items%rowtype; p admin_private.admin_duplicate_merge_proposals%rowtype; payload jsonb;
+begin
+  select * into i from admin_private.admin_duplicate_merge_plan_items where plan_item_id=p_item;
+  select * into p from admin_private.admin_duplicate_merge_proposals where proposal_id=i.proposal_id;
+  payload:=case i.reference_kind
+    when 'store' then (select to_jsonb(x) from app_public.stores x where x.id=i.reference_id)
+    when 'saved_store' then (select to_jsonb(x) from shopper_private.saved_stores x where x.user_id=i.reference_id and x.store_id=p.canonical_store_id)
+    when 'private_memory' then coalesce((select to_jsonb(x) from shopper_private.private_store_memories x where x.user_id=i.reference_id and x.store_id=p.canonical_store_id),(select to_jsonb(x) from shopper_private.private_memory_merge_conflicts x where x.proposal_id=p.proposal_id and x.user_id=i.reference_id))
+    when 'trip_stop' then (select to_jsonb(x) from trip_private.trip_stops x where x.stop_id=i.reference_id)
+    when 'review' then (select to_jsonb(x) from review_private.public_reviews x where x.review_id=i.reference_id)
+    when 'store_update' then (select to_jsonb(x) from portal_private.store_updates x where x.update_id=i.reference_id)
+    when 'support_ticket' then (select to_jsonb(x) from portal_private.support_tickets x where x.ticket_id=i.reference_id)
+    when 'grant' then (select to_jsonb(x) from partner_private.store_partner_grants x where x.grant_id=i.reference_id)
+    when 'claim' then (select to_jsonb(x) from partner_private.listing_claims x where x.claim_id=i.reference_id)
+    else null end;
+  return extensions.digest(convert_to(coalesce(payload,'null'::jsonb)::text,'utf8'),'sha256');
+end $$;
+alter function admin_private.merge_current_item_digest(uuid) owner to identity_service;
+revoke all on function admin_private.merge_current_item_digest(uuid) from public,anon,authenticated;
 
 create or replace function partner_private.approve_pilot_onboarding_exact(
   p_draft_id uuid,p_actor uuid,p_preview_hash bytea

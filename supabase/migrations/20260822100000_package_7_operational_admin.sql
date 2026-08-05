@@ -85,7 +85,10 @@ begin
   else return new; end if;
   digest:=extensions.digest(convert_to(concat_ws('|',kind,target,target_store,to_jsonb(new)::text),'utf8'),'sha256');
   insert into admin_private.admin_review_cases(case_type,target_kind,target_id,store_id,snapshot_hash)
-    values(kind,target_kind,target,target_store,digest) on conflict do nothing returning admin_private.admin_review_cases.case_id into case_id;
+    values(kind,target_kind,target,target_store,digest)
+    on conflict(case_type,target_id) where state in ('open','claimed','changes_requested') do update
+      set snapshot_hash=excluded.snapshot_hash,state='open',assigned_admin_id=null,lock_owner_id=null,lock_acquired_at=null,lock_expires_at=null,version=admin_review_cases.version+1,updated_at=statement_timestamp()
+    returning admin_private.admin_review_cases.case_id into case_id;
   if case_id is not null then
     insert into admin_private.admin_case_events(case_id,event_kind,to_state,snapshot_hash,idempotency_key)
       values(case_id,'created','open',digest,'enqueue-'||target);
@@ -105,6 +108,8 @@ begin
     or not app_private.current_user_has_role('administrator'::app_private.app_role,null)
     or not app_private.current_session_has_mfa()
     or not app_private.current_session_recent_auth(interval '10 minutes')
+    or exists(select 1 from admin_private.admin_audit_anchor_health where id=1 and (state<>'healthy' or last_anchored_at is null or last_anchored_at<statement_timestamp()-interval '24 hours'))
+    or exists(select 1 from admin_private.admin_privileged_audit_outbox where state in ('failed','blocked'))
     or exists(select 1 from admin_private.admin_break_glass_gate where id=1 and enabled)
   then raise exception using errcode='42501',message='admin_unavailable'; end if;
   return actor;
@@ -159,6 +164,7 @@ returns jsonb language sql stable security definer set search_path='' as $$
   select jsonb_build_object('proposalId',p.proposal_id,'canonicalStoreId',p.canonical_store_id,'duplicateStoreId',p.duplicate_store_id,
     'canonicalLabel',c.name,'duplicateLabel',d.name,'safeReferences',coalesce((p.collision_summary->>'safeReferences')::integer,0),
     'quarantinedConflicts',coalesce((p.collision_summary->>'quarantinedConflicts')::integer,0),'authorityReparented',false,
+    'references',coalesce((select jsonb_agg(jsonb_build_object('ordinal',i.ordinal,'kind',i.reference_kind,'collisionKind',i.collision_kind,'plannedResolution',i.planned_resolution) order by i.ordinal) from admin_private.admin_duplicate_merge_plan_items i where i.proposal_id=p.proposal_id),'[]'::jsonb),
     'state',p.state,'version',p.version)
   from admin_private.admin_duplicate_merge_proposals p join app_public.stores c on c.id=p.canonical_store_id join app_public.stores d on d.id=p.duplicate_store_id
   where p.proposal_id=target;
@@ -297,11 +303,26 @@ begin
 end $$;
 alter function app_public.admin_list_store_scopes() owner to identity_service;
 
-create or replace function app_public.admin_change_store_scope(p_operation text,p_subject_user_id text,p_store_id text,p_expected_version bigint,p_reason_code text,p_idempotency_key text)
+create or replace function app_public.admin_preview_store_scope_change(p_subject_user_id text,p_store_id text,p_expected_version bigint)
+returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare actor uuid:=admin_private.require_operational_admin(); subject uuid; target_store uuid; g partner_private.store_partner_grants%rowtype; preview admin_private.admin_scope_previews%rowtype; digest bytea;
+begin
+  begin subject:=p_subject_user_id::uuid; target_store:=p_store_id::uuid; exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
+  perform admin_private.enforce_operational_admin_rate(actor,target_store);
+  select * into g from partner_private.store_partner_grants where auth_user_id=subject and store_id=target_store order by granted_at desc,grant_id desc limit 1 for update;
+  if not found or g.state<>'revoked' or g.version<>p_expected_version then raise exception using errcode='40001',message='admin_unavailable'; end if;
+  digest:=extensions.digest(convert_to(concat_ws('|','regrant',subject,target_store,g.grant_id,g.version),'utf8'),'sha256');
+  insert into admin_private.admin_scope_previews(actor_user_id,subject_user_id,store_id,grant_id,grant_version,preview_hash)
+    values(actor,subject,target_store,g.grant_id,g.version,digest) returning * into preview;
+  return jsonb_build_object('previewId',preview.preview_id,'subjectUserId',subject,'storeId',target_store,'grantId',g.grant_id,'grantVersion',g.version,'previewHash',encode(digest,'hex'),'expiresAt',preview.expires_at);
+end $$;
+alter function app_public.admin_preview_store_scope_change(text,text,bigint) owner to identity_service;
+
+create or replace function app_public.admin_change_store_scope(p_operation text,p_subject_user_id text,p_store_id text,p_expected_version bigint,p_reason_code text,p_idempotency_key text,p_preview_id text)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare actor uuid:=admin_private.require_operational_admin(); subject uuid; target_store uuid; g partner_private.store_partner_grants%rowtype;
   app_grant app_private.role_grants%rowtype; partnership partner_private.store_partnerships%rowtype; prior admin_private.admin_command_receipts%rowtype;
-  digest bytea; result jsonb; prior_app_grant uuid;
+  digest bytea; result jsonb; prior_app_grant uuid; preview admin_private.admin_scope_previews%rowtype; preview_id uuid;
 begin
   begin subject:=p_subject_user_id::uuid; target_store:=p_store_id::uuid; exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
   if p_operation not in ('revoke','regrant') or subject=actor or p_expected_version<1 or p_reason_code!~'^[a-z][a-z0-9_]{1,63}$'
@@ -324,6 +345,10 @@ begin
       where grant_id=app_grant.grant_id returning * into app_grant;
     prior_app_grant:=app_grant.grant_id;
   elsif p_operation='regrant' then
+    begin preview_id:=p_preview_id::uuid; exception when others then raise exception using errcode='42501',message='admin_unavailable'; end;
+    select * into preview from admin_private.admin_scope_previews where admin_private.admin_scope_previews.preview_id=preview_id for update;
+    if not found or preview.actor_user_id<>actor or preview.subject_user_id<>subject or preview.store_id<>target_store or preview.grant_id<>g.grant_id or preview.grant_version<>g.version or preview.expires_at<=statement_timestamp() or preview.consumed_at is not null
+      then raise exception using errcode='42501',message='admin_unavailable'; end if;
     if g.state<>'revoked' or not partner_private.partner_consent_is_current(subject)
       or not app_private.provider_user_is_confirmed(subject)
       or not app_private.provider_user_has_verified_mfa(subject)
@@ -341,22 +366,23 @@ begin
     insert into partner_private.store_partner_grants(partnership_id,auth_user_id,store_id,consent_policy_version)
       values(partnership.partnership_id,subject,target_store,partnership.consent_policy_version) returning * into g;
     insert into app_private.role_grants(subject_user_id,role,store_id,state,granted_by) values(subject,'representative',target_store,'active',actor) returning * into app_grant;
+    update admin_private.admin_scope_previews set consumed_at=statement_timestamp() where admin_private.admin_scope_previews.preview_id=preview_id;
   end if;
   if p_operation='revoke' then select * into app_grant from app_private.role_grants where grant_id=prior_app_grant; end if;
   insert into admin_private.admin_scope_actions(grant_id,subject_user_id,role,store_id,action,prior_grant_id,expected_grant_version,scope_preview_hash,reason_code,recent_auth_at,mfa_verified_at,decided_by,outcome,idempotency_key)
-    values(app_grant.grant_id,subject,'representative',target_store,p_operation,case when p_operation='regrant' then prior_app_grant else null end,p_expected_version,digest,p_reason_code,statement_timestamp(),statement_timestamp(),actor,'completed',p_idempotency_key);
+    values(app_grant.grant_id,subject,'representative',target_store,p_operation,case when p_operation='regrant' then prior_app_grant else null end,p_expected_version,case when p_operation='regrant' then preview.preview_hash else digest end,p_reason_code,statement_timestamp(),statement_timestamp(),actor,'completed',p_idempotency_key);
   result:=jsonb_build_object('grantId',g.grant_id,'state',g.state,'version',g.version);
   insert into admin_private.admin_command_receipts(idempotency_key,actor_user_id,command_kind,resource_id,input_digest,result)
     values(p_idempotency_key,actor,'scope_change',g.grant_id,digest,result);
   perform admin_private.record_operational_admin_event('scope_'||p_operation,actor,g.grant_id,digest,'completed');
   return result;
 end $$;
-alter function app_public.admin_change_store_scope(text,text,text,bigint,text,text) owner to identity_service;
+alter function app_public.admin_change_store_scope(text,text,text,bigint,text,text,text) owner to identity_service;
 
 create or replace function app_public.admin_preview_duplicate_merge(p_canonical_store_id text,p_duplicate_store_id text)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare actor uuid:=admin_private.require_operational_admin(); canonical uuid; duplicate uuid; p admin_private.admin_duplicate_merge_proposals%rowtype;
-  digest bytea; safe_count integer; conflict_count integer;
+  digest bytea; safe_count integer; conflict_count integer; plan jsonb; item jsonb; ordinal integer:=0;
 begin
   begin canonical:=p_canonical_store_id::uuid; duplicate:=p_duplicate_store_id::uuid; exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
   perform admin_private.enforce_operational_admin_rate(actor,duplicate);
@@ -365,8 +391,10 @@ begin
   perform pg_advisory_xact_lock(greatest(hashtextextended('admin-merge:'||canonical,0),hashtextextended('admin-merge:'||duplicate,0)));
   perform 1 from app_public.stores where id in (canonical,duplicate) for update;
   if (select count(*) from app_public.stores where id in (canonical,duplicate))<>2 or exists(select 1 from admin_private.store_tombstones where merged_store_id in (canonical,duplicate) and state='active') then raise exception using errcode='55000',message='admin_unavailable'; end if;
+  plan:=admin_private.merge_reference_snapshot(canonical,duplicate);
   select * into p from admin_private.admin_duplicate_merge_proposals where canonical_store_id=canonical and duplicate_store_id=duplicate and state='previewed' order by created_at desc limit 1;
-  if found then return admin_private.merge_plan_json(p.proposal_id); end if;
+  if found and p.preview_hash=extensions.digest(convert_to(plan::text,'utf8'),'sha256') then return admin_private.merge_plan_json(p.proposal_id);
+  elsif found then update admin_private.admin_duplicate_merge_proposals set state='rejected',reviewed_by=actor,version=version+1 where proposal_id=p.proposal_id; end if;
   safe_count:=(select count(*) from portal_private.store_updates u where u.store_id=duplicate and not exists(select 1 from portal_private.store_updates x where x.store_id=canonical and x.content_digest=u.content_digest and x.state='live'))
     +(select count(*) from portal_private.support_tickets t where t.store_id=duplicate and not exists(select 1 from portal_private.support_tickets x where x.store_id=canonical and x.opened_by=t.opened_by and x.request_digest=t.request_digest and x.state<>'resolved'))
     +(select count(*) from shopper_private.saved_stores s where s.store_id=duplicate and not exists(select 1 from shopper_private.saved_stores x where x.user_id=s.user_id and x.store_id=canonical))
@@ -380,9 +408,14 @@ begin
     +(select count(*) from shopper_private.saved_stores s where s.store_id=duplicate and exists(select 1 from shopper_private.saved_stores x where x.user_id=s.user_id and x.store_id=canonical))
     +(select count(*) from shopper_private.private_store_memories m where m.store_id=duplicate and exists(select 1 from shopper_private.private_store_memories x where x.user_id=m.user_id and x.store_id=canonical))
     +(select count(*) from review_private.public_reviews r where r.store_id=duplicate and r.author_id is not null and exists(select 1 from review_private.public_reviews x where x.author_id=r.author_id and x.store_id=canonical and x.state<>'deleted'));
-  digest:=extensions.digest(convert_to(concat_ws('|',canonical,duplicate,safe_count,conflict_count),'utf8'),'sha256');
+  digest:=extensions.digest(convert_to(plan::text,'utf8'),'sha256');
   insert into admin_private.admin_duplicate_merge_proposals(canonical_store_id,duplicate_store_id,preview_hash,collision_summary,requested_by,expected_canonical_version,expected_duplicate_version)
     values(canonical,duplicate,digest,jsonb_build_object('safeReferences',safe_count,'quarantinedConflicts',conflict_count),actor,1,1) returning * into p;
+  for item in select value from jsonb_array_elements(plan) loop
+    ordinal:=ordinal+1;
+    insert into admin_private.admin_duplicate_merge_plan_items(proposal_id,ordinal,reference_kind,reference_id,reference_digest,collision_kind,planned_resolution)
+      values(p.proposal_id,ordinal,item->>'kind',(item->>'referenceId')::uuid,decode(item->>'referenceDigest','hex'),item->>'collisionKind',item->>'plannedResolution');
+  end loop;
   perform admin_private.record_operational_admin_event('merge_previewed',actor,p.proposal_id,digest,'completed');
   return admin_private.merge_plan_json(p.proposal_id);
 end $$;
@@ -407,6 +440,8 @@ begin
   select * into p from admin_private.admin_duplicate_merge_proposals where proposal_id=id for update;
   perform 1 from app_public.stores where id in (p.canonical_store_id,p.duplicate_store_id) for update;
   if p.state<>'previewed' or p.version<>p_expected_version then raise exception using errcode='40001',message='admin_unavailable'; end if;
+  if p.preview_hash<>extensions.digest(convert_to(admin_private.merge_reference_snapshot(p.canonical_store_id,p.duplicate_store_id)::text,'utf8'),'sha256')
+    then raise exception using errcode='40001',message='admin_unavailable'; end if;
   select publication_state::text into original_publication from app_public.stores where id=p.duplicate_store_id;
   insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state,aggregate_delta)
     values(p.proposal_id,'store',p.duplicate_store_id,p.duplicate_store_id,p.canonical_store_id,'none','preserved',jsonb_build_object('publicationState',original_publication));
@@ -464,8 +499,10 @@ begin
     where a.store_id in (p.canonical_store_id,p.duplicate_store_id);
   for u in select * from portal_private.store_updates where store_id=p.duplicate_store_id for update loop
     if exists(select 1 from portal_private.store_updates x where x.store_id=p.canonical_store_id and x.content_digest=u.content_digest and x.state='live') then
+      insert into portal_private.store_update_merge_conflicts(proposal_id,update_id,original_store_id,canonical_store_id) values(p.proposal_id,u.update_id,p.duplicate_store_id,p.canonical_store_id);
+      update portal_private.store_updates set store_id=p.canonical_store_id,version=version+1,updated_at=statement_timestamp() where update_id=u.update_id;
       insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state)
-        values(p.proposal_id,'store_update',u.update_id,p.duplicate_store_id,p.canonical_store_id,'update_conflict','quarantined');
+        values(p.proposal_id,'store_update',u.update_id,p.duplicate_store_id,p.canonical_store_id,'update_conflict','reparented');
     else
       update portal_private.store_updates set store_id=p.canonical_store_id,version=version+1,updated_at=statement_timestamp() where update_id=u.update_id;
       insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state)
@@ -474,8 +511,10 @@ begin
   end loop;
   for t in select * from portal_private.support_tickets where store_id=p.duplicate_store_id for update loop
     if exists(select 1 from portal_private.support_tickets x where x.store_id=p.canonical_store_id and x.opened_by=t.opened_by and x.request_digest=t.request_digest and x.state<>'resolved') then
+      insert into portal_private.support_ticket_merge_conflicts(proposal_id,ticket_id,original_store_id,canonical_store_id) values(p.proposal_id,t.ticket_id,p.duplicate_store_id,p.canonical_store_id);
+      update portal_private.support_tickets set store_id=p.canonical_store_id,version=version+1,updated_at=statement_timestamp() where ticket_id=t.ticket_id;
       insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state)
-        values(p.proposal_id,'support_ticket',t.ticket_id,p.duplicate_store_id,p.canonical_store_id,'support_conflict','quarantined');
+        values(p.proposal_id,'support_ticket',t.ticket_id,p.duplicate_store_id,p.canonical_store_id,'support_conflict','reparented');
     else
       update portal_private.support_tickets set store_id=p.canonical_store_id,version=version+1,updated_at=statement_timestamp() where ticket_id=t.ticket_id;
       insert into admin_private.admin_merge_ledgers(proposal_id,reference_kind,reference_id,original_store_id,canonical_store_id,collision_kind,resolution_state)
@@ -497,6 +536,8 @@ begin
   end loop;
   update app_public.stores set publication_state='draft',updated_at=statement_timestamp() where id=p.duplicate_store_id;
   insert into admin_private.store_tombstones(proposal_id,merged_store_id,canonical_store_id) values(p.proposal_id,p.duplicate_store_id,p.canonical_store_id);
+  insert into admin_private.admin_merge_execution_items(plan_item_id,post_execute_digest)
+    select i.plan_item_id,admin_private.merge_current_item_digest(i.plan_item_id) from admin_private.admin_duplicate_merge_plan_items i where i.proposal_id=p.proposal_id;
   update admin_private.admin_duplicate_merge_proposals set state='executed',reviewed_by=actor,executed_at=statement_timestamp(),version=version+1 where proposal_id=id returning * into p;
   result:=admin_private.merge_plan_json(id);
   insert into admin_private.admin_command_receipts(idempotency_key,actor_user_id,command_kind,resource_id,input_digest,result) values(p_idempotency_key,actor,'merge_execute',id,digest,result);
@@ -522,15 +563,20 @@ begin
   perform pg_advisory_xact_lock(greatest(hashtextextended('admin-merge:'||p.canonical_store_id,0),hashtextextended('admin-merge:'||p.duplicate_store_id,0)));
   select * into p from admin_private.admin_duplicate_merge_proposals where proposal_id=id for update;
   if p.state<>'executed' or p.version<>p_expected_version then raise exception using errcode='40001',message='admin_unavailable'; end if;
+  if exists(select 1 from admin_private.admin_merge_execution_items x join admin_private.admin_duplicate_merge_plan_items i using(plan_item_id)
+    where i.proposal_id=id and x.post_execute_digest<>admin_private.merge_current_item_digest(i.plan_item_id))
+    then raise exception using errcode='40001',message='admin_unavailable'; end if;
   for entry in select * from admin_private.admin_merge_ledgers where proposal_id=id and resolution_state='reparented' order by created_at,ledger_entry_id loop
     if entry.reference_kind='store_update' then
       if exists(select 1 from portal_private.store_updates where update_id=entry.reference_id and store_id=p.canonical_store_id) then
         update portal_private.store_updates set store_id=p.duplicate_store_id,version=version+1,updated_at=statement_timestamp() where update_id=entry.reference_id;
       else raise exception using errcode='40001',message='admin_unavailable'; end if;
+      update portal_private.store_update_merge_conflicts set state='rolled_back' where proposal_id=id and update_id=entry.reference_id;
     elsif entry.reference_kind='support_ticket' then
       if exists(select 1 from portal_private.support_tickets where ticket_id=entry.reference_id and store_id=p.canonical_store_id) then
         update portal_private.support_tickets set store_id=p.duplicate_store_id,version=version+1,updated_at=statement_timestamp() where ticket_id=entry.reference_id;
       else raise exception using errcode='40001',message='admin_unavailable'; end if;
+      update portal_private.support_ticket_merge_conflicts set state='rolled_back' where proposal_id=id and ticket_id=entry.reference_id;
     elsif entry.reference_kind='saved_store' then
       update shopper_private.saved_stores set store_id=p.duplicate_store_id where user_id=entry.reference_id and store_id=p.canonical_store_id;
       if not found then raise exception using errcode='40001',message='admin_unavailable'; end if;
@@ -589,11 +635,11 @@ revoke all on function admin_private.enqueue_typed_review(),admin_private.requir
   admin_private.review_case_json(uuid),admin_private.merge_plan_json(uuid) from public,anon,authenticated;
 revoke all on function app_public.admin_list_review_cases(),app_public.admin_get_review_case(text),
   app_public.admin_decide_review_case(text,text,text,bigint,text),app_public.admin_list_store_scopes(),
-  app_public.admin_change_store_scope(text,text,text,bigint,text,text),app_public.admin_preview_duplicate_merge(text,text),
+  app_public.admin_preview_store_scope_change(text,text,bigint),app_public.admin_change_store_scope(text,text,text,bigint,text,text,text),app_public.admin_preview_duplicate_merge(text,text),
   app_public.admin_execute_duplicate_merge(text,bigint,text),app_public.admin_rollback_duplicate_merge(text,bigint,text) from public,anon;
 grant execute on function app_public.admin_list_review_cases(),app_public.admin_get_review_case(text),
   app_public.admin_decide_review_case(text,text,text,bigint,text),app_public.admin_list_store_scopes(),
-  app_public.admin_change_store_scope(text,text,text,bigint,text,text),app_public.admin_preview_duplicate_merge(text,text),
+  app_public.admin_preview_store_scope_change(text,text,bigint),app_public.admin_change_store_scope(text,text,text,bigint,text,text,text),app_public.admin_preview_duplicate_merge(text,text),
   app_public.admin_execute_duplicate_merge(text,bigint,text),app_public.admin_rollback_duplicate_merge(text,bigint,text) to authenticated;
 
 revoke create on schema app_public,admin_private from identity_service;

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import type { AdminSession } from './types'
 import { canUseAdminBoundary, GENERIC_ADMIN_FAILURE } from './boundary'
@@ -9,6 +9,7 @@ import type {
   AdminMergePlan,
   AdminReviewCaseDetail,
   AdminReviewCaseSummary,
+  AdminScopePreview,
   AdminStoreScope,
 } from './types'
 
@@ -28,6 +29,8 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
   const [selected, setSelected] = useState<AdminReviewCaseDetail | null>(null)
   const [reason, setReason] = useState('')
   const [message, setMessage] = useState('')
+  const [returnFocusToQueue, setReturnFocusToQueue] = useState(false)
+  const queueHeading = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
     let current = true
@@ -39,6 +42,12 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
       current = false
     }
   }, [client])
+
+  useEffect(() => {
+    if (!returnFocusToQueue) return
+    queueHeading.current?.focus()
+    setReturnFocusToQueue(false)
+  }, [returnFocusToQueue])
 
   async function openCase(reviewCase: AdminReviewCaseSummary) {
     setMessage('')
@@ -63,6 +72,7 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
       setSelected(null)
       setReason('')
       setMessage(`Case ${result.state}.`)
+      setReturnFocusToQueue(true)
     } catch {
       setMessage(GENERIC_ADMIN_FAILURE)
     }
@@ -71,7 +81,9 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
   return (
     <main>
       <Link to="/stores">← Back</Link>
-      <h1>Review queue</h1>
+      <h1 ref={queueHeading} tabIndex={-1}>
+        Review queue
+      </h1>
       <p>Review one assigned item with its exact submitted context.</p>
       {message && <p role="status">{message}</p>}
       {!selected ? (
@@ -135,6 +147,7 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
   const [canonicalStoreId, setCanonicalStoreId] = useState('')
   const [duplicateStoreId, setDuplicateStoreId] = useState('')
   const [merge, setMerge] = useState<AdminMergePlan | null>(null)
+  const [scopePreview, setScopePreview] = useState<AdminScopePreview | null>(null)
 
   useEffect(() => {
     let current = true
@@ -150,6 +163,12 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
   async function changeScope(grant: AdminStoreScope) {
     const operation = grant.state === 'active' ? 'revoke' : 'regrant'
     try {
+      if (operation === 'regrant' && scopePreview?.grantId !== grant.grantId) {
+        setScopePreview(
+          await client.previewStoreScopeChange(grant.subjectUserId, grant.storeId, grant.version),
+        )
+        return
+      }
       const result = await client.changeStoreScope(
         operation,
         grant.subjectUserId,
@@ -157,6 +176,7 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
         grant.version,
         operation === 'revoke' ? 'administrator_revoked' : 'authority_reverified',
         `admin-scope-${grant.grantId}-${grant.version}-${Date.now()}`,
+        operation === 'regrant' ? (scopePreview?.previewId ?? null) : null,
       )
       setGrants((items) =>
         items.map((item) =>
@@ -165,6 +185,7 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
             : item,
         ),
       )
+      setScopePreview(null)
     } catch {
       setMessage(GENERIC_ADMIN_FAILURE)
     }
@@ -204,8 +225,19 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
             <li key={grant.grantId}>
               <strong>{grant.storeLabel}</strong> — {grant.subjectLabel} — {grant.state}{' '}
               <button type="button" onClick={() => void changeScope(grant)}>
-                {grant.state === 'active' ? 'Revoke' : 'Regrant'} {grant.storeLabel} scope
+                {grant.state === 'active'
+                  ? 'Revoke'
+                  : scopePreview?.grantId === grant.grantId
+                    ? 'Confirm regrant'
+                    : 'Preview regrant'}{' '}
+                {grant.storeLabel} scope
               </button>
+              {scopePreview?.grantId === grant.grantId && (
+                <p>
+                  Confirm exact scope: {grant.storeLabel} for {grant.subjectLabel}. Preview expires{' '}
+                  {new Date(scopePreview.expiresAt).toLocaleTimeString()}.
+                </p>
+              )}
             </li>
           ))}
         </ul>
@@ -247,6 +279,14 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
             </h3>
             <p>{merge.safeReferences} safe references can move.</p>
             <p>{merge.quarantinedConflicts} conflicts will remain quarantined.</p>
+            <ol>
+              {merge.references.map((reference) => (
+                <li key={reference.ordinal}>
+                  {reference.kind.replaceAll('_', ' ')} —{' '}
+                  {reference.collisionKind.replaceAll('_', ' ')} — {reference.plannedResolution}
+                </li>
+              ))}
+            </ol>
             <p>Representative authority will not move.</p>
             {merge.state === 'previewed' && (
               <button type="button" onClick={() => void advanceMerge('execute')}>

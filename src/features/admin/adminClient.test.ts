@@ -45,6 +45,7 @@ describe('admin RPC client', () => {
       1,
       'authority_withdrawn',
       'scope-grant-1-v1',
+      null,
     )
     expect(calls[0]).toEqual({
       name: 'admin_change_store_scope',
@@ -55,6 +56,7 @@ describe('admin RPC client', () => {
         p_expected_version: 1,
         p_reason_code: 'authority_withdrawn',
         p_idempotency_key: 'scope-grant-1-v1',
+        p_preview_id: null,
       },
     })
   })

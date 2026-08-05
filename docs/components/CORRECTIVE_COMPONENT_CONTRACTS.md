@@ -23,7 +23,7 @@ These contracts supplement `DESIGN_SYSTEM.md` for components added or materially
 - **Anatomy:** one immutable case context, exact action controls, required reason, optimistic version, rate-limit/authorization error, and no bulk action.
 - **States:** loading, unavailable, pending, action in progress, approved/returned/rejected/revoked, conflict, rate limited, and stale audit-anchor denial.
 - **Semantics:** case and scope status are textual and not color-only; destructive actions are explicitly labelled.
-- **Keyboard/focus:** native controls follow case order; completing one action returns focus to the updated case heading or next case.
+- **Keyboard/focus:** native controls follow case order; completing one action returns focus to the Review queue heading before the next case is chosen.
 - **Failure recovery:** server denial is reason-neutral, preserves the case context, and requires refresh after a version conflict.
 
 ## BetaControlPage

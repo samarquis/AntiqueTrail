@@ -105,6 +105,22 @@ export interface AdminScopeResult {
   state: AdminStoreScope['state']
   version: number
 }
+export interface AdminScopePreview {
+  previewId: string
+  subjectUserId: string
+  storeId: string
+  grantId: string
+  grantVersion: number
+  previewHash: string
+  expiresAt: string
+}
+
+export interface AdminMergeReference {
+  ordinal: number
+  kind: string
+  collisionKind: string
+  plannedResolution: string
+}
 
 export interface AdminMergePlan {
   proposalId: string
@@ -115,6 +131,7 @@ export interface AdminMergePlan {
   safeReferences: number
   quarantinedConflicts: number
   authorityReparented: false
+  references: AdminMergeReference[]
   state: 'previewed' | 'executed' | 'rolled_back'
   version: number
 }
