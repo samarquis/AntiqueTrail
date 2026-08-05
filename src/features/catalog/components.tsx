@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   CatalogClient,
+  CatalogBrowseStage,
   CatalogFilters,
   CatalogMapAdapter,
   CatalogMapBounds,
@@ -13,138 +14,214 @@ import {
   freshnessLabel,
   normalizeQueryParams,
   queryParams,
+  todayHoursSummary,
 } from './query'
+
+const stageRank: Record<CatalogBrowseStage, number> = {
+  'package-1': 1,
+  'package-3': 3,
+  'package-5b': 5,
+  'package-10a': 10,
+}
 
 export function CatalogFiltersForm({
   filters,
   onChange,
+  stage = 'package-1',
 }: {
   filters: CatalogFilters
   onChange: (filters: CatalogFilters) => void
+  stage?: CatalogBrowseStage
 }) {
   const [q, setQ] = useState(filters.q ?? '')
+  const [panelOpen, setPanelOpen] = useState(false)
   useEffect(() => setQ(filters.q ?? ''), [filters.q])
+  const available = stageRank[stage]
+  const hasFilters = Boolean(
+    Object.values(filters).some((value) => value != null && value !== false),
+  )
   return (
-    <form
-      className="catalog-filters"
-      role="search"
-      onSubmit={(event) => {
-        event.preventDefault()
-        onChange({ ...filters, q: q.trim() || undefined })
-      }}
-    >
-      <div className="catalog-field catalog-field--search">
-        <label htmlFor="catalog-search">Search stores</label>
-        <div className="catalog-search-control">
-          <input
-            id="catalog-search"
-            name="q"
-            value={q}
-            onChange={(event) => setQ(event.target.value)}
-            placeholder="Name, town, or category"
-          />
-          <button type="submit">Search</button>
+    <div className="catalog-filter-region">
+      <form
+        className="catalog-filters"
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault()
+          onChange({ ...filters, q: q.trim() || undefined })
+          setPanelOpen(false)
+        }}
+      >
+        <div className="catalog-field catalog-field--search">
+          <label htmlFor="catalog-search">Search stores</label>
+          <div className="catalog-search-control">
+            <input
+              id="catalog-search"
+              name="q"
+              value={q}
+              onChange={(event) => setQ(event.target.value)}
+              placeholder="Name, town, or category"
+            />
+            <button type="submit">Search</button>
+          </div>
         </div>
-      </div>
-      <div className="catalog-field">
-        <label htmlFor="catalog-category">Category</label>
-        <select
-          id="catalog-category"
-          value={filters.category ?? ''}
-          onChange={(event) => onChange({ ...filters, category: event.target.value || undefined })}
+        <button
+          className="catalog-filters__trigger"
+          type="button"
+          aria-expanded={panelOpen}
+          aria-controls="catalog-filter-panel"
+          onClick={() => setPanelOpen((open) => !open)}
         >
-          <option value="">All categories</option>
-          <option value="antique-mall">Antique mall</option>
-          <option value="vintage">Vintage</option>
-          <option value="furniture">Furniture</option>
-          <option value="collectibles">Collectibles</option>
-          <option value="home-decor">Home decor</option>
-          <option value="flea-market">Flea market</option>
-        </select>
-      </div>
-      <div className="catalog-field">
-        <label htmlFor="catalog-area">Area</label>
-        <select
-          id="catalog-area"
-          value={filters.area ?? ''}
-          onChange={(event) => onChange({ ...filters, area: event.target.value || undefined })}
+          Filters{hasFilters ? ' · Active' : ''}
+        </button>
+        <div
+          id="catalog-filter-panel"
+          className="catalog-filters__panel"
+          data-expanded={panelOpen ? 'true' : 'false'}
         >
-          <option value="">All areas</option>
-          <option value="topeka-ks">Topeka</option>
-        </select>
-      </div>
-      <label className="catalog-check">
-        <input
-          type="checkbox"
-          checked={Boolean(filters.openNow)}
-          onChange={(event) => onChange({ ...filters, openNow: event.target.checked || undefined })}
-        />
-        Open now
-      </label>
-      <div className="catalog-field">
-        <label htmlFor="catalog-visited">Visit status</label>
-        <select
-          id="catalog-visited"
-          value={filters.visited ?? ''}
-          onChange={(event) =>
-            onChange({
-              ...filters,
-              visited: (event.target.value || undefined) as CatalogFilters['visited'],
-            })
-          }
-        >
-          <option value="">Any visit status</option>
-          <option value="visited">Visited</option>
-          <option value="unvisited">Unvisited</option>
-        </select>
-      </div>
-      <label className="catalog-check">
-        <input
-          type="checkbox"
-          checked={Boolean(filters.saved)}
-          onChange={(event) => onChange({ ...filters, saved: event.target.checked || undefined })}
-        />
-        Saved only
-      </label>
-      <label className="catalog-check">
-        <input
-          type="checkbox"
-          checked={Boolean(filters.claimed)}
-          onChange={(event) => onChange({ ...filters, claimed: event.target.checked || undefined })}
-        />
-        Claimed only
-      </label>
-      <div className="catalog-field">
-        <label htmlFor="catalog-distance">Distance from area center</label>
-        <select
-          id="catalog-distance"
-          value={filters.maxAreaCentroidMiles ?? ''}
-          onChange={(event) =>
-            onChange({
-              ...filters,
-              maxAreaCentroidMiles: event.target.value ? Number(event.target.value) : undefined,
-            })
-          }
-        >
-          <option value="">Any distance</option>
-          <option value="5">Within 5 miles</option>
-          <option value="10">Within 10 miles</option>
-          <option value="25">Within 25 miles</option>
-          <option value="50">Within 50 miles</option>
-        </select>
-      </div>
-      <div className="catalog-field">
-        <label htmlFor="catalog-state">State</label>
-        <select
-          id="catalog-state"
-          value={filters.state ?? ''}
-          onChange={(event) => onChange({ ...filters, state: event.target.value || undefined })}
-        >
-          <option value="">All states</option>
-          <option value="KS">Kansas</option>
-        </select>
-      </div>
-    </form>
+          <div className="catalog-field">
+            <label htmlFor="catalog-category">Category</label>
+            <select
+              id="catalog-category"
+              value={filters.category ?? ''}
+              onChange={(event) =>
+                onChange({ ...filters, category: event.target.value || undefined })
+              }
+            >
+              <option value="">All categories</option>
+              <option value="antique-mall">Antique mall</option>
+              <option value="vintage">Vintage</option>
+              <option value="furniture">Furniture</option>
+              <option value="collectibles">Collectibles</option>
+              <option value="home-decor">Home decor</option>
+              <option value="flea-market">Flea market</option>
+            </select>
+          </div>
+          <div className="catalog-field">
+            <label htmlFor="catalog-area">Area</label>
+            <select
+              id="catalog-area"
+              value={filters.area ?? ''}
+              onChange={(event) => onChange({ ...filters, area: event.target.value || undefined })}
+            >
+              <option value="">All areas</option>
+              <option value="topeka-ks">Topeka</option>
+            </select>
+          </div>
+          {available >= 10 && (
+            <label className="catalog-check">
+              <input
+                type="checkbox"
+                checked={Boolean(filters.openNow)}
+                onChange={(event) =>
+                  onChange({ ...filters, openNow: event.target.checked || undefined })
+                }
+              />
+              Open now
+            </label>
+          )}
+          {available >= 3 && (
+            <div className="catalog-field">
+              <label htmlFor="catalog-visited">Visit status</label>
+              <select
+                id="catalog-visited"
+                value={filters.visited ?? ''}
+                onChange={(event) =>
+                  onChange({
+                    ...filters,
+                    visited: (event.target.value || undefined) as CatalogFilters['visited'],
+                  })
+                }
+              >
+                <option value="">Any visit status</option>
+                <option value="visited">Visited</option>
+                <option value="unvisited">Unvisited</option>
+              </select>
+            </div>
+          )}
+          {available >= 3 && (
+            <label className="catalog-check">
+              <input
+                type="checkbox"
+                checked={Boolean(filters.saved)}
+                onChange={(event) =>
+                  onChange({ ...filters, saved: event.target.checked || undefined })
+                }
+              />
+              Saved only
+            </label>
+          )}
+          {available >= 10 && (
+            <label className="catalog-check">
+              <input
+                type="checkbox"
+                checked={Boolean(filters.claimed)}
+                onChange={(event) =>
+                  onChange({ ...filters, claimed: event.target.checked || undefined })
+                }
+              />
+              Claimed only
+            </label>
+          )}
+          {available >= 5 && (
+            <div className="catalog-field">
+              <label htmlFor="catalog-distance">Distance from area center</label>
+              <select
+                id="catalog-distance"
+                value={filters.maxAreaCentroidMiles ?? ''}
+                onChange={(event) =>
+                  onChange({
+                    ...filters,
+                    maxAreaCentroidMiles: event.target.value
+                      ? Number(event.target.value)
+                      : undefined,
+                  })
+                }
+              >
+                <option value="">Any distance</option>
+                <option value="5">Within 5 miles</option>
+                <option value="10">Within 10 miles</option>
+                <option value="25">Within 25 miles</option>
+                <option value="50">Within 50 miles</option>
+              </select>
+            </div>
+          )}
+          {available >= 10 && (
+            <div className="catalog-field">
+              <label htmlFor="catalog-state">State</label>
+              <select
+                id="catalog-state"
+                value={filters.state ?? ''}
+                onChange={(event) =>
+                  onChange({ ...filters, state: event.target.value || undefined })
+                }
+              >
+                <option value="">All states</option>
+                <option value="KS">Kansas</option>
+              </select>
+            </div>
+          )}
+          <div className="catalog-filters__actions">
+            <button type="submit">Apply filters</button>
+            <button
+              type="button"
+              disabled={!hasFilters && !q}
+              onClick={() => {
+                setQ('')
+                onChange({})
+                setPanelOpen(false)
+              }}
+            >
+              Clear filters
+            </button>
+          </div>
+        </div>
+      </form>
+      {hasFilters && (
+        <p className="catalog-filter-summary" role="status">
+          Filters are active. Open Filters to review or clear them.
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -161,6 +238,13 @@ export function CatalogCard({
 }) {
   const [imageFailed, setImageFailed] = useState(false)
   const cover = store.media.find((item) => item.kind === 'cover') ?? store.media[0]
+  const hours = todayHoursSummary(store)
+  const initials = store.name
+    .split(/\s+/u)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toLocaleUpperCase()
   return (
     <article
       id={mapCardId(store.id)}
@@ -170,6 +254,7 @@ export function CatalogCard({
     >
       {cover && !imageFailed ? (
         <img
+          className="catalog-card__image"
           src={cover.src}
           alt={cover.alt || `${store.name} storefront`}
           loading="lazy"
@@ -177,8 +262,8 @@ export function CatalogCard({
         />
       ) : (
         <div className="catalog-card__placeholder" role="img" aria-label="Store image unavailable">
-          <span aria-hidden="true">AT</span>
-          <small>Photo coming soon</small>
+          <span aria-hidden="true">{initials}</span>
+          <small>{store.categories[0]?.label ?? 'Antiques'} · Photo coming soon</small>
         </div>
       )}
       <div className="catalog-card__body">
@@ -195,6 +280,12 @@ export function CatalogCard({
           ))}
         </ul>
         {store.summary && <p>{store.summary}</p>}
+        <p className="catalog-card__hours">
+          <strong>{hours.openStateLabel}</strong>
+          <span>
+            {hours.dayLabel}: {hours.hoursLabel}
+          </span>
+        </p>
         <p className="catalog-card__freshness">{freshnessLabel(store)}</p>
         {onShowOnMap && (
           <button type="button" onClick={onShowOnMap}>
@@ -213,31 +304,34 @@ function mapCardId(storeId: string) {
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div role="alert">
+    <section className="catalog-state catalog-state--error" role="alert">
+      <h2>We couldn’t load the stores</h2>
       <p>{message}</p>
       <button type="button" onClick={onRetry}>
         Retry
       </button>
-    </div>
+    </section>
   )
 }
 function LoadingState() {
   return (
-    <p role="status" aria-live="polite">
-      Loading stores…
-    </p>
+    <section className="catalog-state catalog-state--loading" role="status" aria-live="polite">
+      <h2>Finding stores</h2>
+      <p>Loading current store details…</p>
+    </section>
   )
 }
 function EmptyState({ hasFilters, onClear }: { hasFilters: boolean; onClear: () => void }) {
   return (
-    <div role="status">
+    <section className="catalog-state catalog-state--empty" role="status">
+      <h2>{hasFilters ? 'No matching stores' : 'The trail is quiet for now'}</h2>
       <p>{hasFilters ? 'No stores match those filters.' : 'No stores are available yet.'}</p>
       {hasFilters && (
         <button type="button" onClick={onClear}>
           Clear filters
         </button>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -246,15 +340,19 @@ export function BrowsePage({
   initialSearch = '',
   renderPrivateActions,
   map,
+  filterStage = 'package-1',
+  availability = 'available',
 }: {
   client: CatalogClient
   initialSearch?: string
   renderPrivateActions?: (store: CatalogStore) => React.ReactNode
   map?: CatalogMapAdapter
+  filterStage?: CatalogBrowseStage
+  availability?: 'available' | 'blocked'
 }) {
   const [filters, setFilters] = useState(() => normalizeQueryParams(initialSearch))
   const [state, setState] = useState<{
-    kind: 'loading' | 'success' | 'error'
+    kind: 'loading' | 'success' | 'error' | 'blocked'
     stores?: CatalogStore[]
     message?: string
   }>({ kind: 'loading' })
@@ -276,6 +374,10 @@ export function BrowsePage({
     points?: CatalogMapPoint[]
   }>({ kind: 'idle' })
   const load = useCallback(() => {
+    if (availability === 'blocked') {
+      setState({ kind: 'blocked', message: 'The store directory is not available in this stage.' })
+      return
+    }
     setState({ kind: 'loading' })
     client
       .list(filters)
@@ -287,7 +389,7 @@ export function BrowsePage({
             error instanceof Error ? error.message : 'Catalog unavailable. Please try again.',
         }),
       )
-  }, [client, filters])
+  }, [availability, client, filters])
   useEffect(() => {
     load()
   }, [load])
@@ -366,7 +468,7 @@ export function BrowsePage({
         <h1>Browse stores</h1>
         <p>Find antique and vintage stores with practical, current details.</p>
       </header>
-      <CatalogFiltersForm filters={filters} onChange={updateFilters} />
+      <CatalogFiltersForm filters={filters} onChange={updateFilters} stage={filterStage} />
       <section aria-labelledby="browse-map-heading" className="catalog-map-panel">
         <h2 id="browse-map-heading">Store map</h2>
         <p>The store list remains the primary discovery view.</p>
@@ -509,6 +611,16 @@ export function BrowsePage({
       {state.kind === 'loading' && <LoadingState />}
       {state.kind === 'error' && (
         <ErrorState message={state.message ?? 'Catalog unavailable.'} onRetry={load} />
+      )}
+      {state.kind === 'blocked' && (
+        <section
+          className="catalog-state catalog-state--blocked"
+          aria-labelledby="catalog-blocked-heading"
+        >
+          <h2 id="catalog-blocked-heading">Browse is unavailable</h2>
+          <p>{state.message}</p>
+          <a href="/">Return home</a>
+        </section>
       )}
       {state.kind === 'success' &&
         (state.stores?.length ? (

@@ -134,8 +134,45 @@ const blockedCheckMyDayProvider: CheckMyDayProvider = {
 }
 
 function AppShell({ children }: { children: ReactNode }) {
+  const location = useLocation()
+  const contentRef = useRef<HTMLDivElement>(null)
+  const moreIsCurrent = [
+    '/more',
+    '/saved',
+    '/new-since',
+    '/capture',
+    '/shares',
+    '/trip-ideas',
+    '/account',
+    '/install',
+    '/help',
+  ].some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))
+
+  useEffect(() => {
+    const content = contentRef.current
+    if (!content) return
+
+    const focusHeading = () => {
+      const heading = content.querySelector<HTMLElement>('h1')
+      if (!heading) return false
+      heading.tabIndex = -1
+      heading.focus({ preventScroll: true })
+      return true
+    }
+
+    if (focusHeading()) return
+    const observer = new MutationObserver(() => {
+      if (focusHeading()) observer.disconnect()
+    })
+    observer.observe(content, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [location.pathname])
+
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header className="site-header">
         <Link className="brand" to="/stores" aria-label="Antique Trail home">
           <span className="brand-mark" aria-hidden="true">
@@ -145,15 +182,54 @@ function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <nav aria-label="Primary navigation">
           <NavLink to="/stores">Browse</NavLink>
-          <NavLink to="/saved">Saved</NavLink>
-          <NavLink to="/new-since">New since</NavLink>
+          <NavLink to="/trips">My Trip</NavLink>
+          <Link to="/more" aria-current={moreIsCurrent ? 'page' : undefined}>
+            More
+          </Link>
         </nav>
       </header>
-      <div id="main-content">{children}</div>
+      <div id="main-content" ref={contentRef} tabIndex={-1}>
+        {children}
+      </div>
       <footer className="site-footer">
         Synthetic catalog · Built for curious local explorers · <Link to="/status">Status</Link>
       </footer>
     </div>
+  )
+}
+
+function MorePage() {
+  return (
+    <main>
+      <header>
+        <p className="eyebrow">Your Antique Trail</p>
+        <h1>More</h1>
+        <p>Find your saved places, shared ideas, account settings, and help.</p>
+      </header>
+      <nav className="more-menu" aria-label="More destinations">
+        <Link to="/saved">Saved Stores</Link>
+        <Link to="/capture">Add a Place from a Link</Link>
+        <Link to="/shares">Shared with Me</Link>
+        <Link to="/trip-ideas">Trip Ideas</Link>
+        <Link to="/account/privacy">Account &amp; Privacy</Link>
+        <Link to="/install">Install</Link>
+        <Link to="/help">Help</Link>
+      </nav>
+    </main>
+  )
+}
+
+function InformationPage({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <main>
+      <section className="page-card">
+        <h1>{title}</h1>
+        <p>{children}</p>
+        <Link className="button" to="/more">
+          Back to More
+        </Link>
+      </section>
+    </main>
   )
 }
 
@@ -464,12 +540,14 @@ function TripCheckMyDayRoute({ client }: { client: TripClient }) {
 
 function NotFound() {
   return (
-    <section className="page-card" aria-labelledby="not-found-heading">
-      <h1 id="not-found-heading">Page not found</h1>
-      <Link className="button" to="/stores">
-        Browse stores
-      </Link>
-    </section>
+    <main>
+      <section className="page-card" aria-labelledby="not-found-heading">
+        <h1 id="not-found-heading">Page not found</h1>
+        <Link className="button" to="/stores">
+          Browse stores
+        </Link>
+      </section>
+    </main>
   )
 }
 
@@ -543,7 +621,28 @@ export default function App({
         <Routes>
           <Route
             path="/status"
-            element={<OperationalStatusPage config={clients.operationalStatus ?? {}} />}
+            element={
+              <main>
+                <OperationalStatusPage config={clients.operationalStatus ?? {}} />
+              </main>
+            }
+          />
+          <Route path="/more" element={<MorePage />} />
+          <Route
+            path="/install"
+            element={
+              <InformationPage title="Install Antique Trail">
+                Install guidance will appear here when this device supports the approved app flow.
+              </InformationPage>
+            }
+          />
+          <Route
+            path="/help"
+            element={
+              <InformationPage title="Help">
+                Help and support contacts will appear here when operational support is configured.
+              </InformationPage>
+            }
           />
           <Route
             path="/stores"

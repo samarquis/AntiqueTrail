@@ -49,6 +49,78 @@ describe('catalog private-action integration seam', () => {
     ).toBeVisible()
   })
 
+  it('defaults to Package 1 filters and exposes a labeled filter panel contract', async () => {
+    const user = userEvent.setup()
+    render(<BrowsePage client={client()} />)
+    await screen.findByRole('heading', { name: syntheticStores[0].name })
+
+    const trigger = screen.getByRole('button', { name: /^filters$/i })
+    expect(trigger).toHaveAttribute('aria-controls', 'catalog-filter-panel')
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    await user.click(trigger)
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+
+    expect(screen.getByLabelText('Search stores')).toBeVisible()
+    expect(screen.getByLabelText('Category')).toBeVisible()
+    expect(screen.getByLabelText('Area')).toBeVisible()
+    expect(screen.queryByLabelText('Visit status')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /open now/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /apply filters/i })).toBeVisible()
+    expect(screen.getByRole('button', { name: /clear filters/i })).toBeDisabled()
+  })
+
+  it('adds later Browse filters only at their delivery stage', async () => {
+    render(<BrowsePage client={client()} filterStage="package-10a" />)
+    await screen.findByRole('heading', { name: syntheticStores[0].name })
+
+    expect(screen.getByLabelText('Visit status')).toBeVisible()
+    expect(screen.getByRole('checkbox', { name: /saved only/i })).toBeVisible()
+    expect(screen.getByLabelText('Distance from area center')).toBeVisible()
+    expect(screen.getByRole('checkbox', { name: /open now/i })).toBeVisible()
+    expect(screen.getByRole('checkbox', { name: /claimed only/i })).toBeVisible()
+  })
+
+  it("shows today's hours and a plain-language open state on each card", async () => {
+    render(<BrowsePage client={client()} />)
+    const card = await screen.findByRole('article')
+    expect(card.querySelector('.catalog-card__hours')).toHaveTextContent(
+      /closed now.*wednesday: 10:00 am–6:00 pm/i,
+    )
+    expect(card.querySelector('.catalog-card__placeholder')).toHaveTextContent(/BF.*antique mall/i)
+  })
+
+  it('renders a distinct blocked state without requesting catalog data', async () => {
+    const catalog = client()
+    render(<BrowsePage client={catalog} availability="blocked" />)
+
+    expect(await screen.findByRole('heading', { name: /browse is unavailable/i })).toBeVisible()
+    expect(screen.getByRole('link', { name: /return home/i })).toHaveAttribute('href', '/')
+    expect(catalog.list).not.toHaveBeenCalled()
+  })
+
+  it('gives loading, empty, and error results distinct recovery semantics', async () => {
+    const pending = client()
+    pending.list = vi.fn(() => new Promise<never>(() => undefined))
+    const loadingView = render(<BrowsePage client={pending} />)
+    expect(screen.getByRole('heading', { name: /finding stores/i })).toBeVisible()
+    loadingView.unmount()
+
+    const empty = client()
+    empty.list = vi.fn(async () => ({ stores: [] }))
+    const emptyView = render(<BrowsePage client={empty} />)
+    expect(await screen.findByRole('heading', { name: /trail is quiet/i })).toBeVisible()
+    emptyView.unmount()
+
+    const failed = client()
+    failed.list = vi.fn(async () => {
+      throw new Error('Directory service unavailable')
+    })
+    render(<BrowsePage client={failed} />)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(/couldn’t load.*directory service unavailable/i)
+    expect(within(alert).getByRole('button', { name: /retry/i })).toBeVisible()
+  })
+
   it('renders the same action boundary on Store Details', async () => {
     render(
       <DetailsPage

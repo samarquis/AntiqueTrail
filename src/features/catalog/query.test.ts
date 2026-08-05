@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { canonicalQueryString, formatHours, normalizeQueryParams } from './query'
+import { canonicalQueryString, formatHours, normalizeQueryParams, todayHoursSummary } from './query'
+import { syntheticStores } from './demoClient'
 
 describe('catalog query normalization', () => {
   it('keeps the first value, trims text, and removes malformed slugs', () => {
@@ -48,5 +49,26 @@ describe('hours formatter', () => {
         intervals: [{ opensAt: '09:00', closesAt: '17:30' }],
       }),
     ).toBe('9:00 AM–5:30 PM')
+  })
+
+  it('derives today hours and open state in the store time zone', () => {
+    expect(todayHoursSummary(syntheticStores[0])).toEqual({
+      dayLabel: 'Wednesday',
+      hoursLabel: '10:00 AM–6:00 PM',
+      openState: 'closed',
+      openStateLabel: 'Closed now',
+    })
+
+    expect(
+      todayHoursSummary({ ...syntheticStores[0], asOfUtc: '2026-01-01T18:00:00Z' }),
+    ).toMatchObject({ openState: 'open', openStateLabel: 'Open now' })
+  })
+
+  it('does not infer an open state from missing current-day hours', () => {
+    expect(todayHoursSummary({ ...syntheticStores[0], hours: [] })).toMatchObject({
+      hoursLabel: 'Hours unavailable',
+      openState: 'unavailable',
+      openStateLabel: 'Open state unavailable',
+    })
   })
 })

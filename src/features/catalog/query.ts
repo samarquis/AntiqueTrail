@@ -1,4 +1,4 @@
-import type { CatalogFilters, CatalogHoursDay, CatalogStore } from './types'
+import type { CatalogFilters, CatalogHoursDay, CatalogHoursStatus, CatalogStore } from './types'
 
 const MAX_QUERY_LENGTH = 100
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -86,4 +86,84 @@ export function freshnessLabel(store: CatalogStore): string {
     return `Verified ${store.freshness.daysOld} days ago`
   }
   return 'Freshness unavailable'
+}
+
+export interface TodayHoursSummary {
+  dayLabel: string
+  hoursLabel: string
+  openState: CatalogHoursStatus
+  openStateLabel: string
+}
+
+/**
+ * Formats the card's current-day hours from the catalog's own reference time.
+ * Production responses provide `asOfUtc`; using it avoids making stale cached
+ * records look current merely because the shopper's clock moved forward.
+ */
+export function todayHoursSummary(store: CatalogStore, now = new Date()): TodayHoursSummary {
+  const reference = store.asOfUtc ? new Date(store.asOfUtc) : now
+  const safeReference = Number.isNaN(reference.getTime()) ? now : reference
+  const zoned = zonedDateParts(safeReference, store.timeZone)
+  const weekday = zoned.weekday
+  const today = store.hours.find((day) => day.weekday === weekday)
+  const dayLabel = today?.label || displayDayLabel(weekday)
+
+  if (!today || today.status === 'unavailable' || !today.intervals.length) {
+    return {
+      dayLabel,
+      hoursLabel: 'Hours unavailable',
+      openState: 'unavailable',
+      openStateLabel: 'Open state unavailable',
+    }
+  }
+  if (today.status === 'closed') {
+    return { dayLabel, hoursLabel: 'Closed', openState: 'closed', openStateLabel: 'Closed today' }
+  }
+
+  const minuteOfDay = zoned.hour * 60 + zoned.minute
+  const isOpen = today.intervals.some(({ opensAt, closesAt }) => {
+    const opens = minutesFromTime(opensAt)
+    const closes = minutesFromTime(closesAt)
+    return opens != null && closes != null && minuteOfDay >= opens && minuteOfDay < closes
+  })
+  return {
+    dayLabel,
+    hoursLabel: formatHours(today),
+    openState: isOpen ? 'open' : 'closed',
+    openStateLabel: isOpen ? 'Open now' : 'Closed now',
+  }
+}
+
+function minutesFromTime(value: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})/.exec(value)
+  if (!match) return null
+  const hour = Number(match[1])
+  const minute = Number(match[2])
+  if (hour > 23 || minute > 59) return null
+  return hour * 60 + minute
+}
+
+function zonedDateParts(date: Date, timeZone?: string | null) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timeZone || 'UTC',
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date)
+    const weekdayName = parts.find((part) => part.type === 'weekday')?.value
+    const weekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(weekdayName ?? '') + 1
+    return {
+      weekday: weekday || ((date.getUTCDay() + 6) % 7) + 1,
+      hour: Number(parts.find((part) => part.type === 'hour')?.value ?? date.getUTCHours()),
+      minute: Number(parts.find((part) => part.type === 'minute')?.value ?? date.getUTCMinutes()),
+    }
+  } catch {
+    return {
+      weekday: ((date.getUTCDay() + 6) % 7) + 1,
+      hour: date.getUTCHours(),
+      minute: date.getUTCMinutes(),
+    }
+  }
 }

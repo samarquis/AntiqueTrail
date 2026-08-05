@@ -45,6 +45,9 @@ export interface CatalogFilters {
   state?: string
 }
 
+/** Controls which progressively delivered Browse filters are visible. */
+export type CatalogBrowseStage = 'package-1' | 'package-3' | 'package-5b' | 'package-10a'
+
 export interface CatalogListResult {
   stores: CatalogStore[]
   asOfUtc?: string | null
