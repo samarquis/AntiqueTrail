@@ -182,6 +182,20 @@ describe('configured Trip grant composition', () => {
     expect(harness.supabase.rpc).toHaveBeenCalledWith('request_account_export', undefined)
   })
 
+  it('keeps Browse map composition blocked until explicit attributed configuration exists', async () => {
+    const blocked = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    expect(blocked!.clients.map).toMatchObject({ capability: 'blocked' })
+
+    vi.stubEnv('VITE_BROWSE_MAP_ENABLED', 'true')
+    vi.stubEnv('VITE_BROWSE_MAP_ATTRIBUTION', 'Map data © approved provider v1')
+    const enabled = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    expect(enabled!.clients.map).toMatchObject({
+      capability: 'available',
+      attribution: 'Map data © approved provider v1',
+    })
+    expect(enabled!.clients.map!.render).toEqual(expect.any(Function))
+  })
+
   it('routes password recovery through the fail-closed Edge boundary', async () => {
     const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
     const authProvider = composition?.runtime.authProvider

@@ -118,3 +118,38 @@ h1 {
   font-size: 0.85rem;
   text-align: center;
 }
+.accessible-map {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.accessible-map__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.accessible-map__plot {
+  position: relative;
+  min-height: 20rem;
+  overflow: hidden;
+  border: 1px solid var(--border, #70685f);
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(45deg, rgb(255 255 255 / 30%) 25%, transparent 25%) 0 0 / 2rem 2rem,
+    var(--surface, #f3efe6);
+}
+
+.accessible-map__marker {
+  position: absolute;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  translate: -50% -50%;
+  border-radius: 999px;
+}
+
+.accessible-map__marker[aria-pressed='true'] {
+  outline: 0.25rem solid currentColor;
+  outline-offset: 0.15rem;
+}

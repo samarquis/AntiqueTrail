@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { InMemoryAuthStore, type AuthSession } from '../features/auth'
 import type { TripOfflineRuntime } from '../features/trips'
 import type { PartnerAdminClient } from '../features/partners'
+import { createAccessibleCatalogMapAdapter, demoCatalogClient } from '../features/catalog'
 import App from './App'
 
 describe('app shell', () => {
@@ -30,6 +31,28 @@ describe('app shell', () => {
     )
     expect(screen.getAllByRole('link', { name: /sign in for private memory/i })).not.toHaveLength(0)
     expect(screen.getAllByRole('link', { name: /suggest a correction/i })).not.toHaveLength(0)
+  })
+
+  it('composes an injected accessible map without replacing the browse list', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/stores']}>
+        <App
+          clients={{
+            catalog: demoCatalogClient,
+            map: createAccessibleCatalogMapAdapter({
+              capability: 'available',
+              attribution: 'Approved synthetic map',
+              bounds: { north: 39.2, south: 38.9, east: -95.5, west: -95.9 },
+            }),
+          }}
+        />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: /blue finch curios/i })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: /show map/i }))
+    expect(await screen.findAllByRole('region', { name: /store map/i })).toHaveLength(2)
+    expect(screen.getByRole('heading', { name: /blue finch curios/i })).toBeVisible()
   })
 
   it('fails the unavailable admin boundary closed without a role bypass', async () => {

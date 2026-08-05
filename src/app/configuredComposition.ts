@@ -1,5 +1,6 @@
 import { createClient, type Session } from '@supabase/supabase-js'
 import type { AppClients, AppRuntime } from './App'
+import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createShopperClient } from '../features/shopper'
 import { createCandidateProductionClient } from '../features/candidates'
 import {
@@ -405,6 +406,12 @@ export async function configuredComposition(
       shopper,
       trips,
       tripOfflineGrants: source,
+      map: createAccessibleCatalogMapAdapter({
+        capability: import.meta.env.VITE_BROWSE_MAP_ENABLED === 'true' ? 'available' : 'blocked',
+        attribution: import.meta.env.VITE_BROWSE_MAP_ATTRIBUTION ?? '',
+        bounds: { north: 39.25, south: 38.85, east: -95.4, west: -96 },
+        zoom: 11,
+      }),
     },
     runtime: {
       authProvider: createAuthProvider(supabase),

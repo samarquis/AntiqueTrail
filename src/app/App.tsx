@@ -6,6 +6,7 @@ import {
   configuredCatalogClient,
   demoCatalogClient,
   type CatalogClient,
+  type CatalogMapAdapter,
 } from '../features/catalog'
 import {
   AuthProvider,
@@ -157,15 +158,18 @@ function useCatalogClient(override?: CatalogClient) {
 function StoreBrowser({
   shopperClient,
   catalog,
+  map,
 }: {
   shopperClient: ShopperPrivateClient
   catalog?: CatalogClient
+  map?: CatalogMapAdapter
 }) {
   const location = useLocation()
   const client = useCatalogClient(catalog)
   return (
     <CatalogBrowserPage
       client={client}
+      map={map}
       initialSearch={location.search}
       renderPrivateActions={(store) => (
         <CatalogPrivateActions storeId={store.id} slug={store.slug} client={shopperClient} />
@@ -427,6 +431,7 @@ function NotFound() {
 
 export interface AppClients {
   catalog?: CatalogClient
+  map?: CatalogMapAdapter
   candidate?: CandidateClient
   shopper?: ShopperPrivateClient
   trips?: TripClient
@@ -485,7 +490,13 @@ export default function App({
         <Routes>
           <Route
             path="/stores"
-            element={<StoreBrowser shopperClient={shopperClient} catalog={clients.catalog} />}
+            element={
+              <StoreBrowser
+                shopperClient={shopperClient}
+                catalog={clients.catalog}
+                map={clients.map}
+              />
+            }
           />
           <Route
             path="/stores/:slug"

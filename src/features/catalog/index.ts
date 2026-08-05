@@ -1,4 +1,5 @@
 export * from './types'
+export * from './accessibleMap'
 export * from './query'
 export * from './catalogApi'
 export * from './demoClient'
