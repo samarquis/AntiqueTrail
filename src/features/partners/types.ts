@@ -12,6 +12,15 @@ export interface PartnerInvitation {
   state: InvitationState
   expiresAt?: string
   maskedRecipient?: string
+  resumeHandle?: string
+  consentReceiptId?: string
+}
+
+export interface PartnerConsentStatus {
+  requiredVersion: string
+  acceptedVersion?: string
+  reconsentRequired: boolean
+  materialTerms: string[]
 }
 
 export interface PartnerDraft {
@@ -42,6 +51,8 @@ export interface PartnerStatus {
   pendingIdentity: PendingIdentityState
   onboarding: OnboardingState
   storeScope?: string
+  consentReceiptId?: string
+  consentPolicyVersion?: string
 }
 
 export type PartnerClaimState =
@@ -84,11 +95,19 @@ export interface PartnerClaimStatus {
 
 export interface PartnerClient {
   exchangeInvitation(token: string): Promise<PartnerInvitation>
+  resumeInvitation(resumeHandle: string): Promise<PartnerInvitation>
   acceptConsent(input: {
-    token: string
+    resumeHandle: string
+    idempotencyKey: string
     identity: PartnerTypedIdentity
     acknowledgements: PartnerConsentAcknowledgements
   }): Promise<PartnerStatus>
+  getConsentStatus(): Promise<PartnerConsentStatus>
+  acceptMaterialTerms(input: {
+    policyVersion: string
+    acknowledgements: { reviewed: boolean; voluntary: boolean }
+    idempotencyKey: string
+  }): Promise<PartnerConsentStatus>
   bindIdentity(): Promise<PartnerStatus>
   getStatus(): Promise<PartnerStatus>
   saveDraft(draft: PartnerDraft): Promise<PartnerStatus>

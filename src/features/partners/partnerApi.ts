@@ -1,9 +1,18 @@
 import { GENERIC_PARTNER_ERROR } from './partnerClient'
-import type { PartnerClaimStatus, PartnerClient, PartnerInvitation, PartnerStatus } from './types'
+import type {
+  PartnerClaimStatus,
+  PartnerClient,
+  PartnerConsentStatus,
+  PartnerInvitation,
+  PartnerStatus,
+} from './types'
 
 type PartnerOperation =
   | 'exchange_invitation'
+  | 'resume_invitation'
   | 'accept_consent'
+  | 'get_consent_status'
+  | 'accept_material_terms'
   | 'bind_identity'
   | 'get_status'
   | 'save_draft'
@@ -44,7 +53,12 @@ export function createPartnerClient(transport: PartnerApiTransport): PartnerClie
 
   return {
     exchangeInvitation: (token) => post<PartnerInvitation>('exchange_invitation', { token }),
+    resumeInvitation: (resumeHandle) =>
+      post<PartnerInvitation>('resume_invitation', { resumeHandle }),
     acceptConsent: (input) => post<PartnerStatus>('accept_consent', { ...input }),
+    getConsentStatus: () => post<PartnerConsentStatus>('get_consent_status', {}),
+    acceptMaterialTerms: (input) =>
+      post<PartnerConsentStatus>('accept_material_terms', { ...input }),
     bindIdentity: () => post<PartnerStatus>('bind_identity', {}),
     getStatus: () => post<PartnerStatus>('get_status', {}),
     saveDraft: (draft) => post<PartnerStatus>('save_draft', { draft }),

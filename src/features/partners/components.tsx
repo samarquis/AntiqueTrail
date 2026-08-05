@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom'
 import {
   EMAIL_GATE_MESSAGE,
   GENERIC_PARTNER_ERROR,
+  clearPartnerResume,
+  loadPartnerResume,
   normalizePartnerEmail,
   readInvitationToken,
+  savePartnerResume,
   scrubInvitationUrl,
   unavailablePartnerClient,
 } from './partnerClient'
@@ -14,6 +17,7 @@ import type {
   PartnerClaimSignalInput,
   PartnerClaimStatus,
   PartnerConsentAcknowledgements,
+  PartnerConsentStatus,
   PartnerDraft,
   PartnerStatus,
   PartnerTypedIdentity,
@@ -44,7 +48,10 @@ function GenericPartnerError() {
 }
 
 export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?: PartnerClient }) {
-  const [token, setToken] = useState<string | null>(null)
+  const [resume, setResume] = useState<{
+    resumeHandle: string
+    consentAttemptId: string
+  } | null>(null)
   const [invitation, setInvitation] = useState<{ state: string } | null>(null)
   const [identity, setIdentity] = useState<PartnerTypedIdentity>({
     name: '',
@@ -64,18 +71,30 @@ export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?
   useEffect(() => {
     const parsed = typeof window === 'undefined' ? null : readInvitationToken(window.location.hash)
     if (typeof window !== 'undefined') scrubInvitationUrl(window.history)
-    setToken(parsed)
-    if (parsed)
-      client
-        .exchangeInvitation(parsed)
-        .then(setInvitation)
-        .catch(() => setError(true))
-    else setError(true)
+    const saved = typeof window === 'undefined' ? null : loadPartnerResume(window.sessionStorage)
+    const request = parsed
+      ? client.exchangeInvitation(parsed).then((result) => {
+          if (!result.resumeHandle) throw new Error(GENERIC_PARTNER_ERROR)
+          const next = {
+            resumeHandle: result.resumeHandle,
+            consentAttemptId: `partner-consent-${crypto.randomUUID()}`,
+          }
+          savePartnerResume(window.sessionStorage, next)
+          setResume(next)
+          return result
+        })
+      : saved
+        ? client.resumeInvitation(saved.resumeHandle).then((result) => {
+            setResume(saved)
+            return result
+          })
+        : Promise.reject(new Error(GENERIC_PARTNER_ERROR))
+    request.then(setInvitation).catch(() => setError(true))
   }, [client])
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (
-      !token ||
+      !resume ||
       Object.values(acknowledgements).some((value) => !value) ||
       !identity.name.trim() ||
       !identity.title.trim() ||
@@ -87,7 +106,8 @@ export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?
     setError(false)
     try {
       await client.acceptConsent({
-        token,
+        resumeHandle: resume.resumeHandle,
+        idempotencyKey: resume.consentAttemptId,
         identity: {
           ...identity,
           name: identity.name.trim(),
@@ -97,6 +117,7 @@ export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?
         },
         acknowledgements,
       })
+      clearPartnerResume(window.sessionStorage)
     } catch {
       setError(true)
     } finally {
@@ -412,16 +433,108 @@ export function PartnerStatusPage({
   )
 }
 
-export function PartnerActivatePage() {
+function MaterialTermsGate({
+  client,
+  status,
+  onAccepted,
+  children,
+}: {
+  client: PartnerClient
+  status: PartnerConsentStatus
+  onAccepted: (status: PartnerConsentStatus) => void
+  children: ReactNode
+}) {
+  const [reviewed, setReviewed] = useState(false)
+  const [voluntary, setVoluntary] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState(false)
+  const [idempotencyKey] = useState(() => `partner-reconsent-${crypto.randomUUID()}`)
+  if (!status.reconsentRequired) return <>{children}</>
+  async function accept() {
+    if (!reviewed || !voluntary) return
+    setPending(true)
+    setError(false)
+    try {
+      onAccepted(
+        await client.acceptMaterialTerms({
+          policyVersion: status.requiredVersion,
+          acknowledgements: { reviewed, voluntary },
+          idempotencyKey,
+        }),
+      )
+    } catch {
+      setError(true)
+    } finally {
+      setPending(false)
+    }
+  }
+  return (
+    <section aria-labelledby="material-terms-heading">
+      <h2 id="material-terms-heading">Material terms changed</h2>
+      <p>Review and accept version {status.requiredVersion} before continuing.</p>
+      <ul>
+        {status.materialTerms.map((term) => (
+          <li key={term}>{term}</li>
+        ))}
+      </ul>
+      <label>
+        <input
+          type="checkbox"
+          checked={reviewed}
+          onChange={(event) => setReviewed(event.target.checked)}
+        />{' '}
+        I have read the updated material terms.
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          checked={voluntary}
+          onChange={(event) => setVoluntary(event.target.checked)}
+        />{' '}
+        I choose to continue voluntarily.
+      </label>
+      {error && <GenericPartnerError />}
+      <button
+        type="button"
+        disabled={pending || !reviewed || !voluntary}
+        onClick={() => void accept()}
+      >
+        {pending ? 'Saving…' : 'Accept updated terms'}
+      </button>
+    </section>
+  )
+}
+
+export function PartnerActivatePage({
+  client = unavailablePartnerClient,
+}: {
+  client?: PartnerClient
+}) {
+  const [consent, setConsent] = useState<PartnerConsentStatus | null>(null)
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    client
+      .getConsentStatus()
+      .then(setConsent)
+      .catch(() => setError(true))
+  }, [client])
   return (
     <PartnerCard
       title="Activation unavailable"
       description="Activation requires a verified email, MFA, and an exact approved store grant. No grant is available in this stage."
     >
-      <p role="status">Store access is not enabled.</p>
-      <Link className="button" to="/stores">
-        Back to store list
-      </Link>
+      {error ? (
+        <GenericPartnerError />
+      ) : !consent ? (
+        <p role="status">Checking consent…</p>
+      ) : (
+        <MaterialTermsGate client={client} status={consent} onAccepted={setConsent}>
+          <p role="status">Material terms are current. Store access is not enabled.</p>
+          <Link className="button" to="/stores">
+            Back to store list
+          </Link>
+        </MaterialTermsGate>
+      )}
     </PartnerCard>
   )
 }
@@ -443,6 +556,7 @@ export function PartnerClaimPage({
   const [evidenceReference, setEvidenceReference] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(false)
+  const [consent, setConsent] = useState<PartnerConsentStatus | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -455,6 +569,13 @@ export function PartnerClaimPage({
     return () => {
       cancelled = true
     }
+  }, [client])
+
+  useEffect(() => {
+    client
+      .getConsentStatus()
+      .then(setConsent)
+      .catch(() => setError(true))
   }, [client])
 
   async function submit(event: FormEvent) {
@@ -542,77 +663,91 @@ export function PartnerClaimPage({
             <p>Authority recheck due {new Date(status.recheckDueAt).toLocaleDateString()}.</p>
           )}
           {!['approved', 'rejected', 'withdrawn', 'revoked'].includes(status.state) && (
-            <button type="button" onClick={() => void requestRecheck()} disabled={pending}>
-              Request authority recheck
-            </button>
-          )}
-          {!['approved', 'rejected', 'withdrawn', 'revoked'].includes(status.state) && (
             <button type="button" onClick={() => void withdrawClaim()} disabled={pending}>
               Withdraw claim
             </button>
           )}
-          {status.state !== 'conflict' &&
-            !['approved', 'rejected', 'withdrawn', 'revoked'].includes(status.state) && (
-              <form onSubmit={submitSignal}>
-                <label htmlFor="claim-signal-channel">Authority signal channel</label>
-                <select
-                  id="claim-signal-channel"
-                  value={signalChannel}
-                  onChange={(event) =>
-                    setSignalChannel(event.target.value as PartnerClaimSignalInput['channelClass'])
-                  }
-                >
-                  <option value="published_business_contact">Published business contact</option>
-                  <option value="callback">Callback</option>
-                  <option value="mailed_code">Mailed code</option>
-                  <option value="filing_lookup">Filing lookup</option>
-                  <option value="in_person">In person</option>
-                </select>
-                <label htmlFor="claim-evidence-reference">Evidence reference</label>
-                <input
-                  id="claim-evidence-reference"
-                  maxLength={240}
-                  value={evidenceReference}
-                  onChange={(event) => setEvidenceReference(event.target.value)}
-                  required
-                />
-                <p>Only a minimized reference is sent; evidence content is not displayed here.</p>
-                <button type="submit" disabled={pending}>
-                  Submit authority signal
-                </button>
-              </form>
-            )}
         </>
       )}
-      <form onSubmit={submit}>
-        <label htmlFor="claim-store-reference">Store reference</label>
-        <input
-          id="claim-store-reference"
-          maxLength={160}
-          value={draft.storeReference}
-          onChange={(event) => setDraft({ ...draft, storeReference: event.target.value })}
-          required
-        />
-        <label htmlFor="claim-relationship">Relationship to the store</label>
-        <input
-          id="claim-relationship"
-          maxLength={120}
-          value={draft.relationship}
-          onChange={(event) => setDraft({ ...draft, relationship: event.target.value })}
-          required
-        />
-        <label htmlFor="claim-authority">Authority statement</label>
-        <textarea
-          id="claim-authority"
-          maxLength={1000}
-          value={draft.authorityStatement}
-          onChange={(event) => setDraft({ ...draft, authorityStatement: event.target.value })}
-          required
-        />
-        <button className="button" type="submit" disabled={pending}>
-          {pending ? 'Submitting…' : 'Submit claim'}
-        </button>
-      </form>
+      {!consent ? (
+        <p role="status">Checking material terms…</p>
+      ) : (
+        <MaterialTermsGate client={client} status={consent} onAccepted={setConsent}>
+          {status && (
+            <>
+              {!['approved', 'rejected', 'withdrawn', 'revoked'].includes(status.state) && (
+                <button type="button" onClick={() => void requestRecheck()} disabled={pending}>
+                  Request authority recheck
+                </button>
+              )}
+              {status.state !== 'conflict' &&
+                !['approved', 'rejected', 'withdrawn', 'revoked'].includes(status.state) && (
+                  <form onSubmit={submitSignal}>
+                    <label htmlFor="claim-signal-channel">Authority signal channel</label>
+                    <select
+                      id="claim-signal-channel"
+                      value={signalChannel}
+                      onChange={(event) =>
+                        setSignalChannel(
+                          event.target.value as PartnerClaimSignalInput['channelClass'],
+                        )
+                      }
+                    >
+                      <option value="published_business_contact">Published business contact</option>
+                      <option value="callback">Callback</option>
+                      <option value="mailed_code">Mailed code</option>
+                      <option value="filing_lookup">Filing lookup</option>
+                      <option value="in_person">In person</option>
+                    </select>
+                    <label htmlFor="claim-evidence-reference">Evidence reference</label>
+                    <input
+                      id="claim-evidence-reference"
+                      maxLength={240}
+                      value={evidenceReference}
+                      onChange={(event) => setEvidenceReference(event.target.value)}
+                      required
+                    />
+                    <p>
+                      Only a minimized reference is sent; evidence content is not displayed here.
+                    </p>
+                    <button type="submit" disabled={pending}>
+                      Submit authority signal
+                    </button>
+                  </form>
+                )}
+            </>
+          )}
+          <form onSubmit={submit}>
+            <label htmlFor="claim-store-reference">Store reference</label>
+            <input
+              id="claim-store-reference"
+              maxLength={160}
+              value={draft.storeReference}
+              onChange={(event) => setDraft({ ...draft, storeReference: event.target.value })}
+              required
+            />
+            <label htmlFor="claim-relationship">Relationship to the store</label>
+            <input
+              id="claim-relationship"
+              maxLength={120}
+              value={draft.relationship}
+              onChange={(event) => setDraft({ ...draft, relationship: event.target.value })}
+              required
+            />
+            <label htmlFor="claim-authority">Authority statement</label>
+            <textarea
+              id="claim-authority"
+              maxLength={1000}
+              value={draft.authorityStatement}
+              onChange={(event) => setDraft({ ...draft, authorityStatement: event.target.value })}
+              required
+            />
+            <button className="button" type="submit" disabled={pending}>
+              {pending ? 'Submitting…' : 'Submit claim'}
+            </button>
+          </form>
+        </MaterialTermsGate>
+      )}
     </PartnerCard>
   )
 }

@@ -34,6 +34,7 @@ Deno.serve(async (request) => {
       !body.operation ||
       ![
         'exchange_invitation',
+        'resume_invitation',
         'accept_consent',
         'bind_identity',
         'submit_authority_signal',

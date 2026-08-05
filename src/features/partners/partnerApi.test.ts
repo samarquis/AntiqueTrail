@@ -12,6 +12,35 @@ describe('partner API boundary', () => {
     expect(post).toHaveBeenCalledWith('exchange_invitation', { token: 'opaque-secret' })
   })
 
+  it('uses a resume handle and stable idempotency key without replaying the invitation token', async () => {
+    const post = vi.fn(async () => ({ state: 'active' }))
+    const client = createPartnerClient({ post })
+    await client.resumeInvitation('resume-handle-123456789')
+    await client.acceptConsent({
+      resumeHandle: 'resume-handle-123456789',
+      idempotencyKey: 'partner-consent-attempt-1',
+      identity: { name: 'Sam', title: 'Owner', store: 'Oak', email: 'owner@example.com' },
+      acknowledgements: {
+        authority: true,
+        voluntary: true,
+        permittedData: true,
+        noPayment: true,
+        withdrawal: true,
+      },
+    })
+    expect(post.mock.calls).toEqual([
+      ['resume_invitation', { resumeHandle: 'resume-handle-123456789' }],
+      [
+        'accept_consent',
+        expect.objectContaining({
+          resumeHandle: 'resume-handle-123456789',
+          idempotencyKey: 'partner-consent-attempt-1',
+        }),
+      ],
+    ])
+    expect(post.mock.calls.flat()).not.toContain('opaque-secret')
+  })
+
   it('uses implicit actor operations and never accepts a user id from callers', async () => {
     const post = vi.fn(async () => ({
       invitation: 'consumed',

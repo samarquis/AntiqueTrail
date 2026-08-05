@@ -40,6 +40,33 @@ describe('partner production transport', () => {
     expect(edge).not.toHaveBeenCalled()
   })
 
+  it('routes material reconsent only to its bounded authenticated command', async () => {
+    const calls: unknown[][] = []
+    const rpc = async <T>(...args: unknown[]): Promise<T> => {
+      calls.push(args)
+      return { reconsentRequired: false } as T
+    }
+    const transport = createPartnerProductionTransport({
+      rpc,
+      edge: vi.fn(),
+      emailProviderEnabled: false,
+      mediaProviderEnabled: false,
+      syntheticEnabled: true,
+    })
+    await transport.post('accept_material_terms', {
+      policyVersion: 'synthetic-v3',
+      acknowledgements: { reviewed: true, voluntary: true },
+      idempotencyKey: 'partner-reconsent-attempt-1',
+    })
+    expect(calls[0]).toEqual([
+      'partner_consent_command',
+      {
+        p_operation: 'accept_material_terms',
+        p_payload: expect.objectContaining({ policyVersion: 'synthetic-v3' }),
+      },
+    ])
+  })
+
   it('allows only the explicit Synthetic provider path without E-01', async () => {
     const calls: unknown[][] = []
     const transport = createPartnerProductionTransport({

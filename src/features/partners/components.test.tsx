@@ -6,20 +6,42 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   PartnerClaimPage,
   PartnerDraftPage,
+  PartnerActivatePage,
   PartnerJoinPage,
   PartnerStatusPage,
   PartnerVerifyPage,
 } from './components'
-import { EMAIL_GATE_MESSAGE, readInvitationToken, scrubInvitationUrl } from './partnerClient'
+import {
+  EMAIL_GATE_MESSAGE,
+  loadPartnerResume,
+  readInvitationToken,
+  scrubInvitationUrl,
+} from './partnerClient'
 import type { PartnerClient } from './types'
 
 function client(overrides: Partial<PartnerClient> = {}): PartnerClient {
   return {
-    exchangeInvitation: vi.fn(async () => ({ state: 'active' as const })),
+    exchangeInvitation: vi.fn(async () => ({
+      state: 'active' as const,
+      resumeHandle: 'resume-handle-123456789',
+    })),
+    resumeInvitation: vi.fn(async () => ({ state: 'active' as const })),
     acceptConsent: vi.fn(async () => ({
       invitation: 'registration_pending' as const,
       pendingIdentity: 'provisional' as const,
       onboarding: 'draft' as const,
+    })),
+    getConsentStatus: vi.fn(async () => ({
+      requiredVersion: 'synthetic-v3',
+      acceptedVersion: 'synthetic-v3',
+      reconsentRequired: false,
+      materialTerms: [],
+    })),
+    acceptMaterialTerms: vi.fn(async () => ({
+      requiredVersion: 'synthetic-v3',
+      acceptedVersion: 'synthetic-v3',
+      reconsentRequired: false,
+      materialTerms: [],
     })),
     bindIdentity: vi.fn(async () => {
       throw new Error(EMAIL_GATE_MESSAGE)
@@ -69,7 +91,10 @@ function renderPage(page: ReactNode) {
 }
 
 describe('partner onboarding boundary', () => {
-  afterEach(() => cleanup())
+  afterEach(() => {
+    cleanup()
+    window.sessionStorage.clear()
+  })
   it('accepts only bounded opaque invitation fragments and scrubs the URL', () => {
     expect(readInvitationToken('#token=short')).toBeNull()
     expect(readInvitationToken('#token=opaque-123456789')).toBe('opaque-123456789')
@@ -79,12 +104,33 @@ describe('partner onboarding boundary', () => {
   })
   it('does not render or retain the invitation token after join exchange', async () => {
     window.history.replaceState({}, '', '/partner/join#token=opaque-123456789')
-    const exchangeInvitation = vi.fn(async () => ({ state: 'active' as const }))
+    const exchangeInvitation = vi.fn(async () => ({
+      state: 'active' as const,
+      resumeHandle: 'resume-handle-123456789',
+    }))
     renderPage(<PartnerJoinPage client={client({ exchangeInvitation })} />)
     expect(await screen.findByRole('heading', { name: /review invitation/i })).toBeInTheDocument()
     expect(exchangeInvitation).toHaveBeenCalledWith('opaque-123456789')
     expect(window.location.hash).toBe('')
     expect(screen.queryByText('opaque-123456789')).not.toBeInTheDocument()
+    expect(loadPartnerResume(window.sessionStorage)).toMatchObject({
+      resumeHandle: 'resume-handle-123456789',
+    })
+    expect(JSON.stringify(window.sessionStorage)).not.toContain('opaque-123456789')
+  })
+  it('resumes safely after refresh with only the server-issued handle', async () => {
+    window.sessionStorage.setItem(
+      'antique-trail.partner-resume',
+      JSON.stringify({
+        resumeHandle: 'resume-handle-123456789',
+        consentAttemptId: 'attempt-123456789',
+      }),
+    )
+    window.history.replaceState({}, '', '/partner/join')
+    const resumeInvitation = vi.fn(async () => ({ state: 'active' as const }))
+    renderPage(<PartnerJoinPage client={client({ resumeInvitation })} />)
+    expect(await screen.findByLabelText(/your name/i)).toBeInTheDocument()
+    expect(resumeInvitation).toHaveBeenCalledWith('resume-handle-123456789')
   })
   it('requires typed identity and each separate consent acknowledgement', async () => {
     const user = userEvent.setup()
@@ -111,6 +157,8 @@ describe('partner onboarding boundary', () => {
     await user.click(screen.getByRole('button', { name: /continue/i }))
     expect(acceptConsent).toHaveBeenCalledWith(
       expect.objectContaining({
+        resumeHandle: 'resume-handle-123456789',
+        idempotencyKey: expect.stringMatching(/^partner-consent-/),
         identity: expect.objectContaining({ email: 'owner@example.com' }),
         acknowledgements: {
           authority: true,
@@ -121,6 +169,49 @@ describe('partner onboarding boundary', () => {
         },
       }),
     )
+  })
+
+  it('requires material-term reconsent before claim or activation actions', async () => {
+    const user = userEvent.setup()
+    const required = {
+      requiredVersion: 'synthetic-v3',
+      acceptedVersion: 'synthetic-v2',
+      reconsentRequired: true,
+      materialTerms: ['Store data permitted for the pilot', 'Participation remains voluntary'],
+    }
+    const accepted = { ...required, acceptedVersion: 'synthetic-v3', reconsentRequired: false }
+    const acceptMaterialTerms = vi.fn(async () => accepted)
+    const getConsentStatus = vi
+      .fn<PartnerClient['getConsentStatus']>()
+      .mockResolvedValueOnce(required)
+      .mockResolvedValue(accepted)
+    const consentClient = client({
+      getConsentStatus,
+      acceptMaterialTerms,
+      getClaimStatus: vi.fn(async () => ({
+        claimId: 'claim-1',
+        state: 'verification_pending' as const,
+      })),
+    })
+    renderPage(<PartnerClaimPage client={consentClient} />)
+    expect(
+      await screen.findByRole('heading', { name: /material terms changed/i }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^submit claim$/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /withdraw claim/i })).toBeInTheDocument()
+    for (const label of [/read the updated material terms/i, /continue voluntarily/i])
+      await user.click(screen.getByLabelText(label))
+    await user.click(screen.getByRole('button', { name: /accept updated terms/i }))
+    expect(acceptMaterialTerms).toHaveBeenCalledWith({
+      policyVersion: 'synthetic-v3',
+      acknowledgements: { reviewed: true, voluntary: true },
+      idempotencyKey: expect.stringMatching(/^partner-reconsent-/),
+    })
+    expect(await screen.findByRole('button', { name: /^submit claim$/i })).toBeInTheDocument()
+
+    cleanup()
+    renderPage(<PartnerActivatePage client={consentClient} />)
+    expect(await screen.findByText(/material terms are current/i)).toBeInTheDocument()
   })
   it('keeps E-01 provider work clearly gated', async () => {
     const user = userEvent.setup()
@@ -150,7 +241,7 @@ describe('partner onboarding boundary', () => {
     }))
     renderPage(<PartnerClaimPage client={client({ submitClaim })} />)
 
-    await user.type(screen.getByLabelText(/store reference/i), ' synthetic-store-1 ')
+    await user.type(await screen.findByLabelText(/store reference/i), ' synthetic-store-1 ')
     await user.type(screen.getByLabelText(/relationship to the store/i), ' Owner ')
     await user.type(
       screen.getByLabelText(/authority statement/i),
@@ -179,7 +270,7 @@ describe('partner onboarding boundary', () => {
     }))
     renderPage(<PartnerClaimPage client={client({ getClaimStatus, submitAuthoritySignal })} />)
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/verification_pending/i)
+    expect(await screen.findByText(/claim status: verification_pending/i)).toBeInTheDocument()
     expect(screen.queryByText(/authority signals verified/i)).not.toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText(/authority signal channel/i), 'callback')
     await user.type(screen.getByLabelText(/evidence reference/i), 'case-ref-17')

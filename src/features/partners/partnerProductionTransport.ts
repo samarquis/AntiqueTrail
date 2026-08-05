@@ -10,8 +10,11 @@ const SAFE_RPC_OPERATIONS = new Set([
   'withdraw_claim',
 ])
 
+const CONSENT_OPERATIONS = new Set(['get_consent_status', 'accept_material_terms'])
+
 const EMAIL_PROVIDER_OPERATIONS = new Set([
   'exchange_invitation',
+  'resume_invitation',
   'accept_consent',
   'bind_identity',
   'submit_authority_signal',
@@ -27,6 +30,12 @@ export function createPartnerProductionTransport(input: {
 }): PartnerApiTransport {
   return {
     async post(operation, payload) {
+      if (CONSENT_OPERATIONS.has(operation)) {
+        return input.rpc('partner_consent_command', {
+          p_operation: operation,
+          p_payload: payload,
+        })
+      }
       if (SAFE_RPC_OPERATIONS.has(operation)) {
         return input.rpc('partner_safe_command', { p_operation: operation, p_payload: payload })
       }

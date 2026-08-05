@@ -16,6 +16,15 @@ export const unavailablePartnerClient: PartnerClient = {
   async acceptConsent() {
     throw new Error(GENERIC_PARTNER_ERROR)
   },
+  async resumeInvitation() {
+    throw new Error(GENERIC_PARTNER_ERROR)
+  },
+  async getConsentStatus() {
+    throw new Error(GENERIC_PARTNER_ERROR)
+  },
+  async acceptMaterialTerms() {
+    throw new Error(GENERIC_PARTNER_ERROR)
+  },
   async bindIdentity() {
     throw new Error(EMAIL_GATE_MESSAGE)
   },
@@ -61,4 +70,42 @@ export function scrubInvitationUrl(
   kind = '/partner/join',
 ): void {
   history.replaceState({}, '', kind)
+}
+
+export interface PartnerResumeState {
+  resumeHandle: string
+  consentAttemptId: string
+}
+
+const PARTNER_RESUME_KEY = 'antique-trail.partner-resume'
+
+export function loadPartnerResume(storage: Pick<Storage, 'getItem'>): PartnerResumeState | null {
+  try {
+    const parsed = JSON.parse(storage.getItem(PARTNER_RESUME_KEY) ?? 'null') as unknown
+    if (!parsed || typeof parsed !== 'object') return null
+    const value = parsed as Record<string, unknown>
+    if (
+      typeof value.resumeHandle !== 'string' ||
+      value.resumeHandle.length < 16 ||
+      value.resumeHandle.length > 2048 ||
+      typeof value.consentAttemptId !== 'string' ||
+      value.consentAttemptId.length < 16 ||
+      value.consentAttemptId.length > 128
+    )
+      return null
+    return { resumeHandle: value.resumeHandle, consentAttemptId: value.consentAttemptId }
+  } catch {
+    return null
+  }
+}
+
+export function savePartnerResume(
+  storage: Pick<Storage, 'setItem'>,
+  value: PartnerResumeState,
+): void {
+  storage.setItem(PARTNER_RESUME_KEY, JSON.stringify(value))
+}
+
+export function clearPartnerResume(storage: Pick<Storage, 'removeItem'>): void {
+  storage.removeItem(PARTNER_RESUME_KEY)
 }
