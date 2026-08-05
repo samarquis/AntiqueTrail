@@ -109,7 +109,9 @@ begin
     or not app_private.current_user_has_role('administrator'::app_private.app_role,null)
     or not app_private.current_session_has_mfa()
     or not app_private.current_session_recent_auth(interval '10 minutes')
-    or exists(select 1 from admin_private.admin_audit_anchor_health where id=1 and (state<>'healthy' or last_anchored_at is null or last_anchored_at<statement_timestamp()-interval '24 hours'))
+    or exists(select 1 from admin_private.admin_audit_anchor_health where id=1 and (
+      state<>'healthy' or (deployment_environment<>'local' and (last_anchored_at is null or last_anchored_at<statement_timestamp()-interval '24 hours'))
+    ))
     or exists(select 1 from admin_private.admin_privileged_audit_outbox where state in ('failed','blocked'))
     or exists(select 1 from admin_private.admin_break_glass_gate where id=1 and enabled)
   then raise exception using errcode='42501',message='admin_unavailable'; end if;

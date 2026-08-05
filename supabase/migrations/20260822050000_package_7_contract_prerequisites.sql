@@ -205,26 +205,47 @@ end $$;
 alter function admin_private.enforce_operational_admin_rate(uuid,uuid) owner to identity_service;
 revoke all on function admin_private.enforce_operational_admin_rate(uuid,uuid) from public,anon,authenticated;
 
+alter table admin_private.admin_audit_anchor_health
+  add column deployment_environment text not null default 'local'
+  constraint admin_anchor_health_environment check(
+    deployment_environment in ('local','shared_alpha','private_beta','regional_public')
+  );
+alter table admin_private.admin_audit_anchor_health drop constraint admin_anchor_health_shape;
+alter table admin_private.admin_audit_anchor_health add constraint admin_anchor_health_shape check(
+  state<>'healthy' or (
+    deployment_environment='local'
+    or (deployment_environment<>'local' and root_hash is not null and last_anchored_at is not null)
+  )
+);
+
 create or replace function admin_private.sync_package_7_audit_anchor_health()
 returns trigger language plpgsql volatile security definer set search_path='' as $$
 declare anchored_is_current boolean;
 begin
-  anchored_is_current:=new.state='open'
-    and new.watchdog_state='current'
-    and new.last_ack_root is not null
-    and new.last_ack_at is not null
-    and new.last_ack_at>=statement_timestamp()-interval '24 hours'
-    and new.last_ack_sequence=(select coalesce(max(sequence_no),0) from app_private.privileged_audit_events)
-    and exists(select 1 from app_private.audit_chain_roots r
-      where r.through_sequence_no=new.last_ack_sequence and r.root_hash=new.last_ack_root);
+  anchored_is_current:=case
+    when new.deployment_environment='local' then
+      new.state='disabled'
+      and exists(select 1 from app_private.environment_stage e
+        where e.id=1 and e.stage='synthetic_alpha')
+    else
+      new.state='open'
+      and new.watchdog_state='current'
+      and new.last_ack_root is not null
+      and new.last_ack_at is not null
+      and new.last_ack_at>=statement_timestamp()-interval '24 hours'
+      and new.last_ack_sequence=(select coalesce(max(sequence_no),0) from app_private.privileged_audit_events)
+      and exists(select 1 from app_private.audit_chain_roots r
+        where r.through_sequence_no=new.last_ack_sequence and r.root_hash=new.last_ack_root)
+  end;
 
   insert into admin_private.admin_audit_anchor_health(
-    id,state,through_sequence_no,root_hash,last_anchored_at,checked_at,version
+    id,deployment_environment,state,through_sequence_no,root_hash,last_anchored_at,checked_at,version
   ) values (
-    1,case when anchored_is_current then 'healthy' else 'blocked' end,
+    1,new.deployment_environment,case when anchored_is_current then 'healthy' else 'blocked' end,
     new.last_ack_sequence,new.last_ack_root,new.last_ack_at,
     coalesce(new.watchdog_checked_at,statement_timestamp()),1
   ) on conflict(id) do update set
+    deployment_environment=excluded.deployment_environment,
     state=excluded.state,
     through_sequence_no=excluded.through_sequence_no,
     root_hash=excluded.root_hash,

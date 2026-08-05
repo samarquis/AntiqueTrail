@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(70);
+select plan(72);
 
 select has_table('admin_private','admin_command_receipts','Administrator commands have durable idempotency receipts');
 select has_table('admin_private','admin_break_glass_gate','break-glass has an explicit named gate');
@@ -140,6 +140,14 @@ select ok(exists(select 1 from pg_trigger where tgname='sync_package_7_audit_anc
   and position('admin_audit_anchor_health' in lower(pg_get_functiondef('admin_private.sync_package_7_audit_anchor_health()'::regprocedure)))>0
   and position('audit_chain_roots' in lower(pg_get_functiondef('admin_private.sync_package_7_audit_anchor_health()'::regprocedure)))>0,
   'the L-01 anchoring worker and watchdog update the Package 7 health latch');
+update app_private.environment_stage set stage='synthetic_alpha',version=version+1 where id=1;
+update app_private.audit_anchor_capability set deployment_environment='local',state='disabled',provider_key=null,
+  provider_version=null,contract_receipt_id=null,watchdog_state='disabled',last_ack_sequence=0,last_ack_root=null,last_ack_at=null,version=version+1 where id=1;
+select is((select state from admin_private.admin_audit_anchor_health where id=1),'healthy',
+  'local Synthetic disabled L-01 state is healthy without fabricating an external root');
+update app_private.audit_anchor_capability set deployment_environment='shared_alpha',state='disabled',watchdog_state='stale',version=version+1 where id=1;
+select is((select state from admin_private.admin_audit_anchor_health where id=1),'blocked',
+  'a shared disabled or stale L-01 state keeps Package 7 blocked');
 select ok(position('occurred_at>cutoff' in replace(lower(pg_get_functiondef('admin_private.enforce_operational_admin_rate(uuid,uuid)'::regprocedure)),' ',''))>0
   and position('retryafterseconds' in lower(pg_get_functiondef('admin_private.enforce_operational_admin_rate(uuid,uuid)'::regprocedure)))>0,'rate limits use a true sliding hour and bounded retry metadata');
 select ok(position('admin_duplicate_merge_plan_items' in lower(pg_get_functiondef('app_public.admin_preview_duplicate_merge(text,text)'::regprocedure)))>0
