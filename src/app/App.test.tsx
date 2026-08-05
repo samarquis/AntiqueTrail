@@ -7,6 +7,7 @@ import type { TripOfflineRuntime } from '../features/trips'
 import type { PartnerAdminClient } from '../features/partners'
 import { createAccessibleCatalogMapAdapter, demoCatalogClient } from '../features/catalog'
 import { unavailableReviewClient } from '../features/reviews'
+import { unavailablePortalClient } from '../features/portal'
 import App from './App'
 
 describe('app shell', () => {
@@ -173,6 +174,32 @@ describe('app shell', () => {
     )
     expect(screen.getByRole('heading', { name: /store portal/i })).toBeInTheDocument()
     expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't update this store portal/i)
+  })
+
+  it('wires the injected durable Store Portal client into portal routes', async () => {
+    const getHome = vi.fn(async () => ({
+      store: {
+        id: 'store-1',
+        name: 'Oak Antiques',
+        listingState: 'active' as const,
+        timeZone: 'America/Chicago',
+      },
+      freshness: { state: 'verified' as const, label: 'Verified' },
+      provenance: {
+        sourceLabel: 'Representative',
+        verifiedBy: 'Administrator',
+        verifiedAt: '2026-08-01T00:00:00Z',
+        ownerConfirmed: true,
+      },
+      pendingChanges: [],
+    }))
+    render(
+      <MemoryRouter initialEntries={['/store-portal']}>
+        <App clients={{ portal: { ...unavailablePortalClient, getHome } }} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Oak Antiques')).toBeVisible()
+    expect(getHome).toHaveBeenCalledOnce()
   })
 
   it('keeps External Testing Readiness unavailable until the human gates exist', async () => {

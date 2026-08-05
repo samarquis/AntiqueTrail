@@ -9,6 +9,10 @@ import type {
   PortalHours,
   PortalDiagnostic,
   StoreUpdateDraft,
+  PortalControlledChangeDraft,
+  PortalManagedFields,
+  OfficialLink,
+  SupportTicketDraft,
 } from './types'
 
 export const GENERIC_PORTAL_ERROR = "We couldn't update this store portal. Please try again."
@@ -17,6 +21,81 @@ export const MEDIA_GATE_MESSAGE =
   'Official images and screenshots are disabled until the M-01 media gate passes.'
 export const MEDIA_CAPABILITY = 'blocked' as const
 export const RECENT_AUTH_WINDOW_MS = 10 * 60 * 1000
+
+type PortalRpcName =
+  | 'portal_get_home'
+  | 'portal_get_hours'
+  | 'portal_save_hours'
+  | 'portal_save_managed_fields'
+  | 'portal_submit_controlled_change'
+  | 'portal_list_updates'
+  | 'portal_create_update'
+  | 'portal_archive_update'
+  | 'portal_restore_update'
+  | 'portal_list_official_links'
+  | 'portal_save_official_link'
+  | 'portal_remove_official_link'
+  | 'portal_list_support_tickets'
+  | 'portal_create_support_ticket'
+  | 'portal_reply_support_ticket'
+  | 'portal_confirm_support_resolution'
+  | 'portal_reopen_support_ticket'
+  | 'portal_preview_public_listing'
+
+export interface PortalRpcTransport {
+  rpc(
+    name: PortalRpcName,
+    args: Readonly<Record<string, unknown>>,
+  ): Promise<{ data: unknown; error: unknown }>
+}
+
+export function createPortalClient(
+  transport: PortalRpcTransport,
+  diagnostics: () => PortalDiagnostic[] = () => [],
+): PortalClient {
+  async function call<T>(
+    name: PortalRpcName,
+    args: Readonly<Record<string, unknown>> = {},
+  ): Promise<T> {
+    try {
+      const result = await transport.rpc(name, args)
+      if (result.error || result.data === null || result.data === undefined)
+        throw new Error(GENERIC_PORTAL_ERROR)
+      return result.data as T
+    } catch {
+      throw new Error(GENERIC_PORTAL_ERROR)
+    }
+  }
+  return {
+    getHome: () => call('portal_get_home'),
+    getHours: () => call('portal_get_hours'),
+    saveHours: (hours) => call('portal_save_hours', { p_hours: hours }),
+    saveManagedFields: (fields: PortalManagedFields) =>
+      call('portal_save_managed_fields', { p_fields: fields }),
+    submitControlledChange: (change: PortalControlledChangeDraft) =>
+      call('portal_submit_controlled_change', { p_change: change }),
+    listUpdates: () => call('portal_list_updates'),
+    createUpdate: (draft: StoreUpdateDraft) => call('portal_create_update', { p_update: draft }),
+    archiveUpdate: (id) => call('portal_archive_update', { p_update_id: id }),
+    restoreUpdate: (id) => call('portal_restore_update', { p_update_id: id }),
+    listOfficialLinks: () => call('portal_list_official_links'),
+    saveOfficialLink: (link: OfficialLink) => call('portal_save_official_link', { p_link: link }),
+    removeOfficialLink: async (platform) => {
+      await call('portal_remove_official_link', { p_platform: platform })
+    },
+    listSupportTickets: () => call('portal_list_support_tickets'),
+    createSupportTicket: (draft: SupportTicketDraft) =>
+      call('portal_create_support_ticket', { p_ticket: draft }),
+    replySupportTicket: (ticketId, body) =>
+      call('portal_reply_support_ticket', { p_ticket_id: ticketId, p_body: body }),
+    confirmSupportResolution: (ticketId) =>
+      call('portal_confirm_support_resolution', { p_ticket_id: ticketId }),
+    reopenSupportTicket: (ticketId) =>
+      call('portal_reopen_support_ticket', { p_ticket_id: ticketId }),
+    previewPublicListing: () => call('portal_preview_public_listing'),
+    getDiagnostics: async () => diagnostics(),
+  }
+}
 
 function unavailable<T>(): Promise<T> {
   return Promise.reject(new Error(GENERIC_PORTAL_ERROR))

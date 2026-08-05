@@ -105,6 +105,7 @@ import {
   PortalSupportPage,
   PortalUpdatesPage,
   unavailablePortalClient,
+  type PortalClient,
 } from '../features/portal'
 import {
   ModerationQueuePage,
@@ -463,6 +464,7 @@ export interface AppClients {
   partnerAdmin?: PartnerAdminClient
   lifecycle?: AccountLifecycleClient
   reviews?: ReviewClient
+  portal?: PortalClient
   tripOfflineGrants?: TripOfflineGrantSource
   routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
 }
@@ -490,6 +492,7 @@ export default function App({
   const partnerAdminClient = clients.partnerAdmin ?? unavailablePartnerAdminClient
   const lifecycleClient = clients.lifecycle ?? unavailableLifecycleClient
   const reviewClient = clients.reviews ?? unavailableReviewClient
+  const portalClient = clients.portal ?? unavailablePortalClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
   const tripOfflineRef = useRef<TripOfflineRuntime>(
     runtime.tripOffline ?? createTripOfflineRuntime(),
@@ -750,37 +753,28 @@ export default function App({
             }
           />
           <Route path="/partner/activate" element={<PartnerActivatePage />} />
-          <Route
-            path="/store-portal"
-            element={<PortalHomePage client={unavailablePortalClient} />}
-          />
-          <Route
-            path="/store-portal/hours"
-            element={<PortalHoursPage client={unavailablePortalClient} />}
-          />
+          <Route path="/store-portal" element={<PortalHomePage client={portalClient} />} />
+          <Route path="/store-portal/hours" element={<PortalHoursPage client={portalClient} />} />
           <Route
             path="/store-portal/info"
-            element={<PortalManagedFieldsPage client={unavailablePortalClient} />}
+            element={<PortalManagedFieldsPage client={portalClient} />}
           />
           <Route
             path="/store-portal/changes"
-            element={<PortalControlledChangesPage client={unavailablePortalClient} />}
+            element={<PortalControlledChangesPage client={portalClient} />}
           />
           <Route
             path="/store-portal/updates"
-            element={<PortalUpdatesPage client={unavailablePortalClient} />}
+            element={<PortalUpdatesPage client={portalClient} />}
           />
-          <Route
-            path="/store-portal/links"
-            element={<PortalLinksPage client={unavailablePortalClient} />}
-          />
+          <Route path="/store-portal/links" element={<PortalLinksPage client={portalClient} />} />
           <Route
             path="/store-portal/support"
-            element={<PortalSupportPage client={unavailablePortalClient} />}
+            element={<PortalSupportPage client={portalClient} />}
           />
           <Route
             path="/store-portal/preview"
-            element={<PortalPreviewPage client={unavailablePortalClient} />}
+            element={<PortalPreviewPage client={portalClient} />}
           />
           <Route
             path="/trips"

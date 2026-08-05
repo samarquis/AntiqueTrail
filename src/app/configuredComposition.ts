@@ -2,6 +2,7 @@ import { createClient, type Session } from '@supabase/supabase-js'
 import type { AppClients, AppRuntime } from './App'
 import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
+import { createPortalClient, sanitizeDiagnostics } from '../features/portal'
 import { createShopperClient } from '../features/shopper'
 import { createCandidateProductionClient } from '../features/candidates'
 import {
@@ -411,6 +412,20 @@ export async function configuredComposition(
           return { data: result.data, error: result.error }
         },
       }),
+      portal: createPortalClient(
+        {
+          async rpc(name, args) {
+            const result = await supabase.rpc(name, args)
+            return { data: result.data, error: result.error }
+          },
+        },
+        () =>
+          sanitizeDiagnostics({
+            browser: navigator.userAgent,
+            route: window.location.pathname,
+            connection: navigator.onLine ? 'online' : 'offline',
+          }),
+      ),
       trips,
       tripOfflineGrants: source,
       map: createAccessibleCatalogMapAdapter({
