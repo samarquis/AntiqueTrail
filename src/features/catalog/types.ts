@@ -7,10 +7,33 @@ export interface CatalogHoursDay {
   intervals: Array<{ opensAt: string; closesAt: string }>
 }
 
+export interface CatalogHoursException {
+  date: string
+  label: string
+  status: CatalogHoursStatus
+  intervals: Array<{ opensAt: string; closesAt: string }>
+  note?: string | null
+}
+
 export interface CatalogMedia {
   src: string
   alt: string
   kind?: 'cover' | 'gallery'
+  caption?: string | null
+  rightsLabel?: string | null
+}
+
+export interface CatalogUpdate {
+  id: string
+  title: string
+  body: string
+  publishedAt: string
+  href?: string | null
+}
+
+export interface CatalogSocialLink {
+  platform: 'Facebook' | 'Instagram' | 'YouTube' | 'Pinterest' | 'TikTok'
+  href: string
 }
 
 export interface CatalogStore {
@@ -25,9 +48,25 @@ export interface CatalogStore {
   summary?: string | null
   description?: string | null
   phone?: string | null
+  email?: string | null
   website?: string | null
+  navigationHref?: string | null
   timeZone?: string | null
-  freshness?: { label: string; verifiedAt?: string | null; daysOld?: number | null }
+  freshness?: {
+    label: string
+    verifiedAt?: string | null
+    daysOld?: number | null
+    status?: 'current' | 'stale' | 'unknown'
+  }
+  provenance?: { sourceLabel: string; updatedAt?: string | null; note?: string | null }
+  accessibility?: {
+    status: 'verified' | 'unverified' | 'unavailable'
+    details: string[]
+    verifiedAt?: string | null
+  }
+  updates?: CatalogUpdate[]
+  socialLinks?: CatalogSocialLink[]
+  hoursExceptions?: CatalogHoursException[]
   asOfUtc?: string | null
   hours: CatalogHoursDay[]
   media: CatalogMedia[]
@@ -47,6 +86,9 @@ export interface CatalogFilters {
 
 /** Controls which progressively delivered Browse filters are visible. */
 export type CatalogBrowseStage = 'package-1' | 'package-3' | 'package-5b' | 'package-10a'
+
+/** Store Details actions are revealed only after their backing flow is executable. */
+export type CatalogDetailsStage = 'package-1' | 'package-3' | 'package-5a' | 'package-10a'
 
 export interface CatalogListResult {
   stores: CatalogStore[]
