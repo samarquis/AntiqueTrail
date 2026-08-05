@@ -1,0 +1,34 @@
+name: R-01 routing operational retention
+
+on:
+  schedule:
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: r01-routing-operations
+  cancel-in-progress: false
+
+jobs:
+  maintain:
+    if: ${{ vars.R01_ROUTING_OPERATIONS_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Purge expired content-free operation receipts
+        env:
+          FUNCTION_URL: ${{ secrets.R01_ROUTING_OPERATIONS_FUNCTION_URL }}
+          WORKER_SECRET: ${{ secrets.R01_ROUTING_OPERATIONS_WORKER_SECRET }}
+        run: |
+          test -n "$FUNCTION_URL"
+          test -n "$WORKER_SECRET"
+          curl --fail-with-body --silent --show-error \
+            --max-time 60 \
+            -X POST "$FUNCTION_URL" \
+            -H "Authorization: Bearer $WORKER_SECRET" \
+            -H 'Content-Type: application/json' \
+            --data '{"operation":"purge"}' \
+            --output /dev/null
