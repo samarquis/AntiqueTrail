@@ -319,10 +319,7 @@ export function CatalogCard({
         <img
           className="catalog-card__image"
           src={cover.src}
-          {...responsiveCatalogImage(
-            cover.src,
-            '(max-width: 540px) 100vw, (max-width: 1023px) 34vw, 280px',
-          )}
+          {...responsiveCatalogImage(cover.src, '(max-width: 1023px) calc(100vw - 2rem), 540px')}
           alt={cover.alt || `${store.name} storefront`}
           loading="lazy"
           onError={() => setImageFailed(true)}
@@ -777,6 +774,7 @@ function StoreGallery({ store }: { store: CatalogStore }) {
   const [enlarged, setEnlarged] = useState(false)
   const enlargeButton = useRef<HTMLButtonElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
+  const choiceButtons = useRef<Array<HTMLButtonElement | null>>([])
   const selected = media[selectedIndex]
   const selectedFailed = !selected || failed.has(selectedIndex)
 
@@ -784,9 +782,14 @@ function StoreGallery({ store }: { store: CatalogStore }) {
     if (enlarged) closeButton.current?.focus()
   }, [enlarged])
 
-  const closeGallery = () => {
+  const closeGallery = (returnFocus: 'opener' | 'selected-choice' = 'opener') => {
     setEnlarged(false)
-    requestAnimationFrame(() => enlargeButton.current?.focus())
+    requestAnimationFrame(() =>
+      (returnFocus === 'selected-choice'
+        ? choiceButtons.current[selectedIndex]
+        : enlargeButton.current
+      )?.focus(),
+    )
   }
 
   const markFailed = (index: number) =>
@@ -835,6 +838,9 @@ function StoreGallery({ store }: { store: CatalogStore }) {
         <div className="store-gallery__choices" role="group" aria-label="Choose a store photo">
           {media.map((item, index) => (
             <button
+              ref={(element) => {
+                choiceButtons.current[index] = element
+              }}
               key={`${item.src}-${index}`}
               type="button"
               aria-label={`Show image ${index + 1}: ${item.alt}`}
@@ -869,10 +875,21 @@ function StoreGallery({ store }: { store: CatalogStore }) {
             }
           }}
         >
-          <button ref={closeButton} type="button" onClick={closeGallery}>
+          <button ref={closeButton} type="button" onClick={() => closeGallery()}>
             Close enlarged image
           </button>
-          <img src={selected.src} alt={selected.alt} />
+          <img
+            src={selected.src}
+            {...responsiveCatalogImage(
+              selected.src,
+              '(max-width: 800px) calc(100vw - 2rem), 1120px',
+            )}
+            alt={selected.alt}
+            onError={() => {
+              markFailed(selectedIndex)
+              closeGallery('selected-choice')
+            }}
+          />
           {(selected.caption || selected.rightsLabel) && (
             <p>
               {selected.caption}

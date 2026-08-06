@@ -104,6 +104,53 @@ test.describe('Store Details decision-screen contract', () => {
     await expect(enlarge).toBeFocused()
   })
 
+  test('keeps the gallery usable when a selected image request is blocked', async ({ page }) => {
+    let blockedRequests = 0
+    await page.route(/blue-finch-curios-gallery-aisle\.webp(?:\?.*)?$/u, async (route) => {
+      blockedRequests += 1
+      await route.abort('failed')
+    })
+
+    await page.goto('/stores/blue-finch-curios')
+    const gallery = page.locator('.store-gallery')
+    const choices = page.getByRole('group', { name: 'Choose a store photo' }).getByRole('button')
+    await expect(choices).toHaveCount(4)
+    await expect.poll(() => blockedRequests).toBeGreaterThan(0)
+
+    const failedChoice = choices.nth(1)
+    await failedChoice.click()
+    await expect(failedChoice).toHaveAttribute('aria-pressed', 'true')
+    await expect(gallery.getByRole('img', { name: 'Store image unavailable' })).toBeVisible()
+    await expect(gallery).toContainText('Photo unavailable')
+    await expect(failedChoice).toContainText('Unavailable')
+
+    await choices.first().click()
+    await expect(choices.first()).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('button', { name: /^Enlarge image:/ })).toBeVisible()
+  })
+
+  test('recovers from an enlarged-image failure and returns focus inside the gallery', async ({
+    page,
+  }) => {
+    await page.goto('/stores/blue-finch-curios')
+    const gallery = page.locator('.store-gallery')
+    const enlarge = page.getByRole('button', { name: /^Enlarge image:/ })
+    await enlarge.click()
+
+    const dialog = page.getByRole('dialog')
+    const enlargedImage = dialog.getByRole('img')
+    await expect(enlargedImage).toBeVisible()
+    await enlargedImage.evaluate((image) => image.dispatchEvent(new Event('error')))
+
+    await expect(dialog).toHaveCount(0)
+    await expect(gallery.getByRole('img', { name: 'Store image unavailable' })).toBeVisible()
+    await expect(gallery).toContainText('Photo unavailable')
+    await expect(gallery.locator(':focus')).toHaveCount(1)
+    await expect(gallery.getByRole('group', { name: 'Choose a store photo' })).toContainText(
+      'Unavailable',
+    )
+  })
+
   test('returns to the exact Browse query, scroll position, and originating store', async ({
     page,
   }) => {

@@ -92,6 +92,8 @@ describe('catalog private-action integration seam', () => {
     const cover = card.querySelector<HTMLImageElement>('.catalog-card__image')
     expect(cover).toHaveAttribute('alt', expect.stringMatching(/\S+/))
     expect(cover?.alt.toLowerCase()).not.toContain(syntheticStores[0].name.toLowerCase())
+    expect(cover).toHaveAttribute('srcset', expect.stringContaining('/800w/'))
+    expect(cover).toHaveAttribute('sizes', '(max-width: 1023px) calc(100vw - 2rem), 540px')
   })
 
   it('renders a distinct blocked state without requesting catalog data', async () => {
@@ -451,12 +453,23 @@ describe('trustworthy Store Details contract', () => {
     const dialog = screen.getByRole('dialog')
     expect(dialog).toBeVisible()
     expect(screen.getByRole('button', { name: /close enlarged image/i })).toHaveFocus()
+    const enlargedImage = within(dialog).getByRole('img', { name: /oak cabinets inside/i })
+    expect(enlargedImage).toHaveAttribute('srcset', expect.stringContaining('/480w/'))
+    expect(enlargedImage).toHaveAttribute('srcset', expect.stringContaining('/800w/'))
+    expect(enlargedImage).toHaveAttribute('srcset', expect.stringContaining('/1280w/'))
+    expect(enlargedImage).toHaveAttribute('sizes', '(max-width: 800px) calc(100vw - 2rem), 1120px')
     fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await waitFor(() => expect(enlarge).toHaveFocus())
 
-    fireEvent.error(selectedImage)
-    expect(screen.getByRole('img', { name: /store image unavailable/i })).toBeVisible()
+    await user.click(enlarge)
+    const reopenedDialog = screen.getByRole('dialog')
+    fireEvent.error(within(reopenedDialog).getByRole('img', { name: /oak cabinets inside/i }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    const missingImage = screen.getByRole('img', { name: /store image unavailable/i })
+    expect(missingImage).toHaveTextContent(/photo unavailable/i)
+    await waitFor(() => expect(second).toHaveFocus())
+    expect(second).toHaveTextContent(/unavailable/i)
   })
 
   it('reveals Add to Trip only after its backing package is enabled', async () => {
