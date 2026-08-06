@@ -40,6 +40,37 @@ async function expectMinimumTargets(page: Page) {
   expect(undersized, `Interactive targets smaller than 48 x 48 CSS pixels`).toEqual([])
 }
 
+async function expectLandscapeCatalogCover(page: Page, viewportWidth: number) {
+  await page.setViewportSize({
+    width: viewportWidth,
+    height: viewportWidth <= 540 ? 844 : 1000,
+  })
+  await page.goto('/stores')
+
+  const card = page.locator('.catalog-card').first()
+  const image = card.locator('.catalog-card__image')
+  await expect(card).toBeVisible()
+  await expect(image).toBeVisible()
+  await expect.poll(() => image.evaluate((node) => node.naturalWidth)).toBeGreaterThan(0)
+
+  const geometry = await card.evaluate((cardNode) => {
+    const imageNode = cardNode.querySelector<HTMLImageElement>('.catalog-card__image')
+    if (!imageNode) throw new Error('Catalog cover image was not rendered')
+    const cardRect = cardNode.getBoundingClientRect()
+    const imageRect = imageNode.getBoundingClientRect()
+    return {
+      cardWidth: cardRect.width,
+      imageWidth: imageRect.width,
+      imageHeight: imageRect.height,
+      objectFit: getComputedStyle(imageNode).objectFit,
+    }
+  })
+
+  expect(geometry.objectFit).toBe('cover')
+  expect(geometry.imageWidth / geometry.imageHeight).toBeGreaterThanOrEqual(1.25)
+  expect(geometry.imageWidth / geometry.cardWidth).toBeGreaterThanOrEqual(0.9)
+}
+
 test.describe('Synthetic catalog design contract', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/stores')
@@ -220,6 +251,33 @@ test.describe('Synthetic catalog design contract', () => {
         await expect(card.locator('.catalog-card__placeholder')).toContainText(/Photo coming soon/)
       }
     }
+  })
+
+  test('keeps Browse covers landscape and card-width at desktop, tablet, and phone sizes', async ({
+    page,
+  }) => {
+    for (const viewportWidth of [1440, 900, 390]) {
+      await expectLandscapeCatalogCover(page, viewportWidth)
+    }
+  })
+
+  test('keeps a listing usable when its cover request is blocked', async ({ page }) => {
+    let blockedRequests = 0
+    await page.route(/blue-finch-curios-cover\.webp(?:\?.*)?$/u, async (route) => {
+      blockedRequests += 1
+      await route.abort('failed')
+    })
+
+    await page.goto('/stores?q=Blue')
+    const card = page.locator('.catalog-card').filter({ hasText: 'Blue Finch Curios' })
+    await expect(card).toBeVisible()
+    await expect.poll(() => blockedRequests).toBeGreaterThan(0)
+    await expect(card.getByRole('img', { name: 'Store image unavailable' })).toBeVisible()
+    await expect(card).toContainText(/Photo coming soon/i)
+    await expect(card.getByRole('link', { name: 'Blue Finch Curios', exact: true })).toBeVisible()
+    await expect(card.locator('.catalog-card__hours')).toContainText(
+      /Open|Closed|Hours unavailable/,
+    )
   })
 
   test('covers success, empty, blocked, and not-found states', async ({ page }) => {
