@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createReviewHarness } from './harness'
 
 const base = {
@@ -10,6 +10,15 @@ const base = {
 }
 
 describe('local review harness', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(base.now)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('cannot activate outside an explicit development review mode', async () => {
     await expect(createReviewHarness({ ...base, dev: false })).resolves.toBeNull()
     await expect(createReviewHarness({ ...base, mode: 'production' })).resolves.toBeNull()
