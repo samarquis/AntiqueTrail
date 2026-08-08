@@ -5,6 +5,7 @@ import {
   type ReviewHarnessRuntime,
   type ReviewScenario,
   type ReviewScenarioId,
+  type ReviewSessionState,
   type ReviewStateId,
 } from './types'
 
@@ -28,7 +29,15 @@ export const reviewScenarios: readonly ReviewScenario[] = [
     identity: 'No account',
     role: 'Anonymous',
     fixtureSummary: 'Public catalog only; private actions redirect to sign-in.',
-    destinations: commonPublic,
+    destinations: [
+      ...commonPublic,
+      { label: 'Sign in', path: '/auth/sign-in', purpose: 'Sign-in validation and recovery entry' },
+      {
+        label: 'Recover account',
+        path: '/auth/recovery',
+        purpose: 'Enumeration-safe account recovery',
+      },
+    ],
     deniedDestinations: [
       { label: 'Saved Stores', path: '/saved', purpose: 'Requires a shopper session' },
       { label: 'Administrator', path: '/admin', purpose: 'Requires Administrator authority' },
@@ -44,6 +53,24 @@ export const reviewScenarios: readonly ReviewScenario[] = [
       ...commonPublic,
       { label: 'Saved Stores', path: '/saved', purpose: 'Private shopper collection' },
       { label: 'New Since', path: '/new-since', purpose: 'Area change tracking' },
+      { label: 'Private History', path: '/account/history', purpose: 'Private visit memory' },
+      {
+        label: 'Blue Finch memory',
+        path: '/stores/blue-finch-curios/memory',
+        purpose: 'Private memory edit and deletion recovery',
+      },
+      {
+        label: 'Blue Finch correction',
+        path: '/stores/blue-finch-curios/correction',
+        purpose: 'Shopper correction submission',
+      },
+      {
+        label: 'Correction status',
+        path: '/corrections/correction-a',
+        purpose: 'Reason-neutral correction status',
+      },
+      { label: 'Account', path: '/account', purpose: 'Sign-out and account controls' },
+      { label: 'Privacy', path: '/account/privacy', purpose: 'Privacy choices and lifecycle' },
       { label: 'My Trip', path: '/trips', purpose: 'Private trip planning' },
     ],
     deniedDestinations: [
@@ -60,6 +87,9 @@ export const reviewScenarios: readonly ReviewScenario[] = [
       'A separate account with received shares and trip ideas; no access to Shopper A.',
     destinations: [
       ...commonPublic,
+      { label: 'Saved Stores', path: '/saved', purpose: 'Shopper B private collection' },
+      { label: 'New Since', path: '/new-since', purpose: 'Shopper B area change tracking' },
+      { label: 'Private History', path: '/account/history', purpose: 'Shopper B private memory' },
       { label: 'Shared with Me', path: '/shares', purpose: 'Received candidate shares' },
       { label: 'Trip Ideas', path: '/trip-ideas', purpose: 'Accepted private ideas' },
       {
@@ -67,6 +97,8 @@ export const reviewScenarios: readonly ReviewScenario[] = [
         path: '/account/privacy/blocked-senders',
         purpose: 'Privacy state',
       },
+      { label: 'Account', path: '/account', purpose: 'Sign-out and account controls' },
+      { label: 'Privacy', path: '/account/privacy', purpose: 'Privacy choices and lifecycle' },
     ],
     deniedDestinations: [
       {
@@ -137,12 +169,16 @@ function oneOf<T extends string>(value: string | null, values: readonly T[], fal
   return value && values.includes(value as T) ? (value as T) : fallback
 }
 
-function sessionFor(scenario: ReviewScenario, now: number): AuthSession | null {
+function sessionFor(
+  scenario: ReviewScenario,
+  now: number,
+  sessionState: ReviewSessionState,
+): AuthSession | null {
   if (scenario.role === 'Anonymous') return null
   return {
     userId: `review-${scenario.id}`,
     accessToken: `local-review-only:${scenario.id}`,
-    expiresAt: now + 24 * 60 * 60 * 1_000,
+    expiresAt: sessionState === 'expired' ? now - 1 : now + 24 * 60 * 60 * 1_000,
     role: scenario.role,
     mfaRequired: scenario.role === 'Administrator' || scenario.role === 'Representative',
     mfaEnrolled: scenario.role === 'Administrator' || scenario.role === 'Representative',
@@ -174,18 +210,25 @@ export async function createReviewHarness(
     REVIEW_STATE_IDS,
     'success',
   )
+  const sessionState = oneOf<ReviewSessionState>(
+    url.searchParams.get('reviewSession'),
+    ['active', 'expired', 'revoked'],
+    'active',
+  )
   const scenario = reviewScenarios.find((candidate) => candidate.id === scenarioId)!
   const authStore = new InMemoryAuthStore()
   const sessionRegistry = new InMemorySessionRegistry()
-  const session = sessionFor(scenario, environment.now ?? Date.now())
+  const session = sessionFor(scenario, environment.now ?? Date.now(), sessionState)
   if (session) {
     authStore.setSession(session)
     await sessionRegistry.registerCurrentSession(session)
+    if (sessionState === 'revoked') await sessionRegistry.revoke(session)
   }
   return {
     active: true,
     scenario,
     state,
+    sessionState,
     scenarios: reviewScenarios,
     states: REVIEW_STATE_IDS,
     authStore,

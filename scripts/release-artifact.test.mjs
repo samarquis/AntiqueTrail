@@ -15,6 +15,27 @@ async function fixture() {
   await mkdir(path.join(dist, 'assets'), { recursive: true })
   await writeFile(path.join(dist, 'index.html'), '<h1>Antique Trail</h1>\n')
   await writeFile(path.join(dist, 'assets', 'app.js'), 'console.log("trail")\n')
+  await writeFile(
+    path.join(dist, '_headers'),
+    [
+      '/auth/callback*',
+      '  Cache-Control: private, no-store',
+      '  Referrer-Policy: no-referrer',
+      '',
+      '/auth/register*',
+      '  Cache-Control: private, no-store',
+      '  Referrer-Policy: no-referrer',
+      '',
+      '/auth/verify*',
+      '  Cache-Control: private, no-store',
+      '  Referrer-Policy: no-referrer',
+      '',
+      '/auth/recovery*',
+      '  Cache-Control: private, no-store',
+      '  Referrer-Policy: no-referrer',
+      '',
+    ].join('\n'),
+  )
   await writeFile(lockfile, '{}\n')
   return { root, dist, bundle, lockfile }
 }
@@ -74,6 +95,47 @@ test('fails closed when artifact bytes change', async () => {
       'expected-source-sha': SOURCE_SHA,
     }),
     /digest does not match/,
+  )
+})
+
+test('rejects review-harness identities and controls from production artifacts', async () => {
+  const item = await fixture()
+  await writeFile(
+    path.join(item.dist, 'assets', 'app.js'),
+    'console.log("Synthetic Review Harness: review-shopper-a")\n',
+  )
+  await assert.rejects(
+    createRelease({
+      dist: item.dist,
+      out: item.bundle,
+      'source-sha': SOURCE_SHA,
+      repository: 'samarquis/AntiqueTrail',
+      'node-version': 'v20.19.0',
+      'npm-version': '11.13.1',
+      'runner-os': 'Linux',
+      'runner-arch': 'X64',
+      lockfile: item.lockfile,
+    }),
+    /review-only marker/,
+  )
+})
+
+test('rejects a production artifact without route-specific private auth headers', async () => {
+  const item = await fixture()
+  await writeFile(path.join(item.dist, '_headers'), '/*\n  Referrer-Policy: no-referrer\n')
+  await assert.rejects(
+    createRelease({
+      dist: item.dist,
+      out: item.bundle,
+      'source-sha': SOURCE_SHA,
+      repository: 'samarquis/AntiqueTrail',
+      'node-version': 'v20.19.0',
+      'npm-version': '11.13.1',
+      'runner-os': 'Linux',
+      'runner-arch': 'X64',
+      lockfile: item.lockfile,
+    }),
+    /private no-store auth headers/,
   )
 })
 

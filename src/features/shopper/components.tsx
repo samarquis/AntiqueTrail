@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { GENERIC_SHOPPER_ERROR, unavailableShopperClient } from './shopperClient'
@@ -35,8 +35,110 @@ function ShopperCard({
   )
 }
 
-function GenericError() {
-  return <p role="alert">{GENERIC_SHOPPER_ERROR}</p>
+function GenericError({ message = GENERIC_SHOPPER_ERROR }: { message?: string }) {
+  const errorRef = useRef<HTMLParagraphElement>(null)
+  useEffect(() => errorRef.current?.focus(), [])
+  return (
+    <p ref={errorRef} role="alert" tabIndex={-1}>
+      {message}
+    </p>
+  )
+}
+
+function useOnlineStatus() {
+  const [online, setOnline] = useState(() => navigator.onLine)
+  useEffect(() => {
+    const markOnline = () => setOnline(true)
+    const markOffline = () => setOnline(false)
+    window.addEventListener('online', markOnline)
+    window.addEventListener('offline', markOffline)
+    return () => {
+      window.removeEventListener('online', markOnline)
+      window.removeEventListener('offline', markOffline)
+    }
+  }, [])
+  return online
+}
+
+function OfflineNotice() {
+  return (
+    <p role="status">You are offline. Private changes are paused until your connection returns.</p>
+  )
+}
+
+function privateDate(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime())
+    ? 'Date unavailable'
+    : new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'UTC',
+      }).format(date)
+}
+
+function StoreRecordCard({
+  name,
+  slug,
+  areaLabel,
+  timestampLabel,
+  timestamp,
+  sourceLabel,
+  children,
+}: {
+  name: string
+  slug: string
+  areaLabel?: string
+  timestampLabel: string
+  timestamp: string
+  sourceLabel: string
+  children: ReactNode
+}) {
+  return (
+    <li className="shopper-store-card">
+      <div
+        className="shopper-store-card__placeholder"
+        role="img"
+        aria-label={`No store photo is included in this private ${name} record.`}
+      >
+        <span aria-hidden="true">AT</span>
+        <small>Photo on store details</small>
+      </div>
+      <div className="shopper-store-card__body">
+        <p className="eyebrow">{areaLabel ?? 'Your saved trail'}</p>
+        <h2>
+          <Link to={`/stores/${encodeURIComponent(slug)}`}>{name}</Link>
+        </h2>
+        <dl className="shopper-store-card__facts">
+          <div>
+            <dt>Area</dt>
+            <dd>{areaLabel ?? 'Open store details for area'}</dd>
+          </div>
+          <div>
+            <dt>Category</dt>
+            <dd>Open store details for categories</dd>
+          </div>
+          <div>
+            <dt>Hours</dt>
+            <dd>Check current hours before you go</dd>
+          </div>
+          <div>
+            <dt>{timestampLabel}</dt>
+            <dd>{privateDate(timestamp)}</dd>
+          </div>
+          <div>
+            <dt>Record source</dt>
+            <dd>{sourceLabel}</dd>
+          </div>
+        </dl>
+        <p className="shopper-store-card__freshness">
+          Listing freshness and verification are shown on store details.
+        </p>
+        <div className="shopper-store-card__actions">{children}</div>
+      </div>
+    </li>
+  )
 }
 
 export function SaveStoreAction({
@@ -48,6 +150,7 @@ export function SaveStoreAction({
   initialSaved?: boolean
   client?: ShopperPrivateClient
 }) {
+  const online = useOnlineStatus()
   const [saved, setSaved] = useState<boolean | null>(initialSaved ?? null)
   const [state, setState] = useState<
     'idle' | 'saving' | 'saved' | 'save-undone' | 'removed' | 'remove-undone' | 'error'
@@ -70,7 +173,7 @@ export function SaveStoreAction({
   }, [client, initialSaved, storeId])
 
   async function toggle() {
-    if (saved === null) return
+    if (saved === null || state === 'saving' || !online) return
     const wasSaved = saved
     const requested = !wasSaved
     setState('saving')
@@ -91,23 +194,26 @@ export function SaveStoreAction({
 
   return (
     <section aria-label="Private save action">
+      {!online && <OfflineNotice />}
       <button
         className="button"
         type="button"
-        disabled={state === 'saving' || saved === null}
+        disabled={state === 'saving' || saved === null || !online}
         onClick={toggle}
       >
         {saved === null
           ? 'Checking saved state…'
           : state === 'saving'
             ? 'Saving…'
-            : state === 'removed'
-              ? 'Undo removal'
-              : saved
-                ? state === 'saved'
-                  ? 'Undo save'
-                  : 'Remove saved store'
-                : 'Save store'}
+            : !online
+              ? 'Save unavailable offline'
+              : state === 'removed'
+                ? 'Undo removal'
+                : saved
+                  ? state === 'saved'
+                    ? 'Undo save'
+                    : 'Remove saved store'
+                  : 'Save store'}
       </button>
       {state === 'saved' && <p role="status">Store saved. Undo is available.</p>}
       {state === 'save-undone' && <p role="status">Save undone.</p>}
@@ -127,6 +233,8 @@ interface JitSaveIntent {
   storeId: string
   returnTo: string
   expiresAt: number
+  /** Present only while recovering an interrupted, already-claimed intent. */
+  claimedByUserId?: string
 }
 
 function readJitSaveIntent(): JitSaveIntent | null {
@@ -141,7 +249,8 @@ function readJitSaveIntent(): JitSaveIntent | null {
       !parsed.returnTo.startsWith('/') ||
       parsed.returnTo.startsWith('//') ||
       typeof parsed.expiresAt !== 'number' ||
-      parsed.expiresAt <= Date.now()
+      parsed.expiresAt <= Date.now() ||
+      (parsed.claimedByUserId !== undefined && typeof parsed.claimedByUserId !== 'string')
     ) {
       window.sessionStorage.removeItem(JIT_PRIVATE_ACTION_KEY)
       return null
@@ -177,17 +286,48 @@ export function CatalogPrivateActions({
   const location = useLocation()
   const [resumedSaved, setResumedSaved] = useState(false)
   const [resumeState, setResumeState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const resumePromiseRef = useRef<Promise<{ saved: boolean }> | null>(null)
   const returnTo = `${location.pathname}${location.search}`
 
   useEffect(() => {
-    if (!session) return
     const intent = readJitSaveIntent()
+    const inFlight = resumePromiseRef.current
+    if (inFlight) {
+      let cancelled = false
+      inFlight
+        .then((result) => {
+          if (cancelled) return
+          if (!result.saved) throw new Error('save_not_applied')
+          setResumedSaved(true)
+          setResumeState('saved')
+        })
+        .catch(() => {
+          if (!cancelled) setResumeState('error')
+        })
+      return () => {
+        cancelled = true
+      }
+    }
     if (!intent || intent.storeId !== storeId || intent.returnTo !== returnTo) return
+    // Returning to the exact source route without a session is the explicit
+    // "Cancel and return without saving" path. Consume the intent so a later
+    // sign-in cannot replay it.
+    if (!session) {
+      window.sessionStorage.removeItem(JIT_PRIVATE_ACTION_KEY)
+      return
+    }
+    // A recovered/claimed intent is bound to the account that first claimed it.
+    // Never replay it after an account switch.
+    if (intent.claimedByUserId && intent.claimedByUserId !== session.userId) {
+      window.sessionStorage.removeItem(JIT_PRIVATE_ACTION_KEY)
+      return
+    }
     window.sessionStorage.removeItem(JIT_PRIVATE_ACTION_KEY)
     let cancelled = false
     setResumeState('saving')
-    client
-      .setSave(storeId, true)
+    const request = client.setSave(storeId, true)
+    resumePromiseRef.current = request
+    request
       .then((result) => {
         if (cancelled) return
         if (!result.saved) throw new Error('save_not_applied')
@@ -246,8 +386,11 @@ export function SavedPage({
 }) {
   const [stores, setStores] = useState<SavedStore[] | null>(null)
   const [error, setError] = useState(false)
+  const [reload, setReload] = useState(0)
   useEffect(() => {
     let cancelled = false
+    setError(false)
+    setStores(null)
     client
       .listSaved()
       .then((result) => {
@@ -259,7 +402,7 @@ export function SavedPage({
     return () => {
       cancelled = true
     }
-  }, [client])
+  }, [client, reload])
   if (error)
     return (
       <ShopperCard
@@ -267,6 +410,9 @@ export function SavedPage({
         description="Your private saved stores are temporarily unavailable."
       >
         <GenericError />
+        <button className="button" type="button" onClick={() => setReload((value) => value + 1)}>
+          Try saved stores again
+        </button>
       </ShopperCard>
     )
   if (!stores)
@@ -276,14 +422,23 @@ export function SavedPage({
       </ShopperCard>
     )
   return (
-    <ShopperCard title="Saved stores" description="Only you can see stores you save.">
+    <ShopperCard
+      title="Saved stores"
+      description="Only this signed-in shopper can see or change these saved stores."
+    >
       {stores.length ? (
-        <ul aria-label="Saved stores">
+        <ul className="shopper-store-list" aria-label="Saved stores">
           {stores.map((store) => (
-            <li key={store.storeId}>
-              <Link to={`/stores/${encodeURIComponent(store.slug)}`}>{store.name}</Link>
+            <StoreRecordCard
+              key={store.storeId}
+              name={store.name}
+              slug={store.slug}
+              timestampLabel="Saved"
+              timestamp={store.savedAt}
+              sourceLabel="Your private saved-store record"
+            >
               <SaveStoreAction storeId={store.storeId} initialSaved client={client} />
-            </li>
+            </StoreRecordCard>
           ))}
         </ul>
       ) : (
@@ -298,12 +453,16 @@ export function NewSincePage({
 }: {
   client?: ShopperPrivateClient
 }) {
+  const online = useOnlineStatus()
+  const requestSequence = useRef(0)
   const [areas, setAreas] = useState<CatalogAreaChoice[] | null>(null)
   const [selectedAreaId, setSelectedAreaId] = useState('')
   const [result, setResult] = useState<NewSinceResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [caughtUp, setCaughtUp] = useState(false)
   const [error, setError] = useState(false)
+  const [pendingDismiss, setPendingDismiss] = useState<string | null>(null)
+  const [markingSeen, setMarkingSeen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -321,22 +480,30 @@ export function NewSincePage({
   }, [client])
 
   async function chooseArea(areaId: string) {
+    const request = ++requestSequence.current
     setSelectedAreaId(areaId)
     setResult(null)
     setCaughtUp(false)
     setError(false)
-    if (!areaId) return
+    if (!areaId || !online) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
-      setResult(await client.getNewSince(areaId))
+      const nextResult = await client.getNewSince(areaId)
+      if (request === requestSequence.current) setResult(nextResult)
     } catch {
-      setError(true)
+      if (request === requestSequence.current) setError(true)
     } finally {
-      setLoading(false)
+      if (request === requestSequence.current) setLoading(false)
     }
   }
 
   async function dismiss(storeId: string) {
+    if (pendingDismiss || !online) return
+    setPendingDismiss(storeId)
+    setError(false)
     try {
       await client.dismissNewStore(storeId)
       setResult((current) =>
@@ -346,16 +513,22 @@ export function NewSincePage({
       )
     } catch {
       setError(true)
+    } finally {
+      setPendingDismiss(null)
     }
   }
 
   async function markSeen() {
-    if (!result) return
+    if (!result || markingSeen || !online) return
+    setMarkingSeen(true)
+    setError(false)
     try {
       await client.markCatalogSeen(result.area.id)
       setCaughtUp(true)
     } catch {
       setError(true)
+    } finally {
+      setMarkingSeen(false)
     }
   }
 
@@ -364,11 +537,12 @@ export function NewSincePage({
       title="New since your last visit"
       description="Choose an area yourself. Antique Trail does not use background location or send notifications."
     >
+      {!online && <OfflineNotice />}
       <label htmlFor="new-since-area">Choose an area</label>
       <select
         id="new-since-area"
         value={selectedAreaId}
-        disabled={areas === null}
+        disabled={areas === null || !online}
         onChange={(event) => void chooseArea(event.target.value)}
       >
         <option value="">Select an area</option>
@@ -389,21 +563,41 @@ export function NewSincePage({
               : `Showing recently added stores in ${result.area.label}.`}
           </p>
           {result.stores.length ? (
-            <ul aria-label={`New stores in ${result.area.label}`}>
+            <ul className="shopper-store-list" aria-label={`New stores in ${result.area.label}`}>
               {result.stores.map((store) => (
-                <li key={store.storeId}>
-                  <Link to={`/stores/${encodeURIComponent(store.slug)}`}>{store.name}</Link>{' '}
-                  <button type="button" onClick={() => void dismiss(store.storeId)}>
-                    Dismiss {store.name}
+                <StoreRecordCard
+                  key={store.storeId}
+                  name={store.name}
+                  slug={store.slug}
+                  areaLabel={result.area.label}
+                  timestampLabel="Added to catalog"
+                  timestamp={store.addedAt}
+                  sourceLabel="Account-scoped catalog change record"
+                >
+                  <button
+                    type="button"
+                    disabled={pendingDismiss !== null || !online}
+                    onClick={() => void dismiss(store.storeId)}
+                  >
+                    {pendingDismiss === store.storeId
+                      ? `Dismissing ${store.name}…`
+                      : `Dismiss ${store.name}`}
                   </button>
-                </li>
+                </StoreRecordCard>
               ))}
             </ul>
           ) : (
             <p role="status">No new stores in this area.</p>
           )}
-          <button className="button" type="button" onClick={() => void markSeen()}>
-            Mark {result.area.label} as seen
+          <button
+            className="button"
+            type="button"
+            disabled={markingSeen || !online}
+            onClick={() => void markSeen()}
+          >
+            {markingSeen
+              ? `Marking ${result.area.label} as seen…`
+              : `Mark ${result.area.label} as seen`}
           </button>
         </>
       )}
@@ -419,8 +613,11 @@ export function HistoryPage({
 }) {
   const [memories, setMemories] = useState<PrivateStoreMemory[] | null>(null)
   const [error, setError] = useState(false)
+  const [reload, setReload] = useState(0)
   useEffect(() => {
     let cancelled = false
+    setError(false)
+    setMemories(null)
     client
       .listMemories()
       .then((result) => {
@@ -432,14 +629,19 @@ export function HistoryPage({
     return () => {
       cancelled = true
     }
-  }, [client])
+  }, [client, reload])
   return (
     <ShopperCard
       title="Your private history"
-      description="Ratings, notes, and visit memories belong only to your account."
+      description="Ratings, notes, and visit memories belong only to this signed-in shopper account."
     >
       {error ? (
-        <GenericError />
+        <>
+          <GenericError />
+          <button className="button" type="button" onClick={() => setReload((value) => value + 1)}>
+            Try private history again
+          </button>
+        </>
       ) : memories === null ? (
         <p role="status">Loading…</p>
       ) : memories.length ? (
@@ -465,6 +667,7 @@ export function MemoryPage({
   storeId: string
   client?: ShopperPrivateClient
 }) {
+  const online = useOnlineStatus()
   const [memory, setMemory] = useState<PrivateStoreMemory>({
     storeId,
     rating: null,
@@ -475,26 +678,48 @@ export function MemoryPage({
   const [state, setState] = useState<PrivateActionState>('loading')
   const [deleteReceipt, setDeleteReceipt] = useState<PrivateDeleteReceipt | null>(null)
   const [error, setError] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [hasLoaded, setHasLoaded] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null)
+  const keepMemoryRef = useRef<HTMLButtonElement>(null)
+  const wasConfirmingDelete = useRef(false)
+  const [reload, setReload] = useState(0)
   useEffect(() => {
     let cancelled = false
+    setHasLoaded(false)
+    setError(false)
+    setLoadFailed(false)
+    setState('loading')
     client
       .getMemory(storeId)
       .then((result) => {
         if (!cancelled && result) setMemory(result)
-        if (!cancelled) setState('updated')
+        if (!cancelled) {
+          setState('updated')
+          setHasLoaded(true)
+        }
       })
       .catch(() => {
         if (!cancelled) {
           setError(true)
+          setLoadFailed(true)
           setState('error')
+          setHasLoaded(true)
         }
       })
     return () => {
       cancelled = true
     }
-  }, [client, storeId])
+  }, [client, reload, storeId])
+  useEffect(() => {
+    if (confirmDelete) keepMemoryRef.current?.focus()
+    else if (wasConfirmingDelete.current) deleteTriggerRef.current?.focus()
+    wasConfirmingDelete.current = confirmDelete
+  }, [confirmDelete])
   async function save(event: FormEvent) {
     event.preventDefault()
+    if (state === 'loading' || !online) return
     setState('loading')
     setError(false)
     try {
@@ -507,9 +732,12 @@ export function MemoryPage({
     }
   }
   async function remove() {
+    if (state === 'delete-pending' || !online) return
     setState('delete-pending')
+    setError(false)
     try {
       setDeleteReceipt(await client.deleteMemory(storeId))
+      setConfirmDelete(false)
       setState('deleted')
     } catch {
       setError(true)
@@ -517,7 +745,7 @@ export function MemoryPage({
     }
   }
   async function undoRemove() {
-    if (!deleteReceipt) return
+    if (!deleteReceipt || state === 'loading' || !online) return
     setState('loading')
     setError(false)
     try {
@@ -529,13 +757,25 @@ export function MemoryPage({
       setState('error')
     }
   }
-  if (error && state === 'loading')
+  if (!hasLoaded)
+    return (
+      <ShopperCard
+        title="Private store memory"
+        description="Your rating, note, and visit month are visible only to you."
+      >
+        <p role="status">Loading private memory…</p>
+      </ShopperCard>
+    )
+  if (loadFailed)
     return (
       <ShopperCard
         title="Private memory unavailable"
         description="We could not load your private store memory."
       >
         <GenericError />
+        <button className="button" type="button" onClick={() => setReload((value) => value + 1)}>
+          Try private memory again
+        </button>
       </ShopperCard>
     )
   return (
@@ -543,10 +783,16 @@ export function MemoryPage({
       title="Private store memory"
       description="Your rating, note, and visit month are visible only to you."
     >
+      {!online && <OfflineNotice />}
       {state === 'deleted' ? (
         <div>
           <p role="status">Private memory deleted.</p>
-          <button className="button" type="button" onClick={() => void undoRemove()}>
+          <button
+            className="button"
+            type="button"
+            disabled={!online}
+            onClick={() => void undoRemove()}
+          >
             Undo memory deletion
           </button>
         </div>
@@ -587,12 +833,45 @@ export function MemoryPage({
             }
           />
           {error && <GenericError />}
-          <button className="button" type="submit" disabled={state === 'loading'}>
+          <button className="button" type="submit" disabled={state === 'loading' || !online}>
             {state === 'loading' ? 'Saving…' : 'Save private memory'}
           </button>
-          <button type="button" onClick={() => void remove()} disabled={state === 'delete-pending'}>
-            {state === 'delete-pending' ? 'Deleting…' : 'Delete memory'}
-          </button>
+          {confirmDelete ? (
+            <fieldset>
+              <legend>Delete this private memory?</legend>
+              <p id="memory-delete-consequence">
+                The memory disappears immediately. You can undo for a short time.
+              </p>
+              <div className="memory-delete-actions">
+                <button
+                  ref={keepMemoryRef}
+                  className="button button--secondary"
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  Keep memory
+                </button>
+                <button
+                  className="button button--danger"
+                  type="button"
+                  aria-describedby="memory-delete-consequence"
+                  disabled={state === 'delete-pending' || !online}
+                  onClick={() => void remove()}
+                >
+                  {state === 'delete-pending' ? 'Deleting…' : 'Yes, delete memory'}
+                </button>
+              </div>
+            </fieldset>
+          ) : (
+            <button
+              ref={deleteTriggerRef}
+              type="button"
+              disabled={!online}
+              onClick={() => setConfirmDelete(true)}
+            >
+              Delete memory
+            </button>
+          )}
           {state === 'saved' && <p role="status">Private memory saved.</p>}
           {state === 'undone' && <p role="status">Private memory restored.</p>}
         </form>
@@ -608,6 +887,7 @@ export function CorrectionPage({
   storeId: string
   client?: ShopperPrivateClient
 }) {
+  const online = useOnlineStatus()
   const { slug = '' } = useParams()
   const { session } = useAuth()
   const location = useLocation()
@@ -621,19 +901,34 @@ export function CorrectionPage({
   )
   const [result, setResult] = useState<CorrectionStatus | null>(null)
   const [error, setError] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (submitting || !online) return
+    if (!draft.description.trim()) {
+      setError(true)
+      return
+    }
     if (!session) {
       correctionDraftCache.set(slug, draft)
       setError(true)
       return
     }
     setError(false)
+    setSubmitting(true)
     try {
-      setResult(await client.submitCorrection(draft))
+      setResult(
+        await client.submitCorrection({
+          ...draft,
+          description: draft.description.trim(),
+          publicSourceUrl: draft.publicSourceUrl?.trim() || undefined,
+        }),
+      )
       correctionDraftCache.delete(slug)
     } catch {
       setError(true)
+    } finally {
+      setSubmitting(false)
     }
   }
   return (
@@ -641,8 +936,12 @@ export function CorrectionPage({
       title="Suggest a correction"
       description="Draft anonymously, then sign in to submit. We show only your own reason-neutral status."
     >
+      {!online && <OfflineNotice />}
       {result ? (
-        <p role="status">Correction submitted. Status: {result.state}.</p>
+        <div>
+          <p role="status">Correction submitted. Status: {result.state}.</p>
+          <Link to={`/corrections/${encodeURIComponent(result.id)}`}>Track this correction</Link>
+        </div>
       ) : (
         <form onSubmit={submit}>
           <label htmlFor="correction-type">What needs correction?</label>
@@ -667,12 +966,27 @@ export function CorrectionPage({
             value={draft.description}
             onChange={(event) => setDraft({ ...draft, description: event.target.value })}
           />
+          <p>{draft.description.length} of 2,000 characters</p>
+          <label htmlFor="correction-source">Public source URL (optional)</label>
+          <input
+            id="correction-source"
+            type="url"
+            inputMode="url"
+            value={draft.publicSourceUrl ?? ''}
+            onChange={(event) =>
+              setDraft({ ...draft, publicSourceUrl: event.target.value || undefined })
+            }
+          />
           {error && (
-            <p role="alert">
-              {session
-                ? GENERIC_SHOPPER_ERROR
-                : 'Sign in to submit this correction. Your draft stays on this device.'}
-            </p>
+            <GenericError
+              message={
+                !draft.description.trim()
+                  ? 'Describe what needs correction before submitting.'
+                  : session
+                    ? GENERIC_SHOPPER_ERROR
+                    : 'Sign in to submit this correction. Your draft stays in this browser tab.'
+              }
+            />
           )}
           {!session && (
             <p>
@@ -684,8 +998,8 @@ export function CorrectionPage({
               </Link>
             </p>
           )}
-          <button className="button" type="submit">
-            Submit correction
+          <button className="button" type="submit" disabled={submitting || !online}>
+            {submitting ? 'Submitting correction…' : 'Submit correction'}
           </button>
         </form>
       )}
@@ -698,34 +1012,60 @@ export function CorrectionStatusPage({
 }: {
   client?: ShopperPrivateClient
 }) {
+  const online = useOnlineStatus()
   const { correctionId = '' } = useParams()
   const [status, setStatus] = useState<CorrectionStatus | null>(null)
   const [error, setError] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [reload, setReload] = useState(0)
   useEffect(() => {
     let cancelled = false
+    setError(false)
+    setLoaded(false)
     client
       .getCorrection(correctionId)
       .then((result) => {
-        if (!cancelled) setStatus(result)
+        if (!cancelled) {
+          setStatus(result)
+          setLoaded(true)
+        }
       })
       .catch(() => {
-        if (!cancelled) setError(true)
+        if (!cancelled) {
+          setError(true)
+          setLoaded(true)
+        }
       })
     return () => {
       cancelled = true
     }
-  }, [client, correctionId])
+  }, [client, correctionId, reload])
   return (
     <ShopperCard
       title="Correction status"
       description="Only your own reason-neutral status is shown."
     >
+      {!online && <OfflineNotice />}
       {error ? (
-        <GenericError />
+        <>
+          <GenericError />
+          <button
+            className="button"
+            type="button"
+            disabled={!online}
+            onClick={() => setReload((value) => value + 1)}
+          >
+            Try correction status again
+          </button>
+        </>
       ) : status ? (
         <p role="status">Correction status: {status.state}.</p>
+      ) : loaded ? (
+        <p role="status">
+          This correction is not available. It may belong to another shopper account.
+        </p>
       ) : (
-        <p role="status">Loading…</p>
+        <p role="status">Loading correction status…</p>
       )}
     </ShopperCard>
   )

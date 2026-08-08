@@ -1,0 +1,38 @@
+name: Registration cleanup scheduler
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: antique-trail-registration-cleanup
+  cancel-in-progress: false
+
+jobs:
+  invoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLEANUP_URL: ${{ vars.REGISTRATION_CLEANUP_URL }}
+      INVOKE_JWT: ${{ secrets.REGISTRATION_CLEANUP_INVOKE_JWT }}
+      SCHEDULER_SECRET: ${{ secrets.REGISTRATION_CLEANUP_SCHEDULER_SECRET }}
+    steps:
+      - name: Keep unconfigured cleanup safely disabled
+        if: ${{ env.CLEANUP_URL == '' || env.INVOKE_JWT == '' || env.SCHEDULER_SECRET == '' }}
+        run: echo 'Registration cleanup is unconfigured; no provider call was made.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Invoke one bounded cleanup attempt
+        if: ${{ env.CLEANUP_URL != '' && env.INVOKE_JWT != '' && env.SCHEDULER_SECRET != '' }}
+        shell: bash
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --connect-timeout 5 --max-time 60 \
+            --request POST \
+            --header "Authorization: Bearer ${INVOKE_JWT}" \
+            --header "x-antique-trail-scheduler: ${SCHEDULER_SECRET}" \
+            --header 'content-type: application/json' \
+            --data '{}' \
+            "${CLEANUP_URL}"

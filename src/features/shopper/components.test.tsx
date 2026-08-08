@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -7,6 +7,7 @@ import { AuthProvider } from '../auth'
 import {
   CatalogPrivateActions,
   CorrectionPage,
+  CorrectionStatusPage,
   MemoryPage,
   HistoryPage,
   NewSincePage,
@@ -75,6 +76,14 @@ describe('private shopper screens', () => {
       'href',
       '/stores/oak',
     )
+    expect(screen.getByRole('img', { name: /no store photo.*Oak Antiques/i })).toBeVisible()
+    const savedCard = within(screen.getByRole('listitem'))
+    expect(savedCard.getByText('Area')).toBeVisible()
+    expect(savedCard.getByText(/open store details for area/i)).toBeVisible()
+    expect(savedCard.getByText('Category')).toBeVisible()
+    expect(savedCard.getByText(/check current hours/i)).toBeVisible()
+    expect(savedCard.getByText(/your private saved-store record/i)).toBeVisible()
+    expect(screen.getByText(/listing freshness.*store details/i)).toBeVisible()
   })
 
   it('removes a saved store and can undo the removal', async () => {
@@ -158,7 +167,14 @@ describe('private shopper screens', () => {
     }
     render(
       <MemoryRouter initialEntries={['/stores/oak']}>
-        <AuthProvider authStore={authStore}>
+        <AuthProvider
+          authStore={authStore}
+          registry={{
+            registerCurrentSession: vi.fn(),
+            isActive: vi.fn(async () => true),
+            revoke: vi.fn(),
+          }}
+        >
           <CatalogPrivateActions storeId="store-1" slug="oak" client={client({ setSave })} />
         </AuthProvider>
       </MemoryRouter>,
@@ -171,6 +187,89 @@ describe('private shopper screens', () => {
       'href',
       '/stores/oak/memory',
     )
+  })
+
+  it('consumes an exact pending Save when sign-in is cancelled and never replays it later', async () => {
+    window.sessionStorage.setItem(
+      'antique-trail:jit-private-action:v1',
+      JSON.stringify({
+        kind: 'save-store',
+        storeId: 'store-1',
+        returnTo: '/stores/oak',
+        expiresAt: Date.now() + 60_000,
+      }),
+    )
+    const setSave = vi.fn(async (_storeId: string, saved: boolean) => ({ saved }))
+    const cancelled = render(
+      <MemoryRouter initialEntries={['/stores/oak']}>
+        <AuthProvider>
+          <CatalogPrivateActions storeId="store-1" slug="oak" client={client({ setSave })} />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toBeNull(),
+    )
+    cancelled.unmount()
+
+    const authStore = {
+      getSession: () => ({
+        userId: 'shopper-a',
+        accessToken: 'memory-only',
+        expiresAt: Date.now() + 60_000,
+        role: 'Shopper' as const,
+        mfaRequired: false,
+        mfaVerified: true,
+      }),
+      setSession: vi.fn(),
+      clearSession: vi.fn(),
+    }
+    render(
+      <MemoryRouter initialEntries={['/stores/oak']}>
+        <AuthProvider authStore={authStore}>
+          <CatalogPrivateActions storeId="store-1" slug="oak" client={client({ setSave })} />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(screen.getByRole('button', { name: /save store/i })).toBeEnabled())
+    expect(setSave).not.toHaveBeenCalled()
+  })
+
+  it('drops a claimed pending Save after an account switch', async () => {
+    window.sessionStorage.setItem(
+      'antique-trail:jit-private-action:v1',
+      JSON.stringify({
+        kind: 'save-store',
+        storeId: 'store-1',
+        returnTo: '/stores/oak',
+        expiresAt: Date.now() + 60_000,
+        claimedByUserId: 'shopper-a',
+      }),
+    )
+    const setSave = vi.fn(async (_storeId: string, saved: boolean) => ({ saved }))
+    const authStore = {
+      getSession: () => ({
+        userId: 'shopper-b',
+        accessToken: 'memory-only',
+        expiresAt: Date.now() + 60_000,
+        role: 'Shopper' as const,
+        mfaRequired: false,
+        mfaVerified: true,
+      }),
+      setSession: vi.fn(),
+      clearSession: vi.fn(),
+    }
+    render(
+      <MemoryRouter initialEntries={['/stores/oak']}>
+        <AuthProvider authStore={authStore}>
+          <CatalogPrivateActions storeId="store-1" slug="oak" client={client({ setSave })} />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toBeNull(),
+    )
+    expect(setSave).not.toHaveBeenCalled()
   })
 
   it('uses the stable catalog id rather than the public slug for memory RPCs', async () => {
@@ -227,6 +326,21 @@ describe('private shopper screens', () => {
     await user.click(screen.getByRole('button', { name: /save private memory/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/saved/i)
     await user.click(screen.getByRole('button', { name: /delete memory/i }))
+    expect(screen.getByRole('group', { name: /delete this private memory/i })).toBeVisible()
+    expect(screen.getByRole('button', { name: /keep memory/i })).toHaveFocus()
+    expect(screen.getByRole('button', { name: /keep memory/i })).toHaveClass('button--secondary')
+    expect(screen.getByRole('button', { name: /yes, delete memory/i })).toHaveClass(
+      'button--danger',
+    )
+    expect(screen.getByRole('button', { name: /yes, delete memory/i })).toHaveAttribute(
+      'aria-describedby',
+      'memory-delete-consequence',
+    )
+    expect(remove).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /keep memory/i }))
+    expect(screen.getByRole('button', { name: /delete memory/i })).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: /delete memory/i }))
+    await user.click(screen.getByRole('button', { name: /yes, delete memory/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/deleted/i)
     await user.click(screen.getByRole('button', { name: 'Undo memory deletion' }))
     expect(await screen.findByRole('status')).toHaveTextContent(/restored/i)
@@ -262,6 +376,11 @@ describe('private shopper screens', () => {
       '/stores/new-store',
     )
     expect(getNewSince).toHaveBeenCalledWith('area-topeka')
+    expect(screen.getByRole('img', { name: /no store photo.*New Store/i })).toBeVisible()
+    const newStoreCard = within(screen.getByRole('listitem'))
+    expect(newStoreCard.getAllByText('Topeka')).toHaveLength(2)
+    expect(newStoreCard.getByText(/Jul 3, 2026/i)).toBeVisible()
+    expect(newStoreCard.getByText(/account-scoped catalog change record/i)).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Dismiss New Store' }))
     expect(dismissNewStore).toHaveBeenCalledWith('store-new')
     expect(screen.queryByRole('link', { name: 'New Store' })).not.toBeInTheDocument()
@@ -304,5 +423,142 @@ describe('private shopper screens', () => {
       </MemoryRouter>,
     )
     expect(screen.getByDisplayValue('Hours have changed')).toBeInTheDocument()
+  })
+
+  it('keeps private memory input after a failed save and focuses the safe error', async () => {
+    const user = userEvent.setup()
+    const upsertMemory = vi.fn<ShopperPrivateClient['upsertMemory']>(async () => {
+      throw new Error('database detail that must not be shown')
+    })
+    renderPage(<MemoryPage storeId="store-1" client={client({ upsertMemory })} />)
+
+    const note = await screen.findByLabelText(/private note/i)
+    const longNote = 'Private detail. '.repeat(125)
+    fireEvent.change(note, { target: { value: longNote } })
+    await user.click(screen.getByRole('button', { name: /save private memory/i }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveFocus()
+    expect(alert).toHaveTextContent(/couldn't complete that private action/i)
+    expect(alert).not.toHaveTextContent(/database detail/i)
+    expect(note).toHaveValue(longNote)
+  })
+
+  it('prevents correction double-submit and links to owner-scoped status', async () => {
+    const user = userEvent.setup()
+    let resolveSubmission: ((value: { id: string; state: 'submitted' }) => void) | undefined
+    const submitCorrection = vi.fn<ShopperPrivateClient['submitCorrection']>(
+      () =>
+        new Promise((resolve) => {
+          resolveSubmission = resolve
+        }),
+    )
+    const authStore = {
+      getSession: () => ({
+        userId: 'shopper-a',
+        accessToken: 'memory-only',
+        expiresAt: Date.now() + 60_000,
+        role: 'Shopper' as const,
+        mfaRequired: false,
+        mfaVerified: true,
+      }),
+      setSession: vi.fn(),
+      clearSession: vi.fn(),
+    }
+    render(
+      <MemoryRouter initialEntries={['/stores/elm/correction']}>
+        <AuthProvider
+          authStore={authStore}
+          registry={{
+            registerCurrentSession: vi.fn(),
+            isActive: vi.fn(async () => true),
+            revoke: vi.fn(),
+          }}
+        >
+          <Routes>
+            <Route
+              path="/stores/:slug/correction"
+              element={<CorrectionPage storeId="store-1" client={client({ submitCorrection })} />}
+            />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    await user.type(screen.getByLabelText(/description/i), '  Correct the Sunday hours.  ')
+    await user.type(screen.getByLabelText(/public source url/i), 'https://example.com/hours')
+    const submit = screen.getByRole('button', { name: /submit correction/i })
+    await user.dblClick(submit)
+    expect(submitCorrection).toHaveBeenCalledTimes(1)
+    expect(submit).toBeDisabled()
+    expect(submitCorrection).toHaveBeenCalledWith({
+      storeId: 'store-1',
+      type: 'hours',
+      description: 'Correct the Sunday hours.',
+      publicSourceUrl: 'https://example.com/hours',
+    })
+
+    await act(async () => resolveSubmission?.({ id: 'correction-private-a', state: 'submitted' }))
+    expect(await screen.findByRole('link', { name: /track this correction/i })).toHaveAttribute(
+      'href',
+      '/corrections/correction-private-a',
+    )
+  })
+
+  it('presents a reason-neutral unavailable state for a correction outside this account', async () => {
+    render(
+      <MemoryRouter initialEntries={['/corrections/private-to-shopper-b']}>
+        <Routes>
+          <Route
+            path="/corrections/:correctionId"
+            element={
+              <CorrectionStatusPage client={client({ getCorrection: vi.fn(async () => null) })} />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      /not available.*another shopper account/i,
+    )
+    expect(screen.queryByText(/private-to-shopper-b/i)).not.toBeInTheDocument()
+  })
+
+  it('pauses private writes while offline without losing the visible action', async () => {
+    const setSave = vi.fn<ShopperPrivateClient['setSave']>(async (_storeId, saved) => ({ saved }))
+    renderPage(
+      <SaveStoreAction storeId="store-1" initialSaved={false} client={client({ setSave })} />,
+    )
+    act(() => window.dispatchEvent(new Event('offline')))
+
+    expect(screen.getByRole('status')).toHaveTextContent(/private changes are paused/i)
+    expect(screen.getByRole('button', { name: /unavailable offline/i })).toBeDisabled()
+    expect(setSave).not.toHaveBeenCalled()
+    act(() => window.dispatchEvent(new Event('online')))
+  })
+
+  it('renders only the records returned by the current account-scoped client', async () => {
+    const shopperA = client({
+      listSaved: vi.fn(async () => [
+        { storeId: 'a-only', slug: 'a-store', name: "Shopper A's Store", savedAt: '2026-01-01' },
+      ]),
+    })
+    const shopperB = client({
+      listSaved: vi.fn(async () => [
+        { storeId: 'b-only', slug: 'b-store', name: "Shopper B's Store", savedAt: '2026-01-02' },
+      ]),
+    })
+    const view = renderPage(<SavedPage client={shopperA} />)
+    expect(await screen.findByRole('link', { name: "Shopper A's Store" })).toBeVisible()
+    expect(screen.queryByText("Shopper B's Store")).not.toBeInTheDocument()
+
+    view.rerender(
+      <MemoryRouter>
+        <SavedPage client={shopperB} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('link', { name: "Shopper B's Store" })).toBeVisible()
+    expect(screen.queryByText("Shopper A's Store")).not.toBeInTheDocument()
   })
 })

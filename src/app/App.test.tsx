@@ -10,6 +10,11 @@ import { unavailableReviewClient } from '../features/reviews'
 import { unavailablePortalClient } from '../features/portal'
 import type { DurableReadinessClient } from '../features/readiness'
 import App from './App'
+import { createReviewHarness } from '../review-harness/harness'
+import {
+  createReviewHarnessAuthProvider,
+  createReviewHarnessClients,
+} from '../review-harness/clients'
 
 describe('app shell', () => {
   afterEach(cleanup)
@@ -44,10 +49,68 @@ describe('app shell', () => {
     expect(screen.getByRole('heading', { name: 'More' })).toHaveFocus()
     expect(screen.getByRole('navigation', { name: /more destinations/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /saved stores/i })).toHaveAttribute('href', '/saved')
+    expect(screen.getByRole('link', { name: /new since your last visit/i })).toHaveAttribute(
+      'href',
+      '/new-since',
+    )
+    expect(screen.getByRole('link', { name: /private history/i })).toHaveAttribute(
+      'href',
+      '/account/history',
+    )
     expect(screen.getByRole('link', { name: /account & privacy/i })).toHaveAttribute(
       'href',
       '/account/privacy',
     )
+  })
+
+  it('focuses the final private destination after lifecycle hydration', async () => {
+    const harness = await createReviewHarness({
+      dev: true,
+      mode: 'review',
+      enabled: 'true',
+      url: 'http://127.0.0.1:4173/saved?reviewAs=shopper-a&reviewState=success',
+    })
+    expect(harness).not.toBeNull()
+    render(
+      <MemoryRouter initialEntries={['/saved?reviewAs=shopper-a&reviewState=success']}>
+        <App
+          clients={createReviewHarnessClients(harness!.scenario, harness!.state)}
+          runtime={{
+            authStore: harness!.authStore,
+            sessionRegistry: harness!.sessionRegistry,
+            authProvider: createReviewHarnessAuthProvider(harness!.state),
+          }}
+        />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: /saved stores/i })).toHaveFocus()
+  })
+
+  it('advances review export reauthentication to the request action', async () => {
+    const user = userEvent.setup()
+    const harness = await createReviewHarness({
+      dev: true,
+      mode: 'review',
+      enabled: 'true',
+      url: 'http://127.0.0.1:4173/account/export?reviewAs=shopper-a&reviewState=success',
+    })
+    expect(harness).not.toBeNull()
+    render(
+      <MemoryRouter initialEntries={['/account/export?reviewAs=shopper-a&reviewState=success']}>
+        <App
+          clients={createReviewHarnessClients(harness!.scenario, harness!.state)}
+          runtime={{
+            authStore: harness!.authStore,
+            sessionRegistry: harness!.sessionRegistry,
+            authProvider: createReviewHarnessAuthProvider(harness!.state),
+          }}
+        />
+      </MemoryRouter>,
+    )
+    await user.type(await screen.findByLabelText(/email/i), 'shopper-a@local.invalid')
+    await user.type(screen.getByLabelText(/^password$/i), 'synthetic-password')
+    await user.click(screen.getByRole('button', { name: /confirm password/i }))
+    expect(await screen.findByRole('button', { name: /request export/i })).toHaveFocus()
   })
 
   it('wires private shopper actions into public catalog results', async () => {
@@ -300,6 +363,7 @@ describe('app shell', () => {
     const getEligibility = vi.fn(async () => ({
       verifiedEmail: true,
       ageAttested: true,
+      requestId: '00000000-0000-4000-8000-000000000003',
       completedVisit: true,
       manualVisitAttested: false,
       activeReviewExists: false,
@@ -389,6 +453,11 @@ describe('app shell', () => {
       <MemoryRouter initialEntries={['/account']}>
         <App runtime={{ authStore, tripOffline: offline }} />
       </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { name: /your account/i })).toHaveFocus()
+    const controls = screen.getByRole('navigation', { name: /account controls/i })
+    expect(controls).toHaveTextContent(
+      'Privacy choicesExport my dataDelete my accountPrivate history',
     )
     await user.click(screen.getByRole('button', { name: /sign out/i }))
     expect(offline.prepareSignOut).toHaveBeenCalledWith('shopper-a')

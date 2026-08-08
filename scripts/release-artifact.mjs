@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 const SHA256 = /^[a-f0-9]{64}$/
 const SOURCE_SHA = /^[a-f0-9]{40}$/
+const REVIEW_ONLY_MARKERS = ['Synthetic Review Harness', 'review-shopper-a', 'reviewAs=']
 
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex')
@@ -50,6 +51,31 @@ async function inventory(root) {
   return files
 }
 
+export async function assertProductionArtifact(root) {
+  const files = await inventory(root)
+  for (const file of files) {
+    const contents = await readFile(path.join(root, ...file.path.split('/')), 'utf8')
+    const marker = REVIEW_ONLY_MARKERS.find((value) => contents.includes(value))
+    if (marker) throw new Error(`Production artifact contains review-only marker: ${marker}`)
+  }
+  const headers = await readFile(path.join(root, '_headers'), 'utf8').catch(() => '')
+  for (const route of ['/auth/callback*', '/auth/register*', '/auth/verify*', '/auth/recovery*']) {
+    const start = headers.indexOf(route)
+    const block =
+      start < 0
+        ? ''
+        : headers.slice(
+            start,
+            headers.indexOf('\n\n', start) < 0 ? undefined : headers.indexOf('\n\n', start),
+          )
+    if (
+      !/Cache-Control:\s*private,\s*no-store/iu.test(block) ||
+      !/Referrer-Policy:\s*no-referrer/iu.test(block)
+    )
+      throw new Error(`Production artifact lacks private no-store auth headers: ${route}`)
+  }
+}
+
 function treeDigest(files) {
   return sha256(files.map((file) => `${file.sha256}  ${file.size}  ${file.path}\n`).join(''))
 }
@@ -85,6 +111,7 @@ export async function createRelease(options) {
   const outStats = await lstat(out).catch(() => null)
   if (outStats) throw new Error(`Output already exists: ${out}`)
 
+  await assertProductionArtifact(dist)
   const files = await inventory(dist)
   const manifest = {
     schemaVersion: 1,
@@ -116,6 +143,7 @@ export async function verifyRelease(options) {
   const expectedDigest = requireValue(options, 'expected-digest', SHA256)
   const expectedSourceSha = requireValue(options, 'expected-source-sha', SOURCE_SHA)
   const manifest = JSON.parse(await readFile(path.join(bundle, 'artifact-manifest.json'), 'utf8'))
+  await assertProductionArtifact(path.join(bundle, 'dist'))
   const actualFiles = await inventory(path.join(bundle, 'dist'))
   const actualDigest = treeDigest(actualFiles)
 

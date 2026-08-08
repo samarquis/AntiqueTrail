@@ -1,13 +1,142 @@
 import type { AppClients } from '../app/App'
+import type {
+  AccountLifecycleClient,
+  AccountLifecycleSnapshot,
+  AuthProviderAdapter,
+  ProviderSession,
+} from '../features/auth'
 import { unavailableCandidateClient, type CandidateClient } from '../features/candidates'
 import { unavailablePartnerAdminClient, type PartnerAdminClient } from '../features/partners'
 import { unavailablePortalClient, type PortalClient, type PortalHours } from '../features/portal'
 import { unavailableReviewClient, type ReviewClient } from '../features/reviews'
-import { unavailableShopperClient, type ShopperPrivateClient } from '../features/shopper'
+import {
+  unavailableShopperClient,
+  type PrivateStoreMemory,
+  type ShopperPrivateClient,
+} from '../features/shopper'
 import { unavailableTripClient, type Trip, type TripClient } from '../features/trips'
 import type { ReviewScenario, ReviewStateId } from './types'
 
 const FIXED_NOW = '2026-08-05T12:00:00.000Z'
+
+function reviewProviderSession(email: string): ProviderSession {
+  return {
+    userId: email.toLowerCase().startsWith('shopper-b') ? 'review-shopper-b' : 'review-shopper-a',
+    email,
+    emailVerified: true,
+    accessToken: 'local-review-only:authenticated-shopper',
+    expiresAt: Date.parse(FIXED_NOW) + 365 * 24 * 60 * 60 * 1_000,
+    role: 'Shopper',
+    mfaRequired: email.toLowerCase().startsWith('mfa'),
+    mfaEnrolled: email.toLowerCase().startsWith('mfa'),
+    passwordAuthenticatedAt: FIXED_NOW,
+  }
+}
+
+export function createReviewHarnessAuthProvider(state: ReviewStateId): AuthProviderAdapter {
+  let mfaSession: ProviderSession | null = null
+  return {
+    async signIn(email) {
+      if (state !== 'success') return { kind: 'error' }
+      const session = reviewProviderSession(email)
+      if (session.mfaRequired) {
+        mfaSession = session
+        return { kind: 'mfa_required', challengeId: 'review-mfa-challenge', session }
+      }
+      return { kind: 'authenticated', session }
+    },
+    async sendRecovery() {
+      if (state === 'loading') return new Promise<void>(() => undefined)
+      // Recovery deliberately resolves identically for known and unknown synthetic addresses.
+    },
+    async verifyMfa(challengeId, code) {
+      if (
+        state !== 'success' ||
+        challengeId !== 'review-mfa-challenge' ||
+        code !== '123456' ||
+        !mfaSession
+      )
+        return null
+      return { ...mfaSession, mfaVerifiedAt: FIXED_NOW }
+    },
+    async register(request) {
+      if (state !== 'success') return { kind: 'error' }
+      if (!request.ageAttested || request.email.toLowerCase().startsWith('blocked'))
+        return { kind: 'blocked' }
+      return { kind: 'pending_verification' }
+    },
+    async verifyCallback(kind, tokenHash) {
+      if (state !== 'success' || !/^review-(?:verify|recovery)-[ab]$/u.test(tokenHash))
+        return { kind: 'error' }
+      const email = tokenHash.endsWith('-b') ? 'shopper-b@local.invalid' : 'shopper-a@local.invalid'
+      return kind === 'recovery'
+        ? { kind: 'verified' }
+        : { kind: 'authenticated', session: reviewProviderSession(email) }
+    },
+    async signOut() {
+      return undefined
+    },
+  }
+}
+
+function lifecycleClient(scenario: ReviewScenario, state: ReviewStateId): AccountLifecycleClient {
+  const allowed = () => requireRole(scenario, ['Shopper'], true)
+  let snapshot: AccountLifecycleSnapshot = {
+    state: 'active',
+    inactivityWarning: { daysRemaining: 30 },
+  }
+  const exportJob = {
+    id: `export-${scenario.id}`,
+    state: 'ready' as const,
+    createdAt: FIXED_NOW,
+    generatedAt: FIXED_NOW,
+    expiresAt: '2026-08-12T12:00:00.000Z',
+    fileSizeBytes: 2048,
+    checksumSha256: 'a'.repeat(64),
+  }
+  return {
+    async getStatus() {
+      allowed()
+      // Lifecycle authorization is a route gate, not the destination fixture. Keep it
+      // deterministic so reviewState=loading/error can exercise the page's own client.
+      return structuredClone(snapshot)
+    },
+    async requestExport() {
+      allowed()
+      return fixture(state, exportJob, exportJob)
+    },
+    async getExportStatus(jobId) {
+      allowed()
+      if (jobId !== exportJob.id) throw new Error('Synthetic cross-account denial.')
+      return fixture(state, exportJob, exportJob)
+    },
+    async downloadExport(jobId) {
+      allowed()
+      if (jobId !== exportJob.id) throw new Error('Synthetic cross-account denial.')
+      return new Blob(['Synthetic account export'])
+    },
+    async requestDeletion() {
+      allowed()
+      const result = await fixture<AccountLifecycleSnapshot>(
+        state,
+        { state: 'deletion_scheduled', deletionDueAt: '2026-08-12T12:00:00.000Z' },
+        snapshot,
+      )
+      snapshot = result
+      return structuredClone(result)
+    },
+    async cancelDeletion() {
+      allowed()
+      const result = await fixture<AccountLifecycleSnapshot>(
+        state,
+        { state: 'active', inactivityWarning: { daysRemaining: 30 } },
+        snapshot,
+      )
+      snapshot = result
+      return structuredClone(result)
+    },
+  }
+}
 
 function fixture<T>(state: ReviewStateId, success: T, empty: T): Promise<T> {
   if (state === 'loading') return new Promise<T>(() => undefined)
@@ -25,55 +154,81 @@ function requireRole<T>(scenario: ReviewScenario, allowed: ReviewScenario['role'
 
 function shopperClient(scenario: ReviewScenario, state: ReviewStateId): ShopperPrivateClient {
   const store = {
-    storeId: scenario.id === 'shopper-b' ? 'store-cedar' : 'store-blue-finch',
+    storeId:
+      scenario.id === 'shopper-b'
+        ? '00000000-0000-4000-8000-000000000002'
+        : '00000000-0000-4000-8000-000000000001',
     slug: scenario.id === 'shopper-b' ? 'cedar-and-brass' : 'blue-finch-curios',
     name: scenario.id === 'shopper-b' ? 'Cedar & Brass' : 'Blue Finch Curios',
     savedAt: FIXED_NOW,
   }
   const allowed = () => requireRole(scenario, ['Shopper'], true)
+  let saved = true
+  let memory: PrivateStoreMemory | null = {
+    storeId: store.storeId,
+    rating: 4,
+    note: 'Ask about the walnut secretary.',
+    lastVisitMonth: '2026-07',
+    version: 1,
+  }
+  let deletedMemory: PrivateStoreMemory | null = null
+  let undoToken: string | null = null
+  let lastSeenAt = '2026-08-01T12:00:00.000Z'
+  const dismissed = new Set<string>()
+  const corrections = new Map<string, { id: string; state: 'submitted' | 'triaged' }>([
+    ['correction-a', { id: 'correction-a', state: 'triaged' }],
+  ])
   return {
     ...unavailableShopperClient,
     async listSaved() {
       allowed()
-      return fixture(state, [store], [])
+      return fixture(state, saved ? [store] : [], [])
     },
     async getSaveState(storeId) {
       allowed()
-      return fixture(state, { saved: storeId === store.storeId }, { saved: false })
+      return fixture(state, { saved: storeId === store.storeId && saved }, { saved: false })
     },
-    async setSave(_storeId, saved) {
+    async setSave(storeId, nextSaved) {
       allowed()
+      await fixture(state, true, true)
+      if (storeId !== store.storeId) throw new Error('Synthetic cross-account denial.')
+      saved = nextSaved
       return { saved }
     },
     async getMemory(storeId) {
       allowed()
-      return fixture(
-        state,
-        {
-          storeId,
-          rating: 4,
-          note: 'Ask about the walnut secretary.',
-          lastVisitMonth: '2026-07',
-          version: 1,
-        },
-        null,
-      )
+      return fixture(state, memory && memory.storeId === storeId ? memory : null, null)
     },
     async listMemories() {
       allowed()
-      return fixture(
-        state,
-        [
-          {
-            storeId: store.storeId,
-            rating: 4,
-            note: 'Ask about the walnut secretary.',
-            lastVisitMonth: '2026-07',
-            version: 1,
-          },
-        ],
-        [],
-      )
+      return fixture(state, memory ? [memory] : [], [])
+    },
+    async upsertMemory(input) {
+      allowed()
+      await fixture(state, true, true)
+      memory = { ...input, version: memory ? memory.version + 1 : 1 }
+      deletedMemory = null
+      undoToken = null
+      return structuredClone(memory)
+    },
+    async deleteMemory(storeId) {
+      allowed()
+      await fixture(state, true, true)
+      if (!memory || memory.storeId !== storeId) throw new Error('Synthetic memory unavailable.')
+      deletedMemory = memory
+      memory = null
+      undoToken = `undo-${scenario.id}-${storeId}`
+      return { undoToken, undoUntil: '2026-08-05T12:01:00.000Z' }
+    },
+    async undoDeleteMemory(storeId, token) {
+      allowed()
+      await fixture(state, true, true)
+      if (!deletedMemory || token !== undoToken || deletedMemory.storeId !== storeId)
+        throw new Error('Synthetic undo unavailable.')
+      memory = { ...deletedMemory, version: deletedMemory.version + 1 }
+      deletedMemory = null
+      undoToken = null
+      return structuredClone(memory)
     },
     async listCatalogAreas() {
       allowed()
@@ -85,8 +240,10 @@ function shopperClient(scenario: ReviewScenario, state: ReviewStateId): ShopperP
         state,
         {
           area: { id: 'topeka', slug: 'topeka', label: 'Topeka area' },
-          lastSeenAt: '2026-08-01T12:00:00.000Z',
-          stores: [{ ...store, addedAt: '2026-08-04T12:00:00.000Z' }],
+          lastSeenAt,
+          stores: dismissed.has(store.storeId)
+            ? []
+            : [{ ...store, addedAt: '2026-08-04T12:00:00.000Z' }],
         },
         {
           area: { id: 'topeka', slug: 'topeka', label: 'Topeka area' },
@@ -95,11 +252,35 @@ function shopperClient(scenario: ReviewScenario, state: ReviewStateId): ShopperP
         },
       )
     },
+    async markCatalogSeen() {
+      allowed()
+      await fixture(state, true, true)
+      lastSeenAt = FIXED_NOW
+      return { seenAt: lastSeenAt }
+    },
+    async dismissNewStore(storeId) {
+      allowed()
+      await fixture(state, true, true)
+      dismissed.add(storeId)
+    },
+    async submitCorrection(draft) {
+      allowed()
+      await fixture(state, true, true)
+      const correction = {
+        id: `correction-${scenario.id}-${corrections.size + 1}`,
+        state: 'submitted' as const,
+      }
+      if (!draft.storeId || !draft.description.trim())
+        throw new Error('Synthetic validation failed.')
+      corrections.set(correction.id, correction)
+      return structuredClone(correction)
+    },
     async getCorrection(id) {
       allowed()
-      if (scenario.id !== 'shopper-a' || id !== 'correction-a')
+      const correction = corrections.get(id)
+      if (scenario.id !== 'shopper-a' || !correction)
         throw new Error('Synthetic cross-account denial.')
-      return fixture(state, { id, state: 'triaged' as const }, null)
+      return fixture(state, correction, null)
     },
   }
 }
@@ -186,7 +367,7 @@ const trip: Trip = {
   stops: [
     {
       id: 'stop-a',
-      storeId: 'store-blue-finch',
+      storeId: '00000000-0000-4000-8000-000000000001',
       kind: 'store',
       label: 'Blue Finch Curios',
       address: '100 Synthetic Avenue, Topeka, KS',
@@ -424,6 +605,7 @@ export function createReviewHarnessClients(
   state: ReviewStateId,
 ): AppClients {
   return {
+    lifecycle: lifecycleClient(scenario, state),
     shopper: shopperClient(scenario, state),
     candidate: candidateClient(scenario, state),
     trips: tripClient(scenario, state),
