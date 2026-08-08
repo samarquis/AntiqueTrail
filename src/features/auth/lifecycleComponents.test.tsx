@@ -11,6 +11,7 @@ import {
 } from './lifecycleComponents'
 import type { AccountLifecycleClient } from './lifecycle'
 import { AuthProvider } from './AuthContext'
+import { InMemoryAuthStore, InMemorySessionRegistry, toAuthSession } from './authClient'
 import type { AuthProviderAdapter } from './types'
 
 function client(overrides: Partial<AccountLifecycleClient> = {}): AccountLifecycleClient {
@@ -57,9 +58,21 @@ const authenticatedProvider: AuthProviderAdapter = {
 }
 
 function renderSecure(page: ReactNode) {
+  const store = new InMemoryAuthStore()
+  store.setSession(
+    toAuthSession({
+      userId: 'user-1',
+      accessToken: 'active-token',
+      expiresAt: Date.now() + 60_000,
+      email: 'owner@example.com',
+      emailVerified: true,
+    }),
+  )
   return render(
     <MemoryRouter>
-      <AuthProvider provider={authenticatedProvider}>{page}</AuthProvider>
+      <AuthProvider provider={authenticatedProvider} authStore={store}>
+        {page}
+      </AuthProvider>
     </MemoryRouter>,
   )
 }
@@ -103,9 +116,9 @@ describe('account lifecycle screens', () => {
     })
     renderPage(<ExportPage client={lifecycleClient} />)
     await user.click(screen.getByRole('button', { name: /request export/i }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /couldn't complete that account request/i,
-    )
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(/couldn't complete that account request/i)
+    expect(alert).toHaveFocus()
     expect(screen.queryByText(/provider account exists/i)).not.toBeInTheDocument()
   })
 
@@ -197,7 +210,9 @@ describe('account lifecycle screens', () => {
     await user.type(screen.getByLabelText(/email/i), 'owner@example.com')
     await user.type(screen.getByLabelText(/^password$/i), 'private-password')
     await user.click(screen.getByRole('button', { name: /confirm password/i }))
-    await user.click(await screen.findByRole('button', { name: /request export/i }))
+    const requestButton = await screen.findByRole('button', { name: /request export/i })
+    expect(requestButton).toHaveFocus()
+    await user.click(requestButton)
     expect(authenticatedProvider.signIn).toHaveBeenCalledWith(
       'owner@example.com',
       'private-password',
@@ -207,6 +222,15 @@ describe('account lifecycle screens', () => {
 
   it('requires an already-enrolled MFA factor and supports its recovery-code path', async () => {
     const user = userEvent.setup()
+    const initialSession = toAuthSession({
+      userId: 'user-1',
+      accessToken: 'active-token',
+      expiresAt: Date.now() + 60_000,
+    })
+    const authStore = new InMemoryAuthStore()
+    const registry = new InMemorySessionRegistry()
+    authStore.setSession(initialSession)
+    await registry.registerCurrentSession(initialSession)
     const mfaProvider: AuthProviderAdapter = {
       ...authenticatedProvider,
       signIn: vi.fn(async () => ({
@@ -231,7 +255,7 @@ describe('account lifecycle screens', () => {
     }
     render(
       <MemoryRouter>
-        <AuthProvider provider={mfaProvider}>
+        <AuthProvider provider={mfaProvider} authStore={authStore} registry={registry}>
           <DeleteAccountPage client={client()} provider={mfaProvider} />
         </AuthProvider>
       </MemoryRouter>,
@@ -240,6 +264,10 @@ describe('account lifecycle screens', () => {
     await user.type(screen.getByLabelText(/^password$/i), 'private-password')
     await user.click(screen.getByRole('button', { name: /confirm password/i }))
     expect(await screen.findByText(/already has mfa/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/authentication or recovery code/i)).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: /back to password/i }))
+    expect(screen.getByRole('button', { name: /confirm password/i })).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: /confirm password/i }))
     expect(screen.getAllByText(/recovery code/i)).toHaveLength(2)
     await user.type(screen.getByLabelText(/authentication or recovery code/i), '12345678')
     await user.click(screen.getByRole('button', { name: /verify and continue/i }))
@@ -262,6 +290,9 @@ describe('account lifecycle screens', () => {
     expect(screen.getByText(/primary deletion runs on day 8/i)).toBeInTheDocument()
     await user.click(screen.getByRole('checkbox'))
     await user.click(screen.getByRole('button', { name: /schedule deletion/i }))
+    expect(
+      await screen.findByRole('heading', { name: /account deletion is scheduled/i }),
+    ).toHaveFocus()
     expect(await screen.findByText(/scheduled for exactly/i)).toHaveTextContent(
       new Date('2026-01-08T12:30:00Z').toLocaleString(),
     )
@@ -271,7 +302,92 @@ describe('account lifecycle screens', () => {
     const user = userEvent.setup()
     renderPage(<CancelDeletionPage client={client()} />)
     await user.click(screen.getByRole('button', { name: /cancel deletion/i }))
-    expect(await screen.findByRole('status')).toHaveTextContent(/cancelled/i)
+    const status = await screen.findByRole('status')
+    expect(status).toHaveTextContent(/cancelled/i)
+    expect(status).toHaveFocus()
     expect(screen.getByText(/privileged grants remain revoked/i)).toBeInTheDocument()
+  })
+
+  it('rejects privacy password reauthentication from a different account', async () => {
+    const user = userEvent.setup()
+    const signOut = vi.fn(async () => undefined)
+    const mismatch: AuthProviderAdapter = {
+      ...authenticatedProvider,
+      signIn: vi.fn(async () => ({
+        kind: 'authenticated' as const,
+        session: { userId: 'user-2', accessToken: 'other-token', expiresAt: Date.now() + 60_000 },
+      })),
+      signOut,
+    }
+    renderSecure(<ExportPage client={client()} provider={mismatch} />)
+    await user.type(screen.getByLabelText(/email/i), 'other@example.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'private-password')
+    await user.click(screen.getByRole('button', { name: /confirm password/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't sign you in/i)
+    expect(screen.queryByRole('button', { name: /request export/i })).not.toBeInTheDocument()
+    expect(signOut).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-2' }))
+  })
+
+  it('provides a working local sign-out action while deletion is scheduled', async () => {
+    const user = userEvent.setup()
+    const store = new InMemoryAuthStore()
+    store.setSession(
+      toAuthSession({
+        userId: 'user-1',
+        accessToken: 'active-token',
+        expiresAt: Date.now() + 60_000,
+      }),
+    )
+    const signOut = vi.fn(async () => undefined)
+    const provider = { ...authenticatedProvider, signOut }
+    render(
+      <MemoryRouter>
+        <AuthProvider authStore={store} provider={provider}>
+          <PrivacyPage
+            client={client({
+              getStatus: vi.fn(async () => ({
+                state: 'deletion_scheduled' as const,
+                deletionDueAt: '2026-08-12T12:00:00Z',
+              })),
+            })}
+          />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('button', { name: /^sign out$/i }))
+    expect(store.getSession()).toBeNull()
+    expect(signOut).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1' }))
+  })
+
+  it('rejects an MFA result bound to a different account', async () => {
+    const user = userEvent.setup()
+    const signOut = vi.fn(async () => undefined)
+    const mismatch: AuthProviderAdapter = {
+      ...authenticatedProvider,
+      signIn: vi.fn(async () => ({
+        kind: 'mfa_required' as const,
+        challengeId: 'challenge-other',
+        session: {
+          userId: 'user-1',
+          accessToken: 'password-token',
+          expiresAt: Date.now() + 60_000,
+        },
+      })),
+      verifyMfa: vi.fn(async () => ({
+        userId: 'user-2',
+        accessToken: 'other-aal2',
+        expiresAt: Date.now() + 60_000,
+      })),
+      signOut,
+    }
+    renderSecure(<DeleteAccountPage client={client()} provider={mismatch} />)
+    await user.type(screen.getByLabelText(/email/i), 'owner@example.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'private-password')
+    await user.click(screen.getByRole('button', { name: /confirm password/i }))
+    await user.type(await screen.findByLabelText(/authentication or recovery code/i), '123456')
+    await user.click(screen.getByRole('button', { name: /verify and continue/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't verify/i)
+    expect(screen.queryByText(/what deletion affects/i)).not.toBeInTheDocument()
+    expect(signOut).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-2' }))
   })
 })

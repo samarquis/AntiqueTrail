@@ -19,6 +19,7 @@ export const REVIEW_STATE_IDS = [
 
 export type ReviewScenarioId = (typeof REVIEW_SCENARIO_IDS)[number]
 export type ReviewStateId = (typeof REVIEW_STATE_IDS)[number]
+export type ReviewSessionState = 'active' | 'expired' | 'revoked'
 
 export interface ReviewDestination {
   label: string
@@ -40,6 +41,7 @@ export interface ReviewHarnessRuntime {
   active: true
   scenario: ReviewScenario
   state: ReviewStateId
+  sessionState: ReviewSessionState
   scenarios: readonly ReviewScenario[]
   states: readonly ReviewStateId[]
   authStore: AuthStore

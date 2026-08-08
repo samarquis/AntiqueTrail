@@ -23,8 +23,14 @@ enabled = true
 
 [auth]
 enabled = true
-site_url = "http://127.0.0.1:5173"
-additional_redirect_urls = ["http://localhost:5173"]
+site_url = "http://127.0.0.1:4173"
+additional_redirect_urls = ["http://localhost:4173", "http://127.0.0.1:4173/auth/callback"]
+
+[auth.email]
+enable_signup = false
 
 [analytics]
 enabled = false
+
+[functions.account-registration-cleanup]
+verify_jwt = true

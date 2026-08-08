@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createReviewHarnessClients } from './clients'
+import { createReviewHarnessAuthProvider, createReviewHarnessClients } from './clients'
 import { reviewScenarios } from './harness'
 
 function scenario(id: (typeof reviewScenarios)[number]['id']) {
@@ -76,5 +76,102 @@ describe('scenario-aware review clients', () => {
     await expect(
       Promise.race([loading.then(() => 'resolved'), Promise.resolve('pending')]),
     ).resolves.toBe('pending')
+  })
+
+  it('keeps lifecycle authorization active while destination loading remains pending', async () => {
+    const clients = createReviewHarnessClients(scenario('shopper-a'), 'loading')
+    await expect(clients.lifecycle!.getStatus()).resolves.toMatchObject({ state: 'active' })
+    const destination = clients.shopper!.listSaved()
+    await expect(
+      Promise.race([destination.then(() => 'resolved'), Promise.resolve('pending')]),
+    ).resolves.toBe('pending')
+  })
+
+  it('provides deterministic sign-in, MFA, recovery, and account lifecycle review fixtures', async () => {
+    const provider = createReviewHarnessAuthProvider('success')
+    await expect(
+      provider.signIn('shopper-a@local.invalid', 'synthetic-password'),
+    ).resolves.toMatchObject({
+      kind: 'authenticated',
+      session: { userId: 'review-shopper-a', role: 'Shopper', emailVerified: true },
+    })
+    await expect(provider.signIn('mfa@local.invalid', 'synthetic-password')).resolves.toMatchObject(
+      {
+        kind: 'mfa_required',
+        challengeId: 'review-mfa-challenge',
+      },
+    )
+    await expect(provider.verifyMfa('review-mfa-challenge', '123456')).resolves.toMatchObject({
+      userId: 'review-shopper-a',
+      mfaVerifiedAt: '2026-08-05T12:00:00.000Z',
+    })
+    await expect(provider.sendRecovery('unknown@local.invalid')).resolves.toBeUndefined()
+
+    const shopper = createReviewHarnessClients(scenario('shopper-a'), 'success')
+    await expect(shopper.lifecycle!.getStatus()).resolves.toMatchObject({ state: 'active' })
+    await expect(shopper.lifecycle!.requestDeletion()).resolves.toMatchObject({
+      state: 'deletion_scheduled',
+    })
+    await expect(shopper.lifecycle!.getStatus()).resolves.toMatchObject({
+      state: 'deletion_scheduled',
+    })
+    await expect(shopper.lifecycle!.cancelDeletion()).resolves.toMatchObject({ state: 'active' })
+    await expect(shopper.lifecycle!.getStatus()).resolves.toMatchObject({ state: 'active' })
+    await expect(
+      createReviewHarnessClients(scenario('administrator'), 'success').lifecycle!.getStatus(),
+    ).rejects.toThrow(/permission denied/i)
+  })
+
+  it('persists deterministic shopper mutations for end-to-end review', async () => {
+    const clients = createReviewHarnessClients(scenario('shopper-a'), 'success')
+    const shopper = clients.shopper!
+    const blueFinchId = '00000000-0000-4000-8000-000000000001'
+    await expect(shopper.setSave(blueFinchId, false)).resolves.toEqual({ saved: false })
+    await expect(shopper.listSaved()).resolves.toEqual([])
+    const updated = await shopper.upsertMemory({
+      storeId: blueFinchId,
+      rating: 5,
+      note: 'Updated note',
+      lastVisitMonth: '2026-08',
+    })
+    await expect(shopper.getMemory(blueFinchId)).resolves.toEqual(updated)
+    const receipt = await shopper.deleteMemory(blueFinchId)
+    await expect(shopper.getMemory(blueFinchId)).resolves.toBeNull()
+    await expect(shopper.undoDeleteMemory(blueFinchId, receipt.undoToken)).resolves.toMatchObject({
+      note: 'Updated note',
+    })
+    const correction = await shopper.submitCorrection({
+      storeId: blueFinchId,
+      type: 'hours',
+      description: 'Friday hours changed.',
+    })
+    await expect(shopper.getCorrection(correction.id)).resolves.toEqual(correction)
+  })
+
+  it('provides blocked admission and generic callback fixtures', async () => {
+    const provider = createReviewHarnessAuthProvider('success')
+    await expect(
+      provider.register!({
+        email: 'blocked@local.invalid',
+        password: 'synthetic-password',
+        ageAttested: true,
+        requestId: '00000000-0000-4000-8000-000000000001',
+      }),
+    ).resolves.toEqual({ kind: 'blocked' })
+    await expect(
+      provider.register!({
+        email: 'shopper-a@local.invalid',
+        password: 'synthetic-password',
+        ageAttested: true,
+        requestId: '00000000-0000-4000-8000-000000000002',
+      }),
+    ).resolves.toEqual({ kind: 'pending_verification' })
+    await expect(provider.verifyCallback!('verify', 'review-verify-b')).resolves.toMatchObject({
+      kind: 'authenticated',
+      session: { userId: 'review-shopper-b' },
+    })
+    await expect(provider.verifyCallback!('verify', 'unknown-token')).resolves.toEqual({
+      kind: 'error',
+    })
   })
 })

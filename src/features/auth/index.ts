@@ -1,4 +1,5 @@
 export * from './authBoundary'
+export * from './callbackPreflight'
 export * from './types'
 export * from './authClient'
 export * from './AuthContext'

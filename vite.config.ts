@@ -20,7 +20,22 @@ export default defineConfig({
           { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
         ],
       },
+      workbox: {
+        navigateFallbackDenylist: [/^\/auth\/(?:callback|register|verify|recovery)(?:\/|$)/],
+      },
     }),
+    {
+      name: 'exclude-review-harness-from-production',
+      apply: 'build',
+      generateBundle(_options, bundle) {
+        const forbidden = ['Synthetic Review Harness', 'review-shopper-a', 'reviewAs=']
+        for (const asset of Object.values(bundle)) {
+          const source = asset.type === 'chunk' ? asset.code : String(asset.source)
+          const marker = forbidden.find((value) => source.includes(value))
+          if (marker) this.error(`Production bundle contains review-only marker: ${marker}`)
+        }
+      },
+    },
   ],
   server: { port: 4173, strictPort: true },
   preview: { port: 4173, strictPort: true },

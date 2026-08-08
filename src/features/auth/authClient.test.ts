@@ -27,12 +27,16 @@ describe('in-memory auth boundary', () => {
     const session = toAuthSession({
       ...providerSession,
       role: 'Administrator',
+      email: 'admin@example.test',
+      emailVerified: true,
       passwordAuthenticatedAt: '2026-08-04T12:00:00Z',
       mfaEnrolled: true,
       mfaVerifiedAt: '2026-08-04T12:01:00Z',
     })
     expect(session).toMatchObject({
       role: 'Administrator',
+      email: 'admin@example.test',
+      emailVerified: true,
       passwordAuthenticatedAt: '2026-08-04T12:00:00Z',
       mfaEnrolled: true,
       mfaVerifiedAt: '2026-08-04T12:01:00Z',

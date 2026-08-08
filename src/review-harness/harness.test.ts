@@ -62,6 +62,24 @@ describe('local review harness', () => {
     expect(fallback).toMatchObject({ scenario: { id: 'anonymous' }, state: 'success' })
   })
 
+  it('creates directly addressable expired and revoked sessions for fail-closed UI review', async () => {
+    const expired = await createReviewHarness({
+      ...base,
+      url: `${base.url}?reviewAs=shopper-a&reviewSession=expired`,
+    })
+    expect(expired?.sessionState).toBe('expired')
+    expect(expired?.authStore.getSession()?.expiresAt).toBeLessThan(base.now)
+
+    const revoked = await createReviewHarness({
+      ...base,
+      url: `${base.url}?reviewAs=shopper-a&reviewSession=revoked`,
+    })
+    expect(revoked?.sessionState).toBe('revoked')
+    await expect(revoked?.sessionRegistry.isActive(revoked.authStore.getSession()!)).resolves.toBe(
+      false,
+    )
+  })
+
   it('keeps Shopper A and Shopper B sessions and fixture paths separate', async () => {
     const a = await createReviewHarness({ ...base, url: `${base.url}?reviewAs=shopper-a` })
     const b = await createReviewHarness({ ...base, url: `${base.url}?reviewAs=shopper-b` })

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import {
   CatalogBrowserPage,
@@ -10,11 +10,14 @@ import {
 } from '../features/catalog'
 import {
   AuthProvider,
+  AuthCallbackPage,
   MfaPage,
   RecoveryPage,
+  RegisterPage,
   RequireSession,
   useAuth,
   SignInPage,
+  VerifyAccountPage,
   unavailableAuthProvider,
   CancelDeletionPage,
   DeleteAccountPage,
@@ -24,6 +27,7 @@ import {
   type AccountLifecycleClient,
   type AuthProviderAdapter,
   type AuthStore,
+  type AuthCallback,
   type SessionRegistryClient,
 } from '../features/auth'
 import {
@@ -121,7 +125,6 @@ import {
 } from '../features/readiness'
 import { BetaControlPage, unavailableBetaClient, type DurableBetaClient } from '../features/beta'
 import { OperationalStatusPage, type OperationalStatusConfig } from '../features/status'
-import { ReviewHarnessBanner, ReviewHarnessPage } from '../review-harness/components'
 import type { ReviewHarnessRuntime } from '../review-harness/types'
 
 // The current provider-neutral shell has no privileged session source. Keep the
@@ -138,11 +141,14 @@ const blockedCheckMyDayProvider: CheckMyDayProvider = {
 function AppShell({
   children,
   reviewHarness,
+  reviewHarnessUi,
 }: {
   children: ReactNode
   reviewHarness?: ReviewHarnessRuntime
+  reviewHarnessUi?: ReviewHarnessUi
 }) {
   const location = useLocation()
+  const { lifecycleReady } = useAuth()
   const contentRef = useRef<HTMLDivElement>(null)
   const moreIsCurrent = [
     '/more',
@@ -174,7 +180,7 @@ function AppShell({
     })
     observer.observe(content, { childList: true, subtree: true })
     return () => observer.disconnect()
-  }, [location.pathname])
+  }, [lifecycleReady, location.pathname])
 
   return (
     <div className="app-shell">
@@ -196,7 +202,7 @@ function AppShell({
           </Link>
         </nav>
       </header>
-      {reviewHarness && <ReviewHarnessBanner runtime={reviewHarness} />}
+      {reviewHarness && reviewHarnessUi && <reviewHarnessUi.Banner runtime={reviewHarness} />}
       <div id="main-content" ref={contentRef} tabIndex={-1}>
         {children}
       </div>
@@ -217,6 +223,8 @@ function MorePage() {
       </header>
       <nav className="more-menu" aria-label="More destinations">
         <Link to="/saved">Saved Stores</Link>
+        <Link to="/new-since">New Since Your Last Visit</Link>
+        <Link to="/account/history">Private History</Link>
         <Link to="/capture">Add a Place from a Link</Link>
         <Link to="/shares">Shared with Me</Link>
         <Link to="/trip-ideas">Trip Ideas</Link>
@@ -260,6 +268,8 @@ function StoreBrowser({
   catalog?: CatalogClient
   map?: CatalogMapAdapter
 }) {
+  const { session } = useAuth()
+  const shopperProjection = !session || session.role === 'Shopper'
   const location = useLocation()
   const client = useCatalogClient(catalog)
   return (
@@ -267,9 +277,15 @@ function StoreBrowser({
       client={client}
       map={map}
       initialSearch={location.search}
-      renderPrivateActions={(store) => (
-        <CatalogPrivateActions storeId={store.id} slug={store.slug} client={shopperClient} />
-      )}
+      renderPrivateActions={(store) =>
+        shopperProjection ? (
+          <CatalogPrivateActions storeId={store.id} slug={store.slug} client={shopperClient} />
+        ) : (
+          <p>
+            Public directory view. Sign out and use a separate shopper account for private actions.
+          </p>
+        )
+      }
     />
   )
 }
@@ -281,15 +297,23 @@ function StoreDetails({
   shopperClient: ShopperPrivateClient
   catalog?: CatalogClient
 }) {
+  const { session } = useAuth()
+  const shopperProjection = !session || session.role === 'Shopper'
   const { slug = '' } = useParams()
   const client = useCatalogClient(catalog)
   return (
     <CatalogDetailsPage
       client={client}
       slug={slug}
-      renderPrivateActions={(store) => (
-        <CatalogPrivateActions storeId={store.id} slug={store.slug} client={shopperClient} />
-      )}
+      renderPrivateActions={(store) =>
+        shopperProjection ? (
+          <CatalogPrivateActions storeId={store.id} slug={store.slug} client={shopperClient} />
+        ) : (
+          <p>
+            Public directory view. Sign out and use a separate shopper account for private actions.
+          </p>
+        )
+      }
     />
   )
 }
@@ -497,6 +521,12 @@ function TripAwareAccountPage({ runtime }: { runtime: TripOfflineRuntime }) {
             Sign out
           </button>
         )}
+        <nav className="account-menu" aria-label="Account controls">
+          <Link to="/account/privacy">Privacy choices</Link>
+          <Link to="/account/export">Export my data</Link>
+          <Link to="/account/delete">Delete my account</Link>
+          {session?.role === 'Shopper' && <Link to="/account/history">Private history</Link>}
+        </nav>
       </section>
     </main>
   )
@@ -587,6 +617,15 @@ export interface AppRuntime {
   adminSession?: AdminSession
   /** Explicit local-only role and state fixtures; never configured by production composition. */
   reviewHarness?: ReviewHarnessRuntime
+  /** Components are supplied only by the compile-time review branch. */
+  reviewHarnessUi?: ReviewHarnessUi
+  /** Pre-render memory-only callback captured by the bootstrap preflight. */
+  authCallback?: AuthCallback | null
+}
+
+export interface ReviewHarnessUi {
+  Banner: ComponentType<{ runtime: ReviewHarnessRuntime }>
+  Page: ComponentType<{ runtime: ReviewHarnessRuntime }>
 }
 
 export default function App({
@@ -622,16 +661,24 @@ export default function App({
       provider={authProvider}
       authStore={runtime.authStore}
       registry={runtime.sessionRegistry}
+      lifecycle={clients.lifecycle}
       onLocalSignOut={async (session) => {
         await tripOffline.prepareSignOut(session.userId)
         await tripOffline.purgeAccount(session.userId, 'confirmed_logout')
       }}
     >
       <TripAccountLifecycle runtime={tripOffline} />
-      <AppShell key={privacyEpoch} reviewHarness={runtime.reviewHarness}>
+      <AppShell
+        key={privacyEpoch}
+        reviewHarness={runtime.reviewHarness}
+        reviewHarnessUi={runtime.reviewHarnessUi}
+      >
         <Routes>
-          {runtime.reviewHarness && (
-            <Route path="/review" element={<ReviewHarnessPage runtime={runtime.reviewHarness} />} />
+          {runtime.reviewHarness && runtime.reviewHarnessUi && (
+            <Route
+              path="/review"
+              element={<runtime.reviewHarnessUi.Page runtime={runtime.reviewHarness} />}
+            />
           )}
           <Route
             path="/status"
@@ -679,7 +726,7 @@ export default function App({
           <Route
             path="/stores/:slug/memory"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <ResolvedStorePrivateRoute
                   shopperClient={shopperClient}
                   catalog={clients.catalog}
@@ -699,6 +746,12 @@ export default function App({
             }
           />
           <Route path="/auth/sign-in" element={<SignInPage provider={authProvider} />} />
+          <Route path="/auth/register" element={<RegisterPage provider={authProvider} />} />
+          <Route path="/auth/verify" element={<VerifyAccountPage />} />
+          <Route
+            path="/auth/callback"
+            element={<AuthCallbackPage provider={authProvider} callback={runtime.authCallback} />}
+          />
           <Route path="/auth/recovery" element={<RecoveryPage provider={authProvider} />} />
           <Route path="/auth/mfa" element={<MfaPage provider={authProvider} />} />
           <Route
@@ -712,7 +765,7 @@ export default function App({
           <Route
             path="/account/privacy"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <PrivacyPage client={lifecycleClient} />
               </RequireSession>
             }
@@ -720,7 +773,7 @@ export default function App({
           <Route
             path="/account/export"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <ExportPage client={lifecycleClient} provider={authProvider} />
               </RequireSession>
             }
@@ -728,7 +781,7 @@ export default function App({
           <Route
             path="/account/delete"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <DeleteAccountPage client={lifecycleClient} provider={authProvider} />
               </RequireSession>
             }
@@ -736,7 +789,7 @@ export default function App({
           <Route
             path="/account/delete/cancel"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper" allowCancellationOnly>
                 <CancelDeletionPage client={lifecycleClient} />
               </RequireSession>
             }
@@ -744,7 +797,7 @@ export default function App({
           <Route
             path="/saved"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <SavedPage client={shopperClient} />
               </RequireSession>
             }
@@ -752,7 +805,7 @@ export default function App({
           <Route
             path="/new-since"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <NewSincePage client={shopperClient} />
               </RequireSession>
             }
@@ -760,7 +813,7 @@ export default function App({
           <Route
             path="/account/history"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <HistoryPage client={shopperClient} />
               </RequireSession>
             }
@@ -768,7 +821,7 @@ export default function App({
           <Route
             path="/corrections/:correctionId"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <CorrectionStatusPage client={shopperClient} />
               </RequireSession>
             }
@@ -776,7 +829,7 @@ export default function App({
           <Route
             path="/capture"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <CandidateCaptureRoute client={candidateClient} />
               </RequireSession>
             }
@@ -784,7 +837,7 @@ export default function App({
           <Route
             path="/shares"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <CandidateSharesRoute client={candidateClient} />
               </RequireSession>
             }
@@ -792,7 +845,7 @@ export default function App({
           <Route
             path="/shares/:shareId"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <CandidateShareDetailsRoute client={candidateClient} />
               </RequireSession>
             }
@@ -800,7 +853,7 @@ export default function App({
           <Route
             path="/trip-ideas"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <CandidateIdeasRoute client={candidateClient} />
               </RequireSession>
             }
@@ -808,7 +861,7 @@ export default function App({
           <Route
             path="/account/privacy/blocked-senders"
             element={
-              <RequireSession>
+              <RequireSession requiredRole="Shopper">
                 <CandidateBlockedSendersRoute client={candidateClient} />
               </RequireSession>
             }

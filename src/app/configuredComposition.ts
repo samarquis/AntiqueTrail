@@ -84,6 +84,8 @@ function providerSession(session: Session): ProviderSession {
     ) ?? false
   return {
     userId: session.user.id,
+    ...(session.user.email ? { email: session.user.email } : {}),
+    emailVerified: Boolean(session.user.email_confirmed_at),
     accessToken: session.access_token,
     expiresAt: (session.expires_at ?? Math.floor(Date.now() / 1_000) + 300) * 1_000,
     role: role(session.user.app_metadata.role),
@@ -92,7 +94,7 @@ function providerSession(session: Session): ProviderSession {
   }
 }
 
-function createAuthProvider<
+export function createAuthProvider<
   T extends {
     auth: ReturnType<typeof createClient>['auth']
     functions: ReturnType<typeof createClient>['functions']
@@ -143,6 +145,32 @@ function createAuthProvider<
       if (result.error) return null
       challenges.delete(challengeId)
       return providerSession(result.data)
+    },
+    async register(request) {
+      const result = await supabase.functions.invoke('account-registration', {
+        body: {
+          email: request.email.normalize('NFKC').trim(),
+          password: request.password,
+          ageAttested: request.ageAttested,
+          requestId: request.requestId,
+        },
+      })
+      if (result.error) return { kind: 'error' }
+      if (result.data?.state === 'blocked') return { kind: 'blocked' }
+      return result.data?.state === 'pending_verification'
+        ? { kind: 'pending_verification' }
+        : { kind: 'error' }
+    },
+    async verifyCallback(kind, tokenHash) {
+      const result = await supabase.functions.invoke('account-registration-callback', {
+        body: { kind, tokenHash },
+      })
+      if (result.error) return { kind: 'error' }
+      if (result.data?.state === 'blocked') return { kind: 'blocked' }
+      if (result.data?.state === 'verified') return { kind: 'verified' }
+      return result.data?.state === 'authenticated' && result.data.session
+        ? { kind: 'authenticated', session: providerSession(result.data.session as Session) }
+        : { kind: 'error' }
     },
     async signOut() {
       await supabase.auth.signOut({ scope: 'local' })
@@ -213,9 +241,14 @@ export async function configuredComposition(
   ) {
     // A production replacement makes this branch unreachable, so Vite omits both
     // local-only dynamic modules (including all fixture labels) from the bundle.
-    const [{ createReviewHarness }, { createReviewHarnessClients }] = await Promise.all([
+    const [
+      { createReviewHarness },
+      { createReviewHarnessAuthProvider, createReviewHarnessClients },
+      { ReviewHarnessBanner, ReviewHarnessPage },
+    ] = await Promise.all([
       import('../review-harness/harness'),
       import('../review-harness/clients'),
+      import('../review-harness/components'),
     ])
     const reviewHarness = await createReviewHarness({
       dev: import.meta.env.DEV,
@@ -231,7 +264,9 @@ export async function configuredComposition(
         },
         runtime: {
           reviewHarness,
+          reviewHarnessUi: { Banner: ReviewHarnessBanner, Page: ReviewHarnessPage },
           authStore: reviewHarness.authStore,
+          authProvider: createReviewHarnessAuthProvider(reviewHarness.state),
           sessionRegistry: reviewHarness.sessionRegistry,
         },
       }

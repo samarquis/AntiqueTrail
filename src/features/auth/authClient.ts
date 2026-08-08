@@ -45,7 +45,8 @@ export class InMemorySessionRegistry implements SessionRegistryClient {
     )
   }
 
-  async revoke(session: AuthSession): Promise<void> {
+  async revoke(session: AuthSession, _reason?: string): Promise<void> {
+    void _reason
     if (this.#active.get(session.userId) === session.accessToken)
       this.#active.delete(session.userId)
   }
@@ -82,6 +83,8 @@ export function toAuthSession(
   const verified = defaults?.mfaVerified ?? (enrolled ? Boolean(provider.mfaVerifiedAt) : true)
   return {
     userId: provider.userId,
+    ...(provider.email ? { email: provider.email } : {}),
+    ...(provider.emailVerified !== undefined ? { emailVerified: provider.emailVerified } : {}),
     accessToken: provider.accessToken,
     expiresAt: provider.expiresAt,
     role: provider.role ?? defaults?.role ?? 'Shopper',

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 import { Link } from 'react-router-dom'
 import { GENERIC_MFA_ERROR, GENERIC_SIGN_IN_ERROR, toAuthSession } from './authClient'
-import { useAuth } from './AuthContext'
+import { useAuth, useOptionalAuth } from './AuthContext'
 import { GENERIC_LIFECYCLE_ERROR, unavailableLifecycleClient } from './lifecycleClient'
 import type { AccountLifecycleClient, AccountLifecycleSnapshot, ExportJob } from './lifecycle'
 import type { AuthProviderAdapter } from './types'
@@ -27,8 +27,27 @@ function LifecycleCard({
   )
 }
 
-function ErrorMessage() {
-  return <p role="alert">{GENERIC_LIFECYCLE_ERROR}</p>
+function ErrorMessage({ message = GENERIC_LIFECYCLE_ERROR }: { message?: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => ref.current?.focus(), [message])
+  return (
+    <div className="error-summary" ref={ref} role="alert" tabIndex={-1}>
+      <h2>There is a problem</h2>
+      <p>{message}</p>
+    </div>
+  )
+}
+
+function focusAndReveal(element: HTMLElement | null) {
+  if (!element) return
+  element.focus({ preventScroll: false })
+  element.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+}
+
+function useTransitionFocus(active: boolean, ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    if (active) focusAndReveal(ref.current)
+  }, [active, ref])
 }
 
 function PrivacyReauthentication({
@@ -38,13 +57,23 @@ function PrivacyReauthentication({
   provider: AuthProviderAdapter
   onComplete(): void
 }) {
-  const { signIn } = useAuth()
+  const { session: currentSession, signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [challengeId, setChallengeId] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const mfaInputRef = useRef<HTMLInputElement>(null)
+  const confirmPasswordRef = useRef<HTMLButtonElement>(null)
+  const restorePasswordFocus = useRef(false)
+  useEffect(() => {
+    if (challengeId) focusAndReveal(mfaInputRef.current)
+    else if (restorePasswordFocus.current) {
+      restorePasswordFocus.current = false
+      focusAndReveal(confirmPasswordRef.current)
+    }
+  }, [challengeId])
 
   async function verifyPassword(event: FormEvent) {
     event.preventDefault()
@@ -55,6 +84,11 @@ function PrivacyReauthentication({
       if (result.kind === 'error') setError(GENERIC_SIGN_IN_ERROR)
       else if (result.kind === 'mfa_required') setChallengeId(result.challengeId)
       else {
+        if (!currentSession || result.session.userId !== currentSession.userId) {
+          await provider.signOut(toAuthSession(result.session)).catch(() => undefined)
+          setError(GENERIC_SIGN_IN_ERROR)
+          return
+        }
         await signIn(toAuthSession(result.session))
         onComplete()
       }
@@ -74,6 +108,13 @@ function PrivacyReauthentication({
       const session = await provider.verifyMfa(challengeId, code)
       if (!session) setError(GENERIC_MFA_ERROR)
       else {
+        if (!currentSession || session.userId !== currentSession.userId) {
+          await provider
+            .signOut(toAuthSession(session, { mfaVerified: true }))
+            .catch(() => undefined)
+          setError(GENERIC_MFA_ERROR)
+          return
+        }
         await signIn(toAuthSession(session, { mfaVerified: true }))
         onComplete()
       }
@@ -90,6 +131,7 @@ function PrivacyReauthentication({
         <p>Because this account already has MFA, verify an enrolled factor to continue.</p>
         <label htmlFor="privacy-mfa-code">Authentication or recovery code</label>
         <input
+          ref={mfaInputRef}
           id="privacy-mfa-code"
           inputMode="numeric"
           autoComplete="one-time-code"
@@ -97,9 +139,20 @@ function PrivacyReauthentication({
           onChange={(event) => setCode(event.target.value)}
           required
         />
-        {error && <p role="alert">{error}</p>}
+        {error && <ErrorMessage message={error} />}
         <button type="submit" disabled={pending}>
           {pending ? 'Verifying…' : 'Verify and continue'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            restorePasswordFocus.current = true
+            setChallengeId(null)
+            setCode('')
+            setError(null)
+          }}
+        >
+          Back to password
         </button>
         <p>
           If your enrolled factor is unavailable, use a recovery code or{' '}
@@ -130,8 +183,8 @@ function PrivacyReauthentication({
         onChange={(event) => setPassword(event.target.value)}
         required
       />
-      {error && <p role="alert">{error}</p>}
-      <button type="submit" disabled={pending}>
+      {error && <ErrorMessage message={error} />}
+      <button ref={confirmPasswordRef} type="submit" disabled={pending}>
         {pending ? 'Confirming…' : 'Confirm password'}
       </button>
       <p>
@@ -146,14 +199,24 @@ export function PrivacyPage({
 }: {
   client?: AccountLifecycleClient
 }) {
+  const auth = useOptionalAuth()
   const [snapshot, setSnapshot] = useState<AccountLifecycleSnapshot | null>(null)
   const [error, setError] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [signingOut, setSigningOut] = useState(false)
   useEffect(() => {
     let cancelled = false
     client
       .getStatus()
       .then((result) => {
-        if (!cancelled) setSnapshot(result)
+        if (!cancelled) {
+          setSnapshot(result)
+          if (
+            result.state === 'deletion_scheduled' &&
+            auth?.session?.accountState !== 'deletion_scheduled'
+          )
+            auth?.enterCancellationOnly(result.deletionDueAt)
+        }
       })
       .catch(() => {
         if (!cancelled) setError(true)
@@ -161,7 +224,7 @@ export function PrivacyPage({
     return () => {
       cancelled = true
     }
-  }, [client])
+  }, [auth, client, reloadKey])
   if (error)
     return (
       <LifecycleCard
@@ -169,6 +232,20 @@ export function PrivacyPage({
         description="Your account privacy controls are temporarily unavailable."
       >
         <ErrorMessage />
+        <button
+          className="button"
+          type="button"
+          onClick={() => {
+            setError(false)
+            setSnapshot(null)
+            setReloadKey((value) => value + 1)
+          }}
+        >
+          Retry
+        </button>
+        <p>
+          <Link to="/account">Back to account</Link>
+        </p>
       </LifecycleCard>
     )
   if (!snapshot)
@@ -204,6 +281,16 @@ export function PrivacyPage({
           <Link className="button" to="/account/delete/cancel">
             Review cancellation
           </Link>
+          <button
+            type="button"
+            disabled={signingOut}
+            onClick={() => {
+              setSigningOut(true)
+              void (auth?.signOut() ?? Promise.resolve()).finally(() => setSigningOut(false))
+            }}
+          >
+            {signingOut ? 'Signing out…' : 'Sign out'}
+          </button>
         </>
       ) : snapshot.state === 'deleted' ? (
         <p>This account has been deleted. Sign out and return to the store list.</p>
@@ -234,6 +321,8 @@ export function ExportPage({
   const [pending, setPending] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState(false)
+  const requestButtonRef = useRef<HTMLButtonElement>(null)
+  useTransitionFocus(Boolean(provider) && reauthenticated && !job, requestButtonRef)
   async function request(event?: Pick<FormEvent, 'preventDefault'>) {
     event?.preventDefault()
     setPending(true)
@@ -283,14 +372,19 @@ export function ExportPage({
       title="Export your account data"
       description="Create a ZIP with canonical UTF-8 JSON, convenience CSV tables, and your eligible media. Private secrets, provider credentials, moderation evidence, purged location data, and other people’s private data are never included."
     >
+      {error && (
+        <>
+          <ErrorMessage />
+          <p>Your export request and any completed status remain unchanged.</p>
+        </>
+      )}
       {!reauthenticated && provider ? (
         <PrivacyReauthentication provider={provider} onComplete={() => setReauthenticated(true)} />
       ) : (
         <>
-          {error && <ErrorMessage />}
           {!job ? (
             <form onSubmit={request}>
-              <button className="button" type="submit" disabled={pending}>
+              <button ref={requestButtonRef} className="button" type="submit" disabled={pending}>
                 {pending ? 'Requesting…' : 'Request export'}
               </button>
             </form>
@@ -371,23 +465,29 @@ export function DeleteAccountPage({
   client?: AccountLifecycleClient
   provider?: AuthProviderAdapter
 }) {
+  const auth = useOptionalAuth()
   const [reauthenticated, setReauthenticated] = useState(!provider)
   const [confirmed, setConfirmed] = useState(false)
   const [pending, setPending] = useState(false)
   const [scheduled, setScheduled] = useState<AccountLifecycleSnapshot | null>(null)
   const [error, setError] = useState(false)
-  const errorRef = useRef<HTMLDivElement>(null)
+  const confirmationHeadingRef = useRef<HTMLHeadingElement>(null)
+  const scheduledHeadingRef = useRef<HTMLHeadingElement>(null)
+  const [signingOut, setSigningOut] = useState(false)
+  useTransitionFocus(Boolean(provider) && reauthenticated && !scheduled, confirmationHeadingRef)
+  useTransitionFocus(Boolean(scheduled), scheduledHeadingRef)
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (!confirmed) return
     setPending(true)
     setError(false)
     try {
-      setScheduled(await client.requestDeletion())
+      const result = await client.requestDeletion()
+      setScheduled(result)
+      auth?.enterCancellationOnly(result.deletionDueAt)
     } catch {
       setError(true)
       if (provider) setReauthenticated(false)
-      queueMicrotask(() => errorRef.current?.focus())
     } finally {
       setPending(false)
     }
@@ -397,21 +497,24 @@ export function DeleteAccountPage({
       title="Schedule account deletion"
       description="Deletion revokes active sessions first and permanently removes your account after the approved waiting period. This cannot be undone after the deadline."
     >
+      {error && (
+        <div>
+          <ErrorMessage />
+          <button type="button" onClick={() => setError(false)}>
+            Retry
+          </button>{' '}
+          <Link to="/account/privacy">Back</Link>
+        </div>
+      )}
       {!reauthenticated && provider ? (
         <PrivacyReauthentication provider={provider} onComplete={() => setReauthenticated(true)} />
       ) : (
         <>
-          {error && (
-            <div ref={errorRef} tabIndex={-1}>
-              <ErrorMessage />
-              <button type="button" onClick={() => setError(false)}>
-                Retry
-              </button>{' '}
-              <Link to="/account/privacy">Back</Link>
-            </div>
-          )}
           {scheduled ? (
             <>
+              <h2 ref={scheduledHeadingRef} tabIndex={-1}>
+                Account deletion is scheduled
+              </h2>
               <p role="status">Your account deletion request was received.</p>
               {scheduled.deletionDueAt && (
                 <p>
@@ -423,10 +526,22 @@ export function DeleteAccountPage({
               <Link className="button" to="/account/delete/cancel">
                 Review cancellation
               </Link>
+              <button
+                type="button"
+                disabled={signingOut}
+                onClick={() => {
+                  setSigningOut(true)
+                  void (auth?.signOut() ?? Promise.resolve()).finally(() => setSigningOut(false))
+                }}
+              >
+                {signingOut ? 'Signing out…' : 'Sign out'}
+              </button>
             </>
           ) : (
             <form onSubmit={submit}>
-              <h2>What deletion affects</h2>
+              <h2 ref={confirmationHeadingRef} tabIndex={-1}>
+                What deletion affects
+              </h2>
               <ul>
                 <li>
                   Your profile, private memories, corrections, trip plans, and candidate leads.
@@ -467,15 +582,19 @@ export function CancelDeletionPage({
 }: {
   client?: AccountLifecycleClient
 }) {
+  const auth = useOptionalAuth()
   const [pending, setPending] = useState(false)
   const [cancelled, setCancelled] = useState(false)
   const [error, setError] = useState(false)
+  const cancelledStatusRef = useRef<HTMLParagraphElement>(null)
+  useTransitionFocus(cancelled, cancelledStatusRef)
   async function submit(event: FormEvent) {
     event.preventDefault()
     setPending(true)
     setError(false)
     try {
       await client.cancelDeletion()
+      auth?.restoreActiveAccount()
       setCancelled(true)
     } catch {
       setError(true)
@@ -488,9 +607,22 @@ export function CancelDeletionPage({
       title="Cancel account deletion"
       description="Cancellation restores ordinary account access only before the deletion deadline. Privileged grants remain revoked and require normal re-verification."
     >
-      {error && <ErrorMessage />}
+      {error && (
+        <>
+          <ErrorMessage />
+          <p>Your deletion schedule remains unchanged.</p>
+          <button type="button" onClick={() => setError(false)}>
+            Retry
+          </button>
+          <p>
+            <Link to="/account/privacy">Back to privacy controls</Link>
+          </p>
+        </>
+      )}
       {cancelled ? (
-        <p role="status">Account deletion was cancelled.</p>
+        <p ref={cancelledStatusRef} role="status" tabIndex={-1}>
+          Account deletion was cancelled.
+        </p>
       ) : (
         <form onSubmit={submit}>
           <button className="button" type="submit" disabled={pending}>
