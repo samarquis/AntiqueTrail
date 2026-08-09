@@ -18,7 +18,49 @@ describe('scenario-aware review clients', () => {
       expect.objectContaining({ name: "Avery's antique day" }),
     ])
     await expect(shopperB.candidate!.listShares()).resolves.toEqual([
-      expect.objectContaining({ id: 'share-b', title: 'Weekend estate-sale lead' }),
+      expect.objectContaining({
+        id: 'share-b',
+        direction: 'received',
+        state: 'pending',
+        title: 'Weekend estate-sale lead',
+      }),
+      expect.objectContaining({
+        id: 'share-expired',
+        direction: 'received',
+        state: 'closed',
+        title: 'Antique sideboard lead',
+      }),
+      expect.objectContaining({
+        id: 'share-revoked',
+        direction: 'received',
+        state: 'closed',
+        title: 'Vintage lamp lead',
+      }),
+      expect.objectContaining({
+        id: 'share-b-sent',
+        direction: 'sent',
+        state: 'pending',
+        title: 'Mid-century credenza lead',
+      }),
+    ])
+    await expect(shopperB.candidate!.acceptShare('share-expired')).resolves.toEqual({
+      accepted: false,
+      state: 'closed',
+      message: 'No change.',
+    })
+    await expect(shopperB.candidate!.getShare('share-expired')).resolves.toMatchObject({
+      id: 'share-expired',
+      state: 'closed',
+    })
+    await expect(shopperB.candidate!.acceptShare('share-b')).resolves.toMatchObject({
+      accepted: true,
+      state: 'accepted',
+    })
+    await expect(shopperB.candidate!.listShares()).resolves.toEqual([
+      expect.objectContaining({ id: 'share-b', state: 'accepted' }),
+      expect.objectContaining({ id: 'share-expired', state: 'closed' }),
+      expect.objectContaining({ id: 'share-revoked', state: 'closed' }),
+      expect.objectContaining({ id: 'share-b-sent', state: 'pending' }),
     ])
     await expect(shopperA.candidate!.listShares()).resolves.toEqual([])
     await expect(shopperA.candidate!.listTripIdeas()).resolves.toEqual([])
@@ -117,9 +159,9 @@ describe('scenario-aware review clients', () => {
     })
     await expect(shopper.lifecycle!.cancelDeletion()).resolves.toMatchObject({ state: 'active' })
     await expect(shopper.lifecycle!.getStatus()).resolves.toMatchObject({ state: 'active' })
-    await expect(
-      createReviewHarnessClients(scenario('administrator'), 'success').lifecycle!.getStatus(),
-    ).rejects.toThrow(/permission denied/i)
+    const administrator = createReviewHarnessClients(scenario('administrator'), 'success')
+    await expect(administrator.lifecycle!.getStatus()).resolves.toMatchObject({ state: 'active' })
+    await expect(administrator.lifecycle!.requestDeletion()).rejects.toThrow(/permission denied/i)
   })
 
   it('persists deterministic shopper mutations for end-to-end review', async () => {

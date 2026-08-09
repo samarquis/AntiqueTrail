@@ -5,7 +5,15 @@ import type {
   AuthProviderAdapter,
   ProviderSession,
 } from '../features/auth'
-import { unavailableCandidateClient, type CandidateClient } from '../features/candidates'
+import {
+  unavailableCandidateClient,
+  type BlockedCandidateSender,
+  type CandidateClient,
+  type CandidateLink,
+  type CandidateShareView,
+  type GenericShareEnvelope,
+  type TripIdea,
+} from '../features/candidates'
 import { unavailablePartnerAdminClient, type PartnerAdminClient } from '../features/partners'
 import { unavailablePortalClient, type PortalClient, type PortalHours } from '../features/portal'
 import { unavailableReviewClient, type ReviewClient } from '../features/reviews'
@@ -96,9 +104,11 @@ function lifecycleClient(scenario: ReviewScenario, state: ReviewStateId): Accoun
   }
   return {
     async getStatus() {
-      allowed()
-      // Lifecycle authorization is a route gate, not the destination fixture. Keep it
-      // deterministic so reviewState=loading/error can exercise the page's own client.
+      // getStatus is the app-wide session hydration read (AuthProvider), not a
+      // lifecycle page request. It must not be shopper-gated: Administrator and
+      // Representative harness sessions would otherwise be signed out on
+      // hydration and their review pages would redirect to /stores. The
+      // shopper-only gate below guards the private lifecycle endpoints only.
       return structuredClone(snapshot)
     },
     async requestExport() {
@@ -287,47 +297,45 @@ function shopperClient(scenario: ReviewScenario, state: ReviewStateId): ShopperP
 
 function candidateClient(scenario: ReviewScenario, state: ReviewStateId): CandidateClient {
   const allowed = () => requireRole(scenario, ['Shopper'], true)
-  return {
-    ...unavailableCandidateClient,
-    async listShares() {
-      allowed()
-      if (scenario.id !== 'shopper-b') return []
-      return fixture(
-        state,
-        [
+  const ownerUserId = `review-${scenario.id}`
+
+  // Fixture mutations persist across client-side navigation within one document load.
+  const shares: CandidateShareView[] =
+    scenario.id === 'shopper-b'
+      ? [
           {
             id: 'share-b',
-            direction: 'received' as const,
-            state: 'pending' as const,
+            direction: 'received',
+            state: 'pending',
             title: 'Weekend estate-sale lead',
             expiresAt: Date.parse('2026-08-12T12:00:00Z'),
           },
-        ],
-        [],
-      )
-    },
-    async getShare(shareId) {
-      allowed()
-      if (scenario.id !== 'shopper-b' || shareId !== 'share-b')
-        throw new Error('Synthetic cross-account denial.')
-      return fixture(
-        state,
-        {
-          id: shareId,
-          direction: 'received' as const,
-          state: 'pending' as const,
-          title: 'Weekend estate-sale lead',
-          expiresAt: Date.parse('2026-08-12T12:00:00Z'),
-        },
-        null,
-      )
-    },
-    async listTripIdeas() {
-      allowed()
-      if (scenario.id !== 'shopper-b') return []
-      return fixture(
-        state,
-        [
+          {
+            id: 'share-expired',
+            direction: 'received',
+            state: 'pending',
+            title: 'Antique sideboard lead',
+            expiresAt: Date.parse('2026-08-01T12:00:00Z'),
+          },
+          {
+            id: 'share-revoked',
+            direction: 'received',
+            state: 'closed',
+            title: 'Vintage lamp lead',
+            expiresAt: Date.parse('2026-08-12T12:00:00Z'),
+          },
+          {
+            id: 'share-b-sent',
+            direction: 'sent',
+            state: 'pending',
+            title: 'Mid-century credenza lead',
+            expiresAt: Date.parse('2026-08-12T12:00:00Z'),
+          },
+        ]
+      : []
+  let tripIdeas: TripIdea[] =
+    scenario.id === 'shopper-b'
+      ? [
           {
             id: 'idea-b',
             ownerUserId: 'review-shopper-b',
@@ -336,24 +344,181 @@ function candidateClient(scenario: ReviewScenario, state: ReviewStateId): Candid
             urlNote: 'Start after breakfast.',
             version: 1,
           },
-        ],
-        [],
-      )
+        ]
+      : []
+  const blockedSenders = new Map<string, BlockedCandidateSender>(
+    scenario.id === 'shopper-b'
+      ? [
+          [
+            'synthetic-sender',
+            {
+              blockedUserId: 'synthetic-sender',
+              label: 'A blocked synthetic sender',
+              blockedAt: Date.parse(FIXED_NOW),
+            },
+          ],
+        ]
+      : [],
+  )
+  const savedCandidates = new Map<string, CandidateLink>()
+
+  function requireShare(shareId: string): CandidateShareView {
+    if (scenario.id !== 'shopper-b') throw new Error('Synthetic cross-account denial.')
+    const share = shares.find((candidate) => candidate.id === shareId)
+    if (!share) throw new Error('Synthetic cross-account denial.')
+    return share
+  }
+
+  // Mirror the production boundary: a pending share whose expiry has passed is
+  // unreadable and unclaimable immediately (PRODUCT_DECISIONS.md 103 / PRD 375).
+  const fixedNow = Date.parse(FIXED_NOW)
+  const isClaimable = (share: CandidateShareView) =>
+    share.state === 'pending' && share.expiresAt > fixedNow
+
+  function projectShare(share: CandidateShareView): CandidateShareView {
+    if (isClaimable(share) || share.state !== 'pending') return share
+    return { ...share, state: 'closed' }
+  }
+
+  function closeShare(shareId: string): GenericShareEnvelope {
+    const share = requireShare(shareId)
+    if (!isClaimable(share)) return { accepted: false, state: 'closed', message: 'No change.' }
+    share.state = 'closed'
+    return { accepted: false, state: 'closed', message: 'Closed.' }
+  }
+
+  return {
+    ...unavailableCandidateClient,
+    async listShares() {
+      allowed()
+      return fixture(state, shares.map(projectShare), [])
+    },
+    async getShare(shareId) {
+      allowed()
+      return fixture(state, projectShare(requireShare(shareId)), null)
+    },
+    async acceptShare(shareId) {
+      allowed()
+      await fixture(state, true, true)
+      const share = requireShare(shareId)
+      if (!isClaimable(share)) return { accepted: false, state: 'closed', message: 'No change.' }
+      share.state = 'accepted'
+      tripIdeas.push({
+        id: `idea-${shareId}`,
+        ownerUserId,
+        sourceShareId: shareId,
+        title: share.title,
+        urlNote: 'Accepted from a Candidate share.',
+        version: 1,
+      })
+      return { accepted: true, state: 'accepted', message: 'Accepted.' }
+    },
+    async dismissShare(shareId) {
+      allowed()
+      await fixture(state, true, true)
+      return closeShare(shareId)
+    },
+    async blockShare(shareId) {
+      allowed()
+      await fixture(state, true, true)
+      const share = requireShare(shareId)
+      if (!isClaimable(share)) return { accepted: false, state: 'closed', message: 'No change.' }
+      share.state = 'closed'
+      blockedSenders.set(`sender-${shareId}`, {
+        blockedUserId: `sender-${shareId}`,
+        label: share.title,
+        blockedAt: Date.parse(FIXED_NOW),
+      })
+      return { accepted: false, state: 'closed', message: 'Blocked.' }
+    },
+    async reportShare(shareId) {
+      allowed()
+      await fixture(state, true, true)
+      return closeShare(shareId)
+    },
+    async revokeCandidateShare(shareId) {
+      allowed()
+      await fixture(state, true, true)
+      return closeShare(shareId)
+    },
+    async extractCandidate(input) {
+      allowed()
+      await fixture(state, true, true)
+      const url = new URL(input.url)
+      return {
+        mode: 'suggestions' as const,
+        originalLink: input.url,
+        originalNote: input.note,
+        normalizedUrl: url.toString(),
+        destinationHost: url.hostname.toLocaleLowerCase(),
+        suggestions: {
+          title: 'Synthetic store page',
+          description: 'Synthetic extraction for local review.',
+          canonicalUrl: null,
+          verified: false as const,
+        },
+        publicWriteAllowed: false as const,
+      }
+    },
+    async saveCandidate(input) {
+      allowed()
+      await fixture(state, true, true)
+      const url = new URL(input.url)
+      const candidate: CandidateLink = {
+        id: `candidate-${scenario.id}-${savedCandidates.size + 1}`,
+        ownerUserId,
+        normalizedUrl: url.toString(),
+        destinationHost: url.hostname.toLocaleLowerCase(),
+        title: input.title,
+        note: input.note,
+        provenance: 'url' as const,
+        extractionState: 'saved' as const,
+        version: 1,
+      }
+      savedCandidates.set(candidate.id, candidate)
+      return structuredClone(candidate)
+    },
+    async sendShare(input) {
+      allowed()
+      await fixture(state, true, true)
+      if (!savedCandidates.has(input.candidateId))
+        throw new Error('Synthetic candidate unavailable.')
+      return { accepted: false, state: 'pending' as const, message: 'Sent.' }
+    },
+    async listTripIdeas() {
+      allowed()
+      return fixture(state, tripIdeas, [])
+    },
+    async updateTripIdea(ideaId, input) {
+      allowed()
+      await fixture(state, true, true)
+      const idea = tripIdeas.find((candidate) => candidate.id === ideaId)
+      if (!idea) throw new Error('Synthetic trip idea unavailable.')
+      if (idea.version !== input.expectedVersion) throw new Error('Synthetic version conflict.')
+      const updated: TripIdea = {
+        ...idea,
+        title: input.title,
+        urlNote: input.urlNote,
+        version: idea.version + 1,
+      }
+      tripIdeas = tripIdeas.map((candidate) => (candidate.id === ideaId ? updated : candidate))
+      return structuredClone(updated)
+    },
+    async deleteTripIdea(ideaId, confirmation) {
+      allowed()
+      await fixture(state, true, true)
+      if (!confirmation.confirmed) throw new Error('Synthetic confirmation required.')
+      tripIdeas = tripIdeas.filter((candidate) => candidate.id !== ideaId)
     },
     async listBlockedCandidateSenders() {
       allowed()
-      if (scenario.id !== 'shopper-b') return []
-      return fixture(
-        state,
-        [
-          {
-            blockedUserId: 'synthetic-sender',
-            label: 'A blocked synthetic sender',
-            blockedAt: Date.parse(FIXED_NOW),
-          },
-        ],
-        [],
-      )
+      return fixture(state, [...blockedSenders.values()], [])
+    },
+    async unblockCandidateSender(blockedUserId, confirmation) {
+      allowed()
+      await fixture(state, true, true)
+      if (!confirmation.confirmed) throw new Error('Synthetic confirmation required.')
+      blockedSenders.delete(blockedUserId)
     },
   }
 }

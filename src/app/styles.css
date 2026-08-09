@@ -337,7 +337,8 @@ p {
   outline: none;
 }
 
-h1[tabindex='-1']:focus {
+/* Route-announcement focus stays invisible; keyboard focus still shows the ring. */
+h1[tabindex='-1']:focus:not(:focus-visible) {
   outline: none;
   box-shadow: none;
 }
