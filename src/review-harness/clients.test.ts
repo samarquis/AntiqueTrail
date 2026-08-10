@@ -216,4 +216,225 @@ describe('scenario-aware review clients', () => {
       kind: 'error',
     })
   })
+
+  it('drives the full in-memory trip workflow for review', async () => {
+    const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!
+
+    const seeded = await trips.list()
+    expect(seeded).toHaveLength(1)
+    expect(seeded[0]).toMatchObject({
+      id: 'trip-a',
+      name: "Avery's antique day",
+      state: 'draft',
+      version: 3,
+      departureMinute: 600,
+    })
+    expect(seeded[0].stops.map((stop) => stop.id)).toEqual(['stop-a', 'stop-b'])
+
+    const renamed = await trips.renameTrip('trip-a', '  Antique\nMorning Run  ', 3, 'rename-1')
+    expect(renamed).toEqual({
+      state: 'applied',
+      trip: expect.objectContaining({ name: 'Antique Morning Run', version: 4 }),
+    })
+    await expect(trips.renameTrip('trip-a', 'Stale write', 3, 'rename-2')).resolves.toEqual({
+      state: 'conflict',
+      latest: { name: 'Antique Morning Run', version: 4 },
+    })
+
+    const withRest = await trips.addStop('trip-a', {
+      kind: 'rest',
+      label: 'Lunch stop',
+      priority: 'flexible',
+      plannedDwellMinutes: 30,
+    })
+    expect(withRest.stops.at(-1)).toMatchObject({
+      kind: 'rest',
+      position: 2,
+      memoryStatus: 'not_applicable',
+    })
+
+    const withStore = await trips.addStoreStop('trip-a', '00000000-0000-4000-8000-000000000002')
+    expect(withStore.stops.at(-1)).toMatchObject({
+      storeId: '00000000-0000-4000-8000-000000000002',
+      label: 'Cedar & Brass',
+      priority: 'prefer',
+    })
+
+    await expect(trips.reviewHours('trip-a')).rejects.toThrow(/acknowledgment/i)
+    const reviewed = await trips.reviewHours('trip-a', true)
+    expect(reviewed.hoursReview).toEqual({
+      reviewedAt: '2026-08-05T12:00:00.000Z',
+      hasUnresolvedWarnings: true,
+      acknowledged: true,
+    })
+
+    const restStopId = withRest.stops.at(-1)!.id
+    const cedarStopId = withStore.stops.at(-1)!.id
+    const started = await trips.start('trip-a')
+    expect(started.state).toBe('active')
+    expect(started.durationMinutes).toBe(240)
+    expect(started.transitionMinutes).toBe(45)
+    await trips.markArrived('trip-a', 'stop-a')
+    await trips.completeStop('trip-a', 'stop-a')
+    await trips.skipStop('trip-a', 'stop-b')
+    await trips.markObservedClosed!('trip-a', cedarStopId)
+    await trips.completeStop('trip-a', restStopId)
+    const completed = await trips.completeTrip!('trip-a')
+    expect(completed.state).toBe('completed')
+    const completedVersion = completed.version
+    await expect(trips.start('trip-a')).rejects.toThrow(/couldn't update this trip/i)
+
+    const clone = await trips.cloneCompleted('trip-a')
+    expect(clone).toMatchObject({ name: 'Antique Morning Run (copy)', state: 'draft' })
+    expect(clone.stops.every((stop) => stop.state === 'planned')).toBe(true)
+    await expect(trips.get('missing-trip')).resolves.toBeNull()
+
+    const queued = await trips.queueOfflineAction('trip-a', {
+      kind: 'mark_arrived',
+      stopId: 'stop-a',
+    })
+    expect(queued).toMatchObject({ state: 'queued', pendingCount: 1 })
+    const baseEnvelope = {
+      tripId: 'trip-a',
+      idempotencyKey: 'replay-1',
+      baseVersion: completedVersion,
+      deviceId: 'device-a',
+      localSequence: 1,
+    } as const
+    await expect(
+      trips.replayOfflineMutation!({ ...baseEnvelope, kind: 'mark_arrived', stopId: 'stop-a' }),
+    ).resolves.toMatchObject({
+      state: 'accepted',
+      trip: expect.objectContaining({ version: completedVersion + 1 }),
+    })
+    await expect(
+      trips.replayOfflineMutation!({
+        ...baseEnvelope,
+        idempotencyKey: 'replay-2',
+        kind: 'skip_stop',
+        stopId: 'stop-b',
+      }),
+    ).resolves.toMatchObject({ state: 'conflict', summary: expect.any(String) })
+    await expect(
+      trips.replayOfflineMutation!({
+        ...baseEnvelope,
+        idempotencyKey: 'replay-3',
+        tripId: 'no-such-trip',
+        kind: 'skip_stop',
+        stopId: 'stop-b',
+      }),
+    ).resolves.toEqual({ state: 'unauthorized' })
+
+    const remembered = await trips.saveVisitMemory!(
+      'trip-a',
+      '00000000-0000-4000-8000-000000000001',
+      { rating: 5, note: 'Walnut secretary', returnChoice: 'yes' },
+    )
+    expect(remembered.stops[0]).toMatchObject({ memoryStatus: 'saved' })
+
+    const collaboration = await trips.getCollaboration('trip-a')
+    expect(collaboration.participants).toEqual([
+      { userId: 'review-shopper-a', displayName: 'Avery', role: 'creator' },
+    ])
+    await expect(
+      trips.invitePartner('trip-a', 'review-shopper-b@local.invalid'),
+    ).resolves.toMatchObject({ invitation: { id: 'inv-trip-a', state: 'pending' } })
+    await expect(trips.invitePartner('trip-a', 'review-shopper-b@local.invalid')).rejects.toThrow(
+      /already pending/i,
+    )
+    await expect(trips.acceptInvitation('review-trip-invite-shopper-b')).resolves.toMatchObject({
+      currentUserId: 'review-shopper-a',
+    })
+    await expect(trips.acceptInvitation('unknown-token')).rejects.toThrow(/unavailable or expired/i)
+    await expect(trips.assignNavigator('trip-a', 'review-shopper-a')).resolves.toMatchObject({
+      navigatorUserId: 'review-shopper-a',
+    })
+    await expect(trips.leaveTrip('trip-a')).rejects.toThrow(/creator cannot leave/i)
+
+    const suggestion = await trips.requestCheckMyDay!('trip-a')
+    expect(suggestion).toMatchObject({ state: 'suggested' })
+    expect(suggestion.orderedStopIds).toEqual(['stop-a', 'stop-b', cedarStopId, restStopId])
+    const reversed = [...suggestion.orderedStopIds!].reverse()
+    const reordered = await trips.saveCheckMyDayChoice!('trip-a', 'suggested', reversed)
+    expect(reordered.stops.map((stop) => stop.id)).toEqual(reversed)
+
+    const fresh = await trips.create({ name: 'Blank slate', localDate: '2026-08-09' })
+    expect(fresh.state).toBe('draft')
+    await expect(trips.start(fresh.id)).rejects.toThrow(/couldn't update this trip/i)
+    await expect(trips.requestCheckMyDay!(fresh.id)).resolves.toMatchObject({
+      state: 'blocked',
+      reason: 'departure_required',
+    })
+    await expect(trips.getOfflineQueue(fresh.id)).resolves.toEqual({
+      state: 'empty',
+      pendingCount: 0,
+    })
+  })
+
+  it('replays a real offline queue and resolves conflicts for review', async () => {
+    const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!
+
+    const queued = await trips.queueOfflineAction('trip-a', {
+      kind: 'mark_arrived',
+      stopId: 'stop-a',
+    })
+    expect(queued).toMatchObject({ state: 'queued', pendingCount: 1 })
+    await trips.queueOfflineAction('trip-a', { kind: 'skip_stop', stopId: 'stop-b' })
+
+    const replayed = await trips.replayOffline('trip-a')
+    expect(replayed.stops[0]).toMatchObject({ id: 'stop-a', state: 'arrived' })
+    expect(replayed.stops[1]).toMatchObject({ id: 'stop-b', state: 'skipped' })
+    await expect(trips.getOfflineQueue('trip-a')).resolves.toMatchObject({
+      state: 'empty',
+      pendingCount: 0,
+    })
+
+    await trips.queueOfflineAction('trip-a', { kind: 'mark_arrived', stopId: 'vanished-stop' })
+    const halted = await trips.replayOffline('trip-a')
+    expect(halted.stops[0]).toMatchObject({ id: 'stop-a', state: 'arrived' })
+    expect(halted.stops[1]).toMatchObject({ id: 'stop-b', state: 'skipped' })
+    await expect(trips.getOfflineQueue('trip-a')).resolves.toMatchObject({
+      state: 'conflict',
+      conflict: { id: 'mark_arrived', summary: expect.any(String) },
+    })
+    await expect(trips.resolveOfflineConflict('trip-a', 'saved')).resolves.toMatchObject({
+      state: 'empty',
+      pendingCount: 0,
+    })
+  })
+
+  it('orders check-my-day by opening hours and persists private visit memory', async () => {
+    const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!
+    const fresh = await trips.create({ name: 'Hours demo', localDate: '2026-08-11' })
+    await trips.updateSchedule(fresh.id, { localDate: '2026-08-11', departureMinute: 480 }, 1)
+    const withBlueFinch = await trips.addStoreStop(fresh.id, '00000000-0000-4000-8000-000000000001')
+    const withBoth = await trips.addStoreStop(fresh.id, '00000000-0000-4000-8000-000000000002')
+    const blueFinchStop = withBlueFinch.stops.at(-1)!
+    const cedarStop = withBoth.stops.at(-1)!
+    expect(cedarStop.position).toBeGreaterThan(blueFinchStop.position)
+
+    const suggestion = await trips.requestCheckMyDay!(fresh.id)
+    expect(suggestion.state).toBe('suggested')
+    if (suggestion.state === 'suggested') {
+      expect(suggestion.orderedStopIds).toEqual([cedarStop.id, blueFinchStop.id])
+    }
+
+    const remembered = await trips.saveVisitMemory!(
+      fresh.id,
+      '00000000-0000-4000-8000-000000000001',
+      { rating: 5, note: 'Walnut secretary', returnChoice: 'yes' },
+    )
+    expect(remembered.stops[0]).toMatchObject({ memoryStatus: 'saved' })
+  })
+
+  it('keeps shopper-b trips isolated while allowing self-created trips', async () => {
+    const trips = createReviewHarnessClients(scenario('shopper-b'), 'success').trips!
+    await expect(trips.list()).resolves.toEqual([])
+    await expect(trips.get('trip-a')).resolves.toBeNull()
+    await expect(trips.acceptInvitation('review-trip-invite-shopper-b')).rejects.toThrow(
+      /trip unavailable/i,
+    )
+    const created = await trips.create({ name: 'B trip', localDate: '2026-08-10' })
+    await expect(trips.list()).resolves.toEqual([expect.objectContaining({ id: created.id })])
+  })
 })

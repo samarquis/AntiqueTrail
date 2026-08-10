@@ -22,7 +22,21 @@ import {
   type PrivateStoreMemory,
   type ShopperPrivateClient,
 } from '../features/shopper'
-import { unavailableTripClient, type Trip, type TripClient } from '../features/trips'
+import {
+  unavailableTripClient,
+  GENERIC_TRIP_ERROR,
+  MAX_ACTIVE_STOPS,
+  normalizeTripName,
+  validDwellMinutes,
+  type CheckMyDayServerResult,
+  type OfflineQueueSnapshot,
+  type Trip,
+  type StopPriority,
+  type StopState,
+  type TripClient,
+  type TripCollaboration,
+  type TripStop,
+} from '../features/trips'
 import type { ReviewScenario, ReviewStateId } from './types'
 
 const FIXED_NOW = '2026-08-05T12:00:00.000Z'
@@ -523,12 +537,13 @@ function candidateClient(scenario: ReviewScenario, state: ReviewStateId): Candid
   }
 }
 
-const trip: Trip = {
+const tripSeed: Trip = {
   id: 'trip-a',
   name: "Avery's antique day",
   localDate: '2026-08-08',
   state: 'draft',
   version: 3,
+  departureMinute: 600,
   stops: [
     {
       id: 'stop-a',
@@ -543,22 +558,746 @@ const trip: Trip = {
       memoryStatus: 'missing',
       hours: { state: 'verified', opensAt: 600, closesAt: 1020 },
     },
+    {
+      id: 'stop-b',
+      storeId: '00000000-0000-4000-8000-000000000002',
+      kind: 'store',
+      label: 'Cedar & Brass',
+      address: '200 Synthetic Road, Topeka, KS',
+      position: 1,
+      priority: 'prefer',
+      plannedDwellMinutes: 45,
+      state: 'planned',
+      memoryStatus: 'missing',
+      hours: {
+        state: 'stale',
+        opensAt: 540,
+        closesAt: 990,
+        warning: 'Hours were last verified more than 180 days ago.',
+      },
+    },
   ],
+}
+
+const syntheticStoreCatalog: Record<
+  string,
+  { label: string; address: string; hours: NonNullable<TripStop['hours']> }
+> = {
+  '00000000-0000-4000-8000-000000000001': {
+    label: 'Blue Finch Curios',
+    address: '100 Synthetic Avenue, Topeka, KS',
+    hours: { state: 'verified', opensAt: 600, closesAt: 1020 },
+  },
+  '00000000-0000-4000-8000-000000000002': {
+    label: 'Cedar & Brass',
+    address: '200 Synthetic Road, Topeka, KS',
+    hours: {
+      state: 'stale',
+      opensAt: 540,
+      closesAt: 990,
+      warning: 'Hours were last verified more than 180 days ago.',
+    },
+  },
+}
+
+const TRIP_A_INVITATION_TOKEN = 'review-trip-invite-shopper-b'
+const INVITATION_EXPIRES_AT = '2026-08-12T12:00:00.000Z'
+
+interface QueuedOfflineAction {
+  kind: string
+  stopId?: string
+  queuedAt: string
+}
+
+const OFFLINE_KIND_TO_STOP_STATE: Record<string, StopState> = {
+  mark_arrived: 'arrived',
+  complete_stop: 'completed',
+  skip_stop: 'skipped',
+  mark_observed_closed: 'observed_closed',
+  restore_stop: 'planned',
 }
 
 function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient {
   const allowed = () => requireRole(scenario, ['Shopper'], true)
+  const currentUserId = scenario.id === 'shopper-b' ? 'review-shopper-b' : 'review-shopper-a'
+  const currentDisplayName = scenario.id === 'shopper-b' ? 'Shopper B' : 'Avery'
+
+  const trips = new Map<string, Trip>()
+  const collaborations = new Map<string, TripCollaboration>()
+  const offlineQueues = new Map<string, OfflineQueueSnapshot>()
+  const checkMyDay = new Map<string, CheckMyDayServerResult>()
+  const invitationTokens = new Map<string, { tripId: string; invitationId: string }>()
+  const offlinePending = new Map<string, QueuedOfflineAction[]>()
+  const visitMemories = new Map<
+    string,
+    { rating?: number; returnChoice?: 'no' | 'maybe' | 'yes'; note?: string }
+  >()
+  let nextTripNumber = 1
+  let nextStopNumber = 1
+  let nextCheckMyDayNumber = 1
+
+  if (scenario.id === 'shopper-a') {
+    trips.set(tripSeed.id, structuredClone(tripSeed))
+    collaborations.set(tripSeed.id, {
+      tripId: tripSeed.id,
+      currentUserId,
+      participants: [{ userId: currentUserId, displayName: currentDisplayName, role: 'creator' }],
+      navigatorUserId: currentUserId,
+    })
+  }
+  invitationTokens.set(TRIP_A_INVITATION_TOKEN, {
+    tripId: 'trip-a',
+    invitationId: 'trip-a-invite-shopper-b',
+  })
+
+  function findTrip(tripId: string): Trip {
+    const trip = trips.get(tripId)
+    if (!trip) throw new Error('Synthetic trip unavailable.')
+    return trip
+  }
+
+  function requireVersion(trip: Trip, expectedVersion: number): void {
+    if (trip.version !== expectedVersion) throw new Error('Synthetic version conflict.')
+  }
+
+  function bumpVersion(trip: Trip): Trip {
+    return { ...trip, version: trip.version + 1 }
+  }
+
+  function persistTrip(trip: Trip): Trip {
+    trips.set(trip.id, trip)
+    return structuredClone(trip)
+  }
+
+  function requireCollaboration(tripId: string): TripCollaboration {
+    const collaboration = collaborations.get(tripId)
+    if (!collaboration || collaboration.currentUserId !== currentUserId)
+      throw new Error('Synthetic collaboration unavailable.')
+    return collaboration
+  }
+
+  function persistCollaboration(collaboration: TripCollaboration): TripCollaboration {
+    collaborations.set(collaboration.tripId, structuredClone(collaboration))
+    return structuredClone(collaboration)
+  }
+
+  function queueFor(tripId: string): OfflineQueueSnapshot {
+    const existing = offlineQueues.get(tripId)
+    if (existing) return existing
+    const queue: OfflineQueueSnapshot = { state: 'empty', pendingCount: 0 }
+    offlineQueues.set(tripId, queue)
+    return queue
+  }
+
+  function pendingFor(tripId: string): QueuedOfflineAction[] {
+    const existing = offlinePending.get(tripId)
+    if (existing) return existing
+    const pending: QueuedOfflineAction[] = []
+    offlinePending.set(tripId, pending)
+    return pending
+  }
+
+  function transitionStop(trip: Trip, stopId: string, next: StopState): Trip {
+    return bumpVersion({
+      ...trip,
+      stops: trip.stops.map((stop) => (stop.id === stopId ? { ...stop, state: next } : stop)),
+    })
+  }
+
+  function registerTrip(input: { name: string; localDate: string }): Trip {
+    const trip: Trip = {
+      id: `trip-${nextTripNumber++}`,
+      name: normalizeTripName(input.name),
+      localDate: input.localDate,
+      state: 'draft',
+      version: 1,
+      stops: [],
+    }
+    trips.set(trip.id, trip)
+    collaborations.set(trip.id, {
+      tripId: trip.id,
+      currentUserId,
+      participants: [{ userId: currentUserId, displayName: currentDisplayName, role: 'creator' }],
+    })
+    return structuredClone(trip)
+  }
+
   return {
     ...unavailableTripClient,
     async list() {
       allowed()
-      if (scenario.id !== 'shopper-a') return []
-      return fixture(state, [trip], [])
+      return fixture(state, [...trips.values()], [])
     },
     async get(id) {
       allowed()
-      if (scenario.id !== 'shopper-a' || id !== trip.id) return null
+      const trip = trips.get(id)
+      if (!trip) return null
       return fixture(state, trip, null)
+    },
+    async create(input) {
+      allowed()
+      await fixture(state, true, true)
+      return registerTrip(input)
+    },
+    async cloneCompleted(tripId) {
+      allowed()
+      await fixture(state, true, true)
+      const source = findTrip(tripId)
+      if (source.state !== 'completed') throw new Error('Synthetic trip not completed.')
+      const clone = registerTrip({ name: source.name, localDate: source.localDate })
+      return persistTrip({
+        ...clone,
+        name: `${clone.name} (copy)`,
+        departureMinute: source.departureMinute,
+        stops: source.stops.map((stop) => ({
+          ...structuredClone(stop),
+          id: `stop-${nextStopNumber++}`,
+          state: 'planned' as const,
+          memoryStatus: stop.kind === 'rest' ? 'not_applicable' : 'missing',
+        })),
+      })
+    },
+    async addStop(tripId, input) {
+      allowed()
+      await fixture(state, true, true)
+      if (!validDwellMinutes(input.plannedDwellMinutes)) throw new Error(GENERIC_TRIP_ERROR)
+      const trip = findTrip(tripId)
+      const stop: TripStop = {
+        id: `stop-${nextStopNumber++}`,
+        kind: input.kind,
+        label: input.label,
+        position: trip.stops.length,
+        priority: input.priority,
+        plannedDwellMinutes: input.plannedDwellMinutes,
+        state: 'planned',
+        memoryStatus: input.kind === 'rest' ? 'not_applicable' : 'missing',
+      }
+      return persistTrip(bumpVersion({ ...trip, stops: [...trip.stops, stop] }))
+    },
+    async addStoreStop(tripId, storeId) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (trip.stops.filter((stop) => stop.kind === 'store').length >= MAX_ACTIVE_STOPS)
+        throw new Error(GENERIC_TRIP_ERROR)
+      const catalog = syntheticStoreCatalog[storeId]
+      if (!catalog) throw new Error('Synthetic store unavailable.')
+      const stop: TripStop = {
+        id: `stop-${nextStopNumber++}`,
+        storeId,
+        kind: 'store',
+        label: catalog.label,
+        address: catalog.address,
+        position: trip.stops.length,
+        priority: 'prefer',
+        plannedDwellMinutes: 60,
+        state: 'planned',
+        memoryStatus: 'missing',
+        hours: structuredClone(catalog.hours),
+      }
+      return persistTrip(bumpVersion({ ...trip, stops: [...trip.stops, stop] }))
+    },
+    async reorderStop(tripId, stopId, position) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      const index = trip.stops.findIndex((stop) => stop.id === stopId)
+      if (index < 0) throw new Error('Synthetic stop unavailable.')
+      if (position < 0 || position >= trip.stops.length) throw new Error(GENERIC_TRIP_ERROR)
+      const stops = [...trip.stops]
+      const [moved] = stops.splice(index, 1)
+      stops.splice(position, 0, moved)
+      return persistTrip(
+        bumpVersion({
+          ...trip,
+          stops: stops.map((stop, slot) => ({ ...stop, position: slot })),
+        }),
+      )
+    },
+    async renameTrip(tripId, name, expectedVersion) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (trip.version !== expectedVersion)
+        return { state: 'conflict', latest: { name: trip.name, version: trip.version } }
+      return {
+        state: 'applied',
+        trip: persistTrip(bumpVersion({ ...trip, name: normalizeTripName(name) })),
+      }
+    },
+    async removeStop(tripId, stopId, expectedVersion) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      requireVersion(trip, expectedVersion)
+      return persistTrip(
+        bumpVersion({
+          ...trip,
+          stops: trip.stops
+            .filter((stop) => stop.id !== stopId)
+            .map((stop, slot) => ({ ...stop, position: slot })),
+        }),
+      )
+    },
+    async setStopPriority(tripId, stopId, priority, expectedVersion) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      requireVersion(trip, expectedVersion)
+      return persistTrip(
+        bumpVersion({
+          ...trip,
+          stops: trip.stops.map((stop) => (stop.id === stopId ? { ...stop, priority } : stop)),
+        }),
+      )
+    },
+    async setStopDwell(tripId, stopId, dwellMinutes, expectedVersion) {
+      allowed()
+      await fixture(state, true, true)
+      if (!validDwellMinutes(dwellMinutes)) throw new Error(GENERIC_TRIP_ERROR)
+      const trip = findTrip(tripId)
+      requireVersion(trip, expectedVersion)
+      return persistTrip(
+        bumpVersion({
+          ...trip,
+          stops: trip.stops.map((stop) =>
+            stop.id === stopId ? { ...stop, plannedDwellMinutes: dwellMinutes } : stop,
+          ),
+        }),
+      )
+    },
+    async updateSchedule(tripId, input, expectedVersion) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      requireVersion(trip, expectedVersion)
+      return persistTrip(
+        bumpVersion({
+          ...trip,
+          localDate: input.localDate,
+          ...(input.departureMinute !== undefined
+            ? { departureMinute: input.departureMinute }
+            : {}),
+        }),
+      )
+    },
+    async bindNavigatorDevice(tripId) {
+      allowed()
+      await fixture(state, true, true)
+      const collaboration = requireCollaboration(tripId)
+      return persistCollaboration({ ...collaboration, navigatorUserId: currentUserId })
+    },
+    async transferNavigatorDevice(tripId) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (trip.state !== 'active') throw new Error(GENERIC_TRIP_ERROR)
+      return structuredClone(trip)
+    },
+    async reviewHours(tripId, acknowledgeWarnings = false) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      const hasUnresolvedWarnings = trip.stops.some((stop) => stop.hours?.warning)
+      if (hasUnresolvedWarnings && !acknowledgeWarnings)
+        throw new Error('Synthetic hours warnings require acknowledgment.')
+      return persistTrip(
+        bumpVersion({
+          ...trip,
+          hoursReview: {
+            reviewedAt: FIXED_NOW,
+            hasUnresolvedWarnings,
+            acknowledged: acknowledgeWarnings,
+          },
+        }),
+      )
+    },
+    async start(tripId) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (trip.state === 'completed' || trip.state === 'cancelled')
+        throw new Error(GENERIC_TRIP_ERROR)
+      if (trip.stops.length === 0 || trip.departureMinute === undefined)
+        throw new Error(GENERIC_TRIP_ERROR)
+      const transitionMinutes = 15 * Math.max(0, trip.stops.length - 1)
+      const durationMinutes =
+        trip.stops.reduce((total, stop) => total + stop.plannedDwellMinutes, 0) + transitionMinutes
+      return persistTrip(
+        bumpVersion({ ...trip, state: 'active', durationMinutes, transitionMinutes }),
+      )
+    },
+    async markArrived(tripId, stopId) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (trip.state !== 'active') throw new Error(GENERIC_TRIP_ERROR)
+      return persistTrip(transitionStop(trip, stopId, 'arrived'))
+    },
+    async completeStop(tripId, stopId) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (trip.state !== 'active') throw new Error(GENERIC_TRIP_ERROR)
+      return persistTrip(transitionStop(trip, stopId, 'completed'))
+    },
+    async skipStop(tripId, stopId) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (trip.state !== 'active') throw new Error(GENERIC_TRIP_ERROR)
+      return persistTrip(transitionStop(trip, stopId, 'skipped'))
+    },
+    async setStart(tripId, input) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      return persistTrip(
+        bumpVersion({
+          ...trip,
+          startKind: input.kind,
+          startLabel: input.label,
+          departureMinute: input.departureMinute,
+          ...(input.latitude !== undefined && input.longitude !== undefined
+            ? { origin: { latitude: input.latitude, longitude: input.longitude } }
+            : {}),
+        }),
+      )
+    },
+    async setReturn(tripId, input) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (input === null) {
+        const next = { ...trip }
+        delete next.returnCoordinate
+        return persistTrip(bumpVersion(next))
+      }
+      return persistTrip(
+        bumpVersion({
+          ...trip,
+          returnCoordinate:
+            input.latitude !== undefined && input.longitude !== undefined
+              ? { latitude: input.latitude, longitude: input.longitude }
+              : trip.returnCoordinate,
+        }),
+      )
+    },
+    async setLimits(tripId, input) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      return persistTrip(
+        bumpVersion({
+          ...trip,
+          ...(input.maxDriveMiles !== undefined ? { maxDriveMiles: input.maxDriveMiles } : {}),
+          ...(input.maxTotalMinutes !== undefined
+            ? { maxTotalMinutes: input.maxTotalMinutes }
+            : {}),
+        }),
+      )
+    },
+    async addRestStop(tripId, input) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      const stop: TripStop = {
+        id: `stop-${nextStopNumber++}`,
+        kind: 'rest',
+        label: input.label,
+        address: input.address,
+        position: trip.stops.length,
+        priority: input.priority,
+        plannedDwellMinutes: input.plannedDwellMinutes,
+        state: 'planned',
+        memoryStatus: 'not_applicable',
+        ...(input.latitude !== undefined && input.longitude !== undefined
+          ? { coordinate: { latitude: input.latitude, longitude: input.longitude } }
+          : {}),
+      }
+      return persistTrip(bumpVersion({ ...trip, stops: [...trip.stops, stop] }))
+    },
+    async markObservedClosed(tripId, stopId) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (trip.state !== 'active') throw new Error(GENERIC_TRIP_ERROR)
+      return persistTrip(transitionStop(trip, stopId, 'observed_closed'))
+    },
+    async restoreStop(tripId, stopId) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      const stop = trip.stops.find((candidate) => candidate.id === stopId)
+      if (!stop) throw new Error('Synthetic stop unavailable.')
+      if (stop.state === 'planned' || stop.state === 'arrived' || stop.state === 'completed')
+        throw new Error(GENERIC_TRIP_ERROR)
+      return persistTrip(transitionStop(trip, stopId, 'planned'))
+    },
+    async completeTrip(tripId) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (trip.state !== 'active') throw new Error(GENERIC_TRIP_ERROR)
+      if (
+        trip.stops.some(
+          (stop) =>
+            stop.state !== 'completed' &&
+            stop.state !== 'skipped' &&
+            stop.state !== 'observed_closed',
+        )
+      )
+        throw new Error(GENERIC_TRIP_ERROR)
+      return persistTrip(bumpVersion({ ...trip, state: 'completed' }))
+    },
+    async saveVisitMemory(tripId, storeId, input) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (!trip.stops.some((stop) => stop.storeId === storeId))
+        throw new Error('Synthetic store stop unavailable.')
+      visitMemories.set(storeId, {
+        ...(input.rating !== undefined ? { rating: input.rating } : {}),
+        ...(input.returnChoice !== undefined ? { returnChoice: input.returnChoice } : {}),
+        ...(input.note !== undefined ? { note: input.note } : {}),
+      })
+      return persistTrip(
+        bumpVersion({
+          ...trip,
+          stops: trip.stops.map((stop) =>
+            stop.storeId === storeId ? { ...stop, memoryStatus: 'saved' as const } : stop,
+          ),
+        }),
+      )
+    },
+    async replayOffline(tripId) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      const pending = pendingFor(tripId)
+      const snapshot = queueFor(tripId)
+      if (pending.length === 0) return structuredClone(trip)
+      offlineQueues.set(tripId, { ...snapshot, state: 'replaying' })
+      let current = trip
+      for (const action of pending) {
+        const next = OFFLINE_KIND_TO_STOP_STATE[action.kind]
+        const stop = action.stopId
+          ? current.stops.find((candidate) => candidate.id === action.stopId)
+          : undefined
+        if (!next || !stop) {
+          offlineQueues.set(tripId, {
+            ...snapshot,
+            state: 'conflict',
+            conflict: { id: action.kind, summary: 'A queued action no longer applies.' },
+          })
+          return structuredClone(current)
+        }
+        current = transitionStop(current, action.stopId!, next)
+      }
+      trips.set(tripId, current)
+      offlinePending.set(tripId, [])
+      offlineQueues.set(tripId, { state: 'empty', pendingCount: 0, lastUpdatedAt: FIXED_NOW })
+      return structuredClone(current)
+    },
+    async replayOfflineMutation(envelope) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = trips.get(envelope.tripId)
+      if (!trip) return { state: 'unauthorized' }
+      const queue = queueFor(envelope.tripId)
+      if (envelope.baseVersion !== trip.version) {
+        offlineQueues.set(envelope.tripId, {
+          ...queue,
+          state: 'conflict',
+          conflict: { id: envelope.idempotencyKey, summary: 'Version mismatch during replay.' },
+        })
+        return { state: 'conflict', summary: 'Version mismatch during replay.' }
+      }
+      if (!trip.stops.some((stop) => stop.id === envelope.stopId)) return { state: 'unauthorized' }
+      const next = transitionStop(trip, envelope.stopId, OFFLINE_KIND_TO_STOP_STATE[envelope.kind])
+      offlineQueues.set(envelope.tripId, {
+        state: 'empty',
+        pendingCount: 0,
+        lastUpdatedAt: FIXED_NOW,
+      })
+      return { state: 'accepted', trip: persistTrip(next) }
+    },
+    async getOfflineQueue(tripId) {
+      allowed()
+      return fixture(state, queueFor(tripId), { state: 'empty', pendingCount: 0 })
+    },
+    async queueOfflineAction(tripId, action) {
+      allowed()
+      await fixture(state, true, true)
+      findTrip(tripId)
+      const pending = pendingFor(tripId)
+      pending.push({ ...action, queuedAt: FIXED_NOW })
+      const next: OfflineQueueSnapshot = {
+        state: 'queued',
+        pendingCount: pending.length,
+        lastUpdatedAt: FIXED_NOW,
+      }
+      offlineQueues.set(tripId, next)
+      return structuredClone(next)
+    },
+    async resolveOfflineConflict(tripId, choice) {
+      allowed()
+      await fixture(state, true, true)
+      const queue = queueFor(tripId)
+      if (queue.state !== 'conflict') throw new Error('Synthetic offline conflict unavailable.')
+      const pending = pendingFor(tripId)
+      const next: OfflineQueueSnapshot =
+        choice === 'saved'
+          ? { state: 'empty', pendingCount: 0, lastUpdatedAt: FIXED_NOW }
+          : {
+              state: 'blocked',
+              pendingCount: pending.length,
+              purgeReason: 'phone',
+              lastUpdatedAt: FIXED_NOW,
+            }
+      offlineQueues.set(tripId, next)
+      return structuredClone(next)
+    },
+    async purgeOffline(tripId, reason) {
+      allowed()
+      await fixture(state, true, true)
+      const next: OfflineQueueSnapshot = {
+        state: 'purged',
+        pendingCount: 0,
+        purgeReason: reason,
+        lastUpdatedAt: FIXED_NOW,
+      }
+      offlinePending.set(tripId, [])
+      offlineQueues.set(tripId, next)
+      return structuredClone(next)
+    },
+    async getCollaboration(tripId) {
+      allowed()
+      return fixture(state, requireCollaboration(tripId), {
+        tripId,
+        currentUserId,
+        participants: [],
+      })
+    },
+    async invitePartner(tripId) {
+      allowed()
+      await fixture(state, true, true)
+      const collaboration = requireCollaboration(tripId)
+      if (collaboration.invitation?.state === 'pending')
+        throw new Error('Synthetic invitation already pending.')
+      const invitationId = `inv-${tripId}`
+      invitationTokens.set(TRIP_A_INVITATION_TOKEN, { tripId, invitationId })
+      return persistCollaboration({
+        ...collaboration,
+        invitation: { id: invitationId, state: 'pending', expiresAt: INVITATION_EXPIRES_AT },
+      })
+    },
+    async revokeInvitation(tripId, invitationId) {
+      allowed()
+      await fixture(state, true, true)
+      const collaboration = requireCollaboration(tripId)
+      if (collaboration.invitation?.id !== invitationId)
+        throw new Error('Synthetic invitation unavailable.')
+      return persistCollaboration({
+        ...collaboration,
+        invitation: { ...collaboration.invitation, state: 'revoked' },
+      })
+    },
+    async acceptInvitation(fragmentToken) {
+      allowed()
+      await fixture(state, true, true)
+      const binding = invitationTokens.get(fragmentToken)
+      if (!binding) throw new Error('Synthetic invitation unavailable or expired.')
+      const collaboration = collaborations.get(binding.tripId)
+      if (!collaboration) throw new Error('Synthetic trip unavailable.')
+      if (collaboration.participants.some((participant) => participant.userId === currentUserId))
+        return structuredClone(collaboration)
+      return persistCollaboration({
+        ...collaboration,
+        participants: [
+          ...collaboration.participants,
+          { userId: currentUserId, displayName: currentDisplayName, role: 'partner' },
+        ],
+        invitation: collaboration.invitation
+          ? { ...collaboration.invitation, state: 'accepted' }
+          : undefined,
+      })
+    },
+    async assignNavigator(tripId, participantUserId) {
+      allowed()
+      await fixture(state, true, true)
+      const collaboration = requireCollaboration(tripId)
+      if (!collaboration.participants.some((candidate) => candidate.userId === participantUserId))
+        throw new Error('Synthetic participant unavailable.')
+      return persistCollaboration({ ...collaboration, navigatorUserId: participantUserId })
+    },
+    async leaveTrip(tripId) {
+      allowed()
+      await fixture(state, true, true)
+      const collaboration = requireCollaboration(tripId)
+      const me = collaboration.participants.find(
+        (participant) => participant.userId === currentUserId,
+      )
+      if (!me || me.role === 'creator') throw new Error('Synthetic creator cannot leave.')
+      const remaining = collaboration.participants.filter(
+        (participant) => participant.userId !== currentUserId,
+      )
+      collaborations.set(tripId, {
+        ...collaboration,
+        participants: remaining,
+        ...(collaboration.navigatorUserId === currentUserId
+          ? { navigatorUserId: remaining[0]?.userId }
+          : {}),
+      })
+    },
+    async saveCheckMyDayChoice(tripId, _choice, stopIds) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      const chosen = stopIds
+        .map((stopId) => trip.stops.find((stop) => stop.id === stopId))
+        .filter((stop): stop is TripStop => stop !== undefined)
+      const rest = trip.stops.filter((stop) => !stopIds.includes(stop.id))
+      return persistTrip(
+        bumpVersion({
+          ...trip,
+          stops: [...chosen, ...rest].map((stop, slot) => ({ ...stop, position: slot })),
+        }),
+      )
+    },
+    async requestCheckMyDay(tripId) {
+      allowed()
+      await fixture(state, true, true)
+      const trip = findTrip(tripId)
+      if (trip.departureMinute === undefined)
+        return {
+          requestId: `check-my-day-${nextCheckMyDayNumber++}`,
+          state: 'blocked' as const,
+          reason: 'departure_required' as const,
+        }
+      const ranks: Record<StopPriority, number> = { must: 0, prefer: 1, flexible: 2 }
+      const sorted = [...trip.stops].sort((a, b) => {
+        const byPriority = ranks[a.priority] - ranks[b.priority]
+        if (byPriority !== 0) return byPriority
+        const aOpens = a.hours?.opensAt ?? Number.POSITIVE_INFINITY
+        const bOpens = b.hours?.opensAt ?? Number.POSITIVE_INFINITY
+        if (aOpens !== bOpens) return aOpens - bOpens
+        return a.position - b.position
+      })
+      const result: CheckMyDayServerResult = {
+        requestId: `check-my-day-${nextCheckMyDayNumber++}`,
+        state: 'suggested',
+        orderedStopIds: sorted.map((stop) => stop.id),
+        explanation: ['Suggested order prioritizes must-see stops, then earlier opening times.'],
+      }
+      checkMyDay.set(result.requestId, result)
+      return structuredClone(result)
+    },
+    async getCheckMyDaySuggestion(requestId) {
+      allowed()
+      const result = checkMyDay.get(requestId)
+      if (!result) return { requestId, state: 'failed' as const }
+      return fixture(state, result, { requestId, state: 'failed' as const })
     },
   }
 }
