@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -14,6 +14,7 @@ import {
 } from './components'
 import { normalizeTripName } from './tripClient'
 import type { Trip, TripClient } from './types'
+import type { OfflineQueueSnapshot } from './types'
 import type { TripOfflineGrantSource, TripOfflineRuntime } from './tripRuntime'
 
 const trip: Trip = {
@@ -358,6 +359,48 @@ describe('manual trips', () => {
     expect(reorderStop).toHaveBeenCalledWith('trip-1', 'stop-b', 0)
     await user.click(screen.getByRole('button', { name: /save a change offline/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/queued offline/i)
+  })
+
+  it('surfaces a replay conflict surfaced by getOfflineQueue and resolves it with the saved version', async () => {
+    const user = userEvent.setup()
+    const conflictSnapshot: OfflineQueueSnapshot = {
+      state: 'conflict',
+      pendingCount: 1,
+      conflict: { id: 'plan_edit', summary: 'A queued action no longer applies.' },
+    }
+    const getOfflineQueue = vi
+      .fn()
+      .mockResolvedValueOnce({ state: 'empty' as const, pendingCount: 0 })
+      .mockResolvedValueOnce(conflictSnapshot)
+    const resolveOfflineConflict = vi.fn(async () => ({
+      state: 'empty' as const,
+      pendingCount: 0,
+    }))
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <PlanPage
+                client={client({
+                  getOfflineQueue,
+                  resolveOfflineConflict,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('button', { name: /save a change offline/i }))
+    expect(await screen.findByRole('status')).toHaveTextContent(/queued offline/i)
+    await user.click(screen.getByRole('button', { name: /replay queued changes/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/a queued action no longer applies/i)
+    expect(screen.getByRole('button', { name: /keep this phone's version/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /keep saved version/i }))
+    expect(resolveOfflineConflict).toHaveBeenCalledWith('trip-1', 'saved')
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
   })
 
   it('provides usable versioned planning and Navigator device controls', async () => {

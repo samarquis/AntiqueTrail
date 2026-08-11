@@ -293,7 +293,7 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     setOfflineQueue((current) => ({ ...current, state: 'replaying' }))
     try {
       setTrip(await client.replayOffline(trip.id))
-      setOfflineQueue({ state: 'empty', pendingCount: 0, lastUpdatedAt: new Date().toISOString() })
+      setOfflineQueue(await client.getOfflineQueue(trip.id))
     } catch {
       setOfflineQueue((current) => ({
         ...current,
@@ -645,11 +645,12 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
           Save a change offline
         </button>
       )}
-      <p>
-        <Link to={`/trips/${trip.id}/invite`}>Trip Partner and Navigator</Link> ·{' '}
-        <Link to={`/trips/${trip.id}/check-my-day`}>Check My Day</Link> ·{' '}
-        <Link to={`/trips/${trip.id}/go`}>Go</Link> · <Link to="/trips">My trips</Link>
-      </p>
+      <nav className="trip-nav" aria-label="Trip actions">
+        <Link to={`/trips/${trip.id}/invite`}>Trip Partner and Navigator</Link>
+        <Link to={`/trips/${trip.id}/check-my-day`}>Check My Day</Link>
+        <Link to={`/trips/${trip.id}/go`}>Go</Link>
+        <Link to="/trips">My trips</Link>
+      </nav>
     </TripCard>
   )
 }

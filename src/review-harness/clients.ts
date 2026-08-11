@@ -1146,6 +1146,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
       const queue = queueFor(tripId)
       if (queue.state !== 'conflict') throw new Error('Synthetic offline conflict unavailable.')
       const pending = pendingFor(tripId)
+      if (choice === 'saved') pending.shift()
       const next: OfflineQueueSnapshot =
         choice === 'saved'
           ? { state: 'empty', pendingCount: 0, lastUpdatedAt: FIXED_NOW }

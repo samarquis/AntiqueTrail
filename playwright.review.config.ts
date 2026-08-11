@@ -6,10 +6,15 @@ export default defineConfig({
     'review-harness.spec.ts',
     'ui05-auth-shopper.spec.ts',
     'ui06-candidate-flows.spec.ts',
+    'ui07-trip-flows.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   reporter: process.env.CI ? 'github' : 'list',
+  // Dev-server readiness (index.html 200) precedes the lazy first-hit module
+  // compile, so assertions must tolerate a multi-second cold start.
+  expect: { timeout: 15_000 },
+  timeout: 60_000,
   use: {
     baseURL: 'http://127.0.0.1:4174',
     trace: 'on-first-retry',
