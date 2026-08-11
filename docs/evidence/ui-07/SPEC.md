@@ -196,6 +196,17 @@ no trip access at all.
     `/trips/trip-a/go`, `/trips/trip-a/summary`, `/trips/trip-a/check-my-day`,
     and `/trip-invitations`, no actionable target is smaller than 48 × 48 px.
 
+18. **Keyboard-only operation and focus management.** On
+    `/trips?reviewAs=shopper-a`, the page H1 is focused after load. Clicking
+    the trip row (client-side navigation, no reload) moves focus to the
+    destination page H1 — the focus never stays on the clicked link. On
+    `/trips/trip-a/plan`, Tab lands on a visible element with a visible focus
+    indicator (the `:focus-visible` box-shadow ring; the design system sets
+    `outline: none` on the ring, so the check asserts the shadow). Focus
+    **Move Cedar & Brass up** and press Enter → the list reorders. On
+    `/trips/trip-a/go`, focus **Start trip** and press Enter → the trip starts
+    and "Navigate to current stop" appears.
+
 ## Acceptance matrix
 
 | Behavior | Route (reviewAs=shopper-a unless noted) | Pass criteria | Status |
@@ -217,6 +228,7 @@ no trip access at all.
 | Cross-role | `/trips` (`reviewAs=representative` or `administrator`) | Generic trip alert; never trip data | ☑ |
 | Reflow | `/trips/trip-a/plan` | No overflow at 320 px / 200% | ☑ |
 | 48×48 targets | All 8 trip routes | No actionable target smaller than 48 × 48 px | ☑ |
+| Keyboard + focus | `/trips` → `/trips/trip-a/plan`, `/trips/trip-a/go` | H1 focused after load and after client-side nav; visible focus ring; Enter drives Move and Start trip | ☑ |
 
 ## Automated evidence
 

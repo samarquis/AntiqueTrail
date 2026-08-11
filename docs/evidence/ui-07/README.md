@@ -35,7 +35,8 @@ of the app asserted. It confirms:
 | 15 | Cross-role: representative and administrator get the generic trip alert, never trip data | ✓ |
 | 16 | Reflow at 320 CSS px: the plan page holds with no horizontal overflow | ✓ |
 | 17 | 48×48 px targets: no actionable target smaller than 48 × 48 px on all 8 routes | ✓ |
-| 18 | Evidence screenshots (capture run): viewports recorded under `/docs/evidence` | ✓ |
+| 18 | Keyboard + focus: H1 focused after load and after client-side navigation; visible `:focus-visible` ring; Enter drives Move and Start trip | ✓ |
+| 19 | Evidence screenshots (capture run): viewports recorded under `/docs/evidence` | ✓ |
 
 ## Known limitations
 

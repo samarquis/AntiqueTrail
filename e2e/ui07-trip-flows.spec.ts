@@ -398,6 +398,48 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
     await assertMinimumTargets(page)
   })
 
+  test('focus moves to the page H1 after client-side navigation on trip routes', async ({
+    page,
+  }) => {
+    await page.goto(reviewUrl('/trips', 'shopper-a'))
+    await expect(page.getByRole('heading', { level: 1, name: 'My trips' })).toBeFocused()
+
+    // Link-click navigation must move focus to the destination H1, not the link.
+    await page.getByRole('link', { name: "Avery's antique day" }).click()
+    await expect(page.getByRole('heading', { level: 1, name: "Avery's antique day" })).toBeFocused()
+  })
+
+  test('keyboard-only operation shows a visible focus and drives the plan and Go controls', async ({
+    page,
+  }) => {
+    await page.goto(reviewUrl('/trips/trip-a/plan', 'shopper-a'))
+    await expect(page.getByRole('heading', { level: 1, name: "Avery's antique day" })).toBeFocused()
+
+    // The design-system focus ring is a box-shadow with outline: none, so the
+    // visible-focus check must test the shadow, not the outline.
+    await page.keyboard.press('Tab')
+    const focused = page.locator(':focus')
+    await expect(focused).toBeVisible()
+    const focusStyle = await focused.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return { outline: style.outlineStyle, shadow: style.boxShadow }
+    })
+    expect(focusStyle.outline !== 'none' || focusStyle.shadow !== 'none').toBe(true)
+
+    await page.getByLabel('Move Cedar & Brass up').focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByLabel('Ordered trip stops').locator('li').first()).toContainText(
+      'Cedar & Brass',
+    )
+
+    await page.goto(reviewUrl('/trips/trip-a/go', 'shopper-a'))
+    await page.getByRole('button', { name: 'Start trip', exact: true }).focus()
+    await page.keyboard.press('Enter')
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Navigate to current stop' }),
+    ).toBeVisible()
+  })
+
   test('captures the approved viewport evidence when explicitly requested', async ({
     page,
   }, testInfo) => {
