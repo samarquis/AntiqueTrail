@@ -108,9 +108,7 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
     // Rename the draft.
     await page.getByLabel('Trip name').fill("Avery's revised day")
     await page.getByRole('button', { name: 'Rename trip', exact: true }).click()
-    await expect(
-      page.getByRole('heading', { level: 1, name: "Avery's revised day" }),
-    ).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: "Avery's revised day" })).toBeVisible()
 
     // Move Cedar & Brass up; first-row Move Up and last-row Move Down disable.
     const stops = page.getByLabel('Ordered trip stops')
@@ -167,15 +165,15 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
 
     // Queue a plan edit offline and replay it into the documented conflict.
     await page.getByRole('button', { name: 'Save a change offline', exact: true }).click()
-    await expect(
-      page.getByText('1 change queued offline. Reconnect to replay them.'),
-    ).toBeVisible()
+    await expect(page.getByText('1 change queued offline. Reconnect to replay them.')).toBeVisible()
     await page.getByRole('button', { name: 'Replay queued changes', exact: true }).click()
     await expect(page.getByRole('alert')).toContainText('A queued action no longer applies.')
     await expect(
       page.getByRole('button', { name: "Keep This Phone's Version", exact: true }),
     ).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Keep Saved Version', exact: true })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Keep Saved Version', exact: true }),
+    ).toBeVisible()
 
     // Keep the saved version clears the conflict.
     await page.getByRole('button', { name: 'Keep Saved Version', exact: true }).click()
@@ -183,9 +181,7 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
 
     // Queue again, replay to the same conflict, then purge the offline copy.
     await page.getByRole('button', { name: 'Save a change offline', exact: true }).click()
-    await expect(
-      page.getByText('1 change queued offline. Reconnect to replay them.'),
-    ).toBeVisible()
+    await expect(page.getByText('1 change queued offline. Reconnect to replay them.')).toBeVisible()
     await page.getByRole('button', { name: 'Replay queued changes', exact: true }).click()
     await expect(page.getByRole('alert')).toContainText('A queued action no longer applies.')
     await page.getByRole('button', { name: 'Purge offline copy', exact: true }).click()
@@ -246,9 +242,7 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
     await cedar.getByRole('button', { name: 'Done', exact: true }).click()
     await expect(page).toHaveURL(/\/trips\/trip-a\/summary/)
 
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Trip summary' }),
-    ).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'Trip summary' })).toBeVisible()
     await expect(page.getByText("Avery's antique day — completed")).toBeVisible()
     await expect(
       page.getByText(/Visited: 2 · Skipped: 0 · Appeared closed: 0 · Duration: 2 hr/),
@@ -295,9 +289,7 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
     await page.getByLabel('Partner verified email').fill('shopper-b@local.invalid')
     await page.getByRole('button', { name: 'Send invitation', exact: true }).click()
     await expect(page.getByText(/One invitation is pending until/)).toBeVisible()
-    await expect(
-      page.getByRole('button', { name: 'Revoke invitation', exact: true }),
-    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Revoke invitation', exact: true })).toBeVisible()
 
     // Until the harness seeds shopper-b's collaboration, acceptance fails closed
     // with the generic alert and no cross-account trip content.
