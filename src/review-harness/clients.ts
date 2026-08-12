@@ -1414,6 +1414,7 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
     ],
   }
   let pendingChanges: PortalPendingChange[] = [...home.pendingChanges]
+  let portalHours: PortalHours = structuredClone(hours)
   let updates: StoreUpdate[] = [
     {
       id: 'update-1',
@@ -1450,15 +1451,28 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
     ...unavailablePortalClient,
     async getHome() {
       allowed()
-      return fixture(state, { ...home, pendingChanges }, { ...home, pendingChanges: [] })
+      return failureFixture(
+        state,
+        { ...home, pendingChanges },
+        { ...home, pendingChanges: [] },
+        GENERIC_PORTAL_ERROR,
+      )
     },
     async getHours() {
       allowed()
-      return fixture(state, hours, { ...hours, weekly: [], holidays: [] })
+      return failureFixture(
+        state,
+        portalHours,
+        { ...portalHours, weekly: [], holidays: [] },
+        GENERIC_PORTAL_ERROR,
+      )
     },
     async saveHours(value: PortalHours) {
       allowed()
-      return { ...value, version: value.version + 1 }
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        portalHours = { ...structuredClone(value), version: portalHours.version + 1 }
+        return structuredClone(portalHours)
+      })
     },
     async saveManagedFields(fields: PortalManagedFields) {
       allowed()
@@ -1501,7 +1515,7 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
     },
     async listUpdates() {
       allowed()
-      return fixture(state, updates, [])
+      return failureFixture(state, updates, [], GENERIC_PORTAL_ERROR)
     },
     async createUpdate(draft: StoreUpdateDraft) {
       allowed()
@@ -1538,7 +1552,7 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
     },
     async listOfficialLinks() {
       allowed()
-      return fixture(state, officialLinks, [])
+      return failureFixture(state, officialLinks, [], GENERIC_PORTAL_ERROR)
     },
     async saveOfficialLink(link: OfficialLink) {
       allowed()
@@ -1556,7 +1570,7 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
     },
     async listSupportTickets() {
       allowed()
-      return fixture(state, supportTickets, [])
+      return failureFixture(state, supportTickets, [], GENERIC_PORTAL_ERROR)
     },
     async createSupportTicket(draft: SupportTicketDraft) {
       allowed()
@@ -1629,22 +1643,23 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
     },
     async previewPublicListing() {
       allowed()
-      return fixture(
+      return failureFixture(
         state,
         {
           storeName: home.store.name,
           listingState: home.store.listingState,
-          liveFields: {} as Record<string, string>,
+          liveFields: { ...managedFields },
           pendingChanges,
           freshness: home.freshness,
         },
         {
           storeName: home.store.name,
           listingState: home.store.listingState,
-          liveFields: {} as Record<string, string>,
+          liveFields: { ...managedFields },
           pendingChanges: [],
           freshness: home.freshness,
         },
+        GENERIC_PORTAL_ERROR,
       )
     },
     async getDiagnostics() {

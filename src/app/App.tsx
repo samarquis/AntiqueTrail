@@ -133,7 +133,9 @@ import type { ReviewHarnessRuntime } from '../review-harness/types'
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
 const unavailableAlphaAccount = null
 const unavailableExternalAccounts: SyntheticTestAccount[] = []
-const publicListingClaimsEnabled = false
+// Claims are available only in the local review harness until the production
+// authority boundary is approved.
+const publicListingClaimsEnabled = import.meta.env.VITE_REVIEW_HARNESS === 'true'
 const blockedCheckMyDayProvider: CheckMyDayProvider = {
   async getCoordinateMatrix() {
     throw new Error('Routing provider is disabled until R-01 is approved.')

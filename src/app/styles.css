@@ -1237,6 +1237,15 @@ main > article dt {
     font-size: 1rem;
   }
 
+  /* The Portal already provides its own section links. Keep the global shopper
+     navigation in document flow here so it cannot cover those links or data. */
+  body:has(nav[aria-label='Store Portal sections']) .site-header nav {
+    position: static;
+    width: 100%;
+    margin-top: 0.75rem;
+    translate: none;
+  }
+
   /* Browser focus/scroll helpers must leave fixed-navigation clearance for
      interactive controls, especially confirmation and recovery actions. */
   #main-content :is(a, button, input, select, textarea) {
