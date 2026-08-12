@@ -459,6 +459,12 @@ main > article {
   overflow-wrap: anywhere;
 }
 
+/* Keep the invitation action's raised shadow clear of the next admin section. */
+.partner-admin__claim-heading {
+  clear: both;
+  margin-top: 3rem;
+}
+
 .more-menu {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1190,7 +1196,9 @@ main > article dt {
 
 @media (max-width: 1023px) {
   body {
-    padding-bottom: calc(4.8rem + env(safe-area-inset-bottom));
+    /* Reserve the full fixed-navigation height plus clearance so the final
+       destructive confirmation never sits behind the mobile navigation. */
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
 
   .site-header {
@@ -1227,6 +1235,12 @@ main > article dt {
     padding: 0.65rem 0.35rem;
     border-radius: 12px;
     font-size: 1rem;
+  }
+
+  /* Browser focus/scroll helpers must leave fixed-navigation clearance for
+     interactive controls, especially confirmation and recovery actions. */
+  #main-content :is(a, button, input, select, textarea) {
+    scroll-margin-bottom: calc(7rem + env(safe-area-inset-bottom));
   }
 
   main {

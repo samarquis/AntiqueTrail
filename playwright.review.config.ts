@@ -7,6 +7,7 @@ export default defineConfig({
     'ui05-auth-shopper.spec.ts',
     'ui06-candidate-flows.spec.ts',
     'ui07-trip-flows.spec.ts',
+    'ui09-admin-moderation.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),

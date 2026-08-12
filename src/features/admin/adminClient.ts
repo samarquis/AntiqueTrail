@@ -29,7 +29,7 @@ export interface AdminRpcTransport {
 }
 
 export interface AdminClient {
-  listCases(): Promise<AdminReviewCaseSummary[]>
+  listCases(retry?: boolean): Promise<AdminReviewCaseSummary[]>
   getCase(caseId: string): Promise<AdminReviewCaseDetail>
   decideCase(
     caseId: string,
@@ -38,7 +38,7 @@ export interface AdminClient {
     expectedVersion: number,
     idempotencyKey: string,
   ): Promise<AdminDecisionResult>
-  listStoreGrants(): Promise<AdminStoreScope[]>
+  listStoreGrants(retry?: boolean): Promise<AdminStoreScope[]>
   previewStoreScopeChange(
     subjectUserId: string,
     storeId: string,

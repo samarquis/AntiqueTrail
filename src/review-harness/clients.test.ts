@@ -94,6 +94,127 @@ describe('scenario-aware review clients', () => {
     )
   })
 
+  it('implements the administrator queue, scope, merge, partner, and moderation mutations', async () => {
+    const administrator = createReviewHarnessClients(scenario('administrator'), 'success')
+    const admin = administrator.admin!
+
+    const [reviewCase] = await admin.listCases()
+    expect(reviewCase).toMatchObject({ id: 'case-1', state: 'assigned', version: 3 })
+    await expect(admin.getCase(reviewCase.id)).resolves.toMatchObject({
+      immutableSubmission: true,
+      allowedActions: ['approve', 'return', 'reject'],
+      audit: expect.arrayContaining([expect.objectContaining({ action: 'assigned' })]),
+    })
+    await expect(
+      admin.decideCase(reviewCase.id, 'approve', 'accurate', 2, 'stale'),
+    ).rejects.toThrow(/version conflict/i)
+    await expect(
+      admin.decideCase(reviewCase.id, 'approve', 'accurate', 3, 'decide-1'),
+    ).resolves.toEqual({
+      id: 'case-1',
+      state: 'approved',
+      version: 4,
+    })
+    await expect(admin.listCases()).resolves.toEqual([])
+
+    const [grant] = await admin.listStoreGrants()
+    const preview = await admin.previewStoreScopeChange(
+      grant.subjectUserId,
+      grant.storeId,
+      grant.version,
+    )
+    await expect(
+      admin.changeStoreScope(
+        'revoke',
+        grant.subjectUserId,
+        grant.storeId,
+        grant.version,
+        'administrator_revoked',
+        'revoke-1',
+        preview.previewId,
+      ),
+    ).resolves.toMatchObject({ state: 'revoked', version: 3 })
+    const regrantPreview = await admin.previewStoreScopeChange(
+      grant.subjectUserId,
+      grant.storeId,
+      3,
+    )
+    await expect(
+      admin.changeStoreScope(
+        'regrant',
+        grant.subjectUserId,
+        grant.storeId,
+        3,
+        'authority_reverified',
+        'regrant-1',
+        regrantPreview.previewId,
+      ),
+    ).resolves.toMatchObject({ state: 'active', version: 4 })
+
+    const merge = await admin.previewDuplicateMerge('store-blue-finch', 'store-cedar-brass')
+    expect(merge).toMatchObject({ state: 'previewed', safeReferences: 12, quarantinedConflicts: 1 })
+    const executed = await admin.executeDuplicateMerge(merge.proposalId, merge.version, 'merge-1')
+    await expect(
+      admin.rollbackDuplicateMerge(executed.proposalId, executed.version, 'rollback-1'),
+    ).resolves.toMatchObject({ state: 'rolled_back', version: 3 })
+
+    const partner = administrator.partnerAdmin!
+    const partnerCase = await partner.getCase('claim-synthetic')
+    const signal = partnerCase.pendingSignals![0]
+    const verified = await partner.verifySignal({
+      operation: 'verify',
+      claimId: partnerCase.claimId,
+      signalId: signal.signalId,
+      expectedVersion: partnerCase.version!,
+      idempotencyKey: 'signal-1',
+      reasonCode: 'confirmed',
+    })
+    await expect(
+      partner.decide({
+        operation: 'approve',
+        claimId: verified.claimId,
+        expectedVersion: verified.version!,
+        idempotencyKey: 'partner-1',
+        reasonCode: 'verified_authority',
+      }),
+    ).resolves.toMatchObject({ state: 'approved', version: 4 })
+
+    const reviews = administrator.reviews!
+    const [moderation] = await reviews.listModerationCases()
+    await expect(
+      reviews.decideModerationCase(moderation.id, {
+        action: 'remove',
+        reason: 'confirmed spam',
+        mfaVerified: true,
+        recentAuthAt: '2026-08-05T12:00:00.000Z',
+      }),
+    ).resolves.toMatchObject({
+      state: 'removed',
+      evidence: expect.arrayContaining([
+        expect.objectContaining({ kind: 'prior_decision', value: 'confirmed spam' }),
+      ]),
+    })
+  })
+
+  it('denies every privileged fixture to non-administrators and keeps admin states honest', async () => {
+    for (const identity of ['shopper-a', 'representative'] as const) {
+      const clients = createReviewHarnessClients(scenario(identity), 'success')
+      await expect(clients.admin!.listCases()).rejects.toThrow(/permission denied/i)
+      await expect(clients.partnerAdmin!.getCase('claim-synthetic')).rejects.toThrow(
+        /permission denied/i,
+      )
+      await expect(clients.reviews!.listModerationCases()).rejects.toThrow(/permission denied/i)
+    }
+    const empty = createReviewHarnessClients(scenario('administrator'), 'empty')
+    await expect(empty.admin!.listCases()).resolves.toEqual([])
+    await expect(empty.admin!.listStoreGrants()).resolves.toEqual([])
+    for (const state of ['error', 'blocked', 'permission-denied'] as const) {
+      await expect(
+        createReviewHarnessClients(scenario('administrator'), state).admin!.listCases(),
+      ).rejects.toThrow(/This item is not available/i)
+    }
+  })
+
   it('maps empty, loading, error, blocked, and permission states through real clients', async () => {
     await expect(
       createReviewHarnessClients(scenario('shopper-a'), 'empty').shopper!.listSaved(),

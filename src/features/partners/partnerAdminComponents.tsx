@@ -36,6 +36,12 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
   const [signalDecisionKey, setSignalDecisionKey] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(false)
+  const [confirmDecision, setConfirmDecision] = useState(false)
+  const [confirmSignal, setConfirmSignal] = useState<{
+    signalId: string
+    operation: 'verify' | 'reject'
+  } | null>(null)
+  const [signalOutcome, setSignalOutcome] = useState<string | null>(null)
 
   async function issueInvitation(event: FormEvent) {
     event.preventDefault()
@@ -74,6 +80,10 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
   async function decide(event: FormEvent) {
     event.preventDefault()
     if (!claim?.version) return
+    if (!confirmDecision) {
+      setConfirmDecision(true)
+      return
+    }
     setPending(true)
     setError(false)
     try {
@@ -87,6 +97,7 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
           transferFromClaimId: operation === 'transfer' ? transferFromClaimId.trim() : undefined,
         }),
       )
+      setConfirmDecision(false)
     } catch {
       setError(true)
     } finally {
@@ -99,17 +110,22 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
     setPending(true)
     setError(false)
     try {
-      setClaim(
-        await client.verifySignal({
-          operation: signalOperation,
-          claimId: claim.claimId,
-          signalId,
-          expectedVersion: claim.version,
-          idempotencyKey: signalDecisionKey.trim(),
-          reasonCode: signalReasonCode.trim(),
-        }),
+      const next = await client.verifySignal({
+        operation: signalOperation,
+        claimId: claim.claimId,
+        signalId,
+        expectedVersion: claim.version,
+        idempotencyKey: signalDecisionKey.trim(),
+        reasonCode: signalReasonCode.trim(),
+      })
+      setClaim(next)
+      setSignalOutcome(
+        signalOperation === 'verify'
+          ? `Signal verified and added to this exact claim’s verified signal record. Reason retained: ${signalReasonCode.trim()}.`
+          : `Pending signal resolved and removed from this exact claim. Reason retained: ${signalReasonCode.trim()}.`,
       )
       setSignalDecisionKey('')
+      setConfirmSignal(null)
     } catch {
       setError(true)
     } finally {
@@ -130,7 +146,7 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
           Email delivery remains disabled until E-01 and HC-01 pass. The recipient email enters the
           protected provider boundary and is not stored or logged as plain text.
         </p>
-        <form onSubmit={issueInvitation}>
+        <form className="partner-admin__invitation-form" onSubmit={issueInvitation}>
           <label htmlFor="partner-admin-email">Owner-controlled email</label>
           <input
             id="partner-admin-email"
@@ -160,7 +176,7 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
           </div>
         )}
 
-        <h2>Exact listing claim</h2>
+        <h2 className="partner-admin__claim-heading">Exact listing claim</h2>
         <form onSubmit={openClaim}>
           <label htmlFor="partner-admin-claim-id">Exact claim ID</label>
           <input
@@ -212,22 +228,49 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
                       <button
                         type="button"
                         disabled={pending || !signalReasonCode.trim() || !signalDecisionKey.trim()}
-                        onClick={() => void decideSignal(signal.signalId, 'verify')}
+                        onClick={() =>
+                          setConfirmSignal({ signalId: signal.signalId, operation: 'verify' })
+                        }
                       >
                         Verify {labelState(signal.channelClass)} signal
                       </button>{' '}
                       <button
                         type="button"
                         disabled={pending || !signalReasonCode.trim() || !signalDecisionKey.trim()}
-                        onClick={() => void decideSignal(signal.signalId, 'reject')}
+                        onClick={() =>
+                          setConfirmSignal({ signalId: signal.signalId, operation: 'reject' })
+                        }
                       >
                         Reject {labelState(signal.channelClass)} signal
                       </button>
                     </li>
                   ))}
                 </ul>
+                {confirmSignal && (
+                  <section aria-label="Confirm authority signal decision">
+                    <p>
+                      Confirm {confirmSignal.operation}:{' '}
+                      {confirmSignal.operation === 'verify'
+                        ? 'this adds the pending signal to the exact claim’s verified signal record.'
+                        : 'this resolves and removes the pending signal from the exact claim.'}{' '}
+                      The supplied reason is retained in the audit record.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void decideSignal(confirmSignal.signalId, confirmSignal.operation)
+                      }
+                    >
+                      Confirm {confirmSignal.operation} signal
+                    </button>{' '}
+                    <button type="button" onClick={() => setConfirmSignal(null)}>
+                      Cancel signal decision
+                    </button>
+                  </section>
+                )}
               </section>
             )}
+            {signalOutcome && <p role="status">{signalOutcome}</p>}
             <form onSubmit={decide}>
               <label htmlFor="partner-admin-decision">Decision</label>
               <select
@@ -269,8 +312,17 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
                 </>
               )}
               <button type="submit" disabled={pending || !claim.version}>
-                Apply decision
+                {confirmDecision ? `Confirm ${labelState(operation)} decision` : 'Apply decision'}
               </button>
+              {confirmDecision && (
+                <p role="status">
+                  Confirm {labelState(operation)}: this changes the exact claim’s state and records
+                  the supplied reason.{' '}
+                  <button type="button" onClick={() => setConfirmDecision(false)}>
+                    Cancel decision
+                  </button>
+                </p>
+              )}
             </form>
           </section>
         )}
