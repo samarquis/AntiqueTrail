@@ -425,6 +425,42 @@ describe('private shopper screens', () => {
     expect(screen.getByDisplayValue('Hours have changed')).toBeInTheDocument()
   })
 
+  it('retains correction input when JIT sign-in is opened directly', async () => {
+    window.sessionStorage.clear()
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/stores/oak/correction']}>
+        <AuthProvider>
+          <Routes>
+            <Route
+              path="/stores/:slug/correction"
+              element={<CorrectionPage storeId="store-1" client={client()} />}
+            />
+            <Route path="/auth/sign-in" element={<p>sign in</p>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await user.type(screen.getByLabelText(/description/i), 'The listed hours are wrong')
+    await user.click(screen.getByRole('link', { name: /sign in to submit/i }))
+    expect(screen.getByText('sign in')).toBeInTheDocument()
+    cleanup()
+    render(
+      <MemoryRouter initialEntries={['/stores/oak/correction']}>
+        <AuthProvider>
+          <Routes>
+            <Route
+              path="/stores/:slug/correction"
+              element={<CorrectionPage storeId="store-1" client={client()} />}
+            />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    expect(screen.getByDisplayValue('The listed hours are wrong')).toBeInTheDocument()
+    window.sessionStorage.clear()
+  })
+
   it('keeps private memory input after a failed save and focuses the safe error', async () => {
     const user = userEvent.setup()
     const upsertMemory = vi.fn<ShopperPrivateClient['upsertMemory']>(async () => {
