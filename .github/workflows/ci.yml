@@ -85,6 +85,7 @@ jobs:
             readiness_calculation_service, readiness_signature_service,
             release_executor, rg01_calculation_service
           to postgres;
+          alter role postgres set search_path=public,extensions;
           set role community_deployment_service;
           reset role;
           SQL
@@ -98,7 +99,8 @@ jobs:
             --env PGUSER=postgres --env PGPASSWORD=postgres --env PGDATABASE=postgres \
             --env "PGOPTIONS=-c search_path=public,extensions" \
             public.ecr.aws/supabase/pg_prove:3.36 \
-            pg_prove --ext .pg --ext .sql --recurse /tmp/tests \
+            pg_prove --host 127.0.0.1 --port 5432 --username postgres --dbname postgres \
+            --ext .pg --ext .sql --recurse /tmp/tests \
             2>&1 | tee artifacts/supabase-pgtap.log
       - name: Upload database failure logs
         if: failure()
