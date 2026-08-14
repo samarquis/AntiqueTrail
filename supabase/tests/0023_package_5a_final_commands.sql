@@ -19,7 +19,7 @@ select ok(not has_function_privilege('authenticated','trip_private.produce_offli
 select ok(not has_function_privilege('authenticated','trip_private.produce_invitation_receipt(uuid,text,bytea,text,timestamptz,text)','EXECUTE'),'browser cannot produce invitation receipts');
 select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_roles where rolname='trip_email_key_manager'),'HMAC key manager is constrained');
 set local role anon;
-select throws_ok($$select app_public.complete_trip('00000000-0000-0000-0000-000000000000')$$,'42501','anonymous completion denied');
-select throws_ok($$select app_public.set_trip_limits('00000000-0000-0000-0000-000000000000',10,60)$$,'42501','anonymous planning mutation denied');
+select throws_ok($$select app_public.complete_trip('00000000-0000-0000-0000-000000000000')$$,'42501',null,'anonymous completion denied');
+select throws_ok($$select app_public.set_trip_limits('00000000-0000-0000-0000-000000000000',10,60)$$,'42501',null,'anonymous planning mutation denied');
 reset role;
 select * from finish();rollback;

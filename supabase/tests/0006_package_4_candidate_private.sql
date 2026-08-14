@@ -44,15 +44,15 @@ select ok(exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronames
 select ok(not exists(select 1 from information_schema.role_table_grants where table_schema='candidate_private' and grantee in ('anon','authenticated')),'no anonymous/authenticated direct table grants');
 
 set local role anon;
-select throws_ok($$select * from candidate_private.candidate_links$$,'42501','anonymous candidate read denied');
-select throws_ok($$insert into candidate_private.candidate_links(owner_user_id,title) values ('00000000-0000-0000-0000-000000000001','x')$$,'42501','anonymous candidate write denied');
-select throws_ok($$select * from candidate_private.candidate_share_payloads$$,'42501','anonymous payload read denied');
+select throws_ok($$select * from candidate_private.candidate_links$$,'42501',null,'anonymous candidate read denied');
+select throws_ok($$insert into candidate_private.candidate_links(owner_user_id,title) values ('00000000-0000-0000-0000-000000000001','x')$$,'42501',null,'anonymous candidate write denied');
+select throws_ok($$select * from candidate_private.candidate_share_payloads$$,'42501',null,'anonymous payload read denied');
 reset role;
 
 set local role authenticated;
-select throws_ok($$select * from candidate_private.candidate_shares$$,'42501','authenticated direct share read denied');
-select throws_ok($$insert into candidate_private.trip_ideas(owner_user_id,title) values ('00000000-0000-0000-0000-000000000001','x')$$,'42501','authenticated direct trip-idea write denied');
-select throws_ok($$select * from candidate_private.candidate_abuse_cases$$,'42501','authenticated abuse-case read denied');
+select throws_ok($$select * from candidate_private.candidate_shares$$,'42501',null,'authenticated direct share read denied');
+select throws_ok($$insert into candidate_private.trip_ideas(owner_user_id,title) values ('00000000-0000-0000-0000-000000000001','x')$$,'42501',null,'authenticated direct trip-idea write denied');
+select throws_ok($$select * from candidate_private.candidate_abuse_cases$$,'42501',null,'authenticated abuse-case read denied');
 reset role;
 
 select * from finish();

@@ -74,6 +74,17 @@ jobs:
           set -o pipefail
           mkdir -p artifacts
           npx supabase@2.33.9 db reset --local 2>&1 | tee artifacts/supabase-reset.log
+      - name: Grant ephemeral database test roles
+        shell: bash
+        run: |
+          docker exec supabase_db_antique-trail psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          grant account_lifecycle_service, candidate_cleanup_service,
+            community_deployment_service, community_evidence_service,
+            identity_service, public_catalog_gateway,
+            readiness_calculation_service, readiness_signature_service,
+            release_executor, rg01_calculation_service
+          to postgres;
+          SQL
       - name: Run pgTAP database contracts
         shell: bash
         run: |

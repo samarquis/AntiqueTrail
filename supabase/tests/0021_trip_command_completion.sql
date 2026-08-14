@@ -33,8 +33,8 @@ select ok(not has_schema_privilege('trip_grant_signer','trip_private','CREATE'),
 select ok(not has_schema_privilege('trip_invitation_signer','trip_private','CREATE'),'invitation signer cannot create private objects');
 
 set local role anon;
-select throws_ok($$select app_public.get_trip_collaboration('00000000-0000-0000-0000-000000000000')$$,'42501','anonymous collaboration read denied');
-select throws_ok($$select app_public.request_check_my_day('00000000-0000-0000-0000-000000000000')$$,'42501','anonymous route request denied');
+select throws_ok($$select app_public.get_trip_collaboration('00000000-0000-0000-0000-000000000000')$$,'42501',null,'anonymous collaboration read denied');
+select throws_ok($$select app_public.request_check_my_day('00000000-0000-0000-0000-000000000000')$$,'42501',null,'anonymous route request denied');
 
 reset role;
 select * from finish();

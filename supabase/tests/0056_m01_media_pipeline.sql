@@ -83,10 +83,10 @@ set local role anon;
 select is((app_public.media_get_capability()->>'enabled')::boolean,false,'the deployed provider capability remains off without accepted evidence');
 select throws_ok($$select app_public.media_reserve_upload('00000000-0000-4000-8000-000000000001','cover','Alt text','00000000-0000-4000-8000-000000000002',true,'image/png',100,10,10)$$,
   '42501','permission denied for function media_reserve_upload','anonymous direct upload reservation is denied');
-select throws_ok($$select * from media_private.media_uploads$$,'42501','anonymous direct quarantine access is denied');
+select throws_ok($$select * from media_private.media_uploads$$,'42501',null,'anonymous direct quarantine access is denied');
 reset role;
 set local role authenticated;
-select throws_ok($$select * from media_private.media_provider_operations$$,'42501','authenticated users cannot browse provider evidence');
+select throws_ok($$select * from media_private.media_provider_operations$$,'42501',null,'authenticated users cannot browse provider evidence');
 select is((select count(*) from storage.objects where bucket_id='official-media-private'),0::bigint,'authenticated users cannot browse private media objects');
 reset role;
 

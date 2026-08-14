@@ -79,11 +79,11 @@ select ok(position('gen_random_uuid()' in lower(pg_get_functiondef('review_priva
 set local role anon;
 select throws_ok($$select app_public.reviews_get_eligibility('00000000-0000-4000-8000-000000000001')$$,'42501','review_authentication_required','anonymous eligibility reads deny');
 select throws_ok($$select app_public.reviews_create('00000000-0000-4000-8000-000000000001',5,'text','name',8,2026,'none',true)$$,'42501','permission denied for function reviews_create','anonymous mutation execution is denied');
-select throws_ok($$select * from review_private.public_reviews$$,'42501','anonymous direct review-table access is denied');
+select throws_ok($$select * from review_private.public_reviews$$,'42501',null,'anonymous direct review-table access is denied');
 reset role;
 set local role authenticated;
-select throws_ok($$select * from review_private.moderation_case_evidence$$,'42501','authenticated users cannot browse case evidence');
-select throws_ok($$select * from review_private.review_versions$$,'42501','authenticated users cannot browse historical review text');
+select throws_ok($$select * from review_private.moderation_case_evidence$$,'42501',null,'authenticated users cannot browse case evidence');
+select throws_ok($$select * from review_private.review_versions$$,'42501',null,'authenticated users cannot browse historical review text');
 reset role;
 
 select * from finish();

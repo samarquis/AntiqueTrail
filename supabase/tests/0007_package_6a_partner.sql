@@ -54,15 +54,15 @@ select ok(exists(select 1 from pg_constraint where conname='store_partner_grants
 select ok(exists(select 1 from pg_constraint where conname='store_partner_grants_scope_kind_check'),'grant scope is fixed to one store');
 
 set local role anon;
-select throws_ok($$select * from partner_private.partner_invitations$$,'42501','anonymous invitation read denied');
-select throws_ok($$insert into partner_private.partner_invitations(token_hash,recipient_email_hmac,created_by) values (repeat(E'\\001',32)::bytea,repeat(E'\\002',32)::bytea,'00000000-0000-0000-0000-000000000001')$$,'42501','anonymous invitation write denied');
-select throws_ok($$select * from partner_private.listing_claims$$,'42501','anonymous claim read denied');
+select throws_ok($$select * from partner_private.partner_invitations$$,'42501',null,'anonymous invitation read denied');
+select throws_ok($$insert into partner_private.partner_invitations(token_hash,recipient_email_hmac,created_by) values (repeat(E'\\001',32)::bytea,repeat(E'\\002',32)::bytea,'00000000-0000-0000-0000-000000000001')$$,'42501',null,'anonymous invitation write denied');
+select throws_ok($$select * from partner_private.listing_claims$$,'42501',null,'anonymous claim read denied');
 reset role;
 set local role authenticated;
-select throws_ok($$select * from partner_private.pending_partner_identities$$,'42501','authenticated pending-identity direct read denied');
-select throws_ok($$select * from partner_private.pilot_store_drafts$$,'42501','authenticated draft direct read denied');
-select throws_ok($$insert into partner_private.store_partner_grants(partnership_id,auth_user_id,store_id) values ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001','00000000-0000-4000-8000-000000001001')$$,'42501','authenticated grant write denied');
-select throws_ok($$select * from partner_private.partner_access_revocations$$,'42501','authenticated revocation read denied');
+select throws_ok($$select * from partner_private.pending_partner_identities$$,'42501',null,'authenticated pending-identity direct read denied');
+select throws_ok($$select * from partner_private.pilot_store_drafts$$,'42501',null,'authenticated draft direct read denied');
+select throws_ok($$insert into partner_private.store_partner_grants(partnership_id,auth_user_id,store_id) values ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001','00000000-0000-4000-8000-000000001001')$$,'42501',null,'authenticated grant write denied');
+select throws_ok($$select * from partner_private.partner_access_revocations$$,'42501',null,'authenticated revocation read denied');
 reset role;
 
 select * from finish();

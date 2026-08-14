@@ -55,15 +55,15 @@ select ok(exists(select 1 from pg_constraint where conname='admin_scope_key_safe
 select ok(exists(select 1 from pg_constraint where conname='admin_merge_summary_object'),'merge preview summary is structured metadata');
 
 set local role anon;
-select throws_ok($$select * from admin_private.admin_review_cases$$,'42501','anonymous review read denied');
-select throws_ok($$select * from admin_private.admin_scope_actions$$,'42501','anonymous scope read denied');
-select throws_ok($$insert into admin_private.admin_review_cases(case_type,target_kind,target_id,snapshot_hash) values ('access_safety','grant','00000000-0000-0000-0000-000000000001',repeat(E'\\001',32)::bytea)$$,'42501','anonymous review write denied');
+select throws_ok($$select * from admin_private.admin_review_cases$$,'42501',null,'anonymous review read denied');
+select throws_ok($$select * from admin_private.admin_scope_actions$$,'42501',null,'anonymous scope read denied');
+select throws_ok($$insert into admin_private.admin_review_cases(case_type,target_kind,target_id,snapshot_hash) values ('access_safety','grant','00000000-0000-0000-0000-000000000001',repeat(E'\\001',32)::bytea)$$,'42501',null,'anonymous review write denied');
 reset role;
 set local role authenticated;
-select throws_ok($$select * from admin_private.admin_case_events$$,'42501','authenticated direct case-event read denied');
-select throws_ok($$select * from admin_private.admin_privileged_audit_outbox$$,'42501','authenticated direct outbox read denied');
-select throws_ok($$insert into admin_private.admin_scope_actions(grant_id,subject_user_id,role,action,expected_grant_version,scope_preview_hash,reason_code,recent_auth_at,mfa_verified_at,decided_by,outcome,idempotency_key) values ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001','administrator','revoke',1,repeat(E'\\001',32)::bytea,'test',statement_timestamp(),statement_timestamp(),'00000000-0000-0000-0000-000000000001','denied','x')$$,'42501','authenticated scope action write denied');
-select throws_ok($$select * from admin_private.admin_audit_anchor_health$$,'42501','authenticated anchor health read denied');
+select throws_ok($$select * from admin_private.admin_case_events$$,'42501',null,'authenticated direct case-event read denied');
+select throws_ok($$select * from admin_private.admin_privileged_audit_outbox$$,'42501',null,'authenticated direct outbox read denied');
+select throws_ok($$insert into admin_private.admin_scope_actions(grant_id,subject_user_id,role,action,expected_grant_version,scope_preview_hash,reason_code,recent_auth_at,mfa_verified_at,decided_by,outcome,idempotency_key) values ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001','administrator','revoke',1,repeat(E'\\001',32)::bytea,'test',statement_timestamp(),statement_timestamp(),'00000000-0000-0000-0000-000000000001','denied','x')$$,'42501',null,'authenticated scope action write denied');
+select throws_ok($$select * from admin_private.admin_audit_anchor_health$$,'42501',null,'authenticated anchor health read denied');
 reset role;
 
 select * from finish();

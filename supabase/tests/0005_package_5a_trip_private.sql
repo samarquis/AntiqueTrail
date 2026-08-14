@@ -39,12 +39,12 @@ select ok(exists(select 1 from pg_trigger t join pg_class r on r.oid=t.tgrelid j
 select ok(exists(select 1 from pg_trigger t join pg_class r on r.oid=t.tgrelid join pg_namespace n on n.oid=r.relnamespace where n.nspname='trip_private' and r.relname='trips' and t.tgname='trip_navigator_assignment_scope'),'Navigator assignment requires active binding');
 
 set local role anon;
-select throws_ok($$select * from trip_private.trips$$,'42501','anonymous trip reads denied');
-select throws_ok($$insert into trip_private.trip_invitations(token_hash,recipient_email_hmac,trip_id,expires_at,idempotency_key) values (extensions.digest('x','sha256'),extensions.digest('e','sha256'),'00000000-0000-0000-0000-000000000001',statement_timestamp(),'anon')$$,'42501','anonymous trip invitation writes denied');
+select throws_ok($$select * from trip_private.trips$$,'42501',null,'anonymous trip reads denied');
+select throws_ok($$insert into trip_private.trip_invitations(token_hash,recipient_email_hmac,trip_id,expires_at,idempotency_key) values (extensions.digest('x','sha256'),extensions.digest('e','sha256'),'00000000-0000-0000-0000-000000000001',statement_timestamp(),'anon')$$,'42501',null,'anonymous trip invitation writes denied');
 reset role;
 set local role authenticated;
-select throws_ok($$select * from trip_private.trip_stops$$,'42501','authenticated direct stop reads denied');
-select throws_ok($$select * from trip_private.trip_mutation_conflicts$$,'42501','authenticated direct conflict reads denied');
+select throws_ok($$select * from trip_private.trip_stops$$,'42501',null,'authenticated direct stop reads denied');
+select throws_ok($$select * from trip_private.trip_mutation_conflicts$$,'42501',null,'authenticated direct conflict reads denied');
 
 select * from finish();
 rollback;
