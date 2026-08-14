@@ -22,7 +22,9 @@ const [workflow, ci, worker, migration] = await Promise.all([
 test('database pipelines preserve reset and pgTAP failure status', () => {
   assert.equal((ci.match(/set -o pipefail/gu) ?? []).length, 2)
   assert.match(ci, /db reset --local 2>&1 \| tee/u)
-  assert.match(ci, /test db 2>&1 \| tee/u)
+  assert.match(ci, /PGUSER=postgres/u)
+  assert.match(ci, /pg_prove --ext \.pg --ext \.sql --recurse \/tmp\/tests/u)
+  assert.match(ci, /2>&1 \| tee artifacts\/supabase-pgtap\.log/u)
 })
 
 test('scheduled cleanup requires both invocation and independent scheduler credentials', () => {
