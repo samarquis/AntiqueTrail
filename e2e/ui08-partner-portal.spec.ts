@@ -111,7 +111,9 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
     await expect(page.locator('dd').filter({ hasText: 'Hours verified 12 days ago' })).toBeVisible()
     await page.goto(reviewUrl('/store-portal/changes'))
     await expect(
-      page.getByText('Official images and screenshots are disabled until the M-01 media gate passes.'),
+      page.getByText(
+        'Official images and screenshots are disabled until the M-01 media gate passes.',
+      ),
     ).toBeVisible()
     await page.getByLabel('Requested value').fill('200 East Synthetic Avenue')
     await page.getByLabel('Reason for change').fill('Address correction')
@@ -132,14 +134,10 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
     await expect(page.getByText('Saturday finds — archived')).toBeVisible()
 
     await page.goto(reviewUrl('/store-portal/links'))
-    await page
-      .getByLabel('Official profile URL')
-      .fill('https://www.facebook.com/blue-finch')
+    await page.getByLabel('Official profile URL').fill('https://www.facebook.com/blue-finch')
     await page.getByRole('button', { name: 'Publish official link' }).click()
     await expect(page.getByText('Official link published.')).toBeVisible()
-    await expect(
-      page.getByText('facebook: https://facebook.com/blue-finch'),
-    ).toBeVisible()
+    await expect(page.getByText('facebook: https://facebook.com/blue-finch')).toBeVisible()
 
     await page.goto(reviewUrl('/store-portal/support'))
     await page.getByLabel('Subject').fill('Synthetic portal question')
