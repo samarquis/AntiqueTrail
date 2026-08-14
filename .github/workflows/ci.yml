@@ -77,8 +77,8 @@ jobs:
       - name: Grant ephemeral database test roles
         shell: bash
         run: |
-          docker exec -i -e PGPASSWORD=postgres supabase_db_antique-trail \
-            psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          docker exec -i supabase_db_antique-trail \
+            psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 <<'SQL'
           create extension if not exists pgtap with schema extensions;
           create role antique_trail_test_runner login superuser password 'local-pgtap-only';
           grant account_lifecycle_service, candidate_cleanup_service, community_deployment_service,
