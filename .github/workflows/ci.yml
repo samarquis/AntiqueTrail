@@ -79,13 +79,18 @@ jobs:
         run: |
           docker exec -e PGPASSWORD=postgres supabase_db_antique-trail \
             psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
-          grant account_lifecycle_service, candidate_cleanup_service,
-            community_deployment_service, community_evidence_service,
-            identity_service, public_catalog_gateway,
-            readiness_calculation_service, readiness_signature_service,
-            release_executor, rg01_calculation_service
-          to postgres;
-          alter role postgres set search_path=public,extensions;
+          do $roles$
+          declare login_role record;
+          begin
+            for login_role in select rolname from pg_roles where rolcanlogin loop
+              execute format(
+                'grant account_lifecycle_service, candidate_cleanup_service, community_deployment_service, community_evidence_service, identity_service, public_catalog_gateway, readiness_calculation_service, readiness_signature_service, release_executor, rg01_calculation_service to %I',
+                login_role.rolname
+              );
+            end loop;
+          end
+          $roles$;
+          alter database postgres set search_path=public,extensions;
           set role community_deployment_service;
           reset role;
           SQL
