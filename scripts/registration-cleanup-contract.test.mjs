@@ -26,10 +26,12 @@ test('database pipelines preserve reset and pgTAP failure status', () => {
   assert.match(ci, /psql -U supabase_admin/u)
   assert.match(ci, /create role antique_trail_test_runner login superuser/u)
   assert.match(ci, /grant usage on schema extensions to public/u)
+  assert.match(ci, /pg_dump -U supabase_admin -d postgres --schema-only --no-owner/u)
   assert.match(ci, /PGUSER=antique_trail_test_runner/u)
   assert.match(ci, /pg_prove --host 127\.0\.0\.1 --port 5432 --username antique_trail_test_runner/u)
   assert.match(ci, /--ext \.pg --ext \.sql --recurse \/tmp\/tests/u)
   assert.match(ci, /2>&1 \| tee artifacts\/supabase-pgtap\.log/u)
+  assert.match(ci, /path: artifacts\//u)
 })
 
 test('scheduled cleanup requires both invocation and independent scheduler credentials', () => {
