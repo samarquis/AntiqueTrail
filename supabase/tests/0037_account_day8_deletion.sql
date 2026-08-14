@@ -17,7 +17,7 @@ insert into auth.users(id) values
  ('37000000-0000-4000-8000-000000000001'),('37000000-0000-4000-8000-000000000002');
 insert into app_private.profiles(user_id,verified_email_snapshot,public_display_name,age_18_attested_at,last_authenticated_at,status,deletion_due_at)
 values('37000000-0000-4000-8000-000000000001','delete@example.test','DELETE-ME',statement_timestamp(),statement_timestamp(),'deletion_scheduled','2026-08-01T00:00:00Z'),
- ('37000000-0000-4000-8000-000000000002','sibling@example.test','KEEP-ME',statement_timestamp(),statement_timestamp());
+ ('37000000-0000-4000-8000-000000000002','sibling@example.test','KEEP-ME',statement_timestamp(),statement_timestamp(),null,null);
 insert into shopper_private.private_store_memories(user_id,store_id,note)
 values('37000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000001001','DELETE-PRIVATE');
 insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date)

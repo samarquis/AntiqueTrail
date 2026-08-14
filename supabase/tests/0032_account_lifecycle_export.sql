@@ -69,13 +69,13 @@ insert into app_private.account_export_jobs(export_job_id,user_id,state,claim_to
 values('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000001','building','32000000-0000-4000-8000-000000000061',statement_timestamp(),statement_timestamp()+interval '5 minutes',1);
 
 set local role account_lifecycle_service;
-select like(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%Clockwork Cabinet%','archive contains the owner saved store');
-select like(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%OWNER-MEMORY%','archive contains active owner memory');
-select like(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%OWNER-CORRECTION%','archive contains the safe own correction projection');
-select like(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%OWNER-CANDIDATE%','archive contains owned Candidate content');
-select like(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%"direction": "sent"%','archive includes a direction-safe share projection');
-select unlike(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%OTHER-USER-SECRET%','archive excludes other-user records');
-select unlike(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%PURGED-CONTENT-SECRET%','archive excludes pending-deletion private content');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') like '%Clockwork Cabinet%','archive contains the owner saved store');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') like '%OWNER-MEMORY%','archive contains active owner memory');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') like '%OWNER-CORRECTION%','archive contains the safe own correction projection');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') like '%OWNER-CANDIDATE%','archive contains owned Candidate content');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') like '%"direction": "sent"%','archive includes a direction-safe share projection');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') not like '%OTHER-USER-SECRET%','archive excludes other-user records');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') not like '%PURGED-CONTENT-SECRET%','archive excludes pending-deletion private content');
 select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') not like '%ENCRYPTED-PAYLOAD-SECRET%'
   and app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') not like '%INTERNAL-MODERATION-SECRET%'
   and app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') not like '%32000000-0000-4000-8000-000000000002%',
