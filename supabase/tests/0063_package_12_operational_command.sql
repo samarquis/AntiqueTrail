@@ -42,7 +42,7 @@ select has_trigger('community_private','community_activation_runs','community_ru
 select ok(position('receipt_is_current_pass' in lower(pg_get_functiondef('community_private.require_current_rg01(uuid)'::regprocedure)))>0,'RG-01 prerequisite must remain a current authoritative PASS');
 select ok(position('assert_action_receipt' in lower(pg_get_functiondef('community_private.activate_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)))>0
   and position('external_verified' in lower(pg_get_functiondef('community_private.assert_action_receipt(uuid,text,uuid,text,bytea,bytea,text[])'::regprocedure)))>0,'activation consumes externally verified signed receipts rather than booleans');
-select ok(position('set visible=false' in replace(lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)),' ',''))>0
+select ok(position('setvisible=false' in replace(lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)),' ',''))>0
   and position($q$set state='withdrawn'$q$ in replace(lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)),' ',''))>0,'rollback hides the exact projection and withdraws the same run');
 select ok(position('last_activation_ordinal' in lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)))>0
   and position('set last_activation_ordinal' in lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)))=0

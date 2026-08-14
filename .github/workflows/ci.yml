@@ -84,13 +84,19 @@ jobs:
             identity_service, public_catalog_gateway,
             readiness_calculation_service, readiness_signature_service,
             release_executor, rg01_calculation_service
-          to supabase_admin;
+          to postgres;
           SQL
       - name: Run pgTAP database contracts
         shell: bash
         run: |
           set -o pipefail
-          npx supabase@2.33.9 test db 2>&1 | tee artifacts/supabase-pgtap.log
+          docker run --rm --network container:supabase_db_antique-trail \
+            --volume "$PWD/supabase/tests:/tmp/tests:ro" \
+            --env PGHOST=127.0.0.1 --env PGPORT=5432 \
+            --env PGUSER=postgres --env PGPASSWORD=postgres --env PGDATABASE=postgres \
+            public.ecr.aws/supabase/pg_prove:3.36 \
+            pg_prove --ext .pg --ext .sql --recurse /tmp/tests \
+            2>&1 | tee artifacts/supabase-pgtap.log
       - name: Upload database failure logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

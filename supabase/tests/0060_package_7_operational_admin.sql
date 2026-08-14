@@ -129,7 +129,7 @@ select ok(position('review_private' in lower(pg_get_functiondef('app_public.admi
 
 select ok(position('admin_scope_previews' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
   and position('consumed_at' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'regrant denies a missing, stale, mismatched, or replayed server preview');
-select ok(position('on conflict(case_type,target_id)' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0
+select ok(position('onconflict(case_type,target_id)' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0
   and position('snapshot_hash=excluded.snapshot_hash' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0,'resubmission refreshes and unlocks the exact review snapshot');
 select ok(position('encode(digest,''hex'')' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0
   and position('case_version' in lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)))>0,
