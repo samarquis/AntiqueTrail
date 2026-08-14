@@ -22,6 +22,7 @@ const [workflow, ci, worker, migration] = await Promise.all([
 test('database pipelines preserve reset and pgTAP failure status', () => {
   assert.equal((ci.match(/set -o pipefail/gu) ?? []).length, 2)
   assert.match(ci, /db reset --local 2>&1 \| tee/u)
+  assert.match(ci, /docker exec -i -e PGPASSWORD=postgres/u)
   assert.match(ci, /create role antique_trail_test_runner login superuser/u)
   assert.match(ci, /PGUSER=antique_trail_test_runner/u)
   assert.match(ci, /pg_prove --host 127\.0\.0\.1 --port 5432 --username antique_trail_test_runner/u)
