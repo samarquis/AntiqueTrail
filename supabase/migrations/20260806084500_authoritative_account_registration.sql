@@ -1,7 +1,7 @@
 -- Service-only registration protocol. Browser signup is never part of this boundary.
-create unique index if not exists auth_users_exact_antique_trail_admission
-  on auth.users ((raw_user_meta_data->>'antique_trail_admission_id'))
-  where raw_user_meta_data ? 'antique_trail_admission_id';
+-- Auth owns auth.users, so application migrations must not alter that table. The
+-- admission receipt and provider-operation records below remain the authoritative
+-- application-side mapping; reconciliation still reads the exact Auth metadata.
 
 create or replace function app_public.begin_account_registration(
   p_email_hmac bytea,p_age_18_attestation boolean,p_idempotency_key text
