@@ -79,18 +79,13 @@ jobs:
         run: |
           docker exec -e PGPASSWORD=postgres supabase_db_antique-trail \
             psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
-          do $roles$
-          declare login_role record;
-          begin
-            for login_role in select rolname from pg_roles where rolcanlogin loop
-              execute format(
-                'grant account_lifecycle_service, candidate_cleanup_service, community_deployment_service, community_evidence_service, identity_service, public_catalog_gateway, readiness_calculation_service, readiness_signature_service, release_executor, rg01_calculation_service to %I',
-                login_role.rolname
-              );
-            end loop;
-          end
-          $roles$;
-          alter database postgres set search_path=public,extensions;
+          create extension if not exists pgtap with schema extensions;
+          create role antique_trail_test_runner login superuser password 'local-pgtap-only';
+          grant account_lifecycle_service, candidate_cleanup_service, community_deployment_service,
+            community_evidence_service, identity_service, public_catalog_gateway,
+            readiness_calculation_service, readiness_signature_service, release_executor,
+            rg01_calculation_service to antique_trail_test_runner;
+          alter role antique_trail_test_runner set search_path=public,extensions;
           set role community_deployment_service;
           reset role;
           SQL
@@ -101,10 +96,12 @@ jobs:
           docker run --rm --network container:supabase_db_antique-trail \
             --volume "$PWD/supabase/tests:/tmp/tests:ro" \
             --env PGHOST=127.0.0.1 --env PGPORT=5432 \
-            --env PGUSER=postgres --env PGPASSWORD=postgres --env PGDATABASE=postgres \
+            --env PGUSER=antique_trail_test_runner --env PGPASSWORD=local-pgtap-only \
+            --env PGDATABASE=postgres \
             --env "PGOPTIONS=-c search_path=public,extensions" \
             public.ecr.aws/supabase/pg_prove:3.36 \
-            pg_prove --host 127.0.0.1 --port 5432 --username postgres --dbname postgres \
+            pg_prove --host 127.0.0.1 --port 5432 --username antique_trail_test_runner \
+            --dbname postgres \
             --ext .pg --ext .sql --recurse /tmp/tests \
             2>&1 | tee artifacts/supabase-pgtap.log
       - name: Upload database failure logs
