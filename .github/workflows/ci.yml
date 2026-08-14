@@ -85,6 +85,8 @@ jobs:
             readiness_calculation_service, readiness_signature_service,
             release_executor, rg01_calculation_service
           to postgres;
+          set role community_deployment_service;
+          reset role;
           SQL
       - name: Run pgTAP database contracts
         shell: bash
@@ -94,6 +96,7 @@ jobs:
             --volume "$PWD/supabase/tests:/tmp/tests:ro" \
             --env PGHOST=127.0.0.1 --env PGPORT=5432 \
             --env PGUSER=postgres --env PGPASSWORD=postgres --env PGDATABASE=postgres \
+            --env "PGOPTIONS=-c search_path=public,extensions" \
             public.ecr.aws/supabase/pg_prove:3.36 \
             pg_prove --ext .pg --ext .sql --recurse /tmp/tests \
             2>&1 | tee artifacts/supabase-pgtap.log
