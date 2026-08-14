@@ -27,8 +27,8 @@ select has_function('review_private','complete_reviewer_assertion',array['uuid',
 select has_function('app_public','reviews_complete_reviewer_registration',array['uuid','bytea','bytea','text','text','text','boolean','bigint'],'PostgREST verifier registration boundary exists');
 select has_function('app_public','reviews_complete_reviewer_assertion',array['uuid','bytea','bytea','text','text','bigint'],'PostgREST verifier assertion boundary exists');
 select has_function('app_public','reviews_revoke_reviewer_credential',array['uuid','uuid'],'reviewer credential revocation exists');
-select ok(not has_function('review_private','register_reviewer_identity',array['uuid','bytea','integer']),'caller-supplied credential-count registration is removed');
-select ok(not has_function('review_private','record_reviewer_assertion',array['uuid','uuid','bytea','bytea','text']),'caller-supplied assertion digests are removed');
+select ok(to_regprocedure('review_private.register_reviewer_identity(uuid,bytea,integer)') is null,'caller-supplied credential-count registration is removed');
+select ok(to_regprocedure('review_private.record_reviewer_assertion(uuid,uuid,bytea,bytea,text)') is null,'caller-supplied assertion digests are removed');
 
 select ok(has_function_privilege('review_credential_configurator','review_private.configure_reviewer_verifier(text,text,text,bytea,bigint)','EXECUTE') and not has_function_privilege('authenticated','review_private.configure_reviewer_verifier(text,text,text,bytea,bigint)','EXECUTE'),'only configurator accepts verifier evidence');
 select ok(has_function_privilege('review_credential_verifier','review_private.complete_reviewer_registration(uuid,bytea,bytea,text,text,text,boolean,bigint)','EXECUTE') and not has_function_privilege('authenticated','review_private.complete_reviewer_registration(uuid,bytea,bytea,text,text,text,boolean,bigint)','EXECUTE'),'only verifier records registration results');

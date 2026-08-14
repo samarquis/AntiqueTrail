@@ -80,6 +80,7 @@ jobs:
           docker exec -i -e PGPASSWORD=postgres supabase_db_antique-trail \
             psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 <<'SQL'
           create extension if not exists pgtap with schema extensions;
+          grant usage on schema extensions to public;
           create role antique_trail_test_runner login superuser password 'local-pgtap-only';
           grant account_lifecycle_service, candidate_cleanup_service, community_deployment_service,
             community_evidence_service, identity_service, public_catalog_gateway,
