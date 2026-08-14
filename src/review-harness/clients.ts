@@ -1447,6 +1447,16 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
     website: 'https://blue-finch.example.invalid',
     description: 'A synthetic Topeka antique shop.',
   }
+  const publicFields = (): Record<string, string> => ({
+    phone: managedFields.phone,
+    website: managedFields.website,
+    description: managedFields.description,
+    ...(managedFields.temporaryClosure
+      ? {
+          temporaryClosure: `${managedFields.temporaryClosure.startDate} to ${managedFields.temporaryClosure.endDate}`,
+        }
+      : {}),
+  })
   return {
     ...unavailablePortalClient,
     async getHome() {
@@ -1648,14 +1658,14 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
         {
           storeName: home.store.name,
           listingState: home.store.listingState,
-          liveFields: { ...managedFields },
+          liveFields: publicFields(),
           pendingChanges,
           freshness: home.freshness,
         },
         {
           storeName: home.store.name,
           listingState: home.store.listingState,
-          liveFields: { ...managedFields },
+          liveFields: publicFields(),
           pendingChanges: [],
           freshness: home.freshness,
         },
