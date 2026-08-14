@@ -59,18 +59,19 @@ const authenticatedProvider: AuthProviderAdapter = {
 
 function renderSecure(page: ReactNode) {
   const store = new InMemoryAuthStore()
-  store.setSession(
-    toAuthSession({
-      userId: 'user-1',
-      accessToken: 'active-token',
-      expiresAt: Date.now() + 60_000,
-      email: 'owner@example.com',
-      emailVerified: true,
-    }),
-  )
+  const registry = new InMemorySessionRegistry()
+  const session = toAuthSession({
+    userId: 'user-1',
+    accessToken: 'active-token',
+    expiresAt: Date.now() + 60_000,
+    email: 'owner@example.com',
+    emailVerified: true,
+  })
+  store.setSession(session)
+  void registry.registerCurrentSession(session)
   return render(
     <MemoryRouter>
-      <AuthProvider provider={authenticatedProvider} authStore={store}>
+      <AuthProvider provider={authenticatedProvider} authStore={store} registry={registry}>
         {page}
       </AuthProvider>
     </MemoryRouter>,
