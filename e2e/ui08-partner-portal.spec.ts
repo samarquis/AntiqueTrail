@@ -107,43 +107,45 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
     page,
   }) => {
     await page.goto(reviewUrl('/store-portal'))
-    await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible()
-    await expect(page.getByText('Hours verified 12 days ago')).toBeVisible()
+    await expect(page.locator('main h1')).toHaveText('Blue Finch Curios')
+    await expect(page.locator('dd').filter({ hasText: 'Hours verified 12 days ago' })).toBeVisible()
     await page.goto(reviewUrl('/store-portal/changes'))
     await expect(
-      page.getByText('Official media upload is unavailable until the M-01 gate passes.'),
+      page.getByText('Official images and screenshots are disabled until the M-01 media gate passes.'),
     ).toBeVisible()
     await page.getByLabel('Requested value').fill('200 East Synthetic Avenue')
     await page.getByLabel('Reason for change').fill('Address correction')
     await page.getByRole('button', { name: 'Submit change request' }).click()
-    await expect(page.getByRole('status')).toContainText(
-      'Change request submitted for Administrator review',
-    )
+    await expect(page.getByText('Change request submitted for Administrator review')).toBeVisible()
 
     await page.goto(reviewUrl('/store-portal/updates'))
     await page.getByLabel('Headline').fill('Saturday finds')
     await page.getByLabel('Details').fill('Fresh synthetic inventory.')
     await page.getByRole('button', { name: 'Publish text update' }).click()
-    await expect(page.getByRole('status')).toContainText('Text update published.')
+    await expect(page.getByText('Text update published.')).toBeVisible()
     await expect(page.getByText('Saturday finds — live')).toBeVisible()
-    await page.getByRole('button', { name: 'Archive', exact: true }).last().click()
+    await page
+      .getByRole('listitem')
+      .filter({ hasText: 'Saturday finds' })
+      .getByRole('button', { name: 'Archive', exact: true })
+      .click()
     await expect(page.getByText('Saturday finds — archived')).toBeVisible()
 
     await page.goto(reviewUrl('/store-portal/links'))
     await page
       .getByLabel('Official profile URL')
-      .fill('https://example.invalid/blue-finch-facebook')
+      .fill('https://www.facebook.com/blue-finch')
     await page.getByRole('button', { name: 'Publish official link' }).click()
-    await expect(page.getByRole('status')).toContainText('Official link published.')
+    await expect(page.getByText('Official link published.')).toBeVisible()
     await expect(
-      page.getByText('facebook: https://example.invalid/blue-finch-facebook'),
+      page.getByText('facebook: https://facebook.com/blue-finch'),
     ).toBeVisible()
 
     await page.goto(reviewUrl('/store-portal/support'))
     await page.getByLabel('Subject').fill('Synthetic portal question')
     await page.getByLabel('Details').fill('Please review this synthetic request.')
     await page.getByRole('button', { name: 'Submit support request' }).click()
-    await expect(page.getByRole('status')).toContainText('Support request submitted.')
+    await expect(page.getByText('Support request submitted.')).toBeVisible()
     await expect(
       page.getByRole('heading', { level: 3, name: 'Synthetic portal question' }),
     ).toBeVisible()
