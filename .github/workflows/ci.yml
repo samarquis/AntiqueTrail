@@ -84,7 +84,7 @@ jobs:
             identity_service, public_catalog_gateway,
             readiness_calculation_service, readiness_signature_service,
             release_executor, rg01_calculation_service
-          to postgres;
+          to supabase_admin;
           SQL
       - name: Run pgTAP database contracts
         shell: bash
