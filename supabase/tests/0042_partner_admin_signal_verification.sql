@@ -25,7 +25,7 @@ select ok(
   'verification locks and version-checks the exact claim and signal'
 );
 select ok(
-  position("s.status <> 'submitted'" in lower(pg_get_functiondef('app_public.partner_admin_signal_command(text,uuid,uuid,bigint,text,text)'::regprocedure)))>0,
+  position($q$s.status <> 'submitted'$q$ in lower(pg_get_functiondef('app_public.partner_admin_signal_command(text,uuid,uuid,bigint,text,text)'::regprocedure)))>0,
   'only submitted signals can be consumed'
 );
 select ok(
@@ -45,21 +45,21 @@ select ok(
   'clients cannot submit authority evidence or object digests'
 );
 select ok(
-  position("'pendingSignals'" in pg_get_functiondef('app_public.partner_admin_claim_case(uuid)'::regprocedure))>0,
+  position($q$'pendingSignals'$q$ in pg_get_functiondef('app_public.partner_admin_claim_case(uuid)'::regprocedure))>0,
   'the exact-case projection exposes submitted signal metadata'
 );
 select ok(
-  position("'signalId'" in pg_get_functiondef('app_public.partner_admin_claim_case(uuid)'::regprocedure))>0
-    and position("'channelClass'" in pg_get_functiondef('app_public.partner_admin_claim_case(uuid)'::regprocedure))>0,
+  position($q$'signalId'$q$ in pg_get_functiondef('app_public.partner_admin_claim_case(uuid)'::regprocedure))>0
+    and position($q$'channelClass'$q$ in pg_get_functiondef('app_public.partner_admin_claim_case(uuid)'::regprocedure))>0,
   'pending signal projection includes only actionable identifiers and channel metadata'
 );
 select ok(
-  position("'evidenceRefHmac'" in pg_get_functiondef('app_public.partner_admin_claim_case(uuid)'::regprocedure))=0
-    and position("'authorityObjectHmac'" in pg_get_functiondef('app_public.partner_admin_claim_case(uuid)'::regprocedure))=0,
+  position($q$'evidenceRefHmac'$q$ in pg_get_functiondef('app_public.partner_admin_claim_case(uuid)'::regprocedure))=0
+    and position($q$'authorityObjectHmac'$q$ in pg_get_functiondef('app_public.partner_admin_claim_case(uuid)'::regprocedure))=0,
   'the Administrator client projection contains no evidence digests'
 );
 select ok(
-  position("'signal_rejected'" in lower(pg_get_constraintdef((select oid from pg_constraint where conname='claim_events_event_kind_check'))))>0,
+  position($q$'signal_rejected'$q$ in lower(pg_get_constraintdef((select oid from pg_constraint where conname='claim_events_event_kind_check'))))>0,
   'rejected signals receive a distinct append-only event kind'
 );
 select ok(

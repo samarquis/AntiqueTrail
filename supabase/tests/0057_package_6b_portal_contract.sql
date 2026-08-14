@@ -34,46 +34,46 @@ select has_function('app_public','portal_preview_public_listing',array[]::text[]
 select ok((select count(*)=8 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='portal_private' and c.relkind='r' and c.relrowsecurity and c.relforcerowsecurity),'every portal table forces RLS');
 select ok(not exists(select 1 from information_schema.role_table_grants where table_schema='portal_private' and grantee in ('anon','authenticated')),'browser roles cannot access portal tables directly');
 select ok(not exists(select 1 from information_schema.routines where routine_schema='app_public' and routine_name like 'portal_%media%'),'no Portal media command exists before M-01');
-select ok(position("'official_media'" in lower(pg_get_functiondef('app_public.portal_submit_controlled_change(jsonb)'::regprocedure)))>0
+select ok(position($q$'official_media'$q$ in lower(pg_get_functiondef('app_public.portal_submit_controlled_change(jsonb)'::regprocedure)))>0
   and position('portal_unavailable' in lower(pg_get_functiondef('app_public.portal_submit_controlled_change(jsonb)'::regprocedure)))>0,'official-media controlled input fails closed');
 
-select ok(position("g.state='active'" in replace(lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)),' ',''))>0
-  and position("p.state='active'" in replace(lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)),' ',''))>0,'scope derives from active 6A grant and partnership');
+select ok(position($q$g.state='active'$q$ in replace(lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)),' ',''))>0
+  and position($q$p.state='active'$q$ in replace(lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)),' ',''))>0,'scope derives from active 6A grant and partnership');
 select ok(position('current_session_is_active()' in lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)))>0
   and position('current_session_has_mfa()' in lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)))>0
-  and position("current_session_recent_auth(interval '10 minutes')" in lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)))>0,'every RPC inherits open-session, MFA, and recent-auth checks');
+  and position($q$current_session_recent_auth(interval '10 minutes')$q$ in lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)))>0,'every RPC inherits open-session, MFA, and recent-auth checks');
 select ok(position('partner_access_revocations' in lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)))>0
   and position('partner_consent_is_current' in lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)))>0,'revocation and stale material consent deny Portal access');
 select ok(position('count(*)=1' in replace(lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)),' ',''))>0,'ambiguous multi-store scope fails closed');
-select ok(position("stage='private_beta'" in replace(lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)),' ',''))>0
-  and position("audience='regional_readiness'" in replace(lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)),' ',''))>0,'real Portal records remain hidden in the private-beta audience');
+select ok(position($q$stage='private_beta'$q$ in replace(lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)),' ',''))>0
+  and position($q$audience='regional_readiness'$q$ in replace(lower(pg_get_functiondef('portal_private.require_portal_scope()'::regprocedure)),' ',''))>0,'real Portal records remain hidden in the private-beta audience');
 
 select ok(position('store_weekly_hours' in lower(pg_get_functiondef('app_public.portal_save_hours(jsonb)'::regprocedure)))>0
   and position('store_hour_exceptions' in lower(pg_get_functiondef('app_public.portal_save_hours(jsonb)'::regprocedure)))>0,'weekly and date-specific hours publish to catalog authority');
 select ok(position('store_fact_verifications' in lower(pg_get_functiondef('app_public.portal_save_hours(jsonb)'::regprocedure)))>0,'direct managed publishing records hours provenance');
 select ok(position('update app_public.stores' in lower(pg_get_functiondef('app_public.portal_save_managed_fields(jsonb)'::regprocedure)))>0
-  and position("'contact'" in lower(pg_get_functiondef('app_public.portal_save_managed_fields(jsonb)'::regprocedure)))>0
-  and position("'categories_attributes'" in lower(pg_get_functiondef('app_public.portal_save_managed_fields(jsonb)'::regprocedure)))>0
+  and position($q$'contact'$q$ in lower(pg_get_functiondef('app_public.portal_save_managed_fields(jsonb)'::regprocedure)))>0
+  and position($q$'categories_attributes'$q$ in lower(pg_get_functiondef('app_public.portal_save_managed_fields(jsonb)'::regprocedure)))>0
   and position('store_partner' in lower(pg_get_functiondef('app_public.portal_save_managed_fields(jsonb)'::regprocedure)))>0,'representative-managed fields publish directly with field-group provenance');
 select ok(position('admin_review_cases' in lower(pg_get_functiondef('app_public.portal_submit_controlled_change(jsonb)'::regprocedure)))>0
   and position('admin_field_change_requests' in lower(pg_get_functiondef('app_public.portal_submit_controlled_change(jsonb)'::regprocedure)))>0,'controlled fields enter typed Administrator review');
 select ok(position('update app_public.stores' in lower(pg_get_functiondef('app_public.portal_submit_controlled_change(jsonb)'::regprocedure)))=0,'controlled requested values remain unpublished');
 
-select ok(position("imageRequested'" in pg_get_functiondef('app_public.portal_create_update(jsonb)'::regprocedure))>0
+select ok(position($q$imageRequested'$q$ in pg_get_functiondef('app_public.portal_create_update(jsonb)'::regprocedure))>0
   and position('portal_unavailable' in lower(pg_get_functiondef('app_public.portal_create_update(jsonb)'::regprocedure)))>0,'image-bearing Store Updates fail closed');
-select ok(position("state='archived'" in replace(lower(pg_get_functiondef('app_public.portal_archive_update(text)'::regprocedure)),' ',''))>0
-  and position("state='live'" in replace(lower(pg_get_functiondef('app_public.portal_restore_update(text)'::regprocedure)),' ',''))>0,'text updates support durable archive and restore');
+select ok(position($q$state='archived'$q$ in replace(lower(pg_get_functiondef('app_public.portal_archive_update(text)'::regprocedure)),' ',''))>0
+  and position($q$state='live'$q$ in replace(lower(pg_get_functiondef('app_public.portal_restore_update(text)'::regprocedure)),' ',''))>0,'text updates support durable archive and restore');
 select ok(position('facebook.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0
   and position('instagram.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0
   and position('tiktok.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0,'official social links use a server allowlist');
 
 select ok(position('jsonb_array_length' in lower(pg_get_functiondef('portal_private.diagnostics_allowed(jsonb)'::regprocedure)))>0
   and position('120' in pg_get_functiondef('portal_private.diagnostics_allowed(jsonb)'::regprocedure))>0,'support diagnostics are bounded');
-select ok(position("'browser'" in pg_get_functiondef('portal_private.diagnostics_allowed(jsonb)'::regprocedure))>0
-  and position("'operating_system'" in pg_get_functiondef('portal_private.diagnostics_allowed(jsonb)'::regprocedure))>0
+select ok(position($q$'browser'$q$ in pg_get_functiondef('portal_private.diagnostics_allowed(jsonb)'::regprocedure))>0
+  and position($q$'operating_system'$q$ in pg_get_functiondef('portal_private.diagnostics_allowed(jsonb)'::regprocedure))>0
   and position('token|code|secret|key' in lower(pg_get_functiondef('portal_private.diagnostics_allowed(jsonb)'::regprocedure)))>0,'support diagnostics are allowlisted and secret-scrubbed');
-select ok(position("'screenshotAttached',false" in replace(pg_get_functiondef('portal_private.support_ticket_json(uuid)'::regprocedure),' ',''))>0,'support responses cannot imply a media attachment');
-select ok(position("state='reopened'" in replace(lower(pg_get_functiondef('app_public.portal_reopen_support_ticket(text)'::regprocedure)),' ',''))>0
+select ok(position($q$'screenshotAttached',false$q$ in replace(pg_get_functiondef('portal_private.support_ticket_json(uuid)'::regprocedure),' ',''))>0,'support responses cannot imply a media attachment');
+select ok(position($q$state='reopened'$q$ in replace(lower(pg_get_functiondef('app_public.portal_reopen_support_ticket(text)'::regprocedure)),' ',''))>0
   and position('support_events' in lower(pg_get_functiondef('app_public.portal_reopen_support_ticket(text)'::regprocedure)))>0,'support reopen is durable with status history');
 
 select ok(position('pg_advisory_xact_lock' in lower(pg_get_functiondef('portal_private.lock_portal_store(uuid)'::regprocedure)))>0,'portal mutations serialize per exact store');

@@ -55,10 +55,10 @@ select ok(not has_function_privilege('authenticated','review_private.finalize_re
   'browser sessions cannot run lifecycle purge');
 select ok(not has_function_privilege('authenticated','review_private.deidentify_account_reviews(uuid,uuid)','EXECUTE'),
   'browser sessions cannot invoke account erasure hook');
-select ok(position("public_capability_enabled('reviews')" in lower(pg_get_functiondef('review_private.review_stage_allowed(uuid)'::regprocedure)))>0
-  and position("stage='synthetic_alpha'" in replace(lower(pg_get_functiondef('review_private.review_stage_allowed(uuid)'::regprocedure)),' ',''))>0,
+select ok(position($q$public_capability_enabled('reviews')$q$ in lower(pg_get_functiondef('review_private.review_stage_allowed(uuid)'::regprocedure)))>0
+  and position($q$stage='synthetic_alpha'$q$ in replace(lower(pg_get_functiondef('review_private.review_stage_allowed(uuid)'::regprocedure)),' ',''))>0,
   'real reviews require Package 10B while Synthetic rehearsal is explicitly bounded');
-select ok(position("interval '60 seconds'" in lower(pg_get_functiondef('app_public.reviews_request_delete(uuid)'::regprocedure)))>0,
+select ok(position($q$interval '60 seconds'$q$ in lower(pg_get_functiondef('app_public.reviews_request_delete(uuid)'::regprocedure)))>0,
   'delete Undo is exactly sixty seconds');
 select ok(position('rebuild_rating_aggregate' in lower(pg_get_functiondef('app_public.reviews_request_delete(uuid)'::regprocedure)))>0
   and position('rebuild_rating_aggregate' in lower(pg_get_functiondef('app_public.reviews_undo_delete(uuid)'::regprocedure)))>0,

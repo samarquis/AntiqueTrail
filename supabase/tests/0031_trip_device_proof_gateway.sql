@@ -21,7 +21,7 @@ select ok(not has_function_privilege('trip_grant_signer',
 select ok(position('device_proof_replayed' in pg_get_functiondef(
   'app_public.record_verified_offline_grant_receipt(text,text,text,text,bigint,jsonb,timestamptz,text,timestamptz)'::regprocedure))>0,
   'replayed grant proof is rejected');
-select ok(position("->>'deviceId'<>device_key_id" in replace(pg_get_functiondef(
+select ok(position($q$->>'deviceId'<>device_key_id$q$ in replace(pg_get_functiondef(
   'app_public.record_verified_offline_grant_receipt(text,text,text,text,bigint,jsonb,timestamptz,text,timestamptz)'::regprocedure),' ',''))>0,
   'grant is bound to the verified public-key thumbprint');
 

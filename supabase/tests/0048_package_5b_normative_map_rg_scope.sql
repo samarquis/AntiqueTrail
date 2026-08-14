@@ -13,7 +13,7 @@ select ok(not has_function_privilege('anon',
   'browser roles cannot bypass the rate-limited map gateway');
 select ok(position('p_limit>500' in replace(pg_get_functiondef(
   'app_public.get_browse_map_v2(text,text,text,boolean,text,boolean,boolean,double precision,text,double precision,double precision,double precision,double precision,integer,integer,uuid)'::regprocedure),' ',''))>0
-  and position("raise exception 'too_many_results'" in lower(pg_get_functiondef(
+  and position($q$raise exception 'too_many_results'$q$ in lower(pg_get_functiondef(
   'app_public.get_browse_map_v2(text,text,text,boolean,text,boolean,boolean,double precision,text,double precision,double precision,double precision,double precision,integer,integer,uuid)'::regprocedure)))>0,
   'the 500-point limit fails closed instead of truncating');
 select ok(position('p_zoom' in pg_get_functiondef(

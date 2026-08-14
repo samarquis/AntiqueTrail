@@ -26,9 +26,9 @@ reset role;
 select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public'
   and p.proname in ('account_lifecycle_status','request_account_export','get_account_export_status','issue_account_export_download','request_account_deletion','cancel_account_deletion')
   and 'user_id'=any(coalesce(p.proargnames,array[]::text[]))),'browser lifecycle commands never accept a caller-selected owner');
-select ok(position("interval '7 days'" in pg_get_constraintdef((select oid from pg_constraint where conname='export_archive_shape')))>0,'ready archive lifetime is capped at seven days');
-select ok(position("interval '15 minutes'" in pg_get_constraintdef((select oid from pg_constraint where conname='account_export_handoff_window')))>0,'download handoff is capped at fifteen minutes');
-select ok(position("interval '24 hours'" in pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_deletion_timing')))>0,'private-memory purge remains due within 24 hours');
+select ok(position($q$interval '7 days'$q$ in pg_get_constraintdef((select oid from pg_constraint where conname='export_archive_shape')))>0,'ready archive lifetime is capped at seven days');
+select ok(position($q$interval '15 minutes'$q$ in pg_get_constraintdef((select oid from pg_constraint where conname='account_export_handoff_window')))>0,'download handoff is capped at fifteen minutes');
+select ok(position($q$interval '24 hours'$q$ in pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_deletion_timing')))>0,'private-memory purge remains due within 24 hours');
 select ok(position('rating is null' in pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_purged_content_free')))>0
   and position('note is null' in pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_purged_content_free')))>0,'purged memory tombstone cannot retain private content');
 

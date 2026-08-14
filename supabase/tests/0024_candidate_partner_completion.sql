@@ -23,7 +23,7 @@ select ok(position('recipient_id=auth.uid()' in replace(pg_get_functiondef('app_
 select ok(position('owner_user_id=auth.uid()' in replace(pg_get_functiondef('app_public.candidate_edge_share_source(uuid)'::regprocedure),' ',''))>0,'share source is sender bound');
 select ok(position('partner_synthetic_denied' in pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure))>0,'Synthetic command requires explicit marker');
 select ok(position('submit_authority_signal' in pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure))>0,'Synthetic authority submission is handled');
-select ok(position("status='verified'" in replace(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure),' ',''))=0,'Synthetic command never fabricates verified authority evidence');
+select ok(position($q$status='verified'$q$ in replace(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure),' ',''))=0,'Synthetic command never fabricates verified authority evidence');
 select ok(exists(select 1 from pg_constraint where conname='candidate_cleanup_jobs_terminal_reason_check' and pg_get_constraintdef(oid) like '%blocked%' and pg_get_constraintdef(oid) like '%reported%'),'block/report payloads enter durable cleanup');
 
 select * from finish();
