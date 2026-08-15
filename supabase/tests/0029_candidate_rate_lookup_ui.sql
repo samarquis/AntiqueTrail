@@ -46,7 +46,7 @@ select ok(position('recipientId' in pg_get_functiondef('app_public.candidate_edg
   and position('recipientDigest' in pg_get_functiondef('app_public.candidate_edge_exact_recipient(text,bytea)'::regprocedure))>0,'lookup returns only needed UUID and digest');
 select ok(position('p_recipient_id is null' in pg_get_functiondef('app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text)'::regprocedure))>0,'unmatched recipient returns generic pending without payload');
 select ok(position('candidate_blocks' in pg_get_functiondef('app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text)'::regprocedure))>0,'blocked recipient returns the same generic path');
-select ok(position('blocker_id=auth.uid()' in replace(pg_get_functiondef('app_public.candidate_list_blocked_senders()'::regprocedure),' ',''))>0,'blocked sender list is owner bound');
+select ok(position('blocker_id=app_public.request_user_id()' in replace(pg_get_functiondef('app_public.candidate_list_blocked_senders()'::regprocedure),' ',''))>0,'blocked sender list is owner bound');
 
 select * from finish();
 rollback;

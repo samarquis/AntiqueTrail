@@ -19,8 +19,8 @@ select ok(not has_function_privilege('anon','app_public.candidate_edge_send_shar
 select ok(not has_function_privilege('anon','app_public.partner_synthetic_command(text,jsonb)','EXECUTE'),'anonymous Synthetic partner command is denied');
 select ok(position('p_confirmed is not true' in lower(pg_get_functiondef('app_public.candidate_delete_trip_idea(uuid,boolean)'::regprocedure)))>0,'delete fails closed without explicit confirmation');
 select ok(position('candidate_lifecycle_receipts' in pg_get_functiondef('app_public.candidate_delete_trip_idea(uuid,boolean)'::regprocedure))>0,'delete records lifecycle evidence');
-select ok(position('recipient_id=auth.uid()' in replace(pg_get_functiondef('app_public.candidate_edge_payload(uuid)'::regprocedure),' ',''))>0,'payload is recipient bound');
-select ok(position('owner_user_id=auth.uid()' in replace(pg_get_functiondef('app_public.candidate_edge_share_source(uuid)'::regprocedure),' ',''))>0,'share source is sender bound');
+select ok(position('recipient_id=app_public.request_user_id()' in replace(pg_get_functiondef('app_public.candidate_edge_payload(uuid)'::regprocedure),' ',''))>0,'payload is recipient bound');
+select ok(position('owner_user_id=app_public.request_user_id()' in replace(pg_get_functiondef('app_public.candidate_edge_share_source(uuid)'::regprocedure),' ',''))>0,'share source is sender bound');
 select ok(position('partner_synthetic_denied' in pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure))>0,'Synthetic command requires explicit marker');
 select ok(position('submit_authority_signal' in pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure))>0,'Synthetic authority submission is handled');
 select ok(position($q$status='verified'$q$ in replace(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure),' ',''))=0,'Synthetic command never fabricates verified authority evidence');

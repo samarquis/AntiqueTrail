@@ -37,7 +37,7 @@ insert into app_private.account_deletion_requests(deletion_request_id,user_id,re
 values('37000000-0000-4000-8000-000000000030','37000000-0000-4000-8000-000000000001','2026-07-25T00:00:00Z','2026-08-01T00:00:00Z');
 
 set local role account_lifecycle_service;
-select unlike(app_public.build_account_export('37000000-0000-4000-8000-000000000042','37000000-0000-4000-8000-000000000043'),'%TERMINAL-RECEIVED-SECRET%','received terminal Candidate shares export no title or payload');
+select ok(position('TERMINAL-RECEIVED-SECRET' in app_public.build_account_export('37000000-0000-4000-8000-000000000042','37000000-0000-4000-8000-000000000043'))=0,'received terminal Candidate shares export no title or payload');
 create temporary table claimed_deletion as select * from app_public.claim_due_account_deletions('1999-01-01',10);
 reset role;
 select is((select count(*)::integer from claimed_deletion),1,'due request is claimed even when caller supplies stale time');

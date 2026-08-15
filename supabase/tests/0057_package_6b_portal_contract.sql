@@ -63,8 +63,8 @@ select ok(position($q$imageRequested'$q$ in pg_get_functiondef('app_public.porta
   and position('portal_unavailable' in lower(pg_get_functiondef('app_public.portal_create_update(jsonb)'::regprocedure)))>0,'image-bearing Store Updates fail closed');
 select ok(position($q$state='archived'$q$ in replace(lower(pg_get_functiondef('app_public.portal_archive_update(text)'::regprocedure)),' ',''))>0
   and position($q$state='live'$q$ in replace(lower(pg_get_functiondef('app_public.portal_restore_update(text)'::regprocedure)),' ',''))>0,'text updates support durable archive and restore');
-select ok(position('facebook.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0
-  and position('instagram.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0
+select ok(position('facebook\.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0
+  and position('instagram\.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0
   and position('tiktok\.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0,'official social links use a server allowlist');
 
 select ok(position('jsonb_array_length' in lower(pg_get_functiondef('portal_private.diagnostics_allowed(jsonb)'::regprocedure)))>0

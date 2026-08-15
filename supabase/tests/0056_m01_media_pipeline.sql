@@ -62,7 +62,7 @@ select ok(position('current_session_has_mfa' in lower(pg_get_functiondef('app_pu
   and position('current_session_recent_auth' in lower(pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure)))>0
   and position('current_user_has_role' in lower(pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure)))>0,
   'approval requires Administrator role, MFA, and recent authentication');
-select ok(position($q$'publish'$q$ in lower(pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure)))>0,
+select ok(position($q$'approved_pending_publish'$q$ in lower(pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure)))>0,
   'approval queues publication rather than exposing staging directly');
 select ok(position('app_public.store_media' in lower(pg_get_functiondef('media_private.complete_publish_job(uuid,uuid,text)'::regprocedure)))>0,
   'catalog media is inserted only by successful publication completion');

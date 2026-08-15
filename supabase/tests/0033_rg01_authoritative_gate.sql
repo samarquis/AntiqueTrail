@@ -56,7 +56,10 @@ select is(rg01_private.calculate_blockers(25,9,3,3,3,0,6,35),array['second_trip_
 select is(rg01_private.calculate_blockers(25,10,3,3,3,0,7,35),array['support_load_exceeded']::text[],'one support case beyond the exact integer boundary fails');
 
 insert into release_private.regional_releases(release_id,region_key,artifact_digest,catalog_digest,prerequisite_receipt_digest,state,step_ordinal,signed_release_receipt)
-values('32000000-0000-4000-8000-000000000001','topeka-ks','sha256:'||repeat('1',64),'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),'active',9,'signed-release');
+values('32000000-0000-4000-8000-000000000001','topeka-ks','sha256:'||repeat('1',64),'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),'active',9,'32000000-0000-4000-8000-000000000009');
+insert into release_private.release_evidence_receipts(receipt_id,release_id,step,artifact_digest,catalog_digest,prerequisite_receipt_digest,payload_digest,external_verified)
+values('32000000-0000-4000-8000-000000000009','32000000-0000-4000-8000-000000000001','signed_release_receipt',
+  'sha256:'||repeat('1',64),'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),decode(repeat('09',32),'hex'),true);
 insert into release_private.release_capabilities(release_id,public_catalog,public_claims,public_reviews,public_registration,product_promotion)
 values('32000000-0000-4000-8000-000000000001',true,true,true,true,true);
 

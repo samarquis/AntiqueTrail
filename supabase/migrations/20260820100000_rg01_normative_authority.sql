@@ -2,10 +2,11 @@
 -- Package 10A responsibility model, binds every signing capability to one
 -- frozen digest, and limits collection to the exact signed Topeka release.
 
-grant rg01_automation,identity_service to postgres;
+grant rg01_automation,identity_service,release_automation to postgres;
 grant create on schema readiness_private,rg01_private,app_public to rg01_automation;
 grant create on schema app_public to identity_service;
 grant usage on schema release_private to rg01_automation;
+grant create on schema release_private to release_automation;
 grant select on release_private.regional_releases,release_private.release_capabilities,
   release_private.release_evidence_receipts,release_private.release_frozen_stores,
   release_private.release_gate_receipts,release_private.release_actor_approvals to rg01_automation;
@@ -152,13 +153,21 @@ returns bytea language sql stable security definer set search_path='' as $$
   where r.release_id=p_release_id and r.region_key='topeka-ks' and r.state='active'
 $$;
 
+create or replace function release_private.lock_rg01_release(p_release_id uuid)
+returns release_private.regional_releases language sql security definer set search_path='' as $$
+  select r from release_private.regional_releases r where r.release_id=p_release_id for update
+$$;
+alter function release_private.lock_rg01_release(uuid) owner to release_automation;
+revoke all on function release_private.lock_rg01_release(uuid) from public,anon,authenticated,service_role;
+grant execute on function release_private.lock_rg01_release(uuid) to rg01_automation;
+
 create or replace function rg01_private.set_collection_capability(p_enabled boolean,p_release_id uuid,p_expected_version bigint)
 returns bigint language plpgsql security definer set search_path='' as $$
 declare v bigint; receipt release_private.release_evidence_receipts%rowtype; rel release_private.regional_releases%rowtype;
 begin
   if p_expected_version is null then raise exception using errcode='22023',message='rg01_capability_input_invalid'; end if;
   if p_enabled then
-    select * into rel from release_private.regional_releases where release_id=p_release_id for update;
+    select * into rel from release_private.lock_rg01_release(p_release_id);
     if not found or not rg01_private.release_is_active(p_release_id)
       or rel.signed_release_receipt is null or rel.signed_release_receipt !~ '^[0-9a-fA-F-]{36}$' then
       raise exception using errcode='55000',message='rg01_release_not_active';
@@ -452,6 +461,10 @@ alter function rg01_private.readiness_run_for_release(uuid) owner to rg01_automa
 alter function rg01_private.promotion_consent_receipt_digest(uuid,uuid) owner to rg01_automation;
 alter function rg01_private.set_collection_capability(boolean,uuid,bigint) owner to rg01_automation;
 alter function rg01_private.authoritative_source_ids() owner to rg01_automation;
+revoke all on function rg01_private.derive_source_fact(text,uuid)
+  from public,anon,authenticated,service_role,rg01_source_service;
+revoke all on function app_public.rg01_request_decision_challenge(uuid,text)
+  from public,anon,authenticated,service_role;
 alter function rg01_private.derive_source_fact(text,uuid) owner to rg01_automation;
 alter function rg01_private.flyer_consent_matches_authority(uuid) owner to rg01_automation;
 alter function rg01_private.source_head_digest() owner to rg01_automation;
@@ -472,11 +485,12 @@ grant execute on function readiness_private.grant_evidence_responsibility(uuid,t
 revoke all on function readiness_private.revoke_deleted_evidence_responsibility() from public,anon,authenticated;
 revoke all on function rg01_private.scope_manifest_source_fact_count() from public,anon,authenticated;
 revoke all on function app_public.rg01_set_flyer_consent(uuid,boolean,bytea),app_public.rg01_request_decision_challenge(uuid,text) from public,anon;
-grant execute on function app_public.rg01_set_flyer_consent(uuid,boolean,bytea),app_public.rg01_request_decision_challenge(uuid,text) to authenticated;
+grant execute on function app_public.rg01_set_flyer_consent(uuid,boolean,bytea) to authenticated;
 revoke all on function rg01_private.consume_decision_challenge(uuid,bytea,bytea,text,text) from public,anon,authenticated;
 grant execute on function rg01_private.consume_decision_challenge(uuid,bytea,bytea,text,text) to rg01_signature_service;
 
 revoke create on schema readiness_private,rg01_private from rg01_automation;
 revoke create on schema app_public from rg01_automation;
 revoke create on schema app_public from identity_service;
-revoke rg01_automation,identity_service from postgres;
+revoke create on schema release_private from release_automation;
+revoke rg01_automation,identity_service,release_automation from postgres;

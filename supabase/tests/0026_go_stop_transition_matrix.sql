@@ -29,13 +29,13 @@ select ok(
   'Go transition locks the stop before validating its state');
 
 select ok(
-  (select regexp_replace(pg_get_functiondef(p.oid),'[[:space:]]','','g') like '%v_current_state=''planned''andtarget_statein(''arrived'',''skipped'',''observed_closed'')%'
+  (select regexp_replace(pg_get_functiondef(p.oid),'[[:space:]]','','g') like '%current_state=''planned''andtarget_statein(''arrived'',''skipped'',''observed_closed'')%'
      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='trip_private' and p.proname='apply_go_stop_command'),
   'planned stops have an explicit transition allowlist');
 
 select ok(
-  (select regexp_replace(pg_get_functiondef(p.oid),'[[:space:]]','','g') like '%v_current_state=''arrived''andtarget_statein(''completed'',''skipped'',''observed_closed'')%'
+  (select regexp_replace(pg_get_functiondef(p.oid),'[[:space:]]','','g') like '%current_state=''arrived''andtarget_statein(''completed'',''skipped'',''observed_closed'')%'
      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='trip_private' and p.proname='apply_go_stop_command'),
   'arrived stops have an explicit transition allowlist');

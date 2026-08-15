@@ -209,6 +209,7 @@ $$;
 
 alter function app_public.candidate_delete_trip_idea(uuid,boolean) owner to identity_service;
 alter function candidate_private.enqueue_terminal_cleanup() owner to identity_service;
+revoke all on function app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text) from public,anon,authenticated;
 alter function app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text) owner to identity_service;
 alter function app_public.candidate_edge_share_source(uuid) owner to identity_service;
 alter function app_public.candidate_edge_payload(uuid) owner to identity_service;
@@ -216,10 +217,10 @@ alter function app_public.candidate_edge_accept_share(uuid,text,text,text) owner
 alter function app_public.candidate_edge_close_share(uuid,text,bytea,bytea,text) owner to identity_service;
 alter function app_public.partner_synthetic_command(text,jsonb) owner to identity_service;
 revoke all on function app_public.candidate_delete_trip_idea(uuid,boolean),
- app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text),app_public.candidate_edge_accept_share(uuid,text,text,text),
+ app_public.candidate_edge_accept_share(uuid,text,text,text),
  app_public.candidate_edge_share_source(uuid),app_public.candidate_edge_payload(uuid),app_public.candidate_edge_close_share(uuid,text,bytea,bytea,text),app_public.partner_synthetic_command(text,jsonb) from public,anon;
 grant execute on function app_public.candidate_delete_trip_idea(uuid,boolean),
- app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text),app_public.candidate_edge_accept_share(uuid,text,text,text),
+ app_public.candidate_edge_accept_share(uuid,text,text,text),
  app_public.candidate_edge_share_source(uuid),app_public.candidate_edge_payload(uuid),app_public.candidate_edge_close_share(uuid,text,bytea,bytea,text),app_public.partner_synthetic_command(text,jsonb) to authenticated;
 revoke create on schema candidate_private from identity_service;
 revoke create on schema app_public from identity_service;
