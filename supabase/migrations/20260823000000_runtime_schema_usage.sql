@@ -19,28 +19,6 @@ begin
   return new;
 end; $$;
 
--- Trigger records expose different identity fields. Branch before referencing a
--- field so PostgreSQL never binds a column absent from the current trigger row.
-create or replace function partner_private.guard_current_partner_consent()
-returns trigger language plpgsql security definer set search_path='' as $$
-declare target_user uuid;
-begin
-  if tg_table_name='listing_claims' then
-    target_user := new.claimant_id;
-  else
-    target_user := new.auth_user_id;
-  end if;
-  if tg_table_name='listing_claims' and tg_op='UPDATE' and not old.material_reconsent_required
-    and new.material_reconsent_required and new.state=old.state then return new; end if;
-  if ((tg_table_name='listing_claims' and new.state in ('submitted','verification_pending','changes_requested','conflict','approved'))
-      or (tg_table_name<>'listing_claims' and new.state='active'))
-    and (not partner_private.partner_consent_is_current(target_user)
-      or (tg_table_name='listing_claims' and new.material_reconsent_required))
-    then raise exception using errcode='42501',message='partner_material_reconsent_required'; end if;
-  return new;
-end $$;
-revoke all on function partner_private.guard_current_partner_consent() from public,anon,authenticated;
-
 -- The lifecycle worker deletes expired receipts after copying their tombstones.
 grant delete on app_private.deletion_receipts to identity_service;
 

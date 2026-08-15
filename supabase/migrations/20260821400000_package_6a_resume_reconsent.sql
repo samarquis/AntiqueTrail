@@ -208,8 +208,13 @@ grant execute on function app_public.partner_consent_command(text,jsonb) to auth
 
 create or replace function partner_private.guard_current_partner_consent()
 returns trigger language plpgsql security definer set search_path='' as $$
-declare target_user uuid:=case tg_table_name when 'listing_claims' then new.claimant_id else new.auth_user_id end;
+declare target_user uuid;
 begin
+  if tg_table_name='listing_claims' then
+    target_user := new.claimant_id;
+  else
+    target_user := new.auth_user_id;
+  end if;
   if tg_table_name='listing_claims' and tg_op='UPDATE' and not old.material_reconsent_required
     and new.material_reconsent_required and new.state=old.state then return new; end if;
   if ((tg_table_name='listing_claims' and new.state in ('submitted','verification_pending','changes_requested','conflict','approved'))
