@@ -14,6 +14,7 @@ grant execute on function app_private.request_user_id(),app_private.request_jwt(
 
 -- Earlier identity-service functions used Supabase's managed auth helpers.
 -- Rebind only those owned functions to the equivalent app-owned claim readers.
+grant identity_service to supabase_admin;
 do $$
 declare fn record; definition text;
 begin
@@ -28,9 +29,11 @@ begin
     execute definition;
   end loop;
 end $$;
+revoke identity_service from supabase_admin;
 
 -- Runtime roles get only explicit API-schema lookup. Table privileges remain narrow.
 grant usage on schema app_public to service_role;
+grant usage on schema app_private,partner_private,release_private to media_automation;
 
 -- Serialize audit-chain writers without requiring UPDATE on the append-only table.
 create or replace function app_private.hash_privileged_audit_event()
@@ -84,3 +87,9 @@ revoke all on function app_public.mark_arrived(text,text),
   app_public.complete_trip_stop(text,text),
   app_public.skip_trip_stop(text,text)
   from public,anon,authenticated;
+
+-- Final hardening for internal RG-01 derivation and the superseded challenge RPC.
+revoke all on function rg01_private.derive_source_fact(text,uuid)
+  from public,anon,authenticated,service_role,rg01_source_service;
+revoke all on function app_public.rg01_request_decision_challenge(uuid,text)
+  from public,anon,authenticated,service_role;
