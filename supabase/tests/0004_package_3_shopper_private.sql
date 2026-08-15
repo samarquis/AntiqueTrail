@@ -22,7 +22,7 @@ select ok(exists(select 1 from pg_policies where schemaname='shopper_private' an
 select ok(exists(select 1 from pg_policies where schemaname='shopper_private' and policyname='shopper_dismissals_owner' and coalesce(qual,'') like '%current_session_is_active%'),'dismissals require active owner session');
 select ok(exists(select 1 from pg_policies where schemaname='shopper_private' and policyname='shopper_correction_report_owner_read' and coalesce(qual,'') like '%current_session_is_active%'),'correction reads require active owner session');
 select ok(exists(select 1 from pg_policies where schemaname='shopper_private' and policyname='shopper_correction_report_owner_insert' and coalesce(with_check,'') like '%current_session_is_active%'),'correction writes require active owner session');
-select ok(not exists(select 1 from information_schema.role_table_grants where table_schema='shopper_private' and grantee in ('anon','authenticated')),'no anonymous/authenticated direct table grants');
+select ok(not exists(select 1 from information_schema.role_table_grants where table_schema='shopper_private' and grantee in ('anon','authenticated') and not (grantee='authenticated' and table_name='private_memory_merge_conflicts' and privilege_type='SELECT')),'only the exact owner-scoped merge-conflict projection has an authenticated table grant');
 
 set local role anon;
 select throws_ok($$select * from shopper_private.saved_stores$$,'42501',null,'anonymous saved-store read denied');

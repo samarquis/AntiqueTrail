@@ -8,14 +8,17 @@ select has_function('app_public', 'catalog_list', 'bounded catalog_list exists')
 select has_function('app_public', 'catalog_details', 'bounded catalog_details exists');
 
 set local role anon;
-select is((select count(*)::integer from app_public.catalog_list(null, null, null)), 12, 'anonymous list returns all twelve synthetic stores');
-select is((select count(*)::integer from app_public.catalog_list('clockwork', null, null)), 1, 'bounded search matches by name');
-select is((select count(*)::integer from app_public.catalog_list(null, 'furniture', 'topeka-ks')), 3, 'exact category and area filters are server-side');
-select is((select count(*)::integer from app_public.catalog_details('clockwork-cabinet')), 1, 'details returns an active synthetic store');
-select is((select count(*)::integer from app_public.catalog_details('does-not-exist')), 0, 'unknown slug is indistinguishable from hidden');
+select throws_ok($$select * from app_public.catalog_list(null,null,null)$$,'42501',null,'anonymous callers cannot bypass the catalog gateway');
+select throws_ok($$select * from app_public.catalog_details('clockwork-cabinet')$$,'42501',null,'anonymous detail reads cannot bypass the catalog gateway');
 select throws_ok($$select count(*) from app_public.stores$$, '42501',null, 'anonymous base-table reads are denied');
 select throws_ok($$insert into app_public.catalog_areas(slug,label,state_code) values ('blocked','Blocked','KS')$$, '42501',null, 'anonymous writes are denied');
-select throws_ok($$select * from app_public.catalog_list(repeat('x',101),null,null)$$, 'P0001',null, 'excessive search input is rejected');
+select throws_ok($$select app_public.public_catalog_gateway_request(repeat('0',64),'list','{}')$$,'42501',null,'anonymous callers cannot invoke the server gateway role');
+
+reset role;
+set local role public_catalog_gateway;
+select is(jsonb_array_length(app_public.public_catalog_gateway_request(repeat('0',64),'list','{}')),12,'gateway returns all twelve synthetic stores');
+select is(jsonb_array_length(app_public.public_catalog_gateway_request(repeat('1',64),'list','{"p_q":"clockwork"}')),1,'gateway applies bounded server-side search');
+select throws_ok($$select app_public.public_catalog_gateway_request(repeat('2',64),'list',jsonb_build_object('p_q',repeat('x',101)))$$,'P0001',null,'excessive search input is rejected');
 
 reset role;
 select * from finish();

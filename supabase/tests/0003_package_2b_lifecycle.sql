@@ -20,9 +20,9 @@ select throws_ok($$select * from app_private.account_admission_receipts$$,'42501
 select throws_ok($$insert into app_private.account_registration_config(mode) values ('public')$$,'42501',null,'anonymous registration config writes denied');
 reset role;
 set local role authenticated;
-select is(app_private.current_session_is_cancellation_only(),false,'unauthenticated cancellation-only gate fails closed');
+select throws_ok($$select app_private.current_session_is_cancellation_only()$$,'42501',null,'browser roles cannot invoke the private cancellation gate');
 select throws_ok($$select * from app_private.account_deletion_requests$$,'42501',null,'authenticated direct deletion reads denied');
-select is(app_private.current_user_has_role('administrator'::app_private.app_role),false,'authenticated role cannot self-assign through direct gate');
+select throws_ok($$select app_private.current_user_has_role('administrator'::app_private.app_role)$$,'42501',null,'browser roles cannot invoke the private role gate');
 reset role;
 
 set local role identity_service;

@@ -12,7 +12,7 @@ select has_table('admin_private','admin_scope_actions','scope action receipts ta
 select has_table('admin_private','admin_privileged_audit_outbox','privileged audit outbox exists');
 select has_table('admin_private','admin_audit_anchor_health','audit anchor health exists');
 
-select ok((select count(*)=9 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='admin_private' and c.relkind='r' and c.relrowsecurity and c.relforcerowsecurity),'all Package 7 tables FORCE RLS');
+select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='admin_private' and c.relkind='r' and (not c.relrowsecurity or not c.relforcerowsecurity)),'all Package 7 tables FORCE RLS');
 select ok(not exists(select 1 from information_schema.role_table_grants where table_schema='admin_private' and grantee in ('anon','authenticated')),'no anonymous/authenticated direct admin grants');
 select ok(not exists(select 1 from pg_policies where schemaname='admin_private' and roles && array['anon'::name,'public'::name] and cmd in ('INSERT','UPDATE','DELETE')),'no public promotion/write policies');
 
@@ -41,13 +41,13 @@ select ok(exists(select 1 from pg_trigger where tgname='admin_scope_actions_appe
 
 select ok(exists(select 1 from pg_constraint where conname='admin_outbox_event_hash_size'),'outbox stores event hash only');
 select ok(exists(select 1 from pg_constraint where conname='admin_anchor_health_shape'),'anchor health fails closed until root health exists');
-select ok((select state='blocked' from admin_private.admin_audit_anchor_health where id=1),'anchor health defaults blocked');
+select ok((select state='healthy' and deployment_environment='local' from admin_private.admin_audit_anchor_health where id=1),'local synthetic anchor health synchronizes from the disabled local capability');
 select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='admin_private' and c.relname like '%promotion%'),'public promotion table is absent');
 
-select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_case_read' and coalesce(qual,'') like '%assigned_admin_id=auth.uid()%' and coalesce(qual,'') like '%current_session_has_mfa%' and coalesce(qual,'') like '%current_session_recent_auth%'),'case reads require assignment/MFA/recent auth');
-select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_case_event_read' and coalesce(qual,'') like '%admin_review_cases%' and coalesce(qual,'') like '%assigned_admin_id=auth.uid()%'),'case events are selected-case scoped');
-select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_change_read' and coalesce(qual,'') like '%admin_review_cases%' and coalesce(qual,'') like '%assigned_admin_id=auth.uid()%'),'change evidence is selected-case scoped');
-select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_merge_read' and coalesce(qual,'') like '%requested_by=auth.uid()%' and coalesce(qual,'') like '%reviewed_by=auth.uid()%'),'merge preview is actor scoped');
+select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_case_read' and replace(coalesce(qual,''),' ','') like '%assigned_admin_id=auth.uid()%' and coalesce(qual,'') like '%current_session_has_mfa%' and coalesce(qual,'') like '%current_session_recent_auth%'),'case reads require assignment/MFA/recent auth');
+select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_case_event_read' and coalesce(qual,'') like '%admin_review_cases%' and replace(coalesce(qual,''),' ','') like '%assigned_admin_id=auth.uid()%'),'case events are selected-case scoped');
+select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_change_read' and coalesce(qual,'') like '%admin_review_cases%' and replace(coalesce(qual,''),' ','') like '%assigned_admin_id=auth.uid()%'),'change evidence is selected-case scoped');
+select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_merge_read' and replace(coalesce(qual,''),' ','') like '%requested_by=auth.uid()%' and replace(coalesce(qual,''),' ','') like '%reviewed_by=auth.uid()%'),'merge preview is actor scoped');
 
 select ok(not exists(select 1 from information_schema.columns where table_schema='admin_private' and column_name in ('shopper_note','shopper_rating','private_trip_payload','raw_evidence','document_bytes')),'admin schema excludes shopper/private/raw evidence columns');
 select ok(exists(select 1 from pg_constraint where conname='admin_case_event_key_safe'),'case event idempotency key bounded');

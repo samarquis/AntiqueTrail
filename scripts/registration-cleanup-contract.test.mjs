@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { URL } from 'node:url'
 
-const [workflow, ci, worker, migration] = await Promise.all([
+const [workflow, ci, worker, migration, runtimeSchemaUsage] = await Promise.all([
   readFile(new URL('../.github/workflows/registration-cleanup.yml', import.meta.url), 'utf8'),
   readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
   readFile(
@@ -15,6 +15,10 @@ const [workflow, ci, worker, migration] = await Promise.all([
       '../supabase/migrations/20260806084500_authoritative_account_registration.sql',
       import.meta.url,
     ),
+    'utf8',
+  ),
+  readFile(
+    new URL('../supabase/migrations/20260823000000_runtime_schema_usage.sql', import.meta.url),
     'utf8',
   ),
 ])
@@ -56,4 +60,10 @@ test('cleanup queue is provider-ticket based and bounded', () => {
     migration,
     /reconcile_account_registration_cleanup\(p_cleanup_ticket_id uuid,p_provider_user_id uuid\)/u,
   )
+})
+
+test('runtime roles can resolve only their explicitly granted API schemas', () => {
+  assert.match(runtimeSchemaUsage, /grant usage on schema auth to identity_service/u)
+  assert.match(runtimeSchemaUsage, /grant usage on schema app_public to service_role/u)
+  assert.doesNotMatch(runtimeSchemaUsage, /grant (select|insert|update|delete|all) on table/iu)
 })

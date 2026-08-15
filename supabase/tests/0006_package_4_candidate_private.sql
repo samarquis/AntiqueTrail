@@ -18,11 +18,11 @@ select ok((select relforcerowsecurity from pg_class c join pg_namespace n on n.o
 select ok((select relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='candidate_private' and c.relname='candidate_share_actions'),'share actions FORCE RLS enabled');
 select ok((select relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='candidate_private' and c.relname='trip_ideas'),'trip ideas FORCE RLS enabled');
 
-select ok(exists(select 1 from pg_policies where schemaname='candidate_private' and policyname='candidate_link_owner' and coalesce(qual,'') like '%owner_user_id=auth.uid()%' and coalesce(qual,'') like '%current_session_is_active%'),'candidate links are owner/session scoped');
-select ok(exists(select 1 from pg_policies where schemaname='candidate_private' and policyname='candidate_share_party_read' and coalesce(qual,'') like '%sender_id=auth.uid()%' and coalesce(qual,'') like '%recipient_id=auth.uid()%'),'shares are sender/recipient scoped');
+select ok(exists(select 1 from pg_policies where schemaname='candidate_private' and policyname='candidate_link_owner' and replace(coalesce(qual,''),' ','') like '%owner_user_id=auth.uid()%' and coalesce(qual,'') like '%current_session_is_active%'),'candidate links are owner/session scoped');
+select ok(exists(select 1 from pg_policies where schemaname='candidate_private' and policyname='candidate_share_party_read' and replace(coalesce(qual,''),' ','') like '%sender_id=auth.uid()%' and replace(coalesce(qual,''),' ','') like '%recipient_id=auth.uid()%'),'shares are sender/recipient scoped');
 select ok(exists(select 1 from pg_policies where schemaname='candidate_private' and policyname='candidate_share_payload_recipient_read' and coalesce(qual,'') like '%current_share_recipient_can_read%'),'payloads require pending recipient gate');
-select ok(exists(select 1 from pg_policies where schemaname='candidate_private' and policyname='candidate_block_owner' and coalesce(qual,'') like '%blocker_id=auth.uid()%'),'blocks are blocker scoped');
-select ok(exists(select 1 from pg_policies where schemaname='candidate_private' and policyname='trip_idea_owner' and coalesce(qual,'') like '%owner_user_id=auth.uid()%'),'trip ideas are owner scoped');
+select ok(exists(select 1 from pg_policies where schemaname='candidate_private' and policyname='candidate_block_owner' and replace(coalesce(qual,''),' ','') like '%blocker_id=auth.uid()%'),'blocks are blocker scoped');
+select ok(exists(select 1 from pg_policies where schemaname='candidate_private' and policyname='trip_idea_owner' and replace(coalesce(qual,''),' ','') like '%owner_user_id=auth.uid()%'),'trip ideas are owner scoped');
 select ok(not exists(select 1 from pg_policies where schemaname='candidate_private' and roles && array['anon'::name,'public'::name] and cmd in ('INSERT','UPDATE','DELETE')),'no anonymous/public candidate write policies');
 
 select ok(exists(select 1 from information_schema.columns where table_schema='candidate_private' and table_name='candidate_shares' and column_name='recipient_id'),'shares retain server-resolved recipient only');
