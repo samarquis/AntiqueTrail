@@ -21,18 +21,3 @@ end; $$;
 
 -- The lifecycle worker deletes expired receipts after copying their tombstones.
 grant delete on app_private.deletion_receipts to identity_service;
-
--- Remove inherited PUBLIC execute as well as explicit browser grants from legacy
--- write surfaces. All writes must pass through the current command gateways.
-revoke all on function app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text)
-  from public,anon,authenticated,service_role;
-revoke all on function app_public.mark_arrived(text,text),
-  app_public.complete_trip_stop(text,text),
-  app_public.skip_trip_stop(text,text)
-  from public,anon,authenticated;
-
--- Final hardening for internal RG-01 derivation and the superseded challenge RPC.
-revoke all on function rg01_private.derive_source_fact(text,uuid)
-  from public,anon,authenticated,service_role,rg01_source_service;
-revoke all on function app_public.rg01_request_decision_challenge(uuid,text)
-  from public,anon,authenticated,service_role;
