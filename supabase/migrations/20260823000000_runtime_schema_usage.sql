@@ -9,8 +9,6 @@ create or replace function app_private.request_jwt() returns jsonb
 language sql stable set search_path=pg_catalog as $$
   select coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb,'{}'::jsonb)
 $$;
-alter function app_private.request_user_id() owner to identity_service;
-alter function app_private.request_jwt() owner to identity_service;
 revoke all on function app_private.request_user_id(),app_private.request_jwt() from public,anon,authenticated;
 grant execute on function app_private.request_user_id(),app_private.request_jwt() to identity_service;
 
