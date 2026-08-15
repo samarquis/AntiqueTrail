@@ -22,7 +22,7 @@ const names = [
   'Willow & Wren',
 ]
 
-const syntheticImageRoot = '/images/synthetic-stores/1280w'
+const syntheticImageRoot = `${import.meta.env.BASE_URL}images/synthetic-stores/1280w`
 const generatedRights = 'OpenAI-generated fictional image · Internal Alpha only'
 
 const coverAltText = [
