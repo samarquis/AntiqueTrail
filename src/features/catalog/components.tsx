@@ -37,7 +37,7 @@ const detailsStageRank: Record<CatalogDetailsStage, number> = {
 
 const BROWSE_RETURN_KEY = 'antique-trail:browse-return'
 
-export function catalogAppHref(path: string, base = import.meta.env.BASE_URL): string {
+function catalogAppHref(path: string, base = import.meta.env.BASE_URL): string {
   const normalizedBase = base.endsWith('/') ? base : `${base}/`
   return `${normalizedBase}${path.replace(/^\/+/, '')}`
 }
