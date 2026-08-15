@@ -29,7 +29,7 @@ select ok((select pg_get_functiondef(p.oid) like '%trip_private.consume_start_gr
   'offline start consumes only the shared signed-receipt boundary');
 select ok(not has_function_privilege('authenticated','app_public.record_offline_grant_receipt(text,text,text,text,bigint,jsonb,timestamptz)','EXECUTE'),
   'browser cannot create signer receipts');
-select ok(has_function_privilege('trip_grant_signer','app_public.record_offline_grant_receipt(text,text,text,text,bigint,jsonb,timestamptz)','EXECUTE'),
+select ok(has_function_privilege('trip_grant_signer','trip_private.produce_offline_grant_receipt(uuid,uuid,text,text,bigint,jsonb,timestamptz)','EXECUTE'),
   'dedicated signer credential can create receipts');
 select ok(not has_function_privilege('anon','app_public.start_trip(text)','EXECUTE'),'anonymous start is denied');
 select ok(has_function_privilege('authenticated','app_public.start_trip(text)','EXECUTE'),'authenticated fallback start is available');

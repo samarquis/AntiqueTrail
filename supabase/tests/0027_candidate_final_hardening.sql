@@ -18,7 +18,7 @@ select ok(position($q$'administrator'$q$ in lower(pg_get_functiondef('app_public
 select ok(position('current_session_is_active' in pg_get_functiondef('app_public.candidate_update_trip_idea(uuid,text,text,bigint)'::regprocedure))>0,'update verifies active application session');
 select ok(position('owner_user_id=actor' in replace(pg_get_functiondef('app_public.candidate_update_trip_idea(uuid,text,text,bigint)'::regprocedure),' ',''))>0,'update is owner bound');
 select ok(position('version=p_expected_version' in replace(pg_get_functiondef('app_public.candidate_update_trip_idea(uuid,text,text,bigint)'::regprocedure),' ',''))>0,'update uses optimistic version control');
-select ok(position('version=(version+1)' in replace(pg_get_functiondef('app_public.candidate_update_trip_idea(uuid,text,text,bigint)'::regprocedure),' ',''))>0,'update advances version');
+select ok(position('version=version+1' in regexp_replace(pg_get_functiondef('app_public.candidate_update_trip_idea(uuid,text,text,bigint)'::regprocedure),'[[:space:]]','','g'))>0,'update advances version');
 select ok(position('candidate_lifecycle_receipts' in pg_get_functiondef('app_public.candidate_update_trip_idea(uuid,text,text,bigint)'::regprocedure))>0,'update writes content-free receipt');
 select ok(position('p_confirmed is not true' in lower(pg_get_functiondef('app_public.unblock_candidate_sender(uuid,boolean)'::regprocedure)))>0,'unblock requires explicit confirmation');
 select ok(position('current_session_is_active' in pg_get_functiondef('app_public.unblock_candidate_sender(uuid,boolean)'::regprocedure))>0,'unblock verifies active application session');

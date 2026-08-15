@@ -17,7 +17,7 @@ select ok(
   'start atomically consumes a signer-bound grant receipt');
 select ok(not has_function_privilege('authenticated','app_public.record_offline_grant_receipt(text,text,text,text,bigint,jsonb,timestamptz)','EXECUTE'),
   'browser role cannot produce signed grant receipts');
-select ok(has_function_privilege('trip_grant_signer','app_public.record_offline_grant_receipt(text,text,text,text,bigint,jsonb,timestamptz)','EXECUTE'),
+select ok(has_function_privilege('trip_grant_signer','trip_private.produce_offline_grant_receipt(uuid,uuid,text,text,bigint,jsonb,timestamptz)','EXECUTE'),
   'dedicated signer credential can produce signed grant receipts');
 select ok(pg_has_role('authenticator','trip_grant_signer','MEMBER'),
   'PostgREST authenticator can assume only the dedicated signer JWT role');
@@ -29,13 +29,13 @@ select ok(
   'Go transition locks the stop before validating its state');
 
 select ok(
-  (select pg_get_functiondef(p.oid) like '%v_current_state=''planned'' and target_state in (''arrived'',''skipped'',''observed_closed'')%'
+  (select regexp_replace(pg_get_functiondef(p.oid),'[[:space:]]','','g') like '%v_current_state=''planned''andtarget_statein(''arrived'',''skipped'',''observed_closed'')%'
      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='trip_private' and p.proname='apply_go_stop_command'),
   'planned stops have an explicit transition allowlist');
 
 select ok(
-  (select pg_get_functiondef(p.oid) like '%v_current_state=''arrived'' and target_state in (''completed'',''skipped'',''observed_closed'')%'
+  (select regexp_replace(pg_get_functiondef(p.oid),'[[:space:]]','','g') like '%v_current_state=''arrived''andtarget_statein(''completed'',''skipped'',''observed_closed'')%'
      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='trip_private' and p.proname='apply_go_stop_command'),
   'arrived stops have an explicit transition allowlist');
