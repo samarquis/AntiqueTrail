@@ -23,7 +23,7 @@ end; $$;
 grant delete on app_private.deletion_receipts to identity_service;
 
 -- Day-8 workers claim and advance deletion requests through their durable states.
-grant identity_service,candidate_automation,rg01_automation to postgres;
+grant identity_service to postgres;
 grant update on app_private.account_deletion_requests to identity_service;
 grant delete on app_private.profiles,app_private.feature_restrictions,
   app_private.provider_revocation_outbox,app_private.notification_deliveries,
@@ -89,4 +89,4 @@ begin
     where cleanup_ticket_id=p_cleanup_ticket_id;
   return jsonb_build_object('state','retry');
 end; $$;
-revoke identity_service,candidate_automation,rg01_automation from postgres;
+revoke identity_service from postgres;
