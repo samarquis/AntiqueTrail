@@ -465,6 +465,8 @@ revoke all on function rg01_private.derive_source_fact(text,uuid)
   from public,anon,authenticated,service_role,rg01_source_service;
 revoke all on function app_public.rg01_request_decision_challenge(uuid,text)
   from public,anon,authenticated,service_role;
+grant execute on function rg01_private.bound_release_id(),rg01_private.promotion_consent_receipt_digest(uuid,uuid)
+  to identity_service;
 alter function rg01_private.derive_source_fact(text,uuid) owner to rg01_automation;
 alter function rg01_private.flyer_consent_matches_authority(uuid) owner to rg01_automation;
 alter function rg01_private.source_head_digest() owner to rg01_automation;

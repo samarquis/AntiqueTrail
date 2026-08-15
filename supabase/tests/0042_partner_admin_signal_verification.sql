@@ -25,11 +25,11 @@ select ok(
   'verification locks and version-checks the exact claim and signal'
 );
 select ok(
-  position($q$s.status <> 'submitted'$q$ in lower(pg_get_functiondef('app_public.partner_admin_signal_command(text,uuid,uuid,bigint,text,text)'::regprocedure)))>0,
+  position($q$s.status<>'submitted'$q$ in regexp_replace(lower(pg_get_functiondef('app_public.partner_admin_signal_command(text,uuid,uuid,bigint,text,text)'::regprocedure)),'[[:space:]]','','g'))>0,
   'only submitted signals can be consumed'
 );
 select ok(
-  position('c.claimant_id = actor' in lower(pg_get_functiondef('app_public.partner_admin_signal_command(text,uuid,uuid,bigint,text,text)'::regprocedure)))>0,
+  position('c.claimant_id=actor' in regexp_replace(lower(pg_get_functiondef('app_public.partner_admin_signal_command(text,uuid,uuid,bigint,text,text)'::regprocedure)),'[[:space:]]','','g'))>0,
   'claimant self-verification is denied'
 );
 select ok(

@@ -7,8 +7,8 @@ select has_table('rg01_private','rg01_capability_events','RG collection capabili
 
 select col_is_unique('readiness_private','gate_signing_capabilities','token_hash','capability token hashes cannot replay');
 select col_is_unique('readiness_private','gate_signing_capabilities','challenge_id','one capability binds one RG challenge');
-select ok(position('expires_at<=created_at+interval ''30 minutes''' in replace(lower(pg_get_constraintdef(
-  (select oid from pg_constraint where conrelid='readiness_private.gate_signing_capabilities'::regclass and conname='gate_signing_capability_window'))),' ',''))>0,
+select ok(position('expires_at<=created_at+''00:30:00''::interval' in regexp_replace(lower(pg_get_constraintdef(
+  (select oid from pg_constraint where conrelid='readiness_private.gate_signing_capabilities'::regclass and conname='gate_signing_capability_window'))),'[[:space:]]','','g'))>0,
   'gate capabilities expire within thirty minutes');
 
 select ok(position('evidence_responsibility_grants' in lower(pg_get_functiondef('app_public.rg01_request_decision_challenge(uuid,text)'::regprocedure)))>0
@@ -56,7 +56,8 @@ select ok(position('release_frozen_stores' in lower(pg_get_functiondef('rg01_pri
 select ok(position('not s.synthetic' in lower(pg_get_functiondef('rg01_private.authoritative_source_ids()'::regprocedure)))>0
   and position('s.audience=''public''' in replace(lower(pg_get_functiondef('rg01_private.authoritative_source_ids()'::regprocedure)),' ',''))>0,
   'synthetic and nonpublic stores are excluded');
-select ok(position('c.store_id is not null' in lower(pg_get_functiondef('rg01_private.authoritative_source_ids()'::regprocedure)))>0,
+select ok(position('target_kindin(''general'',''regional_release'')' in regexp_replace(lower(pg_get_functiondef('rg01_private.support_case_in_scope(uuid,uuid)'::regprocedure)),'[[:space:]]','','g'))>0
+  and position('target_id=p_release_id' in regexp_replace(lower(pg_get_functiondef('rg01_private.support_case_in_scope(uuid,uuid)'::regprocedure)),'[[:space:]]','','g'))>0,
   'unscoped support cases are excluded');
 select ok(position('readiness_run_for_release' in lower(pg_get_functiondef('rg01_private.authoritative_source_ids()'::regprocedure)))>0,
   'defects are bound to the readiness evidence set accepted by the release');

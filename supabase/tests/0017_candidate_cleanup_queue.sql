@@ -26,14 +26,16 @@ insert into candidate_private.candidate_shares(
   share_id,candidate_id,sender_id,recipient_email_hmac,expires_at
 ) values (
   '17000000-0000-4000-8000-000000000100','17000000-0000-4000-8000-000000000010',
-  '17000000-0000-4000-8000-000000000001',decode(repeat('01',32),'hex'),statement_timestamp()+interval '1 day'
+  '17000000-0000-4000-8000-000000000001',decode(repeat('01',32),'hex'),'2026-08-01T00:00:00Z'
 );
 insert into candidate_private.candidate_share_payloads(share_id,encrypted_payload)
 values ('17000000-0000-4000-8000-000000000100',decode('01','hex'));
 insert into candidate_private.candidate_share_storage_objects(share_id,object_key)
 values ('17000000-0000-4000-8000-000000000100','candidate/17000000-0000-4000-8000-000000000100/preview.html');
-update candidate_private.candidate_shares set state='closed',close_reason='revoked',closed_at=statement_timestamp()
-where share_id='17000000-0000-4000-8000-000000000100';
+set local role candidate_cleanup_service;
+create temporary table expired_share_result as
+  select candidate_private.expire_candidate_shares('2026-08-03T00:00:00Z',1) expired_count;
+reset role;
 
 select is((select state from candidate_private.candidate_cleanup_jobs where share_id='17000000-0000-4000-8000-000000000100'),'pending','revocation creates pending durable work');
 select ok((select cleanup_due_at<=terminal_at+interval '24 hours' from candidate_private.candidate_cleanup_jobs where share_id='17000000-0000-4000-8000-000000000100'),'cleanup is due within 24 hours of terminal state');

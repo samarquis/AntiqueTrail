@@ -54,8 +54,8 @@ select ok(position('release_frozen_stores' in lower(pg_get_functiondef(
   and position('topeka-ks' in lower(pg_get_functiondef(
   'rg01_private.support_case_in_scope(uuid,uuid)'::regprocedure)))>0,
   'RG-01 trip/store targets remain bound to exact frozen Topeka scope');
-select ok(position('target_kind in(''general'',''regional_release'')' in replace(lower(pg_get_functiondef(
-  'rg01_private.support_case_in_scope(uuid,uuid)'::regprocedure)),' ',''))>0,
+select ok(position('target_kindin(''general'',''regional_release'')' in regexp_replace(lower(pg_get_functiondef(
+  'rg01_private.support_case_in_scope(uuid,uuid)'::regprocedure)),'[[:space:]]','','g'))>0,
   'general support is included only when its target is the exact release');
 
 select * from finish();

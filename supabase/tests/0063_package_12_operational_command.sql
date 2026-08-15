@@ -28,12 +28,12 @@ select ok(position('update community_private' in lower(pg_get_functiondef('app_p
 select ok(position($q$when 'prepare'$q$ in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0
   and position($q$when 'cancel'$q$ in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0,'validator allowlists exactly the seven named operations');
 select ok(position('deployment_payload_exact' in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0,'unknown and extra payload fields fail closed');
-select ok(position($q$jsonb_typeof(p_payload -> 'expectedrootversion'$q$ in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0,'versions must be JSON numbers rather than coercible strings');
+select ok(position($q$jsonb_typeof(p_payload->'expectedrootversion')<>'number'$q$ in regexp_replace(lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)),'[[:space:]]','','g'))>0,'versions must be JSON numbers rather than coercible strings');
 select ok(position('targetordinal' in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))=0,'prepare rejects caller-authored ordinal authority');
-select ok(position('last_activation_ordinal + 1' in lower(pg_get_functiondef('app_public.community_deployment_command(text,jsonb)'::regprocedure)))>0
+select ok(position('last_activation_ordinal+1' in regexp_replace(lower(pg_get_functiondef('app_public.community_deployment_command(text,jsonb)'::regprocedure)),'[[:space:]]','','g'))>0
   and position($q$p_payload ->> 'targetordinal'$q$ in lower(pg_get_functiondef('app_public.community_deployment_command(text,jsonb)'::regprocedure)))=0,'prepare derives the exact next ordinal from server state');
-select ok(position($q$jsonb_array_length(p_payload -> 'storeids') < 2$q$ in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0
-  and position('count(distinct value)' in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0,'freeze requires at least two distinct typed stores');
+select ok(position($q$jsonb_array_length(p_payload->'storeids')<2$q$ in regexp_replace(lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)),'[[:space:]]','','g'))>0
+  and position('count(distinctvalue)' in regexp_replace(lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)),'[[:space:]]','','g'))>0,'freeze requires at least two distinct typed stores');
 select ok(position($q$^[0-9a-f]{64}$$q$ in lower(pg_get_functiondef('community_private.validate_deployment_payload(text,jsonb)'::regprocedure)))>0,'artifact and exact store-set digests are constrained SHA-256 hex');
 
 select ok(position('p_target_ordinal<>root_row.last_activation_ordinal+1' in replace(lower(pg_get_functiondef('community_private.prepare_community(uuid,text,smallint,uuid,uuid,bigint,text,bytea)'::regprocedure)),' ',''))>0,'existing preparation preserves separate one-at-a-time community selection');
@@ -42,8 +42,8 @@ select has_trigger('community_private','community_activation_runs','community_ru
 select ok(position('receipt_is_current_pass' in lower(pg_get_functiondef('community_private.require_current_rg01(uuid)'::regprocedure)))>0,'RG-01 prerequisite must remain a current authoritative PASS');
 select ok(position('assert_action_receipt' in lower(pg_get_functiondef('community_private.activate_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)))>0
   and position('external_verified' in lower(pg_get_functiondef('community_private.assert_action_receipt(uuid,text,uuid,text,bytea,bytea,text[])'::regprocedure)))>0,'activation consumes externally verified signed receipts rather than booleans');
-select ok(position('setvisible=false' in replace(lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)),' ',''))>0
-  and position($q$set state='withdrawn'$q$ in replace(lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)),' ',''))>0,'rollback hides the exact projection and withdraws the same run');
+select ok(position('visible=false' in regexp_replace(lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)),'[[:space:]]','','g'))>0
+  and position($q$state='withdrawn'$q$ in regexp_replace(lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)),'[[:space:]]','','g'))>0,'rollback hides the exact projection and withdraws the same run');
 select ok(position('last_activation_ordinal' in lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)))>0
   and position('set last_activation_ordinal' in lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)))=0
   and position('set last_activation_ordinal' in lower(pg_get_functiondef('community_private.reactivate_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)))=0,'rollback and reactivation never auto-promote an ordinal');

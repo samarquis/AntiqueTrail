@@ -65,8 +65,8 @@ select ok(position('rebuild_rating_aggregate' in lower(pg_get_functiondef('app_p
   and position('rebuild_rating_aggregate' in lower(pg_get_functiondef('app_public.reviews_undo_delete(uuid)'::regprocedure)))>0,
   'delete and Undo change aggregate effect transactionally');
 select ok(position('assigned_admin_id<>actor' in replace(lower(pg_get_functiondef('app_public.reviews_moderate(uuid,text,text)'::regprocedure)),' ',''))>0
-  and position('current_session_has_mfa' in lower(pg_get_functiondef('app_public.reviews_moderate(uuid,text,text)'::regprocedure)))>0
-  and position('current_session_recent_auth' in lower(pg_get_functiondef('app_public.reviews_moderate(uuid,text,text)'::regprocedure)))>0,
+  and position('current_session_has_mfa' in lower(pg_get_functiondef('review_private.require_review_admin()'::regprocedure)))>0
+  and position('current_session_recent_auth' in lower(pg_get_functiondef('review_private.require_review_admin()'::regprocedure)))>0,
   'moderation is exact-case scoped with MFA and recent authentication');
 select ok(position('original_moderator_id=actor' in replace(lower(pg_get_functiondef('app_public.reviews_decide_appeal(uuid,text,text)'::regprocedure)),' ',''))>0,
   'the original moderator is denied appeal decisions');
