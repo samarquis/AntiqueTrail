@@ -1,11 +1,37 @@
--- The Auth schema is owned by Supabase's auth administrator. Assume that role
--- explicitly so this grant is not silently ignored by the migration runner.
-set local role supabase_auth_admin;
-grant usage on schema auth to identity_service;
-grant execute on function auth.uid(), auth.jwt(), auth.role(), auth.email() to identity_service;
-reset role;
+-- Managed Supabase auth objects cannot delegate grants from application
+-- migrations. Read the request claims through app-owned, least-privilege helpers
+-- instead of making identity_service inherit a browser role.
+create or replace function app_private.request_user_id() returns uuid
+language sql stable set search_path=pg_catalog as $$
+  select nullif(nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub','')::uuid
+$$;
+create or replace function app_private.request_jwt() returns jsonb
+language sql stable set search_path=pg_catalog as $$
+  select coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb,'{}'::jsonb)
+$$;
+alter function app_private.request_user_id() owner to identity_service;
+alter function app_private.request_jwt() owner to identity_service;
+revoke all on function app_private.request_user_id(),app_private.request_jwt() from public,anon,authenticated;
+grant execute on function app_private.request_user_id(),app_private.request_jwt() to identity_service;
 
--- Runtime roles need schema lookup only. Function/table privileges remain explicit.
+-- Earlier identity-service functions used Supabase's managed auth helpers.
+-- Rebind only those owned functions to the equivalent app-owned claim readers.
+do $$
+declare fn record; definition text;
+begin
+  for fn in
+    select p.oid
+    from pg_proc p
+    where pg_get_userbyid(p.proowner)='identity_service'
+      and (pg_get_functiondef(p.oid) like '%auth.uid()%' or pg_get_functiondef(p.oid) like '%auth.jwt()%')
+  loop
+    definition := replace(pg_get_functiondef(fn.oid),'auth.uid()','app_private.request_user_id()');
+    definition := replace(definition,'auth.jwt()','app_private.request_jwt()');
+    execute definition;
+  end loop;
+end $$;
+
+-- Runtime roles get only explicit API-schema lookup. Table privileges remain narrow.
 grant usage on schema app_public to service_role;
 
 -- Serialize audit-chain writers without requiring UPDATE on the append-only table.

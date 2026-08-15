@@ -63,7 +63,9 @@ test('cleanup queue is provider-ticket based and bounded', () => {
 })
 
 test('runtime roles can resolve only their explicitly granted API schemas', () => {
-  assert.match(runtimeSchemaUsage, /grant usage on schema auth to identity_service/u)
+  assert.match(runtimeSchemaUsage, /create or replace function app_private\.request_user_id/u)
+  assert.match(runtimeSchemaUsage, /pg_get_userbyid\(p\.proowner\)='identity_service'/u)
+  assert.doesNotMatch(runtimeSchemaUsage, /grant usage on schema auth to identity_service/u)
   assert.match(runtimeSchemaUsage, /grant usage on schema app_public to service_role/u)
   assert.doesNotMatch(runtimeSchemaUsage, /grant (select|insert|update|delete|all) on table/iu)
 })
