@@ -156,7 +156,7 @@ create policy identity_service_portal_hour_exceptions on app_public.store_hour_e
 
 create or replace function portal_private.require_portal_scope()
 returns uuid language plpgsql stable security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); target uuid;
+declare actor uuid:=app_public.request_user_id(); target uuid;
 begin
   if actor is null or not app_private.current_session_is_active() or not app_private.current_session_has_mfa()
     or not app_private.current_session_recent_auth(interval '10 minutes')
@@ -245,7 +245,7 @@ alter function portal_private.support_ticket_json(uuid) owner to identity_servic
 
 create or replace function app_public.portal_get_home()
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); s app_public.stores%rowtype; p portal_private.store_profiles%rowtype; freshness text; verified timestamptz; source text;
+declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); s app_public.stores%rowtype; p portal_private.store_profiles%rowtype; freshness text; verified timestamptz; source text;
 begin
   insert into portal_private.store_profiles(store_id) values(target) on conflict do nothing;
   select * into s from app_public.stores where id=target;
@@ -281,7 +281,7 @@ alter function app_public.portal_get_hours() owner to identity_service;
 
 create or replace function app_public.portal_save_hours(p_hours jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); item jsonb; span jsonb; seen int[]:='{}'; prior bigint; next bigint; zone text; digest bytea; closure jsonb:=nullif(p_hours->'temporaryClosure','null'::jsonb);
+declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); item jsonb; span jsonb; seen int[]:='{}'; prior bigint; next bigint; zone text; digest bytea; closure jsonb:=nullif(p_hours->'temporaryClosure','null'::jsonb);
 begin
   if jsonb_typeof(p_hours)<>'object' or jsonb_typeof(p_hours->'weekly')<>'array' or jsonb_array_length(p_hours->'weekly')<>7
     or jsonb_typeof(coalesce(p_hours->'holidays','[]'::jsonb))<>'array'
@@ -342,7 +342,7 @@ alter function app_public.portal_save_hours(jsonb) owner to identity_service;
 
 create or replace function app_public.portal_save_managed_fields(p_fields jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); closure jsonb:=nullif(p_fields->'temporaryClosure','null'::jsonb); prior bigint; next bigint; digest bytea;
+declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); closure jsonb:=nullif(p_fields->'temporaryClosure','null'::jsonb); prior bigint; next bigint; digest bytea;
 begin
   if jsonb_typeof(p_fields)<>'object' or char_length(coalesce(p_fields->>'phone',''))>32 or (nullif(p_fields->>'phone','') is not null and p_fields->>'phone'!~'^[+0-9(). ext-]{7,32}$')
     or char_length(coalesce(p_fields->>'description',''))>4000 or (nullif(p_fields->>'website','') is not null and (char_length(p_fields->>'website')>2048 or p_fields->>'website'!~*'^https?://[^[:space:]@]+$'))
@@ -365,7 +365,7 @@ alter function app_public.portal_save_managed_fields(jsonb) owner to identity_se
 
 create or replace function app_public.portal_submit_controlled_change(p_change jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); new portal_private.controlled_changes%rowtype; existing portal_private.controlled_changes%rowtype; case_id uuid; digest bytea; profile_version bigint;
+declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); new portal_private.controlled_changes%rowtype; existing portal_private.controlled_changes%rowtype; case_id uuid; digest bytea; profile_version bigint;
 begin
   if jsonb_typeof(p_change)<>'object' or p_change->>'field' not in ('name','address','coordinates','ownership','permanent_closure','categories','official_media')
     or p_change->>'field'='official_media' or nullif(btrim(p_change->>'requestedValue'),'') is null or char_length(p_change->>'requestedValue')>2000
@@ -395,7 +395,7 @@ alter function app_public.portal_list_updates() owner to identity_service;
 
 create or replace function app_public.portal_create_update(p_update jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); digest bytea; row portal_private.store_updates%rowtype;
+declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); digest bytea; row portal_private.store_updates%rowtype;
 begin
   if jsonb_typeof(p_update)<>'object' or coalesce((p_update->>'imageRequested')::boolean,false) or p_update->>'type' not in ('new_finds','sale','announcement','store_news')
     or nullif(btrim(p_update->>'headline'),'') is null or char_length(p_update->>'headline')>160 or nullif(btrim(p_update->>'details'),'') is null or char_length(p_update->>'details')>4000
@@ -411,7 +411,7 @@ alter function app_public.portal_create_update(jsonb) owner to identity_service;
 
 create or replace function app_public.portal_archive_update(p_update_id text)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); id uuid; row portal_private.store_updates%rowtype; prior bigint; digest bytea;
+declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); id uuid; row portal_private.store_updates%rowtype; prior bigint; digest bytea;
 begin begin id:=p_update_id::uuid; exception when others then raise exception using errcode='22023',message='portal_unavailable'; end; perform portal_private.lock_portal_store(target);
   select * into row from portal_private.store_updates where update_id=id and store_id=target for update; if not found then raise exception using errcode='55000',message='portal_unavailable'; end if;
   prior:=row.version; if row.state='live' then update portal_private.store_updates set state='archived',archived_at=statement_timestamp(),version=version+1,updated_at=statement_timestamp() where update_id=id returning * into row; end if;
@@ -421,7 +421,7 @@ alter function app_public.portal_archive_update(text) owner to identity_service;
 
 create or replace function app_public.portal_restore_update(p_update_id text)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); id uuid; row portal_private.store_updates%rowtype; prior bigint; digest bytea;
+declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); id uuid; row portal_private.store_updates%rowtype; prior bigint; digest bytea;
 begin begin id:=p_update_id::uuid; exception when others then raise exception using errcode='22023',message='portal_unavailable'; end; perform portal_private.lock_portal_store(target);
   select * into row from portal_private.store_updates where update_id=id and store_id=target for update; if not found then raise exception using errcode='55000',message='portal_unavailable'; end if;
   prior:=row.version; if row.state='archived' then update portal_private.store_updates set state='live',archived_at=null,version=version+1,updated_at=statement_timestamp() where update_id=id returning * into row; end if;
@@ -436,7 +436,7 @@ end $$;
 alter function app_public.portal_list_official_links() owner to identity_service;
 
 create or replace function app_public.portal_save_official_link(p_link jsonb)
-returns jsonb language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); row portal_private.official_links%rowtype; digest bytea; prior bigint; begin
+returns jsonb language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); row portal_private.official_links%rowtype; digest bytea; prior bigint; begin
   if jsonb_typeof(p_link)<>'object' or not portal_private.official_link_allowed(p_link->>'platform',p_link->>'url') then raise exception using errcode='22023',message='portal_unavailable'; end if;
   perform portal_private.lock_portal_store(target); select version into prior from portal_private.official_links where store_id=target and platform=p_link->>'platform' for update;
   insert into portal_private.official_links(store_id,platform,url,verified_by) values(target,p_link->>'platform',p_link->>'url',actor)
@@ -447,7 +447,7 @@ end $$;
 alter function app_public.portal_save_official_link(jsonb) owner to identity_service;
 
 create or replace function app_public.portal_remove_official_link(p_platform text)
-returns jsonb language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); row portal_private.official_links%rowtype; digest bytea; begin
+returns jsonb language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); row portal_private.official_links%rowtype; digest bytea; begin
   if p_platform not in ('facebook','instagram','youtube','pinterest','tiktok') then raise exception using errcode='22023',message='portal_unavailable'; end if;
   perform portal_private.lock_portal_store(target); delete from portal_private.official_links where store_id=target and platform=p_platform returning * into row;
   if found then digest:=extensions.digest(convert_to('remove|'||p_platform,'utf8'),'sha256'); perform portal_private.record_portal_event('official_link_removed',actor,target,target,digest,row.version,null); end if;
@@ -456,14 +456,14 @@ end $$;
 alter function app_public.portal_remove_official_link(text) owner to identity_service;
 
 create or replace function app_public.portal_list_support_tickets()
-returns jsonb language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); begin
+returns jsonb language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); begin
   return coalesce((select jsonb_agg(portal_private.support_ticket_json(t.ticket_id) order by t.updated_at desc) from portal_private.support_tickets t where t.store_id=target and t.opened_by=actor),'[]'::jsonb);
 end $$;
 alter function app_public.portal_list_support_tickets() owner to identity_service;
 
 create or replace function app_public.portal_create_support_ticket(p_ticket jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); row portal_private.support_tickets%rowtype; digest bytea; case_id uuid; diagnostics jsonb:=coalesce(p_ticket->'diagnostics','[]'::jsonb);
+declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); row portal_private.support_tickets%rowtype; digest bytea; case_id uuid; diagnostics jsonb:=coalesce(p_ticket->'diagnostics','[]'::jsonb);
 begin
   if jsonb_typeof(p_ticket)<>'object' or p_ticket->>'category' not in ('bug','confusing_workflow','store_data_correction','feature_idea','security_privacy')
     or nullif(btrim(p_ticket->>'subject'),'') is null or char_length(p_ticket->>'subject')>160 or nullif(btrim(p_ticket->>'body'),'') is null or char_length(p_ticket->>'body')>4000
@@ -481,7 +481,7 @@ alter function app_public.portal_create_support_ticket(jsonb) owner to identity_
 
 create or replace function app_public.portal_reply_support_ticket(p_ticket_id text,p_body text)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); id uuid; ticket portal_private.support_tickets%rowtype; reply portal_private.support_replies%rowtype; digest bytea; prior bigint; prior_state text;
+declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); id uuid; ticket portal_private.support_tickets%rowtype; reply portal_private.support_replies%rowtype; digest bytea; prior bigint; prior_state text;
 begin begin id:=p_ticket_id::uuid; exception when others then raise exception using errcode='22023',message='portal_unavailable'; end;
   if p_body is null or p_body<>btrim(p_body) or char_length(p_body) not between 1 and 4000 or p_body~'[[:cntrl:]]' then raise exception using errcode='22023',message='portal_unavailable'; end if;
   digest:=extensions.digest(convert_to(p_body,'utf8'),'sha256'); perform portal_private.lock_portal_store(target);
@@ -496,7 +496,7 @@ end $$;
 alter function app_public.portal_reply_support_ticket(text,text) owner to identity_service;
 
 create or replace function app_public.portal_confirm_support_resolution(p_ticket_id text)
-returns jsonb language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); id uuid; ticket portal_private.support_tickets%rowtype; digest bytea; begin
+returns jsonb language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); id uuid; ticket portal_private.support_tickets%rowtype; digest bytea; begin
   begin id:=p_ticket_id::uuid; exception when others then raise exception using errcode='22023',message='portal_unavailable'; end; perform portal_private.lock_portal_store(target);
   select * into ticket from portal_private.support_tickets where ticket_id=id and store_id=target and opened_by=actor for update; if not found or ticket.state<>'resolved' then raise exception using errcode='55000',message='portal_unavailable'; end if;
   if not exists(select 1 from portal_private.support_events e where e.ticket_id=id and e.event_kind='owner_confirmed') then
@@ -508,7 +508,7 @@ end $$;
 alter function app_public.portal_confirm_support_resolution(text) owner to identity_service;
 
 create or replace function app_public.portal_reopen_support_ticket(p_ticket_id text)
-returns jsonb language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=auth.uid(); target uuid:=portal_private.require_portal_scope(); id uuid; ticket portal_private.support_tickets%rowtype; prior bigint; digest bytea; begin
+returns jsonb language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); id uuid; ticket portal_private.support_tickets%rowtype; prior bigint; digest bytea; begin
   begin id:=p_ticket_id::uuid; exception when others then raise exception using errcode='22023',message='portal_unavailable'; end; perform portal_private.lock_portal_store(target);
   select * into ticket from portal_private.support_tickets where ticket_id=id and store_id=target and opened_by=actor for update; if not found or ticket.state not in ('resolved','reopened') then raise exception using errcode='55000',message='portal_unavailable'; end if;
   prior:=ticket.version; if ticket.state='resolved' then update portal_private.support_tickets set state='reopened',resolved_at=null,updated_at=statement_timestamp(),version=version+1 where ticket_id=id returning * into ticket;

@@ -1,5 +1,5 @@
 -- Package 3 authenticated RPC boundary.
--- Every shopper identity is derived from auth.uid(); callers cannot select an owner.
+-- Every shopper identity is derived from app_public.request_user_id(); callers cannot select an owner.
 
 grant identity_service to postgres;
 grant create on schema app_public to identity_service;
@@ -69,7 +69,7 @@ begin
     ) order by ss.created_at desc,s.name,s.id)
     from shopper_private.saved_stores ss
     join app_public.stores s on s.id=ss.store_id
-    where ss.user_id=auth.uid()
+    where ss.user_id=app_public.request_user_id()
       and s.synthetic and s.audience='synthetic' and s.publication_state='active'
   ),'[]'::jsonb);
 end; $$;
@@ -86,11 +86,11 @@ begin
       and s.synthetic and s.audience='synthetic' and s.publication_state='active'
   ) then raise exception using errcode='22023', message='store_not_available'; end if;
   delete from shopper_private.saved_stores
-    where user_id=auth.uid() and store_id=p_store_id;
+    where user_id=app_public.request_user_id() and store_id=p_store_id;
   if found then
     now_saved := false;
   else
-    insert into shopper_private.saved_stores(user_id,store_id) values(auth.uid(),p_store_id);
+    insert into shopper_private.saved_stores(user_id,store_id) values(app_public.request_user_id(),p_store_id);
     now_saved := true;
   end if;
   return jsonb_build_object('saved',now_saved);
@@ -109,7 +109,7 @@ begin
     'version',m.version
   ) into result
   from shopper_private.private_store_memories m
-  where m.user_id=auth.uid() and m.store_id=p_store_id;
+  where m.user_id=app_public.request_user_id() and m.store_id=p_store_id;
   return result;
 end; $$;
 
@@ -132,7 +132,7 @@ begin
   ) then raise exception using errcode='22023', message='store_not_available'; end if;
   select m.version into current_version
     from shopper_private.private_store_memories m
-    where m.user_id=auth.uid() and m.store_id=p_store_id for update;
+    where m.user_id=app_public.request_user_id() and m.store_id=p_store_id for update;
   if current_version is null then
     if p_expected_version is not null and p_expected_version<>0 then
       raise exception using errcode='40001', message='private_memory_version_conflict';
@@ -140,7 +140,7 @@ begin
     insert into shopper_private.private_store_memories(
       user_id,store_id,rating,note,last_visit_month,version
     ) values(
-      auth.uid(),p_store_id,p_rating,nullif(btrim(p_note),''),p_last_visit_month,1
+      app_public.request_user_id(),p_store_id,p_rating,nullif(btrim(p_note),''),p_last_visit_month,1
     ) returning * into result;
   else
     if p_expected_version is null or p_expected_version<>current_version then
@@ -149,7 +149,7 @@ begin
     update shopper_private.private_store_memories set
       rating=p_rating,note=nullif(btrim(p_note),''),last_visit_month=p_last_visit_month,
       version=version+1,updated_at=statement_timestamp()
-      where user_id=auth.uid() and store_id=p_store_id
+      where user_id=app_public.request_user_id() and store_id=p_store_id
       returning * into result;
   end if;
   return jsonb_build_object(
@@ -168,20 +168,20 @@ begin
     raise exception using errcode='42501', message='shopper_private_access_denied';
   end if;
   select * into deletion from shopper_private.private_memory_deletions
-    where user_id=auth.uid() and store_id=p_store_id and state='pending' for update;
+    where user_id=app_public.request_user_id() and store_id=p_store_id and state='pending' for update;
   if found then
     return jsonb_build_object('undoToken',deletion.undo_token,'undoUntil',deletion.undo_until);
   end if;
   select * into memory from shopper_private.private_store_memories
-    where user_id=auth.uid() and store_id=p_store_id for update;
+    where user_id=app_public.request_user_id() and store_id=p_store_id for update;
   if not found then raise exception using errcode='P0002', message='private_memory_not_found'; end if;
   insert into shopper_private.private_memory_deletions(
     user_id,store_id,rating,note,last_visit_month,source_version
   ) values(
-    auth.uid(),p_store_id,memory.rating,memory.note,memory.last_visit_month,memory.version
+    app_public.request_user_id(),p_store_id,memory.rating,memory.note,memory.last_visit_month,memory.version
   ) returning * into deletion;
   delete from shopper_private.private_store_memories
-    where user_id=auth.uid() and store_id=p_store_id;
+    where user_id=app_public.request_user_id() and store_id=p_store_id;
   return jsonb_build_object('undoToken',deletion.undo_token,'undoUntil',deletion.undo_until);
 end; $$;
 
@@ -194,21 +194,21 @@ begin
     raise exception using errcode='42501', message='shopper_private_access_denied';
   end if;
   select * into deletion from shopper_private.private_memory_deletions
-    where undo_token=p_undo_token and user_id=auth.uid() and store_id=p_store_id for update;
+    where undo_token=p_undo_token and user_id=app_public.request_user_id() and store_id=p_store_id for update;
   if not found then raise exception using errcode='P0002', message='private_memory_undo_not_found'; end if;
   if deletion.state='restored' then
     select * into memory from shopper_private.private_store_memories
-      where user_id=auth.uid() and store_id=p_store_id;
+      where user_id=app_public.request_user_id() and store_id=p_store_id;
   elsif deletion.state<>'pending' or deletion.undo_until<=statement_timestamp() then
     raise exception using errcode='22023', message='private_memory_undo_expired';
   else
-    if exists(select 1 from shopper_private.private_store_memories m where m.user_id=auth.uid() and m.store_id=p_store_id) then
+    if exists(select 1 from shopper_private.private_store_memories m where m.user_id=app_public.request_user_id() and m.store_id=p_store_id) then
       raise exception using errcode='40001', message='private_memory_version_conflict';
     end if;
     insert into shopper_private.private_store_memories(
       user_id,store_id,rating,note,last_visit_month,version
     ) values(
-      auth.uid(),p_store_id,deletion.rating,deletion.note,deletion.last_visit_month,deletion.source_version+1
+      app_public.request_user_id(),p_store_id,deletion.rating,deletion.note,deletion.last_visit_month,deletion.source_version+1
     ) returning * into memory;
     update shopper_private.private_memory_deletions
       set state='restored',restored_at=statement_timestamp() where undo_token=p_undo_token;
@@ -243,7 +243,7 @@ begin
   select * into area_row from app_public.catalog_areas a where a.id=p_area_id;
   if not found then raise exception using errcode='22023', message='catalog_area_not_found'; end if;
   select l.seen_at into last_seen_at from shopper_private.catalog_last_seen l
-    where l.user_id=auth.uid() and l.area_id=p_area_id;
+    where l.user_id=app_public.request_user_id() and l.area_id=p_area_id;
   select coalesce(jsonb_agg(jsonb_build_object(
     'storeId',s.id,'slug',s.slug,'name',s.name,'addedAt',s.created_at
   ) order by s.created_at desc,s.name,s.id),'[]'::jsonb) into stores
@@ -252,7 +252,7 @@ begin
     and s.created_at>coalesce(last_seen_at,statement_timestamp()-interval '30 days')
     and not exists(
       select 1 from shopper_private.catalog_new_dismissals d
-      where d.user_id=auth.uid() and d.store_id=s.id
+      where d.user_id=app_public.request_user_id() and d.store_id=s.id
         and d.dismissed_at>statement_timestamp()-interval '30 days'
     );
   return jsonb_build_object(
@@ -272,7 +272,7 @@ begin
     raise exception using errcode='22023', message='catalog_area_not_found';
   end if;
   insert into shopper_private.catalog_last_seen(user_id,area_id,seen_at)
-    values(auth.uid(),p_area_id,seen)
+    values(app_public.request_user_id(),p_area_id,seen)
     on conflict(user_id,area_id) do update set seen_at=excluded.seen_at;
   return jsonb_build_object('seenAt',seen);
 end; $$;
@@ -288,7 +288,7 @@ begin
       and s.synthetic and s.audience='synthetic' and s.publication_state='active'
   ) then raise exception using errcode='22023', message='store_not_available'; end if;
   insert into shopper_private.catalog_new_dismissals(user_id,store_id,dismissed_at)
-    values(auth.uid(),p_store_id,statement_timestamp())
+    values(app_public.request_user_id(),p_store_id,statement_timestamp())
     on conflict(user_id,store_id) do update set dismissed_at=excluded.dismissed_at;
 end; $$;
 
@@ -308,7 +308,7 @@ begin
   insert into shopper_private.store_correction_reports(
     reporter_user_id,store_id,correction_type,description,public_source_url
   ) values(
-    auth.uid(),p_store_id,p_type,btrim(p_description),nullif(btrim(p_public_source_url),'')
+    app_public.request_user_id(),p_store_id,p_type,btrim(p_description),nullif(btrim(p_public_source_url),'')
   ) returning * into report;
   return jsonb_build_object('id',report.report_id,'state',report.state);
 end; $$;
@@ -322,7 +322,7 @@ begin
   end if;
   select jsonb_build_object('id',r.report_id,'state',r.state) into result
     from shopper_private.store_correction_reports r
-    where r.report_id=p_report_id and r.reporter_user_id=auth.uid();
+    where r.report_id=p_report_id and r.reporter_user_id=app_public.request_user_id();
   return result;
 end; $$;
 

@@ -48,7 +48,7 @@ create function app_public.rg01_get_operational_status(p_run_id uuid default nul
 returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare r rg01_private.rg01_runs%rowtype; cap rg01_private.rg01_capability%rowtype; metrics jsonb; purge_due timestamptz;
 begin
-  if auth.uid() is null or not exists(select 1 from rg01_private.rg01_product_owner_grants g where g.user_id=auth.uid() and g.state='active') then
+  if app_public.request_user_id() is null or not exists(select 1 from rg01_private.rg01_product_owner_grants g where g.user_id=app_public.request_user_id() and g.state='active') then
     raise exception using errcode='42501',message='rg01_product_owner_required';
   end if;
   select * into cap from rg01_private.rg01_capability where singleton_id=1;
@@ -111,7 +111,7 @@ grant execute on function app_public.rg01_execute_calculation(text,jsonb) to rg0
 
 create or replace function app_public.rg01_request_decision_challenge(p_run_id uuid,p_decision text,p_idempotency_key uuid)
 returns jsonb language plpgsql security definer set search_path='' as $$
-declare r rg01_private.rg01_runs%rowtype; c rg01_private.rg01_signing_challenges%rowtype; uid uuid:=auth.uid(); exp timestamptz:=statement_timestamp()+interval '30 minutes'; n bytea:=extensions.gen_random_bytes(32); request_hash bytea;
+declare r rg01_private.rg01_runs%rowtype; c rg01_private.rg01_signing_challenges%rowtype; uid uuid:=app_public.request_user_id(); exp timestamptz:=statement_timestamp()+interval '30 minutes'; n bytea:=extensions.gen_random_bytes(32); request_hash bytea;
 begin
   if uid is null or p_decision not in ('pass','reject') or p_idempotency_key is null
     or not app_private.current_session_has_mfa() or not app_private.current_session_recent_auth(interval '15 minutes')

@@ -214,14 +214,14 @@ begin
     raise exception using errcode='55000', message='readiness_signing_blocked';
   end if;
   delete from readiness_private.readiness_signing_challenges
-    where run_id=p_run_id and signer_user_id=auth.uid() and consumed_at is null
+    where run_id=p_run_id and signer_user_id=app_public.request_user_id() and consumed_at is null
       and expires_at<=statement_timestamp();
   insert into readiness_private.readiness_signing_challenges(
     run_id,signer_user_id,nonce,frozen_digest,payload_digest,expires_at
   ) values(
-    p_run_id,auth.uid(),challenge_nonce,run_row.source_digest,
+    p_run_id,app_public.request_user_id(),challenge_nonce,run_row.source_digest,
     extensions.digest(convert_to(concat_ws('|',p_run_id::text,encode(run_row.source_digest,'hex'),
-      auth.uid()::text,encode(challenge_nonce,'hex'),challenge_expires_at::text),'UTF8'),'sha256'),
+      app_public.request_user_id()::text,encode(challenge_nonce,'hex'),challenge_expires_at::text),'UTF8'),'sha256'),
     challenge_expires_at
   ) returning * into challenge;
   return jsonb_build_object('challengeId',challenge.challenge_id,

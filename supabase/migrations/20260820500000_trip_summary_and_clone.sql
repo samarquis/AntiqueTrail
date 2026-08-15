@@ -72,7 +72,7 @@ set search_path = pg_catalog, trip_private, app_public, auth as $$
       'address',case when s.kind='store' then concat_ws(', ',st.address,st.town,st.state_code) else s.rest_address end,
       'position',s.position,'priority',s.priority,'plannedDwellMinutes',s.planned_dwell_minutes,
       'state',s.state,'memoryStatus',case when s.kind='rest' then 'not_applicable'
-        when exists(select 1 from trip_private.trip_visit_memories m where m.author_user_id=auth.uid() and m.trip_id=s.trip_id and m.store_id=s.store_id) then 'saved'
+        when exists(select 1 from trip_private.trip_visit_memories m where m.author_user_id=app_public.request_user_id() and m.trip_id=s.trip_id and m.store_id=s.store_id) then 'saved'
         else 'missing' end,
       'coordinate',case when s.kind='store' and st.latitude is not null then jsonb_build_object('latitude',st.latitude::float8,'longitude',st.longitude::float8) when s.kind='rest' and s.rest_latitude is not null then jsonb_build_object('latitude',s.rest_latitude::float8,'longitude',s.rest_longitude::float8) else null end,
       'hours',case when s.kind='store' then jsonb_build_object('state','unknown') else null end
@@ -92,11 +92,11 @@ begin
   if not found then raise exception 'not_available'; end if;
   insert into trip_private.trips(owner_id,area_id,name,local_date,departure_local_time,
     max_drive_miles,max_total_minutes,state)
-  values(auth.uid(),source_trip.area_id,source_trip.name,source_trip.local_date,
+  values(app_public.request_user_id(),source_trip.area_id,source_trip.name,source_trip.local_date,
     source_trip.departure_local_time,source_trip.max_drive_miles,source_trip.max_total_minutes,'draft')
   returning trip_private.trips.trip_id into cloned_id;
   insert into trip_private.trip_participants(trip_id,user_id,participant_role)
-    values(cloned_id,auth.uid(),'creator');
+    values(cloned_id,app_public.request_user_id(),'creator');
   insert into trip_private.trip_stops(trip_id,kind,store_id,rest_label,rest_address,
     rest_latitude,rest_longitude,position,priority,planned_dwell_minutes,state)
   select cloned_id,kind,store_id,rest_label,rest_address,rest_latitude,rest_longitude,

@@ -310,7 +310,7 @@ language plpgsql security definer set search_path='' as $$ declare v bigint; beg
 end $$;
 
 create or replace function app_public.rg01_set_own_consent(p_consent boolean) returns void
-language plpgsql security definer set search_path='' as $$ declare uid uuid:=auth.uid(); begin
+language plpgsql security definer set search_path='' as $$ declare uid uuid:=app_public.request_user_id(); begin
   if uid is null or not app_private.current_user_has_role('shopper'::app_private.app_role,null) then raise exception using errcode='42501',message='rg01_shopper_required'; end if;
   if p_consent then
     insert into rg01_private.rg01_subject_consents as existing(user_id,consented_at,age_18_verified,nonprivileged_shopper)
@@ -325,7 +325,7 @@ language plpgsql security definer set search_path='' as $$ declare uid uuid:=aut
 end $$;
 
 create or replace function app_public.rg01_set_flyer_consent(p_store_id uuid,p_consent boolean,p_source_receipt_digest bytea) returns void
-language plpgsql security definer set search_path='' as $$ declare uid uuid:=auth.uid(); begin
+language plpgsql security definer set search_path='' as $$ declare uid uuid:=app_public.request_user_id(); begin
   if uid is null or p_store_id is null or octet_length(p_source_receipt_digest)<>32
     or not app_private.current_user_has_role('representative'::app_private.app_role,p_store_id) then raise exception using errcode='42501',message='rg01_representative_store_required'; end if;
   if p_consent then insert into rg01_private.rg01_flyer_consents(store_id,representative_user_id,consented_at,source_receipt_digest)
@@ -435,7 +435,7 @@ begin
 end $$;
 
 create or replace function app_public.rg01_request_decision_challenge(p_run_id uuid,p_decision text) returns jsonb
-language plpgsql security definer set search_path='' as $$ declare r rg01_private.rg01_runs%rowtype; c rg01_private.rg01_signing_challenges%rowtype; uid uuid:=auth.uid(); exp timestamptz:=statement_timestamp()+interval '30 minutes'; n bytea:=extensions.gen_random_bytes(32); begin
+language plpgsql security definer set search_path='' as $$ declare r rg01_private.rg01_runs%rowtype; c rg01_private.rg01_signing_challenges%rowtype; uid uuid:=app_public.request_user_id(); exp timestamptz:=statement_timestamp()+interval '30 minutes'; n bytea:=extensions.gen_random_bytes(32); begin
   if uid is null or p_decision not in ('pass','reject') or not app_private.current_session_has_mfa() or not app_private.current_session_recent_auth(interval '15 minutes')
     or not exists(select 1 from rg01_private.rg01_product_owner_grants where user_id=uid and state='active') then raise exception using errcode='42501',message='rg01_product_owner_required'; end if;
   select * into r from rg01_private.rg01_runs where run_id=p_run_id for update;
@@ -513,11 +513,11 @@ end loop; end $$;
 grant select,insert,update on rg01_private.rg01_subject_consents,rg01_private.rg01_flyer_consents to identity_service;
 grant select on rg01_private.rg01_runs,rg01_private.rg01_product_owner_grants to identity_service;
 grant select,insert,update on rg01_private.rg01_signing_challenges to identity_service;
-create policy rg01_identity_subject on rg01_private.rg01_subject_consents for all to identity_service using(user_id=auth.uid()) with check(user_id=auth.uid());
-create policy rg01_identity_flyer on rg01_private.rg01_flyer_consents for all to identity_service using(representative_user_id=auth.uid()) with check(representative_user_id=auth.uid());
+create policy rg01_identity_subject on rg01_private.rg01_subject_consents for all to identity_service using(user_id=app_public.request_user_id()) with check(user_id=app_public.request_user_id());
+create policy rg01_identity_flyer on rg01_private.rg01_flyer_consents for all to identity_service using(representative_user_id=app_public.request_user_id()) with check(representative_user_id=app_public.request_user_id());
 create policy rg01_identity_runs_read on rg01_private.rg01_runs for select to identity_service using(true);
-create policy rg01_identity_owner_grant_read on rg01_private.rg01_product_owner_grants for select to identity_service using(user_id=auth.uid());
-create policy rg01_identity_challenges on rg01_private.rg01_signing_challenges for all to identity_service using(signer_user_id=auth.uid()) with check(signer_user_id=auth.uid());
+create policy rg01_identity_owner_grant_read on rg01_private.rg01_product_owner_grants for select to identity_service using(user_id=app_public.request_user_id());
+create policy rg01_identity_challenges on rg01_private.rg01_signing_challenges for all to identity_service using(signer_user_id=app_public.request_user_id()) with check(signer_user_id=app_public.request_user_id());
 grant select,insert,update on rg01_private.rg01_product_owner_grants to rg01_evidence_service;
 create policy rg01_evidence_owner_grants on rg01_private.rg01_product_owner_grants for all to rg01_evidence_service using(true) with check(true);
 

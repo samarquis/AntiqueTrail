@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { URL } from 'node:url'
 
-const [workflow, ci, worker, migration, runtimeSchemaUsage] = await Promise.all([
+const [workflow, ci, worker, migration, runtimeSchemaUsage, requestClaimHelpers] = await Promise.all([
   readFile(new URL('../.github/workflows/registration-cleanup.yml', import.meta.url), 'utf8'),
   readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
   readFile(
@@ -19,6 +19,10 @@ const [workflow, ci, worker, migration, runtimeSchemaUsage] = await Promise.all(
   ),
   readFile(
     new URL('../supabase/migrations/20260823000000_runtime_schema_usage.sql', import.meta.url),
+    'utf8',
+  ),
+  readFile(
+    new URL('../supabase/migrations/20260803500000_request_claim_helpers.sql', import.meta.url),
     'utf8',
   ),
 ])
@@ -63,8 +67,8 @@ test('cleanup queue is provider-ticket based and bounded', () => {
 })
 
 test('runtime roles can resolve only their explicitly granted API schemas', () => {
-  assert.match(runtimeSchemaUsage, /create or replace function app_private\.request_user_id/u)
-  assert.match(runtimeSchemaUsage, /pg_get_userbyid\(p\.proowner\)='identity_service'/u)
+  assert.match(requestClaimHelpers, /create or replace function app_public\.request_user_id/u)
+  assert.match(requestClaimHelpers, /current_setting\('request\.jwt\.claims',true\)/u)
   assert.doesNotMatch(runtimeSchemaUsage, /grant usage on schema auth to identity_service/u)
   assert.match(runtimeSchemaUsage, /grant usage on schema app_public to service_role/u)
   assert.doesNotMatch(runtimeSchemaUsage, /grant (select|insert|update|delete|all) on table/iu)

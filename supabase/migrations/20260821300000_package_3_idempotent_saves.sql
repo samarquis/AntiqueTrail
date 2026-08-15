@@ -29,7 +29,7 @@ begin
   end if;
   return jsonb_build_object('saved',exists(
     select 1 from shopper_private.saved_stores
-    where user_id=auth.uid() and store_id=p_store_id
+    where user_id=app_public.request_user_id() and store_id=p_store_id
   ));
 end $$;
 alter function app_public.shopper_save_state(uuid) owner to identity_service;
@@ -45,10 +45,10 @@ begin
   end if;
   if p_saved then
     insert into shopper_private.saved_stores(user_id,store_id)
-      values(auth.uid(),p_store_id) on conflict(user_id,store_id) do nothing;
+      values(app_public.request_user_id(),p_store_id) on conflict(user_id,store_id) do nothing;
   else
     delete from shopper_private.saved_stores
-      where user_id=auth.uid() and store_id=p_store_id;
+      where user_id=app_public.request_user_id() and store_id=p_store_id;
   end if;
   return jsonb_build_object('saved',p_saved);
 end $$;
@@ -66,7 +66,7 @@ begin
     ) order by ss.created_at desc,s.name,s.id)
     from shopper_private.saved_stores ss
     join app_public.stores s on s.id=ss.store_id
-    where ss.user_id=auth.uid()
+    where ss.user_id=app_public.request_user_id()
       and shopper_private.store_is_shopper_visible(s.id)
   ),'[]'::jsonb);
 end $$;
@@ -85,7 +85,7 @@ begin
       'version',m.version
     ) order by coalesce(m.last_visit_month,date '0001-01-01') desc,m.updated_at desc,m.store_id)
     from shopper_private.private_store_memories m
-    where m.user_id=auth.uid()
+    where m.user_id=app_public.request_user_id()
   ),'[]'::jsonb);
 end $$;
 alter function app_public.shopper_list_memories() owner to identity_service;

@@ -50,8 +50,8 @@ create or replace function app_public.candidate_reserve_operation(
   p_operation text,p_subject_hmac bytea,p_ip_hmac bytea
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare
-  actor uuid:=auth.uid(); now_at timestamptz:=statement_timestamp();
-  session_value text:=auth.jwt()->>'session_id';
+  actor uuid:=app_public.request_user_id(); now_at timestamptz:=statement_timestamp();
+  session_value text:=app_public.request_jwt()->>'session_id';
   session_digest bytea; account_digest bytea; account_subject_digest bytea;
   kinds text[]; digests bytea[]; limits integer[]; windows interval[];
   index_value integer; event_count bigint; oldest_event timestamptz;
@@ -112,7 +112,7 @@ $$;
 
 create or replace function app_public.candidate_release_operation(p_lease_id uuid)
 returns void language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid();
+declare actor uuid:=app_public.request_user_id();
 begin
   if actor is null or not app_private.current_session_is_active() then
     raise exception using errcode='42501',message='candidate_auth_required';
@@ -157,14 +157,14 @@ returns jsonb language sql stable security definer set search_path='' as $$
     'label','Blocked sender','blockedAt',(extract(epoch from created_at)*1000)::bigint)
     order by created_at desc),'[]'::jsonb)
   from candidate_private.candidate_blocks
-  where blocker_id=auth.uid() and app_private.current_session_is_active()
+  where blocker_id=app_public.request_user_id() and app_private.current_session_is_active()
 $$;
 
 create or replace function app_public.candidate_edge_send_share(
   p_candidate_id uuid,p_recipient_id uuid,p_recipient_email_hmac bytea,
   p_encrypted_payload bytea,p_idempotency_key text
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); share_row candidate_private.candidate_shares%rowtype;
+declare actor uuid:=app_public.request_user_id(); share_row candidate_private.candidate_shares%rowtype;
 begin
   if actor is null or not app_private.current_session_is_active()
     or octet_length(p_recipient_email_hmac)<>32 or octet_length(p_encrypted_payload)<1

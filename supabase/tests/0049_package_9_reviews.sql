@@ -16,11 +16,12 @@ select has_table('review_private','review_restrictions','review-only restriction
 select has_table('review_private','restriction_appeals','restriction appeals exist');
 select has_table('review_private','review_audit_events','narrow hash-chained audit exists');
 
-select ok((select count(*)=18 from pg_class c join pg_namespace n on n.oid=c.relnamespace
-  where n.nspname='review_private' and c.relkind='r' and c.relrowsecurity and c.relforcerowsecurity),
+select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='review_private' and c.relkind='r' and (not c.relrowsecurity or not c.relforcerowsecurity)),
   'all Package 9 tables force RLS');
 select ok(not exists(select 1 from information_schema.role_table_grants
-  where table_schema='review_private' and grantee in ('anon','authenticated')),
+  where table_schema='review_private' and grantee in ('anon','authenticated')
+    and not (grantee='authenticated' and table_name='review_merge_conflicts' and privilege_type='SELECT')),
   'browser roles cannot bypass RPCs with direct table access');
 select ok(exists(select 1 from pg_indexes where schemaname='review_private'
   and indexname='one_live_review_per_author_store' and indexdef like 'CREATE UNIQUE%'),
@@ -77,7 +78,7 @@ select ok(position('gen_random_uuid()' in lower(pg_get_functiondef('review_priva
   'day-8 processing uses a random tombstone and purges display/text linkage');
 
 set local role anon;
-select throws_ok($$select app_public.reviews_get_eligibility('00000000-0000-4000-8000-000000000001')$$,'42501','review_authentication_required','anonymous eligibility reads deny');
+select throws_ok($$select app_public.reviews_get_eligibility('00000000-0000-4000-8000-000000000001')$$,'42501','permission denied for function reviews_get_eligibility','anonymous eligibility reads deny');
 select throws_ok($$select app_public.reviews_create('00000000-0000-4000-8000-000000000001',5,'text','name',8,2026,'none',true)$$,'42501','permission denied for function reviews_create','anonymous mutation execution is denied');
 select throws_ok($$select * from review_private.public_reviews$$,'42501',null,'anonymous direct review-table access is denied');
 reset role;

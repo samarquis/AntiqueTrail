@@ -334,7 +334,7 @@ create trigger rg01_manifest_scope before insert on rg01_private.rg01_manifests
 
 create or replace function app_public.rg01_set_flyer_consent(p_store_id uuid,p_consent boolean,p_source_receipt_digest bytea)
 returns void language plpgsql security definer set search_path='' as $$
-declare uid uuid:=auth.uid(); release_id uuid:=rg01_private.bound_release_id(); expected_digest bytea;
+declare uid uuid:=app_public.request_user_id(); release_id uuid:=rg01_private.bound_release_id(); expected_digest bytea;
 begin
   if release_id is null then raise exception using errcode='55000',message='rg01_collection_disabled'; end if;
   if uid is null or p_store_id is null or not app_private.current_user_has_role('representative'::app_private.app_role,p_store_id)
@@ -356,7 +356,7 @@ end $$;
 create or replace function app_public.rg01_request_decision_challenge(p_run_id uuid,p_decision text)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare r rg01_private.rg01_runs%rowtype; c rg01_private.rg01_signing_challenges%rowtype;
-  g readiness_private.evidence_responsibility_grants%rowtype; uid uuid:=auth.uid();
+  g readiness_private.evidence_responsibility_grants%rowtype; uid uuid:=app_public.request_user_id();
   exp timestamptz:=statement_timestamp()+interval '30 minutes'; n bytea:=extensions.gen_random_bytes(32);
 begin
   if uid is null or p_decision not in ('pass','reject') or not app_private.current_session_has_mfa()
@@ -439,8 +439,8 @@ create policy rg01_automation_capability_events on rg01_private.rg01_capability_
 
 grant select on readiness_private.evidence_responsibility_grants to identity_service;
 grant select,insert,update on readiness_private.gate_signing_capabilities to identity_service;
-create policy identity_evidence_responsibility_read on readiness_private.evidence_responsibility_grants for select to identity_service using(user_id=auth.uid());
-create policy identity_gate_capability on readiness_private.gate_signing_capabilities for all to identity_service using(user_id=auth.uid()) with check(user_id=auth.uid());
+create policy identity_evidence_responsibility_read on readiness_private.evidence_responsibility_grants for select to identity_service using(user_id=app_public.request_user_id());
+create policy identity_gate_capability on readiness_private.gate_signing_capabilities for all to identity_service using(user_id=app_public.request_user_id()) with check(user_id=app_public.request_user_id());
 grant select on readiness_private.readiness_receipts to rg01_automation;
 create policy rg01_readiness_receipts on readiness_private.readiness_receipts for select to rg01_automation using(true);
 grant usage on schema readiness_private to release_executor;

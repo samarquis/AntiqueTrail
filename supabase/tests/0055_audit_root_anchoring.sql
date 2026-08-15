@@ -26,7 +26,7 @@ select ok(not has_table_privilege('service_role','app_private.audit_anchor_outbo
 set local role authenticated;
 select throws_ok(
   $$select app_private.privileged_anchor_is_current()$$,
-  '42501','permission denied for function privileged_anchor_is_current',
+  '42501','permission denied for schema app_private',
   'authenticated callers cannot directly bypass the server-owned anchor gate'
 );
 reset role;

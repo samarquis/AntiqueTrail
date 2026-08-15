@@ -26,11 +26,11 @@ reset role;
 select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public'
   and p.proname in ('account_lifecycle_status','request_account_export','get_account_export_status','issue_account_export_download','request_account_deletion','cancel_account_deletion')
   and 'user_id'=any(coalesce(p.proargnames,array[]::text[]))),'browser lifecycle commands never accept a caller-selected owner');
-select ok(position($q$interval '7 days'$q$ in pg_get_constraintdef((select oid from pg_constraint where conname='export_archive_shape')))>0,'ready archive lifetime is capped at seven days');
-select ok(position($q$interval '15 minutes'$q$ in pg_get_constraintdef((select oid from pg_constraint where conname='account_export_handoff_window')))>0,'download handoff is capped at fifteen minutes');
-select ok(position($q$interval '24 hours'$q$ in pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_deletion_timing')))>0,'private-memory purge remains due within 24 hours');
-select ok(position('rating is null' in pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_purged_content_free')))>0
-  and position('note is null' in pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_purged_content_free')))>0,'purged memory tombstone cannot retain private content');
+select ok(position('''7days''::interval' in lower(regexp_replace(pg_get_constraintdef((select oid from pg_constraint where conname='export_archive_shape')),'[[:space:]]','','g')))>0,'ready archive lifetime is capped at seven days');
+select ok(position('''00:15:00''::interval' in lower(regexp_replace(pg_get_constraintdef((select oid from pg_constraint where conname='account_export_handoff_window')),'[[:space:]]','','g')))>0,'download handoff is capped at fifteen minutes');
+select ok(position('''24:00:00''::interval' in lower(regexp_replace(pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_deletion_timing')),'[[:space:]]','','g')))>0,'private-memory purge remains due within 24 hours');
+select ok(position('ratingisnull' in lower(regexp_replace(pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_purged_content_free')),'[[:space:]]','','g')))>0
+  and position('noteisnull' in lower(regexp_replace(pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_purged_content_free')),'[[:space:]]','','g')))>0,'purged memory tombstone cannot retain private content');
 
 insert into auth.users(id) values
   ('32000000-0000-4000-8000-000000000001'),('32000000-0000-4000-8000-000000000002');

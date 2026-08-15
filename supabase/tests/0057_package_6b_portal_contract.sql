@@ -31,7 +31,7 @@ select has_function('app_public','portal_confirm_support_resolution',array['text
 select has_function('app_public','portal_reopen_support_ticket',array['text'],'support reopen RPC exists');
 select has_function('app_public','portal_preview_public_listing',array[]::text[],'owner preview RPC exists');
 
-select ok((select count(*)=8 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='portal_private' and c.relkind='r' and c.relrowsecurity and c.relforcerowsecurity),'every portal table forces RLS');
+select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='portal_private' and c.relkind='r' and (not c.relrowsecurity or not c.relforcerowsecurity)),'every portal table forces RLS');
 select ok(not exists(select 1 from information_schema.role_table_grants where table_schema='portal_private' and grantee in ('anon','authenticated')),'browser roles cannot access portal tables directly');
 select ok(not exists(select 1 from information_schema.routines where routine_schema='app_public' and routine_name like 'portal_%media%'),'no Portal media command exists before M-01');
 select ok(position($q$'official_media'$q$ in lower(pg_get_functiondef('app_public.portal_submit_controlled_change(jsonb)'::regprocedure)))>0
@@ -65,7 +65,7 @@ select ok(position($q$state='archived'$q$ in replace(lower(pg_get_functiondef('a
   and position($q$state='live'$q$ in replace(lower(pg_get_functiondef('app_public.portal_restore_update(text)'::regprocedure)),' ',''))>0,'text updates support durable archive and restore');
 select ok(position('facebook.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0
   and position('instagram.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0
-  and position('tiktok.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0,'official social links use a server allowlist');
+  and position('tiktok\.com' in lower(pg_get_functiondef('portal_private.official_link_allowed(text,text)'::regprocedure)))>0,'official social links use a server allowlist');
 
 select ok(position('jsonb_array_length' in lower(pg_get_functiondef('portal_private.diagnostics_allowed(jsonb)'::regprocedure)))>0
   and position('120' in pg_get_functiondef('portal_private.diagnostics_allowed(jsonb)'::regprocedure))>0,'support diagnostics are bounded');

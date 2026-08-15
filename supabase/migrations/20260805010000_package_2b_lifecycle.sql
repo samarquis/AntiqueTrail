@@ -242,21 +242,21 @@ create policy identity_service_notifications on app_private.notification_deliver
 
 -- Authenticated own-status reads are available only through future fixed RPCs;
 -- direct table grants remain revoked. These policies also prevent sibling-row reads.
-create policy profile_self_read on app_private.profiles for select to authenticated using (user_id=auth.uid() and app_private.current_session_is_active());
-create policy session_self_read on app_private.active_sessions for select to authenticated using (user_id=auth.uid() and app_private.current_session_is_active());
-create policy restriction_self_read on app_private.feature_restrictions for select to authenticated using (subject_user_id=auth.uid() and app_private.current_session_is_active());
-create policy export_self_read on app_private.account_export_jobs for select to authenticated using (user_id=auth.uid() and app_private.current_session_is_active());
-create policy deletion_self_read on app_private.account_deletion_requests for select to authenticated using (user_id=auth.uid() and app_private.current_session_is_active());
-create policy deletion_receipt_self_read on app_private.deletion_receipts for select to authenticated using (user_id=auth.uid() and app_private.current_session_is_active());
-create policy notification_self_read on app_private.notification_deliveries for select to authenticated using (user_id=auth.uid() and app_private.current_session_is_active());
+create policy profile_self_read on app_private.profiles for select to authenticated using (user_id=app_public.request_user_id() and app_private.current_session_is_active());
+create policy session_self_read on app_private.active_sessions for select to authenticated using (user_id=app_public.request_user_id() and app_private.current_session_is_active());
+create policy restriction_self_read on app_private.feature_restrictions for select to authenticated using (subject_user_id=app_public.request_user_id() and app_private.current_session_is_active());
+create policy export_self_read on app_private.account_export_jobs for select to authenticated using (user_id=app_public.request_user_id() and app_private.current_session_is_active());
+create policy deletion_self_read on app_private.account_deletion_requests for select to authenticated using (user_id=app_public.request_user_id() and app_private.current_session_is_active());
+create policy deletion_receipt_self_read on app_private.deletion_receipts for select to authenticated using (user_id=app_public.request_user_id() and app_private.current_session_is_active());
+create policy notification_self_read on app_private.notification_deliveries for select to authenticated using (user_id=app_public.request_user_id() and app_private.current_session_is_active());
 
 create or replace function app_private.current_session_is_cancellation_only()
 returns boolean language sql stable security definer
 set search_path = pg_catalog, app_private, auth as $$
-  select auth.uid() is not null and exists (
+  select app_public.request_user_id() is not null and exists (
     select 1 from app_private.profiles p
     join app_private.active_sessions s on s.user_id=p.user_id and s.session_epoch=p.session_epoch
-    where p.user_id=auth.uid() and p.status='deletion_scheduled' and s.state='cancellation_only'
+    where p.user_id=app_public.request_user_id() and p.status='deletion_scheduled' and s.state='cancellation_only'
       and s.session_id=app_private.claim_session_id()
       and (s.access_token_expires_at is null or s.access_token_expires_at > statement_timestamp())
   );
@@ -268,8 +268,8 @@ revoke create on schema app_private from identity_service;
 grant execute on function app_private.current_session_is_cancellation_only() to authenticated;
 
 drop policy if exists profile_self_read on app_private.profiles;
-create policy profile_self_read on app_private.profiles for select to authenticated using (user_id=auth.uid() and (app_private.current_session_is_active() or app_private.current_session_is_cancellation_only()));
+create policy profile_self_read on app_private.profiles for select to authenticated using (user_id=app_public.request_user_id() and (app_private.current_session_is_active() or app_private.current_session_is_cancellation_only()));
 drop policy if exists session_self_read on app_private.active_sessions;
-create policy session_self_read on app_private.active_sessions for select to authenticated using (user_id=auth.uid() and (app_private.current_session_is_active() or app_private.current_session_is_cancellation_only()));
+create policy session_self_read on app_private.active_sessions for select to authenticated using (user_id=app_public.request_user_id() and (app_private.current_session_is_active() or app_private.current_session_is_cancellation_only()));
 drop policy if exists deletion_self_read on app_private.account_deletion_requests;
-create policy deletion_self_read on app_private.account_deletion_requests for select to authenticated using (user_id=auth.uid() and (app_private.current_session_is_active() or app_private.current_session_is_cancellation_only()));
+create policy deletion_self_read on app_private.account_deletion_requests for select to authenticated using (user_id=app_public.request_user_id() and (app_private.current_session_is_active() or app_private.current_session_is_cancellation_only()));

@@ -50,7 +50,7 @@ begin
   begin v_trip:=trip_id::uuid;if stop_id is not null then v_stop:=stop_id::uuid;end if; exception when others then raise exception 'validation_failed'; end;
   if action not in ('mark_arrived','complete_stop','skip_stop','mark_observed_closed','restore_stop','complete_trip')
     or device_key_id!~'^device-key-[A-Za-z0-9_-]{43}$' or not app_private.current_session_is_active() then raise exception 'not_allowed'; end if;
-  select t.version into v_version from trip_private.trips t where t.trip_id=v_trip and t.state='active' and t.navigator_user_id=auth.uid()
+  select t.version into v_version from trip_private.trips t where t.trip_id=v_trip and t.state='active' and t.navigator_user_id=app_public.request_user_id()
     and t.navigator_device_hash=extensions.digest(convert_to(device_key_id,'utf8'),'sha256');
   if v_version is null or (action<>'complete_trip' and not exists(select 1 from trip_private.trip_stops s where s.trip_id=v_trip and s.stop_id=v_stop)) then raise exception 'not_allowed'; end if;
   return jsonb_build_object('baseVersion',v_version);

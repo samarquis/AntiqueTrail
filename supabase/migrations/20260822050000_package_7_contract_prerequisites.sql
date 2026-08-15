@@ -170,11 +170,11 @@ create policy identity_service_admin_rating_merge on review_private.rating_aggre
 create policy identity_service_admin_rating_merge_update on review_private.rating_aggregates
   for update to identity_service using(true) with check(true);
 create policy memory_merge_conflict_owner_read on shopper_private.private_memory_merge_conflicts
-  for select to authenticated using(user_id=auth.uid() and app_private.current_session_is_active());
+  for select to authenticated using(user_id=app_public.request_user_id() and app_private.current_session_is_active());
 create policy trip_merge_warning_owner_read on trip_private.trip_duplicate_stop_warnings
-  for select to authenticated using(owner_id=auth.uid() and app_private.current_session_is_active());
+  for select to authenticated using(owner_id=app_public.request_user_id() and app_private.current_session_is_active());
 create policy review_merge_conflict_owner_read on review_private.review_merge_conflicts
-  for select to authenticated using(author_id=auth.uid() and app_private.current_session_is_active());
+  for select to authenticated using(author_id=app_public.request_user_id() and app_private.current_session_is_active());
 
 create or replace function app_private.provider_user_is_confirmed(p_user_id uuid)
 returns boolean language sql stable security definer set search_path='' as $$

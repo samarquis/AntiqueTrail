@@ -276,7 +276,7 @@ $$;
 
 create or replace function review_private.require_active_actor() returns uuid
 language plpgsql stable security definer set search_path='' as $$
-declare actor uuid:=auth.uid();
+declare actor uuid:=app_public.request_user_id();
 begin
   if actor is null or not app_private.current_session_is_active() then
     raise exception using errcode='42501',message='review_authentication_required';
@@ -286,7 +286,7 @@ end $$;
 
 create or replace function review_private.require_review_admin() returns uuid
 language plpgsql stable security definer set search_path='' as $$
-declare actor uuid:=auth.uid();
+declare actor uuid:=app_public.request_user_id();
 begin
   if actor is null
     or not app_private.current_user_has_role('administrator'::app_private.app_role,null)
@@ -374,7 +374,7 @@ end $$;
 
 create or replace function app_public.reviews_get_store(p_store_id uuid) returns jsonb
 language plpgsql stable security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); aggregate jsonb; cards jsonb; own_card jsonb;
+declare actor uuid:=app_public.request_user_id(); aggregate jsonb; cards jsonb; own_card jsonb;
 begin
   if not review_private.review_stage_allowed(p_store_id)
     or (actor is null and not release_private.public_capability_enabled('reviews')) then

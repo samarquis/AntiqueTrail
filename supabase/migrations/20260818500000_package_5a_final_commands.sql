@@ -64,7 +64,7 @@ revoke all on function trip_private.email_hmac(text,text,text,integer) from publ
 create or replace function trip_private.current_verified_email_hmac(target_purpose text,target_environment text,target_version integer)
 returns bytea language sql stable security definer set search_path='' as $$
   select h.value from auth.users u cross join lateral trip_private.email_hmac(lower(btrim(u.email)),target_purpose,target_environment,target_version) h
-  where u.id=auth.uid() and u.email_confirmed_at is not null;
+  where u.id=app_public.request_user_id() and u.email_confirmed_at is not null;
 $$;
 alter function trip_private.current_verified_email_hmac(text,text,integer) owner to postgres;
 revoke all on function trip_private.current_verified_email_hmac(text,text,integer) from public,anon,authenticated;
@@ -147,8 +147,8 @@ begin
   v_hmac:=trip_private.current_verified_email_hmac(v_invite.purpose,v_invite.environment,v_invite.email_hmac_key_version);
   if v_hmac is null or v_hmac<>v_invite.recipient_email_hmac then raise exception 'not_allowed'; end if;
   if exists(select 1 from trip_private.trip_participants p where p.trip_id=v_invite.trip_id and p.participant_role='partner' and p.state='active') then raise exception 'not_allowed'; end if;
-  update trip_private.trip_invitations set state='accepted',accepted_user_id=auth.uid(),accepted_at=statement_timestamp(),version=version+1 where invitation_id=v_invite.invitation_id;
-  insert into trip_private.trip_participants(trip_id,user_id,participant_role) values(v_invite.trip_id,auth.uid(),'partner')
+  update trip_private.trip_invitations set state='accepted',accepted_user_id=app_public.request_user_id(),accepted_at=statement_timestamp(),version=version+1 where invitation_id=v_invite.invitation_id;
+  insert into trip_private.trip_participants(trip_id,user_id,participant_role) values(v_invite.trip_id,app_public.request_user_id(),'partner')
     on conflict(trip_id,user_id) do update set state='active',left_at=null,version=trip_private.trip_participants.version+1;
   return trip_private.collaboration_json(v_invite.trip_id);
 end; $$;
@@ -213,7 +213,7 @@ alter function app_public.add_rest_stop(text,text,text,text,integer,double preci
 
 create or replace function trip_private.go_actor_can_mutate(target_trip uuid)
 returns boolean language sql stable security definer set search_path='' as $$
-  select app_private.current_session_is_active() and exists(select 1 from trip_private.trips t join trip_private.trip_device_bindings b on b.trip_id=t.trip_id and b.user_id=auth.uid() and b.device_hash=t.navigator_device_hash and b.state='active' where t.trip_id=target_trip and t.state='active' and t.navigator_user_id=auth.uid());
+  select app_private.current_session_is_active() and exists(select 1 from trip_private.trips t join trip_private.trip_device_bindings b on b.trip_id=t.trip_id and b.user_id=app_public.request_user_id() and b.device_hash=t.navigator_device_hash and b.state='active' where t.trip_id=target_trip and t.state='active' and t.navigator_user_id=app_public.request_user_id());
 $$;
 alter function trip_private.go_actor_can_mutate(uuid) owner to identity_service;
 
@@ -238,7 +238,7 @@ begin
     new.departure_local_time is null or new.navigator_user_id is null or new.navigator_device_hash is null
     or not ((new.start_kind='manual' and new.private_start_label is not null) or (new.start_kind='current_location' and new.private_start_latitude is not null and new.private_start_longitude is not null))
     or not exists(select 1 from trip_private.trip_device_bindings b where b.trip_id=new.trip_id and b.user_id=new.navigator_user_id and b.device_hash=new.navigator_device_hash and b.state='active')
-    or not (auth.uid()=new.owner_id or old.navigator_user_id=auth.uid())
+    or not (app_public.request_user_id()=new.owner_id or old.navigator_user_id=app_public.request_user_id())
   ) then raise exception 'not_allowed'; end if;
   return new;
 end; $$;
@@ -292,7 +292,7 @@ begin
     or not exists(select 1 from trip_private.trips t join trip_private.trip_stops s on s.trip_id=t.trip_id
       where t.trip_id=v_trip and t.state='completed' and s.store_id=v_store and s.state in ('completed','observed_closed')) then raise exception 'validation_failed'; end if;
   insert into trip_private.trip_visit_memories(author_user_id,trip_id,store_id,rating,return_choice,note)
-    values(auth.uid(),v_trip,v_store,rating,return_choice,nullif(btrim(note),'')) on conflict(author_user_id,trip_id,store_id) do update set rating=excluded.rating,return_choice=excluded.return_choice,note=excluded.note,version=trip_private.trip_visit_memories.version+1,updated_at=statement_timestamp();
+    values(app_public.request_user_id(),v_trip,v_store,rating,return_choice,nullif(btrim(note),'')) on conflict(author_user_id,trip_id,store_id) do update set rating=excluded.rating,return_choice=excluded.return_choice,note=excluded.note,version=trip_private.trip_visit_memories.version+1,updated_at=statement_timestamp();
   return trip_private.trip_command_json(v_trip);
 end; $$;
 alter function app_public.save_trip_visit_memory(text,text,integer,text,text) owner to identity_service;
@@ -302,7 +302,7 @@ returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_trip uuid;
 begin
   begin v_trip:=trip_id::uuid; exception when others then raise exception 'validation_failed'; end;
-  if not app_private.current_session_is_active() or not exists(select 1 from trip_private.trips t join trip_private.trip_device_bindings b on b.trip_id=t.trip_id and b.user_id=auth.uid() and b.device_hash=t.navigator_device_hash and b.state='active' where t.trip_id=v_trip and t.state='ready' and t.navigator_user_id=auth.uid() and t.departure_local_time is not null and ((t.start_kind='manual' and t.private_start_label is not null) or (t.start_kind='current_location' and t.private_start_latitude is not null and t.private_start_longitude is not null))) then raise exception 'not_allowed'; end if;
+  if not app_private.current_session_is_active() or not exists(select 1 from trip_private.trips t join trip_private.trip_device_bindings b on b.trip_id=t.trip_id and b.user_id=app_public.request_user_id() and b.device_hash=t.navigator_device_hash and b.state='active' where t.trip_id=v_trip and t.state='ready' and t.navigator_user_id=app_public.request_user_id() and t.departure_local_time is not null and ((t.start_kind='manual' and t.private_start_label is not null) or (t.start_kind='current_location' and t.private_start_latitude is not null and t.private_start_longitude is not null))) then raise exception 'not_allowed'; end if;
   update trip_private.trips set state='active',version=version+1,updated_at=statement_timestamp() where trip_private.trips.trip_id=v_trip;
   return trip_private.trip_command_json(v_trip);
 end; $$;
@@ -315,10 +315,10 @@ begin
   begin v_trip:=trip_id::uuid;v_stop:=(envelope->>'stop_id')::uuid;v_base:=(envelope->>'base_version')::bigint;v_sequence:=(envelope->>'local_sequence')::bigint; exception when others then return jsonb_build_object('state','conflict','summary','The saved action is invalid.'); end;
   v_key:=envelope->>'idempotency_key';v_kind:=envelope->>'kind';v_device:=extensions.digest(convert_to(envelope->>'device_id','utf8'),'sha256');
   if v_key is null or char_length(v_key)>128 or v_kind not in ('mark_arrived','complete_stop','skip_stop','mark_observed_closed','restore_stop') or v_base<1 or v_sequence<1 then return jsonb_build_object('state','conflict','summary','The saved action is invalid.'); end if;
-  if not exists(select 1 from trip_private.trips t join trip_private.trip_device_bindings b on b.trip_id=t.trip_id and b.user_id=auth.uid() and b.device_hash=v_device and b.state='active'
-    join trip_private.trip_offline_grants g on g.trip_id=t.trip_id and g.user_id=auth.uid() and g.device_hash=v_device and g.state='active' and g.expires_at>statement_timestamp()
-    join app_private.profiles p on p.user_id=auth.uid() and p.status='active' and p.session_epoch=b.session_security_version and p.session_epoch=g.session_security_version
-    where t.trip_id=v_trip and t.state='active' and t.navigator_user_id=auth.uid() and t.navigator_device_hash=v_device) then return jsonb_build_object('state','unauthorized'); end if;
+  if not exists(select 1 from trip_private.trips t join trip_private.trip_device_bindings b on b.trip_id=t.trip_id and b.user_id=app_public.request_user_id() and b.device_hash=v_device and b.state='active'
+    join trip_private.trip_offline_grants g on g.trip_id=t.trip_id and g.user_id=app_public.request_user_id() and g.device_hash=v_device and g.state='active' and g.expires_at>statement_timestamp()
+    join app_private.profiles p on p.user_id=app_public.request_user_id() and p.status='active' and p.session_epoch=b.session_security_version and p.session_epoch=g.session_security_version
+    where t.trip_id=v_trip and t.state='active' and t.navigator_user_id=app_public.request_user_id() and t.navigator_device_hash=v_device) then return jsonb_build_object('state','unauthorized'); end if;
   select r.result_metadata into v_result from trip_private.trip_mutation_receipts r where r.trip_id=v_trip and r.idempotency_key=v_key;
   if found then return v_result; end if;
   if not exists(select 1 from trip_private.trips t where t.trip_id=v_trip and t.version=v_base) then v_result:=jsonb_build_object('state','conflict','summary','The trip changed on another device.');

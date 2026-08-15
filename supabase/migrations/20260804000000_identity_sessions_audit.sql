@@ -206,12 +206,12 @@ alter function app_private.claim_session_id() owner to identity_service;
 create or replace function app_private.current_session_is_active()
 returns boolean language sql stable security definer
 set search_path = pg_catalog, app_private, auth as $$
-  select auth.uid() is not null
+  select app_public.request_user_id() is not null
     and nullif(current_setting('request.jwt.claims', true), '') is not null
     and exists (
       select 1 from app_private.profiles p
       join app_private.active_sessions s on s.user_id=p.user_id and s.session_epoch=p.session_epoch
-      where p.user_id=auth.uid() and p.status='active' and s.state='active'
+      where p.user_id=app_public.request_user_id() and p.status='active' and s.state='active'
         and s.session_id=app_private.claim_session_id()
         and (s.access_token_expires_at is null or s.access_token_expires_at > statement_timestamp())
         and (p.sessions_revoked_before is null or s.created_at > p.sessions_revoked_before)
@@ -246,7 +246,7 @@ returns boolean language sql stable security definer
 set search_path = pg_catalog, app_private, auth as $$
   select app_private.current_session_is_active() and exists (
     select 1 from app_private.role_grants g
-    where g.subject_user_id=auth.uid() and g.role=p_role and g.state='active'
+    where g.subject_user_id=app_public.request_user_id() and g.role=p_role and g.state='active'
       and (g.store_id is not distinct from p_store_id)
   );
 $$;

@@ -54,7 +54,7 @@ select ok(position('pilot_draft_owner_fields_admin_forbidden' in pg_get_function
   'administrator cannot mutate partner draft content');
 select ok(position('pilot_draft_admin_state_forbidden' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
   'draft state transitions are actor constrained');
-select ok(position('old.statein(''submitted'',''resubmitted'')' in replace(pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure),' ',''))>0,
+select ok(position('old.statein(''submitted'',''resubmitted'')' in regexp_replace(pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure),'[[:space:]]','','g'))>0,
   'administrator decisions require a submitted or resubmitted draft');
 select ok(exists(
   select 1 from pg_policies

@@ -16,8 +16,8 @@ select throws_ok($$select app_public.public_catalog_gateway_request(repeat('0',6
 
 reset role;
 set local role public_catalog_gateway;
-select is(jsonb_array_length(app_public.public_catalog_gateway_request(repeat('0',64),'list','{}')),12,'gateway returns all twelve synthetic stores');
-select is(jsonb_array_length(app_public.public_catalog_gateway_request(repeat('1',64),'list','{"p_q":"clockwork"}')),1,'gateway applies bounded server-side search');
+select is(jsonb_array_length(app_public.public_catalog_gateway_request(repeat('0',64),'list','{}')),0,'gateway hides synthetic stores from the public catalog');
+select is(jsonb_array_length(app_public.public_catalog_gateway_request(repeat('1',64),'list','{"p_q":"clockwork"}')),0,'bounded search does not bypass the public-release gate');
 select throws_ok($$select app_public.public_catalog_gateway_request(repeat('2',64),'list',jsonb_build_object('p_q',repeat('x',101)))$$,'P0001',null,'excessive search input is rejected');
 
 reset role;

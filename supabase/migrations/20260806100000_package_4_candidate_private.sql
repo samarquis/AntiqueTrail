@@ -225,12 +225,12 @@ for each row execute function candidate_private.reject_append_only_mutation();
 create or replace function candidate_private.current_share_recipient_can_read(p_share_id uuid)
 returns boolean language sql stable security definer
 set search_path = pg_catalog,candidate_private,app_private,auth as $$
-  select auth.uid() is not null
+  select app_public.request_user_id() is not null
     and app_private.current_session_is_active()
     and exists (
       select 1 from candidate_private.candidate_shares s
       where s.share_id=p_share_id
-        and s.recipient_id=auth.uid()
+        and s.recipient_id=app_public.request_user_id()
         and s.state='pending'
         and s.expires_at>statement_timestamp()
     )
@@ -259,21 +259,21 @@ create policy identity_service_candidate_actions on candidate_private.candidate_
 create policy identity_service_trip_ideas on candidate_private.trip_ideas for all to identity_service using (true) with check (true);
 
 create policy candidate_link_owner on candidate_private.candidate_links for all to authenticated
-  using (owner_user_id=auth.uid() and app_private.current_session_is_active())
-  with check (owner_user_id=auth.uid() and app_private.current_session_is_active());
+  using (owner_user_id=app_public.request_user_id() and app_private.current_session_is_active())
+  with check (owner_user_id=app_public.request_user_id() and app_private.current_session_is_active());
 create policy candidate_share_party_read on candidate_private.candidate_shares for select to authenticated
-  using ((sender_id=auth.uid() or recipient_id=auth.uid()) and app_private.current_session_is_active());
+  using ((sender_id=app_public.request_user_id() or recipient_id=app_public.request_user_id()) and app_private.current_session_is_active());
 create policy candidate_share_sender_update on candidate_private.candidate_shares for update to authenticated
-  using (sender_id=auth.uid() and state='pending' and app_private.current_session_is_active())
-  with check (sender_id=auth.uid() and app_private.current_session_is_active());
+  using (sender_id=app_public.request_user_id() and state='pending' and app_private.current_session_is_active())
+  with check (sender_id=app_public.request_user_id() and app_private.current_session_is_active());
 create policy candidate_share_recipient_update on candidate_private.candidate_shares for update to authenticated
-  using (recipient_id=auth.uid() and state='pending' and app_private.current_session_is_active())
-  with check (recipient_id=auth.uid() and app_private.current_session_is_active());
+  using (recipient_id=app_public.request_user_id() and state='pending' and app_private.current_session_is_active())
+  with check (recipient_id=app_public.request_user_id() and app_private.current_session_is_active());
 create policy candidate_share_payload_recipient_read on candidate_private.candidate_share_payloads for select to authenticated
   using (candidate_private.current_share_recipient_can_read(share_id));
 create policy candidate_block_owner on candidate_private.candidate_blocks for all to authenticated
-  using (blocker_id=auth.uid() and app_private.current_session_is_active())
-  with check (blocker_id=auth.uid() and app_private.current_session_is_active());
+  using (blocker_id=app_public.request_user_id() and app_private.current_session_is_active())
+  with check (blocker_id=app_public.request_user_id() and app_private.current_session_is_active());
 create policy trip_idea_owner on candidate_private.trip_ideas for all to authenticated
-  using (owner_user_id=auth.uid() and app_private.current_session_is_active())
-  with check (owner_user_id=auth.uid() and app_private.current_session_is_active());
+  using (owner_user_id=app_public.request_user_id() and app_private.current_session_is_active())
+  with check (owner_user_id=app_public.request_user_id() and app_private.current_session_is_active());

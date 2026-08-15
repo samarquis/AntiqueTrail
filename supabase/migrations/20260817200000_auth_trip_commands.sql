@@ -1,5 +1,5 @@
 -- Production auth/session composition plus bounded Package 5A trip commands.
--- Browser callers never supply an actor; auth.uid() and the registered JWT session are authoritative.
+-- Browser callers never supply an actor; app_public.request_user_id() and the registered JWT session are authoritative.
 
 grant identity_service to postgres;
 grant usage on schema app_private, trip_private, app_public to identity_service;
@@ -24,7 +24,7 @@ create or replace function app_public.register_current_session(access_token_expi
 returns boolean language plpgsql security definer
 set search_path = pg_catalog, app_private, auth as $$
 declare
-  v_user_id uuid := auth.uid();
+  v_user_id uuid := app_public.request_user_id();
   v_session_id uuid := app_private.claim_session_id();
   v_epoch bigint;
   v_expires_at timestamptz;
@@ -68,12 +68,12 @@ grant create on schema app_private to identity_service;
 alter function app_private.current_session_is_active() owner to postgres;
 create or replace function app_private.current_session_is_active()
 returns boolean language sql stable security definer set search_path='' as $$
-  select auth.uid() is not null
+  select app_public.request_user_id() is not null
     and nullif(current_setting('request.jwt.claims',true),'') is not null
     and exists(
       select 1 from app_private.profiles p
       join app_private.active_sessions s on s.user_id=p.user_id and s.session_epoch=p.session_epoch
-      where p.user_id=auth.uid() and p.status='active' and s.state='active'
+      where p.user_id=app_public.request_user_id() and p.status='active' and s.state='active'
         and s.session_id=app_private.claim_session_id()
         and s.provider_created_at is not null
         and (s.access_token_expires_at is null or s.access_token_expires_at>statement_timestamp())
@@ -94,11 +94,11 @@ create or replace function app_public.revoke_current_session(reason text)
 returns boolean language plpgsql security definer
 set search_path = pg_catalog, app_private, auth as $$
 begin
-  if auth.uid() is null or app_private.claim_session_id() is null then return false; end if;
+  if app_public.request_user_id() is null or app_private.claim_session_id() is null then return false; end if;
   if reason is null or reason !~ '^[a-z][a-z0-9_]{1,63}$' then raise exception 'reason_invalid'; end if;
   update app_private.active_sessions set state='revoked', revoked_at=statement_timestamp(),
     revocation_reason=reason, version=version+1
-  where session_id=app_private.claim_session_id() and user_id=auth.uid() and state='active';
+  where session_id=app_private.claim_session_id() and user_id=app_public.request_user_id() and state='active';
   return found;
 end; $$;
 alter function app_public.revoke_current_session(text) owner to identity_service;
@@ -148,8 +148,8 @@ returns jsonb language sql stable security definer
 set search_path = pg_catalog, trip_private, app_private, auth as $$
   select case when not app_private.current_session_is_active() then '[]'::jsonb else
     coalesce(jsonb_agg(trip_private.trip_command_json(t.trip_id) order by t.local_date,t.created_at),'[]'::jsonb) end
-  from trip_private.trips t where t.owner_id=auth.uid() or exists(
-    select 1 from trip_private.trip_participants p where p.trip_id=t.trip_id and p.user_id=auth.uid() and p.state='active');
+  from trip_private.trips t where t.owner_id=app_public.request_user_id() or exists(
+    select 1 from trip_private.trip_participants p where p.trip_id=t.trip_id and p.user_id=app_public.request_user_id() and p.state='active');
 $$;
 alter function app_public.list_trips() owner to identity_service;
 
@@ -175,8 +175,8 @@ begin
   begin v_date:=local_date::date; exception when others then raise exception 'trip_date_invalid'; end;
   select id into v_area_id from app_public.catalog_areas order by sort_order,slug limit 1;
   if v_area_id is null then raise exception 'trip_area_unavailable'; end if;
-  insert into trip_private.trips(owner_id,area_id,name,local_date) values(auth.uid(),v_area_id,name,v_date) returning trip_id into v_trip_id;
-  insert into trip_private.trip_participants(trip_id,user_id,participant_role) values(v_trip_id,auth.uid(),'creator');
+  insert into trip_private.trips(owner_id,area_id,name,local_date) values(app_public.request_user_id(),v_area_id,name,v_date) returning trip_id into v_trip_id;
+  insert into trip_private.trip_participants(trip_id,user_id,participant_role) values(v_trip_id,app_public.request_user_id(),'creator');
   return trip_private.trip_command_json(v_trip_id);
 end; $$;
 alter function app_public.create_trip(text,text) owner to identity_service;
@@ -252,7 +252,7 @@ create or replace function trip_private.apply_go_stop_command(target_trip_id uui
 returns jsonb language plpgsql security definer
 set search_path = pg_catalog, trip_private, app_private, auth as $$
 begin
-  if not app_private.current_session_is_active() or not exists(select 1 from trip_private.trips t where t.trip_id=target_trip_id and t.state='active' and coalesce(t.navigator_user_id,t.owner_id)=auth.uid()) then raise exception 'authorization_lost'; end if;
+  if not app_private.current_session_is_active() or not exists(select 1 from trip_private.trips t where t.trip_id=target_trip_id and t.state='active' and coalesce(t.navigator_user_id,t.owner_id)=app_public.request_user_id()) then raise exception 'authorization_lost'; end if;
   update trip_private.trip_stops set state=target_state,
     arrived_at=case when target_state='arrived' then statement_timestamp() else arrived_at end,
     completed_at=case when target_state='completed' then statement_timestamp() else completed_at end,
@@ -280,10 +280,10 @@ begin
   if jsonb_typeof(envelope)<>'object' or v_key is null or char_length(v_key)>128 or v_kind not in ('mark_arrived','complete_stop','skip_stop') or v_base<1 or v_sequence<1 then return jsonb_build_object('state','conflict','summary','The saved action is invalid.'); end if;
   v_device_hash:=extensions.digest(envelope->>'device_id','sha256');
   if not app_private.current_session_is_active() or not exists(
-    select 1 from trip_private.trips t join trip_private.trip_device_bindings b on b.trip_id=t.trip_id and b.user_id=auth.uid() and b.state='active'
-    join trip_private.trip_offline_grants g on g.trip_id=t.trip_id and g.user_id=auth.uid() and g.device_hash=b.device_hash and g.state='active' and g.expires_at>statement_timestamp()
-    join app_private.profiles p on p.user_id=auth.uid() and p.status='active'
-    where t.trip_id=v_trip_id and t.state='active' and t.navigator_user_id=auth.uid() and b.device_hash=v_device_hash
+    select 1 from trip_private.trips t join trip_private.trip_device_bindings b on b.trip_id=t.trip_id and b.user_id=app_public.request_user_id() and b.state='active'
+    join trip_private.trip_offline_grants g on g.trip_id=t.trip_id and g.user_id=app_public.request_user_id() and g.device_hash=b.device_hash and g.state='active' and g.expires_at>statement_timestamp()
+    join app_private.profiles p on p.user_id=app_public.request_user_id() and p.status='active'
+    where t.trip_id=v_trip_id and t.state='active' and t.navigator_user_id=app_public.request_user_id() and b.device_hash=v_device_hash
       and b.session_security_version=p.session_epoch and g.session_security_version=p.session_epoch
   ) then return jsonb_build_object('state','unauthorized'); end if;
   select result_metadata into v_result from trip_private.trip_mutation_receipts where trip_private.trip_mutation_receipts.trip_id=v_trip_id and idempotency_key=v_key;
@@ -314,7 +314,7 @@ begin
     update trip_private.trips set version=version+1,updated_at=statement_timestamp() where trip_private.trips.trip_id=v_trip_id returning version into v_version;
   end if;
   insert into trip_private.check_my_day_command_evidence(trip_id,actor_user_id,choice,ordered_stop_ids,trip_version,command_hash)
-  values(v_trip_id,auth.uid(),choice,v_ids,v_version,extensions.digest(concat_ws('|',v_trip_id::text,auth.uid()::text,choice,array_to_string(v_ids,','),v_version::text),'sha256'));
+  values(v_trip_id,app_public.request_user_id(),choice,v_ids,v_version,extensions.digest(concat_ws('|',v_trip_id::text,app_public.request_user_id()::text,choice,array_to_string(v_ids,','),v_version::text),'sha256'));
   return trip_private.trip_command_json(v_trip_id);
 end; $$;
 alter function app_public.save_check_my_day_choice(text,text,text[]) owner to identity_service;
