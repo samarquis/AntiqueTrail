@@ -10,10 +10,10 @@ select ok(
   'listing claim writes have a database release gate'
 );
 select ok(
-  position(
-    'release_private.public_capability_enabled(''claims'')'
-    in pg_get_functiondef('partner_private.enforce_listing_claim_release_gate()'::regprocedure)
-  )>0,
+  position('partner_private.claim_stage_allowed(new.store_id)'
+    in pg_get_functiondef('partner_private.enforce_listing_claim_release_gate()'::regprocedure))>0
+  and position('release_private.public_capability_enabled(''claims'')'
+    in pg_get_functiondef('partner_private.claim_stage_allowed(uuid)'::regprocedure))>0,
   'claim gate derives authority from the release capability'
 );
 select ok(
@@ -30,13 +30,13 @@ insert into partner_private.listing_claims(
 )
 select '25000000-0000-4000-8000-000000000001'::uuid,id,'draft',
   'Owner','I am authorized to represent this synthetic store.'
-from app_public.stores order by id limit 1;
+from app_public.stores where synthetic order by id limit 1;
 
-select throws_ok(
-  $$update partner_private.listing_claims set state='submitted',submitted_at=statement_timestamp()
-      where claimant_id='25000000-0000-4000-8000-000000000001'$$,
-  '42501','listing_claim_release_disabled',
-  'submitted claim is denied while the release capability is disabled'
+select ok(
+  (select partner_private.claim_stage_allowed(store_id)
+    from partner_private.listing_claims
+    where claimant_id='25000000-0000-4000-8000-000000000001'),
+  'synthetic-alpha claims remain available without enabling public claims'
 );
 
 select is(

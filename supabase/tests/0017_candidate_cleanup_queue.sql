@@ -26,7 +26,7 @@ insert into candidate_private.candidate_shares(
   share_id,candidate_id,sender_id,recipient_email_hmac,expires_at
 ) values (
   '17000000-0000-4000-8000-000000000100','17000000-0000-4000-8000-000000000010',
-  '17000000-0000-4000-8000-000000000001',decode(repeat('01',32),'hex'),'2026-08-01T00:00:00Z'
+  '17000000-0000-4000-8000-000000000001',decode(repeat('01',32),'hex'),statement_timestamp()+interval '1 day'
 );
 insert into candidate_private.candidate_share_payloads(share_id,encrypted_payload)
 values ('17000000-0000-4000-8000-000000000100',decode('01','hex'));
@@ -34,13 +34,13 @@ insert into candidate_private.candidate_share_storage_objects(share_id,object_ke
 values ('17000000-0000-4000-8000-000000000100','candidate/17000000-0000-4000-8000-000000000100/preview.html');
 set local role candidate_cleanup_service;
 create temporary table expired_share_result as
-  select candidate_private.expire_candidate_shares('2026-08-03T00:00:00Z',1) expired_count;
+  select candidate_private.expire_candidate_shares(statement_timestamp()+interval '2 days',1) expired_count;
 reset role;
 
-select is((select state from candidate_private.candidate_cleanup_jobs where share_id='17000000-0000-4000-8000-000000000100'),'pending','revocation creates pending durable work');
+select is((select state from candidate_private.candidate_cleanup_jobs where share_id='17000000-0000-4000-8000-000000000100'),'pending','expiration creates pending durable work');
 select ok((select cleanup_due_at<=terminal_at+interval '24 hours' from candidate_private.candidate_cleanup_jobs where share_id='17000000-0000-4000-8000-000000000100'),'cleanup is due within 24 hours of terminal state');
 select ok(exists(select 1 from candidate_private.candidate_share_payloads where share_id='17000000-0000-4000-8000-000000000100'),'encrypted payload remains until Storage receipt');
-select is((select count(*)::integer from candidate_private.claim_candidate_cleanup(statement_timestamp(),1)),1,'worker atomically claims one due job');
+select is((select count(*)::integer from candidate_private.claim_candidate_cleanup(statement_timestamp()+interval '2 days',1)),1,'worker atomically claims one due job');
 select is((select state from candidate_private.candidate_cleanup_jobs where share_id='17000000-0000-4000-8000-000000000100'),'claimed','claim state is durable');
 
 select lives_ok(
@@ -49,7 +49,7 @@ select lives_ok(
     (select claim_token from candidate_private.candidate_cleanup_jobs where share_id='17000000-0000-4000-8000-000000000100'),
     '17000000-0000-4000-8000-000000000200','provider-delete-170',
     extensions.digest(convert_to('candidate/17000000-0000-4000-8000-000000000100/preview.html','UTF8'),'sha256'),
-    statement_timestamp())$$,
+    statement_timestamp()+interval '2 days 1 second')$$,
   'bound Storage receipt completes DB cleanup'
 );
 select ok(exists(select 1 from candidate_private.candidate_storage_deletion_receipts where share_id='17000000-0000-4000-8000-000000000100'),'service receipt is durable');

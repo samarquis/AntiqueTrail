@@ -46,7 +46,7 @@ reset role;
 select ok(not has_function_privilege('authenticated','readiness_private.begin_fact_collection(uuid)','EXECUTE')
   and not has_function_privilege('authenticated','readiness_private.freeze_authoritative_facts(uuid)','EXECUTE'),
   'browser roles cannot invoke the authoritative evidence pipeline');
-select ok(position('calculate_readiness_blockers' in lower(pg_get_functiondef('readiness_private.freeze_authoritative_facts(uuid)'::regprocedure)))>0,
+select ok(position('calculate_authoritative_blockers' in lower(pg_get_functiondef('readiness_private.freeze_authoritative_facts(uuid)'::regprocedure)))>0,
   'the database calculates blockers from authoritative frozen facts');
 
 insert into auth.users(id) values('10000000-0000-4000-8000-000000000002');

@@ -79,7 +79,9 @@ select ok(position('provider_user_is_confirmed' in lower(pg_get_functiondef('app
   'regrant verifies subject email/MFA, current authority evidence, and approved onboarding or claim state');
 select ok(position('pg_advisory_xact_lock' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'scope changes serialize per subject and exact store');
 select ok(position('admin_scope_actions' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
-  and position('privileged_audit_events' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'scope changes write narrow local and privileged audit evidence');
+  and position('record_operational_admin_event' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('privileged_audit_events' in lower(pg_get_functiondef('admin_private.record_operational_admin_event(text,uuid,uuid,bytea,text)'::regprocedure)))>0,
+  'scope changes write narrow local and privileged audit evidence');
 
 select ok(position('authorityreparented' in replace(lower(pg_get_functiondef('admin_private.merge_plan_json(uuid)'::regprocedure)),' ',''))>0
   and position('false' in lower(pg_get_functiondef('admin_private.merge_plan_json(uuid)'::regprocedure)))>0,'merge plans never reparent representative authority');

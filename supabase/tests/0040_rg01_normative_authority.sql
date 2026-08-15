@@ -7,7 +7,7 @@ select has_table('rg01_private','rg01_capability_events','RG collection capabili
 
 select col_is_unique('readiness_private','gate_signing_capabilities','token_hash','capability token hashes cannot replay');
 select col_is_unique('readiness_private','gate_signing_capabilities','challenge_id','one capability binds one RG challenge');
-select ok(position('expires_at<=created_at+''00:30:00''::interval' in regexp_replace(lower(pg_get_constraintdef(
+select ok(position('expires_at<=(created_at+''00:30:00''::interval)' in regexp_replace(lower(pg_get_constraintdef(
   (select oid from pg_constraint where conrelid='readiness_private.gate_signing_capabilities'::regclass and conname='gate_signing_capability_window'))),'[[:space:]]','','g'))>0,
   'gate capabilities expire within thirty minutes');
 

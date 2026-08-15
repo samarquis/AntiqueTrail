@@ -87,21 +87,21 @@ insert into community_private.community_evidence_receipts(
 set local role community_deployment_service;
 select lives_ok(
   $$select community_private.prepare_community(
-    '16000000-0000-4000-8000-000000000101','osage-city',1,
+    '16000000-0000-4000-8000-000000000101','osage-city',1::smallint,
     '16000000-0000-4000-8000-000000000001','16000000-0000-4000-8000-000000000002',
     1,'prepare-osage',decode(repeat('10',32),'hex'))$$,
   'verified selection and prerequisite prepare the singleton run'
 );
 select lives_ok(
   $$select community_private.prepare_community(
-    '16000000-0000-4000-8000-000000000101','osage-city',1,
+    '16000000-0000-4000-8000-000000000101','osage-city',1::smallint,
     '16000000-0000-4000-8000-000000000001','16000000-0000-4000-8000-000000000002',
     1,'prepare-osage',decode(repeat('10',32),'hex'))$$,
   'exact prepare replay succeeds despite stale expected version'
 );
 select throws_ok(
   $$select community_private.prepare_community(
-    '16000000-0000-4000-8000-000000000101','osage-city',1,
+    '16000000-0000-4000-8000-000000000101','osage-city',1::smallint,
     '16000000-0000-4000-8000-000000000001','16000000-0000-4000-8000-000000000002',
     1,'prepare-osage',decode(repeat('11',32),'hex'))$$,
   '22023','community_idempotency_mismatch','changed prepare input cannot reuse a key'

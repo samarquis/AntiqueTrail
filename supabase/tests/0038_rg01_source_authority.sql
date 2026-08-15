@@ -25,7 +25,10 @@ select ok(position('rg01_collection_disabled' in lower(pg_get_functiondef('app_p
 
 select throws_ok($$select app_public.rg01_set_own_consent(true)$$,'55000','rg01_collection_disabled','disabled RG collection rejects shopper consent before identity evaluation');
 select throws_ok($$select app_public.rg01_set_flyer_consent('37000000-0000-4000-8000-000000000001',true,decode(repeat('11',32),'hex'))$$,'55000','rg01_collection_disabled','disabled RG collection rejects flyer consent before store authority evaluation');
-select ok(not has_function_privilege('rg01_source_service','rg01_private.sync_authoritative_source_facts()','EXECUTE') and not has_function_privilege('authenticated','rg01_private.derive_source_fact(text,uuid)','EXECUTE'),'derivation and full-source sync are not callable by ingestion or browser roles');
+select ok(not has_function_privilege('rg01_source_service','rg01_private.sync_authoritative_source_facts()','EXECUTE')
+  and not has_function_privilege('authenticated','rg01_private.derive_source_fact(text,uuid)','EXECUTE')
+  and not has_function_privilege('rg01_source_service','rg01_private.derive_source_fact(text,uuid)','EXECUTE'),
+  'derivation and full-source sync are not callable by ingestion or browser roles');
 
 select * from finish();
 rollback;

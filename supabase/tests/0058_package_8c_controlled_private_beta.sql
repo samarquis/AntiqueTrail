@@ -60,15 +60,15 @@ select ok(position('count(*)=4' in replace(lower(pg_get_functiondef('beta_privat
   and position('email_confirmed_at is not null' in lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)))>0
   and position('role_grants' in lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)))>0,'Store 1 requires exactly four separate verified humans with two shopper, one Administrator, and one exact Representative role');
 select ok(position('count(*)=1' in regexp_replace(lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)),'[[:space:]]','','g'))>0
-  and position('subject_user_id=a.user_id' in regexp_replace(lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)),'[[:space:]]','','g'))>0,'each invited identity has only its one exact declared active application role');
+  and position('rg.subject_user_id=a.user_id' in regexp_replace(lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)),'[[:space:]]','','g'))>0,'each invited identity has only its one exact declared active application role');
 select ok(position('current_gate_digest' in lower(pg_get_functiondef('app_public.beta_request_gate_decision(uuid,smallint,text)'::regprocedure)))>0
   and position('current_gate_digest' in lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)))>0
   and position('frozen_payload_digest' in lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)))>0,'completion recomputes the exact server evidence packet so stale challenges fail');
 select ok((select count(*)=4 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace
   where n.nspname='beta_private' and c.relname in ('beta_evidence_events','gate_assessments','beta_defect_events','operational_fact_events')
     and not t.tgisinternal and pg_get_triggerdef(t.oid) ilike '%serialize_gate_evidence%'),'every authoritative evidence append participates in the decision lock');
-select ok(position($q$pg_advisory_xact_lock(hashtextextended('beta-gate-evidence'$q$ in regexp_replace(lower(pg_get_functiondef('app_public.beta_request_gate_decision(uuid,smallint,text)'::regprocedure)),'[[:space:]]','','g'))>0
-  and position($q$pg_advisory_xact_lock(hashtextextended('beta-gate-evidence'$q$ in regexp_replace(lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)),'[[:space:]]','','g'))>0,'freeze and completion hold the same evidence lock through challenge or receipt insertion');
+select ok(position($q$pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('beta-gate-evidence'$q$ in regexp_replace(lower(pg_get_functiondef('app_public.beta_request_gate_decision(uuid,smallint,text)'::regprocedure)),'[[:space:]]','','g'))>0
+  and position($q$pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('beta-gate-evidence'$q$ in regexp_replace(lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)),'[[:space:]]','','g'))>0,'freeze and completion hold the same evidence lock through challenge or receipt insertion');
 
 select ok(position('consumed_atisnotnull' in regexp_replace(lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)),'[[:space:]]','','g'))>0
   and position('expires_at<decision_now' in regexp_replace(lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)),'[[:space:]]','','g'))>0,'decision challenges are one-use and short-lived');
