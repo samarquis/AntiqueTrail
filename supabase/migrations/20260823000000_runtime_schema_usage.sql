@@ -29,7 +29,7 @@ grant delete on app_private.profiles,app_private.feature_restrictions,
   app_private.provider_revocation_outbox,app_private.notification_deliveries,
   app_private.account_export_jobs,app_private.active_sessions to identity_service;
 grant update on app_private.environment_stage,app_private.account_registration_config,
-  app_private.admin_bootstrap_state,app_private.account_admission_receipts to identity_service;
+  app_private.admin_bootstrap_state to identity_service;
 grant update on shopper_private.store_correction_reports to identity_service;
 grant delete on trip_private.trips,trip_private.trip_visit_memories,
   trip_private.trip_offline_grants,trip_private.trip_device_bindings,
@@ -42,10 +42,32 @@ grant delete on trip_private.trips,trip_private.trip_visit_memories,
 grant select,delete on candidate_private.candidate_share_delivery_jobs to identity_service;
 create policy identity_lifecycle_candidate_delivery_delete
   on candidate_private.candidate_share_delivery_jobs for delete to identity_service using(true);
-grant select,update on rg01_private.rg01_product_owner_grants to identity_service;
-create policy identity_lifecycle_rg01_owner_revoke
-  on rg01_private.rg01_product_owner_grants for update to identity_service
-  using(true) with check(state='revoked');
+create or replace function app_private.purge_account_internal_bindings(p_user_id uuid)
+returns void language plpgsql security definer set search_path='' as $$
+begin
+  update rg01_private.rg01_product_owner_grants
+    set state='revoked',revoked_at=coalesce(revoked_at,statement_timestamp()),version=version+1
+    where user_id=p_user_id and state='active';
+  update app_private.account_admission_receipts set provider_user_id=null
+    where provider_user_id=p_user_id;
+end; $$;
+revoke all on function app_private.purge_account_internal_bindings(uuid)
+  from public,anon,authenticated,service_role;
+grant execute on function app_private.purge_account_internal_bindings(uuid) to identity_service;
+
+create or replace function app_private.terminalize_registration_admission(
+  p_admission_id uuid,p_provider_user_id uuid
+) returns void language sql security definer set search_path='' as $$
+  update app_private.account_admission_receipts
+    set state='completed_terminal_cleanup',provider_user_id=null,
+        updated_at=statement_timestamp(),version=version+1
+    where state in ('cleanup_pending','orphan_quarantined')
+      and (provider_user_id=p_provider_user_id or admission_id=p_admission_id)
+$$;
+revoke all on function app_private.terminalize_registration_admission(uuid,uuid)
+  from public,anon,authenticated,service_role;
+grant execute on function app_private.terminalize_registration_admission(uuid,uuid)
+  to identity_service;
 
 -- Deleting the provider row clears account_admission_receipts.provider_user_id via
 -- its foreign key. Retain the ticket's admission binding when terminalizing.
@@ -65,11 +87,7 @@ begin
     update app_private.registration_cleanup_tickets
       set state='completed_absent',last_outcome='absent',updated_at=statement_timestamp()
       where cleanup_ticket_id=p_cleanup_ticket_id and provider_user_id=p_provider_user_id;
-    update app_private.account_admission_receipts
-      set state='completed_terminal_cleanup',provider_user_id=null,
-          updated_at=statement_timestamp(),version=version+1
-      where state in ('cleanup_pending','orphan_quarantined')
-        and (provider_user_id=p_provider_user_id or admission_id=ticket.asserted_admission_id);
+    perform app_private.terminalize_registration_admission(ticket.asserted_admission_id,p_provider_user_id);
     update app_private.registration_quarantine_subjects
       set resolved_absent_at=statement_timestamp() where provider_user_id=p_provider_user_id;
     return jsonb_build_object('state','completed_terminal_cleanup');

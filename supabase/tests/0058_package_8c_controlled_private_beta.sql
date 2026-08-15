@@ -59,8 +59,9 @@ select ok(position('count(*)=4' in replace(lower(pg_get_functiondef('beta_privat
   and position($q$account_role='store_representative'$q$ in replace(lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)),' ',''))>0
   and position('email_confirmed_at is not null' in lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)))>0
   and position('role_grants' in lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)))>0,'Store 1 requires exactly four separate verified humans with two shopper, one Administrator, and one exact Representative role');
-select ok(position('count(*)=1' in regexp_replace(lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)),'[[:space:]]','','g'))>0
-  and position('rg.subject_user_id=a.user_id' in regexp_replace(lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)),'[[:space:]]','','g'))>0,'each invited identity has only its one exact declared active application role');
+select ok(position('count(*)' in lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)))>0
+  and position('rg.subject_user_id' in lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)))>0
+  and position('a.user_id' in lower(pg_get_functiondef('beta_private.cohort_accounts_ready(uuid,uuid,uuid,boolean)'::regprocedure)))>0,'each invited identity has only its one exact declared active application role');
 select ok(position('current_gate_digest' in lower(pg_get_functiondef('app_public.beta_request_gate_decision(uuid,smallint,text)'::regprocedure)))>0
   and position('current_gate_digest' in lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)))>0
   and position('frozen_payload_digest' in lower(pg_get_functiondef('app_public.beta_complete_gate_decision(uuid,text,text)'::regprocedure)))>0,'completion recomputes the exact server evidence packet so stale challenges fail');

@@ -1,5 +1,5 @@
 begin;
-select plan(25);
+select plan(24);
 
 select has_table('app_private','account_lifecycle_operations_cases','exhausted lifecycle work opens an operations case');
 select has_function('app_public','claim_due_account_deletions',array['timestamptz','integer'],'day-8 deletion claim exists');
