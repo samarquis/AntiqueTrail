@@ -2,6 +2,7 @@
 -- exclusions, subject linkage, signature material, or geography activation.
 
 grant rg01_automation to postgres;
+grant identity_service to postgres;
 grant create on schema app_public to rg01_automation;
 grant create on schema rg01_private to rg01_automation;
 
@@ -111,11 +112,17 @@ grant execute on function app_public.rg01_execute_calculation(text,jsonb) to rg0
 
 create or replace function app_public.rg01_request_decision_challenge(p_run_id uuid,p_decision text,p_idempotency_key uuid)
 returns jsonb language plpgsql security definer set search_path='' as $$
-declare r rg01_private.rg01_runs%rowtype; c rg01_private.rg01_signing_challenges%rowtype; uid uuid:=app_public.request_user_id(); exp timestamptz:=statement_timestamp()+interval '30 minutes'; n bytea:=extensions.gen_random_bytes(32); request_hash bytea;
+declare r rg01_private.rg01_runs%rowtype; c rg01_private.rg01_signing_challenges%rowtype;
+  g readiness_private.evidence_responsibility_grants%rowtype;
+  uid uuid:=app_public.request_user_id(); exp timestamptz:=statement_timestamp()+interval '30 minutes';
+  n bytea:=extensions.gen_random_bytes(32); request_hash bytea;
 begin
   if uid is null or p_decision not in ('pass','reject') or p_idempotency_key is null
     or not app_private.current_session_has_mfa() or not app_private.current_session_recent_auth(interval '15 minutes')
-    or not exists(select 1 from rg01_private.rg01_product_owner_grants where user_id=uid and state='active') then raise exception using errcode='42501',message='rg01_product_owner_required'; end if;
+  then raise exception using errcode='42501',message='rg01_product_owner_required'; end if;
+  select * into g from readiness_private.evidence_responsibility_grants
+    where user_id=uid and responsibility='ProductOwner' and state='active';
+  if not found then raise exception using errcode='42501',message='rg01_product_owner_required'; end if;
   request_hash:=extensions.digest(convert_to(concat_ws('|',p_run_id,uid,p_decision),'utf8'),'sha256');
   select * into c from rg01_private.rg01_signing_challenges where idempotency_key=p_idempotency_key;
   if found then
@@ -123,14 +130,22 @@ begin
     return jsonb_build_object('challengeId',c.challenge_id,'payloadDigest',encode(c.payload_digest,'hex'),'expiresAt',c.expires_at,'state',case when c.consumed_at is null then 'pending' else 'consumed' end);
   end if;
   select * into r from rg01_private.rg01_runs where run_id=p_run_id for update;
-  if not found or r.state<>'frozen' or r.source_head_digest<>rg01_private.source_head_digest() or (p_decision='pass' and cardinality(r.blockers)>0) then raise exception using errcode='55000',message='rg01_decision_blocked'; end if;
-  delete from rg01_private.rg01_signing_challenges where run_id=p_run_id and signer_user_id=uid and consumed_at is null and expires_at<=statement_timestamp();
+  if not found or r.state<>'frozen' or r.release_id<>g.release_id
+    or r.source_head_digest<>rg01_private.source_head_digest()
+    or (p_decision='pass' and cardinality(r.blockers)>0) then
+    raise exception using errcode='55000',message='rg01_decision_blocked'; end if;
+  update readiness_private.gate_signing_capabilities set state='expired'
+    where user_id=uid and gate_kind='rg01' and state='issued' and expires_at<=statement_timestamp();
+  update rg01_private.rg01_signing_challenges set consumed_at=statement_timestamp()
+    where run_id=p_run_id and signer_user_id=uid and consumed_at is null and expires_at<=statement_timestamp();
   insert into rg01_private.rg01_signing_challenges(run_id,signer_user_id,frozen_digest,decision,failed_codes,nonce,payload_digest,expires_at,idempotency_key,request_digest)
     values(p_run_id,uid,r.manifest_digest,p_decision,r.blockers,n,extensions.digest(convert_to(concat_ws('|',p_run_id,encode(r.manifest_digest,'hex'),uid,p_decision,array_to_string(r.blockers,','),encode(n,'hex'),exp),'utf8'),'sha256'),exp,p_idempotency_key,request_hash) returning * into c;
+  insert into readiness_private.gate_signing_capabilities(token_hash,challenge_id,user_id,responsibility,gate_kind,frozen_digest,grant_id,grant_version,expires_at)
+    values(extensions.digest(convert_to(c.challenge_id::text||'|'||encode(n,'hex'),'utf8'),'sha256'),c.challenge_id,uid,'ProductOwner','rg01',r.manifest_digest,g.grant_id,g.version,exp);
   return jsonb_build_object('challengeId',c.challenge_id,'payloadDigest',encode(c.payload_digest,'hex'),'expiresAt',c.expires_at,'state','pending');
 end $$;
-alter function app_public.rg01_request_decision_challenge(uuid,text,uuid) owner to postgres;
-revoke all on function app_public.rg01_request_decision_challenge(uuid,text) from authenticated;
+alter function app_public.rg01_request_decision_challenge(uuid,text,uuid) owner to identity_service;
+revoke all on function app_public.rg01_request_decision_challenge(uuid,text) from public,anon,authenticated,service_role;
 revoke all on function app_public.rg01_request_decision_challenge(uuid,text,uuid) from public,anon;
 grant execute on function app_public.rg01_request_decision_challenge(uuid,text,uuid) to authenticated;
 
@@ -196,4 +211,4 @@ grant execute on function app_public.rg01_lifecycle_watchdog(timestamptz) to rg0
 
 revoke create on schema app_public from rg01_automation;
 revoke create on schema rg01_private from rg01_automation;
-revoke rg01_automation from postgres;
+revoke rg01_automation,identity_service from postgres;

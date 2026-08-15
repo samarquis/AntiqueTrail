@@ -197,6 +197,8 @@ $$;
 alter function app_public.candidate_reserve_operation(text,bytea,bytea) owner to identity_service;
 alter function app_public.candidate_release_operation(uuid) owner to identity_service;
 alter function app_public.candidate_list_blocked_senders() owner to identity_service;
+revoke execute on function app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text)
+  from public,anon,authenticated,service_role;
 alter function app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text) owner to identity_service;
 revoke all on function app_public.candidate_reserve_operation(text,bytea,bytea),
   app_public.candidate_release_operation(uuid),app_public.candidate_list_blocked_senders()
