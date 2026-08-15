@@ -4,6 +4,7 @@
 grant rg01_automation to postgres;
 grant identity_service to postgres;
 grant create on schema app_public to rg01_automation;
+grant create on schema app_public to identity_service;
 grant create on schema rg01_private to rg01_automation;
 
 alter table rg01_private.rg01_signing_challenges
@@ -210,5 +211,6 @@ revoke all on function app_public.rg01_lifecycle_watchdog(timestamptz) from publ
 grant execute on function app_public.rg01_lifecycle_watchdog(timestamptz) to rg01_lifecycle_service;
 
 revoke create on schema app_public from rg01_automation;
+revoke create on schema app_public from identity_service;
 revoke create on schema rg01_private from rg01_automation;
 revoke rg01_automation,identity_service from postgres;
