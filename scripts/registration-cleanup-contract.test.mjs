@@ -3,29 +3,30 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { URL } from 'node:url'
 
-const [workflow, ci, worker, migration, runtimeSchemaUsage, requestClaimHelpers] = await Promise.all([
-  readFile(new URL('../.github/workflows/registration-cleanup.yml', import.meta.url), 'utf8'),
-  readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
-  readFile(
-    new URL('../supabase/functions/account-registration-cleanup/index.ts', import.meta.url),
-    'utf8',
-  ),
-  readFile(
-    new URL(
-      '../supabase/migrations/20260806084500_authoritative_account_registration.sql',
-      import.meta.url,
+const [workflow, ci, worker, migration, runtimeSchemaUsage, requestClaimHelpers] =
+  await Promise.all([
+    readFile(new URL('../.github/workflows/registration-cleanup.yml', import.meta.url), 'utf8'),
+    readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
+    readFile(
+      new URL('../supabase/functions/account-registration-cleanup/index.ts', import.meta.url),
+      'utf8',
     ),
-    'utf8',
-  ),
-  readFile(
-    new URL('../supabase/migrations/20260823000000_runtime_schema_usage.sql', import.meta.url),
-    'utf8',
-  ),
-  readFile(
-    new URL('../supabase/migrations/20260803500000_request_claim_helpers.sql', import.meta.url),
-    'utf8',
-  ),
-])
+    readFile(
+      new URL(
+        '../supabase/migrations/20260806084500_authoritative_account_registration.sql',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(
+      new URL('../supabase/migrations/20260823000000_runtime_schema_usage.sql', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../supabase/migrations/20260803500000_request_claim_helpers.sql', import.meta.url),
+      'utf8',
+    ),
+  ])
 
 test('database pipelines preserve reset and pgTAP failure status', () => {
   assert.equal((ci.match(/set -o pipefail/gu) ?? []).length, 2)

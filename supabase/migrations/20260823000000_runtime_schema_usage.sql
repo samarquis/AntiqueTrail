@@ -18,7 +18,6 @@ begin
   );
   return new;
 end; $$;
-alter function app_private.hash_privileged_audit_event() owner to identity_service;
 
 -- Trigger records expose different identity fields. Branch before referencing a
 -- field so PostgreSQL never binds a column absent from the current trigger row.
@@ -40,7 +39,6 @@ begin
     then raise exception using errcode='42501',message='partner_material_reconsent_required'; end if;
   return new;
 end $$;
-alter function partner_private.guard_current_partner_consent() owner to identity_service;
 revoke all on function partner_private.guard_current_partner_consent() from public,anon,authenticated;
 
 -- The lifecycle worker deletes expired receipts after copying their tombstones.
