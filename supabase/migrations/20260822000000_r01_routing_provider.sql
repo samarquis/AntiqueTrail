@@ -308,7 +308,7 @@ begin
   elsif exists(select 1 from trip_private.trip_stops s left join app_public.stores st on st.id=s.store_id where s.trip_id=v_trip and ((s.kind='store' and st.latitude is null) or (s.kind='rest' and s.rest_latitude is null))) then v_reason:='coordinates_required';
   elsif v_contract is null or not routing_private.capability_open() then v_reason:='r01_blocked'; end if;
   insert into trip_private.check_my_day_requests(trip_id,actor_user_id,trip_version,facts,facts_hash,state,block_reason,contract_receipt_id)
-    values(v_trip,auth.uid(),v_version,v_facts,extensions.digest(convert_to(v_facts::text,'utf8'),'sha256'),case when v_reason is null then 'ready' else 'blocked' end,v_reason,case when v_reason is null then v_contract else null end)
+    values(v_trip,app_public.request_user_id(),v_version,v_facts,extensions.digest(convert_to(v_facts::text,'utf8'),'sha256'),case when v_reason is null then 'ready' else 'blocked' end,v_reason,case when v_reason is null then v_contract else null end)
     returning request_id into v_request;
   return jsonb_build_object('requestId',v_request::text,'state',case when v_reason is null then 'ready' else 'blocked' end,'reason',v_reason);
 end $$;

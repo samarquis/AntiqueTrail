@@ -33,7 +33,7 @@ begin
     if password_epoch is null
       or to_timestamp(password_epoch)<statement_timestamp()-interval '10 minutes'
       or to_timestamp(password_epoch)>statement_timestamp()+interval '1 minute' then return false; end if;
-    enrolled:=app_private.provider_user_has_verified_mfa(auth.uid());
+    enrolled:=app_private.provider_user_has_verified_mfa(app_public.request_user_id());
     if not enrolled then return true; end if;
     select max((entry->>'timestamp')::numeric) into mfa_epoch
       from jsonb_array_elements(coalesce(claims->'amr','[]'::jsonb)) entry
@@ -50,7 +50,7 @@ revoke all on function app_private.current_session_has_privacy_reauth() from pub
 
 create or replace function app_public.request_account_export()
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); job app_private.account_export_jobs%rowtype;
+declare actor uuid:=app_public.request_user_id(); job app_private.account_export_jobs%rowtype;
 begin
   if actor is null or not app_private.current_session_has_privacy_reauth() then
     raise exception using errcode='42501',message='privacy_reauthentication_required';
@@ -71,7 +71,7 @@ returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare job app_private.account_export_jobs%rowtype;
 begin
   if not app_private.current_session_is_active() then raise exception using errcode='42501',message='account_lifecycle_denied'; end if;
-  select * into job from app_private.account_export_jobs where export_job_id=p_job_id and user_id=auth.uid();
+  select * into job from app_private.account_export_jobs where export_job_id=p_job_id and user_id=app_public.request_user_id();
   if not found then raise exception using errcode='P0002',message='account_export_unavailable'; end if;
   return jsonb_build_object('id',job.export_job_id,'state',job.state,'createdAt',job.requested_at,
     'expiresAt',job.expires_at,'generatedAt',job.completed_at,'fileSizeBytes',job.archive_bytes,
@@ -80,7 +80,7 @@ end $$;
 
 create or replace function app_public.issue_account_export_download(p_job_id uuid)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); job app_private.account_export_jobs%rowtype; handoff app_private.account_export_download_handoffs%rowtype;
+declare actor uuid:=app_public.request_user_id(); job app_private.account_export_jobs%rowtype; handoff app_private.account_export_download_handoffs%rowtype;
 begin
   if actor is null or not app_private.current_session_has_privacy_reauth() then
     raise exception using errcode='42501',message='privacy_reauthentication_required';
@@ -97,7 +97,7 @@ end $$;
 
 create or replace function app_public.request_account_deletion()
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); deletion app_private.account_deletion_requests%rowtype;
+declare actor uuid:=app_public.request_user_id(); deletion app_private.account_deletion_requests%rowtype;
 begin
   if actor is null or not app_private.current_session_has_privacy_reauth() then
     raise exception using errcode='42501',message='privacy_reauthentication_required';
@@ -118,7 +118,7 @@ end $$;
 
 create or replace function app_public.cancel_account_deletion()
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); session_id uuid:=app_private.claim_session_id(); deletion app_private.account_deletion_requests%rowtype;
+declare actor uuid:=app_public.request_user_id(); session_id uuid:=app_private.claim_session_id(); deletion app_private.account_deletion_requests%rowtype;
 begin
   if actor is null or not app_private.current_session_is_cancellation_only() then
     raise exception using errcode='42501',message='account_lifecycle_denied';

@@ -44,7 +44,7 @@ select ok(exists(
     and tgrelid='partner_private.pilot_store_drafts'::regclass
 ),'pilot draft write guard is installed');
 select ok((select p.prosecdef from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='partner_private' and p.proname='pilot_draft_belongs_to_user'),'owner lookup is a narrowly scoped security-definer helper');
-select ok(position('p_user_id=auth.uid()' in pg_get_functiondef('partner_private.pilot_draft_belongs_to_user(uuid,uuid)'::regprocedure))>0,
+select ok(position('p_user_id=app_public.request_user_id()' in pg_get_functiondef('partner_private.pilot_draft_belongs_to_user(uuid,uuid)'::regprocedure))>0,
   'owner lookup cannot query an arbitrary user binding');
 select ok(position('pilot_draft_review_fields_owner_forbidden' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
   'partner cannot mutate reviewer evidence');
@@ -54,7 +54,7 @@ select ok(position('pilot_draft_owner_fields_admin_forbidden' in pg_get_function
   'administrator cannot mutate partner draft content');
 select ok(position('pilot_draft_admin_state_forbidden' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
   'draft state transitions are actor constrained');
-select ok(position('old.state in (''submitted'',''resubmitted'')' in pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure))>0,
+select ok(position('old.statenotin(''submitted'',''resubmitted'')' in regexp_replace(pg_get_functiondef('partner_private.enforce_pilot_store_draft_write()'::regprocedure),'[[:space:]]','','g'))>0,
   'administrator decisions require a submitted or resubmitted draft');
 select ok(exists(
   select 1 from pg_policies
@@ -77,7 +77,7 @@ select ok(exists(
   where schemaname='partner_private' and tablename='pilot_store_drafts'
     and policyname='pilot_draft_assigned_admin_update'
     and coalesce(with_check,'') like '%changes_requested%approved%rejected%'
-    and coalesce(with_check,'') like '%reviewed_by%auth.uid%'
+    and coalesce(with_check,'') like '%reviewed_by%request_user_id%'
 ),'administrator update policy requires review state and actor');
 select ok(not exists(
   select 1 from information_schema.role_table_grants

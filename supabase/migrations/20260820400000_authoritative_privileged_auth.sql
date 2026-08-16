@@ -42,7 +42,7 @@ returns boolean language plpgsql stable security definer set search_path='' as $
 declare claims jsonb;
 begin
   if not app_private.current_session_is_active()
-    or not app_private.provider_user_has_verified_mfa(auth.uid()) then return false; end if;
+    or not app_private.provider_user_has_verified_mfa(app_public.request_user_id()) then return false; end if;
   begin
     claims:=nullif(current_setting('request.jwt.claims',true),'')::jsonb;
     return claims->>'aal'='aal2' and exists(
@@ -59,7 +59,7 @@ alter function app_private.current_session_has_mfa() owner to identity_service;
 create or replace function app_public.register_current_session(access_token_expires_at bigint)
 returns boolean language plpgsql security definer set search_path='' as $$
 declare
-  actor uuid:=auth.uid(); session_id uuid:=app_private.claim_session_id();
+  actor uuid:=app_public.request_user_id(); session_id uuid:=app_private.claim_session_id();
   epoch bigint; expires_at timestamptz; provider_created timestamptz; revoked_before timestamptz;
 begin
   if actor is null or session_id is null then raise exception 'authentication_required'; end if;

@@ -19,7 +19,7 @@ select has_table('rg01_private','rg01_receipt_supersessions','supersession chain
 select has_table('rg01_private','rg01_purge_receipts','three-year content-free purge receipts exist');
 
 select is((select collection_enabled from rg01_private.rg01_capability where singleton_id=1),false,'RG-01 collection defaults off');
-select is((select count(*)::integer from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='rg01_private' and c.relkind='r' and c.relforcerowsecurity),15,'every RG-01 persistence table forces RLS');
+select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='rg01_private' and c.relkind='r' and not c.relforcerowsecurity),'every RG-01 persistence table forces RLS');
 select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_roles where rolname='rg01_automation'),'automation owner is constrained');
 select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_roles where rolname='rg01_source_service'),'source service is constrained');
 select ok(not has_schema_privilege('rg01_automation','rg01_private','CREATE'),'automation cannot create objects after migration');
@@ -42,11 +42,11 @@ select ok(exists(select 1 from pg_trigger where tgname='rg01_run_guard' and not 
 select ok(exists(select 1 from pg_trigger where tgname='rg01_run_subject_guard' and not tgisinternal),'receipt-local labels survive linkage purge without mutation');
 select ok(exists(select 1 from pg_indexes where schemaname='rg01_private' and indexname='rg01_one_live_calculation'),'only one calculation can collect or await disposition');
 select ok(position('row_number() over(partition by s.dedup_hmac order by f.occurred_at,f.authoritative_source_id)' in lower(pg_get_functiondef('rg01_private.freeze_run(uuid)'::regprocedure)))>0,'trip order is authoritative and deterministic');
-select ok(position("calendar_date>prior_date" in lower(pg_get_functiondef('rg01_private.freeze_run(uuid)'::regprocedure)))>0,'second trip requires a later calendar date');
+select ok(position($q$calendar_date>prior_date$q$ in lower(pg_get_functiondef('rg01_private.freeze_run(uuid)'::regprocedure)))>0,'second trip requires a later calendar date');
 select ok(position('10*p_support>10*p_active+p_trips' in lower(pg_get_functiondef('rg01_private.calculate_blockers(bigint,bigint,bigint,bigint,bigint,bigint,bigint,bigint)'::regprocedure)))>0,'support threshold uses exact integer arithmetic');
-select ok(position("claim_attempt" in lower(pg_get_functiondef('rg01_private.freeze_run(uuid)'::regprocedure)))>0 and position("claim_approved" in lower(pg_get_functiondef('rg01_private.freeze_run(uuid)'::regprocedure)))>0,'claim conversion inputs are reported separately from blockers');
-select ok(position("p_decision='pass' and cardinality(r.blockers)>0" in lower(pg_get_functiondef('app_public.rg01_request_decision_challenge(uuid,text)'::regprocedure)))>0,'failed predicates cannot request a PASS challenge');
-select ok(position('rg01_product_owner_grants' in lower(pg_get_functiondef('app_public.rg01_request_decision_challenge(uuid,text)'::regprocedure)))>0 and position('current_session_has_mfa' in lower(pg_get_functiondef('app_public.rg01_request_decision_challenge(uuid,text)'::regprocedure)))>0,'ProductOwner responsibility plus MFA and recent auth are required');
+select ok(position($q$claim_attempt$q$ in lower(pg_get_functiondef('rg01_private.freeze_run(uuid)'::regprocedure)))>0 and position($q$claim_approved$q$ in lower(pg_get_functiondef('rg01_private.freeze_run(uuid)'::regprocedure)))>0,'claim conversion inputs are reported separately from blockers');
+select ok(position($q$p_decision='pass' and cardinality(r.blockers)>0$q$ in lower(pg_get_functiondef('app_public.rg01_request_decision_challenge(uuid,text,uuid)'::regprocedure)))>0,'failed predicates cannot request a PASS challenge');
+select ok(position('evidence_responsibility_grants' in lower(pg_get_functiondef('app_public.rg01_request_decision_challenge(uuid,text,uuid)'::regprocedure)))>0 and position('current_session_has_mfa' in lower(pg_get_functiondef('app_public.rg01_request_decision_challenge(uuid,text,uuid)'::regprocedure)))>0,'ProductOwner responsibility plus MFA and recent auth are required');
 select ok(position('source_head_digest=rg01_private.source_head_digest()' in lower(pg_get_functiondef('rg01_private.receipt_is_current_pass(uuid)'::regprocedure)))>0,'later source changes invalidate a stale receipt');
 select ok(position('rg01_receipt_supersessions' in lower(pg_get_functiondef('rg01_private.receipt_is_current_pass(uuid)'::regprocedure)))>0,'superseded receipts are never current');
 select ok(position('receipt_is_current_pass' in lower(pg_get_functiondef('community_private.require_current_rg01(uuid)'::regprocedure)))>0,'Package 12 consumes only current authoritative PASS receipts');
@@ -56,7 +56,10 @@ select is(rg01_private.calculate_blockers(25,9,3,3,3,0,6,35),array['second_trip_
 select is(rg01_private.calculate_blockers(25,10,3,3,3,0,7,35),array['support_load_exceeded']::text[],'one support case beyond the exact integer boundary fails');
 
 insert into release_private.regional_releases(release_id,region_key,artifact_digest,catalog_digest,prerequisite_receipt_digest,state,step_ordinal,signed_release_receipt)
-values('32000000-0000-4000-8000-000000000001','topeka-ks','sha256:'||repeat('1',64),'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),'active',9,'signed-release');
+values('32000000-0000-4000-8000-000000000001','topeka-ks','sha256:'||repeat('1',64),'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),'active',9,'32000000-0000-4000-8000-000000000009');
+insert into release_private.release_evidence_receipts(receipt_id,release_id,step,artifact_digest,catalog_digest,prerequisite_receipt_digest,payload_digest,external_verified)
+values('32000000-0000-4000-8000-000000000009','32000000-0000-4000-8000-000000000001','signed_release_receipt',
+  'sha256:'||repeat('1',64),'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),decode(repeat('09',32),'hex'),true);
 insert into release_private.release_capabilities(release_id,public_catalog,public_claims,public_reviews,public_registration,product_promotion)
 values('32000000-0000-4000-8000-000000000001',true,true,true,true,true);
 

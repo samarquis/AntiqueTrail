@@ -12,9 +12,14 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1',
+    // The browser contract suite uses deterministic review identities and
+    // state fixtures. Start Vite in review mode so those fixtures are present
+    // in CI as well as local runs.
+    command: 'npm run dev:review -- --host 127.0.0.1',
     url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !process.env.CI,
+    // Never reuse a server started in normal mode; review fixtures must match
+    // the command above for deterministic local and CI runs.
+    reuseExistingServer: false,
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

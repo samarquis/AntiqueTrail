@@ -278,23 +278,23 @@ create policy identity_service_claim_events on partner_private.claim_events for 
 
 -- Application roles receive no table grants. These policies document the exact future RPC scopes.
 create policy pending_identity_bound_read on partner_private.pending_partner_identities for select to authenticated
-  using (auth_user_id=auth.uid() and app_private.current_session_is_active());
+  using (auth_user_id=app_public.request_user_id() and app_private.current_session_is_active());
 create policy provisional_consent_bound_read on partner_private.provisional_partner_consents for select to authenticated
-  using (exists(select 1 from partner_private.pending_partner_identities p where p.pending_identity_id=provisional_partner_consents.pending_identity_id and p.auth_user_id=auth.uid()) and app_private.current_session_is_active());
+  using (exists(select 1 from partner_private.pending_partner_identities p where p.pending_identity_id=provisional_partner_consents.pending_identity_id and p.auth_user_id=app_public.request_user_id()) and app_private.current_session_is_active());
 create policy consent_receipt_bound_read on partner_private.pilot_consent_receipts for select to authenticated
-  using (auth_user_id=auth.uid() and app_private.current_session_is_active());
+  using (auth_user_id=app_public.request_user_id() and app_private.current_session_is_active());
 create policy pilot_draft_bound_owner on partner_private.pilot_store_drafts for all to authenticated
-  using (exists(select 1 from partner_private.pending_partner_identities p where p.pending_identity_id=pilot_store_drafts.pending_identity_id and p.auth_user_id=auth.uid()) and app_private.current_session_is_active())
-  with check (exists(select 1 from partner_private.pending_partner_identities p where p.pending_identity_id=pilot_store_drafts.pending_identity_id and p.auth_user_id=auth.uid()) and app_private.current_session_is_active());
+  using (exists(select 1 from partner_private.pending_partner_identities p where p.pending_identity_id=pilot_store_drafts.pending_identity_id and p.auth_user_id=app_public.request_user_id()) and app_private.current_session_is_active())
+  with check (exists(select 1 from partner_private.pending_partner_identities p where p.pending_identity_id=pilot_store_drafts.pending_identity_id and p.auth_user_id=app_public.request_user_id()) and app_private.current_session_is_active());
 create policy listing_claim_claimant_read on partner_private.listing_claims for select to authenticated
-  using (claimant_id=auth.uid() and app_private.current_session_is_active());
+  using (claimant_id=app_public.request_user_id() and app_private.current_session_is_active());
 create policy listing_claim_claimant_write on partner_private.listing_claims for insert to authenticated
-  with check (claimant_id=auth.uid() and app_private.current_session_is_active());
+  with check (claimant_id=app_public.request_user_id() and app_private.current_session_is_active());
 create policy claim_signal_claimant_read on partner_private.claim_authority_signals for select to authenticated
-  using (exists(select 1 from partner_private.listing_claims c where c.claim_id=claim_authority_signals.claim_id and c.claimant_id=auth.uid()) and app_private.current_session_is_active());
+  using (exists(select 1 from partner_private.listing_claims c where c.claim_id=claim_authority_signals.claim_id and c.claimant_id=app_public.request_user_id()) and app_private.current_session_is_active());
 create policy claim_conflict_claimant_read on partner_private.claim_conflicts for select to authenticated
-  using (exists(select 1 from partner_private.listing_claims c where c.claim_id=claim_conflicts.claim_id and c.claimant_id=auth.uid()) and app_private.current_session_is_active());
+  using (exists(select 1 from partner_private.listing_claims c where c.claim_id=claim_conflicts.claim_id and c.claimant_id=app_public.request_user_id()) and app_private.current_session_is_active());
 create policy partner_grant_exact_owner_read on partner_private.store_partner_grants for select to authenticated
-  using (auth_user_id=auth.uid() and app_private.current_session_is_active());
+  using (auth_user_id=app_public.request_user_id() and app_private.current_session_is_active());
 create policy partnership_exact_owner_read on partner_private.store_partnerships for select to authenticated
-  using (auth_user_id=auth.uid() and app_private.current_session_is_active());
+  using (auth_user_id=app_public.request_user_id() and app_private.current_session_is_active());

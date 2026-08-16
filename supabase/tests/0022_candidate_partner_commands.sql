@@ -16,8 +16,8 @@ select ok((select prosecdef from pg_proc p join pg_namespace n on n.oid=p.pronam
 select ok((select prosecdef from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public' and p.proname='partner_safe_command'),'partner command is security definer');
 select ok((select proconfig @> array['search_path=""'] from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public' and p.proname='candidate_save_candidate'),'candidate command fixes search path');
 select ok((select proconfig @> array['search_path=""'] from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public' and p.proname='partner_safe_command'),'partner command fixes search path');
-select ok(position('auth.uid()' in pg_get_functiondef('app_public.candidate_save_candidate(jsonb)'::regprocedure))>0,'candidate actor is session derived');
-select ok(position('auth.uid()' in pg_get_functiondef('app_public.partner_safe_command(text,jsonb)'::regprocedure))>0,'partner actor is session derived');
+select ok(position('app_public.request_user_id()' in pg_get_functiondef('app_public.candidate_save_candidate(jsonb)'::regprocedure))>0,'candidate actor is session derived');
+select ok(position('app_public.request_user_id()' in pg_get_functiondef('app_public.partner_safe_command(text,jsonb)'::regprocedure))>0,'partner actor is session derived');
 select ok(position('submit_authority_signal' in pg_get_functiondef('app_public.partner_safe_command(text,jsonb)'::regprocedure))=0,'provider authority signals are excluded from safe RPC');
 select ok(position('exchange_invitation' in pg_get_functiondef('app_public.partner_safe_command(text,jsonb)'::regprocedure))=0,'raw invitation exchange is excluded from safe RPC');
 select ok(not exists(select 1 from information_schema.role_table_grants where table_schema in ('candidate_private','partner_private') and grantee='authenticated' and privilege_type in ('INSERT','UPDATE','DELETE')),'safe RPCs add no private-table browser writes');

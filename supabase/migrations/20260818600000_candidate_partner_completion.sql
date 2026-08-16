@@ -26,7 +26,7 @@ create trigger candidate_lifecycle_append_only before update or delete
 revoke execute on function app_public.candidate_delete_trip_idea(uuid) from authenticated;
 create or replace function app_public.candidate_delete_trip_idea(p_idea_id uuid,p_confirmed boolean)
 returns void language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid();
+declare actor uuid:=app_public.request_user_id();
 begin
   if actor is null or not app_private.current_session_is_active() then
     raise exception using errcode='42501',message='candidate_auth_required';
@@ -61,7 +61,7 @@ create or replace function app_public.candidate_edge_send_share(
   p_candidate_id uuid,p_recipient_id uuid,p_recipient_email_hmac bytea,
   p_encrypted_payload bytea,p_idempotency_key text
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); share_row candidate_private.candidate_shares%rowtype;
+declare actor uuid:=app_public.request_user_id(); share_row candidate_private.candidate_shares%rowtype;
 begin
   if actor is null or not app_private.current_session_is_active()
     or octet_length(p_recipient_email_hmac)<>32 or octet_length(p_encrypted_payload)<1
@@ -88,7 +88,7 @@ $$;
 create or replace function app_public.candidate_edge_share_source(p_candidate_id uuid)
 returns jsonb language sql stable security definer set search_path='' as $$
   select jsonb_build_object('title',title,'urlNote',concat_ws(E'\n',normalized_url,note))
-  from candidate_private.candidate_links where candidate_id=p_candidate_id and owner_user_id=auth.uid()
+  from candidate_private.candidate_links where candidate_id=p_candidate_id and owner_user_id=app_public.request_user_id()
     and app_private.current_session_is_active()
 $$;
 
@@ -96,14 +96,14 @@ create or replace function app_public.candidate_edge_payload(p_share_id uuid)
 returns text language sql stable security definer set search_path='' as $$
   select encode(p.encrypted_payload,'base64') from candidate_private.candidate_share_payloads p
     join candidate_private.candidate_shares s on s.share_id=p.share_id
-  where p.share_id=p_share_id and s.recipient_id=auth.uid() and s.state='pending'
+  where p.share_id=p_share_id and s.recipient_id=app_public.request_user_id() and s.state='pending'
     and s.expires_at>statement_timestamp() and app_private.current_session_is_active()
 $$;
 
 create or replace function app_public.candidate_edge_accept_share(
   p_share_id uuid,p_title text,p_url_note text,p_idempotency_key text
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); share_row candidate_private.candidate_shares%rowtype;
+declare actor uuid:=app_public.request_user_id(); share_row candidate_private.candidate_shares%rowtype;
 begin
   if actor is null or not app_private.current_session_is_active() or nullif(btrim(p_title),'') is null
     or char_length(p_title)>160 or char_length(coalesce(p_url_note,''))>4096
@@ -131,7 +131,7 @@ $$;
 create or replace function app_public.candidate_edge_close_share(
   p_share_id uuid,p_action text,p_reporter_hmac bytea,p_reported_hmac bytea,p_idempotency_key text
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); share_row candidate_private.candidate_shares%rowtype;
+declare actor uuid:=app_public.request_user_id(); share_row candidate_private.candidate_shares%rowtype;
 begin
   if actor is null or not app_private.current_session_is_active() or p_action not in ('block','report')
     or octet_length(p_reporter_hmac)<>32 or octet_length(p_reported_hmac)<>32
@@ -163,7 +163,7 @@ $$;
 
 create or replace function app_public.partner_synthetic_command(p_operation text,p_payload jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); token text:=p_payload->>'token'; identity_input jsonb:=p_payload->'identity';
+declare actor uuid:=app_public.request_user_id(); token text:=p_payload->>'token'; identity_input jsonb:=p_payload->'identity';
   invitation_id uuid; pending_id uuid; consent_id uuid; identity_row partner_private.pending_partner_identities%rowtype;
 begin
   if actor is null or not app_private.current_session_is_active() or p_payload->>'synthetic' is distinct from 'true' then
@@ -209,6 +209,7 @@ $$;
 
 alter function app_public.candidate_delete_trip_idea(uuid,boolean) owner to identity_service;
 alter function candidate_private.enqueue_terminal_cleanup() owner to identity_service;
+revoke all on function app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text) from public,anon,authenticated;
 alter function app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text) owner to identity_service;
 alter function app_public.candidate_edge_share_source(uuid) owner to identity_service;
 alter function app_public.candidate_edge_payload(uuid) owner to identity_service;
@@ -216,10 +217,10 @@ alter function app_public.candidate_edge_accept_share(uuid,text,text,text) owner
 alter function app_public.candidate_edge_close_share(uuid,text,bytea,bytea,text) owner to identity_service;
 alter function app_public.partner_synthetic_command(text,jsonb) owner to identity_service;
 revoke all on function app_public.candidate_delete_trip_idea(uuid,boolean),
- app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text),app_public.candidate_edge_accept_share(uuid,text,text,text),
+ app_public.candidate_edge_accept_share(uuid,text,text,text),
  app_public.candidate_edge_share_source(uuid),app_public.candidate_edge_payload(uuid),app_public.candidate_edge_close_share(uuid,text,bytea,bytea,text),app_public.partner_synthetic_command(text,jsonb) from public,anon;
 grant execute on function app_public.candidate_delete_trip_idea(uuid,boolean),
- app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text),app_public.candidate_edge_accept_share(uuid,text,text,text),
+ app_public.candidate_edge_accept_share(uuid,text,text,text),
  app_public.candidate_edge_share_source(uuid),app_public.candidate_edge_payload(uuid),app_public.candidate_edge_close_share(uuid,text,bytea,bytea,text),app_public.partner_synthetic_command(text,jsonb) to authenticated;
 revoke create on schema candidate_private from identity_service;
 revoke create on schema app_public from identity_service;

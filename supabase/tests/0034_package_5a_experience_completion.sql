@@ -15,7 +15,7 @@ select ok(
 );
 
 select ok(
-  position('current_state in (''skipped'', ''observed_closed'')' in pg_get_functiondef('trip_private.apply_go_stop_command(uuid,uuid,text)'::regprocedure))>0,
+  position('current_statein(''skipped'',''observed_closed'')' in regexp_replace(pg_get_functiondef('trip_private.apply_go_stop_command(uuid,uuid,text)'::regprocedure),'[[:space:]]','','g'))>0,
   'the Go state machine permits restoring skipped and observed-closed stops'
 );
 

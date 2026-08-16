@@ -162,7 +162,7 @@ create policy authorizer_routing_contracts on trip_private.routing_contract_rece
 create or replace function trip_private.current_verified_email_digest()
 returns bytea language sql stable security definer set search_path='' as $$
   select extensions.digest(convert_to(lower(btrim(u.email)),'utf8'),'sha256')
-  from auth.users u where u.id=auth.uid() and u.email_confirmed_at is not null;
+  from auth.users u where u.id=app_public.request_user_id() and u.email_confirmed_at is not null;
 $$;
 alter function trip_private.current_verified_email_digest() owner to postgres;
 revoke all on function trip_private.current_verified_email_digest() from public,anon,authenticated;
@@ -171,7 +171,7 @@ grant execute on function trip_private.current_verified_email_digest() to identi
 create or replace function trip_private.collaboration_json(target_trip_id uuid)
 returns jsonb language sql stable security definer set search_path='' as $$
   select jsonb_build_object(
-    'tripId',t.trip_id::text,'currentUserId',auth.uid()::text,
+    'tripId',t.trip_id::text,'currentUserId',app_public.request_user_id()::text,
     'participants',coalesce((select jsonb_agg(jsonb_build_object(
       'userId',p.user_id::text,'displayName',case when p.participant_role='creator' then 'Trip creator' else 'Trip partner' end,
       'role',p.participant_role) order by p.participant_role,p.joined_at)
@@ -220,14 +220,14 @@ begin
   begin v_trip:=trip_id::uuid; exception when others then raise exception 'trip_id_invalid'; end;
   if not app_private.current_session_is_active() or not trip_private.trip_member_can_access(v_trip) then raise exception 'authorization_lost'; end if;
   if install_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' or device_key_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' then raise exception 'offline_device_invalid'; end if;
-  select p.session_epoch into v_epoch from app_private.profiles p where p.user_id=auth.uid() and p.status='active';
+  select p.session_epoch into v_epoch from app_private.profiles p where p.user_id=app_public.request_user_id() and p.status='active';
   select * into v_receipt from trip_private.offline_grant_signing_receipts r
-    where r.trip_id=v_trip and r.user_id=auth.uid() and r.install_id=start_trip_with_offline_grant.install_id
+    where r.trip_id=v_trip and r.user_id=app_public.request_user_id() and r.install_id=start_trip_with_offline_grant.install_id
       and r.device_key_id=start_trip_with_offline_grant.device_key_id and r.session_security_version=v_epoch
       and r.state='ready' and r.expires_at>statement_timestamp() order by r.issued_at desc limit 1 for update;
   if v_receipt.receipt_id is null then raise exception 'offline_grant_receipt_unavailable'; end if;
   v_claims:=v_receipt.signed_grant->'claims';
-  if v_claims->>'accountId'<>auth.uid()::text or v_claims->>'tripId'<>v_trip::text
+  if v_claims->>'accountId'<>app_public.request_user_id()::text or v_claims->>'tripId'<>v_trip::text
     or v_claims->>'installId'<>install_id or v_claims->>'deviceKeyId'<>device_key_id
     or (v_claims->>'sessionSecurityVersion')::bigint<>v_epoch
     or (v_claims->>'expiresAt')::timestamptz<>v_receipt.expires_at
@@ -241,10 +241,10 @@ begin
     where trip_private.trip_offline_grants.trip_id=v_trip and state='active';
   update trip_private.trips set navigator_user_id=null,navigator_device_hash=null where trip_private.trips.trip_id=v_trip;
   insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version)
-    values(v_trip,auth.uid(),v_device_hash,v_epoch);
+    values(v_trip,app_public.request_user_id(),v_device_hash,v_epoch);
   insert into trip_private.trip_offline_grants(trip_id,user_id,device_hash,session_security_version,grant_hash,issued_at,expires_at)
-    values(v_trip,auth.uid(),v_device_hash,v_epoch,v_receipt.signed_grant_hash,v_receipt.issued_at,v_receipt.expires_at);
-  update trip_private.trips set state='active',navigator_user_id=auth.uid(),navigator_device_hash=v_device_hash,
+    values(v_trip,app_public.request_user_id(),v_device_hash,v_epoch,v_receipt.signed_grant_hash,v_receipt.issued_at,v_receipt.expires_at);
+  update trip_private.trips set state='active',navigator_user_id=app_public.request_user_id(),navigator_device_hash=v_device_hash,
     version=version+1,updated_at=statement_timestamp() where trip_private.trips.trip_id=v_trip and state in ('ready','active');
   if not found then raise exception 'trip_not_ready'; end if;
   update trip_private.offline_grant_signing_receipts set state='consumed',consumed_at=statement_timestamp() where receipt_id=v_receipt.receipt_id;
@@ -286,7 +286,7 @@ begin
     and not exists(select 1 from trip_private.trip_conflict_resolution_receipts r where r.conflict_id=c.conflict_id) order by c.created_at limit 1;
   if v_conflict is not null then
     insert into trip_private.trip_conflict_resolution_receipts(conflict_id,trip_id,actor_user_id,choice,resolution_hash)
-      values(v_conflict,v_trip,auth.uid(),choice,extensions.digest(convert_to(concat_ws('|',v_conflict::text,v_trip::text,auth.uid()::text,choice),'utf8'),'sha256'));
+      values(v_conflict,v_trip,app_public.request_user_id(),choice,extensions.digest(convert_to(concat_ws('|',v_conflict::text,v_trip::text,app_public.request_user_id()::text,choice),'utf8'),'sha256'));
   end if;
   return app_public.get_offline_trip_queue(trip_id);
 end; $$;
@@ -298,10 +298,10 @@ declare v_trip uuid; v_device bytea;
 begin
   begin v_trip:=trip_id::uuid; exception when others then raise exception 'trip_id_invalid'; end;
   if not trip_private.trip_member_can_access(v_trip) or reason !~ '^[a-z][a-z0-9_]{1,63}$' then raise exception 'offline_purge_invalid'; end if;
-  select b.device_hash into v_device from trip_private.trip_device_bindings b where b.trip_id=v_trip and b.user_id=auth.uid() and b.state='active' limit 1;
-  update trip_private.trips set navigator_user_id=null,navigator_device_hash=null where trip_private.trips.trip_id=v_trip and navigator_user_id=auth.uid();
-  update trip_private.trip_device_bindings set state='revoked',revoked_at=statement_timestamp(),revocation_reason=reason where trip_private.trip_device_bindings.trip_id=v_trip and user_id=auth.uid() and state='active';
-  update trip_private.trip_offline_grants set state='revoked',revoked_at=statement_timestamp() where trip_private.trip_offline_grants.trip_id=v_trip and user_id=auth.uid() and state='active';
+  select b.device_hash into v_device from trip_private.trip_device_bindings b where b.trip_id=v_trip and b.user_id=app_public.request_user_id() and b.state='active' limit 1;
+  update trip_private.trips set navigator_user_id=null,navigator_device_hash=null where trip_private.trips.trip_id=v_trip and navigator_user_id=app_public.request_user_id();
+  update trip_private.trip_device_bindings set state='revoked',revoked_at=statement_timestamp(),revocation_reason=reason where trip_private.trip_device_bindings.trip_id=v_trip and user_id=app_public.request_user_id() and state='active';
+  update trip_private.trip_offline_grants set state='revoked',revoked_at=statement_timestamp() where trip_private.trip_offline_grants.trip_id=v_trip and user_id=app_public.request_user_id() and state='active';
   return jsonb_build_object('state','purged','pendingCount',0,'purgeReason',reason);
 end; $$;
 alter function app_public.purge_offline_trip(text,text) owner to identity_service;
@@ -366,8 +366,8 @@ begin
   select * into v_invite from trip_private.trip_invitations i where i.token_hash=extensions.digest(convert_to(fragment_token,'utf8'),'sha256') and i.recipient_email_hmac=v_digest and i.state='pending' and i.expires_at>statement_timestamp() limit 1 for update;
   if v_invite.invitation_id is null then raise exception 'trip_invitation_unavailable'; end if;
   if exists(select 1 from trip_private.trip_participants p where p.trip_id=v_invite.trip_id and p.participant_role='partner' and p.state='active') then raise exception 'trip_partner_limit'; end if;
-  update trip_private.trip_invitations set state='accepted',accepted_user_id=auth.uid(),accepted_at=statement_timestamp(),version=version+1 where invitation_id=v_invite.invitation_id;
-  insert into trip_private.trip_participants(trip_id,user_id,participant_role) values(v_invite.trip_id,auth.uid(),'partner')
+  update trip_private.trip_invitations set state='accepted',accepted_user_id=app_public.request_user_id(),accepted_at=statement_timestamp(),version=version+1 where invitation_id=v_invite.invitation_id;
+  insert into trip_private.trip_participants(trip_id,user_id,participant_role) values(v_invite.trip_id,app_public.request_user_id(),'partner')
     on conflict(trip_id,user_id) do update set state='active',left_at=null,version=trip_private.trip_participants.version+1;
   return trip_private.collaboration_json(v_invite.trip_id);
 end; $$;
@@ -391,10 +391,10 @@ returns boolean language plpgsql security definer set search_path='' as $$
 declare v_trip uuid;
 begin
   begin v_trip:=trip_id::uuid; exception when others then raise exception 'trip_id_invalid'; end;
-  if not trip_private.trip_member_can_access(v_trip) or exists(select 1 from trip_private.trips t where t.trip_id=v_trip and t.owner_id=auth.uid()) then raise exception 'trip_creator_cannot_leave'; end if;
-  update trip_private.trips set navigator_user_id=null,navigator_device_hash=null where trip_private.trips.trip_id=v_trip and navigator_user_id=auth.uid();
-  update trip_private.trip_device_bindings set state='revoked',revoked_at=statement_timestamp(),revocation_reason='left_trip' where trip_private.trip_device_bindings.trip_id=v_trip and user_id=auth.uid() and state='active';
-  update trip_private.trip_participants set state='left',left_at=statement_timestamp(),version=version+1 where trip_private.trip_participants.trip_id=v_trip and user_id=auth.uid() and participant_role='partner' and state='active';
+  if not trip_private.trip_member_can_access(v_trip) or exists(select 1 from trip_private.trips t where t.trip_id=v_trip and t.owner_id=app_public.request_user_id()) then raise exception 'trip_creator_cannot_leave'; end if;
+  update trip_private.trips set navigator_user_id=null,navigator_device_hash=null where trip_private.trips.trip_id=v_trip and navigator_user_id=app_public.request_user_id();
+  update trip_private.trip_device_bindings set state='revoked',revoked_at=statement_timestamp(),revocation_reason='left_trip' where trip_private.trip_device_bindings.trip_id=v_trip and user_id=app_public.request_user_id() and state='active';
+  update trip_private.trip_participants set state='left',left_at=statement_timestamp(),version=version+1 where trip_private.trip_participants.trip_id=v_trip and user_id=app_public.request_user_id() and participant_role='partner' and state='active';
   return found;
 end; $$;
 alter function app_public.leave_trip(text) owner to identity_service;
@@ -412,7 +412,7 @@ begin
   elsif exists(select 1 from trip_private.trip_stops s left join app_public.stores st on st.id=s.store_id where s.trip_id=v_trip and ((s.kind='store' and st.latitude is null) or (s.kind='rest' and s.rest_latitude is null))) then v_reason:='coordinates_required';
   elsif v_contract is null then v_reason:='r01_blocked'; end if;
   insert into trip_private.check_my_day_requests(trip_id,actor_user_id,trip_version,facts,facts_hash,state,block_reason,contract_receipt_id)
-    values(v_trip,auth.uid(),v_version,v_facts,extensions.digest(convert_to(v_facts::text,'utf8'),'sha256'),case when v_reason is null then 'ready' else 'blocked' end,v_reason,case when v_reason is null then v_contract else null end)
+    values(v_trip,app_public.request_user_id(),v_version,v_facts,extensions.digest(convert_to(v_facts::text,'utf8'),'sha256'),case when v_reason is null then 'ready' else 'blocked' end,v_reason,case when v_reason is null then v_contract else null end)
     returning request_id into v_request;
   return jsonb_build_object('requestId',v_request::text,'state',case when v_reason is null then 'ready' else 'blocked' end,'reason',v_reason);
 end; $$;
@@ -422,7 +422,7 @@ returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare v_request uuid; v_row trip_private.check_my_day_requests%rowtype; v_suggestion trip_private.check_my_day_suggestions%rowtype;
 begin
   begin v_request:=request_id::uuid; exception when others then raise exception 'check_my_day_request_invalid'; end;
-  select * into v_row from trip_private.check_my_day_requests r where r.request_id=v_request and r.actor_user_id=auth.uid();
+  select * into v_row from trip_private.check_my_day_requests r where r.request_id=v_request and r.actor_user_id=app_public.request_user_id();
   if v_row.request_id is null or not trip_private.trip_member_can_access(v_row.trip_id) then raise exception 'authorization_lost'; end if;
   if v_row.state='blocked' then return jsonb_build_object('requestId',v_request::text,'state','blocked','reason',v_row.block_reason); end if;
   select * into v_suggestion from trip_private.check_my_day_suggestions s where s.request_id=v_request;

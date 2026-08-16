@@ -3,26 +3,44 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { URL } from 'node:url'
 
-const [workflow, ci, worker, migration] = await Promise.all([
-  readFile(new URL('../.github/workflows/registration-cleanup.yml', import.meta.url), 'utf8'),
-  readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
-  readFile(
-    new URL('../supabase/functions/account-registration-cleanup/index.ts', import.meta.url),
-    'utf8',
-  ),
-  readFile(
-    new URL(
-      '../supabase/migrations/20260806084500_authoritative_account_registration.sql',
-      import.meta.url,
+const [workflow, ci, worker, migration, runtimeSchemaUsage, requestClaimHelpers] =
+  await Promise.all([
+    readFile(new URL('../.github/workflows/registration-cleanup.yml', import.meta.url), 'utf8'),
+    readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
+    readFile(
+      new URL('../supabase/functions/account-registration-cleanup/index.ts', import.meta.url),
+      'utf8',
     ),
-    'utf8',
-  ),
-])
+    readFile(
+      new URL(
+        '../supabase/migrations/20260806084500_authoritative_account_registration.sql',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(
+      new URL('../supabase/migrations/20260823000000_runtime_schema_usage.sql', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../supabase/migrations/20260803500000_request_claim_helpers.sql', import.meta.url),
+      'utf8',
+    ),
+  ])
 
 test('database pipelines preserve reset and pgTAP failure status', () => {
   assert.equal((ci.match(/set -o pipefail/gu) ?? []).length, 2)
   assert.match(ci, /db reset --local 2>&1 \| tee/u)
-  assert.match(ci, /test db 2>&1 \| tee/u)
+  assert.match(ci, /docker exec -i -e PGPASSWORD=postgres supabase_db_antique-trail/u)
+  assert.match(ci, /psql -U supabase_admin/u)
+  assert.match(ci, /create role antique_trail_test_runner login superuser/u)
+  assert.match(ci, /grant usage on schema extensions to public/u)
+  assert.match(ci, /pg_dump -U supabase_admin -d postgres --schema-only --no-owner/u)
+  assert.match(ci, /PGUSER=antique_trail_test_runner/u)
+  assert.match(ci, /pg_prove --host 127\.0\.0\.1 --port 5432 --username antique_trail_test_runner/u)
+  assert.match(ci, /--ext \.pg --ext \.sql --recurse \/tmp\/tests/u)
+  assert.match(ci, /2>&1 \| tee artifacts\/supabase-pgtap\.log/u)
+  assert.match(ci, /path: artifacts\//u)
 })
 
 test('scheduled cleanup requires both invocation and independent scheduler credentials', () => {
@@ -47,4 +65,12 @@ test('cleanup queue is provider-ticket based and bounded', () => {
     migration,
     /reconcile_account_registration_cleanup\(p_cleanup_ticket_id uuid,p_provider_user_id uuid\)/u,
   )
+})
+
+test('runtime roles can resolve only their explicitly granted API schemas', () => {
+  assert.match(requestClaimHelpers, /create or replace function app_public\.request_user_id/u)
+  assert.match(requestClaimHelpers, /current_setting\('request\.jwt\.claims',true\)/u)
+  assert.doesNotMatch(runtimeSchemaUsage, /grant usage on schema auth to identity_service/u)
+  assert.match(runtimeSchemaUsage, /grant usage on schema app_public to service_role/u)
+  assert.doesNotMatch(runtimeSchemaUsage, /grant (select|insert|update|delete|all) on table/iu)
 })

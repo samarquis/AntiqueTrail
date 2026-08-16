@@ -253,7 +253,7 @@ create or replace function app_private.current_user_has_role(
     and (p_role='shopper'::app_private.app_role or app_private.privileged_anchor_is_current())
     and exists(
       select 1 from app_private.role_grants g
-      where g.subject_user_id=auth.uid() and g.role=p_role and g.state='active'
+      where g.subject_user_id=app_public.request_user_id() and g.role=p_role and g.state='active'
         and g.store_id is not distinct from p_store_id
     );
 $$;

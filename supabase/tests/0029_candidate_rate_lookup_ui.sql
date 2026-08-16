@@ -23,13 +23,13 @@ select ok(exists(select 1 from pg_constraint where conname='candidate_lease_boun
 select ok(position('pg_advisory_xact_lock' in pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure))>0,'reservation atomically locks opaque keys');
 select ok(position('array[10,30,5]' in replace(pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure),' ',''))>0,'extraction account IP and host limits are exact');
 select ok(position('array[10,5,30]' in replace(pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure),' ',''))>0,'share account recipient and IP limits are exact');
-select ok(position("interval'1hour'" in replace(pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure),' ',''))>0,'extraction uses one-hour sliding windows');
-select ok(position("interval '1 day'" in pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure))>0,'share send uses one-day sliding windows');
+select ok(position($q$interval'1hour'$q$ in replace(pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure),' ',''))>0,'extraction uses one-hour sliding windows');
+select ok(position($q$interval '1 day'$q$ in pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure))>0,'share send uses one-day sliding windows');
 select ok(position('occurred_at>now_at-windows[index_value]' in replace(pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure),' ',''))>0,'counts use event-time sliding windows');
 select ok(position('event_count>=limits[index_value]' in replace(pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure),' ',''))>0,'limit boundary denies before limit plus one');
 select ok(position(')>=2' in replace(pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure),' ',''))>0,'only two account extraction leases may be active');
 select ok(position('device_session_digest' in pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure))>0,'device session contributes opaque rate evidence');
-select ok(position("'retryAfter'" in pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure))>0,'denials return bounded retry guidance');
+select ok(position($q$'retryAfter'$q$ in pg_get_functiondef('app_public.candidate_reserve_operation(text,bytea,bytea)'::regprocedure))>0,'denials return bounded retry guidance');
 select ok(position('released_at=statement_timestamp()' in replace(pg_get_functiondef('app_public.candidate_release_operation(uuid)'::regprocedure),' ',''))>0,'release closes the exact lease');
 select ok(position('actor_user_id=actor' in replace(pg_get_functiondef('app_public.candidate_release_operation(uuid)'::regprocedure),' ',''))>0,'lease release is actor bound');
 select is((select r.rolname from pg_proc p join pg_namespace n on n.oid=p.pronamespace
@@ -46,7 +46,7 @@ select ok(position('recipientId' in pg_get_functiondef('app_public.candidate_edg
   and position('recipientDigest' in pg_get_functiondef('app_public.candidate_edge_exact_recipient(text,bytea)'::regprocedure))>0,'lookup returns only needed UUID and digest');
 select ok(position('p_recipient_id is null' in pg_get_functiondef('app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text)'::regprocedure))>0,'unmatched recipient returns generic pending without payload');
 select ok(position('candidate_blocks' in pg_get_functiondef('app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text)'::regprocedure))>0,'blocked recipient returns the same generic path');
-select ok(position('blocker_id=auth.uid()' in replace(pg_get_functiondef('app_public.candidate_list_blocked_senders()'::regprocedure),' ',''))>0,'blocked sender list is owner bound');
+select ok(position('blocker_id=app_public.request_user_id()' in replace(pg_get_functiondef('app_public.candidate_list_blocked_senders()'::regprocedure),' ',''))>0,'blocked sender list is owner bound');
 
 select * from finish();
 rollback;

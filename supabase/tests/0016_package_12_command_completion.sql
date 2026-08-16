@@ -22,42 +22,86 @@ select ok(not exists(
 ),'commands never manufacture evidence');
 select ok((select convalidated from pg_constraint where conname='community_command_receipts_operation_check'),'extended operation constraint is validated');
 
+insert into auth.users(id) values('16000000-0000-4000-8000-000000000090');
+insert into release_private.regional_releases(
+  release_id,region_key,artifact_digest,catalog_digest,prerequisite_receipt_digest,state,step_ordinal,signed_release_receipt
+) values (
+  '16000000-0000-4000-8000-000000000091','topeka-ks','sha256:'||repeat('1',64),
+  'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),'active',9,'16000000-0000-4000-8000-000000000092'
+);
+insert into release_private.release_evidence_receipts(
+  receipt_id,release_id,step,artifact_digest,catalog_digest,prerequisite_receipt_digest,payload_digest,external_verified
+) values (
+  '16000000-0000-4000-8000-000000000092','16000000-0000-4000-8000-000000000091','signed_release_receipt',
+  'sha256:'||repeat('1',64),'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),decode(repeat('09',32),'hex'),true
+);
+insert into release_private.release_capabilities(
+  release_id,public_catalog,public_claims,public_reviews,public_registration,product_promotion
+) values ('16000000-0000-4000-8000-000000000091',true,true,true,true,true);
+insert into rg01_private.rg01_runs(
+  run_id,release_id,window_start,window_end,source_cutoff,state,manifest_digest,source_head_digest,blockers,frozen_at
+) values (
+  '16000000-0000-4000-8000-000000000093','16000000-0000-4000-8000-000000000091',
+  statement_timestamp()-interval '180 days',statement_timestamp(),statement_timestamp(),'frozen',
+  decode(repeat('0a',32),'hex'),rg01_private.source_head_digest(),array[]::text[],statement_timestamp()
+);
+insert into rg01_private.rg01_signing_challenges(
+  challenge_id,run_id,signer_user_id,frozen_digest,decision,failed_codes,nonce,payload_digest,expires_at,consumed_at
+) values (
+  '16000000-0000-4000-8000-000000000094','16000000-0000-4000-8000-000000000093',
+  '16000000-0000-4000-8000-000000000090',decode(repeat('0a',32),'hex'),'pass',array[]::text[],
+  decode(repeat('0b',32),'hex'),decode(repeat('0c',32),'hex'),statement_timestamp()+interval '30 minutes',statement_timestamp()
+);
+insert into rg01_private.rg01_receipts(
+  receipt_id,run_id,challenge_id,release_id,signer_user_id,responsibility,decision,manifest_digest,
+  source_head_digest,signed_payload_digest,signature_digest,provider_key_id,provider_verification_id,
+  failed_codes,claim_approved,claim_rejected,claim_abusive
+) values (
+  '16000000-0000-4000-8000-000000000095','16000000-0000-4000-8000-000000000093',
+  '16000000-0000-4000-8000-000000000094','16000000-0000-4000-8000-000000000091',
+  '16000000-0000-4000-8000-000000000090','ProductOwner','pass',decode(repeat('0a',32),'hex'),
+  rg01_private.source_head_digest(),decode(repeat('0c',32),'hex'),decode(repeat('0d',32),'hex'),
+  'test-key','test-verification',array[]::text[],0,0,0
+);
+update rg01_private.rg01_runs set state='signed',receipt_id='16000000-0000-4000-8000-000000000095',disposed_at=statement_timestamp()
+where run_id='16000000-0000-4000-8000-000000000093';
+
 insert into community_private.community_evidence_receipts(
   receipt_id,receipt_kind,responsibility,decision,area_slug,bound_run_id,prior_receipt_id,
-  artifact_binding_digest,store_set_digest,signed_payload_digest,external_verified,predicates
+  artifact_binding_digest,store_set_digest,signed_payload_digest,external_verified,predicates,rg01_authoritative_receipt_id
 ) values
 ('16000000-0000-4000-8000-000000000002','rg01_pass','ProductOwner','pass','topeka',null,null,null,null,
- decode(repeat('02',32),'hex'),true,'{"all_predicates_pass":true}'::jsonb),
+ decode(repeat('02',32),'hex'),true,'{"all_predicates_pass":true}'::jsonb,'16000000-0000-4000-8000-000000000095'),
 ('16000000-0000-4000-8000-000000000001','selection','ProductOwner','pass','osage-city',null,'16000000-0000-4000-8000-000000000002',null,null,
- decode(repeat('01',32),'hex'),true,'{"eligible_small_community":true}'::jsonb),
+ decode(repeat('01',32),'hex'),true,'{"eligible_small_community":true}'::jsonb,null),
 ('16000000-0000-4000-8000-000000000003','catalog_freeze','ProductOwner','pass','osage-city','16000000-0000-4000-8000-000000000101',null,
  decode(repeat('03',32),'hex'),decode(repeat('04',32),'hex'),decode(repeat('05',32),'hex'),true,
- '{"artifact_binding_frozen":true,"store_set_frozen":true,"canonical_route":"/stores?area=osage-city"}'::jsonb),
+ '{"artifact_binding_frozen":true,"store_set_frozen":true,"canonical_route":"/stores?area=osage-city"}'::jsonb,null),
 ('16000000-0000-4000-8000-000000000004','readiness','ProductOwner','pass','osage-city','16000000-0000-4000-8000-000000000101',null,
  decode(repeat('03',32),'hex'),decode(repeat('04',32),'hex'),decode(repeat('06',32),'hex'),true,
- '{"all_predicates_pass":true}'::jsonb),
+ '{"all_predicates_pass":true}'::jsonb,null),
 ('16000000-0000-4000-8000-000000000005','cancellation','ProductOwner','cancel','osage-city','16000000-0000-4000-8000-000000000101',null,
  decode(repeat('03',32),'hex'),decode(repeat('04',32),'hex'),decode(repeat('07',32),'hex'),true,
- '{"cancel_authorized":true}'::jsonb);
+ '{"cancel_authorized":true}'::jsonb,null);
 
 set local role community_deployment_service;
 select lives_ok(
   $$select community_private.prepare_community(
-    '16000000-0000-4000-8000-000000000101','osage-city',1,
+    '16000000-0000-4000-8000-000000000101','osage-city',1::smallint,
     '16000000-0000-4000-8000-000000000001','16000000-0000-4000-8000-000000000002',
     1,'prepare-osage',decode(repeat('10',32),'hex'))$$,
   'verified selection and prerequisite prepare the singleton run'
 );
 select lives_ok(
   $$select community_private.prepare_community(
-    '16000000-0000-4000-8000-000000000101','osage-city',1,
+    '16000000-0000-4000-8000-000000000101','osage-city',1::smallint,
     '16000000-0000-4000-8000-000000000001','16000000-0000-4000-8000-000000000002',
     1,'prepare-osage',decode(repeat('10',32),'hex'))$$,
   'exact prepare replay succeeds despite stale expected version'
 );
 select throws_ok(
   $$select community_private.prepare_community(
-    '16000000-0000-4000-8000-000000000101','osage-city',1,
+    '16000000-0000-4000-8000-000000000101','osage-city',1::smallint,
     '16000000-0000-4000-8000-000000000001','16000000-0000-4000-8000-000000000002',
     1,'prepare-osage',decode(repeat('11',32),'hex'))$$,
   '22023','community_idempotency_mismatch','changed prepare input cannot reuse a key'

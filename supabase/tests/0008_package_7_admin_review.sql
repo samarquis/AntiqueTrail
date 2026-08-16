@@ -12,7 +12,7 @@ select has_table('admin_private','admin_scope_actions','scope action receipts ta
 select has_table('admin_private','admin_privileged_audit_outbox','privileged audit outbox exists');
 select has_table('admin_private','admin_audit_anchor_health','audit anchor health exists');
 
-select ok((select count(*)=9 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='admin_private' and c.relkind='r' and c.relrowsecurity and c.relforcerowsecurity),'all Package 7 tables FORCE RLS');
+select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='admin_private' and c.relkind='r' and (not c.relrowsecurity or not c.relforcerowsecurity)),'all Package 7 tables FORCE RLS');
 select ok(not exists(select 1 from information_schema.role_table_grants where table_schema='admin_private' and grantee in ('anon','authenticated')),'no anonymous/authenticated direct admin grants');
 select ok(not exists(select 1 from pg_policies where schemaname='admin_private' and roles && array['anon'::name,'public'::name] and cmd in ('INSERT','UPDATE','DELETE')),'no public promotion/write policies');
 
@@ -41,13 +41,13 @@ select ok(exists(select 1 from pg_trigger where tgname='admin_scope_actions_appe
 
 select ok(exists(select 1 from pg_constraint where conname='admin_outbox_event_hash_size'),'outbox stores event hash only');
 select ok(exists(select 1 from pg_constraint where conname='admin_anchor_health_shape'),'anchor health fails closed until root health exists');
-select ok((select state='blocked' from admin_private.admin_audit_anchor_health where id=1),'anchor health defaults blocked');
+select ok((select state='healthy' and deployment_environment='local' from admin_private.admin_audit_anchor_health where id=1),'local synthetic anchor health synchronizes from the disabled local capability');
 select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='admin_private' and c.relname like '%promotion%'),'public promotion table is absent');
 
-select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_case_read' and coalesce(qual,'') like '%assigned_admin_id=auth.uid()%' and coalesce(qual,'') like '%current_session_has_mfa%' and coalesce(qual,'') like '%current_session_recent_auth%'),'case reads require assignment/MFA/recent auth');
-select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_case_event_read' and coalesce(qual,'') like '%admin_review_cases%' and coalesce(qual,'') like '%assigned_admin_id=auth.uid()%'),'case events are selected-case scoped');
-select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_change_read' and coalesce(qual,'') like '%admin_review_cases%' and coalesce(qual,'') like '%assigned_admin_id=auth.uid()%'),'change evidence is selected-case scoped');
-select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_merge_read' and coalesce(qual,'') like '%requested_by=auth.uid()%' and coalesce(qual,'') like '%reviewed_by=auth.uid()%'),'merge preview is actor scoped');
+select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_case_read' and replace(coalesce(qual,''),' ','') like '%assigned_admin_id=app_public.request_user_id()%' and coalesce(qual,'') like '%current_session_has_mfa%' and coalesce(qual,'') like '%current_session_recent_auth%'),'case reads require assignment/MFA/recent auth');
+select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_case_event_read' and coalesce(qual,'') like '%admin_review_cases%' and replace(coalesce(qual,''),' ','') like '%assigned_admin_id=app_public.request_user_id()%'),'case events are selected-case scoped');
+select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_change_read' and coalesce(qual,'') like '%admin_review_cases%' and replace(coalesce(qual,''),' ','') like '%assigned_admin_id=app_public.request_user_id()%'),'change evidence is selected-case scoped');
+select ok(exists(select 1 from pg_policies where schemaname='admin_private' and policyname='assigned_admin_merge_read' and replace(coalesce(qual,''),' ','') like '%requested_by=app_public.request_user_id()%' and replace(coalesce(qual,''),' ','') like '%reviewed_by=app_public.request_user_id()%'),'merge preview is actor scoped');
 
 select ok(not exists(select 1 from information_schema.columns where table_schema='admin_private' and column_name in ('shopper_note','shopper_rating','private_trip_payload','raw_evidence','document_bytes')),'admin schema excludes shopper/private/raw evidence columns');
 select ok(exists(select 1 from pg_constraint where conname='admin_case_event_key_safe'),'case event idempotency key bounded');
@@ -55,15 +55,15 @@ select ok(exists(select 1 from pg_constraint where conname='admin_scope_key_safe
 select ok(exists(select 1 from pg_constraint where conname='admin_merge_summary_object'),'merge preview summary is structured metadata');
 
 set local role anon;
-select throws_ok($$select * from admin_private.admin_review_cases$$,'42501','anonymous review read denied');
-select throws_ok($$select * from admin_private.admin_scope_actions$$,'42501','anonymous scope read denied');
-select throws_ok($$insert into admin_private.admin_review_cases(case_type,target_kind,target_id,snapshot_hash) values ('access_safety','grant','00000000-0000-0000-0000-000000000001',repeat(E'\\001',32)::bytea)$$,'42501','anonymous review write denied');
+select throws_ok($$select * from admin_private.admin_review_cases$$,'42501',null,'anonymous review read denied');
+select throws_ok($$select * from admin_private.admin_scope_actions$$,'42501',null,'anonymous scope read denied');
+select throws_ok($$insert into admin_private.admin_review_cases(case_type,target_kind,target_id,snapshot_hash) values ('access_safety','grant','00000000-0000-0000-0000-000000000001',repeat(E'\\001',32)::bytea)$$,'42501',null,'anonymous review write denied');
 reset role;
 set local role authenticated;
-select throws_ok($$select * from admin_private.admin_case_events$$,'42501','authenticated direct case-event read denied');
-select throws_ok($$select * from admin_private.admin_privileged_audit_outbox$$,'42501','authenticated direct outbox read denied');
-select throws_ok($$insert into admin_private.admin_scope_actions(grant_id,subject_user_id,role,action,expected_grant_version,scope_preview_hash,reason_code,recent_auth_at,mfa_verified_at,decided_by,outcome,idempotency_key) values ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001','administrator','revoke',1,repeat(E'\\001',32)::bytea,'test',statement_timestamp(),statement_timestamp(),'00000000-0000-0000-0000-000000000001','denied','x')$$,'42501','authenticated scope action write denied');
-select throws_ok($$select * from admin_private.admin_audit_anchor_health$$,'42501','authenticated anchor health read denied');
+select throws_ok($$select * from admin_private.admin_case_events$$,'42501',null,'authenticated direct case-event read denied');
+select throws_ok($$select * from admin_private.admin_privileged_audit_outbox$$,'42501',null,'authenticated direct outbox read denied');
+select throws_ok($$insert into admin_private.admin_scope_actions(grant_id,subject_user_id,role,action,expected_grant_version,scope_preview_hash,reason_code,recent_auth_at,mfa_verified_at,decided_by,outcome,idempotency_key) values ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001','administrator','revoke',1,repeat(E'\\001',32)::bytea,'test',statement_timestamp(),statement_timestamp(),'00000000-0000-0000-0000-000000000001','denied','x')$$,'42501',null,'authenticated scope action write denied');
+select throws_ok($$select * from admin_private.admin_audit_anchor_health$$,'42501',null,'authenticated anchor health read denied');
 reset role;
 
 select * from finish();

@@ -37,6 +37,11 @@ const detailsStageRank: Record<CatalogDetailsStage, number> = {
 
 const BROWSE_RETURN_KEY = 'antique-trail:browse-return'
 
+function catalogAppHref(path: string, base = import.meta.env.BASE_URL): string {
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`
+  return `${normalizedBase}${path.replace(/^\/+/, '')}`
+}
+
 interface BrowseReturnState {
   href: string
   scrollY: number
@@ -334,7 +339,7 @@ export function CatalogCard({
         <p className="catalog-card__area">{store.area.label}</p>
         <h2>
           <a
-            href={`/stores/${encodeURIComponent(store.slug)}`}
+            href={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}`)}
             onClick={() => rememberBrowseReturn(store.id)}
           >
             {store.name}
@@ -675,13 +680,17 @@ export function BrowsePage({
                                 : ''}
                             </p>
                             <a
-                              href={`/stores/${point.slug}`}
+                              href={catalogAppHref(`/stores/${point.slug}`)}
                               onClick={() => rememberBrowseReturn(point.storeId)}
                             >
                               View store details
                             </a>
                             {renderPrivateActions?.(point.store)}
-                            <a href={`/trips/new?addStoreId=${encodeURIComponent(point.storeId)}`}>
+                            <a
+                              href={catalogAppHref(
+                                `/trips/new?addStoreId=${encodeURIComponent(point.storeId)}`,
+                              )}
+                            >
                               Add to Trip
                             </a>
                             {map.navigationHref && <a href={map.navigationHref(point)}>Navigate</a>}
@@ -707,7 +716,7 @@ export function BrowsePage({
         >
           <h2 id="catalog-blocked-heading">Browse is unavailable</h2>
           <p>{state.message}</p>
-          <a href="/">Return home</a>
+          <a href={catalogAppHref('/')}>Return home</a>
         </section>
       )}
       {state.kind === 'success' &&
@@ -1003,7 +1012,7 @@ export function DetailsPage({
       <main>
         <h1>Store not found</h1>
         <p>That store is not available in the catalog.</p>
-        <a href={readBrowseReturn()?.href ?? '/stores'}>Back to stores</a>
+        <a href={catalogAppHref(readBrowseReturn()?.href ?? '/stores')}>Back to stores</a>
       </main>
     )
   const store = state.store!
@@ -1015,7 +1024,7 @@ export function DetailsPage({
   const canAddToTrip = detailsStageRank[stage] >= detailsStageRank['package-5a']
   return (
     <main className="store-detail">
-      <a className="store-detail__back" href={backHref}>
+      <a className="store-detail__back" href={catalogAppHref(backHref)}>
         ← Back to Browse
       </a>
       <article className="store-detail__article">
@@ -1070,7 +1079,7 @@ export function DetailsPage({
           {canAddToTrip && (
             <a
               className="button button--secondary"
-              href={`/trips/new?addStoreId=${encodeURIComponent(store.id)}`}
+              href={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
             >
               Add to Trip
             </a>
@@ -1169,7 +1178,7 @@ export function DetailsPage({
                 ))}
               </ol>
               {store.updates.length > 3 && (
-                <a href={`/stores/${encodeURIComponent(store.slug)}/updates`}>
+                <a href={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/updates`)}>
                   See all store updates
                 </a>
               )}

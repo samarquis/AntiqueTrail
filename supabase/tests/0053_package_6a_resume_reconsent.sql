@@ -23,34 +23,34 @@ select ok(position('gen_random_bytes(32)' in lower(pg_get_functiondef('app_publi
 select ok(position('handle_hash' in lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)))>0
   and not exists(select 1 from information_schema.columns where table_schema='partner_private' and table_name='partner_invitation_resumes' and column_name in ('token','raw_token','resume_handle')),'only a handle hash is durable; raw invitation and resume secrets are absent');
 select ok(position('actor_user_id=actor' in replace(lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)),' ',''))>0,'resume handles are bound to the authenticated actor');
-select ok(position("p_operation in ('resume_invitation','accept_consent')" in lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)))>0,'the same opaque handle supports refresh and final consent');
+select ok(position($q$p_operation in ('resume_invitation','accept_consent')$q$ in lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)))>0,'the same opaque handle supports refresh and final consent');
 select ok(position('partner_onboarding_command_receipts' in lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)))>0
   and position('return prior.result' in lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)))>0,'lost-response replay returns the original receipt and state');
 select ok(position('input_digest' in lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)))>0
   and position('partner_consent_idempotency_mismatch' in lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)))>0,'an idempotency key cannot be replayed with different consent input');
 select ok(position('current_session_has_mfa()' in lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)))>0
-  and position("current_session_recent_auth(interval '15 minutes')" in lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)))>0,'consent finalization preserves MFA and recent-auth requirements');
-select ok(position("stage='synthetic_alpha'" in replace(lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)),' ',''))>0,'provider-free onboarding remains limited to Synthetic Alpha');
+  and position($q$current_session_recent_auth(interval '15 minutes')$q$ in lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)))>0,'consent finalization preserves MFA and recent-auth requirements');
+select ok(position($q$stage='synthetic_alpha'$q$ in replace(lower(pg_get_functiondef('app_public.partner_synthetic_command(text,jsonb)'::regprocedure)),' ',''))>0,'provider-free onboarding remains limited to Synthetic Alpha');
 
 select ok((select count(*)=1 from partner_private.partner_material_terms where is_current and policy_version='synthetic-v3'),'exactly one current policy version is authoritative');
 select ok(exists(select 1 from pg_trigger where tgname='partner_material_terms_history' and not tgisinternal),'published material-term versions are immutable history');
 select ok(position('current_session_has_mfa()' in lower(pg_get_functiondef('app_public.partner_consent_command(text,jsonb)'::regprocedure)))>0
-  and position("current_session_recent_auth(interval '15 minutes')" in lower(pg_get_functiondef('app_public.partner_consent_command(text,jsonb)'::regprocedure)))>0,'material reconsent requires MFA and recent authentication');
+  and position($q$current_session_recent_auth(interval '15 minutes')$q$ in lower(pg_get_functiondef('app_public.partner_consent_command(text,jsonb)'::regprocedure)))>0,'material reconsent requires MFA and recent authentication');
 select ok(position('reviewed' in lower(pg_get_functiondef('app_public.partner_consent_command(text,jsonb)'::regprocedure)))>0
   and position('voluntary' in lower(pg_get_functiondef('app_public.partner_consent_command(text,jsonb)'::regprocedure)))>0,'material reconsent records separate reviewed and voluntary acknowledgements');
 select ok(position('partner_reconsent_receipts' in lower(pg_get_functiondef('app_public.partner_consent_command(text,jsonb)'::regprocedure)))>0
   and position('idempotency_key' in lower(pg_get_functiondef('app_public.partner_consent_command(text,jsonb)'::regprocedure)))>0,'reconsent creates one versioned idempotent receipt');
 select ok(position('current_session_has_mfa()' in lower(pg_get_functiondef('app_public.publish_partner_material_terms(text,jsonb)'::regprocedure)))>0
-  and position("current_session_recent_auth(interval '15 minutes')" in lower(pg_get_functiondef('app_public.publish_partner_material_terms(text,jsonb)'::regprocedure)))>0
-  and position("current_user_has_role('administrator'" in lower(pg_get_functiondef('app_public.publish_partner_material_terms(text,jsonb)'::regprocedure)))>0,'only a recently reauthenticated MFA Administrator may publish a material version');
+  and position($q$current_session_recent_auth(interval '15 minutes')$q$ in lower(pg_get_functiondef('app_public.publish_partner_material_terms(text,jsonb)'::regprocedure)))>0
+  and position($q$current_user_has_role('administrator'$q$ in lower(pg_get_functiondef('app_public.publish_partner_material_terms(text,jsonb)'::regprocedure)))>0,'only a recently reauthenticated MFA Administrator may publish a material version');
 select ok(position('partner_consent_is_current(actor)' in lower(pg_get_functiondef('partner_private.require_claimant()'::regprocedure)))>0
   and position('current_session_has_mfa()' in lower(pg_get_functiondef('partner_private.require_claimant()'::regprocedure)))>0,'claimants need current consent plus existing verification gates');
 select ok(exists(select 1 from pg_trigger where tgname='listing_claim_current_consent' and not tgisinternal)
   and exists(select 1 from pg_trigger where tgname='claim_signal_current_consent' and not tgisinternal),'claim creation and authority signals stop for stale material terms');
 select ok(exists(select 1 from pg_trigger where tgname='partnership_current_consent' and not tgisinternal)
   and exists(select 1 from pg_trigger where tgname='partner_grant_current_consent' and not tgisinternal),'partnership and exact-grant activation stop for stale material terms');
-select ok(position("public_capability_enabled('claims')" in lower(pg_get_functiondef('partner_private.claim_stage_allowed(uuid)'::regprocedure)))>0
-  and position("stage='synthetic_alpha'" in replace(lower(pg_get_functiondef('partner_private.claim_stage_allowed(uuid)'::regprocedure)),' ',''))>0,'real claims remain fail-closed behind release gates while Synthetic testing remains explicit');
+select ok(position($q$public_capability_enabled('claims')$q$ in lower(pg_get_functiondef('partner_private.claim_stage_allowed(uuid)'::regprocedure)))>0
+  and position($q$stage='synthetic_alpha'$q$ in replace(lower(pg_get_functiondef('partner_private.claim_stage_allowed(uuid)'::regprocedure)),' ',''))>0,'real claims remain fail-closed behind release gates while Synthetic testing remains explicit');
 
 select * from finish();
 rollback;

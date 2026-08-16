@@ -309,7 +309,7 @@ create policy beta_automation_store_update on app_public.stores for update to be
 
 create or replace function beta_private.require_product_owner() returns uuid
 language plpgsql security definer set search_path='' as $$
-declare uid uuid:=auth.uid();
+declare uid uuid:=app_public.request_user_id();
 begin
   if uid is null or not app_private.current_session_has_mfa()
     or not app_private.current_session_recent_auth(interval '15 minutes')
@@ -437,7 +437,7 @@ grant execute on function beta_private.open_capability() to beta_evidence_servic
 
 create or replace function app_public.beta_get_state(p_cohort_id uuid) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare uid uuid:=auth.uid(); result jsonb;
+declare uid uuid:=app_public.request_user_id(); result jsonb;
 begin
   if uid is null or not app_private.current_session_is_active() or not (
     exists(select 1 from beta_private.product_owner_bindings where user_id=uid and state='active')
