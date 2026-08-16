@@ -5,7 +5,7 @@ const reviewUrl = (path: string, state = 'success') =>
 const INVITATION_URL =
   '/partner/join?reviewAs=representative&reviewState=success#token=review-partner-invite'
 const PARTNER_ERROR = "We couldn't continue this invitation. Check the link or try again."
-const PORTAL_ERROR = "We couldn't update this Store Portal item. Please try again."
+const PORTAL_ERROR = "We couldn't update this store portal. Please try again."
 
 async function assertMinimumTargets(page: Page) {
   expect(
