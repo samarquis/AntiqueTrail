@@ -79,6 +79,151 @@ describe('scenario-aware review clients', () => {
     await expect(shopper.portal!.getHome()).rejects.toThrow(/permission denied/i)
   })
 
+  it('runs the full representative partner and Store Portal fixture without fabricating gated work', async () => {
+    const representative = createReviewHarnessClients(scenario('representative'), 'success')
+    const partner = representative.partner!
+    const portal = representative.portal!
+
+    await expect(partner.exchangeInvitation('review-partner-invite')).resolves.toMatchObject({
+      state: 'active',
+      resumeHandle: 'resume-review-partner',
+    })
+    await expect(partner.resumeInvitation('resume-review-partner')).resolves.toMatchObject({
+      state: 'active',
+    })
+    await expect(
+      partner.acceptConsent({
+        resumeHandle: 'resume-review-partner',
+        idempotencyKey: 'consent-1',
+        identity: { name: 'River', title: 'Owner', store: 'Blue Finch Curios', email: 'r@x.test' },
+        acknowledgements: {
+          authority: true,
+          voluntary: true,
+          permittedData: true,
+          noPayment: true,
+          withdrawal: true,
+        },
+      }),
+    ).resolves.toMatchObject({ onboarding: 'draft', pendingIdentity: 'provisional' })
+    await expect(partner.bindIdentity()).rejects.toThrow(/Email verification is unavailable/i)
+    await expect(partner.getStatus()).resolves.toMatchObject({
+      onboarding: 'approved',
+      storeScope: 'Blue Finch Curios',
+    })
+    await expect(
+      partner.saveDraft({
+        storeName: 'Blue Finch Curios',
+        address: '1 Main',
+        hours: '10–5',
+        website: 'https://example.invalid',
+        description: 'Synthetic',
+      }),
+    ).resolves.toMatchObject({ onboarding: 'draft' })
+    await expect(partner.submitDraft()).resolves.toMatchObject({ onboarding: 'submitted' })
+    const claim = await partner.submitClaim({
+      storeReference: 'Blue Finch Curios',
+      relationship: 'Owner',
+      authorityStatement: 'I am authorized.',
+    })
+    await expect(
+      partner.submitAuthoritySignal({
+        claimId: claim.claimId,
+        channelClass: 'published_business_contact',
+        evidenceReference: 'public-contact',
+      }),
+    ).resolves.toMatchObject({ state: 'verification_pending' })
+    await expect(partner.requestAuthorityRecheck(claim.claimId)).resolves.toMatchObject({
+      state: 'verification_pending',
+      recheckDueAt: expect.any(String),
+    })
+    await expect(partner.withdrawClaim(claim.claimId)).resolves.toMatchObject({
+      state: 'withdrawn',
+    })
+    await expect(partner.withdraw()).resolves.toMatchObject({ onboarding: 'withdrawn' })
+
+    const initialHours = await portal.getHours()
+    await expect(portal.saveHours(initialHours)).resolves.toMatchObject({
+      version: initialHours.version + 1,
+    })
+    await portal.saveManagedFields({
+      phone: '785-555-0199',
+      website: 'https://blue-finch.example.invalid',
+      description: 'Updated synthetic description.',
+    })
+    await expect(portal.previewPublicListing()).resolves.toMatchObject({
+      liveFields: expect.objectContaining({ phone: '785-555-0199' }),
+    })
+    const change = await portal.submitControlledChange({
+      field: 'address',
+      requestedValue: '200 East Synthetic Avenue',
+      reason: 'Moved',
+    })
+    await expect(portal.getHome()).resolves.toMatchObject({
+      pendingChanges: expect.arrayContaining([expect.objectContaining({ id: change.id })]),
+    })
+    await expect(portal.getMediaCapability()).resolves.toEqual({ enabled: false, source: 'server' })
+    await expect(
+      portal.uploadOfficialMedia({
+        storeId: 'store-blue-finch',
+        kind: 'cover',
+        altText: 'Synthetic item',
+        file: new File(['x'], 'x.png', { type: 'image/png' }),
+        rightsConfirmed: true,
+        idempotencyKey: 'media-1',
+      }),
+    ).rejects.toThrow(/couldn't update this Store Portal/i)
+    const update = await portal.createUpdate({
+      type: 'announcement',
+      headline: 'Late opening',
+      details: 'Synthetic notice.',
+    })
+    await expect(portal.archiveUpdate(update.id)).resolves.toMatchObject({ state: 'archived' })
+    await expect(portal.restoreUpdate(update.id)).resolves.toMatchObject({ state: 'live' })
+    await portal.saveOfficialLink({ platform: 'facebook', url: 'https://example.invalid/facebook' })
+    await expect(portal.removeOfficialLink('facebook')).resolves.toBeUndefined()
+    const ticket = await portal.createSupportTicket({
+      category: 'bug',
+      subject: 'Synthetic issue',
+      body: 'Synthetic details.',
+      diagnostics: await portal.getDiagnostics(),
+    })
+    await expect(portal.replySupportTicket(ticket.id, 'More detail')).resolves.toMatchObject({
+      state: 'waiting_on_you',
+      replies: [expect.objectContaining({ body: 'More detail' })],
+    })
+    await expect(portal.confirmSupportResolution(ticket.id)).resolves.toMatchObject({
+      state: 'resolved',
+    })
+    await expect(portal.reopenSupportTicket(ticket.id)).resolves.toMatchObject({
+      state: 'reopened',
+    })
+  })
+
+  it('keeps partner and portal roles and review states honest', async () => {
+    for (const identity of ['anonymous', 'shopper-a', 'administrator'] as const) {
+      const clients = createReviewHarnessClients(scenario(identity), 'success')
+      await expect(clients.partner!.getStatus()).rejects.toThrow(/permission denied/i)
+      await expect(clients.portal!.getHome()).rejects.toThrow(/permission denied/i)
+    }
+    const empty = createReviewHarnessClients(scenario('representative'), 'empty')
+    await expect(empty.partner!.getStatus()).resolves.toMatchObject({ onboarding: 'draft' })
+    await expect(empty.portal!.listUpdates()).resolves.toEqual([])
+    for (const state of ['error', 'blocked', 'permission-denied'] as const) {
+      const clients = createReviewHarnessClients(scenario('representative'), state)
+      await expect(clients.partner!.getStatus()).rejects.toThrow(
+        /couldn't continue this invitation/i,
+      )
+      await expect(clients.portal!.getHome()).rejects.toThrow(/couldn't update/i)
+    }
+    const loading = createReviewHarnessClients(scenario('representative'), 'loading')
+    await expect(
+      Promise.race([
+        loading.partner!.getStatus().then(() => 'resolved'),
+        Promise.resolve('pending'),
+      ]),
+    ).resolves.toBe('pending')
+  })
+
   it('seeds an Administrator moderation queue without shopper-private access', async () => {
     const administrator = createReviewHarnessClients(scenario('administrator'), 'success')
     await expect(administrator.reviews!.listModerationCases()).resolves.toEqual([
@@ -92,6 +237,127 @@ describe('scenario-aware review clients', () => {
     await expect(administrator.partnerAdmin!.getCase('another-claim')).rejects.toThrow(
       /exact-case denial/i,
     )
+  })
+
+  it('implements the administrator queue, scope, merge, partner, and moderation mutations', async () => {
+    const administrator = createReviewHarnessClients(scenario('administrator'), 'success')
+    const admin = administrator.admin!
+
+    const [reviewCase] = await admin.listCases()
+    expect(reviewCase).toMatchObject({ id: 'case-1', state: 'assigned', version: 3 })
+    await expect(admin.getCase(reviewCase.id)).resolves.toMatchObject({
+      immutableSubmission: true,
+      allowedActions: ['approve', 'return', 'reject'],
+      audit: expect.arrayContaining([expect.objectContaining({ action: 'assigned' })]),
+    })
+    await expect(
+      admin.decideCase(reviewCase.id, 'approve', 'accurate', 2, 'stale'),
+    ).rejects.toThrow(/version conflict/i)
+    await expect(
+      admin.decideCase(reviewCase.id, 'approve', 'accurate', 3, 'decide-1'),
+    ).resolves.toEqual({
+      id: 'case-1',
+      state: 'approved',
+      version: 4,
+    })
+    await expect(admin.listCases()).resolves.toEqual([])
+
+    const [grant] = await admin.listStoreGrants()
+    const preview = await admin.previewStoreScopeChange(
+      grant.subjectUserId,
+      grant.storeId,
+      grant.version,
+    )
+    await expect(
+      admin.changeStoreScope(
+        'revoke',
+        grant.subjectUserId,
+        grant.storeId,
+        grant.version,
+        'administrator_revoked',
+        'revoke-1',
+        preview.previewId,
+      ),
+    ).resolves.toMatchObject({ state: 'revoked', version: 3 })
+    const regrantPreview = await admin.previewStoreScopeChange(
+      grant.subjectUserId,
+      grant.storeId,
+      3,
+    )
+    await expect(
+      admin.changeStoreScope(
+        'regrant',
+        grant.subjectUserId,
+        grant.storeId,
+        3,
+        'authority_reverified',
+        'regrant-1',
+        regrantPreview.previewId,
+      ),
+    ).resolves.toMatchObject({ state: 'active', version: 4 })
+
+    const merge = await admin.previewDuplicateMerge('store-blue-finch', 'store-cedar-brass')
+    expect(merge).toMatchObject({ state: 'previewed', safeReferences: 12, quarantinedConflicts: 1 })
+    const executed = await admin.executeDuplicateMerge(merge.proposalId, merge.version, 'merge-1')
+    await expect(
+      admin.rollbackDuplicateMerge(executed.proposalId, executed.version, 'rollback-1'),
+    ).resolves.toMatchObject({ state: 'rolled_back', version: 3 })
+
+    const partner = administrator.partnerAdmin!
+    const partnerCase = await partner.getCase('claim-synthetic')
+    const signal = partnerCase.pendingSignals![0]
+    const verified = await partner.verifySignal({
+      operation: 'verify',
+      claimId: partnerCase.claimId,
+      signalId: signal.signalId,
+      expectedVersion: partnerCase.version!,
+      idempotencyKey: 'signal-1',
+      reasonCode: 'confirmed',
+    })
+    await expect(
+      partner.decide({
+        operation: 'approve',
+        claimId: verified.claimId,
+        expectedVersion: verified.version!,
+        idempotencyKey: 'partner-1',
+        reasonCode: 'verified_authority',
+      }),
+    ).resolves.toMatchObject({ state: 'approved', version: 4 })
+
+    const reviews = administrator.reviews!
+    const [moderation] = await reviews.listModerationCases()
+    await expect(
+      reviews.decideModerationCase(moderation.id, {
+        action: 'remove',
+        reason: 'confirmed spam',
+        mfaVerified: true,
+        recentAuthAt: '2026-08-05T12:00:00.000Z',
+      }),
+    ).resolves.toMatchObject({
+      state: 'removed',
+      evidence: expect.arrayContaining([
+        expect.objectContaining({ kind: 'prior_decision', value: 'confirmed spam' }),
+      ]),
+    })
+  })
+
+  it('denies every privileged fixture to non-administrators and keeps admin states honest', async () => {
+    for (const identity of ['shopper-a', 'representative'] as const) {
+      const clients = createReviewHarnessClients(scenario(identity), 'success')
+      await expect(clients.admin!.listCases()).rejects.toThrow(/permission denied/i)
+      await expect(clients.partnerAdmin!.getCase('claim-synthetic')).rejects.toThrow(
+        /permission denied/i,
+      )
+      await expect(clients.reviews!.listModerationCases()).rejects.toThrow(/permission denied/i)
+    }
+    const empty = createReviewHarnessClients(scenario('administrator'), 'empty')
+    await expect(empty.admin!.listCases()).resolves.toEqual([])
+    await expect(empty.admin!.listStoreGrants()).resolves.toEqual([])
+    for (const state of ['error', 'blocked', 'permission-denied'] as const) {
+      await expect(
+        createReviewHarnessClients(scenario('administrator'), state).admin!.listCases(),
+      ).rejects.toThrow(/This item is not available/i)
+    }
   })
 
   it('maps empty, loading, error, blocked, and permission states through real clients', async () => {

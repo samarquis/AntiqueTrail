@@ -14,9 +14,55 @@ import {
   type GenericShareEnvelope,
   type TripIdea,
 } from '../features/candidates'
-import { unavailablePartnerAdminClient, type PartnerAdminClient } from '../features/partners'
-import { unavailablePortalClient, type PortalClient, type PortalHours } from '../features/portal'
-import { unavailableReviewClient, type ReviewClient } from '../features/reviews'
+import {
+  GENERIC_ADMIN_FAILURE,
+  unavailableAdminClient,
+  type AdminCaseState,
+  type AdminClient,
+  type AdminMergePlan,
+  type AdminReviewCaseDetail,
+  type AdminStoreScope,
+} from '../features/admin'
+import {
+  EMAIL_GATE_MESSAGE,
+  GENERIC_PARTNER_ERROR,
+  unavailablePartnerAdminClient,
+  unavailablePartnerClient,
+  type PartnerAdminCase,
+  type PartnerAdminClient,
+  type PartnerAdminOperation,
+  type PartnerClaimState,
+  type PartnerClaimStatus,
+  type PartnerClient,
+  type PartnerConsentAcknowledgements,
+  type PartnerConsentStatus,
+  type PartnerInvitation,
+  type PartnerStatus,
+  type SyntheticPartnerInvitation,
+} from '../features/partners'
+import {
+  GENERIC_PORTAL_ERROR,
+  unavailablePortalClient,
+  type OfficialLink,
+  type OfficialLinkPlatform,
+  type PortalClient,
+  type PortalControlledChangeDraft,
+  type PortalHomeSnapshot,
+  type PortalHours,
+  type PortalManagedFields,
+  type PortalMediaUploadInput,
+  type PortalPendingChange,
+  type StoreUpdate,
+  type StoreUpdateDraft,
+  type SupportTicket,
+  type SupportTicketDraft,
+} from '../features/portal'
+import {
+  unavailableReviewClient,
+  type ModerationCase,
+  type ModerationDecisionInput,
+  type ReviewClient,
+} from '../features/reviews'
 import {
   unavailableShopperClient,
   type PrivateStoreMemory,
@@ -1317,157 +1363,388 @@ const hours: PortalHours = {
   version: 2,
 }
 
+function mutate<T>(state: ReviewStateId, failure: string, produce: () => T): Promise<T> {
+  if (state === 'loading') return new Promise<T>(() => undefined)
+  if (state === 'error' || state === 'blocked' || state === 'permission-denied')
+    return Promise.reject(new Error(failure))
+  return Promise.resolve(produce())
+}
+
+function failureFixture<T>(
+  state: ReviewStateId,
+  success: T,
+  empty: T,
+  failure: string,
+): Promise<T> {
+  if (state === 'loading') return new Promise<T>(() => undefined)
+  if (state === 'error' || state === 'blocked' || state === 'permission-denied')
+    return Promise.reject(new Error(failure))
+  return Promise.resolve(state === 'empty' ? empty : structuredClone(success))
+}
+
 function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalClient {
   const allowed = () => requireRole(scenario, ['Representative'], true)
-  const home = {
+  const home: PortalHomeSnapshot = {
     store: {
       id: 'store-blue-finch',
       name: 'Blue Finch Curios',
-      listingState: 'active' as const,
+      listingState: 'active',
       timeZone: 'America/Chicago',
     },
     freshness: {
-      state: 'overdue' as const,
-      label: 'Hours need review',
-      verifiedAt: '2026-05-01T12:00:00.000Z',
-      daysSinceVerification: 96,
+      state: 'overdue',
+      label: 'Hours verified 12 days ago',
+      verifiedAt: '2026-07-24T12:00:00.000Z',
+      daysSinceVerification: 12,
     },
     provenance: {
-      sourceLabel: 'Store Representative',
-      verifiedBy: 'Synthetic Administrator',
-      verifiedAt: '2026-05-01T12:00:00.000Z',
+      sourceLabel: 'Store Partner confirmation',
+      verifiedBy: 'Review Administrator',
+      verifiedAt: '2026-07-24T12:00:00.000Z',
       ownerConfirmed: true,
     },
     pendingChanges: [
       {
         id: 'change-1',
-        field: 'address' as const,
-        requestedValue: '100 Synthetic Avenue, Topeka, KS',
-        state: 'pending' as const,
+        field: 'address',
+        requestedValue: '200 East Synthetic Avenue, Topeka, KS',
+        state: 'pending',
         submittedAt: FIXED_NOW,
       },
     ],
   }
+  let pendingChanges: PortalPendingChange[] = [...home.pendingChanges]
+  let portalHours: PortalHours = structuredClone(hours)
+  let updates: StoreUpdate[] = [
+    {
+      id: 'update-1',
+      type: 'new_finds',
+      headline: 'Fresh walnut furniture',
+      details: 'A synthetic shipment for local review.',
+      state: 'live',
+      publishedAt: FIXED_NOW,
+    },
+  ]
+  let officialLinks: OfficialLink[] = [
+    { platform: 'instagram', url: 'https://example.invalid/blue-finch', verifiedAt: FIXED_NOW },
+  ]
+  let supportTickets: SupportTicket[] = [
+    {
+      id: 'ticket-1',
+      category: 'store_data_correction',
+      subject: 'Holiday hours',
+      body: 'Please confirm the synthetic closure.',
+      state: 'waiting_on_you',
+      createdAt: FIXED_NOW,
+      updatedAt: FIXED_NOW,
+      diagnostics: [],
+      screenshotAttached: false,
+      replies: [],
+    },
+  ]
+  const managedFields: PortalManagedFields = {
+    phone: '785-555-0123',
+    website: 'https://blue-finch.example.invalid',
+    description: 'A synthetic Topeka antique shop.',
+  }
+  const publicFields = (): Record<string, string> => ({
+    phone: managedFields.phone,
+    website: managedFields.website,
+    description: managedFields.description,
+    ...(managedFields.temporaryClosure
+      ? {
+          temporaryClosure: `${managedFields.temporaryClosure.startDate} to ${managedFields.temporaryClosure.endDate}`,
+        }
+      : {}),
+  })
   return {
     ...unavailablePortalClient,
     async getHome() {
       allowed()
-      return fixture(state, home, { ...home, pendingChanges: [] })
+      return failureFixture(
+        state,
+        { ...home, pendingChanges },
+        { ...home, pendingChanges: [] },
+        GENERIC_PORTAL_ERROR,
+      )
     },
     async getHours() {
       allowed()
-      return fixture(state, hours, { ...hours, weekly: [], holidays: [] })
+      return failureFixture(
+        state,
+        portalHours,
+        { ...portalHours, weekly: [], holidays: [] },
+        GENERIC_PORTAL_ERROR,
+      )
     },
-    async saveHours(value) {
+    async saveHours(value: PortalHours) {
       allowed()
-      return { ...value, version: value.version + 1 }
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        portalHours = { ...structuredClone(value), version: portalHours.version + 1 }
+        return structuredClone(portalHours)
+      })
+    },
+    async saveManagedFields(fields: PortalManagedFields) {
+      allowed()
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        Object.assign(managedFields, fields)
+        return { ...home, pendingChanges }
+      })
+    },
+    async submitControlledChange(change: PortalControlledChangeDraft) {
+      allowed()
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const created: PortalPendingChange = {
+          id: 'change-' + (pendingChanges.length + 1),
+          field: change.field,
+          requestedValue: change.requestedValue,
+          state: 'pending',
+          submittedAt: FIXED_NOW,
+        }
+        pendingChanges = [...pendingChanges, created]
+        return created
+      })
+    },
+    async getMediaCapability() {
+      allowed()
+      return failureFixture(
+        state,
+        { enabled: false, source: 'server' },
+        { enabled: false, source: 'server' },
+        GENERIC_PORTAL_ERROR,
+      )
+    },
+    async uploadOfficialMedia(input: PortalMediaUploadInput) {
+      allowed()
+      void input
+      if (state === 'loading') return new Promise<never>(() => undefined)
+      if (state === 'error' || state === 'blocked' || state === 'permission-denied')
+        return Promise.reject(new Error(GENERIC_PORTAL_ERROR))
+      // M-01 honest media gate: the review build never fabricates an upload receipt.
+      throw new Error(GENERIC_PORTAL_ERROR)
     },
     async listUpdates() {
       allowed()
-      return fixture(
-        state,
-        [
-          {
-            id: 'update-1',
-            type: 'new_finds' as const,
-            headline: 'Fresh walnut furniture',
-            details: 'A synthetic shipment for local review.',
-            state: 'live' as const,
-            publishedAt: FIXED_NOW,
-          },
-        ],
-        [],
-      )
+      return failureFixture(state, updates, [], GENERIC_PORTAL_ERROR)
+    },
+    async createUpdate(draft: StoreUpdateDraft) {
+      allowed()
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const created: StoreUpdate = {
+          ...draft,
+          id: 'update-' + (updates.length + 1),
+          state: 'live',
+          publishedAt: FIXED_NOW,
+        }
+        updates = [created, ...updates]
+        return created
+      })
+    },
+    async archiveUpdate(id: string) {
+      allowed()
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const target = updates.find((u) => u.id === id)
+        if (!target) throw new Error('Synthetic exact-update denial.')
+        const updated: StoreUpdate = { ...target, state: 'archived', archivedAt: FIXED_NOW }
+        updates = updates.map((u) => (u.id === id ? updated : u))
+        return updated
+      })
+    },
+    async restoreUpdate(id: string) {
+      allowed()
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const target = updates.find((u) => u.id === id)
+        if (!target) throw new Error('Synthetic exact-update denial.')
+        const updated: StoreUpdate = { ...target, state: 'live', archivedAt: undefined }
+        updates = updates.map((u) => (u.id === id ? updated : u))
+        return updated
+      })
     },
     async listOfficialLinks() {
       allowed()
-      return fixture(
-        state,
-        [
-          {
-            platform: 'instagram' as const,
-            url: 'https://example.invalid/blue-finch',
-            verifiedAt: FIXED_NOW,
-          },
-        ],
-        [],
-      )
+      return failureFixture(state, officialLinks, [], GENERIC_PORTAL_ERROR)
+    },
+    async saveOfficialLink(link: OfficialLink) {
+      allowed()
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const saved: OfficialLink = { ...link, verifiedAt: link.verifiedAt ?? FIXED_NOW }
+        officialLinks = [saved, ...officialLinks.filter((l) => l.platform !== saved.platform)]
+        return saved
+      })
+    },
+    async removeOfficialLink(platform: OfficialLinkPlatform) {
+      allowed()
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        officialLinks = officialLinks.filter((l) => l.platform !== platform)
+      })
     },
     async listSupportTickets() {
       allowed()
-      return fixture(
-        state,
-        [
-          {
-            id: 'ticket-1',
-            category: 'store_data_correction' as const,
-            subject: 'Holiday hours',
-            body: 'Please confirm the synthetic closure.',
-            state: 'waiting_on_you' as const,
-            createdAt: FIXED_NOW,
-            updatedAt: FIXED_NOW,
-            diagnostics: [],
-            screenshotAttached: false as const,
-            replies: [],
-          },
-        ],
-        [],
-      )
+      return failureFixture(state, supportTickets, [], GENERIC_PORTAL_ERROR)
+    },
+    async createSupportTicket(draft: SupportTicketDraft) {
+      allowed()
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const created: SupportTicket = {
+          ...draft,
+          id: 'ticket-' + (supportTickets.length + 1),
+          state: 'submitted',
+          createdAt: FIXED_NOW,
+          updatedAt: FIXED_NOW,
+          screenshotAttached: false,
+          replies: [],
+        }
+        supportTickets = [created, ...supportTickets]
+        return created
+      })
+    },
+    async replySupportTicket(ticketId: string, body: string) {
+      allowed()
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const target = supportTickets.find((t) => t.id === ticketId)
+        if (!target) throw new Error('Synthetic exact-ticket denial.')
+        const updated: SupportTicket = {
+          ...target,
+          replies: [
+            ...target.replies,
+            {
+              id: 'reply-' + (target.replies.length + 1),
+              author: 'support',
+              body,
+              createdAt: FIXED_NOW,
+            },
+          ],
+          state: 'waiting_on_you',
+          updatedAt: FIXED_NOW,
+        }
+        supportTickets = supportTickets.map((t) => (t.id === ticketId ? updated : t))
+        return updated
+      })
+    },
+    async confirmSupportResolution(ticketId: string) {
+      allowed()
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const target = supportTickets.find((t) => t.id === ticketId)
+        if (!target) throw new Error('Synthetic exact-ticket denial.')
+        const updated: SupportTicket = {
+          ...target,
+          state: 'resolved',
+          resolutionNote: 'Confirmed resolved in the review build.',
+          updatedAt: FIXED_NOW,
+        }
+        supportTickets = supportTickets.map((t) => (t.id === ticketId ? updated : t))
+        return updated
+      })
+    },
+    async reopenSupportTicket(ticketId: string) {
+      allowed()
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const target = supportTickets.find((t) => t.id === ticketId)
+        if (!target) throw new Error('Synthetic exact-ticket denial.')
+        const updated: SupportTicket = {
+          ...target,
+          state: 'reopened',
+          resolutionNote: undefined,
+          updatedAt: FIXED_NOW,
+        }
+        supportTickets = supportTickets.map((t) => (t.id === ticketId ? updated : t))
+        return updated
+      })
     },
     async previewPublicListing() {
       allowed()
-      return fixture(
+      return failureFixture(
         state,
         {
           storeName: home.store.name,
           listingState: home.store.listingState,
-          liveFields: { Address: '98 Synthetic Avenue, Topeka, KS' },
-          pendingChanges: home.pendingChanges,
+          liveFields: publicFields(),
+          pendingChanges,
           freshness: home.freshness,
         },
         {
           storeName: home.store.name,
           listingState: home.store.listingState,
-          liveFields: {} as Record<string, string>,
+          liveFields: publicFields(),
           pendingChanges: [],
           freshness: home.freshness,
         },
+        GENERIC_PORTAL_ERROR,
+      )
+    },
+    async getDiagnostics() {
+      allowed()
+      return failureFixture(
+        state,
+        [
+          { key: 'browser', label: 'Browser', value: 'Synthetic Chromium' },
+          { key: 'operating_system', label: 'Operating system', value: 'Synthetic Windows' },
+          { key: 'app_version', label: 'App version', value: 'review-build' },
+          { key: 'route', label: 'Route', value: '/store-portal/support' },
+          { key: 'connection', label: 'Connection', value: 'Synthetic online' },
+        ],
+        [],
+        GENERIC_PORTAL_ERROR,
       )
     },
   }
 }
 
 function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewClient {
+  const allowed = () => requireRole(scenario, ['Administrator'], true)
+  const FIXED_NOW = '2026-08-05T12:00:00.000Z'
+  let moderationCase: ModerationCase = {
+    id: 'moderation-1',
+    reviewId: 'review-1',
+    storeId: 'store-blue-finch',
+    state: 'open',
+    reasonCode: 'spam',
+    evidence: [{ kind: 'report_reason', value: 'Synthetic spam report' }],
+    openedAt: FIXED_NOW,
+    updatedAt: FIXED_NOW,
+    reporterPseudonym: 'Reporter 17',
+  }
   return {
     ...unavailableReviewClient,
     async listModerationCases() {
-      requireRole(scenario, ['Administrator'], true)
-      return fixture(
-        state,
-        [
-          {
-            id: 'moderation-1',
-            reviewId: 'review-1',
-            storeId: 'store-blue-finch',
-            state: 'open' as const,
-            reasonCode: 'spam' as const,
-            evidence: [{ kind: 'report_reason' as const, value: 'Synthetic spam report' }],
-            openedAt: FIXED_NOW,
-            updatedAt: FIXED_NOW,
-            reporterPseudonym: 'Reporter 17',
-          },
-        ],
-        [],
-      )
+      allowed()
+      return fixture(state, [moderationCase], [])
+    },
+    async decideModerationCase(caseId: string, input: ModerationDecisionInput) {
+      allowed()
+      return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        if (caseId !== moderationCase.id) throw new Error('Synthetic exact-case denial.')
+        if (!input.reason.trim() || !input.mfaVerified || !input.recentAuthAt)
+          throw new Error(GENERIC_ADMIN_FAILURE)
+        const recentAuthAt = Date.parse(input.recentAuthAt)
+        if (!Number.isFinite(recentAuthAt) || recentAuthAt < Date.parse(FIXED_NOW) - 10 * 60_000)
+          throw new Error(GENERIC_ADMIN_FAILURE)
+        const nextState: ModerationCase['state'] =
+          input.action === 'hold'
+            ? 'held'
+            : input.action === 'remove'
+              ? 'removed'
+              : input.action === 'restore'
+                ? 'restored'
+                : 'dismissed'
+        const updated: ModerationCase = {
+          ...moderationCase,
+          state: nextState,
+          updatedAt: FIXED_NOW,
+          evidence: [...moderationCase.evidence, { kind: 'prior_decision', value: input.reason }],
+        }
+        moderationCase = updated
+        return updated
+      })
     },
   }
 }
 
 function partnerAdminClient(scenario: ReviewScenario, state: ReviewStateId): PartnerAdminClient {
   const allowed = () => requireRole(scenario, ['Administrator'], true)
-  const partnerCase = {
+  let partnerCase: PartnerAdminCase = {
     claimId: 'claim-synthetic',
-    state: 'verification_pending' as const,
+    state: 'verification_pending',
     version: 2,
     exactStoreScope: 'Blue Finch Curios',
     verifiedSignals: [{ channelClass: 'published_business_contact', signalType: 'email' }],
@@ -1479,28 +1756,511 @@ function partnerAdminClient(scenario: ReviewScenario, state: ReviewStateId): Par
       },
     ],
   }
+  const invitation: SyntheticPartnerInvitation = {
+    invitationId: 'invitation-synthetic',
+    token: 'synthetic-review-token-not-a-secret',
+    expiresAt: '2026-08-12T12:00:00.000Z',
+  }
   return {
     ...unavailablePartnerAdminClient,
-    async getCase(claimId) {
+    async getCase(claimId: string) {
       allowed()
       if (claimId !== partnerCase.claimId) throw new Error('Synthetic exact-case denial.')
       return fixture(state, partnerCase, { ...partnerCase, pendingSignals: [] })
     },
-    async issueSyntheticInvitation() {
+    async issueSyntheticInvitation(input: { email: string; idempotencyKey: string }) {
       allowed()
-      return fixture(
-        state,
+      void input
+      return fixture(state, invitation, invitation)
+    },
+    async decide(input: {
+      operation: PartnerAdminOperation
+      claimId: string
+      expectedVersion: number
+      idempotencyKey: string
+      reasonCode: string
+      transferFromClaimId?: string
+    }) {
+      allowed()
+      return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        if (input.claimId !== partnerCase.claimId) throw new Error('Synthetic exact-case denial.')
+        if (input.expectedVersion !== partnerCase.version)
+          throw new Error('Synthetic version conflict.')
+        const nextState: PartnerClaimState =
+          input.operation === 'approve'
+            ? 'approved'
+            : input.operation === 'reject'
+              ? 'rejected'
+              : input.operation === 'revoke'
+                ? 'revoked'
+                : input.operation === 'conflict'
+                  ? 'conflict'
+                  : input.operation === 'changes'
+                    ? 'changes_requested'
+                    : input.operation === 'recheck' || input.operation === 'transfer'
+                      ? 'verification_pending'
+                      : (() => {
+                          throw new Error('Synthetic exact-operation denial.')
+                        })()
+        partnerCase = { ...partnerCase, state: nextState, version: input.expectedVersion + 1 }
+        return partnerCase
+      })
+    },
+    async verifySignal(input: {
+      operation: 'verify' | 'reject'
+      claimId: string
+      signalId: string
+      expectedVersion: number
+      idempotencyKey: string
+      reasonCode: string
+    }) {
+      allowed()
+      return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        if (input.claimId !== partnerCase.claimId) throw new Error('Synthetic exact-case denial.')
+        if (input.expectedVersion !== partnerCase.version)
+          throw new Error('Synthetic version conflict.')
+        const pending = partnerCase.pendingSignals ?? []
+        const signal = pending.find((x) => x.signalId === input.signalId)
+        if (!signal) throw new Error('Synthetic exact-signal denial.')
+        partnerCase = {
+          ...partnerCase,
+          version: input.expectedVersion + 1,
+          verifiedSignals:
+            input.operation === 'verify'
+              ? [
+                  ...(partnerCase.verifiedSignals ?? []),
+                  { channelClass: signal.channelClass, signalType: signal.signalType },
+                ]
+              : partnerCase.verifiedSignals,
+          pendingSignals: pending.filter((x) => x.signalId !== input.signalId),
+        }
+        return partnerCase
+      })
+    },
+  }
+}
+
+function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerClient {
+  const allowed = () => requireRole(scenario, ['Representative'], true)
+  const invitation: PartnerInvitation = {
+    state: 'active',
+    expiresAt: '2026-08-12T12:00:00.000Z',
+    maskedRecipient: 'r***@local.invalid',
+    resumeHandle: 'resume-review-partner',
+  }
+  const approvedStatus: PartnerStatus = {
+    invitation: 'consumed',
+    pendingIdentity: 'bound',
+    onboarding: 'approved',
+    storeScope: 'Blue Finch Curios',
+    consentReceiptId: 'receipt-synthetic',
+    consentPolicyVersion: '2026-08-v1',
+  }
+  const preOnboardingStatus: PartnerStatus = {
+    invitation: 'registration_pending',
+    pendingIdentity: 'provisional',
+    onboarding: 'draft',
+  }
+  let status: PartnerStatus = state === 'empty' ? preOnboardingStatus : approvedStatus
+  let acceptedConsentVersion: string | undefined
+  let claimStatus: PartnerClaimStatus | null = null
+  return {
+    ...unavailablePartnerClient,
+    async exchangeInvitation(token: string) {
+      allowed()
+      if (token !== 'review-partner-invite') throw new Error(GENERIC_PARTNER_ERROR)
+      return failureFixture(state, invitation, invitation, GENERIC_PARTNER_ERROR)
+    },
+    async resumeInvitation(resumeHandle: string) {
+      allowed()
+      if (resumeHandle !== invitation.resumeHandle) throw new Error(GENERIC_PARTNER_ERROR)
+      return failureFixture(state, invitation, invitation, GENERIC_PARTNER_ERROR)
+    },
+    async acceptConsent(input: {
+      resumeHandle: string
+      idempotencyKey: string
+      identity: { name: string; title: string; store: string; email: string }
+      acknowledgements: PartnerConsentAcknowledgements
+    }) {
+      allowed()
+      if (input.resumeHandle !== invitation.resumeHandle) throw new Error(GENERIC_PARTNER_ERROR)
+      return failureFixture(state, preOnboardingStatus, preOnboardingStatus, GENERIC_PARTNER_ERROR)
+    },
+    async getConsentStatus() {
+      allowed()
+      const consentStatus: PartnerConsentStatus = {
+        requiredVersion: '2026-08-v1',
+        acceptedVersion: acceptedConsentVersion,
+        reconsentRequired: !acceptedConsentVersion,
+        materialTerms: [
+          'Participation is voluntary',
+          'No payment is required',
+          'Participation is not an endorsement',
+          'Antique Trail will not advertise your participation',
+          'Store data is limited to approved publication',
+          'You may withdraw at any time',
+        ],
+      }
+      return failureFixture(state, consentStatus, consentStatus, GENERIC_PARTNER_ERROR)
+    },
+    async acceptMaterialTerms(input: {
+      policyVersion: string
+      acknowledgements: { reviewed: boolean; voluntary: boolean }
+      idempotencyKey: string
+    }) {
+      allowed()
+      return mutate(state, GENERIC_PARTNER_ERROR, () => {
+        if (input.policyVersion !== '2026-08-v1') throw new Error(GENERIC_PARTNER_ERROR)
+        if (!input.acknowledgements.reviewed || !input.acknowledgements.voluntary)
+          throw new Error(GENERIC_PARTNER_ERROR)
+        acceptedConsentVersion = input.policyVersion
+        return {
+          requiredVersion: '2026-08-v1',
+          acceptedVersion: acceptedConsentVersion,
+          reconsentRequired: false,
+          materialTerms: [
+            'Participation is voluntary',
+            'No payment is required',
+            'Participation is not an endorsement',
+            'Antique Trail will not advertise your participation',
+            'Store data is limited to approved publication',
+            'You may withdraw at any time',
+          ],
+        }
+      })
+    },
+    async bindIdentity() {
+      allowed()
+      if (state === 'loading') return new Promise<PartnerStatus>(() => undefined)
+      if (state === 'error' || state === 'blocked' || state === 'permission-denied')
+        return Promise.reject(new Error(GENERIC_PARTNER_ERROR))
+      // E-01 honest gate: the review build never fabricates identity binding.
+      throw new Error(EMAIL_GATE_MESSAGE)
+    },
+    async getStatus() {
+      allowed()
+      return failureFixture(state, status, preOnboardingStatus, GENERIC_PARTNER_ERROR)
+    },
+    async saveDraft(draft: {
+      storeName: string
+      address: string
+      hours: string
+      website: string
+      description: string
+    }) {
+      allowed()
+      void draft
+      return mutate(state, GENERIC_PARTNER_ERROR, () => {
+        status = { ...status, onboarding: 'draft' }
+        return status
+      })
+    },
+    async submitDraft() {
+      allowed()
+      return mutate(state, GENERIC_PARTNER_ERROR, () => {
+        status = { ...status, onboarding: 'submitted' }
+        return status
+      })
+    },
+    async withdraw() {
+      allowed()
+      return mutate(state, GENERIC_PARTNER_ERROR, () => {
+        status = { ...status, onboarding: 'withdrawn' }
+        return status
+      })
+    },
+    async submitClaim(draft: {
+      storeReference: string
+      relationship: string
+      authorityStatement: string
+    }) {
+      allowed()
+      void draft
+      return mutate(state, GENERIC_PARTNER_ERROR, () => {
+        claimStatus = {
+          claimId: 'claim-review-partner',
+          state: 'submitted',
+          exactStoreScope: 'Blue Finch Curios',
+        }
+        return claimStatus
+      })
+    },
+    async getClaimStatus() {
+      allowed()
+      return failureFixture(state, claimStatus, null, GENERIC_PARTNER_ERROR)
+    },
+    async submitAuthoritySignal(input: {
+      claimId: string
+      channelClass: string
+      evidenceReference: string
+    }) {
+      allowed()
+      void input
+      return mutate(state, GENERIC_PARTNER_ERROR, () => {
+        if (!claimStatus) throw new Error('Synthetic claim required.')
+        claimStatus = { ...claimStatus, state: 'verification_pending' }
+        return claimStatus
+      })
+    },
+    async withdrawClaim(claimId: string) {
+      allowed()
+      return mutate(state, GENERIC_PARTNER_ERROR, () => {
+        if (!claimStatus || claimStatus.claimId !== claimId)
+          throw new Error('Synthetic exact-claim denial.')
+        claimStatus = { ...claimStatus, state: 'withdrawn' }
+        return claimStatus
+      })
+    },
+    async requestAuthorityRecheck(claimId: string) {
+      allowed()
+      return mutate(state, GENERIC_PARTNER_ERROR, () => {
+        if (!claimStatus || claimStatus.claimId !== claimId)
+          throw new Error('Synthetic exact-claim denial.')
+        claimStatus = {
+          ...claimStatus,
+          state: 'verification_pending',
+          recheckDueAt: '2026-08-19T12:00:00.000Z',
+        }
+        return claimStatus
+      })
+    },
+  }
+}
+
+function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClient {
+  const allowed = () => requireRole(scenario, ['Administrator'], true)
+  const FIXED_NOW = '2026-08-05T12:00:00.000Z'
+  let reviewCases: AdminReviewCaseDetail[] = [
+    {
+      id: 'case-1',
+      caseType: 'store_change',
+      targetKind: 'store',
+      storeLabel: 'Blue Finch Curios',
+      state: 'assigned',
+      version: 3,
+      createdAt: FIXED_NOW,
+      immutableSubmission: true,
+      context: {
+        field: 'address',
+        requestedValue: '200 East Synthetic Avenue, Topeka, KS',
+        submittedBy: 'River',
+        submittedAt: FIXED_NOW,
+      },
+      allowedActions: ['approve', 'return', 'reject'],
+      audit: [
         {
-          invitationId: 'invitation-synthetic',
-          token: 'synthetic-review-token-not-a-secret',
-          expiresAt: '2026-08-05T12:30:00.000Z',
+          action: 'submitted',
+          outcome: 'Address change submitted for review',
+          occurredAt: FIXED_NOW,
         },
         {
-          invitationId: 'invitation-empty',
-          token: 'synthetic-empty-token',
-          expiresAt: '2026-08-05T12:30:00.000Z',
+          action: 'assigned',
+          outcome: 'Assigned to the local review queue',
+          occurredAt: FIXED_NOW,
         },
-      )
+      ],
+    },
+  ]
+  let storeGrants: AdminStoreScope[] = [
+    {
+      grantId: 'grant-1',
+      subjectUserId: 'review-representative',
+      subjectLabel: 'River',
+      storeId: 'store-blue-finch',
+      storeLabel: 'Blue Finch Curios',
+      state: 'active',
+      version: 2,
+    },
+  ]
+  let mergePlan: AdminMergePlan | null = {
+    proposalId: 'merge-1',
+    canonicalStoreId: 'store-blue-finch',
+    duplicateStoreId: 'store-cedar-brass',
+    canonicalLabel: 'Blue Finch Curios',
+    duplicateLabel: 'Cedar & Brass',
+    safeReferences: 12,
+    quarantinedConflicts: 1,
+    authorityReparented: false,
+    references: [
+      { ordinal: 1, kind: 'listing', collisionKind: 'none', plannedResolution: 'Keep canonical' },
+      {
+        ordinal: 2,
+        kind: 'claim',
+        collisionKind: 'authority',
+        plannedResolution: 'Quarantine duplicate authority',
+      },
+    ],
+    state: 'previewed',
+    version: 1,
+  }
+  let scopePreview: { previewId: string; grantId: string; version: number } | null = null
+  return {
+    ...unavailableAdminClient,
+    async listCases(retry = false) {
+      allowed()
+      if ((state === 'error' || state === 'blocked') && !retry)
+        return Promise.reject(new Error(GENERIC_ADMIN_FAILURE))
+      if (state === 'error' || state === 'blocked')
+        return Promise.resolve(structuredClone(reviewCases))
+      return failureFixture(state, reviewCases, [], GENERIC_ADMIN_FAILURE)
+    },
+    async getCase(caseId: string) {
+      allowed()
+      if (state === 'loading') return new Promise<AdminReviewCaseDetail>(() => undefined)
+      if (state === 'error' || state === 'blocked' || state === 'permission-denied')
+        return Promise.reject(new Error(GENERIC_ADMIN_FAILURE))
+      const target = reviewCases.find((c) => c.id === caseId)
+      if (!target) throw new Error('Synthetic exact-case denial.')
+      return Promise.resolve(structuredClone(target))
+    },
+    async decideCase(
+      caseId: string,
+      action: 'approve' | 'return' | 'reject',
+      reason: string,
+      expectedVersion: number,
+      idempotencyKey: string,
+    ) {
+      allowed()
+      void idempotencyKey
+      return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        const target = reviewCases.find((c) => c.id === caseId)
+        if (!target) throw new Error('Synthetic exact-case denial.')
+        if (target.version !== expectedVersion) throw new Error('Synthetic version conflict.')
+        const nextState: AdminCaseState =
+          action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'changes_requested'
+        reviewCases = reviewCases.filter((c) => c.id !== caseId)
+        return { id: caseId, state: nextState, version: expectedVersion + 1 }
+      })
+    },
+    async listStoreGrants(retry = false) {
+      allowed()
+      if ((state === 'error' || state === 'blocked') && !retry)
+        return Promise.reject(new Error(GENERIC_ADMIN_FAILURE))
+      if (state === 'error' || state === 'blocked')
+        return Promise.resolve(structuredClone(storeGrants))
+      return failureFixture(state, storeGrants, [], GENERIC_ADMIN_FAILURE)
+    },
+    async previewStoreScopeChange(subjectUserId: string, storeId: string, expectedVersion: number) {
+      allowed()
+      return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        const grant = storeGrants.find(
+          (g) => g.subjectUserId === subjectUserId && g.storeId === storeId,
+        )
+        if (!grant) throw new Error('Synthetic exact-grant denial.')
+        if (grant.version !== expectedVersion) throw new Error('Synthetic version conflict.')
+        const result = {
+          previewId: 'preview-grant-1',
+          subjectUserId,
+          storeId,
+          grantId: grant.grantId,
+          grantVersion: grant.version,
+          previewHash: 'synthetic-preview-hash',
+          expiresAt: '2026-08-05T12:15:00.000Z',
+        }
+        scopePreview = {
+          previewId: result.previewId,
+          grantId: grant.grantId,
+          version: grant.version,
+        }
+        return result
+      })
+    },
+    async changeStoreScope(
+      operation: 'revoke' | 'regrant',
+      subjectUserId: string,
+      storeId: string,
+      expectedVersion: number,
+      reasonCode: string,
+      idempotencyKey: string,
+      previewId: string | null,
+    ) {
+      allowed()
+      void reasonCode
+      void idempotencyKey
+      return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        const grant = storeGrants.find(
+          (g) => g.subjectUserId === subjectUserId && g.storeId === storeId,
+        )
+        if (!grant) throw new Error('Synthetic exact-grant denial.')
+        if (grant.version !== expectedVersion) throw new Error('Synthetic version conflict.')
+        if (
+          !previewId ||
+          scopePreview?.previewId !== previewId ||
+          scopePreview.grantId !== grant.grantId ||
+          scopePreview.version !== grant.version
+        )
+          throw new Error(GENERIC_ADMIN_FAILURE)
+        const updated: AdminStoreScope = {
+          ...grant,
+          state: operation === 'revoke' ? 'revoked' : 'active',
+          version: expectedVersion + 1,
+        }
+        storeGrants = storeGrants.map((g) => (g.grantId === grant.grantId ? updated : g))
+        scopePreview = null
+        return { grantId: grant.grantId, state: updated.state, version: updated.version }
+      })
+    },
+    async previewDuplicateMerge(canonicalStoreId: string, duplicateStoreId: string) {
+      allowed()
+      return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        mergePlan = {
+          proposalId: 'merge-1',
+          canonicalStoreId,
+          duplicateStoreId,
+          canonicalLabel: 'Blue Finch Curios',
+          duplicateLabel: 'Cedar & Brass',
+          safeReferences: 12,
+          quarantinedConflicts: 1,
+          authorityReparented: false,
+          references: [
+            {
+              ordinal: 1,
+              kind: 'listing',
+              collisionKind: 'none',
+              plannedResolution: 'Keep canonical',
+            },
+            {
+              ordinal: 2,
+              kind: 'claim',
+              collisionKind: 'authority',
+              plannedResolution: 'Quarantine duplicate authority',
+            },
+          ],
+          state: 'previewed',
+          version: 1,
+        }
+        return mergePlan
+      })
+    },
+    async executeDuplicateMerge(
+      proposalId: string,
+      expectedVersion: number,
+      idempotencyKey: string,
+    ) {
+      allowed()
+      void idempotencyKey
+      return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        if (!mergePlan) throw new Error('Synthetic exact-merge denial.')
+        if (mergePlan.proposalId !== proposalId) throw new Error('Synthetic exact-merge denial.')
+        if (mergePlan.version !== expectedVersion) throw new Error('Synthetic version conflict.')
+        mergePlan = { ...mergePlan, state: 'executed', version: expectedVersion + 1 }
+        return mergePlan
+      })
+    },
+    async rollbackDuplicateMerge(
+      proposalId: string,
+      expectedVersion: number,
+      idempotencyKey: string,
+    ) {
+      allowed()
+      void idempotencyKey
+      return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        if (!mergePlan) throw new Error('Synthetic exact-merge denial.')
+        if (mergePlan.proposalId !== proposalId) throw new Error('Synthetic exact-merge denial.')
+        if (mergePlan.version !== expectedVersion) throw new Error('Synthetic version conflict.')
+        mergePlan = { ...mergePlan, state: 'rolled_back', version: expectedVersion + 1 }
+        return mergePlan
+      })
     },
   }
 }
@@ -1516,6 +2276,8 @@ export function createReviewHarnessClients(
     trips: tripClient(scenario, state),
     portal: portalClient(scenario, state),
     reviews: reviewClient(scenario, state),
+    partner: partnerClient(scenario, state),
     partnerAdmin: partnerAdminClient(scenario, state),
+    admin: adminClient(scenario, state),
   }
 }

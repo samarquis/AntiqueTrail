@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(19);
 
 select has_table('shopper_private','private_memory_deletions','memory Undo receipts are server-owned');
 select ok(
@@ -28,6 +28,11 @@ select has_function('app_public','shopper_undo_delete_memory','private-memory Un
 select has_function('app_public','shopper_get_new_since','coarse-area New Since RPC exists');
 select has_function('app_public','shopper_mark_catalog_seen','coarse last-seen RPC exists');
 select has_function('app_public','shopper_submit_correction','correction submission RPC exists');
+select ok(
+  position('correction_case_events' in pg_get_functiondef('app_public.shopper_submit_correction(uuid,text,text,text)'::regprocedure))>0
+  and position('''submitted''' in pg_get_functiondef('app_public.shopper_submit_correction(uuid,text,text,text)'::regprocedure))>0,
+  'correction submission appends an idempotent submitted event'
+);
 select has_function('app_public','shopper_get_correction','own correction-status RPC exists');
 
 select ok(

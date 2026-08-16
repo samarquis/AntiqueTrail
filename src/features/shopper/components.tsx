@@ -224,8 +224,39 @@ export function SaveStoreAction({
   )
 }
 
-// Correction text is safe to retain only in this in-memory tab while JIT auth completes.
-const correctionDraftCache = new Map<string, CorrectionDraft>()
+// Correction text is safe to retain only in this browser tab while JIT auth completes.
+const correctionDraftStorageKey = (slug: string) => `antique-trail:correction-draft:${slug}`
+
+function readCorrectionDraft(slug: string): CorrectionDraft | null {
+  try {
+    const raw = window.sessionStorage.getItem(correctionDraftStorageKey(slug))
+    if (!raw) return null
+    const draft = JSON.parse(raw) as Partial<CorrectionDraft>
+    if (
+      typeof draft.storeId !== 'string' ||
+      !['identity', 'contact', 'hours', 'categories', 'other'].includes(String(draft.type)) ||
+      typeof draft.description !== 'string'
+    )
+      return null
+    return {
+      storeId: draft.storeId,
+      type: draft.type as CorrectionDraft['type'],
+      description: draft.description,
+      publicSourceUrl:
+        typeof draft.publicSourceUrl === 'string' ? draft.publicSourceUrl : undefined,
+    }
+  } catch {
+    return null
+  }
+}
+
+function rememberCorrectionDraft(slug: string, draft: CorrectionDraft) {
+  window.sessionStorage.setItem(correctionDraftStorageKey(slug), JSON.stringify(draft))
+}
+
+function forgetCorrectionDraft(slug: string) {
+  window.sessionStorage.removeItem(correctionDraftStorageKey(slug))
+}
 const JIT_PRIVATE_ACTION_KEY = 'antique-trail:jit-private-action:v1'
 
 interface JitSaveIntent {
@@ -893,7 +924,7 @@ export function CorrectionPage({
   const location = useLocation()
   const [draft, setDraft] = useState<CorrectionDraft>(
     () =>
-      correctionDraftCache.get(slug) ?? {
+      readCorrectionDraft(slug) ?? {
         storeId,
         type: 'hours',
         description: '',
@@ -910,7 +941,7 @@ export function CorrectionPage({
       return
     }
     if (!session) {
-      correctionDraftCache.set(slug, draft)
+      rememberCorrectionDraft(slug, draft)
       setError(true)
       return
     }
@@ -924,7 +955,7 @@ export function CorrectionPage({
           publicSourceUrl: draft.publicSourceUrl?.trim() || undefined,
         }),
       )
-      correctionDraftCache.delete(slug)
+      forgetCorrectionDraft(slug)
     } catch {
       setError(true)
     } finally {
@@ -993,6 +1024,7 @@ export function CorrectionPage({
               <Link
                 to={`/auth/sign-in?returnTo=${encodeURIComponent(location.pathname)}`}
                 state={{ correctionDraft: draft }}
+                onClick={() => rememberCorrectionDraft(slug, draft)}
               >
                 Sign in to submit this correction
               </Link>

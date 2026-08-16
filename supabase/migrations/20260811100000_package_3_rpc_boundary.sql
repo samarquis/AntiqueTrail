@@ -310,6 +310,11 @@ begin
   ) values(
     app_public.request_user_id(),p_store_id,p_type,btrim(p_description),nullif(btrim(p_public_source_url),'')
   ) returning * into report;
+  insert into shopper_private.correction_case_events(
+    report_id,actor_user_id,event_kind,to_state,idempotency_key
+  ) values (
+    report.report_id,auth.uid(),'submitted','submitted','submitted:'||report.report_id::text
+  ) on conflict (report_id,idempotency_key) do nothing;
   return jsonb_build_object('id',report.report_id,'state',report.state);
 end; $$;
 

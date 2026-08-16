@@ -531,13 +531,25 @@ export function ModerationQueuePage({
   client?: ReviewClient
 }) {
   const [cases, setCases] = useState<ModerationCase[]>([])
+  const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState(false)
   const [reason, setReason] = useState<Record<string, string>>({})
+  const [pendingDecision, setPendingDecision] = useState<{
+    item: ModerationCase
+    action: ModerationAction
+  } | null>(null)
+  const [resolved, setResolved] = useState<ModerationCase | null>(null)
   useEffect(() => {
     client
       .listModerationCases()
-      .then(setCases)
-      .catch(() => setError(true))
+      .then((items) => {
+        setCases(items)
+        setLoaded(true)
+      })
+      .catch(() => {
+        setError(true)
+        setLoaded(true)
+      })
   }, [client])
   function decide(item: ModerationCase, action: ModerationAction) {
     const decision = {
@@ -549,11 +561,12 @@ export function ModerationQueuePage({
     if (!decision.reason.trim() || !canDecideModeration(decision)) return
     client
       .decideModerationCase(item.id, decision)
-      .then((next) =>
+      .then((next) => {
         setCases((current) =>
           current.map((candidate) => (candidate.id === next.id ? next : candidate)),
-        ),
-      )
+        )
+        setResolved(next)
+      })
       .catch(() => setError(true))
   }
   return (
@@ -562,7 +575,26 @@ export function ModerationQueuePage({
       description="Case-scoped moderation requires MFA, recent authentication, a reason, and an append-only audit event."
     >
       {error && <GenericReviewError />}
-      {cases.length === 0 ? (
+      {resolved && (
+        <section aria-label="Resolved moderation outcome">
+          <p role="status">Author notice is queued; the review is {resolved.state}.</p>
+          <p>
+            Public aggregate result: this moderation decision is reflected according to the review
+            rules.
+          </p>
+          <button type="button" onClick={() => setResolved(null)}>
+            Back to Queue
+          </button>{' '}
+          {cases.some((item) => item.id !== resolved.id) && (
+            <button type="button" onClick={() => setResolved(null)}>
+              Review Next
+            </button>
+          )}
+        </section>
+      )}
+      {!loaded ? (
+        <p role="status">Loading moderation cases…</p>
+      ) : cases.length === 0 ? (
         <p>No assigned moderation cases.</p>
       ) : (
         <ul aria-label="Moderation cases">
@@ -589,10 +621,35 @@ export function ModerationQueuePage({
                 />
                 {(['hold', 'remove', 'restore', 'dismiss_report'] as ModerationAction[]).map(
                   (action) => (
-                    <button key={action} type="button" onClick={() => decide(item, action)}>
+                    <button
+                      key={action}
+                      type="button"
+                      disabled={!reason[item.id]?.trim()}
+                      onClick={() => setPendingDecision({ item, action })}
+                    >
                       {moderationButtonLabel(action)}
                     </button>
                   ),
+                )}
+                {pendingDecision?.item.id === item.id && (
+                  <section aria-label="Confirm moderation decision">
+                    <p>
+                      Confirm {moderationButtonLabel(pendingDecision.action)}: this changes the
+                      review’s public moderation state and appends your reason to the audit record.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        decide(item, pendingDecision.action)
+                        setPendingDecision(null)
+                      }}
+                    >
+                      Confirm {moderationButtonLabel(pendingDecision.action)}
+                    </button>{' '}
+                    <button type="button" onClick={() => setPendingDecision(null)}>
+                      Cancel moderation decision
+                    </button>
+                  </section>
                 )}
               </article>
             </li>

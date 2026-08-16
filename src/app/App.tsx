@@ -78,6 +78,8 @@ import {
   AdminGuard,
   ReviewQueuePage,
   adminSessionFromAuth,
+  unavailableAdminClient,
+  type AdminClient,
   type AdminSession,
 } from '../features/admin'
 import { AlphaGuard, AlphaReadinessPage } from '../features/alpha'
@@ -131,7 +133,9 @@ import type { ReviewHarnessRuntime } from '../review-harness/types'
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
 const unavailableAlphaAccount = null
 const unavailableExternalAccounts: SyntheticTestAccount[] = []
-const publicListingClaimsEnabled = false
+// Claims are available only in the local review harness until the production
+// authority boundary is approved.
+const publicListingClaimsEnabled = import.meta.env.VITE_REVIEW_HARNESS === 'true'
 const blockedCheckMyDayProvider: CheckMyDayProvider = {
   async getCoordinateMatrix() {
     throw new Error('Routing provider is disabled until R-01 is approved.')
@@ -161,6 +165,7 @@ function AppShell({
     '/install',
     '/help',
   ].some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))
+  const adminNav = location.pathname.startsWith('/admin')
 
   useEffect(() => {
     const content = contentRef.current
@@ -195,8 +200,10 @@ function AppShell({
           <span>Antique Trail</span>
         </Link>
         <nav aria-label="Primary navigation">
-          <NavLink to="/stores">Browse</NavLink>
-          <NavLink to="/trips">My Trip</NavLink>
+          <NavLink to={adminNav ? '/admin' : '/stores'}>{adminNav ? 'Review' : 'Browse'}</NavLink>
+          <NavLink to={adminNav ? '/admin/access' : '/trips'}>
+            {adminNav ? 'Access' : 'My Trip'}
+          </NavLink>
           <Link to="/more" aria-current={moreIsCurrent ? 'page' : undefined}>
             More
           </Link>
@@ -604,6 +611,7 @@ export interface AppClients {
   trips?: TripClient
   partner?: PartnerClient
   partnerAdmin?: PartnerAdminClient
+  admin?: AdminClient
   lifecycle?: AccountLifecycleClient
   reviews?: ReviewClient
   portal?: PortalClient
@@ -646,6 +654,7 @@ export default function App({
   const tripClient = clients.trips ?? unavailableTripClient
   const partnerClient = clients.partner ?? unavailablePartnerClient
   const partnerAdminClient = clients.partnerAdmin ?? unavailablePartnerAdminClient
+  const adminClient = clients.admin ?? unavailableAdminClient
   const lifecycleClient = clients.lifecycle ?? unavailableLifecycleClient
   const reviewClient = clients.reviews ?? unavailableReviewClient
   const portalClient = clients.portal ?? unavailablePortalClient
@@ -880,7 +889,7 @@ export default function App({
                 override={runtime.adminSession}
                 registry={runtime.sessionRegistry}
               >
-                <ReviewQueuePage />
+                <ReviewQueuePage client={adminClient} />
               </AuthenticatedAdminGuard>
             }
           />
@@ -891,7 +900,7 @@ export default function App({
                 override={runtime.adminSession}
                 registry={runtime.sessionRegistry}
               >
-                <AccessSafetyPage />
+                <AccessSafetyPage client={adminClient} />
               </AuthenticatedAdminGuard>
             }
           />

@@ -1,0 +1,3 @@
+-- The submitted-event behavior is defined with the original identity_service-owned
+-- RPC migration. This compatibility marker intentionally makes no protected Auth
+-- or function-owner changes when replaying the migration history.

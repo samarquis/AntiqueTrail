@@ -28,20 +28,45 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
   const [cases, setCases] = useState<AdminReviewCaseSummary[]>([])
   const [selected, setSelected] = useState<AdminReviewCaseDetail | null>(null)
   const [reason, setReason] = useState('')
+  const [pendingAction, setPendingAction] = useState<AdminDecision | null>(null)
+  const [resolvedCase, setResolvedCase] = useState<{ id: string; state: string } | null>(null)
   const [message, setMessage] = useState('')
+  const [listState, setListState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [returnFocusToQueue, setReturnFocusToQueue] = useState(false)
   const queueHeading = useRef<HTMLHeadingElement>(null)
+  const clientRef = useRef(client)
+  clientRef.current = client
+
+  async function loadCases(retry = false) {
+    setListState('loading')
+    setMessage('')
+    try {
+      setCases(await clientRef.current.listCases(retry))
+      setListState('ready')
+    } catch {
+      setListState('error')
+      setMessage(GENERIC_ADMIN_FAILURE)
+    }
+  }
 
   useEffect(() => {
     let current = true
-    void client
-      .listCases()
-      .then((items) => current && setCases(items))
-      .catch(() => current && setMessage(GENERIC_ADMIN_FAILURE))
+    void clientRef.current.listCases().then(
+      (items) => {
+        if (!current) return
+        setCases(items)
+        setListState('ready')
+      },
+      () => {
+        if (!current) return
+        setListState('error')
+        setMessage(GENERIC_ADMIN_FAILURE)
+      },
+    )
     return () => {
       current = false
     }
-  }, [client])
+  }, [])
 
   useEffect(() => {
     if (!returnFocusToQueue) return
@@ -69,8 +94,9 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
         `admin-${selected.id}-${selected.version}-${Date.now()}`,
       )
       setCases((items) => items.filter((item) => item.id !== selected.id))
-      setSelected(null)
+      setResolvedCase({ id: selected.id, state: result.state })
       setReason('')
+      setPendingAction(null)
       setMessage(`Case ${result.state}.`)
       setReturnFocusToQueue(true)
     } catch {
@@ -80,14 +106,51 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
 
   return (
     <main>
-      <Link to="/stores">← Back</Link>
+      <Link to="/stores">
+        <span aria-hidden="true">← </span>Back
+      </Link>
       <h1 ref={queueHeading} tabIndex={-1}>
         Review queue
       </h1>
       <p>Review one assigned item with its exact submitted context.</p>
       {message && <p role="status">{message}</p>}
-      {!selected ? (
-        cases.length ? (
+      {listState === 'error' && (
+        <button type="button" onClick={() => void loadCases(true)}>
+          Retry review queue
+        </button>
+      )}
+      {resolvedCase ? (
+        <section aria-label="Resolved case outcome">
+          <p>
+            Case {resolvedCase.id} is {resolvedCase.state}. The outcome and reason remain in its
+            audit history.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setResolvedCase(null)
+              setSelected(null)
+              setReturnFocusToQueue(true)
+            }}
+          >
+            Back to Queue
+          </button>{' '}
+          {cases.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setResolvedCase(null)
+                void openCase(cases[0])
+              }}
+            >
+              Review Next
+            </button>
+          )}
+        </section>
+      ) : !selected ? (
+        listState === 'loading' ? (
+          <p role="status">Loading review cases…</p>
+        ) : cases.length ? (
           <ul>
             {cases.map((reviewCase) => (
               <li key={reviewCase.id}>
@@ -114,6 +177,22 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
               </div>
             ))}
           </dl>
+          <section aria-label="Current and requested listing preview">
+            <h3>Current and requested listing preview</h3>
+            <p>Current public listing: retained until this exact case is approved.</p>
+            <p>
+              Requested {String(selected.context.field ?? 'field')}:{' '}
+              {String(selected.context.requestedValue ?? 'Not provided')}.
+            </p>
+          </section>
+          <h3>Audit history</h3>
+          <ul aria-label="Case audit history">
+            {selected.audit.map((entry) => (
+              <li key={`${entry.action}-${entry.occurredAt}`}>
+                {entry.action}: {entry.outcome}
+              </li>
+            ))}
+          </ul>
           <label>
             Decision reason
             <textarea
@@ -122,20 +201,37 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
               onChange={(event) => setReason(event.target.value)}
             />
           </label>
-          <div>
-            {selected.allowedActions.map((action) => (
-              <button
-                key={action}
-                type="button"
-                disabled={!reason.trim()}
-                onClick={() => void decide(action)}
-              >
-                {action === 'return'
-                  ? 'Return for changes'
-                  : action[0].toUpperCase() + action.slice(1)}
+          {pendingAction ? (
+            <section aria-label="Confirm case decision">
+              <p>
+                Confirm {pendingAction}: only the requested{' '}
+                {String(selected.context.field ?? 'field')}
+                for {selected.storeLabel} is affected. The current public listing stays unchanged
+                until approval; the immutable submission remains in the audit record.
+              </p>
+              <button type="button" onClick={() => void decide(pendingAction)}>
+                Confirm {pendingAction === 'return' ? 'return for changes' : pendingAction}
+              </button>{' '}
+              <button type="button" onClick={() => setPendingAction(null)}>
+                Cancel decision
               </button>
-            ))}
-          </div>
+            </section>
+          ) : (
+            <div>
+              {selected.allowedActions.map((action) => (
+                <button
+                  key={action}
+                  type="button"
+                  disabled={!reason.trim()}
+                  onClick={() => setPendingAction(action)}
+                >
+                  {action === 'return'
+                    ? 'Return for changes'
+                    : action[0].toUpperCase() + action.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
         </section>
       )}
     </main>
@@ -144,39 +240,64 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
 export function AccessSafetyPage({ client = unavailableAdminClient }: { client?: AdminClient }) {
   const [grants, setGrants] = useState<AdminStoreScope[]>([])
   const [message, setMessage] = useState('')
+  const [listState, setListState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [canonicalStoreId, setCanonicalStoreId] = useState('')
   const [duplicateStoreId, setDuplicateStoreId] = useState('')
   const [merge, setMerge] = useState<AdminMergePlan | null>(null)
   const [scopePreview, setScopePreview] = useState<AdminScopePreview | null>(null)
+  const [scopeReason, setScopeReason] = useState('')
+  const clientRef = useRef(client)
+  clientRef.current = client
+
+  async function loadGrants(retry = false) {
+    setListState('loading')
+    setMessage('')
+    try {
+      setGrants(await clientRef.current.listStoreGrants(retry))
+      setListState('ready')
+    } catch {
+      setListState('error')
+      setMessage(GENERIC_ADMIN_FAILURE)
+    }
+  }
 
   useEffect(() => {
     let current = true
-    void client
-      .listStoreGrants()
-      .then((items) => current && setGrants(items))
-      .catch(() => current && setMessage(GENERIC_ADMIN_FAILURE))
+    void clientRef.current.listStoreGrants().then(
+      (items) => {
+        if (!current) return
+        setGrants(items)
+        setListState('ready')
+      },
+      () => {
+        if (!current) return
+        setListState('error')
+        setMessage(GENERIC_ADMIN_FAILURE)
+      },
+    )
     return () => {
       current = false
     }
-  }, [client])
+  }, [])
 
   async function changeScope(grant: AdminStoreScope) {
     const operation = grant.state === 'active' ? 'revoke' : 'regrant'
     try {
-      if (operation === 'regrant' && scopePreview?.grantId !== grant.grantId) {
+      if (scopePreview?.grantId !== grant.grantId) {
         setScopePreview(
           await client.previewStoreScopeChange(grant.subjectUserId, grant.storeId, grant.version),
         )
         return
       }
+      if (!scopeReason.trim()) return
       const result = await client.changeStoreScope(
         operation,
         grant.subjectUserId,
         grant.storeId,
         grant.version,
-        operation === 'revoke' ? 'administrator_revoked' : 'authority_reverified',
+        scopeReason.trim(),
         `admin-scope-${grant.grantId}-${grant.version}-${Date.now()}`,
-        operation === 'regrant' ? (scopePreview?.previewId ?? null) : null,
+        scopePreview?.previewId ?? null,
       )
       setGrants((items) =>
         items.map((item) =>
@@ -215,28 +336,55 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
 
   return (
     <main>
-      <Link to="/admin">← Back</Link>
+      <Link to="/admin">
+        <span aria-hidden="true">← </span>Back
+      </Link>
       <h1>Access &amp; Safety</h1>
       <p>Review exact Store Representative scopes. Shopper activity is never shown here.</p>
       {message && <p role="status">{message}</p>}
-      {grants.length ? (
+      {listState === 'error' && (
+        <button type="button" onClick={() => void loadGrants(true)}>
+          Retry Store Representative scopes
+        </button>
+      )}
+      {listState === 'loading' ? (
+        <p role="status">Loading Store Representative scopes…</p>
+      ) : grants.length ? (
         <ul>
           {grants.map((grant) => (
             <li key={grant.grantId}>
               <strong>{grant.storeLabel}</strong> — {grant.subjectLabel} — {grant.state}{' '}
-              <button type="button" onClick={() => void changeScope(grant)}>
-                {grant.state === 'active'
-                  ? 'Revoke'
-                  : scopePreview?.grantId === grant.grantId
-                    ? 'Confirm regrant'
+              <button
+                type="button"
+                disabled={scopePreview?.grantId === grant.grantId && !scopeReason.trim()}
+                onClick={() => void changeScope(grant)}
+              >
+                {scopePreview?.grantId === grant.grantId
+                  ? grant.state === 'active'
+                    ? 'Confirm revoke'
+                    : 'Confirm regrant'
+                  : grant.state === 'active'
+                    ? 'Preview revoke'
                     : 'Preview regrant'}{' '}
                 {grant.storeLabel} scope
               </button>
               {scopePreview?.grantId === grant.grantId && (
                 <p>
-                  Confirm exact scope: {grant.storeLabel} for {grant.subjectLabel}. Preview expires{' '}
-                  {new Date(scopePreview.expiresAt).toLocaleTimeString()}.
+                  Confirm exact scope: {grant.storeLabel} for {grant.subjectLabel}.{' '}
+                  {grant.state === 'active'
+                    ? 'Revoking removes this representative’s access immediately.'
+                    : 'Regranting restores only this exact scope.'}{' '}
+                  Preview expires {new Date(scopePreview.expiresAt).toLocaleTimeString()}.
                 </p>
+              )}
+              {scopePreview?.grantId === grant.grantId && (
+                <label>
+                  Administrative reason
+                  <input
+                    value={scopeReason}
+                    onChange={(event) => setScopeReason(event.target.value)}
+                  />
+                </label>
               )}
             </li>
           ))}

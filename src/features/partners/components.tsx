@@ -70,7 +70,6 @@ export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?
   const [pending, setPending] = useState(false)
   useEffect(() => {
     const parsed = typeof window === 'undefined' ? null : readInvitationToken(window.location.hash)
-    if (typeof window !== 'undefined') scrubInvitationUrl(window.history)
     const saved = typeof window === 'undefined' ? null : loadPartnerResume(window.sessionStorage)
     const request = parsed
       ? client.exchangeInvitation(parsed).then((result) => {
@@ -80,6 +79,7 @@ export function PartnerJoinPage({ client = unavailablePartnerClient }: { client?
             consentAttemptId: `partner-consent-${crypto.randomUUID()}`,
           }
           savePartnerResume(window.sessionStorage, next)
+          scrubInvitationUrl(window.history, `${window.location.pathname}${window.location.search}`)
           setResume(next)
           return result
         })

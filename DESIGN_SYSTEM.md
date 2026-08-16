@@ -40,6 +40,8 @@ Approved contrast pairs: ink/paper `14.46:1`; ink/card `15.75:1`; muted/paper `5
 
 Never communicate status with color alone. Pair each status color with plain text and, when space permits, an icon.
 
+**Semantic color reservation**: `rust` is reserved exclusively for destructive actions, danger states, and important-new status indicators. Do not apply `rust` to structural, geographic, or neutral labels such as area names, town labels, or category headings. Use `olive` for eyebrow and section label context, `muted` for secondary geographic or area text. `gold` is reserved for warning and freshness-attention states; do not apply it to decorative dividers or general emphasis. `dark-paper`, `dark-card`, `dark-ink`, and `dark-muted` are production tokens for `prefers-color-scheme: dark`; they must be activated in the application stylesheet inside a `@media (prefers-color-scheme: dark)` block and are not complete until verified against all approved contrast pairs in dark mode. Dark mode support is a mandatory acceptance check at every package boundary.
+
 ### Typography
 
 | Role | Family | Weight | Size/line height |
@@ -50,11 +52,14 @@ Never communicate status with color alone. Pair each status color with plain tex
 | Body | Atkinson Hyperlegible, system-ui, sans-serif | 400 | `18px/1.5` |
 | Action/label | Atkinson Hyperlegible, system-ui, sans-serif | 700 | `16px/1.25` minimum |
 | Supporting | Atkinson Hyperlegible, system-ui, sans-serif | 400 | `15px/1.4` |
+| Eyebrow/section label | Atkinson Hyperlegible, system-ui, sans-serif | 700–800 | `15px/1.25` minimum · uppercase · tracked |
 | Metadata | Atkinson Hyperlegible, system-ui, sans-serif | 400 | `13px/1.4` |
 
-Body text must not fall below 16px for core content. Freshness, provenance, hours, warnings, privacy/publishing consequences, and recovery instructions are core content. Metadata may use 13–15px only for nonessential timestamps/decorative context. User text resizing to 200% must preserve function and reading order.
+Body text must not fall below 16px for core content. Freshness, provenance, hours, warnings, privacy/publishing consequences, and recovery instructions are core content. Eyebrow/section labels identify page sections and sub-contexts (e.g., "Plan your stop", "What you'll find", "Antique Trail") and are core content; their minimum rendered size is 15px. Metadata may use 13–15px only for nonessential timestamps/decorative context. User text resizing to 200% must preserve function and reading order.
 
 Production self-hosts licensed WOFF2 subsets for Newsreader and Atkinson Hyperlegible with `font-display: swap`; no Google Fonts request is allowed. Georgia and system-ui fallbacks preserve the hierarchy offline. The flow lab may use local/system fallbacks but is not production evidence.
+
+**Font weight implementation constraint**: Atkinson Hyperlegible is a static font with exactly two available weights: Regular (`400`) and Bold (`700`). Do not specify intermediate values such as 500, 600, 650, 750, or 800 — the browser will silently round to the nearest available weight and the intended visual differentiation will be lost. Newsreader Bold (`700`) is the only licensed weight in production; do not specify 400, 600, or italic for Newsreader unless those weights are added to the licensed subset. Intermediate or variable weights are only valid when a confirmed WOFF2 variable font with a `wght` axis is loaded and explicitly scoped to that element.
 
 ### Space, shape, and elevation
 
@@ -83,6 +88,12 @@ Production self-hosts licensed WOFF2 subsets for Newsreader and Atkinson Hyperle
 | Review/queue item | Type, scope/store, age/status, next action | new, pending, changes requested, approved, denied, revoked |
 
 Every new component must document anatomy, states, semantics, keyboard behavior, focus behavior, and failure recovery before its slice is ready.
+
+**Status badge implementation rule**: When a status badge includes a decorative character or icon (e.g., `✓`, `●`, `?`, `→`, or an SVG), that character or element must be wrapped in `aria-hidden="true"`. The plain-language text label (e.g., "Open now", "Closed", "Stale listing") must stand alone as the complete accessible name without the symbol. Never rely on a Unicode character to carry meaning that is not also present in visible plain text alongside it.
+
+**Decorative characters in links and buttons**: Directional or symbolic characters used in link and button labels (e.g., `←`, `→`, `↗`, `✕`) are decorative. Wrap them in `<span aria-hidden="true">` so screen readers receive only the plain text label. This applies to back links, external link indicators, and close/dismiss controls throughout the application.
+
+**Dialog focus trap and inert background**: When a dialog is open, background content must be made inert using the `inert` attribute on a container wrapping non-dialog content, or an equivalent programmatic focus-trap mechanism. `aria-modal="true"` alone is insufficient — NVDA and some mobile screen readers still reach background content without `inert`. On close, remove `inert` before returning focus to the element that triggered the dialog. Keyboard Tab while a dialog is open must not reach background content.
 
 ## Responsive layout contract
 
@@ -192,7 +203,7 @@ Each authentication slice must provide exact field constraints and error copy in
 | Workflow | Loading/pending | Empty/blocked | Failure/recovery | Success/terminal |
 |---|---|---|---|---|
 | Account registration | Checking admission/provider confirmation | `Account setup paused` for any non-open quarantine latch | No Retry/resend; purge registration fields; Back to `/stores`; inviter or approved S-01 contact only | Pending verification or active only while latch remains open through completion |
-| Catalog | Skeleton or plain loading status | No stores / zero matches with clear next action | Inline error plus Retry; keep query; `catalog_too_large` blocks bounded Package 1 rather than truncating | Results and count; Package 10A adds continuation only when measured regional size requires it |
+| Catalog | Skeleton layout matching the expected result structure (shimmer card grid at ≥Package 3; at minimum a shimmer placeholder for each expected card). Plain text loading status is acceptable only within a Package 1 bounded internal review; it is not acceptable after External Testing Readiness. Skeleton must respect `prefers-reduced-motion` by removing the shimmer animation while preserving the placeholder layout. | No stores / zero matches with clear next action | Inline error plus Retry; keep query; `catalog_too_large` blocks bounded Package 1 rather than truncating | Results and count; Package 10A adds continuation only when measured regional size requires it |
 | Candidate Share | Reason-neutral sending state | Closed without disclosure | Generic failure; retry only when safe/idempotent | Pending, Accepted, or reason-neutral Closed |
 | Trip collaboration | Invitation pending or draft sync pending | Expired/revoked/wrong role | Stale-write conflict explains reload/reapply | Participant/role state confirmed server-side |
 | Go/offline | Offline banner and queued-action count | Authorization lost or old device invalidated | Reject incompatible actions plainly; retain recoverable local work only as authorized | Ordered replay acknowledged; snapshot purged at lifecycle boundary |

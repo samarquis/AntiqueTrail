@@ -84,6 +84,8 @@ describe('Administrator workspace', () => {
     expect(screen.queryByRole('button', { name: /approve all/i })).not.toBeInTheDocument()
     await user.type(screen.getByLabelText(/decision reason/i), 'Owner authority verified')
     await user.click(screen.getByRole('button', { name: /^approve$/i }))
+    expect(decideCase).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /confirm approve/i }))
     expect(decideCase).toHaveBeenCalledWith(
       'case-1',
       'approve',
@@ -107,15 +109,21 @@ describe('Administrator workspace', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByText('Prairie Clockworks')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /revoke prairie clockworks scope/i }))
+    await user.click(
+      screen.getByRole('button', { name: /preview revoke prairie clockworks scope/i }),
+    )
+    await user.type(screen.getByLabelText(/administrative reason/i), 'authority withdrawn')
+    await user.click(
+      screen.getByRole('button', { name: /confirm revoke prairie clockworks scope/i }),
+    )
     expect(changeStoreScope).toHaveBeenCalledWith(
       'revoke',
       'rep-1',
       'store-1',
       1,
-      'administrator_revoked',
+      'authority withdrawn',
       expect.stringMatching(/^admin-scope-grant-1-1-/),
-      null,
+      'preview-1',
     )
   })
 
@@ -158,6 +166,7 @@ describe('Administrator workspace', () => {
     )
     expect(previewStoreScopeChange).toHaveBeenCalledWith('rep-1', 'store-1', 2)
     expect(changeStoreScope).not.toHaveBeenCalled()
+    await user.type(screen.getByLabelText(/administrative reason/i), 'authority reverified')
     await user.click(
       screen.getByRole('button', { name: /confirm regrant prairie clockworks scope/i }),
     )
@@ -166,7 +175,7 @@ describe('Administrator workspace', () => {
       'rep-1',
       'store-1',
       2,
-      'authority_reverified',
+      'authority reverified',
       expect.any(String),
       'preview-1',
     )

@@ -90,6 +90,8 @@ describe('Partner Administrator screen', () => {
     await user.type(screen.getByLabelText(/reason code/i), 'verified_authority')
     await user.type(screen.getByLabelText(/^decision key$/i), 'approve-claim-v3')
     await user.click(screen.getByRole('button', { name: /apply decision/i }))
+    expect(boundary.decide).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /confirm approve decision/i }))
 
     expect(boundary.decide).toHaveBeenCalledWith({
       operation: 'approve',
@@ -143,6 +145,12 @@ describe('Partner Administrator screen', () => {
     await user.click(
       screen.getByRole('button', { name: /verify published business contact signal/i }),
     )
+    expect(boundary.verifySignal).not.toHaveBeenCalled()
+    expect(screen.getByLabelText(/confirm authority signal decision/i)).toHaveTextContent(
+      /adds the pending signal/i,
+    )
+    await user.click(screen.getByRole('button', { name: /confirm verify signal/i }))
+    expect(await screen.findByRole('status')).toHaveTextContent(/signal verified and added/i)
 
     expect(boundary.verifySignal).toHaveBeenCalledWith({
       operation: 'verify',
@@ -152,5 +160,33 @@ describe('Partner Administrator screen', () => {
       idempotencyKey: 'verify-signal-v3',
       reasonCode: 'authority_confirmed',
     })
+  })
+
+  it('requires confirmation before rejecting an authority signal', async () => {
+    const user = userEvent.setup()
+    const boundary = client()
+    render(
+      <MemoryRouter>
+        <PartnerAdminPage client={boundary} />
+      </MemoryRouter>,
+    )
+    await user.type(
+      screen.getByLabelText(/exact claim id/i),
+      '11111111-1111-4111-8111-111111111111',
+    )
+    await user.click(screen.getByRole('button', { name: /open exact claim/i }))
+    await user.type(screen.getByLabelText(/signal decision reason/i), 'insufficient_authority')
+    await user.type(screen.getByLabelText(/signal decision key/i), 'reject-signal-v3')
+    await user.click(
+      screen.getByRole('button', { name: /reject published business contact signal/i }),
+    )
+    expect(boundary.verifySignal).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /confirm reject signal/i }))
+    expect(boundary.verifySignal).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'reject' }),
+    )
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      /pending signal resolved and removed/i,
+    )
   })
 })
