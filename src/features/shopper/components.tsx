@@ -1023,7 +1023,6 @@ export function CorrectionPage({
             <p>
               <Link
                 to={`/auth/sign-in?returnTo=${encodeURIComponent(location.pathname)}`}
-                state={{ correctionDraft: draft }}
                 onClick={() => rememberCorrectionDraft(slug, draft)}
               >
                 Sign in to submit this correction

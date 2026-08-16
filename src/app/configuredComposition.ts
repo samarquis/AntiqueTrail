@@ -405,6 +405,10 @@ export async function configuredComposition(
       const result = await supabase.rpc(name, args)
       return { data: result.data, error: result.error }
     },
+    async edge(name, args) {
+      const result = await supabase.functions.invoke(name, { body: args })
+      return { data: result.data, error: result.error }
+    },
   })
   const rpc = async <T>(
     command: string,

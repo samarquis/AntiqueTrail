@@ -14,12 +14,15 @@ type ShopperRpcName =
   | 'shopper_get_new_since'
   | 'shopper_mark_catalog_seen'
   | 'shopper_dismiss_new_store'
-  | 'shopper_submit_correction'
   | 'shopper_get_correction'
 
 export interface ShopperRpcTransport {
   rpc(
     name: ShopperRpcName,
+    args: Readonly<Record<string, unknown>>,
+  ): Promise<{ data: unknown; error: unknown }>
+  edge(
+    name: string,
     args: Readonly<Record<string, unknown>>,
   ): Promise<{ data: unknown; error: unknown }>
 }
@@ -38,6 +41,17 @@ export function createShopperClient(transport: ShopperRpcTransport): ShopperPriv
   ): Promise<T> {
     try {
       const result = await transport.rpc(name, args)
+      if (result.error) throw new ShopperApiError()
+      return result.data as T
+    } catch (error) {
+      if (error instanceof ShopperApiError) throw error
+      throw new ShopperApiError()
+    }
+  }
+
+  async function callEdge<T>(name: string, args: Readonly<Record<string, unknown>>): Promise<T> {
+    try {
+      const result = await transport.edge(name, args)
       if (result.error) throw new ShopperApiError()
       return result.data as T
     } catch (error) {
@@ -73,11 +87,11 @@ export function createShopperClient(transport: ShopperRpcTransport): ShopperPriv
       await call('shopper_dismiss_new_store', { p_store_id: storeId })
     },
     submitCorrection: (draft) =>
-      call('shopper_submit_correction', {
-        p_store_id: draft.storeId,
-        p_type: draft.type,
-        p_description: draft.description,
-        p_public_source_url: draft.publicSourceUrl ?? null,
+      callEdge('correction-submit', {
+        storeId: draft.storeId,
+        type: draft.type,
+        description: draft.description,
+        publicSourceUrl: draft.publicSourceUrl ?? null,
       }),
     getCorrection: (id) => call('shopper_get_correction', { p_report_id: id }),
   }
