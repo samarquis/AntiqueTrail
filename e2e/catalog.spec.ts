@@ -94,18 +94,23 @@ test.describe('Synthetic catalog design contract', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'More' })).toBeFocused()
 
     const moreDestinations = [
-      ['Saved Stores', '/saved'],
-      ['Add a Place from a Link', '/capture'],
-      ['Shared with Me', '/shares'],
-      ['Trip Ideas', '/trip-ideas'],
-      ['Account & Privacy', '/account/privacy'],
-      ['Install', '/install'],
-      ['Help', '/help'],
+      ['Saved Stores', '/saved', true],
+      ['Add a Place from a Link', '/capture', true],
+      ['Shared with Me', '/shares', true],
+      ['Trip Ideas', '/trip-ideas', true],
+      ['Account & Privacy', '/account/privacy', true],
+      ['Install', '/install', false],
+      ['Help', '/help', false],
     ] as const
-    for (const [name, path] of moreDestinations) {
-      const link = page.getByRole('link', { name, exact: true })
+    for (const [name, path, requiresSignIn] of moreDestinations) {
+      const link = page.getByRole('link', {
+        name: new RegExp(`^${name}( Requires sign-in)?$`),
+      })
       await expect(link).toBeVisible()
       await expectExactPath(link, path)
+      if (requiresSignIn) {
+        await expect(link).toContainText('Requires sign-in')
+      }
     }
 
     await nav.getByRole('link', { name: 'My Trip', exact: true }).click()
@@ -196,7 +201,7 @@ test.describe('Synthetic catalog design contract', () => {
       await expect(page.getByLabel(deferredFilter, { exact: true })).toHaveCount(0)
     }
 
-    if ((page.viewportSize()?.width ?? 0) <= 540) {
+    if ((page.viewportSize()?.width ?? 0) <= 800) {
       const filtersButton = page.getByRole('button', { name: 'Filters', exact: true })
       await expect(filtersButton).toBeVisible()
       await expect(filtersButton).toHaveAttribute('aria-expanded', 'false')

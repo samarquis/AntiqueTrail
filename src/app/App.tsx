@@ -3,6 +3,7 @@ import { Link, Navigate, NavLink, Route, Routes, useLocation, useParams } from '
 import {
   CatalogBrowserPage,
   CatalogDetailsPage,
+  StoreUpdatesPage,
   configuredCatalogClient,
   demoCatalogClient,
   type CatalogClient,
@@ -226,7 +227,39 @@ function AppShell({
   )
 }
 
+function MoreMenuLock() {
+  return (
+    <>
+      <svg
+        className="more-menu__lock"
+        viewBox="0 0 24 24"
+        width="1em"
+        height="1em"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <rect x="4" y="11" width="16" height="10" rx="2" fill="currentColor" />
+        <path d="M8 11V7a4 4 0 0 1 8 0v4" fill="none" stroke="currentColor" strokeWidth="2" />
+      </svg>
+      <span className="sr-only"> Requires sign-in</span>
+    </>
+  )
+}
+
 function MorePage() {
+  const { session } = useAuth()
+  const signedIn = Boolean(session)
+  const destinations: Array<{ to: string; label: string; requiresSignIn: boolean }> = [
+    { to: '/saved', label: 'Saved Stores', requiresSignIn: true },
+    { to: '/new-since', label: 'New Since Your Last Visit', requiresSignIn: false },
+    { to: '/account/history', label: 'Private History', requiresSignIn: true },
+    { to: '/capture', label: 'Add a Place from a Link', requiresSignIn: true },
+    { to: '/shares', label: 'Shared with Me', requiresSignIn: true },
+    { to: '/trip-ideas', label: 'Trip Ideas', requiresSignIn: true },
+    { to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true },
+    { to: '/install', label: 'Install', requiresSignIn: false },
+    { to: '/help', label: 'Help', requiresSignIn: false },
+  ]
   return (
     <main>
       <header>
@@ -235,15 +268,12 @@ function MorePage() {
         <p>Find your saved places, shared ideas, account settings, and help.</p>
       </header>
       <nav className="more-menu" aria-label="More destinations">
-        <Link to="/saved">Saved Stores</Link>
-        <Link to="/new-since">New Since Your Last Visit</Link>
-        <Link to="/account/history">Private History</Link>
-        <Link to="/capture">Add a Place from a Link</Link>
-        <Link to="/shares">Shared with Me</Link>
-        <Link to="/trip-ideas">Trip Ideas</Link>
-        <Link to="/account/privacy">Account &amp; Privacy</Link>
-        <Link to="/install">Install</Link>
-        <Link to="/help">Help</Link>
+        {destinations.map((destination) => (
+          <Link key={destination.to} to={destination.to}>
+            {destination.label}
+            {!signedIn && destination.requiresSignIn && <MoreMenuLock />}
+          </Link>
+        ))}
       </nav>
     </main>
   )
@@ -329,6 +359,12 @@ function StoreDetails({
       }
     />
   )
+}
+
+function StoreUpdates({ catalog }: { catalog?: CatalogClient }) {
+  const { slug = '' } = useParams()
+  const client = useCatalogClient(catalog)
+  return <StoreUpdatesPage client={client} slug={slug} />
 }
 
 function ResolvedStorePrivateRoute({
@@ -734,6 +770,10 @@ export default function App({
           <Route
             path="/stores/:slug"
             element={<StoreDetails shopperClient={shopperClient} catalog={clients.catalog} />}
+          />
+          <Route
+            path="/stores/:slug/updates"
+            element={<StoreUpdates catalog={clients.catalog} />}
           />
           <Route
             path="/stores/:slug/reviews"

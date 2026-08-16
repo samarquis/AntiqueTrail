@@ -17,7 +17,7 @@ export function ExternalReadinessGuard({
 export function ExternalReadinessPage() {
   return (
     <main>
-      <Link to="/stores">← Back</Link>
+      <Link to="/stores"><span aria-hidden="true">←</span> Back</Link>
       <h1>External Testing Readiness</h1>
       <p>Readiness remains private until every human and provider gate is approved.</p>
       <p role="status">{GENERIC_READINESS_BLOCKED}</p>

@@ -13,7 +13,7 @@ export function RoutingGuard({
   if (capability === 'blocked')
     return (
       <main>
-        <Link to="/stores">← Back to stores</Link>
+        <Link to="/stores"><span aria-hidden="true">←</span> Back to stores</Link>
         <h1>Check My Day</h1>
         <p role="status">{ROUTING_BLOCKED_MESSAGE}</p>
         <p>Review your trip in the manual planner while routing is unavailable.</p>

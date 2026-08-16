@@ -77,7 +77,7 @@ test.describe('local human-review harness contract', () => {
     await page.goto('/store-portal?reviewAs=representative&reviewState=success')
     await expect(page.getByRole('heading', { name: 'Blue Finch Curios' })).toBeVisible()
     await expect(
-      page.getByRole('definition').filter({ hasText: 'Hours need review' }),
+      page.getByRole('definition').filter({ hasText: 'Hours verified 12 days ago' }),
     ).toBeVisible()
 
     await page.goto('/admin/reviews?reviewAs=administrator&reviewState=success')

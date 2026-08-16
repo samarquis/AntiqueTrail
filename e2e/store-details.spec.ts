@@ -222,4 +222,47 @@ test.describe('Store Details decision-screen contract', () => {
       '/stores',
     )
   })
+
+  test('shows all store updates on the updates page and restores the store scroll/focus', async ({
+    page,
+  }) => {
+    await page.goto('/stores/blue-finch-curios')
+    const seeAll = page.getByRole('link', { name: 'See all store updates' })
+    await expect(seeAll).toBeVisible()
+    await seeAll.scrollIntoViewIfNeeded()
+    await page.evaluate(() => window.scrollTo(0, 1500))
+    await seeAll.click()
+
+    await expect(page).toHaveURL(/\/stores\/blue-finch-curios\/updates$/)
+    const heading = page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })
+    await expect(heading).toBeVisible()
+    for (const title of [
+      'Late-summer lighting collection',
+      'Holiday hours posted',
+      'New finds in the back room',
+      'Saturday pop-up restock',
+    ]) {
+      await expect(page.getByRole('heading', { name: title })).toBeVisible()
+    }
+    const expectedScroll = await page.evaluate(() => {
+      const saved = JSON.parse(
+        window.sessionStorage.getItem('antique-trail:store-return') ?? '{}',
+      ) as { scrollY?: number }
+      return saved.scrollY
+    })
+    expect(expectedScroll).toEqual(expect.any(Number))
+
+    await page.getByRole('link', { name: 'Back to Blue Finch Curios' }).click()
+    await expect(page).toHaveURL(/\/stores\/blue-finch-curios$/)
+    await expect(seeAll).toBeFocused()
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(expectedScroll)
+  })
+
+  test('shows an honest empty state on the updates page for a store with no updates', async ({
+    page,
+  }) => {
+    await page.goto('/stores/cedar-brass/updates')
+    await expect(page.getByRole('heading', { level: 1, name: 'Cedar & Brass' })).toBeFocused()
+    await expect(page.getByText(/has not published any updates/i)).toBeVisible()
+  })
 })

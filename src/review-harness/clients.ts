@@ -945,15 +945,14 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
       await fixture(state, true, true)
       const trip = findTrip(tripId)
       const hasUnresolvedWarnings = trip.stops.some((stop) => stop.hours?.warning)
-      if (hasUnresolvedWarnings && !acknowledgeWarnings)
-        throw new Error('Synthetic hours warnings require acknowledgment.')
       return persistTrip(
         bumpVersion({
           ...trip,
+          state: !hasUnresolvedWarnings || acknowledgeWarnings ? 'ready' : 'draft',
           hoursReview: {
             reviewedAt: FIXED_NOW,
             hasUnresolvedWarnings,
-            acknowledged: acknowledgeWarnings,
+            acknowledged: hasUnresolvedWarnings && acknowledgeWarnings,
           },
         }),
       )

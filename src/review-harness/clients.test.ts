@@ -526,8 +526,15 @@ describe('scenario-aware review clients', () => {
       priority: 'prefer',
     })
 
-    await expect(trips.reviewHours('trip-a')).rejects.toThrow(/acknowledgment/i)
+    const unacknowledged = await trips.reviewHours('trip-a')
+    expect(unacknowledged.state).toBe('draft')
+    expect(unacknowledged.hoursReview).toEqual({
+      reviewedAt: '2026-08-05T12:00:00.000Z',
+      hasUnresolvedWarnings: true,
+      acknowledged: false,
+    })
     const reviewed = await trips.reviewHours('trip-a', true)
+    expect(reviewed.state).toBe('ready')
     expect(reviewed.hoursReview).toEqual({
       reviewedAt: '2026-08-05T12:00:00.000Z',
       hasUnresolvedWarnings: true,

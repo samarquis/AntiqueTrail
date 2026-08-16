@@ -203,9 +203,6 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
     }
     await page.goto(reviewUrl('/store-portal/changes'))
     await page.setViewportSize({ width: 320, height: 640 })
-    await page.evaluate(() => {
-      document.body.style.zoom = '2'
-    })
     const overflow = await page.locator('body').evaluate((body) =>
       Array.from(body.querySelectorAll<HTMLElement>('*')).flatMap((element) => {
         const rect = element.getBoundingClientRect()

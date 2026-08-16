@@ -174,6 +174,18 @@ export const syntheticStores: CatalogStore[] = names.map((name, index) => ({
             body: 'The shop will be closed on Labor Day and will reopen Tuesday at 10:00 AM.',
             publishedAt: '2026-08-03T15:00:00Z',
           },
+          {
+            id: 'blue-finch-update-3',
+            title: 'New finds in the back room',
+            body: 'A fresh delivery of vintage maps and travel posters arrived this week.',
+            publishedAt: '2026-08-06T15:00:00Z',
+          },
+          {
+            id: 'blue-finch-update-4',
+            title: 'Saturday pop-up restock',
+            body: 'Look for a small pop-up table of restored hardware and kitchen wares on Saturday.',
+            publishedAt: '2026-08-09T15:00:00Z',
+          },
         ],
         socialLinks: [
           { platform: 'Instagram' as const, href: 'https://instagram.example.invalid/blue-finch' },

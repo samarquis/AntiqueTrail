@@ -92,6 +92,48 @@ function rememberBrowseReturn(storeId: string) {
   )
 }
 
+const STORE_RETURN_KEY = 'antique-trail:store-return'
+
+function readStoreReturn(storeId: string): StoreReturnState | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const parsed = JSON.parse(
+      window.sessionStorage.getItem(STORE_RETURN_KEY) ?? 'null',
+    ) as Partial<StoreReturnState> | null
+    if (
+      !parsed ||
+      parsed.storeId !== storeId ||
+      typeof parsed.href !== 'string' ||
+      !/^\/stores\/[^/]+(?:\?|$)/u.test(parsed.href) ||
+      typeof parsed.scrollY !== 'number' ||
+      !Number.isFinite(parsed.scrollY) ||
+      typeof parsed.savedAt !== 'number' ||
+      Date.now() - parsed.savedAt > 30 * 60_000
+    )
+      return null
+    return parsed as StoreReturnState
+  } catch {
+    return null
+  }
+}
+
+function rememberStoreReturn(storeId: string) {
+  if (typeof window === 'undefined') return
+  const href = `${window.location.pathname}${window.location.search}`
+  if (!/^\/stores\/[^/]+(?:\?|$)/u.test(href)) return
+  window.sessionStorage.setItem(
+    STORE_RETURN_KEY,
+    JSON.stringify({ href, scrollY: window.scrollY, storeId, savedAt: Date.now() }),
+  )
+}
+
+interface StoreReturnState {
+  href: string
+  scrollY: number
+  storeId: string
+  savedAt: number
+}
+
 export function CatalogFiltersForm({
   filters,
   onChange,
@@ -366,6 +408,12 @@ export function CatalogCard({
             Show {store.name} on map
           </button>
         )}
+        <a
+          className="button button--secondary catalog-card__add-to-trip"
+          href={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
+        >
+          Add to Trip
+        </a>
         {privateActions}
       </div>
     </article>
@@ -922,7 +970,9 @@ function StoreHours({ store }: { store: CatalogStore }) {
           <h2 id="hours-heading">Hours</h2>
         </div>
         <p className={`status-badge status-badge--${today.openState}`}>
-          {today.openState === 'open' ? '✓' : today.openState === 'closed' ? '●' : '?'}{' '}
+          <span aria-hidden="true">
+            {today.openState === 'open' ? '✓' : today.openState === 'closed' ? '●' : '?'}
+          </span>{' '}
           {today.openStateLabel}
         </p>
       </div>
@@ -995,6 +1045,19 @@ export function DetailsPage({
   useEffect(() => {
     load()
   }, [load])
+  useEffect(() => {
+    if (state.kind !== 'success' || !state.store || typeof window === 'undefined') return
+    const saved = readStoreReturn(state.store.id)
+    const currentHref = `${window.location.pathname}${window.location.search}`
+    if (!saved || saved.href !== currentHref) return
+    const seeAllLink = document.querySelector<HTMLElement>('a[href$="/updates"]')
+    if (!seeAllLink) return
+    window.sessionStorage.removeItem(STORE_RETURN_KEY)
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
+      seeAllLink.focus({ preventScroll: true })
+    })
+  }, [state.kind, state.store])
   if (state.kind === 'loading')
     return (
       <main>
@@ -1025,7 +1088,7 @@ export function DetailsPage({
   return (
     <main className="store-detail">
       <a className="store-detail__back" href={catalogAppHref(backHref)}>
-        ← Back to Browse
+        <span aria-hidden="true">←</span> Back to Browse
       </a>
       <article className="store-detail__article">
         <header className="store-detail__header">
@@ -1036,7 +1099,10 @@ export function DetailsPage({
           </p>
           <div className="store-detail__trust" aria-label="Listing status">
             <p className={`status-badge status-badge--${store.freshness?.status ?? 'unknown'}`}>
-              {store.freshness?.status === 'current' ? '✓' : 'i'} {freshnessLabel(store)}
+              <span aria-hidden="true">
+                {store.freshness?.status === 'current' ? '✓' : 'i'}
+              </span>{' '}
+              {freshnessLabel(store)}
             </p>
             {store.freshness?.status === 'stale' && (
               <p className="honesty-note">
@@ -1178,7 +1244,10 @@ export function DetailsPage({
                 ))}
               </ol>
               {store.updates.length > 3 && (
-                <a href={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/updates`)}>
+                <a
+                  href={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/updates`)}
+                  onClick={() => rememberStoreReturn(store.id)}
+                >
                   See all store updates
                 </a>
               )}
@@ -1221,6 +1290,92 @@ export function DetailsPage({
           <p className="store-detail__source">
             Photo rights are shown with each image when supplied.
           </p>
+        </section>
+      </article>
+    </main>
+  )
+}
+
+export function StoreUpdatesPage({ client, slug }: { client: CatalogClient; slug: string }) {
+  const [state, setState] = useState<{
+    kind: 'loading' | 'success' | 'error' | 'not-found'
+    store?: CatalogStore
+    message?: string
+  }>({ kind: 'loading' })
+  const load = useCallback(() => {
+    setState({ kind: 'loading' })
+    client
+      .details(slug)
+      .then((store) => setState(store ? { kind: 'success', store } : { kind: 'not-found' }))
+      .catch((error: unknown) =>
+        setState({
+          kind: 'error',
+          message:
+            error instanceof Error ? error.message : 'Catalog unavailable. Please try again.',
+        }),
+      )
+  }, [client, slug])
+  useEffect(() => {
+    load()
+  }, [load])
+  if (state.kind === 'loading')
+    return (
+      <main>
+        <LoadingState />
+      </main>
+    )
+  if (state.kind === 'error')
+    return (
+      <main>
+        <ErrorState message={state.message ?? 'Catalog unavailable.'} onRetry={load} />
+      </main>
+    )
+  if (state.kind === 'not-found')
+    return (
+      <main>
+        <h1>Store not found</h1>
+        <p>That store is not available in the catalog.</p>
+        <a href={catalogAppHref(readBrowseReturn()?.href ?? '/stores')}>Back to stores</a>
+      </main>
+    )
+  const store = state.store!
+  const updates = [...(store.updates ?? [])].sort((a, b) =>
+    a.publishedAt.localeCompare(b.publishedAt),
+  )
+  return (
+    <main className="store-detail">
+      <a
+        className="store-detail__back"
+        href={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}`)}
+      >
+        <span aria-hidden="true">←</span> Back to {store.name}
+      </a>
+      <article className="store-detail__article">
+        <header className="store-detail__header">
+          <p className="eyebrow">{store.area.label} trail stop</p>
+          <h1>{store.name}</h1>
+        </header>
+        <section className="store-detail__panel" aria-labelledby="updates-heading">
+          <p className="eyebrow">From the store</p>
+          <h2 id="updates-heading">All store updates</h2>
+          {updates.length ? (
+            <ol className="store-updates">
+              {updates.map((update) => (
+                <li key={update.id}>
+                  <article>
+                    <h3>{update.title}</h3>
+                    <p>{update.body}</p>
+                    <time dateTime={update.publishedAt}>
+                      {formatCatalogDate(update.publishedAt) ?? 'Date unavailable'}
+                    </time>
+                    {update.href && <a href={update.href}>Read full update</a>}
+                  </article>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="honesty-note">This store has not published any updates.</p>
+          )}
         </section>
       </article>
     </main>
