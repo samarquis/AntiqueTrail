@@ -16,5 +16,9 @@ export function configuredShopperClient(): ShopperPrivateClient | null {
       const result = await supabase.rpc(name, args)
       return { data: result.data, error: result.error }
     },
+    edge: async (name, args) => {
+      const result = await supabase.functions.invoke(name, { body: args })
+      return { data: result.data, error: result.error }
+    },
   })
 }
