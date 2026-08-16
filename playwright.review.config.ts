@@ -3,12 +3,15 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
   testMatch: [
+    'catalog.spec.ts',
+    'store-details.spec.ts',
     'review-harness.spec.ts',
     'ui05-auth-shopper.spec.ts',
     'ui06-candidate-flows.spec.ts',
     'ui07-trip-flows.spec.ts',
     'ui08-partner-portal.spec.ts',
     'ui09-admin-moderation.spec.ts',
+    'ui10-full-spec.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
