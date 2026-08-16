@@ -17,7 +17,9 @@ export function AlphaGuard({
 export function AlphaReadinessPage() {
   return (
     <main>
-      <Link to="/stores"><span aria-hidden="true">←</span> Back</Link>
+      <Link to="/stores">
+        <span aria-hidden="true">←</span> Back
+      </Link>
       <h1>Synthetic Internal Alpha</h1>
       <p>
         Private readiness evidence is collected only from fictional stores and approved test

@@ -155,15 +155,11 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
   test('Review Hours stays honest with an unresolved stale warning', async ({ page }) => {
     await page.goto(reviewUrl('/trips/trip-a/plan', 'shopper-a'))
     await page.getByRole('button', { name: 'Review Hours', exact: true }).click()
-    await expect(
-      page.getByRole('group', { name: 'Hours warnings' }),
-    ).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Hours warnings' })).toBeVisible()
     await expect(page.locator('.lede')).toContainText('Travel time is not included')
     await expect(page.locator('.lede')).toContainText('no feasible-order or arrival claim is made')
     await page.getByLabel(/I understand these hours warnings/).check()
-    await page
-      .getByRole('button', { name: 'Acknowledge warnings and continue' })
-      .click()
+    await page.getByRole('button', { name: 'Acknowledge warnings and continue' }).click()
     await expect(page.getByRole('group', { name: 'Hours warnings' })).toHaveCount(0)
   })
 

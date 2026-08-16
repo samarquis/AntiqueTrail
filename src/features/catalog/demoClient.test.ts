@@ -44,7 +44,8 @@ describe('Synthetic Store image fixtures', () => {
       accessibility: { status: 'verified' },
     })
     expect(blueFinch?.hoursExceptions).toHaveLength(1)
-    expect(blueFinch?.updates).toHaveLength(2)
+    // Four updates keep the Store Details `See all` (updates > 3) path exercisable (DESIGN_SYSTEM.md:132).
+    expect(blueFinch?.updates).toHaveLength(4)
     expect(blueFinch?.socialLinks).toHaveLength(2)
     expect(cedar?.phone).toBeUndefined()
     expect(cedar?.provenance).toBeUndefined()

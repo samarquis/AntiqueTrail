@@ -300,10 +300,12 @@ describe('catalog private-action integration seam', () => {
     expect(screen.getByRole('complementary', { name: /map marker preview/i })).toHaveTextContent(
       /4.5 from 8 ratings.*open now.*antique mall.*2.4 miles.*claimed listing.*saved.*not visited/i,
     )
-    expect(screen.getByRole('link', { name: /add to trip/i })).toHaveAttribute(
+    const preview = screen.getByRole('complementary', { name: /map marker preview/i })
+    expect(within(preview).getByRole('link', { name: /add to trip/i })).toHaveAttribute(
       'href',
       `/trips/new?addStoreId=${syntheticStores[0].id}`,
     )
+    expect(screen.getAllByRole('link', { name: /add to trip/i }).length).toBeGreaterThanOrEqual(2)
   })
 
   it('replaces the accessible result list only after Search this map area', async () => {

@@ -1099,9 +1099,7 @@ export function DetailsPage({
           </p>
           <div className="store-detail__trust" aria-label="Listing status">
             <p className={`status-badge status-badge--${store.freshness?.status ?? 'unknown'}`}>
-              <span aria-hidden="true">
-                {store.freshness?.status === 'current' ? '✓' : 'i'}
-              </span>{' '}
+              <span aria-hidden="true">{store.freshness?.status === 'current' ? '✓' : 'i'}</span>{' '}
               {freshnessLabel(store)}
             </p>
             {store.freshness?.status === 'stale' && (
