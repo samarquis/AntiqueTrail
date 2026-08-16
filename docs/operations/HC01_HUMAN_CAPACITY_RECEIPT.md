@@ -1,6 +1,6 @@
 # HC-01 human capacity and tester setup
 
-Status: **DRAFT / NO-GO**  
+Status: **DRAFT / NO-GO**
 Issue: [#8](https://github.com/samarquis/AntiqueTrail/issues/8)
 
 This is a planning receipt, not approval for owner contact, external testing,
@@ -25,13 +25,13 @@ acceptance before first owner contact or any external participant is contacted.
 
 | Required role | Current owner | Required evidence |
 | --- | --- | --- |
-| Engineering/Security owner | Codex, supervised by Scott | Codex prepares engineering, security, privacy, authorization, incident, and recovery evidence; Scott reviews and accepts the work | 
-| Operations owner | Scott | Monitoring, support intake, backup/restore, rollback, and status responsibility accepted by Scott | 
-| Support/on-call primary | Codex + Scott | Codex handles technical triage and runbooks; Scott owns operational decisions and escalation | 
-| Support/on-call backup | Codex + Scott | Shared coverage; escalation remains with Scott | 
-| Second catalog verifier | Codex + Scott | Codex performs a separate fact/provenance pass; Scott reconciles and accepts discrepancies | 
-| Legal/insurance reviewer | Scott + qualified professional when required | Codex can prepare a checklist and identify gaps; only Scott and a qualified legal/insurance professional can confirm this requirement | 
-| Independent security/release reviewer | Codex prepares; Scott accepts | Codex can run the security review and retests, but cannot be the independent human approver; a conflict-free human approval remains required for a signed release gate | 
+| Engineering/Security owner | Codex, supervised by Scott | Codex prepares engineering, security, privacy, authorization, incident, and recovery evidence; Scott reviews and accepts the work |
+| Operations owner | Scott | Monitoring, support intake, backup/restore, rollback, and status responsibility accepted by Scott |
+| Support/on-call primary | Codex + Scott | Codex handles technical triage and runbooks; Scott owns operational decisions and escalation |
+| Support/on-call backup | Codex + Scott | Shared coverage; escalation remains with Scott |
+| Second catalog verifier | Codex + Scott | Codex performs a separate fact/provenance pass; Scott reconciles and accepts discrepancies |
+| Legal/insurance reviewer | Scott + qualified professional when required | Codex can prepare a checklist and identify gaps; only Scott and a qualified legal/insurance professional can confirm this requirement |
+| Independent security/release reviewer | Codex prepares; Scott accepts | Codex can run the security review and retests, but cannot be the independent human approver; a conflict-free human approval remains required for a signed release gate |
 
 ## Required ownership checks
 

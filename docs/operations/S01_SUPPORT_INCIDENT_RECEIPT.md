@@ -1,6 +1,6 @@
 # S-01 support and incident-status path
 
-Status: **DRAFT / BETA-READY PLAN**  
+Status: **DRAFT / BETA-READY PLAN**
 Issue: [#7](https://github.com/samarquis/AntiqueTrail/issues/7)
 
 ## Beta support channels
@@ -55,4 +55,3 @@ administrators.
 This receipt supports controlled synthetic/beta preparation. It does not
 authorize owner outreach, public access, public promotion, or production
 incident commitments until the closure checks and applicable gates pass.
-
