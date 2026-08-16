@@ -150,7 +150,7 @@ alter function partner_private.partner_consent_status(uuid) owner to identity_se
 
 create or replace function app_public.publish_partner_material_terms(p_policy_version text,p_terms jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid();
+declare actor uuid:=app_public.request_user_id();
 begin
   if actor is null or not app_private.current_user_has_role('administrator'::app_private.app_role,null)
     or not app_private.current_session_has_mfa() or not app_private.current_session_recent_auth(interval '15 minutes')
@@ -171,7 +171,7 @@ grant execute on function app_public.publish_partner_material_terms(text,jsonb) 
 
 create or replace function app_public.partner_consent_command(p_operation text,p_payload jsonb default '{}'::jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); current_version text; prior_receipt uuid; prior partner_private.partner_reconsent_receipts%rowtype; digest bytea;
+declare actor uuid:=app_public.request_user_id(); current_version text; prior_receipt uuid; prior partner_private.partner_reconsent_receipts%rowtype; digest bytea;
 begin
   if actor is null or not app_private.current_session_is_active()
     or not exists(select 1 from partner_private.pending_partner_identities p where p.auth_user_id=actor and p.state='bound')
@@ -208,8 +208,13 @@ grant execute on function app_public.partner_consent_command(text,jsonb) to auth
 
 create or replace function partner_private.guard_current_partner_consent()
 returns trigger language plpgsql security definer set search_path='' as $$
-declare target_user uuid:=case tg_table_name when 'listing_claims' then new.claimant_id else new.auth_user_id end;
+declare target_user uuid;
 begin
+  if tg_table_name='listing_claims' then
+    target_user := new.claimant_id;
+  else
+    target_user := new.auth_user_id;
+  end if;
   if tg_table_name='listing_claims' and tg_op='UPDATE' and not old.material_reconsent_required
     and new.material_reconsent_required and new.state=old.state then return new; end if;
   if ((tg_table_name='listing_claims' and new.state in ('submitted','verification_pending','changes_requested','conflict','approved'))
@@ -236,7 +241,7 @@ alter function partner_private.guard_claim_signal_current_consent() owner to ide
 create trigger claim_signal_current_consent before insert or update on partner_private.claim_authority_signals for each row execute function partner_private.guard_claim_signal_current_consent();
 
 create or replace function partner_private.require_claimant() returns uuid
-language plpgsql stable security definer set search_path='' as $$ declare actor uuid:=auth.uid(); begin
+language plpgsql stable security definer set search_path='' as $$ declare actor uuid:=app_public.request_user_id(); begin
   if actor is null or not app_private.current_session_has_mfa() or not app_private.current_session_recent_auth(interval '15 minutes')
     or not exists(select 1 from app_private.profiles p where p.user_id=actor and p.status='active' and p.verified_email_snapshot is not null)
     or not partner_private.partner_consent_is_current(actor) then
@@ -246,7 +251,7 @@ alter function partner_private.require_claimant() owner to identity_service;
 
 create or replace function app_public.partner_synthetic_command(p_operation text,p_payload jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); token text:=p_payload->>'token'; resume_handle text:=p_payload->>'resumeHandle'; token_digest bytea; handle_digest bytea;
+declare actor uuid:=app_public.request_user_id(); token text:=p_payload->>'token'; resume_handle text:=p_payload->>'resumeHandle'; token_digest bytea; handle_digest bytea;
   supplied_email_hmac bytea; inv partner_private.partner_invitations%rowtype; resume partner_private.partner_invitation_resumes%rowtype;
   identity_input jsonb:=p_payload->'identity'; signal_input jsonb:=p_payload->'input'; pending_id uuid; consent_id uuid; receipt_id uuid;
   signal_id uuid; claim_row partner_private.listing_claims%rowtype; existing partner_private.pending_partner_identities%rowtype;

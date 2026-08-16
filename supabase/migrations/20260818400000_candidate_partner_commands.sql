@@ -7,7 +7,7 @@ grant create on schema app_public to identity_service;
 create or replace function app_public.candidate_save_candidate(p_input jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare
-  actor uuid:=auth.uid(); row candidate_private.candidate_links%rowtype;
+  actor uuid:=app_public.request_user_id(); row candidate_private.candidate_links%rowtype;
   raw_url text:=nullif(btrim(p_input->>'url'),''); raw_note text:=coalesce(p_input->>'note','');
 begin
   if actor is null or not app_private.current_session_is_active() then
@@ -34,21 +34,21 @@ $$;
 create or replace function app_public.candidate_list_shares()
 returns jsonb language sql stable security definer set search_path='' as $$
   select coalesce(jsonb_agg(jsonb_build_object(
-    'id',s.share_id,'direction',case when s.sender_id=auth.uid() then 'sent' else 'received' end,
+    'id',s.share_id,'direction',case when s.sender_id=app_public.request_user_id() then 'sent' else 'received' end,
     'state',s.state,'title',c.title,'expiresAt',(extract(epoch from s.expires_at)*1000)::bigint
   ) order by s.created_at desc),'[]'::jsonb)
   from candidate_private.candidate_shares s join candidate_private.candidate_links c on c.candidate_id=s.candidate_id
-  where app_private.current_session_is_active() and auth.uid() in (s.sender_id,s.recipient_id)
+  where app_private.current_session_is_active() and app_public.request_user_id() in (s.sender_id,s.recipient_id)
 $$;
 
 create or replace function app_public.candidate_get_share(p_share_id uuid)
 returns jsonb language sql stable security definer set search_path='' as $$
   select jsonb_build_object('id',s.share_id,
-    'direction',case when s.sender_id=auth.uid() then 'sent' else 'received' end,
+    'direction',case when s.sender_id=app_public.request_user_id() then 'sent' else 'received' end,
     'state',s.state,'title',c.title,'expiresAt',(extract(epoch from s.expires_at)*1000)::bigint)
   from candidate_private.candidate_shares s join candidate_private.candidate_links c on c.candidate_id=s.candidate_id
   where s.share_id=p_share_id and app_private.current_session_is_active()
-    and auth.uid() in (s.sender_id,s.recipient_id)
+    and app_public.request_user_id() in (s.sender_id,s.recipient_id)
 $$;
 
 create or replace function app_public.candidate_dismiss_share(p_share_id uuid)
@@ -57,7 +57,7 @@ declare row candidate_private.candidate_shares%rowtype;
 begin
   update candidate_private.candidate_shares set state='closed',close_reason='dismissed',
     closed_at=statement_timestamp(),version=version+1,updated_at=statement_timestamp()
-  where share_id=p_share_id and recipient_id=auth.uid() and state='pending'
+  where share_id=p_share_id and recipient_id=app_public.request_user_id() and state='pending'
     and expires_at>statement_timestamp() and app_private.current_session_is_active()
   returning * into row;
   if not found then raise exception using errcode='55000',message='candidate_share_unavailable'; end if;
@@ -70,14 +70,14 @@ returns jsonb language sql stable security definer set search_path='' as $$
   select coalesce(jsonb_agg(jsonb_build_object('id',idea_id,'ownerUserId',owner_user_id,
     'sourceShareId',source_share_id,'title',title,'urlNote',coalesce(url_note,''),'version',version)
     order by updated_at desc),'[]'::jsonb)
-  from candidate_private.trip_ideas where owner_user_id=auth.uid() and app_private.current_session_is_active()
+  from candidate_private.trip_ideas where owner_user_id=app_public.request_user_id() and app_private.current_session_is_active()
 $$;
 
 create or replace function app_public.candidate_delete_trip_idea(p_idea_id uuid)
 returns void language plpgsql volatile security definer set search_path='' as $$
 begin
   if not app_private.current_session_is_active() then raise exception using errcode='42501',message='candidate_auth_required'; end if;
-  delete from candidate_private.trip_ideas where idea_id=p_idea_id and owner_user_id=auth.uid();
+  delete from candidate_private.trip_ideas where idea_id=p_idea_id and owner_user_id=app_public.request_user_id();
   if not found then raise exception using errcode='55000',message='candidate_idea_unavailable'; end if;
 end
 $$;
@@ -85,7 +85,7 @@ $$;
 create or replace function app_public.partner_safe_command(p_operation text,p_payload jsonb default '{}'::jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare
-  actor uuid:=auth.uid(); identity_row partner_private.pending_partner_identities%rowtype;
+  actor uuid:=app_public.request_user_id(); identity_row partner_private.pending_partner_identities%rowtype;
   draft_row partner_private.pilot_store_drafts%rowtype; claim_row partner_private.listing_claims%rowtype;
   store_row app_public.stores%rowtype; draft jsonb; status jsonb;
 begin

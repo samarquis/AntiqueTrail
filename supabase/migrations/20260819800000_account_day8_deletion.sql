@@ -121,7 +121,6 @@ begin
   delete from candidate_private.candidate_blocks where blocker_id=p_user_id or blocked_user_id=p_user_id;
   delete from candidate_private.trip_ideas where owner_user_id=p_user_id;
   delete from candidate_private.candidate_share_delivery_jobs where sender_user_id=p_user_id;
-  delete from candidate_private.candidate_rate_events where actor_user_id=p_user_id;
   delete from candidate_private.candidate_concurrency_leases where actor_user_id=p_user_id;
   delete from candidate_private.candidate_links where owner_user_id=p_user_id;
   removed:=removed||'"candidate"'::jsonb;
@@ -163,10 +162,8 @@ begin
   delete from trip_private.check_my_day_command_evidence where actor_user_id=p_user_id;
   delete from trip_private.check_my_day_requests where actor_user_id=p_user_id;
   delete from trip_private.trip_conflict_resolution_receipts where actor_user_id=p_user_id;
-  update rg01_private.rg01_product_owner_grants set state='revoked',revoked_at=coalesce(revoked_at,statement_timestamp()),version=version+1
-    where user_id=p_user_id and state='active';
+  perform app_private.purge_account_internal_bindings(p_user_id);
   update rg01_private.rg01_subject_consents set user_id=null,withdrawn_at=coalesce(withdrawn_at,statement_timestamp()) where user_id=p_user_id;
-  update app_private.account_admission_receipts set provider_user_id=null where provider_user_id=p_user_id;
   delete from app_private.profiles where user_id=p_user_id;
   return removed;
 end $$;

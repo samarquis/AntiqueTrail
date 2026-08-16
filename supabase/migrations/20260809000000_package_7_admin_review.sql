@@ -200,10 +200,10 @@ create policy identity_service_admin_anchor_health on admin_private.admin_audit_
 
 -- Administrators receive no direct table grants. These policies are documentation for future exact-case RPCs.
 create policy assigned_admin_case_read on admin_private.admin_review_cases for select to authenticated
-  using (assigned_admin_id=auth.uid() and app_private.current_session_is_active() and app_private.current_session_has_mfa() and app_private.current_session_recent_auth(interval '15 minutes'));
+  using (assigned_admin_id=app_public.request_user_id() and app_private.current_session_is_active() and app_private.current_session_has_mfa() and app_private.current_session_recent_auth(interval '15 minutes'));
 create policy assigned_admin_case_event_read on admin_private.admin_case_events for select to authenticated
-  using (exists(select 1 from admin_private.admin_review_cases c where c.case_id=admin_case_events.case_id and c.assigned_admin_id=auth.uid()) and app_private.current_session_is_active() and app_private.current_session_has_mfa() and app_private.current_session_recent_auth(interval '15 minutes'));
+  using (exists(select 1 from admin_private.admin_review_cases c where c.case_id=admin_case_events.case_id and c.assigned_admin_id=app_public.request_user_id()) and app_private.current_session_is_active() and app_private.current_session_has_mfa() and app_private.current_session_recent_auth(interval '15 minutes'));
 create policy assigned_admin_change_read on admin_private.admin_field_change_requests for select to authenticated
-  using (exists(select 1 from admin_private.admin_review_cases c where c.case_id=admin_field_change_requests.case_id and c.assigned_admin_id=auth.uid()) and app_private.current_session_is_active() and app_private.current_session_has_mfa());
+  using (exists(select 1 from admin_private.admin_review_cases c where c.case_id=admin_field_change_requests.case_id and c.assigned_admin_id=app_public.request_user_id()) and app_private.current_session_is_active() and app_private.current_session_has_mfa());
 create policy assigned_admin_merge_read on admin_private.admin_duplicate_merge_proposals for select to authenticated
-  using ((requested_by=auth.uid() or reviewed_by=auth.uid()) and app_private.current_session_is_active() and app_private.current_session_has_mfa() and app_private.current_session_recent_auth(interval '15 minutes'));
+  using ((requested_by=app_public.request_user_id() or reviewed_by=app_public.request_user_id()) and app_private.current_session_is_active() and app_private.current_session_has_mfa() and app_private.current_session_recent_auth(interval '15 minutes'));

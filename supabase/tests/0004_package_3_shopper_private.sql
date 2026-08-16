@@ -22,15 +22,15 @@ select ok(exists(select 1 from pg_policies where schemaname='shopper_private' an
 select ok(exists(select 1 from pg_policies where schemaname='shopper_private' and policyname='shopper_dismissals_owner' and coalesce(qual,'') like '%current_session_is_active%'),'dismissals require active owner session');
 select ok(exists(select 1 from pg_policies where schemaname='shopper_private' and policyname='shopper_correction_report_owner_read' and coalesce(qual,'') like '%current_session_is_active%'),'correction reads require active owner session');
 select ok(exists(select 1 from pg_policies where schemaname='shopper_private' and policyname='shopper_correction_report_owner_insert' and coalesce(with_check,'') like '%current_session_is_active%'),'correction writes require active owner session');
-select ok(not exists(select 1 from information_schema.role_table_grants where table_schema='shopper_private' and grantee in ('anon','authenticated')),'no anonymous/authenticated direct table grants');
+select ok(not exists(select 1 from information_schema.role_table_grants where table_schema='shopper_private' and grantee in ('anon','authenticated') and not (grantee='authenticated' and table_name='private_memory_merge_conflicts' and privilege_type='SELECT')),'only the exact owner-scoped merge-conflict projection has an authenticated table grant');
 
 set local role anon;
-select throws_ok($$select * from shopper_private.saved_stores$$,'42501','anonymous saved-store read denied');
-select throws_ok($$insert into shopper_private.store_correction_reports(reporter_user_id,store_id,correction_type,description) values ('00000000-0000-0000-0000-000000000001','00000000-0000-4000-8000-000000001001','hours','wrong')$$,'42501','anonymous correction write denied');
+select throws_ok($$select * from shopper_private.saved_stores$$,'42501',null,'anonymous saved-store read denied');
+select throws_ok($$insert into shopper_private.store_correction_reports(reporter_user_id,store_id,correction_type,description) values ('00000000-0000-0000-0000-000000000001','00000000-0000-4000-8000-000000001001','hours','wrong')$$,'42501',null,'anonymous correction write denied');
 reset role;
 set local role authenticated;
-select throws_ok($$select * from shopper_private.private_store_memories$$,'42501','authenticated direct memory read denied');
-select throws_ok($$select * from shopper_private.correction_case_events$$,'42501','authenticated correction event read denied');
+select throws_ok($$select * from shopper_private.private_store_memories$$,'42501',null,'authenticated direct memory read denied');
+select throws_ok($$select * from shopper_private.correction_case_events$$,'42501',null,'authenticated correction event read denied');
 
 select * from finish();
 rollback;

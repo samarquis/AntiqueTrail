@@ -38,6 +38,7 @@ describe('catalog private-action integration seam', () => {
   afterEach(() => {
     cleanup()
     window.sessionStorage.clear()
+    vi.unstubAllEnvs()
   })
 
   it('renders account-aware actions on every Browse card', async () => {
@@ -50,6 +51,16 @@ describe('catalog private-action integration seam', () => {
     expect(
       await screen.findByRole('button', { name: `Save ${syntheticStores[0].name}` }),
     ).toBeVisible()
+  })
+
+  it('keeps store links inside a configured deployment base path', async () => {
+    vi.stubEnv('BASE_URL', '/AntiqueTrail/')
+    render(<BrowsePage client={client()} />)
+
+    expect(await screen.findByRole('link', { name: syntheticStores[0].name })).toHaveAttribute(
+      'href',
+      `/AntiqueTrail/stores/${syntheticStores[0].slug}`,
+    )
   })
 
   it('defaults to Package 1 filters and exposes a labeled filter panel contract', async () => {

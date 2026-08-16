@@ -343,7 +343,7 @@ end $$;
 
 create or replace function app_public.rg01_set_own_consent(p_consent boolean)
 returns void language plpgsql security definer set search_path='' as $$
-declare uid uuid:=auth.uid();
+declare uid uuid:=app_public.request_user_id();
 begin
   if not (select collection_enabled and rg01_private.release_is_active(release_id) from rg01_private.rg01_capability where singleton_id=1) then
     raise exception using errcode='55000',message='rg01_collection_disabled';
@@ -363,7 +363,7 @@ end $$;
 
 create or replace function app_public.rg01_set_flyer_consent(p_store_id uuid,p_consent boolean,p_source_receipt_digest bytea)
 returns void language plpgsql security definer set search_path='' as $$
-declare uid uuid:=auth.uid();
+declare uid uuid:=app_public.request_user_id();
 begin
   if not (select collection_enabled and rg01_private.release_is_active(release_id) from rg01_private.rg01_capability where singleton_id=1) then
     raise exception using errcode='55000',message='rg01_collection_disabled';

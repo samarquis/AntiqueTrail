@@ -152,13 +152,13 @@ declare i review_private.reviewer_identities%rowtype; cfg review_private.reviewe
 begin
   if not app_private.current_session_is_active() or not app_private.current_session_has_mfa() or not app_private.current_session_recent_auth(interval '10 minutes') or p_ceremony not in ('registration','assertion') then
     raise exception using errcode='42501',message='reviewer_credential_challenge_denied'; end if;
-  select * into i from review_private.reviewer_identities where reviewer_identity_id=p_reviewer_identity_id and user_id=auth.uid();
+  select * into i from review_private.reviewer_identities where reviewer_identity_id=p_reviewer_identity_id and user_id=app_public.request_user_id();
   select * into cfg from review_private.reviewer_verifier_config where singleton and state='accepted';
   if i.reviewer_identity_id is null or cfg.singleton is null or (p_ceremony='registration' and i.state not in ('pending','active')) or (p_ceremony='assertion' and (i.state<>'active' or p_case_id is null
     or not (exists(select 1 from review_private.review_appeals a where a.case_id=p_case_id and a.assigned_reviewer_identity_id=i.reviewer_identity_id and a.state='assigned')
       or exists(select 1 from review_private.restriction_appeals a join review_private.review_restrictions r on r.restriction_id=a.restriction_id where r.source_case_id=p_case_id and a.assigned_reviewer_identity_id=i.reviewer_identity_id and a.state='assigned')))) then
     raise exception using errcode='42501',message='reviewer_credential_challenge_denied'; end if;
-  request_hash:=extensions.digest(convert_to(concat_ws('|',p_reviewer_identity_id,coalesce(p_case_id::text,''),p_ceremony,auth.uid()),'utf8'),'sha256');
+  request_hash:=extensions.digest(convert_to(concat_ws('|',p_reviewer_identity_id,coalesce(p_case_id::text,''),p_ceremony,app_public.request_user_id()),'utf8'),'sha256');
   select * into c from review_private.reviewer_credential_challenges where idempotency_key=p_idempotency_key;
   if found then
     if c.reviewer_identity_id<>p_reviewer_identity_id or c.case_id is distinct from p_case_id or c.ceremony<>p_ceremony or c.request_digest<>request_hash then raise exception using errcode='22023',message='reviewer_challenge_idempotency_reused'; end if;
@@ -253,7 +253,7 @@ declare cred review_private.reviewer_credentials%rowtype; cnt integer; prior rev
 begin
   if not app_private.current_session_is_active() or p_idempotency_key is null then raise exception using errcode='42501',message='reviewer_credential_revocation_denied'; end if;
   select c.* into cred from review_private.reviewer_credentials c join review_private.reviewer_identities i using(reviewer_identity_id)
-    where c.credential_record_id=p_credential_record_id and i.user_id=auth.uid() for update of c;
+    where c.credential_record_id=p_credential_record_id and i.user_id=app_public.request_user_id() for update of c;
   if cred.credential_record_id is null then raise exception using errcode='42501',message='reviewer_credential_revocation_denied'; end if;
   select * into prior from review_private.reviewer_credential_command_receipts where idempotency_key=p_idempotency_key;
   if found then

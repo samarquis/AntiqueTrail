@@ -217,7 +217,7 @@ begin
     raise exception 'claim_stage_disabled';
   end if;
   insert into partner_private.listing_claims(claimant_id,store_id,state,submitted_at)
-    values(auth.uid(),v_store_id,'submitted',statement_timestamp()) returning * into v_claim;
+    values(app_public.request_user_id(),v_store_id,'submitted',statement_timestamp()) returning * into v_claim;
   return jsonb_build_object('claimId',v_claim.claim_id,'storeId',v_claim.store_id,
     'state',v_claim.state,'version',v_claim.version,'submittedAt',v_claim.submitted_at);
 exception when unique_violation then

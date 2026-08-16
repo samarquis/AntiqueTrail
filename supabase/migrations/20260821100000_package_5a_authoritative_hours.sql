@@ -94,7 +94,7 @@ set search_path = pg_catalog, trip_private, app_public, auth as $$
       'address',case when s.kind='store' then concat_ws(', ',st.address,st.town,st.state_code) else s.rest_address end,
       'position',s.position,'priority',s.priority,'plannedDwellMinutes',s.planned_dwell_minutes,
       'state',s.state,'memoryStatus',case when s.kind='rest' then 'not_applicable'
-        when exists(select 1 from trip_private.trip_visit_memories m where m.author_user_id=auth.uid() and m.trip_id=s.trip_id and m.store_id=s.store_id) then 'saved'
+        when exists(select 1 from trip_private.trip_visit_memories m where m.author_user_id=app_public.request_user_id() and m.trip_id=s.trip_id and m.store_id=s.store_id) then 'saved'
         else 'missing' end,
       'coordinate',case when s.kind='store' and st.latitude is not null then jsonb_build_object('latitude',st.latitude::float8,'longitude',st.longitude::float8) when s.kind='rest' and s.rest_latitude is not null then jsonb_build_object('latitude',s.rest_latitude::float8,'longitude',s.rest_longitude::float8) else null end,
       'hours',case when s.kind='store' then trip_private.trip_hours_for_stop(s.store_id,t.local_date) else null end
@@ -195,7 +195,7 @@ begin
     or trip_private.trip_has_unresolved_hours(new.trip_id) is distinct from new.hours_review_has_unresolved
     or not ((new.start_kind='manual' and new.private_start_label is not null) or (new.start_kind='current_location' and new.private_start_latitude is not null and new.private_start_longitude is not null))
     or not exists(select 1 from trip_private.trip_device_bindings b where b.trip_id=new.trip_id and b.user_id=new.navigator_user_id and b.device_hash=new.navigator_device_hash and b.state='active')
-    or not (auth.uid()=new.owner_id or old.navigator_user_id=auth.uid())
+    or not (app_public.request_user_id()=new.owner_id or old.navigator_user_id=app_public.request_user_id())
   ) then raise exception 'not_allowed'; end if;
   return new;
 end; $$;

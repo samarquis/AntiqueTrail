@@ -27,14 +27,14 @@ select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_
 select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_roles where rolname='trip_invitation_signer'),'invitation signer role is constrained');
 select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_roles where rolname='trip_route_worker'),'route worker role is constrained');
 select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_roles where rolname='trip_route_authorizer'),'R-01 authorizer role is constrained and separate');
-select ok((select pg_get_functiondef(p.oid) like '%offline_grant_signing_receipts%' and pg_get_functiondef(p.oid) not like '%sign(%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public' and p.proname='start_trip_with_offline_grant'),'browser command consumes but cannot mint a grant');
+select ok((select pg_get_functiondef(p.oid) like '%trip_private.consume_start_grant%' and pg_get_functiondef(p.oid) not like '%produce_offline_grant_receipt%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public' and p.proname='start_trip_with_offline_grant'),'browser command consumes but cannot mint a grant');
 select ok((select pg_get_functiondef(p.oid) like '%departure_required%' and pg_get_functiondef(p.oid) like '%r01_blocked%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public' and p.proname='request_check_my_day'),'Check My Day does not invent departure and remains R-01 gated');
 select ok(not has_schema_privilege('trip_grant_signer','trip_private','CREATE'),'offline signer cannot create private objects');
 select ok(not has_schema_privilege('trip_invitation_signer','trip_private','CREATE'),'invitation signer cannot create private objects');
 
 set local role anon;
-select throws_ok($$select app_public.get_trip_collaboration('00000000-0000-0000-0000-000000000000')$$,'42501','anonymous collaboration read denied');
-select throws_ok($$select app_public.request_check_my_day('00000000-0000-0000-0000-000000000000')$$,'42501','anonymous route request denied');
+select throws_ok($$select app_public.get_trip_collaboration('00000000-0000-0000-0000-000000000000')$$,'42501',null,'anonymous collaboration read denied');
+select throws_ok($$select app_public.request_check_my_day('00000000-0000-0000-0000-000000000000')$$,'42501',null,'anonymous route request denied');
 
 reset role;
 select * from finish();

@@ -104,11 +104,11 @@ declare v_trip uuid;v_device bytea;v_epoch bigint;
 begin
   begin v_trip:=trip_id::uuid; exception when others then raise exception 'validation_failed'; end;
   if device_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' or not app_private.current_session_is_active() or not trip_private.trip_member_can_access(v_trip) then raise exception 'not_allowed'; end if;
-  if not exists(select 1 from trip_private.trips t where t.trip_id=v_trip and t.state in ('draft','ready') and t.navigator_user_id is distinct from auth.uid()) then raise exception 'not_allowed'; end if;
-  select p.session_epoch into v_epoch from app_private.profiles p where p.user_id=auth.uid() and p.status='active';
+  if not exists(select 1 from trip_private.trips t where t.trip_id=v_trip and t.state in ('draft','ready') and t.navigator_user_id is distinct from app_public.request_user_id()) then raise exception 'not_allowed'; end if;
+  select p.session_epoch into v_epoch from app_private.profiles p where p.user_id=app_public.request_user_id() and p.status='active';
   v_device:=extensions.digest(convert_to(device_id,'utf8'),'sha256');
-  update trip_private.trip_device_bindings set state='revoked',revoked_at=statement_timestamp(),revocation_reason='device_rebound' where trip_private.trip_device_bindings.trip_id=v_trip and user_id=auth.uid() and state='active';
-  insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version) values(v_trip,auth.uid(),v_device,v_epoch)
+  update trip_private.trip_device_bindings set state='revoked',revoked_at=statement_timestamp(),revocation_reason='device_rebound' where trip_private.trip_device_bindings.trip_id=v_trip and user_id=app_public.request_user_id() and state='active';
+  insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version) values(v_trip,app_public.request_user_id(),v_device,v_epoch)
     on conflict(trip_id,device_hash) do update set user_id=excluded.user_id,state='active',revoked_at=null,revocation_reason=null,session_security_version=excluded.session_security_version,bound_at=statement_timestamp();
   return trip_private.collaboration_json(v_trip);
 end; $$;
@@ -120,9 +120,9 @@ declare v_trip uuid;v_epoch bigint;v_issued timestamptz:=statement_timestamp();
 begin
   begin v_trip:=trip_id::uuid; exception when others then raise exception 'validation_failed'; end;
   if install_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' or device_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' or device_key_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
-    or not app_private.current_session_is_active() or not exists(select 1 from trip_private.trips t where t.trip_id=v_trip and t.state in ('ready','active') and t.navigator_user_id=auth.uid()) then raise exception 'not_allowed'; end if;
-  select p.session_epoch into v_epoch from app_private.profiles p where p.user_id=auth.uid() and p.status='active';
-  return jsonb_build_object('accountId',auth.uid()::text,'tripId',v_trip::text,'installId',install_id,'deviceId',device_id,'deviceKeyId',device_key_id,
+    or not app_private.current_session_is_active() or not exists(select 1 from trip_private.trips t where t.trip_id=v_trip and t.state in ('ready','active') and t.navigator_user_id=app_public.request_user_id()) then raise exception 'not_allowed'; end if;
+  select p.session_epoch into v_epoch from app_private.profiles p where p.user_id=app_public.request_user_id() and p.status='active';
+  return jsonb_build_object('accountId',app_public.request_user_id()::text,'tripId',v_trip::text,'installId',install_id,'deviceId',device_id,'deviceKeyId',device_key_id,
     'sessionSecurityVersion',v_epoch,'issuedAt',v_issued,'expiresAt',v_issued+interval '36 hours',
     'reauthorizeBy',v_issued+interval '7 days','nonce',extensions.gen_random_uuid()::text);
 end; $$;
@@ -150,28 +150,28 @@ returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_receipt trip_private.offline_grant_signing_receipts%rowtype;v_epoch bigint;v_device bytea;v_claims jsonb;v_state text;
 begin
   if not app_private.current_session_is_active() then raise exception 'not_allowed'; end if;
-  select t.state into v_state from trip_private.trips t where t.trip_id=target_trip and t.navigator_user_id=auth.uid() and t.state in ('ready','active') for update;
+  select t.state into v_state from trip_private.trips t where t.trip_id=target_trip and t.navigator_user_id=app_public.request_user_id() and t.state in ('ready','active') for update;
   if v_state is null or (activate and v_state<>'ready') then raise exception 'not_allowed'; end if;
   if activate and not exists(select 1 from trip_private.trips t where t.trip_id=target_trip and t.departure_local_time is not null
     and ((t.start_kind='manual' and t.private_start_label is not null) or (t.start_kind='current_location' and t.private_start_latitude is not null and t.private_start_longitude is not null))) then raise exception 'not_allowed'; end if;
-  select p.session_epoch into v_epoch from app_private.profiles p where p.user_id=auth.uid() and p.status='active';
-  select * into v_receipt from trip_private.offline_grant_signing_receipts r where r.trip_id=target_trip and r.user_id=auth.uid()
+  select p.session_epoch into v_epoch from app_private.profiles p where p.user_id=app_public.request_user_id() and p.status='active';
+  select * into v_receipt from trip_private.offline_grant_signing_receipts r where r.trip_id=target_trip and r.user_id=app_public.request_user_id()
     and (install_filter is null or r.install_id=install_filter) and (device_key_filter is null or r.device_key_id=device_key_filter)
     and r.session_security_version=v_epoch and r.state='ready' and r.expires_at>statement_timestamp() order by r.issued_at desc limit 1 for update;
   if v_receipt.receipt_id is null then raise exception 'offline_grant_receipt_unavailable'; end if;
   v_claims:=v_receipt.signed_grant->'claims';
-  if v_claims->>'accountId'<>auth.uid()::text or v_claims->>'tripId'<>target_trip::text or v_claims->>'installId'<>v_receipt.install_id
+  if v_claims->>'accountId'<>app_public.request_user_id()::text or v_claims->>'tripId'<>target_trip::text or v_claims->>'installId'<>v_receipt.install_id
     or v_claims->>'deviceKeyId'<>v_receipt.device_key_id or (v_claims->>'sessionSecurityVersion')::bigint<>v_epoch
     or (v_claims->>'expiresAt')::timestamptz<>v_receipt.expires_at or coalesce(v_claims->>'deviceId','') !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' then raise exception 'offline_grant_receipt_invalid'; end if;
   v_device:=extensions.digest(convert_to(v_claims->>'deviceId','utf8'),'sha256');
   update trip_private.trip_device_bindings set state='revoked',revoked_at=statement_timestamp(),revocation_reason=case when activate then 'trip_started' else 'device_transferred' end
     where trip_private.trip_device_bindings.trip_id=target_trip and state='active';
   update trip_private.trip_offline_grants set state='revoked',revoked_at=statement_timestamp() where trip_private.trip_offline_grants.trip_id=target_trip and state='active';
-  insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version) values(target_trip,auth.uid(),v_device,v_epoch)
+  insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version) values(target_trip,app_public.request_user_id(),v_device,v_epoch)
     on conflict(trip_id,device_hash) do update set user_id=excluded.user_id,state='active',revoked_at=null,revocation_reason=null,session_security_version=excluded.session_security_version,bound_at=statement_timestamp();
   insert into trip_private.trip_offline_grants(trip_id,user_id,device_hash,session_security_version,grant_hash,issued_at,expires_at)
-    values(target_trip,auth.uid(),v_device,v_epoch,v_receipt.signed_grant_hash,v_receipt.issued_at,v_receipt.expires_at);
-  update trip_private.trips set state=case when activate then 'active' else state end,navigator_user_id=auth.uid(),navigator_device_hash=v_device,
+    values(target_trip,app_public.request_user_id(),v_device,v_epoch,v_receipt.signed_grant_hash,v_receipt.issued_at,v_receipt.expires_at);
+  update trip_private.trips set state=case when activate then 'active' else state end,navigator_user_id=app_public.request_user_id(),navigator_device_hash=v_device,
     version=version+1,updated_at=statement_timestamp() where trip_private.trips.trip_id=target_trip;
   update trip_private.offline_grant_signing_receipts set state='consumed',consumed_at=statement_timestamp() where receipt_id=v_receipt.receipt_id;
   return jsonb_build_object('trip',trip_private.trip_command_json(target_trip),'grant',v_receipt.signed_grant);
@@ -245,10 +245,10 @@ begin
   begin v_trip:=trip_id::uuid;v_stop:=(envelope->>'stop_id')::uuid;v_base:=(envelope->>'base_version')::bigint;v_sequence:=(envelope->>'local_sequence')::bigint; exception when others then return jsonb_build_object('state','conflict','summary','The saved action is invalid.'); end;
   v_key:=envelope->>'idempotency_key';v_kind:=envelope->>'kind';v_device:=extensions.digest(convert_to(envelope->>'device_id','utf8'),'sha256');
   if v_key is null or char_length(v_key)>128 or v_kind not in ('mark_arrived','complete_stop','skip_stop','mark_observed_closed','restore_stop') or v_base<1 or v_sequence<1 then return jsonb_build_object('state','conflict','summary','The saved action is invalid.'); end if;
-  if not exists(select 1 from trip_private.trips t join trip_private.trip_device_bindings b on b.trip_id=t.trip_id and b.user_id=auth.uid() and b.device_hash=v_device and b.state='active'
-    join trip_private.trip_offline_grants g on g.trip_id=t.trip_id and g.user_id=auth.uid() and g.device_hash=v_device and g.state='active' and g.expires_at>statement_timestamp()
-    join app_private.profiles p on p.user_id=auth.uid() and p.status='active' and p.session_epoch=b.session_security_version and p.session_epoch=g.session_security_version
-    where t.trip_id=v_trip and t.state='active' and t.navigator_user_id=auth.uid() and t.navigator_device_hash=v_device) then return jsonb_build_object('state','unauthorized'); end if;
+  if not exists(select 1 from trip_private.trips t join trip_private.trip_device_bindings b on b.trip_id=t.trip_id and b.user_id=app_public.request_user_id() and b.device_hash=v_device and b.state='active'
+    join trip_private.trip_offline_grants g on g.trip_id=t.trip_id and g.user_id=app_public.request_user_id() and g.device_hash=v_device and g.state='active' and g.expires_at>statement_timestamp()
+    join app_private.profiles p on p.user_id=app_public.request_user_id() and p.status='active' and p.session_epoch=b.session_security_version and p.session_epoch=g.session_security_version
+    where t.trip_id=v_trip and t.state='active' and t.navigator_user_id=app_public.request_user_id() and t.navigator_device_hash=v_device) then return jsonb_build_object('state','unauthorized'); end if;
   select r.result_metadata into v_result from trip_private.trip_mutation_receipts r where r.trip_id=v_trip and r.idempotency_key=v_key;
   if found then return v_result; end if;
   if not exists(select 1 from trip_private.trips t where t.trip_id=v_trip and t.version=v_base) then v_result:=jsonb_build_object('state','conflict','summary','The trip changed on another device.');

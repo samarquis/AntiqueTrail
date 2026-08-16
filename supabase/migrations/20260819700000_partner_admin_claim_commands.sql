@@ -50,14 +50,14 @@ language sql stable security definer set search_path='' as $$
 $$;
 
 create or replace function partner_private.require_claimant() returns uuid
-language plpgsql stable security definer set search_path='' as $$ declare actor uuid:=auth.uid(); begin
+language plpgsql stable security definer set search_path='' as $$ declare actor uuid:=app_public.request_user_id(); begin
   if actor is null or not app_private.current_session_has_mfa() or not app_private.current_session_recent_auth(interval '15 minutes')
     or not exists(select 1 from app_private.profiles p where p.user_id=actor and p.status='active' and p.verified_email_snapshot is not null) then
     raise exception using errcode='42501',message='partner_claimant_verification_required'; end if; return actor;
 end $$;
 
 create or replace function partner_private.require_claim_admin() returns uuid
-language plpgsql stable security definer set search_path='' as $$ declare actor uuid:=auth.uid(); begin
+language plpgsql stable security definer set search_path='' as $$ declare actor uuid:=app_public.request_user_id(); begin
   if actor is null or not app_private.current_user_has_role('administrator'::app_private.app_role,null)
     or not app_private.current_session_has_mfa() or not app_private.current_session_recent_auth(interval '15 minutes') then
     raise exception using errcode='42501',message='partner_administrator_required'; end if; return actor;
@@ -78,7 +78,7 @@ begin
 end $$;
 
 create or replace function partner_private.record_synthetic_claim_signal(p_claim_id uuid,p_channel_class text,p_signal_type text,p_evidence_ref_hmac bytea)
-returns uuid language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=auth.uid(); c partner_private.listing_claims%rowtype; sid uuid; begin
+returns uuid language plpgsql volatile security definer set search_path='' as $$ declare actor uuid:=app_public.request_user_id(); c partner_private.listing_claims%rowtype; sid uuid; begin
   select * into c from partner_private.listing_claims where claim_id=p_claim_id;
   if not found then raise exception using errcode='55000',message='partner_synthetic_signal_denied'; end if;
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('partner-store:'||c.store_id,0));
@@ -127,7 +127,7 @@ returns jsonb language plpgsql volatile security definer set search_path='' as $
 end $$;
 
 create or replace function app_public.partner_claim_status(p_claim_id uuid default null)
-returns jsonb language plpgsql stable security definer set search_path='' as $$ declare actor uuid:=auth.uid(); c partner_private.listing_claims%rowtype; begin
+returns jsonb language plpgsql stable security definer set search_path='' as $$ declare actor uuid:=app_public.request_user_id(); c partner_private.listing_claims%rowtype; begin
   if actor is null or not app_private.current_session_is_active() then raise exception using errcode='42501',message='partner_auth_required'; end if;
   select * into c from partner_private.listing_claims where claimant_id=actor and (p_claim_id is null or claim_id=p_claim_id) order by created_at desc limit 1;
   if not found then return null; end if;
@@ -217,7 +217,7 @@ end $$;
 
 create or replace function app_public.partner_synthetic_command(p_operation text,p_payload jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); token text:=p_payload->>'token'; token_digest bytea; supplied_email_hmac bytea; inv partner_private.partner_invitations%rowtype;
+declare actor uuid:=app_public.request_user_id(); token text:=p_payload->>'token'; token_digest bytea; supplied_email_hmac bytea; inv partner_private.partner_invitations%rowtype;
   identity_input jsonb:=p_payload->'identity'; signal_input jsonb:=p_payload->'input'; pending_id uuid; consent_id uuid; signal_id uuid; claim_row partner_private.listing_claims%rowtype; existing partner_private.pending_partner_identities%rowtype;
 begin
   if actor is null or not app_private.current_session_is_active() or p_payload->>'synthetic' is distinct from 'true'

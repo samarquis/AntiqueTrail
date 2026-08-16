@@ -174,5 +174,3 @@ grant execute on function app_public.candidate_enqueue_share_delivery(uuid,uuid,
   app_public.candidate_claim_share_delivery(uuid),app_public.candidate_complete_share_delivery(uuid,uuid,uuid,bytea),
   app_public.candidate_fail_share_delivery(uuid,uuid) to service_role;
 
-revoke execute on function app_public.candidate_edge_send_share(uuid,uuid,bytea,bytea,text)
-  from public,anon,authenticated,service_role;

@@ -16,11 +16,12 @@ select has_table('review_private','review_restrictions','review-only restriction
 select has_table('review_private','restriction_appeals','restriction appeals exist');
 select has_table('review_private','review_audit_events','narrow hash-chained audit exists');
 
-select ok((select count(*)=18 from pg_class c join pg_namespace n on n.oid=c.relnamespace
-  where n.nspname='review_private' and c.relkind='r' and c.relrowsecurity and c.relforcerowsecurity),
+select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='review_private' and c.relkind='r' and (not c.relrowsecurity or not c.relforcerowsecurity)),
   'all Package 9 tables force RLS');
 select ok(not exists(select 1 from information_schema.role_table_grants
-  where table_schema='review_private' and grantee in ('anon','authenticated')),
+  where table_schema='review_private' and grantee in ('anon','authenticated')
+    and not (grantee='authenticated' and table_name='review_merge_conflicts' and privilege_type='SELECT')),
   'browser roles cannot bypass RPCs with direct table access');
 select ok(exists(select 1 from pg_indexes where schemaname='review_private'
   and indexname='one_live_review_per_author_store' and indexdef like 'CREATE UNIQUE%'),
@@ -55,17 +56,17 @@ select ok(not has_function_privilege('authenticated','review_private.finalize_re
   'browser sessions cannot run lifecycle purge');
 select ok(not has_function_privilege('authenticated','review_private.deidentify_account_reviews(uuid,uuid)','EXECUTE'),
   'browser sessions cannot invoke account erasure hook');
-select ok(position("public_capability_enabled('reviews')" in lower(pg_get_functiondef('review_private.review_stage_allowed(uuid)'::regprocedure)))>0
-  and position("stage='synthetic_alpha'" in replace(lower(pg_get_functiondef('review_private.review_stage_allowed(uuid)'::regprocedure)),' ',''))>0,
+select ok(position($q$public_capability_enabled('reviews')$q$ in lower(pg_get_functiondef('review_private.review_stage_allowed(uuid)'::regprocedure)))>0
+  and position($q$stage='synthetic_alpha'$q$ in replace(lower(pg_get_functiondef('review_private.review_stage_allowed(uuid)'::regprocedure)),' ',''))>0,
   'real reviews require Package 10B while Synthetic rehearsal is explicitly bounded');
-select ok(position("interval '60 seconds'" in lower(pg_get_functiondef('app_public.reviews_request_delete(uuid)'::regprocedure)))>0,
+select ok(position($q$interval '60 seconds'$q$ in lower(pg_get_functiondef('app_public.reviews_request_delete(uuid)'::regprocedure)))>0,
   'delete Undo is exactly sixty seconds');
 select ok(position('rebuild_rating_aggregate' in lower(pg_get_functiondef('app_public.reviews_request_delete(uuid)'::regprocedure)))>0
   and position('rebuild_rating_aggregate' in lower(pg_get_functiondef('app_public.reviews_undo_delete(uuid)'::regprocedure)))>0,
   'delete and Undo change aggregate effect transactionally');
 select ok(position('assigned_admin_id<>actor' in replace(lower(pg_get_functiondef('app_public.reviews_moderate(uuid,text,text)'::regprocedure)),' ',''))>0
-  and position('current_session_has_mfa' in lower(pg_get_functiondef('app_public.reviews_moderate(uuid,text,text)'::regprocedure)))>0
-  and position('current_session_recent_auth' in lower(pg_get_functiondef('app_public.reviews_moderate(uuid,text,text)'::regprocedure)))>0,
+  and position('current_session_has_mfa' in lower(pg_get_functiondef('review_private.require_review_admin()'::regprocedure)))>0
+  and position('current_session_recent_auth' in lower(pg_get_functiondef('review_private.require_review_admin()'::regprocedure)))>0,
   'moderation is exact-case scoped with MFA and recent authentication');
 select ok(position('original_moderator_id=actor' in replace(lower(pg_get_functiondef('app_public.reviews_decide_appeal(uuid,text,text)'::regprocedure)),' ',''))>0,
   'the original moderator is denied appeal decisions');
@@ -77,13 +78,13 @@ select ok(position('gen_random_uuid()' in lower(pg_get_functiondef('review_priva
   'day-8 processing uses a random tombstone and purges display/text linkage');
 
 set local role anon;
-select throws_ok($$select app_public.reviews_get_eligibility('00000000-0000-4000-8000-000000000001')$$,'42501','review_authentication_required','anonymous eligibility reads deny');
+select throws_ok($$select app_public.reviews_get_eligibility('00000000-0000-4000-8000-000000000001')$$,'42501','permission denied for function reviews_get_eligibility','anonymous eligibility reads deny');
 select throws_ok($$select app_public.reviews_create('00000000-0000-4000-8000-000000000001',5,'text','name',8,2026,'none',true)$$,'42501','permission denied for function reviews_create','anonymous mutation execution is denied');
-select throws_ok($$select * from review_private.public_reviews$$,'42501','anonymous direct review-table access is denied');
+select throws_ok($$select * from review_private.public_reviews$$,'42501',null,'anonymous direct review-table access is denied');
 reset role;
 set local role authenticated;
-select throws_ok($$select * from review_private.moderation_case_evidence$$,'42501','authenticated users cannot browse case evidence');
-select throws_ok($$select * from review_private.review_versions$$,'42501','authenticated users cannot browse historical review text');
+select throws_ok($$select * from review_private.moderation_case_evidence$$,'42501',null,'authenticated users cannot browse case evidence');
+select throws_ok($$select * from review_private.review_versions$$,'42501',null,'authenticated users cannot browse historical review text');
 reset role;
 
 select * from finish();

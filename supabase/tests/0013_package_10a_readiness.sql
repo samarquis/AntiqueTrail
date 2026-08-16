@@ -18,9 +18,10 @@ select has_function('readiness_private','freeze_evidence','calculation service f
 select has_function('readiness_private','consume_signing_challenge','signature service consume function exists');
 select has_function('app_public','readiness_get_status','bounded status RPC exists');
 select has_function('app_public','readiness_request_signing_challenge','bounded challenge RPC exists');
-select ok(has_function_privilege('readiness_calculation_service','readiness_private.freeze_evidence(uuid,bytea,jsonb)','EXECUTE')
-  and not has_function_privilege('authenticated','readiness_private.freeze_evidence(uuid,bytea,jsonb)','EXECUTE'),
-  'only the calculation service can freeze evidence');
+select ok(not has_function_privilege('readiness_calculation_service','readiness_private.freeze_evidence(uuid,bytea,jsonb)','EXECUTE')
+  and has_function_privilege('readiness_calculation_service','readiness_private.begin_fact_collection(uuid)','EXECUTE')
+  and has_function_privilege('readiness_calculation_service','readiness_private.freeze_authoritative_facts(uuid)','EXECUTE'),
+  'only the authoritative fact pipeline remains available to the calculation service');
 select ok(has_function_privilege('readiness_signature_service','readiness_private.consume_signing_challenge(uuid,bytea,bytea,text,text,text)','EXECUTE')
   and not has_function_privilege('authenticated','readiness_private.consume_signing_challenge(uuid,bytea,bytea,text,text,text)','EXECUTE'),
   'only the signature service can consume verified signatures');
@@ -42,22 +43,11 @@ select throws_ok($$select app_public.readiness_request_signing_challenge('000000
   '42501','readiness_access_denied','challenge route fails closed without MFA and recent authentication');
 reset role;
 
-set local role readiness_calculation_service;
-select lives_ok($$select readiness_private.freeze_evidence(
-  '10000000-0000-4000-8000-000000000001',decode(repeat('10',32),'hex'),
-  '{
-    "cat01ReceiptId":"cat01-receipt",
-    "cat01ReceiptRecordedByService":true,
-    "firstEight":["1","2","3","4","5","6","7","8"],
-    "completedJourneys":6,"returnIntents":5,"verifiedListings":12,
-    "coveragePercent":70,"freshnessPercent":100,"itineraryCount":9,
-    "artifactCount":8,"unresolvedCriticalDefects":0,"prerequisitesPassed":true
-  }'::jsonb)$$,'calculation service can freeze evidence without browser-authored blockers');
-reset role;
-select is((select blockers from readiness_private.readiness_runs
-  where run_id='10000000-0000-4000-8000-000000000001'),
-  array['readiness_completions_below_seven']::text[],
-  'the database calculates blockers from the frozen evidence snapshot');
+select ok(not has_function_privilege('authenticated','readiness_private.begin_fact_collection(uuid)','EXECUTE')
+  and not has_function_privilege('authenticated','readiness_private.freeze_authoritative_facts(uuid)','EXECUTE'),
+  'browser roles cannot invoke the authoritative evidence pipeline');
+select ok(position('calculate_authoritative_blockers' in lower(pg_get_functiondef('readiness_private.freeze_authoritative_facts(uuid)'::regprocedure)))>0,
+  'the database calculates blockers from authoritative frozen facts');
 
 insert into auth.users(id) values('10000000-0000-4000-8000-000000000002');
 insert into readiness_private.readiness_runs(run_id,source_digest,evidence_snapshot,blockers)

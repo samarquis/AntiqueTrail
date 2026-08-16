@@ -69,14 +69,14 @@ $$;
 
 drop policy if exists candidate_share_sender_update on candidate_private.candidate_shares;
 create policy candidate_share_sender_update on candidate_private.candidate_shares for update to authenticated
-  using (sender_id=auth.uid() and state='pending' and app_private.current_session_is_active())
-  with check (sender_id=auth.uid() and state='closed' and close_reason='revoked' and app_private.current_session_is_active());
+  using (sender_id=app_public.request_user_id() and state='pending' and app_private.current_session_is_active())
+  with check (sender_id=app_public.request_user_id() and state='closed' and close_reason='revoked' and app_private.current_session_is_active());
 
 drop policy if exists candidate_share_recipient_update on candidate_private.candidate_shares;
 create policy candidate_share_recipient_update on candidate_private.candidate_shares for update to authenticated
-  using (recipient_id=auth.uid() and state='pending' and app_private.current_session_is_active())
+  using (recipient_id=app_public.request_user_id() and state='pending' and app_private.current_session_is_active())
   with check (
-    recipient_id=auth.uid()
+    recipient_id=app_public.request_user_id()
     and state in ('accepted','closed')
     and (state='accepted' or close_reason in ('dismissed','blocked','reported'))
     and app_private.current_session_is_active()
@@ -99,7 +99,7 @@ returns boolean language sql stable security definer
 set search_path = pg_catalog,partner_private,auth as $$
   select exists (
     select 1 from partner_private.pending_partner_identities p
-    where p.pending_identity_id=p_pending_identity_id and p.auth_user_id=p_user_id and p_user_id=auth.uid()
+    where p.pending_identity_id=p_pending_identity_id and p.auth_user_id=p_user_id and p_user_id=app_public.request_user_id()
   )
 $$;
 revoke execute on function partner_private.pilot_draft_belongs_to_user(uuid,uuid) from public, anon;
@@ -126,7 +126,7 @@ begin
     raise exception 'pilot_draft_identity_immutable';
   end if;
 
-  v_owner := partner_private.pilot_draft_belongs_to_user(old.pending_identity_id, auth.uid());
+  v_owner := partner_private.pilot_draft_belongs_to_user(old.pending_identity_id, app_public.request_user_id());
 
   if v_owner then
     if new.state not in ('draft','submitted','resubmitted','withdrawn') then
@@ -166,7 +166,7 @@ begin
     elsif old.state not in ('submitted','resubmitted') or new.state not in ('changes_requested','approved','rejected') then
       raise exception 'pilot_draft_admin_state_forbidden';
     end if;
-    if new.reviewed_by is distinct from auth.uid() or new.reviewed_at is null then
+    if new.reviewed_by is distinct from app_public.request_user_id() or new.reviewed_at is null then
       raise exception 'pilot_draft_review_evidence_required';
     end if;
   end if;
@@ -179,30 +179,30 @@ for each row execute function partner_private.enforce_pilot_store_draft_write();
 
 drop policy if exists pilot_draft_bound_owner on partner_private.pilot_store_drafts;
 create policy pilot_draft_bound_owner on partner_private.pilot_store_drafts for select to authenticated
-  using (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,auth.uid()) and app_private.current_session_is_active());
+  using (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,app_public.request_user_id()) and app_private.current_session_is_active());
 create policy pilot_draft_bound_owner_insert on partner_private.pilot_store_drafts for insert to authenticated
-  with check (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,auth.uid()) and state='draft' and reviewed_at is null and reviewed_by is null and assigned_admin_id is null and app_private.current_session_is_active());
+  with check (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,app_public.request_user_id()) and state='draft' and reviewed_at is null and reviewed_by is null and assigned_admin_id is null and app_private.current_session_is_active());
 create policy pilot_draft_bound_owner_update on partner_private.pilot_store_drafts for update to authenticated
-  using (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,auth.uid()) and state in ('draft','submitted','changes_requested','resubmitted','withdrawn') and app_private.current_session_is_active())
-  with check (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,auth.uid()) and state in ('draft','submitted','resubmitted','withdrawn') and app_private.current_session_is_active());
+  using (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,app_public.request_user_id()) and state in ('draft','submitted','changes_requested','resubmitted','withdrawn') and app_private.current_session_is_active())
+  with check (partner_private.pilot_draft_belongs_to_user(pilot_store_drafts.pending_identity_id,app_public.request_user_id()) and state in ('draft','submitted','resubmitted','withdrawn') and app_private.current_session_is_active());
 
 create policy pilot_draft_assigned_admin_read on partner_private.pilot_store_drafts for select to authenticated
-  using (assigned_admin_id=auth.uid()
+  using (assigned_admin_id=app_public.request_user_id()
     and app_private.current_user_has_role('administrator'::app_private.app_role)
     and app_private.current_session_is_active()
     and app_private.current_session_has_mfa()
     and app_private.current_session_recent_auth(interval '15 minutes'));
 create policy pilot_draft_assigned_admin_update on partner_private.pilot_store_drafts for update to authenticated
-  using (assigned_admin_id=auth.uid()
+  using (assigned_admin_id=app_public.request_user_id()
     and app_private.current_user_has_role('administrator'::app_private.app_role)
     and app_private.current_session_is_active()
     and app_private.current_session_has_mfa()
     and app_private.current_session_recent_auth(interval '15 minutes'))
-  with check (assigned_admin_id=auth.uid()
+  with check (assigned_admin_id=app_public.request_user_id()
     and app_private.current_user_has_role('administrator'::app_private.app_role)
     and app_private.current_session_is_active()
     and app_private.current_session_has_mfa()
     and app_private.current_session_recent_auth(interval '15 minutes')
     and state in ('changes_requested','approved','rejected')
-    and reviewed_by=auth.uid()
+    and reviewed_by=app_public.request_user_id()
     and reviewed_at is not null);

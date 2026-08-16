@@ -103,7 +103,7 @@ create trigger enqueue_claim_admin_review after insert or update on partner_priv
 
 create or replace function admin_private.require_operational_admin()
 returns uuid language plpgsql stable security definer set search_path='' as $$
-declare actor uuid:=auth.uid();
+declare actor uuid:=app_public.request_user_id();
 begin
   if actor is null or not app_private.current_session_is_active()
     or not app_private.current_user_has_role('administrator'::app_private.app_role,null)

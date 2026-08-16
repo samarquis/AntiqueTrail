@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
-import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import {
   CatalogBrowserPage,
   CatalogDetailsPage,
@@ -209,6 +209,12 @@ function AppShell({
           </Link>
         </nav>
       </header>
+      {import.meta.env.VITE_PUBLIC_DEMO === 'true' && (
+        <aside className="review-harness-banner" aria-label="Concept demo notice">
+          <strong>Concept demo</strong>
+          <span> Fictional sample stores. Accounts and private actions are not live.</span>
+        </aside>
+      )}
       {reviewHarness && reviewHarnessUi && <reviewHarnessUi.Banner runtime={reviewHarness} />}
       <div id="main-content" ref={contentRef} tabIndex={-1}>
         {children}
@@ -683,6 +689,7 @@ export default function App({
         reviewHarnessUi={runtime.reviewHarnessUi}
       >
         <Routes>
+          <Route path="/" element={<Navigate replace to="/stores" />} />
           {runtime.reviewHarness && runtime.reviewHarnessUi && (
             <Route
               path="/review"

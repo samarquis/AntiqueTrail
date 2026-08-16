@@ -235,7 +235,7 @@ deferrable initially deferred for each row execute function trip_private.validat
 create or replace function trip_private.trip_owner_can_access(p_trip_id uuid)
 returns boolean language sql stable security definer
 set search_path = pg_catalog, trip_private, app_private, auth as $$
-  select app_private.current_session_is_active() and exists(select 1 from trip_private.trips t where t.trip_id=p_trip_id and t.owner_id=auth.uid());
+  select app_private.current_session_is_active() and exists(select 1 from trip_private.trips t where t.trip_id=p_trip_id and t.owner_id=app_public.request_user_id());
 $$;
 alter function trip_private.trip_owner_can_access(uuid) owner to identity_service;
 
@@ -244,7 +244,7 @@ returns boolean language sql stable security definer
 set search_path = pg_catalog, trip_private, app_private, auth as $$
   select app_private.current_session_is_active() and exists(
     select 1 from trip_private.trips t
-    where t.trip_id=p_trip_id and (t.owner_id=auth.uid() or exists(select 1 from trip_private.trip_participants p where p.trip_id=t.trip_id and p.user_id=auth.uid() and p.state='active'))
+    where t.trip_id=p_trip_id and (t.owner_id=app_public.request_user_id() or exists(select 1 from trip_private.trip_participants p where p.trip_id=t.trip_id and p.user_id=app_public.request_user_id() and p.state='active'))
   );
 $$;
 alter function trip_private.trip_member_can_access(uuid) owner to identity_service;
@@ -288,7 +288,7 @@ create policy trip_owner_or_participant on trip_private.trips for select to auth
   using (trip_private.trip_member_can_access(trip_private.trips.trip_id));
 create policy trip_owner_write on trip_private.trips for all to authenticated
   using (trip_private.trip_owner_can_access(trip_private.trips.trip_id))
-  with check (app_private.current_session_is_active() and owner_id=auth.uid());
+  with check (app_private.current_session_is_active() and owner_id=app_public.request_user_id());
 create policy stop_member_read on trip_private.trip_stops for select to authenticated
   using (trip_private.trip_member_can_access(trip_private.trip_stops.trip_id));
 create policy invitation_owner_read on trip_private.trip_invitations for select to authenticated
@@ -296,13 +296,13 @@ create policy invitation_owner_read on trip_private.trip_invitations for select 
 create policy participant_member_read on trip_private.trip_participants for select to authenticated
   using (trip_private.trip_member_can_access(trip_private.trip_participants.trip_id));
 create policy binding_member_read on trip_private.trip_device_bindings for select to authenticated
-  using (app_private.current_session_is_active() and user_id=auth.uid());
+  using (app_private.current_session_is_active() and user_id=app_public.request_user_id());
 create policy mutation_receipt_member_read on trip_private.trip_mutation_receipts for select to authenticated
   using (trip_private.trip_member_can_access(trip_private.trip_mutation_receipts.trip_id));
 create policy offline_grant_member_read on trip_private.trip_offline_grants for select to authenticated
-  using (app_private.current_session_is_active() and user_id=auth.uid());
+  using (app_private.current_session_is_active() and user_id=app_public.request_user_id());
 create policy conflict_member_read on trip_private.trip_mutation_conflicts for select to authenticated
   using (trip_private.trip_member_can_access(trip_private.trip_mutation_conflicts.trip_id));
 create policy visit_memory_author on trip_private.trip_visit_memories for all to authenticated
-  using (app_private.current_session_is_active() and author_user_id=auth.uid())
-  with check (app_private.current_session_is_active() and author_user_id=auth.uid());
+  using (app_private.current_session_is_active() and author_user_id=app_public.request_user_id())
+  with check (app_private.current_session_is_active() and author_user_id=app_public.request_user_id());

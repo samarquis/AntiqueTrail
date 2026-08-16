@@ -10,7 +10,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  actor uuid := auth.uid();
+  actor uuid := app_public.request_user_id();
   c partner_private.listing_claims%rowtype;
 begin
   if actor is null or not app_private.current_session_is_active() then

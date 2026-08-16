@@ -9,10 +9,10 @@ select ok(not has_function_privilege('anon','app_public.get_browse_map(text,text
   'browser roles cannot bypass the public catalog gateway for exact coordinates');
 select ok(not has_function_privilege('public_catalog_gateway','app_public.get_browse_map(text,text,text,double precision,double precision,double precision,double precision,integer)','EXECUTE'),
   'gateway login role cannot call the map projection outside its bounded wrapper');
-select ok(position("not s.synthetic" in pg_get_functiondef('app_public.get_browse_map(text,text,text,double precision,double precision,double precision,double precision,integer)'::regprocedure))>0
-  and position("s.audience='public'" in pg_get_functiondef('app_public.get_browse_map(text,text,text,double precision,double precision,double precision,double precision,integer)'::regprocedure))>0,
+select ok(position($q$not s.synthetic$q$ in pg_get_functiondef('app_public.get_browse_map(text,text,text,double precision,double precision,double precision,double precision,integer)'::regprocedure))>0
+  and position($q$s.audience='public'$q$ in pg_get_functiondef('app_public.get_browse_map(text,text,text,double precision,double precision,double precision,double precision,integer)'::regprocedure))>0,
   'exact coordinates are limited to non-synthetic public stores');
-select ok(position("f.freshness_state in ('current','overdue')" in pg_get_functiondef('app_public.get_browse_map(text,text,text,double precision,double precision,double precision,double precision,integer)'::regprocedure))>0,
+select ok(position($q$f.freshness_state in ('current','overdue')$q$ in pg_get_functiondef('app_public.get_browse_map(text,text,text,double precision,double precision,double precision,double precision,integer)'::regprocedure))>0,
   'Browse map uses the same catalog freshness eligibility');
 
 select throws_ok($$select * from app_public.get_browse_map(null,null,null,45,39,-95,-96,50)$$,'P0001','browse_map_bounds_invalid','oversized bounds fail closed');

@@ -20,7 +20,7 @@ begin
     or not app_private.current_jwt_has_recent_amr(array['password'],effective_window) then
     return false;
   end if;
-  enrolled:=app_private.provider_user_has_verified_mfa(auth.uid());
+  enrolled:=app_private.provider_user_has_verified_mfa(app_public.request_user_id());
   if not enrolled then return true; end if;
   begin
     claims:=nullif(current_setting('request.jwt.claims',true),'')::jsonb;
@@ -43,7 +43,7 @@ alter function app_private.current_session_recent_auth(interval) owner to identi
 
 create or replace function app_private.current_session_has_mfa()
 returns boolean language sql stable security definer set search_path='' as $$
-  select app_private.provider_user_has_verified_mfa(auth.uid())
+  select app_private.provider_user_has_verified_mfa(app_public.request_user_id())
     and app_private.current_session_has_privileged_reauth(interval '10 minutes');
 $$;
 alter function app_private.current_session_has_mfa() owner to identity_service;

@@ -17,8 +17,8 @@ alter table candidate_private.candidate_lifecycle_receipts
 create or replace function app_public.candidate_edge_context()
 returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare
-  actor uuid:=auth.uid();
-  candidate_role text:=coalesce(auth.jwt()->'app_metadata'->>'role','Shopper');
+  actor uuid:=app_public.request_user_id();
+  candidate_role text:=coalesce(app_public.request_jwt()->'app_metadata'->>'role','Shopper');
 begin
   if actor is null or not app_private.current_session_is_active()
     or candidate_role not in ('Shopper','Representative','Administrator') then
@@ -31,7 +31,7 @@ $$;
 create or replace function app_public.candidate_update_trip_idea(
   p_idea_id uuid,p_title text,p_url_note text,p_expected_version bigint
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); idea_row candidate_private.trip_ideas%rowtype;
+declare actor uuid:=app_public.request_user_id(); idea_row candidate_private.trip_ideas%rowtype;
 begin
   if actor is null or not app_private.current_session_is_active() then
     raise exception using errcode='42501',message='candidate_auth_required';
@@ -60,7 +60,7 @@ $$;
 create or replace function app_public.unblock_candidate_sender(
   p_blocked_user_id uuid,p_confirmed boolean
 ) returns void language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid();
+declare actor uuid:=app_public.request_user_id();
 begin
   if actor is null or not app_private.current_session_is_active() then
     raise exception using errcode='42501',message='candidate_auth_required';
@@ -83,7 +83,7 @@ $$;
 create or replace function app_public.revoke_candidate_share(
   p_share_id uuid,p_idempotency_key text
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); share_row candidate_private.candidate_shares%rowtype;
+declare actor uuid:=app_public.request_user_id(); share_row candidate_private.candidate_shares%rowtype;
 begin
   if actor is null or not app_private.current_session_is_active() then
     raise exception using errcode='42501',message='candidate_auth_required';

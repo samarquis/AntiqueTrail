@@ -46,15 +46,15 @@ select ok(has_function_privilege('media_worker','app_public.media_record_process
 select ok(has_function_privilege('media_lifecycle_service','app_public.media_claim_purge_job(uuid)','EXECUTE'),'only lifecycle service claims retention work');
 select ok(has_function_privilege('media_deployment_service','app_public.media_accept_provider_config(uuid,text,text,text,integer,bigint,integer,integer,text,bytea)','EXECUTE'),'provider acceptance is deployment-only');
 
-select ok(position("capabilities->>'official_media_upload'='true'" in replace(lower(pg_get_functiondef('media_private.capability_enabled()'::regprocedure)),' ',''))>0
-  and position("gate_kind='provider_m'" in replace(lower(pg_get_functiondef('media_private.capability_enabled()'::regprocedure)),' ',''))>0
-  and position("state='accepted'" in replace(lower(pg_get_functiondef('media_private.capability_enabled()'::regprocedure)),' ',''))>0,
+select ok(position($q$capabilities->>'official_media_upload'='true'$q$ in replace(lower(pg_get_functiondef('media_private.capability_enabled()'::regprocedure)),' ',''))>0
+  and position($q$gate_kind='provider_m'$q$ in replace(lower(pg_get_functiondef('media_private.capability_enabled()'::regprocedure)),' ',''))>0
+  and position($q$state='accepted'$q$ in replace(lower(pg_get_functiondef('media_private.capability_enabled()'::regprocedure)),' ',''))>0,
   'capability requires server stage flag and externally verified M-01 receipt');
 select ok(position('daily_count>=20' in replace(lower(pg_get_functiondef('app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)),' ',''))>0
   and position('concurrent_count>=5' in replace(lower(pg_get_functiondef('app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)),' ',''))>0
   and position('not p_rights_confirmed' in lower(pg_get_functiondef('app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)))>0,
   'reservation enforces rights, 20/day, and five concurrent uploads per store');
-select ok(position("p_scan_outcome<>'clean'" in replace(lower(pg_get_functiondef('media_private.record_processing_result(uuid,text,text,text,bytea,bigint,integer,integer,boolean,boolean)'::regprocedure)),' ',''))>0
+select ok(position($q$p_scan_outcome<>'clean'$q$ in replace(lower(pg_get_functiondef('media_private.record_processing_result(uuid,text,text,text,bytea,bigint,integer,integer,boolean,boolean)'::regprocedure)),' ',''))>0
   and position('not p_metadata_stripped' in lower(pg_get_functiondef('media_private.record_processing_result(uuid,text,text,text,bytea,bigint,integer,integer,boolean,boolean)'::regprocedure)))>0
   and position('not p_reencoded' in lower(pg_get_functiondef('media_private.record_processing_result(uuid,text,text,text,bytea,bigint,integer,integer,boolean,boolean)'::regprocedure)))>0,
   'publication cannot advance without clean scan and safe-transform evidence');
@@ -62,17 +62,17 @@ select ok(position('current_session_has_mfa' in lower(pg_get_functiondef('app_pu
   and position('current_session_recent_auth' in lower(pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure)))>0
   and position('current_user_has_role' in lower(pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure)))>0,
   'approval requires Administrator role, MFA, and recent authentication');
-select ok(position("'publish'" in lower(pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure)))>0,
+select ok(position($q$'approved_pending_publish'$q$ in lower(pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure)))>0,
   'approval queues publication rather than exposing staging directly');
 select ok(position('app_public.store_media' in lower(pg_get_functiondef('media_private.complete_publish_job(uuid,uuid,text)'::regprocedure)))>0,
   'catalog media is inserted only by successful publication completion');
-select ok(position("interval '24 hours'" in lower(pg_get_functiondef('app_public.media_withdraw_upload(uuid,text)'::regprocedure)))>0
+select ok(position($q$interval '24 hours'$q$ in lower(pg_get_functiondef('app_public.media_withdraw_upload(uuid,text)'::regprocedure)))>0
   and position('app_public.store_media' in lower(pg_get_functiondef('app_public.media_withdraw_upload(uuid,text)'::regprocedure)))>0,
   'withdrawal removes the catalog reference immediately and bounds deletion to 24 hours');
-select ok(position("interval '24 hours'" in lower(pg_get_functiondef('media_private.complete_publish_job(uuid,uuid,text)'::regprocedure)))>0,
+select ok(position($q$interval '24 hours'$q$ in lower(pg_get_functiondef('media_private.complete_publish_job(uuid,uuid,text)'::regprocedure)))>0,
   'successful publication schedules private origin and review derivative deletion within 24 hours');
-select ok(position("reason_code='private_after_publish'" in replace(lower(pg_get_functiondef('media_private.complete_purge_job(uuid,uuid)'::regprocedure)),' ',''))>0
-  and position("else'purged'" in replace(lower(pg_get_functiondef('media_private.complete_purge_job(uuid,uuid)'::regprocedure)),' ',''))>0,
+select ok(position($q$reason_code='private_after_publish'$q$ in replace(lower(pg_get_functiondef('media_private.complete_purge_job(uuid,uuid)'::regprocedure)),' ',''))>0
+  and position($q$else'purged'$q$ in replace(lower(pg_get_functiondef('media_private.complete_purge_job(uuid,uuid)'::regprocedure)),' ',''))>0,
   'retention purge terminates rejected/quarantined uploads while preserving published state after private cleanup');
 select ok(exists(select 1 from pg_trigger where tgname='media_audit_append_only' and not tgisinternal),
   'media audit is append-only');
@@ -83,10 +83,10 @@ set local role anon;
 select is((app_public.media_get_capability()->>'enabled')::boolean,false,'the deployed provider capability remains off without accepted evidence');
 select throws_ok($$select app_public.media_reserve_upload('00000000-0000-4000-8000-000000000001','cover','Alt text','00000000-0000-4000-8000-000000000002',true,'image/png',100,10,10)$$,
   '42501','permission denied for function media_reserve_upload','anonymous direct upload reservation is denied');
-select throws_ok($$select * from media_private.media_uploads$$,'42501','anonymous direct quarantine access is denied');
+select throws_ok($$select * from media_private.media_uploads$$,'42501',null,'anonymous direct quarantine access is denied');
 reset role;
 set local role authenticated;
-select throws_ok($$select * from media_private.media_provider_operations$$,'42501','authenticated users cannot browse provider evidence');
+select throws_ok($$select * from media_private.media_provider_operations$$,'42501',null,'authenticated users cannot browse provider evidence');
 select is((select count(*) from storage.objects where bucket_id='official-media-private'),0::bigint,'authenticated users cannot browse private media objects');
 reset role;
 

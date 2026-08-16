@@ -11,7 +11,9 @@ select has_function('app_public','mark_trip_stop_closed',array['text','text'],'o
 select has_function('app_public','restore_trip_stop',array['text','text'],'restore stop command exists');
 select has_function('app_public','complete_trip',array['text'],'complete trip command exists');
 select has_function('app_public','save_trip_visit_memory',array['text','text','integer','text','text'],'visit memory command exists');
-select ok((select pg_get_functiondef(p.oid) like '%departure_local_time is not null%' and pg_get_functiondef(p.oid) like '%navigator_device_hash%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public' and p.proname='start_trip'),'start requires departure, valid start, Navigator, and device');
+select ok(position('departure_local_time is not null' in pg_get_functiondef('trip_private.consume_start_grant(uuid,text,text,boolean)'::regprocedure))>0
+  and position('navigator_device_hash' in pg_get_functiondef('trip_private.consume_start_grant(uuid,text,text,boolean)'::regprocedure))>0,
+  'start requires departure, valid start, Navigator, and device');
 select ok((select pg_get_functiondef(p.oid) like '%location_purged_at=statement_timestamp()%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public' and p.proname='complete_trip'),'completion purges precise trip locations');
 select ok((select pg_get_functiondef(p.oid) like '%extensions.hmac%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='trip_private' and p.proname='email_hmac'),'email binding uses HMAC rather than a plain digest');
 select ok(not has_table_privilege('authenticated','trip_private.email_hmac_keys','SELECT'),'browser cannot read HMAC keys');
@@ -19,7 +21,7 @@ select ok(not has_function_privilege('authenticated','trip_private.produce_offli
 select ok(not has_function_privilege('authenticated','trip_private.produce_invitation_receipt(uuid,text,bytea,text,timestamptz,text)','EXECUTE'),'browser cannot produce invitation receipts');
 select ok((select not rolcanlogin and not rolsuper and not rolbypassrls from pg_roles where rolname='trip_email_key_manager'),'HMAC key manager is constrained');
 set local role anon;
-select throws_ok($$select app_public.complete_trip('00000000-0000-0000-0000-000000000000')$$,'42501','anonymous completion denied');
-select throws_ok($$select app_public.set_trip_limits('00000000-0000-0000-0000-000000000000',10,60)$$,'42501','anonymous planning mutation denied');
+select throws_ok($$select app_public.complete_trip('00000000-0000-0000-0000-000000000000')$$,'42501',null,'anonymous completion denied');
+select throws_ok($$select app_public.set_trip_limits('00000000-0000-0000-0000-000000000000',10,60)$$,'42501',null,'anonymous planning mutation denied');
 reset role;
 select * from finish();rollback;

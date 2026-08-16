@@ -26,11 +26,11 @@ reset role;
 select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='app_public'
   and p.proname in ('account_lifecycle_status','request_account_export','get_account_export_status','issue_account_export_download','request_account_deletion','cancel_account_deletion')
   and 'user_id'=any(coalesce(p.proargnames,array[]::text[]))),'browser lifecycle commands never accept a caller-selected owner');
-select ok(position("interval '7 days'" in pg_get_constraintdef((select oid from pg_constraint where conname='export_archive_shape')))>0,'ready archive lifetime is capped at seven days');
-select ok(position("interval '15 minutes'" in pg_get_constraintdef((select oid from pg_constraint where conname='account_export_handoff_window')))>0,'download handoff is capped at fifteen minutes');
-select ok(position("interval '24 hours'" in pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_deletion_timing')))>0,'private-memory purge remains due within 24 hours');
-select ok(position('rating is null' in pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_purged_content_free')))>0
-  and position('note is null' in pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_purged_content_free')))>0,'purged memory tombstone cannot retain private content');
+select ok(position('''7days''::interval' in lower(regexp_replace(pg_get_constraintdef((select oid from pg_constraint where conname='export_archive_shape')),'[[:space:]]','','g')))>0,'ready archive lifetime is capped at seven days');
+select ok(position('''00:15:00''::interval' in lower(regexp_replace(pg_get_constraintdef((select oid from pg_constraint where conname='account_export_handoff_window')),'[[:space:]]','','g')))>0,'download handoff is capped at fifteen minutes');
+select ok(position('''24:00:00''::interval' in lower(regexp_replace(pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_deletion_timing')),'[[:space:]]','','g')))>0,'private-memory purge remains due within 24 hours');
+select ok(position('ratingisnull' in lower(regexp_replace(pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_purged_content_free')),'[[:space:]]','','g')))>0
+  and position('noteisnull' in lower(regexp_replace(pg_get_constraintdef((select oid from pg_constraint where conname='private_memory_purged_content_free')),'[[:space:]]','','g')))>0,'purged memory tombstone cannot retain private content');
 
 insert into auth.users(id) values
   ('32000000-0000-4000-8000-000000000001'),('32000000-0000-4000-8000-000000000002');
@@ -69,13 +69,13 @@ insert into app_private.account_export_jobs(export_job_id,user_id,state,claim_to
 values('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000001','building','32000000-0000-4000-8000-000000000061',statement_timestamp(),statement_timestamp()+interval '5 minutes',1);
 
 set local role account_lifecycle_service;
-select like(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%Clockwork Cabinet%','archive contains the owner saved store');
-select like(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%OWNER-MEMORY%','archive contains active owner memory');
-select like(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%OWNER-CORRECTION%','archive contains the safe own correction projection');
-select like(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%OWNER-CANDIDATE%','archive contains owned Candidate content');
-select like(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%"direction": "sent"%','archive includes a direction-safe share projection');
-select unlike(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%OTHER-USER-SECRET%','archive excludes other-user records');
-select unlike(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061'),'%PURGED-CONTENT-SECRET%','archive excludes pending-deletion private content');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') like '%Clockwork Cabinet%','archive contains the owner saved store');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') like '%OWNER-MEMORY%','archive contains active owner memory');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') like '%OWNER-CORRECTION%','archive contains the safe own correction projection');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') like '%OWNER-CANDIDATE%','archive contains owned Candidate content');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') like '%"direction": "sent"%','archive includes a direction-safe share projection');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') not like '%OTHER-USER-SECRET%','archive excludes other-user records');
+select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') not like '%PURGED-CONTENT-SECRET%','archive excludes pending-deletion private content');
 select ok(app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') not like '%ENCRYPTED-PAYLOAD-SECRET%'
   and app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') not like '%INTERNAL-MODERATION-SECRET%'
   and app_public.build_account_export('32000000-0000-4000-8000-000000000060','32000000-0000-4000-8000-000000000061') not like '%32000000-0000-4000-8000-000000000002%',

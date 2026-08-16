@@ -120,7 +120,11 @@ test.describe('Synthetic catalog design contract', () => {
 
   test('provides a keyboard skip link to the single main landmark', async ({ page }) => {
     const skipLink = page.getByRole('link', { name: 'Skip to main content' })
-    await skipLink.focus()
+    await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeFocused()
+    for (let step = 0; step < 12; step += 1) {
+      await page.keyboard.press('Shift+Tab')
+      if (await skipLink.evaluate((element) => element === document.activeElement)) break
+    }
     await expect(skipLink).toBeFocused()
     await expect(skipLink).toHaveAttribute('href', '#main-content')
 

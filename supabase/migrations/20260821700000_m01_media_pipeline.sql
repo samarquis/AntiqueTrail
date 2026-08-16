@@ -202,7 +202,7 @@ create or replace function app_public.media_reserve_upload(
   p_store_id uuid,p_kind text,p_alt_text text,p_idempotency_key uuid,p_rights_confirmed boolean,
   p_source_mime text,p_source_bytes bigint,p_source_width integer,p_source_height integer
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); existing media_private.media_uploads%rowtype; upload_id uuid:=extensions.gen_random_uuid(); daily_count integer; concurrent_count integer;
+declare actor uuid:=app_public.request_user_id(); existing media_private.media_uploads%rowtype; upload_id uuid:=extensions.gen_random_uuid(); daily_count integer; concurrent_count integer;
 begin
   if actor is null or not app_private.current_session_is_active() then raise exception using errcode='42501',message='media_unavailable'; end if;
   select * into existing from media_private.media_uploads where actor_user_id=actor and idempotency_key=p_idempotency_key;
@@ -238,7 +238,7 @@ end $$;
 
 create or replace function app_public.media_get_upload(p_upload_id uuid) returns jsonb
 language plpgsql stable security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); u media_private.media_uploads%rowtype;
+declare actor uuid:=app_public.request_user_id(); u media_private.media_uploads%rowtype;
 begin
   if actor is null or not app_private.current_session_is_active() then raise exception using errcode='42501',message='media_unavailable'; end if;
   select * into u from media_private.media_uploads where upload_id=p_upload_id and
@@ -300,7 +300,7 @@ end $$;
 
 create or replace function app_public.media_approve_upload(p_upload_id uuid,p_display_order integer,p_expected_version bigint,p_reason text) returns jsonb
 language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); u media_private.media_uploads%rowtype; active_count integer;
+declare actor uuid:=app_public.request_user_id(); u media_private.media_uploads%rowtype; active_count integer;
 begin
   if actor is null or not app_private.current_session_is_active() or not app_private.current_user_has_role('administrator'::app_private.app_role)
     or not app_private.current_session_has_mfa() or not app_private.current_session_recent_auth(interval '15 minutes')
@@ -362,7 +362,7 @@ end $$;
 
 create or replace function app_public.media_withdraw_upload(p_upload_id uuid,p_reason text) returns jsonb
 language plpgsql volatile security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); u media_private.media_uploads%rowtype;
+declare actor uuid:=app_public.request_user_id(); u media_private.media_uploads%rowtype;
 begin
   if actor is null or not app_private.current_session_is_active() or p_reason not in ('rights_withdrawn','store_withdrawn','relationship_ended','author_removed') then raise exception using errcode='42501',message='media_unavailable'; end if;
   select * into u from media_private.media_uploads where upload_id=p_upload_id and state not in ('purge_pending','purged') for update;
