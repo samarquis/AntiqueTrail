@@ -192,7 +192,7 @@ a {
 }
 
 a:hover {
-  color: var(--rust);
+  color: var(--teal-dark);
 }
 
 :where(header, nav, main, footer) a {
@@ -694,7 +694,6 @@ textarea:hover {
   margin-bottom: 1.5rem;
   padding: clamp(1.1rem, 3vw, 1.6rem);
   border: 1px solid var(--line);
-  border-top: 4px solid var(--teal);
   border-radius: 20px;
   background: rgb(255 253 247 / 94%);
   box-shadow: var(--shadow-card);
@@ -956,7 +955,7 @@ textarea:hover {
 
 .catalog-card__area {
   margin: 0 0 0.45rem;
-  color: var(--rust);
+  color: var(--muted);
   font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.13em;
@@ -1830,12 +1829,6 @@ main > article dt {
   body {
     background-image: radial-gradient(circle at 12% 8%, rgb(217 164 65 / 8%), transparent 25rem),
       linear-gradient(rgb(237 244 240 / 3%) 1px, transparent 1px);
-  }
-
-  /* Links and area labels need a light rust on dark surfaces. */
-  a:hover,
-  .catalog-card__area {
-    color: #e8826a;
   }
 
   .skip-link,

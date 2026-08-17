@@ -42,6 +42,8 @@ Never communicate status with color alone. Pair each status color with plain tex
 
 **Semantic color reservation**: `rust` is reserved exclusively for destructive actions, danger states, and important-new status indicators. Do not apply `rust` to structural, geographic, or neutral labels such as area names, town labels, or category headings. Use `olive` for eyebrow and section label context, `muted` for secondary geographic or area text. `gold` is reserved for warning and freshness-attention states; do not apply it to decorative dividers or general emphasis. `dark-paper`, `dark-card`, `dark-ink`, and `dark-muted` are production tokens for `prefers-color-scheme: dark`; they must be activated in the application stylesheet inside a `@media (prefers-color-scheme: dark)` block and are not complete until verified against all approved contrast pairs in dark mode. Dark mode support is a mandatory acceptance check at every package boundary.
 
+**Regression guard**: geographic and area labels (for example a store card's town label) use `muted`; link hover uses `teal-dark`. `rust` must never be reintroduced for neutral or geographic text, and dark mode must never reintroduce a rust-derived literal for those roles — the dark-mode `:root` token overrides are the only place dark colors are defined.
+
 ### Typography
 
 | Role | Family | Weight | Size/line height |
