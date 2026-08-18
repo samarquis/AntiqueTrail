@@ -6,6 +6,7 @@ import {
   formatHours,
   normalizeQueryParams,
   todayHoursSummary,
+  upcomingHoursExceptions,
 } from './query'
 import { syntheticStores } from './demoClient'
 
@@ -107,5 +108,22 @@ describe('hours formatter', () => {
     const href = externalNavigationHref(syntheticStores[0])
     expect(href).toMatch(/^https:\/\/www\.google\.com\/maps\/search\//)
     expect(decodeURIComponent(href)).toContain(syntheticStores[0].address)
+  })
+
+  it('keeps only special-hours exceptions within the next 30 days, sorted by date', () => {
+    const store = {
+      ...syntheticStores[0],
+      asOfUtc: '2026-01-15T18:00:00Z',
+      hoursExceptions: [
+        { date: '2025-12-20', label: 'Holiday market', status: 'closed' as const, intervals: [] },
+        { date: '2026-01-20', label: 'Inventory day', status: 'closed' as const, intervals: [] },
+        { date: '2026-02-10', label: 'Spring preview', status: 'closed' as const, intervals: [] },
+        { date: '2026-03-01', label: 'Far-future sale', status: 'closed' as const, intervals: [] },
+      ],
+    }
+    expect(upcomingHoursExceptions(store).map((exception) => exception.label)).toEqual([
+      'Inventory day',
+      'Spring preview',
+    ])
   })
 })

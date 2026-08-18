@@ -91,6 +91,26 @@ export function formatCatalogDate(value?: string | null): string | null {
   }).format(date)
 }
 
+/**
+ * Returns special-hours exceptions within the next 30 days, sorted by date.
+ * Past and far-future exceptions stay out of the shopper's plan-your-stop view.
+ */
+export function upcomingHoursExceptions(
+  store: CatalogStore,
+  now = new Date(),
+  windowDays = 30,
+): CatalogHoursException[] {
+  const reference = store.asOfUtc ? new Date(store.asOfUtc) : now
+  const safeReference = Number.isNaN(reference.getTime()) ? now : reference
+  const todayKey = zonedDateKey(safeReference, store.timeZone)
+  const end = new Date(safeReference)
+  end.setUTCDate(end.getUTCDate() + windowDays)
+  const endKey = zonedDateKey(end, store.timeZone)
+  return (store.hoursExceptions ?? [])
+    .filter((exception) => exception.date >= todayKey && exception.date <= endKey)
+    .sort((a, b) => a.date.localeCompare(b.date))
+}
+
 export function externalNavigationHref(store: CatalogStore): string {
   if (store.navigationHref) return store.navigationHref
   const destination = [store.address, store.town, store.state].filter(Boolean).join(', ')

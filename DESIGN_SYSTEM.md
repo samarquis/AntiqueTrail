@@ -31,16 +31,16 @@ Status: approved planning baseline through the 2026-08-03 adversarial hardening 
 | `olive` | `#66704A` | Eyebrow labels |
 | `focus-inner` | `#FFFDF7` | Two-pixel inner focus boundary on dark/color surfaces |
 | `focus-outer` | `#172421` | Four-pixel outer focus boundary on light surfaces |
-| `dark-paper` | `#17211F` | Dark-theme background |
-| `dark-card` | `#1F2C29` | Dark-theme card surface |
-| `dark-ink` | `#EDF4F0` | Dark-theme primary text |
-| `dark-muted` | `#AEBDB7` | Dark-theme secondary text |
+| `dark-paper` | `#0C0E0D` | Dark-theme background |
+| `dark-card` | `#141716` | Dark-theme card surface |
+| `dark-ink` | `#F2EFE8` | Dark-theme primary text |
+| `dark-muted` | `#A8A49B` | Dark-theme secondary text |
 
-Approved contrast pairs: ink/paper `14.46:1`; ink/card `15.75:1`; muted/paper `5.10:1`; white/teal `5.87:1`; teal-dark/mint `7.07:1`; white/rust `5.10:1`; ink/gold `5.51:1`; dark-ink/dark-paper `14.76:1`; dark-muted/dark-paper `8.45:1`. Automated contrast checks still gate implementation.
+Approved contrast pairs: ink/paper `14.46:1`; ink/card `15.75:1`; muted/paper `5.10:1`; white/teal `5.87:1`; teal-dark/mint `7.07:1`; white/rust `5.10:1`; ink/gold `5.51:1`; dark-ink/dark-paper `16.86:1`; dark-muted/dark-paper `7.79:1`; dark-teal-dark/dark-mint `9.21:1`; dark-gold/dark-paper `8.61:1`. Automated contrast checks still gate implementation.
 
 Never communicate status with color alone. Pair each status color with plain text and, when space permits, an icon.
 
-**Semantic color reservation**: `rust` is reserved exclusively for destructive actions, danger states, and important-new status indicators. Do not apply `rust` to structural, geographic, or neutral labels such as area names, town labels, or category headings. Use `olive` for eyebrow and section label context, `muted` for secondary geographic or area text. `gold` is reserved for warning and freshness-attention states; do not apply it to decorative dividers or general emphasis. `dark-paper`, `dark-card`, `dark-ink`, and `dark-muted` are production tokens for `prefers-color-scheme: dark`; they must be activated in the application stylesheet inside a `@media (prefers-color-scheme: dark)` block and are not complete until verified against all approved contrast pairs in dark mode. Dark mode support is a mandatory acceptance check at every package boundary.
+**Semantic color reservation**: `rust` is reserved exclusively for destructive actions, danger states, and important-new status indicators. Do not apply `rust` to structural, geographic, or neutral labels such as area names, town labels, or category headings. Use `olive` for eyebrow and section label context, `muted` for secondary geographic or area text. `gold` is reserved for warning and freshness-attention states; do not apply it to decorative dividers or general emphasis. `dark-paper`, `dark-card`, `dark-ink`, and `dark-muted` are production tokens for the dark theme; they are activated in the application stylesheet under `:root[data-theme='dark']`, which `index.html` sets before first paint from the saved switcher choice or, when none, the system `prefers-color-scheme: dark`. They are not complete until verified against all approved contrast pairs in dark mode. Dark mode support is a mandatory acceptance check at every package boundary.
 
 **Regression guard**: geographic and area labels (for example a store card's town label) use `muted`; link hover uses `teal-dark`. `rust` must never be reintroduced for neutral or geographic text, and dark mode must never reintroduce a rust-derived literal for those roles — the dark-mode `:root` token overrides are the only place dark colors are defined.
 

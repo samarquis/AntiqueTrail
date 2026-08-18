@@ -332,10 +332,10 @@ test.describe('Synthetic catalog design contract', () => {
       page.getByRole('heading', { level: 2, name: '12 stores to explore' }),
     ).toBeVisible()
 
-    await page.getByRole('button', { name: 'Show map' }).click()
-    await expect(page.getByRole('status')).toContainText(
-      'Map and travel-time suggestions are not available yet',
-    )
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Map and travel-time suggestions are not available yet' }),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Show map' })).toHaveCount(0)
 
     await page.goto('/stores/not-a-real-store')
     await expect(page.getByRole('heading', { level: 1, name: 'Store not found' })).toBeVisible()

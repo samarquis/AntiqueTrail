@@ -138,6 +138,13 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
           Forgot your password?
         </Link>
       </p>
+      <p>
+        <Link
+          to={`/auth/register${returnTo !== '/stores' ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`}
+        >
+          Create account
+        </Link>
+      </p>
       {returnTo !== '/stores' && <Link to={returnTo}>Cancel and return without saving</Link>}
     </AuthCard>
   )

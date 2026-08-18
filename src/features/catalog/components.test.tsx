@@ -157,12 +157,11 @@ describe('catalog private-action integration seam', () => {
 
   it('keeps Browse list-first and makes the R-01-blocked map a no-call fallback', async () => {
     const catalog = client()
-    const user = userEvent.setup()
     render(<BrowsePage client={catalog} />)
     expect(await screen.findByRole('heading', { name: syntheticStores[0].name })).toBeVisible()
 
-    await user.click(screen.getByRole('button', { name: /show map/i }))
     expect(screen.getByRole('status')).toHaveTextContent(/not available.*list.*available/i)
+    expect(screen.queryByRole('button', { name: /show map/i })).not.toBeInTheDocument()
     expect(catalog.map).not.toHaveBeenCalled()
     expect(screen.getByRole('heading', { name: syntheticStores[0].name })).toBeVisible()
   })
@@ -483,6 +482,25 @@ describe('trustworthy Store Details contract', () => {
     expect(missingImage).toHaveTextContent(/photo unavailable/i)
     await waitFor(() => expect(second).toHaveFocus())
     expect(second).toHaveTextContent(/unavailable/i)
+  })
+
+  it('makes every photo reachable when a store has more than six', async () => {
+    const manyPhotos = {
+      ...detailedStore,
+      media: Array.from({ length: 9 }, (_, index) => ({
+        src: `/synthetic-stores/1280w/photo-${index + 1}.webp`,
+        alt: `Synthetic store photo ${index + 1}`,
+        kind: 'gallery' as const,
+      })),
+    }
+    const user = userEvent.setup()
+    render(<DetailsPage client={detailsClient(manyPhotos)} slug={manyPhotos.slug} />)
+    await screen.findByRole('heading', { level: 1, name: manyPhotos.name })
+
+    const ninth = screen.getByRole('button', { name: /show image 9: synthetic store photo 9/i })
+    await user.click(ninth)
+    expect(ninth).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('img', { name: /synthetic store photo 9/i })).toBeVisible()
   })
 
   it('reveals Add to Trip only after its backing package is enabled', async () => {

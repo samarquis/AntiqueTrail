@@ -7,6 +7,10 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
+  // Vite compiles the full module graph on the first navigation after the
+  // per-run server boot; the default 5s expect timeout is too short for that
+  // cold transform, which flakes the first tests in a run.
+  expect: { timeout: 15_000 },
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'on-first-retry',

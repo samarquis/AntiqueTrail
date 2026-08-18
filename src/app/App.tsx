@@ -188,6 +188,18 @@ function AppShell({
     return () => observer.disconnect()
   }, [lifecycleReady, location.pathname])
 
+  // Suppress the announced-heading focus ring after pointer navigation (keyboard keeps it).
+  useEffect(() => {
+    const onPointerDown = () => document.documentElement.setAttribute('data-pointer-input', 'true')
+    const onKeyDown = () => document.documentElement.removeAttribute('data-pointer-input')
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [])
+
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -209,6 +221,7 @@ function AppShell({
             More
           </Link>
         </nav>
+        <ThemeToggle />
       </header>
       {import.meta.env.VITE_PUBLIC_DEMO === 'true' && (
         <aside className="review-harness-banner" aria-label="Concept demo notice">
@@ -224,6 +237,27 @@ function AppShell({
         Synthetic catalog · Built for curious local explorers · <Link to="/status">Status</Link>
       </footer>
     </div>
+  )
+}
+
+function ThemeToggle() {
+  const [dark, setDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark')
+
+  const toggle = () => {
+    const next = !dark
+    setDark(next)
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light')
+    try {
+      localStorage.setItem('at-theme', next ? 'dark' : 'light')
+    } catch {
+      // Storage blocked (private mode); the in-session theme still applies.
+    }
+  }
+
+  return (
+    <button type="button" className="theme-toggle" aria-pressed={dark} onClick={toggle}>
+      {dark ? 'Use light theme' : 'Use dark theme'}
+    </button>
   )
 }
 

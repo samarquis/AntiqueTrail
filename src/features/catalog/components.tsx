@@ -19,6 +19,7 @@ import {
   normalizeQueryParams,
   queryParams,
   todayHoursSummary,
+  upcomingHoursExceptions,
 } from './query'
 
 const stageRank: Record<CatalogBrowseStage, number> = {
@@ -608,22 +609,24 @@ export function BrowsePage({
       <section aria-labelledby="browse-map-heading" className="catalog-map-panel">
         <h2 id="browse-map-heading">Store map</h2>
         <p>The store list remains the primary discovery view.</p>
-        <button
-          type="button"
-          aria-expanded={mapExpanded}
-          aria-controls="browse-map-content"
-          onClick={() => setMapExpanded((expanded) => !expanded)}
-        >
-          {mapExpanded ? 'Hide map' : 'Show map'}
-        </button>
-        {mapExpanded && (
-          <div id="browse-map-content">
-            {mapCapability !== 'available' ? (
-              <p role="status">
-                Map and travel-time suggestions are not available yet. Your store list and filters
-                remain available.
-              </p>
-            ) : !mapBounds || !pendingMapBounds || !mapAttribution || !renderMap || !client.map ? (
+        {mapCapability !== 'available' ? (
+          <p role="status">
+            Map and travel-time suggestions are not available yet. Your store list and filters
+            remain available.
+          </p>
+        ) : (
+          <>
+            <button
+              type="button"
+              aria-expanded={mapExpanded}
+              aria-controls="browse-map-content"
+              onClick={() => setMapExpanded((expanded) => !expanded)}
+            >
+              {mapExpanded ? 'Hide map' : 'Show map'}
+            </button>
+            {mapExpanded && (
+              <div id="browse-map-content">
+                {!mapBounds || !pendingMapBounds || !mapAttribution || !renderMap || !client.map ? (
               <p role="status">
                 Map configuration is unavailable. Your store list and filters remain available.
               </p>
@@ -752,6 +755,8 @@ export function BrowsePage({
             )}
           </div>
         )}
+        </>
+      )}
       </section>
       {state.kind === 'loading' && <LoadingState />}
       {state.kind === 'error' && (
@@ -825,7 +830,7 @@ function sameMapBounds(left: CatalogMapBounds, right: CatalogMapBounds) {
 }
 
 function StoreGallery({ store }: { store: CatalogStore }) {
-  const media = store.media.slice(0, 6)
+  const media = store.media
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [failed, setFailed] = useState<Set<number>>(() => new Set())
   const [enlarged, setEnlarged] = useState(false)
@@ -995,7 +1000,7 @@ function StoreHours({ store }: { store: CatalogStore }) {
         <h3>Special hours &amp; exceptions</h3>
         {store.hoursExceptions?.length ? (
           <ul>
-            {store.hoursExceptions.map((exception) => (
+            {upcomingHoursExceptions(store).map((exception) => (
               <li key={`${exception.date}-${exception.label}`}>
                 <strong>{exception.label}</strong>
                 <span>
