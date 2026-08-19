@@ -2,9 +2,14 @@
 .gstack/
 .codex/
 .omo/
+.impeccable/
+.playwright-mcp/
 node_modules/
 dist/
 coverage/
 playwright-report/
 test-results/
 .vite-review.*.log
+supabase/.temp/
+*.log
+store-details-focus.png
