@@ -13,3 +13,4 @@ test-results/
 supabase/.temp/
 *.log
 store-details-focus.png
+.env.local
