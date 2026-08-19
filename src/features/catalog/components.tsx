@@ -447,6 +447,14 @@ function LoadingState() {
 function EmptyState({ hasFilters, onClear }: { hasFilters: boolean; onClear: () => void }) {
   return (
     <section className="catalog-state catalog-state--empty" role="status">
+      <img
+        className="catalog-state__illustration"
+        src="/icons/antique-store.svg"
+        alt=""
+        aria-hidden="true"
+        width="64"
+        height="64"
+      />
       <h2>{hasFilters ? 'No matching stores' : 'The trail is quiet for now'}</h2>
       <p>{hasFilters ? 'No stores match those filters.' : 'No stores are available yet.'}</p>
       {hasFilters && (
@@ -627,136 +635,141 @@ export function BrowsePage({
             {mapExpanded && (
               <div id="browse-map-content">
                 {!mapBounds || !pendingMapBounds || !mapAttribution || !renderMap || !client.map ? (
-              <p role="status">
-                Map configuration is unavailable. Your store list and filters remain available.
-              </p>
-            ) : mapState.kind === 'loading' || mapState.kind === 'idle' ? (
-              <p role="status">Loading the optional map…</p>
-            ) : mapState.kind === 'error' ? (
-              <p role="alert">
-                Map unavailable. Your store list, filters, and current results are unchanged.
-              </p>
-            ) : (
-              <>
-                {renderMap({
-                  points: (mapState.points ?? []).map(
-                    ({ storeId, slug, name, latitude, longitude }) => ({
-                      storeId,
-                      slug,
-                      name,
-                      latitude,
-                      longitude,
-                    }),
-                  ),
-                  selectedStoreId,
-                  searchedBounds: mapBounds,
-                  pendingBounds: pendingMapBounds,
-                  searchedZoom: searchedMapZoom,
-                  pendingZoom: pendingMapZoom,
-                  previewStore: mapState.points?.find((point) => point.storeId === selectedStoreId)
-                    ?.store,
-                  onBoundsChange: acceptMapBounds,
-                  onZoomChange: (zoom) => {
-                    if (Number.isInteger(zoom) && zoom >= 0 && zoom <= 22) setPendingMapZoom(zoom)
-                  },
-                  onClusterZoom: (cluster) => {
-                    if (!validMapBounds(cluster.bounds) || !cluster.label.trim()) return
-                    setPendingMapBounds(cluster.bounds)
-                    setMapAnnouncement(
-                      `${cluster.label} expanded. Search this map area to update results.`,
-                    )
-                  },
-                  onPreview: (storeId) => {
-                    if (!mapState.points?.some((point) => point.storeId === storeId)) return
-                    setSelectedStoreId(storeId)
-                    setMapAnnouncement('Store preview selected from map.')
-                  },
-                  onSelect: (storeId) => {
-                    if (!mapState.points?.some((point) => point.storeId === storeId)) return
-                    setSelectedStoreId(storeId)
-                    setMapFocusStoreId(storeId)
-                  },
-                })}
-                <button
-                  type="button"
-                  disabled={
-                    sameMapBounds(mapBounds, pendingMapBounds) && searchedMapZoom === pendingMapZoom
-                  }
-                  onClick={() => {
-                    replaceListFromMap.current = true
-                    setSearchedMapBounds(pendingMapBounds)
-                    setSearchedMapZoom(pendingMapZoom)
-                    setMapAnnouncement('Searching the visible map area.')
-                  }}
-                >
-                  Search this map area
-                </button>
-                <p aria-live="polite" className="sr-only">
-                  {mapAnnouncement}
-                </p>
-                {selectedStoreId &&
-                  mapState.points?.find((point) => point.storeId === selectedStoreId) && (
-                    <aside aria-label="Map marker preview">
-                      {(() => {
-                        const point = mapState.points!.find(
-                          (candidate) => candidate.storeId === selectedStoreId,
-                        )!
-                        return (
-                          <>
-                            <strong>{point.name}</strong>{' '}
-                            <p>
-                              {point.rating == null
-                                ? 'Not yet rated'
-                                : `${point.rating.toFixed(1)} from ${point.ratingCount} ratings`}
-                            </p>
-                            <p>
-                              {point.hoursLabel} ·{' '}
-                              {point.openState === 'unavailable'
-                                ? 'Open state unavailable'
-                                : point.openState === 'open'
-                                  ? 'Open now'
-                                  : 'Closed now'}
-                            </p>
-                            <p>
-                              {point.categoryLabel} · {point.distanceMiles.toFixed(1)} miles from{' '}
-                              {point.store.area.label} center
-                            </p>
-                            <p>
-                              {point.claimed ? 'Claimed listing' : 'Unclaimed listing'}
-                              {point.saved != null
-                                ? ` · ${point.saved ? 'Saved' : 'Not saved'}`
-                                : ''}
-                              {point.visited != null
-                                ? ` · ${point.visited ? 'Visited' : 'Not visited'}`
-                                : ''}
-                            </p>
-                            <a
-                              href={catalogAppHref(`/stores/${point.slug}`)}
-                              onClick={() => rememberBrowseReturn(point.storeId)}
-                            >
-                              View store details
-                            </a>
-                            {renderPrivateActions?.(point.store)}
-                            <a
-                              href={catalogAppHref(
-                                `/trips/new?addStoreId=${encodeURIComponent(point.storeId)}`,
-                              )}
-                            >
-                              Add to Trip
-                            </a>
-                            {map.navigationHref && <a href={map.navigationHref(point)}>Navigate</a>}
-                          </>
+                  <p role="status">
+                    Map configuration is unavailable. Your store list and filters remain available.
+                  </p>
+                ) : mapState.kind === 'loading' || mapState.kind === 'idle' ? (
+                  <p role="status">Loading the optional map…</p>
+                ) : mapState.kind === 'error' ? (
+                  <p role="alert">
+                    Map unavailable. Your store list, filters, and current results are unchanged.
+                  </p>
+                ) : (
+                  <>
+                    {renderMap({
+                      points: (mapState.points ?? []).map(
+                        ({ storeId, slug, name, latitude, longitude }) => ({
+                          storeId,
+                          slug,
+                          name,
+                          latitude,
+                          longitude,
+                        }),
+                      ),
+                      selectedStoreId,
+                      searchedBounds: mapBounds,
+                      pendingBounds: pendingMapBounds,
+                      searchedZoom: searchedMapZoom,
+                      pendingZoom: pendingMapZoom,
+                      previewStore: mapState.points?.find(
+                        (point) => point.storeId === selectedStoreId,
+                      )?.store,
+                      onBoundsChange: acceptMapBounds,
+                      onZoomChange: (zoom) => {
+                        if (Number.isInteger(zoom) && zoom >= 0 && zoom <= 22)
+                          setPendingMapZoom(zoom)
+                      },
+                      onClusterZoom: (cluster) => {
+                        if (!validMapBounds(cluster.bounds) || !cluster.label.trim()) return
+                        setPendingMapBounds(cluster.bounds)
+                        setMapAnnouncement(
+                          `${cluster.label} expanded. Search this map area to update results.`,
                         )
-                      })()}
-                    </aside>
-                  )}
-                <p className="catalog-map-attribution">{mapAttribution}</p>
-              </>
+                      },
+                      onPreview: (storeId) => {
+                        if (!mapState.points?.some((point) => point.storeId === storeId)) return
+                        setSelectedStoreId(storeId)
+                        setMapAnnouncement('Store preview selected from map.')
+                      },
+                      onSelect: (storeId) => {
+                        if (!mapState.points?.some((point) => point.storeId === storeId)) return
+                        setSelectedStoreId(storeId)
+                        setMapFocusStoreId(storeId)
+                      },
+                    })}
+                    <button
+                      type="button"
+                      disabled={
+                        sameMapBounds(mapBounds, pendingMapBounds) &&
+                        searchedMapZoom === pendingMapZoom
+                      }
+                      onClick={() => {
+                        replaceListFromMap.current = true
+                        setSearchedMapBounds(pendingMapBounds)
+                        setSearchedMapZoom(pendingMapZoom)
+                        setMapAnnouncement('Searching the visible map area.')
+                      }}
+                    >
+                      Search this map area
+                    </button>
+                    <p aria-live="polite" className="sr-only">
+                      {mapAnnouncement}
+                    </p>
+                    {selectedStoreId &&
+                      mapState.points?.find((point) => point.storeId === selectedStoreId) && (
+                        <aside aria-label="Map marker preview">
+                          {(() => {
+                            const point = mapState.points!.find(
+                              (candidate) => candidate.storeId === selectedStoreId,
+                            )!
+                            return (
+                              <>
+                                <strong>{point.name}</strong>{' '}
+                                <p>
+                                  {point.rating == null
+                                    ? 'Not yet rated'
+                                    : `${point.rating.toFixed(1)} from ${point.ratingCount} ratings`}
+                                </p>
+                                <p>
+                                  {point.hoursLabel} ·{' '}
+                                  {point.openState === 'unavailable'
+                                    ? 'Open state unavailable'
+                                    : point.openState === 'open'
+                                      ? 'Open now'
+                                      : 'Closed now'}
+                                </p>
+                                <p>
+                                  {point.categoryLabel} · {point.distanceMiles.toFixed(1)} miles
+                                  from {point.store.area.label} center
+                                </p>
+                                <p>
+                                  {point.claimed ? 'Claimed listing' : 'Unclaimed listing'}
+                                  {point.saved != null
+                                    ? ` · ${point.saved ? 'Saved' : 'Not saved'}`
+                                    : ''}
+                                  {point.visited != null
+                                    ? ` · ${point.visited ? 'Visited' : 'Not visited'}`
+                                    : ''}
+                                </p>
+                                <a
+                                  href={catalogAppHref(`/stores/${point.slug}`)}
+                                  onClick={() => rememberBrowseReturn(point.storeId)}
+                                >
+                                  View store details
+                                </a>
+                                {renderPrivateActions?.(point.store)}
+                                <a
+                                  href={catalogAppHref(
+                                    `/trips/new?addStoreId=${encodeURIComponent(point.storeId)}`,
+                                  )}
+                                >
+                                  Add to Trip
+                                </a>
+                                {map.navigationHref && (
+                                  <a href={map.navigationHref(point)}>Navigate</a>
+                                )}
+                              </>
+                            )
+                          })()}
+                        </aside>
+                      )}
+                    <p className="catalog-map-attribution">{mapAttribution}</p>
+                  </>
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
-        </>
-      )}
       </section>
       {state.kind === 'loading' && <LoadingState />}
       {state.kind === 'error' && (
@@ -836,6 +849,8 @@ function StoreGallery({ store }: { store: CatalogStore }) {
   const [enlarged, setEnlarged] = useState(false)
   const enlargeButton = useRef<HTMLButtonElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
+  const prevButton = useRef<HTMLButtonElement>(null)
+  const nextButton = useRef<HTMLButtonElement>(null)
   const choiceButtons = useRef<Array<HTMLButtonElement | null>>([])
   const selected = media[selectedIndex]
   const selectedFailed = !selected || failed.has(selectedIndex)
@@ -860,6 +875,39 @@ function StoreGallery({ store }: { store: CatalogStore }) {
       next.add(index)
       return next
     })
+
+  const step = (direction: 1 | -1) => {
+    if (media.length < 2) return
+    let next = selectedIndex
+    for (let offset = 1; offset <= media.length; offset += 1) {
+      const candidate = (selectedIndex + direction * offset + media.length) % media.length
+      if (!failed.has(candidate)) {
+        next = candidate
+        break
+      }
+    }
+    if (next !== selectedIndex) setSelectedIndex(next)
+  }
+
+  const chevron = (flip: boolean) => (
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      aria-hidden="true"
+      focusable="false"
+      style={flip ? { transform: 'scaleX(-1)' } : undefined}
+    >
+      <path
+        d="M14.5 5.5 8 12l6.5 6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
 
   return (
     <section className="store-gallery" aria-labelledby="gallery-heading">
@@ -888,16 +936,20 @@ function StoreGallery({ store }: { store: CatalogStore }) {
             />
           </button>
           {(selected.caption || selected.rightsLabel) && (
-            <figcaption>
-              {selected.caption}
+            <figcaption className="store-gallery__plate">
+              {selected.caption && (
+                <span className="store-gallery__plate-title">{selected.caption}</span>
+              )}
               {selected.caption && selected.rightsLabel ? ' · ' : ''}
-              {selected.rightsLabel}
+              {selected.rightsLabel && (
+                <span className="store-gallery__plate-rights">{selected.rightsLabel}</span>
+              )}
             </figcaption>
           )}
         </figure>
       )}
       {media.length > 1 && (
-        <div className="store-gallery__choices" role="group" aria-label="Choose a store photo">
+        <div className="store-gallery__wall" role="group" aria-label="Choose a store photo">
           {media.map((item, index) => (
             <button
               ref={(element) => {
@@ -905,19 +957,23 @@ function StoreGallery({ store }: { store: CatalogStore }) {
               }}
               key={`${item.src}-${index}`}
               type="button"
+              className="store-gallery__print"
               aria-label={`Show image ${index + 1}: ${item.alt}`}
               aria-pressed={selectedIndex === index}
               onClick={() => setSelectedIndex(index)}
             >
               {failed.has(index) ? (
-                <span>Unavailable</span>
+                <span className="store-gallery__print-unavailable">Unavailable</span>
               ) : (
-                <img
-                  src={item.src}
-                  {...responsiveCatalogImage(item.src, '96px')}
-                  alt=""
-                  onError={() => markFailed(index)}
-                />
+                <>
+                  <img
+                    src={item.src}
+                    {...responsiveCatalogImage(item.src, '220px')}
+                    alt=""
+                    onError={() => markFailed(index)}
+                  />
+                  <span className="store-gallery__print-plate">No. {index + 1}</span>
+                </>
               )}
             </button>
           ))}
@@ -925,40 +981,83 @@ function StoreGallery({ store }: { store: CatalogStore }) {
       )}
       {enlarged && selected && !selectedFailed && (
         <div
-          className="store-gallery__dialog"
+          className="store-gallery__room"
           role="dialog"
           aria-modal="true"
           aria-label={`Enlarged store image: ${selected.alt}`}
           onKeyDown={(event) => {
             if (event.key === 'Escape') closeGallery()
+            if (event.key === 'ArrowLeft') step(-1)
+            if (event.key === 'ArrowRight') step(1)
             if (event.key === 'Tab') {
-              event.preventDefault()
-              closeButton.current?.focus()
+              const focusable = [
+                closeButton.current,
+                prevButton.current,
+                nextButton.current,
+              ].filter((element): element is HTMLButtonElement => element !== null)
+              const first = focusable[0]
+              const last = focusable[focusable.length - 1]
+              if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault()
+                last.focus()
+              } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault()
+                first.focus()
+              }
             }
           }}
         >
-          <button ref={closeButton} type="button" onClick={() => closeGallery()}>
+          <button
+            ref={closeButton}
+            type="button"
+            className="store-gallery__room-close"
+            onClick={() => closeGallery()}
+          >
             Close enlarged image
           </button>
-          <img
-            src={selected.src}
-            {...responsiveCatalogImage(
-              selected.src,
-              '(max-width: 800px) calc(100vw - 2rem), 1120px',
-            )}
-            alt={selected.alt}
-            onError={() => {
-              markFailed(selectedIndex)
-              closeGallery('selected-choice')
-            }}
-          />
-          {(selected.caption || selected.rightsLabel) && (
-            <p>
-              {selected.caption}
-              {selected.caption && selected.rightsLabel ? ' · ' : ''}
-              {selected.rightsLabel}
-            </p>
+          {media.length > 1 && (
+            <>
+              <button
+                ref={prevButton}
+                type="button"
+                className="store-gallery__room-nav store-gallery__room-nav--prev"
+                aria-label="Previous photo"
+                onClick={() => step(-1)}
+              >
+                {chevron(false)}
+              </button>
+              <button
+                ref={nextButton}
+                type="button"
+                className="store-gallery__room-nav store-gallery__room-nav--next"
+                aria-label="Next photo"
+                onClick={() => step(1)}
+              >
+                {chevron(true)}
+              </button>
+            </>
           )}
+          <figure className="store-gallery__room-figure">
+            <img
+              src={selected.src}
+              {...responsiveCatalogImage(
+                selected.src,
+                '(max-width: 800px) calc(100vw - 2rem), 1120px',
+              )}
+              alt={selected.alt}
+              onError={() => {
+                markFailed(selectedIndex)
+                closeGallery('selected-choice')
+              }}
+            />
+            {(selected.caption || selected.rightsLabel) && (
+              <figcaption className="store-gallery__room-caption">
+                {selected.caption}
+                {selected.caption && selected.rightsLabel ? ' · ' : ''}
+                {selected.rightsLabel}
+              </figcaption>
+            )}
+          </figure>
         </div>
       )}
     </section>
@@ -972,7 +1071,17 @@ function StoreHours({ store }: { store: CatalogStore }) {
       <div className="store-detail__section-heading">
         <div>
           <p className="eyebrow">Plan your stop</p>
-          <h2 id="hours-heading">Hours</h2>
+          <h2 id="hours-heading" className="store-detail__heading-with-icon">
+            <img
+              src="/icons/store-hours.svg"
+              alt=""
+              aria-hidden="true"
+              width="22"
+              height="22"
+              className="store-detail__section-icon"
+            />
+            Hours
+          </h2>
         </div>
         <p className={`status-badge status-badge--${today.openState}`}>
           <span aria-hidden="true">
@@ -1142,6 +1251,14 @@ export function DetailsPage({
             target="_blank"
             rel="noreferrer"
           >
+            <img
+              className="button__icon"
+              src="/icons/navigate.svg"
+              alt=""
+              aria-hidden="true"
+              width="20"
+              height="20"
+            />
             Navigate in Maps <span aria-hidden="true">↗</span>
             <span className="sr-only"> (opens in a new window)</span>
           </a>
@@ -1150,6 +1267,14 @@ export function DetailsPage({
               className="button button--secondary"
               href={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
             >
+              <img
+                className="button__icon"
+                src="/icons/shopping-trip.svg"
+                alt=""
+                aria-hidden="true"
+                width="20"
+                height="20"
+              />
               Add to Trip
             </a>
           )}

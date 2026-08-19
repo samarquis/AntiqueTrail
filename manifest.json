@@ -1,7 +1,7 @@
 {
   "project": "Antique Trail",
-  "handoff_version": "2.5",
-  "generated_date": "2026-08-03",
+  "handoff_version": "2.6",
+  "generated_date": "2026-08-18",
   "files": [
     "README.md",
     "CODEX_START_PROMPT.md",
@@ -25,7 +25,27 @@
     "docs/adr/0004-start-with-one-react-pwa-and-server-enforced-role-boundaries.md",
     "docs/adr/0005-host-free-first-on-cloudflare-pages-and-supabase.md",
     "docs/design/README.md",
-    "docs/design/antique-trail-flow-lab.html"
+    "docs/design/PALETTE_PROPOSAL.md",
+    "docs/design/palette-midnight-archive.svg",
+    "docs/design/ICON_PLACEMENT_SPEC.md",
+    "docs/design/antique-trail-storefront-icon-v3.svg",
+    "docs/design/antique-trail-storefront-shirt-lockup.svg",
+    "docs/design/STOREFRONT_IDENTITY_GAUNTLET.md",
+    "docs/design/antique-trail-flow-lab.html",
+    "public/app-icon.svg",
+    "public/app-icon-192.png",
+    "public/app-icon-512.png",
+    "public/apple-touch-icon.png",
+    "public/icons/antique-store.svg",
+    "public/icons/trail-map.svg",
+    "public/icons/treasure-find.svg",
+    "public/icons/saved-store.svg",
+    "public/icons/store-hours.svg",
+    "public/icons/shopping-trip.svg",
+    "public/icons/navigate.svg",
+    "public/icons/shared-trip.svg",
+    "public/icons/private-notes.svg",
+    "public/icons/store-details.svg"
   ],
   "purpose": "Approved product, design, security, architecture, and implementation context"
 }

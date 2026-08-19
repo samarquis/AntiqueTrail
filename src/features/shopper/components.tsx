@@ -17,17 +17,31 @@ import type {
 function ShopperCard({
   title,
   description,
+  icon,
   children,
 }: {
   title: string
   description: string
+  icon?: string
   children: ReactNode
 }) {
   return (
     <main>
       <section className="page-card" aria-labelledby="shopper-heading">
         <p className="eyebrow">Private shopper tools</p>
-        <h1 id="shopper-heading">{title}</h1>
+        <h1 id="shopper-heading" className="page-card__heading">
+          {icon && (
+            <img
+              className="page-card__icon"
+              src={icon}
+              alt=""
+              aria-hidden="true"
+              width="26"
+              height="26"
+            />
+          )}
+          {title}
+        </h1>
         <p className="lede">{description}</p>
         {children}
       </section>
@@ -201,6 +215,14 @@ export function SaveStoreAction({
         disabled={state === 'saving' || saved === null || !online}
         onClick={toggle}
       >
+        <img
+          className="button__icon"
+          src="/icons/saved-store.svg"
+          alt=""
+          aria-hidden="true"
+          width="20"
+          height="20"
+        />
         {saved === null
           ? 'Checking saved state…'
           : state === 'saving'
@@ -456,6 +478,7 @@ export function SavedPage({
     <ShopperCard
       title="Saved stores"
       description="Only this signed-in shopper can see or change these saved stores."
+      icon="/icons/saved-store.svg"
     >
       {stores.length ? (
         <ul className="shopper-store-list" aria-label="Saved stores">
@@ -567,6 +590,7 @@ export function NewSincePage({
     <ShopperCard
       title="New since your last visit"
       description="Choose an area yourself. Antique Trail does not use background location or send notifications."
+      icon="/icons/treasure-find.svg"
     >
       {!online && <OfflineNotice />}
       <label htmlFor="new-since-area">Choose an area</label>
@@ -665,6 +689,7 @@ export function HistoryPage({
     <ShopperCard
       title="Your private history"
       description="Ratings, notes, and visit memories belong only to this signed-in shopper account."
+      icon="/icons/private-notes.svg"
     >
       {error ? (
         <>
@@ -813,6 +838,7 @@ export function MemoryPage({
     <ShopperCard
       title="Private store memory"
       description="Your rating, note, and visit month are visible only to you."
+      icon="/icons/private-notes.svg"
     >
       {!online && <OfflineNotice />}
       {state === 'deleted' ? (

@@ -12,6 +12,16 @@ import type { OfflineQueueSnapshot, Trip, TripClient } from './types'
 export const GENERIC_OFFLINE_TRIP_ERROR = 'The offline trip could not be prepared safely.'
 export const BACKGROUND_PLAINTEXT_TTL_MS = 15 * 60_000
 
+/** UUID v4 that also works in non-secure contexts (plain-HTTP LAN), where crypto.randomUUID is unavailable. */
+function randomUuid(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
 interface VisibilityTarget {
   visibilityState: string
   addEventListener(name: 'visibilitychange', listener: () => void): void
@@ -83,8 +93,8 @@ export function createTripOfflineRuntime(
     deviceKeyId?: string
   } = {},
 ): TripOfflineRuntime {
-  const installId = options.installId ?? `install-${crypto.randomUUID()}`
-  const deviceKeyId = options.deviceKeyId ?? `device-key-${crypto.randomUUID()}`
+  const installId = options.installId ?? `install-${randomUuid()}`
+  const deviceKeyId = options.deviceKeyId ?? `device-key-${randomUuid()}`
   const store = new EncryptedTripOfflineStore(
     options.database ?? new IndexedDbOfflineDatabase(),
     installId,

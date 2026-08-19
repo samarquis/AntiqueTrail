@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail Daylight and Midnight Archive palette</title>
+  <desc id="desc">A paired light and dark palette board using stone, ivory, blue-black, slate blue, brass, and clay.</desc>
+  <rect width="1200" height="720" fill="#F6F4F0"/>
+  <rect x="600" width="600" height="720" fill="#121519"/>
+  <g font-family="Atkinson Hyperlegible, Arial, sans-serif">
+    <text x="72" y="82" fill="#202833" font-size="22" font-weight="700" letter-spacing="3">ANTIQUE TRAIL</text>
+    <text x="72" y="132" fill="#202833" font-size="42" font-weight="700">Daylight Archive</text>
+    <text x="72" y="168" fill="#5D6876" font-size="20">Stone, ivory, blue-black, slate, brass, clay</text>
+    <text x="672" y="82" fill="#F3EEE4" font-size="22" font-weight="700" letter-spacing="3">ANTIQUE TRAIL</text>
+    <text x="672" y="132" fill="#F3EEE4" font-size="42" font-weight="700">Midnight Archive</text>
+    <text x="672" y="168" fill="#B7B0A5" font-size="20">Charcoal, slate, dusty blue, brass, clay</text>
+    <g transform="translate(72 224)">
+      <rect width="220" height="130" rx="18" fill="#FFFDFC" stroke="#D8DCE2"/><text x="20" y="38" fill="#202833" font-size="17" font-weight="700">IVORY SURFACE</text><text x="20" y="100" fill="#5D6876" font-size="28">#FFFDFC</text>
+      <rect x="244" width="220" height="130" rx="18" fill="#202833"/><text x="264" y="38" fill="#FFFDFC" font-size="17" font-weight="700">BLUE-BLACK INK</text><text x="264" y="100" fill="#E2E7F0" font-size="28">#202833</text>
+      <rect y="154" width="220" height="130" rx="18" fill="#4C628A"/><text x="20" y="192" fill="#FFFDFC" font-size="17" font-weight="700">SLATE-BLUE ACTION</text><text x="20" y="254" fill="#FFFDFC" font-size="28">#4C628A</text>
+      <rect x="244" y="154" width="220" height="130" rx="18" fill="#E2E7F0"/><text x="264" y="192" fill="#202833" font-size="17" font-weight="700">PALE SLATE</text><text x="264" y="254" fill="#5D6876" font-size="28">#E2E7F0</text>
+      <rect y="308" width="220" height="130" rx="18" fill="#B98B45"/><text x="20" y="346" fill="#202833" font-size="17" font-weight="700">AGED BRASS</text><text x="20" y="408" fill="#202833" font-size="28">#B98B45</text>
+      <rect x="244" y="308" width="220" height="130" rx="18" fill="#A75E4D"/><text x="264" y="346" fill="#FFFDFC" font-size="17" font-weight="700">CLAY</text><text x="264" y="408" fill="#FFFDFC" font-size="28">#A75E4D</text>
+    </g>
+    <g transform="translate(672 224)">
+      <rect width="220" height="130" rx="18" fill="#1A1F26" stroke="#3B4552"/><text x="20" y="38" fill="#F3EEE4" font-size="17" font-weight="700">RECESSED SLATE</text><text x="20" y="100" fill="#B7B0A5" font-size="28">#1A1F26</text>
+      <rect x="244" width="220" height="130" rx="18" fill="#252B33" stroke="#3B4552"/><text x="264" y="38" fill="#F3EEE4" font-size="17" font-weight="700">RAISED SURFACE</text><text x="264" y="100" fill="#B7B0A5" font-size="28">#252B33</text>
+      <rect y="154" width="220" height="130" rx="18" fill="#F3EEE4"/><text x="20" y="192" fill="#202833" font-size="17" font-weight="700">SOFT IVORY</text><text x="20" y="254" fill="#5D6876" font-size="28">#F3EEE4</text>
+      <rect x="244" y="154" width="220" height="130" rx="18" fill="#8795B5"/><text x="264" y="192" fill="#121519" font-size="17" font-weight="700">DUSTY BLUE</text><text x="264" y="254" fill="#121519" font-size="28">#8795B5</text>
+      <rect y="308" width="220" height="130" rx="18" fill="#B99554"/><text x="20" y="346" fill="#121519" font-size="17" font-weight="700">AGED BRASS</text><text x="20" y="408" fill="#121519" font-size="28">#B99554</text>
+      <rect x="244" y="308" width="220" height="130" rx="18" fill="#B56E5B"/><text x="264" y="346" fill="#121519" font-size="17" font-weight="700">WEATHERED CLAY</text><text x="264" y="408" fill="#121519" font-size="28">#B56E5B</text>
+    </g>
+  </g>
+</svg>

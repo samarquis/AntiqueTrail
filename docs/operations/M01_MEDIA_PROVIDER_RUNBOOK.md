@@ -129,6 +129,38 @@ content.
 Any missing, stale, unknown, failed, or contradictory result is `NO-GO`. It
 disables media only and never broadens access or authorizes invented evidence.
 
+## Paid-tier transition (recorded, not yet activated)
+
+The Product Owner intends to move to paid hosting after development; the path is
+recorded in ADR 0005. It activates only under a signed funding approval with a
+hard monthly cost ceiling (no automatic overage) and a passing M-01 receipt
+under that ceiling. Until then every `$0` control above remains in force.
+
+At transition, in this order:
+
+1. **Move the public bucket to Cloudflare R2 (or S3).** The pipeline is
+   provider-neutral: immutable public keys
+   (`official/<id>/vN/<digest>.webp`) mean a bucket change is configuration
+   plus a receipt, with no application code change. R2 egress to the Cloudflare
+   CDN is free, so serving cost stays near zero at any photo volume.
+2. **Retain originals instead of the 24-hour purge.** Keep re-encode-safe
+   originals in the existing private bucket so variants can be regenerated
+   later (new thumbnail sizes, higher-quality re-encodes, future AI alt-text)
+   without recontacting stores. Quarantine, metadata stripping, and
+   private-only residency remain mandatory; nothing changes about review,
+   approval, or publication.
+3. **Lift space-based per-store caps.** Stores may upload as many photos as
+   they want, bounded by the approved budget. The 20 uploads/store/day and five
+   concurrent uploads/store limits are anti-abuse controls and stay. The 4 MiB
+   derivative cap is a quality/bandwidth bound and stays.
+4. **Video reviews (future)** become a separate pipeline behind the same
+   provider-neutral boundary (e.g. Cloudflare Stream or Mux) with its own
+   receipt, quotas, and cost ceiling. Nothing in the image pipeline blocks it;
+   nothing is built now.
+5. **Keep the 25%/75%/90% quota monitors** as runaway-bill protection: at 75%
+   stop nonessential growth; at 90% disable media uploads before core
+   Browse/Details, account safety, deletion, revocation, or support.
+
 ## Incident, rollback, and recovery
 
 - Scanner/processor uncertainty, 75%/90% threshold, cost-cap risk, audit failure,

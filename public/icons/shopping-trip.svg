@@ -1,0 +1,6 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Start an antique shopping trip</title><desc id="desc">A small car carrying a vintage lamp.</desc>
+  <path fill="#4C628A" stroke="#202833" stroke-width="3" stroke-linejoin="round" d="m10 38 6-14h29l9 14v12H10z"/><path fill="#E2E7F0" stroke="#202833" stroke-width="2.5" d="m20 27-4 11h13V27zm5 0v11h20l-7-11z"/>
+  <circle cx="20" cy="51" r="5" fill="#FFFDFC" stroke="#202833" stroke-width="3"/><circle cx="45" cy="51" r="5" fill="#FFFDFC" stroke="#202833" stroke-width="3"/>
+  <path fill="#B98B45" stroke="#202833" stroke-width="2.5" d="M29 23h9l-2-7h-5z"/><path fill="none" stroke="#202833" stroke-width="2.5" d="M33.5 16V10m-6 0h12"/>
+</svg>

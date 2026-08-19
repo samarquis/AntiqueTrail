@@ -1,0 +1,6 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Share a trip</title><desc id="desc">Two people connected by a route.</desc>
+  <circle cx="20" cy="20" r="7" fill="#B98B45" stroke="#202833" stroke-width="3"/><circle cx="44" cy="20" r="7" fill="#E2E7F0" stroke="#202833" stroke-width="3"/>
+  <path fill="#B98B45" stroke="#202833" stroke-width="3" stroke-linejoin="round" d="M9 52v-8c0-8 5-13 11-13s11 5 11 13v8z"/><path fill="#E2E7F0" stroke="#202833" stroke-width="3" stroke-linejoin="round" d="M33 52v-8c0-8 5-13 11-13s11 5 11 13v8z"/>
+  <path fill="none" stroke="#4C628A" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 5" d="M26 36c5-5 8-5 13 0"/>
+</svg>

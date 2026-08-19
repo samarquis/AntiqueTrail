@@ -1,0 +1,5 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Private shopping notes</title><desc id="desc">A closed notebook with a small lock.</desc>
+  <path fill="#E2E7F0" stroke="#202833" stroke-width="3" stroke-linejoin="round" d="M16 10h29a4 4 0 0 1 4 4v40H16a5 5 0 0 1-5-5V15a5 5 0 0 1 5-5z"/><path fill="none" stroke="#4C628A" stroke-width="3" d="M20 10v44M27 22h15m-15 8h15"/>
+  <rect x="31" y="37" width="16" height="13" rx="2" fill="#B98B45" stroke="#202833" stroke-width="2.5"/><path fill="none" stroke="#202833" stroke-width="2.5" d="M35 37v-4a4 4 0 0 1 8 0v4"/><circle cx="39" cy="44" r="1.5" fill="#202833"/>
+</svg>

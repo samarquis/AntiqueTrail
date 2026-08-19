@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail storefront shirt lockup</title>
+  <desc id="desc">The Antique Trail storefront above a sturdy uppercase Antique Trail wordmark.</desc>
+  <style>
+    @font-face {
+      font-family: "Atkinson Hyperlegible Embedded";
+      src: url("../../public/fonts/AtkinsonHyperlegible-Bold.woff2") format("woff2");
+      font-weight: 700;
+    }
+  </style>
+  <g transform="translate(137 -60) scale(1.81)" fill="#202833">
+    <path d="M96 100h320v48h-32v24H128v-24H96z"/>
+    <path d="M124 154h264l20 58v6c0 26-21 40-48 40s-48-14-48-40c0 31-25 50-56 50s-56-19-56-50c0 26-21 40-48 40s-48-14-48-40v-6l20-58Z"/>
+    <path fill-rule="evenodd" d="M128 286h256v138H128V286Zm82 138v-66a46 46 0 0 1 92 0v66h-92Z"/>
+  </g>
+  <text x="600" y="825" text-anchor="middle" fill="#202833" font-family="Atkinson Hyperlegible Embedded, Atkinson Hyperlegible, Arial, sans-serif" font-size="92" font-weight="700" letter-spacing="3">ANTIQUE TRAIL</text>
+</svg>

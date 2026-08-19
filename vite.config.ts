@@ -11,18 +11,36 @@ export default defineConfig(() => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.svg'],
+        includeAssets: [
+          'favicon.svg',
+          'app-icon.svg',
+          'app-icon-192.png',
+          'app-icon-512.png',
+          'apple-touch-icon.png',
+        ],
         manifest: {
           name: 'Antique Trail',
           short_name: 'Antique Trail',
           description: 'A trustworthy guide to antique stores and local finds.',
-          theme_color: '#f7f4ee',
-          background_color: '#f7f4ee',
+          theme_color: '#f6f4f0',
+          background_color: '#f6f4f0',
           display: 'standalone',
           start_url: `${base}stores`,
           icons: [
             {
-              src: `${base}favicon.svg`,
+              src: `${base}app-icon-192.png`,
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any maskable',
+            },
+            {
+              src: `${base}app-icon-512.png`,
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable',
+            },
+            {
+              src: `${base}app-icon.svg`,
               sizes: 'any',
               type: 'image/svg+xml',
               purpose: 'any maskable',

@@ -21,17 +21,31 @@ import type { TripOfflineGrantSource, TripOfflineRuntime } from './tripRuntime'
 function TripCard({
   title,
   description,
+  icon,
   children,
 }: {
   title: string
   description: string
+  icon?: string
   children: ReactNode
 }) {
   return (
     <main>
       <section className="page-card" aria-labelledby="trip-heading">
         <p className="eyebrow">My Trip</p>
-        <h1 id="trip-heading">{title}</h1>
+        <h1 id="trip-heading" className="page-card__heading">
+          {icon && (
+            <img
+              className="page-card__icon"
+              src={icon}
+              alt=""
+              aria-hidden="true"
+              width="26"
+              height="26"
+            />
+          )}
+          {title}
+        </h1>
         <p className="lede">{description}</p>
         {children}
       </section>
@@ -70,6 +84,7 @@ export function TripsPage({ client = unavailableTripClient }: { client?: TripCli
     <TripCard
       title="My trips"
       description="Plan a manual order and review hours without travel-time or feasibility claims."
+      icon="/icons/trail-map.svg"
     >
       {error ? (
         <TripError />
@@ -78,6 +93,14 @@ export function TripsPage({ client = unavailableTripClient }: { client?: TripCli
       ) : (
         <>
           <Link className="button" to="/trips/new">
+            <img
+              className="button__icon"
+              src="/icons/shopping-trip.svg"
+              alt=""
+              aria-hidden="true"
+              width="20"
+              height="20"
+            />
             New trip
           </Link>
           {trips.length ? (
@@ -89,7 +112,17 @@ export function TripsPage({ client = unavailableTripClient }: { client?: TripCli
               ))}
             </ul>
           ) : (
-            <p role="status">No trips yet.</p>
+            <p role="status" className="empty-state">
+              <img
+                className="catalog-state__illustration"
+                src="/icons/shopping-trip.svg"
+                alt=""
+                aria-hidden="true"
+                width="64"
+                height="64"
+              />
+              No trips yet.
+            </p>
           )}
         </>
       )}
@@ -125,6 +158,7 @@ export function NewTripPage({ client = unavailableTripClient }: { client?: TripC
     <TripCard
       title="New trip"
       description="Give your trip a name and date. Start and return details can stay blank during planning."
+      icon="/icons/shopping-trip.svg"
     >
       <form onSubmit={submit}>
         <label htmlFor="trip-name">Trip name</label>
@@ -334,6 +368,7 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     <TripCard
       title={trip.name}
       description="Review Hours shows store hours only. Travel time is not included, and no feasible-order or arrival claim is made."
+      icon="/icons/trail-map.svg"
     >
       <p>Trip date: {trip.localDate}</p>
       <form onSubmit={rename}>
@@ -790,6 +825,7 @@ export function GoPage({
     <TripCard
       title="Go"
       description="Manual arrival tracking only. Antique Trail does not claim route feasibility or travel time."
+      icon="/icons/trail-map.svg"
     >
       {collaboration && !isNavigator && (
         <p role="status">Read-only progress. Only the assigned Navigator can control Go.</p>
@@ -1020,7 +1056,11 @@ export function SummaryPage({ client = unavailableTripClient }: { client?: TripC
       .catch(() => undefined)
   }, [client, tripId])
   return (
-    <TripCard title="Trip summary" description="Your private trip record.">
+    <TripCard
+      title="Trip summary"
+      description="Your private trip record."
+      icon="/icons/trail-map.svg"
+    >
       {trip ? (
         <>
           <p>
@@ -1253,6 +1293,7 @@ export function InviteTripPartnerPage({ client = unavailableTripClient }: { clie
     <TripCard
       title="Trip Partner and Navigator"
       description="Invite one verified account to this trip only. Exactly one participant controls Go."
+      icon="/icons/shared-trip.svg"
     >
       {error && <TripError />}
       {!collaboration ? (
@@ -1363,6 +1404,7 @@ export function AcceptTripInvitationPage({
     <TripCard
       title={collaboration ? 'Trip invitation accepted' : 'Trip invitation'}
       description="This invitation grants access to one trip only."
+      icon="/icons/shared-trip.svg"
     >
       {error ? (
         <TripError />

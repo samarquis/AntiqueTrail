@@ -1,0 +1,6 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Check store hours</title><desc id="desc">A traditional shop clock.</desc>
+  <path fill="#FFFDFC" stroke="#202833" stroke-width="3" stroke-linejoin="round" d="M12 29h40v25H12zM9 25l5-10h36l5 10z"/><path fill="#4C628A" stroke="#202833" stroke-width="3" d="M9 25h46v7H9z"/>
+  <circle cx="32" cy="43" r="10" fill="#B98B45" stroke="#202833" stroke-width="3"/><circle cx="32" cy="43" r="7" fill="#FFFDFC" stroke="#202833" stroke-width="2"/>
+  <path fill="none" stroke="#202833" stroke-width="2.5" stroke-linecap="round" d="M32 38v5l4 3"/>
+</svg>

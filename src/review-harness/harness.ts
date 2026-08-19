@@ -189,14 +189,20 @@ function sessionFor(
 }
 
 /**
- * Creates a deterministic review session only for the explicit local Vite mode.
- * Both checks are deliberate: `vite build --mode review` still has `dev === false`
- * and therefore cannot embed or activate the harness in a production build.
+ * Creates a deterministic review session only for an explicit local Vite mode
+ * (`review` for the harness build, `development` when plain `npm run dev` runs
+ * without a Supabase environment). Every check is deliberate: `vite build
+ * --mode review` still has `dev === false`, so no production build can embed or
+ * activate the harness, and `enabled` still requires explicit opt-in.
  */
 export async function createReviewHarness(
   environment: ReviewHarnessEnvironment,
 ): Promise<ReviewHarnessRuntime | null> {
-  if (!environment.dev || environment.mode !== 'review' || environment.enabled !== 'true')
+  if (
+    !environment.dev ||
+    (environment.mode !== 'review' && environment.mode !== 'development') ||
+    environment.enabled !== 'true'
+  )
     return null
 
   const url = new URL(environment.url, 'http://127.0.0.1:4173')

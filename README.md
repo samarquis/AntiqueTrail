@@ -45,7 +45,7 @@ Focused commands are `npm run typecheck`, `npm run lint`, `npm run format`, `npm
 
 If two controlling sources conflict, stop the dependent work and reconcile the documents. Do not choose whichever instruction is easier.
 
-Architecture baseline is recorded in ADR 0004. ADR 0005 selects Cloudflare Pages Free plus Supabase Free for shared startup work, requires `$0` recurring infrastructure/no automatic overage, and blocks public release until the approved 15-minute RPO is funded or otherwise proven. Email, routing, media, support/status, and optional analytics retain their named feature gates. `manifest.json` is the documentation handoff inventory, not the installable PWA web-app manifest.
+Architecture baseline is recorded in ADR 0004. ADR 0005 selects Cloudflare Pages Free plus Supabase Free for shared startup work, requires `$0` recurring infrastructure/no automatic overage, and blocks public release until the approved 15-minute RPO is funded or otherwise proven. **The approved path to paid hosting (recovery funding, R2/S3 media bucket, retained originals, lifted space caps, future video) is the "Paid-tier transition plan" section inside ADR 0005, with media-specific steps in `docs/operations/M01_MEDIA_PROVIDER_RUNBOOK.md`; it activates only by a Product Owner funding approval and gate receipt.** Email, routing, media, support/status, and optional analytics retain their named feature gates. `manifest.json` is the documentation handoff inventory, not the installable PWA web-app manifest.
 
 ## Product direction
 

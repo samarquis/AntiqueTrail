@@ -1,0 +1,9 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Discover antique shops</title><desc id="desc">A small antique storefront.</desc>
+  <path fill="#FFFDFC" stroke="#202833" stroke-width="3" stroke-linejoin="round" d="M12 28h40v25H12zM9 24l5-11h36l5 11z"/>
+  <path fill="#4C628A" stroke="#202833" stroke-width="3" stroke-linejoin="round" d="M9 24h46v7H9z"/>
+  <path fill="none" stroke="#FFFDFC" stroke-width="3" d="M17 24v7m10-7v7m10-7v7m10-7v7"/>
+  <path fill="#E2E7F0" stroke="#202833" stroke-width="3" d="M18 38h13v15H18zm19 0h9v15h-9z"/>
+  <path fill="none" stroke="#202833" stroke-width="2" d="M24.5 38v15M18 45.5h13"/>
+  <circle cx="44" cy="46" r="1.8" fill="#B98B45"/>
+</svg>

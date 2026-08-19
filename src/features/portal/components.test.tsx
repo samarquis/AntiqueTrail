@@ -11,7 +11,12 @@ import {
   validateHours,
   validateUpdateDraft,
 } from './portalClient'
-import { PortalControlledChangesPage, PortalHomePage, PortalSupportPage } from './components'
+import {
+  PortalControlledChangesPage,
+  PortalHomePage,
+  PortalSupportPage,
+  PortalUpdatesPage,
+} from './components'
 import type { PortalClient, PortalHours, SupportTicket } from './types'
 
 function hours(): PortalHours {
@@ -199,6 +204,21 @@ describe('provider-neutral Store Portal boundary', () => {
     )
     expect(await screen.findByText(new RegExp(MEDIA_GATE_MESSAGE))).toBeInTheDocument()
     expect(screen.queryByLabelText(/official image file/i)).not.toBeInTheDocument()
+  })
+
+  it('announces a successful text publish in the live region', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <PortalUpdatesPage client={client()} />
+      </MemoryRouter>,
+    )
+    await user.type(await screen.findByLabelText(/headline/i), 'New finds this week')
+    await user.type(screen.getByLabelText(/details/i), 'Walnut tables arrived.')
+    await user.click(screen.getByRole('button', { name: /publish text update/i }))
+
+    expect(await screen.findByText('Text update published.')).toHaveAttribute('role', 'status')
+    expect(screen.getByText('New finds this week')).toBeInTheDocument()
   })
 
   it('uploads official media through M-01 and leaves publication pending review', async () => {

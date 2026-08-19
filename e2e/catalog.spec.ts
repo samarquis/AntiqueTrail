@@ -333,7 +333,9 @@ test.describe('Synthetic catalog design contract', () => {
     ).toBeVisible()
 
     await expect(
-      page.getByRole('status').filter({ hasText: 'Map and travel-time suggestions are not available yet' }),
+      page
+        .getByRole('status')
+        .filter({ hasText: 'Map and travel-time suggestions are not available yet' }),
     ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Show map' })).toHaveCount(0)
 

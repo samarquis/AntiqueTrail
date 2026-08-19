@@ -19,10 +19,16 @@ describe('local review harness', () => {
     vi.useRealTimers()
   })
 
-  it('cannot activate outside an explicit development review mode', async () => {
+  it('cannot activate outside an explicit local review or development mode', async () => {
     await expect(createReviewHarness({ ...base, dev: false })).resolves.toBeNull()
     await expect(createReviewHarness({ ...base, mode: 'production' })).resolves.toBeNull()
     await expect(createReviewHarness({ ...base, enabled: undefined })).resolves.toBeNull()
+  })
+
+  it('activates in plain development mode when explicitly enabled', async () => {
+    const harness = await createReviewHarness({ ...base, mode: 'development' })
+    expect(harness?.scenario.id).toBe('anonymous')
+    expect(harness?.authStore.getSession()).toBeNull()
   })
 
   it('creates an anonymous session without credentials', async () => {

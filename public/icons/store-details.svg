@@ -1,0 +1,5 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">View store details</title><desc id="desc">A storefront under a magnifying glass.</desc>
+  <path fill="#FFFDFC" stroke="#202833" stroke-width="3" stroke-linejoin="round" d="M9 28h30v24H9zM7 24l5-10h24l5 10z"/><path fill="#4C628A" stroke="#202833" stroke-width="3" d="M7 24h34v7H7z"/><path fill="#E2E7F0" stroke="#202833" stroke-width="2.5" d="M14 37h10v15H14zm15 0h6v15h-6z"/>
+  <circle cx="43" cy="42" r="11" fill="#FFFDFC" stroke="#202833" stroke-width="3"/><path fill="none" stroke="#A75E4D" stroke-width="3" stroke-linecap="round" d="m51 50 7 7"/><path fill="none" stroke="#4C628A" stroke-width="2.5" stroke-linecap="round" d="M39 42h8m-4-4v8"/>
+</svg>

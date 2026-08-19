@@ -234,10 +234,17 @@ export async function configuredComposition(
     tripOfflineDatabase?: OfflineTripDatabase
   } = {},
 ): Promise<ConfiguredComposition | null> {
+  const url = configuredValue(import.meta.env.VITE_SUPABASE_URL)
+  const anonKey = configuredValue(import.meta.env.VITE_SUPABASE_ANON_KEY)
+  // With no Supabase environment, plain `npm run dev` activates the same local
+  // review harness the explicit review build uses, so every role flow (shopper,
+  // representative, administrator) and account setup stay testable on one server.
+  const localNoEnvHarness = import.meta.env.DEV && !url && !anonKey
   if (
-    import.meta.env.DEV &&
-    import.meta.env.MODE === 'review' &&
-    import.meta.env.VITE_REVIEW_HARNESS === 'true'
+    (import.meta.env.DEV &&
+      import.meta.env.MODE === 'review' &&
+      import.meta.env.VITE_REVIEW_HARNESS === 'true') ||
+    localNoEnvHarness
   ) {
     // A production replacement makes this branch unreachable, so Vite omits both
     // local-only dynamic modules (including all fixture labels) from the bundle.
@@ -253,7 +260,7 @@ export async function configuredComposition(
     const reviewHarness = await createReviewHarness({
       dev: import.meta.env.DEV,
       mode: import.meta.env.MODE,
-      enabled: import.meta.env.VITE_REVIEW_HARNESS,
+      enabled: localNoEnvHarness ? 'true' : import.meta.env.VITE_REVIEW_HARNESS,
       url: typeof window === 'undefined' ? 'http://127.0.0.1:4173/review' : window.location.href,
     })
     if (reviewHarness) {
@@ -272,8 +279,6 @@ export async function configuredComposition(
       }
     }
   }
-  const url = configuredValue(import.meta.env.VITE_SUPABASE_URL)
-  const anonKey = configuredValue(import.meta.env.VITE_SUPABASE_ANON_KEY)
   if (!url || !anonKey) return null
   const supabase = createClient(url, anonKey, {
     db: { schema: 'app_public' },

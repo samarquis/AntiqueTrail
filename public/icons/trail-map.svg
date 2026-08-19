@@ -1,0 +1,7 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Plan a shopping trail</title><desc id="desc">A folded map with a route and destination pin.</desc>
+  <path fill="#FFFDFC" stroke="#202833" stroke-width="3" stroke-linejoin="round" d="m8 15 16-5 16 5 16-5v39l-16 5-16-5-16 5z"/>
+  <path fill="#E2E7F0" stroke="#202833" stroke-width="3" stroke-linejoin="round" d="M24 10v39m16-34v39"/>
+  <path fill="none" stroke="#4C628A" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 6" d="M14 39c8-13 14 6 23-7 6-9 10 3 15-8"/>
+  <path fill="#A75E4D" stroke="#202833" stroke-width="2.5" d="M50 18a5 5 0 0 0-5 5c0 4 5 10 5 10s5-6 5-10a5 5 0 0 0-5-5z"/><circle cx="50" cy="23" r="1.5" fill="#FFFDFC"/>
+</svg>

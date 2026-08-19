@@ -1,8 +1,8 @@
 # Antique Trail Design and Interaction Requirements
 
-Status: approved interaction baseline through the 2026-08-03 adversarial hardening pass. D31 full Audit History UI and export policy remain unresolved; two-year append-only privileged-audit retention is approved.
+Status: approved interaction baseline through the 2026-08-03 adversarial hardening pass, with the 2026-08-18 Midnight Archive visual-identity update. D31 full Audit History UI and export policy remain unresolved; two-year append-only privileged-audit retention is approved.
 
-This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines exact visual tokens, responsive rules, recurring component states, navigation, and screen-level acceptance. `PRD.md` defines product requirements, `PRODUCT_DECISIONS.md` records approved scope, `SECURITY_AND_TRUST.md` defines trust boundaries, and `IMPLEMENTATION_PLAN.md` defines delivery order. When a visual prototype conflicts with these documents, these documents win.
+This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines exact visual tokens, responsive rules, recurring component states, navigation, and screen-level acceptance; `docs/design/ICON_PLACEMENT_SPEC.md` defines the approved use of the icon family. `PRD.md` defines product requirements, `PRODUCT_DECISIONS.md` records approved scope, `SECURITY_AND_TRUST.md` defines trust boundaries, and `IMPLEMENTATION_PLAN.md` defines delivery order. When a visual prototype conflicts with these documents, these documents win.
 
 ## Product promise and audience
 
@@ -10,7 +10,7 @@ This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines 
 
 Design first for shoppers roughly 50–80+ without creating a separate age mode. The first proven workflow has one person researching and creating a trip and another person navigating it. The product must also work for an individual shopper.
 
-Use the accepted modern field-notebook direction and exact baseline tokens in `DESIGN_SYSTEM.md`: warm neutral surfaces, deep teal, Newsreader editorial headings, Atkinson Hyperlegible body text, restrained gold/rust status, and real or clearly fictional store imagery. Avoid antique-shop costume, distressed type, barnwood, parchment, public-star decoration in private workflows, dense dashboards, or unprovable route claims.
+Use the accepted Daylight Archive direction in light theme and Midnight Archive direction in dark theme, with exact tokens in `DESIGN_SYSTEM.md`: soft stone/ivory surfaces, blue-black ink, slate-blue actions, slate context, restrained brass/clay status, Newsreader editorial headings, Atkinson Hyperlegible body text, and real or clearly fictional store imagery. Follow `docs/design/ICON_PLACEMENT_SPEC.md` for every icon's purpose and location. Avoid teal, mint-glass, bottle-green, antique-shop costume, distressed type, barnwood, parchment, public-star decoration in private workflows, dense dashboards, or unprovable route claims.
 
 ## Global interaction rules
 

@@ -1,8 +1,8 @@
 # Antique Trail Design System and Screen Contract
 
-Status: approved planning baseline through the 2026-08-03 adversarial hardening pass. This file makes the accepted direction reproducible; it does not authorize application coding.
+Status: approved planning baseline, including the 2026-08-18 Midnight Archive visual-identity update. This file makes the accepted direction reproducible; it does not authorize unrelated application coding.
 
-`DESIGN.md` controls behavior and journey intent. This file controls exact visual tokens, recurring component states, responsive behavior, navigation, and screen-level acceptance. Product, security, or retention policy never comes from a prototype.
+`DESIGN.md` controls behavior and journey intent. This file controls exact visual tokens, recurring component states, responsive behavior, navigation, and screen-level acceptance. `docs/design/ICON_PLACEMENT_SPEC.md` controls the approved placement of the Antique Trail icon family. Product, security, or retention policy never comes from a prototype.
 
 ## Concept evidence and implementation authority
 
@@ -18,31 +18,46 @@ Status: approved planning baseline through the 2026-08-03 adversarial hardening 
 
 | Token | Value | Use |
 |---|---:|---|
-| `ink` | `#172421` | Primary light-theme text |
-| `muted` | `#5D6A66` | Secondary light-theme text |
-| `paper` | `#F7F3E9` | App background |
-| `card` | `#FFFDF7` | Card, field, and dialog surface |
-| `line` | `#D7D5C9` | Dividers and neutral borders |
-| `teal` | `#0B7168` | Primary action and active state |
-| `teal-dark` | `#07554F` | Hover, link, and high-contrast teal text |
-| `mint` | `#DBECE4` | Selected/active background |
-| `rust` | `#B64E2E` | Destructive and important-new status |
-| `gold` | `#C88C20` | Warning and freshness attention |
-| `olive` | `#66704A` | Eyebrow labels |
-| `focus-inner` | `#FFFDF7` | Two-pixel inner focus boundary on dark/color surfaces |
-| `focus-outer` | `#172421` | Four-pixel outer focus boundary on light surfaces |
-| `dark-paper` | `#0C0E0D` | Dark-theme background |
-| `dark-card` | `#141716` | Dark-theme card surface |
-| `dark-ink` | `#F2EFE8` | Dark-theme primary text |
-| `dark-muted` | `#A8A49B` | Dark-theme secondary text |
+| `ink` | `#202833` | Blue-black primary light-theme text and icon outline |
+| `muted` | `#5D6876` | Slate supporting text and geography |
+| `paper` | `#F6F4F0` | Soft stone app canvas |
+| `card` | `#FFFDFC` | Lifted ivory card, field, and dialog surface |
+| `line` | `#D8DCE2` | Cool-gray divider and neutral border |
+| `teal` | `#4C628A` | Legacy token name: slate-blue primary action and active state |
+| `teal-dark` | `#344A70` | Legacy token name: deep slate-blue hover and link color |
+| `mint` | `#E2E7F0` | Legacy token name: pale slate selected and active background |
+| `rust` | `#A75E4D` | Clay: destructive and important-new status |
+| `gold` | `#B98B45` | Aged brass: warning and freshness attention |
+| `olive` | `#68758A` | Legacy token name: slate context/eyebrow label |
+| `focus-inner` | `#FFFDFC` | Two-pixel inner focus boundary on dark/color surfaces |
+| `focus-outer` | `#202833` | Four-pixel outer focus boundary on light surfaces |
+| `dark-paper` | `#121519` | Midnight Archive charcoal canvas |
+| `dark-recess` | `#1A1F26` | Blue-black recessed navigation and inset surface |
+| `dark-card` | `#252B33` | Charcoal-slate raised card, field, and dialog surface |
+| `dark-line` | `#3B4552` | Dark-theme slate divider and border |
+| `dark-ink` | `#F3EEE4` | Soft ivory primary text |
+| `dark-muted` | `#B7B0A5` | Warm gray supporting text |
+| `dark-teal` | `#8795B5` | Legacy token name: dusty-blue active control, route, and link accent |
+| `dark-gold` | `#B99554` | Aged-brass warning and freshness attention |
+| `dark-rust` | `#B56E5B` | Weathered-clay destructive and important-new state |
 
-Approved contrast pairs: ink/paper `14.46:1`; ink/card `15.75:1`; muted/paper `5.10:1`; white/teal `5.87:1`; teal-dark/mint `7.07:1`; white/rust `5.10:1`; ink/gold `5.51:1`; dark-ink/dark-paper `16.86:1`; dark-muted/dark-paper `7.79:1`; dark-teal-dark/dark-mint `9.21:1`; dark-gold/dark-paper `8.61:1`. Automated contrast checks still gate implementation.
+The visual direction is **Daylight Archive** in light theme and **Midnight Archive** in dark theme: a quiet stone-and-slate companion by day, charcoal and dusty blue by night, with aged brass and clay reserved for meaning. No teal, mint-glass, bottle-green, parchment, sepia, distressed type, barnwood, or decorative antique clutter. `docs/design/PALETTE_PROPOSAL.md` and `docs/design/palette-midnight-archive.svg` are the approved visual reference for these tokens.
+
+Approved contrast pairs: ink/paper `13.53:1`; muted/paper `5.16:1`; white/slate-blue `6.14:1`; white/clay `4.83:1`; ink/brass `4.84:1`; dark-ink/dark-paper `15.83:1`; dark-muted/dark-paper `8.52:1`; dusty-blue/dark-paper `6.10:1`; aged-brass/dark-paper `6.53:1`; weathered-clay/dark-paper `4.66:1`. Automated contrast checks still gate implementation.
 
 Never communicate status with color alone. Pair each status color with plain text and, when space permits, an icon.
 
-**Semantic color reservation**: `rust` is reserved exclusively for destructive actions, danger states, and important-new status indicators. Do not apply `rust` to structural, geographic, or neutral labels such as area names, town labels, or category headings. Use `olive` for eyebrow and section label context, `muted` for secondary geographic or area text. `gold` is reserved for warning and freshness-attention states; do not apply it to decorative dividers or general emphasis. `dark-paper`, `dark-card`, `dark-ink`, and `dark-muted` are production tokens for the dark theme; they are activated in the application stylesheet under `:root[data-theme='dark']`, which `index.html` sets before first paint from the saved switcher choice or, when none, the system `prefers-color-scheme: dark`. They are not complete until verified against all approved contrast pairs in dark mode. Dark mode support is a mandatory acceptance check at every package boundary.
+**Semantic color reservation**: `rust`/clay is reserved exclusively for destructive actions, danger states, and important-new status indicators. Do not apply it to structural, geographic, or neutral labels such as area names, town labels, or category headings. Use `olive`/slate for eyebrow and section-label context, `muted` for secondary geographic or area text. `gold`/brass is reserved for warning and freshness-attention states; do not apply it to decorative dividers or general emphasis. `dark-paper`, `dark-recess`, `dark-card`, `dark-ink`, `dark-muted`, `dark-teal`, `dark-gold`, and `dark-rust` are production tokens for the Midnight Archive dark theme; they are activated in the application stylesheet under `:root[data-theme='dark']`, which `index.html` sets before first paint from the saved switcher choice or, when none, the system `prefers-color-scheme: dark`. The legacy CSS token identifiers (`teal`, `mint`, and `olive`) remain only for compatibility; their approved values are slate blue and slate, never teal or mint. They are not complete until verified against all approved contrast pairs in dark mode. Dark mode support is a mandatory acceptance check at every package boundary.
 
-**Regression guard**: geographic and area labels (for example a store card's town label) use `muted`; link hover uses `teal-dark`. `rust` must never be reintroduced for neutral or geographic text, and dark mode must never reintroduce a rust-derived literal for those roles — the dark-mode `:root` token overrides are the only place dark colors are defined.
+**Regression guard**: geographic and area labels (for example a store card's town label) use `muted`; link hover uses `teal-dark` in light theme and `dark-teal` in dark theme. `rust`/clay must never be introduced for neutral or geographic text, and dark mode must never use a clay-derived literal for those roles — the dark-mode token overrides are the only place dark colors are defined.
+
+### Icon and app identity
+
+`public/app-icon.svg` is the canonical Antique Trail install/fav icon: the approved V3 storefront mark with a keyed ivory cornice, slate-blue three-scallop awning, and ivory arched doorway on blue-black. Its identical PNG derivatives (`app-icon-192.png`, `app-icon-512.png`, and `apple-touch-icon.png`) are the manifest and Apple touch assets. The same mark is the compact header brand mark; do not substitute the former lettermark or a detailed feature icon.
+
+The approved apparel/advertising companion is `docs/design/antique-trail-storefront-shirt-lockup.svg`. It uses the same storefront geometry above the `ANTIQUE TRAIL` wordmark. Keep the phone icon text-free; use the lockup when the brand name is needed.
+
+The detailed icon family lives in `public/icons/`. `docs/design/ICON_PLACEMENT_SPEC.md` is normative for its placement: `app-icon.svg` is the compact header brand mark, `antique-store.svg` is the detailed Browse/navigation cue, `trail-map.svg` is the continuing My Trip cue, and the remaining icons are contextual to their named shopper-flow action. Icons orient and reinforce; required navigation, primary actions, statuses, and safety information always retain visible plain-language labels.
 
 ### Typography
 
@@ -69,7 +84,7 @@ Production self-hosts licensed WOFF2 subsets for Newsreader and Atkinson Hyperle
 - Minimum target: `48x48` CSS pixels; prototype reference uses `50px` for primary controls.
 - Field/button radius: `13px`; chip radius: `999px`; card/panel radius: `18–22px`; outer preview shell radius is not an application token.
 - Standard card border: `1px solid line`; important-new card: `2px solid gold`.
-- Standard card shadow: `0 5px 18px rgba(23,36,33,.06)`; dialogs/elevated shell: `0 16px 45px rgba(23,36,33,.12)`.
+- Standard card shadow: `0 5px 18px rgba(23,49,45,.06)`; dialogs/elevated shell: `0 16px 45px rgba(23,49,45,.12)`.
 - Focus: dual boundary `0 0 0 2px focus-inner, 0 0 0 6px focus-outer`; on a card-colored field the inner boundary may be dark and outer light. At least one boundary must maintain 3:1 against every adjacent color in light, dark, forced-color, teal, rust, and gold states. Never remove focus without an equivalent tested replacement.
 - Motion: short `150–200ms` transitions only for state feedback. Respect `prefers-reduced-motion` by removing animation and smooth scrolling.
 

@@ -1,7 +1,7 @@
 # ADR 0005 — Host free-first on Cloudflare Pages and Supabase
 
-- Status: Accepted topology/cost decision; H-01 and L-01 activation receipts are not accepted until their executable proofs pass
-- Date: 2026-08-03
+- Status: Accepted topology/cost decision; H-01 and L-01 activation receipts are not accepted until their executable proofs pass. A paid-tier transition plan is recorded below; it activates only by a separate Product Owner funding approval and gate receipt.
+- Date: 2026-08-03 (transition plan recorded 2026-08-17)
 - Decision owner: Product Owner
 - Applies to: local development through Regional Public MVP
 
@@ -29,6 +29,21 @@ Provider limits and prices are external facts, not permanent product requirement
 The `$0` infrastructure rule includes frontend hosting, database, authentication, object storage, functions, transactional email, routing, backup storage/automation, monitoring/status, scanning/media processing, and bandwidth. Domain registration, legal/insurance services, and optional printing are not infrastructure, but each still requires separate Product Owner approval before purchase.
 
 Regional Public MVP is not promised at `$0`. Under the approved 15-minute RPO, public launch is blocked until the Product Owner approves a paid recovery configuration or an independently tested `$0` alternative proves the same requirement. The plan records no approved monthly paid ceiling.
+
+### Paid-tier transition plan (recorded, not yet activated)
+
+The Product Owner has stated the intent to move to paid hosting after development; this section records the approved *path* so the transition is a config-and-receipt change, not a redesign. It activates only when the Product Owner signs a funding approval with a hard monthly cost ceiling (no automatic overage, no automatic upgrade) and the relevant gate receipt passes. Until then, every `$0` control above remains in force.
+
+At transition, in order:
+
+1. **Fund the recovery target.** Approve a paid plan that proves the stage's RPO/RTO (15-minute RPO/four-hour RTO for Regional Public MVP), replacing the `$0` recovery constraint with the approved ceiling. This unlocks H-01 and dependent stages.
+2. **Move the public media bucket to Cloudflare R2 (or S3).** The media pipeline (`docs/operations/M01_MEDIA_PROVIDER_RUNBOOK.md`) is provider-neutral: object keys are immutable (`official/<id>/vN/<digest>.webp`), so a bucket migration is configuration plus a receipt, with no application code change. R2 egress to the Cloudflare CDN is free, so image serving cost stays near zero at any volume.
+3. **Retain stripped originals instead of purging at 24 hours.** At paid tier, keep re-encode-safe originals in the existing private bucket so variants can be regenerated later (new thumbnail sizes, higher-quality re-encodes, future AI alt-text) without recontacting stores. Metadata stripping and quarantine remain mandatory; originals never leave the private bucket.
+4. **Lift space-based caps; keep abuse caps.** The 20 uploads/store/day and five-concurrent limits are anti-abuse and stay. The 4 MiB derivative cap is a quality/bandwidth bound and stays. Per-store *space* ceilings disappear; stores may upload as many photos as they want, bounded by the approved budget.
+5. **Future video reviews** become a new pipeline behind the same provider-neutral boundary (e.g. Cloudflare Stream or Mux), with its own receipt, quotas, and cost ceiling. Nothing in the image pipeline blocks it; nothing is built now.
+6. **Keep the 25%/75%/90% quota monitors** as runaway-bill protection: at 75% stop nonessential growth, at 90% disable optional media/uploads before core Browse/Details, account safety, deletion, revocation, or support.
+
+The transition is deliberately not an amendment of every `$0` clause in this ADR; each clause yields only when its named gate receipt (H-01, M-01, E-01, R-01, L-01) passes under the approved paid ceiling. One summary reference lives in `README.md` under Source precedence; the media-specific steps live in the M-01 runbook.
 
 ### Environment topology
 

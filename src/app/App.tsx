@@ -207,17 +207,65 @@ function AppShell({
       </a>
       <header className="site-header">
         <Link className="brand" to="/stores" aria-label="Antique Trail home">
-          <span className="brand-mark" aria-hidden="true">
-            AT
-          </span>
+          <img
+            className="brand-mark"
+            src="/app-icon.svg"
+            alt=""
+            aria-hidden="true"
+            width="28"
+            height="28"
+          />
           <span>Antique Trail</span>
         </Link>
         <nav aria-label="Primary navigation">
-          <NavLink to={adminNav ? '/admin' : '/stores'}>{adminNav ? 'Review' : 'Browse'}</NavLink>
-          <NavLink to={adminNav ? '/admin/access' : '/trips'}>
-            {adminNav ? 'Access' : 'My Trip'}
-          </NavLink>
+          {adminNav ? (
+            <>
+              <NavLink to="/admin">Review</NavLink>
+              <NavLink to="/admin/access">Access</NavLink>
+            </>
+          ) : (
+            <>
+              <NavLink to="/stores">
+                <img
+                  className="nav-icon"
+                  src="/icons/antique-store.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width="20"
+                  height="20"
+                />
+                Browse
+              </NavLink>
+              <NavLink to="/trips">
+                <img
+                  className="nav-icon"
+                  src="/icons/trail-map.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width="20"
+                  height="20"
+                />
+                My Trip
+              </NavLink>
+            </>
+          )}
           <Link to="/more" aria-current={moreIsCurrent ? 'page' : undefined}>
+            <svg
+              className="nav-icon"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="M4 6h16M4 12h16M4 18h16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
             More
           </Link>
         </nav>
@@ -241,7 +289,9 @@ function AppShell({
 }
 
 function ThemeToggle() {
-  const [dark, setDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark')
+  const [dark, setDark] = useState(
+    () => document.documentElement.getAttribute('data-theme') === 'dark',
+  )
 
   const toggle = () => {
     const next = !dark
@@ -255,8 +305,24 @@ function ThemeToggle() {
   }
 
   return (
-    <button type="button" className="theme-toggle" aria-pressed={dark} onClick={toggle}>
-      {dark ? 'Use light theme' : 'Use dark theme'}
+    <button
+      type="button"
+      className="theme-toggle"
+      aria-pressed={dark}
+      aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+      title={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+      onClick={toggle}
+    >
+      {dark ? (
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+        </svg>
+      )}
     </button>
   )
 }
@@ -283,17 +349,23 @@ function MoreMenuLock() {
 function MorePage() {
   const { session } = useAuth()
   const signedIn = Boolean(session)
-  const destinations: Array<{ to: string; label: string; requiresSignIn: boolean }> = [
-    { to: '/saved', label: 'Saved Stores', requiresSignIn: true },
-    { to: '/new-since', label: 'New Since Your Last Visit', requiresSignIn: false },
-    { to: '/account/history', label: 'Private History', requiresSignIn: true },
-    { to: '/capture', label: 'Add a Place from a Link', requiresSignIn: true },
-    { to: '/shares', label: 'Shared with Me', requiresSignIn: true },
-    { to: '/trip-ideas', label: 'Trip Ideas', requiresSignIn: true },
-    { to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true },
-    { to: '/install', label: 'Install', requiresSignIn: false },
-    { to: '/help', label: 'Help', requiresSignIn: false },
-  ]
+  const destinations: Array<{ to: string; label: string; requiresSignIn: boolean; icon?: string }> =
+    [
+      { to: '/saved', label: 'Saved Stores', requiresSignIn: true, icon: '/icons/saved-store.svg' },
+      { to: '/new-since', label: 'New Since Your Last Visit', requiresSignIn: false },
+      {
+        to: '/account/history',
+        label: 'Private History',
+        requiresSignIn: true,
+        icon: '/icons/private-notes.svg',
+      },
+      { to: '/capture', label: 'Add a Place from a Link', requiresSignIn: true },
+      { to: '/shares', label: 'Shared with Me', requiresSignIn: true },
+      { to: '/trip-ideas', label: 'Trip Ideas', requiresSignIn: true },
+      { to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true },
+      { to: '/install', label: 'Install', requiresSignIn: false },
+      { to: '/help', label: 'Help', requiresSignIn: false },
+    ]
   return (
     <main>
       <header>
@@ -304,6 +376,16 @@ function MorePage() {
       <nav className="more-menu" aria-label="More destinations">
         {destinations.map((destination) => (
           <Link key={destination.to} to={destination.to}>
+            {destination.icon && (
+              <img
+                className="more-menu__icon"
+                src={destination.icon}
+                alt=""
+                aria-hidden="true"
+                width="20"
+                height="20"
+              />
+            )}
             {destination.label}
             {!signedIn && destination.requiresSignIn && <MoreMenuLock />}
           </Link>
