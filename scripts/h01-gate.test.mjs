@@ -552,3 +552,9 @@ test('Pages artifact workflow fails closed on unsafe browser-visible configurati
     0,
   )
 })
+
+test('H-01 preactivation forbids implicit Supabase function deployment', async () => {
+  const config = await readFile(new URL('../supabase/config.toml', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(config, /^\s*\[functions\./m)
+})

@@ -57,6 +57,25 @@ SHA-256 fingerprints belong in protected configuration. A revoked, inactive,
 duplicated, substituted, or malformed key blocks deployment. Never put a private
 signing key in GitHub, the repository, Supabase, logs, or a backup.
 
+## Supabase production-deployment boundary
+
+Do not leave Supabase GitHub Integration's `Deploy to production` option enabled
+during H-01 evidence collection. Supabase deploys every Edge Function declared
+in `supabase/config.toml` on production-branch pushes, so an unrelated
+documentation merge can otherwise create a new hosted function version and
+invalidate the deployment evidence. The repository intentionally has no
+per-function declarations while provider deployment is blocked. Supabase
+requires JWT verification by default, so the removed redundant
+`verify_jwt = true` declaration does not weaken the hosted or local boundary.
+
+Before an accepted Edge Function deployment, disable the provider-side
+production integration and use a protected, digest-bound deployment procedure
+that records the source commit, function bundle digest, provider version,
+deployer, and time. Reintroduce a per-function configuration only when the
+function needs a nondefault setting and the controlled procedure explicitly
+binds that configuration. A provider version change outside that procedure
+invalidates H-01 evidence and keeps the shared stage closed.
+
 ## Build the immutable artifact
 
 Manually run `Build H-01 Pages release artifact`. It checks out `main`, installs
