@@ -84,14 +84,18 @@ jobs:
           if (privateJwkMembers.some((member) => member in publicJwk)) {
             throw new Error('VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK must not contain private key material')
           }
-          const publicMembersByType = {
-            RSA: ['n', 'e'],
-            EC: ['crv', 'x', 'y'],
-            OKP: ['crv', 'x'],
+          const isP256Coordinate = (value) => {
+            if (typeof value !== 'string' || !/^[A-Za-z0-9_-]+$/u.test(value)) return false
+            const decoded = Buffer.from(value, 'base64url')
+            return decoded.length === 32 && decoded.toString('base64url') === value
           }
-          const publicMembers = publicMembersByType[publicJwk.kty]
-          if (!publicMembers || publicMembers.some((member) => typeof publicJwk[member] !== 'string' || !publicJwk[member])) {
-            throw new Error('VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK must contain a supported public key')
+          if (
+            publicJwk.kty !== 'EC' ||
+            publicJwk.crv !== 'P-256' ||
+            !isP256Coordinate(publicJwk.x) ||
+            !isP256Coordinate(publicJwk.y)
+          ) {
+            throw new Error('VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK must contain an EC P-256 public key')
           }
 
           for (const name of [
