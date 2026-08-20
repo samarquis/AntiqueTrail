@@ -711,7 +711,7 @@ Invitation lifecycle: never store raw tokens. Delete expired, cancelled, revoked
 
 ### Backups
 
-- Follow ADR 0005. Database, Auth-related application state, Storage objects, capability configuration, deletion receipts, and revocation receipts form one matching recovery set; secrets never do. Encrypt before upload and restore only into an isolated disposable project during rehearsal.
+- Follow ADR 0006 for the Vercel deployment boundary and ADR 0005 for retained Supabase/recovery controls. Database, Auth-related application state, Storage objects, capability configuration, deletion receipts, and revocation receipts form one matching recovery set; secrets never do. Encrypt before upload and restore only into an isolated disposable project during rehearsal.
 - Shared Alpha/SLM-01 may use scheduled GitHub Actions logical exports only while two encrypted recoverable sets fit inside the 400 MB retained-artifact cap and usage stays below 1,500 minutes/month. A missed 24-hour backup closes the shared test window. Private Beta requires demonstrated four-hour backup cadence and eight-hour full restore; unreliable scheduling or incomplete Auth/Storage restoration stops external testing.
 - No selected free mechanism proves the public 15-minute RPO. Regional Public remains disabled until an approved paid recovery configuration or independently proven `$0` equivalent passes.
 - Automated

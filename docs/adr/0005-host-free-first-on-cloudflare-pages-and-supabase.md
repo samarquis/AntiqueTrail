@@ -1,11 +1,16 @@
 # ADR 0005 — Host free-first on Cloudflare Pages and Supabase
 
-- Status: Accepted topology/cost decision; H-01 and L-01 activation receipts are not accepted until their executable proofs pass. A paid-tier transition plan is recorded below; it activates only by a separate Product Owner funding approval and gate receipt.
+- Status: Partially superseded by ADR 0006 on 2026-08-20. Its Cloudflare Pages/Access/Direct Upload frontend selection is retired. Supabase, recovery, startup cost, media-transition, and service-gate requirements remain accepted; H-01 and L-01 activation receipts are not accepted until their executable proofs pass.
 - Date: 2026-08-03 (transition plan recorded 2026-08-17)
 - Decision owner: Product Owner
 - Applies to: local development through Regional Public MVP
 
 ## Context
+
+> **Supersession note:** Cloudflare facts and controls below preserve the
+> historical basis of this decision. ADR 0006 is the controlling source for
+> frontend deployment. Do not use this ADR to authorize a new Cloudflare
+> deployment.
 
 Antique Trail must have no recurring infrastructure charge during startup. That constraint cannot silently weaken privacy, authorization, recovery, accessibility, or release gates. The approved recovery targets are 24-hour RPO/one-business-day RTO for Internal Alpha, four-hour RPO/eight-hour RTO for Private Beta, and 15-minute RPO/four-hour RTO for Regional Public MVP.
 

@@ -8,12 +8,11 @@ run is not a gate receipt. Record links to real provider configuration,
 observed execution, and named-human approval. Keep capabilities disabled when
 evidence is absent, expired, or contradictory.
 
-Current code baseline:
+Current accepted code baseline before the Vercel documentation change:
 
-- Commit: `83e2f99cc4edf012ae0d375ec7c4c513c1a5c8d3`
-- CI: <https://github.com/samarquis/AntiqueTrail/actions/runs/30931710308>
-- Matt Standards review: PASS, 0 actionable P0/P1
-- Matt Spec review: PASS, 0 actionable P0/P1
+- Commit: `680681049df2c2b5495c8baa7064b091be414827`
+- CI: <https://github.com/samarquis/AntiqueTrail/actions/runs/32331761838>
+- Deployment-provider decision: ADR 0006 selects Vercel; live Vercel configuration and release evidence remain unaccepted
 
 ## Gate order
 
@@ -22,7 +21,7 @@ still follow the dependency column.
 
 | Layer | Gate               | Required decision or observed evidence                                                                                                                                   | Depends on                                                 | Current state                          |
 | ----- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | -------------------------------------- |
-| 1     | #2 H-01            | Approve Cloudflare/Supabase topology, access model, cost ceiling, quota stops, RPO/RTO; witness DB/Auth/Storage restore and rollback                                     | None                                                       | NO-GO                                  |
+| 1     | #2 H-01            | Approve Vercel/Supabase topology, plan eligibility, protected prebuilt deployment, cost ceiling, quota stops, RPO/RTO; witness DB/Auth/Storage restore and rollback      | None                                                       | NO-GO                                  |
 | 1     | #3 E-01            | Approve email provider/region/retention/cost; witness tracking-free delivery, reconciliation, retry, outage, and recovery behavior                                       | None                                                       | NO-GO                                  |
 | 1     | #4 R-01            | Approve routing/geocoding privacy, region, retention, attribution, quota/cost; witness minimized request and fallback behavior                                           | None                                                       | NO-GO                                  |
 | 1     | #5 M-01            | Approve quarantined media pipeline; witness decode limits, EXIF removal, re-encode, deletion, and restore                                                                | None                                                       | NO-GO                                  |
@@ -56,6 +55,21 @@ receipts. Record only secret identifiers, custodian, version, and rotation date.
 - `VITE_PARTNER_EMAIL_PROVIDER_ENABLED`
 - `VITE_PARTNER_MEDIA_PROVIDER_ENABLED`
 - `VITE_PARTNER_SYNTHETIC_ENABLED`
+
+### Vercel deployment values
+
+- Environment secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`,
+  `H01_PASS_RECEIPT_BASE64`
+- Environment variable: `VERCEL_SHARED_ALPHA_HOSTNAME`
+- Public signer registry: `H01_PRODUCT_SIGNER_*`, `H01_SECURITY_SIGNER_*`,
+  `H01_REVOKED_SIGNER_FINGERPRINTS_JSON`
+- Repository guard: `vercel.json` sets `git.deploymentEnabled` to `false`
+- Retired after verified cutover: `CLOUDFLARE_API_TOKEN`,
+  `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_*`
+
+The existing H-01 evidence template, receipt verifier, and Pages workflows still
+encode Cloudflare-specific operation/quota fields. They cannot authorize a
+Vercel call and must be migrated and retested before provider activation.
 
 ### Candidate services
 
@@ -191,7 +205,7 @@ Notes (content-free):
 H-01 can start now and unlocks hosted acceptance. The Product Owner must choose
 and approve:
 
-1. Cloudflare Pages + Supabase environment/access topology.
+1. The exact Vercel project/owner/plan plus Supabase environment/access topology.
 2. The allowed monthly cost/no-overage ceiling.
 3. Whether public-stage backup/restore uses an approved paid capability or a
    demonstrated compliant alternative.
@@ -199,8 +213,10 @@ and approve:
    restore/rollback execution.
 
 These choices are intake inputs, not an H-01 acceptance receipt. Every H-01
-requirement in ADR 0005 remains mandatory, including deny-by-default Cloudflare
-Access coverage, protected Direct Upload and digest-matched rollback, complete
+requirement in ADRs 0005/0006 remains mandatory, including Vercel plan-use
+eligibility, disabled automatic Git deployment, deny-by-default Deployment
+Protection for every shared hostname, protected prebuilt deployment and
+digest-matched rollback, complete
 Database/Auth/Storage/configuration recovery, quota and no-charge stops, the
 external registration journal and deployment fence, two-custodian encrypted
 backup recovery, hosted private-helper privilege/denial proofs, and separate

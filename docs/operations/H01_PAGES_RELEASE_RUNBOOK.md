@@ -1,6 +1,12 @@
-# H-01 Cloudflare Pages Direct Upload runbook
+# H-01 Cloudflare Pages Direct Upload runbook — retired
 
-Status: **pipeline implemented; provider activation remains NO-GO**
+> **Retired 2026-08-20:** ADR 0006 selects Vercel and supersedes the
+> Cloudflare frontend deployment decision. Do not use this runbook or its
+> Pages workflows for a new deployment. Historical Cloudflare evidence remains
+> valid only as NO-GO evidence. Use `H01_VERCEL_RELEASE_RUNBOOK.md` for the
+> replacement path.
+
+Status: **historical pipeline implemented but retired; no Cloudflare provider call is authorized**
 
 These workflows implement the safely automatable frontend portion of H-01.
 They do not create a Cloudflare project, configure Access, accept a gate, or

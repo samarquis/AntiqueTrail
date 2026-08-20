@@ -270,7 +270,7 @@ SLM-01 `continue` additionally requires both accounts to finish without an outsi
 
 The startup `$0` infrastructure boundary includes audit anchoring and geocoding as well as the services listed below; failure to find a compliant free L-01/R-01 option disables the dependent remote capability rather than authorizing spend.
 
-Local development, Shared Synthetic Alpha, SLM-01, and Controlled Private Beta must use `$0` recurring infrastructure unless the Product Owner separately approves a paid service. Automatic upgrades and paid overages are prohibited. The rule includes hosting, database/Auth/Storage/functions, email, routing, backups, monitoring/status, scanning, and bandwidth; domain registration, legal/insurance services, and optional printing remain separate approval-controlled costs. A free plan that cannot prove the applicable security, privacy, deletion, recovery, or abuse requirement blocks that stage; the requirement is not weakened. Cloudflare Pages Free plus Supabase Free is selected for shared startup environments under ADR 0005. Regional Public MVP remains blocked until its 15-minute RPO is proven by an approved paid configuration or validated `$0` alternative. Approved 2026-08-03.
+Local development, Shared Synthetic Alpha, SLM-01, and Controlled Private Beta must use `$0` recurring infrastructure unless the Product Owner separately approves a paid service. Automatic upgrades and paid overages are prohibited. The rule includes hosting, database/Auth/Storage/functions, email, routing, backups, monitoring/status, scanning, and bandwidth; domain registration, legal/insurance services, and optional printing remain separate approval-controlled costs. A free plan that cannot prove eligibility or the applicable access, security, privacy, deletion, recovery, or abuse requirement blocks that stage; the requirement is not weakened. Vercel prebuilt deployment plus Supabase is selected under ADRs 0006/0005; Vercel replaced Cloudflare for the frontend on 2026-08-20. Regional Public MVP remains blocked until its 15-minute RPO is proven by an approved paid configuration or validated `$0` alternative.
 
 ### Product promotion is not monetization
 
@@ -350,13 +350,13 @@ Disable break-glass access during Synthetic Internal Alpha. During Private Beta 
 5. Analytics provider; collect no optional product analytics until selected by ADR and consent/data review
 6. Transactional email gate E-01; Resend Free is the planning candidate but current terms, domain authentication, failure behavior, and quotas must pass before external use
 7. Official Store Profile Photo media-processing provider/workflow; real uploads stay disabled until M-01 passes. Shopper/review images remain post-MVP
-8. Paid public recovery configuration and monthly ceiling; ADR 0005 selects the topology but does not authorize spend
+8. Paid Vercel/public recovery configuration and monthly ceiling; ADRs 0005/0006 select the topology but do not authorize spend
 9. Final public domain and the U.S. Supabase region recorded at environment creation; both are required by B-01/H-01
 10. Legal entity and insurance; required before owner outreach/public operation but not a software behavior to invent
 11. Structured Store Event model; not MVP because native Store Updates cover announcements/sales
 12. D31 full Audit History UI and privileged-audit export; not MVP. Narrow D30 View Audit and two-year append-only retention remain required.
 13. Named human operations backup, appeal reviewer, and sole-Administrator break-glass independent reviewer. Missing capacity keeps the dependent capability disabled; an AI agent cannot fill it.
 14. Optional printing budget. Purchased media remains prohibited.
-15. H-01 signed environment activation receipt; ADR 0005 accepts the topology but no shared environment until Access, Direct Upload, serial restore, Auth/Storage recovery, quotas, and rollback pass
+15. H-01 signed environment activation receipt; ADRs 0005/0006 accept the topology but no shared environment until Vercel plan eligibility, automatic-deployment disablement, Deployment Protection, prebuilt artifact binding, serial restore, Auth/Storage recovery, quotas, and rollback pass
 16. L-01 separately administered append-only audit-anchor sink; startup privileged remote mutation stays disabled unless a `$0` option passes
 17. SEC-01 named independent public-release security reviewer and signed/retested result
