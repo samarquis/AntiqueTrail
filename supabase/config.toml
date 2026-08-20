@@ -31,6 +31,3 @@ enable_signup = false
 
 [analytics]
 enabled = false
-
-[functions.account-registration-cleanup]
-verify_jwt = true
