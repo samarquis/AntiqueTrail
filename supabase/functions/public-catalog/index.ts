@@ -8,9 +8,28 @@ declare const Deno: {
 }
 
 const url = Deno.env.get('SUPABASE_URL')
+const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
 const gatewayJwt = Deno.env.get('PUBLIC_CATALOG_GATEWAY_JWT')
 const allowedOrigin = Deno.env.get('PUBLIC_APP_ORIGIN')
 const rateSalt = Deno.env.get('PUBLIC_CATALOG_RATE_SALT')
+
+function sessionIdFromVerifiedJwt(token: string) {
+  try {
+    const encoded = token.split('.')[1]
+    const normalized = encoded.replaceAll('-', '+').replaceAll('_', '/')
+    const claims = JSON.parse(
+      atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')),
+    ) as { session_id?: unknown }
+    return typeof claims.session_id === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        claims.session_id,
+      )
+      ? claims.session_id
+      : null
+  } catch {
+    return null
+  }
+}
 
 Deno.serve(async (request, connection) => {
   const origin = request.headers.get('origin')
@@ -28,6 +47,7 @@ Deno.serve(async (request, connection) => {
   if (
     request.method !== 'POST' ||
     !url ||
+    !anonKey ||
     !gatewayJwt ||
     !rateSalt ||
     !platformAddress ||
@@ -42,16 +62,22 @@ Deno.serve(async (request, connection) => {
   }
   if (body.operation !== 'list' && body.operation !== 'details' && body.operation !== 'map')
     return Response.json({ error: { code: 'INVALID_OPERATION' } }, { status: 400, headers })
-  const client = createClient(url, gatewayJwt, {
+  const gatewayClient = createClient(url, gatewayJwt, {
     db: { schema: 'app_public' },
     auth: { persistSession: false, autoRefreshToken: false },
   })
   const authorization = request.headers.get('authorization')
   const bearer = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]
-  const actor =
-    body.operation === 'map' && bearer
-      ? (await client.auth.getUser(bearer)).data.user?.id
+  const verifiedUser =
+    bearer && bearer !== anonKey
+      ? (
+          await createClient(url, anonKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          }).auth.getUser(bearer)
+        ).data.user
       : undefined
+  const actor = verifiedUser?.id
+  const sessionId = actor && bearer ? sessionIdFromVerifiedJwt(bearer) : null
   // The actor binding is derived from a provider-verified token. A caller can
   // never inject another shopper id into saved/visited map filters.
   const safeArgs = { ...(body.args ?? {}) }
@@ -64,7 +90,26 @@ Deno.serve(async (request, connection) => {
   const keyHash = [...new Uint8Array(digest)]
     .map((value) => value.toString(16).padStart(2, '0'))
     .join('')
-  const result = await client.rpc('public_catalog_gateway_request', {
+  const syntheticResult = await gatewayClient.rpc('synthetic_catalog_gateway_request', {
+    p_key_hash: keyHash,
+    p_user_id: actor ?? null,
+    p_session_id: sessionId,
+    p_operation: body.operation,
+    p_args: safeArgs,
+  })
+  if (!syntheticResult.error) return Response.json({ data: syntheticResult.data }, { headers })
+  if (syntheticResult.error.message.includes('catalog_rate_limited'))
+    return Response.json(
+      { error: { code: 'RATE_LIMITED' } },
+      { status: 429, headers: { ...headers, 'Retry-After': '300' } },
+    )
+  if (syntheticResult.error.message.includes('synthetic_catalog_forbidden'))
+    return Response.json({ error: { code: 'ALPHA_AUTH_REQUIRED' } }, { status: 403, headers })
+  if (syntheticResult.error.message.includes('synthetic_catalog_map_disabled'))
+    return Response.json({ error: { code: 'MAP_UNAVAILABLE' } }, { status: 503, headers })
+  if (!syntheticResult.error.message.includes('synthetic_catalog_outside_stage'))
+    return Response.json({ error: { code: 'CATALOG_UNAVAILABLE' } }, { status: 503, headers })
+  const result = await gatewayClient.rpc('public_catalog_gateway_request', {
     p_key_hash: keyHash,
     p_operation: body.operation,
     p_args: safeArgs,
