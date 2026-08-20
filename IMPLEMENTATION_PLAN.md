@@ -37,7 +37,7 @@ Deliverables:
 - Architecture Decision Records
 - Repository standards
 - CI/CD design
-- Stage/provider cost model from ADR 0005: `$0` local/shared startup, no automatic paid overage, 25% headroom, conditional `$0` Private Beta only when restore/availability gates pass, and public release blocked until 15-minute RPO is funded or otherwise proven.
+- Stage/provider topology from ADRs 0005/0006: Vercel prebuilt frontend deployment with Supabase, `$0` local/shared startup unless separately funded, no automatic paid overage, 25% headroom, conditional `$0` Private Beta only when plan eligibility plus access/restore/availability gates pass, and public release blocked until 15-minute RPO is funded or otherwise proven.
 - Regional launch definition
 
 Exit criteria:
@@ -726,7 +726,7 @@ Package 1 uses the execution contract above. Packages 2–12 use `PACKAGE_CONTRA
 | 8B. Controlled Private Beta | Package 8; three sequential owner/store additions only | Initial cohort gate, each one-at-a-time expansion receipt, all three Store Partners passed, no public product promotion, separate Regional Public Readiness review opened |
 | 9. Public reviews and moderation (Phase 2B) | Package 8; review/appeal/restriction/legal rules | Eligibility/aggregate; 60-second delete Undo; case-scoped moderation; human Synthetic dress rehearsal; stage-off route/RLS/RPC proof |
 | 10A. Controlled Regional Readiness Evidence | Packages 1–9 including 8B; Package 10A Step 0 CAT-01 then accepted dependent gates; HC-02 preparation | Three-listing work forecast unlocks remaining work; fact-only catalog/cohort evidence; private/noindex promotion artifacts, consent, canonical URLs, aggregate-only campaign design; no public distribution |
-| 10B. Regional promotion and release | Signed Package 10A; Product Owner; B-01/SEC-01/L-01/HC-02; 15-minute RPO/4-hour RTO; 99.5% availability | Same tested Direct Upload digest, exact catalog promotion, public registration/capabilities, DB/Auth/Storage restore, quota/cost stops, unpaid consented promotion, monitoring/rollback, dated receipt |
+| 10B. Regional promotion and release | Signed Package 10A; Product Owner; B-01/SEC-01/L-01/HC-02; 15-minute RPO/4-hour RTO; 99.5% availability | Same tested staged Vercel Production deployment/artifact digest promoted without rebuild, exact catalog promotion, public registration/capabilities, DB/Auth/Storage restore, quota/cost stops, unpaid consented promotion, monitoring/rollback, dated receipt |
 | 11. RG-01 Topeka success evidence | Signed 10B receipt, production smoke/monitoring pass, no active stop; no elapsed-time minimum; `rg01_collection` capability | Consent, authoritative deterministic formulas/exclusions, frozen/signed/superseding receipt, linkage purge/key destruction, Product Owner-only signature, zero automatic expansion |
 | 12. One-community preparation/activation | Signed passing RG-01 plus separate Product Owner community selection | Reuse 10A/10B exact catalog, owner, consent, promotion, recovery/capacity and rollback controls for one area; Community Expansion Gate; stop after three communities for metro review |
 

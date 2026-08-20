@@ -25,7 +25,7 @@ Build an easy-to-use application that antique shoppers can use before, during, a
 - Never expose service-role credentials or private storage URLs to clients.
 - Precise location should be collected only when needed and should not become hidden background location history.
 - Build PWA-first and preserve a future path to an Android package through Capacitor.
-- Use ADR 0005's free-first startup topology. No automatic paid upgrade/overage is authorized. If a free tier cannot meet a stage's security, recovery, or availability gate, block the stage.
+- Use ADR 0006 for Vercel frontend deployment and ADR 0005 for the retained free-first Supabase/recovery/cost topology. No automatic paid upgrade/overage is authorized. If the selected Vercel plan is ineligible or cannot meet a stage's access, security, recovery, or availability gate, block the stage.
 
 ## Initial technical direction
 

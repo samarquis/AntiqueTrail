@@ -1,4 +1,4 @@
-name: Build H-01 Pages release artifact
+name: RETIRED - Build H-01 Pages release artifact
 
 on:
   workflow_dispatch:
@@ -12,6 +12,7 @@ concurrency:
 
 jobs:
   build-once:
+    if: ${{ false }} # ADR 0006 selects Vercel; retained only as historical implementation evidence.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:

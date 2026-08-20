@@ -1,4 +1,4 @@
-name: Deploy existing H-01 Pages artifact
+name: RETIRED - Deploy existing H-01 Pages artifact
 
 on:
   workflow_dispatch:
@@ -46,6 +46,7 @@ concurrency:
 
 jobs:
   deploy-existing:
+    if: ${{ false }} # ADR 0006 selects Vercel; this workflow must never call Cloudflare again.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:

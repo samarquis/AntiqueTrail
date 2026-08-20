@@ -1,7 +1,7 @@
 {
   "project": "Antique Trail",
-  "handoff_version": "2.6",
-  "generated_date": "2026-08-18",
+  "handoff_version": "2.7",
+  "generated_date": "2026-08-20",
   "files": [
     "README.md",
     "CODEX_START_PROMPT.md",
@@ -24,6 +24,7 @@
     "docs/adr/0003-owner-controlled-pilot-store-draft-with-atomic-approval.md",
     "docs/adr/0004-start-with-one-react-pwa-and-server-enforced-role-boundaries.md",
     "docs/adr/0005-host-free-first-on-cloudflare-pages-and-supabase.md",
+    "docs/adr/0006-deploy-static-pwa-on-vercel-with-supabase.md",
     "docs/design/README.md",
     "docs/design/PALETTE_PROPOSAL.md",
     "docs/design/palette-midnight-archive.svg",

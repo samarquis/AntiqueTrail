@@ -57,7 +57,7 @@ An independent team may build only the provider-neutral contract until the named
 
 - Routing ADR blocks only Package 5B; Package 5A remains manual-order/hours-only.
 - Transactional-email ADR blocks real invitation/status delivery and Package 6 external use, not Synthetic UI tests.
-- ADR 0005/H-01 blocks any shared environment until all hostnames are access-protected and Alpha restore/quotas pass. Startup has `$0` recurring infrastructure/no overage. Regional Public remains blocked until 15-minute RPO is funded or independently proven at `$0`; no paid ceiling is approved.
+- ADRs 0005/0006 and H-01 block any shared environment until Vercel plan eligibility, disabled automatic Git deployment, protection of every reachable hostname, and Alpha restore/quotas pass. Startup has `$0` recurring infrastructure/no overage unless separately funded. Regional Public remains blocked until 15-minute RPO is funded or independently proven at `$0`; no paid ceiling is approved.
 - L-01 blocks privileged shared/external mutation until a separately administered append-only chain-root sink passes at `$0` for startup; no sink means local-only privileged testing.
 - SEC-01 independent security review and B-01 final brand/domain block Package 10B.
 - M-01 blocks real Official Store media/support screenshots; placeholders/text remain. Claim-document upload is not Regional Public MVP scope.
@@ -93,4 +93,4 @@ Manifest v2.5 contains 23/23 declared handoff files. Fresh independent adversari
 | Cross-document coherence and independent handoff | 10/10 |
 | **Total plan quality** | **100/100** |
 
-This 100/100 rates the implementation plan and independent-build handoff only. No application code, migration, automated test, CI workflow, Supabase project, Cloudflare Pages project, deployment, recovery rehearsal, provider receipt, external participant, or public release exists yet. H-01/E-01/R-01/M-01/L-01/S-01/SEC-01/B-01/HC-01/HC-02 and package acceptance checks remain executable stop gates; a failed or unproved gate blocks its dependent stage and does not reduce the plan score by being honestly unresolved at runtime.
+This 100/100 rates the original implementation-plan handoff, not current deployment readiness. Application code, migrations, automated tests, CI, and a Supabase project now exist, but no accepted Vercel deployment, recovery rehearsal, provider PASS receipt, external participant, or public release has been established. H-01/E-01/R-01/M-01/L-01/S-01/SEC-01/B-01/HC-01/HC-02 and package acceptance checks remain executable stop gates; a failed or unproved gate blocks its dependent stage and does not reduce the historical plan score by being honestly unresolved at runtime.
