@@ -168,7 +168,7 @@ test.describe('Synthetic catalog design contract', () => {
       }
     })
 
-    expect(contract.background).toBe('rgb(247, 243, 233)')
+    expect(contract.background).toBe('rgb(246, 244, 240)')
     expect(contract.bodyFontSize).toBe(18)
     expect(contract.bodyLineHeight).toBe(27)
     expect(contract.headingFontSize).toBe(42)
@@ -189,8 +189,8 @@ test.describe('Synthetic catalog design contract', () => {
   test('reserves rust for destructive states: area labels use muted, hover uses teal-dark', async ({
     page,
   }) => {
-    const mutedRgb = 'rgb(93, 106, 102)'
-    const rustRgb = 'rgb(182, 78, 46)'
+    const mutedRgb = 'rgb(93, 104, 118)'
+    const rustRgb = 'rgb(167, 94, 77)'
 
     const areaLabel = page.locator('.catalog-card__area').first()
     await expect(areaLabel).toBeVisible()
@@ -198,7 +198,7 @@ test.describe('Synthetic catalog design contract', () => {
 
     const link = page.locator('.catalog-card h2 a').first()
     await link.hover()
-    await expect(link).toHaveCSS('color', 'rgb(7, 85, 79)')
+    await expect(link).toHaveCSS('color', 'rgb(52, 74, 112)')
 
     const colors = await page.evaluate((rust) => {
       const area = document.querySelector('.catalog-card__area')

@@ -38,7 +38,7 @@ describe('Synthetic Store image fixtures', () => {
     expect(blueFinch).toMatchObject({
       phone: '+1-785-555-0101',
       email: 'hello@blue-finch.example.invalid',
-      asOfUtc: '2026-08-05T15:00:00Z',
+      asOfUtc: '2026-08-12T15:00:00Z',
       freshness: { status: 'current', verifiedAt: '2026-08-01T15:00:00Z' },
       provenance: { sourceLabel: 'Antique Trail Synthetic Store fixture' },
       accessibility: { status: 'verified' },

@@ -50,8 +50,8 @@ values('32000000-0000-4000-8000-000000000010','32000000-0000-4000-8000-000000000
 insert into shopper_private.catalog_last_seen(user_id,area_id,seen_at) values
   ('32000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','2026-08-01T00:00:00Z');
 insert into shopper_private.catalog_new_dismissals(user_id,store_id,dismissed_at) values
-  ('32000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000001004','2026-06-01T00:00:00Z'),
-  ('32000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000001005','2026-07-20T00:00:00Z');
+  ('32000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000001004',statement_timestamp() - interval '40 days'),
+  ('32000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000001005',statement_timestamp() - interval '10 days');
 insert into shopper_private.store_correction_reports(report_id,reporter_user_id,store_id,correction_type,description,public_source_url,assigned_admin_id,state)
 values('32000000-0000-4000-8000-000000000020','32000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000001001','hours','OWNER-CORRECTION','https://example.test/source','32000000-0000-4000-8000-000000000002','triaged');
 insert into candidate_private.candidate_links(candidate_id,owner_user_id,normalized_url,destination_host,title,note,provenance,extraction_state) values

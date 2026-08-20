@@ -382,7 +382,7 @@ describe('trustworthy Store Details contract', () => {
     },
     hoursExceptions: [
       {
-        date: '2026-08-09',
+        date: '2026-08-16',
         label: 'Summer market Sunday',
         status: 'open' as const,
         intervals: [{ opensAt: '11:00', closesAt: '15:00' }],
