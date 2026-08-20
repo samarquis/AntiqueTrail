@@ -457,22 +457,18 @@ test('Pages artifact workflow fails closed on unsafe browser-visible configurati
     .split('\n')
     .map((line) => line.slice(10))
     .join('\n')
+  const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
   const validConfig = {
     VITE_SUPABASE_URL: 'https://example.supabase.co',
     VITE_SUPABASE_ANON_KEY: 'sb_publishable_test',
     VITE_TRIP_OFFLINE_GRANT_KEY_ID: 'shared-alpha-2026-08',
-    VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: JSON.stringify({
-      kty: 'EC',
-      crv: 'P-256',
-      x: Buffer.alloc(32, 1).toString('base64url'),
-      y: Buffer.alloc(32, 2).toString('base64url'),
-    }),
+    VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: JSON.stringify(publicKey.export({ format: 'jwk' })),
     VITE_PARTNER_EMAIL_PROVIDER_ENABLED: 'true',
     VITE_PARTNER_MEDIA_PROVIDER_ENABLED: 'false',
     VITE_PARTNER_SYNTHETIC_ENABLED: 'true',
   }
   const runPreflight = (overrides = {}) =>
-    spawnSync(process.execPath, ['--input-type=module', '--eval', preflightScript], {
+    spawnSync(process.execPath, ['--eval', preflightScript], {
       encoding: 'utf8',
       env: { ...process.env, ...validConfig, ...overrides },
     })
@@ -484,6 +480,17 @@ test('Pages artifact workflow fails closed on unsafe browser-visible configurati
   assert.notEqual(runPreflight({ VITE_SUPABASE_URL: 'not-a-url' }).status, 0)
   assert.notEqual(runPreflight({ VITE_SUPABASE_URL: 'http://example.supabase.co' }).status, 0)
   assert.notEqual(runPreflight({ VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: '{}' }).status, 0)
+  assert.notEqual(
+    runPreflight({
+      VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: JSON.stringify({
+        kty: 'EC',
+        crv: 'P-256',
+        x: Buffer.alloc(32, 1).toString('base64url'),
+        y: Buffer.alloc(32, 2).toString('base64url'),
+      }),
+    }).status,
+    0,
+  )
   assert.notEqual(
     runPreflight({
       VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: JSON.stringify({

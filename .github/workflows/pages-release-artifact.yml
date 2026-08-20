@@ -28,6 +28,7 @@ jobs:
       - name: Validate browser-visible release configuration
         shell: node {0}
         run: |
+          const { createPublicKey } = require('node:crypto')
           const required = [
             'VITE_SUPABASE_URL',
             'VITE_SUPABASE_ANON_KEY',
@@ -96,6 +97,11 @@ jobs:
             !isP256Coordinate(publicJwk.y)
           ) {
             throw new Error('VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK must contain an EC P-256 public key')
+          }
+          try {
+            createPublicKey({ key: publicJwk, format: 'jwk' })
+          } catch {
+            throw new Error('VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK must contain an importable EC P-256 public key')
           }
 
           for (const name of [
