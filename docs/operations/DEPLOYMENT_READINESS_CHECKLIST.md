@@ -122,6 +122,16 @@ service-role key is not a substitute.
   `PUBLIC_CATALOG_RATE_SALT`
 - `PARTNER_SYNTHETIC_ENABLED`
 
+The single catalog Edge Function selects its database projection from signed
+server state, never from a browser flag. While `environment_stage` is
+`synthetic_alpha`, it requires a non-null stage receipt, `private_auth=true`,
+`receipt_only` registration with its signed receipt, an open registration
+quarantine latch, and an active exact session with an active Shopper grant.
+Only then may the constrained catalog gateway return Synthetic Stores. Outside
+that stage it uses the Package 10B public projection, which continues to hide
+Synthetic Stores. Missing or revoked stage/account evidence fails closed; the
+browser cannot call either catalog RPC directly.
+
 Real partner email and media remain disabled until E-01 and M-01 are accepted.
 
 ## Environment deployment record
