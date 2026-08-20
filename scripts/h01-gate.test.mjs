@@ -4,6 +4,8 @@ import { createHash, generateKeyPairSync, sign } from 'node:crypto'
 import { mkdtemp, readFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
+import process from 'node:process'
 import test from 'node:test'
 import { URL } from 'node:url'
 import {
@@ -416,4 +418,137 @@ test('Pages workflow verifies and consumes H-01 authorization before provider ca
   assert.match(workflow, /--expected-transition no-registration-transition/)
   assert.match(workflow, /H01_REVOKED_SIGNER_FINGERPRINTS_JSON/)
   assert.doesNotMatch(workflow, /H01_.*PRIVATE_KEY/)
+})
+
+test('Pages artifact workflow fails closed on unsafe browser-visible configuration', async () => {
+  const workflow = (
+    await readFile(
+      new URL('../.github/workflows/pages-release-artifact.yml', import.meta.url),
+      'utf8',
+    )
+  ).replaceAll('\r\n', '\n')
+  const required = [
+    'VITE_SUPABASE_URL',
+    'VITE_SUPABASE_ANON_KEY',
+    'VITE_TRIP_OFFLINE_GRANT_KEY_ID',
+    'VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK',
+    'VITE_PARTNER_EMAIL_PROVIDER_ENABLED',
+    'VITE_PARTNER_MEDIA_PROVIDER_ENABLED',
+    'VITE_PARTNER_SYNTHETIC_ENABLED',
+  ]
+
+  assert.match(workflow, /environment:\s+name: shared-alpha/u)
+  for (const name of required) {
+    assert.match(workflow, new RegExp(`${name}: \\$\\{\\{ vars\\.${name} \\}\\}`))
+  }
+
+  const preflight = workflow.indexOf('Validate browser-visible release configuration')
+  const checkout = workflow.indexOf('Checkout exact main revision')
+  const build = workflow.indexOf('Check, test, and build once')
+  assert.ok(preflight >= 0 && preflight < checkout && checkout < build)
+  assert.match(workflow.slice(preflight, checkout), /shell: node \{0\}/u)
+
+  const runMarker = '        run: |\n'
+  const runStart = workflow.indexOf(runMarker, preflight) + runMarker.length
+  const runEnd = workflow.indexOf('\n      - name:', runStart)
+  assert.ok(runStart >= runMarker.length && runEnd > runStart)
+  const preflightScript = workflow
+    .slice(runStart, runEnd)
+    .split('\n')
+    .map((line) => line.slice(10))
+    .join('\n')
+  const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+  const validConfig = {
+    VITE_SUPABASE_URL: 'https://example.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'sb_publishable_test',
+    VITE_TRIP_OFFLINE_GRANT_KEY_ID: 'shared-alpha-2026-08',
+    VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: JSON.stringify(publicKey.export({ format: 'jwk' })),
+    VITE_PARTNER_EMAIL_PROVIDER_ENABLED: 'true',
+    VITE_PARTNER_MEDIA_PROVIDER_ENABLED: 'false',
+    VITE_PARTNER_SYNTHETIC_ENABLED: 'true',
+  }
+  const runPreflight = (overrides = {}) =>
+    spawnSync(process.execPath, ['--eval', preflightScript], {
+      encoding: 'utf8',
+      env: { ...process.env, ...validConfig, ...overrides },
+    })
+
+  assert.equal(runPreflight().status, 0)
+  for (const name of required) {
+    assert.notEqual(runPreflight({ [name]: '' }).status, 0)
+  }
+  assert.notEqual(runPreflight({ VITE_SUPABASE_URL: 'not-a-url' }).status, 0)
+  assert.notEqual(runPreflight({ VITE_SUPABASE_URL: 'http://example.supabase.co' }).status, 0)
+  assert.notEqual(runPreflight({ VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: '{}' }).status, 0)
+  assert.notEqual(
+    runPreflight({
+      VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: JSON.stringify({
+        kty: 'EC',
+        crv: 'P-256',
+        x: Buffer.alloc(32, 1).toString('base64url'),
+        y: Buffer.alloc(32, 2).toString('base64url'),
+      }),
+    }).status,
+    0,
+  )
+  assert.notEqual(
+    runPreflight({
+      VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: JSON.stringify({
+        kty: 'OKP',
+        crv: 'Ed25519',
+        x: Buffer.alloc(32, 1).toString('base64url'),
+      }),
+    }).status,
+    0,
+  )
+  assert.notEqual(
+    runPreflight({
+      VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: JSON.stringify({
+        kty: 'EC',
+        crv: 'P-256',
+        x: Buffer.alloc(32, 1).toString('base64url'),
+      }),
+    }).status,
+    0,
+  )
+  assert.notEqual(
+    runPreflight({
+      VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: JSON.stringify({
+        kty: 'EC',
+        crv: 'P-256',
+        x: Buffer.alloc(31, 1).toString('base64url'),
+        y: Buffer.alloc(32, 2).toString('base64url'),
+      }),
+    }).status,
+    0,
+  )
+  assert.notEqual(
+    runPreflight({
+      VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: JSON.stringify({
+        kty: 'EC',
+        crv: 'P-256',
+        x: 'not-base64url!',
+        y: Buffer.alloc(32, 2).toString('base64url'),
+      }),
+    }).status,
+    0,
+  )
+  assert.notEqual(
+    runPreflight({ VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: '{"kty":"OKP","d":"private"}' }).status,
+    0,
+  )
+  assert.notEqual(runPreflight({ VITE_PARTNER_EMAIL_PROVIDER_ENABLED: 'yes' }).status, 0)
+
+  const secret = 'sb_secret_do-not-print-this-value'
+  const secretResult = runPreflight({ VITE_SUPABASE_ANON_KEY: secret })
+  assert.notEqual(secretResult.status, 0)
+  assert.doesNotMatch(`${secretResult.stdout}${secretResult.stderr}`, new RegExp(secret))
+
+  const serviceRolePayload = Buffer.from(JSON.stringify({ role: 'service_role' })).toString(
+    'base64url',
+  )
+  assert.notEqual(
+    runPreflight({ VITE_SUPABASE_ANON_KEY: `header.${serviceRolePayload}.signature` }).status,
+    0,
+  )
 })

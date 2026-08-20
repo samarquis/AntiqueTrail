@@ -28,11 +28,24 @@ the GitHub plan supports it, restrict deployment branches to `main`, and store:
 | Var    | `H01_SECURITY_SIGNER_FINGERPRINT`            | SHA-256 of Security Ed25519 SPKI DER         |
 | Var    | `H01_SECURITY_SIGNER_PUBLIC_KEY_SPKI_BASE64` | Security public key only                     |
 | Var    | `H01_REVOKED_SIGNER_FINGERPRINTS_JSON`       | JSON array of revoked signer keys            |
+| Var    | `VITE_SUPABASE_URL`                          | Public HTTPS Supabase project URL            |
+| Var    | `VITE_SUPABASE_ANON_KEY`                     | Current publishable or legacy anon key       |
+| Var    | `VITE_TRIP_OFFLINE_GRANT_KEY_ID`             | Public offline-grant verification key ID     |
+| Var    | `VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK`         | Public EC P-256 verification JWK             |
+| Var    | `VITE_PARTNER_EMAIL_PROVIDER_ENABLED`        | Public browser feature flag, `true`/`false`  |
+| Var    | `VITE_PARTNER_MEDIA_PROVIDER_ENABLED`        | Public browser feature flag, `true`/`false`  |
+| Var    | `VITE_PARTNER_SYNTHETIC_ENABLED`             | Public browser feature flag, `true`/`false`  |
 
 Do not configure these names at repository scope. Environment-scoped values
 ensure that the reviewer gate is crossed before they are released to a job.
-Missing or malformed configuration produces a successful no-op workflow with
-a `Deployment blocked safely` summary; it never performs a provider call.
+The seven `VITE_*` values are public build inputs embedded in browser assets,
+not secrets. `VITE_SUPABASE_ANON_KEY` accepts a current `sb_publishable_...`
+value or a legacy anon key; never use a `sb_secret_...` or service-role key.
+The artifact workflow validates these inputs as its first step and fails before
+checkout or build if any value is missing or unsafe. It reports variable names
+only and never logs their values. Separately, missing or malformed deployment
+configuration produces a successful no-op workflow with a
+`Deployment blocked safely` summary and never performs a provider call.
 
 The token must allow only the selected account/project's Pages deployment and
 deployment inspection operations. Record its identifier, custodian, version,
