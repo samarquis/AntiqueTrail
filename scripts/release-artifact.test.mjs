@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -163,7 +163,7 @@ test('binds a deployment receipt to the verified artifact digest', async () => {
       projectName: 'antique-trail',
       branch: 'shared-alpha',
       environment: 'shared-alpha',
-      wranglerVersion: '4.28.1',
+      cliVersion: '4.28.1',
       mode: 'rollback',
       reasonCode: 'restore-prior-accepted',
       sourceRunId: '1234',
@@ -183,4 +183,107 @@ test('binds a deployment receipt to the verified artifact digest', async () => {
   assert.equal(receipt.artifact.artifactDigest, manifest.artifactDigest)
   assert.match(receipt.receiptDigest, /^[a-f0-9]{64}$/)
   assert.deepEqual(JSON.parse(await readFile(receiptFile, 'utf8')), receipt)
+})
+
+const VERCEL_AUTH_SOURCES = [
+  '/auth/callback/:path*',
+  '/auth/register/:path*',
+  '/auth/verify/:path*',
+  '/auth/recovery/:path*',
+]
+const VERCEL_COMMON = {
+  repository: 'samarquis/AntiqueTrail',
+  'node-version': 'v20.19.0',
+  'npm-version': '11.13.1',
+  'runner-os': 'Linux',
+  'runner-arch': 'X64',
+}
+
+async function vercelFixture() {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'antique-trail-vercel-release-'))
+  const dist = path.join(root, 'output')
+  const bundle = path.join(root, 'bundle')
+  const lockfile = path.join(root, 'package-lock.json')
+  await mkdir(dist, { recursive: true })
+  await writeFile(path.join(dist, 'index.html'), '<h1>Antique Trail</h1>\n')
+  await writeFile(
+    path.join(dist, 'config.json'),
+    JSON.stringify({
+      version: 3,
+      routes: null,
+      headers: VERCEL_AUTH_SOURCES.map((source) => ({
+        source,
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+        ],
+      })),
+    }),
+  )
+  await writeFile(lockfile, '{}\n')
+  return { root, dist, bundle, lockfile }
+}
+
+test('creates and verifies a deterministic Vercel prebuilt bundle', async () => {
+  const first = await vercelFixture()
+  const second = await vercelFixture()
+  const common = { ...VERCEL_COMMON, 'source-sha': SOURCE_SHA }
+  const firstManifest = await createRelease({
+    ...common,
+    kind: 'vercel',
+    dist: first.dist,
+    out: first.bundle,
+    lockfile: first.lockfile,
+  })
+  const secondManifest = await createRelease({
+    ...common,
+    kind: 'vercel',
+    dist: second.dist,
+    out: second.bundle,
+    lockfile: second.lockfile,
+  })
+
+  assert.equal(firstManifest.artifactDigest, secondManifest.artifactDigest)
+  const verified = await verifyRelease({
+    kind: 'vercel',
+    bundle: first.bundle,
+    'expected-digest': firstManifest.artifactDigest,
+    'expected-source-sha': SOURCE_SHA,
+  })
+  assert.deepEqual(verified.files, firstManifest.files)
+})
+
+test('rejects a Vercel bundle without a readable config.json', async () => {
+  const item = await vercelFixture()
+  await rm(path.join(item.dist, 'config.json'))
+  await assert.rejects(
+    createRelease({
+      ...VERCEL_COMMON,
+      kind: 'vercel',
+      'source-sha': SOURCE_SHA,
+      dist: item.dist,
+      out: item.bundle,
+      lockfile: item.lockfile,
+    }),
+    /readable config\.json/,
+  )
+})
+
+test('rejects a Vercel bundle without route-specific private auth headers', async () => {
+  const item = await vercelFixture()
+  await writeFile(
+    path.join(item.dist, 'config.json'),
+    JSON.stringify({ version: 3, routes: null, headers: [] }),
+  )
+  await assert.rejects(
+    createRelease({
+      ...VERCEL_COMMON,
+      kind: 'vercel',
+      'source-sha': SOURCE_SHA,
+      dist: item.dist,
+      out: item.bundle,
+      lockfile: item.lockfile,
+    }),
+    /lacks private no-store auth headers/,
+  )
 })

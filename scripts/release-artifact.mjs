@@ -51,22 +51,23 @@ async function inventory(root) {
   return files
 }
 
-export async function assertProductionArtifact(root) {
-  const files = await inventory(root)
-  for (const file of files) {
-    const contents = await readFile(path.join(root, ...file.path.split('/')), 'utf8')
-    const marker = REVIEW_ONLY_MARKERS.find((value) => contents.includes(value))
-    if (marker) throw new Error(`Production artifact contains review-only marker: ${marker}`)
-  }
-  const headers = await readFile(path.join(root, '_headers'), 'utf8').catch(() => '')
-  for (const route of ['/auth/callback*', '/auth/register*', '/auth/verify*', '/auth/recovery*']) {
-    const start = headers.indexOf(route)
+const AUTH_ROUTES = ['/auth/callback*', '/auth/register*', '/auth/verify*', '/auth/recovery*']
+const VERCEL_AUTH_ROUTES = [
+  '/auth/callback/:path*',
+  '/auth/register/:path*',
+  '/auth/verify/:path*',
+  '/auth/recovery/:path*',
+]
+
+function assertPagesAuthHeaders(headersText) {
+  for (const route of AUTH_ROUTES) {
+    const start = headersText.indexOf(route)
     const block =
       start < 0
         ? ''
-        : headers.slice(
+        : headersText.slice(
             start,
-            headers.indexOf('\n\n', start) < 0 ? undefined : headers.indexOf('\n\n', start),
+            headersText.indexOf('\n\n', start) < 0 ? undefined : headersText.indexOf('\n\n', start),
           )
     if (
       !/Cache-Control:\s*private,\s*no-store/iu.test(block) ||
@@ -74,6 +75,42 @@ export async function assertProductionArtifact(root) {
     )
       throw new Error(`Production artifact lacks private no-store auth headers: ${route}`)
   }
+}
+
+function assertVercelAuthHeaders(config) {
+  const entries = Array.isArray(config?.headers) ? config.headers : []
+  for (const route of VERCEL_AUTH_ROUTES) {
+    const block = entries.find((item) => item?.source === route)?.headers ?? []
+    const value = (key) =>
+      block.find((item) => typeof item?.key === 'string' && item.key.toLowerCase() === key)
+        ?.value ?? ''
+    if (
+      !/private,\s*no-store/iu.test(value('cache-control')) ||
+      !/^no-referrer$/iu.test(value('referrer-policy'))
+    )
+      throw new Error(`Production artifact lacks private no-store auth headers: ${route}`)
+  }
+}
+
+export async function assertProductionArtifact(root, kind = 'pages') {
+  const files = await inventory(root)
+  for (const file of files) {
+    const contents = await readFile(path.join(root, ...file.path.split('/')), 'utf8')
+    const marker = REVIEW_ONLY_MARKERS.find((value) => contents.includes(value))
+    if (marker) throw new Error(`Production artifact contains review-only marker: ${marker}`)
+  }
+  if (kind === 'vercel') {
+    let config
+    try {
+      config = JSON.parse(await readFile(path.join(root, 'config.json'), 'utf8'))
+    } catch {
+      throw new Error('Vercel build output lacks a readable config.json')
+    }
+    assertVercelAuthHeaders(config)
+    return
+  }
+  if (kind !== 'pages') throw new Error(`Unsupported artifact kind: ${kind}`)
+  assertPagesAuthHeaders(await readFile(path.join(root, '_headers'), 'utf8').catch(() => ''))
 }
 
 function treeDigest(files) {
@@ -110,8 +147,9 @@ export async function createRelease(options) {
   const lockfile = path.resolve(requireValue(options, 'lockfile'))
   const outStats = await lstat(out).catch(() => null)
   if (outStats) throw new Error(`Output already exists: ${out}`)
+  const kind = options.kind ?? 'pages'
 
-  await assertProductionArtifact(dist)
+  await assertProductionArtifact(dist, kind)
   const files = await inventory(dist)
   const manifest = {
     schemaVersion: 1,
@@ -143,7 +181,7 @@ export async function verifyRelease(options) {
   const expectedDigest = requireValue(options, 'expected-digest', SHA256)
   const expectedSourceSha = requireValue(options, 'expected-source-sha', SOURCE_SHA)
   const manifest = JSON.parse(await readFile(path.join(bundle, 'artifact-manifest.json'), 'utf8'))
-  await assertProductionArtifact(path.join(bundle, 'dist'))
+  await assertProductionArtifact(path.join(bundle, 'dist'), options.kind ?? 'pages')
   const actualFiles = await inventory(path.join(bundle, 'dist'))
   const actualDigest = treeDigest(actualFiles)
 
@@ -166,6 +204,7 @@ export async function createReceipt(options) {
   const expectedSourceSha = requireValue(options, 'expected-source-sha', SOURCE_SHA)
   const manifest = await verifyRelease({
     bundle,
+    kind: options.kind,
     'expected-digest': expectedDigest,
     'expected-source-sha': expectedSourceSha,
   })
@@ -177,7 +216,7 @@ export async function createReceipt(options) {
     'projectName',
     'branch',
     'environment',
-    'wranglerVersion',
+    'cliVersion',
     'mode',
     'reasonCode',
     'sourceRunId',
