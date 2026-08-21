@@ -12,10 +12,13 @@ export interface AppSession {
   revokedAt?: number
 }
 
-export interface AuthCallback {
-  kind: 'verify' | 'recovery'
-  tokenHash: string
-}
+/**
+ * Credentials captured by the preflight. Email links carry a token hash; social
+ * returns carry a PKCE code (or the provider's cancellation error).
+ */
+export type AuthCallback =
+  | { kind: 'verify' | 'recovery'; tokenHash: string }
+  | { kind: 'oauth'; code?: string; oauthError?: string }
 
 export const GENERIC_AUTH_FAILURE =
   'We could not complete that request. Check your details or try again.'

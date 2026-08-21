@@ -40,4 +40,26 @@ describe('auth callback preflight', () => {
     window.history.back()
     expect(window.location.hash).toBe('')
   })
+
+  it('captures an OAuth PKCE code, strips only OAuth params, and preserves returnTo', () => {
+    window.history.replaceState({}, '', '/auth/callback?code=pkce-code-1&returnTo=%2Fsaved')
+    expect(preflightAuthCallback()).toEqual({ kind: 'oauth', code: 'pkce-code-1' })
+    expect(window.location.pathname + window.location.search).toBe(
+      '/auth/callback?returnTo=%2Fsaved',
+    )
+    expect(takePreflightAuthCallback()).toEqual({ kind: 'oauth', code: 'pkce-code-1' })
+    expect(takePreflightAuthCallback()).toBeNull()
+    expect(localStorage.length).toBe(0)
+    expect(sessionStorage.length).toBe(0)
+  })
+
+  it('captures a provider cancellation without leaving the error in the URL', () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/auth/callback?error=access_denied&error_description=user+cancelled',
+    )
+    expect(preflightAuthCallback()).toEqual({ kind: 'oauth', oauthError: 'access_denied' })
+    expect(window.location.search).toBe('')
+  })
 })

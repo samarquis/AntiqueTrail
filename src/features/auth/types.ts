@@ -55,6 +55,8 @@ export type ProviderCallbackResult =
   | { kind: 'blocked' }
   | { kind: 'error' }
 
+export type OAuthProviderId = 'google' | 'facebook'
+
 export interface AuthProviderAdapter {
   signIn(email: string, password: string): Promise<ProviderSignInResult>
   sendRecovery(email: string): Promise<void>
@@ -62,6 +64,16 @@ export interface AuthProviderAdapter {
   signOut(session: AuthSession): Promise<void>
   register?(request: RegistrationRequest): Promise<ProviderRegistrationResult>
   verifyCallback?(kind: 'verify' | 'recovery', tokenHash: string): Promise<ProviderCallbackResult>
+  /**
+   * Starts the browser redirect to a social provider. Resolves only when the
+   * redirect could not start; on success the page navigates away.
+   */
+  signInWithProvider?(providerId: OAuthProviderId, returnTo?: string): Promise<void>
+  /**
+   * Completes an OAuth return after the preflight captured the PKCE code (or the
+   * provider cancellation). A non-admitted identity resolves to 'blocked'.
+   */
+  oauthCallback?(code: string | null, oauthError: string | null): Promise<ProviderCallbackResult>
 }
 
 export interface SessionRegistryClient {

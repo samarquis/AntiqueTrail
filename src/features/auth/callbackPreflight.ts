@@ -15,15 +15,27 @@ export function preflightAuthCallback(
   documentRoot: Document = document,
 ): AuthCallback | null {
   if (location.pathname !== '/auth/callback') return null
-  const params = new URLSearchParams(location.hash.startsWith('#') ? location.hash.slice(1) : '')
-  const tokenHash = params.get('token_hash')
-  const type = params.get('type')
-  pendingCallback =
-    tokenHash && (type === 'verify' || type === 'recovery') ? { kind: type, tokenHash } : null
+  const search = new URLSearchParams(location.search)
+  const oauthCode = search.get('code')
+  const oauthError = search.get('error')
+  if (oauthCode || oauthError) {
+    const callback: AuthCallback = { kind: 'oauth' }
+    if (oauthCode) callback.code = oauthCode
+    if (oauthError) callback.oauthError = oauthError
+    pendingCallback = callback
+    // Only OAuth params are removed so a preserved returnTo query survives.
+    for (const name of ['code', 'error', 'error_description', 'error_uri']) search.delete(name)
+    const rest = search.toString()
+    history.replaceState(null, '', `${location.pathname}${rest ? `?${rest}` : ''}`)
+  } else {
+    const params = new URLSearchParams(location.hash.startsWith('#') ? location.hash.slice(1) : '')
+    const tokenHash = params.get('token_hash')
+    const type = params.get('type')
+    pendingCallback =
+      tokenHash && (type === 'verify' || type === 'recovery') ? { kind: type, tokenHash } : null
+    history.replaceState(null, '', `${location.pathname}${location.search}`)
+  }
   exchangeKey = null
-  exchangePromise = null
-
-  history.replaceState(null, '', `${location.pathname}${location.search}`)
   ensureMeta(documentRoot, 'referrer', 'no-referrer')
   ensureMeta(documentRoot, 'cache-control', 'no-store')
   return pendingCallback
@@ -41,7 +53,10 @@ export function exchangePreflightAuthCallback<T>(
   callback: AuthCallback,
   exchange: () => Promise<T>,
 ): Promise<T> {
-  const key = `${callback.kind}:${callback.tokenHash}`
+  const key =
+    callback.kind === 'oauth'
+      ? `oauth:${callback.code ?? callback.oauthError ?? 'error'}`
+      : `${callback.kind}:${callback.tokenHash}`
   if (exchangeKey === key && exchangePromise) return exchangePromise as Promise<T>
   exchangeKey = key
   exchangePromise = exchange().finally(() => {
