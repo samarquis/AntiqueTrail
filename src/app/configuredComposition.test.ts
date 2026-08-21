@@ -63,6 +63,9 @@ const harness = vi.hoisted(() => {
     auth: {
       getSession: vi.fn(async () => ({ data: { session: null }, error: null })),
       resetPasswordForEmail: vi.fn(async () => ({ data: {}, error: null })),
+      signInWithOAuth: vi.fn(async () => ({ data: {}, error: null })),
+      exchangeCodeForSession: vi.fn(async () => ({ data: { session: null }, error: null })),
+      signOut: vi.fn(async () => ({ error: null })),
     },
   }
   return { events, trip, grant, supabase }
@@ -70,7 +73,7 @@ const harness = vi.hoisted(() => {
 
 vi.mock('@supabase/supabase-js', () => ({ createClient: vi.fn(() => harness.supabase) }))
 
-import { configuredComposition } from './configuredComposition'
+import { configuredComposition, createAuthProvider } from './configuredComposition'
 import {
   RECOVERY_ACCEPTED_BYTES,
   handleAuthRecoveryRequest,
@@ -84,6 +87,104 @@ import {
 
 let tripDatabase: InMemoryOfflineDatabase
 let tripIdentity: TripInstallationIdentity
+
+const socialSupabase = {
+  auth: {
+    signInWithOAuth: vi.fn(),
+    exchangeCodeForSession: vi.fn(),
+    signOut: vi.fn(),
+  },
+  functions: { invoke: vi.fn() },
+  rpc: vi.fn(),
+}
+
+function socialAdapter() {
+  return createAuthProvider(socialSupabase as unknown as Parameters<typeof createAuthProvider>[0])
+}
+
+function providerSessionFixture() {
+  return {
+    access_token: `header.${btoa(JSON.stringify({ amr: [{ method: 'oauth', timestamp: 1_755_000_000 }] }))}.sig`,
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    user: {
+      id: 'oauth-user-1',
+      email: 'shopper@example.test',
+      email_confirmed_at: '2026-08-01T00:00:00Z',
+      app_metadata: { role: 'Shopper' },
+      factors: [],
+    },
+  }
+}
+
+describe('social sign-in provider adapter', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('starts the provider redirect at the callback route and preserves a custom returnTo', async () => {
+    socialSupabase.auth.signInWithOAuth.mockResolvedValue({ data: {}, error: null })
+    const adapter = socialAdapter()
+    await adapter.signInWithProvider!('google')
+    const defaultCall = socialSupabase.auth.signInWithOAuth.mock.calls[0][0]
+    expect(defaultCall.provider).toBe('google')
+    expect(new URL(defaultCall.options.redirectTo).pathname).toBe('/auth/callback')
+    expect(new URL(defaultCall.options.redirectTo).search).toBe('')
+
+    await adapter.signInWithProvider!('facebook', '/stores/oak/memory')
+    const returnCall = socialSupabase.auth.signInWithOAuth.mock.calls[1][0]
+    expect(returnCall.provider).toBe('facebook')
+    expect(new URL(returnCall.options.redirectTo).searchParams.get('returnTo')).toBe(
+      '/stores/oak/memory',
+    )
+
+    socialSupabase.auth.signInWithOAuth.mockResolvedValue({
+      data: {},
+      error: new Error('provider unreachable'),
+    })
+    await expect(adapter.signInWithProvider!('google')).rejects.toThrow()
+  })
+
+  it('exchanges the PKCE code and admits only identities with an active receipt', async () => {
+    socialSupabase.auth.exchangeCodeForSession.mockResolvedValue({
+      data: { session: providerSessionFixture() },
+      error: null,
+    })
+    socialSupabase.rpc.mockResolvedValue({ data: { state: 'active' }, error: null })
+    const result = await socialAdapter().oauthCallback!('code-1', null)
+    expect(socialSupabase.rpc).toHaveBeenCalledWith('oauth_admission_check')
+    if (result.kind !== 'authenticated') throw new Error('expected authenticated')
+    expect(result.session.userId).toBe('oauth-user-1')
+    expect(result.session.email).toBe('shopper@example.test')
+    expect(result.session.role).toBe('Shopper')
+    expect(result.session.mfaRequired ?? false).toBe(false)
+    expect(socialSupabase.auth.signOut).not.toHaveBeenCalled()
+  })
+
+  it('signs non-admitted identities out locally and reports them blocked', async () => {
+    socialSupabase.auth.exchangeCodeForSession.mockResolvedValue({
+      data: { session: providerSessionFixture() },
+      error: null,
+    })
+    socialSupabase.rpc.mockResolvedValue({ data: { state: 'blocked' }, error: null })
+    const result = await socialAdapter().oauthCallback!('code-2', null)
+    expect(result.kind).toBe('blocked')
+    expect(socialSupabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
+  })
+
+  it('fails closed when the admission RPC errors or the exchange fails', async () => {
+    socialSupabase.auth.exchangeCodeForSession.mockResolvedValue({
+      data: { session: providerSessionFixture() },
+      error: null,
+    })
+    socialSupabase.rpc.mockResolvedValue({ data: null, error: new Error('rpc down') })
+    expect((await socialAdapter().oauthCallback!('code-3', null)).kind).toBe('blocked')
+
+    socialSupabase.auth.exchangeCodeForSession.mockResolvedValue({
+      data: { session: null },
+      error: new Error('invalid grant'),
+    })
+    expect((await socialAdapter().oauthCallback!('code-4', null)).kind).toBe('error')
+    expect((await socialAdapter().oauthCallback!(null, 'access_denied')).kind).toBe('error')
+  })
+})
 
 describe('configured Trip grant composition', () => {
   beforeEach(async () => {

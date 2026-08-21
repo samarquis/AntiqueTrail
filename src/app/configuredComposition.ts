@@ -98,6 +98,7 @@ export function createAuthProvider<
   T extends {
     auth: ReturnType<typeof createClient>['auth']
     functions: ReturnType<typeof createClient>['functions']
+    rpc: ReturnType<typeof createClient>['rpc']
   },
 >(supabase: T): AuthProviderAdapter {
   const challenges = new Map<string, { factorId: string; session: ProviderSession }>()
@@ -171,6 +172,30 @@ export function createAuthProvider<
       return result.data?.state === 'authenticated' && result.data.session
         ? { kind: 'authenticated', session: providerSession(result.data.session as Session) }
         : { kind: 'error' }
+    },
+    async signInWithProvider(providerId, returnTo) {
+      const target = new URL('/auth/callback', window.location.origin)
+      if (returnTo && returnTo !== '/stores') target.searchParams.set('returnTo', returnTo)
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: providerId,
+        options: { redirectTo: target.toString() },
+      })
+      if (error) throw new Error('Provider redirect unavailable.')
+    },
+    async oauthCallback(code, oauthError) {
+      if (!code || oauthError) return { kind: 'error' }
+      const exchanged = await supabase.auth.exchangeCodeForSession(code)
+      if (exchanged.error || !exchanged.data.session) return { kind: 'error' }
+      // The admission RPC is declared in SQL, not generated types; assert its wire shape here.
+      const admission = (await supabase.rpc('oauth_admission_check')) as {
+        data: { state?: string } | null
+        error: { message: string } | null
+      }
+      if (admission.error || admission.data?.state !== 'active') {
+        await supabase.auth.signOut({ scope: 'local' })
+        return { kind: 'blocked' }
+      }
+      return { kind: 'authenticated', session: providerSession(exchanged.data.session) }
     },
     async signOut() {
       await supabase.auth.signOut({ scope: 'local' })
@@ -282,7 +307,15 @@ export async function configuredComposition(
   if (!url || !anonKey) return null
   const supabase = createClient(url, anonKey, {
     db: { schema: 'app_public' },
-    auth: { persistSession: false, autoRefreshToken: true, detectSessionInUrl: true },
+    // PKCE plus preflight-owned URL consumption: main.tsx scrubs every credential
+    // from /auth/callback before import, so the provider client must not consume
+    // OAuth codes independently of the app's single-use latch.
+    auth: {
+      persistSession: false,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+      flowType: 'pkce',
+    },
   })
   const offline = await offlineConfiguration(
     options.tripOfflineDatabase ?? new IndexedDbOfflineDatabase(),

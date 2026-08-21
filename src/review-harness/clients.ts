@@ -141,6 +141,16 @@ export function createReviewHarnessAuthProvider(state: ReviewStateId): AuthProvi
         ? { kind: 'verified' }
         : { kind: 'authenticated', session: reviewProviderSession(email) }
     },
+    // No-op: the synthetic harness cannot navigate off-page to a real provider.
+    async signInWithProvider() {
+      return undefined
+    },
+    async oauthCallback(code, oauthError) {
+      if (oauthError || !code || state !== 'success') return { kind: 'error' }
+      if (code.startsWith('blocked-')) return { kind: 'blocked' }
+      const email = code.endsWith('-b') ? 'shopper-b@local.invalid' : 'shopper-a@local.invalid'
+      return { kind: 'authenticated', session: reviewProviderSession(email) }
+    },
     async signOut() {
       return undefined
     },
