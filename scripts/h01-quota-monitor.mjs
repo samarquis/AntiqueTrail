@@ -15,7 +15,7 @@ import {
 const REQUIRED_METRICS = [
   'actions_artifacts_mb',
   'actions_minutes_month',
-  'cloudflare_builds_month',
+  'vercel_deployments_month',
   'database_mb',
   'storage_mb',
 ]

@@ -35,7 +35,7 @@ function observation(percent) {
       ['storage_mb', 750],
       ['actions_minutes_month', 1500],
       ['actions_artifacts_mb', 400],
-      ['cloudflare_builds_month', 375],
+      ['vercel_deployments_month', 2250],
     ].map(([name, limit]) => ({
       name,
       unit: name,
