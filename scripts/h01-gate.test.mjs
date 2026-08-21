@@ -77,7 +77,10 @@ function validEvidence() {
       supabaseProjectRef: 'stage-ref',
       restoreProjectRef: 'restore-ref',
       hostnames: ['shared.example.test'],
-      directUpload: true,
+      vercelProjectId: 'prj_shared_alpha',
+      prebuiltDeployVerified: true,
+      automaticGitDeploymentsDisabled: true,
+      hostingPlanEligibilityVerified: true,
       denyByDefaultAccess: true,
       usRegion: true,
     },
@@ -158,10 +161,10 @@ function validEvidence() {
         automaticPaidOverage: false,
       },
       {
-        name: 'cloudflare_builds_month',
-        unit: 'builds',
-        allowance: 500,
-        safeLimit: 375,
+        name: 'vercel_deployments_month',
+        unit: 'deployments',
+        allowance: 3000,
+        safeLimit: 2250,
         current: 10,
         forecastNormal: 20,
         forecastAbuse: 30,
@@ -199,8 +202,8 @@ function validEvidence() {
       nonce: 'f'.repeat(64),
       issuedAt: '2026-08-04T12:00:00.000Z',
       expiresAt: '2026-08-04T12:30:00.000Z',
-      deploymentVersion: 'pages-v1',
-      operation: 'pages-direct-upload',
+      deploymentVersion: 'vercel-v1',
+      operation: 'vercel-prebuilt-deploy',
       mode: 'promotion',
       allowedTransition: 'no-registration-transition',
       reasonCode: 'shared-alpha-promotion',
@@ -369,10 +372,10 @@ test('deployment verifier binds the PASS receipt, trusted keys, and quota contro
     stage: 'shared-alpha',
     sourceSha: SOURCE_SHA,
     artifactDigest: DIGEST_A,
-    operation: 'pages-direct-upload',
+    operation: 'vercel-prebuilt-deploy',
     mode: 'promotion',
     allowedTransition: 'no-registration-transition',
-    deploymentVersion: 'pages-v1',
+    deploymentVersion: 'vercel-v1',
     reasonCode: 'shared-alpha-promotion',
     now: TEST_NOW,
   }
@@ -551,6 +554,92 @@ test('Pages artifact workflow fails closed on unsafe browser-visible configurati
     runPreflight({ VITE_SUPABASE_ANON_KEY: `header.${serviceRolePayload}.signature` }).status,
     0,
   )
+})
+
+test('Vercel deploy workflow verifies and consumes H-01 authorization before provider calls', async () => {
+  const workflow = await readFile(
+    new URL('../.github/workflows/vercel-deploy-existing-artifact.yml', import.meta.url),
+    'utf8',
+  )
+  const verification = workflow.indexOf('Verify signed H-01 PASS receipt before any provider call')
+  const consumption = workflow.indexOf('Consume signed H-01 nonce before provider access')
+  const staging = workflow.indexOf('Stage the verified prebuilt output without rebuilding')
+  const deploy = workflow.indexOf('Prebuilt-deploy the verified directory')
+  assert.ok(verification > 0)
+  assert.ok(consumption > verification)
+  assert.ok(staging > consumption)
+  assert.ok(deploy > staging)
+  assert.match(workflow, /--expected-operation vercel-prebuilt-deploy/)
+  assert.match(workflow, /--expected-transition no-registration-transition/)
+  assert.match(workflow, /H01_REVOKED_SIGNER_FINGERPRINTS_JSON/)
+  assert.match(workflow, /deploy --prebuilt --prod/)
+  assert.doesNotMatch(workflow, /H01_.*PRIVATE_KEY/)
+  assert.doesNotMatch(workflow, /wrangler|api\.cloudflare\.com/iu)
+})
+
+test('Vercel release workflow fails closed on unsafe browser-visible configuration', async () => {
+  const workflow = (
+    await readFile(
+      new URL('../.github/workflows/vercel-release-artifact.yml', import.meta.url),
+      'utf8',
+    )
+  ).replaceAll('\r\n', '\n')
+  const required = [
+    'VITE_SUPABASE_URL',
+    'VITE_SUPABASE_ANON_KEY',
+    'VITE_TRIP_OFFLINE_GRANT_KEY_ID',
+    'VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK',
+    'VITE_PARTNER_EMAIL_PROVIDER_ENABLED',
+    'VITE_PARTNER_MEDIA_PROVIDER_ENABLED',
+    'VITE_PARTNER_SYNTHETIC_ENABLED',
+  ]
+
+  assert.match(workflow, /environment:\s+name: shared-alpha/u)
+  for (const name of required) {
+    assert.match(workflow, new RegExp(`${name}: \\$\\{\\{ vars\\.${name} \\}\\}`))
+  }
+
+  const preflight = workflow.indexOf('Validate browser-visible release configuration')
+  const vercelPreflight = workflow.indexOf('Validate Vercel release configuration')
+  const checkout = workflow.indexOf('Checkout exact main revision')
+  const build = workflow.indexOf('Check, test, and build once')
+  assert.ok(preflight >= 0 && preflight < vercelPreflight && vercelPreflight < checkout)
+  assert.ok(checkout < build)
+  assert.match(workflow.slice(preflight, checkout), /shell: node \{0\}/u)
+
+  const runMarker = '        run: |\n'
+  const runStart = workflow.indexOf(runMarker, preflight) + runMarker.length
+  const runEnd = workflow.indexOf('\n      - name:', runStart)
+  assert.ok(runStart >= runMarker.length && runEnd > runStart)
+  const preflightScript = workflow
+    .slice(runStart, runEnd)
+    .split('\n')
+    .map((line) => line.slice(10))
+    .join('\n')
+  const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+  const validConfig = {
+    VITE_SUPABASE_URL: 'https://example.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'sb_publishable_test',
+    VITE_TRIP_OFFLINE_GRANT_KEY_ID: 'shared-alpha-2026-08',
+    VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: JSON.stringify(publicKey.export({ format: 'jwk' })),
+    VITE_PARTNER_EMAIL_PROVIDER_ENABLED: 'true',
+    VITE_PARTNER_MEDIA_PROVIDER_ENABLED: 'false',
+    VITE_PARTNER_SYNTHETIC_ENABLED: 'true',
+  }
+  const runPreflight = (overrides = {}) =>
+    spawnSync(process.execPath, ['--eval', preflightScript], {
+      encoding: 'utf8',
+      env: { ...process.env, ...validConfig, ...overrides },
+    })
+
+  assert.equal(runPreflight().status, 0)
+  assert.notEqual(runPreflight({ VITE_SUPABASE_ANON_KEY: '' }).status, 0)
+  assert.notEqual(
+    runPreflight({ VITE_SUPABASE_ANON_KEY: 'sb_secret_do-not-print-this-value' }).status,
+    0,
+  )
+  assert.notEqual(runPreflight({ VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: '{}' }).status, 0)
+  assert.notEqual(runPreflight({ VITE_PARTNER_SYNTHETIC_ENABLED: 'yes' }).status, 0)
 })
 
 test('H-01 preactivation forbids implicit Supabase function deployment', async () => {

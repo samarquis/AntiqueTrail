@@ -23,7 +23,7 @@ const STARTUP_SAFE_LIMITS = {
   storage_mb: 750,
   actions_minutes_month: 1500,
   actions_artifacts_mb: 400,
-  cloudflare_builds_month: 375,
+  vercel_deployments_month: 2250,
 }
 const FORBIDDEN_KEYS = /^(password|privateKey|secretValue|accessToken|refreshToken|apiToken)$/i
 
@@ -93,7 +93,7 @@ function evaluateAuthorization(evidence, blockers, options = {}) {
   check(NONCE.test(payload.nonce ?? ''), 'authorization.nonce_invalid', blockers)
   check(has(payload.deploymentVersion), 'authorization.deployment_version_missing', blockers)
   check(
-    payload.operation === 'pages-direct-upload',
+    payload.operation === 'vercel-prebuilt-deploy',
     'authorization.operation_not_allowed',
     blockers,
   )
@@ -411,7 +411,22 @@ export function buildGateReceipt(evidence, options = {}) {
       'environment.hostnames_missing',
       blockers,
     )
-    check(environment.directUpload === true, 'environment.direct_upload_unproved', blockers)
+    check(has(environment.vercelProjectId), 'environment.vercel_project_missing', blockers)
+    check(
+      environment.prebuiltDeployVerified === true,
+      'environment.prebuilt_deploy_unproved',
+      blockers,
+    )
+    check(
+      environment.automaticGitDeploymentsDisabled === true,
+      'environment.git_deployments_not_disabled',
+      blockers,
+    )
+    check(
+      environment.hostingPlanEligibilityVerified === true,
+      'environment.plan_eligibility_unverified',
+      blockers,
+    )
     check(
       environment.denyByDefaultAccess === true,
       'environment.access_boundary_unproved',
