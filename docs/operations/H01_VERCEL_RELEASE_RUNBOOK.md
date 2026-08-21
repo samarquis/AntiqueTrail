@@ -55,7 +55,7 @@ The replacement protected workflow must use an exact reviewed Vercel CLI version
 9. prove logged-out denial on every reachable URL before authenticated smoke testing;
 10. create and retain the digest-bound deployment receipt.
 
-The repository's existing `pages-release-artifact.yml` and `pages-deploy-existing-artifact.yml` are Cloudflare-specific, retired, and not an approved Vercel implementation. `H01_GATE_EVIDENCE.template.json` and the current receipt verifier also still encode `cloudflare_builds_month` and `pages-direct-upload`; migrate and retest those contracts before any Vercel provider call.
+The retired Cloudflare workflows remain only as historical evidence. `.github/workflows/vercel-release-artifact.yml` and `.github/workflows/vercel-deploy-existing-artifact.yml` now implement this contract, and `H01_GATE_EVIDENCE.template.json`, `scripts/h01-gate.mjs`, and `scripts/release-artifact.mjs` encode `vercel_deployments_month` and `vercel-prebuilt-deploy`. Their guard tests pass under `node --test scripts/h01-gate.test.mjs scripts/release-artifact.test.mjs`.
 
 ## 4. Shared Alpha acceptance
 

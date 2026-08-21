@@ -8,10 +8,10 @@ run is not a gate receipt. Record links to real provider configuration,
 observed execution, and named-human approval. Keep capabilities disabled when
 evidence is absent, expired, or contradictory.
 
-Current accepted code baseline before the Vercel documentation change:
+Current accepted code baseline:
 
-- Commit: `680681049df2c2b5495c8baa7064b091be414827`
-- CI: <https://github.com/samarquis/AntiqueTrail/actions/runs/32331761838>
+- Commit: `c8aa53dfb62e4852b00ee8f305c3c7b7d249b611` (`docs: select Vercel for gated deployment (#86)`)
+- Prior baseline with recorded CI run: `680681049df2c2b5495c8baa7064b091be414827`, <https://github.com/samarquis/AntiqueTrail/actions/runs/32331761838>
 - Deployment-provider decision: ADR 0006 selects Vercel; live Vercel configuration and release evidence remain unaccepted
 
 ## Gate order
@@ -67,9 +67,14 @@ receipts. Record only secret identifiers, custodian, version, and rotation date.
 - Retired after verified cutover: `CLOUDFLARE_API_TOKEN`,
   `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_*`
 
-The existing H-01 evidence template, receipt verifier, and Pages workflows still
-encode Cloudflare-specific operation/quota fields. They cannot authorize a
-Vercel call and must be migrated and retested before provider activation.
+The H-01 evidence template, receipt verifier, and quota monitor now encode
+`vercel_deployments_month` and `vercel-prebuilt-deploy`. The retired Cloudflare
+workflows remain only as historical evidence;
+`.github/workflows/vercel-release-artifact.yml` and
+`.github/workflows/vercel-deploy-existing-artifact.yml` implement the protected
+prebuilt path, covered by guard tests in `scripts/h01-gate.test.mjs`,
+`scripts/release-artifact.test.mjs`, and `scripts/h01-quota-monitor.test.mjs`.
+Provider activation still requires H-01 acceptance.
 
 ### Candidate services
 
