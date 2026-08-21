@@ -343,6 +343,117 @@ describe('auth states', () => {
     expect(verifyCallback).toHaveBeenCalledOnce()
   })
 
+  it('completes an OAuth return and lands on the preserved private target', async () => {
+    const oauthCallback = vi.fn(async () => ({
+      kind: 'authenticated' as const,
+      session: {
+        userId: 'oauth-shopper-a',
+        email: 'shopper@example.test',
+        emailVerified: true,
+        accessToken: 'review-oauth-token',
+        expiresAt: Date.now() + 60_000,
+        role: 'Shopper' as const,
+        mfaEnrolled: false,
+        passwordAuthenticatedAt: '2026-08-21T00:00:00.000Z',
+      },
+    }))
+    render(
+      <MemoryRouter initialEntries={['/auth/callback?returnTo=%2Fsaved']}>
+        <AuthProvider provider={unavailableProvider}>
+          <Routes>
+            <Route
+              path="/auth/callback"
+              element={
+                <AuthCallbackPage
+                  provider={{ ...unavailableProvider, oauthCallback }}
+                  callback={{ kind: 'oauth', code: 'pkce-code-1' }}
+                />
+              }
+            />
+            <Route path="/saved" element={<p>private saved list</p>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText(/private saved list/i)).toBeInTheDocument()
+    expect(oauthCallback).toHaveBeenCalledWith('pkce-code-1', null)
+  })
+
+  it('shows the invitation-required screen when an OAuth identity lacks admission', async () => {
+    render(
+      <MemoryRouter initialEntries={['/auth/callback']}>
+        <AuthProvider provider={unavailableProvider}>
+          <Routes>
+            <Route
+              path="/auth/callback"
+              element={
+                <AuthCallbackPage
+                  provider={{
+                    ...unavailableProvider,
+                    oauthCallback: vi.fn(async () => ({ kind: 'blocked' as const })),
+                  }}
+                  callback={{ kind: 'oauth', code: 'blocked-code' }}
+                />
+              }
+            />
+            <Route path="/auth/sign-in" element={<p>sign in</p>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Sign-in unavailable' })).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/isn't linked to an invited/i)
+    expect(screen.getByRole('link', { name: /back to stores/i })).toHaveAttribute('href', '/stores')
+    expect(screen.getByRole('link', { name: /contact antique trail support/i })).toHaveAttribute(
+      'href',
+      '/help',
+    )
+  })
+
+  it('shows the generic failure when the provider cancels or errors the OAuth return', async () => {
+    const oauthCallback = vi.fn(async () => ({ kind: 'error' as const }))
+    render(
+      <MemoryRouter initialEntries={['/auth/callback']}>
+        <AuthProvider provider={unavailableProvider}>
+          <Routes>
+            <Route
+              path="/auth/callback"
+              element={
+                <AuthCallbackPage
+                  provider={{ ...unavailableProvider, oauthCallback }}
+                  callback={{ kind: 'oauth', oauthError: 'access_denied' }}
+                />
+              }
+            />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    expect(oauthCallback).toHaveBeenCalledWith(null, 'access_denied')
+    expect(
+      await screen.findByRole('heading', { name: /verification unavailable/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /start sign-in again/i })).toBeInTheDocument()
+  })
+
+  it('offers social sign-in only when the adapter supports it', async () => {
+    const withoutSocial = renderAuth(
+      <SignInPage provider={unavailableProvider} />,
+      unavailableProvider,
+    )
+    expect(screen.queryByRole('button', { name: /continue with google/i })).not.toBeInTheDocument()
+    withoutSocial.unmount()
+
+    const user = userEvent.setup()
+    const signInWithProvider = vi.fn(async () => undefined)
+    renderAuth(<SignInPage provider={{ ...unavailableProvider, signInWithProvider }} />, {
+      ...unavailableProvider,
+      signInWithProvider,
+    })
+    await user.click(screen.getByRole('button', { name: /continue with facebook/i }))
+    expect(signInWithProvider).toHaveBeenCalledWith('facebook', '/stores')
+  })
+
   it('gates cancellation-only and role-mismatched private content', () => {
     const store: AuthStore = {
       getSession: () => ({

@@ -9,7 +9,7 @@ import {
 import { useAuth } from './AuthContext'
 import { exchangePreflightAuthCallback, takePreflightAuthCallback } from './callbackPreflight'
 import type { AuthCallback } from './authBoundary'
-import type { AuthProviderAdapter } from './types'
+import type { AuthProviderAdapter, OAuthProviderId, ProviderCallbackResult } from './types'
 
 function AuthCard({
   children,
@@ -63,7 +63,21 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [socialPending, setSocialPending] = useState<OAuthProviderId | null>(null)
   const returnTo = safeReturnTo(new URLSearchParams(location.search).get('returnTo'))
+
+  async function continueWith(providerId: OAuthProviderId) {
+    if (!provider.signInWithProvider) return
+    setSocialPending(providerId)
+    setError(null)
+    try {
+      await provider.signInWithProvider(providerId, returnTo)
+    } catch {
+      setError(GENERIC_SIGN_IN_ERROR)
+    } finally {
+      setSocialPending(null)
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -129,10 +143,29 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
             <AuthErrorSummary message={error} />
           </div>
         )}
-        <button className="button" type="submit" disabled={pending}>
+        <button className="button" type="submit" disabled={pending || socialPending !== null}>
           {pending ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+      {provider.signInWithProvider && (
+        <section aria-label="Sign in with a linked account">
+          <p>Or sign in with:</p>
+          {(['google', 'facebook'] as const).map((providerId) => (
+            <p key={providerId}>
+              <button
+                className="button"
+                type="button"
+                disabled={pending || socialPending !== null}
+                onClick={() => void continueWith(providerId)}
+              >
+                {socialPending === providerId
+                  ? 'Continuing…'
+                  : `Continue with ${providerId === 'google' ? 'Google' : 'Facebook'}`}
+              </button>
+            </p>
+          ))}
+        </section>
+      )}
       <p>
         <Link to={`/auth/recovery${email ? `?email=${encodeURIComponent(email)}` : ''}`}>
           Forgot your password?
@@ -355,17 +388,31 @@ export function AuthCallbackPage({
   const callbackRef = useRef<AuthCallback | null>()
   if (callbackRef.current === undefined)
     callbackRef.current = injectedCallback ?? takePreflightAuthCallback()
-  const [state, setState] = useState<'loading' | 'blocked' | 'error'>('loading')
+  const [oauthReturn] = useState(() => callbackRef.current?.kind === 'oauth')
+  const [state, setState] = useState<'loading' | 'blocked' | 'error' | 'invitation_required'>(
+    'loading',
+  )
   useEffect(() => {
     let active = true
     const callback = callbackRef.current
-    if (!callback || !provider.verifyCallback) {
+    if (!callback) {
       setState('error')
       return
     }
-    exchangePreflightAuthCallback(callback, () =>
-      provider.verifyCallback!(callback.kind, callback.tokenHash),
-    )
+    let exchange: (() => Promise<ProviderCallbackResult>) | null = null
+    if (callback.kind === 'oauth') {
+      const completeOAuth = provider.oauthCallback
+      if (completeOAuth)
+        exchange = () => completeOAuth(callback.code ?? null, callback.oauthError ?? null)
+    } else {
+      const completeVerify = provider.verifyCallback
+      if (completeVerify) exchange = () => completeVerify(callback.kind, callback.tokenHash)
+    }
+    if (!exchange) {
+      setState('error')
+      return
+    }
+    exchangePreflightAuthCallback(callback, exchange)
       .then(async (result) => {
         callbackRef.current = null
         if (!active) return
@@ -374,7 +421,8 @@ export function AuthCallbackPage({
           navigate(returnTo, { replace: true })
         } else if (result.kind === 'verified') {
           navigate(`/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`, { replace: true })
-        } else if (result.kind === 'blocked') setState('blocked')
+        } else if (result.kind === 'blocked')
+          setState(oauthReturn ? 'invitation_required' : 'blocked')
         else setState('error')
       })
       .catch(() => {
@@ -384,26 +432,46 @@ export function AuthCallbackPage({
     return () => {
       active = false
     }
-  }, [navigate, provider, returnTo, signIn])
+  }, [navigate, oauthReturn, provider, returnTo, signIn])
   return (
     <AuthCard
       title={
         state === 'loading'
-          ? 'Verifying your account'
-          : state === 'blocked'
-            ? 'Account setup paused'
-            : 'Verification unavailable'
+          ? oauthReturn
+            ? 'Signing you in'
+            : 'Verifying your account'
+          : state === 'invitation_required'
+            ? 'Sign-in unavailable'
+            : state === 'blocked'
+              ? 'Account setup paused'
+              : 'Verification unavailable'
       }
       description={
         state === 'loading'
-          ? 'Checking this single-use verification securely…'
-          : state === 'blocked'
-            ? "We couldn't finish this account setup. For your security, this attempt can't continue."
-            : GENERIC_SIGN_IN_ERROR
+          ? oauthReturn
+            ? 'Checking this sign-in securely…'
+            : 'Checking this single-use verification securely…'
+          : state === 'invitation_required'
+            ? 'Antique Trail accounts are currently by invitation.'
+            : state === 'blocked'
+              ? "We couldn't finish this account setup. For your security, this attempt can't continue."
+              : GENERIC_SIGN_IN_ERROR
       }
     >
       {state === 'loading' ? (
         <p role="status">Verifying…</p>
+      ) : state === 'invitation_required' ? (
+        <>
+          <p role="alert">
+            This Google or Facebook account isn't linked to an invited Antique Trail account yet.
+          </p>
+          <Link className="button" to="/stores">
+            Back to stores
+          </Link>
+          <p>
+            If you believe this is a mistake, <Link to="/help">contact Antique Trail support</Link>.
+          </p>
+        </>
       ) : state === 'blocked' ? (
         <>
           <p role="alert">
