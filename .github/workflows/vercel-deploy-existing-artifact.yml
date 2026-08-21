@@ -1,0 +1,329 @@
+name: Deploy existing H-01 Vercel artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Workflow run ID that produced the accepted antique-trail-vercel artifact
+        required: true
+        type: string
+      expected_source_sha:
+        description: Exact 40-character source commit SHA from that artifact
+        required: true
+        type: string
+      expected_artifact_digest:
+        description: Exact 64-character SHA-256 tree digest from that artifact
+        required: true
+        type: string
+      expected_h01_receipt_digest:
+        description: Exact 64-character digest of the signed H-01 PASS receipt
+        required: true
+        type: string
+      expected_deployment_version:
+        description: Exact deployment/fence version present in the signed H-01 payload
+        required: true
+        type: string
+      mode:
+        description: Promotion uploads a newly accepted artifact; rollback re-uploads a prior accepted artifact
+        required: true
+        default: promotion
+        type: choice
+        options:
+          - promotion
+          - rollback
+      reason_code:
+        description: Content-free receipt reason code (letters, numbers, dot, colon, underscore, or hyphen)
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: antique-trail-vercel-shared-alpha-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy-existing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: shared-alpha
+    env:
+      VERCEL_CLI_VERSION: ${{ vars.VERCEL_CLI_VERSION }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      CANONICAL_HOSTNAME: ${{ vars.VERCEL_SHARED_ALPHA_HOSTNAME }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+      EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+      EXPECTED_ARTIFACT_DIGEST: ${{ inputs.expected_artifact_digest }}
+      EXPECTED_H01_RECEIPT_DIGEST: ${{ inputs.expected_h01_receipt_digest }}
+      EXPECTED_DEPLOYMENT_VERSION: ${{ inputs.expected_deployment_version }}
+      H01_PASS_RECEIPT_BASE64: ${{ secrets.H01_PASS_RECEIPT_BASE64 }}
+      DEPLOYMENT_MODE: ${{ inputs.mode }}
+      REASON_CODE: ${{ inputs.reason_code }}
+      H01_PRODUCT_SIGNER_ID: ${{ vars.H01_PRODUCT_SIGNER_ID }}
+      H01_PRODUCT_SIGNER_FINGERPRINT: ${{ vars.H01_PRODUCT_SIGNER_FINGERPRINT }}
+      H01_PRODUCT_SIGNER_PUBLIC_KEY_SPKI_BASE64: ${{ vars.H01_PRODUCT_SIGNER_PUBLIC_KEY_SPKI_BASE64 }}
+      H01_SECURITY_SIGNER_ID: ${{ vars.H01_SECURITY_SIGNER_ID }}
+      H01_SECURITY_SIGNER_FINGERPRINT: ${{ vars.H01_SECURITY_SIGNER_FINGERPRINT }}
+      H01_SECURITY_SIGNER_PUBLIC_KEY_SPKI_BASE64: ${{ vars.H01_SECURITY_SIGNER_PUBLIC_KEY_SPKI_BASE64 }}
+      H01_REVOKED_SIGNER_FINGERPRINTS_JSON: ${{ vars.H01_REVOKED_SIGNER_FINGERPRINTS_JSON }}
+    steps:
+      - name: Fail-closed deployment preflight
+        id: preflight
+        shell: bash
+        run: |
+          missing=()
+          test -n "$VERCEL_TOKEN" || missing+=(VERCEL_TOKEN)
+          test -n "$VERCEL_ORG_ID" || missing+=(VERCEL_ORG_ID)
+          test -n "$VERCEL_PROJECT_ID" || missing+=(VERCEL_PROJECT_ID)
+          test -n "$CANONICAL_HOSTNAME" || missing+=(VERCEL_SHARED_ALPHA_HOSTNAME)
+          test -n "$VERCEL_CLI_VERSION" || missing+=(VERCEL_CLI_VERSION)
+          test -n "$H01_PASS_RECEIPT_BASE64" || missing+=(H01_PASS_RECEIPT_BASE64)
+          test -n "$H01_PRODUCT_SIGNER_ID" || missing+=(H01_PRODUCT_SIGNER_ID)
+          test -n "$H01_PRODUCT_SIGNER_FINGERPRINT" || missing+=(H01_PRODUCT_SIGNER_FINGERPRINT)
+          test -n "$H01_PRODUCT_SIGNER_PUBLIC_KEY_SPKI_BASE64" || missing+=(H01_PRODUCT_SIGNER_PUBLIC_KEY_SPKI_BASE64)
+          test -n "$H01_SECURITY_SIGNER_ID" || missing+=(H01_SECURITY_SIGNER_ID)
+          test -n "$H01_SECURITY_SIGNER_FINGERPRINT" || missing+=(H01_SECURITY_SIGNER_FINGERPRINT)
+          test -n "$H01_SECURITY_SIGNER_PUBLIC_KEY_SPKI_BASE64" || missing+=(H01_SECURITY_SIGNER_PUBLIC_KEY_SPKI_BASE64)
+          test -n "$H01_REVOKED_SIGNER_FINGERPRINTS_JSON" || missing+=(H01_REVOKED_SIGNER_FINGERPRINTS_JSON)
+
+          valid=true
+          [[ "$VERCEL_CLI_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || valid=false
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]] || valid=false
+          [[ "$EXPECTED_SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]] || valid=false
+          [[ "$EXPECTED_ARTIFACT_DIGEST" =~ ^[a-f0-9]{64}$ ]] || valid=false
+          [[ "$EXPECTED_H01_RECEIPT_DIGEST" =~ ^[a-f0-9]{64}$ ]] || valid=false
+          [[ "$EXPECTED_DEPLOYMENT_VERSION" =~ ^[A-Za-z0-9._:-]{1,64}$ ]] || valid=false
+          [[ "$H01_PRODUCT_SIGNER_FINGERPRINT" =~ ^[a-f0-9]{64}$ ]] || valid=false
+          [[ "$H01_SECURITY_SIGNER_FINGERPRINT" =~ ^[a-f0-9]{64}$ ]] || valid=false
+          [[ "$H01_PRODUCT_SIGNER_FINGERPRINT" != "$H01_SECURITY_SIGNER_FINGERPRINT" ]] || valid=false
+          [[ "$H01_PRODUCT_SIGNER_ID" != "$H01_SECURITY_SIGNER_ID" ]] || valid=false
+          [[ "$REASON_CODE" =~ ^[A-Za-z0-9._:-]{1,64}$ ]] || valid=false
+          [[ "$CANONICAL_HOSTNAME" =~ ^https://[^/]+/?$ ]] || valid=false
+
+          if (( ${#missing[@]} > 0 )) || [[ "$valid" != true ]]; then
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            {
+              echo '## Deployment blocked safely'
+              echo
+              echo 'No provider call was made. The protected environment is missing required configuration or an input is invalid.'
+              if (( ${#missing[@]} > 0 )); then
+                echo
+                printf -- '- Missing protected names: `%s`\n' "$(IFS=', '; echo "${missing[*]}")"
+              fi
+              if [[ "$valid" != true ]]; then
+                echo '- One or more non-secret dispatch inputs failed strict validation.'
+              fi
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+      - name: Checkout verifier only
+        if: steps.preflight.outputs.ready == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Download the selected prior artifact
+        if: steps.preflight.outputs.ready == 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: antique-trail-vercel
+          path: release-bundle
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.source_run_id }}
+      - name: Verify exact artifact and source binding
+        if: steps.preflight.outputs.ready == 'true'
+        run: |
+          node scripts/release-artifact.mjs verify \
+            --kind vercel \
+            --bundle release-bundle \
+            --expected-digest "$EXPECTED_ARTIFACT_DIGEST" \
+            --expected-source-sha "$EXPECTED_SOURCE_SHA"
+      - name: Verify signed H-01 PASS receipt before any provider call
+        if: steps.preflight.outputs.ready == 'true'
+        id: h01
+        shell: bash
+        run: |
+          mkdir -p h01-receipt
+          printf '%s' "$H01_PASS_RECEIPT_BASE64" | base64 --decode > h01-receipt/h01-pass.json
+          receipt_file=h01-receipt/h01-pass.json
+          test "$(jq -r '.receiptDigest' "$receipt_file")" = "$EXPECTED_H01_RECEIPT_DIGEST"
+          jq -n \
+            --arg productId "$H01_PRODUCT_SIGNER_ID" \
+            --arg productFingerprint "$H01_PRODUCT_SIGNER_FINGERPRINT" \
+            --arg productKey "$H01_PRODUCT_SIGNER_PUBLIC_KEY_SPKI_BASE64" \
+            --arg securityId "$H01_SECURITY_SIGNER_ID" \
+            --arg securityFingerprint "$H01_SECURITY_SIGNER_FINGERPRINT" \
+            --arg securityKey "$H01_SECURITY_SIGNER_PUBLIC_KEY_SPKI_BASE64" \
+            --argjson revoked "$H01_REVOKED_SIGNER_FINGERPRINTS_JSON" \
+            '{schemaVersion:1,signers:[{role:"Product",humanId:$productId,fingerprint:$productFingerprint,publicKeySpkiBase64:$productKey,status:"active"},{role:"Security",humanId:$securityId,fingerprint:$securityFingerprint,publicKeySpkiBase64:$securityKey,status:"active"}],revokedFingerprints:$revoked}' \
+            > trusted-h01-signers.json
+          node scripts/h01-gate.mjs verify-receipt \
+            --receipt "$receipt_file" \
+            --trusted-registry trusted-h01-signers.json \
+            --expected-stage shared-alpha \
+            --expected-source-sha "$EXPECTED_SOURCE_SHA" \
+            --expected-artifact-digest "$EXPECTED_ARTIFACT_DIGEST" \
+            --expected-operation vercel-prebuilt-deploy \
+            --expected-mode "$DEPLOYMENT_MODE" \
+            --expected-transition no-registration-transition \
+            --expected-deployment-version "$EXPECTED_DEPLOYMENT_VERSION" \
+            --expected-reason "$REASON_CODE" \
+            > h01-verification.json
+          nonce_digest="$(jq -r '.nonceDigest' h01-verification.json)"
+          [[ "$nonce_digest" =~ ^[a-f0-9]{64}$ ]]
+          marker_name="antique-trail-h01-nonce-$nonce_digest"
+          encoded_name="$(jq -rn --arg value "$marker_name" '$value|@uri')"
+          prior_count="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer ${{ github.token }}" \
+            --header 'Accept: application/vnd.github+json' \
+            "${{ github.api_url }}/repos/${{ github.repository }}/actions/artifacts?name=$encoded_name" | jq -r '.total_count')"
+          test "$prior_count" -eq 0 || { echo 'Signed H-01 nonce was already consumed.' >&2; exit 1; }
+          printf '%s\n' "$EXPECTED_H01_RECEIPT_DIGEST" > h01-nonce-consumption.txt
+          echo "nonce_digest=$nonce_digest" >> "$GITHUB_OUTPUT"
+          echo "marker_name=$marker_name" >> "$GITHUB_OUTPUT"
+      - name: Consume signed H-01 nonce before provider access
+        if: steps.preflight.outputs.ready == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.h01.outputs.marker_name }}
+          path: h01-nonce-consumption.txt
+          if-no-files-found: error
+          retention-days: 90
+      - name: Stage the verified prebuilt output without rebuilding
+        if: steps.preflight.outputs.ready == 'true'
+        run: |
+          mkdir -p deploy-workdir/.vercel
+          cp -a release-bundle/dist deploy-workdir/.vercel/output
+      - name: Prebuilt-deploy the verified directory
+        if: steps.preflight.outputs.ready == 'true'
+        id: upload
+        shell: bash
+        run: |
+          started_epoch="$(date +%s)"
+          (
+            cd deploy-workdir
+            npx --yes "vercel@$VERCEL_CLI_VERSION" deploy --prebuilt --prod --yes \
+              --token "$VERCEL_TOKEN" > ../deploy-output.log
+          )
+          deployment_url="$(grep -Eo 'https://[A-Za-z0-9.-]+' deploy-output.log | tail -1)"
+          [[ "$deployment_url" =~ ^https:// ]]
+          echo "started_epoch=$started_epoch" >> "$GITHUB_OUTPUT"
+          echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
+      - name: Resolve successful Vercel deployment
+        if: steps.preflight.outputs.ready == 'true'
+        id: deployment
+        shell: bash
+        env:
+          STARTED_EPOCH: ${{ steps.upload.outputs.started_epoch }}
+          DEPLOYMENT_URL: ${{ steps.upload.outputs.deployment_url }}
+        run: |
+          npx --yes "vercel@$VERCEL_CLI_VERSION" inspect "$DEPLOYMENT_URL" --json \
+            --token "$VERCEL_TOKEN" > inspect.json
+          deployment_id="$(jq -r '.id' inspect.json)"
+          [[ "$deployment_id" =~ ^dpl_ ]]
+          test "$(jq -r '.readyState' inspect.json)" = READY
+          created_ms="$(jq -r '.createdAt // .created_at' inspect.json)"
+          test "$created_ms" -gt 0
+          test "$((created_ms / 1000))" -ge "$STARTED_EPOCH"
+          echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
+          echo "deployed_at=$(date -u --date="@$((created_ms / 1000))" +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - name: Prove logged-out denial on deployment and canonical hosts
+        if: steps.preflight.outputs.ready == 'true'
+        id: access
+        shell: bash
+        env:
+          DEPLOYMENT_URL: ${{ steps.upload.outputs.deployment_url }}
+        run: |
+          check_denied() {
+            local label="$1"
+            local url="$2"
+            local headers
+            headers="$(mktemp)"
+            local status
+            status="$(curl --silent --show-error --output /dev/null --dump-header "$headers" \
+              --write-out '%{http_code}' --max-time 20 "$url")"
+            case "$status" in
+              401|403) ;;
+              301|302|303|307|308)
+                grep -Eiq '^location: https://[^/]*\.?vercel\.com/' "$headers" || {
+                  echo "$label redirected outside Vercel protection" >&2
+                  return 1
+                }
+                ;;
+              *)
+                echo "$label was not denied before application access (HTTP $status)" >&2
+                return 1
+                ;;
+            esac
+            printf '%s' "$status"
+          }
+          deployment_status="$(check_denied deployment "$DEPLOYMENT_URL")"
+          canonical_status="$(check_denied canonical "$CANONICAL_HOSTNAME")"
+          echo "deployment_status=$deployment_status" >> "$GITHUB_OUTPUT"
+          echo "canonical_status=$canonical_status" >> "$GITHUB_OUTPUT"
+      - name: Create digest-bound deployment receipt
+        if: steps.preflight.outputs.ready == 'true'
+        env:
+          DEPLOYMENT_ID: ${{ steps.deployment.outputs.deployment_id }}
+          DEPLOYMENT_URL: ${{ steps.upload.outputs.deployment_url }}
+          DEPLOYED_AT: ${{ steps.deployment.outputs.deployed_at }}
+          DEPLOYMENT_ACCESS_STATUS: ${{ steps.access.outputs.deployment_status }}
+          CANONICAL_ACCESS_STATUS: ${{ steps.access.outputs.canonical_status }}
+        shell: bash
+        run: |
+          jq -n \
+            --arg deploymentId "$DEPLOYMENT_ID" \
+            --arg deploymentUrl "$DEPLOYMENT_URL" \
+            --arg canonicalHostname "$CANONICAL_HOSTNAME" \
+            --arg projectName "$VERCEL_PROJECT_ID" \
+            --arg branch prebuilt \
+            --arg environment shared-alpha \
+            --arg cliVersion "$VERCEL_CLI_VERSION" \
+            --arg mode "$DEPLOYMENT_MODE" \
+            --arg reasonCode "$REASON_CODE" \
+            --arg sourceRunId "$SOURCE_RUN_ID" \
+            --arg deployedAt "$DEPLOYED_AT" \
+            --arg deploymentAccessStatus "$DEPLOYMENT_ACCESS_STATUS" \
+            --arg canonicalAccessStatus "$CANONICAL_ACCESS_STATUS" \
+            '{$deploymentId,$deploymentUrl,$canonicalHostname,$projectName,$branch,$environment,$cliVersion,$mode,$reasonCode,$sourceRunId,$deployedAt,$deploymentAccessStatus,$canonicalAccessStatus}' \
+            > provider-deployment.json
+          node scripts/release-artifact.mjs receipt \
+            --kind vercel \
+            --bundle release-bundle \
+            --provider-file provider-deployment.json \
+            --out deployment-receipt.json \
+            --expected-digest "$EXPECTED_ARTIFACT_DIGEST" \
+            --expected-source-sha "$EXPECTED_SOURCE_SHA"
+      - name: Upload deployment receipt
+        if: steps.preflight.outputs.ready == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: antique-trail-vercel-deployment-receipt-${{ github.run_id }}
+          path: deployment-receipt.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Summarize accepted provider response
+        if: steps.preflight.outputs.ready == 'true'
+        env:
+          DEPLOYMENT_ID: ${{ steps.deployment.outputs.deployment_id }}
+          DEPLOYMENT_URL: ${{ steps.upload.outputs.deployment_url }}
+        run: |
+          receipt_digest="$(jq -r '.receiptDigest' deployment-receipt.json)"
+          {
+            echo '## H-01 Vercel deployment receipt'
+            echo
+            echo "- Mode: \`$DEPLOYMENT_MODE\`"
+            echo "- Source run: \`$SOURCE_RUN_ID\`"
+            echo "- Source SHA: \`$EXPECTED_SOURCE_SHA\`"
+            echo "- Artifact SHA-256: \`$EXPECTED_ARTIFACT_DIGEST\`"
+            echo "- Vercel deployment ID: \`$DEPLOYMENT_ID\`"
+            echo "- Vercel deployment URL: $DEPLOYMENT_URL"
+            echo "- Receipt SHA-256: \`$receipt_digest\`"
+            echo '- Logged-out denial: observed on both deployment and canonical hostnames.'
+          } >> "$GITHUB_STEP_SUMMARY"

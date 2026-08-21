@@ -1,0 +1,200 @@
+name: Build H-01 Vercel release artifact
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: antique-trail-vercel-release-artifact
+  cancel-in-progress: false
+
+jobs:
+  build-once:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: shared-alpha
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+      VITE_TRIP_OFFLINE_GRANT_KEY_ID: ${{ vars.VITE_TRIP_OFFLINE_GRANT_KEY_ID }}
+      VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK: ${{ vars.VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK }}
+      VITE_PARTNER_EMAIL_PROVIDER_ENABLED: ${{ vars.VITE_PARTNER_EMAIL_PROVIDER_ENABLED }}
+      VITE_PARTNER_MEDIA_PROVIDER_ENABLED: ${{ vars.VITE_PARTNER_MEDIA_PROVIDER_ENABLED }}
+      VITE_PARTNER_SYNTHETIC_ENABLED: ${{ vars.VITE_PARTNER_SYNTHETIC_ENABLED }}
+      VERCEL_CLI_VERSION: ${{ vars.VERCEL_CLI_VERSION }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Validate browser-visible release configuration
+        shell: node {0}
+        run: |
+          const { createPublicKey } = require('node:crypto')
+          const required = [
+            'VITE_SUPABASE_URL',
+            'VITE_SUPABASE_ANON_KEY',
+            'VITE_TRIP_OFFLINE_GRANT_KEY_ID',
+            'VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK',
+            'VITE_PARTNER_EMAIL_PROVIDER_ENABLED',
+            'VITE_PARTNER_MEDIA_PROVIDER_ENABLED',
+            'VITE_PARTNER_SYNTHETIC_ENABLED',
+          ]
+          const config = Object.fromEntries(
+            required.map((name) => {
+              const value = process.env[name]?.trim()
+              if (!value) throw new Error(`Missing required browser-visible release configuration: ${name}`)
+              return [name, value]
+            }),
+          )
+
+          let supabaseUrl
+          try {
+            supabaseUrl = new URL(config.VITE_SUPABASE_URL)
+          } catch {
+            throw new Error('VITE_SUPABASE_URL must be a valid URL')
+          }
+          if (supabaseUrl.protocol !== 'https:' || !supabaseUrl.hostname || supabaseUrl.username || supabaseUrl.password) {
+            throw new Error('VITE_SUPABASE_URL must be an HTTPS URL without credentials')
+          }
+
+          const anonKey = config.VITE_SUPABASE_ANON_KEY
+          if (/^sb_secret_/iu.test(anonKey) || /service[_-]?role/iu.test(anonKey)) {
+            throw new Error('VITE_SUPABASE_ANON_KEY must not contain a secret or service-role key')
+          }
+          const jwtParts = anonKey.split('.')
+          if (jwtParts.length === 3) {
+            try {
+              const payload = JSON.parse(Buffer.from(jwtParts[1], 'base64url').toString('utf8'))
+              if (payload.role === 'service_role') {
+                throw new Error('VITE_SUPABASE_ANON_KEY must not contain a secret or service-role key')
+              }
+            } catch (error) {
+              if (error.message.includes('service-role')) throw error
+            }
+          }
+
+          let publicJwk
+          try {
+            publicJwk = JSON.parse(config.VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK)
+          } catch {
+            throw new Error('VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK must be valid JSON')
+          }
+          if (!publicJwk || Array.isArray(publicJwk) || typeof publicJwk !== 'object' || typeof publicJwk.kty !== 'string') {
+            throw new Error('VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK must be a public JWK object')
+          }
+          const privateJwkMembers = ['d', 'p', 'q', 'dp', 'dq', 'qi', 'oth', 'k']
+          if (privateJwkMembers.some((member) => member in publicJwk)) {
+            throw new Error('VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK must not contain private key material')
+          }
+          const isP256Coordinate = (value) => {
+            if (typeof value !== 'string' || !/^[A-Za-z0-9_-]+$/u.test(value)) return false
+            const decoded = Buffer.from(value, 'base64url')
+            return decoded.length === 32 && decoded.toString('base64url') === value
+          }
+          if (
+            publicJwk.kty !== 'EC' ||
+            publicJwk.crv !== 'P-256' ||
+            !isP256Coordinate(publicJwk.x) ||
+            !isP256Coordinate(publicJwk.y)
+          ) {
+            throw new Error('VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK must contain an EC P-256 public key')
+          }
+          try {
+            createPublicKey({ key: publicJwk, format: 'jwk' })
+          } catch {
+            throw new Error('VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK must contain an importable EC P-256 public key')
+          }
+
+          for (const name of [
+            'VITE_PARTNER_EMAIL_PROVIDER_ENABLED',
+            'VITE_PARTNER_MEDIA_PROVIDER_ENABLED',
+            'VITE_PARTNER_SYNTHETIC_ENABLED',
+          ]) {
+            if (!['true', 'false'].includes(config[name])) throw new Error(`${name} must be true or false`)
+          }
+      - name: Validate Vercel release configuration
+        shell: node {0}
+        run: |
+          const cliVersion = process.env.VERCEL_CLI_VERSION?.trim() ?? ''
+          if (!/^\d+\.\d+\.\d+$/u.test(cliVersion)) {
+            throw new Error('VERCEL_CLI_VERSION must be an exact reviewed x.y.z CLI version')
+          }
+          for (const name of ['VERCEL_ORG_ID', 'VERCEL_PROJECT_ID']) {
+            if (!process.env[name]?.trim()) throw new Error(`Missing required Vercel configuration: ${name}`)
+          }
+          if (!process.env.VERCEL_TOKEN?.trim()) {
+            throw new Error('Missing required protected secret: VERCEL_TOKEN')
+          }
+      - name: Checkout exact main revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Check, test, and build once
+        run: npm run check
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Run browser acceptance tests
+        run: npm run test:e2e
+      - name: Pull reviewed Vercel project settings
+        run: |
+          npx --yes "vercel@$VERCEL_CLI_VERSION" pull --yes --environment=production --token "$VERCEL_TOKEN"
+      - name: Build the prebuilt output once
+        run: |
+          npx --yes "vercel@$VERCEL_CLI_VERSION" build --prod
+      - name: Create deterministic exact-output bundle
+        id: bundle
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          checked_out_sha="$(git rev-parse HEAD)"
+          node_version="$(node --version)"
+          npm_version="$(npm --version)"
+          node scripts/release-artifact.mjs create \
+            --kind vercel \
+            --dist .vercel/output \
+            --out release-bundle \
+            --source-sha "$checked_out_sha" \
+            --repository "$REPOSITORY" \
+            --node-version "$node_version" \
+            --npm-version "$npm_version" \
+            --runner-os "$RUNNER_OS" \
+            --runner-arch "$RUNNER_ARCH" \
+            --lockfile package-lock.json \
+            > release-manifest-output.json
+          digest="$(jq -r '.artifactDigest' release-bundle/artifact-manifest.json)"
+          test "$(printf '%s' "$digest" | wc -c)" -eq 64
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$checked_out_sha" >> "$GITHUB_OUTPUT"
+      - name: Upload immutable rollback-capable bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: antique-trail-vercel
+          path: release-bundle/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90
+      - name: Record artifact coordinates
+        env:
+          DIGEST: ${{ steps.bundle.outputs.digest }}
+          SOURCE_SHA: ${{ steps.bundle.outputs.source_sha }}
+        run: |
+          {
+            echo '## H-01 Vercel release artifact'
+            echo
+            echo "- Source SHA: \`$SOURCE_SHA\`"
+            echo "- Artifact SHA-256: \`$DIGEST\`"
+            echo "- Source workflow run: \`$GITHUB_RUN_ID\`"
+            echo '- Artifact name: `antique-trail-vercel`'
+            echo '- Deployment: not performed; use the protected manual deployment workflow.'
+          } >> "$GITHUB_STEP_SUMMARY"
