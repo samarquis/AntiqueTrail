@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BrowsePage, DetailsPage } from './components'
+import { StorePhotosPage } from './StorePhotosPage'
 import { syntheticStores } from './demoClient'
 import type { CatalogClient, CatalogStore } from './types'
 
@@ -572,5 +573,107 @@ describe('trustworthy Store Details contract', () => {
     )
     expect(scrollTo).toHaveBeenCalledWith({ top: 640, behavior: 'auto' })
     scrollTo.mockRestore()
+  })
+})
+
+describe('store photos page contract', () => {
+  const galleryMedia = [
+    {
+      src: '/synthetic-stores/1280w/blue-finch-gallery-0.webp',
+      alt: 'Blue Finch Curios storefront at dusk',
+      kind: 'cover' as const,
+      caption: 'Front entrance',
+      rightsLabel: 'Synthetic image · approved for testing',
+    },
+    ...Array.from({ length: 5 }, (_, index) => ({
+      src: `/synthetic-stores/1280w/blue-finch-gallery-${index + 1}.webp`,
+      alt: `Blue Finch Curios interior photo ${index + 1}`,
+      kind: 'gallery' as const,
+    })),
+  ]
+  const galleryStore = { ...syntheticStores[0], media: galleryMedia }
+
+  function photosClient(store: CatalogStore = galleryStore): CatalogClient {
+    return {
+      list: vi.fn(async () => ({ stores: [store] })),
+      details: vi.fn(async () => store),
+    }
+  }
+
+  afterEach(() => {
+    cleanup()
+    window.sessionStorage.clear()
+  })
+
+  it('renders the editorial header, both features, and every tile from store data', async () => {
+    render(<StorePhotosPage client={photosClient()} slug={galleryStore.slug} />)
+
+    expect(await screen.findByRole('heading', { level: 1, name: galleryStore.name })).toBeVisible()
+    expect(screen.getByText('6 photos')).toBeVisible()
+    expect(screen.getByRole('link', { name: /back to blue finch/i })).toHaveAttribute(
+      'href',
+      `/stores/${galleryStore.slug}`,
+    )
+    const tiles = screen.getAllByRole('button', { name: /view photo \d/i })
+    expect(tiles).toHaveLength(4)
+    expect(screen.getByRole('button', { name: /view photo 2:/i })).toBeVisible()
+    expect(screen.getByRole('img', { name: /storefront at dusk/i })).toBeVisible()
+    expect(screen.getByText(/front entrance · synthetic image/i)).toBeVisible()
+  })
+
+  it('states the honest empty result with a way back when a store has no photos', async () => {
+    render(<StorePhotosPage client={photosClient({ ...galleryStore, media: [] })} slug={galleryStore.slug} />)
+
+    await screen.findByRole('heading', { level: 1, name: galleryStore.name })
+    expect(screen.getByText(/has not published any photos yet/i)).toBeVisible()
+    expect(screen.getByRole('link', { name: /visit store details/i })).toHaveAttribute(
+      'href',
+      `/stores/${galleryStore.slug}`,
+    )
+  })
+
+  it('opens a keyboard-operable lightbox and returns focus to the opening tile on Escape', async () => {
+    const user = userEvent.setup()
+    const pairStore = { ...galleryStore, media: galleryMedia.slice(0, 2) }
+    render(<StorePhotosPage client={photosClient(pairStore)} slug={pairStore.slug} />)
+    const tile = await screen.findByRole('button', { name: /view photo 2:/i })
+    await user.click(tile)
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toBeVisible()
+    expect(screen.getByRole('button', { name: /close enlarged photo/i })).toHaveFocus()
+    expect(within(dialog).getByRole('img', { name: /interior photo 1/i })).toBeVisible()
+
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(tile).toHaveFocus())
+  })
+
+  it('handles a failed lightbox image with the unavailable convention instead of a broken frame', async () => {
+    const user = userEvent.setup()
+    const pairStore = { ...galleryStore, media: galleryMedia.slice(0, 2) }
+    render(<StorePhotosPage client={photosClient(pairStore)} slug={pairStore.slug} />)
+    const tile = await screen.findByRole('button', { name: /view photo 2:/i })
+    await user.click(tile)
+
+    const dialog = screen.getByRole('dialog')
+    fireEvent.error(within(dialog).getByRole('img', { name: /interior photo 1/i }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('link', { name: /back to blue finch/i })).toHaveFocus())
+    expect(tile).toBeDisabled()
+    expect(screen.getByRole('button', { name: /photo 2: unavailable/i })).toBeVisible()
+  })
+
+  it('links See all N photos from Store Details through the shared return-restore seam', async () => {
+    window.history.replaceState({}, '', `/stores/${galleryStore.slug}`)
+    render(<DetailsPage client={photosClient()} slug={galleryStore.slug} />)
+    const link = await screen.findByRole('link', { name: /see all 6 photos/i })
+    expect(link.getAttribute('href') ?? '').toMatch(/\/stores\/[^/]+\/photos$/)
+
+    fireEvent.click(link)
+    const saved = window.sessionStorage.getItem('antique-trail:store-return')
+    expect(saved).toBeTruthy()
+    expect(JSON.parse(saved ?? '{}').storeId).toEqual(galleryStore.id)
+    window.history.replaceState({}, '', '/')
   })
 })

@@ -21,6 +21,14 @@ import {
   todayHoursSummary,
   upcomingHoursExceptions,
 } from './query'
+import {
+  catalogAppHref,
+  clearBrowseReturn,
+  readBrowseReturn,
+  rememberBrowseReturn,
+  responsiveCatalogImage,
+} from './shared'
+import { ErrorState, LoadingState } from './states'
 
 const stageRank: Record<CatalogBrowseStage, number> = {
   'package-1': 1,
@@ -34,63 +42,6 @@ const detailsStageRank: Record<CatalogDetailsStage, number> = {
   'package-3': 3,
   'package-5a': 5,
   'package-10a': 10,
-}
-
-const BROWSE_RETURN_KEY = 'antique-trail:browse-return'
-
-function catalogAppHref(path: string, base = import.meta.env.BASE_URL): string {
-  const normalizedBase = base.endsWith('/') ? base : `${base}/`
-  return `${normalizedBase}${path.replace(/^\/+/, '')}`
-}
-
-interface BrowseReturnState {
-  href: string
-  scrollY: number
-  storeId: string
-  savedAt: number
-}
-
-function responsiveCatalogImage(src: string, sizes: string) {
-  if (!src.includes('/1280w/') || !src.endsWith('.webp')) return { sizes }
-  return {
-    srcSet: [480, 800, 1280]
-      .map((width) => `${src.replace('/1280w/', `/${width}w/`)} ${width}w`)
-      .join(', '),
-    sizes,
-  }
-}
-
-function readBrowseReturn(): BrowseReturnState | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const parsed = JSON.parse(
-      window.sessionStorage.getItem(BROWSE_RETURN_KEY) ?? 'null',
-    ) as Partial<BrowseReturnState> | null
-    if (
-      !parsed ||
-      typeof parsed.href !== 'string' ||
-      !/^\/stores(?:\?|$)/u.test(parsed.href) ||
-      typeof parsed.scrollY !== 'number' ||
-      !Number.isFinite(parsed.scrollY) ||
-      typeof parsed.storeId !== 'string' ||
-      typeof parsed.savedAt !== 'number' ||
-      Date.now() - parsed.savedAt > 30 * 60_000
-    )
-      return null
-    return parsed as BrowseReturnState
-  } catch {
-    return null
-  }
-}
-
-function rememberBrowseReturn(storeId: string) {
-  if (typeof window === 'undefined') return
-  const href = `${window.location.pathname}${window.location.search}`
-  if (!/^\/stores(?:\?|$)/u.test(href)) return
-  window.sessionStorage.setItem(
-    BROWSE_RETURN_KEY,
-    JSON.stringify({ href, scrollY: window.scrollY, storeId, savedAt: Date.now() }),
-  )
 }
 
 const STORE_RETURN_KEY = 'antique-trail:store-return'
@@ -425,25 +376,6 @@ function mapCardId(storeId: string) {
   return `catalog-map-store-${encodeURIComponent(storeId)}`
 }
 
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <section className="catalog-state catalog-state--error" role="alert">
-      <h2>We couldn’t load the stores</h2>
-      <p>{message}</p>
-      <button type="button" onClick={onRetry}>
-        Retry
-      </button>
-    </section>
-  )
-}
-function LoadingState() {
-  return (
-    <section className="catalog-state catalog-state--loading" role="status" aria-live="polite">
-      <h2>Finding stores</h2>
-      <p>Loading current store details…</p>
-    </section>
-  )
-}
 function EmptyState({ hasFilters, onClear }: { hasFilters: boolean; onClear: () => void }) {
   return (
     <section className="catalog-state catalog-state--empty" role="status">
@@ -594,7 +526,7 @@ export function BrowsePage({
     const card = document.getElementById(mapCardId(saved.storeId))
     const returnTarget = card?.querySelector<HTMLElement>('h2 a')
     if (!returnTarget) return
-    window.sessionStorage.removeItem(BROWSE_RETURN_KEY)
+    clearBrowseReturn()
     requestAnimationFrame(() => {
       window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
       returnTarget.focus({ preventScroll: true })
@@ -1228,6 +1160,16 @@ export function DetailsPage({
         </header>
 
         <StoreGallery store={store} />
+        {store.media.length > 0 && (
+          <p className="store-detail__gallery-link">
+            <a
+              href={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/photos`)}
+              onClick={() => rememberStoreReturn(store.id)}
+            >
+              See all {store.media.length} photos
+            </a>
+          </p>
+        )}
 
         <section className="store-detail__intro" aria-labelledby="about-heading">
           <p className="eyebrow">What you’ll find</p>

@@ -3,6 +3,7 @@ import { Link, Navigate, NavLink, Route, Routes, useLocation, useParams } from '
 import {
   CatalogBrowserPage,
   CatalogDetailsPage,
+  StorePhotosPage,
   StoreUpdatesPage,
   configuredCatalogClient,
   demoCatalogClient,
@@ -483,6 +484,12 @@ function StoreUpdates({ catalog }: { catalog?: CatalogClient }) {
   return <StoreUpdatesPage client={client} slug={slug} />
 }
 
+function StorePhotos({ catalog }: { catalog?: CatalogClient }) {
+  const { slug = '' } = useParams()
+  const client = useCatalogClient(catalog)
+  return <StorePhotosPage client={client} slug={slug} />
+}
+
 function ResolvedStorePrivateRoute({
   shopperClient,
   catalog,
@@ -890,6 +897,10 @@ export default function App({
           <Route
             path="/stores/:slug/updates"
             element={<StoreUpdates catalog={clients.catalog} />}
+          />
+          <Route
+            path="/stores/:slug/photos"
+            element={<StorePhotos catalog={clients.catalog} />}
           />
           <Route
             path="/stores/:slug/reviews"
