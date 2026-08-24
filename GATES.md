@@ -1,59 +1,42 @@
-﻿# Gates: Start instruction run â€” #100, #97, then W1
+﻿# Gates: #99 authenticator grants — post-boot runbook + migration
 
-Scope: coding authorized by Product Owner 2026-08-23. Order: security hygiene #100, local-stack #97, then W1 spec-drift slices (#105-#112), then #113 contract DRAFTED for owner review (never closing #113 this run; no Package 13 migrations land before owner approval). Every closure requires scoped typecheck+lint+tests green, commit pushed, issue CLOSED/COMPLETED verified.
+Scope: fresh boots and drifted volumes both leave PostgREST able to serve app_public RPCs as catalog_reader, by committed idempotent SQL rather than volume-local ad hoc grants. Repo precedent bar: scoped checks green → commit → close #99 with evidence.
 
-## G1 â€” #100 secret hygiene resolved and closed
-- [x] Hosted-project secrets removed from tracked/env files per ticket scope; fix committed; issue CLOSED/COMPLETED
-  CHECK: gh issue view 100 --json state,stateReason -t "{{.state}}/{{.stateReason}}"
-  EXPECT: /CLOSED\/COMPLETED/
-  EVIDENCE: 2026-08-23 - history pickaxe clean (validators only), .env.local sanitized to localhost, .env.example verified fail-closed, closed with evidence comment
-## G2 â€” #97 local stack resolution landed and closed
-- [x] Ticket's root cause addressed; boot + full reset verified on this machine with Docker; committed; CLOSED/COMPLETED
-  CHECK: gh issue view 97 --json state,stateReason -t "{{.state}}/{{.stateReason}}"
-  EXPECT: /CLOSED\/COMPLETED/
-  EVIDENCE: 2026-08-23 - pins bumped to 2.115.0 (README/CI/plan); bind_navigator_device ownership repair; supabase start green, db reset green through 89 migrations + seed; pgTAP baseline filed as #121; commit 1187967
-## G3 â€” W1 slice: #111 Review Hours harness divergence reconciled
-- [x] Harness mirrors production RPC semantics; codifying e2e updated; scoped tests green; closed
-  CHECK: gh issue view 111 --json state,stateReason -t "{{.state}}/{{.stateReason}}"
-  EXPECT: /CLOSED\/COMPLETED/
-  EVIDENCE: 2026-08-23 - ui07 spec 54 passed / 0 failed / 3 skipped across viewports; REVIEW_VERDICTS.md note marked RESOLVED with dated evidence; commit 1d480ce
-## G4 â€” W1 slice: #105 /stores/:slug/updates route registered
-- [x] Route live with e2e both paths green; closed
-  CHECK: gh issue view 105 --json state,stateReason -t "{{.state}}/{{.stateReason}}"
-  EXPECT: /CLOSED\/COMPLETED/
-  EVIDENCE: 2026-08-23 - route at App.tsx:898 pre-existing post-review; e2e store-details.spec.ts:232-267 covers populated + empty states; closed with citations
-## G5 â€” W1 slice: #106 card Add-to-Trip action
-- [x] Card action shipped anonymous-resume + authenticated paths tested; closed
-  CHECK: gh issue view 106 --json state,stateReason -t "{{.state}}/{{.stateReason}}"
-  EXPECT: /CLOSED\/COMPLETED/
-  EVIDENCE: 2026-08-23 - card deep link components.tsx:361-366; new catalog.spec.ts card href/text test + details-link e2e; JIT resume covered by ui05 suite; commit 18a8a66
-## G6 â€” W1 slice: #107 aria-hidden decorative glyphs
-- [x] Glyphs hidden from AT, accessible-name assertions added; closed
-  CHECK: gh issue view 107 --json state,stateReason -t "{{.state}}/{{.stateReason}}"
-  EXPECT: /CLOSED\/COMPLETED/
-  EVIDENCE: 2026-08-23 - four glyph sites verified aria-hidden; new catalog.spec.ts exact-accessible-name regression test green; commit 18a8a66
-## G7 â€” W1 slice: #108 typography token compliance
-- [x] Forbidden weights and off-token headings corrected or documented exceptions; closed
-  CHECK: gh issue view 108 --json state,stateReason -t "{{.state}}/{{.stateReason}}"
-  EXPECT: /CLOSED\/COMPLETED/
-  EVIDENCE: 2026-08-23 - h1 42px/h2 29px match DESIGN_SYSTEM tokens exactly; zero non-token font-weight declarations repo-wide; closed with measurements
-## G8 â€” W1 slice: #109 More menu auth-required signals
-- [x] Gated items show non-color-only signal; tested; closed
-  CHECK: gh issue view 109 --json state,stateReason -t "{{.state}}/{{.stateReason}}"
-  EXPECT: /CLOSED\/COMPLETED/
-  EVIDENCE: 2026-08-23 - MoreMenuLock lock icon + sr-only text at App.tsx:331-348 gated per-destination :391; App.test.tsx menu coverage; closed with citations
-## G9 â€” W1 slice: #110 dark-mode tokens + persistence
-- [x] Dark palette covers all tokens; toggle persists; no first-paint flash; closed
-  CHECK: gh issue view 110 --json state,stateReason -t "{{.state}}/{{.stateReason}}"
-  EXPECT: /CLOSED\/COMPLETED/
-  EVIDENCE: 2026-08-23 - styles.css dark token block + index.html pre-paint boot script verified; new theme.spec system/toggle/persistence tests green all viewports; commit 18a8a66
-## G10 â€” W1 slice: #112 dark coverage sweep
-- [x] All routes audited dark; contrast fixes landed; e2e theme coverage; closed
-  CHECK: gh issue view 112 --json state,stateReason -t "{{.state}}/{{.stateReason}}"
-  EXPECT: /CLOSED\/COMPLETED/
-  EVIDENCE: 2026-08-23 - themed-surface tests on Browse/Details/Gallery/More + @axe-core/playwright dark scans ZERO critical/serious violations incl color-contrast; 14/14 theme tests green; commit 18a8a66
-## G11 â€” #113 contract drafted and handed to owner (NOT closed)
-- [x] Package 13 section written into PACKAGE_CONTRACTS.md, pushed, review-request comment posted on #113; issue intentionally left OPEN awaiting owner approval
-  CHECK: node -e "const{execSync}=require('child_process');const j=JSON.parse(execSync('gh api repos/samarquis/AntiqueTrail/issues/113/comments',{encoding:'utf8'}));const s=JSON.parse(execSync('gh issue view 113 --json state',{encoding:'utf8'}));console.log(j.some(c=>c.body.includes('contract draft is ready for your review'))&&s.state==='OPEN'?'DRAFTED_AND_OPEN':'CHECK_STATE')"
-  EXPECT: /DRAFTED_AND_OPEN/
-  EVIDENCE: 2026-08-23 - comment 5389629757 posted referencing draft commit 1184c57; issue verified OPEN
+- [x] G1: Fresh boot path self-heals — stack start + full `db reset` green with the new migration applied
+  CHECK: npx --no-install supabase@2.115.0 db reset --local (tail) then docker exec psql count of applied migrations
+  EXPECT: /20260824000000_post_boot_authenticator_privileges/ in reset output
+  EVIDENCE: 2026-08-24 - reset exit 0, log tail shows "Applying migration 20260824000000_post_boot_authenticator_privileges.sql..." then "Finished supabase db reset on branch main"; supabase_migrations.schema_migrations counts 87 rows
+
+- [x] G2: Privileges exist WITHOUT running post-boot.sql after reset (proves boot/reset path needs no manual step)
+  CHECK: docker exec supabase_db_antique-trail psql -t -c "select has_schema_privilege('authenticator','app_public','USAGE'), pg_has_role('authenticator','catalog_reader','MEMBER')"
+  EXPECT: /t\|t/
+  EVIDENCE: 2026-08-24 - psql returns `t|t` immediately after reset with zero manual steps
+
+- [x] G3: PGRST hot path restored — POST /rest/v1/rpc/catalog_list with minted role=catalog_reader JWT returns HTTP 200 and 12 synthetic stores
+  CHECK: node one-liner mints HS256 JWT from local demo secret (secret never committed) + fetch; print status and array length
+  EXPECT: /200.*12/
+  EVIDENCE: 2026-08-24 - CATALOG_READER: STATUS=200 ROWS=12 (first row slug clockwork-cabinet); requires Content/Accept-Profile app_public headers like the browser client; ANON_CONTROL: STATUS=401 permission denied for function catalog_list (BY-DESIGN execute boundary intact)
+
+- [x] G4: Drift repair works on a live volume without reset — the genuinely stale pre-reset volume served as the specimen: f/f before, `npm run db:post-boot` restores t/t and exits 0
+  CHECK: verify f/f on drifted volume; npm run db:post-boot; verify t/t
+  EXPECT: post-boot exit code 0 and /t\|t/ after repair
+  EVIDENCE: 2026-08-24 - stale pre-reset volume measured f|f before; script prints before/after privilege tables, GRANT/GRANT ROLE/NOTIFY, DO block passed, EXIT=0, recheck t|t
+
+- [x] G5: pgTAP suite green including new 0070 contract (CI-identical pg_prove invocation)
+  CHECK: docker run public.ecr.aws/supabase/pg_prove:3.36 against supabase/tests (same flags as ci.yml lines 103-113)
+  EXPECT: /0070.*ok|Result: PASS/i with 0070 in the run
+  EVIDENCE: 2026-08-24 - after replicating ci.yml ephemeral-role step verbatim: "/tmp/tests/0070_post_boot_authenticator_privileges.sql ........ ok ... All tests successful. Files=70, Tests=1951 ... Result: PASS", PGTAP_EXIT=0
+
+- [x] G6: Repository check bar green for the changed surface — typecheck, vitest, release contracts, build, prettier on touched files all green; full `npm run check` is blocked ONLY by pre-existing items outside this diff
+  CHECK: npm run typecheck && npm run test && npm run test:release && npm run build; npx prettier --check package.json
+  EXPECT: each exit 0
+  EVIDENCE: 2026-08-24 - TC_EXIT=0; vitest "Test Files 85 passed (85), Tests 536 passed (536)"; release "pass 58 fail 0"; BUILD_EXIT=0; prettier clean. Pre-existing blockers (untouched by this diff): (a) 230 eslint errors entirely inside untracked prior-session debris scripts/backfill-demo-profiles.mjs, scripts/create-demo-users.mjs, scripts/gateway-entry.mjs and gitignored supabase/.temp CLI artifact — linting those paths alone reproduces exactly 230; (b) npm run security:contract fails on committed package-lock.json entries @axe-core/playwright + axe-core carrying MPL-2.0, which ALLOWED_LICENSES omits — main CI already red on commits 3435ffe/431136f for this repo state, predating this work
+
+- [x] G7: Evidence recorded in repo docs and issue closed with citations
+  EVIDENCE: 2026-08-24 - two rows appended to docs/stress/DECISIONS.tsv (FIX migration + TOOL runbook); issue #99 closed with evidence comment citing this ledger
+
+Notes:
+- ABANDON: none. Every gate met; no scope dropped.
+- Hazard flagged, not fixed here: untracked scripts/gateway-entry.mjs line 4 embeds a hosted pooler connection string including a password. Recommend deleting the file and rotating that credential (same class as closed ticket #100).
+- The requested 20-agent fan-out was impossible this session: every subagent spawn failed with ProviderModelNotFoundError (harness model misconfiguration), probe included. All gates were executed and evidenced solo instead.
+
