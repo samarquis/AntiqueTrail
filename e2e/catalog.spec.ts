@@ -358,3 +358,28 @@ test.describe('Synthetic catalog design contract', () => {
     await expectMinimumTargets(page)
   })
 })
+
+test('store cards offer Add to Trip with a deep link', async ({ page }) => {
+  await page.goto('/stores')
+  const add = page.locator('.catalog-card__add-to-trip').first()
+  await expect(add).toHaveText('Add to Trip')
+  await expect(add).toHaveAttribute('href', /\/trips\/new\?addStoreId=/)
+})
+
+test('decorative glyphs stay out of accessible names', async ({ page }) => {
+  await page.goto('/stores/blue-finch-curios')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+  // Back link: the arrow glyph is aria-hidden, so the exact accessible name
+  // is the label text alone.
+  const back = page.getByRole('link', { name: 'Back to Browse', exact: true })
+  await expect(back).toBeVisible()
+  await expect(back.locator('[aria-hidden="true"]')).toHaveCount(1)
+
+  // Status badges: glyph spans are aria-hidden.
+  for (const badge of await page.locator('.status-badge').all()) {
+    await expect(badge.locator('span[aria-hidden="true"]')).toHaveCount(1)
+    const label = (await badge.textContent()) ?? ''
+    expect(label.trim().length, 'badge keeps a visible label beside its glyph').toBeGreaterThan(2)
+  }
+})
