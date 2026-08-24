@@ -14,3 +14,7 @@ supabase/.temp/
 *.log
 store-details-focus.png
 .env.local
+
+# Local CLI/tooling state
+supabase/.branches/
+skills-lock.json
