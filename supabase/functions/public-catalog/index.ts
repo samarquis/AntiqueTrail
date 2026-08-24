@@ -37,6 +37,9 @@ Deno.serve(async (request, connection) => {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-store',
     Vary: 'Origin',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    // Browser preflight rejects the signed-in Authorization bearer without this list.
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
     ...(origin && allowedOrigin === origin ? { 'Access-Control-Allow-Origin': origin } : {}),
   }
   if (request.method === 'OPTIONS')

@@ -84,6 +84,19 @@ Store Details shows:
 
 Official social links open externally. Do not embed feeds, authenticate to social platforms, scrape/synchronize content, or import social tracking.
 
+### Store photo gallery page
+
+Store Details links `See all photos` to a full store photo gallery page. The locked direction comes from the August 2026 gallery prototype (`/prototype/store-gallery`, variant D "B × C Fusion"):
+
+- Serif editorial header: store name, town, photo count.
+- Asymmetric editorial grid with varied tile sizes; tiles fade and rise into place as they enter the viewport.
+- One or two full-bleed feature moments between grid sections: near-viewport-height image with gentle scroll parallax, dark gradient overlay, large serif caption (opening storefront first; later features alternate caption side).
+- Thin reading-progress bar fixed at top.
+- Hover or focus on a tile shows caption plus `View Photo`; every tile is a real button reachable by keyboard.
+- Click opens a lightbox (large image plus caption); `Escape` closes it.
+
+Motion is decorative only: all content stays readable without hover, no drag-only or time-pressured interaction, and reduced-motion users get the same information without parallax or reveal animation. The prototype route remains as visual reference until this page is implemented for real; then remove the throwaway route and variants. Photo counts shown remain governed by the currently approved scope (one cover plus up to five approved images) until tiered listing membership is separately activated (see `docs/research/stripe-integration-scope.md`, tickets #88–#94).
+
 ### Claim this listing
 
 Store Details shows `Is this your store? Claim this listing` only for active, unclaimed, claimable listings after Package 10B enables public claims. Anyone may open the explanation; submission requires verified email and MFA. `/stores/:slug/claim` identifies the exact store and explains that a claim publishes nothing and grants no Portal access. The claimant confirms identity/relationship, two approved independent authority signals, consent, and exact store before `Submit Claim`. Each signal shows `Not started`, `Submitted`, `Changes requested`, or `Accepted`; competing claimant/internal fraud evidence stays hidden.
