@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail AT interlock candidate two</title>
+  <desc id="desc">A custom A and T overlap using one large, visible T cap and a single foreground crossover.</desc>
+  <rect width="1400" height="900" fill="#F6F4F0"/>
+  <g font-family="Arial, sans-serif">
+    <text x="84" y="76" fill="#344A70" font-size="19" font-weight="700" letter-spacing="4">ANTIQUE TRAIL · AT INTERLOCK · CANDIDATE V2</text>
+    <text x="84" y="128" fill="#202833" font-size="44" font-weight="700">A clear T, a clear A, one crossover.</text>
+    <text x="84" y="166" fill="#5D6876" font-size="20">The T cap and right stem remain complete; the A comes forward only once at the lower-right leg.</text>
+  </g>
+  <defs>
+    <g id="mark">
+      <!-- Full T silhouette behind the A. -->
+      <path fill="#8795B5" d="M132 58h166v47h-55v170h-51V105h-60z"/>
+      <!-- A cuts a clean triangular counter through the T. -->
+      <path fill="#F3EEE4" fill-rule="evenodd" d="M41 275 116 58h66l75 217h-54l-17-53h-75l-17 53H41zm88-99h39l-19-58-20 58z"/>
+      <!-- One deliberate T-over-A crossover; no other small interruptions. -->
+      <path fill="#8795B5" d="M192 222h51v53h-51z"/>
+    </g>
+    <g id="mark-one-color">
+      <path fill="currentColor" fill-rule="evenodd" d="M132 58h166v47h-55v170h-51V105h-60zM41 275 116 58h66l75 217h-54l-17-53h-75l-17 53H41zm88-99h39l-19-58-20 58z"/>
+    </g>
+  </defs>
+  <g transform="translate(84 240)">
+    <rect width="470" height="470" rx="104" fill="#202833"/>
+    <g transform="translate(78 78) scale(1.12)"><use href="#mark"/></g>
+  </g>
+  <g transform="translate(675 268)">
+    <text x="0" y="0" fill="#202833" font-size="24" font-weight="700">Structural checks</text>
+    <text x="0" y="40" fill="#5D6876" font-size="19">• The blue cap and stem state T before the overlap begins.</text>
+    <text x="0" y="74" fill="#5D6876" font-size="19">• The ivory A remains a complete, quiet silhouette.</text>
+    <text x="0" y="108" fill="#5D6876" font-size="19">• Only one large, legible over/under move remains.</text>
+    <text x="0" y="160" fill="#202833" font-size="24" font-weight="700">One-color print</text>
+    <rect x="0" y="182" width="236" height="236" rx="20" fill="#FFFDFC"/>
+    <g transform="translate(25 205) scale(.68)" style="color:#202833"><use href="#mark-one-color"/></g>
+    <text x="0" y="462" fill="#202833" font-size="24" font-weight="700">Actual icon sizes</text>
+    <g transform="translate(0 486)"><rect width="128" height="128" rx="28" fill="#202833"/><g transform="translate(20 20) scale(.32)"><use href="#mark"/></g></g>
+    <g transform="translate(154 550)"><rect width="64" height="64" rx="14" fill="#202833"/><g transform="translate(10 10) scale(.16)"><use href="#mark"/></g></g>
+    <g transform="translate(240 582)"><rect width="32" height="32" rx="7" fill="#202833"/><g transform="translate(5 5) scale(.08)"><use href="#mark"/></g></g>
+  </g>
+</svg>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1110" viewBox="0 0 1440 1110" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail Field and Brass palette proposal</title>
+  <desc id="desc">A light and dark palette built from pine, teal, moss, brass, and clay.</desc>
+  <rect width="1440" height="1110" fill="#F8F5ED"/>
+  <text x="84" y="94" fill="#17312D" font-family="Georgia, serif" font-size="52">Antique Trail</text>
+  <text x="84" y="137" fill="#52655F" font-family="Arial, sans-serif" font-size="22" letter-spacing="3">FIELD &amp; BRASS · PALETTE PROPOSAL</text>
+  <text x="84" y="202" fill="#17312D" font-family="Arial, sans-serif" font-size="26">Soft, memorable surfaces. Strong contrast only where a shopper needs to read, decide, or stay safe.</text>
+  <text x="84" y="286" fill="#17312D" font-family="Georgia, serif" font-size="34">Light theme</text>
+  <g font-family="Arial, sans-serif">
+    <rect x="84" y="322" width="240" height="164" rx="20" fill="#F8F5ED" stroke="#D8D5CA" stroke-width="2"/><text x="104" y="522" fill="#17312D" font-size="20">Canvas</text><text x="104" y="550" fill="#52655F" font-size="18">#F8F5ED</text>
+    <rect x="344" y="322" width="240" height="164" rx="20" fill="#FFFCF6" stroke="#D8D5CA" stroke-width="2"/><text x="364" y="522" fill="#17312D" font-size="20">Card</text><text x="364" y="550" fill="#52655F" font-size="18">#FFFCF6</text>
+    <rect x="604" y="322" width="240" height="164" rx="20" fill="#17312D"/><text x="624" y="522" fill="#17312D" font-size="20">Pine ink</text><text x="624" y="550" fill="#52655F" font-size="18">#17312D</text>
+    <rect x="864" y="322" width="240" height="164" rx="20" fill="#08746B"/><text x="884" y="522" fill="#17312D" font-size="20">Trail teal</text><text x="884" y="550" fill="#52655F" font-size="18">#08746B</text>
+    <rect x="1124" y="322" width="240" height="164" rx="20" fill="#DCEDE5"/><text x="1144" y="522" fill="#17312D" font-size="20">Mint glass</text><text x="1144" y="550" fill="#52655F" font-size="18">#DCEDE5</text>
+    <rect x="84" y="594" width="240" height="164" rx="20" fill="#6C7756"/><text x="104" y="794" fill="#17312D" font-size="20">Moss label</text><text x="104" y="822" fill="#52655F" font-size="18">#6C7756</text>
+    <rect x="344" y="594" width="240" height="164" rx="20" fill="#D6A13A"/><text x="364" y="794" fill="#17312D" font-size="20">Brass signal</text><text x="364" y="822" fill="#52655F" font-size="18">#D6A13A</text>
+    <rect x="604" y="594" width="240" height="164" rx="20" fill="#AA4936"/><text x="624" y="794" fill="#17312D" font-size="20">Clay alert</text><text x="624" y="822" fill="#52655F" font-size="18">#AA4936</text>
+    <rect x="864" y="594" width="240" height="164" rx="20" fill="#52655F"/><text x="884" y="794" fill="#17312D" font-size="20">Leaf muted</text><text x="884" y="822" fill="#52655F" font-size="18">#52655F</text>
+    <rect x="1124" y="594" width="240" height="164" rx="20" fill="#D8D5CA"/><text x="1144" y="794" fill="#17312D" font-size="20">Paper line</text><text x="1144" y="822" fill="#52655F" font-size="18">#D8D5CA</text>
+  </g>
+  <rect y="858" width="1440" height="252" fill="#071817"/>
+  <text x="84" y="928" fill="#F7F2E8" font-family="Georgia, serif" font-size="34">Dark theme</text>
+  <g font-family="Arial, sans-serif">
+    <rect x="84" y="958" width="178" height="86" rx="16" fill="#071817" stroke="#31534C" stroke-width="2"/><text x="84" y="1078" fill="#FFF6E7" font-size="17">Midnight pine · #071817</text>
+    <rect x="280" y="958" width="178" height="86" rx="16" fill="#0F2927"/><text x="280" y="1078" fill="#FFF6E7" font-size="17">Bottle-glass recess · #0F2927</text>
+    <rect x="476" y="958" width="178" height="86" rx="16" fill="#173B36"/><text x="476" y="1078" fill="#FFF6E7" font-size="17">Patina card · #173B36</text>
+    <rect x="672" y="958" width="178" height="86" rx="16" fill="#4F9C92"/><text x="672" y="1078" fill="#FFF6E7" font-size="17">Oxidized teal · #4F9C92</text>
+    <rect x="868" y="958" width="178" height="86" rx="16" fill="#B58A3F"/><text x="868" y="1078" fill="#FFF6E7" font-size="17">Aged brass · #B58A3F</text>
+    <rect x="1064" y="958" width="178" height="86" rx="16" fill="#C97A68"/><text x="1064" y="1078" fill="#FFF6E7" font-size="17">Weathered clay · #C97A68</text>
+  </g>
+</svg>

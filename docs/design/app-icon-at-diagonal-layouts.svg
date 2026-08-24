@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="780" viewBox="0 0 1400 780" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail diagonal AT layouts</title>
+  <desc id="desc">Three layouts placing broad AT initials diagonally beneath a storefront canopy.</desc>
+  <rect width="1400" height="780" fill="#F6F4F0"/>
+  <g font-family="Arial, sans-serif">
+    <text x="92" y="76" fill="#344A70" font-size="20" font-weight="700" letter-spacing="4">ANTIQUE TRAIL · OPTION 01 EVOLVED</text>
+    <text x="92" y="132" fill="#202833" font-size="46" font-weight="700">Diagonal AT under the canopy</text>
+    <text x="92" y="171" fill="#5D6876" font-size="21">The canopy establishes “store.” The AT rises like a sign or a trail—large, broad, and unmistakable.</text>
+  </g>
+  <defs>
+    <style>
+      .tile { fill:#121519; }
+      .awning { fill:#8795B5; }
+      .ivory { fill:#F3EEE4; }
+      .brass { fill:#B99554; }
+      .label { font-family:Arial,sans-serif; fill:#202833; font-size:22px; font-weight:700; }
+      .detail { font-family:Arial,sans-serif; fill:#5D6876; font-size:18px; }
+      .monogram { fill:#F3EEE4; font-family:Georgia,serif; font-weight:700; letter-spacing:-20px; }
+    </style>
+  </defs>
+
+  <!-- A starts low left; T rises to the canopy -->
+  <g transform="translate(92 250)">
+    <rect class="tile" width="360" height="360" rx="80"/>
+    <path class="awning" d="M57 112h246l-26-43H83z"/><path class="ivory" d="M57 112h246v24H57z"/>
+    <path d="M77 112v24m41-24v24m41-24v24m41-24v24m41-24v24" stroke="#121519" stroke-width="12"/>
+    <text class="monogram" x="77" y="290" font-size="205">A</text>
+    <text class="monogram" x="177" y="227" font-size="205">T</text>
+    <circle class="brass" cx="286" cy="269" r="8"/>
+    <text class="label" x="0" y="414">01 · Rising sign</text><text class="detail" x="0" y="447">Most direct diagonal stack; strongest read.</text>
+  </g>
+
+  <!-- letters overlap slightly like a joined monogram -->
+  <g transform="translate(520 250)">
+    <rect class="tile" width="360" height="360" rx="80"/>
+    <path class="awning" d="M57 112h246l-26-43H83z"/><path class="ivory" d="M57 112h246v24H57z"/>
+    <path d="M77 112v24m41-24v24m41-24v24m41-24v24m41-24v24" stroke="#121519" stroke-width="12"/>
+    <text class="monogram" x="73" y="282" font-size="216">A</text>
+    <text class="monogram" x="157" y="234" font-size="216">T</text>
+    <path d="M95 295c43-25 92-49 166-112" fill="none" stroke="#B99554" stroke-width="6" stroke-linecap="round"/>
+    <text class="label" x="0" y="414">02 · Joined mark</text><text class="detail" x="0" y="447">More like a custom monogram; more premium.</text>
+  </g>
+
+  <!-- A and T broad but tucked up toward canopy -->
+  <g transform="translate(948 250)">
+    <rect class="tile" width="360" height="360" rx="80"/>
+    <path class="awning" d="M57 112h246l-26-43H83z"/><path class="ivory" d="M57 112h246v24H57z"/>
+    <path d="M77 112v24m41-24v24m41-24v24m41-24v24m41-24v24" stroke="#121519" stroke-width="12"/>
+    <text class="monogram" x="71" y="267" font-size="190">A</text>
+    <text class="monogram" x="178" y="216" font-size="190">T</text>
+    <path d="M84 306c55-2 127-26 203-91" fill="none" stroke="#8795B5" stroke-width="12" stroke-linecap="round"/>
+    <text class="label" x="0" y="414">03 · Trail lift</text><text class="detail" x="0" y="447">The blue line gives the upward motion a trail cue.</text>
+  </g>
+</svg>

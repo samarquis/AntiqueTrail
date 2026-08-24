@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail one-color shirt logo concept</title>
+  <desc id="desc">The Antique Trail storefront above a sturdy uppercase Antique Trail wordmark.</desc>
+  <!-- Concept artwork only. Convert the approved wordmark to outlines before commercial print production. -->
+  <g transform="translate(344 64) scale(1.28)" fill="#202833">
+    <path d="M128 104h256c13 0 24 11 24 24s-11 24-24 24H128c-13 0-24-11-24-24s11-24 24-24Z"/>
+    <path fill-rule="evenodd" d="M128 204h256v220H128V204Zm82 220V312a46 46 0 0 1 92 0v112h-92Z"/>
+    <path d="M124 152h264l20 62v4c0 26-21 47-48 47s-48-21-48-47c0 26-25 47-56 47s-56-21-56-47c0 26-21 47-48 47s-48-21-48-47v-4l20-62Z"/>
+  </g>
+  <text x="600" y="720" text-anchor="middle" fill="#202833" font-family="Atkinson Hyperlegible, Arial, sans-serif" font-size="106" font-weight="700" letter-spacing="12">ANTIQUE TRAIL</text>
+  <path fill="#202833" d="M238 766h724v12H238z"/>
+</svg>

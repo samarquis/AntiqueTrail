@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="860" viewBox="0 0 1400 860" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail AT monogram directions</title>
+  <desc id="desc">Three refined Antique Trail logo directions using a large AT monogram with a quiet storefront or road motif.</desc>
+  <rect width="1400" height="860" fill="#F6F4F0"/>
+  <g font-family="Atkinson Hyperlegible, Arial, sans-serif">
+    <text x="92" y="82" fill="#202833" font-size="22" font-weight="700" letter-spacing="4">ANTIQUE TRAIL</text>
+    <text x="92" y="137" fill="#202833" font-size="46" font-weight="700">AT monogram directions</text>
+    <text x="92" y="176" fill="#5D6876" font-size="21">The initials do the recognition work. The trail or storefront stays quiet, never competes.</text>
+  </g>
+
+  <!-- Direction 1: storefront awning -->
+  <g transform="translate(92 250)">
+    <rect width="350" height="350" rx="78" fill="#121519"/>
+    <path d="M55 101h240l-24-39H79z" fill="#8795B5"/>
+    <path d="M55 101h240v24H55z" fill="#F3EEE4"/>
+    <path d="M75 101v24m40-24v24m40-24v24m40-24v24m40-24v24" stroke="#121519" stroke-width="12"/>
+    <text x="76" y="272" fill="#F3EEE4" font-family="Georgia, serif" font-size="176" font-weight="700" letter-spacing="-24">AT</text>
+    <circle cx="272" cy="261" r="8" fill="#B99554"/>
+    <text x="0" y="405" fill="#202833" font-size="23" font-weight="700">01 · The Sign</text>
+    <text x="0" y="440" fill="#5D6876" font-size="18">AT as the sign above a vintage storefront.</text>
+    <text x="0" y="496" fill="#202833" font-family="Georgia, serif" font-size="52" font-weight="700">AT</text>
+    <text x="84" y="485" fill="#202833" font-size="16" font-weight="700" letter-spacing="3">ANTIQUE</text>
+    <text x="84" y="510" fill="#5D6876" font-size="16" font-weight="700" letter-spacing="3">TRAIL</text>
+  </g>
+
+  <!-- Direction 2: road behind monogram -->
+  <g transform="translate(525 250)">
+    <rect width="350" height="350" rx="78" fill="#121519"/>
+    <path d="M35 307c74-104 102-4 153-92 41-70 59-101 127-143" fill="none" stroke="#8795B5" stroke-width="30" stroke-linecap="round"/>
+    <path d="M42 306c76-103 104-4 155-91 38-66 62-100 118-136" fill="none" stroke="#B99554" stroke-width="6" stroke-linecap="round"/>
+    <text x="72" y="255" fill="#F3EEE4" font-family="Georgia, serif" font-size="182" font-weight="700" letter-spacing="-27">AT</text>
+    <text x="0" y="405" fill="#202833" font-size="23" font-weight="700">02 · The Trail</text>
+    <text x="0" y="440" fill="#5D6876" font-size="18">The route is a subtle signature under AT.</text>
+    <text x="0" y="496" fill="#202833" font-family="Georgia, serif" font-size="52" font-weight="700">AT</text>
+    <text x="84" y="485" fill="#202833" font-size="16" font-weight="700" letter-spacing="3">ANTIQUE</text>
+    <text x="84" y="510" fill="#5D6876" font-size="16" font-weight="700" letter-spacing="3">TRAIL</text>
+  </g>
+
+  <!-- Direction 3: collector's frame -->
+  <g transform="translate(958 250)">
+    <rect width="350" height="350" rx="78" fill="#121519"/>
+    <rect x="48" y="46" width="254" height="254" rx="46" fill="none" stroke="#8795B5" stroke-width="14"/>
+    <path d="M83 280c38-61 61-15 91-53 26-33 43-42 78-66" fill="none" stroke="#B99554" stroke-width="8" stroke-linecap="round"/>
+    <text x="85" y="235" fill="#F3EEE4" font-family="Georgia, serif" font-size="165" font-weight="700" letter-spacing="-24">AT</text>
+    <text x="0" y="405" fill="#202833" font-size="23" font-weight="700">03 · The Collector</text>
+    <text x="0" y="440" fill="#5D6876" font-size="18">AT framed like a prized object in a collection.</text>
+    <text x="0" y="496" fill="#202833" font-family="Georgia, serif" font-size="52" font-weight="700">AT</text>
+    <text x="84" y="485" fill="#202833" font-size="16" font-weight="700" letter-spacing="3">ANTIQUE</text>
+    <text x="84" y="510" fill="#5D6876" font-size="16" font-weight="700" letter-spacing="3">TRAIL</text>
+  </g>
+</svg>

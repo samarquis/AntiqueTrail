@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail one-color storefront and trail shirt logo concept</title>
+  <desc id="desc">A storefront whose doorway widens into a trail, above the Antique Trail wordmark.</desc>
+  <style>
+    @font-face {
+      font-family: "Atkinson Hyperlegible Embedded";
+      src: url("../../public/fonts/AtkinsonHyperlegible-Bold.woff2") format("woff2");
+      font-weight: 700;
+    }
+  </style>
+  <!-- Concept artwork only. Convert the approved wordmark to outlines before commercial print production. -->
+  <g transform="translate(137 -60) scale(1.81)" fill="#202833">
+    <path d="M96 100h320v48h-32v24H128v-24H96z"/>
+    <path d="M124 154h264l20 58v6c0 26-21 40-48 40s-48-14-48-40c0 31-25 50-56 50s-56-19-56-50c0 26-21 40-48 40s-48-14-48-40v-6l20-58Z"/>
+    <path fill-rule="evenodd" d="M128 286h256v138H128V286Zm60 138c15-35 35-63 59-82 16-12 25-27 25-42 23 8 39 27 39 51 0 25-15 42-33 56-9 7-15 12-20 17h-70Z"/>
+  </g>
+  <text x="600" y="825" text-anchor="middle" fill="#202833" font-family="Atkinson Hyperlegible Embedded, Atkinson Hyperlegible, Arial, sans-serif" font-size="92" font-weight="700" letter-spacing="3">ANTIQUE TRAIL</text>
+</svg>
+

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="780" viewBox="0 0 1400 780" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail overlapping AT monogram concepts</title>
+  <desc id="desc">Three original athletic-style overlapping AT monograms made with simple custom geometric letterforms.</desc>
+  <rect width="1400" height="780" fill="#F6F4F0"/>
+  <g font-family="Arial, sans-serif">
+    <text x="92" y="76" fill="#344A70" font-size="20" font-weight="700" letter-spacing="4">ANTIQUE TRAIL · MONOGRAM RESET</text>
+    <text x="92" y="132" fill="#202833" font-size="46" font-weight="700">Overlapping AT, no decoration</text>
+    <text x="92" y="171" fill="#5D6876" font-size="21">Custom block letterforms, a confident interlock, and nothing else competing for attention.</text>
+  </g>
+  <defs>
+    <style>
+      .tile { fill:#202833; }
+      .ivory { fill:#FFFDFC; }
+      .blue { fill:#8795B5; }
+      .deep { fill:#121519; }
+      .label { font-family:Arial,sans-serif; fill:#202833; font-size:22px; font-weight:700; }
+      .detail { font-family:Arial,sans-serif; fill:#5D6876; font-size:18px; }
+    </style>
+  </defs>
+
+  <!-- 01: A in front of T -->
+  <g transform="translate(92 250)">
+    <rect class="tile" width="360" height="360" rx="80"/>
+    <path class="blue" d="M124 74h178v51h-60v168h-59V125h-59z"/>
+    <path class="ivory" d="M58 292 138 73h76l80 219h-59l-17-52h-83l-17 52H58zm94-103h49l-25-75z"/>
+    <rect class="deep" x="170" y="189" width="49" height="51"/>
+    <path class="ivory" d="M152 189h49l17 51h-49z"/>
+    <text class="label" x="0" y="414">01 · A over T</text><text class="detail" x="0" y="447">The A owns the foreground; the T gives width.</text>
+  </g>
+
+  <!-- 02: T locks through A -->
+  <g transform="translate(520 250)">
+    <rect class="tile" width="360" height="360" rx="80"/>
+    <path class="blue" d="M59 292 139 73h76l80 219h-59l-17-52h-84l-17 52H59zm94-103h48l-24-75z"/>
+    <path class="ivory" d="M130 80h180v48h-62v165h-58V128h-60z"/>
+    <path class="deep" d="M148 189h57v51h-57z"/>
+    <path class="blue" d="M148 189h53l17 51h-53z"/>
+    <text class="label" x="0" y="414">02 · T through A</text><text class="detail" x="0" y="447">A true weave: each letter passes over once.</text>
+  </g>
+
+  <!-- 03: one-color shared-stem monogram -->
+  <g transform="translate(948 250)">
+    <rect class="tile" width="360" height="360" rx="80"/>
+    <path class="ivory" d="M54 293 136 72h70l47 127V123h58V72h-57v-1h-58l-1 1h-59l-82 221h61l17-51h85l17 51h60l-49-130h48v130h58V123h58V72H253v3L206 72h-70l-82 221zm97-104 24-72 25 72z"/>
+    <path class="blue" d="M252 72h59v51h-59z"/>
+    <text class="label" x="0" y="414">03 · Shared stem</text><text class="detail" x="0" y="447">One-color, compact, and strongest at tiny sizes.</text>
+  </g>
+</svg>

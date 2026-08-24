@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="920" viewBox="0 0 1400 920" role="img" aria-labelledby="title desc">
+  <title id="title">Ten Antique Trail app icon directions</title>
+  <desc id="desc">A board of ten simple icon concepts that combine a trail with a recognizable antique or vintage object.</desc>
+  <rect width="1400" height="920" fill="#F6F4F0"/>
+  <g font-family="Atkinson Hyperlegible, Arial, sans-serif">
+    <text x="70" y="72" fill="#202833" font-size="24" font-weight="700" letter-spacing="4">ANTIQUE TRAIL</text>
+    <text x="70" y="125" fill="#202833" font-size="44" font-weight="700">App icon exploration</text>
+    <text x="70" y="162" fill="#5D6876" font-size="21">Ten direct meanings: antiques and vintage finds, with a trail leading you there.</text>
+  </g>
+  <defs>
+    <style>
+      .tile { fill:#121519; }
+      .ivory { fill:#F3EEE4; stroke:#F3EEE4; }
+      .blue { fill:#8795B5; stroke:#8795B5; }
+      .brass { fill:#B99554; stroke:#B99554; }
+      .line { fill:none; stroke:#F3EEE4; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
+      .trail { fill:none; stroke:#8795B5; stroke-width:15; stroke-linecap:round; stroke-linejoin:round; }
+      .caption { font-family:Atkinson Hyperlegible,Arial,sans-serif; fill:#202833; font-size:18px; font-weight:700; }
+      .sub { font-family:Atkinson Hyperlegible,Arial,sans-serif; fill:#5D6876; font-size:15px; }
+    </style>
+  </defs>
+
+  <!-- 01: Curio window -->
+  <g transform="translate(70 220)">
+    <rect class="tile" width="220" height="220" rx="46"/>
+    <rect x="47" y="42" width="126" height="132" rx="10" class="line"/>
+    <path class="line" d="M47 83h126M88 42v132M130 42v132"/>
+    <path class="trail" d="M63 160c18-34 38 18 56-8s25-3 40-27"/>
+    <circle class="brass" cx="153" cy="111" r="9"/>
+    <text class="caption" x="0" y="252">01 · Curio window</text><text class="sub" x="0" y="278">Browse a displayed collection</text>
+  </g>
+
+  <!-- 02: Skeleton key trail -->
+  <g transform="translate(330 220)">
+    <rect class="tile" width="220" height="220" rx="46"/>
+    <circle class="line" cx="87" cy="87" r="35"/>
+    <path class="line" d="M111 111l52 52m-22-22 16-16m-3 39 17-17"/>
+    <path class="trail" d="M45 163c20-31 46 13 73-6"/>
+    <circle class="brass" cx="48" cy="161" r="8"/>
+    <text class="caption" x="0" y="252">02 · Vintage key</text><text class="sub" x="0" y="278">Unlock hidden local finds</text>
+  </g>
+
+  <!-- 03: Frame + route -->
+  <g transform="translate(590 220)">
+    <rect class="tile" width="220" height="220" rx="46"/>
+    <rect x="46" y="44" width="128" height="128" rx="8" class="line"/>
+    <path class="line" d="M46 64h128M46 152h128"/>
+    <path class="trail" d="M64 141c14-30 33-4 48-28s23 7 43-25"/>
+    <path class="brass" d="M151 67l5 12 12 5-12 5-5 12-5-12-12-5 12-5z"/>
+    <text class="caption" x="0" y="252">03 · Framed find</text><text class="sub" x="0" y="278">A collectible worth seeking out</text>
+  </g>
+
+  <!-- 04: Cabinet -->
+  <g transform="translate(850 220)">
+    <rect class="tile" width="220" height="220" rx="46"/>
+    <rect x="50" y="47" width="120" height="122" rx="7" class="line"/>
+    <path class="line" d="M110 47v122M50 78h120"/>
+    <circle class="brass" cx="101" cy="109" r="5"/><circle class="brass" cx="119" cy="109" r="5"/>
+    <path class="trail" d="M68 151c11-31 30 11 46-12s30 2 41-21"/>
+    <text class="caption" x="0" y="252">04 · Cabinet trail</text><text class="sub" x="0" y="278">The hunt through a cabinet of curios</text>
+  </g>
+
+  <!-- 05: Vintage lamp -->
+  <g transform="translate(1110 220)">
+    <rect class="tile" width="220" height="220" rx="46"/>
+    <path class="ivory" d="M66 99l24-42h40l24 42z"/>
+    <path class="line" d="M110 99v43m-35 18h70"/>
+    <path class="trail" d="M46 163c18-25 28 10 46-4s20-1 28-17"/>
+    <circle class="brass" cx="110" cy="79" r="7"/>
+    <text class="caption" x="0" y="252">05 · Lamp trail</text><text class="sub" x="0" y="278">A familiar vintage treasure</text>
+  </g>
+
+  <!-- 06: Trunk -->
+  <g transform="translate(70 560)">
+    <rect class="tile" width="220" height="220" rx="46"/>
+    <rect x="43" y="87" width="134" height="70" rx="10" class="line"/>
+    <path class="line" d="M43 112h134M73 87V69h74v18M75 87v70m70-70v70"/>
+    <path class="trail" d="M54 141c14-23 28 9 44-5s24 0 44-24"/>
+    <circle class="brass" cx="110" cy="119" r="7"/>
+    <text class="caption" x="0" y="252">06 · Traveling trunk</text><text class="sub" x="0" y="278">A day out collecting memories</text>
+  </g>
+
+  <!-- 07: Rocking chair -->
+  <g transform="translate(330 560)">
+    <rect class="tile" width="220" height="220" rx="46"/>
+    <path class="line" d="M75 58v79m62-79v71M75 87h62M79 137h56M68 158c19 14 63 14 84 0"/>
+    <path class="trail" d="M46 165c21-25 41 6 59-9"/>
+    <circle class="brass" cx="160" cy="151" r="8"/>
+    <text class="caption" x="0" y="252">07 · Rocking chair</text><text class="sub" x="0" y="278">Timeless furniture finds</text>
+  </g>
+
+  <!-- 08: Old mirror -->
+  <g transform="translate(590 560)">
+    <rect class="tile" width="220" height="220" rx="46"/>
+    <path class="line" d="M69 159V85c0-31 19-47 41-47s41 16 41 47v74M58 170h104"/>
+    <path class="trail" d="M77 139c8-25 22 7 35-10s21 5 29-15"/>
+    <path class="brass" d="M110 57l5 12 12 5-12 5-5 12-5-12-12-5 12-5z"/>
+    <text class="caption" x="0" y="252">08 · Looking glass</text><text class="sub" x="0" y="278">Reflective, vintage, collectible</text>
+  </g>
+
+  <!-- 09: Vinyl record -->
+  <g transform="translate(850 560)">
+    <rect class="tile" width="220" height="220" rx="46"/>
+    <circle class="line" cx="110" cy="110" r="60"/>
+    <circle class="line" cx="110" cy="110" r="26"/>
+    <circle class="brass" cx="110" cy="110" r="8"/>
+    <path class="trail" d="M55 148c20-21 37 9 55-5"/>
+    <text class="caption" x="0" y="252">09 · Record route</text><text class="sub" x="0" y="278">Vintage music and memorabilia</text>
+  </g>
+
+  <!-- 10: Collector's tag -->
+  <g transform="translate(1110 560)">
+    <rect class="tile" width="220" height="220" rx="46"/>
+    <path class="line" d="M58 87l46-39h54v54l-46 70-54-39z"/>
+    <circle class="brass" cx="127" cy="78" r="9"/>
+    <path class="trail" d="M67 142c15-25 30 8 45-9s22 0 34-23"/>
+    <text class="caption" x="0" y="252">10 · Collector’s tag</text><text class="sub" x="0" y="278">The label on a special find</text>
+  </g>
+</svg>

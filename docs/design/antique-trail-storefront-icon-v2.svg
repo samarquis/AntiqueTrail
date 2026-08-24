@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail storefront app icon concept</title>
+  <desc id="desc">A simplified antique shop with a keyed cornice, three-scallop awning, and arched doorway.</desc>
+  <!-- Concept artwork only. This does not replace public/app-icon.svg. -->
+  <rect width="512" height="512" rx="104" fill="#202833"/>
+
+  <!-- The stepped ends give the cornice a repeatable, less generic profile. -->
+  <path fill="#F3EEE4" d="M112 106h288v42h-18v16H130v-16h-18z"/>
+
+  <!-- Three-scallop signature canopy. -->
+  <path fill="#7F9DB5" d="M124 154h264l20 58v6c0 26-21 47-48 47s-48-21-48-47c0 26-25 47-56 47s-56-21-56-47c0 26-21 47-48 47s-48-21-48-47v-6l20-58Z"/>
+
+  <!-- An 18px field-color separation keeps the scallops visible in one ink. -->
+  <path fill="#F3EEE4" fill-rule="evenodd" d="M128 283h256v141H128V283Zm82 141V332a46 46 0 0 1 92 0v92h-92Z"/>
+</svg>
+

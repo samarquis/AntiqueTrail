@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Antique Trail — AT type exploration</title>
+    <style>
+      @font-face {
+        font-family: Newsreader;
+        font-style: normal;
+        font-weight: 700;
+        src: url('../../public/fonts/Newsreader-Bold.woff2') format('woff2');
+      }
+
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 68px 72px 76px; color: #202833; background: #f6f4f0; font-family: Arial, sans-serif; }
+      h1 { margin: 12px 0 8px; font-size: 48px; letter-spacing: -0.04em; }
+      .eyebrow { margin: 0; color: #344a70; font-size: 18px; font-weight: 800; letter-spacing: 0.2em; }
+      .intro { max-width: 790px; margin: 0; color: #5d6876; font-size: 21px; line-height: 1.45; }
+      .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 42px 28px; margin-top: 52px; }
+      .option { margin: 0; }
+      .icon { position: relative; display: grid; width: 100%; aspect-ratio: 1; place-items: center; overflow: hidden; border-radius: 52px; background: #121519; }
+      .awning { position: absolute; top: 17%; left: 18%; width: 64%; height: 18%; background: #8795b5; clip-path: polygon(9% 0, 91% 0, 100% 66%, 0 66%); }
+      .awning::after { position: absolute; inset: 66% 0 0; background: repeating-linear-gradient(90deg, #f3eee4 0 17%, transparent 17% 23%); content: ''; }
+      .mark { position: relative; z-index: 1; margin-top: 8%; color: #f3eee4; font-size: clamp(5rem, 10vw, 9.8rem); font-weight: 700; line-height: 0.75; letter-spacing: -0.16em; text-indent: -0.09em; }
+      .newsreader { font-family: Newsreader, Georgia, serif; }
+      .georgia { font-family: Georgia, serif; }
+      .cambria { font-family: Cambria, serif; }
+      .constantia { font-family: Constantia, serif; }
+      .palatino { font-family: 'Palatino Linotype', serif; }
+      .times { font-family: 'Times New Roman', serif; }
+      .atkinson { font-family: Arial, sans-serif; font-weight: 800; letter-spacing: -0.13em; }
+      .bahnschrift { font-family: Bahnschrift, Arial, sans-serif; font-weight: 700; letter-spacing: -0.1em; }
+      .gabriola { font-family: Gabriola, cursive; font-size: clamp(6.4rem, 12vw, 11.6rem); font-weight: 700; letter-spacing: -0.28em; }
+      .impact { font-family: Impact, Arial Narrow, sans-serif; font-weight: 400; letter-spacing: -0.08em; }
+      figcaption { margin-top: 15px; }
+      strong { display: block; font-size: 18px; }
+      span { display: block; margin-top: 5px; color: #5d6876; font-size: 15px; }
+      .recommend { color: #344a70; }
+      @media (max-width: 900px) { body { padding: 40px 24px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    </style>
+  </head>
+  <body>
+    <p class="eyebrow">ANTIQUE TRAIL · OPTION 01 REFINED</p>
+    <h1>Centered AT · ten type directions</h1>
+    <p class="intro">The awning is now a quiet backdrop. The centered AT is the icon; “Antique Trail” stays as the wordmark for shirts, signage, and the app header.</p>
+    <main class="grid">
+      <figure class="option"><div class="icon"><div class="awning"></div><div class="mark newsreader">AT</div></div><figcaption><strong class="recommend">01 · Newsreader</strong><span>Editorial, collectible, recommended</span></figcaption></figure>
+      <figure class="option"><div class="icon"><div class="awning"></div><div class="mark georgia">AT</div></div><figcaption><strong>02 · Georgia</strong><span>Familiar, sturdy, confident</span></figcaption></figure>
+      <figure class="option"><div class="icon"><div class="awning"></div><div class="mark cambria">AT</div></div><figcaption><strong>03 · Cambria</strong><span>Practical and quietly historic</span></figcaption></figure>
+      <figure class="option"><div class="icon"><div class="awning"></div><div class="mark constantia">AT</div></div><figcaption><strong>04 · Constantia</strong><span>Warm, literary, softer serifs</span></figcaption></figure>
+      <figure class="option"><div class="icon"><div class="awning"></div><div class="mark palatino">AT</div></div><figcaption><strong>05 · Palatino</strong><span>Classic bookish collector feel</span></figcaption></figure>
+      <figure class="option"><div class="icon"><div class="awning"></div><div class="mark times">AT</div></div><figcaption><strong>06 · Times New Roman</strong><span>Formal, traditional, familiar</span></figcaption></figure>
+      <figure class="option"><div class="icon"><div class="awning"></div><div class="mark atkinson">AT</div></div><figcaption><strong>07 · Atkinson-style</strong><span>Most legible, less characterful</span></figcaption></figure>
+      <figure class="option"><div class="icon"><div class="awning"></div><div class="mark bahnschrift">AT</div></div><figcaption><strong>08 · Bahnschrift</strong><span>Modern, bold, less vintage</span></figcaption></figure>
+      <figure class="option"><div class="icon"><div class="awning"></div><div class="mark gabriola">AT</div></div><figcaption><strong>09 · Gabriola</strong><span>Expressive, but likely too decorative</span></figcaption></figure>
+      <figure class="option"><div class="icon"><div class="awning"></div><div class="mark impact">AT</div></div><figcaption><strong>10 · Impact</strong><span>Big presence, too blunt for the brand</span></figcaption></figure>
+    </main>
+  </body>
+</html>

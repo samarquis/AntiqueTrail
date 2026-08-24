@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail AT monogram, vector candidate V4</title>
+  <desc id="desc">A geometric A and T interlock using a single deliberate over-under crossing.</desc>
+  <!-- Exploratory artwork only. This file does not replace the production app icon. -->
+  <rect width="512" height="512" rx="104" fill="#202833"/>
+  <!-- A: one consistent, squared stroke system. The right leg is split once for the weave. -->
+  <g fill="none" stroke="#F4EFE6" stroke-width="48" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M112 402 256 92 278 139"/>
+    <path d="M303 193 400 402"/>
+    <path d="M172 284H340"/>
+  </g>
+  <!-- T: same stroke weight. Its cap passes visibly in front of the A's right diagonal. -->
+  <g fill="none" stroke="#7F9DB5" stroke-width="48" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M132 166H380"/>
+    <path d="M256 166V244"/>
+  </g>
+</svg>

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
+  <title id="title">Antique Trail AT interlock candidate</title>
+  <desc id="desc">A custom A in ivory overlapping a dusty-blue T on midnight, shown in app-icon and one-color print treatments.</desc>
+  <rect width="1400" height="900" fill="#F6F4F0"/>
+  <g font-family="Arial, sans-serif">
+    <text x="84" y="76" fill="#344A70" font-size="19" font-weight="700" letter-spacing="4">ANTIQUE TRAIL · AT INTERLOCK · CANDIDATE V1</text>
+    <text x="84" y="128" fill="#202833" font-size="44" font-weight="700">One original mark. Nothing else.</text>
+    <text x="84" y="166" fill="#5D6876" font-size="20">Ivory A in the foreground; dusty-blue T behind it. The opening in the A reveals the T stem.</text>
+  </g>
+  <defs>
+    <g id="mark">
+      <!-- T deliberately sits behind the A. Its crossbar remains visible at both sides; its stem appears in the A counter. -->
+      <path fill="#8795B5" d="M109 63h157v46h-54v162h-50V109h-53z"/>
+      <path fill="#F3EEE4" fill-rule="evenodd" d="M52 272 126 63h63l75 209h-51l-16-48h-83l-16 48H47l5-14zm78-94h51l-26-76-25 76zm14 3-10 30h42l-10-30z"/>
+      <path fill="#202833" d="M144 181l-10 30h42l-10-30z"/>
+    </g>
+    <g id="mark-one-color">
+      <path fill="currentColor" fill-rule="evenodd" d="M52 272 126 63h63l75 209h-51l-16-48h-83l-16 48H47l5-14zm78-94h51l-26-76-25 76zm14 3-10 30h42l-10-30zM109 63h157v46h-54v162h-50V109h-53z"/>
+    </g>
+  </defs>
+  <g transform="translate(84 240)">
+    <rect width="470" height="470" rx="104" fill="#202833"/>
+    <g transform="translate(78 78) scale(1.12)"><use href="#mark"/></g>
+  </g>
+  <g transform="translate(675 268)">
+    <text x="0" y="0" fill="#202833" font-size="24" font-weight="700">The construction</text>
+    <text x="0" y="40" fill="#5D6876" font-size="19">• Both letters have independent, readable silhouettes.</text>
+    <text x="0" y="74" fill="#5D6876" font-size="19">• The T is visible without a canopy or a road.</text>
+    <text x="0" y="108" fill="#5D6876" font-size="19">• Only two mark colors appear on the midnight field.</text>
+    <text x="0" y="160" fill="#202833" font-size="24" font-weight="700">One-color print</text>
+    <rect x="0" y="182" width="236" height="236" rx="20" fill="#FFFDFC"/>
+    <g transform="translate(25 205) scale(.68)" style="color:#202833"><use href="#mark-one-color"/></g>
+    <text x="0" y="462" fill="#202833" font-size="24" font-weight="700">Actual icon sizes</text>
+    <g transform="translate(0 486)"><rect width="128" height="128" rx="28" fill="#202833"/><g transform="translate(20 20) scale(.32)"><use href="#mark"/></g></g>
+    <g transform="translate(154 550)"><rect width="64" height="64" rx="14" fill="#202833"/><g transform="translate(10 10) scale(.16)"><use href="#mark"/></g></g>
+    <g transform="translate(240 582)"><rect width="32" height="32" rx="7" fill="#202833"/><g transform="translate(5 5) scale(.08)"><use href="#mark"/></g></g>
+  </g>
+</svg>
