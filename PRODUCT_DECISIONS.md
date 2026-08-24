@@ -366,7 +366,7 @@ Rules the Administrator applies when reviewing store-submitted photos. They alig
 - **Reviewer model:** a single Administrator reviews in the Administrator Review Workspace. Automated pre-screening remains malware/safety-only (M-01 `scan_state`); no content judgment is automated, and nothing auto-approves. Approved 2026-08-23.
 - **Review speed:** target review within two business days of submission. Internal target only while the pilot is unpaid; it becomes a contractual SLA only when paid tiers activate, and then only by a new decision. Approved 2026-08-23.
 - **Rejection visibility and resubmit:** the store sees the rejection reason and may resubmit corrected images. Fits the existing audit trail and purge/replacement paths. Approved 2026-08-23.
-- **Queue vs go-live:** a listing publishes without photos (neutral placeholder per the Store Browser decision); approved photos appear as they clear review. Photo approval never blocks listing go-live, so moderation does not extend onboarding timelines. Approved 2026-08-23.
+- **Queue vs go-live:** a listing may go live without photos (neutral placeholder per the Store Browser decision); approved photos appear as they clear review. Photo approval never blocks a listing going live, so moderation does not extend onboarding timelines. Approved 2026-08-23.
 
 ## Remaining deferred or provider-gated decisions
 
