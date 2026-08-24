@@ -6,6 +6,12 @@
 -- RPC JSON body keys to parameter names (renaming breaks the SPA contract).
 -- Rewritten as update-then-insert with fully aliased column refs; the unique
 -- index on (trip_id, device_hash) still guards duplicates.
+-- Ownership: 20260818800000 transferred this function to identity_service and
+-- PostgreSQL refuses CREATE OR REPLACE by a non-owner even for superusers
+-- (42501), so take ownership for the replace, then restore the hardened owner.
+do $$ begin
+  execute format('alter function app_public.bind_navigator_device(text,text) owner to %I', current_user);
+end $$;
 create or replace function app_public.bind_navigator_device(trip_id text, device_id text)
 returns jsonb
 language plpgsql

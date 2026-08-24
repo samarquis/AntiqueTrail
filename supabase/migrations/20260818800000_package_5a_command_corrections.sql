@@ -112,7 +112,11 @@ begin
     on conflict(trip_id,device_hash) do update set user_id=excluded.user_id,state='active',revoked_at=null,revocation_reason=null,session_security_version=excluded.session_security_version,bound_at=statement_timestamp();
   return trip_private.collaboration_json(v_trip);
 end; $$;
-alter function app_public.bind_navigator_device(text,text) owner to identity_service;
+-- bind_navigator_device stays owned by the migration role on purpose: it is
+-- the one trip RPC that has needed post-hoc body correction (42702 ambiguity,
+-- fixed in 20260823150000), and PostgreSQL forbids CREATE OR REPLACE by a
+-- non-owner even for superusers, so transferring ownership here would make
+-- every future correction migration unapplyable on fresh clones.
 
 create or replace function app_public.prepare_offline_grant_claims(trip_id text,install_id text,device_id text,device_key_id text)
 returns jsonb language plpgsql security definer set search_path='' as $$
