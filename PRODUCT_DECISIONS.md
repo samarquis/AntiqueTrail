@@ -356,6 +356,7 @@ These decisions govern store-side photo-tier subscriptions (parent spec #87). Th
 - **Annual billing:** deferred past Regional Public MVP. Monthly billing only at paid launch; revisit after real retention data exists. Approved 2026-08-23.
 - **Tax handling:** deferred to paid-launch configuration using Stripe Tax as the recorded mechanism; no manual tax-liability guesses before activation. Approved 2026-08-23.
 - **Refund policy (adopted from #91 proposal):** stores cancel anytime through Stripe's self-serve customer portal; a full refund of any charge is available on request within 48 hours of that charge. No other refunds; mid-cycle downgrades take effect at renewal per the decision above. This converts the #91 "proposed policy" annotation into an approved Product Decision. Approved 2026-08-23.
+- **Staged-off build authorization:** the full photo-tier surface — tier state, intake cap enforcement, moderation queue/rejection flows, and Stripe integration (checkout redirect, webhooks, customer portal, 14-day grace with automatic downgrade and photo-hiding grace period) — is approved to be BUILT NOW behind a server-enforced capability flag, permanently staged off exactly like public reviews. Building does not activate billing: monetization remains prohibited until the post-RG-01 Product Decision, price points remain unset, and the flag flips only through the photo-tiers package's own activation gates. Approved 2026-08-23.
 
 ### Photo moderation criteria (#92)
 
