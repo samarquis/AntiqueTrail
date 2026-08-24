@@ -622,7 +622,12 @@ describe('store photos page contract', () => {
   })
 
   it('states the honest empty result with a way back when a store has no photos', async () => {
-    render(<StorePhotosPage client={photosClient({ ...galleryStore, media: [] })} slug={galleryStore.slug} />)
+    render(
+      <StorePhotosPage
+        client={photosClient({ ...galleryStore, media: [] })}
+        slug={galleryStore.slug}
+      />,
+    )
 
     await screen.findByRole('heading', { level: 1, name: galleryStore.name })
     expect(screen.getByText(/has not published any photos yet/i)).toBeVisible()
@@ -659,7 +664,9 @@ describe('store photos page contract', () => {
     const dialog = screen.getByRole('dialog')
     fireEvent.error(within(dialog).getByRole('img', { name: /interior photo 1/i }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole('link', { name: /back to blue finch/i })).toHaveFocus())
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: /back to blue finch/i })).toHaveFocus(),
+    )
     expect(tile).toBeDisabled()
     expect(screen.getByRole('button', { name: /photo 2: unavailable/i })).toBeVisible()
   })

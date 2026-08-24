@@ -15,6 +15,9 @@ const ALLOWED_LICENSES = new Set([
   'ISC',
   'MIT',
   'MIT-0',
+  // MPL-2.0 is file-level copyleft; accepted only for the dev-time axe-core
+  // accessibility testing stack, never shipped to browsers from this repo.
+  'MPL-2.0',
   'Python-2.0',
 ])
 

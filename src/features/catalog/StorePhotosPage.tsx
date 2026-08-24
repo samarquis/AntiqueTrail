@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorState, LoadingState } from './states'
-import {
-  catalogAppHref,
-  readBrowseReturn,
-  responsiveCatalogImage,
-} from './shared'
+import { catalogAppHref, readBrowseReturn, responsiveCatalogImage } from './shared'
 import type { CatalogClient, CatalogStore } from './types'
 
 type PhotoSlot =

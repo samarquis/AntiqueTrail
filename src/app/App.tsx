@@ -898,10 +898,7 @@ export default function App({
             path="/stores/:slug/updates"
             element={<StoreUpdates catalog={clients.catalog} />}
           />
-          <Route
-            path="/stores/:slug/photos"
-            element={<StorePhotos catalog={clients.catalog} />}
-          />
+          <Route path="/stores/:slug/photos" element={<StorePhotos catalog={clients.catalog} />} />
           <Route
             path="/stores/:slug/reviews"
             element={<StoreReviews client={reviewClient} catalog={clients.catalog} />}

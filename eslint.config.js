@@ -5,7 +5,14 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'coverage', 'playwright-report', 'node_modules', '.github/skills'],
+    ignores: [
+      'dist',
+      'coverage',
+      'playwright-report',
+      'node_modules',
+      '.github/skills',
+      'supabase/.temp',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

@@ -16,9 +16,7 @@ test('follows the system color scheme when no choice is saved', async ({ page })
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
 })
 
-test('manual toggle persists across reloads and beats the system preference', async ({
-  page,
-}) => {
+test('manual toggle persists across reloads and beats the system preference', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' })
   await page.goto('/stores')
 
@@ -47,9 +45,7 @@ for (const journey of DARK_JOURNEYS) {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     // Cold-transform can serve before stylesheets apply; wait for real paint.
     const readSurface = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor)
-    await expect
-      .poll(readSurface, { timeout: 15_000 })
-      .not.toBe('rgba(0, 0, 0, 0)')
+    await expect.poll(readSurface, { timeout: 15_000 }).not.toBe('rgba(0, 0, 0, 0)')
     const lightSurface = await readSurface()
 
     await page.evaluate(() => window.localStorage.setItem('at-theme', 'dark'))
@@ -66,7 +62,9 @@ test('dark journeys pass axe contrast and a11y rules', async ({ page }) => {
     await page.goto(journey.path)
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     const results = await new AxeBuilder({ page }).analyze()
-    const serious = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+    const serious = results.violations.filter(
+      (v) => v.impact === 'serious' || v.impact === 'critical',
+    )
     expect(
       serious.map((v) => ({ id: v.id, nodes: v.nodes.length })),
       `${journey.name} dark-mode critical/serious violations`,
