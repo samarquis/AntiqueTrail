@@ -112,6 +112,40 @@ export interface PortalMediaUploadReceipt {
   state: 'awaiting_review'
 }
 
+export type PortalMediaState = 'awaiting_review' | 'approved_pending_publish' | 'published' | 'rejected' | 'purged'
+
+export interface PortalMediaUpload {
+  uploadId: string
+  kind: PortalMediaKind
+  state: PortalMediaState
+  altText: string
+  originalObjectKey: string
+  derivativeObjectKey: string
+  submittedAt: string
+  rejectionReason?: string
+  approvedAt?: string
+  rejectedAt?: string
+  derivativeWidth?: number
+  derivativeHeight?: number
+}
+
+export interface PortalMediaUploadHistory {
+  uploads: PortalMediaUpload[]
+}
+
+export interface PortalMediaResubmitInput {
+  originalUploadId: string
+  file: File
+  altText: string
+  rightsConfirmed: true
+  idempotencyKey: string
+}
+
+export interface PortalMediaResubmitReceipt {
+  newUploadId: string
+  state: 'awaiting_review'
+}
+
 export type StoreUpdateType = 'new_finds' | 'sale' | 'announcement' | 'store_news'
 export type StoreUpdateState = 'live' | 'archived' | 'pending_review'
 
@@ -215,6 +249,8 @@ export interface PortalClient {
   submitControlledChange(change: PortalControlledChangeDraft): Promise<PortalPendingChange>
   getMediaCapability(): Promise<PortalMediaCapability>
   uploadOfficialMedia(input: PortalMediaUploadInput): Promise<PortalMediaUploadReceipt>
+  listMediaUploads(): Promise<PortalMediaUploadHistory>
+  resubmitMedia(input: PortalMediaResubmitInput): Promise<PortalMediaResubmitReceipt>
   listUpdates(): Promise<StoreUpdate[]>
   createUpdate(draft: StoreUpdateDraft): Promise<StoreUpdate>
   archiveUpdate(id: string): Promise<StoreUpdate>

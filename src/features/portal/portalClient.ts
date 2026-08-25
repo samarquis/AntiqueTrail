@@ -43,6 +43,8 @@ type PortalRpcName =
   | 'portal_reopen_support_ticket'
   | 'portal_preview_public_listing'
   | 'media_get_capability'
+  | 'portal_list_media_uploads'
+  | 'portal_resubmit_media'
 
 export interface PortalRpcTransport {
   rpc(
@@ -143,6 +145,30 @@ export function createPortalClient(
         )
           throw new Error(GENERIC_PORTAL_ERROR)
         return receipt
+      } catch {
+        throw new Error(GENERIC_PORTAL_ERROR)
+      }
+    },
+    listMediaUploads: () => call('portal_list_media_uploads'),
+    resubmitMedia: (input: { originalUploadId: string; file: File; altText: string; rightsConfirmed: true; idempotencyKey: string }) => {
+      if (!media) throw new Error(GENERIC_PORTAL_ERROR)
+      try {
+        const receipt = await media.upload({
+          storeId: '',
+          kind: 'gallery',
+          altText: input.altText,
+          file: input.file,
+          rightsConfirmed: true,
+          idempotencyKey: input.idempotencyKey,
+        })
+        if (
+          receipt.state !== 'awaiting_review' ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+            receipt.uploadId,
+          )
+        )
+          throw new Error(GENERIC_PORTAL_ERROR)
+        return { newUploadId: receipt.uploadId, state: receipt.state }
       } catch {
         throw new Error(GENERIC_PORTAL_ERROR)
       }
