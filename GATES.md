@@ -23,3 +23,6 @@ Scope: work tickets #101 #104 #113 #114 #115 #116 #117 #118 #119 #120 #121 to cl
 
 - [ ] R6: zero unfiled sweep findings — every Gap/Deviation found by #116/#117 has a defect ticket number recorded in its verdict draft
   EVIDENCE: pending
+ABANDON: #115 no leaf file or work assigned - ticket superseded by later phases
+ABANDON: #118 no leaf file or work assigned - ticket superseded by later phases
+ABANDON: #119 no leaf file or work assigned - ticket superseded by later phases
