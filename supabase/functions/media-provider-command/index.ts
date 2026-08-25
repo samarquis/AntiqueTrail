@@ -111,6 +111,20 @@ Deno.serve(async (request) => {
     )
       return unavailable(headers)
     const bytes = new Uint8Array(await image.arrayBuffer())
+
+    // Tier cap check at intake (M-01 enforcement per #119)
+    const capCheck = await rpc<{ allowed: boolean; remaining?: number; error?: string; message?: string; currentTier?: string; upgradeTier?: string; upgradeCap?: number | null; approvedCount?: number; cap?: number }>(
+      userClient,
+      'partner_private.check_store_media_cap',
+      { p_store_id: storeId, p_kind: kind, p_idempotency_key: idempotencyKey }
+    )
+    if (!capCheck.allowed) {
+      return Response.json(
+        { error: capCheck.error, message: capCheck.message, currentTier: capCheck.currentTier, upgradeTier: capCheck.upgradeTier, upgradeCap: capCheck.upgradeCap, approvedCount: capCheck.approvedCount, cap: capCheck.cap },
+        { status: 409, headers }
+      )
+    }
+
     let staged = false
     let acceptedUploadId = ''
     const dependencies: MediaPipelineDependencies = {
