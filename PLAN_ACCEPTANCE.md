@@ -51,6 +51,8 @@ No arrow authorizes real data, external contact, paid service, promotion, public
 | First small-community selection | Community Expansion Gate | Separate choice; no automatic import/contact/promotion | Product Owner after RG-01 |
 | Small-community activation ordinals 1–3 | Repeatable Package 12 per-area run | Exact area/catalog/owner consent, preactivation receipt, reused 10A/10B promotion/recovery/rollback; current-community gate before any next run | Package 12 + Product Owner |
 
+| 13 | Photo-tier memberships, moderation, and staged-off billing | PACKAGE_CONTRACTS.md Package 13 section; SECURITY_AND_TRUST.md authorization matrix; flag-flip receipt-bound command | Package 13 |
+
 ## Provider and external-decision boundary
 
 An independent team may build only the provider-neutral contract until the named ADR is accepted. The ADR must select the provider/version/plan and record data sent, processor role and retention, region, authentication, quotas/cost caps, timeouts/retry/idempotency, outage fallback, observability without private payloads, replacement path, legal review, and executable contract tests.

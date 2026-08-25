@@ -653,6 +653,7 @@ Pin every GitHub Action to a full commit SHA. Workflow permissions default read-
 
 - Threat model review
 - Authorization matrix review
+- Package 13 authorization matrix: photo_tiers_enabled flip (receipt-bound command, monetization Product Decision + package activation gates), Store Representative tier-selection/billing actions, Administrator moderation queue authority
 - OWASP ASVS-based review
 - OWASP MASVS review for Android package — **POST-MVP; Android packaging is absent in Packages 1–10B**
 - File-upload testing
