@@ -37,7 +37,12 @@ insert into auth.users(id) values
 insert into app_private.profiles(user_id,verified_email_snapshot,public_display_name,age_18_attested_at,last_authenticated_at)
 values
   ('32000000-0000-4000-8000-000000000001','owner@example.test','Archive Owner',statement_timestamp(),statement_timestamp()),
-  ('32000000-0000-4000-8000-000000000002','other@example.test','Other User Secret',statement_timestamp(),statement_timestamp());
+  ('32000000-0000-4000-8000-000000000002','other@example.test','Other User Secret',statement_timestamp(),statement_timestamp())
+on conflict (user_id) do update set
+  verified_email_snapshot=excluded.verified_email_snapshot,
+  public_display_name=excluded.public_display_name,
+  age_18_attested_at=excluded.age_18_attested_at,
+  last_authenticated_at=excluded.last_authenticated_at;
 insert into shopper_private.saved_stores(user_id,store_id) values
   ('32000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000001001'),
   ('32000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000001002');

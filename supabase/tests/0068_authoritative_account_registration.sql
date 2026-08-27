@@ -74,6 +74,7 @@ select is(value->>'state','pending','due quarantine claims exact delete ticket')
 select is(app_public.begin_account_registration_cleanup((value->>'cleanupTicketId')::uuid,(value->>'providerUserId')::uuid)->>'state','calling','cleanup delete begins with deadline') from registration_cleanup_result;
 select is(app_public.settle_account_registration_cleanup((value->>'cleanupTicketId')::uuid,(value->>'providerUserId')::uuid,'unknown')->>'state','reconciliation_required','delete response loss requires exact reconciliation') from registration_cleanup_result;
 reset role;
+delete from app_private.profiles where user_id='68000000-0000-4000-8000-000000000001';
 delete from auth.users where id='68000000-0000-4000-8000-000000000001';
 set local role service_role;
 select is(app_public.reconcile_account_registration_cleanup((value->>'cleanupTicketId')::uuid,'68000000-0000-4000-8000-000000000001')->>'state','completed_terminal_cleanup','actual auth.users absence completes cleanup') from registration_cleanup_result;

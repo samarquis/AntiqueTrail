@@ -85,7 +85,7 @@ jobs:
           grant account_lifecycle_service, candidate_cleanup_service, community_deployment_service,
             community_evidence_service, identity_service, public_catalog_gateway,
             readiness_calculation_service, readiness_signature_service, release_executor,
-            rg01_calculation_service to antique_trail_test_runner;
+            rg01_calculation_service, media_moderation to antique_trail_test_runner;
           alter role antique_trail_test_runner set search_path=public,extensions;
           set role community_deployment_service;
           reset role;

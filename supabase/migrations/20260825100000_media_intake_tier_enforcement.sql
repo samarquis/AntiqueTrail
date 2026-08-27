@@ -16,12 +16,9 @@ declare
   v_upgrade_cap integer;
   v_message text;
 begin
-  -- Capability gate: only M-01 intake may call this (granted to media_automation).
-  if not partner_private.photo_tier_billing_enabled() then
-    raise exception using errcode='55000',message='billing_stage_disabled';
-  end if;
-
-  -- Validate inputs
+  -- Free-tier enforcement is part of the pilot contract and remains active
+  -- while paid photo tiers are staged off. The media caller is constrained by
+  -- the function grant; this helper must not turn off the grandfathered cap.
   if p_store_id is null or p_kind not in ('cover','gallery') or p_idempotency_key is null then
     raise exception using errcode='22023',message='media_intake_invalid_input';
   end if;
@@ -40,7 +37,7 @@ begin
   select count(*) into v_approved_count
   from media_private.media_uploads
   where store_id = p_store_id
-    and state = 'approved'
+    and state in ('approved_pending_publish','published')
     and kind = 'gallery';
 
   -- Unlimited tier: null cap means no limit

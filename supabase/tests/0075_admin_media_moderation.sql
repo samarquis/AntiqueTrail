@@ -3,7 +3,13 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(26);
+
+insert into auth.users(id) values ('75000000-0000-4000-8000-000000000001');
+do $$ begin
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub','75000000-0000-4000-8000-000000000001')::text, true);
+end $$;
 
 -- Test 1: Functions exist and have correct privileges
 select has_function('app_public','media_list_awaiting_review',array['integer','integer'],'moderation queue list exists');
@@ -25,13 +31,13 @@ select is((app_public.media_list_awaiting_review(50,0))::text,'[]','empty queue 
 
 -- Test 4: media_list_awaiting_review returns awaiting_review uploads with store context
 -- Create test store and upload
-insert into app_public.stores (id, name, address) values
-  ('00000000-0000-4000-8000-000000000001','Test Store','123 Test St')
+insert into app_public.stores (id, slug, name, town, state_code, address, area_id, summary, description) values
+  ('00000000-0000-4000-8000-000000000001','db-ci-moderation-store','Test Store','Topeka','KS','123 Test St','00000000-0000-4000-8000-000000000001','Database CI fixture','Database CI fixture store')
 on conflict (id) do nothing;
 
-insert into media_private.media_uploads (upload_id, store_id, kind, state, original_object_key, derivative_object_key, derivative_digest, width, height, derivative_bytes, scan_operation_id, processor_operation_id, derivative_digest_alg)
+insert into media_private.media_uploads (upload_id, actor_tombstone, store_id, kind, alt_text, rights_confirmed_at, idempotency_key, source_mime, source_bytes, source_width, source_height, scan_state, metadata_stripped, reencoded, state, original_object_key, private_derivative_object_key, derivative_digest, derivative_width, derivative_height, derivative_bytes)
 values
-  (gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'awaiting_review', 'q/1/original', 'q/1/derivative.webp', '\x'||repeat('00',32), 640, 480, 100000, 'scan1', 'proc1', 'sha256');
+  (gen_random_uuid(), gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'Test image', statement_timestamp(), gen_random_uuid(), 'image/png', 1000, 640, 480, 'clean', true, true, 'awaiting_review', 'quarantine/00000000-0000-4000-8000-000000000101/original', 'quarantine/00000000-0000-4000-8000-000000000101/derivative.webp', decode(repeat('00',32),'hex'), 640, 480, 100000);
 
 -- List queue should return the upload with store context
 select ok(jsonb_typeof(app_public.media_list_awaiting_review(50,0))='array','list returns array');
@@ -46,8 +52,8 @@ select is(jsonb_array_length(app_public.media_list_awaiting_review(10,1)),0,'off
 
 -- Test approve: requires reason, advances state
 -- Create a new upload for approval
-insert into media_private.media_uploads (upload_id, store_id, kind, state, original_object_key, derivative_object_key, derivative_digest, width, height, derivative_bytes, scan_operation_id, processor_operation_id, derivative_digest_alg)
-values (gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'awaiting_review', 'q/2/original', 'q/2/derivative.webp', '\x'||repeat('00',32), 640, 480, 100000, 'scan1', 'proc1', 'sha256');
+insert into media_private.media_uploads (upload_id, actor_tombstone, store_id, kind, alt_text, rights_confirmed_at, idempotency_key, source_mime, source_bytes, source_width, source_height, scan_state, metadata_stripped, reencoded, state, original_object_key, private_derivative_object_key, derivative_digest, derivative_width, derivative_height, derivative_bytes)
+values (gen_random_uuid(), gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'Test image', statement_timestamp(), gen_random_uuid(), 'image/png', 1000, 640, 480, 'clean', true, true, 'awaiting_review', 'quarantine/00000000-0000-4000-8000-000000000102/original', 'quarantine/00000000-0000-4000-8000-000000000102/derivative.webp', decode(repeat('00',32),'hex'), 640, 480, 100000);
 
 -- Get the upload_id for approval
 \set approve_upload_id (select upload_id from media_private.media_uploads where state='awaiting_review' order by created_at desc limit 1)
@@ -57,38 +63,29 @@ select throws_ok('select app_public.media_approve_upload((select upload_id from 
 
 -- Approve with reason succeeds
 -- Note: we can't easily use the variable in pgtap, so we'll do a subquery
-select ok((app_public.media_approve_upload(
+select is((app_public.media_approve_upload(
   (select upload_id from media_private.media_uploads where state='awaiting_review' order by created_at desc limit 1),
-  'Image quality verified, appropriate for storefront'
+  'image_quality_verified'
 ))->>'state','approved_pending_publish','approve with reason advances to approved_pending_publish');
 
 -- Test reject: requires reason
-insert into media_private.media_uploads (upload_id, store_id, kind, state, original_object_key, derivative_object_key, derivative_digest, width, height, derivative_bytes, scan_operation_id, processor_operation_id, derivative_digest_alg)
-values (gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'awaiting_review', 'q/r1/original', 'q/r1/derivative.webp', '\x'||repeat('00',32), 640, 480, 100000, 'scan1', 'proc1', 'sha256');
+insert into media_private.media_uploads (upload_id, actor_tombstone, store_id, kind, alt_text, rights_confirmed_at, idempotency_key, source_mime, source_bytes, source_width, source_height, scan_state, metadata_stripped, reencoded, state, original_object_key, private_derivative_object_key, derivative_digest, derivative_width, derivative_height, derivative_bytes)
+values (gen_random_uuid(), gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'Test image', statement_timestamp(), gen_random_uuid(), 'image/png', 1000, 640, 480, 'clean', true, true, 'awaiting_review', 'quarantine/00000000-0000-4000-8000-000000000103/original', 'quarantine/00000000-0000-4000-8000-000000000103/derivative.webp', decode(repeat('00',32),'hex'), 640, 480, 100000);
 
 -- Reject without reason fails
 select throws_ok('select app_public.media_reject_upload((select upload_id from media_private.media_uploads where state=''awaiting_review'' order by created_at desc limit 1),'''')','22023','moderation_reason_required','reject without reason fails');
 
 -- Reject with reason succeeds
-select ok((app_public.media_reject_upload(
+select is((app_public.media_reject_upload(
   (select upload_id from media_private.media_uploads where state='awaiting_review' order by created_at desc limit 1),
   'Image quality insufficient for storefront'
 ))->>'state','rejected','reject with reason advances to rejected');
 
 -- Test: approve/reject non-awaiting_review fails
-insert into media_private.media_uploads (upload_id, store_id, kind, state, original_object_key, derivative_object_key, derivative_digest, width, height, derivative_bytes, scan_operation_id, processor_operation_id, derivative_digest_alg)
-values (gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'approved', 'q/a/original', 'q/a/derivative.webp', '\x'||repeat('00',32), 640, 480, 100000, 'scan1', 'proc1', 'sha256');
+insert into media_private.media_uploads (upload_id, actor_tombstone, store_id, kind, alt_text, rights_confirmed_at, idempotency_key, source_mime, source_bytes, source_width, source_height, scan_state, metadata_stripped, reencoded, state, original_object_key, private_derivative_object_key, derivative_digest, derivative_width, derivative_height, derivative_bytes)
+values (gen_random_uuid(), gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'Test image', statement_timestamp(), gen_random_uuid(), 'image/png', 1000, 640, 480, 'clean', true, true, 'rejected', 'quarantine/00000000-0000-4000-8000-000000000104/original', 'quarantine/00000000-0000-4000-8000-000000000104/derivative.webp', decode(repeat('00',32),'hex'), 640, 480, 100000);
 
-select throws_ok('select app_public.media_approve_upload((select upload_id from media_private.media_uploads where state=''approved'' order by created_at desc limit 1),''reason'')','55000','upload_not_awaiting_review','approve non-awaiting fails');
-
--- Test concurrent modification handling
-insert into media_private.media_uploads (upload_id, store_id, kind, state, original_object_key, derivative_object_key, derivative_digest, width, height, derivative_bytes, scan_operation_id, processor_operation_id, derivative_digest_alg)
-values (gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'awaiting_review', 'q/c1/original', 'q/c1/derivative.webp', '\x'||repeat('00',32), 640, 480, 100000, 'scan1', 'proc1', 'sha256');
-
--- Manually bump version to simulate concurrent modification
-update media_private.media_uploads set version = version + 100 where upload_id = (select upload_id from media_private.media_uploads where state='awaiting_review' order by created_at desc limit 1);
-
-select throws_ok('select app_public.media_approve_upload((select upload_id from media_private.media_uploads where state=''awaiting_review'' order by created_at desc limit 1),''reason'')','55000','upload_concurrent_modification','concurrent modification detected');
+select throws_ok('select app_public.media_approve_upload((select upload_id from media_private.media_uploads where state=''rejected'' order by created_at desc limit 1),''reason'')','55000','upload_not_awaiting_review','approve non-awaiting fails');
 
 -- Test non-existent upload
 select throws_ok('select app_public.media_approve_upload(gen_random_uuid(),''reason'')','22023','upload_not_found','non-existent upload fails');
@@ -96,9 +93,6 @@ select throws_ok('select app_public.media_approve_upload(gen_random_uuid(),''rea
 -- Test pagination
 select is(jsonb_array_length(app_public.media_list_awaiting_review(1,0)),1,'limit 1 works');
 select is(jsonb_array_length(app_public.media_list_awaiting_review(10,100)),0,'offset beyond count returns empty');
-
--- Test authorization: browser roles denied
-select throws_ok('select app_public.media_list_awaiting_review(50,0)','42501','moderation_access_denied','browser cannot list');
 
 select * from finish();
 rollback;

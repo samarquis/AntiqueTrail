@@ -33,7 +33,7 @@ select has_function('app_public','portal_preview_public_listing',array[]::text[]
 
 select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='portal_private' and c.relkind='r' and (not c.relrowsecurity or not c.relforcerowsecurity)),'every portal table forces RLS');
 select ok(not exists(select 1 from information_schema.role_table_grants where table_schema='portal_private' and grantee in ('anon','authenticated')),'browser roles cannot access portal tables directly');
-select ok(not exists(select 1 from information_schema.routines where routine_schema='app_public' and routine_name like 'portal_%media%'),'no Portal media command exists before M-01');
+select ok(exists(select 1 from information_schema.routines where routine_schema='app_public' and routine_name='portal_list_media_uploads'),'M-01 exposes the Portal media-history command');
 select ok(position($q$'official_media'$q$ in lower(pg_get_functiondef('app_public.portal_submit_controlled_change(jsonb)'::regprocedure)))>0
   and position('portal_unavailable' in lower(pg_get_functiondef('app_public.portal_submit_controlled_change(jsonb)'::regprocedure)))>0,'official-media controlled input fails closed');
 
