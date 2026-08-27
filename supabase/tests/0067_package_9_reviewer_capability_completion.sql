@@ -38,6 +38,12 @@ select ok(position('retire_reviewer_credential' in lower(pg_get_functiondef('rev
 select ok(position('for update of c skip locked' in lower(pg_get_functiondef('review_private.purge_reviewer_management_capabilities(timestamp with time zone,integer)'::regprocedure)))>0 and position('for update skip locked' in lower(pg_get_functiondef('review_private.purge_reviewer_management_capabilities(timestamp with time zone,integer)'::regprocedure)))>0,'credential and marker lifecycle claims serialize safely');
 select ok(position('delete from review_private.reviewer_credential_reuse_markers' in lower(pg_get_functiondef('review_private.purge_reviewer_management_capabilities(timestamp with time zone,integer)'::regprocedure)))>0 and position('purge_after<=p_now' in replace(lower(pg_get_functiondef('review_private.purge_reviewer_management_capabilities(timestamp with time zone,integer)'::regprocedure)),' ',''))>0,'ninety-day reuse markers are deleted when due');
 
+-- Root cause (#121): review_private functions execute only for their owner
+-- (review_automation) or the named capability roles, so the postgres do-block
+-- died with 42501 on configure_reviewer_credential_reuse_key after 31 of 36
+-- planned tests. Assume the owner role for this transaction only (rolled back
+-- below).
+grant review_automation to postgres;
 do $$
 declare marker bytea;
 begin

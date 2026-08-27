@@ -3,6 +3,7 @@ import {
   GENERIC_PORTAL_ERROR,
   createPortalClient,
   createPortalMediaHttpTransport,
+  unavailablePortalClient,
 } from './portalClient'
 
 describe('production portal client', () => {
@@ -37,6 +38,16 @@ describe('production portal client', () => {
       rightsConfirmed: true,
       idempotencyKey: '22222222-2222-4222-8222-222222222222',
     })
+    await client.listMediaUploads()
+    await client.resubmitMedia({
+      originalUploadId: '33333333-3333-4333-8333-333333333333',
+      storeId: '11111111-1111-4111-8111-111111111111',
+      kind: 'gallery',
+      file: new File([new Uint8Array(32)], 'replacement.png', { type: 'image/png' }),
+      altText: 'Replacement front entrance',
+      rightsConfirmed: true,
+      idempotencyKey: '44444444-4444-4444-8444-444444444444',
+    })
     await client.listUpdates()
     await client.createUpdate({ type: 'announcement', headline: 'Hello', details: 'Details' })
     await client.archiveUpdate('update-1')
@@ -63,6 +74,7 @@ describe('production portal client', () => {
       'portal_save_managed_fields',
       'portal_submit_controlled_change',
       'media_get_capability',
+      'portal_list_media_uploads',
       'portal_list_updates',
       'portal_create_update',
       'portal_archive_update',
@@ -89,6 +101,21 @@ describe('production portal client', () => {
     })
     await expect(failed.getHome()).rejects.toThrow(GENERIC_PORTAL_ERROR)
     await expect(failed.removeOfficialLink('facebook')).rejects.toThrow(GENERIC_PORTAL_ERROR)
+  })
+
+  it('keeps unavailable media-history actions on the generic portal error boundary', async () => {
+    await expect(unavailablePortalClient.listMediaUploads()).rejects.toThrow(GENERIC_PORTAL_ERROR)
+    await expect(
+      unavailablePortalClient.resubmitMedia({
+        originalUploadId: '33333333-3333-4333-8333-333333333333',
+        storeId: '11111111-1111-4111-8111-111111111111',
+        kind: 'gallery',
+        file: new File([new Uint8Array(1)], 'replacement.png', { type: 'image/png' }),
+        altText: 'Replacement',
+        rightsConfirmed: true,
+        idempotencyKey: '44444444-4444-4444-8444-444444444444',
+      }),
+    ).rejects.toThrow(GENERIC_PORTAL_ERROR)
   })
 
   it('uploads only through the authenticated bounded media endpoint', async () => {

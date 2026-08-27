@@ -51,7 +51,7 @@ begin
   -- At or over cap: reject with upgrade copy
   if v_approved_count >= v_cap then
     -- Get current tier for upgrade copy
-    select tier into _ from partner_private.store_photo_tier_state where store_id = p_store_id;
+    select tier into v_tier from partner_private.store_photo_tier_state where store_id = p_store_id;
     v_tier := coalesce((select tier from partner_private.store_photo_tier_state where store_id = p_store_id), 'free');
 
     if v_tier = 'free' then

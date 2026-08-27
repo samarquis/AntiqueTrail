@@ -85,6 +85,11 @@ function client(overrides: Partial<PortalClient> = {}): PortalClient {
       uploadId: '11111111-1111-4111-8111-111111111111',
       state: 'awaiting_review' as const,
     })),
+    listMediaUploads: vi.fn(async () => ({ uploads: [] })),
+    resubmitMedia: vi.fn(async () => ({
+      newUploadId: '11111111-1111-4111-8111-111111111111',
+      state: 'awaiting_review' as const,
+    })),
     listUpdates: vi.fn(async () => []),
     createUpdate: vi.fn(async (draft) => ({ ...draft, id: 'update-1', state: 'live' as const })),
     archiveUpdate: vi.fn(async (id) => ({

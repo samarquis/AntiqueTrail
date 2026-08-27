@@ -105,6 +105,7 @@ export interface PortalMediaUploadInput {
   file: File
   rightsConfirmed: true
   idempotencyKey: string
+  originalUploadId?: string
 }
 
 export interface PortalMediaUploadReceipt {
@@ -112,7 +113,12 @@ export interface PortalMediaUploadReceipt {
   state: 'awaiting_review'
 }
 
-export type PortalMediaState = 'awaiting_review' | 'approved_pending_publish' | 'published' | 'rejected' | 'purged'
+export type PortalMediaState =
+  | 'awaiting_review'
+  | 'approved_pending_publish'
+  | 'published'
+  | 'rejected'
+  | 'purged'
 
 export interface PortalMediaUpload {
   uploadId: string
@@ -135,6 +141,8 @@ export interface PortalMediaUploadHistory {
 
 export interface PortalMediaResubmitInput {
   originalUploadId: string
+  storeId: string
+  kind: PortalMediaKind
   file: File
   altText: string
   rightsConfirmed: true

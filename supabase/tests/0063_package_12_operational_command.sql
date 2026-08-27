@@ -48,6 +48,12 @@ select ok(position('last_activation_ordinal' in lower(pg_get_functiondef('commun
   and position('set last_activation_ordinal' in lower(pg_get_functiondef('community_private.rollback_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)))=0
   and position('set last_activation_ordinal' in lower(pg_get_functiondef('community_private.reactivate_community(uuid,uuid,bigint,bigint,text,bytea)'::regprocedure)))=0,'rollback and reactivation never auto-promote an ordinal');
 
+-- Root cause (#121): the deployment role is hardened without USAGE on schema
+-- extensions, so pgTAP's throws_ok cannot be resolved once set local role
+-- applies and psql aborts after 33 of 36 planned tests. Grant USAGE inside this
+-- transaction only (rolled back below) so the assertions still execute AS the
+-- constrained role.
+grant usage on schema extensions to community_deployment_service;
 set local role community_deployment_service;
 select throws_ok(
   $$select app_public.community_deployment_command('unknown','{}'::jsonb)$$,

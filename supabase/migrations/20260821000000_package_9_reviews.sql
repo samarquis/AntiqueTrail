@@ -20,6 +20,10 @@ grant review_automation to postgres;
 create schema if not exists review_private;
 revoke all on schema review_private from public,anon,authenticated;
 grant usage on schema review_private to review_automation,review_lifecycle_service,review_assertion_service;
+-- review_automation's SECURITY DEFINER functions (reviewer registration,
+-- retirement) call extensions.hmac/digest internally, so the owner role needs
+-- extensions USAGE exactly like identity_service (#121 fresh-reset fix).
+grant usage on schema extensions to review_automation;
 grant create on schema review_private to review_automation;
 grant create on schema app_public to review_automation;
 

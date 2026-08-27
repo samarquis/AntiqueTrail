@@ -1,6 +1,15 @@
--- Package 13: Store Portal media upload history with rejection reasons and resubmit.
+-- Repair media-history columns and function output for databases that already
+-- ran the original Package 13 migrations before the contract was corrected.
+alter table media_private.media_uploads
+  add column if not exists rejection_reason text,
+  add column if not exists rejected_by uuid references auth.users(id) on delete set null,
+  add column if not exists rejected_at timestamptz;
 
--- Portal: list media uploads for the store with rejection reasons and resubmit support
+alter table media_private.media_uploads drop constraint if exists media_uploads_approval_reason_check;
+alter table media_private.media_uploads
+  add constraint media_uploads_approval_reason_check
+  check (approval_reason is null or char_length(btrim(approval_reason)) between 1 and 240);
+
 create or replace function app_public.portal_list_media_uploads()
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare
@@ -8,7 +17,6 @@ declare
   v_store_id uuid;
   v_result jsonb;
 begin
-  -- Authorization: store partner grant required
   select store_id into v_store_id
   from partner_private.store_partner_grants
   where auth_user_id = v_actor and state = 'active'
@@ -34,8 +42,7 @@ begin
       'derivativeWidth', r.derivative_width,
       'derivativeHeight', r.derivative_height
     ) order by r.submitted_at desc), '[]'::jsonb)
-  )
-  into v_result
+  ) into v_result
   from (
     select
       mu.upload_id,
@@ -52,16 +59,10 @@ begin
       mu.derivative_height
     from media_private.media_uploads mu
     where mu.store_id = v_store_id
-    order by mu.created_at desc
   ) r;
 
   return coalesce(v_result, jsonb_build_object('uploads', '[]'::jsonb));
 end $$;
 
+revoke all on function app_public.portal_list_media_uploads() from public, anon, service_role;
 grant execute on function app_public.portal_list_media_uploads() to authenticated;
-revoke all on function app_public.portal_list_media_uploads() from public,anon,service_role;
-grant execute on function app_public.portal_list_media_uploads() to authenticated;
-
-comment on function app_public.portal_list_media_uploads() is
-  'Portal: list all media uploads for the store with rejection reasons and resubmit eligibility.
-   Returns array of {uploadId, kind, state, altText, originalObjectKey, derivativeObjectKey, submittedAt, rejectionReason, approvedAt, rejectedAt, derivativeWidth, derivativeHeight}.';

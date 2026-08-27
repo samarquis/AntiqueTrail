@@ -13,6 +13,8 @@ import type {
   PortalManagedFields,
   PortalMediaUploadInput,
   PortalMediaUploadReceipt,
+  PortalMediaResubmitInput,
+  PortalMediaResubmitReceipt,
   OfficialLink,
   SupportTicketDraft,
 } from './types'
@@ -82,6 +84,7 @@ export function createPortalMediaHttpTransport(options: {
       body.set('kind', input.kind)
       body.set('altText', input.altText)
       body.set('idempotencyKey', input.idempotencyKey)
+      if (input.originalUploadId) body.set('originalUploadId', input.originalUploadId)
       body.set('rightsConfirmed', String(input.rightsConfirmed))
       try {
         const response = await fetcher(endpoint, {
@@ -150,16 +153,17 @@ export function createPortalClient(
       }
     },
     listMediaUploads: () => call('portal_list_media_uploads'),
-    resubmitMedia: (input: { originalUploadId: string; file: File; altText: string; rightsConfirmed: true; idempotencyKey: string }) => {
+    resubmitMedia: async (input: PortalMediaResubmitInput): Promise<PortalMediaResubmitReceipt> => {
       if (!media) throw new Error(GENERIC_PORTAL_ERROR)
       try {
         const receipt = await media.upload({
-          storeId: '',
-          kind: 'gallery',
+          storeId: input.storeId,
+          kind: input.kind,
           altText: input.altText,
           file: input.file,
           rightsConfirmed: true,
           idempotencyKey: input.idempotencyKey,
+          originalUploadId: input.originalUploadId,
         })
         if (
           receipt.state !== 'awaiting_review' ||
@@ -209,6 +213,8 @@ export const unavailablePortalClient: PortalClient = {
   submitControlledChange: unavailable,
   getMediaCapability: unavailable,
   uploadOfficialMedia: unavailable,
+  listMediaUploads: unavailable,
+  resubmitMedia: unavailable,
   listUpdates: unavailable,
   createUpdate: unavailable,
   archiveUpdate: unavailable,

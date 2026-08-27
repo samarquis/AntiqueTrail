@@ -1,0 +1,61 @@
+GITHUB ISSUE CLOSURE COMMANDS
+=============================
+
+To close the 5 completed tickets on GitHub, run ONE of the following:
+
+1) Using GitHub CLI (recommended):
+   gh issue close 101 104 113 120 121 --repo samarquis/AntiqueTrail
+
+2) Using GitHub API with curl (if gh not available):
+   curl -X PATCH \
+     -H "Authorization: token $GITHUB_TOKEN" \
+     -H "Accept: application/vnd.github+json" \
+     -d '{"state":"closed"}' \
+     https://api.github.com/repos/samarquis/AntiqueTrail/issues/101
+   # repeat for 104, 113, 120, 121
+
+3) Using GitHub web interface:
+   Go to: https://github.com/samarquis/AntiqueTrail/issues/101
+   Click "Close issue"
+
+TICKET CLOSURE SUMMARY
+=====================
+
+CLOSED (5 tickets - gate evidence complete):
+  #101 - Profile error distinction
+  #104 - Public-catalog gateway
+  #113 - Package 13 contract
+  #120 - Stripe integration behind staged-off flag
+  #121 - pgTAP failures fix
+
+ALREADY ABANDONED (3 tickets - in GATES.md):
+  #115 - no leaf file or work assigned
+  #118 - no leaf file or work assigned
+  #119 - no leaf file or work assigned
+
+PENDING LIVE STACK (2 tickets - require Supabase):
+  #116 - browser verification sweep (needs port 4174 harness)
+  #117 - staged-off surfaces browser sweep (needs spec + execution)
+
+REPO-LEVEL GATES (6 checks - EVIDENCE pending):
+  R1-R6 in GATES.md all still have EVIDENCE: pending
+  These aggregate checks require full CI run or live stack verification
+
+GATE FILE EVIDENCE STATUS
+=========================
+
+Each of the 5 closed tickets has:
+  [- x] G1-Gx: checkbox marked with evidence
+  EVIDENCE: <description of work done>
+
+All evidence lines have been recorded in the gate files per the
+anti-laziness discipline. The gate files themselves serve as the
+authoritative closure record.
+
+COMMIT HISTORY
+==============
+
+d7ce09e Complete 8 leaf gates... (5 tickets fully evidenced + 3 new file types)
+219bf5a ABANDON #115 #118 #119 - no leaf files or work assigned
+
+Both commits pushed to GitHub main branch.
