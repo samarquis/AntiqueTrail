@@ -3,7 +3,7 @@
 -- The pinned CLI's local image moved from PostgreSQL 15 to 17. On PG17 a
 -- membership granted by a CREATEROLE holder no longer implies SET ROLE, and
 -- the reset pipeline provisions postgres with ADMIN-option-only memberships
--- (set=false, inherit=false) for every application service role. Roughly a
+-- for every application service role. Roughly a
 -- dozen legacy pgTAP files rely on the old PG15 behavior -- `set local role
 -- <service_role>` straight after a fresh reset -- and only passed historically
 -- because of ad-hoc grants that lived in the docker volume (see the issue #99
@@ -17,18 +17,12 @@ do $$
 declare r record;
 begin
   for r in
-    select am.roleid::regrole as role_name
+    select distinct am.roleid::regrole as role_name
     from pg_auth_members am
     join pg_roles m on m.oid = am.member
     where m.rolname = 'postgres'
-      and not am.set_option
-      -- Skip roles that already have any SET-capable membership row.
-      and not exists (
-        select 1 from pg_auth_members am2
-        where am2.roleid = am.roleid
-          and am2.member = am.member
-          and am2.set_option
-      )
+      and am.roleid::regrole::text <> 'authenticator'
+      and am.admin_option
   loop
     -- This server's grammar accepts one membership option per GRANT, so the
     -- two options merge across two grants.
