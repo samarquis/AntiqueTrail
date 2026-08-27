@@ -178,3 +178,4 @@ grant select on media_private.media_uploads to media_moderation;
 grant select on app_public.stores to media_moderation;
 grant select on media_private.media_uploads to media_moderation;
 grant usage on schema media_private to media_moderation;
+grant execute on function partner_private.append_audit(text,uuid,uuid,text,jsonb) to postgres;
