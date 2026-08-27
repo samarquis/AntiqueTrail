@@ -18,3 +18,4 @@ store-details-focus.png
 # Local CLI/tooling state
 supabase/.branches/
 skills-lock.json
+set-token.ps1

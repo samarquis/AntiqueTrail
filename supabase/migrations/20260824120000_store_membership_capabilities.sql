@@ -577,7 +577,7 @@ revoke billing_automation from postgres;
 revoke release_automation from postgres;
 revoke release_automation from postgres;
 
--- Down-migration: reverse all objects created by this migration in reverse order.
+/* Down-migration: reverse all objects created by this migration in reverse order.
 -- Idempotent: safe to run even if objects don't exist.
 -- This restores the schema to its pre-Package 13 state.
 
@@ -651,3 +651,4 @@ do $$ begin
   execute 'drop role if exists billing_mirror_service';
   execute 'drop role if exists billing_automation';
 end $$;
+*/

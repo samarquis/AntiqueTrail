@@ -37,5 +37,8 @@ revoke all on function app_public.execute_regional_release_command(text,uuid,uui
   from public,anon,authenticated;
 grant execute on function app_public.execute_regional_release_command(text,uuid,uuid,uuid[],text)
   to release_executor;
+-- The executor needs schema reach to invoke the boundary at all; without this
+-- every call died with 42501 permission denied for schema app_public (#121).
+grant usage on schema app_public to release_executor;
 revoke create on schema app_public from release_automation;
 revoke release_automation from postgres;
