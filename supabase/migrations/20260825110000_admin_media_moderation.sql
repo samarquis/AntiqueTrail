@@ -10,6 +10,13 @@ do $$ begin
 end $$;
 grant media_moderation to postgres;
 
+-- These security-definer boundaries operate on media-owned tables and record
+-- their audit events through the billing-owned audit helper. Create them under
+-- the media owner while the migration role temporarily has SET ROLE.
+grant media_automation to postgres;
+grant create on schema app_public to media_automation;
+set role media_automation;
+
 -- Queue: list awaiting_review uploads with store context
 create or replace function app_public.media_list_awaiting_review(
   p_limit integer default 50,
@@ -173,9 +180,12 @@ grant execute on function app_public.media_list_awaiting_review(integer,integer)
 grant execute on function app_public.media_approve_upload(uuid,text) to media_moderation;
 grant execute on function app_public.media_reject_upload(uuid,text) to media_moderation;
 
+reset role;
+revoke create on schema app_public from media_automation;
+revoke media_automation from postgres;
+
 -- Ensure media_moderation can read media_uploads and stores for queue
 grant select on media_private.media_uploads to media_moderation;
 grant select on app_public.stores to media_moderation;
 grant select on media_private.media_uploads to media_moderation;
 grant usage on schema media_private to media_moderation;
-grant execute on function partner_private.append_audit(text,uuid,uuid,text,jsonb) to postgres;

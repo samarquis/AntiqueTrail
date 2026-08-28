@@ -2,6 +2,12 @@
 -- Validates approved-photo count against store tier cap at upload intake.
 -- Returns over-cap rejection with plain-language upgrade copy.
 
+-- The function reads media-owned tables and calls billing-owned helpers. Create
+-- it under the media owner while the migration role temporarily has SET ROLE.
+grant media_automation to postgres;
+grant create on schema partner_private to media_automation;
+set role media_automation;
+
 create or replace function partner_private.check_store_media_cap(
   p_store_id uuid,
   p_kind text,
@@ -47,9 +53,9 @@ begin
 
   -- At or over cap: reject with upgrade copy
   if v_approved_count >= v_cap then
-    -- Get current tier for upgrade copy
-    select tier into v_tier from partner_private.store_photo_tier_state where store_id = p_store_id;
-    v_tier := coalesce((select tier from partner_private.store_photo_tier_state where store_id = p_store_id), 'free');
+    -- The resolved cap is the authoritative tier projection and avoids
+    -- granting the media owner direct access to billing state.
+    v_tier := case v_cap when 5 then 'free' when 15 then 'featured' else 'unlimited' end;
 
     if v_tier = 'free' then
       v_upgrade_tier := 'featured';
@@ -83,9 +89,12 @@ begin
 end $$;
 
 grant execute on function partner_private.check_store_media_cap(uuid,text,uuid) to media_automation;
-grant execute on function partner_private.resolve_store_photo_cap(uuid) to postgres;
 revoke all on function partner_private.check_store_media_cap(uuid,text,uuid) from public,anon,authenticated,service_role;
 
 comment on function partner_private.check_store_media_cap(uuid,text,uuid) is
   'Intake gate for M-01: validates store gallery upload count against tier cap.
    Returns {allowed:true, remaining:int} or {allowed:false, error:"media_cap_exceeded", message, currentTier, upgradeTier, upgradeCap, approvedCount, cap}.';
+
+reset role;
+revoke create on schema partner_private from media_automation;
+revoke media_automation from postgres;

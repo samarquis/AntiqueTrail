@@ -584,6 +584,8 @@ grant execute on function partner_private.apply_due_subscription_lifecycles(time
 grant execute on function app_public.run_due_billing_lifecycle(timestamptz,integer) to billing_lifecycle_service;
 -- M-01 intake (#119) consumes the resolved cap at upload time.
 grant execute on function partner_private.resolve_store_photo_cap(uuid) to media_automation;
+-- Media moderation records its actions in the billing-owned audit chain.
+grant execute on function partner_private.append_audit(text,uuid,uuid,text,jsonb) to media_automation;
 
 revoke create on schema app_public from billing_automation;
 revoke create on schema partner_private from billing_automation;
