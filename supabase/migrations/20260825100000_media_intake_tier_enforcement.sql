@@ -89,6 +89,7 @@ begin
 end $$;
 
 grant execute on function partner_private.check_store_media_cap(uuid,text,uuid) to media_automation;
+grant execute on function partner_private.check_store_media_cap(uuid,text,uuid) to postgres;
 revoke all on function partner_private.check_store_media_cap(uuid,text,uuid) from public,anon,authenticated,service_role;
 
 comment on function partner_private.check_store_media_cap(uuid,text,uuid) is
