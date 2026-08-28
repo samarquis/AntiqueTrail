@@ -20,4 +20,4 @@ Scope: fail closed in `PartnerDraftPage` until the authoritative partner status 
 - [x] G4: The final change is limited to #134 and retains existing partner/client authorization boundaries.
   CHECK: git diff --check
   EXPECT: /$^/
-  EVIDENCE: `git diff --check` exited 0; product changes are PartnerDraftPage, focused unit tests, and UI-08 denied-route coverage. Server session-bound authorization is unchanged.
+  EVIDENCE: `git diff --check` exited 0 before commit; product changes are PartnerDraftPage, focused unit tests, and UI-08 denied-route coverage. Server session-bound authorization is unchanged. Committed and pushed as `7d087bc`.

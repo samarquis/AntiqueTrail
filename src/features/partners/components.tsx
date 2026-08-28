@@ -326,6 +326,7 @@ export function PartnerDraftPage({
         <GenericPartnerError />
       ) : (
         <form onSubmit={save}>
+          {error && <GenericPartnerError />}
           <label htmlFor="partner-store">Store name</label>
           <input
             id="partner-store"
