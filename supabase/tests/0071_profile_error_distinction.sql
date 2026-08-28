@@ -24,9 +24,11 @@ select ok(
     'auto_create_profile_on_user trigger exists'
 );
 
+insert into auth.users(id) values ('71000000-0000-4000-8000-000000000001');
+
 -- Test 4: profile created with status=active by default
 select ok(
-    exists (select 1 from app_private.profiles where status = 'active'),
+    exists (select 1 from app_private.profiles where user_id='71000000-0000-4000-8000-000000000001' and status = 'active'),
     'Profiles are created with status active by default'
 );
 

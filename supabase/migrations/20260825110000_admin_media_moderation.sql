@@ -10,6 +10,13 @@ do $$ begin
 end $$;
 grant media_moderation to postgres;
 
+-- These security-definer boundaries operate on media-owned tables and record
+-- their audit events through the billing-owned audit helper. Create them under
+-- the media owner while the migration role temporarily has SET ROLE.
+grant media_automation to postgres;
+grant create on schema app_public to media_automation;
+set role media_automation;
+
 -- Queue: list awaiting_review uploads with store context
 create or replace function app_public.media_list_awaiting_review(
   p_limit integer default 50,
@@ -20,7 +27,7 @@ declare
   v_result jsonb;
 begin
   -- Authorization: media_moderation role or admin
-  if not (pg_has_role(v_actor, 'media_moderation', 'member') or app_private.current_user_has_role('administrator', v_actor)) then
+  if not (pg_has_role(session_user, 'media_moderation', 'member') or app_private.current_user_has_role('administrator', v_actor)) then
     raise exception using errcode='42501', message='moderation_access_denied';
   end if;
 
@@ -39,11 +46,12 @@ begin
       mu.kind,
       mu.alt_text,
       mu.original_object_key,
-      mu.derivative_object_key,
-      mu.bytes as original_bytes,
+      mu.private_derivative_object_key,
+      mu.source_bytes as original_bytes,
       mu.derivative_bytes,
-      mu.width,
-      mu.height,
+      mu.source_width,
+      mu.source_height,
+      mu.state,
       mu.created_at,
       mu.updated_at
     from media_private.media_uploads mu
@@ -67,7 +75,7 @@ declare
   v_version bigint;
 begin
   -- Authorization
-  if not (pg_has_role(v_actor, 'media_moderation', 'member') or app_private.current_user_has_role('administrator', v_actor)) then
+  if not (pg_has_role(session_user, 'media_moderation', 'member') or app_private.current_user_has_role('administrator', v_actor)) then
     raise exception using errcode='42501', message='moderation_access_denied';
   end if;
 
@@ -120,7 +128,7 @@ declare
   v_version bigint;
 begin
   -- Authorization
-  if not (pg_has_role(v_actor, 'media_moderation', 'member') or app_private.current_user_has_role('administrator', v_actor)) then
+  if not (pg_has_role(session_user, 'media_moderation', 'member') or app_private.current_user_has_role('administrator', v_actor)) then
     raise exception using errcode='42501', message='moderation_access_denied';
   end if;
 
@@ -171,6 +179,10 @@ revoke all on function app_public.media_reject_upload(uuid,text) from public,ano
 grant execute on function app_public.media_list_awaiting_review(integer,integer) to media_moderation;
 grant execute on function app_public.media_approve_upload(uuid,text) to media_moderation;
 grant execute on function app_public.media_reject_upload(uuid,text) to media_moderation;
+
+reset role;
+revoke create on schema app_public from media_automation;
+revoke media_automation from postgres;
 
 -- Ensure media_moderation can read media_uploads and stores for queue
 grant select on media_private.media_uploads to media_moderation;

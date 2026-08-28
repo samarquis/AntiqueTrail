@@ -2,6 +2,12 @@
 -- Validates approved-photo count against store tier cap at upload intake.
 -- Returns over-cap rejection with plain-language upgrade copy.
 
+-- The function reads media-owned tables and calls billing-owned helpers. Create
+-- it under the media owner while the migration role temporarily has SET ROLE.
+grant media_automation to postgres;
+grant create on schema partner_private to media_automation;
+set role media_automation;
+
 create or replace function partner_private.check_store_media_cap(
   p_store_id uuid,
   p_kind text,
@@ -16,12 +22,9 @@ declare
   v_upgrade_cap integer;
   v_message text;
 begin
-  -- Capability gate: only M-01 intake may call this (granted to media_automation).
-  if not partner_private.photo_tier_billing_enabled() then
-    raise exception using errcode='55000',message='billing_stage_disabled';
-  end if;
-
-  -- Validate inputs
+  -- Free-tier enforcement is part of the pilot contract and remains active
+  -- while paid photo tiers are staged off. The media caller is constrained by
+  -- the function grant; this helper must not turn off the grandfathered cap.
   if p_store_id is null or p_kind not in ('cover','gallery') or p_idempotency_key is null then
     raise exception using errcode='22023',message='media_intake_invalid_input';
   end if;
@@ -40,7 +43,7 @@ begin
   select count(*) into v_approved_count
   from media_private.media_uploads
   where store_id = p_store_id
-    and state = 'approved'
+    and state in ('approved_pending_publish','published')
     and kind = 'gallery';
 
   -- Unlimited tier: null cap means no limit
@@ -50,9 +53,9 @@ begin
 
   -- At or over cap: reject with upgrade copy
   if v_approved_count >= v_cap then
-    -- Get current tier for upgrade copy
-    select tier into v_tier from partner_private.store_photo_tier_state where store_id = p_store_id;
-    v_tier := coalesce((select tier from partner_private.store_photo_tier_state where store_id = p_store_id), 'free');
+    -- The resolved cap is the authoritative tier projection and avoids
+    -- granting the media owner direct access to billing state.
+    v_tier := case v_cap when 5 then 'free' when 15 then 'featured' else 'unlimited' end;
 
     if v_tier = 'free' then
       v_upgrade_tier := 'featured';
@@ -86,8 +89,13 @@ begin
 end $$;
 
 grant execute on function partner_private.check_store_media_cap(uuid,text,uuid) to media_automation;
+grant execute on function partner_private.check_store_media_cap(uuid,text,uuid) to postgres;
 revoke all on function partner_private.check_store_media_cap(uuid,text,uuid) from public,anon,authenticated,service_role;
 
 comment on function partner_private.check_store_media_cap(uuid,text,uuid) is
   'Intake gate for M-01: validates store gallery upload count against tier cap.
    Returns {allowed:true, remaining:int} or {allowed:false, error:"media_cap_exceeded", message, currentTier, upgradeTier, upgradeCap, approvedCount, cap}.';
+
+reset role;
+revoke create on schema partner_private from media_automation;
+revoke media_automation from postgres;

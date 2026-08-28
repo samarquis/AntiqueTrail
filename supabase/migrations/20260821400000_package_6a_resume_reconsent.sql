@@ -212,16 +212,19 @@ declare target_user uuid;
 begin
   if tg_table_name='listing_claims' then
     target_user := new.claimant_id;
+    if tg_op='UPDATE' then
+      if not old.material_reconsent_required and new.material_reconsent_required and new.state=old.state then return new; end if;
+      if new.state in ('submitted','verification_pending','changes_requested','conflict','approved')
+        and (not partner_private.partner_consent_is_current(target_user) or new.material_reconsent_required)
+        then raise exception using errcode='42501',message='partner_material_reconsent_required'; end if;
+    elsif new.state in ('submitted','verification_pending','changes_requested','conflict','approved')
+      and (not partner_private.partner_consent_is_current(target_user) or new.material_reconsent_required)
+      then raise exception using errcode='42501',message='partner_material_reconsent_required'; end if;
   else
     target_user := new.auth_user_id;
+    if new.state='active' and not partner_private.partner_consent_is_current(target_user)
+      then raise exception using errcode='42501',message='partner_material_reconsent_required'; end if;
   end if;
-  if tg_table_name='listing_claims' and tg_op='UPDATE' and not old.material_reconsent_required
-    and new.material_reconsent_required and new.state=old.state then return new; end if;
-  if ((tg_table_name='listing_claims' and new.state in ('submitted','verification_pending','changes_requested','conflict','approved'))
-      or (tg_table_name<>'listing_claims' and new.state='active'))
-    and (not partner_private.partner_consent_is_current(target_user)
-      or (tg_table_name='listing_claims' and new.material_reconsent_required))
-    then raise exception using errcode='42501',message='partner_material_reconsent_required'; end if;
   return new;
 end $$;
 alter function partner_private.guard_current_partner_consent() owner to identity_service;

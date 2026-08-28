@@ -5,10 +5,17 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(18);
 
--- Helper: create a test store
-select has_function('app_public','create_test_store',array[]::text[],'test helper create_test_store exists');
+-- The cap rows reference real stores; keep these fixtures local to the test.
+select has_table('app_public','stores','catalog stores table exists');
+insert into app_public.stores(id,slug,name,town,state_code,address,area_id,summary,description)
+select ('00000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,
+  'db-ci-cap-store-'||lpad(i::text,3,'0'), 'DB CI Cap Store '||i, 'Topeka', 'KS',
+  '1 Test Way', '00000000-0000-4000-8000-000000000001'::uuid,
+  'Database CI fixture', 'Database CI fixture store'
+from generate_series(1,11) i
+on conflict (id) do nothing;
 
 -- Test 1: Fresh store with no tier row defaults to free cover+5
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000001'),5,
@@ -38,7 +45,7 @@ select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-00000
 -- Test 5: Subscription state change active -> past_due -> tier stays subscription until grace
 -- Simulate billing_apply_subscription_event effect: active sets tier=featured, source=subscription
 insert into partner_private.store_subscriptions (store_id, stripe_customer_id, stripe_subscription_id, state, current_period_end)
-  values ('00000000-0000-4000-8000-000000000005','cus_test','sub_test','active','2099-12-31 23:59:59+00');
+  values ('00000000-0000-4000-8000-000000000005','cus_test1234','sub_test1234','active','2099-12-31 23:59:59+00');
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
   values ('00000000-0000-4000-8000-000000000005','featured','subscription')
   on conflict (store_id) do update set tier='featured',source='subscription';
@@ -55,7 +62,7 @@ select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-00000
 -- This tests the mid-flight transition past_due -> grace -> free
 -- First set current_period_end to past to trigger grace expiry
 update partner_private.store_subscriptions
-  set state='past_due', current_period_end=statement_timestamp()-interval '1 day'
+  set state='past_due', current_period_end=statement_timestamp()-interval '15 days'
   where store_id='00000000-0000-4000-8000-000000000005';
 -- Run the grace sweep (14-day failed payment -> grace with 30-day hidden photos)
 select partner_private.apply_due_subscription_lifecycles(statement_timestamp(),10);
@@ -65,14 +72,14 @@ select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-00000
 
 -- Test 8: Store with explicit featured tier (not subscription) remains featured
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000006','featured','default')
+  values ('00000000-0000-4000-8000-000000000006','featured','subscription')
   on conflict (store_id) do update set tier='featured',source='default';
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000006'),15,
   'explicit featured tier (default source) -> cap 15');
 
 -- Test 9: Subscription cancel -> tier drops to free, source=default
 insert into partner_private.store_subscriptions (store_id, stripe_customer_id, stripe_subscription_id, state, current_period_end)
-  values ('00000000-0000-4000-8000-000000000007','cus_test','sub_test','active','2099-12-31 23:59:59+00');
+  values ('00000000-0000-4000-8000-000000000007','cus_test1234','sub_test1234','active','2099-12-31 23:59:59+00');
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
   values ('00000000-0000-4000-8000-000000000007','featured','subscription')
   on conflict (store_id) do update set tier='featured',source='subscription';
@@ -92,8 +99,8 @@ select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-00000
 -- Test 10: Resubscribe after cancellation restores tier
 -- Store 007 was canceled -> free. Now new active subscription.
 insert into partner_private.store_subscriptions (store_id, stripe_customer_id, stripe_subscription_id, state, current_period_end)
-  values ('00000000-0000-4000-8000-000000000007','cus_test2','sub_test2','active','2099-12-31 23:59:59+00')
-  on conflict (store_id) do update set stripe_customer_id='cus_test2',stripe_subscription_id='sub_test2',state='active',current_period_end='2099-12-31 23:59:59+00';
+  values ('00000000-0000-4000-8000-000000000007','cus_test2345','sub_test2345','active','2099-12-31 23:59:59+00')
+  on conflict (store_id) do update set stripe_customer_id='cus_test2345',stripe_subscription_id='sub_test2345',state='active',current_period_end='2099-12-31 23:59:59+00',downgrade_to=null,hide_photos_after=null;
 -- New active subscription -> tier becomes subscription tier
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
   values ('00000000-0000-4000-8000-000000000007','unlimited','subscription')
@@ -102,8 +109,8 @@ select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-00000
   'resubscribe unlimited -> cap uncapped');
 
 -- Test 11: Hidden photo grace closure (grace -> canceled after 30 days) retains free tier
-insert into partner_private.store_subscriptions (store_id, state, hide_photos_after)
-  values ('00000000-0000-4000-8000-000000000008','grace',statement_timestamp()-interval '1 day')
+insert into partner_private.store_subscriptions (store_id, stripe_customer_id, state, hide_photos_after)
+  values ('00000000-0000-4000-8000-000000000008','cus_grace1234','grace',statement_timestamp()-interval '1 day')
   on conflict (store_id) do update set state='grace',hide_photos_after=statement_timestamp()-interval '1 day';
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
   values ('00000000-0000-4000-8000-000000000008','free','default')
@@ -126,7 +133,7 @@ select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-00000
 
 -- Test 13: Subscription state none with explicit featured tier row (source=default) -> cap 15
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000010','featured','default')
+  values ('00000000-0000-4000-8000-000000000010','featured','subscription')
   on conflict (store_id) do update set tier='featured',source='default';
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000010'),15,
   'subscription=none with explicit featured tier -> cap 15');

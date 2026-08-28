@@ -8,7 +8,7 @@ select plan(47);
 select has_column('release_private','release_capabilities','photo_tiers_enabled','monetization capability column exists');
 select col_default_is('release_private','release_capabilities','photo_tiers_enabled','false','monetization defaults OFF everywhere');
 select ok(coalesce((select bool_or(pg_get_constraintdef(oid) ilike '%photo_tiers_enabled%') from pg_constraint where conrelid='release_private.release_capabilities'::regclass and conname='release_capabilities_atomic'),false),'capability atomicity check covers monetization');
-select ok(coalesce((select bool_or(pg_get_constraintdef(oid) ilike '%photo_tier_activation_gate%')) from pg_constraint where conrelid='release_private.release_evidence_receipts'::regclass),false),'activation receipt steps joined the evidence ledger';
+select ok(coalesce((select bool_or(pg_get_constraintdef(oid) ilike '%photo_tier_activation_gate%') from pg_constraint where conrelid='release_private.release_evidence_receipts'::regclass),false),'activation receipt steps joined the evidence ledger');
 
 select has_table('partner_private','store_photo_tier_state','tier state is durable');
 select has_table('partner_private','store_subscriptions','subscription mirror is durable');
@@ -45,10 +45,10 @@ select ok(has_function_privilege('billing_lifecycle_service','app_public.run_due
 select ok(position('for update skip locked' in lower(pg_get_functiondef('partner_private.apply_due_subscription_lifecycles(timestamptz,integer)'::regprocedure)))>0 and position('billing-lifecycle-singleton' in pg_get_functiondef('partner_private.apply_due_subscription_lifecycles(timestamptz,integer)'::regprocedure))>0,'grace sweep follows shared job rules');
 select ok(position($q$interval '14 days'$q$ in lower(pg_get_functiondef('partner_private.apply_due_subscription_lifecycles(timestamptz,integer)'::regprocedure)))>0 and position($q$interval '30 days'$q$ in lower(pg_get_functiondef('partner_private.apply_due_subscription_lifecycles(timestamptz,integer)'::regprocedure)))>0,'sweep enforces 14-day failed-payment grace into 30-day hidden-photo grace');
 
-select has_function('release_private','promote_photo_tier_capability',array['uuid','uuid[]'],'receipt-bound monetization promotion exists');
+select has_function('release_private','promote_photo_tier_capability',array['uuid','uuid','uuid[]'],'receipt-bound monetization promotion exists');
 select has_function('release_private','rollback_photo_tier_capability',array['uuid','uuid','text'],'receipt-bound monetization rollback exists');
-select ok(position('external_verified' in lower(pg_get_functiondef('release_private.promote_photo_tier_capability(uuid,uuid[])'::regprocedure)))>0,'promotion binds externally verified receipts');
-select ok(position('photo_tier_activation_gate' in replace(lower(pg_get_functiondef('release_private.promote_photo_tier_capability(uuid,uuid[])'::regprocedure)),' ',''))>0,'promotion requires this package''s activation gate receipt');
+select ok(position('external_verified' in lower(pg_get_functiondef('release_private.promote_photo_tier_capability(uuid,uuid,uuid[])'::regprocedure)))>0,'promotion binds externally verified receipts');
+select ok(position('photo_tier_activation_gate' in replace(lower(pg_get_functiondef('release_private.promote_photo_tier_capability(uuid,uuid,uuid[])'::regprocedure)),' ',''))>0,'promotion requires this package''s activation gate receipt');
 select ok(position('rollback_reason_required' in replace(lower(pg_get_functiondef('release_private.rollback_photo_tier_capability(uuid,uuid,text)'::regprocedure)),' ',''))>0,'rollback demands a recorded reason');
 select ok(position('photo_tiers_promote' in replace(lower(pg_get_functiondef('app_public.execute_regional_release_command(text,uuid,uuid,uuid[],text)'::regprocedure)),' ',''))>0 and position('photo_tiers_rollback' in replace(lower(pg_get_functiondef('app_public.execute_regional_release_command(text,uuid,uuid,uuid[],text)'::regprocedure)),' ',''))>0,'executor dispatches both monetization commands');
 select ok(position('photo_tiers_enabled=false' in replace(lower(pg_get_functiondef('release_private.rollback_regional_release(uuid,uuid,text)'::regprocedure)),' ',''))>0,'regional rollback also disables monetization');

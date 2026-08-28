@@ -27,6 +27,7 @@ grant create on schema release_private to release_automation;
 grant create on schema app_public to release_automation;
 grant create on schema app_public to billing_automation;
 grant create on schema partner_private to billing_automation;
+grant usage on schema app_public,partner_private,release_private to billing_automation;
 
 -- Capability flag: same all-or-nothing discipline as the sibling flags, with
 -- one extra legal state — full regional activation with monetization still off.
@@ -513,6 +514,11 @@ do $$ declare t text; begin
 end $$;
 
 grant usage on schema partner_private to billing_mirror_service,billing_lifecycle_service;
+grant select on partner_private.store_photo_tier_state to billing_automation;
+grant select,insert on partner_private.store_billing_audit_events to billing_automation;
+grant select,insert,update on partner_private.store_subscriptions,partner_private.store_webhook_events,partner_private.store_billing_outbox to billing_automation;
+grant insert,update on partner_private.store_photo_tier_state to billing_automation;
+grant select on release_private.regional_releases,release_private.release_capabilities to billing_automation;
 grant select on app_public.stores to billing_mirror_service,billing_lifecycle_service;
 grant select on release_private.regional_releases,release_private.release_capabilities to billing_mirror_service,billing_lifecycle_service;
 grant execute on function app_private.current_session_is_active(),app_private.current_session_recent_auth(interval),
@@ -520,6 +526,16 @@ grant execute on function app_private.current_session_is_active(),app_private.cu
 create policy billing_authority_stores on app_public.stores for select to billing_mirror_service,billing_lifecycle_service using(true);
 create policy billing_authority_releases on release_private.regional_releases for select to billing_mirror_service,billing_lifecycle_service using(true);
 create policy billing_authority_release_capabilities on release_private.release_capabilities for select to billing_mirror_service,billing_lifecycle_service using(true);
+create policy billing_automation_photo_tier_state on partner_private.store_photo_tier_state for select to billing_automation using(true);
+create policy billing_automation_photo_tier_state_write on partner_private.store_photo_tier_state for insert to billing_automation with check(true);
+create policy billing_automation_photo_tier_state_update on partner_private.store_photo_tier_state for update to billing_automation using(true) with check(true);
+create policy billing_automation_store_subscriptions on partner_private.store_subscriptions for all to billing_automation using(true) with check(true);
+create policy billing_automation_store_webhook_events on partner_private.store_webhook_events for all to billing_automation using(true) with check(true);
+create policy billing_automation_store_billing_outbox on partner_private.store_billing_outbox for all to billing_automation using(true) with check(true);
+create policy billing_automation_billing_audit_events_read on partner_private.store_billing_audit_events for select to billing_automation using(true);
+create policy billing_automation_billing_audit_events_insert on partner_private.store_billing_audit_events for insert to billing_automation with check(true);
+create policy billing_automation_regional_releases on release_private.regional_releases for select to billing_automation using(true);
+create policy billing_automation_release_capabilities on release_private.release_capabilities for select to billing_automation using(true);
 
 alter function release_private.rollback_regional_release(uuid,uuid,text) owner to release_automation;
 alter function release_private.promote_photo_tier_capability(uuid,uuid,uuid[]) owner to release_automation;
@@ -568,6 +584,8 @@ grant execute on function partner_private.apply_due_subscription_lifecycles(time
 grant execute on function app_public.run_due_billing_lifecycle(timestamptz,integer) to billing_lifecycle_service;
 -- M-01 intake (#119) consumes the resolved cap at upload time.
 grant execute on function partner_private.resolve_store_photo_cap(uuid) to media_automation;
+-- Media moderation records its actions in the billing-owned audit chain.
+grant execute on function partner_private.append_audit(text,uuid,uuid,text,jsonb) to media_automation;
 
 revoke create on schema app_public from billing_automation;
 revoke create on schema partner_private from billing_automation;
