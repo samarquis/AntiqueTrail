@@ -1,0 +1,3 @@
+# Issue #116 lane 08 — cross-package evidence audit
+
+Date: 2026-08-27 (America/Chicago). Static reconciliation found the required narrow D30 `view_resource_audit` command absent from the AdminClient, UI, and UI-09 evidence (`PACKAGE_CONTRACTS.md:150-154`, `src/features/admin/adminClient.ts:12-67`, `src/features/admin/components.tsx:27-455`). It also found the historical claim that tokenless join was browser-verified is unsupported by the current e2e suite. Finding ticket: #131, which includes the evidence reconciliation. No source evidence of a privacy leak was found; fresh browser execution was intentionally not started in this lane because the review config owns exclusive port 4174.

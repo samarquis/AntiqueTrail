@@ -1,0 +1,3 @@
+# Issue #116 lane 01 — Package 6A invitation and claims
+
+Date: 2026-08-27 (America/Chicago). Static review found that `/partner/draft` renders editable fields before proving a bound identity (`src/features/partners/components.tsx:273-366`); the contract requires a generic unavailable state for unauthorized draft access (`PRD.md:802`, `DESIGN.md:104`). Authorized invitation, consent, E-01 fail-closed verification, status, claim scope, and minimized authority evidence were otherwise traced. Fresh browser execution was unavailable in this isolated worktree because `node_modules` was absent. Finding ticket: #134.
