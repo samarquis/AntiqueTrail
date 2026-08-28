@@ -130,6 +130,12 @@ Fixture mutations persist only within one document load; a full reload resets th
 
 ## Summary
 
+## Issue #116 fresh sweep — 2026-08-27
+
+Fresh driver evidence: `docs/testing/issue-116-verification.md`; the focused review command completed with **51 passed / 6 skipped / 0 failed** across desktop, tablet, and mobile. The eight lane reports are recorded in `docs/testing/issue-116-agent-01.md` through `docs/testing/issue-116-agent-08.md`.
+
+Packages 6A, 6B, and 7 live flows passed the fresh browser run. Review notes remain for six implementation/evidence gaps: #130 Access & Safety assurance/activity fields, #131 narrow View Audit and stale tokenless-join evidence, #132 Store Information hydration/navigation, #133 active-scope revoke preview contract, #134 pre-authorization draft rendering, and #135 direct-route/cross-store denial coverage. Every finding is filed; these are tracked follow-up tickets, not unfiled failures.
+
 | Verdict | Tickets |
 |---|---|
 | âœ… 100% / Wowed | #16, #19, #20, #21, #22, #23, #24, #25, #26 |
