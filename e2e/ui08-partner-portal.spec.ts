@@ -44,6 +44,10 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
       ).toBeVisible()
       await expect(page.getByText('Blue Finch Curios')).toHaveCount(0)
     }
+
+    await page.goto('/partner/draft?reviewAs=anonymous&reviewState=success')
+    await expect(page.getByRole('alert')).toHaveText(PARTNER_ERROR)
+    await expect(page.getByLabel('Store name')).toHaveCount(0)
   })
 
   test('invitation, consent, and the E-01 identity gate stay honest', async ({ page }) => {

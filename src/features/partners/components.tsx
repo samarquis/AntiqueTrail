@@ -283,9 +283,26 @@ export function PartnerDraftPage({
     description: '',
   })
   const [status, setStatus] = useState<PartnerStatus | null>(null)
+  const [accessState, setAccessState] = useState<'loading' | 'granted' | 'denied'>('loading')
   const [error, setError] = useState(false)
   const [pending, setPending] = useState(false)
   const [submitPending, setSubmitPending] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    client
+      .getStatus()
+      .then((result) => {
+        if (cancelled) return
+        setStatus(result)
+        setAccessState(result.pendingIdentity === 'bound' ? 'granted' : 'denied')
+      })
+      .catch(() => {
+        if (!cancelled) setAccessState('denied')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [client])
   async function save(event: FormEvent) {
     event.preventDefault()
     setPending(true)
@@ -303,66 +320,72 @@ export function PartnerDraftPage({
       title="Submit store draft"
       description="Text-only fields are available after a bound partner identity. Media and screenshots remain disabled until M-01 passes."
     >
-      {error && <GenericPartnerError />}
-      <form onSubmit={save}>
-        <label htmlFor="partner-store">Store name</label>
-        <input
-          id="partner-store"
-          maxLength={120}
-          value={draft.storeName}
-          onChange={(event) => setDraft({ ...draft, storeName: event.target.value })}
-          required
-        />
-        <label htmlFor="partner-address">Address</label>
-        <input
-          id="partner-address"
-          maxLength={240}
-          value={draft.address}
-          onChange={(event) => setDraft({ ...draft, address: event.target.value })}
-          required
-        />
-        <label htmlFor="partner-hours">Hours</label>
-        <textarea
-          id="partner-hours"
-          maxLength={2000}
-          value={draft.hours}
-          onChange={(event) => setDraft({ ...draft, hours: event.target.value })}
-        />
-        <label htmlFor="partner-website">Website</label>
-        <input
-          id="partner-website"
-          type="url"
-          maxLength={500}
-          value={draft.website}
-          onChange={(event) => setDraft({ ...draft, website: event.target.value })}
-        />
-        <label htmlFor="partner-description">Description</label>
-        <textarea
-          id="partner-description"
-          maxLength={2000}
-          value={draft.description}
-          onChange={(event) => setDraft({ ...draft, description: event.target.value })}
-        />
-        {status && <p role="status">Draft status: {status.onboarding}.</p>}
-        <button className="button" type="submit" disabled={pending}>
-          {pending ? 'Saving…' : 'Save draft'}
-        </button>
-        <button
-          type="button"
-          disabled={pending || submitPending}
-          onClick={() => {
-            setSubmitPending(true)
-            setError(false)
-            client
-              .submitDraft()
-              .then(setStatus)
-              .catch(() => setError(true))
-              .finally(() => setSubmitPending(false))
-          }}
-        >
-          {submitPending ? 'Submitting…' : 'Submit draft for review'}
-        </button>
-      </form>
+      {accessState === 'loading' ? (
+        <p role="status">Loading…</p>
+      ) : accessState === 'denied' ? (
+        <GenericPartnerError />
+      ) : (
+        <form onSubmit={save}>
+          {error && <GenericPartnerError />}
+          <label htmlFor="partner-store">Store name</label>
+          <input
+            id="partner-store"
+            maxLength={120}
+            value={draft.storeName}
+            onChange={(event) => setDraft({ ...draft, storeName: event.target.value })}
+            required
+          />
+          <label htmlFor="partner-address">Address</label>
+          <input
+            id="partner-address"
+            maxLength={240}
+            value={draft.address}
+            onChange={(event) => setDraft({ ...draft, address: event.target.value })}
+            required
+          />
+          <label htmlFor="partner-hours">Hours</label>
+          <textarea
+            id="partner-hours"
+            maxLength={2000}
+            value={draft.hours}
+            onChange={(event) => setDraft({ ...draft, hours: event.target.value })}
+          />
+          <label htmlFor="partner-website">Website</label>
+          <input
+            id="partner-website"
+            type="url"
+            maxLength={500}
+            value={draft.website}
+            onChange={(event) => setDraft({ ...draft, website: event.target.value })}
+          />
+          <label htmlFor="partner-description">Description</label>
+          <textarea
+            id="partner-description"
+            maxLength={2000}
+            value={draft.description}
+            onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+          />
+          {status && <p role="status">Draft status: {status.onboarding}.</p>}
+          <button className="button" type="submit" disabled={pending}>
+            {pending ? 'Saving…' : 'Save draft'}
+          </button>
+          <button
+            type="button"
+            disabled={pending || submitPending}
+            onClick={() => {
+              setSubmitPending(true)
+              setError(false)
+              client
+                .submitDraft()
+                .then(setStatus)
+                .catch(() => setError(true))
+                .finally(() => setSubmitPending(false))
+            }}
+          >
+            {submitPending ? 'Submitting…' : 'Submit draft for review'}
+          </button>
+        </form>
+      )}
     </PartnerCard>
   )
 }
