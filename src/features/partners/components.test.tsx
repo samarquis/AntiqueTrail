@@ -13,6 +13,7 @@ import {
 } from './components'
 import {
   EMAIL_GATE_MESSAGE,
+  GENERIC_PARTNER_ERROR,
   loadPartnerResume,
   readInvitationToken,
   scrubInvitationUrl,
@@ -49,7 +50,7 @@ function client(overrides: Partial<PartnerClient> = {}): PartnerClient {
     getStatus: vi.fn(async () => ({
       invitation: 'consumed' as const,
       pendingIdentity: 'bound' as const,
-      onboarding: 'submitted' as const,
+      onboarding: 'draft' as const,
     })),
     saveDraft: vi.fn(async () => ({
       invitation: 'consumed' as const,
@@ -221,15 +222,65 @@ describe('partner onboarding boundary', () => {
   it('preserves draft fields and exposes own reason-neutral status', async () => {
     const user = userEvent.setup()
     renderPage(<PartnerDraftPage client={client()} />)
-    await user.type(screen.getByLabelText(/store name/i), 'Oak Antiques')
+    await user.type(await screen.findByLabelText(/store name/i), 'Oak Antiques')
     await user.type(screen.getByLabelText(/address/i), '123 Main Street')
     await user.click(screen.getByRole('button', { name: /save draft/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/draft/i)
     await user.click(screen.getByRole('button', { name: /submit draft for review/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/submitted/i)
     cleanup()
-    renderPage(<PartnerStatusPage client={client()} />)
+    renderPage(
+      <PartnerStatusPage
+        client={client({
+          getStatus: vi.fn(async () => ({
+            invitation: 'consumed' as const,
+            pendingIdentity: 'bound' as const,
+            onboarding: 'submitted' as const,
+          })),
+        })}
+      />,
+    )
     expect(await screen.findByText(/onboarding: submitted/i)).toBeInTheDocument()
+  })
+
+  it('does not expose partner draft fields before authoritative access is granted', async () => {
+    let resolveStatus: (status: Awaited<ReturnType<PartnerClient['getStatus']>>) => void
+    const getStatus = vi.fn(
+      () =>
+        new Promise<Awaited<ReturnType<PartnerClient['getStatus']>>>((resolve) => {
+          resolveStatus = resolve
+        }),
+    )
+    renderPage(<PartnerDraftPage client={client({ getStatus })} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Loading…')
+    expect(screen.queryByLabelText(/store name/i)).not.toBeInTheDocument()
+
+    resolveStatus!({
+      invitation: 'consumed',
+      pendingIdentity: 'bound',
+      onboarding: 'draft',
+    })
+    expect(await screen.findByLabelText(/store name/i)).toBeInTheDocument()
+  })
+
+  it('fails closed when partner draft status is denied or unavailable', async () => {
+    const denied = client({
+      getStatus: vi.fn(async () => ({
+        invitation: 'consumed' as const,
+        pendingIdentity: 'provisional' as const,
+        onboarding: 'draft' as const,
+      })),
+    })
+    renderPage(<PartnerDraftPage client={denied} />)
+    expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC_PARTNER_ERROR)
+    expect(screen.queryByLabelText(/store name/i)).not.toBeInTheDocument()
+
+    cleanup()
+    renderPage(
+      <PartnerDraftPage client={client({ getStatus: vi.fn(async () => Promise.reject()) })} />,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC_PARTNER_ERROR)
+    expect(screen.queryByLabelText(/store name/i)).not.toBeInTheDocument()
   })
 
   it('submits a minimized store claim without implying endorsement or access', async () => {
