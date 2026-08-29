@@ -6,8 +6,8 @@ Scope: each supplied ticket is closed with independently verified evidence, or h
   EVIDENCE: 2026-08-29 — CLOSED with evidence comment at https://github.com/samarquis/AntiqueTrail/issues/152; implementation commit `c9359d9` pushed to `origin/codex/issue-116-wowed` after independent focused unit 11/11, typecheck, lint, changed-file Prettier/diff checks, and review-harness browser 36 passed / 0 failed / 3 skipped.
 - [x] G02 #151 reaches a terminal GitHub outcome.
   EVIDENCE: 2026-08-29 — CLOSED with evidence comment at https://github.com/samarquis/AntiqueTrail/issues/151; implementation commit `c14732a` pushed after independent focused unit 24/24, typecheck, lint, scoped Prettier/diff checks, and review-harness browser 3/3 at desktop/tablet/mobile and 1440/768/390/320 fixture widths.
-- [ ] G03 #150 reaches a terminal GitHub outcome.
-  EVIDENCE: pending
+- [x] G03 #150 reaches a terminal GitHub outcome.
+  EVIDENCE: 2026-08-29 — CLOSED with evidence comment at https://github.com/samarquis/AntiqueTrail/issues/150; implementation commit `1567b49` pushed after independent focused component 22/22, typecheck, scoped lint/Prettier/diff checks, and exact UI07 browser 6/6 across desktop/tablet/mobile.
 - [ ] G04 #149 reaches a terminal GitHub outcome.
   EVIDENCE: pending
 - [ ] G05 #148 reaches a terminal GitHub outcome.
