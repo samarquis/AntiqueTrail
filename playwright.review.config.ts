@@ -12,6 +12,7 @@ export default defineConfig({
     'ui08-partner-portal.spec.ts',
     'ui09-admin-moderation.spec.ts',
     'ui10-full-spec.spec.ts',
+    'issue-144-typography.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),

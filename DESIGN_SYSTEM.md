@@ -61,18 +61,35 @@ The detailed icon family lives in `public/icons/`. `docs/design/ICON_PLACEMENT_S
 
 ### Typography
 
-| Role | Family | Weight | Size/line height |
-|---|---|---:|---|
-| Display/H1 | Newsreader, Georgia, serif | 700 | `42px/1.04` |
-| Section/H2 | Newsreader, Georgia, serif | 700 | `29px/1.08` |
-| Card title/H3 | Newsreader, Georgia, serif | 600–700 | `24px/1.15` |
-| Body | Atkinson Hyperlegible, system-ui, sans-serif | 400 | `18px/1.5` |
-| Action/label | Atkinson Hyperlegible, system-ui, sans-serif | 700 | `16px/1.25` minimum |
-| Supporting | Atkinson Hyperlegible, system-ui, sans-serif | 400 | `15px/1.4` |
-| Eyebrow/section label | Atkinson Hyperlegible, system-ui, sans-serif | 700–800 | `15px/1.25` minimum · uppercase · tracked |
-| Metadata | Atkinson Hyperlegible, system-ui, sans-serif | 400 | `13px/1.4` |
+`src/app/styles.css` owns the semantic typography API below. Token names describe content roles,
+never a component or a current pixel value. Routes may select a role appropriate to their content,
+but must not create a route-local family, size, leading, tracking, or weight. The scale is fixed at
+all supported widths unless a token itself is documented as fluid.
 
-Body text must not fall below 16px for core content. Freshness, provenance, hours, warnings, privacy/publishing consequences, and recovery instructions are core content. Eyebrow/section labels identify page sections and sub-contexts (e.g., "Plan your stop", "What you'll find", "Antique Trail") and are core content; their minimum rendered size is 15px. Metadata may use 13–15px only for nonessential timestamps/decorative context. User text resizing to 200% must preserve function and reading order.
+| Role               | Tokens                                                        | Rendered value                               | Intended use                                                                                    | Responsive floor             |
+| ------------------ | ------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------- |
+| UI family          | `--font-ui`                                                   | Atkinson Hyperlegible, system UI, sans-serif | Body copy, controls, labels, facts, status and metadata                                         | Same stack at every width    |
+| Display family     | `--font-display`                                              | Newsreader, Georgia, Times New Roman, serif  | H1–H3 and short editorial/image titles                                                          | Same stack at every width    |
+| Caption            | `--type-size-caption`, `--type-leading-supporting`            | `13px/1.4`                                   | Nonessential timestamps, rights lines and decorative context only                               | `13px`; never essential copy |
+| Supporting         | `--type-size-supporting`, `--type-leading-supporting`         | `15px/1.4`                                   | Secondary descriptions and compact facts that remain readable without carrying the primary task | `15px`                       |
+| Label              | `--type-size-label`, `--type-leading-compact`                 | `16px/1.25`                                  | Buttons, form labels, navigation, status and uppercase metadata                                 | `16px`                       |
+| Body               | `--type-size-body`, `--type-leading-body`                     | `18px/1.5`                                   | Primary application copy and task instructions                                                  | `18px`                       |
+| Lede               | `--type-size-lede`, `--type-leading-body`                     | `20px/1.5`                                   | Introductory copy and emphasized supporting statements                                          | `20px`                       |
+| Heading 3          | `--type-size-heading-3`, `--type-leading-display-relaxed`     | `23px/1.15`                                  | Card and subsection titles                                                                      | `23px`                       |
+| Heading 2          | `--type-size-heading-2`, `--type-leading-display`             | `29px/1.08`                                  | Page sections                                                                                   | `29px`; 1.26× Heading 3      |
+| Heading 1          | `--type-size-heading-1`, `--type-leading-display-tight`       | `42px/1.04`                                  | One page title                                                                                  | `42px`; 1.45× Heading 2      |
+| Regular weight     | `--type-weight-regular`                                       | `400`                                        | Default UI copy                                                                                 | Unchanged                    |
+| Strong weight      | `--type-weight-strong`                                        | `700`                                        | All emphasis and every display-family use                                                       | Unchanged                    |
+| Display tracking   | `--type-tracking-display`, `--type-tracking-display-subtle`   | `-0.025em`, `-0.015em`                       | Headings and the compact brand wordmark                                                         | Unchanged                    |
+| Uppercase tracking | `--type-tracking-uppercase`, `--type-tracking-uppercase-wide` | `0.08em`, `0.13em`                           | Short uppercase labels; wide is reserved for eyebrows                                           | Unchanged                    |
+
+The normal H1/H2/H3 hierarchy is 42/29/23px, so each adjacent step exceeds 1.25×.
+An HTML heading used as a card title takes the Heading 3 role; heading semantics do not force a
+larger visual role. Image-art-direction text may remain fluid only beside an adjacent
+`typography-exception` explanation. Decorative placeholder and navigation glyphs are not readable
+copy and are the only other raw-size exceptions accepted by the stylesheet guard.
+
+Body text must not fall below 16px on desktop or 14px on mobile for core content; primary application body copy remains 18px/1.5. Freshness, provenance, hours, warnings, privacy/publishing consequences, and recovery instructions are core content. Eyebrow/section labels identify page sections and sub-contexts (e.g., "Plan your stop", "What you'll find", "Antique Trail") and are core content; their minimum rendered size is 15px. Caption text may use 13px only for nonessential timestamps, rights lines, or decorative context. User text resizing to 200% must preserve function and reading order.
 
 Production self-hosts licensed WOFF2 subsets for Newsreader and Atkinson Hyperlegible with `font-display: swap`; no Google Fonts request is allowed. Georgia and system-ui fallbacks preserve the hierarchy offline. The flow lab may use local/system fallbacks but is not production evidence.
 

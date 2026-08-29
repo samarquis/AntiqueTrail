@@ -23,6 +23,29 @@
 }
 
 :root {
+  /* Semantic typography contract; DESIGN_SYSTEM.md defines role usage and floors. */
+  --font-ui: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --type-size-caption: 0.8125rem;
+  --type-size-supporting: 0.9375rem;
+  --type-size-label: 1rem;
+  --type-size-body: 1.125rem;
+  --type-size-lede: 1.25rem;
+  --type-size-heading-3: 1.4375rem;
+  --type-size-heading-2: 1.8125rem;
+  --type-size-heading-1: 2.625rem;
+  --type-leading-compact: 1.25;
+  --type-leading-supporting: 1.4;
+  --type-leading-body: 1.5;
+  --type-leading-display-tight: 1.04;
+  --type-leading-display: 1.08;
+  --type-leading-display-relaxed: 1.15;
+  --type-tracking-display: -0.025em;
+  --type-tracking-display-subtle: -0.015em;
+  --type-tracking-uppercase: 0.08em;
+  --type-tracking-uppercase-wide: 0.13em;
+  --type-weight-regular: 400;
+  --type-weight-strong: 700;
   --ink: #202833;
   --muted: #5d6876;
   --paper: #f6f4f0;
@@ -45,7 +68,7 @@
   --control-invalid-border: #a75e4d;
   --shadow-card: 0 5px 18px rgb(32 40 51 / 6%);
   --shadow-raised: 0 16px 45px rgb(32 40 51 / 12%);
-  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-family: var(--font-ui);
   color: var(--ink);
   background: var(--paper);
   font-synthesis: none;
@@ -72,8 +95,9 @@ body {
   background-size:
     auto,
     100% 4rem;
-  font-size: 1.125rem;
-  line-height: 1.5;
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-body);
 }
 
 body::before {
@@ -106,8 +130,10 @@ button,
   color: var(--card);
   background: var(--teal);
   box-shadow: 0 3px 0 var(--teal-dark);
-  font-weight: 700;
-  line-height: 1.2;
+  font-family: var(--font-ui);
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
+  line-height: var(--type-leading-compact);
   text-decoration: none;
   cursor: pointer;
   transition:
@@ -173,7 +199,7 @@ button:disabled,
 
 a {
   color: var(--teal-dark);
-  font-weight: 700;
+  font-weight: var(--type-weight-strong);
   text-decoration-thickness: 0.1em;
   text-underline-offset: 0.18em;
 }
@@ -229,25 +255,26 @@ h2,
 h3 {
   margin-block: 0;
   color: var(--ink);
-  font-family: Newsreader, Georgia, 'Times New Roman', serif;
+  font-family: var(--font-display);
+  font-weight: var(--type-weight-strong);
   text-wrap: balance;
 }
 
 h1 {
-  font-size: 2.625rem;
-  line-height: 1.04;
-  letter-spacing: -0.025em;
+  font-size: var(--type-size-heading-1);
+  line-height: var(--type-leading-display-tight);
+  letter-spacing: var(--type-tracking-display);
 }
 
 h2 {
-  font-size: 1.8125rem;
-  line-height: 1.08;
-  letter-spacing: -0.025em;
+  font-size: var(--type-size-heading-2);
+  line-height: var(--type-leading-display);
+  letter-spacing: var(--type-tracking-display);
 }
 
 h3 {
-  font-size: 1.5rem;
-  line-height: 1.15;
+  font-size: var(--type-size-heading-3);
+  line-height: var(--type-leading-display-relaxed);
 }
 
 p {
@@ -281,10 +308,10 @@ p {
   align-items: center;
   gap: 0.8rem;
   color: var(--ink);
-  font-family: Newsreader, Georgia, serif;
-  font-size: 1.2rem;
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-family: var(--font-display);
+  font-size: var(--type-size-lede);
+  font-weight: var(--type-weight-strong);
+  letter-spacing: var(--type-tracking-display-subtle);
   text-decoration: none;
 }
 
@@ -317,8 +344,8 @@ p {
   padding: 0.55rem 1rem;
   border-radius: 999px;
   color: var(--muted);
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
   text-decoration: none;
 }
 
@@ -423,17 +450,17 @@ main > header > p:last-child {
   max-width: 38rem;
   margin: 1.1rem 0 0;
   color: var(--muted);
-  font-family: Newsreader, Georgia, serif;
-  font-size: clamp(1.18rem, 2vw, 1.42rem);
-  line-height: 1.45;
+  font-family: var(--font-display);
+  font-size: var(--type-size-lede);
+  line-height: var(--type-leading-body);
 }
 
 .eyebrow {
   margin: 0 0 0.7rem;
   color: var(--olive);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-size: var(--type-size-supporting);
+  font-weight: var(--type-weight-strong);
+  letter-spacing: var(--type-tracking-uppercase-wide);
   text-transform: uppercase;
 }
 
@@ -441,8 +468,8 @@ main > header > p:last-child {
   max-width: 38rem;
   margin: 1rem 0 0;
   color: var(--muted);
-  font-size: 1.15rem;
-  line-height: 1.6;
+  font-size: var(--type-size-lede);
+  line-height: var(--type-leading-body);
 }
 
 .page-card {
@@ -575,7 +602,7 @@ main > article {
 .error-summary h2 {
   margin-top: 0;
   color: #732b21;
-  font-size: 1.25rem;
+  font-size: var(--type-size-lede);
 }
 
 .page-card code {
@@ -622,7 +649,9 @@ main > article {
 }
 
 .portal-status__facts dt {
-  font-weight: 700;
+  font-size: var(--type-size-supporting);
+  font-weight: var(--type-weight-strong);
+  line-height: var(--type-leading-supporting);
 }
 
 .portal-status__facts dd {
@@ -715,8 +744,8 @@ main > article {
 .review-queue__case-category {
   margin: 0 0 0.35rem;
   color: var(--teal-dark);
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--type-size-supporting);
+  font-weight: var(--type-weight-strong);
 }
 
 .review-queue__case h3 + p,
@@ -844,16 +873,16 @@ main > article {
   place-items: center;
   border: 1px solid currentColor;
   border-radius: 50%;
-  font-family: Newsreader, Georgia, serif;
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
 }
 
 .shopper-store-card__placeholder small {
   max-width: 9rem;
   color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.25;
+  font-size: var(--type-size-caption);
+  line-height: var(--type-leading-compact);
 }
 
 .shopper-store-card__body {
@@ -863,6 +892,10 @@ main > article {
 
 .shopper-store-card__body h2 {
   margin: 0 0 1rem;
+}
+
+.shopper-store-card h2 {
+  font-size: var(--type-size-heading-3);
 }
 
 .shopper-store-card__facts {
@@ -878,9 +911,9 @@ main > article {
 
 .shopper-store-card__facts dt {
   color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font-size: var(--type-size-supporting);
+  font-weight: var(--type-weight-strong);
+  letter-spacing: var(--type-tracking-uppercase);
   text-transform: uppercase;
 }
 
@@ -895,7 +928,7 @@ main > article {
   border: 1px solid var(--gold);
   color: var(--muted);
   background: var(--paper);
-  font-size: 0.9rem;
+  font-size: var(--type-size-supporting);
 }
 
 .shopper-store-card__actions,
@@ -927,8 +960,8 @@ main > article {
   padding: 0.25rem 0.75rem;
   border-block: 1px solid var(--line);
   color: var(--muted);
-  font-size: 0.875rem;
-  line-height: 1.35;
+  font-size: var(--type-size-caption);
+  line-height: var(--type-leading-supporting);
 }
 
 .review-harness-banner strong {
@@ -958,7 +991,7 @@ main > article {
   color: var(--ink);
   background: var(--card);
   box-shadow: var(--shadow-card);
-  font-size: 1rem;
+  font-size: var(--type-size-label);
   text-decoration: none;
 }
 
@@ -982,8 +1015,8 @@ main > article {
 
 label {
   color: var(--ink);
-  font-size: 0.94rem;
-  font-weight: 700;
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
 }
 
 input:not([type='checkbox']):not([type='radio']),
@@ -1067,8 +1100,8 @@ textarea[aria-invalid='true'] {
 .catalog-filter-summary {
   margin: -0.5rem 0 1.5rem;
   color: var(--teal-dark);
-  font-size: 0.9375rem;
-  font-weight: 700;
+  font-size: var(--type-size-supporting);
+  font-weight: var(--type-weight-strong);
 }
 
 .catalog-field {
@@ -1141,15 +1174,15 @@ textarea[aria-invalid='true'] {
 }
 
 .catalog-map-panel h2 {
-  font-size: 1.8125rem;
-  line-height: 1.08;
+  font-size: var(--type-size-heading-2);
+  line-height: var(--type-leading-display);
 }
 
 .catalog-map-panel > p {
   grid-column: 1;
   margin: 0;
   color: var(--muted);
-  font-size: 0.95rem;
+  font-size: var(--type-size-supporting);
 }
 
 .catalog-map-panel > button {
@@ -1178,14 +1211,14 @@ textarea[aria-invalid='true'] {
 }
 
 .catalog-results-heading h2 {
-  font-size: 1.8125rem;
-  line-height: 1.08;
+  font-size: var(--type-size-heading-2);
+  line-height: var(--type-leading-display);
 }
 
 .catalog-results-heading > p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--type-size-supporting);
   text-align: right;
 }
 
@@ -1275,19 +1308,19 @@ textarea[aria-invalid='true'] {
   border: 1px solid rgb(7 85 79 / 35%);
   border-radius: 50% 50% 44% 44%;
   background: rgb(255 252 246 / 58%);
-  font-family: Georgia, serif;
-  font-size: 1.1rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-family: var(--font-display);
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
+  letter-spacing: var(--type-tracking-uppercase);
 }
 
 .catalog-card__placeholder > small {
   max-width: 6rem;
   color: #41635b;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 1.25;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-strong);
+  letter-spacing: var(--type-tracking-uppercase);
+  line-height: var(--type-leading-compact);
   text-transform: uppercase;
 }
 
@@ -1302,14 +1335,14 @@ textarea[aria-invalid='true'] {
 .catalog-card__area {
   margin: 0 0 0.45rem;
   color: var(--muted);
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.13em;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-strong);
+  letter-spacing: var(--type-tracking-uppercase-wide);
   text-transform: uppercase;
 }
 
 .catalog-card h2 {
-  font-size: clamp(1.45rem, 2.4vw, 1.85rem);
+  font-size: var(--type-size-heading-3);
 }
 
 .catalog-card h2 a {
@@ -1328,8 +1361,8 @@ textarea[aria-invalid='true'] {
 .catalog-card__body > p:not([class]) {
   margin: 0.35rem 0 0;
   color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.45;
+  font-size: var(--type-size-supporting);
+  line-height: var(--type-leading-supporting);
 }
 
 .catalog-card__categories {
@@ -1346,8 +1379,8 @@ textarea[aria-invalid='true'] {
   border-radius: 999px;
   color: #4f5a44;
   background: #f3f5ed;
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-strong);
 }
 
 .catalog-card__freshness {
@@ -1357,8 +1390,9 @@ textarea[aria-invalid='true'] {
   margin: auto 0 0.8rem;
   padding-top: 1rem;
   color: var(--teal-dark);
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
+  line-height: var(--type-leading-compact);
 }
 
 .catalog-card__hours {
@@ -1366,8 +1400,8 @@ textarea[aria-invalid='true'] {
   gap: 0.2rem;
   margin: 0.8rem 0 0;
   color: var(--ink);
-  font-size: 1rem;
-  line-height: 1.4;
+  font-size: var(--type-size-label);
+  line-height: var(--type-leading-supporting);
 }
 
 .catalog-card__hours strong {
@@ -1427,8 +1461,8 @@ textarea[aria-invalid='true'] {
   min-height: 3rem;
   display: inline-flex;
   align-items: center;
-  font-size: 1rem;
-  line-height: 1.35;
+  font-size: var(--type-size-label);
+  line-height: var(--type-leading-supporting);
 }
 
 .catalog-card button {
@@ -1471,9 +1505,9 @@ main > article > [role='img'] {
   display: grid;
   place-items: center;
   color: var(--teal-dark);
-  font-family: Newsreader, Georgia, serif;
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--type-size-lede);
+  font-weight: var(--type-weight-strong);
 }
 
 main > article header nav {
@@ -1496,7 +1530,7 @@ main > article dd {
 }
 
 main > article dt {
-  font-weight: 700;
+  font-weight: var(--type-weight-strong);
 }
 
 .site-footer {
@@ -1504,7 +1538,7 @@ main > article dt {
   border-top: 1px solid var(--line);
   color: var(--muted);
   background: rgb(255 253 247 / 65%);
-  font-size: 0.82rem;
+  font-size: var(--type-size-caption);
   text-align: center;
 }
 
@@ -1629,7 +1663,7 @@ main > article dt {
     justify-content: center;
     padding: 0.65rem 0.35rem;
     border-radius: 12px;
-    font-size: 1rem;
+    font-size: var(--type-size-label);
   }
 
   /* The Portal already provides its own section links. Keep the global shopper
@@ -1872,7 +1906,7 @@ main > article dt {
   max-width: 34rem;
   margin-top: 0.8rem;
   color: var(--muted);
-  font-size: 1.1rem;
+  font-size: var(--type-size-body);
 }
 
 .store-detail__trust {
@@ -1891,8 +1925,8 @@ main > article dt {
   border-radius: 999px;
   color: var(--teal-dark);
   background: var(--mint);
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
 }
 
 .status-badge--closed,
@@ -1913,7 +1947,7 @@ main > article dt {
   border: 1px solid var(--gold);
   color: var(--ink);
   background: #faf3e7;
-  font-size: 1rem;
+  font-size: var(--type-size-label);
 }
 
 /* Store photo wall — the Archivist's Wall. The gallery is a matte wall
@@ -1985,19 +2019,19 @@ main > article dt {
 .store-gallery__plate {
   padding: 0.6rem 0.25rem 0;
   color: var(--ink);
-  font-size: 0.9rem;
+  font-size: var(--type-size-supporting);
   text-align: center;
 }
 
 .store-gallery__plate-title {
-  font-family: Newsreader, Georgia, serif;
-  font-weight: 700;
-  font-size: 1.05rem;
+  font-family: var(--font-display);
+  font-weight: var(--type-weight-strong);
+  font-size: var(--type-size-label);
 }
 
 .store-gallery__plate-rights {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--type-size-caption);
 }
 
 .store-gallery__missing {
@@ -2015,9 +2049,10 @@ main > article dt {
 
 .store-gallery__missing strong {
   color: var(--teal-dark);
-  font-family: Newsreader, Georgia, serif;
+  font-family: var(--font-display);
+  /* typography-exception: decorative placeholder glyph, not readable copy */
   font-size: 5rem;
-  line-height: 1;
+  line-height: var(--type-leading-display-tight);
 }
 
 /* The wall itself: a contact-sheet grid of framed prints. auto-fill keeps
@@ -2067,8 +2102,8 @@ main > article dt {
   display: block;
   margin-top: 0.35rem;
   color: var(--muted);
-  font-family: Newsreader, Georgia, serif;
-  font-size: 0.78rem;
+  font-family: var(--font-display);
+  font-size: var(--type-size-caption);
   text-align: center;
 }
 
@@ -2077,7 +2112,7 @@ main > article dt {
   display: grid;
   place-items: center;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--type-size-caption);
 }
 
 /* The Specimen Viewing Room: a full-screen Midnight recess the pinned print
@@ -2166,7 +2201,7 @@ main > article dt {
   max-width: 45rem;
   margin: 0;
   color: #b7b0a5;
-  font-size: 0.9rem;
+  font-size: var(--type-size-supporting);
   text-align: center;
 }
 
@@ -2221,7 +2256,7 @@ main > article dt {
   padding: 1rem;
   border-radius: 13px;
   background: var(--mint);
-  font-size: 1.05rem;
+  font-size: var(--type-size-body);
 }
 
 .store-detail .store-hours,
@@ -2274,7 +2309,7 @@ main > article dt {
 .store-updates time,
 .store-detail__source {
   color: var(--muted);
-  font-size: 1rem;
+  font-size: var(--type-size-label);
 }
 
 .store-detail__provenance {
@@ -2667,15 +2702,15 @@ main > article dt {
   display: inline-block;
   margin-bottom: 1rem;
   color: var(--teal);
-  font-weight: 700;
+  font-weight: var(--type-weight-strong);
 }
 
 .store-photos__header h1 {
   margin: 0.25rem 0 0.5rem;
-  font-family: Newsreader, Georgia, serif;
-  font-weight: 700;
-  font-size: clamp(2rem, 5vw, 2.75rem);
-  line-height: 1.04;
+  font-family: var(--font-display);
+  font-weight: var(--type-weight-strong);
+  font-size: var(--type-size-heading-1);
+  line-height: var(--type-leading-display-tight);
 }
 
 .store-photos__location {
@@ -2685,16 +2720,17 @@ main > article dt {
 
 .store-photos__count {
   margin: 0.25rem 0 0;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--type-size-supporting);
+  font-weight: var(--type-weight-strong);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--type-tracking-uppercase);
   color: var(--muted);
 }
 
 .store-photos__feature {
   position: relative;
   overflow: hidden;
+  grid-column: 1 / -1;
   min-height: min(78vh, 42rem);
   margin: 3rem calc(50% - 50vw) 0;
   padding: 0;
@@ -2702,9 +2738,6 @@ main > article dt {
 }
 
 .store-photos__body {
-  /* Full-bleed features use 100vw math that can exceed the layout box by the
-     scrollbar width; clip here so the fixed lightbox/progress stay unaffected. */
-  overflow-x: clip;
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 0.85rem;
@@ -2736,10 +2769,11 @@ main > article dt {
   max-width: min(34rem, 80vw);
   padding: 0 1.5rem;
   color: #fffdfc;
-  font-family: Newsreader, Georgia, serif;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: var(--type-weight-strong);
+  /* typography-exception: art-directed caption scales with the full-bleed image */
   font-size: clamp(1.35rem, 3.4vw, 2.1rem);
-  line-height: 1.12;
+  line-height: var(--type-leading-display-relaxed);
   z-index: 1;
 }
 
@@ -2798,16 +2832,16 @@ main > article dt {
 }
 
 .store-photos__tile-caption {
-  font-family: Newsreader, Georgia, serif;
-  font-weight: 700;
-  font-size: 1.05rem;
+  font-family: var(--font-display);
+  font-weight: var(--type-weight-strong);
+  font-size: var(--type-size-label);
 }
 
 .store-photos__tile-action {
-  font-weight: 700;
-  font-size: 14px;
+  font-weight: var(--type-weight-strong);
+  font-size: var(--type-size-caption);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--type-tracking-uppercase);
 }
 
 .store-photos__tile:hover .store-photos__tile-overlay,
@@ -2841,9 +2875,10 @@ main > article dt {
 }
 
 .store-photos__missing strong {
-  font-family: Newsreader, Georgia, serif;
+  font-family: var(--font-display);
+  /* typography-exception: decorative placeholder glyph, not readable copy */
   font-size: 3rem;
-  line-height: 1;
+  line-height: var(--type-leading-display-tight);
 }
 
 /* Reveal-on-scroll is armed only when IntersectionObserver and motion are OK. */
@@ -2888,9 +2923,9 @@ main > article dt {
 .store-photos__lightbox-caption {
   padding-top: 0.6rem;
   color: #f3eee4;
-  font-family: Newsreader, Georgia, serif;
-  font-weight: 700;
-  font-size: 1.15rem;
+  font-family: var(--font-display);
+  font-weight: var(--type-weight-strong);
+  font-size: var(--type-size-body);
 }
 
 .store-photos__lightbox-close {
@@ -2902,7 +2937,7 @@ main > article dt {
   border-radius: 6px;
   color: #121519;
   background: #f3eee4;
-  font-weight: 700;
+  font-weight: var(--type-weight-strong);
   cursor: pointer;
 }
 
@@ -2915,8 +2950,9 @@ main > article dt {
   border-radius: 999px;
   color: #f3eee4;
   background: rgb(32 40 51 / 70%);
+  /* typography-exception: previous/next arrow glyph, not readable copy */
   font-size: 1.6rem;
-  line-height: 1;
+  line-height: var(--type-leading-display-tight);
   cursor: pointer;
 }
 
