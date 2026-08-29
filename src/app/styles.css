@@ -582,6 +582,81 @@ main > article {
   overflow-wrap: anywhere;
 }
 
+.portal-status {
+  display: grid;
+  gap: 1.25rem;
+  margin: 1.75rem 0;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid var(--teal-dark);
+  border-radius: 16px;
+  background: var(--paper);
+}
+
+.portal-status__heading h2,
+.portal-status__supporting h3,
+.portal-status__attention h3 {
+  margin: 0;
+}
+
+.portal-status__heading p,
+.portal-status__attention p,
+.portal-status__supporting p {
+  margin-bottom: 0;
+}
+
+.portal-status__facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.portal-status__facts > div,
+.portal-status__attention,
+.portal-status__supporting > section {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.portal-status__facts dt {
+  font-weight: 700;
+}
+
+.portal-status__facts dd {
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.portal-status__attention {
+  border-width: 2px;
+  border-color: var(--teal-dark);
+}
+
+.portal-status__attention .button {
+  margin-top: 1rem;
+}
+
+.portal-status__supporting {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.portal-status__supporting ul {
+  margin-bottom: 0;
+  padding-inline-start: 1.25rem;
+}
+
+@media (max-width: 42rem) {
+  .portal-status__facts,
+  .portal-status__supporting {
+    grid-template-columns: 1fr;
+  }
+}
+
 .review-queue {
   max-width: 62rem;
 }

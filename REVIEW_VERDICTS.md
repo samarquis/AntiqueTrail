@@ -172,3 +172,7 @@ The region now owns its own metadata boundary, spacing, and stacking context; th
 ## Issue #150 trip-planning CTA hierarchy — 2026-08-29
 
 PlanPage now separates planning tasks, limits filled actions to each task's completion, keeps utilities/reorder controls secondary, and requires exact-stop cancellation or confirmation before removal. Focused component/type/lint/format/diff checks and the 4-test Chromium/mobile UI07 browser pass are recorded in `docs/evidence/issue-150/trip-planning-cta-hierarchy-2026-08-29.md`. The browser uses deterministic review fixtures: it demonstrates hierarchy and interaction presentation only, not production trip persistence, RPC/RLS, authentication, navigator-device authority, or hosted CI.
+
+## Issue #149 Store Portal status grouping — 2026-08-29
+
+Portal Home now groups the authoritative snapshot's publication state, timezone, freshness, provenance, and controlled-change summary in a named Store status surface. Fresh component/type/lint/format checks and deterministic representative-harness browser coverage pass, including 390/320 CSS-pixel no-overflow checks; details and dated artifacts are in `docs/evidence/issue-149/portal-status-grouping-2026-08-29.md`. This is synthetic-harness presentation and client-navigation evidence only, not production provider/RPC/RLS, authentication, database, media-capability, or hosted-CI evidence.
