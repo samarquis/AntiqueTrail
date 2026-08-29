@@ -479,8 +479,31 @@ describe('manual trips', () => {
     await user.type(dwellInput, '45')
     await user.tab()
     expect(setStopDwell).toHaveBeenCalledWith('trip-1', 'stop-a', 45, 1)
-    await user.click(screen.getByRole('button', { name: /remove oak antiques/i }))
+
+    expect(screen.getByRole('button', { name: /^rename trip$/i })).toHaveClass('button')
+    expect(screen.getByRole('button', { name: /^bind this device$/i })).toHaveClass(
+      'button--secondary',
+    )
+    expect(screen.getByRole('button', { name: /move oak antiques up/i })).toHaveClass(
+      'button--secondary',
+    )
+    const remove = screen.getByRole('button', { name: /remove oak antiques/i })
+    expect(remove).toHaveClass('button--danger')
+    await user.click(remove)
+    expect(
+      screen.getByText('Removing Oak Antiques changes this trip plan immediately.'),
+    ).toBeInTheDocument()
+    expect(removeStop).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /keep oak antiques/i }))
+    expect(removeStop).not.toHaveBeenCalled()
+    expect(remove).toHaveFocus()
+
+    await user.click(remove)
+    await user.click(screen.getByRole('button', { name: /yes, remove oak antiques/i }))
     expect(removeStop).toHaveBeenCalledWith('trip-1', 'stop-a', 1)
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Oak Antiques was removed from this trip.',
+    )
     await user.click(screen.getByRole('button', { name: /bind this device/i }))
     expect(bindNavigatorDevice).toHaveBeenCalledWith('trip-1')
     await user.click(screen.getByRole('button', { name: /transfer navigator/i }))

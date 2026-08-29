@@ -198,6 +198,10 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
   const [departureTime, setDepartureTime] = useState('')
   const [startLabel, setStartLabel] = useState('')
   const [hoursAcknowledged, setHoursAcknowledged] = useState(false)
+  const [pendingRemoval, setPendingRemoval] = useState<Trip['stops'][number] | null>(null)
+  const [removingStopId, setRemovingStopId] = useState<string | null>(null)
+  const [removalStatus, setRemovalStatus] = useState('')
+  const removalTriggerRef = useRef<HTMLButtonElement | null>(null)
   const [renameConflict, setRenameConflict] = useState<{
     attemptedName: string
     latest: { name: string; version: number }
@@ -352,6 +356,23 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       setError(true)
     }
   }
+  async function confirmRemoval() {
+    if (!trip || !pendingRemoval) return
+    setRemovingStopId(pendingRemoval.id)
+    try {
+      setTrip(await client.removeStop(trip.id, pendingRemoval.id, trip.version))
+      setRemovalStatus(`${pendingRemoval.label} was removed from this trip.`)
+      setPendingRemoval(null)
+    } catch {
+      setError(true)
+    } finally {
+      setRemovingStopId(null)
+    }
+  }
+  function cancelRemoval() {
+    setPendingRemoval(null)
+    removalTriggerRef.current?.focus()
+  }
   if (error)
     return (
       <TripCard title="Trip unavailable" description="This private trip could not be loaded.">
@@ -371,71 +392,83 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       icon="/icons/trail-map.svg"
     >
       <p>Trip date: {trip.localDate}</p>
-      <form onSubmit={rename}>
-        <label htmlFor="plan-trip-name">Trip name</label>
-        <input
-          id="plan-trip-name"
-          value={tripName}
-          maxLength={80}
-          required
-          onChange={(event) => setTripName(event.target.value)}
-        />
-        <button type="submit">Rename trip</button>
-      </form>
-      {renameConflict && (
-        <section aria-label="Rename conflict">
-          <p role="alert">
-            This trip is now named “{renameConflict.latest.name}”. Choose which name to keep.
-          </p>
-          <button
-            type="button"
-            onClick={() =>
-              void applyRename(renameConflict.attemptedName, renameConflict.latest.version)
-            }
-          >
-            Reapply My Name
+      <section className="trip-plan-section" aria-labelledby="trip-identity-heading">
+        <h2 id="trip-identity-heading">Trip identity</h2>
+        <form onSubmit={rename}>
+          <label htmlFor="plan-trip-name">Trip name</label>
+          <input
+            id="plan-trip-name"
+            value={tripName}
+            maxLength={80}
+            required
+            onChange={(event) => setTripName(event.target.value)}
+          />
+          <button className="button" type="submit">
+            Rename trip
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTrip((current) =>
-                current
-                  ? {
-                      ...current,
-                      name: renameConflict.latest.name,
-                      version: renameConflict.latest.version,
-                    }
-                  : current,
-              )
-              setTripName(renameConflict.latest.name)
-              setRenameConflict(null)
-            }}
-          >
-            Keep Latest Name
+        </form>
+        {renameConflict && (
+          <section aria-label="Rename conflict">
+            <p role="alert">
+              This trip is now named “{renameConflict.latest.name}”. Choose which name to keep.
+            </p>
+            <button
+              className="button button--secondary"
+              type="button"
+              onClick={() =>
+                void applyRename(renameConflict.attemptedName, renameConflict.latest.version)
+              }
+            >
+              Reapply My Name
+            </button>
+            <button
+              className="button button--secondary"
+              type="button"
+              onClick={() => {
+                setTrip((current) =>
+                  current
+                    ? {
+                        ...current,
+                        name: renameConflict.latest.name,
+                        version: renameConflict.latest.version,
+                      }
+                    : current,
+                )
+                setTripName(renameConflict.latest.name)
+                setRenameConflict(null)
+              }}
+            >
+              Keep Latest Name
+            </button>
+          </section>
+        )}
+      </section>
+      <section className="trip-plan-section" aria-labelledby="trip-schedule-heading">
+        <h2 id="trip-schedule-heading">Schedule</h2>
+        <form onSubmit={saveSchedule}>
+          <label htmlFor="plan-trip-date">Trip date</label>
+          <input
+            id="plan-trip-date"
+            type="date"
+            value={scheduleDate}
+            required
+            onChange={(event) => setScheduleDate(event.target.value)}
+          />
+          <label htmlFor="plan-departure-time">Departure time</label>
+          <input
+            id="plan-departure-time"
+            type="time"
+            value={departureTime}
+            onChange={(event) => setDepartureTime(event.target.value)}
+          />
+          <button className="button" type="submit">
+            Update schedule
           </button>
-        </section>
-      )}
-      <form onSubmit={saveSchedule}>
-        <label htmlFor="plan-trip-date">Trip date</label>
-        <input
-          id="plan-trip-date"
-          type="date"
-          value={scheduleDate}
-          required
-          onChange={(event) => setScheduleDate(event.target.value)}
-        />
-        <label htmlFor="plan-departure-time">Departure time</label>
-        <input
-          id="plan-departure-time"
-          type="time"
-          value={departureTime}
-          onChange={(event) => setDepartureTime(event.target.value)}
-        />
-        <button type="submit">Update schedule</button>
-      </form>
-      <form onSubmit={saveStart}>
-        <fieldset>
-          <legend>Starting place for Go</legend>
+        </form>
+      </section>
+      <section className="trip-plan-section" aria-labelledby="trip-start-heading">
+        <h2 id="trip-start-heading">Starting place for Go</h2>
+        <form onSubmit={saveStart}>
           <p>Enter a place yourself. Antique Trail does not request background location.</p>
           <label htmlFor="plan-start-kind">Start kind</label>
           <select id="plan-start-kind" value="manual" disabled>
@@ -457,229 +490,298 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
             required
             onChange={(event) => setDepartureTime(event.target.value)}
           />
-          <button type="submit" disabled={!client.setStart}>
+          <button className="button" type="submit" disabled={!client.setStart}>
             Save starting place
           </button>
-        </fieldset>
-      </form>
-      {offlineQueue.state === 'queued' && (
-        <p role="status">
-          {offlineQueue.pendingCount} change{offlineQueue.pendingCount === 1 ? '' : 's'} queued
-          offline. Reconnect to replay them.
-        </p>
-      )}
-      {offlineQueue.state === 'replaying' && <p role="status">Replaying offline changes…</p>}
-      {offlineQueue.state === 'conflict' && (
-        <>
-          <p role="alert">
-            {offlineQueue.conflict?.summary ?? 'An offline change needs your choice.'}
+        </form>
+      </section>
+      <section className="trip-plan-section" aria-labelledby="trip-offline-heading">
+        <h2 id="trip-offline-heading">Offline planning</h2>
+        {offlineQueue.state === 'queued' && (
+          <p role="status">
+            {offlineQueue.pendingCount} change{offlineQueue.pendingCount === 1 ? '' : 's'} queued
+            offline. Reconnect to replay them.
           </p>
-          <button type="button" onClick={() => void resolveConflict('phone')}>
-            Keep This Phone&apos;s Version
+        )}
+        {offlineQueue.state === 'replaying' && <p role="status">Replaying offline changes…</p>}
+        {offlineQueue.state === 'conflict' && (
+          <>
+            <p role="alert">
+              {offlineQueue.conflict?.summary ?? 'An offline change needs your choice.'}
+            </p>
+            <button
+              className="button button--secondary"
+              type="button"
+              onClick={() => void resolveConflict('phone')}
+            >
+              Keep This Phone&apos;s Version
+            </button>
+            <button
+              className="button button--secondary"
+              type="button"
+              onClick={() => void resolveConflict('saved')}
+            >
+              Keep Saved Version
+            </button>
+          </>
+        )}
+        {offlineQueue.state === 'purged' && (
+          <p role="status">Offline data was purged. Reconnect before making another change.</p>
+        )}
+        {offlineQueue.state !== 'empty' && (
+          <button
+            className="button button--secondary"
+            type="button"
+            onClick={() =>
+              client
+                .purgeOffline(trip.id, 'owner_requested')
+                .then(setOfflineQueue)
+                .catch(() => setError(true))
+            }
+          >
+            Purge offline copy
           </button>
-          <button type="button" onClick={() => void resolveConflict('saved')}>
-            Keep Saved Version
+        )}
+        {offlineQueue.state === 'queued' || offlineQueue.state === 'conflict' ? (
+          <button className="button button--secondary" type="button" onClick={() => void replay()}>
+            Replay queued changes
           </button>
-        </>
-      )}
-      {offlineQueue.state === 'purged' && (
-        <p role="status">Offline data was purged. Reconnect before making another change.</p>
-      )}
-      {offlineQueue.state !== 'empty' && (
+        ) : (
+          <button
+            className="button button--secondary"
+            type="button"
+            onClick={() => void queueOffline()}
+          >
+            Save a change offline
+          </button>
+        )}
+      </section>
+      <section className="trip-plan-section" aria-labelledby="trip-stops-heading">
+        <h2 id="trip-stops-heading">Stops</h2>
+        <ol aria-label="Ordered trip stops">
+          {trip.stops.map((stop, index) => (
+            <li key={stop.id}>
+              <section aria-labelledby={`stop-${stop.id}-heading`}>
+                <h3 id={`stop-${stop.id}-heading`}>
+                  {stop.label} — {stop.priority}, {stop.plannedDwellMinutes} minutes, {stop.state}
+                </h3>
+                {stop.kind === 'store' && stop.hours && (
+                  <p>
+                    {stop.hours.state === 'verified'
+                      ? stop.hours.closed
+                        ? 'Closed on this trip date.'
+                        : stop.hours.opensAt != null && stop.hours.closesAt != null
+                          ? `Trip-date hours: ${formatTripMinute(stop.hours.opensAt)}–${formatTripMinute(stop.hours.closesAt)}.`
+                          : 'Trip-date hours verified.'
+                      : (stop.hours.warning ?? 'Hours unavailable for this trip date.')}
+                  </p>
+                )}
+                <label htmlFor={`priority-${stop.id}`}>Priority for {stop.label}</label>
+                <select
+                  id={`priority-${stop.id}`}
+                  value={stop.priority}
+                  onChange={(event) =>
+                    client
+                      .setStopPriority(
+                        trip.id,
+                        stop.id,
+                        event.target.value as StopPriority,
+                        trip.version,
+                      )
+                      .then(setTrip)
+                      .catch(() => setError(true))
+                  }
+                >
+                  <option value="must">Must</option>
+                  <option value="prefer">Prefer</option>
+                  <option value="flexible">Flexible</option>
+                </select>
+                <label htmlFor={`dwell-${stop.id}`}>Dwell minutes for {stop.label}</label>
+                <input
+                  id={`dwell-${stop.id}`}
+                  type="number"
+                  min={5}
+                  max={720}
+                  step={1}
+                  defaultValue={stop.plannedDwellMinutes}
+                  onBlur={(event) => {
+                    const next = Number(event.target.value)
+                    if (!validDwellMinutes(next)) return setError(true)
+                    void client
+                      .setStopDwell(trip.id, stop.id, next, trip.version)
+                      .then(setTrip)
+                      .catch(() => setError(true))
+                  }}
+                />
+                <button
+                  className="button button--secondary"
+                  type="button"
+                  disabled={index === 0}
+                  aria-label={`Move ${stop.label} up`}
+                  onClick={() =>
+                    client
+                      .reorderStop(trip.id, stop.id, index - 1)
+                      .then(setTrip)
+                      .catch(() => setError(true))
+                  }
+                >
+                  Move Up
+                </button>
+                <button
+                  className="button button--secondary"
+                  type="button"
+                  disabled={index === trip.stops.length - 1}
+                  aria-label={`Move ${stop.label} down`}
+                  onClick={() =>
+                    client
+                      .reorderStop(trip.id, stop.id, index + 1)
+                      .then(setTrip)
+                      .catch(() => setError(true))
+                  }
+                >
+                  Move Down
+                </button>
+                <button
+                  ref={pendingRemoval?.id === stop.id ? removalTriggerRef : undefined}
+                  className="button button--danger"
+                  type="button"
+                  aria-label={`Remove ${stop.label}`}
+                  onClick={(event) => {
+                    removalTriggerRef.current = event.currentTarget
+                    setPendingRemoval(stop)
+                    setRemovalStatus('')
+                  }}
+                >
+                  Remove stop
+                </button>
+                {pendingRemoval?.id === stop.id && (
+                  <fieldset className="trip-remove-confirmation">
+                    <legend>Remove {stop.label}?</legend>
+                    <p id={`remove-${stop.id}-consequence`}>
+                      Removing {stop.label} changes this trip plan immediately.
+                    </p>
+                    <div className="memory-delete-actions">
+                      <button
+                        className="button button--secondary"
+                        type="button"
+                        onClick={cancelRemoval}
+                      >
+                        Keep {stop.label}
+                      </button>
+                      <button
+                        className="button button--danger"
+                        type="button"
+                        aria-describedby={`remove-${stop.id}-consequence`}
+                        disabled={removingStopId === stop.id}
+                        onClick={() => void confirmRemoval()}
+                      >
+                        {removingStopId === stop.id ? 'Removing…' : `Yes, remove ${stop.label}`}
+                      </button>
+                    </div>
+                  </fieldset>
+                )}
+              </section>
+            </li>
+          ))}
+        </ol>
+      </section>
+      {removalStatus && <p role="status">{removalStatus}</p>}
+      <section className="trip-plan-section" aria-labelledby="trip-add-stop-heading">
+        <h2 id="trip-add-stop-heading">Add a stop</h2>
+        <form onSubmit={addStop}>
+          <label htmlFor="stop-label">Add stop</label>
+          <input
+            id="stop-label"
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+            disabled={trip.stops.length >= MAX_ACTIVE_STOPS}
+          />
+          <label htmlFor="stop-priority">Priority</label>
+          <select
+            id="stop-priority"
+            value={priority}
+            onChange={(event) => setPriority(event.target.value as StopPriority)}
+          >
+            <option value="must">Must</option>
+            <option value="prefer">Prefer</option>
+            <option value="flexible">Flexible</option>
+          </select>
+          <label htmlFor="stop-dwell">Dwell minutes</label>
+          <input
+            id="stop-dwell"
+            type="number"
+            min={5}
+            max={720}
+            step={1}
+            value={dwell}
+            onChange={(event) => setDwell(Number(event.target.value))}
+          />
+          <button className="button" type="submit" disabled={trip.stops.length >= MAX_ACTIVE_STOPS}>
+            Add stop
+          </button>
+        </form>
+      </section>
+      {error && <TripError />}
+      <section className="trip-plan-section" aria-labelledby="trip-hours-heading">
+        <h2 id="trip-hours-heading">Store hours</h2>
         <button
+          className="button button--secondary"
+          type="button"
+          onClick={() => void reviewHours(false)}
+        >
+          Review Hours
+        </button>
+        {trip.hoursReview?.hasUnresolvedWarnings && !trip.hoursReview.acknowledged && (
+          <fieldset>
+            <legend>Hours warnings</legend>
+            <label>
+              <input
+                type="checkbox"
+                checked={hoursAcknowledged}
+                onChange={(event) => setHoursAcknowledged(event.target.checked)}
+              />{' '}
+              I understand these hours warnings. Travel time is not included, and this does not
+              claim an optimal or feasible route.
+            </label>
+            <button
+              className="button"
+              type="button"
+              disabled={!hoursAcknowledged}
+              onClick={() => void reviewHours(true)}
+            >
+              Acknowledge warnings and continue
+            </button>
+          </fieldset>
+        )}
+      </section>
+      <section className="trip-plan-section" aria-labelledby="trip-navigator-heading">
+        <h2 id="trip-navigator-heading">Navigator device</h2>
+        <button
+          className="button button--secondary"
           type="button"
           onClick={() =>
             client
-              .purgeOffline(trip.id, 'owner_requested')
-              .then(setOfflineQueue)
+              .bindNavigatorDevice(trip.id)
+              .then(() => client.get(trip.id))
+              .then(setTrip)
               .catch(() => setError(true))
           }
         >
-          Purge offline copy
+          Bind this device
         </button>
-      )}
-      <ol aria-label="Ordered trip stops">
-        {trip.stops.map((stop, index) => (
-          <li key={stop.id}>
-            {stop.label} — {stop.priority}, {stop.plannedDwellMinutes} minutes, {stop.state}
-            {stop.kind === 'store' && stop.hours && (
-              <p>
-                {stop.hours.state === 'verified'
-                  ? stop.hours.closed
-                    ? 'Closed on this trip date.'
-                    : stop.hours.opensAt != null && stop.hours.closesAt != null
-                      ? `Trip-date hours: ${formatTripMinute(stop.hours.opensAt)}–${formatTripMinute(stop.hours.closesAt)}.`
-                      : 'Trip-date hours verified.'
-                  : (stop.hours.warning ?? 'Hours unavailable for this trip date.')}
-              </p>
-            )}
-            <label htmlFor={`priority-${stop.id}`}>Priority for {stop.label}</label>
-            <select
-              id={`priority-${stop.id}`}
-              value={stop.priority}
-              onChange={(event) =>
-                client
-                  .setStopPriority(
-                    trip.id,
-                    stop.id,
-                    event.target.value as StopPriority,
-                    trip.version,
-                  )
-                  .then(setTrip)
-                  .catch(() => setError(true))
-              }
-            >
-              <option value="must">Must</option>
-              <option value="prefer">Prefer</option>
-              <option value="flexible">Flexible</option>
-            </select>
-            <label htmlFor={`dwell-${stop.id}`}>Dwell minutes for {stop.label}</label>
-            <input
-              id={`dwell-${stop.id}`}
-              type="number"
-              min={5}
-              max={720}
-              step={1}
-              defaultValue={stop.plannedDwellMinutes}
-              onBlur={(event) => {
-                const next = Number(event.target.value)
-                if (!validDwellMinutes(next)) return setError(true)
-                void client
-                  .setStopDwell(trip.id, stop.id, next, trip.version)
-                  .then(setTrip)
-                  .catch(() => setError(true))
-              }}
-            />
-            <button
-              type="button"
-              disabled={index === 0}
-              aria-label={`Move ${stop.label} up`}
-              onClick={() =>
-                client
-                  .reorderStop(trip.id, stop.id, index - 1)
-                  .then(setTrip)
-                  .catch(() => setError(true))
-              }
-            >
-              Move Up
-            </button>
-            <button
-              type="button"
-              disabled={index === trip.stops.length - 1}
-              aria-label={`Move ${stop.label} down`}
-              onClick={() =>
-                client
-                  .reorderStop(trip.id, stop.id, index + 1)
-                  .then(setTrip)
-                  .catch(() => setError(true))
-              }
-            >
-              Move Down
-            </button>
-            <button
-              type="button"
-              aria-label={`Remove ${stop.label}`}
-              onClick={() =>
-                client
-                  .removeStop(trip.id, stop.id, trip.version)
-                  .then(setTrip)
-                  .catch(() => setError(true))
-              }
-            >
-              Remove
-            </button>
-          </li>
-        ))}
-      </ol>
-      <form onSubmit={addStop}>
-        <label htmlFor="stop-label">Add stop</label>
-        <input
-          id="stop-label"
-          value={label}
-          onChange={(event) => setLabel(event.target.value)}
-          disabled={trip.stops.length >= MAX_ACTIVE_STOPS}
-        />
-        <label htmlFor="stop-priority">Priority</label>
-        <select
-          id="stop-priority"
-          value={priority}
-          onChange={(event) => setPriority(event.target.value as StopPriority)}
+        <button
+          className="button button--secondary"
+          type="button"
+          onClick={() =>
+            client
+              .transferNavigatorDevice(trip.id)
+              .then(setTrip)
+              .catch(() => setError(true))
+          }
         >
-          <option value="must">Must</option>
-          <option value="prefer">Prefer</option>
-          <option value="flexible">Flexible</option>
-        </select>
-        <label htmlFor="stop-dwell">Dwell minutes</label>
-        <input
-          id="stop-dwell"
-          type="number"
-          min={5}
-          max={720}
-          step={1}
-          value={dwell}
-          onChange={(event) => setDwell(Number(event.target.value))}
-        />
-        <button className="button" type="submit" disabled={trip.stops.length >= MAX_ACTIVE_STOPS}>
-          Add stop
+          Transfer Navigator to this device
         </button>
-      </form>
-      {error && <TripError />}
-      <button type="button" onClick={() => void reviewHours(false)}>
-        Review Hours
-      </button>
-      {trip.hoursReview?.hasUnresolvedWarnings && !trip.hoursReview.acknowledged && (
-        <fieldset>
-          <legend>Hours warnings</legend>
-          <label>
-            <input
-              type="checkbox"
-              checked={hoursAcknowledged}
-              onChange={(event) => setHoursAcknowledged(event.target.checked)}
-            />{' '}
-            I understand these hours warnings. Travel time is not included, and this does not claim
-            an optimal or feasible route.
-          </label>
-          <button
-            type="button"
-            disabled={!hoursAcknowledged}
-            onClick={() => void reviewHours(true)}
-          >
-            Acknowledge warnings and continue
-          </button>
-        </fieldset>
-      )}
-      <button
-        type="button"
-        onClick={() =>
-          client
-            .bindNavigatorDevice(trip.id)
-            .then(() => client.get(trip.id))
-            .then(setTrip)
-            .catch(() => setError(true))
-        }
-      >
-        Bind this device
-      </button>
-      <button
-        type="button"
-        onClick={() =>
-          client
-            .transferNavigatorDevice(trip.id)
-            .then(setTrip)
-            .catch(() => setError(true))
-        }
-      >
-        Transfer Navigator to this device
-      </button>
-      {offlineQueue.state === 'queued' || offlineQueue.state === 'conflict' ? (
-        <button type="button" onClick={() => void replay()}>
-          Replay queued changes
-        </button>
-      ) : (
-        <button type="button" onClick={() => void queueOffline()}>
-          Save a change offline
-        </button>
-      )}
+      </section>
       <nav className="trip-nav" aria-label="Trip actions">
         <Link to={`/trips/${trip.id}/invite`}>Trip Partner and Navigator</Link>
         <Link to={`/trips/${trip.id}/check-my-day`}>Check My Day</Link>

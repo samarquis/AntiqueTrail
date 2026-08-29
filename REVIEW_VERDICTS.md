@@ -168,3 +168,7 @@ The Administrator review queue now keeps loading, assigned, empty, error/retry, 
 ## Issue #151 action-area verification — 2026-08-29
 
 The region now owns its own metadata boundary, spacing, and stacking context; the injected private controls no longer create a second divider. Fresh focused unit, type, lint, formatting, diff, and 3-project review-harness browser checks passed across 1440/768/390/320 CSS-px anonymous and shopper fixtures. This is synthetic-harness presentation/focus evidence, not production RPC/RLS, persistence, authentication, or hosted-CI evidence. Details: `docs/evidence/issue-151/catalog-action-area-2026-08-29.md`.
+
+## Issue #150 trip-planning CTA hierarchy — 2026-08-29
+
+PlanPage now separates planning tasks, limits filled actions to each task's completion, keeps utilities/reorder controls secondary, and requires exact-stop cancellation or confirmation before removal. Focused component/type/lint/format/diff checks and the 4-test Chromium/mobile UI07 browser pass are recorded in `docs/evidence/issue-150/trip-planning-cta-hierarchy-2026-08-29.md`. The browser uses deterministic review fixtures: it demonstrates hierarchy and interaction presentation only, not production trip persistence, RPC/RLS, authentication, navigator-device authority, or hosted CI.

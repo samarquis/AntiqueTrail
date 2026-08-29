@@ -126,9 +126,26 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
       'must, 60 minutes',
     )
 
-    // Remove Blue Finch Curios.
-    await page.getByLabel('Remove Blue Finch Curios').click()
+    // Removal identifies the exact stop and stays reversible until confirmed.
+    const removeBlueFinch = page.getByLabel('Remove Blue Finch Curios')
+    await expect(removeBlueFinch).toHaveClass(/button--danger/)
+    await expect(page.getByRole('button', { name: 'Review Hours', exact: true })).toHaveClass(
+      /button--secondary/,
+    )
+    await expect(page.getByLabel('Move Cedar & Brass up')).toHaveClass(/button--secondary/)
+    await removeBlueFinch.click()
+    await expect(
+      page.getByText('Removing Blue Finch Curios changes this trip plan immediately.'),
+    ).toBeVisible()
+    await expect(stops.locator('li').filter({ hasText: 'Blue Finch Curios' })).toHaveCount(1)
+    await page.getByRole('button', { name: 'Keep Blue Finch Curios', exact: true }).click()
+    await expect(stops.locator('li').filter({ hasText: 'Blue Finch Curios' })).toHaveCount(1)
+    await removeBlueFinch.click()
+    await page.getByRole('button', { name: 'Yes, remove Blue Finch Curios', exact: true }).click()
     await expect(stops.locator('li').filter({ hasText: 'Blue Finch Curios' })).toHaveCount(0)
+    await expect(page.getByRole('status')).toContainText(
+      'Blue Finch Curios was removed from this trip.',
+    )
 
     // Add a custom stop.
     await page.getByLabel('Add stop').fill('River walk café')
@@ -372,6 +389,57 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
       }),
     )
     expect(overflow).toEqual([])
+  })
+
+  test('trip-planning hierarchy stays distinct across viewports, dark theme, and forced colors', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: 'light', forcedColors: 'none' })
+    for (const viewport of [
+      { width: 1440, height: 1000 },
+      { width: 768, height: 1024 },
+      { width: 320, height: 640 },
+    ]) {
+      await page.setViewportSize(viewport)
+      await page.goto(reviewUrl('/trips/trip-a/plan', 'shopper-a'))
+      await expect(page.getByRole('button', { name: 'Rename trip', exact: true })).toHaveClass(
+        /button/,
+      )
+      await expect(page.getByRole('button', { name: 'Review Hours', exact: true })).toHaveClass(
+        /button--secondary/,
+      )
+      await expect(page.getByLabel('Move Blue Finch Curios up')).toHaveClass(/button--secondary/)
+      await expect(page.getByLabel('Remove Blue Finch Curios')).toHaveClass(/button--danger/)
+      const overflow = await page.evaluate(
+        () => document.body.scrollWidth - document.body.clientWidth,
+      )
+      expect(overflow).toBeLessThanOrEqual(1)
+    }
+
+    await page.getByLabel('Remove Blue Finch Curios').click()
+    await page.getByRole('group', { name: 'Remove Blue Finch Curios?' }).scrollIntoViewIfNeeded()
+    const [confirmation, navigation] = await Promise.all([
+      page.getByRole('group', { name: 'Remove Blue Finch Curios?' }).boundingBox(),
+      page.getByRole('navigation', { name: 'Primary navigation' }).boundingBox(),
+    ])
+    expect(confirmation).not.toBeNull()
+    expect(navigation).not.toBeNull()
+    expect(confirmation!.y + confirmation!.height).toBeLessThanOrEqual(navigation!.y)
+
+    await page.emulateMedia({ colorScheme: 'dark', forcedColors: 'none' })
+    await page.goto(reviewUrl('/trips/trip-a/plan', 'shopper-a'))
+    const primary = page.getByRole('button', { name: 'Rename trip', exact: true })
+    const secondary = page.getByRole('button', { name: 'Review Hours', exact: true })
+    await expect(primary).toBeVisible()
+    await expect(secondary).toBeVisible()
+    expect(await primary.evaluate((button) => getComputedStyle(button).backgroundColor)).not.toBe(
+      await secondary.evaluate((button) => getComputedStyle(button).backgroundColor),
+    )
+
+    await page.emulateMedia({ colorScheme: 'light', forcedColors: 'active' })
+    await page.goto(reviewUrl('/trips/trip-a/plan', 'shopper-a'))
+    await expect(page.getByLabel('Remove Blue Finch Curios')).toBeVisible()
+    await expect(page.getByLabel('Remove Blue Finch Curios')).toHaveClass(/button--danger/)
   })
 
   test('actionable targets meet the 48×48 px baseline', async ({ page }) => {
