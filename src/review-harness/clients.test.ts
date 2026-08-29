@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createReviewHarnessAuthProvider, createReviewHarnessClients } from './clients'
+import {
+  createReviewHarnessAuthProvider,
+  createReviewHarnessCatalogClient,
+  createReviewHarnessClients,
+} from './clients'
 import { reviewScenarios } from './harness'
 
 function scenario(id: (typeof reviewScenarios)[number]['id']) {
@@ -7,6 +11,18 @@ function scenario(id: (typeof reviewScenarios)[number]['id']) {
 }
 
 describe('scenario-aware review clients', () => {
+  it('exposes deterministic populated, empty, and error catalog states', async () => {
+    await expect(createReviewHarnessCatalogClient('success').list({})).resolves.toMatchObject({
+      stores: expect.arrayContaining([expect.objectContaining({ name: 'Blue Finch Curios' })]),
+    })
+    await expect(createReviewHarnessCatalogClient('empty').list({})).resolves.toMatchObject({
+      stores: [],
+    })
+    await expect(createReviewHarnessCatalogClient('error').list({})).rejects.toThrow(
+      'Synthetic catalog review error.',
+    )
+  })
+
   it('seeds distinct private shopper workflows', async () => {
     const shopperA = createReviewHarnessClients(scenario('shopper-a'), 'success')
     const shopperB = createReviewHarnessClients(scenario('shopper-b'), 'success')

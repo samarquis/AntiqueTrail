@@ -332,12 +332,12 @@ export function CatalogCard({
         </div>
       )}
       <div className="catalog-card__body">
-        <p className="catalog-card__area">{store.area.label}</p>
         <h2>
           <a href={detailsHref} onClick={rememberDetailReturn}>
             {store.name}
           </a>
         </h2>
+        <p className="catalog-card__area">{store.area.label}</p>
         <p>
           {store.town}, {store.state}
         </p>
