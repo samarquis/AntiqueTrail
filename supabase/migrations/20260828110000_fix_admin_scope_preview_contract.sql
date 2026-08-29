@@ -60,6 +60,8 @@ alter function app_public.admin_preview_store_scope_change(text,text,text,bigint
 revoke all on function app_public.admin_preview_store_scope_change(text,text,text,bigint) from public,anon;
 grant execute on function app_public.admin_preview_store_scope_change(text,text,text,bigint) to authenticated;
 
+set role identity_service;
+
 create or replace function app_public.admin_change_store_scope(
   p_operation text,
   p_subject_user_id text,
@@ -186,4 +188,5 @@ begin
   return result;
 end $$;
 alter function app_public.admin_change_store_scope(text,text,text,bigint,text,text,text) owner to identity_service;
+reset role;
 revoke create on schema app_public from identity_service;
