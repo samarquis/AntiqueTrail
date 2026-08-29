@@ -10,9 +10,11 @@ function harnessUrl(path: string, scenario: string, state: ReviewStateId) {
 
 export function ReviewHarnessBanner({ runtime }: { runtime: ReviewHarnessRuntime }) {
   return (
-    <aside className="page-card review-harness-banner" aria-label="Local review harness">
-      <strong>Local review:</strong> {runtime.scenario.label} · {runtime.state} ·{' '}
-      {runtime.sessionState} session{' '}
+    <aside className="review-harness-banner" aria-label="Local review harness">
+      <span>
+        <strong>Local review:</strong> {runtime.scenario.label} · {runtime.state} ·{' '}
+        {runtime.sessionState} session
+      </span>{' '}
       <Link to={harnessUrl('/review', runtime.scenario.id, runtime.state)}>Switch or reset</Link>
     </aside>
   )

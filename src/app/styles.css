@@ -705,6 +705,36 @@ main > article {
   padding-inline: 0.5rem;
 }
 
+.review-harness-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  max-width: 70rem;
+  margin: 0 auto 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-block: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.review-harness-banner strong {
+  color: var(--ink);
+}
+
+.review-harness-banner a {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 390px) {
+  .review-harness-banner {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding-inline: 0.5rem;
+  }
+}
+
 .more-menu a {
   min-height: 4.5rem;
   display: flex;
