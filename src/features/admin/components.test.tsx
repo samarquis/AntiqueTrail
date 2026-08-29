@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AdminClient } from './adminClient'
 import { AccessSafetyPage, ReviewQueuePage } from './components'
-import type { AdminReviewCaseDetail } from './types'
+import type { AdminReviewCaseDetail, AdminReviewCaseSummary } from './types'
 
 afterEach(cleanup)
 
@@ -74,6 +74,96 @@ function client(overrides: Partial<AdminClient> = {}): AdminClient {
 }
 
 describe('Administrator workspace', () => {
+  it('composes one and multiple authoritative assigned categories into bounded review cards', async () => {
+    const onboardingCase: AdminReviewCaseSummary = {
+      id: 'case-onboarding-1',
+      caseType: 'partner_onboarding',
+      queueCategory: 'onboarding',
+      assignedCount: 1,
+      targetKind: 'pilot_store_draft',
+      storeLabel: 'Juniper House Antiques',
+      state: 'assigned',
+      version: 2,
+      createdAt: '2026-08-05T12:00:00Z',
+    }
+    render(
+      <MemoryRouter>
+        <ReviewQueuePage
+          client={client({
+            listCases: async () => [onboardingCase, ...(await client().listCases())],
+          })}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByText('2 assigned review cases in New stores, Store changes.'),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Assigned review cases')).toHaveClass('review-queue__cases')
+    expect(screen.getByRole('button', { name: 'New stores (1)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Store changes (1)' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Review Juniper House Antiques' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review Prairie Clockworks' })).toBeInTheDocument()
+  })
+
+  it('keeps loading, empty, and retry states in the same queue workspace', async () => {
+    const pendingCases = new Promise<AdminReviewCaseSummary[]>(() => undefined)
+    const { unmount } = render(
+      <MemoryRouter>
+        <ReviewQueuePage client={client({ listCases: async () => pendingCases })} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading review cases…')
+    expect(screen.getByText('Your assigned review workspace is loading.')).toBeInTheDocument()
+    unmount()
+
+    const listCases = vi
+      .fn<AdminClient['listCases']>()
+      .mockRejectedValueOnce(new Error('unavailable'))
+      .mockResolvedValueOnce([])
+    render(
+      <MemoryRouter>
+        <ReviewQueuePage client={client({ listCases })} />
+      </MemoryRouter>,
+    )
+    await userEvent.click(await screen.findByRole('button', { name: 'Retry review queue' }))
+    expect(await screen.findByText('No assigned review cases right now.')).toBeInTheDocument()
+    expect(
+      screen.getByText('There is nothing to decide until another assigned case arrives.'),
+    ).toBeInTheDocument()
+  })
+
+  it('updates the authoritative category count after one case resolves', async () => {
+    const firstCase = { ...(await client().listCases())[0], assignedCount: 2 }
+    const secondCase: AdminReviewCaseSummary = {
+      ...firstCase,
+      id: 'case-2',
+      storeLabel: 'Cedar & Brass',
+    }
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <ReviewQueuePage
+          client={client({
+            listCases: async () => [firstCase, secondCase],
+            decideCase: async () => ({ id: firstCase.id, state: 'approved', version: 4 }),
+          })}
+        />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Review Prairie Clockworks' }))
+    await user.type(screen.getByLabelText('Decision reason'), 'Verified')
+    await user.click(screen.getByRole('button', { name: 'Approve' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm approve' }))
+    await user.click(screen.getByRole('button', { name: 'Back to Queue' }))
+    expect(screen.getByText('1 assigned review case in Store changes.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Store changes (1)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review Cedar & Brass' })).toBeInTheDocument()
+  })
+
   it('shows exact immutable case context and decides one case without a bulk action', async () => {
     const decideCase = vi.fn(async () => ({ id: 'case-1', state: 'approved' as const, version: 4 }))
     const user = userEvent.setup()

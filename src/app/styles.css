@@ -555,6 +555,109 @@ main > article {
   overflow-wrap: anywhere;
 }
 
+.review-queue {
+  max-width: 62rem;
+}
+
+.review-queue__workspace,
+.review-queue__outcome,
+.review-queue__detail {
+  max-width: 52rem;
+  padding: clamp(1.25rem, 4vw, 2.25rem);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+}
+
+.review-queue__summary h2,
+.review-queue__case h3 {
+  margin: 0;
+}
+
+.review-queue__summary > p:last-child {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.review-queue__categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.review-queue__categories button[aria-pressed='true'] {
+  border-color: var(--teal-dark);
+  color: var(--teal-dark);
+  background: var(--mint);
+  box-shadow: none;
+}
+
+.review-queue__cases {
+  display: grid;
+  gap: 1rem;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  list-style: none;
+}
+
+.review-queue__case,
+.review-queue__state {
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+}
+
+.review-queue__case-category {
+  margin: 0 0 0.35rem;
+  color: var(--teal-dark);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.review-queue__case h3 + p,
+.review-queue__state p {
+  margin: 0.5rem 0 1rem;
+}
+
+.review-queue__case button,
+.review-queue__state button {
+  width: 100%;
+}
+
+.review-queue__outcome,
+.review-queue__detail,
+.review-queue__message {
+  max-width: 52rem;
+}
+
+.review-queue__message {
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .review-queue__case {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 1.5rem;
+    align-items: end;
+  }
+
+  .review-queue__case-category,
+  .review-queue__case h3,
+  .review-queue__case h3 + p {
+    grid-column: 1;
+  }
+
+  .review-queue__case button {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    width: auto;
+  }
+}
+
 /* Keep the invitation action's raised shadow clear of the next admin section. */
 .partner-admin__claim-heading {
   clear: both;

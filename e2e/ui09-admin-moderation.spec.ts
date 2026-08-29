@@ -50,6 +50,10 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
     page,
   }) => {
     await page.goto(reviewUrl('/admin', 'administrator'))
+    await expect(page.locator('.review-queue__workspace')).toBeVisible()
+    await expect(page.getByRole('heading', { level: 2, name: 'Assigned cases' })).toBeVisible()
+    await expect(page.getByLabel('Assigned review cases')).toHaveCount(1)
+    await expect(page.getByLabel('Assigned review cases').getByRole('button')).toHaveCount(2)
     await page.getByRole('button', { name: 'Review Blue Finch Curios' }).click()
     await expect(
       page.getByText('Submitted fields are read-only. Decisions apply only to this case.'),
@@ -69,6 +73,7 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
     await expect(page.getByRole('status')).toHaveText('Case approved.')
     await expect(page.getByLabel('Resolved case outcome')).toBeVisible()
     await page.getByRole('button', { name: 'Back to Queue' }).click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Review queue' })).toBeFocused()
     await expect(page.getByRole('button', { name: 'New stores (1)' })).toBeVisible()
   })
 
@@ -235,12 +240,14 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
   }) => {
     await page.goto(reviewUrl('/admin', 'administrator', 'loading'))
     await expect(page.getByRole('status')).toContainText('Loading review cases')
+    await expect(page.locator('.review-queue__workspace')).toBeVisible()
     await expect(page.getByText('No assigned review cases.')).toHaveCount(0)
     await page.goto(reviewUrl('/admin/access', 'administrator', 'loading'))
     await expect(page.getByRole('status')).toContainText('Loading Store Representative scopes')
     await expect(page.getByText('No Store Representative scopes.')).toHaveCount(0)
     await page.goto(reviewUrl('/admin', 'administrator', 'empty'))
     await expect(page.getByText('No assigned review cases.')).toBeVisible()
+    await expect(page.locator('.review-queue__state')).toContainText('nothing to decide')
     await page.goto(reviewUrl('/admin/access', 'administrator', 'empty'))
     await expect(page.getByText('No Store Representative scopes.')).toBeVisible()
     for (const state of ['error', 'blocked', 'permission-denied'] as const) {
@@ -275,6 +282,21 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
           ).length,
       )
     expect(overflow).toBe(0)
+    await page.goto(reviewUrl('/admin', 'administrator'))
+    await page.setViewportSize({ width: 320, height: 640 })
+    await expect(page.locator('.review-queue__workspace')).toBeVisible()
+    await assertMinimumTargets(page)
+    expect(
+      await page
+        .locator('body')
+        .evaluate(
+          (body) =>
+            Array.from(body.querySelectorAll<HTMLElement>('*')).filter(
+              (element) =>
+                element.getBoundingClientRect().right > document.documentElement.clientWidth + 1,
+            ).length,
+        ),
+    ).toBe(0)
     for (const path of [
       '/admin',
       '/admin/access',
