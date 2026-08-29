@@ -8,8 +8,8 @@ Scope: each supplied ticket is closed with independently verified evidence, or h
   EVIDENCE: 2026-08-29 — CLOSED with evidence comment at https://github.com/samarquis/AntiqueTrail/issues/151; implementation commit `c14732a` pushed after independent focused unit 24/24, typecheck, lint, scoped Prettier/diff checks, and review-harness browser 3/3 at desktop/tablet/mobile and 1440/768/390/320 fixture widths.
 - [x] G03 #150 reaches a terminal GitHub outcome.
   EVIDENCE: 2026-08-29 — CLOSED with evidence comment at https://github.com/samarquis/AntiqueTrail/issues/150; implementation commit `1567b49` pushed after independent focused component 22/22, typecheck, scoped lint/Prettier/diff checks, and exact UI07 browser 6/6 across desktop/tablet/mobile.
-- [ ] G04 #149 reaches a terminal GitHub outcome.
-  EVIDENCE: pending
+- [x] G04 #149 reaches a terminal GitHub outcome.
+  EVIDENCE: 2026-08-29 — CLOSED with evidence comment at https://github.com/samarquis/AntiqueTrail/issues/149; implementation commit `b532ee3` pushed after independent focused Portal components 14/14, typecheck, scoped lint/Prettier/diff checks, and UI08 browser 21 passed / 0 failed / 6 intentional skips.
 - [ ] G05 #148 reaches a terminal GitHub outcome.
   EVIDENCE: pending
 - [ ] G06 #147 reaches a terminal GitHub outcome.
