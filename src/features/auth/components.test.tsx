@@ -120,8 +120,14 @@ describe('auth states', () => {
     await user.click(screen.getByRole('button', { name: /^sign in$/i }))
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveFocus()
-    expect(screen.getByLabelText(/email/i)).toHaveValue('shopper@example.test')
-    expect(screen.getByLabelText(/password/i)).toHaveValue('safe password')
+    const email = screen.getByLabelText(/email/i)
+    const password = screen.getByLabelText(/password/i)
+    expect(email).toHaveValue('shopper@example.test')
+    expect(password).toHaveValue('safe password')
+    expect(email).toHaveAttribute('aria-invalid', 'true')
+    expect(email).toHaveAttribute('aria-describedby', 'auth-error-summary')
+    expect(password).toHaveAttribute('aria-invalid', 'true')
+    expect(password).toHaveAttribute('aria-describedby', 'auth-error-summary')
   })
 
   it('builds MFA navigation state without provider session secrets', () => {

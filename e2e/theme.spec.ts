@@ -71,3 +71,36 @@ test('dark journeys pass axe contrast and a11y rules', async ({ page }) => {
     ).toEqual([])
   }
 })
+
+test('shared form controls retain semantic contrast, keyboard focus, and forced-colors boundaries', async ({
+  page,
+}) => {
+  await page.goto('/stores')
+  const search = page.getByLabel('Search stores')
+  await expect(search).toBeVisible()
+  await expect(search).toHaveCSS('min-height', '48px')
+  await search.focus()
+  await expect(search).toBeFocused()
+  await expect(search).toHaveCSS('border-color', 'rgb(99, 117, 109)')
+  await expect
+    .poll(() => search.evaluate((element) => getComputedStyle(element).boxShadow))
+    .not.toBe('none')
+
+  await page.evaluate(() => window.localStorage.setItem('at-theme', 'dark'))
+  await page.reload()
+  const darkSearch = page.getByLabel('Search stores')
+  await expect(darkSearch).toHaveCSS('border-color', 'rgb(135, 149, 181)')
+  await expect
+    .poll(() => darkSearch.evaluate((element) => getComputedStyle(element, '::placeholder').color))
+    .toBe('rgb(196, 204, 215)')
+
+  await page.emulateMedia({ forcedColors: 'active' })
+  await page.reload()
+  const forcedSearch = page.getByLabel('Search stores')
+  await expect
+    .poll(() => page.evaluate(() => matchMedia('(forced-colors: active)').matches))
+    .toBe(true)
+  await expect(forcedSearch).toHaveCSS('border-style', 'solid')
+  await forcedSearch.focus()
+  await expect(forcedSearch).toHaveCSS('outline-style', 'solid')
+})

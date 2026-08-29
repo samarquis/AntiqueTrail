@@ -41,6 +41,8 @@ export interface PortalHomeSnapshot {
   freshness: PortalFreshness
   provenance: PortalProvenance
   pendingChanges: PortalPendingChange[]
+  /** Present for the scoped production RPC; optional while alternate clients upgrade. */
+  managedFields?: PortalManagedFields
 }
 
 export interface HoursInterval {

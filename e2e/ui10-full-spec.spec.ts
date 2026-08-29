@@ -23,7 +23,7 @@ test.describe('UI-10 integrated product acceptance', () => {
   }) => {
     await page.goto('/stores')
     await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeFocused()
-    await expect(page.getByRole('link', { name: 'Blue Finch Curios' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Blue Finch Curios', exact: true })).toBeVisible()
 
     await page.goto(reviewUrl('/saved', 'shopper-a'))
     await expect(page.getByRole('heading', { level: 1, name: 'Saved stores' })).toBeVisible()

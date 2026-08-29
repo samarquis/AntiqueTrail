@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(72);
+select plan(76);
 
 select has_table('admin_private','admin_command_receipts','Administrator commands have durable idempotency receipts');
 select has_table('admin_private','admin_break_glass_gate','break-glass has an explicit named gate');
@@ -12,7 +12,7 @@ select has_function('app_public','admin_list_review_cases',array[]::text[],'type
 select has_function('app_public','admin_get_review_case',array['text'],'exact review context RPC exists');
 select has_function('app_public','admin_decide_review_case',array['text','text','text','bigint','text'],'single-case decision RPC exists');
 select has_function('app_public','admin_list_store_scopes',array[]::text[],'exact Store Representative scope list RPC exists');
-select has_function('app_public','admin_preview_store_scope_change',array['text','text','bigint'],'server-issued exact scope preview RPC exists');
+select has_function('app_public','admin_preview_store_scope_change',array['text','text','text','bigint'],'operation-bound exact scope preview RPC exists');
 select has_function('app_public','admin_change_store_scope',array['text','text','text','bigint','text','text','text'],'exact revoke/regrant RPC exists');
 select has_function('app_public','admin_preview_duplicate_merge',array['text','text'],'duplicate merge preview RPC exists');
 select has_function('app_public','admin_execute_duplicate_merge',array['text','bigint','text'],'atomic merge RPC exists');
@@ -31,6 +31,7 @@ select ok((select bool_and(position('require_operational_admin' in lower(pg_get_
   'app_public.admin_get_review_case(text)'::regprocedure,
   'app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure,
   'app_public.admin_list_store_scopes()'::regprocedure,
+  'app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure,
   'app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure,
   'app_public.admin_preview_duplicate_merge(text,text)'::regprocedure,
   'app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure,
@@ -129,8 +130,18 @@ select ok(not has_function_privilege('anon','app_public.admin_list_review_cases(
 select ok(position('review_private' in lower(pg_get_functiondef('app_public.admin_list_review_cases()'::regprocedure)))=0
   and position('shopper_private' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))=0,'Administrator list surfaces exclude shopper and review-private data');
 
-select ok(position('admin_scope_previews' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
-  and position('consumed_at' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'regrant denies a missing, stale, mismatched, or replayed server preview');
+select ok(
+  position('p_operation text' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)))>0
+  and position('p_operation=''revoke'' and g.state not in (''active'',''reconsent_required'')' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)))>0
+  and position('concat_ws(''|'',p_operation' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)))>0,
+  'active scope preview permits revoke and hashes the requested operation');
+select ok(
+  position('admin_scope_previews' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('preview.expires_at<=statement_timestamp()' in replace(lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)),' ',''))>0
+  and position('preview.consumed_at is not null' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('preview.preview_hash<>extensions.digest' in replace(lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)),' ',''))>0
+  and position('update admin_private.admin_scope_previews set consumed_at=statement_timestamp()' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,
+  'expired, replayed, or operation-mismatched scope previews deny revoke and regrant');
 select ok(position('onconflict(case_type,target_id)' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0
   and position('snapshot_hash=excluded.snapshot_hash' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0,'resubmission refreshes and unlocks the exact review snapshot');
 select ok(position('encode(digest,''hex'')' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0
@@ -177,6 +188,19 @@ select ok(
   and position('lock_merge_reference_set' in lower(pg_get_functiondef('app_public.admin_rollback_duplicate_merge(text,bigint,text)'::regprocedure)))
     < position('merge_current_item_digest' in lower(pg_get_functiondef('app_public.admin_rollback_duplicate_merge(text,bigint,text)'::regprocedure))),
   'execute and rollback lock every merge child row before concurrent preview or digest validation');
+
+select ok(position('queuecategory' in replace(lower(pg_get_functiondef('app_public.admin_list_review_cases()'::regprocedure)),' ',''))>0
+  and position('onboarding' in lower(pg_get_functiondef('app_public.admin_list_review_cases()'::regprocedure)))>0
+  and position('assignedcount' in replace(lower(pg_get_functiondef('app_public.admin_list_review_cases()'::regprocedure)),' ',''))>0,
+  'the typed queue returns a truthful New stores category and count');
+select ok(position('consentstatus' in replace(lower(pg_get_functiondef('admin_private.review_case_json(uuid)'::regprocedure)),' ',''))>0
+  and position('authoritystatus' in replace(lower(pg_get_functiondef('admin_private.review_case_json(uuid)'::regprocedure)),' ',''))>0
+  and position('exactpreviewhash' in lower(pg_get_functiondef('admin_private.review_case_json(uuid)'::regprocedure)))=0,
+  'onboarding context exposes decision statuses without raw evidence or preview hashes');
+select ok(position('onboardingoutcome' in replace(lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)),' ',''))>0
+  and position('approve_pilot_onboarding_exact' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0
+  and position('unrelatedauthoritychanged' in replace(lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)),' ',''))>0,
+  'onboarding approval returns the atomic Pilot Store and exact-scope outcome only');
 
 select * from finish();
 rollback;

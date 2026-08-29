@@ -7,11 +7,25 @@ import { unavailableAdminClient } from './adminClient'
 import type {
   AdminDecision,
   AdminMergePlan,
+  AdminReviewQueueCategory,
   AdminReviewCaseDetail,
   AdminReviewCaseSummary,
   AdminScopePreview,
   AdminStoreScope,
 } from './types'
+
+const reviewQueueCategories = [
+  ['onboarding', 'New stores'],
+  ['store_changes', 'Store changes'],
+  ['images', 'Images'],
+  ['support', 'Support'],
+  ['listing_claims', 'Listing claims'],
+  ['other', 'Other review work'],
+] as const satisfies ReadonlyArray<readonly [AdminReviewQueueCategory, string]>
+
+function reviewCaseTypeLabel(caseType: AdminReviewCaseSummary['caseType']) {
+  return caseType.replaceAll('_', ' ')
+}
 
 export function AdminGuard({
   session,
@@ -29,10 +43,22 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
   const [selected, setSelected] = useState<AdminReviewCaseDetail | null>(null)
   const [reason, setReason] = useState('')
   const [pendingAction, setPendingAction] = useState<AdminDecision | null>(null)
-  const [resolvedCase, setResolvedCase] = useState<{ id: string; state: string } | null>(null)
+  const [resolvedCase, setResolvedCase] = useState<{
+    id: string
+    state: string
+    queueCategory: AdminReviewQueueCategory
+    onboardingOutcome?: {
+      pilotStoreRecordCreated: true
+      storeLabel: string
+      representativeScope: string
+      unrelatedAuthorityChanged: false
+    }
+  } | null>(null)
   const [message, setMessage] = useState('')
   const [listState, setListState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [returnFocusToQueue, setReturnFocusToQueue] = useState(false)
+  const [queueCategory, setQueueCategory] = useState<AdminReviewQueueCategory | null>(null)
+  const [knownQueueCategories, setKnownQueueCategories] = useState<AdminReviewQueueCategory[]>([])
   const queueHeading = useRef<HTMLHeadingElement>(null)
   const clientRef = useRef(client)
   clientRef.current = client
@@ -41,7 +67,11 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
     setListState('loading')
     setMessage('')
     try {
-      setCases(await clientRef.current.listCases(retry))
+      const items = await clientRef.current.listCases(retry)
+      setCases(items)
+      setKnownQueueCategories((current) => [
+        ...new Set([...current, ...items.map((reviewCase) => reviewCase.queueCategory)]),
+      ])
       setListState('ready')
     } catch {
       setListState('error')
@@ -55,6 +85,9 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
       (items) => {
         if (!current) return
         setCases(items)
+        setKnownQueueCategories((categories) => [
+          ...new Set([...categories, ...items.map((reviewCase) => reviewCase.queueCategory)]),
+        ])
         setListState('ready')
       },
       () => {
@@ -93,10 +126,24 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
         selected.version,
         `admin-${selected.id}-${selected.version}-${Date.now()}`,
       )
-      setCases((items) => items.filter((item) => item.id !== selected.id))
-      setResolvedCase({ id: selected.id, state: result.state })
+      setCases((items) =>
+        items
+          .filter((item) => item.id !== selected.id)
+          .map((item) =>
+            item.queueCategory === selected.queueCategory
+              ? { ...item, assignedCount: Math.max(0, item.assignedCount - 1) }
+              : item,
+          ),
+      )
+      setResolvedCase({
+        id: selected.id,
+        state: result.state,
+        queueCategory: selected.queueCategory,
+        onboardingOutcome: result.onboardingOutcome,
+      })
       setReason('')
       setPendingAction(null)
+      setQueueCategory(null)
       setMessage(`Case ${result.state}.`)
       setReturnFocusToQueue(true)
     } catch {
@@ -104,27 +151,56 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
     }
   }
 
+  const filteredCases = queueCategory
+    ? cases.filter((reviewCase) => reviewCase.queueCategory === queueCategory)
+    : cases
+  const categoriesInWorkspace = reviewQueueCategories.filter(
+    ([category]) =>
+      cases.some((reviewCase) => reviewCase.queueCategory === category) ||
+      knownQueueCategories.includes(category),
+  )
+  const assignedCategoryNames = reviewQueueCategories
+    .filter(([category]) => cases.some((reviewCase) => reviewCase.queueCategory === category))
+    .map(([, label]) => label)
+  const queueSummary =
+    listState === 'loading'
+      ? 'Your assigned review workspace is loading.'
+      : listState === 'error'
+        ? 'Your assigned review work could not be loaded.'
+        : cases.length === 0
+          ? 'No assigned review cases right now.'
+          : `${cases.length} assigned review ${cases.length === 1 ? 'case' : 'cases'} in ${assignedCategoryNames.join(', ')}.`
+
   return (
-    <main>
-      <Link to="/stores">
-        <span aria-hidden="true">← </span>Back
-      </Link>
-      <h1 ref={queueHeading} tabIndex={-1}>
-        Review queue
-      </h1>
-      <p>Review one assigned item with its exact submitted context.</p>
-      {message && <p role="status">{message}</p>}
-      {listState === 'error' && (
-        <button type="button" onClick={() => void loadCases(true)}>
-          Retry review queue
-        </button>
+    <main className="review-queue">
+      <header>
+        <Link to="/stores">
+          <span aria-hidden="true">← </span>Back
+        </Link>
+        <p className="eyebrow">Assigned review work</p>
+        <h1 ref={queueHeading} tabIndex={-1}>
+          Review queue
+        </h1>
+        <p>Review one assigned item with its exact submitted context.</p>
+      </header>
+      {message && (
+        <p className="review-queue__message" role="status">
+          {message}
+        </p>
       )}
       {resolvedCase ? (
-        <section aria-label="Resolved case outcome">
+        <section className="review-queue__outcome" aria-label="Resolved case outcome">
           <p>
             Case {resolvedCase.id} is {resolvedCase.state}. The outcome and reason remain in its
             audit history.
           </p>
+          {resolvedCase.onboardingOutcome && (
+            <p>
+              Pilot Store Record created for {resolvedCase.onboardingOutcome.storeLabel}. Store
+              Representative scope granted: {resolvedCase.onboardingOutcome.representativeScope}. No
+              unrelated data or authority changed.
+            </p>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -148,25 +224,73 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
           )}
         </section>
       ) : !selected ? (
-        listState === 'loading' ? (
-          <p role="status">Loading review cases…</p>
-        ) : cases.length ? (
-          <ul>
-            {cases.map((reviewCase) => (
-              <li key={reviewCase.id}>
-                <strong>{reviewCase.storeLabel}</strong> —{' '}
-                {reviewCase.caseType.replaceAll('_', ' ')}{' '}
-                <button type="button" onClick={() => void openCase(reviewCase)}>
-                  Review {reviewCase.storeLabel}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No assigned review cases.</p>
-        )
+        <section className="review-queue__workspace" aria-labelledby="review-workspace-heading">
+          <div className="review-queue__summary">
+            <p className="eyebrow">Queue status</p>
+            <h2 id="review-workspace-heading">Assigned cases</h2>
+            <p>{queueSummary}</p>
+          </div>
+          {listState === 'error' ? (
+            <div className="review-queue__state" role="alert">
+              <p>Try again to reload only your assigned review cases.</p>
+              <button type="button" onClick={() => void loadCases(true)}>
+                Retry review queue
+              </button>
+            </div>
+          ) : listState === 'loading' ? (
+            <div className="review-queue__state">
+              <p role="status">Loading review cases…</p>
+            </div>
+          ) : cases.length ? (
+            <>
+              {categoriesInWorkspace.length > 0 && (
+                <section className="review-queue__categories" aria-label="Review queue categories">
+                  {categoriesInWorkspace.map(([category, label]) => {
+                    const count =
+                      cases.find((reviewCase) => reviewCase.queueCategory === category)
+                        ?.assignedCount ?? 0
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        aria-pressed={queueCategory === category}
+                        onClick={() =>
+                          setQueueCategory(queueCategory === category ? null : category)
+                        }
+                      >
+                        {label} ({count})
+                      </button>
+                    )
+                  })}
+                </section>
+              )}
+              <ul className="review-queue__cases" aria-label="Assigned review cases">
+                {filteredCases.map((reviewCase) => {
+                  const categoryLabel = reviewQueueCategories.find(
+                    ([category]) => category === reviewCase.queueCategory,
+                  )?.[1]
+                  return (
+                    <li key={reviewCase.id} className="review-queue__case">
+                      <p className="review-queue__case-category">{categoryLabel}</p>
+                      <h3>{reviewCase.storeLabel}</h3>
+                      <p>{reviewCaseTypeLabel(reviewCase.caseType)}</p>
+                      <button type="button" onClick={() => void openCase(reviewCase)}>
+                        Review {reviewCase.storeLabel}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          ) : (
+            <div className="review-queue__state">
+              <p>No assigned review cases.</p>
+              <p>There is nothing to decide until another assigned case arrives.</p>
+            </div>
+          )}
+        </section>
       ) : (
-        <section aria-labelledby="case-heading">
+        <section className="review-queue__detail" aria-labelledby="case-heading">
           <h2 id="case-heading">{selected.storeLabel}</h2>
           <p>Submitted fields are read-only. Decisions apply only to this case.</p>
           <dl>
@@ -177,14 +301,29 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
               </div>
             ))}
           </dl>
-          <section aria-label="Current and requested listing preview">
-            <h3>Current and requested listing preview</h3>
-            <p>Current public listing: retained until this exact case is approved.</p>
-            <p>
-              Requested {String(selected.context.field ?? 'field')}:{' '}
-              {String(selected.context.requestedValue ?? 'Not provided')}.
-            </p>
-          </section>
+          {selected.caseType === 'partner_onboarding' ? (
+            <section aria-label="Pilot Store Draft decision summary">
+              <h3>Pilot Store Draft decision summary</h3>
+              <p>
+                This exact submitted draft can create one private-beta Pilot Store Record only after
+                this approval.
+              </p>
+              <p>
+                Consent: {String(selected.context.consentStatus ?? 'Not provided')}. Authority:{' '}
+                {String(selected.context.authorityStatus ?? 'Not provided')}. Identity:{' '}
+                {String(selected.context.identityStatus ?? 'Not provided')}.
+              </p>
+            </section>
+          ) : (
+            <section aria-label="Current and requested listing preview">
+              <h3>Current and requested listing preview</h3>
+              <p>Current public listing: retained until this exact case is approved.</p>
+              <p>
+                Requested {String(selected.context.field ?? 'field')}:{' '}
+                {String(selected.context.requestedValue ?? 'Not provided')}.
+              </p>
+            </section>
+          )}
           <h3>Audit history</h3>
           <ul aria-label="Case audit history">
             {selected.audit.map((entry) => (
@@ -203,12 +342,22 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
           </label>
           {pendingAction ? (
             <section aria-label="Confirm case decision">
-              <p>
-                Confirm {pendingAction}: only the requested{' '}
-                {String(selected.context.field ?? 'field')}
-                for {selected.storeLabel} is affected. The current public listing stays unchanged
-                until approval; the immutable submission remains in the audit record.
-              </p>
+              {selected.caseType === 'partner_onboarding' ? (
+                <p>
+                  Confirm {pendingAction}:{' '}
+                  {pendingAction === 'approve'
+                    ? `create the Pilot Store Record for ${selected.storeLabel} and grant Store Representative scope only for that store. No unrelated data or authority changes.`
+                    : `${pendingAction === 'return' ? 'return this exact draft for correction; it will not publish or grant a role.' : 'reject this exact draft; it will not publish or grant a role.'}`}{' '}
+                  The immutable submission and reason remain in the audit record.
+                </p>
+              ) : (
+                <p>
+                  Confirm {pendingAction}: only the requested{' '}
+                  {String(selected.context.field ?? 'field')}
+                  for {selected.storeLabel} is affected. The current public listing stays unchanged
+                  until approval; the immutable submission remains in the audit record.
+                </p>
+              )}
               <button type="button" onClick={() => void decide(pendingAction)}>
                 Confirm {pendingAction === 'return' ? 'return for changes' : pendingAction}
               </button>{' '}
@@ -285,7 +434,12 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
     try {
       if (scopePreview?.grantId !== grant.grantId) {
         setScopePreview(
-          await client.previewStoreScopeChange(grant.subjectUserId, grant.storeId, grant.version),
+          await client.previewStoreScopeChange(
+            operation,
+            grant.subjectUserId,
+            grant.storeId,
+            grant.version,
+          ),
         )
         return
       }

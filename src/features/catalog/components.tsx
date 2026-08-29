@@ -307,6 +307,8 @@ export function CatalogCard({
     .map((part) => part[0])
     .join('')
     .toLocaleUpperCase()
+  const detailsHref = catalogAppHref(`/stores/${encodeURIComponent(store.slug)}`)
+  const rememberDetailReturn = () => rememberBrowseReturn(store.id)
   return (
     <article
       id={mapCardId(store.id)}
@@ -332,10 +334,7 @@ export function CatalogCard({
       <div className="catalog-card__body">
         <p className="catalog-card__area">{store.area.label}</p>
         <h2>
-          <a
-            href={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}`)}
-            onClick={() => rememberBrowseReturn(store.id)}
-          >
+          <a href={detailsHref} onClick={rememberDetailReturn}>
             {store.name}
           </a>
         </h2>
@@ -355,18 +354,27 @@ export function CatalogCard({
           </span>
         </p>
         <p className="catalog-card__freshness">{freshnessLabel(store)}</p>
+        <a
+          className="button catalog-card__details"
+          href={detailsHref}
+          onClick={rememberDetailReturn}
+        >
+          View {store.name} details
+        </a>
         {onShowOnMap && (
           <button type="button" onClick={onShowOnMap}>
             Show {store.name} on map
           </button>
         )}
-        <a
-          className="button button--secondary catalog-card__add-to-trip"
-          href={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
-        >
-          Add to Trip
-        </a>
-        {privateActions}
+        <section className="catalog-card__actions" aria-label={`Visit options for ${store.name}`}>
+          <a
+            className="button button--secondary catalog-card__add-to-trip"
+            href={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
+          >
+            Add to Trip
+          </a>
+          {privateActions && <div className="catalog-card__private-actions">{privateActions}</div>}
+        </section>
       </div>
     </article>
   )

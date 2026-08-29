@@ -147,3 +147,36 @@ Packages 6A, 6B, and 7 live flows passed the fresh browser run. Review notes rem
 ## Issue #145 review-context strip — 2026-08-28
 
 Review-only context now uses a compact strip rather than the generic `page-card` surface. Focused harness tests and the review-harness browser sweep passed; the sweep covers public, shopper, representative, and administrator routes at configured desktop/tablet/mobile viewports plus an explicit 320 CSS-px pass. Evidence: `docs/evidence/issue-145/review-context-2026-08-28.md`.
+## Issue #133 revoke-preview contract — 2026-08-28
+
+Pending hosted database CI. The local UI/client contract verifies operation-bound active revoke and revoked regrant previews; the database migration prevents a preview from authorizing the wrong scope operation and consumes it once used.
+# Issue #141 shared form-control contrast — 2026-08-28
+
+Shared native text controls now use semantic light/dark tokens for default, hover, placeholder, disabled, invalid, and focus states. Measured contrast and focused browser evidence are recorded in `docs/evidence/issue-141/shared-form-control-contrast-2026-08-28.md`; protected role workflows remain covered by their own contracts rather than synthetic form-route claims.
+
+## Issue #138 onboarding approval path — 2026-08-28
+
+The Administrator queue presents a distinct New stores category and an allowlisted Pilot Store Draft decision view. The approval outcome names only the created Pilot Store Record and exact store-scoped Representative grant; the UI fixture is not evidence of the database’s atomic authorization boundary. Focused unit/type/browser checks passed, while the pgTAP contract remains pending hosted CI because the local Docker engine was unavailable. Evidence: `docs/evidence/issue-138/onboarding-approval-2026-08-28.md`.
+## Issue #151 catalog action area — 2026-08-28
+
+The public card now groups its existing trip link and optional private continuations in a named store-specific action region; review-harness browser coverage passes from desktop through 320px without overflow.
+
+## Issue #152 administrator queue composition — 2026-08-29
+
+The Administrator review queue now keeps loading, assigned, empty, error/retry, and resolved states in a bounded workspace with an assigned-category summary and one Review path per case. Independently rerunnable evidence records 11 focused component tests, typecheck, lint, Prettier, and diff checks passing, plus the synthetic review-harness browser suite at **36 passed / 0 failed / 3 skipped** across desktop, tablet, and mobile. The harness validates presentation and interaction against fixtures; it is not evidence of production RPC/RLS enforcement, database authority, or hosted CI. Evidence: docs/evidence/issue-152/review-queue-composition-2026-08-29.md.
+
+## Issue #151 action-area verification — 2026-08-29
+
+The region now owns its own metadata boundary, spacing, and stacking context; the injected private controls no longer create a second divider. Fresh focused unit, type, lint, formatting, diff, and 3-project review-harness browser checks passed across 1440/768/390/320 CSS-px anonymous and shopper fixtures. This is synthetic-harness presentation/focus evidence, not production RPC/RLS, persistence, authentication, or hosted-CI evidence. Details: `docs/evidence/issue-151/catalog-action-area-2026-08-29.md`.
+
+## Issue #150 trip-planning CTA hierarchy — 2026-08-29
+
+PlanPage now separates planning tasks, limits filled actions to each task's completion, keeps utilities/reorder controls secondary, and requires exact-stop cancellation or confirmation before removal. Focused component/type/lint/format/diff checks and the 4-test Chromium/mobile UI07 browser pass are recorded in `docs/evidence/issue-150/trip-planning-cta-hierarchy-2026-08-29.md`. The browser uses deterministic review fixtures: it demonstrates hierarchy and interaction presentation only, not production trip persistence, RPC/RLS, authentication, navigator-device authority, or hosted CI.
+
+## Issue #149 Store Portal status grouping — 2026-08-29
+
+Portal Home now groups the authoritative snapshot's publication state, timezone, freshness, provenance, and controlled-change summary in a named Store status surface. Fresh component/type/lint/format checks and deterministic representative-harness browser coverage pass, including 390/320 CSS-pixel no-overflow checks; details and dated artifacts are in `docs/evidence/issue-149/portal-status-grouping-2026-08-29.md`. This is synthetic-harness presentation and client-navigation evidence only, not production provider/RPC/RLS, authentication, database, media-capability, or hosted-CI evidence.
+
+## Issue #148 catalog-card detail destination — 2026-08-29
+
+Each public catalog card now retains its linked store-name heading and exposes an explicit primary `View {store} details` link to the same store route; the former full-card title overlay is gone. The existing #151 visit-options region remains separate: `Add to Trip` remains a secondary encoded deep link, and private actions retain their own authorization-owned content. Focused component checks, type/lint/format/diff checks, and the deterministic review-harness browser test pass across desktop/tablet/mobile, including 320 CSS-px, dark, forced-colors, keyboard activation, failed-image parity, focus progression, and no-overflow checks. This is synthetic-harness presentation and client-navigation evidence only, not production RPC/RLS, authentication, persistence, catalog-provider, or hosted-CI evidence; details: `docs/evidence/issue-148/catalog-card-detail-destination-2026-08-29.md`.

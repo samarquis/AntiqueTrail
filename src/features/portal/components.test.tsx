@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -14,6 +14,7 @@ import {
 import {
   PortalControlledChangesPage,
   PortalHomePage,
+  PortalManagedFieldsPage,
   PortalSupportPage,
   PortalUpdatesPage,
 } from './components'
@@ -67,6 +68,11 @@ function client(overrides: Partial<PortalClient> = {}): PortalClient {
       ownerConfirmed: true,
     },
     pendingChanges: [],
+    managedFields: {
+      phone: '785-555-0123',
+      website: 'https://oak.example.invalid',
+      description: 'An approved Oak Antiques description.',
+    },
   }
   return {
     getHome: vi.fn(async () => home),
@@ -174,17 +180,145 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(screen.queryByRole('textbox', { name: /screenshot/i })).not.toBeInTheDocument()
   })
 
-  it('renders scoped home status without shopper-private or analytics sections', async () => {
+  it('groups verified status, provenance, and an empty controlled-change state without a redundant action', async () => {
     render(
       <MemoryRouter>
         <PortalHomePage client={client()} />
       </MemoryRouter>,
     )
     expect(await screen.findByRole('heading', { name: /oak antiques/i })).toBeInTheDocument()
-    expect(screen.getAllByText(/owner confirmation/i).length).toBeGreaterThan(0)
+    const status = screen.getByRole('region', { name: /store status/i })
+    expect(status).toHaveTextContent(/public listing.*active/i)
+    expect(status).toHaveTextContent(/store timezone.*america\/chicago/i)
+    expect(status).toHaveTextContent(/hours verification.*verified/i)
+    expect(status).toHaveTextContent(/owner confirmation.*august 1, 2026/i)
+    expect(status).toHaveTextContent(/nothing pending is public/i)
+    expect(within(status).queryByRole('link', { name: /update hours/i })).not.toBeInTheDocument()
+    expect(within(status).getByRole('link', { name: /preview public listing/i })).toHaveClass(
+      'button--secondary',
+    )
+    expect(screen.getByText(new RegExp(MEDIA_GATE_MESSAGE))).toBeInTheDocument()
     expect(
       screen.queryByText(/traffic analytics|shopper ratings|private notes/i),
     ).not.toBeInTheDocument()
+  })
+
+  it('keeps overdue-hours guidance and its action with the non-public pending summary', async () => {
+    render(
+      <MemoryRouter>
+        <PortalHomePage
+          client={client({
+            getHome: vi.fn(async () => ({
+              store: {
+                id: 'store-1',
+                name: 'Oak Antiques',
+                listingState: 'active' as const,
+                timeZone: 'America/Chicago',
+              },
+              freshness: { state: 'overdue' as const, label: 'Hours need review' },
+              provenance: {
+                sourceLabel: 'Owner confirmation',
+                verifiedBy: 'Synthetic Admin',
+                verifiedAt: '2026-08-01',
+                ownerConfirmed: false,
+              },
+              pendingChanges: [
+                {
+                  id: 'change-1',
+                  field: 'address' as const,
+                  requestedValue: '1 Main Street',
+                  state: 'pending' as const,
+                  submittedAt: '2026-08-02',
+                },
+              ],
+            })),
+          })}
+        />
+      </MemoryRouter>,
+    )
+
+    const status = await screen.findByRole('region', { name: /store status/i })
+    expect(within(status).getByRole('complementary')).toHaveTextContent(/review hours/i)
+    expect(within(status).getByRole('link', { name: /update hours/i })).toHaveAttribute(
+      'href',
+      '/store-portal/hours',
+    )
+    expect(status).toHaveTextContent(/1 controlled change is waiting.*not public/i)
+    expect(status).toHaveTextContent(/address: pending/i)
+  })
+
+  it('keeps the Home loading and unavailable states free of a fabricated status summary', async () => {
+    const never = new Promise<never>(() => undefined)
+    const { rerender } = render(
+      <MemoryRouter>
+        <PortalHomePage client={client({ getHome: vi.fn(() => never) })} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(/loading store portal/i)
+    expect(screen.queryByRole('region', { name: /store status/i })).not.toBeInTheDocument()
+
+    rerender(
+      <MemoryRouter>
+        <PortalHomePage client={client({ getHome: vi.fn(async () => Promise.reject()) })} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't update this store portal/i)
+    expect(screen.queryByRole('region', { name: /store status/i })).not.toBeInTheDocument()
+  })
+
+  it('hydrates Store Information before enabling a partial managed-field publish', async () => {
+    const user = userEvent.setup()
+    const saveManagedFields = vi.fn(async () => client().getHome())
+    render(
+      <MemoryRouter>
+        <PortalManagedFieldsPage client={client({ saveManagedFields })} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('status')).toHaveTextContent(/loading store portal/i)
+    const phone = await screen.findByLabelText(/^phone$/i)
+    expect(phone).toHaveValue('785-555-0123')
+    expect(screen.getByLabelText(/^website$/i)).toHaveValue('https://oak.example.invalid')
+    await user.clear(phone)
+    await user.type(phone, '785-555-0199')
+    await user.click(screen.getByRole('button', { name: /publish managed fields/i }))
+
+    expect(saveManagedFields).toHaveBeenCalledWith({
+      phone: '785-555-0199',
+      website: 'https://oak.example.invalid',
+      description: 'An approved Oak Antiques description.',
+    })
+    expect(await screen.findByRole('status')).toHaveTextContent(/published immediately/i)
+  })
+
+  it('keeps Store Information fields hidden when the scoped read fails', async () => {
+    render(
+      <MemoryRouter>
+        <PortalManagedFieldsPage
+          client={client({ getHome: vi.fn(async () => Promise.reject()) })}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't update this store portal/i)
+    expect(screen.queryByLabelText(/^phone$/i)).not.toBeInTheDocument()
+  })
+
+  it('makes Store Information and Pending Changes discoverable from Portal pages', async () => {
+    render(
+      <MemoryRouter>
+        <PortalHomePage client={client()} />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('link', { name: /store information/i })).toHaveAttribute(
+      'href',
+      '/store-portal/info',
+    )
+    expect(screen.getByRole('link', { name: /pending changes/i })).toHaveAttribute(
+      'href',
+      '/store-portal/changes',
+    )
   })
 
   it('blocks image-bearing update drafts before any client call', () => {

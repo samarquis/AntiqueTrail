@@ -49,9 +49,20 @@ describe('catalog private-action integration seam', () => {
         renderPrivateActions={(store) => <button type="button">Save {store.name}</button>}
       />,
     )
-    expect(
-      await screen.findByRole('button', { name: `Save ${syntheticStores[0].name}` }),
-    ).toBeVisible()
+    const actionRegion = await screen.findByRole('region', {
+      name: `Visit options for ${syntheticStores[0].name}`,
+    })
+    expect(actionRegion).toContainElement(
+      screen.getByRole('button', { name: `Save ${syntheticStores[0].name}` }),
+    )
+    const actions = Array.from(actionRegion.querySelectorAll('a, button')).map((action) =>
+      action.textContent?.trim(),
+    )
+    expect(actions).toEqual(['Add to Trip', `Save ${syntheticStores[0].name}`])
+    expect(actionRegion.querySelector('a')).toHaveAttribute(
+      'href',
+      `/trips/new?addStoreId=${encodeURIComponent(syntheticStores[0].id)}`,
+    )
   })
 
   it('keeps store links inside a configured deployment base path', async () => {
@@ -61,6 +72,27 @@ describe('catalog private-action integration seam', () => {
     expect(await screen.findByRole('link', { name: syntheticStores[0].name })).toHaveAttribute(
       'href',
       `/AntiqueTrail/stores/${syntheticStores[0].slug}`,
+    )
+    expect(
+      screen.getByRole('link', { name: `View ${syntheticStores[0].name} details` }),
+    ).toHaveAttribute('href', `/AntiqueTrail/stores/${syntheticStores[0].slug}`)
+  })
+
+  it('makes the exact store details route primary without changing the trip deep link', async () => {
+    render(<BrowsePage client={client()} />)
+
+    const details = await screen.findByRole('link', {
+      name: `View ${syntheticStores[0].name} details`,
+    })
+    expect(details).toHaveClass('button', 'catalog-card__details')
+    expect(details).toHaveAttribute('href', `/stores/${syntheticStores[0].slug}`)
+    expect(screen.getByRole('link', { name: syntheticStores[0].name })).toHaveAttribute(
+      'href',
+      `/stores/${syntheticStores[0].slug}`,
+    )
+    expect(screen.getByRole('link', { name: 'Add to Trip' })).toHaveAttribute(
+      'href',
+      `/trips/new?addStoreId=${encodeURIComponent(syntheticStores[0].id)}`,
     )
   })
 

@@ -85,6 +85,12 @@ function PortalNav() {
           <Link to="/store-portal/hours">Hours &amp; holidays</Link>
         </li>
         <li>
+          <Link to="/store-portal/info">Store information</Link>
+        </li>
+        <li>
+          <Link to="/store-portal/changes">Pending changes</Link>
+        </li>
+        <li>
           <Link to="/store-portal/updates">Store Updates</Link>
         </li>
         <li>
@@ -100,6 +106,12 @@ function PortalNav() {
 
 function Loading() {
   return <p role="status">Loading Store Portal…</p>
+}
+
+function formatPortalDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(date)
 }
 
 export function PortalAccessDeniedPage() {
@@ -158,34 +170,76 @@ export function PortalHomePage({ client = unavailablePortalClient }: { client?: 
       description="Manage approved store information from a phone or keyboard."
     >
       <PortalNav />
-      <dl>
-        <div>
-          <dt>Public listing</dt>
-          <dd>{snapshot.store.listingState.replaceAll('_', ' ')}</dd>
+      <section className="portal-status" aria-labelledby="portal-status-heading">
+        <div className="portal-status__heading">
+          <h2 id="portal-status-heading">Store status</h2>
+          <p>Current public information and the next safe action for this store.</p>
         </div>
-        <div>
-          <dt>Store timezone</dt>
-          <dd>{snapshot.store.timeZone}</dd>
+        <dl className="portal-status__facts">
+          <div>
+            <dt>Public listing</dt>
+            <dd>{snapshot.store.listingState.replaceAll('_', ' ')}</dd>
+          </div>
+          <div>
+            <dt>Store timezone</dt>
+            <dd>{snapshot.store.timeZone}</dd>
+          </div>
+          <div>
+            <dt>Hours verification</dt>
+            <dd>{snapshot.freshness.label}</dd>
+          </div>
+        </dl>
+        {needsAttention && (
+          <aside
+            className="portal-status__attention"
+            aria-labelledby="portal-status-next-action-heading"
+          >
+            <h3 id="portal-status-next-action-heading">Next action: update hours</h3>
+            <p>Review hours and confirm the current public information.</p>
+            <Link className="button" to="/store-portal/hours">
+              Update Hours
+            </Link>
+          </aside>
+        )}
+        <div className="portal-status__supporting">
+          <section aria-labelledby="portal-status-provenance-heading">
+            <h3 id="portal-status-provenance-heading">Verification source</h3>
+            <p>
+              {snapshot.provenance.sourceLabel}; verified by {snapshot.provenance.verifiedBy} on{' '}
+              {formatPortalDate(snapshot.provenance.verifiedAt)}.
+            </p>
+            <p>
+              {snapshot.provenance.ownerConfirmed
+                ? 'Owner confirmation recorded.'
+                : 'Owner confirmation is not recorded.'}
+            </p>
+          </section>
+          <section aria-labelledby="portal-status-pending-heading">
+            <h3 id="portal-status-pending-heading">Pending changes</h3>
+            {snapshot.pendingChanges.length === 0 ? (
+              <p>No controlled changes are waiting for review. Nothing pending is public.</p>
+            ) : (
+              <>
+                <p>
+                  {snapshot.pendingChanges.length} controlled{' '}
+                  {snapshot.pendingChanges.length === 1 ? 'change is' : 'changes are'} waiting for
+                  Administrator review. Pending changes are not public.
+                </p>
+                <ul>
+                  {snapshot.pendingChanges.map((change) => (
+                    <li key={change.id}>
+                      {change.field}: {change.state}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
         </div>
-        <div>
-          <dt>Hours verification</dt>
-          <dd>{snapshot.freshness.label}</dd>
-        </div>
-      </dl>
-      {needsAttention && (
-        <aside role="status">
-          <strong>{snapshot.freshness.label}</strong>
-          <p>Review hours and confirm the current public information.</p>
-        </aside>
-      )}
-      <p>
-        <Link className="button" to="/store-portal/hours">
-          Update Hours
-        </Link>{' '}
-        <Link className="button" to="/store-portal/preview">
+        <Link className="button button--secondary" to="/store-portal/preview">
           Preview Public Listing
         </Link>
-      </p>
+      </section>
       <section aria-labelledby="portal-information-heading">
         <h2 id="portal-information-heading">Store Information</h2>
         <p>
@@ -196,32 +250,6 @@ export function PortalHomePage({ client = unavailablePortalClient }: { client?: 
           Store identity, address, ownership, categories, permanent closure, and official photos
           require Administrator review.
         </p>
-      </section>
-      <section aria-labelledby="portal-freshness-heading">
-        <h2 id="portal-freshness-heading">Freshness &amp; provenance</h2>
-        <p>
-          {snapshot.provenance.sourceLabel}; verified by {snapshot.provenance.verifiedBy} on{' '}
-          {snapshot.provenance.verifiedAt}.
-        </p>
-        <p>
-          {snapshot.provenance.ownerConfirmed
-            ? 'Owner confirmation recorded.'
-            : 'Owner confirmation is not recorded.'}
-        </p>
-      </section>
-      <section aria-labelledby="portal-pending-heading">
-        <h2 id="portal-pending-heading">Pending Changes</h2>
-        {snapshot.pendingChanges.length === 0 ? (
-          <p>No controlled changes are waiting for review.</p>
-        ) : (
-          <ul>
-            {snapshot.pendingChanges.map((change) => (
-              <li key={change.id}>
-                {change.field}: {change.state}
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
       <section aria-labelledby="portal-photos-heading">
         <h2 id="portal-photos-heading">Photos</h2>
@@ -1078,20 +1106,55 @@ export function PortalManagedFieldsPage({
 }: {
   client?: PortalClient
 }) {
-  const [fields, setFields] = useState<PortalManagedFields>({
-    phone: '',
-    website: '',
-    description: '',
-  })
+  const [fields, setFields] = useState<PortalManagedFields | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    client
+      .getHome()
+      .then((home) => {
+        if (cancelled) return
+        if (!home.managedFields) {
+          setError(true)
+          return
+        }
+        setFields(home.managedFields)
+      })
+      .catch(() => {
+        if (!cancelled) setError(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [client])
   function submit(event: FormEvent) {
     event.preventDefault()
+    if (!fields) return
+    setError(false)
     client
       .saveManagedFields(fields)
       .then(() => setStatus('Managed fields published immediately.'))
       .catch(() => setError(true))
   }
+  if (error)
+    return (
+      <PortalCard
+        title="Store information unavailable"
+        description="Your approved store information could not be loaded."
+      >
+        <GenericPortalError />
+      </PortalCard>
+    )
+  if (!fields)
+    return (
+      <PortalCard
+        title="Store information"
+        description="Loading approved store information before it can be changed."
+      >
+        <Loading />
+      </PortalCard>
+    )
   return (
     <PortalCard
       title="Store information"

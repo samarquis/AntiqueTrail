@@ -150,8 +150,16 @@ describe('scenario-aware review clients', () => {
       website: 'https://blue-finch.example.invalid',
       description: 'Updated synthetic description.',
     })
+    await portal.saveManagedFields({
+      ...(await portal.getHome()).managedFields!,
+      phone: '785-555-0188',
+    })
     await expect(portal.previewPublicListing()).resolves.toMatchObject({
-      liveFields: expect.objectContaining({ phone: '785-555-0199' }),
+      liveFields: expect.objectContaining({
+        phone: '785-555-0188',
+        website: 'https://blue-finch.example.invalid',
+        description: 'Updated synthetic description.',
+      }),
     })
     const change = await portal.submitControlledChange({
       field: 'address',
@@ -260,10 +268,17 @@ describe('scenario-aware review clients', () => {
       state: 'approved',
       version: 4,
     })
-    await expect(admin.listCases()).resolves.toEqual([])
+    await expect(admin.listCases()).resolves.toEqual([
+      expect.objectContaining({
+        id: 'case-onboarding-1',
+        queueCategory: 'onboarding',
+        assignedCount: 1,
+      }),
+    ])
 
     const [grant] = await admin.listStoreGrants()
     const preview = await admin.previewStoreScopeChange(
+      'revoke',
       grant.subjectUserId,
       grant.storeId,
       grant.version,
@@ -280,6 +295,7 @@ describe('scenario-aware review clients', () => {
       ),
     ).resolves.toMatchObject({ state: 'revoked', version: 3 })
     const regrantPreview = await admin.previewStoreScopeChange(
+      'regrant',
       grant.subjectUserId,
       grant.storeId,
       3,

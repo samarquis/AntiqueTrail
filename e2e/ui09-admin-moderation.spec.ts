@@ -50,6 +50,10 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
     page,
   }) => {
     await page.goto(reviewUrl('/admin', 'administrator'))
+    await expect(page.locator('.review-queue__workspace')).toBeVisible()
+    await expect(page.getByRole('heading', { level: 2, name: 'Assigned cases' })).toBeVisible()
+    await expect(page.getByLabel('Assigned review cases')).toHaveCount(1)
+    await expect(page.getByLabel('Assigned review cases').getByRole('button')).toHaveCount(2)
     await page.getByRole('button', { name: 'Review Blue Finch Curios' }).click()
     await expect(
       page.getByText('Submitted fields are read-only. Decisions apply only to this case.'),
@@ -69,7 +73,59 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
     await expect(page.getByRole('status')).toHaveText('Case approved.')
     await expect(page.getByLabel('Resolved case outcome')).toBeVisible()
     await page.getByRole('button', { name: 'Back to Queue' }).click()
-    await expect(page.getByText('No assigned review cases.')).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'Review queue' })).toBeFocused()
+    await expect(page.getByRole('button', { name: 'New stores (1)' })).toBeVisible()
+  })
+
+  test('onboarding approval exposes only its allowlisted case context and exact atomic outcome', async ({
+    page,
+  }) => {
+    await page.goto(reviewUrl('/admin', 'administrator'))
+    const onboardingCategory = page.getByRole('button', { name: 'New stores (1)' })
+    await onboardingCategory.focus()
+    await page.keyboard.press('Enter')
+    const onboardingReview = page.getByRole('button', { name: 'Review Juniper House Antiques' })
+    await onboardingReview.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByLabel('Pilot Store Draft decision summary')).toContainText(
+      'Consent: current. Authority: verified. Identity: verified.',
+    )
+    await expect(
+      page.getByText('410 West Synthetic Avenue, Topeka, KS', { exact: true }),
+    ).toBeVisible()
+    await expect(page.getByText(/exact preview hash/i)).toHaveCount(0)
+    await page.getByLabel('Decision reason').fill('Consent and authority verified')
+    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await expect(page.getByLabel('Confirm case decision')).toContainText(
+      'grant Store Representative scope only for that store',
+    )
+    await page.getByRole('button', { name: 'Confirm approve', exact: true }).click()
+    await expect(page.getByLabel('Resolved case outcome')).toContainText(
+      'Pilot Store Record created for Juniper House Antiques',
+    )
+    await expect(page.getByLabel('Resolved case outcome')).toContainText(
+      'Store Representative scope granted: Juniper House Antiques only.',
+    )
+    await expect(page.getByLabel('Resolved case outcome')).toContainText(
+      'No unrelated data or authority changed.',
+    )
+
+    await page.getByRole('button', { name: 'Back to Queue' }).click()
+    await expect(page.getByRole('button', { name: 'New stores (0)' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Store changes (1)' })).toBeVisible()
+
+    await page.setViewportSize({ width: 320, height: 900 })
+    expect(
+      await page
+        .locator('body')
+        .evaluate(
+          (body) =>
+            Array.from(body.querySelectorAll<HTMLElement>('*')).filter(
+              (element) =>
+                element.getBoundingClientRect().right > document.documentElement.clientWidth + 1,
+            ).length,
+        ),
+    ).toBe(0)
   })
 
   test('access safety requires preview before regrant and shows merge consequences', async ({
@@ -184,12 +240,14 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
   }) => {
     await page.goto(reviewUrl('/admin', 'administrator', 'loading'))
     await expect(page.getByRole('status')).toContainText('Loading review cases')
+    await expect(page.locator('.review-queue__workspace')).toBeVisible()
     await expect(page.getByText('No assigned review cases.')).toHaveCount(0)
     await page.goto(reviewUrl('/admin/access', 'administrator', 'loading'))
     await expect(page.getByRole('status')).toContainText('Loading Store Representative scopes')
     await expect(page.getByText('No Store Representative scopes.')).toHaveCount(0)
     await page.goto(reviewUrl('/admin', 'administrator', 'empty'))
     await expect(page.getByText('No assigned review cases.')).toBeVisible()
+    await expect(page.locator('.review-queue__state')).toContainText('nothing to decide')
     await page.goto(reviewUrl('/admin/access', 'administrator', 'empty'))
     await expect(page.getByText('No Store Representative scopes.')).toBeVisible()
     for (const state of ['error', 'blocked', 'permission-denied'] as const) {
@@ -224,6 +282,21 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
           ).length,
       )
     expect(overflow).toBe(0)
+    await page.goto(reviewUrl('/admin', 'administrator'))
+    await page.setViewportSize({ width: 320, height: 640 })
+    await expect(page.locator('.review-queue__workspace')).toBeVisible()
+    await assertMinimumTargets(page)
+    expect(
+      await page
+        .locator('body')
+        .evaluate(
+          (body) =>
+            Array.from(body.querySelectorAll<HTMLElement>('*')).filter(
+              (element) =>
+                element.getBoundingClientRect().right > document.documentElement.clientWidth + 1,
+            ).length,
+        ),
+    ).toBe(0)
     for (const path of [
       '/admin',
       '/admin/access',

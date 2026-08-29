@@ -153,6 +153,40 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
     ).toBeVisible()
   })
 
+  test('portal status keeps the next action, provenance, and non-public pending work together', async ({
+    page,
+  }) => {
+    await page.goto(reviewUrl('/store-portal'))
+    const status = page.getByRole('region', { name: 'Store status' })
+    await expect(status).toContainText('Public listing')
+    await expect(status).toContainText('Hours verified 12 days ago')
+    await expect(status.getByRole('complementary')).toContainText(
+      'Review hours and confirm the current public information.',
+    )
+    await expect(status.getByRole('link', { name: 'Update Hours' })).toHaveAttribute(
+      'href',
+      '/store-portal/hours',
+    )
+    await expect(status).toContainText('Pending changes are not public.')
+    await expect(status.getByRole('link', { name: 'Preview Public Listing' })).toHaveClass(
+      /button--secondary/,
+    )
+
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 900 })
+      const overflow = await page.locator('body').evaluate((body) =>
+        Array.from(body.querySelectorAll<HTMLElement>('*')).flatMap((element) => {
+          const rect = element.getBoundingClientRect()
+          return rect.right > document.documentElement.clientWidth + 1 ? [element.tagName] : []
+        }),
+      )
+      expect(overflow).toEqual([])
+    }
+
+    await page.getByRole('link', { name: 'Update Hours' }).focus()
+    await expect(page.getByRole('link', { name: 'Update Hours' })).toBeFocused()
+  })
+
   test('loading, empty, errors, blocked and permission states do not fabricate data', async ({
     page,
   }) => {
@@ -245,6 +279,25 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await page.screenshot({
         path: `docs/evidence/ui-08/${testInfo.project.name}-${slug}.png`,
+        fullPage: true,
+      })
+    }
+  })
+
+  test('captures issue 149 status evidence when explicitly requested', async ({
+    page,
+  }, testInfo) => {
+    test.skip(!process.env.CAPTURE_ISSUE_149_EVIDENCE, 'Evidence capture is opt-in.')
+    for (const [width, suffix] of [
+      [1280, 'desktop'],
+      [390, 'mobile-390'],
+      [320, 'mobile-320'],
+    ] as const) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(reviewUrl('/store-portal'))
+      await expect(page.getByRole('region', { name: 'Store status' })).toBeVisible()
+      await page.screenshot({
+        path: `docs/evidence/issue-149/${testInfo.project.name}-${suffix}.png`,
         fullPage: true,
       })
     }
