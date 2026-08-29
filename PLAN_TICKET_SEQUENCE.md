@@ -21,3 +21,4 @@ Depth: tree 5   Mode: orchestrated, strictly serial
 ## Status log
 
 - 2026-08-29: Serial plan and terminal-outcome ledger created. #152 implementation leaf dispatched first.
+- 2026-08-29: #152 independently verified, committed as `c9359d9`, pushed, and closed with its GitHub evidence comment. #151 is next.

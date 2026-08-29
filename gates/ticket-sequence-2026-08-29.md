@@ -2,8 +2,8 @@
 
 Scope: each supplied ticket is closed with independently verified evidence, or has a dated GitHub blocker comment explaining why it remains open.
 
-- [ ] G01 #152 reaches a terminal GitHub outcome.
-  EVIDENCE: pending
+- [x] G01 #152 reaches a terminal GitHub outcome.
+  EVIDENCE: 2026-08-29 — CLOSED with evidence comment at https://github.com/samarquis/AntiqueTrail/issues/152; implementation commit `c9359d9` pushed to `origin/codex/issue-116-wowed` after independent focused unit 11/11, typecheck, lint, changed-file Prettier/diff checks, and review-harness browser 36 passed / 0 failed / 3 skipped.
 - [ ] G02 #151 reaches a terminal GitHub outcome.
   EVIDENCE: pending
 - [ ] G03 #150 reaches a terminal GitHub outcome.
