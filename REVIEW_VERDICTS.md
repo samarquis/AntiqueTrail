@@ -164,3 +164,7 @@ The public card now groups its existing trip link and optional private continuat
 ## Issue #152 administrator queue composition — 2026-08-29
 
 The Administrator review queue now keeps loading, assigned, empty, error/retry, and resolved states in a bounded workspace with an assigned-category summary and one Review path per case. Independently rerunnable evidence records 11 focused component tests, typecheck, lint, Prettier, and diff checks passing, plus the synthetic review-harness browser suite at **36 passed / 0 failed / 3 skipped** across desktop, tablet, and mobile. The harness validates presentation and interaction against fixtures; it is not evidence of production RPC/RLS enforcement, database authority, or hosted CI. Evidence: docs/evidence/issue-152/review-queue-composition-2026-08-29.md.
+
+## Issue #151 action-area verification — 2026-08-29
+
+The region now owns its own metadata boundary, spacing, and stacking context; the injected private controls no longer create a second divider. Fresh focused unit, type, lint, formatting, diff, and 3-project review-harness browser checks passed across 1440/768/390/320 CSS-px anonymous and shopper fixtures. This is synthetic-harness presentation/focus evidence, not production RPC/RLS, persistence, authentication, or hosted-CI evidence. Details: `docs/evidence/issue-151/catalog-action-area-2026-08-29.md`.

@@ -381,6 +381,8 @@ test('catalog action area keeps visit planning first across anonymous and shoppe
     const anonymousActions = anonymousCard.getByRole('region', { name: /visit options for/i })
     const anonymousLinks = anonymousActions.getByRole('link')
     await expect(anonymousActions).toBeVisible()
+    await expect(anonymousActions).toHaveCSS('border-top-style', 'solid')
+    await expect(anonymousActions).toHaveCSS('border-top-width', '1px')
     await expect(anonymousLinks.nth(0)).toHaveAccessibleName('Add to Trip')
     await expect(anonymousLinks.nth(0)).toHaveAttribute('href', /\/trips\/new\?addStoreId=/)
     await expect(
@@ -391,6 +393,7 @@ test('catalog action area keeps visit planning first across anonymous and shoppe
     await expect(
       anonymousActions.getByRole('link', { name: 'Sign in to save store' }),
     ).toBeFocused()
+    await expectMinimumTargets(page)
 
     const anonymousOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
