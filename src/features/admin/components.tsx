@@ -7,6 +7,7 @@ import { unavailableAdminClient } from './adminClient'
 import type {
   AdminDecision,
   AdminMergePlan,
+  AdminReviewQueueCategory,
   AdminReviewCaseDetail,
   AdminReviewCaseSummary,
   AdminScopePreview,
@@ -29,10 +30,20 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
   const [selected, setSelected] = useState<AdminReviewCaseDetail | null>(null)
   const [reason, setReason] = useState('')
   const [pendingAction, setPendingAction] = useState<AdminDecision | null>(null)
-  const [resolvedCase, setResolvedCase] = useState<{ id: string; state: string } | null>(null)
+  const [resolvedCase, setResolvedCase] = useState<{
+    id: string
+    state: string
+    onboardingOutcome?: {
+      pilotStoreRecordCreated: true
+      storeLabel: string
+      representativeScope: string
+      unrelatedAuthorityChanged: false
+    }
+  } | null>(null)
   const [message, setMessage] = useState('')
   const [listState, setListState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [returnFocusToQueue, setReturnFocusToQueue] = useState(false)
+  const [queueCategory, setQueueCategory] = useState<AdminReviewQueueCategory | null>(null)
   const queueHeading = useRef<HTMLHeadingElement>(null)
   const clientRef = useRef(client)
   clientRef.current = client
@@ -94,7 +105,11 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
         `admin-${selected.id}-${selected.version}-${Date.now()}`,
       )
       setCases((items) => items.filter((item) => item.id !== selected.id))
-      setResolvedCase({ id: selected.id, state: result.state })
+      setResolvedCase({
+        id: selected.id,
+        state: result.state,
+        onboardingOutcome: result.onboardingOutcome,
+      })
       setReason('')
       setPendingAction(null)
       setMessage(`Case ${result.state}.`)
@@ -125,6 +140,13 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
             Case {resolvedCase.id} is {resolvedCase.state}. The outcome and reason remain in its
             audit history.
           </p>
+          {resolvedCase.onboardingOutcome && (
+            <p>
+              Pilot Store Record created for {resolvedCase.onboardingOutcome.storeLabel}. Store
+              Representative scope granted: {resolvedCase.onboardingOutcome.representativeScope}. No
+              unrelated data or authority changed.
+            </p>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -151,17 +173,47 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
         listState === 'loading' ? (
           <p role="status">Loading review cases…</p>
         ) : cases.length ? (
-          <ul>
-            {cases.map((reviewCase) => (
-              <li key={reviewCase.id}>
-                <strong>{reviewCase.storeLabel}</strong> —{' '}
-                {reviewCase.caseType.replaceAll('_', ' ')}{' '}
-                <button type="button" onClick={() => void openCase(reviewCase)}>
-                  Review {reviewCase.storeLabel}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <>
+            <section aria-label="Review queue categories">
+              {(
+                [
+                  ['onboarding', 'New stores'],
+                  ['store_changes', 'Store changes'],
+                  ['images', 'Images'],
+                  ['support', 'Support'],
+                ] as const
+              ).map(([category, label]) => {
+                const count =
+                  cases.find((reviewCase) => reviewCase.queueCategory === category)
+                    ?.assignedCount ?? 0
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    aria-pressed={queueCategory === category}
+                    onClick={() => setQueueCategory(queueCategory === category ? null : category)}
+                  >
+                    {label} ({count})
+                  </button>
+                )
+              })}
+            </section>
+            <ul>
+              {cases
+                .filter(
+                  (reviewCase) => !queueCategory || reviewCase.queueCategory === queueCategory,
+                )
+                .map((reviewCase) => (
+                  <li key={reviewCase.id}>
+                    <strong>{reviewCase.storeLabel}</strong> —{' '}
+                    {reviewCase.caseType.replaceAll('_', ' ')}{' '}
+                    <button type="button" onClick={() => void openCase(reviewCase)}>
+                      Review {reviewCase.storeLabel}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </>
         ) : (
           <p>No assigned review cases.</p>
         )
@@ -177,14 +229,29 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
               </div>
             ))}
           </dl>
-          <section aria-label="Current and requested listing preview">
-            <h3>Current and requested listing preview</h3>
-            <p>Current public listing: retained until this exact case is approved.</p>
-            <p>
-              Requested {String(selected.context.field ?? 'field')}:{' '}
-              {String(selected.context.requestedValue ?? 'Not provided')}.
-            </p>
-          </section>
+          {selected.caseType === 'partner_onboarding' ? (
+            <section aria-label="Pilot Store Draft decision summary">
+              <h3>Pilot Store Draft decision summary</h3>
+              <p>
+                This exact submitted draft can create one private-beta Pilot Store Record only after
+                this approval.
+              </p>
+              <p>
+                Consent: {String(selected.context.consentStatus ?? 'Not provided')}. Authority:{' '}
+                {String(selected.context.authorityStatus ?? 'Not provided')}. Identity:{' '}
+                {String(selected.context.identityStatus ?? 'Not provided')}.
+              </p>
+            </section>
+          ) : (
+            <section aria-label="Current and requested listing preview">
+              <h3>Current and requested listing preview</h3>
+              <p>Current public listing: retained until this exact case is approved.</p>
+              <p>
+                Requested {String(selected.context.field ?? 'field')}:{' '}
+                {String(selected.context.requestedValue ?? 'Not provided')}.
+              </p>
+            </section>
+          )}
           <h3>Audit history</h3>
           <ul aria-label="Case audit history">
             {selected.audit.map((entry) => (
@@ -203,12 +270,22 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
           </label>
           {pendingAction ? (
             <section aria-label="Confirm case decision">
-              <p>
-                Confirm {pendingAction}: only the requested{' '}
-                {String(selected.context.field ?? 'field')}
-                for {selected.storeLabel} is affected. The current public listing stays unchanged
-                until approval; the immutable submission remains in the audit record.
-              </p>
+              {selected.caseType === 'partner_onboarding' ? (
+                <p>
+                  Confirm {pendingAction}:{' '}
+                  {pendingAction === 'approve'
+                    ? `create the Pilot Store Record for ${selected.storeLabel} and grant Store Representative scope only for that store. No unrelated data or authority changes.`
+                    : `${pendingAction === 'return' ? 'return this exact draft for correction; it will not publish or grant a role.' : 'reject this exact draft; it will not publish or grant a role.'}`}{' '}
+                  The immutable submission and reason remain in the audit record.
+                </p>
+              ) : (
+                <p>
+                  Confirm {pendingAction}: only the requested{' '}
+                  {String(selected.context.field ?? 'field')}
+                  for {selected.storeLabel} is affected. The current public listing stays unchanged
+                  until approval; the immutable submission remains in the audit record.
+                </p>
+              )}
               <button type="button" onClick={() => void decide(pendingAction)}>
                 Confirm {pendingAction === 'return' ? 'return for changes' : pendingAction}
               </button>{' '}
@@ -285,7 +362,12 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
     try {
       if (scopePreview?.grantId !== grant.grantId) {
         setScopePreview(
-          await client.previewStoreScopeChange(grant.subjectUserId, grant.storeId, grant.version),
+          await client.previewStoreScopeChange(
+            operation,
+            grant.subjectUserId,
+            grant.storeId,
+            grant.version,
+          ),
         )
         return
       }

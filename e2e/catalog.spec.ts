@@ -366,6 +366,49 @@ test('store cards offer Add to Trip with a deep link', async ({ page }) => {
   await expect(add).toHaveAttribute('href', /\/trips\/new\?addStoreId=/)
 })
 
+test('catalog action area keeps visit planning first across anonymous and shopper states', async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 1440, height: 1000 },
+    { width: 768, height: 1024 },
+    { width: 390, height: 844 },
+    { width: 320, height: 800 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/stores?reviewAs=anonymous&reviewState=success')
+    const anonymousCard = page.locator('.catalog-card').first()
+    const anonymousActions = anonymousCard.getByRole('region', { name: /visit options for/i })
+    const anonymousLinks = anonymousActions.getByRole('link')
+    await expect(anonymousActions).toBeVisible()
+    await expect(anonymousLinks.nth(0)).toHaveAccessibleName('Add to Trip')
+    await expect(anonymousLinks.nth(0)).toHaveAttribute('href', /\/trips\/new\?addStoreId=/)
+    await expect(
+      anonymousActions.getByRole('link', { name: 'Sign in to save store' }),
+    ).toBeVisible()
+    await anonymousLinks.nth(0).focus()
+    await page.keyboard.press('Tab')
+    await expect(
+      anonymousActions.getByRole('link', { name: 'Sign in to save store' }),
+    ).toBeFocused()
+
+    const anonymousOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(anonymousOverflow).toBeLessThanOrEqual(1)
+
+    await page.goto('/stores?reviewAs=shopper-a&reviewState=success')
+    const shopperActions = page
+      .locator('.catalog-card')
+      .first()
+      .getByRole('region', { name: /visit options for/i })
+    const shopperControls = shopperActions.locator('a, button')
+    await expect(shopperActions).toBeVisible()
+    await expect(shopperControls.nth(0)).toHaveAccessibleName('Add to Trip')
+    await expect(shopperActions.getByRole('button', { name: 'Save store' })).toBeVisible()
+  }
+})
+
 test('decorative glyphs stay out of accessible names', async ({ page }) => {
   await page.goto('/stores/blue-finch-curios')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()

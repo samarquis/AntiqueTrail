@@ -60,10 +60,19 @@ export type AdminCaseType =
   | 'duplicate_merge'
   | 'access_safety'
 export type AdminDecision = 'approve' | 'return' | 'reject'
+export type AdminReviewQueueCategory =
+  | 'onboarding'
+  | 'store_changes'
+  | 'images'
+  | 'support'
+  | 'listing_claims'
+  | 'other'
 
 export interface AdminReviewCaseSummary {
   id: string
   caseType: AdminCaseType
+  queueCategory: AdminReviewQueueCategory
+  assignedCount: number
   targetKind: string
   storeLabel: string
   state: AdminCaseState
@@ -88,6 +97,12 @@ export interface AdminDecisionResult {
   id: string
   state: AdminCaseState
   version: number
+  onboardingOutcome?: {
+    pilotStoreRecordCreated: true
+    storeLabel: string
+    representativeScope: string
+    unrelatedAuthorityChanged: false
+  }
 }
 
 export interface AdminStoreScope {

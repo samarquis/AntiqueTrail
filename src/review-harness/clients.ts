@@ -1421,6 +1421,11 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
         submittedAt: FIXED_NOW,
       },
     ],
+    managedFields: {
+      phone: '785-555-0123',
+      website: 'https://blue-finch.example.invalid',
+      description: 'A synthetic Topeka antique shop.',
+    },
   }
   let pendingChanges: PortalPendingChange[] = [...home.pendingChanges]
   let portalHours: PortalHours = structuredClone(hours)
@@ -1456,6 +1461,7 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
     website: 'https://blue-finch.example.invalid',
     description: 'A synthetic Topeka antique shop.',
   }
+  const managedFieldsSnapshot = (): PortalManagedFields => structuredClone(managedFields)
   const publicFields = (): Record<string, string> => ({
     phone: managedFields.phone,
     website: managedFields.website,
@@ -1472,8 +1478,8 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
       allowed()
       return failureFixture(
         state,
-        { ...home, pendingChanges },
-        { ...home, pendingChanges: [] },
+        { ...home, pendingChanges, managedFields: managedFieldsSnapshot() },
+        { ...home, pendingChanges: [], managedFields: managedFieldsSnapshot() },
         GENERIC_PORTAL_ERROR,
       )
     },
@@ -2043,6 +2049,8 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
     {
       id: 'case-1',
       caseType: 'store_change',
+      queueCategory: 'store_changes',
+      assignedCount: 1,
       targetKind: 'store',
       storeLabel: 'Blue Finch Curios',
       state: 'assigned',
@@ -2065,6 +2073,43 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
         {
           action: 'assigned',
           outcome: 'Assigned to the local review queue',
+          occurredAt: FIXED_NOW,
+        },
+      ],
+    },
+    {
+      id: 'case-onboarding-1',
+      caseType: 'partner_onboarding',
+      queueCategory: 'onboarding',
+      assignedCount: 1,
+      targetKind: 'pilot_store_draft',
+      storeLabel: 'Juniper House Antiques',
+      state: 'assigned',
+      version: 2,
+      createdAt: FIXED_NOW,
+      immutableSubmission: true,
+      context: {
+        name: 'Juniper House Antiques',
+        address: '410 West Synthetic Avenue, Topeka, KS',
+        phone: '555-0101',
+        website: 'https://juniper.example.invalid',
+        description: 'Antique furniture and local ephemera.',
+        categoryTags: 'furniture, ephemera',
+        consentStatus: 'current',
+        authorityStatus: 'verified',
+        identityStatus: 'verified',
+        state: 'submitted',
+      },
+      allowedActions: ['approve', 'return', 'reject'],
+      audit: [
+        {
+          action: 'submitted',
+          outcome: 'Pilot Store Draft submitted for review',
+          occurredAt: FIXED_NOW,
+        },
+        {
+          action: 'assigned',
+          outcome: 'Assigned to the New stores queue',
           occurredAt: FIXED_NOW,
         },
       ],
@@ -2102,7 +2147,12 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
     state: 'previewed',
     version: 1,
   }
-  let scopePreview: { previewId: string; grantId: string; version: number } | null = null
+  let scopePreview: {
+    previewId: string
+    grantId: string
+    version: number
+    operation: 'revoke' | 'regrant'
+  } | null = null
   return {
     ...unavailableAdminClient,
     async listCases(retry = false) {
@@ -2138,7 +2188,21 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
         const nextState: AdminCaseState =
           action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'changes_requested'
         reviewCases = reviewCases.filter((c) => c.id !== caseId)
-        return { id: caseId, state: nextState, version: expectedVersion + 1 }
+        return {
+          id: caseId,
+          state: nextState,
+          version: expectedVersion + 1,
+          ...(target.caseType === 'partner_onboarding' && action === 'approve'
+            ? {
+                onboardingOutcome: {
+                  pilotStoreRecordCreated: true as const,
+                  storeLabel: target.storeLabel,
+                  representativeScope: `${target.storeLabel} only`,
+                  unrelatedAuthorityChanged: false as const,
+                },
+              }
+            : {}),
+        }
       })
     },
     async listStoreGrants(retry = false) {
@@ -2149,7 +2213,12 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
         return Promise.resolve(structuredClone(storeGrants))
       return failureFixture(state, storeGrants, [], GENERIC_ADMIN_FAILURE)
     },
-    async previewStoreScopeChange(subjectUserId: string, storeId: string, expectedVersion: number) {
+    async previewStoreScopeChange(
+      operation: 'revoke' | 'regrant',
+      subjectUserId: string,
+      storeId: string,
+      expectedVersion: number,
+    ) {
       allowed()
       return mutate(state, GENERIC_ADMIN_FAILURE, () => {
         const grant = storeGrants.find(
@@ -2157,6 +2226,11 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
         )
         if (!grant) throw new Error('Synthetic exact-grant denial.')
         if (grant.version !== expectedVersion) throw new Error('Synthetic version conflict.')
+        if (
+          (operation === 'revoke' && !['active', 'reconsent_required'].includes(grant.state)) ||
+          (operation === 'regrant' && grant.state !== 'revoked')
+        )
+          throw new Error('Synthetic scope-state denial.')
         const result = {
           previewId: 'preview-grant-1',
           subjectUserId,
@@ -2170,6 +2244,7 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
           previewId: result.previewId,
           grantId: grant.grantId,
           version: grant.version,
+          operation,
         }
         return result
       })
@@ -2196,7 +2271,8 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
           !previewId ||
           scopePreview?.previewId !== previewId ||
           scopePreview.grantId !== grant.grantId ||
-          scopePreview.version !== grant.version
+          scopePreview.version !== grant.version ||
+          scopePreview.operation !== operation
         )
           throw new Error(GENERIC_ADMIN_FAILURE)
         const updated: AdminStoreScope = {

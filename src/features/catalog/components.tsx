@@ -360,13 +360,15 @@ export function CatalogCard({
             Show {store.name} on map
           </button>
         )}
-        <a
-          className="button button--secondary catalog-card__add-to-trip"
-          href={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
-        >
-          Add to Trip
-        </a>
-        {privateActions}
+        <section className="catalog-card__actions" aria-label={`Visit options for ${store.name}`}>
+          <a
+            className="button button--secondary catalog-card__add-to-trip"
+            href={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
+          >
+            Add to Trip
+          </a>
+          {privateActions && <div className="catalog-card__private-actions">{privateActions}</div>}
+        </section>
       </div>
     </article>
   )

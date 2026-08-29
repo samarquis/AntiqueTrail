@@ -147,3 +147,16 @@ Packages 6A, 6B, and 7 live flows passed the fresh browser run. Review notes rem
 ## Issue #145 review-context strip — 2026-08-28
 
 Review-only context now uses a compact strip rather than the generic `page-card` surface. Focused harness tests and the review-harness browser sweep passed; the sweep covers public, shopper, representative, and administrator routes at configured desktop/tablet/mobile viewports plus an explicit 320 CSS-px pass. Evidence: `docs/evidence/issue-145/review-context-2026-08-28.md`.
+## Issue #133 revoke-preview contract — 2026-08-28
+
+Pending hosted database CI. The local UI/client contract verifies operation-bound active revoke and revoked regrant previews; the database migration prevents a preview from authorizing the wrong scope operation and consumes it once used.
+# Issue #141 shared form-control contrast — 2026-08-28
+
+Shared native text controls now use semantic light/dark tokens for default, hover, placeholder, disabled, invalid, and focus states. Measured contrast and focused browser evidence are recorded in `docs/evidence/issue-141/shared-form-control-contrast-2026-08-28.md`; protected role workflows remain covered by their own contracts rather than synthetic form-route claims.
+
+## Issue #138 onboarding approval path — 2026-08-28
+
+The Administrator queue presents a distinct New stores category and an allowlisted Pilot Store Draft decision view. The approval outcome names only the created Pilot Store Record and exact store-scoped Representative grant; the UI fixture is not evidence of the database’s atomic authorization boundary. Focused unit/type/browser checks passed, while the pgTAP contract remains pending hosted CI because the local Docker engine was unavailable. Evidence: `docs/evidence/issue-138/onboarding-approval-2026-08-28.md`.
+## Issue #151 catalog action area — 2026-08-28
+
+The public card now groups its existing trip link and optional private continuations in a named store-specific action region; review-harness browser coverage passes from desktop through 320px without overflow.

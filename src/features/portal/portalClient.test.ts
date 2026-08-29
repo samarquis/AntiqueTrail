@@ -103,6 +103,35 @@ describe('production portal client', () => {
     await expect(failed.removeOfficialLink('facebook')).rejects.toThrow(GENERIC_PORTAL_ERROR)
   })
 
+  it('preserves the scoped managed-field hydration payload from Portal home', async () => {
+    const home = {
+      store: {
+        id: 'store-1',
+        name: 'Oak Antiques',
+        listingState: 'active',
+        timeZone: 'America/Chicago',
+      },
+      freshness: { state: 'verified', label: 'Verified' },
+      provenance: {
+        sourceLabel: 'Owner confirmation',
+        verifiedBy: 'Representative',
+        verifiedAt: '2026-08-28',
+        ownerConfirmed: true,
+      },
+      pendingChanges: [],
+      managedFields: {
+        phone: '785-555-0123',
+        website: 'https://oak.example.invalid',
+        description: 'Approved description.',
+      },
+    } as const
+    const client = createPortalClient({
+      rpc: vi.fn(async () => ({ data: home, error: null })),
+    })
+
+    await expect(client.getHome()).resolves.toMatchObject({ managedFields: home.managedFields })
+  })
+
   it('keeps unavailable media-history actions on the generic portal error boundary', async () => {
     await expect(unavailablePortalClient.listMediaUploads()).rejects.toThrow(GENERIC_PORTAL_ERROR)
     await expect(

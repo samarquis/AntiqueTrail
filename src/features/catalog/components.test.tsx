@@ -49,9 +49,20 @@ describe('catalog private-action integration seam', () => {
         renderPrivateActions={(store) => <button type="button">Save {store.name}</button>}
       />,
     )
-    expect(
-      await screen.findByRole('button', { name: `Save ${syntheticStores[0].name}` }),
-    ).toBeVisible()
+    const actionRegion = await screen.findByRole('region', {
+      name: `Visit options for ${syntheticStores[0].name}`,
+    })
+    expect(actionRegion).toContainElement(
+      screen.getByRole('button', { name: `Save ${syntheticStores[0].name}` }),
+    )
+    const actions = Array.from(actionRegion.querySelectorAll('a, button')).map((action) =>
+      action.textContent?.trim(),
+    )
+    expect(actions).toEqual(['Add to Trip', `Save ${syntheticStores[0].name}`])
+    expect(actionRegion.querySelector('a')).toHaveAttribute(
+      'href',
+      `/trips/new?addStoreId=${encodeURIComponent(syntheticStores[0].id)}`,
+    )
   })
 
   it('keeps store links inside a configured deployment base path', async () => {

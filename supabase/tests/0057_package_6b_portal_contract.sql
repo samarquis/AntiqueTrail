@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(54);
+select plan(55);
 
 select has_schema('portal_private','Package 6B has a private portal schema');
 select has_table('portal_private','store_profiles','managed portal state exists');
@@ -81,6 +81,11 @@ select ok(position('portal_audit_events' in lower(pg_get_functiondef('portal_pri
   and position('privileged_audit_events' in lower(pg_get_functiondef('portal_private.record_portal_event(text,uuid,uuid,uuid,bytea,bigint,bigint)'::regprocedure)))>0,'mutations write narrow local and hash-chained audit evidence');
 select ok(position('shopper_private' in lower(pg_get_functiondef('app_public.portal_get_home()'::regprocedure)))=0
   and position('review_private' in lower(pg_get_functiondef('app_public.portal_get_home()'::regprocedure)))=0,'Portal home cannot browse shopper-private or review data');
+select ok(position($q$'managedFields'$q$ in pg_get_functiondef('app_public.portal_get_home()'::regprocedure))>0
+  and position($q$'phone'$q$ in pg_get_functiondef('app_public.portal_get_home()'::regprocedure))>0
+  and position($q$'website'$q$ in pg_get_functiondef('app_public.portal_get_home()'::regprocedure))>0
+  and position($q$'description'$q$ in pg_get_functiondef('app_public.portal_get_home()'::regprocedure))>0,
+  'Portal home returns scoped managed fields for safe Store Information hydration');
 select ok(not has_function_privilege('anon','app_public.portal_get_home()','EXECUTE')
   and has_function_privilege('authenticated','app_public.portal_get_home()','EXECUTE'),'Portal RPCs are authenticated only');
 select ok(has_table_privilege('identity_service','app_public.stores','SELECT,UPDATE')

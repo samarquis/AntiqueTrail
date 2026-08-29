@@ -40,6 +40,7 @@ export interface AdminClient {
   ): Promise<AdminDecisionResult>
   listStoreGrants(retry?: boolean): Promise<AdminStoreScope[]>
   previewStoreScopeChange(
+    operation: 'revoke' | 'regrant',
     subjectUserId: string,
     storeId: string,
     expectedVersion: number,
@@ -90,8 +91,9 @@ export function createAdminClient(transport: AdminRpcTransport): AdminClient {
         p_idempotency_key: idempotencyKey,
       }),
     listStoreGrants: () => call('admin_list_store_scopes'),
-    previewStoreScopeChange: (subjectUserId, storeId, expectedVersion) =>
+    previewStoreScopeChange: (operation, subjectUserId, storeId, expectedVersion) =>
       call('admin_preview_store_scope_change', {
+        p_operation: operation,
         p_subject_user_id: subjectUserId,
         p_store_id: storeId,
         p_expected_version: expectedVersion,

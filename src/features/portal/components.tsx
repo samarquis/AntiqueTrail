@@ -85,6 +85,12 @@ function PortalNav() {
           <Link to="/store-portal/hours">Hours &amp; holidays</Link>
         </li>
         <li>
+          <Link to="/store-portal/info">Store information</Link>
+        </li>
+        <li>
+          <Link to="/store-portal/changes">Pending changes</Link>
+        </li>
+        <li>
           <Link to="/store-portal/updates">Store Updates</Link>
         </li>
         <li>
@@ -1078,20 +1084,55 @@ export function PortalManagedFieldsPage({
 }: {
   client?: PortalClient
 }) {
-  const [fields, setFields] = useState<PortalManagedFields>({
-    phone: '',
-    website: '',
-    description: '',
-  })
+  const [fields, setFields] = useState<PortalManagedFields | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    client
+      .getHome()
+      .then((home) => {
+        if (cancelled) return
+        if (!home.managedFields) {
+          setError(true)
+          return
+        }
+        setFields(home.managedFields)
+      })
+      .catch(() => {
+        if (!cancelled) setError(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [client])
   function submit(event: FormEvent) {
     event.preventDefault()
+    if (!fields) return
+    setError(false)
     client
       .saveManagedFields(fields)
       .then(() => setStatus('Managed fields published immediately.'))
       .catch(() => setError(true))
   }
+  if (error)
+    return (
+      <PortalCard
+        title="Store information unavailable"
+        description="Your approved store information could not be loaded."
+      >
+        <GenericPortalError />
+      </PortalCard>
+    )
+  if (!fields)
+    return (
+      <PortalCard
+        title="Store information"
+        description="Loading approved store information before it can be changed."
+      >
+        <Loading />
+      </PortalCard>
+    )
   return (
     <PortalCard
       title="Store information"
