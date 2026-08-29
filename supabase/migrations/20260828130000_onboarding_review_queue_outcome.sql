@@ -186,9 +186,9 @@ begin
   return result;
 end $$;
 alter function app_public.admin_decide_review_case(text,text,text,bigint,text) owner to identity_service;
-reset role;
-revoke create on schema admin_private,app_public from identity_service;
-
 revoke all on function admin_private.review_case_json(uuid) from public,anon,authenticated;
 revoke all on function app_public.admin_list_review_cases(),app_public.admin_decide_review_case(text,text,text,bigint,text) from public,anon;
 grant execute on function app_public.admin_list_review_cases(),app_public.admin_decide_review_case(text,text,text,bigint,text) to authenticated;
+
+reset role;
+revoke create on schema admin_private,app_public from identity_service;
