@@ -141,3 +141,9 @@ Packages 6A, 6B, and 7 live flows passed the fresh browser run. Review notes rem
 | âœ… 100% / Wowed | #16, #19, #20, #21, #22, #23, #24, #25, #26 |
 | ðŸŸ¡ Review notes | #17 (Review Hours harness divergence), PR #49 (Supabase Preview check skipped), 3 e2e test defects |
 | ðŸ”´ Not ready for review (evidence gates) | #2, #3, #4, #5, #6, #7, #9, #10, #11, #18, #27, #28, #29, #30, #46 |
+
+---
+
+## Issue #145 review-context strip — 2026-08-28
+
+Review-only context now uses a compact strip rather than the generic `page-card` surface. Focused harness tests and the review-harness browser sweep passed; the sweep covers public, shopper, representative, and administrator routes at configured desktop/tablet/mobile viewports plus an explicit 320 CSS-px pass. Evidence: `docs/evidence/issue-145/review-context-2026-08-28.md`.

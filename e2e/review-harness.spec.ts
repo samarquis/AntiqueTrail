@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const roles = [
   ['anonymous', 'Anonymous shopper', 'Anonymous'],
@@ -7,6 +7,26 @@ const roles = [
   ['representative', 'Store Representative', 'Representative'],
   ['administrator', 'Administrator', 'Administrator'],
 ] as const
+
+async function expectCompactReviewContext(page: Page) {
+  const banner = page.getByLabel('Local review harness')
+  await expect(banner).toBeVisible()
+  await expect(banner).not.toHaveClass(/page-card/)
+  await expect(banner.getByRole('link', { name: 'Switch or reset' })).toBeVisible()
+  const dimensions = await banner.evaluate((element) => {
+    const bannerRect = element.getBoundingClientRect()
+    const linkRect = element.querySelector('a')!.getBoundingClientRect()
+    return {
+      bannerWidth: bannerRect.width,
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+      linkHeight: linkRect.height,
+    }
+  })
+  expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth)
+  expect(dimensions.bannerWidth).toBeLessThanOrEqual(dimensions.viewportWidth)
+  expect(dimensions.linkHeight).toBeGreaterThanOrEqual(48)
+}
 
 test.describe('local human-review harness contract', () => {
   for (const [id, label, role] of roles) {
@@ -89,6 +109,28 @@ test.describe('local human-review harness contract', () => {
     await page.getByRole('button', { name: 'Open exact claim' }).click()
     await expect(page.getByRole('heading', { name: 'Claim case' })).toBeVisible()
     await expect(page.getByText(/exact store scope: blue finch curios/i)).toBeVisible()
+  })
+
+  test('compact review context stays subordinate and usable on every audience route', async ({
+    page,
+  }) => {
+    const routes = [
+      '/stores?reviewAs=anonymous&reviewState=success',
+      '/saved?reviewAs=shopper-a&reviewState=success',
+      '/trips?reviewAs=shopper-a&reviewState=success',
+      '/store-portal?reviewAs=representative&reviewState=success',
+      '/admin?reviewAs=administrator&reviewState=success',
+    ]
+    for (const route of routes) {
+      await page.goto(route)
+      await expectCompactReviewContext(page)
+    }
+
+    await page.setViewportSize({ width: 320, height: 900 })
+    for (const route of routes) {
+      await page.goto(route)
+      await expectCompactReviewContext(page)
+    }
   })
 
   test('administrator reaches its guard while a shopper is denied', async ({ page }) => {
