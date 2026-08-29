@@ -2,6 +2,8 @@
 -- The prior three-argument preview could only represent regrant while the UI
 -- required it before revoke, leaving active scopes unable to reach revocation.
 
+grant create on schema app_public to identity_service;
+
 drop function app_public.admin_preview_store_scope_change(text,text,bigint);
 
 create function app_public.admin_preview_store_scope_change(
@@ -184,3 +186,4 @@ begin
   return result;
 end $$;
 alter function app_public.admin_change_store_scope(text,text,text,bigint,text,text,text) owner to identity_service;
+revoke create on schema app_public from identity_service;

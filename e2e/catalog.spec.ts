@@ -252,8 +252,8 @@ test.describe('Synthetic catalog design contract', () => {
     await searchInput.fill('Cedar')
     await page.keyboard.press('Enter')
     await expect(page).toHaveURL(/\/stores\?q=Cedar$/)
-    await expect(page.getByRole('link', { name: 'Cedar & Brass' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Blue Finch Curios' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Cedar & Brass', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Blue Finch Curios', exact: true })).toHaveCount(0)
   })
 
   test('shows trustworthy card hours and meaningful loaded imagery', async ({ page }) => {

@@ -434,7 +434,7 @@ test.describe('UI-05 authentication and private-shopper acceptance', () => {
 
     await page.goto(reviewUrl('/new-since', 'shopper-a'))
     await page.getByLabel('Choose an area').selectOption('topeka')
-    await expect(page.getByRole('link', { name: 'Blue Finch Curios' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Blue Finch Curios', exact: true })).toBeVisible()
     await capture('new-since')
 
     await page.goto(reviewUrl('/saved', 'shopper-a'))
