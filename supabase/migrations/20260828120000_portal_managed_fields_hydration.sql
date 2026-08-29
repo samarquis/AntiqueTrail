@@ -1,5 +1,8 @@
 -- The Store Information form sends a complete managed-field object. Return the approved
 -- values from the already scoped Portal home RPC so a partial edit cannot blank the rest.
+grant create on schema app_public to identity_service;
+set role identity_service;
+
 create or replace function app_public.portal_get_home()
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare actor uuid:=app_public.request_user_id(); target uuid:=portal_private.require_portal_scope(); s app_public.stores%rowtype; p portal_private.store_profiles%rowtype; freshness text; verified timestamptz; source text;
@@ -18,6 +21,8 @@ begin
     'managedFields',jsonb_build_object('phone',coalesce(s.phone,''),'website',coalesce(s.website,''),'description',coalesce(s.description,'')));
 end $$;
 alter function app_public.portal_get_home() owner to identity_service;
+reset role;
+revoke create on schema app_public from identity_service;
 
 revoke all on function app_public.portal_get_home() from public,anon;
 grant execute on function app_public.portal_get_home() to authenticated;

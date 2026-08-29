@@ -1,6 +1,10 @@
 -- Issue #138: expose a narrow, server-authoritative onboarding decision view.
 -- No evidence references, consent receipts, user IDs, or preview hashes cross this boundary.
 
+grant usage on schema media_private to identity_service;
+grant create on schema admin_private,app_public to identity_service;
+set role identity_service;
+
 create or replace function admin_private.review_case_json(target uuid)
 returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare c admin_private.admin_review_cases%rowtype; context jsonb:='{}'::jsonb; actions jsonb:='["approve","return","reject"]'::jsonb; label text:='Exact store';
@@ -182,6 +186,8 @@ begin
   return result;
 end $$;
 alter function app_public.admin_decide_review_case(text,text,text,bigint,text) owner to identity_service;
+reset role;
+revoke create on schema admin_private,app_public from identity_service;
 
 revoke all on function admin_private.review_case_json(uuid) from public,anon,authenticated;
 revoke all on function app_public.admin_list_review_cases(),app_public.admin_decide_review_case(text,text,text,bigint,text) from public,anon;
