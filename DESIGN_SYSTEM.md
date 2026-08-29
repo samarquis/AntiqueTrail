@@ -4,6 +4,10 @@ Status: approved planning baseline, including the 2026-08-18 Midnight Archive vi
 
 `DESIGN.md` controls behavior and journey intent. This file controls exact visual tokens, recurring component states, responsive behavior, navigation, and screen-level acceptance. `docs/design/ICON_PLACEMENT_SPEC.md` controls the approved placement of the Antique Trail icon family. Product, security, or retention policy never comes from a prototype.
 
+## Brand review references
+
+The proposed governed [mood](docs/design/mood.md), [voice](docs/design/voice.md), and [token review index](docs/design/tokens.md) translate this approved system into repeatable Mood, Voice, and Token Compliance critiques. They are subordinate review aids: they do not override product/trust policy, `DESIGN.md` interaction and copy intent, or this file's exact visual rules. Use the [brand reference review checklist](docs/design/BRAND_REFERENCE_REVIEW_CHECKLIST.md); stop and reconcile controlling sources whenever a reference conflicts.
+
 ## Concept evidence and implementation authority
 
 - Concept-only repository reference: `docs/design/antique-trail-flow-lab.html`; it is not implementation traceability or acceptance evidence until reconciled

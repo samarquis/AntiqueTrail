@@ -29,6 +29,10 @@
     "docs/design/PALETTE_PROPOSAL.md",
     "docs/design/palette-midnight-archive.svg",
     "docs/design/ICON_PLACEMENT_SPEC.md",
+    "docs/design/mood.md",
+    "docs/design/voice.md",
+    "docs/design/tokens.md",
+    "docs/design/BRAND_REFERENCE_REVIEW_CHECKLIST.md",
     "docs/design/antique-trail-storefront-icon-v3.svg",
     "docs/design/antique-trail-storefront-shirt-lockup.svg",
     "docs/design/STOREFRONT_IDENTITY_GAUNTLET.md",
@@ -48,5 +52,5 @@
     "public/icons/private-notes.svg",
     "public/icons/store-details.svg"
   ],
-  "purpose": "Approved product, design, security, architecture, and implementation context"
+  "purpose": "Governed product, design, security, architecture, implementation context, and file-status-controlled proposed review indexes"
 }
