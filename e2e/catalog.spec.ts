@@ -310,6 +310,9 @@ test.describe('Synthetic catalog design contract', () => {
     await expect(card.getByRole('img', { name: 'Store image unavailable' })).toBeVisible()
     await expect(card).toContainText(/Photo coming soon/i)
     await expect(card.getByRole('link', { name: 'Blue Finch Curios', exact: true })).toBeVisible()
+    await expect(
+      card.getByRole('link', { name: 'View Blue Finch Curios details', exact: true }),
+    ).toHaveAttribute('href', '/stores/blue-finch-curios')
     await expect(card.locator('.catalog-card__hours')).toContainText(
       /Open|Closed|Hours unavailable/,
     )
@@ -364,6 +367,86 @@ test('store cards offer Add to Trip with a deep link', async ({ page }) => {
   const add = page.locator('.catalog-card__add-to-trip').first()
   await expect(add).toHaveText('Add to Trip')
   await expect(add).toHaveAttribute('href', /\/trips\/new\?addStoreId=/)
+})
+
+test('catalog detail destination is explicit, primary, and keyboard-operable', async ({ page }) => {
+  for (const viewport of [
+    { width: 1440, height: 1000 },
+    { width: 768, height: 1024 },
+    { width: 320, height: 800 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.emulateMedia({ colorScheme: 'light', forcedColors: 'none' })
+    await page.goto('/stores?reviewAs=anonymous&reviewState=success')
+
+    const card = page.locator('.catalog-card').first()
+    const title = card.getByRole('link', { name: 'Blue Finch Curios', exact: true })
+    const details = card.getByRole('link', { name: 'View Blue Finch Curios details', exact: true })
+    const actions = card.getByRole('region', { name: 'Visit options for Blue Finch Curios' })
+    const addToTrip = actions.getByRole('link', { name: 'Add to Trip', exact: true })
+    const signIn = actions.getByRole('link', { name: 'Sign in to save store', exact: true })
+
+    await expect(title).toHaveAttribute('href', '/stores/blue-finch-curios')
+    await expect(details).toBeVisible()
+    await expect(details).toHaveClass(/\bbutton\b/)
+    await expect(details).toHaveClass(/\bcatalog-card__details\b/)
+    await expectExactPath(details, '/stores/blue-finch-curios')
+    await expect(addToTrip).toHaveAttribute('href', /\/trips\/new\?addStoreId=/)
+    await expect(addToTrip).toHaveClass(/\bbutton--secondary\b/)
+    await expect(signIn).toBeVisible()
+
+    const geometry = await details.evaluate((detailsNode) => {
+      const detailsRect = detailsNode.getBoundingClientRect()
+      const actionsNode = detailsNode
+        .closest('.catalog-card')
+        ?.querySelector('.catalog-card__actions')
+      const actionsRect = actionsNode?.getBoundingClientRect()
+      return {
+        height: detailsRect.height,
+        width: detailsRect.width,
+        beforeActions: !actionsRect || detailsRect.bottom <= actionsRect.top,
+      }
+    })
+    expect(geometry.height).toBeGreaterThanOrEqual(48)
+    expect(geometry.width).toBeGreaterThanOrEqual(48)
+    expect(geometry.beforeActions).toBe(true)
+
+    await details.focus()
+    await page.keyboard.press('Tab')
+    await expect(addToTrip).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(signIn).toBeFocused()
+    await details.focus()
+    await page.keyboard.press('Enter')
+    await expect(page).toHaveURL(/\/stores\/blue-finch-curios$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeFocused()
+  }
+
+  for (const appearance of [
+    { colorScheme: 'dark' as const, forcedColors: 'none' as const, theme: 'dark' },
+    { colorScheme: 'light' as const, forcedColors: 'active' as const, theme: undefined },
+  ]) {
+    await page.setViewportSize({ width: 320, height: 800 })
+    await page.emulateMedia({
+      colorScheme: appearance.colorScheme,
+      forcedColors: appearance.forcedColors,
+    })
+    await page.goto('/stores?reviewAs=anonymous&reviewState=success')
+    await page.locator('html').evaluate((element, theme) => {
+      if (theme) element.dataset.theme = theme
+      else delete element.dataset.theme
+    }, appearance.theme)
+    const card = page.locator('.catalog-card').first()
+    const details = card.getByRole('link', { name: 'View Blue Finch Curios details', exact: true })
+    await expect(details).toBeVisible()
+    await details.focus()
+    await expect(details).toBeFocused()
+    await expectMinimumTargets(page)
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(1)
+  }
 })
 
 test('catalog action area keeps visit planning first across anonymous and shopper states', async ({

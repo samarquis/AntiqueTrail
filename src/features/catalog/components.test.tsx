@@ -73,6 +73,27 @@ describe('catalog private-action integration seam', () => {
       'href',
       `/AntiqueTrail/stores/${syntheticStores[0].slug}`,
     )
+    expect(
+      screen.getByRole('link', { name: `View ${syntheticStores[0].name} details` }),
+    ).toHaveAttribute('href', `/AntiqueTrail/stores/${syntheticStores[0].slug}`)
+  })
+
+  it('makes the exact store details route primary without changing the trip deep link', async () => {
+    render(<BrowsePage client={client()} />)
+
+    const details = await screen.findByRole('link', {
+      name: `View ${syntheticStores[0].name} details`,
+    })
+    expect(details).toHaveClass('button', 'catalog-card__details')
+    expect(details).toHaveAttribute('href', `/stores/${syntheticStores[0].slug}`)
+    expect(screen.getByRole('link', { name: syntheticStores[0].name })).toHaveAttribute(
+      'href',
+      `/stores/${syntheticStores[0].slug}`,
+    )
+    expect(screen.getByRole('link', { name: 'Add to Trip' })).toHaveAttribute(
+      'href',
+      `/trips/new?addStoreId=${encodeURIComponent(syntheticStores[0].id)}`,
+    )
   })
 
   it('defaults to Package 1 filters and exposes a labeled filter panel contract', async () => {
