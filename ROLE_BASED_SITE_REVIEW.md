@@ -1,5 +1,7 @@
 # Antique Trail — Role-Based Site Review
 
+Status: historical review-harness snapshot from 2026-08-18. Its pass verdict and single finding apply only to that dated synthetic build; subsequent implementation and critique work changed multiple role surfaces. Use `PROJECT_STATE.md` and current issue/evidence records for present status.
+
 **Reviewer**: Product Owner (browser-verified via the review harness + Playwright)
 **Date**: 2026-08-18
 **Harness**: Vite dev server on `http://127.0.0.1:4173` (current source), identities via `?reviewAs=<id>&reviewState=success`

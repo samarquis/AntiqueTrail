@@ -1,6 +1,6 @@
 # Regional Public MVP Package Execution Contracts
 
-Status: normative engineering handoff for Packages 2â€“12. This file translates approved behavior into bounded implementation contracts; it does not override product behavior in `PRODUCT_DECISIONS.md`, interaction behavior in `DESIGN.md`, visual rules in `DESIGN_SYSTEM.md`, or security policy in `SECURITY_AND_TRUST.md`. Package 1 remains controlled by the bounded contract in `IMPLEMENTATION_PLAN.md`. Application coding remains held until a separate explicit Product Owner instruction.
+Status: normative engineering handoff for Packages 2â€“13. This file translates approved behavior into bounded implementation contracts; it does not report current completion and does not override product behavior in `PRODUCT_DECISIONS.md`, interaction behavior in `DESIGN.md`, visual rules in `DESIGN_SYSTEM.md`, or security policy in `SECURITY_AND_TRUST.md`. Package 1 remains controlled by the bounded contract in `IMPLEMENTATION_PLAN.md`; current implementation and release state live in `PROJECT_STATE.md`.
 
 ## Shared execution rules
 

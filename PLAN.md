@@ -1,5 +1,7 @@
 # Plan: Close or honestly gate all 11 open GitHub tickets (#56,#101,#104,#113–121)
 
+Status: historical execution plan written 2026-08-24. It is not the current backlog or project plan; several named issues later closed and new issues were filed. Use `PROJECT_STATE.md` and live GitHub state for current work. Preserve this file as the original coordination contract.
+
 Depth: tree 3   Mode: orchestrated (8 concurrent leaf slots, shared-resource serialization)
 
 ## Contract

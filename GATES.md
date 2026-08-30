@@ -1,5 +1,7 @@
 # Issue #122 — completion gates
 
+Status: historical, issue-specific completion ledger. Issue #122 closed on 2026-08-27. This file is not a global project or release gate; use the relevant `gates/*.md`, GitHub issue, `PROJECT_STATE.md`, and #56 release ledger for current state.
+
 Contract source: GitHub issue #122, “[BUG][P0] Restore PortalClient type safety after media-history API additions”, read 2026-08-26.
 
 - [x] G1. Issue contract and current failure are recorded.

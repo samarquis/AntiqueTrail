@@ -1,6 +1,6 @@
 ﻿# TDD Development Plan
 
-**Date**: 2026-08-23 Â· **Status**: Tickets cut; coding NOT started â€” awaits explicit Product Owner start instruction (IMPLEMENTATION_PLAN.md line 5)
+**Date**: 2026-08-23 · **Status**: historical ticket-cut plan. Coding later proceeded and several named tickets closed; use `PROJECT_STATE.md` and live GitHub state for current progress.
 **Inputs**: DEEP_SPEC_REVIEW.md (2026-08-16 browser review), REVIEW_VERDICTS.md, docs/specs/store-membership-spec.md (#87), PRODUCT_DECISIONS.md Â§Photo moderation criteria (#92) + Â§Photo-tier memberships, docs/research/gallery-photo-data-access.md (#95), docs/operations/G56_RELEASE_GATE_STATUS_LEDGER.md (#56)
 
 ## Situation summary

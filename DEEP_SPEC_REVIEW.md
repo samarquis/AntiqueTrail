@@ -1,5 +1,7 @@
 # Antique Trail — Deep Spec-vs-App Review
 
+Status: historical browser/spec snapshot from 2026-08-16. Its eight named deviations were later tracked and repaired through issues #105-#112; do not report them as current defects without reproducing them against `main`. Use `PROJECT_STATE.md` for current gaps and `REVIEW_VERDICTS.md` plus dated evidence for the repair trail.
+
 **Reviewer**: Product Owner (browser-verified via the review harness + Playwright)
 **Date**: 2026-08-16
 **Harness**: `npm run dev:review` on `http://127.0.0.1:4175`; identities via `?reviewAs=<id>&reviewState=success`
