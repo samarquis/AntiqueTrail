@@ -1,6 +1,6 @@
 -- Package 13 subscription state transition tests (red-first)
 -- Tests resolve_store_photo_cap behavior as store_subscriptions state transitions:
--- none -> active (featured/unlimited) -> past_due -> grace -> canceled
+-- none -> active (gallery/full_gallery) -> past_due -> grace -> canceled
 -- Each transition must update store_photo_tier_state and resolve_store_photo_cap accordingly.
 
 begin;
@@ -28,27 +28,27 @@ insert into partner_private.store_photo_tier_state (store_id, tier, source)
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000002'),5,
   'explicit free tier -> cap 5');
 
--- Test 3: Featured tier (subscription) -> cap 15
+-- Test 3: Gallery tier (subscription) -> cap 15
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000003','featured','subscription')
-  on conflict (store_id) do update set tier='featured',source='subscription';
+  values ('00000000-0000-4000-8000-000000000003','gallery','subscription')
+  on conflict (store_id) do update set tier='gallery',source='subscription';
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000003'),15,
-  'featured subscription tier -> cap 15');
+  'gallery subscription tier -> cap 15');
 
--- Test 4: Unlimited tier (subscription) -> cap null (uncapped)
+-- Test 4: Full_gallery tier (subscription) -> cap null (uncapped)
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000004','unlimited','subscription')
-  on conflict (store_id) do update set tier='unlimited',source='subscription';
+  values ('00000000-0000-4000-8000-000000000004','full_gallery','subscription')
+  on conflict (store_id) do update set tier='full_gallery',source='subscription';
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000004'),null,
-  'unlimited subscription tier -> uncapped (null)');
+  'full_gallery subscription tier -> uncapped (null)');
 
 -- Test 5: Subscription state change active -> past_due -> tier stays subscription until grace
--- Simulate billing_apply_subscription_event effect: active sets tier=featured, source=subscription
+-- Simulate billing_apply_subscription_event effect: active sets tier=gallery, source=subscription
 insert into partner_private.store_subscriptions (store_id, stripe_customer_id, stripe_subscription_id, state, current_period_end)
   values ('00000000-0000-4000-8000-000000000005','cus_test1234','sub_test1234','active','2099-12-31 23:59:59+00');
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000005','featured','subscription')
-  on conflict (store_id) do update set tier='featured',source='subscription';
+  values ('00000000-0000-4000-8000-000000000005','gallery','subscription')
+  on conflict (store_id) do update set tier='gallery',source='subscription';
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000005'),15,
   'active subscription -> cap 15');
 
@@ -70,19 +70,19 @@ select partner_private.apply_due_subscription_lifecycles(statement_timestamp(),1
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000005'),5,
   'grace sweep downgrades tier to free');
 
--- Test 8: Store with explicit featured tier (not subscription) remains featured
+-- Test 8: Store with explicit gallery tier (not subscription) remains gallery
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000006','featured','subscription')
-  on conflict (store_id) do update set tier='featured',source='default';
+  values ('00000000-0000-4000-8000-000000000006','gallery','subscription')
+  on conflict (store_id) do update set tier='gallery',source='default';
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000006'),15,
-  'explicit featured tier (default source) -> cap 15');
+  'explicit gallery tier (default source) -> cap 15');
 
 -- Test 9: Subscription cancel -> tier drops to free, source=default
 insert into partner_private.store_subscriptions (store_id, stripe_customer_id, stripe_subscription_id, state, current_period_end)
   values ('00000000-0000-4000-8000-000000000007','cus_test1234','sub_test1234','active','2099-12-31 23:59:59+00');
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000007','featured','subscription')
-  on conflict (store_id) do update set tier='featured',source='subscription';
+  values ('00000000-0000-4000-8000-000000000007','gallery','subscription')
+  on conflict (store_id) do update set tier='gallery',source='subscription';
 -- Simulate cancellation webhook
 update partner_private.store_subscriptions
   set state='canceled', downgrade_to='free', current_period_end=statement_timestamp()
@@ -103,10 +103,10 @@ insert into partner_private.store_subscriptions (store_id, stripe_customer_id, s
   on conflict (store_id) do update set stripe_customer_id='cus_test2345',stripe_subscription_id='sub_test2345',state='active',current_period_end='2099-12-31 23:59:59+00',downgrade_to=null,hide_photos_after=null;
 -- New active subscription -> tier becomes subscription tier
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000007','unlimited','subscription')
-  on conflict (store_id) do update set tier='unlimited',source='subscription',updated_at=statement_timestamp(),version=store_photo_tier_state.version+1;
+  values ('00000000-0000-4000-8000-000000000007','full_gallery','subscription')
+  on conflict (store_id) do update set tier='full_gallery',source='subscription',updated_at=statement_timestamp(),version=store_photo_tier_state.version+1;
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000007'),null,
-  'resubscribe unlimited -> cap uncapped');
+  'resubscribe full_gallery -> cap uncapped');
 
 -- Test 11: Hidden photo grace closure (grace -> canceled after 30 days) retains free tier
 insert into partner_private.store_subscriptions (store_id, stripe_customer_id, state, hide_photos_after)
@@ -121,8 +121,8 @@ select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-00000
 
 -- Test 12: Cap resolution is stable across state changes (no phantom changes)
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000009','featured','subscription')
-  on conflict (store_id) do update set tier='featured',source='subscription';
+  values ('00000000-0000-4000-8000-000000000009','gallery','subscription')
+  on conflict (store_id) do update set tier='gallery',source='subscription';
 -- Multiple calls should return consistent cap
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000009'),15,
   'first call -> 15');
@@ -131,24 +131,24 @@ select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-00000
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000009'),15,
   'third call -> 15 (stable)');
 
--- Test 13: Subscription state none with explicit featured tier row (source=default) -> cap 15
+-- Test 13: Subscription state none with explicit gallery tier row (source=default) -> cap 15
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000010','featured','subscription')
-  on conflict (store_id) do update set tier='featured',source='default';
+  values ('00000000-0000-4000-8000-000000000010','gallery','subscription')
+  on conflict (store_id) do update set tier='gallery',source='default';
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000010'),15,
-  'subscription=none with explicit featured tier -> cap 15');
+  'subscription=none with explicit gallery tier -> cap 15');
 
--- Test 14: Subscription state change from featured -> unlimited upgrades cap
+-- Test 14: Subscription state change from gallery -> full_gallery upgrades cap
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000011','featured','subscription')
-  on conflict (store_id) do update set tier='featured',source='subscription';
+  values ('00000000-0000-4000-8000-000000000011','gallery','subscription')
+  on conflict (store_id) do update set tier='gallery',source='subscription';
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000011'),15,
-  'featured subscription -> 15');
+  'gallery subscription -> 15');
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000011','unlimited','subscription')
-  on conflict (store_id) do update set tier='unlimited',source='subscription';
+  values ('00000000-0000-4000-8000-000000000011','full_gallery','subscription')
+  on conflict (store_id) do update set tier='full_gallery',source='subscription';
 select is(partner_private.resolve_store_photo_cap('00000000-0000-4000-8000-000000000011'),null,
-  'upgrade to unlimited -> uncapped');
+  'upgrade to full_gallery -> uncapped');
 
 select * from finish();
 rollback;

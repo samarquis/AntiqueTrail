@@ -22,7 +22,7 @@ select ok(coalesce((select bool_or(pg_get_constraintdef(oid) ilike '%past_due%gr
 
 select has_function('partner_private','resolve_store_photo_cap',array['uuid'],'photo cap helper exists');
 select is(partner_private.resolve_store_photo_cap(gen_random_uuid()),5,'stores without tier rows keep the grandfathered free cover+5 cap');
-select ok(position('unlimited' in lower(pg_get_functiondef('partner_private.resolve_store_photo_cap(uuid)'::regprocedure)))>0 and position('15' in pg_get_functiondef('partner_private.resolve_store_photo_cap(uuid)'::regprocedure))>0,'cap helper resolves featured 15 and unlimited uncapped');
+select ok(position('full_gallery' in lower(pg_get_functiondef('partner_private.resolve_store_photo_cap(uuid)'::regprocedure)))>0 and position('15' in pg_get_functiondef('partner_private.resolve_store_photo_cap(uuid)'::regprocedure))>0,'cap helper resolves gallery 15 and full_gallery uncapped');
 select ok(has_function_privilege('media_automation','partner_private.resolve_store_photo_cap(uuid)','EXECUTE'),'M-01 intake consumes the resolved cap');
 
 select has_function('app_public','billing_get_capability',array[]::text[],'billing capability RPC exists');

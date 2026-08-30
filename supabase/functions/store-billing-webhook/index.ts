@@ -30,8 +30,8 @@ function received(result: string): Response {
 
 function tierForPrice(priceId: unknown): string | null {
   if (typeof priceId !== 'string') return null
-  if (priceId && priceId === env.priceFeatured) return 'featured'
-  if (priceId && priceId === env.priceUnlimited) return 'unlimited'
+  if (priceId && priceId === env.priceFeatured) return 'gallery'
+  if (priceId && priceId === env.priceUnlimited) return 'full_gallery'
   return null
 }
 

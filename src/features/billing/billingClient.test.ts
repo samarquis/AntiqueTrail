@@ -44,7 +44,7 @@ describe('billing capability gating', () => {
     await client.startCheckout({
       storeId: 'store-1',
       idempotencyKey,
-      tier: 'featured',
+      tier: 'gallery',
     })
     await client.openPortal('store-1')
 
@@ -75,7 +75,7 @@ describe('billing capability gating', () => {
       unavailableBillingClient.startCheckout({
         storeId: 'store-1',
         idempotencyKey: '0b8df3be-6f5e-4a55-9c1d-2f1f7bd2f4aa',
-        tier: 'unlimited',
+        tier: 'full_gallery',
       }),
     ).rejects.toThrow(GENERIC_BILLING_ERROR)
     expect(BILLING_STAGE_DISABLED_MESSAGE).toMatch(/not available/)
