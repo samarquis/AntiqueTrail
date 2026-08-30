@@ -21,7 +21,7 @@ Issue closure proves only the issue's accepted scope. It does not prove provider
 
 The controlling plan and design are locked by default. Only an explicit Product Owner directive containing `update plan` authorizes a plan amendment; tickets, critiques, prototypes, implementation requests, and pull requests cannot silently change intended behavior. `PLAN_GOVERNANCE.md` controls amendments, decisions, ticket admission, traceability, and closure, while `PLAN_CHANGELOG.md` records authorized amendments append-only.
 
-Repository issue and pull-request templates plus plan-governance workflows enforce the required reason-to-plan-to-acceptance trace. Invalid tickets lose implementation-ready labels, and protected plan changes require both the authorization directive and a changelog receipt. Hosted `main` protection remains a separately verified repository setting and must require pull requests plus the web, database, and plan-governance checks.
+Repository issue and pull-request templates plus plan-governance workflows enforce the required reason-to-plan-to-acceptance trace. Invalid tickets lose implementation-ready labels, and protected plan changes require both the authorization directive and a changelog receipt. Hosted `main` protection was verified on 2026-08-30: it applies to administrators, requires pull requests with resolved conversations and strict current-branch `web`, `database`, and `plan-governance` checks, and denies force pushes and deletion.
 
 ### Current color and visual direction
 
