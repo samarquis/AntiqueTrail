@@ -5,6 +5,18 @@ import postcss from 'postcss'
 import { describe, expect, it } from 'vitest'
 
 const styles = readFileSync(resolve(process.cwd(), 'src/app/styles.css'), 'utf8')
+const storePhotosSource = readFileSync(
+  resolve(process.cwd(), 'src/features/catalog/StorePhotosPage.tsx'),
+  'utf8',
+)
+const storeGallerySource = readFileSync(
+  resolve(process.cwd(), 'src/features/catalog/components.tsx'),
+  'utf8',
+)
+const mediaOverlaySource = readFileSync(
+  resolve(process.cwd(), 'src/features/catalog/mediaOverlay.tsx'),
+  'utf8',
+)
 
 function declarations(selector: string) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -184,6 +196,83 @@ describe('shared native form-control tokens', () => {
     expect(styles).toContain('border: 1px solid CanvasText;')
     expect(styles).not.toContain('border: 1px solid #a9aba1;')
     expect(styles).not.toContain('color: #6a7d76;')
+  })
+})
+
+describe('shared media overlay contrast contract', () => {
+  it('uses opaque tokens that exceed caption and control contrast floors in both themes', () => {
+    const root = declarations(':root')
+    const surface = token(root, 'media-overlay-surface')
+    const foreground = token(root, 'media-overlay-text')
+    const ratio = contrast(surface, foreground)
+
+    expect(Number.isFinite(ratio)).toBe(true)
+    expect(ratio).toBeGreaterThanOrEqual(4.5)
+    expect(ratio).toBeGreaterThanOrEqual(3)
+    expect(declarations(":root[data-theme='dark']")).not.toContain('--media-overlay-')
+    expect(surface).toMatch(/^#[0-9a-f]{6}$/i)
+    expect(foreground).toMatch(/^#[0-9a-f]{6}$/i)
+  })
+
+  it('puts every caption, unavailable state, and lightbox control on the shared surface', () => {
+    const surface = declarations('.media-overlay-surface')
+    expect(surface).toContain('color: var(--media-overlay-text);')
+    expect(surface).toContain('background: var(--media-overlay-surface);')
+    expect(surface).toContain('opacity: 1;')
+    expect(surface).not.toMatch(/gradient|rgba?|color-mix/i)
+    expect(styles).not.toMatch(/linear-gradient\(transparent,\s*rgb\(32 40 51/i)
+
+    expect(storePhotosSource).toMatch(
+      /MediaCaption media=\{item\} className="store-photos__feature-caption"/,
+    )
+    expect(storePhotosSource).toMatch(/MediaTileOverlay media=\{item\}/)
+    expect(storePhotosSource).toMatch(
+      /MediaCaption media=\{lightboxPhoto\} className="store-photos__lightbox-caption"/,
+    )
+    expect(storeGallerySource).toMatch(
+      /MediaCaption media=\{selected\} className="store-gallery__plate"/,
+    )
+    expect(storeGallerySource).toMatch(
+      /MediaCaption media=\{selected\} className="store-gallery__room-caption"/,
+    )
+    expect(mediaOverlaySource).toMatch(/classNames\(MEDIA_OVERLAY_SURFACE_CLASS, className\)/)
+    for (const source of [storePhotosSource, storeGallerySource]) {
+      expect(source.match(/MEDIA_OVERLAY_CONTROL_CLASS/g)?.length).toBe(4)
+    }
+    for (const selector of [
+      'store-photos__lightbox-close',
+      'store-photos__lightbox-nav store-photos__lightbox-nav--prev',
+      'store-photos__lightbox-nav store-photos__lightbox-nav--next',
+    ]) {
+      expect(storePhotosSource).toContain(
+        `className={\`${'${MEDIA_OVERLAY_CONTROL_CLASS}'} ${selector}\`}`,
+      )
+    }
+    for (const selector of [
+      'store-gallery__room-close',
+      'store-gallery__room-nav store-gallery__room-nav--prev',
+      'store-gallery__room-nav store-gallery__room-nav--next',
+    ]) {
+      expect(storeGallerySource).toContain(
+        `className={\`${'${MEDIA_OVERLAY_CONTROL_CLASS}'} ${selector}\`}`,
+      )
+    }
+    expect(styles).not.toMatch(/overflow-x:\s*(?:clip|hidden)/i)
+  })
+
+  it('keeps tile information persistent with explicit focus and forced-colors boundaries', () => {
+    expect(declarations('.store-photos__tile-overlay')).not.toMatch(
+      /opacity:\s*0|visibility:\s*hidden|display:\s*none/i,
+    )
+    expect(styles).not.toMatch(/store-photos__tile:(?:hover|focus-visible)[^{]+tile-overlay/i)
+    expect(declarations('.store-photos__tile:focus-visible')).toContain(
+      'outline: 3px solid var(--media-overlay-text);',
+    )
+    expect(declarations('.media-overlay-control.media-overlay-control:focus-visible')).toContain(
+      'outline: 3px solid var(--media-overlay-text);',
+    )
+    expect(styles).toMatch(/@media \(forced-colors: active\)[\s\S]+CanvasText[\s\S]+ButtonFace/)
+    expect(styles).toMatch(/media-overlay-control:focus-visible[\s\S]+outline-color:\s*Highlight/)
   })
 })
 

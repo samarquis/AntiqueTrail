@@ -40,6 +40,39 @@ describe('catalog RPC client', () => {
     await expect(createCatalogClient({ rpc }).details('hidden-store')).resolves.toBeNull()
   })
 
+  it('keeps catalog media on the public src, alt, and kind allowlist', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        id: '1',
+        slug: 'public-store',
+        name: 'Public Store',
+        area_slug: 'topeka-ks',
+        area_label: 'Topeka',
+        categories: [],
+        hours: [],
+        media: [
+          {
+            src: '/public/store.webp',
+            alt: 'Public storefront',
+            kind: 'cover',
+            object_key: 'private/object-key',
+            signed_url: 'https://storage.invalid/signed?token=secret',
+            reviewer_note: 'Internal only',
+            moderation_state: 'pending',
+            provenance: { provider_response: 'secret' },
+          },
+        ],
+      },
+      error: null,
+    })
+
+    const store = await createCatalogClient({ rpc }).details('public-store')
+
+    expect(store?.media).toEqual([
+      { src: '/public/store.webp', alt: 'Public storefront', kind: 'cover' },
+    ])
+  })
+
   it('requests only bounded Browse map coordinates with the active list filters', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {

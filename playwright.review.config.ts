@@ -13,6 +13,7 @@ export default defineConfig({
     'ui09-admin-moderation.spec.ts',
     'ui10-full-spec.spec.ts',
     'issue-144-typography.spec.ts',
+    'issue-143-media-overlay.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),

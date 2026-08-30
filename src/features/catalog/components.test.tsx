@@ -497,7 +497,9 @@ describe('trustworthy Store Details contract', () => {
     await user.click(enlarge)
     const dialog = screen.getByRole('dialog')
     expect(dialog).toBeVisible()
+    expect(document.querySelector<HTMLElement>('.store-gallery__background')?.inert).toBe(true)
     expect(screen.getByRole('button', { name: /close enlarged image/i })).toHaveFocus()
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Photo 2 of 2')
     const enlargedImage = within(dialog).getByRole('img', { name: /oak cabinets inside/i })
     expect(enlargedImage).toHaveAttribute('srcset', expect.stringContaining('/480w/'))
     expect(enlargedImage).toHaveAttribute('srcset', expect.stringContaining('/800w/'))
@@ -506,6 +508,7 @@ describe('trustworthy Store Details contract', () => {
     fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await waitFor(() => expect(enlarge).toHaveFocus())
+    expect(document.querySelector<HTMLElement>('.store-gallery__background')?.inert).toBe(false)
 
     await user.click(enlarge)
     const reopenedDialog = screen.getByRole('dialog')
@@ -621,6 +624,13 @@ describe('store photos page contract', () => {
       src: `/synthetic-stores/1280w/blue-finch-gallery-${index + 1}.webp`,
       alt: `Blue Finch Curios interior photo ${index + 1}`,
       kind: 'gallery' as const,
+      caption:
+        index === 1
+          ? null
+          : index === 3
+            ? 'A long illustrative caption that wraps without hiding the persistent View Photo action or escaping its media tile.'
+            : `Gallery caption ${index + 1}`,
+      rightsLabel: index === 0 ? 'Public fixture attribution' : null,
     })),
   ]
   const galleryStore = { ...syntheticStores[0], media: galleryMedia }
@@ -650,7 +660,25 @@ describe('store photos page contract', () => {
     expect(tiles).toHaveLength(4)
     expect(screen.getByRole('button', { name: /view photo 2:/i })).toBeVisible()
     expect(screen.getByRole('img', { name: /storefront at dusk/i })).toBeVisible()
-    expect(screen.getByText(/front entrance · synthetic image/i)).toBeVisible()
+    expect(document.querySelector('.store-photos__feature-caption')).toHaveTextContent(
+      /front entrance · synthetic image/i,
+    )
+    const captionedTile = screen.getByRole('button', {
+      name: 'View photo 2: Blue Finch Curios interior photo 1 Caption: Gallery caption 1',
+    })
+    expect(captionedTile).toBeVisible()
+    expect(captionedTile).toHaveTextContent('Gallery caption 1')
+    expect(captionedTile).toHaveTextContent('View Photo')
+    expect(captionedTile.querySelector('.store-photos__tile-overlay')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
+    expect(
+      screen.getByRole('button', { name: 'View photo 3: Blue Finch Curios interior photo 2' }),
+    ).toHaveTextContent('View Photo')
+    expect(
+      screen.getByRole('button', { name: /view photo 5: .*caption: a long illustrative caption/i }),
+    ).toHaveTextContent(/wraps without hiding/i)
   })
 
   it('states the honest empty result with a way back when a store has no photos', async () => {
@@ -678,12 +706,17 @@ describe('store photos page contract', () => {
 
     const dialog = screen.getByRole('dialog')
     expect(dialog).toBeVisible()
+    expect(document.querySelector<HTMLElement>('.store-photos__background')?.inert).toBe(true)
     expect(screen.getByRole('button', { name: /close enlarged photo/i })).toHaveFocus()
     expect(within(dialog).getByRole('img', { name: /interior photo 1/i })).toBeVisible()
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Photo 2 of 2')
+    await user.click(within(dialog).getByRole('button', { name: /previous photo/i }))
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Photo 1 of 2')
 
     fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await waitFor(() => expect(tile).toHaveFocus())
+    expect(document.querySelector<HTMLElement>('.store-photos__background')?.inert).toBe(false)
   })
 
   it('handles a failed lightbox image with the unavailable convention instead of a broken frame', async () => {
@@ -701,6 +734,64 @@ describe('store photos page contract', () => {
     )
     expect(tile).toBeDisabled()
     expect(screen.getByRole('button', { name: /photo 2: unavailable/i })).toBeVisible()
+  })
+
+  it('renders only allowlisted public media text and ignores private metadata canaries', async () => {
+    const privateCanaries = {
+      objectKey: 'private/object-key',
+      signedUrl: 'https://storage.invalid/signed?token=secret',
+      privateKey: '-----BEGIN PRIVATE KEY-----',
+      signature: 'signature=private-signature',
+      expires: 'expires=9999999999',
+      reviewerNote: 'Reviewer-only note',
+      moderationState: 'pending-review',
+      provenance: 'Unsupported provider response',
+    }
+    const canaryStore = {
+      ...galleryStore,
+      media: [galleryMedia[0], { ...galleryMedia[1], ...privateCanaries }],
+    }
+    render(<StorePhotosPage client={photosClient(canaryStore)} slug={canaryStore.slug} />)
+
+    const tile = await screen.findByRole('button', {
+      name: 'View photo 2: Blue Finch Curios interior photo 1 Caption: Gallery caption 1',
+    })
+    expect(tile).toBeVisible()
+    for (const secret of Object.values(privateCanaries)) {
+      expect(document.body).not.toHaveTextContent(secret)
+      expect(tile.getAttribute('aria-label')).not.toContain(secret)
+      const userVisibleAttributes = Array.from(document.body.querySelectorAll('*')).flatMap(
+        (element) =>
+          Array.from(element.attributes)
+            .filter(
+              (attribute) =>
+                attribute.name === 'title' ||
+                attribute.name.startsWith('aria-') ||
+                attribute.name.startsWith('data-'),
+            )
+            .map((attribute) => attribute.value),
+      )
+      expect(userVisibleAttributes.join('\n')).not.toContain(secret)
+    }
+  })
+
+  it('preserves honest error and not-found states without media metadata', async () => {
+    const errorClient = photosClient()
+    errorClient.details = vi.fn(async () => {
+      throw new Error('Catalog unavailable for media test.')
+    })
+    const { rerender } = render(<StorePhotosPage client={errorClient} slug={galleryStore.slug} />)
+    expect(await screen.findByText('Catalog unavailable for media test.')).toBeVisible()
+    expect(screen.getByRole('button', { name: /retry/i })).toBeVisible()
+
+    rerender(
+      <StorePhotosPage
+        client={{ ...photosClient(), details: vi.fn(async () => null) }}
+        slug="missing-store"
+      />,
+    )
+    expect(await screen.findByRole('heading', { name: 'Store not found' })).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Back to stores' })).toBeVisible()
   })
 
   it('links See all N photos from Store Details through the shared return-restore seam', async () => {
