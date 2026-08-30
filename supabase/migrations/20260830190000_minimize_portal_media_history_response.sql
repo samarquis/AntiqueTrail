@@ -2,8 +2,8 @@
 -- storage diagnostic. Keep its projection mechanically limited to the six
 -- fields required by Package 13 and the rejected-media resubmission flow.
 -- The shared scope helper is already owned by this restricted service role.
--- Migrations run as supabase_admin, so assume the owner before replacing it.
-grant usage,create on schema portal_private,app_public to identity_service;
+-- Migrations run as supabase_admin, so assume that owner only for the helper.
+grant usage,create on schema portal_private to identity_service;
 set role identity_service;
 -- Repair the shared Portal scope resolver before using it here. PostgreSQL has
 -- no min(uuid), and the prior aggregate therefore failed before authorization
@@ -29,6 +29,8 @@ begin
   if not coalesce(has_exactly_one_scope,false) or target is null then raise exception using errcode='42501',message='portal_unavailable'; end if;
   return target;
 end $$;
+reset role;
+revoke create on schema portal_private from identity_service;
 
 create or replace function app_public.portal_list_media_uploads()
 returns jsonb language plpgsql security definer set search_path='' as $$
@@ -53,11 +55,16 @@ begin
   return coalesce(v_result, jsonb_build_object('uploads', '[]'::jsonb));
 end $$;
 
+-- The existing public RPC is owned by supabase_admin. Ownership transfer
+-- requires its new owner to have CREATE on the containing schema, but the
+-- capability is not needed after the transfer.
+grant create on schema app_public to identity_service;
+alter function app_public.portal_list_media_uploads() owner to identity_service;
+revoke create on schema app_public from identity_service;
+set role identity_service;
 revoke all on function app_public.portal_list_media_uploads() from public, anon, service_role;
 grant execute on function app_public.portal_list_media_uploads() to authenticated;
 
 comment on function app_public.portal_list_media_uploads() is
   'Returns only {uploadId, kind, state, altText, submittedAt, rejectionReason} for the caller active Store Portal grant; no storage identifiers or media metadata.';
-
 reset role;
-revoke create on schema portal_private,app_public from identity_service;
