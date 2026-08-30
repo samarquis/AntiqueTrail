@@ -22,10 +22,10 @@ Scope: Restrict the Store Portal media-history RPC and every consumer to the six
   EXPECT: passed
   EVIDENCE: Portal client tests reject `originalObjectKey` and `derivativeWidth` extras; pgTAP rejects an output key set other than the authorized six.
 
-- [ ] G5: The final candidate passes the repository, security, database, plan-governance, and whitespace floors without protected-plan changes.
+- [x] G5: The final candidate passes the repository, security, database, plan-governance, and whitespace floors without protected-plan changes.
   CHECK: npm run security:contract; if ($LASTEXITCODE -eq 0) { npm run check; if ($LASTEXITCODE -eq 0) { node --test scripts/plan-governance-contract.test.mjs; if ($LASTEXITCODE -eq 0) { git diff --check } } }
   EXPECT: passed
-  EVIDENCE: pending
+  EVIDENCE: Source candidate `2d20d924e22ac32baf314c316688d44a4b5eab1e`: security contract, plan-governance 7/7, full check (601 unit + 65 release + build), whitespace, and hosted-equivalent local pgTAP runner (76 files / 2,099 assertions) passed; base diff contains no protected files.
 
 - [ ] G6: Criterion-level evidence, independent final review, required hosted checks, merged default-branch proof, issue closure, and checked TODO row are recorded.
   EVIDENCE: pending
