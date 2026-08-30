@@ -4,7 +4,7 @@ Date: 2026-08-30
 
 Base: `e1899659fbfdcd0647b4fdced50c901fa71f2cf4`
 
-Candidate implementation SHA: recorded in `verification.md` after the implementation commit
+Candidate source SHA: `44d49c04589ca7d65b30a9aec260d862cb52ba4f`
 Source: `src/app/styles.css`, scanned by the static contract in `src/app/styles.test.ts`.
 
 ## Classification rules
@@ -14,7 +14,7 @@ The approved Daylight Archive and Midnight Archive values are the root theme tok
 | Class | Location / values | Approved source or rationale |
 | --- | --- | --- |
 | Approved root palette | `:root` and `:root[data-theme='dark']`: `ink`, `muted`, `paper`, `card`, `line`, `teal`, `teal-dark`, `mint`, `rust`, `gold`, `olive`, `focus-inner`, `focus-outer` | `DESIGN_SYSTEM.md — Color` exact table; light/dark pairs are enforced. |
-| Fixed media boundary | `--media-overlay-surface`, `--media-overlay-text`, and `--on-action` | The first two are the separately-owned #143 opaque media contract; white-on-slate/clay is an approved contrast pair in `DESIGN_SYSTEM.md — Color`. |
+| Fixed media boundary | `--media-overlay-surface`, `--media-overlay-text`, and `--on-action` | The first two are the separately-owned #143 opaque media contract; white-on-slate/clay is an approved contrast pair in `DESIGN_SYSTEM.md — Color`. Their fixed root values are asserted by the static contract. |
 | Derived reusable aliases | `--control-*`, `--surface-*`, `--danger-hover`, `--shadow-*`, and `--canvas-backdrop` | Every color-bearing expression references only approved variables. These cover shell, controls, status/error surfaces, action feedback, shadows, and canvas treatment. |
 | Intentional art: light placeholders/map | `.shopper-store-card__placeholder`, `.catalog-map-panel` and `::before`, `.catalog-card__placeholder` and descendants, `main > article > [role='img']`, `.accessible-map__plot` | Clearly non-data photo/map/illustrative treatments; their exact literal/gradient/alpha declarations remain local rather than becoming reusable UI semantics. |
 | Intentional art: dark equivalents | The matching `[data-theme='dark']` placeholder, map-panel, catalog-card placeholder, image placeholder, and map-plot rules | Theme-specific illustration treatment only; it does not set shell, control, link, status, or form meaning. |
@@ -34,4 +34,4 @@ The regression test permits raw literals only for these selector/property pairs;
 | Dark | `[data-theme='dark']` versions of every light placeholder/map selector above | Matching Midnight Archive illustration art |
 | Forced colors | System-color declarations only inside `@media (forced-colors: active)` | User-agent high-contrast compatibility |
 
-No art exception may be reused for shell, buttons, links, navigation, cards, forms, errors, statuses, or media overlays. Adding another raw reusable color fails `semanticColorViolations` until it has an approved source and an explicit inventory entry.
+No art exception may be reused for shell, buttons, links, navigation, cards, forms, errors, statuses, or media overlays. Adding another raw reusable color fails `semanticColorViolations` until it has an approved source and an explicit inventory entry. The contract rejects hex, named CSS colors, `rgb`/`hsl` and related direct color functions (including `device-cmyk`), direct system colors outside forced-colors, and raw literals on derived root aliases.
