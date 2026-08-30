@@ -29,6 +29,12 @@ import {
   responsiveCatalogImage,
 } from './shared'
 import { ErrorState, LoadingState } from './states'
+import {
+  MEDIA_OVERLAY_CONTROL_CLASS,
+  MEDIA_OVERLAY_SURFACE_CLASS,
+  MediaCaption,
+  MediaPosition,
+} from './mediaOverlay'
 
 const stageRank: Record<CatalogBrowseStage, number> = {
   'package-1': 1,
@@ -788,10 +794,12 @@ function StoreGallery({ store }: { store: CatalogStore }) {
   const [failed, setFailed] = useState<Set<number>>(() => new Set())
   const [enlarged, setEnlarged] = useState(false)
   const enlargeButton = useRef<HTMLButtonElement>(null)
+  const background = useRef<HTMLDivElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
   const prevButton = useRef<HTMLButtonElement>(null)
   const nextButton = useRef<HTMLButtonElement>(null)
   const choiceButtons = useRef<Array<HTMLButtonElement | null>>([])
+  const returnFocus = useRef<'opener' | 'selected-choice' | null>(null)
   const selected = media[selectedIndex]
   const selectedFailed = !selected || failed.has(selectedIndex)
 
@@ -799,14 +807,21 @@ function StoreGallery({ store }: { store: CatalogStore }) {
     if (enlarged) closeButton.current?.focus()
   }, [enlarged])
 
-  const closeGallery = (returnFocus: 'opener' | 'selected-choice' = 'opener') => {
+  useEffect(() => {
+    if (background.current) background.current.inert = enlarged
+    if (!enlarged && returnFocus.current) {
+      const target =
+        returnFocus.current === 'selected-choice'
+          ? choiceButtons.current[selectedIndex]
+          : enlargeButton.current
+      returnFocus.current = null
+      target?.focus()
+    }
+  }, [enlarged, selectedIndex])
+
+  const closeGallery = (target: 'opener' | 'selected-choice' = 'opener') => {
+    returnFocus.current = target
     setEnlarged(false)
-    requestAnimationFrame(() =>
-      (returnFocus === 'selected-choice'
-        ? choiceButtons.current[selectedIndex]
-        : enlargeButton.current
-      )?.focus(),
-    )
   }
 
   const markFailed = (index: number) =>
@@ -851,74 +866,74 @@ function StoreGallery({ store }: { store: CatalogStore }) {
 
   return (
     <section className="store-gallery" aria-labelledby="gallery-heading">
-      <h2 id="gallery-heading" className="sr-only">
-        Store photos
-      </h2>
-      {selectedFailed ? (
-        <div className="store-gallery__missing" role="img" aria-label="Store image unavailable">
-          <strong aria-hidden="true">{store.name.slice(0, 1)}</strong>
-          <span>Photo unavailable</span>
-        </div>
-      ) : (
-        <figure className="store-gallery__hero">
-          <button
-            ref={enlargeButton}
-            type="button"
-            className="store-gallery__enlarge"
-            aria-label={`Enlarge image: ${selected.alt}`}
-            onClick={() => setEnlarged(true)}
+      <div ref={background} className="store-gallery__background">
+        <h2 id="gallery-heading" className="sr-only">
+          Store photos
+        </h2>
+        {selectedFailed ? (
+          <div
+            className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__missing`}
+            role="img"
+            aria-label="Store image unavailable"
           >
-            <img
-              src={selected.src}
-              {...responsiveCatalogImage(selected.src, '(max-width: 800px) 100vw, 720px')}
-              alt={selected.alt}
-              onError={() => markFailed(selectedIndex)}
-            />
-          </button>
-          {(selected.caption || selected.rightsLabel) && (
-            <figcaption className="store-gallery__plate">
-              {selected.caption && (
-                <span className="store-gallery__plate-title">{selected.caption}</span>
-              )}
-              {selected.caption && selected.rightsLabel ? ' · ' : ''}
-              {selected.rightsLabel && (
-                <span className="store-gallery__plate-rights">{selected.rightsLabel}</span>
-              )}
-            </figcaption>
-          )}
-        </figure>
-      )}
-      {media.length > 1 && (
-        <div className="store-gallery__wall" role="group" aria-label="Choose a store photo">
-          {media.map((item, index) => (
+            <strong aria-hidden="true">{store.name.slice(0, 1)}</strong>
+            <span>Photo unavailable</span>
+          </div>
+        ) : (
+          <figure className="store-gallery__hero">
             <button
-              ref={(element) => {
-                choiceButtons.current[index] = element
-              }}
-              key={`${item.src}-${index}`}
+              ref={enlargeButton}
               type="button"
-              className="store-gallery__print"
-              aria-label={`Show image ${index + 1}: ${item.alt}`}
-              aria-pressed={selectedIndex === index}
-              onClick={() => setSelectedIndex(index)}
+              className="store-gallery__enlarge"
+              aria-label={`Enlarge image: ${selected.alt}`}
+              onClick={() => setEnlarged(true)}
             >
-              {failed.has(index) ? (
-                <span className="store-gallery__print-unavailable">Unavailable</span>
-              ) : (
-                <>
-                  <img
-                    src={item.src}
-                    {...responsiveCatalogImage(item.src, '220px')}
-                    alt=""
-                    onError={() => markFailed(index)}
-                  />
-                  <span className="store-gallery__print-plate">No. {index + 1}</span>
-                </>
-              )}
+              <img
+                src={selected.src}
+                {...responsiveCatalogImage(selected.src, '(max-width: 800px) 100vw, 720px')}
+                alt={selected.alt}
+                onError={() => markFailed(selectedIndex)}
+              />
             </button>
-          ))}
-        </div>
-      )}
+            <MediaCaption media={selected} className="store-gallery__plate" />
+          </figure>
+        )}
+        {media.length > 1 && (
+          <div className="store-gallery__wall" role="group" aria-label="Choose a store photo">
+            {media.map((item, index) => (
+              <button
+                ref={(element) => {
+                  choiceButtons.current[index] = element
+                }}
+                key={`${item.src}-${index}`}
+                type="button"
+                className="store-gallery__print"
+                aria-label={`Show image ${index + 1}: ${item.alt}`}
+                aria-pressed={selectedIndex === index}
+                onClick={() => setSelectedIndex(index)}
+              >
+                {failed.has(index) ? (
+                  <span
+                    className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__print-unavailable`}
+                  >
+                    Unavailable
+                  </span>
+                ) : (
+                  <>
+                    <img
+                      src={item.src}
+                      {...responsiveCatalogImage(item.src, '220px')}
+                      alt=""
+                      onError={() => markFailed(index)}
+                    />
+                    <span className="store-gallery__print-plate">No. {index + 1}</span>
+                  </>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       {enlarged && selected && !selectedFailed && (
         <div
           className="store-gallery__room"
@@ -950,7 +965,7 @@ function StoreGallery({ store }: { store: CatalogStore }) {
           <button
             ref={closeButton}
             type="button"
-            className="store-gallery__room-close"
+            className={`${MEDIA_OVERLAY_CONTROL_CLASS} store-gallery__room-close`}
             onClick={() => closeGallery()}
           >
             Close enlarged image
@@ -960,7 +975,7 @@ function StoreGallery({ store }: { store: CatalogStore }) {
               <button
                 ref={prevButton}
                 type="button"
-                className="store-gallery__room-nav store-gallery__room-nav--prev"
+                className={`${MEDIA_OVERLAY_CONTROL_CLASS} store-gallery__room-nav store-gallery__room-nav--prev`}
                 aria-label="Previous photo"
                 onClick={() => step(-1)}
               >
@@ -969,7 +984,7 @@ function StoreGallery({ store }: { store: CatalogStore }) {
               <button
                 ref={nextButton}
                 type="button"
-                className="store-gallery__room-nav store-gallery__room-nav--next"
+                className={`${MEDIA_OVERLAY_CONTROL_CLASS} store-gallery__room-nav store-gallery__room-nav--next`}
                 aria-label="Next photo"
                 onClick={() => step(1)}
               >
@@ -990,14 +1005,9 @@ function StoreGallery({ store }: { store: CatalogStore }) {
                 closeGallery('selected-choice')
               }}
             />
-            {(selected.caption || selected.rightsLabel) && (
-              <figcaption className="store-gallery__room-caption">
-                {selected.caption}
-                {selected.caption && selected.rightsLabel ? ' · ' : ''}
-                {selected.rightsLabel}
-              </figcaption>
-            )}
+            <MediaCaption media={selected} className="store-gallery__room-caption" />
           </figure>
+          <MediaPosition index={selectedIndex} count={media.length} />
         </div>
       )}
     </section>
