@@ -799,6 +799,7 @@ function StoreGallery({ store }: { store: CatalogStore }) {
   const prevButton = useRef<HTMLButtonElement>(null)
   const nextButton = useRef<HTMLButtonElement>(null)
   const choiceButtons = useRef<Array<HTMLButtonElement | null>>([])
+  const returnFocus = useRef<'opener' | 'selected-choice' | null>(null)
   const selected = media[selectedIndex]
   const selectedFailed = !selected || failed.has(selectedIndex)
 
@@ -808,16 +809,19 @@ function StoreGallery({ store }: { store: CatalogStore }) {
 
   useEffect(() => {
     if (background.current) background.current.inert = enlarged
-  }, [enlarged])
+    if (!enlarged && returnFocus.current) {
+      const target =
+        returnFocus.current === 'selected-choice'
+          ? choiceButtons.current[selectedIndex]
+          : enlargeButton.current
+      returnFocus.current = null
+      target?.focus()
+    }
+  }, [enlarged, selectedIndex])
 
-  const closeGallery = (returnFocus: 'opener' | 'selected-choice' = 'opener') => {
+  const closeGallery = (target: 'opener' | 'selected-choice' = 'opener') => {
+    returnFocus.current = target
     setEnlarged(false)
-    requestAnimationFrame(() =>
-      (returnFocus === 'selected-choice'
-        ? choiceButtons.current[selectedIndex]
-        : enlargeButton.current
-      )?.focus(),
-    )
   }
 
   const markFailed = (index: number) =>
