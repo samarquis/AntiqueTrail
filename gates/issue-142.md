@@ -30,7 +30,7 @@ Scope: Bring `src/app/styles.css` and its focused regression/evidence seams into
 - [x] G6: The full repository floor and plan-governance contract pass, and the candidate alters no protected plan/design files.
   CHECK: npm run check; if ($LASTEXITCODE -eq 0) { npm run security:contract; if ($LASTEXITCODE -eq 0) { npm run test:release; if ($LASTEXITCODE -eq 0) { node --test scripts/plan-governance-contract.test.mjs; if ($LASTEXITCODE -eq 0) { git diff --check; git diff --name-only e1899659fbfdcd0647b4fdced50c901fa71f2cf4 } } } }
   EXPECT: pass
-  EVIDENCE: `npm run check` 600 unit + 65 release-contract passed; security and plan-governance contracts passed; base diff excludes protected plan/design files.
+  EVIDENCE: Final source candidate `4763bd22023bce0c7e23d63043f6ba5710f66259`: `npm run check` 600 unit + 65 release-contract passed; security and plan-governance contracts passed; base diff excludes protected plan/design files.
 
 - [ ] G7: A separate agent approves the final base-to-head diff against standards and ticket specification, with results in `docs/evidence/issue-142/independent-review.md`.
   EVIDENCE: final re-review pending after `4763bd22023bce0c7e23d63043f6ba5710f66259` corrected the hosted #147 downstream expectation.

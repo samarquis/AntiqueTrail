@@ -12,7 +12,7 @@ Source candidate: `4763bd22023bce0c7e23d63043f6ba5710f66259`
 | --- | --- |
 | `npm test -- --run src/app/styles.test.ts src/features/catalog/demoClient.test.ts` | 2 files, 37 passed |
 | `npm test -- --run src/app` | 5 files, 76 passed |
-| `npm run check` | 88 files / 600 unit tests passed; 65 release-contract tests passed; production build passed |
+| `npm run check` | Final source candidate: 88 files / 600 unit tests passed; 65 release-contract tests passed; production build passed |
 | `npm run security:contract` | Passed |
 | `node --test scripts/plan-governance-contract.test.mjs` | 7 passed |
 | `git diff --check` | Passed |
