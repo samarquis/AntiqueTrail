@@ -3,52 +3,38 @@
 -- Pilot stores absent from store_photo_tier_state remain Free indefinitely (cover+5).
 -- shopper read path (catalog_details) is not touched and stays uncapped.
 
--- 1. Migrate stored values idempotently (rerun safe)
+-- 1. Drop legacy tier constraints first so stored-value conversion can run
+--    against the legacy schema (constraint checks fire per row on UPDATE).
+do $$ declare r record; begin
+  for r in select conname, oid from pg_constraint where conrelid='partner_private.store_photo_tier_state'::regclass and contype='c' loop
+    if pg_get_constraintdef(r.oid) like '%featured%' or pg_get_constraintdef(r.oid) like '%unlimited%'
+      or r.conname='store_photo_tier_state_tier_check' then
+      execute format('alter table partner_private.store_photo_tier_state drop constraint %I', r.conname);
+    end if;
+  end loop;
+end $$;
+
+do $$ declare r record; begin
+  for r in select conname, oid from pg_constraint where conrelid='partner_private.store_subscriptions'::regclass and contype='c' loop
+    if pg_get_constraintdef(r.oid) like '%featured%' or pg_get_constraintdef(r.oid) like '%unlimited%'
+      or r.conname='store_subscriptions_downgrade_to_check' then
+      execute format('alter table partner_private.store_subscriptions drop constraint %I', r.conname);
+    end if;
+  end loop;
+end $$;
+
+-- 2. Migrate stored values idempotently (rerun safe: WHERE clauses no-op)
 update partner_private.store_photo_tier_state set tier = 'gallery' where tier = 'featured';
 update partner_private.store_photo_tier_state set tier = 'full_gallery' where tier = 'unlimited';
 update partner_private.store_subscriptions set downgrade_to = 'gallery' where downgrade_to = 'featured';
 update partner_private.store_subscriptions set downgrade_to = 'full_gallery' where downgrade_to = 'unlimited';
 
--- 2. Replace tier check constraints (drop then add, safe to re-run if already migrated)
-do $$ begin
-  -- store_photo_tier_state.tier
-  if exists (select 1 from pg_constraint where conname = 'store_photo_tier_state_tier_check') then
-    alter table partner_private.store_photo_tier_state drop constraint store_photo_tier_state_tier_check;
-  else
-    -- legacy unnamed check from initial migration uses column check; drop by definition brute force
-    begin
-      alter table partner_private.store_photo_tier_state drop constraint if exists store_photo_tier_state_tier_check1;
-    exception when others then null; end;
-  end if;
-end $$;
-
--- Recreate with canonical name; use if not exists pattern via dynamic DDL for idempotence
-do $$ begin
-  -- drop any residual check that mentions featured
-  declare r record;
-  begin
-    for r in select conname from pg_constraint where conrelid='partner_private.store_photo_tier_state'::regclass and contype='c' loop
-      if pg_get_constraintdef(r.oid) like '%featured%' or pg_get_constraintdef(r.oid) like '%unlimited%' then
-        execute format('alter table partner_private.store_photo_tier_state drop constraint %I', r.conname);
-      end if;
-    end loop;
-  end;
-end $$;
-
+-- 3. Recreate constraints with canonical names, guarded so rerun is safe.
 do $$ begin
   if not exists (select 1 from pg_constraint where conname='store_photo_tier_state_tier_check' and conrelid='partner_private.store_photo_tier_state'::regclass) then
     alter table partner_private.store_photo_tier_state
       add constraint store_photo_tier_state_tier_check check (tier in ('free','gallery','full_gallery'));
   end if;
-end $$;
-
--- downgrade_to constraint
-do $$ declare r record; begin
-  for r in select conname from pg_constraint where conrelid='partner_private.store_subscriptions'::regclass and contype='c' loop
-    if pg_get_constraintdef(r.oid) like '%featured%' or pg_get_constraintdef(r.oid) like '%unlimited%' then
-      execute format('alter table partner_private.store_subscriptions drop constraint %I', r.conname);
-    end if;
-  end loop;
 end $$;
 
 do $$ begin
@@ -189,10 +175,11 @@ begin
     return 'duplicate';
   end;
   perform pg_advisory_xact_lock(hashtextextended('billing:'||v_store::text,0));
-  insert into partner_private.store_subscriptions(store_id,stripe_customer_id,stripe_subscription_id,state,last_event_id,last_event_at)
+  insert into partner_private.store_subscriptions(store_id,stripe_customer_id,stripe_subscription_id,state,current_period_end,last_event_id,last_event_at)
     values(v_store,p_customer_id,p_subscription_id,
       case when p_status in ('trialing','active') then 'active'
            when p_status in ('past_due','unpaid') then 'past_due' else 'canceled' end,
+      p_period_end,
       p_event_id,p_event_time)
     on conflict(store_id) do nothing;
   select * into v_row from partner_private.store_subscriptions where store_id=v_store for update;
