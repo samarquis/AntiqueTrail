@@ -8,7 +8,7 @@ product
 
 The primary early user is an antique shopper, commonly around age 50–80+, researching and planning a multi-store day on a phone. They need to browse readable store cards, understand trustworthy details and images, capture outside leads without retyping them, assemble an understandable trip, navigate one stop at a time, and retain private visit memory without switching among messages, email, documents, maps, and notes.
 
-A second authenticated shopper may send or receive one Candidate Link through a recipient-specific Candidate Share and may receive one explicitly shared trip. Accepting a candidate creates a recipient-owned Trip Idea without exposing either shopper's other ideas, trips, notes, ratings, or profile. Store Representatives, moderators, and administrators are later controlled workflows, not the focus of the first shopper slice.
+A second authenticated shopper may send or receive one Candidate Link through a recipient-specific Candidate Share and may receive one explicitly shared trip. Accepting a candidate creates a recipient-owned Trip Idea without exposing either shopper's other ideas, trips, notes, ratings, or profile. Eligible store owners/managers are a separately targeted post-Package-10B audience: `/for-stores` explains how shoppers use listings, supports claim/add-store application without privilege, and routes approved Representatives to Free or separately activated paid photo capacity. Moderators and administrators remain controlled workflows, not the focus of the first shopper slice.
 
 ## Product Purpose
 
@@ -16,7 +16,7 @@ Antique Trail makes nearby antique stores easy to see, understand, save, and tur
 
 The first success test (`SLM-01`) is whether two separate shopper accounts using only Synthetic Stores can replace the fragmented research-to-message-to-route-to-maps-to-notes workflow with a trustworthy Browse → Store Details → Save → manual hours-aware Trip → Partner/Navigator handoff → external-map Go → private memory flow. Capture → Review Idea remains a separate later branch. Both must finish without outside planning documents, lose no input, understand hours/travel-time limits, pass account isolation/offline replay, and show a documented burden improvement against the current baseline before Product Owner `continue`; otherwise disposition is `revise` or `stop`. It is not a public release.
 
-The first public success test is whether Topeka shoppers can discover current listings and build useful days without paid placement, behavioral tracking, or owner access to shopper data. Promotion begins only after Package 10B through consented local flyers/QR codes, permissioned local channels, organic search, and canonical Store sharing.
+The first public success test is whether Topeka shoppers can discover current listings and build useful days without paid placement, behavioral tracking, or owner access to shopper data. Promotion begins only after Package 10B through separately purposed shopper flyers/QRs, prospective-owner cards to `/for-stores`, permissioned local channels, organic search, and canonical Store sharing. Owner acquisition succeeds only when eligible owners understand the offer and trust boundaries, can start/return to claim or add a store, and no payment or application bypasses authority/listing approval.
 
 ## Memorable Product Promise
 

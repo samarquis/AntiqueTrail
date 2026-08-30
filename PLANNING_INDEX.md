@@ -53,8 +53,8 @@ Status: current document-role map as of 2026-08-30. When documents conflict, use
 | `IMPLEMENTATION_PLAN.md`              | Original roadmap plus normative Package 1 contract  | Roadmap sequencing is historical where packages have already shipped; package requirements remain useful unless superseded |
 | `PACKAGE_CONTRACTS.md`                | Normative Packages 2-13 engineering contracts       | Contracts do not prove completion; Package 13 includes staged-off Stripe billing                                           |
 | `PLAN_ACCEPTANCE.md`                  | Cross-document dependency and independent-build map | The 2026-08-03 score is a historical plan-quality receipt, not current readiness                                           |
-| `docs/specs/store-membership-spec.md` | Photo-tier and Stripe product/flow contract         | Current approved Stripe boundary; activation remains gated                                                                 |
-| `docs/specs/owner-onboarding.md`      | Detailed owner-onboarding interaction amendment     | Normative only for its stated scope                                                                                        |
+| `docs/specs/store-membership-spec.md` | Public owner acquisition, photo-tier, and Stripe flow contract | Free-only public intake starts at 10B; paid activation remains separately gated                                  |
+| `docs/specs/owner-onboarding.md`      | Detailed invited-owner onboarding interaction amendment | Pilot/invitation variant; public applicants reuse protections only through the membership contract                 |
 | `docs/specs/TDD_DEVELOPMENT_PLAN.md`  | 2026-08-23 ticket-cut plan                          | Historical execution snapshot; use current issues and `PROJECT_STATE.md` for status                                        |
 
 ## Current operational sources
