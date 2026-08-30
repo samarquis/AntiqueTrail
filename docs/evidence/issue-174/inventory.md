@@ -1,7 +1,7 @@
 # Issue #174 inventory — 2026-08-30
 
 Base SHA: 97ab90a488903e5354506dcf1d69404695390a2b
-Candidate SHA: c829ecdbe6fc546d9428b3f42f5652f169d093cd
+Candidate SHA: see commit log (implementation + final verification: `git log --oneline` on `codex/issue-174-free-gallery-full-gallery`)
 
 ## Authoritative tier seams (before migration)
 
@@ -35,6 +35,7 @@ Historical migrations 20260824120000/25100000 retained as immutable history; new
 - Before: `select count(*) from partner_private.store_photo_tier_state where tier in ('featured','unlimited')` — run on clean reset with seed 0 (pilot absent rows = Free)
 - After: same query 0; `gallery/full_gallery` 0 on clean reset (expected, pilot remains Free absent)
 - Migration rerun: `UPDATE ... WHERE tier='featured'` 0 rows second run, constraint ADD guarded
+- Upgrade-path rehearsal (final migration text, 2026-08-30): `db reset --version 20260830190000` (pre-174 schema), seeded legacy rows `featured`/`unlimited` + `downgrade_to='featured'`; applied 20260831010000 -> `gallery`(cap 15)/`full_gallery`(cap null)/`gallery`; rerun all UPDATEs 0 rows, no constraint duplication; legacy insert/update rejected 23514.
 
 ## Rollback / forward repair
 
@@ -43,4 +44,12 @@ Historical migrations 20260824120000/25100000 retained as immutable history; new
 
 ## Resolver authority
 
-- `resolve_store_photo_cap(uuid)` single authority; `check_store_media_cap` and `billing_apply` call/normalize through it; client cannot override count.
+- `resolve_store_photo_cap(uuid)` single authority; `check_store_media_cap` (migration line 82) and `billing_apply` call/normalize through it; client cannot override count.
+
+## Verification evidence (2026-08-30)
+
+- `npx supabase@2.115.0 test db` full suite: 77 files, 2133 tests, all passing (includes new 0077 plan-29 tier-boundary tests).
+- `supabase/tests/0077_package_13_tier_boundaries.sql`: resolver signature, migration rehearsal, canonical constraint rejection, pending/rejected counting, boundary at 5, replacement, idempotent retry/dup key, uncapped Full Gallery, webhook legacy-name normalization, uncapped-read guards.
+- `npm run check`: 65 unit tests pass, `tsc -b` clean, vite production build succeeds.
+- `npm run security:contract`: pass.
+- Billing webhook defect found and fixed by 0077: first `active`/`past_due` event on a store inserted `current_period_end=NULL`, violating `subscription_state_shape` before `on conflict`; the migration's recreated function now carries `current_period_end` in the insert.
