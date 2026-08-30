@@ -53,13 +53,16 @@ The Product Owner approved the public owner-acquisition plan on 2026-08-30. The 
 
 ## Open implementation and evidence backlog
 
-Live GitHub state on 2026-08-30 contains these open items:
+Live GitHub state after plan PR #167 merged on 2026-08-30 contains these open items:
 
-- P0/P1 product and evidence gaps: #123 rejected-media resubmission, #124 Package 13 pgTAP contract, #125 media-history minimization/storage-key privacy, and #126 media-ticket evidence reconciliation.
-- Authorization and role-surface gaps: #130 Access & Safety detail/action flow, #131 Package 7 View Audit, #135 direct-route and cross-store isolation, #137 Administrator navigation, and #139 Store Representative People and access.
+- Current product and evidence gaps: #123 rejected-media resubmission, #124 Package 13 pgTAP contract, #125 media-history minimization/storage-key privacy, #126 media-ticket evidence reconciliation, and #174 migration to the current Free/Gallery/Full Gallery contract.
+- Authorization and role-surface gaps: #130 Access & Safety detail/action flow, #131 Package 7 View Audit, #135 direct-route/cross-store/public-owner-intake isolation, and #137 Administrator navigation.
 - Shopper and moderation UX gaps: #129 Saved-to-trip continuation and #140 staged moderation decisions.
-- Design-governance gaps: #142 semantic color-token implementation and #146 governed mood/voice/token references. PR #158 for #146 was open as a draft with passing web/database checks; it is not part of the baseline until merged.
-- Verification/release work: #117 staged-off browser sweep and #56 consolidated human/provider release gates.
+- Store-owner acquisition successors: #168 isolated Package 10A owner-research artifact, #169 eight-owner usability gate, #170 public existing-store claim, #171 public add-store/duplicate conversion, #172 public Free `/for-stores`, and #173 owner-card/QR/channel controls.
+- Post-MVP paid-photo successors: #175 inactive commercial configuration, #176 paid-value research and monetization decision, #177 consent/Checkout upgrade, #178 billing lifecycle, #179 paid-sales controls, #180 composite activation, and #181 live paid-activation evidence. These do not block permanent Free participation or Regional Public MVP unless a cited controlling gate explicitly says otherwise.
+- Process and verification work: #182 historical successor reconciliation, #117 staged-off browser sweep, and #56 consolidated human/provider release gates.
+
+#142 and PR #166 are merged. #139 and #146 remain closed under their recorded dispositions and are not open backlog items.
 
 GitHub is the live authority for issue details and state. This dated list must be refreshed rather than silently treated as permanent.
 
