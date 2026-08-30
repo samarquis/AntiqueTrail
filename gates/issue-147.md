@@ -18,7 +18,7 @@ Scope: Raise meaningful public-catalog metadata to the #144 semantic type floor 
   EVIDENCE: Both 640px-at-200%-standards-equivalent lanes and all 8 text-spacing width/theme lanes passed; every mobile card control cleared fixed navigation by geometry and center-point hit-testing.
 
 - [x] G4: Dated rendered screenshots and measured evidence are recorded for the required states, widths, themes, zoom, and text spacing.
-  EVIDENCE: docs/evidence/issue-147 contains 16 dated JPEGs plus a 12-card measurement JSON (7,106,025 bytes); aggregate SHA-256 6971b1de24bb916b31c2478fb30aaa19e3dac5b6d081452e6fffeb5e6eb2b960.
+  EVIDENCE: docs/evidence/issue-147 contains 19 dated JPEGs plus 2 measurement JSONs (7,397,881 bytes); aggregate SHA-256 22c6f5fc3cf6f30f4c8714592c2399ee02a4616c5a86d48e0746caf54cba39a6.
 
 - [x] G5: Required repository checks pass.
   CHECK: npm run typecheck
@@ -41,8 +41,8 @@ Scope: Raise meaningful public-catalog metadata to the #144 semantic type floor 
 - [x] G9: Four unlazy passes complete and a final adversarial review finds no remaining in-scope defect.
   EVIDENCE: Four passes covered domain roles/order, production scope, raw-size/overflow defects, and final diff/evidence polish; no additional in-scope defect remained.
 
-- [ ] G10: True 200% browser-UI zoom with layout reflow is verified in a real Windows browser for light and dark catalog cards.
-  EVIDENCE: pending
+- [x] G10: True 200% browser-UI zoom with layout reflow is verified in a real Windows browser for light and dark catalog cards.
+  EVIDENCE: Google Chrome's own zoom control reported 200% on the exact local review URL. Live light/dark measurements covered all 12 named cards at a 397px visual/document width: zero clipped fields, overflowing cards, undersized controls, or horizontal document overflow; minimum meaningful field size was 15px. Dated 811x1003 Chrome window captures and the complete measurement JSON are stored under docs/evidence/issue-147.
 
 - [x] G11: The ticket branch integrates current origin/main without unresolved conflicts or loss of either #143 or #147 behavior.
   CHECK: git merge-base --is-ancestor origin/main HEAD && echo main-integrated

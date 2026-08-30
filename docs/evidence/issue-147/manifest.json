@@ -1,20 +1,23 @@
 {
   "capturedOn": "2026-08-29",
   "command": "CAPTURE_ISSUE_147_EVIDENCE=1 npm run test:e2e:review -- e2e/issue-147-catalog-metadata.spec.ts --project=desktop",
-  "evidenceFileCount": 17,
-  "jpgCount": 16,
-  "totalBytes": 7106025,
+  "evidenceFileCount": 21,
+  "jpgCount": 19,
+  "measurementJsonCount": 2,
+  "totalBytes": 7397881,
   "coverage": {
     "populated": "4 widths x 2 themes",
     "failedCover": "393px in light theme",
     "loadingEmptyError": "3 states at 393px in light theme",
     "textSpacing": "320px x 2 themes",
     "zoomEquivalent": "640px at 200% = 320 CSS px x 2 themes",
-    "computedMeasurements": "12 cards at 393px in light theme",
+    "computedMeasurements": "12 cards at 393px/light plus all 12 cards at true Chrome UI 200% in light and dark",
+    "browserUiZoom": "Google Chrome page zoom control at 200%; 404px inner width, 397px visual/document width, 822px outer width, DPR 4; light and dark",
     "executableMatrix": "43 checks cover populated plus failed cover, 3 states at 4 widths x 2 themes, text spacing at 4 widths x 2 themes, and zoom-equivalent reflow in 2 themes"
   },
-  "browserZoomStatus": "True desktop browser-UI zoom with layout reflow is unavailable in Playwright; only the explicitly named standards-equivalent 320 CSS-px proof is claimed.",
+  "browserZoomStatus": "Verified in a real Windows Google Chrome session set through Chrome's page-zoom UI to 200%; all 12 cards passed live light/dark geometry and target measurements.",
   "measurementSha256": "62341179b95378ff02d26aeddeca39bc8a0817e10e086853b2ce8d7aed479201",
-  "aggregateSha256": "6971b1de24bb916b31c2478fb30aaa19e3dac5b6d081452e6fffeb5e6eb2b960",
-  "aggregateAlgorithm": "SHA-256 of UTF-8 sorted lines for the 16 JPEGs and measurement JSON, formatted as filename, tab, lowercase file SHA-256, joined with LF and no trailing LF"
+  "browserZoomMeasurementSha256": "563242d4804a4e26bd3411b1bca633908129806cbb4d9eb803f5f73c9663c669",
+  "aggregateSha256": "22c6f5fc3cf6f30f4c8714592c2399ee02a4616c5a86d48e0746caf54cba39a6",
+  "aggregateAlgorithm": "SHA-256 of UTF-8 sorted lines for the 19 JPEGs and 2 measurement JSONs, formatted as filename, tab, lowercase file SHA-256, joined with LF and no trailing LF"
 }
