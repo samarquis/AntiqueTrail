@@ -19,7 +19,7 @@ Do not reorder the list because another ticket looks easier. If the first unchec
 
 ## Ordered tickets
 
-- [ ] 01. #142 — Semantic color-token implementation conformance. Dependencies: none.
+- [x] 01. #142 — COMPLETE IN PR #166 — Semantic color-token implementation conformance. Dependencies: none.
 - [ ] 02. #125 — Minimize the Portal media-history response. Dependencies: none; sequenced after #142 to keep one implementation lane.
 - [ ] 03. #123 — Complete rejected-media resubmission. Dependencies: #125.
 - [ ] 04. #124 — Prove the media-history/resubmit contract in pgTAP. Dependencies: #125 and #123.
