@@ -121,6 +121,12 @@ Production self-hosts licensed WOFF2 subsets for Newsreader and Atkinson Hyperle
 | Stop list | Number, store, area, hours/state, provenance, explicit actions | ready, warning, removed with Undo, reorder keyboard controls, empty |
 | Review/queue item | Type, scope/store, age/status, next action | new, pending, changes requested, approved, denied, revoked |
 
+**Public media caption contract**: `MediaCaption` owns a figure's optional public caption and rights attribution on the shared opaque media surface. Its anatomy is caption then attribution; states are caption-only, attribution-only, both, or absent. It renders a semantic `figcaption`, has no keyboard/focus behavior, and renders nothing when metadata is absent; the calling figure owns image-failure recovery.
+
+**Public media tile-overlay contract**: `MediaTileOverlay` persistently shows an optional caption and required “View Photo” action on the same opaque media surface. It is a visual duplicate hidden from accessibility APIs; the parent tile button owns pointer/keyboard/touch activation, visible focus, and an accessible name containing photo position, useful alt-equivalent text, and optional caption. Missing captions retain the action; failed images are replaced by the caller's named unavailable state.
+
+**Public media position contract**: `MediaPosition` contains the current one-based photo index and total count on the shared opaque surface. Its normal and navigation-updated states use an atomic polite status; it has no direct pointer, keyboard, or focus behavior, and the modal's labeled controls own changes. Callers provide a valid index/count and own empty-media or failed-image recovery, including removing the status when no modal media remains.
+
 Every new component must document anatomy, states, semantics, keyboard behavior, focus behavior, and failure recovery before its slice is ready.
 
 **Status badge implementation rule**: When a status badge includes a decorative character or icon (e.g., `✓`, `●`, `?`, `→`, or an SVG), that character or element must be wrapped in `aria-hidden="true"`. The plain-language text label (e.g., "Open now", "Closed", "Stale listing") must stand alone as the complete accessible name without the symbol. Never rely on a Unicode character to carry meaning that is not also present in visible plain text alongside it.

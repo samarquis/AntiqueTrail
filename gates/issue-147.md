@@ -44,15 +44,15 @@ Scope: Raise meaningful public-catalog metadata to the #144 semantic type floor 
 - [ ] G10: True 200% browser-UI zoom with layout reflow is verified in a real Windows browser for light and dark catalog cards.
   EVIDENCE: pending
 
-- [ ] G11: The ticket branch integrates current origin/main without unresolved conflicts or loss of either #143 or #147 behavior.
+- [x] G11: The ticket branch integrates current origin/main without unresolved conflicts or loss of either #143 or #147 behavior.
   CHECK: git merge-base --is-ancestor origin/main HEAD && echo main-integrated
   EXPECT: main-integrated
-  EVIDENCE: pending
+  EVIDENCE: Merged origin/main at 26a8198; the only conflict was the review-test registry, resolved by retaining both issue-143-media-overlay.spec.ts and issue-147-catalog-metadata.spec.ts.
 
-- [ ] G12: The integrated candidate passes the complete repository check and the focused #147 browser matrix.
+- [x] G12: The integrated candidate passes the complete repository check and the focused #147 browser matrix.
   CHECK: npm run check && npm run test:e2e:review -- e2e/issue-147-catalog-metadata.spec.ts --project=desktop
   EXPECT: /43 passed/
-  EVIDENCE: pending
+  EVIDENCE: Integrated candidate passed typecheck, lint, Prettier, 88 Vitest files/587 tests, 58 release tests, production build (173 modules), and the focused Playwright matrix 43/43.
 
 - [ ] G13: PR #157 is ready, mergeable, free of unresolved review feedback, and has successful hosted web and database checks.
   EVIDENCE: pending
