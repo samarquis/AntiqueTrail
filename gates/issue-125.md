@@ -5,7 +5,7 @@ Scope: Restrict the Store Portal media-history RPC and every consumer to the six
 - [x] G1: The forward-only repair migration makes `portal_list_media_uploads()` return exactly `uploadId`, `kind`, `state`, `altText`, `submittedAt`, and `rejectionReason` for each upload.
   CHECK: npx supabase@2.115.0 test db supabase/tests/0076_portal_media_history.sql
   EXPECT: Files=1, Tests=
-  EVIDENCE: Clean local reset applied `20260830190000_minimize_portal_media_history_response.sql`; targeted pgTAP passed 1 file / 21 tests.
+  EVIDENCE: Clean local reset applied `20260830190000_minimize_portal_media_history_response.sql`; targeted pgTAP passed 1 file / 26 tests after the final ownership repair.
 
 - [x] G2: Strict Portal types, configured and unavailable clients, runtime decoding, fixtures, and Portal UI agree on the six-field history contract; no removed storage field is optional or retained.
   CHECK: npm test -- --run src/features/portal
@@ -15,7 +15,7 @@ Scope: Restrict the Store Portal media-history RPC and every consumer to the six
 - [x] G3: pgTAP proves the exact JSON key set, deterministic ordering, own-store access, and generic anonymous, no-grant, and cross-store denial without an existence signal.
   CHECK: npx supabase@2.115.0 test db supabase/tests/0076_portal_media_history.sql
   EXPECT: Files=1, Tests=
-  EVIDENCE: `0076_portal_media_history.sql` passed 21 pgTAP assertions, including exact keys, storage-field absence, stable tie-break, own-store-only count, anon denial, and no-grant denial.
+  EVIDENCE: `0076_portal_media_history.sql` passed 26 pgTAP assertions, including exact keys, storage-field absence, stable tie-break, own-store-only count, anon denial, and no-grant denial.
 
 - [x] G4: Regression tests fail when an extra/renamed storage key reaches the server payload, decoder, or client fixture.
   CHECK: npm test -- --run src/features/portal
