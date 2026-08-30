@@ -222,6 +222,9 @@ describe('shared media overlay contrast contract', () => {
     expect(surface).not.toMatch(/gradient|rgba?|color-mix/i)
     expect(styles).not.toMatch(/linear-gradient\(transparent,\s*rgb\(32 40 51/i)
 
+    const revealedTile = declarations('.store-photos--reveal .store-photos__tile')
+    expect(revealedTile).not.toContain('opacity:')
+
     expect(storePhotosSource).toMatch(
       /MediaCaption media=\{item\} className="store-photos__feature-caption"/,
     )

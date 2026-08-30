@@ -2844,15 +2844,11 @@ main > article dt {
 
 /* Reveal-on-scroll is armed only when IntersectionObserver and motion are OK. */
 .store-photos--reveal .store-photos__tile {
-  opacity: 0;
   translate: 0 24px;
-  transition:
-    opacity 480ms ease-out,
-    translate 480ms ease-out;
+  transition: translate 480ms ease-out;
 }
 
 .store-photos--reveal .store-photos__tile.is-visible {
-  opacity: 1;
   translate: 0 0;
 }
 
@@ -2958,7 +2954,6 @@ main > article dt {
 @media (prefers-reduced-motion: reduce) {
   .store-photos--reveal .store-photos__tile,
   .store-photos--reveal .store-photos__tile.is-visible {
-    opacity: 1;
     translate: none;
     transition: none;
   }
