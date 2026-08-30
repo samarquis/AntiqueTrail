@@ -136,7 +136,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.goto('/stores/cedar-brass?reviewAs=anonymous&reviewState=success')
     const status = page.locator('.status-badge--stale')
     await expect(status).toBeVisible()
-    await expect(status).toContainText('Listing details need review')
+    await expect(status).toContainText('Verification overdue')
     await expect(
       page.getByText('This listing may be out of date. Confirm before travel.', { exact: true }),
     ).toBeVisible()

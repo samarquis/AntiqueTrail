@@ -123,9 +123,9 @@ export const syntheticStores: CatalogStore[] = names.map((name, index) => ({
         }
       : index === 1
         ? {
-            label: 'Listing details need review',
-            verifiedAt: '2026-05-01T15:00:00Z',
-            daysOld: 96,
+            label: 'Verification overdue',
+            verifiedAt: '2026-02-01T15:00:00Z',
+            daysOld: 192,
             status: 'stale',
           }
         : { label: 'Verified for Synthetic testing', daysOld: 0 },

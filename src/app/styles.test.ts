@@ -240,6 +240,8 @@ const approvedThemeColors = {
 
 const rootColorExceptions = new Set(['media-overlay-surface', 'media-overlay-text', 'on-action'])
 
+const derivedRootColorAlias = /^(?:control|surface|danger|shadow|canvas)-/
+
 const rootColorExceptionValues = {
   'media-overlay-surface': '#121519',
   'media-overlay-text': '#f3eee4',
@@ -485,7 +487,9 @@ function semanticColorViolations(source: string) {
     const selector = parent?.type === 'rule' ? normalizeSelector(parent.selector) : ''
     const key = `${selector}|${declaration.prop.trim()}`
     const value = declaration.value.trim()
-    const rawFunction = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\s*\(/i.test(value)
+    const rawFunction = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|device-cmyk)\s*\(/i.test(
+      value,
+    )
     const rawNamedColor = [...value.matchAll(/[a-z]+/gi)].some((match) => {
       const word = match[0].toLowerCase()
       const index = match.index ?? 0
@@ -494,7 +498,10 @@ function semanticColorViolations(source: string) {
       return cssNamedColors.has(word) && !/[a-z-]/i.test(before) && !/[a-z-]/i.test(after)
     })
     const rawColor = /#[0-9a-f]{3,8}\b/i.test(value) || rawFunction || rawNamedColor
-    const systemColor = /\b(?:Canvas(?:Text)?|Button(?:Face|Text)|Highlight)\b/.test(value)
+    const systemColor =
+      /\b(?:AccentColor(?:Text)?|ActiveText|Button(?:Border|Face|Text)|Canvas(?:Text)?|Field(?:Text)?|GrayText|Highlight(?:Text)?|LinkText|Mark(?:Text)?|SelectedItem(?:Text)?|VisitedText)\b/.test(
+        value,
+      )
     const parentRule = parent?.type === 'rule' ? parent : undefined
     const inForcedColors =
       parentRule?.parent?.type === 'atrule' &&
@@ -508,6 +515,12 @@ function semanticColorViolations(source: string) {
     if (!rawColor) return
     if (selector === ':root' || selector === ":root[data-theme='dark']") {
       const name = declaration.prop.trim().replace(/^--/, '')
+      if (derivedRootColorAlias.test(name)) {
+        violations.push(
+          `${declaration.source?.start?.line ?? 0}: derived root alias --${name} must derive from approved tokens`,
+        )
+        return
+      }
       if (
         !themeColorTokens.includes(name as (typeof themeColorTokens)[number]) &&
         !rootColorExceptions.has(name)
@@ -576,6 +589,13 @@ describe('semantic color-token regression contract', () => {
       'background: hsl(0 0% 100%);',
     ],
     ['a raw named shared color', 'color: var(--ink);', 'color: rebeccapurple;'],
+    ['a raw device-cmyk shared color', 'color: var(--ink);', 'color: device-cmyk(0 0 0 1);'],
+    [
+      'a raw derived root alias',
+      '--surface-chrome: color-mix(in srgb, var(--card) 92%, transparent);',
+      '--surface-chrome: #000;',
+    ],
+    ['a system color outside forced colors', 'color: var(--muted);', 'color: FieldText;'],
     ['a system color outside forced colors', 'color: var(--muted);', 'color: CanvasText;'],
   ])('rejects %s', (_name, approved, mutant) => {
     const mutated = styles.replace(approved, mutant)
