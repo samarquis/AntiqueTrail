@@ -1,6 +1,10 @@
 -- Portal media history is a representative-facing operational response, not a
 -- storage diagnostic. Keep its projection mechanically limited to the six
 -- fields required by Package 13 and the rejected-media resubmission flow.
+-- The shared scope helper is already owned by this restricted service role.
+-- Migrations run as supabase_admin, so assume the owner before replacing it.
+grant usage,create on schema portal_private,app_public to identity_service;
+set role identity_service;
 -- Repair the shared Portal scope resolver before using it here. PostgreSQL has
 -- no min(uuid), and the prior aggregate therefore failed before authorization
 -- could yield its generic denial. The exact-count test permits one scoped grant
@@ -25,7 +29,6 @@ begin
   if not coalesce(has_exactly_one_scope,false) or target is null then raise exception using errcode='42501',message='portal_unavailable'; end if;
   return target;
 end $$;
-alter function portal_private.require_portal_scope() owner to identity_service;
 
 create or replace function app_public.portal_list_media_uploads()
 returns jsonb language plpgsql security definer set search_path='' as $$
@@ -50,9 +53,11 @@ begin
   return coalesce(v_result, jsonb_build_object('uploads', '[]'::jsonb));
 end $$;
 
-alter function app_public.portal_list_media_uploads() owner to identity_service;
 revoke all on function app_public.portal_list_media_uploads() from public, anon, service_role;
 grant execute on function app_public.portal_list_media_uploads() to authenticated;
 
 comment on function app_public.portal_list_media_uploads() is
   'Returns only {uploadId, kind, state, altText, submittedAt, rejectionReason} for the caller active Store Portal grant; no storage identifiers or media metadata.';
+
+reset role;
+revoke create on schema portal_private,app_public from identity_service;
