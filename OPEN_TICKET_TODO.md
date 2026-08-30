@@ -20,7 +20,7 @@ Do not reorder the list because another ticket looks easier. If the first unchec
 ## Ordered tickets
 
 - [x] 01. #142 — COMPLETE IN PR #166 — Semantic color-token implementation conformance. Dependencies: none.
-- [ ] 02. #125 — Minimize the Portal media-history response. Dependencies: none; sequenced after #142 to keep one implementation lane.
+- [x] 02. #125 — COMPLETE IN PR #185 — Minimize the Portal media-history response. Dependencies: none; sequenced after #142 to keep one implementation lane.
 - [ ] 03. #174 — Migrate tier names, stored state, and server cap authority to Free/Gallery/Full Gallery. Dependencies: #125.
 - [ ] 04. #123 — Complete rejected-media resubmission against the current server tier resolver. Dependencies: #125 and #174.
 - [ ] 05. #124 — Prove the media-history/resubmit/current-tier contract in pgTAP. Dependencies: #125, #174, and #123.

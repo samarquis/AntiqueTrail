@@ -127,14 +127,8 @@ export interface PortalMediaUpload {
   kind: PortalMediaKind
   state: PortalMediaState
   altText: string
-  originalObjectKey: string
-  derivativeObjectKey: string
   submittedAt: string
-  rejectionReason?: string
-  approvedAt?: string
-  rejectedAt?: string
-  derivativeWidth?: number
-  derivativeHeight?: number
+  rejectionReason: string | null
 }
 
 export interface PortalMediaUploadHistory {
