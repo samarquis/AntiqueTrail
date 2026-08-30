@@ -75,7 +75,7 @@ The role switcher in `docs/design/antique-trail-flow-lab.html` is a prototype te
 
 Store Details shows:
 
-- Approved cover plus up to five approved gallery images with meaningful alternative text.
+- Approved cover plus every approved gallery image allowed by the current tier (Free up to five; Gallery up to fifteen; Full Gallery no plan-count cap under published non-count limits), with meaningful alternative text.
 - Description, address/map, hours and exceptions, contact, accessibility information when verified, provenance, freshness, and correction reporting.
 - `Save`, `Add to Trip`, and `Navigate`.
 - Latest three Store Updates and a chronological `See All` view.
@@ -95,13 +95,21 @@ Store Details links `See all photos` to a full store photo gallery page. The loc
 - Hover or focus on a tile shows caption plus `View Photo`; every tile is a real button reachable by keyboard.
 - Click opens a lightbox (large image plus caption); `Escape` closes it.
 
-Motion is decorative only: all content stays readable without hover, no drag-only or time-pressured interaction, and reduced-motion users get the same information without parallax or reveal animation. The prototype route remains as visual reference until this page is implemented for real; then remove the throwaway route and variants. Photo counts shown remain governed by the currently approved scope (one cover plus up to five approved images) until tiered listing membership is separately activated (see `docs/research/stripe-integration-scope.md`, tickets #88–#94).
+Motion is decorative only: all content stays readable without hover, no drag-only or time-pressured interaction, and reduced-motion users get the same information without parallax or reveal animation. The prototype route remains as visual reference until this page is implemented for real; then remove the throwaway route and variants. Before paid activation every store is Free (cover+5 gallery); after activation Store Details renders all approved images allowed by the current tier without changing gallery interaction.
 
 ### Claim this listing
 
 Store Details shows `Is this your store? Claim this listing` only for active, unclaimed, claimable listings after Package 10B enables public claims. Anyone may open the explanation; submission requires verified email and MFA. `/stores/:slug/claim` identifies the exact store and explains that a claim publishes nothing and grants no Portal access. The claimant confirms identity/relationship, two approved independent authority signals, consent, and exact store before `Submit Claim`. Each signal shows `Not started`, `Submitted`, `Changes requested`, or `Accepted`; competing claimant/internal fraud evidence stays hidden.
 
 `/claims` and `/claims/:claimId` expose only claimant-owned `Draft`, `Submitted`, `Verification in progress`, `Changes requested`, `Conflict review`, `Approved`, `Rejected`, `Withdrawn`, or `Revoked`. Changes Requested names only the correctable requirement. Conflict/Rejected use a reason-neutral explanation and support path. Preserve safe fields across validation, authentication, and service failure. Approval routes to Store Portal only after the server atomically creates the exact-store grant; wrong account/hidden store/unauthorized access uses one generic unavailable state. No claim-document upload exists in Regional Public MVP.
+
+### For Store Owners (`/for-stores`)
+
+This is a targeted acquisition page, not Browse home and not a privileged signup surface. One calm proof story shows how a real approved listing appears in Browse, opens to Details, is added to a Trip, becomes a planned stop, and hands off to external navigation. It then explains owner-controlled information, eligibility/service area, `Claim an existing listing` versus `Add a new store`, the review/approval sequence, the complete Free service, support/trust boundaries, and exact paid plan facts only after paid activation. Every screenshot/testimonial is real and consented or visibly labeled synthetic.
+
+The hero uses `Help antique shoppers find your store—and make it part of the trip.`, primary `Add or claim my store`, and secondary `See what shoppers experience`. The primary action first searches for the store to prevent duplicate applications, then branches to exact claim or add-store intake. Before Package 10A the route is absent outside Synthetic tests; Package 10A is private and `noindex`; signed Package 10B enables the public Free/intake state; paid cards/prices appear only after paid activation while selection remains authenticated at `/store-portal/plans`. Flag-off/rollback disables paid action with a reason without stranding existing billing access.
+
+The page never uses `most popular`, countdown, scarcity, invented adoption/ROI/traffic/sales claims, unconsented logos/testimonials, blanket `verified owner`, or an external review-time promise. It says `Keep key store details current`, names directly managed fields, and explains that sensitive facts/photos are reviewed. Approval creates Free and publication without payment; later payment buys photo capacity only and cannot buy publication, placement, rating, verification, moderation outcome, or shopper data. Operator identity, service area, source/freshness meaning, what happens next, monitored support/security contact, privacy, terms, and status links appear before the final CTA. One store per Representative and one Representative per store are disclosed; multi-location applicants receive a supported-contact explanation rather than a misleading bulk path.
 
 ### Report a correction
 
@@ -301,7 +309,7 @@ Token consumption/provisional consent/pending identity is an application transac
 
 ### Images and social links
 
-- Store profile: one cover plus no more than five gallery images. Store Update: no more than one image.
+- Store profile: current-tier capacity (Free cover+5 gallery; Gallery cover+15 gallery; Full Gallery cover+no plan-count cap under published non-count limits). Store Update: no more than one image.
 - Require local preview/crop, plain alternative text, and explicit rights confirmation.
 - Prohibit copied website images, social screenshots, and shopper photos.
 - Keep uploads private while validating, re-encoding, stripping metadata, and reviewing.
@@ -392,7 +400,7 @@ D31 is not approved. The system still requires append-only privileged audit reco
 
 `/readiness/join#token` follows the same fragment exchange/scrub/no-third-party rules as every invitation. The matching verified-email adult sees the current test privacy notice, 30-day grant, audience restriction, withdrawal, and `Join Readiness Test`; wrong/expired/revoked states use one generic unavailable screen. `/readiness/status` shows only the current person's consent/grant/run status and withdrawal. `/admin/readiness` is operational and case-scoped; it never shows private trip content, precise location, accessibility details beyond approved scheduling bands, or one invitee to another.
 
-Package 10A privately previews `/stores?area=topeka-ks`, canonical Store Details Share, flyer/QR, consent, social preview, sitemap/robots transition, and failure/removal behavior. Package 10B alone publishes/distributes. Public Share sends only the canonical Store URL. A withdrawn flyer/logo/social consent immediately marks the artifact `Do not distribute`, blocks reprint/future post, and gives operations a removal-confirmation task. Broken/substituted QR, unavailable area, stale/hidden store, quota stop, and promotion pause each have plain recovery copy and never redirect to an invitation or privileged route.
+Package 10A privately previews `/stores?area=topeka-ks`, `/for-stores`, canonical Store Details Share, shopper flyer/QR, owner card/QR, consent, social preview, sitemap/robots transition, and failure/removal behavior. Package 10B alone publishes/distributes. Shopper QR opens the area Browse route; owner-acquisition QR opens `/for-stores`; secure invitations alone use fragment-token routes. Public Share sends only the canonical Store URL. A withdrawn flyer/card/logo/social consent immediately marks the artifact `Do not distribute`, blocks reprint/future post, and gives operations a removal-confirmation task. Broken/substituted QR, unavailable area, stale/hidden store, quota stop, and promotion pause each have plain recovery copy and never redirect between public acquisition and privileged invitation routes.
 
 ## Implementation acceptance journeys
 

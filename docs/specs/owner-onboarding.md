@@ -14,6 +14,15 @@ The journey is the invited Store Partner onboarding flow, rebuilt so a 70-year-o
 non-computer person can complete it **alone**: QR scan → consent → account/MFA →
 store draft → approval wait → activation → first Portal login.
 
+This document remains the unpaid invitation/pilot variant. After Package 10B,
+public `/for-stores` claim/add-store applicants enter without invitation privilege,
+search for the store first, and then reuse the readable draft, interruption/resume,
+MFA, authority-review, approval, and activation protections here. The public variant
+must not reuse the pilot's `costs you nothing` consent sentence on a later paid
+upgrade: Administrator approval atomically creates Free first, and every optional
+paid upgrade requires the separate fresh commercial consent in
+`docs/specs/store-membership-spec.md`.
+
 Baseline decisions (recorded 2026-08-17, map #61):
 
 - Keep the approved five-task backbone with `Step n of 5` numbering (DESIGN.md
@@ -254,6 +263,8 @@ amend DESIGN.md and DESIGN_SYSTEM.md minimally (done as part of this ticket):
 ## 12. Out of scope
 
 Helper-owned accounts; photo before M-01; Administrator workspace redesign;
-Store Portal redesign beyond first-login activation; public listing claims
-(Package 10B); changing invitation expiry or the owner-controlled email+MFA
-requirement.
+Store Portal redesign beyond first-login activation; implementing the public
+`/for-stores` acquisition/plan pages; changing invitation expiry or the
+owner-controlled email+MFA requirement. Public claim/add applicants are governed
+by the membership and controlling plan contracts and may reuse these interaction
+patterns only after Package 10B.

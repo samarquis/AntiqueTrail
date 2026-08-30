@@ -205,7 +205,7 @@ Use HMAC-SHA-256 with independent 256-bit keys per environment and purpose: Cand
 
 ### Stage and capability authorization
 
-Server-owned stages are `pre_release`, `synthetic_alpha`, `private_beta`, `regional_readiness`, `regional_public`, and `expansion_evidence`. Capabilities default false: receipt/public account registration, external Candidate fetch, outbound email, provider routing/geocoding, real-store records, pilot audience, official-media upload, public listing claims, public real catalog, public reviews, break-glass, public promotion, RG-01 collection, and analytics. Direct anonymous Supabase signup remains provider-disabled; shared-stage registration consumes an approved one-use admission receipt through the application function. Every dependent policy/function/route/job/signed-URL issuer checks the server capability; a client flag may hide UI only. Capability transitions are atomic, audited, bound to a signed release receipt, and callable only by the deployment service. Rollback disables capabilities before artifact/database rollback. Package 10B alone may enable public registration, catalog, claims, reviews, and promotion; Package 11 alone may enable RG-01 collection.
+Server-owned stages are `pre_release`, `synthetic_alpha`, `private_beta`, `regional_readiness`, `regional_public`, and `expansion_evidence`. Capabilities default false: receipt/public account registration, external Candidate fetch, outbound email, provider routing/geocoding, real-store records, pilot audience, official-media upload, public listing claims, public store applications, public owner-acquisition page/intake, public real catalog, public reviews, break-glass, public promotion, RG-01 collection, paid-photo sales state, and analytics. Direct anonymous Supabase signup remains provider-disabled; shared-stage registration consumes an approved one-use admission receipt through the application function. Every dependent policy/function/route/job/signed-URL issuer checks the server capability; a client flag may hide UI only. Capability transitions are atomic, audited, bound to the named signed receipt, and callable only by the deployment service. Rollback disables capabilities before artifact/database rollback. Package 10B alone may atomically enable public registration, catalog, claims, store applications, owner acquisition, reviews, and promotion; its rollback disables each together. Package 11 alone may enable RG-01 collection. Package 13 alone may move paid-photo sales through `off_prelaunch|sales_open|servicing_only`; that state never enables owner intake or publication.
 
 ### HTTP, browser, and cache contract
 
@@ -401,7 +401,7 @@ Suggested domains:
 - Abuse reporting
 - Public publication requires explicit action and moderation rules
 - Official Store Profile Photos require an assigned Store Representative or Administrator submission, documented rights, a Store Change Request, and Administrator approval
-- Enforce one cover plus five gallery slots per Store Profile and one image per Store Update
+- Enforce server-resolved current-tier Store Profile capacity (Free cover+5 gallery; Gallery cover+15 gallery; Full Gallery cover+active published non-count limits and no hidden count cap) and one image per Store Update
 - Keep original uploads private; publish only processed derivatives after metadata removal and approval
 - On rights withdrawal, store withdrawal, or pilot relationship end, unpublish every affected derivative immediately; delete source and processed objects from primary Storage within 24 hours and from managed backups within 30 days. Retain only content-free rights/provenance/audit facts for three years after the relationship ends.
 - Keep current approved Store Profile media live during replacement. Hold an image-bearing Store Update in full until its image is approved.
@@ -453,7 +453,7 @@ Suggested domains:
 - Audit generation, expiry, revocation, atomic consumption, provisional consent, identity creation, email/MFA verification, receipt finalization, authority review, approval, and grant events
 - A photographed token cannot bypass email verification, MFA, authority verification, or Administrator approval
 
-### Public listing-claim security
+### Public listing-claim and add-store security
 
 - Package 6 tests the workflow with Synthetic data while `public_listing_claims_enabled=false`; Package 10B alone may enable it. Disabled routes are not found, reads return no records, and direct writes return stage-disabled without disclosing listing/claim existence.
 - Require verified email, MFA, exact store, one active/submitted claim per claimant/store, one approved active claim per store, one active grant per store, and one active store grant per Representative. Partial unique constraints and a store-authority lock enforce cardinality. Approval rechecks every signal/conflict in one transaction; an existing grant returns conflict and is never replaced silently.
@@ -461,6 +461,7 @@ Suggested domains:
 - Claim-document upload is disabled. Lease/utility evidence may be viewed in person, but Antique Trail stores no copy. Official media and support screenshots remain disabled until M-01 proves file-content validation, isolated decode, scan, safe re-encode, metadata removal, quarantine, derivative-only review, deletion, and recovery.
 - Claimants see only their own reason-neutral Draft/Submitted/Verification/Changes Requested/Conflict/Approved/Rejected/Withdrawn/Revoked status. They never see another claimant, fraud signal, internal note, sibling evidence, or bulk case data. Administrators read only the exact assigned store/claim/signal allowlist; no application role receives bulk evidence export.
 - Transfer is a named transaction that revokes the old exact scope before approving/creating the new grant and audits both. Duplicate merge quarantines affected claims/grants; rollback never reactivates them.
+- `public_store_applications_enabled=false` and public owner-acquisition capability false make anonymous `/for-stores`, `/stores/add`, and application routes absent and every external application read/write stage-disabled through Package 10A. Package 10A's separately access-controlled private `noindex` Synthetic prototype/test seam grants no external write or privilege. Package 10B enables the public routes only in the same atomic release as public registration/claims/catalog. A shared applicant-intake root serializes claim-versus-add starts; normalized duplicate review and application approval follow the Package 6 exact transaction/retention contract.
 
 ### Pilot consent integrity
 
@@ -613,10 +614,18 @@ Directory data provenance:
 ### Promotion and campaign security
 
 - `public_promotion` remains false until Package 10B. Package 10A artifacts are private, access-controlled, `noindex`, absent from sitemap, and never distributed.
-- Public flyer/Share QR codes contain only the canonical public URL plus an optional allowlisted opaque `src` code. They contain no invitation, account, email, store authority, location, bearer, or readiness token. Printed materials include a plain HTTPS fallback and artifact version.
+- QR purpose is structural: shopper flyer → `/stores?area=topeka-ks`; prospective-owner card → `/for-stores`; approved Partner/readiness invitation → its fragment-token route. A public QR cannot be exchanged for admission or authority, and a secure invitation cannot be published as promotional material. Public flyer/card/Share codes contain only the canonical public URL plus an optional allowlisted opaque `src` code. They contain no invitation, account, email, store authority, location, bearer, or readiness token. Printed materials include a plain HTTPS fallback and artifact version.
 - Channel-specific exact-store consent controls flyer placement, logo/co-brand use, and partner social posts separately. Withdrawal denies future use immediately; operations records removal request/confirmation without shopper data.
 - Campaign measurement stores daily aggregate opens, Store Details opens, and Share actions only. No campaign cookie, persistent device ID, fingerprint, IP-derived identity, account linkage, precise location, or cross-site tracking. Opaque codes are random/allowlisted and reveal no store authority. Daily aggregates delete after 180 days; signed gate totals may retain three years.
 - Treat QR substitution, fake flyer, consent replay, copy implying an unapproved partnership, referral-token leakage, promotion spam, and quota exhaustion as threats. A broken/substituted destination, withdrawn consent, stale listing, spam pattern, Blocking/privacy/security defect, or 75% forecast quota pauses the affected promotion. At 90% stop new promotion.
+
+### Public store-owner acquisition and paid-consent security
+
+- `/for-stores` is anonymous read-only content. Before Package 10A it is absent outside Synthetic tests; Package 10A is access-controlled and `noindex`; Package 10B may enable public Free claim/add intake only. Public intake creates at most an ordinary verified-email account and claimant/application scope. It never creates a Store Representative grant, payment capability, publication state, or evidence acceptance.
+- Search-before-add, normalized duplicate detection, rate limits, generic account/store-conflict responses, verified email, MFA, two independent authority signals, exact-store scoping, one-store/one-Representative cardinality, Administrator review, revocation, and audit apply before grant creation. Likely duplicates enter review and convert only through applicant-confirmed existing-store claim; they never create a second listing. Multi-location/bulk claims are denied with a support path. Inactive drafts and rejected/withdrawn personal/unapproved fields purge on the Package 6 schedule. No public waitlist or pre-10B owner PII store is authorized.
+- Administrator authority/listing approval atomically creates exact scope and default Free; approved new-store applications also create provenance/public projection or roll back all effects. Paid upgrades require `sales_open`, exact approved Free store scope, recent authentication, an active immutable commercial-config version, and a fresh immutable consent receipt binding tier, exact monthly price, tax treatment, first charge, automatic renewal, refund/cancellation, proration/downgrade, failed-payment grace, hidden-photo/deletion consequence, Full Gallery limits, terms/privacy versions, and timestamp. A stale price/config/version or changed material term invalidates consent and denies Checkout.
+- Checkout creation is idempotent and accepts exact store, tier, consent receipt, commercial-config version, and idempotency key; the server rederives the Stripe price after locking that state. Cancel, timeout, provider error, duplicate click, webhook replay/out-of-order delivery, and response loss cannot publish, grant access, change Free, or discard an approved draft. Verified webhook state alone changes subscription mirror state; publication and photo moderation remain separate server-authorized transitions.
+- Billing authority is `off_prelaunch | sales_open | servicing_only`. Prelaunch permits no Stripe operation. Rollback enters servicing-only: public paid cards and new consent/Checkout/upgrades deny, while existing customers retain exact authenticated status, portal cancellation, verified webhook/refund, downgrade/lifecycle job, and mirror-reconciliation access until every subscription safely ends or a fresh activation reopens sales. Public copy must not promise review speed, revenue, traffic, ranking, verification, or availability beyond signed current evidence.
 
 ## Supply-chain security
 
@@ -653,7 +662,7 @@ Pin every GitHub Action to a full commit SHA. Workflow permissions default read-
 
 - Threat model review
 - Authorization matrix review
-- Package 13 authorization matrix: photo_tiers_enabled flip (receipt-bound command, monetization Product Decision + package activation gates), Store Representative tier-selection/billing actions, Administrator moderation queue authority
+- Package 13 authorization matrix: `off_prelaunch|sales_open|servicing_only`; composite activation receipt and inactive-config digest; exact paid-consent/config/tier/price Checkout binding; existing-customer-only servicing rollback; Store Representative upgrade/billing and Administrator moderation authority
 - OWASP ASVS-based review
 - OWASP MASVS review for Android package — **POST-MVP; Android packaging is absent in Packages 1–10B**
 - File-upload testing

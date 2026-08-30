@@ -166,6 +166,7 @@ The prototype role switcher exists only for testing. Production users authentica
 |---|---|---|
 | Anonymous/shopper | `/stores` Store Browser | Browse |
 | Anonymous/shopper | `/stores/:slug` Store Details | Back returns to preserved Browse state |
+| Prospective Store Owner | `/for-stores` public acquisition explanation | Footer/More, eligible Store Details, or owner-acquisition card; never replaces Browse home |
 | Shopper | `/auth/sign-in`, `/auth/register`, `/auth/verify`, `/auth/mfa`, `/auth/recovery` | Just-in-time modal/route; return to safe interrupted action |
 | Authentication | `/auth/register#receipt=<opaque>` (receipt-only stages), `/auth/callback#token_hash=<opaque>` | Copy the fragment secret to memory and scrub it before render/network; no third party, service-worker cache, referrer, log, telemetry, or browser storage; exchange once, then safe return or generic terminal failure |
 | Shopper | `/more` stable secondary menu | Saved, Capture, Shares, Trip Ideas, Account & Privacy, Install, Help; stage-visible Research participation only when RG-01 is active; server-derived privileged links only |
@@ -190,6 +191,8 @@ The prototype role switcher exists only for testing. Production users authentica
 | Store Representative | `/store-portal` home | Store |
 | Pending Partner | `/partner/join#token=<opaque-token>` → `/partner/join` → `/partner/verify` → `/partner/draft` → `/partner/status` → normal `/auth/sign-in` with MFA → `/partner/activate` | Exchange/scrub before any third-party request; one phone task/screen; activation requires authenticated exact grant; activation tasks 4–5 precede Store Portal |
 | Claimant | `/stores/:slug/claim`, `/claims`, `/claims/:claimId` | Absent until Package 10B; verified-email/MFA; own reason-neutral status; no document upload |
+| Store applicant | `/stores/add`, `/store-applications`, `/store-applications/:applicationId` | Absent until Package 10B; verified-email/MFA; own draft/reason-neutral status; likely duplicate converts to claim review |
+| Approved Store Representative | `/store-portal/plans`, `/store-portal/billing` | Absent in `off_prelaunch`; authenticated exact-store scope; new sales disabled but existing-customer service retained in `servicing_only` |
 | Store Representative | `/store-portal/hours`, `/updates`, `/changes`, `/media`, `/social`, `/support` | Store subnavigation |
 | Store Representative | `/store-portal/support/:caseId`, `/store-portal/preview` | Own exact support case / server-authorized public-listing preview; Back restores portal task |
 | Store Representative | `/store-portal/promotion` | Exact-store flyer/channel consent and withdrawal; More; Back restores portal task |
@@ -232,6 +235,14 @@ Privileged accounts may open `/stores` only through a labeled `View public direc
 ### Partner onboarding progress
 
 The owner completes five numbered tasks: 1 `Review invitation & consent` at `/partner/join`; 2 `Create/verify account & MFA` at `/partner/verify`; 3 `Submit store draft` at `/partner/draft`; then an unnumbered `/partner/status` wait/changes-requested/rejected screen while Antique Trail verifies authority; 4 `Review approved listing and scope` and 5 `Finish setup/install` at `/partner/activate` after approval. Only participant-controlled screens show `Step n of 5`; Status never pretends progress the owner can advance. Activation cannot load before the exact grant exists. Back never reopens a consumed token or skips the review wait. Task 3 draft is a one-field-per-screen sub-flow (`docs/specs/owner-onboarding.md`): field-level progress is a plain `Question n of 9` indicator, never a second `Step n of 5`; typed fields auto-save on advance and preserve on Back/failure. The activation checklist adds an optional, M-01-gated `Add a storefront photo` item (neutral placeholder before the media gate; Store Change Request with photo attachment after) that never blocks checklist completion.
+
+Public claim/add-store applicants enter from `/for-stores` after Package 10B, search for the store first, and use the same readable field, resume, MFA, authority-review, and approval protections without receiving invitation privilege. Approval atomically creates exact scope and Free; for a new store it also creates the approved provenance-bound public listing. Paid plans do not participate in approval/publication. After paid activation, an optional upgrade uses `/store-portal/plans`; failed Checkout returns to the still-Free approved store with `Try again` and no lost work.
+
+### Store-owner acquisition page contract
+
+At 320px and 200% text/zoom, `/for-stores` is a single reading column with one primary action per decision point. Its order is hero → shopper-value proof journey → directly managed versus reviewed owner controls → eligibility and claim/add explanation → Free-by-approval process → activated paid-upgrade comparison → trust/support → FAQ/terms consequences → repeated CTA. Tier comparison never depends on horizontal scrolling, color, a hidden tooltip, `most popular`, or scarcity. Essential price, tax, renewal, refund, downgrade, failed-payment, deletion, and Full Gallery limit text is at least 16px and remains adjacent to the paid action; an authenticated fresh-consent screen repeats the authoritative terms.
+
+The three public/protected QR destinations have distinct visible labels and test fixtures: `Shop antique stores` → area Browse, `Add your store` → `/for-stores`, and approved secure invitation → fragment-token join route. Public cards include a plain HTTPS fallback and optional aggregate-only `src`; no token-bearing route loads page assets or analytics before fragment exchange/scrub. The owner page shows real operator/service-area/support/security/privacy/terms/status information and labels source freshness accurately; it never turns a dated fact check into blanket owner verification.
 
 ### Store Share
 
