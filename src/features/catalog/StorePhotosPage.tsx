@@ -2,6 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorState, LoadingState } from './states'
 import { catalogAppHref, readBrowseReturn, responsiveCatalogImage } from './shared'
 import type { CatalogClient, CatalogStore } from './types'
+import {
+  MEDIA_OVERLAY_CONTROL_CLASS,
+  MEDIA_OVERLAY_SURFACE_CLASS,
+  MediaCaption,
+  MediaPosition,
+  MediaTileOverlay,
+  mediaActionLabel,
+} from './mediaOverlay'
 
 type PhotoSlot =
   | { kind: 'feature'; index: number; side: 'left' | 'right' }
@@ -81,6 +89,7 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
   const layout = useMemo(() => buildLayout(media.length), [media.length])
 
   const pageRef = useRef<HTMLElement>(null)
+  const backgroundRef = useRef<HTMLDivElement>(null)
   const featureRefs = useRef<Array<HTMLElement | null>>([])
 
   const [failed, setFailed] = useState<Set<number>>(() => new Set())
@@ -103,6 +112,10 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
 
   useEffect(() => {
     if (lightboxIndex !== null) closeButtonRef.current?.focus()
+  }, [lightboxIndex])
+
+  useEffect(() => {
+    if (backgroundRef.current) backgroundRef.current.inert = lightboxIndex !== null
   }, [lightboxIndex])
 
   const closeLightbox = useCallback(() => {
@@ -256,7 +269,7 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
           <button
             ref={closeButtonRef}
             type="button"
-            className="store-photos__lightbox-close"
+            className={`${MEDIA_OVERLAY_CONTROL_CLASS} store-photos__lightbox-close`}
             onClick={closeLightbox}
           >
             Close enlarged photo
@@ -266,7 +279,7 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
               <button
                 ref={prevButtonRef}
                 type="button"
-                className="store-photos__lightbox-nav store-photos__lightbox-nav--prev"
+                className={`${MEDIA_OVERLAY_CONTROL_CLASS} store-photos__lightbox-nav store-photos__lightbox-nav--prev`}
                 aria-label="Previous photo"
                 onClick={() => step(-1)}
               >
@@ -275,7 +288,7 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
               <button
                 ref={nextButtonRef}
                 type="button"
-                className="store-photos__lightbox-nav store-photos__lightbox-nav--next"
+                className={`${MEDIA_OVERLAY_CONTROL_CLASS} store-photos__lightbox-nav store-photos__lightbox-nav--next`}
                 aria-label="Next photo"
                 onClick={() => step(1)}
               >
@@ -296,122 +309,114 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
                 closeLightbox()
               }}
             />
-            {(lightboxPhoto.caption || lightboxPhoto.rightsLabel) && (
-              <figcaption className="store-photos__lightbox-caption">
-                {lightboxPhoto.caption}
-                {lightboxPhoto.caption && lightboxPhoto.rightsLabel ? ' · ' : ''}
-                {lightboxPhoto.rightsLabel}
-              </figcaption>
-            )}
+            <MediaCaption media={lightboxPhoto} className="store-photos__lightbox-caption" />
           </figure>
+          <MediaPosition index={lightboxIndex} count={media.length} />
         </div>
       )}
 
-      <header className="store-photos__header">
-        <a className="store-photos__back" href={detailsHref}>
-          <span aria-hidden="true">←</span> {backLabel}
-        </a>
-        <h1>{store.name}</h1>
-        <p className="store-photos__location">
-          {store.town}, {store.state}
-        </p>
-        <p className="store-photos__count">
-          {media.length} {media.length === 1 ? 'photo' : 'photos'}
-        </p>
-      </header>
+      <div ref={backgroundRef} className="store-photos__background">
+        <header className="store-photos__header">
+          <a className="store-photos__back" href={detailsHref}>
+            <span aria-hidden="true">←</span> {backLabel}
+          </a>
+          <h1>{store.name}</h1>
+          <p className="store-photos__location">
+            {store.town}, {store.state}
+          </p>
+          <p className="store-photos__count">
+            {media.length} {media.length === 1 ? 'photo' : 'photos'}
+          </p>
+        </header>
 
-      <section className="store-photos__body" aria-labelledby="store-photos-heading">
-        <h2 id="store-photos-heading" className="sr-only">
-          Store photos
-        </h2>
-        {layout.map((slot) => {
-          const item = media[slot.index]
-          if (slot.kind === 'feature') {
-            const order =
-              slot.side === 'right'
-                ? 0
-                : layout.filter(
-                    (candidate) =>
-                      candidate.kind === 'feature' &&
-                      candidate.side === 'right' &&
-                      candidate.index < slot.index,
-                  ).length
+        <section className="store-photos__body" aria-labelledby="store-photos-heading">
+          <h2 id="store-photos-heading" className="sr-only">
+            Store photos
+          </h2>
+          {layout.map((slot) => {
+            const item = media[slot.index]
+            if (slot.kind === 'feature') {
+              const order =
+                slot.side === 'right'
+                  ? 0
+                  : layout.filter(
+                      (candidate) =>
+                        candidate.kind === 'feature' &&
+                        candidate.side === 'right' &&
+                        candidate.index < slot.index,
+                    ).length
+              return (
+                <figure
+                  key={`feature-${slot.index}`}
+                  ref={(element) => {
+                    featureRefs.current[order] = element
+                  }}
+                  className={`store-photos__feature store-photos__feature--${slot.side}`}
+                >
+                  {failed.has(slot.index) ? (
+                    <div
+                      className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-photos__missing`}
+                      role="img"
+                      aria-label="Photo unavailable"
+                    >
+                      <strong aria-hidden="true">{store.name.slice(0, 1)}</strong>
+                      <span>Photo unavailable</span>
+                    </div>
+                  ) : (
+                    <>
+                      <img
+                        src={item.src}
+                        {...responsiveCatalogImage(item.src, '100vw')}
+                        alt={item.alt}
+                        onError={() => markFailed(slot.index)}
+                      />
+                      <MediaCaption media={item} className="store-photos__feature-caption" />
+                    </>
+                  )}
+                </figure>
+              )
+            }
+            const sizeClass = ['store-photos__tile--tall', '', 'store-photos__tile--wide'][
+              tileRun % 3
+            ]
+            tileRun += 1
             return (
-              <figure
-                key={`feature-${slot.index}`}
-                ref={(element) => {
-                  featureRefs.current[order] = element
+              <button
+                key={`tile-${slot.index}`}
+                type="button"
+                data-photo-index={slot.index}
+                className={`store-photos__tile${sizeClass ? ` ${sizeClass}` : ''}`}
+                aria-label={
+                  failed.has(slot.index)
+                    ? `Photo ${slot.index + 1}: unavailable`
+                    : mediaActionLabel(slot.index, item)
+                }
+                disabled={failed.has(slot.index)}
+                onClick={() => {
+                  openerRef.current = slot.index
+                  setOpenIndex(slot.index)
                 }}
-                className={`store-photos__feature store-photos__feature--${slot.side}`}
               >
                 {failed.has(slot.index) ? (
-                  <div className="store-photos__missing" role="img" aria-label="Photo unavailable">
-                    <strong aria-hidden="true">{store.name.slice(0, 1)}</strong>
-                    <span>Photo unavailable</span>
-                  </div>
+                  <span className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-photos__tile-unavailable`}>
+                    Unavailable
+                  </span>
                 ) : (
                   <>
                     <img
                       src={item.src}
-                      {...responsiveCatalogImage(item.src, '100vw')}
-                      alt={item.alt}
+                      {...responsiveCatalogImage(item.src, '(max-width: 800px) 60vw, 30vw')}
+                      alt=""
                       onError={() => markFailed(slot.index)}
                     />
-                    {(item.caption || item.rightsLabel) && (
-                      <figcaption className="store-photos__feature-caption">
-                        {item.caption}
-                        {item.caption && item.rightsLabel ? ' · ' : ''}
-                        {item.rightsLabel}
-                      </figcaption>
-                    )}
+                    <MediaTileOverlay media={item} className="store-photos__tile-overlay" />
                   </>
                 )}
-              </figure>
+              </button>
             )
-          }
-          const sizeClass = ['store-photos__tile--tall', '', 'store-photos__tile--wide'][
-            tileRun % 3
-          ]
-          tileRun += 1
-          return (
-            <button
-              key={`tile-${slot.index}`}
-              type="button"
-              data-photo-index={slot.index}
-              className={`store-photos__tile${sizeClass ? ` ${sizeClass}` : ''}`}
-              aria-label={
-                failed.has(slot.index)
-                  ? `Photo ${slot.index + 1}: unavailable`
-                  : `View photo ${slot.index + 1}: ${item.alt}`
-              }
-              disabled={failed.has(slot.index)}
-              onClick={() => {
-                openerRef.current = slot.index
-                setOpenIndex(slot.index)
-              }}
-            >
-              {failed.has(slot.index) ? (
-                <span className="store-photos__tile-unavailable">Unavailable</span>
-              ) : (
-                <>
-                  <img
-                    src={item.src}
-                    {...responsiveCatalogImage(item.src, '(max-width: 800px) 60vw, 30vw')}
-                    alt=""
-                    onError={() => markFailed(slot.index)}
-                  />
-                  <span className="store-photos__tile-overlay" aria-hidden="true">
-                    {item.caption && (
-                      <span className="store-photos__tile-caption">{item.caption}</span>
-                    )}
-                    <span className="store-photos__tile-action">View Photo</span>
-                  </span>
-                </>
-              )}
-            </button>
-          )
-        })}
-      </section>
+          })}
+        </section>
+      </div>
     </main>
   )
 }

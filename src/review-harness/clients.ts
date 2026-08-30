@@ -1,4 +1,6 @@
 import type { AppClients } from '../app/App'
+import { demoCatalogClient } from '../features/catalog/demoClient'
+import type { CatalogClient } from '../features/catalog/types'
 import type {
   AccountLifecycleClient,
   AccountLifecycleSnapshot,
@@ -86,6 +88,18 @@ import {
 import type { ReviewScenario, ReviewStateId } from './types'
 
 const FIXED_NOW = '2026-08-05T12:00:00.000Z'
+
+export function createReviewHarnessCatalogClient(state: ReviewStateId): CatalogClient {
+  return {
+    ...demoCatalogClient,
+    async list(filters) {
+      if (state === 'loading') return new Promise(() => undefined)
+      if (state === 'error') throw new Error('Synthetic catalog review error.')
+      if (state === 'empty') return { stores: [], asOfUtc: FIXED_NOW }
+      return demoCatalogClient.list(filters)
+    },
+  }
+}
 
 function reviewProviderSession(email: string): ProviderSession {
   return {
