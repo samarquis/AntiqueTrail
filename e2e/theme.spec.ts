@@ -43,7 +43,8 @@ const SEMANTIC_ROLE_SURFACES = [
   { id: 'public-listing', path: '/stores?reviewAs=anonymous&reviewState=success' },
   { id: 'shopper-saved', path: '/saved?reviewAs=shopper-a&reviewState=success' },
   { id: 'shopper-trip', path: '/trips?reviewAs=shopper-a&reviewState=success' },
-  { id: 'portal-partner', path: '/store-portal?reviewAs=representative&reviewState=success' },
+  { id: 'portal', path: '/store-portal?reviewAs=representative&reviewState=success' },
+  { id: 'partner', path: '/partner/status?reviewAs=representative&reviewState=success' },
   { id: 'administrator', path: '/admin?reviewAs=administrator&reviewState=success' },
   { id: 'error-state', path: '/stores?reviewAs=anonymous&reviewState=error' },
 ] as const
@@ -128,14 +129,17 @@ for (const theme of ['light', 'dark'] as const) {
 }
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`${theme} error and stale status retain contrast and non-color companions`, async ({
+  test(`${theme} stale status retains contrast and a non-color honesty companion`, async ({
     page,
   }) => {
     await page.addInitScript((value) => localStorage.setItem('at-theme', value), theme)
-    await page.goto('/stores/blue-finch-curios?reviewAs=anonymous&reviewState=success')
-    const status = page.locator('.status-badge').first()
+    await page.goto('/stores/cedar-brass?reviewAs=anonymous&reviewState=success')
+    const status = page.locator('.status-badge--stale')
     await expect(status).toBeVisible()
-    await expect(status).not.toHaveText(/^\s*$/)
+    await expect(status).toContainText('Listing details need review')
+    await expect(
+      page.getByText('This listing may be out of date. Confirm before travel.', { exact: true }),
+    ).toBeVisible()
     const measurement = await status.evaluate((element) => {
       const style = getComputedStyle(element)
       const channels = (value: string) => value.match(/\d+/g)!.slice(0, 3).map(Number)
@@ -149,6 +153,37 @@ for (const theme of ['light', 'dark'] as const) {
       const [lighter, darker] = [luminance(style.color), luminance(style.backgroundColor)].sort(
         (first, second) => second - first,
       )
+      return {
+        contrast: (lighter + 0.05) / (darker + 0.05),
+        border: style.borderTopColor,
+        background: style.backgroundColor,
+      }
+    })
+    expect(measurement.contrast).toBeGreaterThanOrEqual(4.5)
+    expect(measurement.border).not.toBe(measurement.background)
+  })
+
+  test(`${theme} error summary retains contrast and a visible boundary`, async ({ page }) => {
+    await page.addInitScript((value) => localStorage.setItem('at-theme', value), theme)
+    await page.goto('/auth/mfa')
+    const summary = page.locator('.error-summary')
+    await expect(summary).toHaveAttribute('role', 'alert')
+    await expect(summary.getByRole('heading')).toBeVisible()
+    const measurement = await summary.evaluate((element) => {
+      const style = getComputedStyle(element)
+      const heading = element.querySelector('h2')!
+      const channels = (value: string) => value.match(/\d+/g)!.slice(0, 3).map(Number)
+      const luminance = (value: string) => {
+        const [red, green, blue] = channels(value).map((channel) => {
+          const normalized = channel / 255
+          return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
+        })
+        return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+      }
+      const [lighter, darker] = [
+        luminance(getComputedStyle(heading).color),
+        luminance(style.backgroundColor),
+      ].sort((first, second) => second - first)
       return {
         contrast: (lighter + 0.05) / (darker + 0.05),
         border: style.borderTopColor,

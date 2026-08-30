@@ -570,6 +570,12 @@ describe('semantic color-token regression contract', () => {
       '/* #143 owns this narrow media contract; #142 retains broad semantic-color ownership. */',
       '/* #143 owns this narrow media contract; #142 retains broad semantic-color ownership. */\n.fake { color: #41635b; }',
     ],
+    [
+      'a raw hsl shared surface',
+      'background: var(--surface-chrome);',
+      'background: hsl(0 0% 100%);',
+    ],
+    ['a raw named shared color', 'color: var(--ink);', 'color: rebeccapurple;'],
     ['a system color outside forced colors', 'color: var(--muted);', 'color: CanvasText;'],
   ])('rejects %s', (_name, approved, mutant) => {
     const mutated = styles.replace(approved, mutant)
@@ -600,6 +606,7 @@ describe('semantic error, status, and action contrast contract', () => {
     expect(declarations('.status-badge--stale')).toContain('border-color: var(--gold);')
     expect(declarations('.status-badge--stale')).toContain('color: var(--ink);')
     expect(declarations('.error-summary')).toContain('border: 2px solid var(--rust);')
+    expect(declarations("[data-theme='dark'] .error-summary h2")).toContain('color: var(--ink);')
     expect(declarations("[data-theme='dark'] .button--danger")).toContain(
       'background: var(--card);',
     )

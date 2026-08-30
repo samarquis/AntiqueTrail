@@ -121,7 +121,14 @@ export const syntheticStores: CatalogStore[] = names.map((name, index) => ({
           daysOld: 4,
           status: 'current',
         }
-      : { label: 'Verified for Synthetic testing', daysOld: 0 },
+      : index === 1
+        ? {
+            label: 'Listing details need review',
+            verifiedAt: '2026-05-01T15:00:00Z',
+            daysOld: 96,
+            status: 'stale',
+          }
+        : { label: 'Verified for Synthetic testing', daysOld: 0 },
   asOfUtc: '2026-08-12T15:00:00Z',
   hours: [1, 2, 3, 4, 5, 6, 7].map((weekday) => ({
     weekday,

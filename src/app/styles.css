@@ -2515,7 +2515,7 @@ main > article dt {
 }
 
 [data-theme='dark'] .error-summary h2 {
-  color: var(--rust);
+  color: var(--ink);
 }
 
 [data-theme='dark'] .shopper-store-card__placeholder {
