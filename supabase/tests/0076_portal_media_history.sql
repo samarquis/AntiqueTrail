@@ -2,12 +2,15 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(21);
 
 -- The portal RPC resolves the store from the authenticated partner grant. Keep
 -- the fixture explicit so this test exercises the real request boundary.
 insert into app_public.stores (id, slug, name, town, state_code, address, area_id, summary, description)
 values ('00000000-0000-4000-8000-000000000001','db-ci-portal-media-store','Test Store','Topeka','KS','1 Test Way','00000000-0000-4000-8000-000000000001','Database CI fixture','Database CI fixture store')
+on conflict (id) do nothing;
+insert into app_public.stores (id, slug, name, town, state_code, address, area_id, summary, description)
+values ('00000000-0000-4000-8000-000000000009','db-ci-portal-media-other-store','Other Store','Topeka','KS','2 Test Way','00000000-0000-4000-8000-000000000001','Database CI fixture','Other Database CI fixture store')
 on conflict (id) do nothing;
 insert into auth.users(id) values ('76000000-0000-4000-8000-000000000001');
 insert into partner_private.partner_invitations(
@@ -85,7 +88,8 @@ insert into media_private.media_uploads (
 values
   (gen_random_uuid(), gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'Test image', now(), gen_random_uuid(), 'image/png', 1000, 640, 480, 'quarantine/00000000-0000-4000-8000-000000000011/original', 'quarantine/00000000-0000-4000-8000-000000000011/derivative.webp', null, null, decode(repeat('00',32),'hex'), 100000, 640, 480, 'clean', true, true, 'awaiting_review', null, null, null, null),
   (gen_random_uuid(), gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'Test image', now(), gen_random_uuid(), 'image/png', 1000, 640, 480, 'quarantine/00000000-0000-4000-8000-000000000012/original', 'quarantine/00000000-0000-4000-8000-000000000012/derivative.webp', null, null, decode(repeat('00',32),'hex'), 100000, 640, 480, 'clean', true, true, 'rejected', null, null, null, null),
-  (gen_random_uuid(), gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'Test image', now(), gen_random_uuid(), 'image/png', 1000, 640, 480, 'quarantine/00000000-0000-4000-8000-000000000013/original', 'quarantine/00000000-0000-4000-8000-000000000013/derivative.webp', 'official/00000000-0000-4000-8000-000000000001/v1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.webp', '76000000-0000-4000-8000-000000000008', decode(repeat('00',32),'hex'), 100000, 640, 480, 'clean', true, true, 'published', '76000000-0000-4000-8000-000000000001', now(), 'image_quality_verified', now());
+  (gen_random_uuid(), gen_random_uuid(), '00000000-0000-4000-8000-000000000001', 'gallery', 'Test image', now(), gen_random_uuid(), 'image/png', 1000, 640, 480, 'quarantine/00000000-0000-4000-8000-000000000013/original', 'quarantine/00000000-0000-4000-8000-000000000013/derivative.webp', 'official/00000000-0000-4000-8000-000000000001/v1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.webp', '76000000-0000-4000-8000-000000000008', decode(repeat('00',32),'hex'), 100000, 640, 480, 'clean', true, true, 'published', '76000000-0000-4000-8000-000000000001', now(), 'image_quality_verified', now()),
+  (gen_random_uuid(), gen_random_uuid(), '00000000-0000-4000-8000-000000000009', 'gallery', 'Other store image', now(), gen_random_uuid(), 'image/png', 1000, 640, 480, 'quarantine/00000000-0000-4000-8000-000000000014/original', 'quarantine/00000000-0000-4000-8000-000000000014/derivative.webp', null, null, decode(repeat('00',32),'hex'), 100000, 640, 480, 'clean', true, true, 'awaiting_review', null, null, null, null);
 
 update media_private.media_uploads
 set created_at = case
@@ -101,7 +105,19 @@ set rejection_reason = 'Image quality insufficient for storefront'
 where store_id = '00000000-0000-4000-8000-000000000001' and state = 'rejected';
 
 -- Test: list returns all uploads with rejection reasons
-select is(jsonb_array_length(app_public.portal_list_media_uploads()->'uploads'),3,'returns 3 uploads');
+select is(jsonb_array_length(app_public.portal_list_media_uploads()->'uploads'),3,'returns only the 3 own-store uploads');
+select is(
+  (select array_agg(key order by key) from jsonb_object_keys(app_public.portal_list_media_uploads()->'uploads'->0) key),
+  array['altText','kind','rejectionReason','state','submittedAt','uploadId'],
+  'each upload has exactly the six Portal-authorized keys'
+);
+select ok(
+  not exists(
+    select 1 from jsonb_array_elements(app_public.portal_list_media_uploads()->'uploads') upload
+    where upload ?| array['originalObjectKey','derivativeObjectKey','approvedAt','rejectedAt','derivativeWidth','derivativeHeight','bucket','url','signedUrl']
+  ),
+  'history never exposes storage identifiers, media metadata, or signing material'
+);
 select ok((app_public.portal_list_media_uploads()->'uploads'->0)->>'rejectionReason' is not null,'rejected upload has rejectionReason');
 select is((app_public.portal_list_media_uploads()->'uploads'->0->>'state'),'rejected','rejected state present');
 select is((app_public.portal_list_media_uploads()->'uploads'->1->>'state'),'published','published state present');
@@ -109,6 +125,13 @@ select is((app_public.portal_list_media_uploads()->'uploads'->2->>'state'),'awai
 
 -- Test ordering: most recent first
 select is((app_public.portal_list_media_uploads()->'uploads'->0->>'state'),'rejected','most recent first (rejected)');
+select ok(
+  position(
+    'order by mu.created_at desc, mu.upload_id desc'
+    in pg_get_functiondef('app_public.portal_list_media_uploads()'::regprocedure)
+  ) > 0,
+  'equal submission timestamps have a stable upload-id tie-breaker'
+);
 
 -- Test: rejectionReason populated for rejected uploads
 select ok((app_public.portal_list_media_uploads()->'uploads'->0->>'rejectionReason') is not null,'rejected upload has rejectionReason');
@@ -127,6 +150,14 @@ select ok((app_public.portal_list_media_uploads()->'uploads'->0->>'rejectionReas
 
 -- Test: approved_pending_publish and published states included
 select ok((select count(*) from jsonb_array_elements(app_public.portal_list_media_uploads()->'uploads') e where e->>'state' in ('published','approved_pending_publish','awaiting_review','rejected'))=3,'all states included');
+
+set local role anon;
+select throws_ok($$select app_public.portal_list_media_uploads()$$,'42501',null,'anonymous callers receive no media-history response');
+reset role;
+
+insert into auth.users(id) values ('76000000-0000-4000-8000-000000000015');
+select set_config('request.jwt.claims', jsonb_build_object('sub','76000000-0000-4000-8000-000000000015')::text, true);
+select throws_ok($$select app_public.portal_list_media_uploads()$$,'42501','portal_access_denied','authenticated callers without a grant receive no media-history response');
 
 select * from finish();
 rollback;

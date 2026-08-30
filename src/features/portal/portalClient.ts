@@ -13,6 +13,9 @@ import type {
   PortalManagedFields,
   PortalMediaUploadInput,
   PortalMediaUploadReceipt,
+  PortalMediaUploadHistory,
+  PortalMediaKind,
+  PortalMediaState,
   PortalMediaResubmitInput,
   PortalMediaResubmitReceipt,
   OfficialLink,
@@ -152,7 +155,13 @@ export function createPortalClient(
         throw new Error(GENERIC_PORTAL_ERROR)
       }
     },
-    listMediaUploads: () => call('portal_list_media_uploads'),
+    listMediaUploads: async (): Promise<PortalMediaUploadHistory> => {
+      try {
+        return decodePortalMediaUploadHistory(await call<unknown>('portal_list_media_uploads'))
+      } catch {
+        throw new Error(GENERIC_PORTAL_ERROR)
+      }
+    },
     resubmitMedia: async (input: PortalMediaResubmitInput): Promise<PortalMediaResubmitReceipt> => {
       if (!media) throw new Error(GENERIC_PORTAL_ERROR)
       try {
@@ -198,6 +207,67 @@ export function createPortalClient(
     previewPublicListing: () => call('portal_preview_public_listing'),
     getDiagnostics: async () => diagnostics(),
   }
+}
+
+const PORTAL_MEDIA_UPLOAD_KEYS = [
+  'altText',
+  'kind',
+  'rejectionReason',
+  'state',
+  'submittedAt',
+  'uploadId',
+] as const
+
+const PORTAL_MEDIA_STATES = new Set<PortalMediaState>([
+  'awaiting_review',
+  'approved_pending_publish',
+  'published',
+  'rejected',
+  'purged',
+])
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  const actual = Object.keys(value).sort()
+  return actual.length === keys.length && actual.every((key, index) => key === keys[index])
+}
+
+function isPortalMediaKind(value: unknown): value is PortalMediaKind {
+  return value === 'cover' || value === 'gallery'
+}
+
+function isPortalMediaState(value: unknown): value is PortalMediaState {
+  return typeof value === 'string' && PORTAL_MEDIA_STATES.has(value as PortalMediaState)
+}
+
+export function decodePortalMediaUploadHistory(value: unknown): PortalMediaUploadHistory {
+  if (!isRecord(value) || !hasExactKeys(value, ['uploads']) || !Array.isArray(value.uploads))
+    throw new Error(GENERIC_PORTAL_ERROR)
+  const uploads = value.uploads.map((upload) => {
+    if (!isRecord(upload) || !hasExactKeys(upload, PORTAL_MEDIA_UPLOAD_KEYS))
+      throw new Error(GENERIC_PORTAL_ERROR)
+    if (
+      typeof upload.uploadId !== 'string' ||
+      !isPortalMediaKind(upload.kind) ||
+      !isPortalMediaState(upload.state) ||
+      typeof upload.altText !== 'string' ||
+      typeof upload.submittedAt !== 'string' ||
+      (upload.rejectionReason !== null && typeof upload.rejectionReason !== 'string')
+    )
+      throw new Error(GENERIC_PORTAL_ERROR)
+    return {
+      uploadId: upload.uploadId,
+      kind: upload.kind,
+      state: upload.state,
+      altText: upload.altText,
+      submittedAt: upload.submittedAt,
+      rejectionReason: upload.rejectionReason,
+    }
+  })
+  return { uploads }
 }
 
 function unavailable<T>(): Promise<T> {

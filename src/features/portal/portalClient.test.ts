@@ -3,13 +3,19 @@ import {
   GENERIC_PORTAL_ERROR,
   createPortalClient,
   createPortalMediaHttpTransport,
+  decodePortalMediaUploadHistory,
   unavailablePortalClient,
 } from './portalClient'
 
 describe('production portal client', () => {
   it('routes every durable portal action through the bounded RPC contract', async () => {
     const rpc = vi.fn(async (name: string, args: Readonly<Record<string, unknown>>) => ({
-      data: name === 'portal_remove_official_link' ? { removed: true } : { name, args },
+      data:
+        name === 'portal_remove_official_link'
+          ? { removed: true }
+          : name === 'portal_list_media_uploads'
+            ? { uploads: [] }
+            : { name, args },
       error: null,
     }))
     const client = createPortalClient(
@@ -145,6 +151,35 @@ describe('production portal client', () => {
         idempotencyKey: '44444444-4444-4444-8444-444444444444',
       }),
     ).rejects.toThrow(GENERIC_PORTAL_ERROR)
+  })
+
+  it('accepts only the six-field media-history response and rejects extra storage fields', async () => {
+    const exact = {
+      uploads: [
+        {
+          uploadId: '11111111-1111-4111-8111-111111111111',
+          kind: 'gallery',
+          state: 'rejected',
+          altText: 'Front entrance',
+          submittedAt: '2026-08-30T00:00:00Z',
+          rejectionReason: 'Image quality insufficient for storefront',
+        },
+      ],
+    }
+    expect(decodePortalMediaUploadHistory(exact)).toEqual(exact)
+    expect(() =>
+      decodePortalMediaUploadHistory({
+        uploads: [{ ...exact.uploads[0], originalObjectKey: 'quarantine/private/original' }],
+      }),
+    ).toThrow(GENERIC_PORTAL_ERROR)
+
+    const client = createPortalClient({
+      rpc: vi.fn(async () => ({
+        data: { uploads: [{ ...exact.uploads[0], derivativeWidth: 640 }] },
+        error: null,
+      })),
+    })
+    await expect(client.listMediaUploads()).rejects.toThrow(GENERIC_PORTAL_ERROR)
   })
 
   it('uploads only through the authenticated bounded media endpoint', async () => {
