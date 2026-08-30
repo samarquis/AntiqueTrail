@@ -740,7 +740,7 @@ describe('store photos page contract', () => {
     const privateCanaries = {
       objectKey: 'private/object-key',
       signedUrl: 'https://storage.invalid/signed?token=secret',
-      privateKey: '-----BEGIN PRIVATE KEY-----',
+      reviewerOnly: 'reviewer-only-moderation-note',
       signature: 'signature=private-signature',
       expires: 'expires=9999999999',
       reviewerNote: 'Reviewer-only note',
