@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
-import { dirname, extname, resolve } from 'node:path'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, extname, join, resolve } from 'node:path'
 import process from 'node:process'
 import test from 'node:test'
 
@@ -30,7 +31,7 @@ function unquote(value) {
 
 function git(args, options = {}) {
   const result = spawnSync('git', args, {
-    cwd: root,
+    cwd: options.cwd ?? root,
     encoding: options.encoding ?? 'utf8',
     input: options.input,
     maxBuffer: 8 * 1024 * 1024,
@@ -43,23 +44,25 @@ function git(args, options = {}) {
   return result.stdout
 }
 
-function candidateDiffFingerprint(base, candidate) {
+function candidateDiffFingerprint(base, candidate, options = {}) {
   assert.match(base, /^[0-9a-f]{40}$/u)
   assert.match(candidate, /^[0-9a-f]{40}$/u)
-  git(['cat-file', '-e', `${base}^{commit}`])
-  git(['cat-file', '-e', `${candidate}^{commit}`])
+  git(['cat-file', '-e', `${base}^{commit}`], options)
+  git(['cat-file', '-e', `${candidate}^{commit}`], options)
   assert.equal(
-    git(['merge-base', base, candidate]).trim(),
+    git(['merge-base', base, candidate], options).trim(),
     base,
     'candidate base must be an ancestor of the reviewed candidate',
   )
-  const diff = git(['diff', '--binary', `${base}...${candidate}`, '--', '.', `:(exclude)${note}`], {
-    encoding: 'buffer',
-  })
-  return git(['hash-object', '--stdin'], { input: diff }).trim()
+  const excludedPath = options.excludedPath ?? note
+  const diff = git(
+    ['diff', '--binary', `${base}...${candidate}`, '--', '.', `:(exclude)${excludedPath}`],
+    { ...options, encoding: 'buffer' },
+  )
+  return git(['hash-object', '--stdin'], { ...options, input: diff }).trim()
 }
 
-function assertCandidateProvenance(content, expectedBase, expectedCandidate) {
+function assertCandidateProvenance(content, expectedBase, expectedCandidate, options = {}) {
   const base = unquote(fieldValue(content, 'Candidate base').split(/\s+/u)[0])
   const candidate = unquote(fieldValue(content, 'Candidate HEAD').split(/\s+/u)[0])
   const fingerprint = unquote(fieldValue(content, 'Diff fingerprint').split(/\s+/u)[0])
@@ -67,7 +70,7 @@ function assertCandidateProvenance(content, expectedBase, expectedCandidate) {
   assert.equal(candidate, expectedCandidate, 'approval candidate must match the supplied HEAD')
   assert.equal(
     fingerprint,
-    candidateDiffFingerprint(base, candidate),
+    candidateDiffFingerprint(base, candidate, options),
     'recorded fingerprint must match the self-excluding candidate diff',
   )
 }
@@ -469,13 +472,37 @@ test('dated decision note is complete and closure mode requires real approval', 
   }
 })
 
-test('closure approval accepts only explicit decision authority', () => {
-  const [candidateHead, ...candidateParents] = git(['rev-list', '--parents', '-n', '1', 'HEAD'])
-    .trim()
-    .split(/\s+/u)
-  const baseHead = candidateParents.at(-1)
-  assert.ok(baseHead, 'provenance fixture requires a candidate with at least one parent')
-  const realFingerprint = candidateDiffFingerprint(baseHead, candidateHead)
+function createProvenanceFixture() {
+  const cwd = mkdtempSync(join(tmpdir(), 'antique-trail-brand-provenance-'))
+  try {
+    git(['init', '--quiet'], { cwd })
+    git(['config', 'user.name', 'Brand contract fixture'], { cwd })
+    git(['config', 'user.email', 'brand-contract@example.invalid'], { cwd })
+    writeFileSync(join(cwd, 'reference.md'), 'Status: Proposed\n')
+    writeFileSync(join(cwd, 'decision.md'), 'Decision: Pending\n')
+    git(['add', '--', 'reference.md', 'decision.md'], { cwd })
+    git(['commit', '--quiet', '-m', 'base'], { cwd })
+    const baseHead = git(['rev-parse', 'HEAD'], { cwd }).trim()
+    writeFileSync(join(cwd, 'reference.md'), 'Status: Approved\n')
+    writeFileSync(join(cwd, 'decision.md'), 'Decision: Approved\n')
+    git(['add', '--', 'reference.md', 'decision.md'], { cwd })
+    git(['commit', '--quiet', '-m', 'candidate'], { cwd })
+    const candidateHead = git(['rev-parse', 'HEAD'], { cwd }).trim()
+    const realFingerprint = candidateDiffFingerprint(baseHead, candidateHead, {
+      cwd,
+      excludedPath: 'decision.md',
+    })
+    return { baseHead, candidateHead, cwd, realFingerprint }
+  } catch (error) {
+    rmSync(cwd, { force: true, recursive: true })
+    throw error
+  }
+}
+
+test('closure approval accepts only explicit decision authority', (context) => {
+  const fixture = createProvenanceFixture()
+  context.after(() => rmSync(fixture.cwd, { force: true, recursive: true }))
+  const { baseHead, candidateHead, realFingerprint } = fixture
   const candidate = 'a'.repeat(40)
   const fingerprint = 'b'.repeat(40)
   const base = read(note)
@@ -534,13 +561,19 @@ test('closure approval accepts only explicit decision authority', () => {
   const provenance = productOwner
     .replace(`\`${candidate}\``, `\`${candidateHead}\``)
     .replace(`\`${fingerprint}\``, `\`${realFingerprint}\``)
-  assert.doesNotThrow(() => assertCandidateProvenance(provenance, baseHead, candidateHead))
-  assert.throws(() => assertCandidateProvenance(provenance, baseHead, 'c'.repeat(40)))
+  const provenanceOptions = { cwd: fixture.cwd, excludedPath: 'decision.md' }
+  assert.doesNotThrow(() =>
+    assertCandidateProvenance(provenance, baseHead, candidateHead, provenanceOptions),
+  )
+  assert.throws(() =>
+    assertCandidateProvenance(provenance, baseHead, 'c'.repeat(40), provenanceOptions),
+  )
   assert.throws(() =>
     assertCandidateProvenance(
       provenance.replace(`\`${realFingerprint}\``, `\`${fingerprint}\``),
       baseHead,
       candidateHead,
+      provenanceOptions,
     ),
   )
 })
