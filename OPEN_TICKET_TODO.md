@@ -1,6 +1,6 @@
 # Open Ticket Closure TODO
 
-Status baseline: 2026-08-30, `main` at `08456f0b6188dc5454ea65f94c04ded15ca46829`.
+Status baseline: 2026-08-30, `main` at `585497125d722d2568ac63a3113cda3091b8db50` after plan PR #167 and creation of successor issues #168–#182.
 
 This is an execution and state ledger, not a controlling plan, plan amendment, product decision, or release authorization. `PLAN_GOVERNANCE.md`, the controlling sources named by each issue, live GitHub issue/PR state, and the repository's current default branch remain authoritative. Never edit a protected plan file unless the Product Owner has explicitly said `update plan` and the full plan-amendment process is being followed.
 
@@ -21,17 +21,32 @@ Do not reorder the list because another ticket looks easier. If the first unchec
 
 - [x] 01. #142 — COMPLETE IN PR #166 — Semantic color-token implementation conformance. Dependencies: none.
 - [ ] 02. #125 — Minimize the Portal media-history response. Dependencies: none; sequenced after #142 to keep one implementation lane.
-- [ ] 03. #123 — Complete rejected-media resubmission. Dependencies: #125.
-- [ ] 04. #124 — Prove the media-history/resubmit contract in pgTAP. Dependencies: #125 and #123.
-- [ ] 05. #126 — Reconcile media issue/evidence truth after the final #123–#125 outcomes are known. Dependencies: #125, #123, and #124.
-- [ ] 06. #129 — Complete Saved store → existing/new trip continuation. Dependencies: #142.
-- [ ] 07. #137 — Conform Administrator navigation to exactly Review | Access | More. Dependencies: #142.
-- [ ] 08. #130 — Complete exact-scope Access & Safety. Dependencies: #137.
-- [ ] 09. #131 — Implement narrow D30 View Audit. Dependencies: #137 and #130.
-- [ ] 10. #140 — Complete moderation consequence preview and sole confirmation CTA. Dependencies: #142.
-- [ ] 11. #135 — Prove Partner/Portal direct-route denial and cross-store isolation after affected surfaces stabilize. Dependencies: #123, #124, #137, #130, and #131.
-- [ ] 12. #117 — Run the final Packages 9/10A/10B staged-off sweep. Dependencies: #137, #140, and #135.
-- [ ] 13. #56 — Re-audit and close the human/provider Regional Public MVP release tracker. Dependencies: every applicable implementation/evidence ticket above plus every named human/provider gate; close last.
+- [ ] 03. #174 — Migrate tier names, stored state, and server cap authority to Free/Gallery/Full Gallery. Dependencies: #125.
+- [ ] 04. #123 — Complete rejected-media resubmission against the current server tier resolver. Dependencies: #125 and #174.
+- [ ] 05. #124 — Prove the media-history/resubmit/current-tier contract in pgTAP. Dependencies: #125, #174, and #123.
+- [ ] 06. #126 — Reconcile media issue/evidence truth after the final #125/#174/#123/#124 outcomes are known. Dependencies: #125, #174, #123, and #124.
+- [ ] 07. #182 — Add dated successor mappings to historical Package 6/10A/10B/13 issues and reconcile current ledgers. Dependencies: successor issues #168–#181 exist; no implementation dependency.
+- [ ] 08. #129 — Complete Saved store → existing/new trip continuation. Dependencies: #142.
+- [ ] 09. #137 — Conform Administrator navigation to exactly Review | Access | More. Dependencies: #142.
+- [ ] 10. #130 — Complete exact-scope Access & Safety. Dependencies: #137.
+- [ ] 11. #131 — Implement narrow D30 View Audit. Dependencies: #137 and #130.
+- [ ] 12. #140 — Complete moderation consequence preview and sole confirmation CTA. Dependencies: #142.
+- [ ] 13. #168 — Build the isolated, protected Package 10A owner-research artifact. Dependencies: merged plan PR #167; H-01/S-01/HC-01 block external sessions, not repository build.
+- [ ] 14. #169 — Run and pass the exact eight-owner acquisition usability gate. Dependencies: #168 plus H-01, S-01, HC-01, support/security monitoring, and legal/privacy approval.
+- [ ] 15. #170 — Deliver public existing-store claim through atomic Free activation, staged off until Package 10B. Dependencies: #168 and the existing Package 2 identity/MFA contracts; #169 blocks public activation, not repository build.
+- [ ] 16. #171 — Deliver add-store intake, duplicate conversion, provenance, and atomic Free publication. Dependencies: #170; coordinate with completed #130/#131 contracts.
+- [ ] 17. #172 — Deliver the trustworthy public Free `/for-stores` acquisition page and exact stage behavior. Dependencies: #169, #170, and #171 for public activation; implementation may remain staged off earlier.
+- [ ] 18. #173 — Produce the owner card, QR-class controls, channel consent/withdrawal, and aggregate-only measurement. Dependencies: #172, B-01, and Package 10B before distribution.
+- [ ] 19. #135 — Prove Partner/Portal/public-owner-intake direct-route denial, Synthetic-seam exclusion, concurrency, and cross-store isolation. Dependencies: #123, #124, #137, #130, #131, #168, #170, and #171.
+- [ ] 20. #117 — Run the final Packages 9/10A/10B staged-off sweep including the owner research/public routes. Dependencies: #137, #140, #135, #168, #170, #171, and #172.
+- [ ] 21. #56 — Re-audit and close the human/provider Regional Public MVP release tracker. Dependencies: every applicable implementation/evidence ticket above plus every named human/provider gate; close Regional Public MVP last.
+- [ ] 22. #175 — Build immutable inactive commercial configuration and private value-research controls. Dependencies: #174.
+- [ ] 23. #177 — Deliver paid consent, generation-bound Checkout, verified webhook upgrade, and pause-race refund behavior. Dependencies: #174 and #175; live use remains blocked.
+- [ ] 24. #178 — Deliver proration, downgrade, cancellation, refund, failed-payment, and hidden-photo lifecycle. Dependencies: #174, #177, #123, and #124.
+- [ ] 25. #179 — Implement signed race-safe paid-sales pause, servicing, finality close, late-obligation reopen, and resume. Dependencies: #177 and #178.
+- [ ] 26. #176 — Run paid-value research and record the exact monetization decision. Dependencies: #175 plus passing Package 12 activation/review receipts for ordinals 1–3.
+- [ ] 27. #180 — Implement composite paid activation and stage-controlled paid plan presentation. Dependencies: #123, #124, #176, #177, #178, and #179 plus every named media/security/provider receipt.
+- [ ] 28. #181 — Execute and independently verify live paid-tier activation. Dependencies: #180 and every composite human/provider/operational gate; post-MVP and close last in the paid chain.
 
 Closed during the 2026-08-30 governance audit and therefore not executable rows:
 
