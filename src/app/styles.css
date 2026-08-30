@@ -1320,7 +1320,7 @@ textarea[aria-invalid='true'] {
 .catalog-card__placeholder > small {
   max-width: 6rem;
   color: #41635b;
-  font-size: var(--type-size-caption);
+  font-size: var(--type-size-supporting);
   font-weight: var(--type-weight-strong);
   letter-spacing: var(--type-tracking-uppercase);
   line-height: var(--type-leading-compact);
@@ -1338,7 +1338,7 @@ textarea[aria-invalid='true'] {
 .catalog-card__area {
   margin: 0 0 0.45rem;
   color: var(--muted);
-  font-size: var(--type-size-caption);
+  font-size: var(--type-size-label);
   font-weight: var(--type-weight-strong);
   letter-spacing: var(--type-tracking-uppercase-wide);
   text-transform: uppercase;
@@ -1382,7 +1382,7 @@ textarea[aria-invalid='true'] {
   border-radius: 999px;
   color: #4f5a44;
   background: #f3f5ed;
-  font-size: var(--type-size-caption);
+  font-size: var(--type-size-label);
   font-weight: var(--type-weight-strong);
 }
 

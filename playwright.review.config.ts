@@ -14,6 +14,7 @@ export default defineConfig({
     'ui10-full-spec.spec.ts',
     'issue-144-typography.spec.ts',
     'issue-143-media-overlay.spec.ts',
+    'issue-147-catalog-metadata.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),

@@ -1,0 +1,273 @@
+{
+  "capturedOn": "2026-08-29",
+  "browser": "Google Chrome",
+  "pageZoom": "200%",
+  "url": "http://127.0.0.1:4174/stores?reviewAs=anonymous&reviewState=success",
+  "dark": {
+    "cards": [
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "Blue Finch Curios",
+        "title": 23,
+        "undersizedControls": []
+      },
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "Cedar & Brass",
+        "title": 23,
+        "undersizedControls": []
+      },
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "Elm Street Finds",
+        "title": 23,
+        "undersizedControls": []
+      },
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "Juniper House",
+        "title": 23,
+        "undersizedControls": []
+      },
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "Maple Lantern",
+        "title": 23,
+        "undersizedControls": []
+      },
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "North Star Relics",
+        "title": 23,
+        "undersizedControls": []
+      },
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "Prairie Cabinet",
+        "title": 23,
+        "undersizedControls": []
+      },
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "Redbud Market",
+        "title": 23,
+        "undersizedControls": []
+      },
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "Sunflower Salvage",
+        "title": 23,
+        "undersizedControls": []
+      },
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "Tallgrass Treasures",
+        "title": 23,
+        "undersizedControls": []
+      },
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "Union Station Vintage",
+        "title": 23,
+        "undersizedControls": []
+      },
+      {
+        "area": 16,
+        "cardOverflow": false,
+        "categories": [
+          16
+        ],
+        "clippedFields": 0,
+        "descriptions": [
+          15,
+          15
+        ],
+        "freshness": 16,
+        "hours": 16,
+        "name": "Willow & Wren",
+        "title": 23,
+        "undersizedControls": []
+      }
+    ],
+    "document": {
+      "clientWidth": 397,
+      "horizontalOverflow": false,
+      "scrollWidth": 397
+    },
+    "theme": "dark",
+    "totals": {
+      "cards": 12,
+      "clippedFields": 0,
+      "overflowCards": 0,
+      "undersizedControls": 0
+    },
+    "viewport": {
+      "devicePixelRatio": 4,
+      "innerHeight": 412,
+      "innerWidth": 404,
+      "outerHeight": 1008,
+      "outerWidth": 822,
+      "visualScale": 1,
+      "visualWidth": 397
+    }
+  },
+  "light": {
+    "document": {
+      "clientWidth": 397,
+      "horizontalOverflow": false,
+      "scrollWidth": 397
+    },
+    "names": [
+      "Blue Finch Curios",
+      "Cedar & Brass",
+      "Elm Street Finds",
+      "Juniper House",
+      "Maple Lantern",
+      "North Star Relics",
+      "Prairie Cabinet",
+      "Redbud Market",
+      "Sunflower Salvage",
+      "Tallgrass Treasures",
+      "Union Station Vintage",
+      "Willow & Wren"
+    ],
+    "theme": "light",
+    "totals": {
+      "cards": 12,
+      "clippedFields": 0,
+      "minimumFieldSize": 15,
+      "overflowCards": 0,
+      "undersizedControls": 0
+    },
+    "viewport": {
+      "devicePixelRatio": 4,
+      "innerHeight": 412,
+      "innerWidth": 404,
+      "outerHeight": 1008,
+      "outerWidth": 822,
+      "visualScale": 1,
+      "visualWidth": 397
+    }
+  }
+}

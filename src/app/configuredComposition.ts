@@ -1,6 +1,6 @@
 import { createClient, type Session } from '@supabase/supabase-js'
 import type { AppClients, AppRuntime } from './App'
-import { createAccessibleCatalogMapAdapter, demoCatalogClient } from '../features/catalog'
+import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
 import {
   createPortalClient,
@@ -275,7 +275,11 @@ export async function configuredComposition(
     // local-only dynamic modules (including all fixture labels) from the bundle.
     const [
       { createReviewHarness },
-      { createReviewHarnessAuthProvider, createReviewHarnessClients },
+      {
+        createReviewHarnessAuthProvider,
+        createReviewHarnessCatalogClient,
+        createReviewHarnessClients,
+      },
       { ReviewHarnessBanner, ReviewHarnessPage },
     ] = await Promise.all([
       import('../review-harness/harness'),
@@ -291,7 +295,7 @@ export async function configuredComposition(
     if (reviewHarness) {
       return {
         clients: {
-          catalog: demoCatalogClient,
+          catalog: createReviewHarnessCatalogClient(reviewHarness.state),
           ...createReviewHarnessClients(reviewHarness.scenario, reviewHarness.state),
         },
         runtime: {
