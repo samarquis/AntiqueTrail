@@ -20,7 +20,7 @@ Scope: Bring `src/app/styles.css` and its focused regression/evidence seams into
 - [x] G4: Automated contrast, non-color status companions, focus, and forced-colors behavior pass for both themes.
   CHECK: npx playwright test --config playwright.review.config.ts e2e/theme.spec.ts e2e/issue-143-media-overlay.spec.ts e2e/issue-144-typography.spec.ts
   EXPECT: passed
-  EVIDENCE: Final selected browser matrix: 274 passed, 62 expected skips; `e2e/theme.spec.ts` capture run: 78 passed.
+  EVIDENCE: Exact selected browser matrix: 274 passed, 62 expected skips; `e2e/theme.spec.ts` capture run: 78 passed.
 
 - [x] G5: Cross-role review-harness evidence records unchanged approved meanings across public, shopper, Portal, partner, Administrator, and error surfaces.
   CHECK: Test-Path docs/evidence/issue-142/rendered-role-evidence.md; if ($?) { Get-Content -Raw docs/evidence/issue-142/rendered-role-evidence.md }

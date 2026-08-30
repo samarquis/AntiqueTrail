@@ -11,14 +11,15 @@ Source candidate: `44d49c04589ca7d65b30a9aec260d862cb52ba4f`
 | Command | Result |
 | --- | --- |
 | `npm test -- --run src/app/styles.test.ts src/features/catalog/demoClient.test.ts` | 2 files, 37 passed |
+| `npm test -- --run src/app` | 5 files, 76 passed |
 | `npm run check` | 88 files / 600 unit tests passed; 65 release-contract tests passed; production build passed |
 | `npm run security:contract` | Passed |
 | `node --test scripts/plan-governance-contract.test.mjs` | 7 passed |
 | `git diff --check` | Passed |
 | `CAPTURE_ISSUE_142_EVIDENCE=1 npx playwright test --config playwright.review.config.ts e2e/theme.spec.ts` | 78 passed; 14 desktop captures written to `rendered/` |
-| `npx playwright test --config playwright.review.config.ts e2e/theme.spec.ts e2e/issue-143-media-overlay.spec.ts e2e/issue-144-typography.spec.ts --workers=3` | 274 passed, 62 expected project skips |
+| `npx playwright test --config playwright.review.config.ts e2e/theme.spec.ts e2e/issue-143-media-overlay.spec.ts e2e/issue-144-typography.spec.ts` | 274 passed, 62 expected project skips |
 
-The browser matrix uses three workers because the unthrottled four-worker run produced an unrelated #144 aggregation timeout; its isolated retry passed 3/3. The final three-worker matrix above passed every selected executable test.
+The exact issue-specified browser matrix completed unmodified and passed every selected executable test.
 
 ## Scope and evidence notes
 
