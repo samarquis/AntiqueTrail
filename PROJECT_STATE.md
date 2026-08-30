@@ -25,7 +25,7 @@ Repository issue and pull-request templates plus plan-governance workflows enfor
 
 ### Current color and visual direction
 
-The existing Daylight Archive light theme, Midnight Archive dark theme, and approved V3 storefront identity are the selected direction. Their current values in `DESIGN_SYSTEM.md` remain controlling. Open issue #142 may improve semantic color-token governance and remove implementation drift, but it must not replace the approved palette. Open issue #146 may publish better mood, voice, and review references, but it must remain consistent with this visual direction.
+The existing Daylight Archive light theme, Midnight Archive dark theme, and approved V3 storefront identity are the selected direction. Their current values in `DESIGN_SYSTEM.md` remain controlling. Issue #142 completed semantic color-token conformance in merged PR #166 without replacing the approved palette. Issue #146 was closed under its recorded plan-governance disposition; any future mood, voice, or review-reference amendment must remain consistent with this visual direction and receive the required authorization.
 
 ### Login system
 
