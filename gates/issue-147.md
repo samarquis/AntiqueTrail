@@ -54,8 +54,8 @@ Scope: Raise meaningful public-catalog metadata to the #144 semantic type floor 
   EXPECT: /43 passed/
   EVIDENCE: Integrated candidate passed typecheck, lint, Prettier, 88 Vitest files/587 tests, 58 release tests, production build (173 modules), and the focused Playwright matrix 43/43.
 
-- [ ] G13: PR #157 is ready, mergeable, free of unresolved review feedback, and has successful hosted web and database checks.
-  EVIDENCE: pending
+- [x] G13: PR #157 is ready, mergeable, free of unresolved review feedback, and has successful hosted web and database checks.
+  EVIDENCE: At head a5d91b6, PR #157 was non-draft, CLEAN/MERGEABLE, had no comments or reviews, and hosted run 33289663409 passed database (3m00s) and web (7m02s).
 
-- [ ] G14: PR #157 is merged to the repository default branch, post-merge verification is successful, and issue #147 is closed with an evidence comment.
-  EVIDENCE: pending
+- [x] G14: PR #157 is merged to the repository default branch, post-merge verification is successful, and issue #147 is closed with an evidence comment.
+  EVIDENCE: PR #157 merged to verified default branch main as 6ac20e56d9af670e041d649bfe8baf9bcdcff334; post-merge run 33290006253 passed database (3m05s) and web (7m32s); GitHub closed #147 as completed at 2026-08-30T03:19:42Z; closure comment https://github.com/samarquis/AntiqueTrail/issues/147#issuecomment-5466470262.
