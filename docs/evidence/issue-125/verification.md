@@ -6,7 +6,7 @@ Base: `265306b35c71f851ecdd5998903f93508078265e`
 
 Initial minimization candidate: `2d20d924e22ac32baf314c316688d44a4b5eab1e`
 
-Authorization repair candidate: `c6e3ec0c9e95c5ea2fb7ecbbbe317cae1f848ec0`
+Authorization repair candidate: `d16b021702e8976f8b2b77f5e51343d1e9ca4641`
 
 ## Criterion evidence
 
@@ -14,7 +14,7 @@ Authorization repair candidate: `c6e3ec0c9e95c5ea2fb7ecbbbe317cae1f848ec0`
 | --- | --- |
 | Six-field response only | Forward-only migration `20260830190000_minimize_portal_media_history_response.sql` projects only `uploadId`, `kind`, `state`, `altText`, `submittedAt`, and `rejectionReason`. `0076_portal_media_history.sql` passed 21 assertions, including exact JSON-key equality and forbidden-field absence. |
 | Client and runtime agreement | `PortalMediaUpload` makes all six fields required (with `rejectionReason: string \| null`); the configured client exact-key decodes untrusted RPC data and maps every malformed/extra response to the generic Portal error. Focused Portal tests passed 2 files / 20 tests. |
-| Authorization and continuity | The shared `portal_private.require_portal_scope()` now has a valid exact-one grant test (`count(*)=1`) and preserves active session, provider-MFA, recent-auth, consent, partnership, revocation, and stage/audience checks. The public RPC and helper are owned by `identity_service`; pgTAP proves the caller session/MFA/freshness, own-store-only results, a separately authorized other-store representative's one-record response, anonymous denial, and generic no-grant denial. `uploadId`, `kind`, and rejection reason remain present for #123. |
+| Authorization and continuity | The shared `portal_private.require_portal_scope()` now has a valid exact-one grant test (`count(*)=1`) and preserves active session, provider-MFA, recent-auth, consent, partnership, revocation, and stage/audience checks. The migration temporarily assumes `identity_service` only to replace its owner-held functions, then revokes schema CREATE again. The public RPC and helper are owned by `identity_service`; pgTAP proves the caller session/MFA/freshness, own-store-only results, a separately authorized other-store representative's one-record response, anonymous denial, and generic no-grant denial. `uploadId`, `kind`, and rejection reason remain present for #123. |
 | Regression resistance | Client tests reject reintroduced `originalObjectKey` and `derivativeWidth`; pgTAP rejects a non-six-key server payload. |
 
 ## Commands and results
