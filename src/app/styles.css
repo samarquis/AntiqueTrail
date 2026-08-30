@@ -63,7 +63,7 @@
   --media-overlay-surface: #121519;
   --media-overlay-text: #f3eee4;
   /* All reusable component aliases derive from the approved tokens above. */
-  --on-action: #fff;
+  --on-action: #ffffff;
   --control-border: var(--teal-dark);
   --control-border-hover: var(--teal-dark);
   --control-placeholder: var(--muted);
@@ -80,8 +80,11 @@
   --shadow-card: 0 5px 18px color-mix(in srgb, var(--ink) 6%, transparent);
   --shadow-raised: 0 16px 45px color-mix(in srgb, var(--ink) 12%, transparent);
   --shadow-action: 0 3px 9px color-mix(in srgb, var(--ink) 18%, transparent);
-  --canvas-backdrop:
-    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--gold) 7%, transparent), transparent 25rem),
+  --canvas-backdrop: radial-gradient(
+      circle at 12% 8%,
+      color-mix(in srgb, var(--gold) 7%, transparent),
+      transparent 25rem
+    ),
     linear-gradient(color-mix(in srgb, var(--ink) 2%, transparent) 1px, transparent 1px);
   font-family: var(--font-ui);
   color: var(--ink);
@@ -615,7 +618,7 @@ main > article {
 
 .error-summary h2 {
   margin-top: 0;
-  color: var(--rust);
+  color: var(--ink);
   font-size: var(--type-size-lede);
 }
 
@@ -1943,9 +1946,21 @@ main > article dt {
   font-weight: var(--type-weight-strong);
 }
 
-.status-badge--closed,
+.status-badge--closed {
+  border-color: var(--muted);
+  color: var(--ink);
+  background: var(--surface-status-neutral);
+}
+
 .status-badge--stale {
-  color: var(--rust);
+  border-color: var(--gold);
+  color: var(--ink);
+  background: var(--surface-warning);
+}
+
+.status-badge--new {
+  border-color: var(--rust);
+  color: var(--ink);
   background: var(--surface-status-danger);
 }
 
@@ -2417,7 +2432,7 @@ main > article dt {
   --mint: #1a1f26;
   --rust: #b56e5b;
   --gold: #b99554;
-  --olive: #c3cbd8;
+  --olive: #b7b0a5;
   --focus-inner: #121519;
   --focus-outer: #f3eee4;
 }
@@ -2452,13 +2467,13 @@ main > article dt {
 
 [data-theme='dark'] .button--danger {
   border-color: var(--rust);
-  color: var(--on-action);
-  background: var(--rust);
-  box-shadow: 0 3px 0 var(--rust);
+  color: var(--ink);
+  background: var(--card);
+  box-shadow: none;
 }
 
 [data-theme='dark'] .button--danger:hover {
-  background: var(--danger-hover);
+  background: var(--mint);
 }
 
 [data-theme='dark'] .site-header nav a[aria-current='page'] {

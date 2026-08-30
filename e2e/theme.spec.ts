@@ -51,25 +51,41 @@ const SEMANTIC_ROLE_SURFACES = [
 const APPROVED_THEME_TOKENS = {
   light: {
     ink: '#202833',
+    muted: '#5d6876',
     paper: '#f6f4f0',
     card: '#fffdfc',
+    line: '#d8dce2',
     action: '#4c628a',
+    link: '#344a70',
+    selected: '#e2e7f0',
     danger: '#a75e4d',
     warning: '#b98b45',
+    context: '#68758a',
+    focusInner: '#fffdfc',
+    focusOuter: '#202833',
   },
   dark: {
     ink: '#f3eee4',
+    muted: '#b7b0a5',
     paper: '#121519',
     card: '#252b33',
+    line: '#3b4552',
     action: '#8795b5',
+    link: '#8795b5',
+    selected: '#1a1f26',
     danger: '#b56e5b',
     warning: '#b99554',
+    context: '#b7b0a5',
+    focusInner: '#121519',
+    focusOuter: '#f3eee4',
   },
 } as const
 
 for (const theme of ['light', 'dark'] as const) {
   for (const surface of SEMANTIC_ROLE_SURFACES) {
-    test(`${surface.id} retains approved semantic colors in ${theme}`, async ({ page }, testInfo) => {
+    test(`${surface.id} retains approved semantic colors in ${theme}`, async ({
+      page,
+    }, testInfo) => {
       await page.addInitScript((value) => localStorage.setItem('at-theme', value), theme)
       await page.goto(surface.path)
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
@@ -82,11 +98,18 @@ for (const theme of ['light', 'dark'] as const) {
         const style = getComputedStyle(document.documentElement)
         return {
           ink: style.getPropertyValue('--ink').trim(),
+          muted: style.getPropertyValue('--muted').trim(),
           paper: style.getPropertyValue('--paper').trim(),
           card: style.getPropertyValue('--card').trim(),
+          line: style.getPropertyValue('--line').trim(),
           action: style.getPropertyValue('--teal').trim(),
+          link: style.getPropertyValue('--teal-dark').trim(),
+          selected: style.getPropertyValue('--mint').trim(),
           danger: style.getPropertyValue('--rust').trim(),
           warning: style.getPropertyValue('--gold').trim(),
+          context: style.getPropertyValue('--olive').trim(),
+          focusInner: style.getPropertyValue('--focus-inner').trim(),
+          focusOuter: style.getPropertyValue('--focus-outer').trim(),
           bodyColor: getComputedStyle(document.body).color,
           bodySurface: getComputedStyle(document.body).backgroundColor,
         }
@@ -102,6 +125,39 @@ for (const theme of ['light', 'dark'] as const) {
       }
     })
   }
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`${theme} error and stale status retain contrast and non-color companions`, async ({
+    page,
+  }) => {
+    await page.addInitScript((value) => localStorage.setItem('at-theme', value), theme)
+    await page.goto('/stores/blue-finch-curios?reviewAs=anonymous&reviewState=success')
+    const status = page.locator('.status-badge').first()
+    await expect(status).toBeVisible()
+    await expect(status).not.toHaveText(/^\s*$/)
+    const measurement = await status.evaluate((element) => {
+      const style = getComputedStyle(element)
+      const channels = (value: string) => value.match(/\d+/g)!.slice(0, 3).map(Number)
+      const luminance = (value: string) => {
+        const [red, green, blue] = channels(value).map((channel) => {
+          const normalized = channel / 255
+          return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
+        })
+        return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+      }
+      const [lighter, darker] = [luminance(style.color), luminance(style.backgroundColor)].sort(
+        (first, second) => second - first,
+      )
+      return {
+        contrast: (lighter + 0.05) / (darker + 0.05),
+        border: style.borderTopColor,
+        background: style.backgroundColor,
+      }
+    })
+    expect(measurement.contrast).toBeGreaterThanOrEqual(4.5)
+    expect(measurement.border).not.toBe(measurement.background)
+  })
 }
 
 for (const journey of DARK_JOURNEYS) {
