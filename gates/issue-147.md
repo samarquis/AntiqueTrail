@@ -41,7 +41,21 @@ Scope: Raise meaningful public-catalog metadata to the #144 semantic type floor 
 - [x] G9: Four unlazy passes complete and a final adversarial review finds no remaining in-scope defect.
   EVIDENCE: Four passes covered domain roles/order, production scope, raw-size/overflow defects, and final diff/evidence polish; no additional in-scope defect remained.
 
-- [ ] G10: True 200% desktop browser-UI zoom with layout reflow is captured.
-  EVIDENCE: Playwright cannot emulate browser-UI zoom with layout reflow; the manifest names only the standards-equivalent 640px / 200% = 320 CSS-px proof.
+- [ ] G10: True 200% browser-UI zoom with layout reflow is verified in a real Windows browser for light and dark catalog cards.
+  EVIDENCE: pending
 
-ABANDON: G10 The available Playwright browser runner cannot emulate true browser-UI zoom with reflow. This remains a manual-browser closure check and is not represented as passing.
+- [ ] G11: The ticket branch integrates current origin/main without unresolved conflicts or loss of either #143 or #147 behavior.
+  CHECK: git merge-base --is-ancestor origin/main HEAD && echo main-integrated
+  EXPECT: main-integrated
+  EVIDENCE: pending
+
+- [ ] G12: The integrated candidate passes the complete repository check and the focused #147 browser matrix.
+  CHECK: npm run check && npm run test:e2e:review -- e2e/issue-147-catalog-metadata.spec.ts --project=desktop
+  EXPECT: /43 passed/
+  EVIDENCE: pending
+
+- [ ] G13: PR #157 is ready, mergeable, free of unresolved review feedback, and has successful hosted web and database checks.
+  EVIDENCE: pending
+
+- [ ] G14: PR #157 is merged to the repository default branch, post-merge verification is successful, and issue #147 is closed with an evidence comment.
+  EVIDENCE: pending
