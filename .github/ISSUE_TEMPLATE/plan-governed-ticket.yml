@@ -1,0 +1,73 @@
+name: Plan-governed ticket
+description: Create work that traces its reason and acceptance criteria to the controlling plan.
+title: ''
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read `PLAN_GOVERNANCE.md` first. If this work changes intended product or design behavior, stop until the Product Owner explicitly says `update plan` and the amendment is merged.
+  - type: textarea
+    id: reason
+    attributes:
+      label: Reason for ticket
+      description: State the user, operational, security, quality, or conformance problem. Address the cause, not only a symptom.
+      placeholder: Who is affected, what goes wrong, and why this work is necessary.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Current evidence
+      description: Provide reproducible current-main evidence, measurements, screenshots, logs, or a bounded discovery question.
+      placeholder: Baseline SHA, route or code seam, reproduction, and observed result.
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: Plan requirements
+      description: Cite each controlling Markdown file and exact heading. Historical evidence alone is not a requirement.
+      placeholder: "DESIGN_SYSTEM.md — 'Critique-derived composition contract': ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: conformance
+    attributes:
+      label: Plan conformance
+      description: Tickets cannot propose an unmerged change to intended behavior.
+      options:
+        - Existing plan requirement; no plan change
+        - Authorized plan amendment; Product Owner update plan directive recorded
+        - Authorized plan amendment already merged; cited above
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What must change
+      description: Describe one narrow, end-to-end outcome that resolves the reason for the ticket.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Use checkboxes and map each observable criterion to the cited plan requirement.
+      placeholder: '- [ ] DESIGN_SYSTEM.md — Heading: observable result'
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Name executable checks and evidence required before merge and closure.
+      placeholder: Commands, role/deny-path tests, responsive/accessibility checks, and hosted evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Dependencies and non-goals
+      description: List blockers, prerequisites, and behavior this ticket must not change.
+    validations:
+      required: true
