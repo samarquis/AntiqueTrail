@@ -2,7 +2,7 @@
 
 Base: `e1899659fbfdcd0647b4fdced50c901fa71f2cf4`
 
-Final source candidate: `44d49c04589ca7d65b30a9aec260d862cb52ba4f`
+Final source candidate: `4763bd22023bce0c7e23d63043f6ba5710f66259`
 
 ## Review lanes and disposition
 
@@ -13,4 +13,4 @@ Final source candidate: `44d49c04589ca7d65b30a9aec260d862cb52ba4f`
 | `/root/ticket142_postfix_evidence` | NO-GO: Portal and Partner were combined; receipt/captures missing; static mutation coverage incomplete | Corrected with separate routes, final capture manifest/receipt, and hsl/named/device-cmyk/derived-alias mutations. |
 | `/root/ticket142_final_release_review` | GO for G7 | Final base `e1899659fbfdcd0647b4fdced50c901fa71f2cf4` to receipt head `f3d36a39ce8316545585485fcc3868741c53ad4e` review found no P1/P2: source, exact local receipts, evidence manifest, policy alignment, and protected-file scope are sound. |
 
-The final reviewer independently checked the full base-to-head diff against Issue #142, `DESIGN_SYSTEM.md`, `DESIGN.md`, `PRD.md`, and `PRODUCT_DECISIONS.md`. G8 remains pending hosted checks, merge, post-merge verification, issue closure, and default-branch ledger confirmation.
+The final reviewer independently checked the preceding full base-to-head diff against Issue #142, `DESIGN_SYSTEM.md`, `DESIGN.md`, `PRD.md`, and `PRODUCT_DECISIONS.md`. A downstream #147 expectation correction was subsequently required by hosted CI; its final re-review, hosted checks, merge, post-merge verification, issue closure, and default-branch ledger confirmation remain pending.
