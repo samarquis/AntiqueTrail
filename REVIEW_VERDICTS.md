@@ -1,5 +1,7 @@
 # Antique Trail â€” Top-to-Bottom Ticket Review Verdicts
 
+Status: append-only dated review evidence. Each verdict applies only to its named scope, checkout, and evidence boundary; this file is not a current whole-project pass/fail summary. Use `PROJECT_STATE.md` for current implementation, backlog, and release state.
+
 **Reviewer**: Product Owner (browser-verified via the review harness + Playwright)
 **Date**: 2026-08-16
 **Harness**: `npm run dev:review` on `http://127.0.0.1:4175`, identities via `?reviewAs=<id>&reviewState=success`

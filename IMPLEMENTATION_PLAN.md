@@ -2,9 +2,9 @@
 
 Regional Public MVP boundary: Packages 1–10B plus every named gate. Package 11 is the postlaunch RG-01 evidence gate; each Package 12 run activates one separately approved small community, ordinals 1–3, with the prior community's gate required before the next. Phases 4–5 remain deferred.
 
-Status: plan hardened through the 2026-08-03 adversarial review. Coding is not authorized until the Product Owner gives a separate start instruction. The full PRD remains intact. Explicit deferred decisions gate only dependent features/releases. No real-store outreach, external participant, public launch, promotion, or public deployment is authorized.
+Status: original roadmap and normative Package 1 execution contract, hardened through the 2026-08-03 adversarial review. The historical coding hold was superseded by subsequent Product Owner-directed implementation. Use `PROJECT_STATE.md` and live GitHub state for current progress; the full PRD remains intact. Deferred decisions still gate only dependent features/releases. No real-store outreach, external participant, public launch, promotion, billing activation, or public deployment is authorized by this plan.
 
-**Execution authority:** phase headings are capability groupings only. Packages are the sole executable order. Package 1 is controlled by this file; Packages 2–12 by `PACKAGE_CONTRACTS.md`. A phase heading never authorizes its full feature set.
+**Execution authority:** phase headings are capability groupings only. Packages are the sole executable order. Package 1 is controlled by this file; Packages 2–13 by `PACKAGE_CONTRACTS.md`. A phase heading never authorizes its full feature set.
 
 | Capability grouping | Executable packages |
 |---|---|
@@ -710,7 +710,7 @@ Create only directories required by the active slice. The broader tree above res
 
 ## Bounded work-package roadmap
 
-Package 1 uses the execution contract above. Packages 2–12 use `PACKAGE_CONTRACTS.md`, which names outcome, scope, routes/states, schema/ownership, authorization/lifecycle, commands/errors, concurrency, jobs, failures, tests, budgets, sequence, rollback, stop conditions, and evidence. A package still remains blocked if its stated prerequisite or provider/human gate is absent; the builder never invents policy.
+Package 1 uses the execution contract above. Packages 2–13 use `PACKAGE_CONTRACTS.md`, which names outcome, scope, routes/states, schema/ownership, authorization/lifecycle, commands/errors, concurrency, jobs, failures, tests, budgets, sequence, rollback, stop conditions, and evidence. A package still remains blocked if its stated prerequisite or provider/human gate is absent; the builder never invents policy.
 
 | Package | Required prerequisites/gates | Required acceptance evidence |
 |---|---|---|

@@ -1,6 +1,6 @@
 # Antique Trail Design System and Screen Contract
 
-Status: approved planning baseline, including the 2026-08-18 Midnight Archive visual-identity update. This file makes the accepted direction reproducible; it does not authorize unrelated application coding.
+Status: current normative design-system and screen contract, including the approved Daylight Archive/Midnight Archive palette, V3 identity, and critique-derived typography, composition, and media-overlay rules through 2026-08-30. Current implementation and backlog state live in `PROJECT_STATE.md`; this file does not authorize unrelated application or provider changes.
 
 `DESIGN.md` controls behavior and journey intent. This file controls exact visual tokens, recurring component states, responsive behavior, navigation, and screen-level acceptance. `docs/design/ICON_PLACEMENT_SPEC.md` controls the approved placement of the Antique Trail icon family. Product, security, or retention policy never comes from a prototype.
 
@@ -128,6 +128,19 @@ Production self-hosts licensed WOFF2 subsets for Newsreader and Atkinson Hyperle
 **Public media caption contract**: `MediaCaption` owns a figure's optional public caption and rights attribution on the shared opaque media surface. Its anatomy is caption then attribution; states are caption-only, attribution-only, both, or absent. It renders a semantic `figcaption`, has no keyboard/focus behavior, and renders nothing when metadata is absent; the calling figure owns image-failure recovery.
 
 **Public media tile-overlay contract**: `MediaTileOverlay` persistently shows an optional caption and required “View Photo” action on the same opaque media surface. It is a visual duplicate hidden from accessibility APIs; the parent tile button owns pointer/keyboard/touch activation, visible focus, and an accessible name containing photo position, useful alt-equivalent text, and optional caption. Missing captions retain the action; failed images are replaced by the caller's named unavailable state.
+
+### Critique-derived composition contract
+
+The 2026-08-28 through 2026-08-30 whole-site critiques established these reusable rules:
+
+- A task section has one filled primary completion action. Navigation, preview, edit, reorder, retry, and utility actions remain secondary; destructive actions are visually distinct and require case-specific confirmation when the effect is not trivially reversible.
+- Repeated cards place complete decision-making metadata before one named action region. Visit continuations belong together in task order, remain independently focusable, and must not be covered by a full-card link or fixed navigation.
+- Status-heavy workspaces group current state, consequential pending work, and the next required action in one named status surface. Do not scatter equivalent status facts across unrelated cards.
+- Sparse Administrator queues use a bounded workspace with a concise workload summary, one explicit Review path per assigned case, complete loading/empty/error states, and focus restored to the queue after a resolved case.
+- Review-harness identity/state context is a compact subordinate strip available only in local review composition. It must not compete with the page H1 or primary task and must not enter production.
+- Public image captions, attribution, unavailable states, and controls use the shared opaque media surface defined above; readability must not depend on source-image color or detail.
+
+These are normative composition rules, not proof that every current route conforms. Open issues in `PROJECT_STATE.md` track remaining route-specific gaps.
 
 **Public media position contract**: `MediaPosition` contains the current one-based photo index and total count on the shared opaque surface. Its normal and navigation-updated states use an atomic polite status; it has no direct pointer, keyboard, or focus behavior, and the modal's labeled controls own changes. Callers provide a valid index/count and own empty-media or failed-image recovery, including removing the status when no modal media remains.
 

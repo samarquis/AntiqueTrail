@@ -1,6 +1,6 @@
 # Antique Trail Design and Interaction Requirements
 
-Status: approved interaction baseline through the 2026-08-03 adversarial hardening pass, with the 2026-08-18 Midnight Archive visual-identity update. D31 full Audit History UI and export policy remain unresolved; two-year append-only privileged-audit retention is approved.
+Status: current normative interaction baseline, incorporating the 2026-08-03 hardening and 2026-08-18 visual-identity decisions. Stable critique-derived rules are promoted into `DESIGN_SYSTEM.md`; dated implementation evidence does not silently redefine this contract. Current implementation and backlog state live in `PROJECT_STATE.md`. D31 full Audit History UI and export policy remain unresolved; two-year append-only privileged-audit retention is approved.
 
 This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines exact visual tokens, responsive rules, recurring component states, navigation, and screen-level acceptance; `docs/design/ICON_PLACEMENT_SPEC.md` defines the approved use of the icon family. `PRD.md` defines product requirements, `PRODUCT_DECISIONS.md` records approved scope, `SECURITY_AND_TRUST.md` defines trust boundaries, and `IMPLEMENTATION_PLAN.md` defines delivery order. When a visual prototype conflicts with these documents, these documents win.
 

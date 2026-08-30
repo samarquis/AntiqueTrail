@@ -1,6 +1,6 @@
 # Product Requirements Document
 
-Status: approved implementation baseline through the 2026-08-03 adversarial hardening pass. D31 full Audit History UI/export and the explicitly deferred Product Owner decisions remain unresolved. `DESIGN.md` is the canonical interaction contract; `DESIGN_SYSTEM.md` makes it visually reproducible.
+Status: current normative product-requirements baseline. The 2026-08-03 hardening pass established this contract; later implementation and critique work does not change product behavior unless promoted here. Current implementation, backlog, and release state live in `PROJECT_STATE.md`. D31 full Audit History UI/export and explicitly deferred Product Owner decisions remain unresolved. `DESIGN.md` is the canonical interaction contract; `DESIGN_SYSTEM.md` makes it visually reproducible.
 
 ## Working title
 

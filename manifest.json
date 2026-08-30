@@ -4,6 +4,8 @@
   "generated_date": "2026-08-30",
   "files": [
     "README.md",
+    "PROJECT_STATE.md",
+    "PLANNING_INDEX.md",
     "CODEX_START_PROMPT.md",
     "PRD.md",
     "DESIGN.md",
