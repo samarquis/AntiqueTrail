@@ -470,8 +470,11 @@ test('dated decision note is complete and closure mode requires real approval', 
 })
 
 test('closure approval accepts only explicit decision authority', () => {
-  const baseHead = git(['rev-parse', 'HEAD^']).trim()
-  const candidateHead = git(['rev-parse', 'HEAD']).trim()
+  const [candidateHead, ...candidateParents] = git(['rev-list', '--parents', '-n', '1', 'HEAD'])
+    .trim()
+    .split(/\s+/u)
+  const baseHead = candidateParents.at(-1)
+  assert.ok(baseHead, 'provenance fixture requires a candidate with at least one parent')
   const realFingerprint = candidateDiffFingerprint(baseHead, candidateHead)
   const candidate = 'a'.repeat(40)
   const fingerprint = 'b'.repeat(40)
