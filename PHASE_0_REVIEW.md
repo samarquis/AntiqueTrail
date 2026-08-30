@@ -1,6 +1,6 @@
 # Phase 0 Product, Security, and Architecture Review
 
-Status: implementation baseline approved 2026-07-30 and hardened after the independent top-down review on 2026-07-31. The bounded first development slice is planned; coding still requires a separate start instruction. Decisions through D30 plus the approved 2026-07-31 lifecycle/recovery controls are reconciled into the controlling documents. D31 full Audit History UI and export policy remain unresolved; two-year append-only privileged-audit retention is approved.
+Status: historical 2026-07-30/31 product, security, and architecture review. Its threat model, authorization matrix, and accepted decisions remain supporting references where not superseded, but its pre-coding readiness conclusion is not current implementation state. Use `PROJECT_STATE.md` for current status. D31 full Audit History UI and export policy remain unresolved; two-year append-only privileged-audit retention is approved.
 
 ## 1. PRD review
 
@@ -324,4 +324,4 @@ Do not create a monorepo, shared packages, or a second admin application until a
 14. Monetization remains deferred through RG-01/three-community review. Consent-based unpaid product promotion is approved only after Package 10B; optional printing spend still requires approval.
 15. Deferred-feature timing after Regional Public MVP: households, finds, preference onboarding/personalization, shopper/review photos, owner responses, events, and Android release. Shopper account export is approved Package 2 scope; only D31 privileged-audit export remains unresolved.
 
-Planning is complete for the approved bounded first slice. Coding may begin only after a separate product-owner start instruction. Each unresolved item blocks only its dependent later feature or release. External Testing Readiness still blocks any owner outreach, real-store import, or external participant.
+This review concluded that planning was complete for the original bounded first slice. That historical coding hold was later superseded by Product Owner-directed implementation. Each unresolved item still blocks only its dependent feature or release, and External Testing Readiness still blocks owner outreach, real-store import, or external participation.

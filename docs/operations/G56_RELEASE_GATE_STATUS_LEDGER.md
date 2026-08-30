@@ -1,5 +1,7 @@
 # G56 Release-Gate Status Ledger
 
+> Current-use note (2026-08-30): the gate definitions and NO-GO disposition remain controlling, but the row classifications and totals below are a 2026-08-23 evidence snapshot. They are not current implementation status. Refresh every row against current provider terms, named-human receipts, hosted configuration, `origin/main`, and linked artifacts before changing a classification. Repository implementation or a closed issue does not by itself move a row to EVIDENCED. See `PROJECT_STATE.md` for current code/backlog state.
+
 **Date**: 2026-08-23 · **Tracker**: #56 · **Method**: every consolidated row classified against the actual state of `docs/operations/` documents and shipped migrations. Statuses: **EVIDENCED** = dated signed receipt/drill proof exists; **SCAFFOLDED** = runbook/receipt/schema exists with explicit NO-GO/DRAFT status awaiting execution; **NOT STARTED** = no dedicated artifact or action yet.
 
 ## Provider gates

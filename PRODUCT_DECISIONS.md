@@ -1,6 +1,6 @@
 # Product Decisions
 
-Status: planning baseline approved through the 2026-08-03 adversarial hardening pass. D31 full Audit History UI/export, the final public name/domain, any paid production budget, and the first post-Topeka community remain unapproved. Coding requires a separate start instruction.
+Status: current approved product-policy baseline. The 2026-07-31 coding hold is historical; subsequent Product Owner-directed implementation is present on `main`. Live implementation, backlog, and release state are indexed in `PROJECT_STATE.md`. D31 full Audit History UI/export, the final public domain, any paid production budget or billing activation, and the first post-Topeka community remain unapproved.
 
 `DESIGN.md` is the canonical interaction contract for the approved flows summarized here; `DESIGN_SYSTEM.md` defines reproducible visual and component rules. This file records scope and policy; it does not replace the detailed interaction requirements.
 
@@ -13,6 +13,10 @@ The application is not built for one household. Original research informs the de
 ### PWA first
 
 Build a Progressive Web App first. Preserve the ability to package the same app for Android later with Capacitor.
+
+### Login platform
+
+Use Supabase Authentication for Antique Trail accounts. Public Browse and Store Details remain anonymous; private actions use just-in-time sign-in. Shopper accounts use verified email/password and the separately approved admitted-account social providers. Store Representative and Administrator access additionally requires the documented admission, MFA, recent-authentication, role, revocation, and exact-scope controls. Authentication never replaces server-side authorization. Originally approved 2026-07-31; provider choice reaffirmed by the Product Owner 2026-08-30.
 
 ### Public ratings resemble Google-style ratings
 
@@ -43,6 +47,10 @@ Include rights-cleared Official Store Profile Photos in the Store Browser, Store
 ### Age-inclusive usability baseline
 
 Design first for shoppers roughly 50–80+ without creating a separate age mode. Target WCAG 2.2 AA. Use at least 18 CSS px default body text, 1.5 line height, and no essential text below 16 CSS px; support 200% text resize, reflow, and user text-spacing overrides without loss. Use at least 48 by 48 CSS pixel mobile targets, keyboard access, visible focus, meaningful image alternatives, text with primary icons, and status that does not rely on color alone. Keep labels plain, one primary action clear at a time, inputs preserved after errors, and alternatives to drag gestures. Avoid automatic advancement or time pressure. Images may enlarge but never contain the only copy of essential information. Test required shopper journeys with the approved 2026-07-31 older-adult cohort and pass thresholds before public launch.
+
+### Current visual direction
+
+Keep the existing Daylight Archive light theme, Midnight Archive dark theme, and approved V3 storefront identity. The exact current values in `DESIGN_SYSTEM.md` are selected; semantic-token or brand-governance work may remove drift and improve review references but must not replace this palette without a new Product Owner decision. Reaffirmed 2026-08-30.
 
 ### Listing freshness and stale behavior
 
@@ -252,9 +260,9 @@ Administrator home shows role/environment, urgent safety items, and one grouped 
 
 Access & Safety separates pending invitations from active Store Representative grants and shows exact scope, verified-email/MFA state, dates, and relevant privileged activity without shopper activity. Revocation requires Administrator MFA, recent authentication, reason, and consequence preview; it removes only the selected store scope and blocks the next server-authorized write, including an open session. Regrant repeats identity and scope gates. No bulk changes, multi-store Representative grants, self-service role changes, or history deletion are allowed. Approved as D30 on 2026-07-30.
 
-### Implementation baseline approved; coding held
+### Historical implementation authorization transition
 
-Discovery decisions through D30 are sufficient for planning the single-PWA scaffold and synthetic Internal Alpha implementation. Unresolved choices block only the dependent feature or release gate; they do not block unrelated scaffold planning. Real-store outreach, public access, and external participants remain prohibited until their approved readiness gates pass. The earlier 2026-07-30 implementation authorization is superseded by the product owner's 2026-07-31 instruction to finish the plan but not start coding; a separate start instruction is required.
+Discovery decisions through D30 were sufficient for planning the single-PWA scaffold and synthetic Internal Alpha implementation. The earlier 2026-07-30 implementation authorization was superseded by the Product Owner's 2026-07-31 instruction to finish the plan before starting code. That hold is a historical sequencing decision: subsequent Product Owner-directed implementation is present on `main`. Unresolved choices still block only the dependent feature or release gate. Real-store outreach, public access, billing activation, and external participants remain prohibited until their approved readiness gates pass.
 
 ### Bounded first development slice
 
@@ -346,6 +354,8 @@ Disable break-glass access during Synthetic Internal Alpha. During Private Beta 
 - **Posture A social login:** Sign-in offers Continue with Google and Continue with Facebook alongside email and password. An OAuth identity is admitted only when its provider account maps to an active Antique Trail admission receipt checked by `oauth_admission_check` immediately after the PKCE exchange; every other identity is signed out locally and shown an invitation-required screen before any private action. Account registration stays closed, so the register screen intentionally has no social buttons and no new account can be created through a provider. Supabase may create the orphan provider identity row before the bounce; this is accepted and documented. Age attestation needs no separate OAuth flow because every admitted account was already age-attested at email registration; opening OAuth-driven registration would require a new decision here. Approved 2026-08-21.
 
 ### Photo-tier memberships: onboarding, pilot grandfathering, and tier changes
+
+Product Owner reaffirmation, 2026-08-30: Stripe remains the selected payment provider for this contract. This reaffirmation changes no price, capability flag, provider activation, or release gate.
 
 These decisions govern store-side photo-tier subscriptions (parent spec #87). They are owner subscriptions, not paid placement, data-sale, or advertising; deferred-item 4 still prohibits those, and no billing goes live until the photo-tiers package passes its own gates.
 

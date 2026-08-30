@@ -16,29 +16,33 @@ Focused commands are `npm run typecheck`, `npm run lint`, `npm run format`, `npm
 
 ## Start here
 
-1. Read `CODEX_START_PROMPT.md` for current authority and stop conditions.
-2. Read `PRODUCT_DECISIONS.md` for approved and unresolved product choices.
-3. Read `PRD.md` for product requirements.
-4. Read `DESIGN.md` and `DESIGN_SYSTEM.md` for interaction and reproducible visual rules.
-5. Read `SECURITY_AND_TRUST.md` for trust, privacy, and operational controls.
-6. Read `IMPLEMENTATION_PLAN.md` for delivery order and the Package 1 contract.
-7. Read `PACKAGE_CONTRACTS.md` for Packages 2â€“12.
-8. Read `PHASE_0_REVIEW.md` for the threat model, authorization matrix, architecture baseline, and remaining feature gates.
-9. Read `PLAN_ACCEPTANCE.md` for the cross-document dependency and independent-build map.
-10. Use `USER_RESEARCH.md` and `COMPETITIVE_LANDSCAPE.md` as research evidence, not current requirements.
+1. Read `PROJECT_STATE.md` for current implementation, backlog, Product Owner decisions, and release state.
+2. Read `PLANNING_INDEX.md` to distinguish controlling sources from historical plans and evidence.
+3. Read `CODEX_START_PROMPT.md` for current authority and stop conditions.
+4. Read `PRODUCT_DECISIONS.md` for approved and unresolved product choices.
+5. Read `PRD.md` for product requirements.
+6. Read `DESIGN.md` and `DESIGN_SYSTEM.md` for interaction and reproducible visual rules.
+7. Read `SECURITY_AND_TRUST.md` for trust, privacy, and operational controls.
+8. Read `IMPLEMENTATION_PLAN.md` for the original delivery roadmap and Package 1 contract.
+9. Read `PACKAGE_CONTRACTS.md` for Packages 2â€“13.
+10. Read `PLAN_ACCEPTANCE.md` for the cross-document dependency and independent-build map.
+11. Use `PHASE_0_REVIEW.md`, `DEEP_SPEC_REVIEW.md`, and `ROLE_BASED_SITE_REVIEW.md` as dated review snapshots, not current state.
+12. Use `USER_RESEARCH.md` and `COMPETITIVE_LANDSCAPE.md` as research evidence, not current requirements.
 
 ## Source precedence
 
 | Question | Controlling source | Supporting source |
 |---|---|---|
-| Current authorization and stop conditions | `CODEX_START_PROMPT.md` | `PRODUCT_DECISIONS.md`, `IMPLEMENTATION_PLAN.md` |
+| Current implementation, backlog, and release state | `PROJECT_STATE.md` | Live GitHub state and dated evidence |
+| Document role and maintenance ownership | `PLANNING_INDEX.md` | This table |
+| Current authorization and stop conditions | `CODEX_START_PROMPT.md` | `PROJECT_STATE.md`, `PRODUCT_DECISIONS.md` |
 | Approved scope or unresolved product choice | `PRODUCT_DECISIONS.md` | `PRD.md` |
 | Product behavior and acceptance requirement | `PRD.md` | `PRODUCT.md` |
 | Interaction, screen flow, and copy intent | `DESIGN.md` | `DESIGN_SYSTEM.md` |
 | Exact visual tokens, responsive rules, and component states | `DESIGN_SYSTEM.md` | `DESIGN.md` |
 | Security, privacy, authorization, retention, and operations | `SECURITY_AND_TRUST.md` | `PHASE_0_REVIEW.md` threat model/matrix |
 | Delivery order and Package 1 execution contract | `IMPLEMENTATION_PLAN.md` | ADRs |
-| Packages 2â€“12 execution contracts | `PACKAGE_CONTRACTS.md` | `IMPLEMENTATION_PLAN.md`, ADRs |
+| Packages 2â€“13 execution contracts | `PACKAGE_CONTRACTS.md` | `IMPLEMENTATION_PLAN.md`, ADRs |
 | Cross-document dependency/acceptance index | `PLAN_ACCEPTANCE.md` | All controlling sources above |
 | Architecture decision | Most recent accepted ADR | `PHASE_0_REVIEW.md` architecture baseline |
 | Historical discovery evidence | `USER_RESEARCH.md`, `COMPETITIVE_LANDSCAPE.md` | Not normative |

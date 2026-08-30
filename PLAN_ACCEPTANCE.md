@@ -1,6 +1,6 @@
 # Plan Acceptance and Independent Build Map
 
-Status: normative handoff index through the 2026-08-03 adversarial hardening pass. It adds no product behavior and never overrides the source-precedence table in `README.md`. Package 1 is contracted in `IMPLEMENTATION_PLAN.md`; Packages 2–12 are contracted in `PACKAGE_CONTRACTS.md`. Application coding remains held until a separate explicit Product Owner instruction.
+Status: normative dependency and acceptance index derived from the 2026-08-03 handoff. It adds no product behavior, does not report current implementation, and never overrides the source-precedence table in `README.md`. Package 1 is contracted in `IMPLEMENTATION_PLAN.md`; Packages 2–13 are contracted in `PACKAGE_CONTRACTS.md`. The original coding hold is historical; current implementation and release state live in `PROJECT_STATE.md`.
 
 ## Release dependency chain
 
@@ -51,7 +51,7 @@ No arrow authorizes real data, external contact, paid service, promotion, public
 | First small-community selection | Community Expansion Gate | Separate choice; no automatic import/contact/promotion | Product Owner after RG-01 |
 | Small-community activation ordinals 1–3 | Repeatable Package 12 per-area run | Exact area/catalog/owner consent, preactivation receipt, reused 10A/10B promotion/recovery/rollback; current-community gate before any next run | Package 12 + Product Owner |
 
-| 13 | Photo-tier memberships, moderation, and staged-off billing | PACKAGE_CONTRACTS.md Package 13 section; SECURITY_AND_TRUST.md authorization matrix; flag-flip receipt-bound command | Package 13 |
+| Photo-tier memberships, moderation, and staged-off Stripe billing | `PRODUCT_DECISIONS.md` photo-tier decisions; `docs/specs/store-membership-spec.md` | `PACKAGE_CONTRACTS.md` Package 13; `SECURITY_AND_TRUST.md` authorization matrix; receipt-bound capability | Package 13; activation remains separately gated |
 
 ## Provider and external-decision boundary
 
@@ -95,4 +95,4 @@ Manifest v2.5 contains 23/23 declared handoff files. Fresh independent adversari
 | Cross-document coherence and independent handoff | 10/10 |
 | **Total plan quality** | **100/100** |
 
-This 100/100 rates the original implementation-plan handoff, not current deployment readiness. Application code, migrations, automated tests, CI, and a Supabase project now exist, but no accepted Vercel deployment, recovery rehearsal, provider PASS receipt, external participant, or public release has been established. H-01/E-01/R-01/M-01/L-01/S-01/SEC-01/B-01/HC-01/HC-02 and package acceptance checks remain executable stop gates; a failed or unproved gate blocks its dependent stage and does not reduce the historical plan score by being honestly unresolved at runtime.
+This 100/100 rates the original implementation-plan handoff, not the current corpus, implementation completeness, or deployment readiness. Application code, migrations, automated tests, CI, and a Supabase project now exist, but no accepted Vercel deployment, recovery rehearsal, complete provider PASS set, external participant, live Stripe billing, or public release has been established. H-01/E-01/R-01/M-01/L-01/S-01/SEC-01/B-01/HC-01/HC-02 and package acceptance checks remain executable stop gates; a failed or unproved gate blocks its dependent stage and does not reduce the historical plan score by being honestly unresolved at runtime.

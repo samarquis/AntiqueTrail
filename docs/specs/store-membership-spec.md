@@ -3,7 +3,7 @@
 **Status**: Approved planning baseline · **Date**: 2026-08-23
 **Parent ticket**: #87 (closes with this spec) · **Feeds**: #92 (closed by same rulings), photo-tiers package
 
-This spec locks the pricing model, tier features, storage rules, payment flow, and moderation rules for Antique Trail's store listing memberships. It activates at Regional Public MVP per ADR 0005's paid-tier transition plan. **No billing goes live until the photo-tiers package passes its own gates and the Product Owner signs the funding/activation approval; deferred-item 4 (monetization) still prohibits any paid placement, data-sale, or advertising — these tiers sell owner storage capacity only.**
+This spec locks the tier features, storage rules, payment flow, and moderation rules for Antique Trail's store listing memberships. The free tier applies as documented; paid Stripe tiers remain staged off through Regional Public MVP and may activate only after the post-RG-01 monetization Product Decision, Package 13 gates, and signed funding/activation receipt. **No billing goes live merely because the integration exists; deferred-item 4 still prohibits paid placement, data sale, or advertising — these tiers sell owner storage capacity only. Dollar prices remain unset until the signed activation receipt.**
 
 ## Tier model
 

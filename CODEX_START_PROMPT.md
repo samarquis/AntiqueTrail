@@ -2,7 +2,7 @@
 
 You are working on a new commercial-grade public Progressive Web App with the working name **Antique Trail**.
 
-Read every Markdown file in this folder before proposing architecture or writing code.
+Read `PROJECT_STATE.md`, `PLANNING_INDEX.md`, and the controlling sources named below before proposing architecture or writing code. Historical reviews, ticket plans, and gate ledgers are evidence, not global current authority.
 
 ## Product goal
 
@@ -44,13 +44,13 @@ Preferred stack unless a documented architectural reason changes it:
 
 ## Current implementation status
 
-Product discovery and the 2026-08-03 adversarial plan hardening are approved. D31 full Audit History UI/export, B-01 final public name/domain, paid production recovery budget, H-01/L-01 provider receipts, SEC-01 reviewer, named human backup/reviewers, and first post-Topeka community remain unresolved. Each blocks only its dependent stage. The product owner's 2026-07-31 coding hold remains controlling. Do not write application code until the Product Owner gives a separate explicit start instruction.
+The 2026-07-31 coding hold is historical: subsequent Product Owner-directed implementation is present on `main`. Continue only work explicitly requested by the Product Owner or already authorized in a controlling contract; do not infer permission for live provider activation, billing, external contact, real-store data, promotion, or release. `PROJECT_STATE.md` is the dated implementation/backlog/release index. D31 full Audit History UI/export, the final public domain, paid production recovery authority, provider receipts, independent security review, named human operational roles, and post-Topeka expansion choices remain gated as documented.
 
-1. Read `PRD.md`, `DESIGN.md`, `DESIGN_SYSTEM.md`, `PRODUCT_DECISIONS.md`, `SECURITY_AND_TRUST.md`, `IMPLEMENTATION_PLAN.md`, `PACKAGE_CONTRACTS.md`, `PHASE_0_REVIEW.md`, and `PLAN_ACCEPTANCE.md` before editing.
-2. When and only when coding is explicitly authorized, begin with the bounded single-PWA Synthetic Store Browse/Details slice in `IMPLEMENTATION_PLAN.md`.
+1. Read `PROJECT_STATE.md`, `PLANNING_INDEX.md`, `PRD.md`, `DESIGN.md`, `DESIGN_SYSTEM.md`, `PRODUCT_DECISIONS.md`, `SECURITY_AND_TRUST.md`, `IMPLEMENTATION_PLAN.md`, `PACKAGE_CONTRACTS.md`, and `PLAN_ACCEPTANCE.md` before editing.
+2. Treat the Package 1 starting instruction in `IMPLEMENTATION_PLAN.md` as historical sequencing; inspect current code, live issues, and accepted contracts before selecting work.
 3. Treat unresolved decisions as gates only for their dependent feature or release; do not invent policy.
 4. Do not add a real store, contact an owner, admit an external participant, advertise, or launch publicly before the documented gates pass.
 5. Keep D31 full Audit History UI and export out of scope until approved; retain append-only privileged events for two years and implement only narrow D30 `View Audit` access.
 6. Treat Package 1 as the first coding slice, `SLM-01` as a later private Synthetic checkpoint after Packages 1/2/3/5A, Packages 1–10B as Regional Public MVP delivery, Package 11 as postlaunch RG-01, and Package 12 as one separately approved small-community activation. No milestone authorizes the next one.
-7. H-01 precedes any shared environment; E-01 real email; R-01 Package 5B routing/geocoding; M-01 real media; L-01 privileged shared/external mutation; S-01/HC-01 first owner contact; SEC-01/B-01/HC-02 and public recovery precede Package 10B; A-01 optional analytics. Regional Public remains blocked until 15-minute RPO/four-hour RTO is proven.
+7. H-01 precedes any shared activation; E-01 gates real email; R-01 gates provider-backed routing/geocoding; M-01 gates real media; L-01 gates privileged shared/external mutation; S-01/HC-01 gate first owner contact; SEC-01/B-01/HC-02 and public recovery precede Package 10B; A-01 analytics remains optional. Stripe is selected for store photo-tier payments, but `photo_tiers_enabled` remains false until its signed activation and release gates pass. Regional Public remains blocked until 15-minute RPO/four-hour RTO is proven.
 Use the source-precedence table in `README.md` when documents differ. Record major technical choices as Architecture Decision Records.
