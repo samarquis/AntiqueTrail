@@ -6,7 +6,7 @@ Status: approved planning baseline, including the 2026-08-18 Midnight Archive vi
 
 ## Brand review references
 
-The proposed governed [mood](docs/design/mood.md), [voice](docs/design/voice.md), and [token review index](docs/design/tokens.md) translate this approved system into repeatable Mood, Voice, and Token Compliance critiques. They are subordinate review aids: they do not override product/trust policy, `DESIGN.md` interaction and copy intent, or this file's exact visual rules. Use the [brand reference review checklist](docs/design/BRAND_REFERENCE_REVIEW_CHECKLIST.md); stop and reconcile controlling sources whenever a reference conflicts.
+The **Proposed** governed [mood](docs/design/mood.md), [voice](docs/design/voice.md), and [token review index](docs/design/tokens.md) translate this approved system into repeatable Mood, Voice, and Token Compliance critiques. They are subordinate review aids: they do not override product/trust policy, `DESIGN.md` interaction and copy intent, or this file's exact visual rules. Use the [brand reference review checklist](docs/design/BRAND_REFERENCE_REVIEW_CHECKLIST.md); stop and reconcile controlling sources whenever a reference conflicts.
 
 ## Concept evidence and implementation authority
 

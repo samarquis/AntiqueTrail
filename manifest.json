@@ -1,7 +1,7 @@
 {
   "project": "Antique Trail",
-  "handoff_version": "2.7",
-  "generated_date": "2026-08-20",
+  "handoff_version": "2.8",
+  "generated_date": "2026-08-30",
   "files": [
     "README.md",
     "CODEX_START_PROMPT.md",
@@ -52,5 +52,5 @@
     "public/icons/private-notes.svg",
     "public/icons/store-details.svg"
   ],
-  "purpose": "Governed product, design, security, architecture, implementation context, and file-status-controlled proposed review indexes"
+  "purpose": "Governed product, design, security, architecture, implementation context, and file-status-controlled brand review indexes"
 }

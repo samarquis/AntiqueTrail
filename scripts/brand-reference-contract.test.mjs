@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, extname, resolve } from 'node:path'
 import process from 'node:process'
@@ -23,6 +24,75 @@ function fieldValue(content, field) {
   return content.match(new RegExp(`^- \\*\\*${field}:\\*\\* (.+)$`, 'mu'))?.[1]?.trim() ?? ''
 }
 
+function unquote(value) {
+  return value.replace(/^`|`$/gu, '')
+}
+
+function git(args, options = {}) {
+  const result = spawnSync('git', args, {
+    cwd: root,
+    encoding: options.encoding ?? 'utf8',
+    input: options.input,
+    maxBuffer: 8 * 1024 * 1024,
+  })
+  assert.equal(
+    result.status,
+    0,
+    `git ${args.join(' ')} failed: ${String(result.stderr ?? '').trim()}`,
+  )
+  return result.stdout
+}
+
+function candidateDiffFingerprint(base, candidate) {
+  assert.match(base, /^[0-9a-f]{40}$/u)
+  assert.match(candidate, /^[0-9a-f]{40}$/u)
+  git(['cat-file', '-e', `${base}^{commit}`])
+  git(['cat-file', '-e', `${candidate}^{commit}`])
+  assert.equal(
+    git(['merge-base', base, candidate]).trim(),
+    base,
+    'candidate base must be an ancestor of the reviewed candidate',
+  )
+  const diff = git(['diff', '--binary', `${base}...${candidate}`, '--', '.', `:(exclude)${note}`], {
+    encoding: 'buffer',
+  })
+  return git(['hash-object', '--stdin'], { input: diff }).trim()
+}
+
+function assertCandidateProvenance(content, expectedBase, expectedCandidate) {
+  const base = unquote(fieldValue(content, 'Candidate base').split(/\s+/u)[0])
+  const candidate = unquote(fieldValue(content, 'Candidate HEAD').split(/\s+/u)[0])
+  const fingerprint = unquote(fieldValue(content, 'Diff fingerprint').split(/\s+/u)[0])
+  assert.equal(base, expectedBase, 'approval base must match the supplied base commit')
+  assert.equal(candidate, expectedCandidate, 'approval candidate must match the supplied HEAD')
+  assert.equal(
+    fingerprint,
+    candidateDiffFingerprint(base, candidate),
+    'recorded fingerprint must match the self-excluding candidate diff',
+  )
+}
+
+function referenceStatus() {
+  const statuses = new Set(references.map((file) => fieldValue(read(file), 'Status')))
+  assert.equal(statuses.size, 1, 'all three brand references must have the same status')
+  const [status] = statuses
+  assert.match(status, /^(?:Proposed|Changes requested|Approved)$/u)
+  return status
+}
+
+function assertInboundStatus(status) {
+  assert.match(
+    read('docs/design/README.md'),
+    new RegExp(`\\*\\*${status}\\*\\* review indexes`, 'iu'),
+    'design README status must match the three governed references',
+  )
+  assert.match(
+    read('DESIGN_SYSTEM.md'),
+    new RegExp(`The \\*\\*${status}\\*\\* governed`, 'iu'),
+    'DESIGN_SYSTEM status must match the three governed references',
+  )
+}
+
 function assertAuthorizedApproval(content) {
   assert.equal(fieldValue(content, 'Decision'), 'Approved')
   assert.match(fieldValue(content, 'Reviewer'), /\S/u)
@@ -31,7 +101,45 @@ function assertAuthorizedApproval(content) {
     /^(?:Product Owner|Delegated design decision-maker; delegated by \S.+)$/u,
     'approval requires the Product Owner role or an explicitly named delegation source',
   )
+  const candidate = unquote(fieldValue(content, 'Candidate HEAD').split(/\s+/u)[0])
+  assert.match(candidate, /^[0-9a-f]{40}$/u, 'approval requires the exact reviewed candidate HEAD')
+  assert.match(
+    unquote(fieldValue(content, 'Candidate base').split(/\s+/u)[0]),
+    /^[0-9a-f]{40}$/u,
+    'approval requires the exact candidate base commit',
+  )
+  assert.match(
+    unquote(fieldValue(content, 'Diff fingerprint').split(/\s+/u)[0]),
+    /^[0-9a-f]{40}$/u,
+    'approval requires a regenerated self-excluding diff fingerprint',
+  )
+  assert.equal(fieldValue(content, 'Checklist result'), 'Passed')
+  for (const field of [
+    'Mood critique',
+    'Voice critique',
+    'Token Compliance critique',
+    'Representative route matrix',
+  ])
+    assert.equal(fieldValue(content, field), 'Pass', `approval requires ${field}: Pass`)
+  assert.doesNotMatch(
+    fieldValue(content, 'Checks'),
+    /human.+required|pending|changes requested/iu,
+    'approval checks cannot retain a pending human-review disclaimer',
+  )
+  assert.doesNotMatch(
+    fieldValue(content, 'Intentionally deferred questions'),
+    /approver identity|approval decision|human.+required|pending/iu,
+    'approval cannot defer the approval authority or decision itself',
+  )
 }
+
+if (process.env.BRAND_REFERENCE_FINGERPRINT_BASE && process.env.BRAND_REFERENCE_FINGERPRINT_HEAD)
+  process.stdout.write(
+    `BRAND_REFERENCE_DIFF_FINGERPRINT=${candidateDiffFingerprint(
+      process.env.BRAND_REFERENCE_FINGERPRINT_BASE,
+      process.env.BRAND_REFERENCE_FINGERPRINT_HEAD,
+    )}\n`,
+  )
 
 function anchors(content) {
   const seen = new Map()
@@ -84,10 +192,24 @@ test('brand references and discovery seams exist', () => {
   const manifest = JSON.parse(read('manifest.json'))
   for (const file of [...references, checklist])
     assert.ok(manifest.files.includes(file), `manifest missing ${file}`)
-  assert.doesNotMatch(manifest.purpose, /^Approved\b/iu)
+  assert.doesNotMatch(
+    manifest.purpose,
+    /\b(?:Proposed|Approved|Changes requested)\b/iu,
+    'manifest purpose must stay status-neutral; reference and inbound-index fields own status',
+  )
+  assert.match(manifest.handoff_version, /^\d+\.\d+$/u)
+  const latestReferenceReview = references
+    .map((file) => fieldValue(read(file), 'Last reviewed'))
+    .sort()
+    .at(-1)
+  assert.ok(
+    manifest.generated_date >= latestReferenceReview,
+    'manifest generated_date must not predate a governed reference review',
+  )
 
   const designReadme = read('docs/design/README.md')
-  assert.match(designReadme, /\*\*Proposed\*\* review indexes/iu)
+  const status = referenceStatus()
+  assertInboundStatus(status)
   assert.ok(
     designReadme.indexOf('PALETTE_PROPOSAL.md') < designReadme.indexOf('[`mood.md`]'),
     'proposed review indexes must not rank above the approved palette authority',
@@ -96,7 +218,6 @@ test('brand references and discovery seams exist', () => {
     designReadme.indexOf('ICON_PLACEMENT_SPEC.md') < designReadme.indexOf('[`mood.md`]'),
     'proposed review indexes must not rank above the approved icon authority',
   )
-  assert.match(read('DESIGN_SYSTEM.md'), /proposed governed \[mood\]/iu)
 })
 
 test('governance blocks are complete and non-self-approving', () => {
@@ -283,6 +404,7 @@ test('dated decision note is complete and closure mode requires real approval', 
   const content = read(note)
   for (const field of [
     'Date and time zone',
+    'Candidate base',
     'Candidate HEAD',
     'Diff fingerprint',
     'Reviewer',
@@ -297,19 +419,84 @@ test('dated decision note is complete and closure mode requires real approval', 
       new RegExp(`^- \\*\\*${field}:\\*\\* \\S.+$`, 'mu'),
       `${note} missing ${field}`,
     )
-  assert.match(content, /^- \*\*Diff fingerprint:\*\* `[0-9a-f]{40}`/mu)
+  assert.match(
+    fieldValue(content, 'Candidate base'),
+    /^(?:`[0-9a-f]{40}`|Pending\b)/u,
+    'non-approved evidence must either pin a base or state that it is pending',
+  )
+  assert.match(
+    fieldValue(content, 'Candidate HEAD'),
+    /^(?:`[0-9a-f]{40}`|Pending\b)/u,
+    'non-approved evidence must either pin a candidate or state that it is pending',
+  )
+  assert.match(
+    fieldValue(content, 'Diff fingerprint'),
+    /^(?:`[0-9a-f]{40}`|Pending\b)/u,
+    'non-approved evidence must either pin a fingerprint or state that it is pending',
+  )
   assert.match(content, /^- \*\*Decision:\*\* (?:Approved|Changes requested)$/mu)
 
   if (process.env.BRAND_REFERENCE_CLOSURE === '1') {
+    const expectedBase = process.env.BRAND_REFERENCE_BASE_HEAD ?? ''
+    const expectedCandidate = process.env.BRAND_REFERENCE_CANDIDATE_HEAD ?? ''
+    assert.match(
+      expectedBase,
+      /^[0-9a-f]{40}$/u,
+      'closure requires BRAND_REFERENCE_BASE_HEAD for the reviewed PR base',
+    )
+    assert.match(
+      expectedCandidate,
+      /^[0-9a-f]{40}$/u,
+      'closure requires BRAND_REFERENCE_CANDIDATE_HEAD for the exact reviewed commit',
+    )
     assertAuthorizedApproval(content)
-    for (const file of references) assert.match(read(file), /^- \*\*Status:\*\* Approved$/mu)
+    assertCandidateProvenance(content, expectedBase, expectedCandidate)
+    assert.equal(referenceStatus(), 'Approved')
+    assertInboundStatus('Approved')
+    const decisionDate = fieldValue(content, 'Date and time zone').match(/^\d{4}-\d{2}-\d{2}/u)?.[0]
+    assert.ok(decisionDate, 'approval requires an ISO decision date')
+    for (const file of references)
+      assert.equal(
+        fieldValue(read(file), 'Last reviewed'),
+        decisionDate,
+        `${file} Last reviewed must match the approval date`,
+      )
+    assert.equal(
+      JSON.parse(read('manifest.json')).generated_date,
+      decisionDate,
+      'manifest generated_date must match the approval date',
+    )
   }
 })
 
 test('closure approval accepts only explicit decision authority', () => {
+  const baseHead = git(['rev-parse', 'HEAD^']).trim()
+  const candidateHead = git(['rev-parse', 'HEAD']).trim()
+  const realFingerprint = candidateDiffFingerprint(baseHead, candidateHead)
+  const candidate = 'a'.repeat(40)
+  const fingerprint = 'b'.repeat(40)
   const base = read(note)
     .replace(/^- \*\*Reviewer:\*\* .+$/mu, '- **Reviewer:** Jane Reviewer')
     .replace(/^- \*\*Decision:\*\* .+$/mu, '- **Decision:** Approved')
+    .replace(/^- \*\*Candidate base:\*\* .+$/mu, `- **Candidate base:** \`${baseHead}\``)
+    .replace(/^- \*\*Candidate HEAD:\*\* .+$/mu, `- **Candidate HEAD:** \`${candidate}\``)
+    .replace(/^- \*\*Diff fingerprint:\*\* .+$/mu, `- **Diff fingerprint:** \`${fingerprint}\``)
+    .replace(/^- \*\*Checklist result:\*\* .+$/mu, '- **Checklist result:** Passed')
+    .replace(
+      /^- \*\*Checks:\*\* .+$/mu,
+      '- **Checks:** Automated checks and authorized human review passed.',
+    )
+    .replace(
+      /^- \*\*Intentionally deferred questions:\*\* .+$/mu,
+      '- **Intentionally deferred questions:** None',
+    )
+    .replace(/^- \*\*Mood critique:\*\* .+$/mu, '- **Mood critique:** Pass')
+    .replace(/^- \*\*Voice critique:\*\* .+$/mu, '- **Voice critique:** Pass')
+    .replace(/^- \*\*Token Compliance critique:\*\* .+$/mu, '- **Token Compliance critique:** Pass')
+    .replace(
+      /^- \*\*Representative route matrix:\*\* .+$/mu,
+      '- **Representative route matrix:** Pass',
+    )
 
   const productOwner = base.replace(
     /^- \*\*Reviewer role:\*\* .+$/mu,
@@ -336,4 +523,21 @@ test('closure approval accepts only explicit decision authority', () => {
     '- **Reviewer role:** Friend',
   )
   assert.throws(() => assertAuthorizedApproval(unauthorized))
+  assert.throws(() =>
+    assertAuthorizedApproval(
+      productOwner.replace('- **Mood critique:** Pass', '- **Mood critique:** Pending'),
+    ),
+  )
+  const provenance = productOwner
+    .replace(`\`${candidate}\``, `\`${candidateHead}\``)
+    .replace(`\`${fingerprint}\``, `\`${realFingerprint}\``)
+  assert.doesNotThrow(() => assertCandidateProvenance(provenance, baseHead, candidateHead))
+  assert.throws(() => assertCandidateProvenance(provenance, baseHead, 'c'.repeat(40)))
+  assert.throws(() =>
+    assertCandidateProvenance(
+      provenance.replace(`\`${realFingerprint}\``, `\`${fingerprint}\``),
+      baseHead,
+      candidateHead,
+    ),
+  )
 })

@@ -4,12 +4,12 @@ Use this checklist for a human Mood, Voice, and Token Compliance decision. Autom
 
 ## Candidate and governance
 
-- [ ] Record candidate HEAD, self-excluding diff fingerprint, date/time zone, reviewer name, and reviewer role in the dated issue-146 note.
+- [ ] Record the exact PR base commit, technical-review candidate HEAD, self-excluding diff fingerprint, date/time zone, reviewer name, and reviewer role in the dated issue-146 note. The base must be an ancestor of the candidate. The human decision-only commit may follow that candidate; it must not contain unreviewed reference content.
 - [ ] Confirm `mood.md`, `voice.md`, and `tokens.md` each have one H1 and non-empty Status, Owner, Last reviewed, Approval mechanism, Authority and precedence, and Cross-references fields.
 - [ ] Confirm status is `Proposed` or `Changes requested` until a Product Owner or explicit design delegate records `Approved`.
 - [ ] Resolve every conflict using root source precedence; do not select the easier rule.
 - [ ] Confirm palette terminology matches the current Daylight Archive and Midnight Archive authority without reviving superseded names.
-- [ ] Confirm bidirectional discoverability from `docs/design/README.md`, `DESIGN_SYSTEM.md`, and `manifest.json`.
+- [ ] Confirm bidirectional discoverability from `docs/design/README.md`, `DESIGN_SYSTEM.md`, and `manifest.json`; the two inbound indexes and all three references must state the same status.
 
 ## Mood critique
 
@@ -47,5 +47,9 @@ Use this checklist for a human Mood, Voice, and Token Compliance decision. Autom
 
 - [ ] Run `npm run docs:brand:check`, focused Prettier, `npm run test:release`, and repository checks; paste exact outcomes.
 - [ ] Record `Approved` or `Changes requested`, the deciding reviewer, cited failures, and intentionally deferred questions. Write `None` when no questions are deferred.
+- [ ] Record `Pass` or `Fail` separately for Mood critique, Voice critique, Token Compliance critique, and the representative route matrix in the dated decision note; `Checklist result` is `Passed` only when all four are `Pass`.
 - [ ] For approval, record reviewer role exactly as `Product Owner` or `Delegated design decision-maker; delegated by <Product Owner name/handle>` so decision authority is explicit and auditable.
+- [ ] For approval, change the status and last-reviewed date together in `mood.md`, `voice.md`, and `tokens.md`; change the matching status in `docs/design/README.md` and `DESIGN_SYSTEM.md`; refresh `manifest.json` version/date; and regenerate the self-excluding diff fingerprint.
 - [ ] Do not treat automated keyword matches, the review harness, an AI agent, or an implementation author as Product Owner approval.
+
+Generate the fingerprint from real commits with `$env:BRAND_REFERENCE_FINGERPRINT_BASE='<base SHA>'; $env:BRAND_REFERENCE_FINGERPRINT_HEAD='<candidate SHA>'; npm run docs:brand:check`; copy the reported `BRAND_REFERENCE_DIFF_FINGERPRINT`, then clear both environment variables. Run closure mode with `$env:BRAND_REFERENCE_CLOSURE='1'; $env:BRAND_REFERENCE_BASE_HEAD='<base SHA>'; $env:BRAND_REFERENCE_CANDIDATE_HEAD='<candidate SHA>'; npm run docs:brand:check` and clear all three variables afterward.
