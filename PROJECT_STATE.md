@@ -1,6 +1,6 @@
 # Antique Trail Current Project State
 
-Status date: 2026-08-30. Baseline: `origin/main` at `6ac20e5` plus live GitHub issue and pull-request state checked on the status date.
+Status date: 2026-08-30. Baseline: `origin/main` through planning-reconciliation PR #160 at `04fd795` plus the dated updates recorded below.
 
 This file is the current-state index. It reports what is implemented, what is merely specified or scaffolded, what is blocked, and where current work is tracked. It does not replace the product, design, security, package, or ADR contracts in `README.md`.
 
@@ -16,6 +16,12 @@ This file is the current-state index. It reports what is implemented, what is me
 Issue closure proves only the issue's accepted scope. It does not prove provider configuration, production authorization, package acceptance, or public-release readiness unless those were explicit acceptance criteria.
 
 ## Product Owner decisions reaffirmed on 2026-08-30
+
+### Locked plan governance
+
+The controlling plan and design are locked by default. Only an explicit Product Owner directive containing `update plan` authorizes a plan amendment; tickets, critiques, prototypes, implementation requests, and pull requests cannot silently change intended behavior. `PLAN_GOVERNANCE.md` controls amendments, decisions, ticket admission, traceability, and closure, while `PLAN_CHANGELOG.md` records authorized amendments append-only.
+
+Repository issue and pull-request templates plus plan-governance workflows enforce the required reason-to-plan-to-acceptance trace. Invalid tickets lose implementation-ready labels, and protected plan changes require both the authorization directive and a changelog receipt. Hosted `main` protection remains a separately verified repository setting and must require pull requests plus the web, database, and plan-governance checks.
 
 ### Current color and visual direction
 

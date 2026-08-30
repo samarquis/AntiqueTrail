@@ -7,6 +7,8 @@ Status: current document-role map as of 2026-08-30. When documents conflict, use
 | File                        | Classification                                                  |
 | --------------------------- | --------------------------------------------------------------- |
 | `README.md`                 | Orientation and source-precedence map                           |
+| `PLAN_GOVERNANCE.md`        | Locked-plan, decision, amendment, and ticket-admission contract |
+| `PLAN_CHANGELOG.md`         | Append-only authorized plan-amendment ledger                    |
 | `PROJECT_STATE.md`          | Current-state index                                             |
 | `PLANNING_INDEX.md`         | Document-role and maintenance map                               |
 | `CODEX_START_PROMPT.md`     | Current execution authority and stop conditions                 |
@@ -33,15 +35,16 @@ Status: current document-role map as of 2026-08-30. When documents conflict, use
 
 ## Current controlling sources
 
-| Document                 | Role                                                                    | Maintenance rule                                                                                 |
-| ------------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `PROJECT_STATE.md`       | Current implementation, backlog, decision, and release-state index      | Refresh from `main`, live GitHub, and dated gate evidence; never use it to invent product policy |
-| `PRODUCT_DECISIONS.md`   | Approved scope and policy decisions                                     | Append or amend only with Product Owner authority; keep deferred choices explicit                |
-| `PRD.md`                 | Product behavior, outcomes, MVP boundary, and acceptance requirements   | Change when intended product behavior changes, not merely when implementation status changes     |
-| `DESIGN.md`              | Canonical journeys, interaction behavior, and copy intent               | Promote accepted interaction changes here                                                        |
-| `DESIGN_SYSTEM.md`       | Exact tokens, responsive rules, component states, and screen acceptance | Promote stable critique lessons and verified design-system contracts here                        |
-| `SECURITY_AND_TRUST.md`  | Security, privacy, authorization, retention, and operational policy     | Keep implementation and release claims separate from required controls                           |
-| Most recent accepted ADR | Architecture decision for its named boundary                            | A newer accepted ADR may supersede only the boundary it names                                    |
+| Document                 | Role                                                                              | Maintenance rule                                                                                                |
+| ------------------------ | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `PLAN_GOVERNANCE.md`     | Controls plan authority, design lock, decisions, amendments, and ticket admission | Amend only after an explicit Product Owner `update plan` directive; record the amendment in `PLAN_CHANGELOG.md` |
+| `PROJECT_STATE.md`       | Current implementation, backlog, decision, and release-state index                | Refresh from `main`, live GitHub, and dated gate evidence; never use it to invent product policy                |
+| `PRODUCT_DECISIONS.md`   | Approved scope and policy decisions                                               | Append or amend only with Product Owner authority; keep deferred choices explicit                               |
+| `PRD.md`                 | Product behavior, outcomes, MVP boundary, and acceptance requirements             | Change when intended product behavior changes, not merely when implementation status changes                    |
+| `DESIGN.md`              | Canonical journeys, interaction behavior, and copy intent                         | Promote accepted interaction changes here                                                                       |
+| `DESIGN_SYSTEM.md`       | Exact tokens, responsive rules, component states, and screen acceptance           | Promote stable critique lessons and verified design-system contracts here                                       |
+| `SECURITY_AND_TRUST.md`  | Security, privacy, authorization, retention, and operational policy               | Keep implementation and release claims separate from required controls                                          |
+| Most recent accepted ADR | Architecture decision for its named boundary                                      | A newer accepted ADR may supersede only the boundary it names                                                   |
 
 ## Delivery and acceptance contracts
 
@@ -87,10 +90,13 @@ Untracked `PLAN_*.md` or `gates/*.md` files in a working tree are local executio
 
 ## Where a new fact belongs
 
-| New fact                                                       | Update                                                                                                |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Product Owner chooses a provider, policy, feature, or deferral | `PRODUCT_DECISIONS.md`, then the affected PRD/design/security/package contract and `PROJECT_STATE.md` |
-| A visual critique establishes a reusable rule                  | `DESIGN_SYSTEM.md` or `DESIGN.md`, plus dated evidence                                                |
-| Code merges or an issue changes status                         | `PROJECT_STATE.md`; preserve the original ticket/evidence ledger                                      |
-| A human/provider/release gate passes                           | Its signed operational receipt, the G56 ledger, GitHub #56, then `PROJECT_STATE.md`                   |
-| An old review becomes stale                                    | Add a prominent historical/superseded banner; do not erase the evidence                               |
+| New fact                                                       | Update                                                                                                                               |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Product Owner explicitly directs `update plan`                 | Follow `PLAN_GOVERNANCE.md`; update every affected controlling source and append `PLAN_CHANGELOG.md` before dependent implementation |
+| Product Owner chooses a provider, policy, feature, or deferral | `PRODUCT_DECISIONS.md`, then the affected PRD/design/security/package contract and `PROJECT_STATE.md`                                |
+| A visual critique establishes a reusable rule                  | `DESIGN_SYSTEM.md` or `DESIGN.md`, plus dated evidence                                                                               |
+| Code merges or an issue changes status                         | `PROJECT_STATE.md`; preserve the original ticket/evidence ledger                                                                     |
+| A human/provider/release gate passes                           | Its signed operational receipt, the G56 ledger, GitHub #56, then `PROJECT_STATE.md`                                                  |
+| An old review becomes stale                                    | Add a prominent historical/superseded banner; do not erase the evidence                                                              |
+
+Tickets never become controlling sources. Every ticket must pass the admission contract in `PLAN_GOVERNANCE.md`, cite the current controlling file and heading for each requirement, and map its reason through acceptance and closure evidence. A critique or ticket that proposes different intended behavior remains non-normative until an authorized plan amendment is merged.

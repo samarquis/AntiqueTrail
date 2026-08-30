@@ -16,6 +16,8 @@ Focused commands are `npm run typecheck`, `npm run lint`, `npm run format`, `npm
 
 ## Start here
 
+Read `PLAN_GOVERNANCE.md` first for the locked-plan, decision, ticket, and amendment rules. Its append-only amendment record is `PLAN_CHANGELOG.md`.
+
 1. Read `PROJECT_STATE.md` for current implementation, backlog, Product Owner decisions, and release state.
 2. Read `PLANNING_INDEX.md` to distinguish controlling sources from historical plans and evidence.
 3. Read `CODEX_START_PROMPT.md` for current authority and stop conditions.
@@ -31,23 +33,24 @@ Focused commands are `npm run typecheck`, `npm run lint`, `npm run format`, `npm
 
 ## Source precedence
 
-| Question | Controlling source | Supporting source |
-|---|---|---|
-| Current implementation, backlog, and release state | `PROJECT_STATE.md` | Live GitHub state and dated evidence |
-| Document role and maintenance ownership | `PLANNING_INDEX.md` | This table |
-| Current authorization and stop conditions | `CODEX_START_PROMPT.md` | `PROJECT_STATE.md`, `PRODUCT_DECISIONS.md` |
-| Approved scope or unresolved product choice | `PRODUCT_DECISIONS.md` | `PRD.md` |
-| Product behavior and acceptance requirement | `PRD.md` | `PRODUCT.md` |
-| Interaction, screen flow, and copy intent | `DESIGN.md` | `DESIGN_SYSTEM.md` |
-| Exact visual tokens, responsive rules, and component states | `DESIGN_SYSTEM.md` | `DESIGN.md` |
-| Security, privacy, authorization, retention, and operations | `SECURITY_AND_TRUST.md` | `PHASE_0_REVIEW.md` threat model/matrix |
-| Delivery order and Package 1 execution contract | `IMPLEMENTATION_PLAN.md` | ADRs |
-| Packages 2â€“13 execution contracts | `PACKAGE_CONTRACTS.md` | `IMPLEMENTATION_PLAN.md`, ADRs |
-| Cross-document dependency/acceptance index | `PLAN_ACCEPTANCE.md` | All controlling sources above |
-| Architecture decision | Most recent accepted ADR | `PHASE_0_REVIEW.md` architecture baseline |
-| Historical discovery evidence | `USER_RESEARCH.md`, `COMPETITIVE_LANDSCAPE.md` | Not normative |
+| Question                                                                 | Controlling source                             | Supporting source                          |
+| ------------------------------------------------------------------------ | ---------------------------------------------- | ------------------------------------------ |
+| Plan authority, design lock, amendments, decisions, and ticket admission | `PLAN_GOVERNANCE.md`                           | `PLAN_CHANGELOG.md`, `PLANNING_INDEX.md`   |
+| Current implementation, backlog, and release state                       | `PROJECT_STATE.md`                             | Live GitHub state and dated evidence       |
+| Document role and maintenance ownership                                  | `PLANNING_INDEX.md`                            | This table                                 |
+| Current authorization and stop conditions                                | `CODEX_START_PROMPT.md`                        | `PROJECT_STATE.md`, `PRODUCT_DECISIONS.md` |
+| Approved scope or unresolved product choice                              | `PRODUCT_DECISIONS.md`                         | `PRD.md`                                   |
+| Product behavior and acceptance requirement                              | `PRD.md`                                       | `PRODUCT.md`                               |
+| Interaction, screen flow, and copy intent                                | `DESIGN.md`                                    | `DESIGN_SYSTEM.md`                         |
+| Exact visual tokens, responsive rules, and component states              | `DESIGN_SYSTEM.md`                             | `DESIGN.md`                                |
+| Security, privacy, authorization, retention, and operations              | `SECURITY_AND_TRUST.md`                        | `PHASE_0_REVIEW.md` threat model/matrix    |
+| Delivery order and Package 1 execution contract                          | `IMPLEMENTATION_PLAN.md`                       | ADRs                                       |
+| Packages 2â€“13 execution contracts                                      | `PACKAGE_CONTRACTS.md`                         | `IMPLEMENTATION_PLAN.md`, ADRs             |
+| Cross-document dependency/acceptance index                               | `PLAN_ACCEPTANCE.md`                           | All controlling sources above              |
+| Architecture decision                                                    | Most recent accepted ADR                       | `PHASE_0_REVIEW.md` architecture baseline  |
+| Historical discovery evidence                                            | `USER_RESEARCH.md`, `COMPETITIVE_LANDSCAPE.md` | Not normative                              |
 
-If two controlling sources conflict, stop the dependent work and reconcile the documents. Do not choose whichever instruction is easier.
+If two controlling sources conflict, stop the dependent work and reconcile the documents. Do not choose whichever instruction is easier. The controlling plan is locked by default: only an explicit Product Owner directive containing `update plan` authorizes an amendment, and the amendment must follow `PLAN_GOVERNANCE.md` before dependent tickets or implementation proceed.
 
 Architecture baseline is recorded in ADR 0004. ADR 0006 replaces ADR 0005's Cloudflare frontend selection with a gated Vercel prebuilt-deployment path; ADR 0005 remains controlling for Supabase, recovery, startup cost, media transition, and service gates. Shared startup still requires `$0` recurring infrastructure/no automatic overage unless separately funded, and public release remains blocked until the approved 15-minute RPO is funded or otherwise proven. **The approved path to paid hosting (recovery funding, R2/S3 media bucket, retained originals, lifted space caps, future video) remains the "Paid-tier transition plan" in ADR 0005, with media-specific steps in `docs/operations/M01_MEDIA_PROVIDER_RUNBOOK.md`; it activates only by a Product Owner funding approval and gate receipt.** Email, routing, media, support/status, and optional analytics retain their named feature gates. `manifest.json` is the documentation handoff inventory, not the installable PWA web-app manifest.
 
