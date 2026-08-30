@@ -25,10 +25,17 @@ function declarations(selector: string) {
   return match[1]
 }
 
-function token(block: string, name: string) {
-  const match = block.match(new RegExp(`--${name}:\\s*(#[0-9a-f]{6});`, 'i'))
-  if (!match) throw new Error(`Missing --${name}`)
-  return match[1]
+function token(block: string, name: string, root = declarations(':root'), seen = new Set<string>()) {
+  if (seen.has(name)) throw new Error(`Circular --${name} definition`)
+  seen.add(name)
+  const declaration = (source: string) =>
+    source.match(new RegExp(`--${name}:\\s*([^;]+);`, 'i'))?.[1]?.trim()
+  const value = declaration(block) ?? declaration(root)
+  if (!value) throw new Error(`Missing --${name}`)
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value
+  const reference = value.match(/^var\((--[a-z0-9-]+)\)$/i)?.[1]
+  if (reference) return token(block, reference.slice(2), root, seen)
+  throw new Error(`--${name} must resolve to an approved hex token, received ${value}`)
 }
 
 function contrast(first: string, second: string) {
@@ -165,6 +172,114 @@ function typographyViolations(source: string) {
   return violations
 }
 
+const themeColorTokens = [
+  'ink',
+  'muted',
+  'paper',
+  'card',
+  'line',
+  'teal',
+  'teal-dark',
+  'mint',
+  'rust',
+  'gold',
+  'olive',
+  'focus-inner',
+  'focus-outer',
+] as const
+
+const rootColorExceptions = new Set(['media-overlay-surface', 'media-overlay-text', 'on-action'])
+
+const artColorExceptions = new Set([
+  '.shopper-store-card__placeholder|background',
+  '.catalog-map-panel|border',
+  '.catalog-map-panel|background',
+  '.catalog-map-panel::before|border',
+  '.catalog-card__placeholder|background',
+  '.catalog-card__placeholder::before, .catalog-card__placeholder::after|border',
+  '.catalog-card__placeholder > span|border',
+  '.catalog-card__placeholder > span|background',
+  '.catalog-card__placeholder > small|color',
+  "main > article > img, main > article > [role='img']|background",
+  '.accessible-map__plot|background',
+  "[data-theme='dark'] .shopper-store-card__placeholder|background",
+  "[data-theme='dark'] .catalog-map-panel|border-color",
+  "[data-theme='dark'] .catalog-map-panel|background",
+  "[data-theme='dark'] .catalog-map-panel::before|border-color",
+  "[data-theme='dark'] .catalog-card__placeholder|background",
+  "[data-theme='dark'] .catalog-card__placeholder::before, [data-theme='dark'] .catalog-card__placeholder::after|border-color",
+  "[data-theme='dark'] .catalog-card__placeholder > span|border-color",
+  "[data-theme='dark'] .catalog-card__placeholder > span|background",
+  "[data-theme='dark'] .catalog-card__placeholder > small|color",
+  "[data-theme='dark'] main > article > [role='img']|background",
+  "[data-theme='dark'] .accessible-map__plot|background",
+])
+
+function normalizeSelector(value: string) {
+  return value.replace(/\s+/g, ' ').replace(/\s*,\s*/g, ', ').trim()
+}
+
+function semanticColorViolations(source: string) {
+  const violations: string[] = []
+  const parsed = postcss.parse(source)
+  const rootBlocks = new Map<string, Map<string, string>>()
+
+  parsed.walkRules((rule) => {
+    const selector = normalizeSelector(rule.selector)
+    if (selector === ':root' || selector === ":root[data-theme='dark']") {
+      rootBlocks.set(
+        selector,
+        new Map(
+          rule.nodes
+            ?.filter((node) => node.type === 'decl')
+            .map((node) => [node.prop.trim(), node.value.trim()]) ?? [],
+        ),
+      )
+    }
+  })
+
+  const light = rootBlocks.get(':root')
+  const dark = rootBlocks.get(":root[data-theme='dark']")
+  if (!light || !dark) return ['contract: missing light or dark root token block']
+  for (const name of themeColorTokens) {
+    const property = `--${name}`
+    if (!/^#[0-9a-f]{6}$/i.test(light.get(property) ?? ''))
+      violations.push(`contract: ${property} needs an approved light hex value`)
+    if (!/^#[0-9a-f]{6}$/i.test(dark.get(property) ?? ''))
+      violations.push(`contract: ${property} needs an approved dark hex value`)
+  }
+
+  parsed.walkDecls((declaration) => {
+    const parent = declaration.parent
+    const selector = parent?.type === 'rule' ? normalizeSelector(parent.selector) : ''
+    const key = `${selector}|${declaration.prop.trim()}`
+    const value = declaration.value.trim()
+    const rawColor = /#[0-9a-f]{3,8}\b|\brgba?\s*\(/i.test(value)
+    const systemColor = /\b(?:Canvas(?:Text)?|Button(?:Face|Text)|Highlight)\b/.test(value)
+    const inForcedColors = (() => {
+      for (let node = parent; node; node = node.parent) {
+        if (node.type === 'atrule' && node.name === 'media' && /forced-colors:\s*active/i.test(node.params))
+          return true
+      }
+      return false
+    })()
+
+    if (systemColor && !inForcedColors)
+      violations.push(`${declaration.source?.start?.line ?? 0}: system color outside forced-colors rule`)
+    if (!rawColor) return
+    if (selector === ':root' || selector === ":root[data-theme='dark']") {
+      const name = declaration.prop.trim().replace(/^--/, '')
+      if (!themeColorTokens.includes(name as (typeof themeColorTokens)[number]) && !rootColorExceptions.has(name))
+        violations.push(`${declaration.source?.start?.line ?? 0}: undocumented root color ${name}`)
+      return
+    }
+    if (!artColorExceptions.has(key))
+      violations.push(`${declaration.source?.start?.line ?? 0}: undocumented reusable color ${key}`)
+  })
+
+  return violations
+}
+
 describe('shared native form-control tokens', () => {
   const themes = [
     { name: 'light', block: declarations(':root') },
@@ -196,6 +311,32 @@ describe('shared native form-control tokens', () => {
     expect(styles).toContain('border: 1px solid CanvasText;')
     expect(styles).not.toContain('border: 1px solid #a9aba1;')
     expect(styles).not.toContain('color: #6a7d76;')
+  })
+})
+
+describe('semantic color-token regression contract', () => {
+  it('keeps every reusable literal at the approved theme boundary or a documented art exception', () => {
+    const violations = semanticColorViolations(styles)
+    expect(violations, `Unapproved semantic colors:\n${violations.join('\n')}`).toEqual([])
+  })
+
+  it.each([
+    [
+      'a raw shared surface',
+      'background: var(--surface-chrome);',
+      'background: #fffdfc;',
+    ],
+    ['a missing dark token pair', '--gold: #b99554;', '--gold: var(--card);'],
+    [
+      'an undocumented art exception',
+      '/* #143 owns this narrow media contract; #142 retains broad semantic-color ownership. */',
+      '/* #143 owns this narrow media contract; #142 retains broad semantic-color ownership. */\n.fake { color: #41635b; }',
+    ],
+    ['a system color outside forced colors', 'color: var(--muted);', 'color: CanvasText;'],
+  ])('rejects %s', (_name, approved, mutant) => {
+    const mutated = styles.replace(approved, mutant)
+    expect(mutated).not.toBe(styles)
+    expect(semanticColorViolations(mutated)).not.toEqual([])
   })
 })
 

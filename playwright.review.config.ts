@@ -12,6 +12,7 @@ export default defineConfig({
     'ui08-partner-portal.spec.ts',
     'ui09-admin-moderation.spec.ts',
     'ui10-full-spec.spec.ts',
+    'theme.spec.ts',
     'issue-144-typography.spec.ts',
     'issue-143-media-overlay.spec.ts',
     'issue-147-catalog-metadata.spec.ts',
