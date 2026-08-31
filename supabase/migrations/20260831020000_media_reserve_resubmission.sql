@@ -22,7 +22,9 @@ alter table media_private.media_uploads
 grant media_automation to postgres;
 grant create on schema app_public to media_automation;
 grant usage on schema portal_private to media_automation;
+set role identity_service;
 grant execute on function portal_private.require_portal_scope() to media_automation;
+reset role;
 set role media_automation;
 
 drop function if exists app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer);
