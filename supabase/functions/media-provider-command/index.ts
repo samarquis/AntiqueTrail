@@ -125,17 +125,10 @@ Deno.serve(async (request) => {
     // Resubmission derives store/kind from the server-locked rejected original;
     // the client never supplies store authority. Normal uploads read them from
     // the form as today.
-    let activeStoreId: string
-    let activeKind: 'cover' | 'gallery'
+    let activeStoreId: string | undefined
+    let activeKind: 'cover' | 'gallery' | undefined
     if (resubmitting) {
       if (typeof storeId === 'string' || typeof kind === 'string') return unavailable(headers)
-      const original = await rpc<{ storeId?: unknown; kind?: unknown }>(userClient, 'media_get_upload', {
-        p_upload_id: originalUploadId,
-      })
-      if (typeof original.storeId !== 'string' || (original.kind !== 'cover' && original.kind !== 'gallery'))
-        return unavailable(headers)
-      activeStoreId = original.storeId
-      activeKind = original.kind
     } else {
       if (typeof storeId !== 'string' || (kind !== 'cover' && kind !== 'gallery'))
         return unavailable(headers)
@@ -164,6 +157,7 @@ Deno.serve(async (request) => {
 
     let staged = false
     let acceptedUploadId = ''
+    let replayedReservation = false
     const dependencies: MediaPipelineDependencies = {
       reserve: async (input) => {
         let value: Record<string, unknown>
@@ -194,6 +188,8 @@ Deno.serve(async (request) => {
           })
         }
         const uploadId = typeof value.uploadId === 'string' ? value.uploadId : ''
+        const state = value.state
+        const replayed = value.replayed === true
         const originalObjectKey = resubmitting
           ? `quarantine/${uploadId}/original`
           : typeof value.originalObjectKey === 'string'
@@ -206,22 +202,26 @@ Deno.serve(async (request) => {
             : ''
         if (
           !/^[0-9a-f-]{36}$/iu.test(uploadId) ||
+          (resubmitting && state !== 'reserved' && state !== 'staged' && state !== 'awaiting_review') ||
           originalObjectKey !== `quarantine/${uploadId}/original` ||
           derivativeObjectKey !== `quarantine/${uploadId}/derivative.webp`
         )
           throw new Error('media_unavailable')
         acceptedUploadId = uploadId
+        replayedReservation = resubmitting && replayed
         return {
           uploadId,
           originalObjectKey,
           derivativeObjectKey,
+          state: resubmitting ? state : 'reserved',
+          isReplay: replayedReservation,
         }
       },
-      async putPrivate(key, value, contentType) {
+      async putPrivate(key, value, contentType, allowOverwrite = false) {
         const result = await workerClient.storage.from(privateBucket).upload(key, value, {
           cacheControl: '0',
           contentType,
-          upsert: false,
+          upsert: allowOverwrite,
         })
         if (result.error) throw result.error
         if (!staged && key.endsWith('/original')) {
@@ -314,8 +314,8 @@ Deno.serve(async (request) => {
       {
         bytes,
         claimedMime: image.type,
-        storeId: activeStoreId,
-        kind: activeKind,
+        storeId: resubmitting ? undefined : activeStoreId,
+        kind: resubmitting ? undefined : activeKind,
         altText,
         idempotencyKey,
         rightsConfirmed: true,

@@ -15,6 +15,7 @@ import {
   PortalControlledChangesPage,
   PortalHomePage,
   PortalManagedFieldsPage,
+  PortalMediaReviewPage,
   PortalSupportPage,
   PortalUpdatesPage,
 } from './components'
@@ -320,6 +321,37 @@ describe('provider-neutral Store Portal boundary', () => {
       'href',
       '/store-portal/changes',
     )
+    expect(screen.getByRole('link', { name: /official photos/i })).toHaveAttribute(
+      'href',
+      '/store-portal/photos',
+    )
+  })
+
+  it('puts authorized official-photo history on its dedicated review destination', async () => {
+    render(
+      <MemoryRouter>
+        <PortalMediaReviewPage
+          client={client({
+            listMediaUploads: vi.fn(async () => ({
+              uploads: [
+                {
+                  uploadId: '33333333-3333-4333-8333-333333333333',
+                  kind: 'gallery' as const,
+                  state: 'rejected' as const,
+                  altText: 'Front entrance',
+                  submittedAt: '2026-08-30T00:00:00Z',
+                  rejectionReason: 'Image quality insufficient for storefront',
+                },
+              ],
+            })),
+          })}
+        />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Official photos' })).toBeInTheDocument()
+    expect(screen.getByText('Placement: Gallery photo', { exact: false })).toBeInTheDocument()
+    expect(screen.getByText(/Submitted August 30, 2026/i)).toBeInTheDocument()
+    expect(screen.getByText('Private image preview unavailable')).toBeInTheDocument()
   })
 
   it('blocks image-bearing update drafts before any client call', () => {
@@ -372,7 +404,9 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(
       await screen.findByText(/image quality insufficient for storefront/i),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /correct and resubmit/i })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /resubmit corrected image/i }),
+    ).not.toBeInTheDocument()
     expect(screen.getAllByText(new RegExp(MEDIA_GATE_MESSAGE)).length).toBeGreaterThan(0)
   })
 
@@ -455,7 +489,7 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(
       await screen.findByText(/Image quality insufficient for storefront/i),
     ).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /correct and resubmit/i }))
+    await user.click(screen.getByRole('button', { name: /resubmit corrected image/i }))
     expect(await screen.findByLabelText(/alternative text for corrected image/i)).toHaveValue(
       'Front entrance',
     )
@@ -463,7 +497,7 @@ describe('provider-neutral Store Portal boundary', () => {
     await user.upload(screen.getByLabelText(/corrected image file/i), file)
     await user.click(screen.getByLabelText(/rights.*corrected image/i))
     fireEvent.submit(
-      screen.getByRole('button', { name: /submit corrected image/i }).closest('form')!,
+      screen.getByRole('button', { name: 'Submit corrected image' }).closest('form')!,
     )
 
     expect(resubmitMedia).toHaveBeenCalledWith(
@@ -477,7 +511,9 @@ describe('provider-neutral Store Portal boundary', () => {
     )
     expect(resubmitMedia.mock.calls[0][0]).not.toHaveProperty('storeId')
     expect(resubmitMedia.mock.calls[0][0]).not.toHaveProperty('kind')
-    expect(await screen.findByRole('status')).toHaveTextContent(/awaiting Administrator review/i)
+    expect(
+      await screen.findByText('Replacement submitted and is awaiting Administrator review.'),
+    ).toHaveAttribute('role', 'status')
   })
 
   it('reuses the same idempotency key when a corrected-image retry keeps the draft unchanged', async () => {
@@ -512,13 +548,13 @@ describe('provider-neutral Store Portal boundary', () => {
       </MemoryRouter>,
     )
 
-    await user.click(await screen.findByRole('button', { name: /correct and resubmit/i }))
+    await user.click(await screen.findByRole('button', { name: /resubmit corrected image/i }))
     await user.upload(
       screen.getByLabelText(/corrected image file/i),
       new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
     )
     await user.click(screen.getByLabelText(/rights.*corrected image/i))
-    const form = screen.getByRole('button', { name: /submit corrected image/i }).closest('form')!
+    const form = screen.getByRole('button', { name: 'Submit corrected image' }).closest('form')!
     fireEvent.submit(form)
     await screen.findByRole('alert')
     fireEvent.submit(form)

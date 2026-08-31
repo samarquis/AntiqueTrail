@@ -296,7 +296,11 @@ export async function configuredComposition(
       return {
         clients: {
           catalog: createReviewHarnessCatalogClient(reviewHarness.state),
-          ...createReviewHarnessClients(reviewHarness.scenario, reviewHarness.state),
+          ...createReviewHarnessClients(
+            reviewHarness.scenario,
+            reviewHarness.state,
+            reviewHarness.mediaReviewEnabled,
+          ),
         },
         runtime: {
           reviewHarness,

@@ -2,6 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 
 const reviewUrl = (path: string, state = 'success') =>
   `${path}?reviewAs=representative&reviewState=${state}`
+const syntheticMediaReviewUrl = (path: string) =>
+  `${path}?reviewAs=representative&reviewState=success&reviewMedia=resubmit`
 const INVITATION_URL =
   '/partner/join?reviewAs=representative&reviewState=success#token=review-partner-invite'
 const PARTNER_ERROR = "We couldn't continue this invitation. Check the link or try again."
@@ -113,7 +115,8 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
     await page.goto(reviewUrl('/store-portal'))
     await expect(page.locator('main h1')).toHaveText('Blue Finch Curios')
     await expect(page.locator('dd').filter({ hasText: 'Hours verified 12 days ago' })).toBeVisible()
-    await page.goto(reviewUrl('/store-portal/changes'))
+    await page.goto(reviewUrl('/store-portal/photos'))
+    await expect(page.getByRole('heading', { level: 1, name: 'Official photos' })).toBeVisible()
     await expect(
       page
         .getByRole('region', { name: 'Official photos' })
@@ -122,7 +125,9 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
         ),
     ).toHaveCount(2)
     await expect(page.getByText('Reason: Image quality needs more detail.')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Correct and resubmit' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Resubmit corrected image' })).toHaveCount(0)
+    await expect(page.getByText('Placement: Gallery photo')).toBeVisible()
+    await page.goto(reviewUrl('/store-portal/changes'))
     await page.getByLabel('Requested value').fill('200 East Synthetic Avenue')
     await page.getByLabel('Reason for change').fill('Address correction')
     await page.getByRole('button', { name: 'Submit change request' }).click()
@@ -155,6 +160,51 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
     await expect(
       page.getByRole('heading', { level: 3, name: 'Synthetic portal question' }),
     ).toBeVisible()
+  })
+
+  test('local synthetic media review proves the corrected-image journey without enabling M-01', async ({
+    page,
+  }) => {
+    await page.goto(syntheticMediaReviewUrl('/store-portal/photos'))
+    await expect(page.getByText('Local review:')).toBeVisible()
+    await page.getByRole('button', { name: 'Resubmit corrected image' }).click()
+    await page.getByLabel('Corrected image file').setInputFiles({
+      name: 'replacement.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('synthetic-image'),
+    })
+    await page
+      .getByLabel('Alternative text for corrected image')
+      .fill('Corrected Blue Finch exterior')
+    await page.getByLabel(/rights to publish this corrected image/i).check()
+    await page.getByRole('button', { name: 'Submit corrected image', exact: true }).click()
+    await expect(
+      page.getByText('Replacement submitted and is awaiting Administrator review.'),
+    ).toBeVisible()
+    await expect(page.getByText('Corrected Blue Finch exterior')).toBeVisible()
+    await expect(page.getByText('Awaiting review')).toBeVisible()
+
+    await page.setViewportSize({ width: 320, height: 800 })
+    await page.addStyleTag({
+      content:
+        '* { letter-spacing: 0.12em !important; word-spacing: 0.16em !important; line-height: 1.5 !important; }',
+    })
+    const overflow = await page
+      .locator('body')
+      .evaluate((body) =>
+        Array.from(body.querySelectorAll<HTMLElement>('*')).some(
+          (element) =>
+            element.getBoundingClientRect().right > document.documentElement.clientWidth + 1,
+        ),
+      )
+    expect(overflow).toBe(false)
+
+    await page.emulateMedia({ colorScheme: 'dark', forcedColors: 'active' })
+    await page.reload()
+    await expect
+      .poll(() => page.evaluate(() => matchMedia('(forced-colors: active)').matches))
+      .toBe(true)
+    await expect(page.getByRole('heading', { level: 1, name: 'Official photos' })).toBeVisible()
   })
 
   test('portal status keeps the next action, provenance, and non-public pending work together', async ({
@@ -234,6 +284,7 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
       '/store-portal',
       '/store-portal/hours',
       '/store-portal/changes',
+      '/store-portal/photos',
       '/store-portal/updates',
       '/store-portal/links',
       '/store-portal/support',

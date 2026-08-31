@@ -93,6 +93,9 @@ function PortalNav() {
           <Link to="/store-portal/changes">Pending changes</Link>
         </li>
         <li>
+          <Link to="/store-portal/photos">Official photos</Link>
+        </li>
+        <li>
           <Link to="/store-portal/updates">Store Updates</Link>
         </li>
         <li>
@@ -114,6 +117,21 @@ function formatPortalDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(date)
+}
+
+function mediaStateLabel(state: PortalMediaUpload['state']) {
+  switch (state) {
+    case 'awaiting_review':
+      return 'Awaiting review'
+    case 'rejected':
+      return 'Needs changes / Rejected'
+    case 'approved_pending_publish':
+      return 'Approved pending publish'
+    case 'published':
+      return 'Published'
+    case 'purged':
+      return 'Removed'
+  }
 }
 
 export function PortalAccessDeniedPage() {
@@ -1311,9 +1329,19 @@ function PortalMediaHistorySection({
         <ul className="portal-media-history">
           {(history?.uploads ?? []).map((upload) => (
             <li key={upload.uploadId}>
-              <span>
-                {upload.altText} — {upload.state === 'rejected' ? 'Rejected' : upload.state}
-              </span>
+              <div className="portal-media-placeholder" aria-hidden="true">
+                Private image preview unavailable
+              </div>
+              <div>
+                <p>
+                  <strong>{upload.altText}</strong>
+                </p>
+                <p role="status">{mediaStateLabel(upload.state)}</p>
+                <p>
+                  Placement: {upload.kind === 'cover' ? 'Cover photo' : 'Gallery photo'} · Submitted{' '}
+                  {formatPortalDate(upload.submittedAt)}
+                </p>
+              </div>
               {upload.state === 'rejected' && (
                 <div>
                   <p>Reason: {upload.rejectionReason ?? 'No reason provided'}</p>
@@ -1323,7 +1351,7 @@ function PortalMediaHistorySection({
                       className="button button--secondary"
                       onClick={() => beginResubmit(upload)}
                     >
-                      Correct and resubmit
+                      Resubmit corrected image
                     </button>
                   ) : (
                     <p role="status">{MEDIA_GATE_MESSAGE}</p>
@@ -1384,6 +1412,56 @@ function PortalMediaHistorySection({
         </form>
       )}
     </div>
+  )
+}
+
+export function PortalMediaReviewPage({
+  client = unavailablePortalClient,
+}: {
+  client?: PortalClient
+}) {
+  const [mediaReady, setMediaReady] = useState<boolean | null>(null)
+  const [status, setStatus] = useState<string | null>(null)
+  const confirmationRef = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    let active = true
+    client
+      .getMediaCapability()
+      .then((capability) => {
+        if (active) setMediaReady(capability.enabled)
+      })
+      .catch(() => {
+        if (active) setMediaReady(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [client])
+  useEffect(() => {
+    if (status) confirmationRef.current?.focus()
+  }, [status])
+  return (
+    <PortalCard
+      title="Official photos"
+      description="Review your official photo submissions and correct a rejected item without changing the original."
+    >
+      <PortalNav />
+      <section aria-label="Official photos">
+        <p role="status">
+          {mediaReady === null ? 'Checking the M-01 media capability…' : MEDIA_GATE_MESSAGE}
+        </p>
+        {status && (
+          <p ref={confirmationRef} role="status" tabIndex={-1}>
+            {status}
+          </p>
+        )}
+        <PortalMediaHistorySection
+          client={client}
+          onStatus={setStatus}
+          resubmissionEnabled={mediaReady === true}
+        />
+      </section>
+    </PortalCard>
   )
 }
 

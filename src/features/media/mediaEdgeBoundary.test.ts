@@ -37,11 +37,10 @@ describe('M-01 Edge wiring contract', () => {
   it('derives store and kind from the server-locked rejected original for resubmission', () => {
     expect(uploadSource).toContain("const originalUploadId = form.get('originalUploadId')")
     expect(uploadSource).toContain("const resubmitting = typeof originalUploadId === 'string'")
-    expect(uploadSource).toContain(
-      "rpc<{ storeId?: unknown; kind?: unknown }>(userClient, 'media_get_upload'",
-    )
+    expect(uploadSource).not.toContain("'media_get_upload'")
     expect(uploadSource).toContain("userClient, 'media_reserve_resubmission'")
     expect(uploadSource).toContain('p_source_digest: sourceDigest')
+    expect(uploadSource).toContain('upsert: allowOverwrite')
     expect(uploadSource).toContain('async function sha256Hex')
     expect(uploadSource).toContain(
       "if (typeof storeId === 'string' || typeof kind === 'string') return unavailable(headers)",

@@ -15,8 +15,8 @@ export interface MediaInspection {
 export interface MediaIngestInput {
   bytes: Uint8Array
   claimedMime: string
-  storeId: string
-  kind: 'cover' | 'gallery'
+  storeId?: string
+  kind?: 'cover' | 'gallery'
   altText: string
   idempotencyKey: string
   rightsConfirmed: boolean
@@ -27,6 +27,8 @@ interface ReservedUpload {
   uploadId: string
   originalObjectKey: string
   derivativeObjectKey: string
+  state: 'reserved' | 'staged' | 'awaiting_review'
+  isReplay: boolean
 }
 
 interface ProcessedImage {
@@ -41,15 +43,20 @@ interface ProcessedImage {
 
 export interface MediaPipelineDependencies {
   reserve(input: {
-    storeId: string
-    kind: 'cover' | 'gallery'
+    storeId?: string
+    kind?: 'cover' | 'gallery'
     altText: string
     idempotencyKey: string
     rightsConfirmed: boolean
     originalUploadId?: string
     inspection: MediaInspection
   }): Promise<ReservedUpload>
-  putPrivate(key: string, bytes: Uint8Array, contentType: string): Promise<void>
+  putPrivate(
+    key: string,
+    bytes: Uint8Array,
+    contentType: string,
+    allowOverwrite?: boolean,
+  ): Promise<void>
   scan(input: {
     uploadId: string
     objectKey: string
@@ -217,10 +224,14 @@ async function digestHex(bytes: Uint8Array): Promise<string> {
 
 function validInput(input: MediaIngestInput): boolean {
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
+  const resubmitting = input.originalUploadId !== undefined
   return (
-    uuid.test(input.storeId) &&
+    (!resubmitting
+      ? uuid.test(input.storeId ?? '') && (input.kind === 'cover' || input.kind === 'gallery')
+      : input.storeId === undefined &&
+        input.kind === undefined &&
+        uuid.test(input.originalUploadId ?? '')) &&
     uuid.test(input.idempotencyKey) &&
-    (input.originalUploadId === undefined || uuid.test(input.originalUploadId)) &&
     input.altText === input.altText.trim() &&
     input.altText.length >= 1 &&
     input.altText.length <= 240 &&
@@ -244,7 +255,15 @@ export async function runMediaIngest(
       originalUploadId: input.originalUploadId,
       inspection,
     })
-    await dependencies.putPrivate(reserved.originalObjectKey, input.bytes, inspection.mime)
+    if (reserved.state === 'awaiting_review') return { state: 'awaiting_review' }
+    if (reserved.state === 'reserved')
+      await dependencies.putPrivate(
+        reserved.originalObjectKey,
+        input.bytes,
+        inspection.mime,
+        reserved.isReplay,
+      )
+    else if (reserved.state !== 'staged') unavailable()
 
     let scan: Awaited<ReturnType<MediaPipelineDependencies['scan']>>
     try {
@@ -299,7 +318,12 @@ export async function runMediaIngest(
       })
       unavailable()
     }
-    await dependencies.putPrivate(reserved.derivativeObjectKey, processed.bytes, 'image/webp')
+    await dependencies.putPrivate(
+      reserved.derivativeObjectKey,
+      processed.bytes,
+      'image/webp',
+      reserved.isReplay,
+    )
     await dependencies.recordProcessed({
       uploadId: reserved.uploadId,
       derivativeObjectKey: reserved.derivativeObjectKey,

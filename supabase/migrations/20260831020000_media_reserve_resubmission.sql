@@ -91,7 +91,7 @@ begin
       perform media_private.append_audit('media_resubmission',actor,v_store_id,p_original_upload_id,'denied');
       raise exception using errcode='22023',message='media_unavailable';
     end if;
-    return jsonb_build_object('uploadId',existing.upload_id);
+    return jsonb_build_object('uploadId',existing.upload_id,'state',existing.state,'replayed',true);
   end if;
 
   -- Input shape validation (mirrors media_reserve_upload). No file bytes cross
@@ -144,7 +144,7 @@ begin
   insert into media_private.media_purge_jobs(upload_id,reason_code,due_at)
     values(new_upload_id,'abandoned',statement_timestamp()+interval '24 hours');
   perform media_private.append_audit('media_resubmitted',actor,v_store_id,new_upload_id,'allowed');
-  return jsonb_build_object('uploadId',new_upload_id);
+  return jsonb_build_object('uploadId',new_upload_id,'state','reserved','replayed',false);
 end $$;
 
 -- 3. Ownership and grants consistent with the other media automation RPCs.

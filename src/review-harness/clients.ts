@@ -1406,7 +1406,11 @@ function failureFixture<T>(
   return Promise.resolve(state === 'empty' ? empty : structuredClone(success))
 }
 
-function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalClient {
+function portalClient(
+  scenario: ReviewScenario,
+  state: ReviewStateId,
+  mediaReviewEnabled = false,
+): PortalClient {
   const allowed = () => requireRole(scenario, ['Representative'], true)
   const home: PortalHomeSnapshot = {
     store: {
@@ -1457,7 +1461,7 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
   let officialLinks: OfficialLink[] = [
     { platform: 'instagram', url: 'https://example.invalid/blue-finch', verifiedAt: FIXED_NOW },
   ]
-  const mediaUploads: PortalMediaUpload[] = [
+  let mediaUploads: PortalMediaUpload[] = [
     {
       uploadId: 'media-review-rejected',
       kind: 'gallery',
@@ -1549,7 +1553,7 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
       allowed()
       return failureFixture(
         state,
-        { enabled: false, source: 'server' },
+        { enabled: mediaReviewEnabled, source: 'server' },
         { enabled: false, source: 'server' },
         GENERIC_PORTAL_ERROR,
       )
@@ -1566,6 +1570,27 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
     async listMediaUploads() {
       allowed()
       return failureFixture(state, { uploads: mediaUploads }, { uploads: [] }, GENERIC_PORTAL_ERROR)
+    },
+    async resubmitMedia(input) {
+      allowed()
+      if (!mediaReviewEnabled) return Promise.reject(new Error(GENERIC_PORTAL_ERROR))
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const original = mediaUploads.find((upload) => upload.uploadId === input.originalUploadId)
+        if (!original || original.state !== 'rejected') throw new Error(GENERIC_PORTAL_ERROR)
+        const newUploadId = `media-review-corrected-${mediaUploads.length + 1}`
+        mediaUploads = [
+          {
+            uploadId: newUploadId,
+            kind: original.kind,
+            state: 'awaiting_review',
+            altText: input.altText,
+            submittedAt: FIXED_NOW,
+            rejectionReason: null,
+          },
+          ...mediaUploads,
+        ]
+        return { newUploadId, state: 'awaiting_review' as const }
+      })
     },
     async listUpdates() {
       allowed()
@@ -2382,13 +2407,14 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
 export function createReviewHarnessClients(
   scenario: ReviewScenario,
   state: ReviewStateId,
+  mediaReviewEnabled = false,
 ): AppClients {
   return {
     lifecycle: lifecycleClient(scenario, state),
     shopper: shopperClient(scenario, state),
     candidate: candidateClient(scenario, state),
     trips: tripClient(scenario, state),
-    portal: portalClient(scenario, state),
+    portal: portalClient(scenario, state, mediaReviewEnabled),
     reviews: reviewClient(scenario, state),
     partner: partnerClient(scenario, state),
     partnerAdmin: partnerAdminClient(scenario, state),

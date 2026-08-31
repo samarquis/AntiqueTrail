@@ -128,6 +128,11 @@ export const reviewScenarios: readonly ReviewScenario[] = [
         path: '/store-portal/changes',
         purpose: 'Admin-reviewed fields',
       },
+      {
+        label: 'Official photos',
+        path: '/store-portal/photos',
+        purpose: 'Private official-photo review and corrected submissions',
+      },
     ],
     deniedDestinations: [
       { label: 'Administrator', path: '/admin', purpose: 'Representative is not an Administrator' },
@@ -216,6 +221,7 @@ export async function createReviewHarness(
     REVIEW_STATE_IDS,
     'success',
   )
+  const mediaReviewEnabled = url.searchParams.get('reviewMedia') === 'resubmit'
   const sessionState = oneOf<ReviewSessionState>(
     url.searchParams.get('reviewSession'),
     ['active', 'expired', 'revoked'],
@@ -234,6 +240,7 @@ export async function createReviewHarness(
     active: true,
     scenario,
     state,
+    mediaReviewEnabled,
     sessionState,
     scenarios: reviewScenarios,
     states: REVIEW_STATE_IDS,

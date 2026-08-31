@@ -45,6 +45,8 @@ function dependencies(
       uploadId: '11111111-1111-4111-8111-111111111111',
       originalObjectKey: 'quarantine/11111111-1111-4111-8111-111111111111/original',
       derivativeObjectKey: 'quarantine/11111111-1111-4111-8111-111111111111/derivative.webp',
+      state: 'reserved' as const,
+      isReplay: false,
     })),
     putPrivate: vi.fn(async () => undefined),
     scan: vi.fn(async () => ({ outcome: 'clean' as const, operationId: 'scan-1' })),
@@ -132,8 +134,6 @@ describe('M-01 media pipeline boundary', () => {
       {
         bytes: png(),
         claimedMime: 'image/png',
-        storeId: '22222222-2222-4222-8222-222222222222',
-        kind: 'cover',
         altText: 'Corrected storefront',
         idempotencyKey: '33333333-3333-4333-8333-333333333333',
         rightsConfirmed: true,
@@ -143,9 +143,66 @@ describe('M-01 media pipeline boundary', () => {
     )
     expect(boundary.reserve).toHaveBeenCalledWith(
       expect.objectContaining({
-        storeId: '22222222-2222-4222-8222-222222222222',
         originalUploadId,
       }),
+    )
+  })
+
+  it('returns the existing completed resubmission without retrying private storage writes', async () => {
+    const boundary = dependencies({
+      reserve: vi.fn(async () => ({
+        uploadId: '11111111-1111-4111-8111-111111111111',
+        originalObjectKey: 'quarantine/11111111-1111-4111-8111-111111111111/original',
+        derivativeObjectKey: 'quarantine/11111111-1111-4111-8111-111111111111/derivative.webp',
+        state: 'awaiting_review' as const,
+        isReplay: true,
+      })),
+      putPrivate: vi.fn(async () => Promise.reject(new Error('storage conflict'))),
+    })
+    await expect(
+      runMediaIngest(
+        {
+          bytes: png(),
+          claimedMime: 'image/png',
+          altText: 'Corrected storefront',
+          idempotencyKey: '33333333-3333-4333-8333-333333333333',
+          rightsConfirmed: true,
+          originalUploadId: '44444444-4444-4444-8444-444444444444',
+        },
+        boundary,
+      ),
+    ).resolves.toEqual({ state: 'awaiting_review' })
+    expect(boundary.putPrivate).not.toHaveBeenCalled()
+    expect(boundary.scan).not.toHaveBeenCalled()
+  })
+
+  it('resumes a staged replay without writing its original again', async () => {
+    const boundary = dependencies({
+      reserve: vi.fn(async () => ({
+        uploadId: '11111111-1111-4111-8111-111111111111',
+        originalObjectKey: 'quarantine/11111111-1111-4111-8111-111111111111/original',
+        derivativeObjectKey: 'quarantine/11111111-1111-4111-8111-111111111111/derivative.webp',
+        state: 'staged' as const,
+        isReplay: true,
+      })),
+    })
+    await runMediaIngest(
+      {
+        bytes: png(),
+        claimedMime: 'image/png',
+        altText: 'Corrected storefront',
+        idempotencyKey: '33333333-3333-4333-8333-333333333333',
+        rightsConfirmed: true,
+        originalUploadId: '44444444-4444-4444-8444-444444444444',
+      },
+      boundary,
+    )
+    expect(boundary.putPrivate).toHaveBeenCalledTimes(1)
+    expect(boundary.putPrivate).toHaveBeenCalledWith(
+      expect.stringMatching(/derivative\.webp$/u),
+      expect.any(Uint8Array),
+      'image/webp',
+      true,
     )
   })
 
