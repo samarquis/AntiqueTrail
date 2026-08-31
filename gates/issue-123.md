@@ -3,8 +3,9 @@
 Scope: Complete the rejected-media resubmission lifecycle end to end - forward-only `media_reserve_resubmission`-style RPC, server-derived store/kind (no client `storeId` authority), distinct `awaiting_review` row that never mutates the rejected original, tier-cap denials through `resolve_store_photo_cap`, and the client history/rejection/correction UI wired to #125's response allowlist.
 
 Base SHA: 186e7b7
-Candidate code SHA: ef09627e12832d5fad018747db4c9ca2db0643ab
-Evidence ledger SHA: 6131a435c5eb5bffb49ecfd2fbc21c150444911f
+Candidate source-and-evidence SHA: ca1772452d1b67afeda68521e9323a1bd8dcc132
+Component repair SHA: ef09627e12832d5fad018747db4c9ca2db0643ab
+Prior evidence-ledger SHA: 6131a435c5eb5bffb49ecfd2fbc21c150444911f
 Merged SHA: <pending>
 
 ## Repair-round evidence — 2026-08-31
