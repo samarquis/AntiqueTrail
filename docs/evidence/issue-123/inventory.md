@@ -1,7 +1,7 @@
 # Issue #123 evidence inventory — 2026-08-31
 
 Base SHA: 186e7b7
-Candidate SHA: <candidate-sha>
+Candidate SHA: f175f78
 Merged as: <pending> on `codex/issue-123-rejected-media-resubmission` -> PR <pending>
 
 ## Changes (base-to-candidate)
