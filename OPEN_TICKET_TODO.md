@@ -21,7 +21,7 @@ Do not reorder the list because another ticket looks easier. If the first unchec
 
 - [x] 01. #142 — COMPLETE IN PR #166 — Semantic color-token implementation conformance. Dependencies: none.
 - [x] 02. #125 — COMPLETE IN PR #185 — Minimize the Portal media-history response. Dependencies: none; sequenced after #142 to keep one implementation lane.
-- [x] 03. #174 — COMPLETE IN PR #186 — Migrate tier names, stored state, and server cap authority to Free/Gallery/Full Gallery. Dependencies: #125.
+- [ ] 03. #174 — REOPENED AFTER CODEX NO-GO REVIEW — PR #186 leaves retired `priceFeatured`/`priceUnlimited` and `STRIPE_PRICE_FEATURED`/`STRIPE_PRICE_UNLIMITED` names in active billing code, outside the permitted compatibility boundary. Dependencies: #125.
 - [ ] 04. #123 — Complete rejected-media resubmission against the current server tier resolver. Dependencies: #125 and #174.
 - [ ] 05. #124 — Prove the media-history/resubmit/current-tier contract in pgTAP. Dependencies: #125, #174, and #123.
 - [ ] 06. #126 — Reconcile media issue/evidence truth after the final #125/#174/#123/#124 outcomes are known. Dependencies: #125, #174, #123, and #124.
