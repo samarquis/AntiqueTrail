@@ -4,6 +4,8 @@
 
 **Repository base:** `e6827a4d6e40f619005aff2e4eecc653f2038f54` (`main` before this branch)
 
+**Historical-reconciliation candidate:** `3235478` (`docs: reconcile historical successor evidence for #182`)
+
 ## Historical-comment readback
 
 Live GitHub readback verified that every required closed source remains closed and has exactly one dated 2026-08-31 successor correction. The comments preserve the historical closure and do not claim successor completion.
