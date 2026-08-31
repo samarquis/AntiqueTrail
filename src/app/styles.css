@@ -270,6 +270,10 @@ button:disabled,
   margin: 0;
 }
 
+.portal-media-rejection .button {
+  min-block-size: 48px;
+}
+
 .button--danger {
   border-color: var(--rust);
   color: var(--on-action);

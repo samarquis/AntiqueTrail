@@ -2,6 +2,7 @@
 
 Base SHA: 186e7b7
 Candidate code SHA: ef09627e12832d5fad018747db4c9ca2db0643ab
+Evidence ledger SHA: 6131a435c5eb5bffb49ecfd2fbc21c150444911f
 Merged as: <pending> on `codex/issue-123-rejected-media-resubmission` -> PR #190
 
 ## Repair-round evidence — 2026-08-31

@@ -205,6 +205,14 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
       await expect
         .poll(() => page.evaluate(() => window.visualViewport?.scale ?? 1))
         .toBeGreaterThanOrEqual(2)
+      const zoomedLayoutOverflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      )
+      expect(zoomedLayoutOverflow).toBe(false)
+      const retryAction = page.getByRole('button', { name: 'Resubmit corrected image' })
+      await retryAction.focus()
+      await expect(retryAction).toBeFocused()
+      await expect(retryAction).toHaveCSS('min-block-size', '48px')
       await browserSession.detach()
     }
 
