@@ -22,31 +22,32 @@ Do not reorder the list because another ticket looks easier. If the first unchec
 - [x] 01. #142 — COMPLETE IN PR #166 — Semantic color-token implementation conformance. Dependencies: none.
 - [x] 02. #125 — COMPLETE IN PR #185 — Minimize the Portal media-history response. Dependencies: none; sequenced after #142 to keep one implementation lane.
 - [x] 03. #174 — COMPLETE IN PR #186 — Migrate tier names, stored state, and server cap authority to Free/Gallery/Full Gallery. Dependencies: #125.
-- [ ] 04. #123 — Complete rejected-media resubmission against the current server tier resolver. Dependencies: #125 and #174.
-- [ ] 05. #124 — Prove the media-history/resubmit/current-tier contract in pgTAP. Dependencies: #125, #174, and #123.
-- [ ] 06. #126 — Reconcile media issue/evidence truth after the final #125/#174/#123/#124 outcomes are known. Dependencies: #125, #174, #123, and #124.
-- [ ] 07. #182 — Add dated successor mappings to historical Package 6/10A/10B/13 issues and reconcile current ledgers. Dependencies: successor issues #168–#181 exist; no implementation dependency.
-- [ ] 08. #129 — Complete Saved store → existing/new trip continuation. Dependencies: #142.
-- [ ] 09. #137 — Conform Administrator navigation to exactly Review | Access | More. Dependencies: #142.
-- [ ] 10. #130 — Complete exact-scope Access & Safety. Dependencies: #137.
-- [ ] 11. #131 — Implement narrow D30 View Audit. Dependencies: #137 and #130.
-- [ ] 12. #140 — Complete moderation consequence preview and sole confirmation CTA. Dependencies: #142.
-- [ ] 13. #168 — Build the isolated, protected Package 10A owner-research artifact. Dependencies: merged plan PR #167; H-01/S-01/HC-01 block external sessions, not repository build.
-- [ ] 14. #169 — Run and pass the exact eight-owner acquisition usability gate. Dependencies: #168 plus H-01, S-01, HC-01, support/security monitoring, and legal/privacy approval.
-- [ ] 15. #170 — Deliver public existing-store claim through atomic Free activation, staged off until Package 10B. Dependencies: #168 and the existing Package 2 identity/MFA contracts; #169 blocks public activation, not repository build.
-- [ ] 16. #171 — Deliver add-store intake, duplicate conversion, provenance, and atomic Free publication. Dependencies: #170; coordinate with completed #130/#131 contracts.
-- [ ] 17. #172 — Deliver the trustworthy public Free `/for-stores` acquisition page and exact stage behavior. Dependencies: #169, #170, and #171 for public activation; implementation may remain staged off earlier.
-- [ ] 18. #173 — Produce the owner card, QR-class controls, channel consent/withdrawal, and aggregate-only measurement. Dependencies: #172, B-01, and Package 10B before distribution.
-- [ ] 19. #135 — Prove Partner/Portal/public-owner-intake direct-route denial, Synthetic-seam exclusion, concurrency, and cross-store isolation. Dependencies: #123, #124, #137, #130, #131, #168, #170, and #171.
-- [ ] 20. #117 — Run the final Packages 9/10A/10B staged-off sweep including the owner research/public routes. Dependencies: #137, #140, #135, #168, #170, #171, and #172.
-- [ ] 21. #56 — Re-audit and close the human/provider Regional Public MVP release tracker. Dependencies: every applicable implementation/evidence ticket above plus every named human/provider gate; close Regional Public MVP last.
-- [ ] 22. #175 — Build immutable inactive commercial configuration and private value-research controls. Dependencies: #174.
-- [ ] 23. #177 — Deliver paid consent, generation-bound Checkout, verified webhook upgrade, and pause-race refund behavior. Dependencies: #174 and #175; live use remains blocked.
-- [ ] 24. #178 — Deliver proration, downgrade, cancellation, refund, failed-payment, and hidden-photo lifecycle. Dependencies: #174, #177, #123, and #124.
-- [ ] 25. #179 — Implement signed race-safe paid-sales pause, servicing, finality close, late-obligation reopen, and resume. Dependencies: #177 and #178.
-- [ ] 26. #176 — Run paid-value research and record the exact monetization decision. Dependencies: #175 plus passing Package 12 activation/review receipts for ordinals 1–3.
-- [ ] 27. #180 — Implement composite paid activation and stage-controlled paid plan presentation. Dependencies: #123, #124, #176, #177, #178, and #179 plus every named media/security/provider receipt.
-- [ ] 28. #181 — Execute and independently verify live paid-tier activation. Dependencies: #180 and every composite human/provider/operational gate; post-MVP and close last in the paid chain.
+- [ ] 04. #187 — Establish OpenCode-to-Codex draft-PR review automation. Dependencies: none; explicitly prioritized by the Product Owner on 2026-08-31 before #123.
+- [ ] 05. #123 — Complete rejected-media resubmission against the current server tier resolver. Dependencies: #125 and #174.
+- [ ] 06. #124 — Prove the media-history/resubmit/current-tier contract in pgTAP. Dependencies: #125, #174, and #123.
+- [ ] 07. #126 — Reconcile media issue/evidence truth after the final #125/#174/#123/#124 outcomes are known. Dependencies: #125, #174, #123, and #124.
+- [ ] 08. #182 — Add dated successor mappings to historical Package 6/10A/10B/13 issues and reconcile current ledgers. Dependencies: successor issues #168–#181 exist; no implementation dependency.
+- [ ] 09. #129 — Complete Saved store → existing/new trip continuation. Dependencies: #142.
+- [ ] 10. #137 — Conform Administrator navigation to exactly Review | Access | More. Dependencies: #142.
+- [ ] 11. #130 — Complete exact-scope Access & Safety. Dependencies: #137.
+- [ ] 12. #131 — Implement narrow D30 View Audit. Dependencies: #137 and #130.
+- [ ] 13. #140 — Complete moderation consequence preview and sole confirmation CTA. Dependencies: #142.
+- [ ] 14. #168 — Build the isolated, protected Package 10A owner-research artifact. Dependencies: merged plan PR #167; H-01/S-01/HC-01 block external sessions, not repository build.
+- [ ] 15. #169 — Run and pass the exact eight-owner acquisition usability gate. Dependencies: #168 plus H-01, S-01, HC-01, support/security monitoring, and legal/privacy approval.
+- [ ] 16. #170 — Deliver public existing-store claim through atomic Free activation, staged off until Package 10B. Dependencies: #168 and the existing Package 2 identity/MFA contracts; #169 blocks public activation, not repository build.
+- [ ] 17. #171 — Deliver add-store intake, duplicate conversion, provenance, and atomic Free publication. Dependencies: #170; coordinate with completed #130/#131 contracts.
+- [ ] 18. #172 — Deliver the trustworthy public Free `/for-stores` acquisition page and exact stage behavior. Dependencies: #169, #170, and #171 for public activation; implementation may remain staged off earlier.
+- [ ] 19. #173 — Produce the owner card, QR-class controls, channel consent/withdrawal, and aggregate-only measurement. Dependencies: #172, B-01, and Package 10B before distribution.
+- [ ] 20. #135 — Prove Partner/Portal/public-owner-intake direct-route denial, Synthetic-seam exclusion, concurrency, and cross-store isolation. Dependencies: #123, #124, #137, #130, #131, #168, #170, and #171.
+- [ ] 21. #117 — Run the final Packages 9/10A/10B staged-off sweep including the owner research/public routes. Dependencies: #137, #140, #135, #168, #170, #171, and #172.
+- [ ] 22. #56 — Re-audit and close the human/provider Regional Public MVP release tracker. Dependencies: every applicable implementation/evidence ticket above plus every named human/provider gate; close Regional Public MVP last.
+- [ ] 23. #175 — Build immutable inactive commercial configuration and private value-research controls. Dependencies: #174.
+- [ ] 24. #177 — Deliver paid consent, generation-bound Checkout, verified webhook upgrade, and pause-race refund behavior. Dependencies: #174 and #175; live use remains blocked.
+- [ ] 25. #178 — Deliver proration, downgrade, cancellation, refund, failed-payment, and hidden-photo lifecycle. Dependencies: #174, #177, #123, and #124.
+- [ ] 26. #179 — Implement signed race-safe paid-sales pause, servicing, finality close, late-obligation reopen, and resume. Dependencies: #177 and #178.
+- [ ] 27. #176 — Run paid-value research and record the exact monetization decision. Dependencies: #175 plus passing Package 12 activation/review receipts for ordinals 1–3.
+- [ ] 28. #180 — Implement composite paid activation and stage-controlled paid plan presentation. Dependencies: #123, #124, #176, #177, #178, and #179 plus every named media/security/provider receipt.
+- [ ] 29. #181 — Execute and independently verify live paid-tier activation. Dependencies: #180 and every composite human/provider/operational gate; post-MVP and close last in the paid chain.
 
 Closed during the 2026-08-30 governance audit and therefore not executable rows:
 
@@ -153,7 +154,7 @@ git diff $ticketBaseSha -- OPEN_TICKET_TODO.md
 
 Run a clean Supabase reset/full pgTAP, Playwright, provider drill, or production smoke whenever the ticket requires it. Missing Docker, browser, credentials, provider access, or human evidence is `UNAVAILABLE` or `BLOCKED`, never `PASS`.
 
-### 6. Require a separate-agent review
+### 6. Require a separate-agent review through a review-visible draft PR
 
 First create a reviewable candidate commit. Stage only ticket-owned files, inspect the staged diff, commit it, and pin the SHA:
 
@@ -167,24 +168,26 @@ git commit -m "fix: close issue #$ticketNumber"
 $ticketCandidateSha = git rev-parse HEAD
 ```
 
-The reviewer must be a separate agent that did not author the implementation. Give it the ticket URL/number, exact base SHA, candidate SHA, diff, cited plan headings, `gates/issue-<N>.md`, and test/evidence paths. Require both review lanes:
+Before a reviewer can begin, OpenCode must push the candidate branch, create a draft pull request, and complete the final review-request commit described in `OPENCODE_TICKET_REVIEW_TODO.md`: the commit changes this ticket's row to the required `COMPLETE IN PR #<PR>` `[x]` form and changes the matching review-queue row to `[x]`. The review request must name the draft PR URL and the exact final head SHA; `PR: NONE` is invalid. A new commit after the request invalidates the request until OpenCode posts a new `[x]` handoff for the new SHA.
+
+The reviewer must be a separate agent that did not author the implementation. Give it the ticket URL/number, exact base SHA, candidate SHA, draft PR, diff, cited plan headings, `gates/issue-<N>.md`, and test/evidence paths. Require both review lanes:
 
 - **Standards review:** correctness, security/privacy, authorization, data integrity, accessibility, maintainability, regression/blast radius, and evidence quality.
 - **Specification review:** ticket reason, exact plan conformance, every acceptance criterion, dependencies/non-goals, responsive/state behavior, and no silent plan change.
 
-The reviewer must report findings with file/line or evidence location and severity. Fix every valid finding, rerun affected checks, commit the fixes, update `$ticketCandidateSha`, and have the separate reviewer recheck the new full diff. Record reviewer identity, reviewed base/head SHAs, both lanes, every finding/disposition, and reruns at `docs/evidence/issue-<N>/independent-review.md`; commit that history. Continue until the separate reviewer approves the candidate. Self-review, a test pass, or a generic “looks good” does not satisfy this gate.
+The reviewer must report findings with file/line or evidence location and severity. OpenCode fixes every valid in-scope finding on the same ticket, reruns affected checks, commits the fixes, updates `$ticketCandidateSha`, and posts a new `[x]` handoff for the new full diff. A genuinely independent or out-of-scope finding becomes a governed successor issue appended to `Ordered tickets` in a separate reviewed bookkeeping pull request; it must not be silently fixed or used to close an unmet acceptance criterion. Record reviewer identity, reviewed base/head SHAs, both lanes, every finding/disposition, and reruns at `docs/evidence/issue-<N>/independent-review.md`; commit that history. Continue until the separate reviewer approves the candidate. Self-review, a test pass, or a generic “looks good” does not satisfy this gate.
 
-### 7. Push a draft PR and make the TODO change part of the reviewed diff
+### 7. Keep the review request and TODO change in the reviewed diff
 
-Push the reviewed candidate branch and open a draft pull request. Its body must fill every required heading from `.github/pull_request_template.md`: `Ticket`, `Reason addressed`, `Plan requirements`, `Plan conformance`, `Acceptance evidence`, `Verification`, and `Plan change authorization`. For ordinary work state `Conforming work; no plan change`; never write `update plan` unless the Product Owner actually issued it.
+The draft pull request created before review must fill every required heading from `.github/pull_request_template.md`: `Ticket`, `Reason addressed`, `Plan requirements`, `Plan conformance`, `Acceptance evidence`, `Verification`, and `Plan change authorization`. For ordinary work state `Conforming work; no plan change`; never write `update plan` unless the Product Owner actually issued it.
 
-After GitHub assigns the PR number and after all acceptance work is complete, change only this ticket's row in `Ordered tickets` from `[ ]` to:
+After GitHub assigns the PR number and after all acceptance work is complete but before the reviewer claims the candidate, change only this ticket's row in `Ordered tickets` from `[ ]` to:
 
 ```text
 - [x] NN. #ISSUE — COMPLETE IN PR #PR — <short outcome>. Dependencies: <unchanged>.
 ```
 
-Commit and push that TODO update on the same issue branch. Re-run the plan-governance tests, `git diff --check`, and any check affected by the final diff. Update `$ticketCandidateSha`; the separate reviewer must review this final base-to-head diff, including the TODO change and independent-review history, then post a `FINAL INDEPENDENT REVIEW` PR comment naming that exact head SHA and explicitly stating either open findings or no open findings. Link that exact-head comment in closure evidence. Do not create a self-referential receipt commit and do not change another row.
+Commit and push that TODO update in the same final review-request commit as the matching review-queue `[x]` state. Re-run the plan-governance tests, `git diff --check`, and any check affected by the final diff. Update `$ticketCandidateSha`; the separate reviewer must review this final base-to-head diff, including the TODO change and independent-review history, then post a `FINAL INDEPENDENT REVIEW` PR comment naming that exact head SHA and explicitly stating either open findings or no open findings. Link that exact-head comment in closure evidence. Do not create a self-referential receipt commit and do not change another row.
 
 ### 8. Merge only after all gates pass
 
