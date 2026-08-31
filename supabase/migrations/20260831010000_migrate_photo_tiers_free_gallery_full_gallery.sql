@@ -46,7 +46,12 @@ end $$;
 
 -- photo_tier_source_shape does not reference tier names, keep as is
 
--- 3. Single server authority: resolve_store_photo_cap -> free 5, gallery 15, full_gallery null
+-- 3. Single server authority: resolve_store_photo_cap -> free 5, gallery 15, full_gallery null.
+-- Replaced under the owner role: CREATE OR REPLACE against a service-owned function requires
+-- the exact owner, not the migration runner.
+grant billing_automation to postgres;
+grant create on schema partner_private to billing_automation;
+set role billing_automation;
 create or replace function partner_private.resolve_store_photo_cap(p_store_id uuid) returns integer
 language plpgsql stable security definer set search_path='' as $$
 declare v_tier partner_private.store_photo_tier_state.tier%type;
@@ -54,6 +59,9 @@ begin
   select tier into v_tier from partner_private.store_photo_tier_state where store_id=p_store_id;
   return case v_tier when 'gallery' then 15 when 'full_gallery' then null else 5 end;
 end $$;
+reset role;
+revoke create on schema partner_private from billing_automation;
+revoke billing_automation from postgres;
 
 -- 4. Rebuild media intake cap enforcement to use new tier names and copy
 grant media_automation to postgres;
@@ -139,6 +147,9 @@ revoke create on schema partner_private from media_automation;
 revoke media_automation from postgres;
 
 -- 5. Update billing webhook validation to accept new tier names (keep legacy for compatibility during rolling deploy)
+grant billing_automation to postgres;
+grant create on schema partner_private to billing_automation;
+set role billing_automation;
 create or replace function partner_private.billing_apply_subscription_event(
   p_event_id text,p_event_kind text,p_event_time timestamptz,
   p_store_id uuid,p_customer_id text,p_subscription_id text,
@@ -216,12 +227,11 @@ begin
     jsonb_build_object('eventId',p_event_id,'kind',p_event_kind,'state',v_next));
   return 'applied';
 end $$;
-
--- Re-apply RLS owner and grants (idempotent)
-alter function partner_private.resolve_store_photo_cap(uuid) owner to billing_automation;
-alter function partner_private.billing_apply_subscription_event(text,text,timestamptz,uuid,text,text,text,timestamptz,text) owner to billing_automation;
-grant execute on function partner_private.resolve_store_photo_cap(uuid) to media_automation;
-grant execute on function partner_private.append_audit(text,uuid,uuid,text,jsonb) to media_automation;
+grant execute on function partner_private.resolve_store_photo_cap(uuid) to postgres, media_automation;
+grant execute on function partner_private.append_audit(text,uuid,uuid,text,jsonb) to media_automation, postgres;
+reset role;
+revoke create on schema partner_private from billing_automation;
+revoke billing_automation from postgres;
 
 -- Rollback / forward-repair notes (recorded, not executed here):
 -- Rerun is safe: updates are idempotent where-clauses; constraint drops guard existence.
