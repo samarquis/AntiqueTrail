@@ -1,13 +1,38 @@
 # Issue #123 evidence inventory — 2026-08-31
 
 Base SHA: 186e7b7
-Candidate SHA: f175f78
+Candidate code SHA: 6b6fc5d01169e7b2d53f83f4e9fd6c133a852582
 Merged as: <pending> on `codex/issue-123-rejected-media-resubmission` -> PR <pending>
+
+## Repair-round evidence — 2026-08-31
+
+The original candidate `f175f78` failed independent review; the prior text in
+this inventory is retained as historical context and is superseded for the
+repaired code by this section.  The repaired candidate is not yet independently
+reviewed, merged, or closing evidence.
+
+- Authorization: `media_reserve_resubmission` invokes
+  `portal_private.require_portal_scope()` and compares its resolved store to the
+  locked rejected original.  The shared resolver enforces consent, session,
+  MFA, recent auth, exactly one unrevoked active grant, and stage/audience.
+- Privacy and idempotency: the SQL receipt exposes only `uploadId`; the edge
+  derives deterministic internal quarantine keys.  The edge passes an SHA-256
+  file digest, which is stored and included in replay equality; the UI retains
+  its idempotency key across an unchanged retry.
+- Staged UX: rejected history stays readable while M-01 is off, with no
+  resubmit control. Loading and refresh-failure states are explicit. The review
+  harness fixture is read-only and cannot fabricate an upload receipt.
+- Verification: targeted Vitest 52/52; pgTAP 0078 27/27; full pgTAP 78 files /
+  2,160 assertions; `npm run lint`; `npm run format`; `npm run
+  security:contract`; `node --test scripts/plan-governance-contract.test.mjs`;
+  `npm run build`; and `git diff --check` all passed. Full UI-08 browser
+  coverage passed 14 runnable tests across Chromium and mobile; four explicit
+  evidence-capture cases were skipped.
 
 ## Changes (base-to-candidate)
 
 - `supabase/migrations/20260831020000_media_reserve_resubmission.sql` (new): `resubmission_of` linkage column + `media_reserve_resubmission` forward-only RPC.
-- `supabase/tests/0078_media_resubmission.sql` (new): plan(25) pgTAP contract for the resubmission lifecycle.
+- `supabase/tests/0078_media_resubmission.sql` (new): plan(27) pgTAP contract for the resubmission lifecycle.
 - `supabase/functions/media-provider-command/index.ts`: intake handler resubmission branch + `MediaCapDeniedError` 409.
 - `supabase/functions/_shared/media-pipeline.ts`: `MediaIngestInput`/`reserve` accept `originalUploadId`.
 - `src/features/portal/types.ts`, `portalClient.ts`, `components.tsx`: resubmit transport + UI, resubmit input omits store/kind.
@@ -27,8 +52,8 @@ Merged as: <pending> on `codex/issue-123-rejected-media-resubmission` -> PR <pen
 
 ## Verification evidence (2026-08-31)
 
-- `npx supabase@2.115.0 db reset --local` then `npx supabase@2.115.0 test db`: clean reset applies all migrations (incl. 20260831020000); full pgTAP suite 78 files / 2158 tests all PASS (baseline 2133 + 25 new in 0078).
-- `npm run check`: typecheck (tsc -b), eslint, prettier --check, 605 vitest, test:release 65, vite production build all pass. (During the run two non-blocking warnings were fixed: unused `rejected` const removed, and a `useEffect` dependency warning resolved by tracking the selected upload through a ref.)
+- `npx supabase@2.115.0 db reset --local` then `npx supabase@2.115.0 test db`: clean reset applies all migrations (incl. 20260831020000); full pgTAP suite 78 files / 2,160 assertions all PASS (baseline 2133 + 27 in 0078).
+- `npm test`: 88 files / 607 tests passed. `npm run lint`, `npm run format`, and `npm run build` passed.
 - `npm run security:contract`: pass (secrets, licenses, action pins, migrations).
 - `node --test scripts/plan-governance-contract.test.mjs`: 7/7 pass.
 - `git diff --check`: pass (CRLF normalization notices only).
@@ -40,7 +65,7 @@ Criterion-to-evidence mapping is in `gates/issue-123.md`. pgTAP assertions cited
 ## Limitations
 
 - Real-browser 200% zoom/reflow, user text-spacing overrides, dark theme, and forced-colors behavior for the new resubmit UI are covered by the repo's shared accessibility/e2e harness and the App-level vitest pass; dedicated resubmit screenshots under forced modes were not separately captured this session (recorded as partially available).
-- `npx playwright test --config playwright.review.config.ts e2e/ui08-partner-portal.spec.ts`: the spec has no resubmission-journey case yet; outcome recorded at run time (not a replacement for the pgTAP/client contract above).
+- `npx playwright test e2e/ui08-partner-portal.spec.ts`: 14 runnable tests passed across Chromium and mobile; four explicit evidence-capture cases were skipped. This proves the synthetic blocked-history and reflow paths, not live provider activation.
 - No real-media activation, Stripe, or publication is exercised; the M-01 gate is only asserted via the synthetic provisioned chain (labeled, does not activate billing or publication).
 
 ## Rollback / forward repair

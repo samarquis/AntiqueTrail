@@ -3,15 +3,44 @@
 Scope: Complete the rejected-media resubmission lifecycle end to end - forward-only `media_reserve_resubmission`-style RPC, server-derived store/kind (no client `storeId` authority), distinct `awaiting_review` row that never mutates the rejected original, tier-cap denials through `resolve_store_photo_cap`, and the client history/rejection/correction UI wired to #125's response allowlist.
 
 Base SHA: 186e7b7
-Candidate SHA: f175f78
+Candidate code SHA: 6b6fc5d01169e7b2d53f83f4e9fd6c133a852582
 Merged SHA: <pending>
+
+## Repair-round evidence — 2026-08-31
+
+This section supersedes the earlier candidate evidence below, which describes
+the rejected `f175f78` implementation.  The repaired code candidate is
+`6b6fc5d01169e7b2d53f83f4e9fd6c133a852582`; it is not yet independently
+reviewed, in a PR, merged, or eligible for issue closure.
+
+- A1/A3: the reservation RPC now calls `portal_private.require_portal_scope()`
+  before reading the original, then requires that the original store equals the
+  resolved store.  This covers current consent, session, MFA, recent auth,
+  exact-one active grant, revocation, and audience/stage checks.  `0078` adds a
+  revoked-but-active grant assertion and passes all 27 assertions.
+- A2/A4: a resubmission stores an edge-computed SHA-256 source digest; replay
+  requires the digest and every prior summary value to match.  The UI preserves
+  its idempotency key while an unchanged corrected-image request is retried.
+- A5: the RPC returns only `{ uploadId }`.  The authenticated edge command
+  derives the two quarantine keys internally from that opaque id; neither
+  private object keys nor store/kind crosses the browser RPC response boundary.
+- A6/A7: history, its rejection reason, loading, refresh failure, and the
+  M-01-blocked state are rendered independently of upload capability. The full
+  UI-08 browser spec passed 14 runnable tests in Chromium and mobile (four
+  opt-in capture cases skipped), including the 320px reflow path. The review
+  harness supplies only a read-only rejected fixture while M-01 remains
+  disabled; this is synthetic UI evidence, not provider, billing, publication,
+  or live-media authorization evidence.
+- Local verification: targeted Vitest (5 files/52 tests), full pgTAP (78
+  files/2,160 assertions), lint, Prettier, security contract, plan-governance
+  contracts, and production build passed. `git diff --check` passed.
 
 ## Acceptance criteria (from the issue)
 
 - [x] A1: Representative sees only the authorized store's history and the verbatim reason on a rejected upload, using exactly #125's allowed response keys.
   CHECK: `npx supabase@2.115.0 test db` (0076 history + 0078 resubmission); `npm test -- --run src/features/portal`
   EXPECT: pass
-  EVIDENCE: 0078 test 1 asserts the verbatim `rejection_reason` "Image quality insufficient for storefront" survives unchanged on the rejected original and the new row is scoped to the original store (store ...0001). `src/features/portal/components.tsx` `PortalMediaHistorySection` lists media via `listMediaUploads` (#125 allowlist) and renders `upload.state === 'rejected' ? 'Rejected' : upload.state` with the verbatim reason and a per-row "Correct and resubmit" action. Grant-scoped visibility is enforced server-side by the active-grant check (migration lines 61-66) and the fixture stores on distinct stores ...0001/...0009. 605 vitest pass including `components.test.tsx` history/rejection/resubmit tests.
+  EVIDENCE: Superseded by the repair-round evidence above: 0078 asserts the verbatim `rejection_reason` survives unchanged, and `require_portal_scope()` resolves the exact authorized, unrevoked store before the original is read. Full Vitest: 607 passing tests.
 
 - [x] A2: Valid corrected submission creates one distinct new `awaiting_review` row; the rejected original and reason remain unchanged.
   CHECK: `npx supabase@2.115.0 test db` (0078)
@@ -31,12 +60,12 @@ Merged SHA: <pending>
 - [x] A5: No storage key, bucket path, signed URL, private upload data, or client-authored store authority crosses the response boundary.
   CHECK: `npm run check`; `npx tsc -b`; `npm test -- --run src/features/portal src/features/media/mediaPipeline.test.ts src/features/media/mediaEdgeBoundary.test.ts`
   EXPECT: pass
-  EVIDENCE: `PortalMediaResubmitInput` (types.ts) omits `storeId`/`kind`; `portalClient.ts` `resubmitMedia` serializes only `originalUploadId`, `file`, `altText`, `rightsConfirmed`, `idempotencyKey` (no dummy `storeId`/`kind`; `components.test.tsx` asserts `mock.calls[0][0]` has no `storeId`/`kind` property). The edge intake handler derives `activeStoreId`/`activeKind` server-side via `media_get_upload` and rejects any client-supplied `storeId`/`kind` for the resubmit branch. The RPC returns only uploadId + object keys + storeId/kind into the reserved-row contract; file bytes never cross the SQL boundary (only inspected summary). No signed URL or bucket path path outward beyond the reserved quarantine keys expected by intake.
+  EVIDENCE: `PortalMediaResubmitInput` omits `storeId`/`kind`; the edge derives internal scope and object keys. The RPC response is only `{ uploadId }`, and 0078 asserts absence of object keys, storeId, and kind.
 
 - [x] A6: History refresh, confirmation, error preservation, focus/live status, keyboard flow, 48px targets, 320px reflow, real-browser 200% zoom/reflow and user text-spacing overrides, dark theme, and forced-colors behavior pass.
   CHECK: `npm run check`; `npm test -- --run src/app/App.test.tsx src/features/portal`
   EXPECT: pass
-  EVIDENCE: `components.test.tsx` covers history load, verbatim reason, confirm/correct flow, pending status, error/retry/refresh states, and success (`awaiting Administrator review` status). The section uses the shared `PortalAsyncResult` state matrix and standard button/semantic markup consistent with the DESIGN_SYSTEM async and accessibility contracts (48px targets, keyboard-first, screen-reader status via `role="status"`, plain labels, non-color-only states). 605 vitest incl. App.test.tsx pass. Note: real-browser 200% zoom/reflow, text-spacing overrides, dark theme, and forced-colors remain covered by the repo's shared e2e/accessibility harness; individual resubmit-screenshot artifacts are recorded under `docs/evidence/issue-123/` where captured. `npx playwright test --config playwright.review.config.ts e2e/ui08-partner-portal.spec.ts` result recorded in evidence.
+  EVIDENCE: `components.test.tsx` covers history load, preserved errors, correction flow, and unchanged-retry idempotency. The targeted UI-08 M-01 browser test passes in Chromium and mobile; it is synthetic review-harness evidence and does not claim provider activation.
 
 - [x] A7: Real-media use remains blocked until M-01; synthetic evidence is labeled and does not activate billing or publication.
   CHECK: `npm run security:contract`; `npx supabase@2.115.0 test db`
@@ -68,9 +97,9 @@ Merged SHA: <pending>
 ## Floor verification (recorded with exact commands and SHAs)
 
 - [x] F1: `npx supabase@2.115.0 db reset --local` then `npx supabase@2.115.0 test db`
-  EVIDENCE: clean reset applies all migrations including 20260831020000; full pgTAP suite 78 files / 2158 tests all PASS (baseline 2133 + new 25).
+  EVIDENCE: clean reset applies all migrations including 20260831020000; full pgTAP suite 78 files / 2,160 tests all PASS (baseline 2133 + new 27).
 - [x] F2: `npm run check`
-  EVIDENCE: typecheck (tsc -b) pass, eslint pass, prettier pass, 605 vitest pass, test:release 65 pass, vite production build pass.
+  EVIDENCE: typecheck, eslint, Prettier, full Vitest (607), release tests, and Vite production build pass.
 - [x] F3: `npm run security:contract`
   EVIDENCE: "Security contract checks passed: secrets, licenses, action pins, migrations."
 - [x] F4: `node --test scripts/plan-governance-contract.test.mjs`
