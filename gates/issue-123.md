@@ -3,14 +3,14 @@
 Scope: Complete the rejected-media resubmission lifecycle end to end - forward-only `media_reserve_resubmission`-style RPC, server-derived store/kind (no client `storeId` authority), distinct `awaiting_review` row that never mutates the rejected original, tier-cap denials through `resolve_store_photo_cap`, and the client history/rejection/correction UI wired to #125's response allowlist.
 
 Base SHA: 186e7b7
-Candidate code SHA: 6b6fc5d01169e7b2d53f83f4e9fd6c133a852582
+Candidate code SHA: ef09627e12832d5fad018747db4c9ca2db0643ab
 Merged SHA: <pending>
 
 ## Repair-round evidence — 2026-08-31
 
 This section supersedes the earlier candidate evidence below, which describes
 the rejected `f175f78` implementation.  The repaired code candidate is
-`6b6fc5d01169e7b2d53f83f4e9fd6c133a852582`; it is not yet independently
+`ef09627e12832d5fad018747db4c9ca2db0643ab`; it is not yet independently
 reviewed, in a PR, merged, or eligible for issue closure.
 
 - A1/A3: the reservation RPC now calls `portal_private.require_portal_scope()`
@@ -21,19 +21,24 @@ reviewed, in a PR, merged, or eligible for issue closure.
 - A2/A4: a resubmission stores an edge-computed SHA-256 source digest; replay
   requires the digest and every prior summary value to match.  The UI preserves
   its idempotency key while an unchanged corrected-image request is retried.
-- A5: the RPC returns only `{ uploadId }`.  The authenticated edge command
-  derives the two quarantine keys internally from that opaque id; neither
-  private object keys nor store/kind crosses the browser RPC response boundary.
+- A5: the RPC returns an opaque upload id plus replay state only. The
+  authenticated edge command derives the two quarantine keys internally;
+  neither private object keys nor store/kind crosses the browser RPC response
+  boundary.
 - A6/A7: history, its rejection reason, loading, refresh failure, and the
-  M-01-blocked state are rendered independently of upload capability. The full
-  UI-08 browser spec passed 14 runnable tests in Chromium and mobile (four
-  opt-in capture cases skipped), including the 320px reflow path. The review
-  harness supplies only a read-only rejected fixture while M-01 remains
-  disabled; this is synthetic UI evidence, not provider, billing, publication,
-  or live-media authorization evidence.
-- Local verification: targeted Vitest (5 files/52 tests), full pgTAP (78
-  files/2,160 assertions), lint, Prettier, security contract, plan-governance
-  contracts, and production build passed. `git diff --check` passed.
+  M-01-blocked state are rendered independently of upload capability. A
+  dedicated Official photos destination uses distinct state badges and a
+  primary rejected-item resubmit action. The full UI-08 browser spec passed 16
+  runnable tests in Chromium and mobile (four opt-in capture cases skipped),
+  including 320px text-spacing/reflow, Chromium 200% page scale, dark theme,
+  and forced colors. The review harness enables its fabricated receipt only
+  through the explicit `reviewMedia=resubmit` query flag; this remains
+  synthetic UI evidence, not provider, billing, publication, or live-media
+  authorization evidence.
+- Local verification: focused Vitest commands (31, 41, and 53 tests), clean
+  local Supabase reset plus full pgTAP (78 files/2,160 assertions), lint,
+  Prettier, security contract, plan-governance contracts, and production build
+  passed. `git diff --check` passed.
 
 ## Acceptance criteria (from the issue)
 
@@ -60,12 +65,12 @@ reviewed, in a PR, merged, or eligible for issue closure.
 - [x] A5: No storage key, bucket path, signed URL, private upload data, or client-authored store authority crosses the response boundary.
   CHECK: `npm run check`; `npx tsc -b`; `npm test -- --run src/features/portal src/features/media/mediaPipeline.test.ts src/features/media/mediaEdgeBoundary.test.ts`
   EXPECT: pass
-  EVIDENCE: `PortalMediaResubmitInput` omits `storeId`/`kind`; the edge derives internal scope and object keys. The RPC response is only `{ uploadId }`, and 0078 asserts absence of object keys, storeId, and kind.
+  EVIDENCE: `PortalMediaResubmitInput` omits `storeId`/`kind`; the edge derives internal scope and object keys. The opaque receipt contains no object keys, storeId, or kind, and 0078 asserts those omissions.
 
 - [x] A6: History refresh, confirmation, error preservation, focus/live status, keyboard flow, 48px targets, 320px reflow, real-browser 200% zoom/reflow and user text-spacing overrides, dark theme, and forced-colors behavior pass.
   CHECK: `npm run check`; `npm test -- --run src/app/App.test.tsx src/features/portal`
   EXPECT: pass
-  EVIDENCE: `components.test.tsx` covers history load, preserved errors, correction flow, and unchanged-retry idempotency. The targeted UI-08 M-01 browser test passes in Chromium and mobile; it is synthetic review-harness evidence and does not claim provider activation.
+  EVIDENCE: `components.test.tsx` covers history load, distinct rejected treatment, primary resubmit action, preserved errors, correction flow, focus confirmation, and unchanged-retry idempotency. UI-08 passes in Chromium and mobile, including 320px text spacing/reflow, Chromium 200% page scale, dark theme, and forced colors; it is synthetic review-harness evidence and does not claim provider activation.
 
 - [x] A7: Real-media use remains blocked until M-01; synthetic evidence is labeled and does not activate billing or publication.
   CHECK: `npm run security:contract`; `npx supabase@2.115.0 test db`
