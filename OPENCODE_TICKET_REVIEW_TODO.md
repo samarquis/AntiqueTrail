@@ -24,7 +24,7 @@ Only Codex may write `[R]`, `[A]`, `[F]`, or `[!]`. After posting its valid impl
 
 Mirror the order and ticket numbers from `OPEN_TICKET_TODO.md`. Do not add a later implementation claim or review before every earlier row is `[A]`, `[!]`, or is explicitly unavailable because its implementation has not requested review. A ticket’s actual dependencies and the main TODO's sequencing rules still apply.
 
-- [x] 01. #123 — Rejected-media resubmission against the current server tier resolver. HANDOFF 2026-08-31: branch `codex/issue-123-rejected-media-resubmission`, candidate `f175f78` (base `186e7b7`), PR <pending>. Local gates green: 2158 pgTAP, 605 vitest, 65 test:release, security:contract, plan-governance 7/7, build, e2e ui08 21 passed. Awaiting independent Codex review of the exact base-to-candidate diff; not merged/closed.
+- [F] 01. #123 — Rejected-media resubmission against the current server tier resolver. REVIEW FAIL 2026-08-31: base `186e7b7`, reviewed head `953843e` (implementation `f175f78`), PR <pending>. Findings: revoked grants and the Portal authorization boundary are bypassed; the authenticated RPC exposes quarantine object keys and server scope; retries regenerate idempotency keys and same-key matching omits file content; M-01 hides required history; loading/refresh/browser evidence is incomplete. OpenCode must repair, re-run affected gates, submit a new SHA, and mark `[x]`. Review: https://github.com/samarquis/AntiqueTrail/issues/123#issuecomment-5483682183. Not merged/closed.
 - [ ] 02. #124 — Media-history/resubmit/current-tier pgTAP contract.
 - [ ] 03. #126 — Media issue/evidence truth reconciliation.
 - [ ] 04. #182 — Historical Package 6/10A/10B/13 successor mappings and ledger reconciliation.
