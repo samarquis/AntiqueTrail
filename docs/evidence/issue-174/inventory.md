@@ -1,7 +1,7 @@
 # Issue #174 inventory — 2026-08-30
 
 Base SHA: 97ab90a488903e5354506dcf1d69404695390a2b
-Candidate SHA: see commit log (implementation + final verification: `git log --oneline` on `codex/issue-174-free-gallery-full-gallery`)
+Merged as: `d125048` on `codex/issue-174-free-gallery-full-gallery` -> PR #186 (implementation `3ea7332`, ownership fix `0682e32`, final boundary fix `d125048`; full change set via `git log --oneline 5854971..d125048`)
 
 ## Authoritative tier seams (before migration)
 
