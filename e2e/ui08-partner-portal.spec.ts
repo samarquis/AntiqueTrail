@@ -199,6 +199,15 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
       )
     expect(overflow).toBe(false)
 
+    if (test.info().project.name === 'chromium') {
+      const browserSession = await page.context().newCDPSession(page)
+      await browserSession.send('Emulation.setPageScaleFactor', { pageScaleFactor: 2 })
+      await expect
+        .poll(() => page.evaluate(() => window.visualViewport?.scale ?? 1))
+        .toBeGreaterThanOrEqual(2)
+      await browserSession.detach()
+    }
+
     await page.emulateMedia({ colorScheme: 'dark', forcedColors: 'active' })
     await page.reload()
     await expect

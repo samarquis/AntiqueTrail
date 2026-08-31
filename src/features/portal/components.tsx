@@ -134,6 +134,21 @@ function mediaStateLabel(state: PortalMediaUpload['state']) {
   }
 }
 
+function mediaStateClass(state: PortalMediaUpload['state']) {
+  switch (state) {
+    case 'awaiting_review':
+      return 'portal-media-state portal-media-state--awaiting'
+    case 'rejected':
+      return 'portal-media-state portal-media-state--rejected'
+    case 'approved_pending_publish':
+      return 'portal-media-state portal-media-state--approved'
+    case 'published':
+      return 'portal-media-state portal-media-state--published'
+    case 'purged':
+      return 'portal-media-state portal-media-state--removed'
+  }
+}
+
 export function PortalAccessDeniedPage() {
   return (
     <PortalCard
@@ -1336,21 +1351,19 @@ function PortalMediaHistorySection({
                 <p>
                   <strong>{upload.altText}</strong>
                 </p>
-                <p role="status">{mediaStateLabel(upload.state)}</p>
+                <p className={mediaStateClass(upload.state)} role="status">
+                  {mediaStateLabel(upload.state)}
+                </p>
                 <p>
                   Placement: {upload.kind === 'cover' ? 'Cover photo' : 'Gallery photo'} · Submitted{' '}
                   {formatPortalDate(upload.submittedAt)}
                 </p>
               </div>
               {upload.state === 'rejected' && (
-                <div>
+                <div className="portal-media-rejection">
                   <p>Reason: {upload.rejectionReason ?? 'No reason provided'}</p>
                   {resubmissionEnabled ? (
-                    <button
-                      type="button"
-                      className="button button--secondary"
-                      onClick={() => beginResubmit(upload)}
-                    >
+                    <button type="button" className="button" onClick={() => beginResubmit(upload)}>
                       Resubmit corrected image
                     </button>
                   ) : (
