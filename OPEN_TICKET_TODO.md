@@ -21,7 +21,7 @@ Do not reorder the list because another ticket looks easier. If the first unchec
 
 - [x] 01. #142 — COMPLETE IN PR #166 — Semantic color-token implementation conformance. Dependencies: none.
 - [x] 02. #125 — COMPLETE IN PR #185 — Minimize the Portal media-history response. Dependencies: none; sequenced after #142 to keep one implementation lane.
-- [x] 03. #174 — COMPLETE IN PR #186 — Migrate tier names, stored state, and server cap authority to Free/Gallery/Full Gallery. Dependencies: #125.
+- [!] 03. #174 — Migrate tier names, stored state, and server cap authority to Free/Gallery/Full Gallery. Dependencies: #125. BLOCKED 2026-08-31 — an independent production review found retired tier vocabulary in active billing code; repair is under active PR #189 and #174 cannot close until that proof is repaired. Evidence: https://github.com/samarquis/AntiqueTrail/issues/174#issuecomment-5477841893
 - [!] 04. #123 — Complete rejected-media resubmission against the current server tier resolver. Dependencies: #125 and #174. BLOCKED 2026-08-31 — #174 must close with merged evidence; evidence: https://github.com/samarquis/AntiqueTrail/issues/123#issuecomment-5485059361
 - [ ] 05. #124 — Prove the media-history/resubmit/current-tier contract in pgTAP. Dependencies: #125, #174, and #123.
 - [ ] 06. #126 — Reconcile media issue/evidence truth after the final #125/#174/#123/#124 outcomes are known. Dependencies: #125, #174, #123, and #124.
