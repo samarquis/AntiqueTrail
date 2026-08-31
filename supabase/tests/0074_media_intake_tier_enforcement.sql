@@ -35,19 +35,19 @@ insert into partner_private.store_photo_tier_state (store_id, tier, source)
 select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000001','gallery',gen_random_uuid()))->>'allowed','true','explicit free tier -> allowed');
 select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000001','gallery',gen_random_uuid()))->>'remaining','5','free tier -> 5 remaining');
 
--- Test 4: Featured tier (subscription) -> cap 15, allowed when under
+-- Test 4: Gallery tier (subscription) -> cap 15, allowed when under
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000002','featured','subscription')
-  on conflict (store_id) do update set tier='featured',source='subscription';
-select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000002','gallery',gen_random_uuid()))->>'allowed','true','featured tier under cap -> allowed');
-select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000002','gallery',gen_random_uuid()))->>'remaining','15','featured tier -> 15 remaining');
+  values ('00000000-0000-4000-8000-000000000002','gallery','subscription')
+  on conflict (store_id) do update set tier='gallery',source='subscription';
+select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000002','gallery',gen_random_uuid()))->>'allowed','true','gallery tier under cap -> allowed');
+select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000002','gallery',gen_random_uuid()))->>'remaining','15','gallery tier -> 15 remaining');
 
--- Test 5: Unlimited tier -> unlimited cap (remaining -1)
+-- Test 5: Full_gallery tier -> full_gallery cap (remaining -1)
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000003','unlimited','subscription')
-  on conflict (store_id) do update set tier='unlimited',source='subscription';
-select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000003','gallery',gen_random_uuid()))->>'allowed','true','unlimited tier -> allowed');
-select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000003','gallery',gen_random_uuid()))->>'remaining','-1','unlimited tier -> remaining -1 (unlimited)');
+  values ('00000000-0000-4000-8000-000000000003','full_gallery','subscription')
+  on conflict (store_id) do update set tier='full_gallery',source='subscription';
+select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000003','gallery',gen_random_uuid()))->>'allowed','true','full_gallery tier -> allowed');
+select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000003','gallery',gen_random_uuid()))->>'remaining','-1','full_gallery tier -> remaining -1 (full_gallery)');
 
 -- Test 6: At cap rejection with upgrade copy (free tier at 5)
 -- Create store with free tier and 5 approved gallery images
@@ -64,22 +64,22 @@ insert into media_private.media_uploads (upload_id, actor_tombstone, store_id, k
 select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000004','gallery',gen_random_uuid()))->>'allowed','false','free tier at 5 gallery -> rejected');
 select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000004','gallery',gen_random_uuid()))->>'error','media_cap_exceeded','error code is media_cap_exceeded');
 select ok((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000004','gallery',gen_random_uuid()))->>'message' is not null,'has message field');
-select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000004','gallery',gen_random_uuid()))->>'upgradeTier','featured','upgrade tier is featured');
+select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000004','gallery',gen_random_uuid()))->>'upgradeTier','gallery','upgrade tier is gallery');
 select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000004','gallery',gen_random_uuid()))->>'upgradeCap','15','upgrade cap is 15');
 
--- Test 7: Featured tier at 15 rejected with unlimited upgrade copy
+-- Test 7: Gallery tier at 15 rejected with full_gallery upgrade copy
 insert into partner_private.store_photo_tier_state (store_id, tier, source)
-  values ('00000000-0000-4000-8000-000000000005','featured','subscription')
-  on conflict (store_id) do update set tier='featured',source='subscription';
+  values ('00000000-0000-4000-8000-000000000005','gallery','subscription')
+  on conflict (store_id) do update set tier='gallery',source='subscription';
 -- Insert 15 approved gallery images
 insert into media_private.media_uploads (upload_id, actor_tombstone, store_id, kind, alt_text, rights_confirmed_at, idempotency_key, source_mime, source_bytes, source_width, source_height, scan_state, metadata_stripped, reencoded, state, approved_by, approved_at, approval_reason, original_object_key, private_derivative_object_key, derivative_digest, derivative_width, derivative_height, derivative_bytes)
   select gen_random_uuid(), gen_random_uuid(), '00000000-0000-4000-8000-000000000005', 'gallery', 'Test image', statement_timestamp(), gen_random_uuid(), 'image/png', 1000, 640, 480, 'clean', true, true, 'approved_pending_publish', '74000000-0000-4000-8000-000000000001', statement_timestamp(), 'image_quality_verified',
     'quarantine/'||gen_random_uuid()::text||'/original', 'quarantine/'||gen_random_uuid()::text||'/derivative.webp',
     decode(repeat('00',32),'hex'), 640, 480, 100000
   from generate_series(1,15);
-select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000005','gallery',gen_random_uuid()))->>'allowed','false','featured tier at 15 gallery -> rejected');
-select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000005','gallery',gen_random_uuid()))->>'upgradeTier','unlimited','upgrade tier is unlimited');
-select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000005','gallery',gen_random_uuid()))->>'upgradeCap',null,'upgrade cap is null (unlimited)');
+select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000005','gallery',gen_random_uuid()))->>'allowed','false','gallery tier at 15 gallery -> rejected');
+select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000005','gallery',gen_random_uuid()))->>'upgradeTier','full_gallery','upgrade tier is full_gallery');
+select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000000005','gallery',gen_random_uuid()))->>'upgradeCap',null,'upgrade cap is null (full_gallery)');
 
 -- Test 8: Cover upload always allowed regardless of cap
 insert into partner_private.store_photo_tier_state (store_id, tier, source)

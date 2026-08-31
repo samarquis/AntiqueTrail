@@ -71,7 +71,7 @@ Deno.serve(async (request) => {
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(storeId) ||
     typeof idempotencyKey !== 'string' ||
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(idempotencyKey) ||
-    (tier !== 'featured' && tier !== 'unlimited')
+    (tier !== 'gallery' && tier !== 'full_gallery')
   )
     return unavailable(headers, 400)
 
@@ -87,7 +87,7 @@ Deno.serve(async (request) => {
   }
 
   const price =
-    tier === 'featured'
+    tier === 'gallery'
       ? env.priceFeatured
       : env.priceUnlimited
   const origin = new URL(env.appOrigin!)

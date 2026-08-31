@@ -55,7 +55,7 @@ The Product Owner approved the public owner-acquisition plan on 2026-08-30. The 
 
 Live GitHub state after plan PR #167 merged on 2026-08-30 contains these open items:
 
-- Current product and evidence gaps: #123 rejected-media resubmission, #124 Package 13 pgTAP contract, #125 media-history minimization/storage-key privacy, #126 media-ticket evidence reconciliation, and #174 migration to the current Free/Gallery/Full Gallery contract.
+- Current product and evidence gaps: #123 rejected-media resubmission, #124 Package 13 pgTAP contract, #125 media-history minimization/storage-key privacy, and #126 media-ticket evidence reconciliation. #174 (Free/Gallery/Full Gallery migration) is closed.
 - Authorization and role-surface gaps: #130 Access & Safety detail/action flow, #131 Package 7 View Audit, #135 direct-route/cross-store/public-owner-intake isolation, and #137 Administrator navigation.
 - Shopper and moderation UX gaps: #129 Saved-to-trip continuation and #140 staged moderation decisions.
 - Store-owner acquisition successors: #168 isolated Package 10A owner-research artifact, #169 eight-owner usability gate, #170 public existing-store claim, #171 public add-store/duplicate conversion, #172 public Free `/for-stores`, and #173 owner-card/QR/channel controls.

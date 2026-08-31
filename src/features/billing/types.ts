@@ -6,7 +6,7 @@ export interface BillingCapability {
 export interface CheckoutRequest {
   storeId: string
   idempotencyKey: string
-  tier: 'featured' | 'unlimited'
+  tier: 'gallery' | 'full_gallery'
 }
 
 export interface BillingRpcTransport {
