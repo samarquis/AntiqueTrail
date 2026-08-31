@@ -17,7 +17,7 @@ Base SHA: 97ab90a488903e5354506dcf1d69404695390a2b
 - [x] G3: resolve_store_photo_cap is single server authority for intake and resubmit; cannot be overridden by client input
   CHECK: npx supabase@2.115.0 test db supabase/tests/0077_package_13_tier_boundaries.sql
   EXPECT: pass
-  EVIDENCE: 0077 tests 1/10/11 assert resolver exists with signature exposing only store id (`p_store_id uuid`, no tier/count parameter) and that check_store_media_cap (migration line 82), billing normalization, and reads all route through it or a published view. Full suite: 77 files, 2133 tests, all passing.
+  EVIDENCE: 0077 tests 1 and 10 assert resolver exists with signature exposing only store id (`p_store_id uuid`, no tier/count parameter) and that check_store_media_cap (migration line 82), billing normalization, and reads all route through it or a published view; test 11 asserts the read path is uncapped and never touches the intake ledger. Full suite: 77 files, 2133 tests, all passing.
 
 - [x] G4: Free (cover+5) and Gallery (cover+15) count boundaries include cover-vs-gallery, concurrent intake, pending/approved/rejected, replacement, idempotent retry
   CHECK: npx supabase@2.115.0 test db
@@ -27,7 +27,7 @@ Base SHA: 97ab90a488903e5354506dcf1d69404695390a2b
 - [x] G5: Full Gallery never applies undisclosed count cap; denies with specific published non-count rule/reason/recovery/appeal when other limit applies
   CHECK: npx supabase@2.115.0 test db
   EXPECT: pass
-  EVIDENCE: 0077 test 9 asserts 20 approved Gallery rows on Full Gallery store -> allowed with remaining -1 (uncapped); check_store_media_cap returns allowed immediately when resolver returns null (migration lines 94-96). Count caps remain the only count-based limit; moderation/approval gates are separate published non-count rules.
+  EVIDENCE: 0077 test 9 asserts 20 approved Gallery rows on Full Gallery store -> allowed with remaining -1 (uncapped); check_store_media_cap returns allowed immediately when resolver returns null (migration lines 102-104). Count caps remain the only count-based limit; moderation/approval gates are separate published non-count rules.
 
 - [x] G6: Existing pilot stores remain Free indefinitely unless independently valid paid subscription changes tier
   CHECK: npx supabase@2.115.0 test db
@@ -42,7 +42,7 @@ Base SHA: 97ab90a488903e5354506dcf1d69404695390a2b
 - [x] G8: No legacy featured|unlimited value or user-facing label remains outside explicitly tested migration-compatibility boundary
   CHECK: github code search (as G1) plus rejection proofs below
   EXPECT: 0 in live seams
-  EVIDENCE: same inventory as G1. The only accepted boundary is billing_apply_subscription_event accepting legacy names from the verified webhook and normalizing featured->gallery / unlimited->full_gallery before persistence (migration lines 156-162), exercised by 0077 test 10; canonical constraints reject all legacy values at every other write path (proved by 23514 insert/update assertions and the upgrade-path rehearsal).
+  EVIDENCE: same inventory as G1. The only accepted boundary is billing_apply_subscription_event accepting legacy names from the verified webhook and normalizing featured->gallery / unlimited->full_gallery before persistence (migration lines 167-173, whitelist and normalization), exercised by 0077 test 10; canonical constraints reject all legacy values at every other write path (proved by 23514 insert/update assertions and the upgrade-path rehearsal).
 
 - [x] G9: #123 and #124 consume new resolver/names rather than duplicating cap logic
   EVIDENCE: check_store_media_cap delegates count authority to resolve_store_photo_cap (single `v_cap := partner_private.resolve_store_photo_cap(...)`); it only derives display copy for upgrade advice. billing_apply_subscription_event normalizes to canonical names before persistence. 0073 (subscription transitions) and 0074 (media intake enforcement) pass unchanged against the recreated functions.

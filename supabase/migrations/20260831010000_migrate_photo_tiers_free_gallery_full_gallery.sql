@@ -164,7 +164,7 @@ begin
     or p_customer_id is null or p_customer_id !~ '^cus_[A-Za-z0-9]{8,64}$'
     or p_status not in ('trialing','active','past_due','unpaid','canceled')
     or (p_status in ('trialing','active','past_due','unpaid') and p_period_end is null)
-    or (p_tier is not null and p_tier not in ('free','gallery','full_gallery','featured','unlimited'))
+    or (p_tier is not null and p_tier not in ('gallery','full_gallery','featured','unlimited'))
     or ((p_status in ('trialing','active')) and p_tier is null) then
     raise exception using errcode='22023',message='billing_webhook_invalid';
   end if;
