@@ -135,10 +135,13 @@ export interface PortalMediaUploadHistory {
   uploads: PortalMediaUpload[]
 }
 
+/**
+ * A corrected submission references the rejected original by id. The store and
+ * kind are derived server-side from that original; the client holds no store
+ * authority here (issue #123).
+ */
 export interface PortalMediaResubmitInput {
   originalUploadId: string
-  storeId: string
-  kind: PortalMediaKind
   file: File
   altText: string
   rightsConfirmed: true

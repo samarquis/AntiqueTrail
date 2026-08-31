@@ -33,4 +33,16 @@ describe('M-01 Edge wiring contract', () => {
     expect(lifecycleSource).toContain('.from(publicBucket).remove')
     expect(lifecycleSource).not.toContain('SUPABASE_SERVICE_ROLE_KEY')
   })
+
+  it('derives store and kind from the server-locked rejected original for resubmission', () => {
+    expect(uploadSource).toContain("const originalUploadId = form.get('originalUploadId')")
+    expect(uploadSource).toContain("const resubmitting = typeof originalUploadId === 'string'")
+    expect(uploadSource).toContain(
+      "rpc<{ storeId?: unknown; kind?: unknown }>(userClient, 'media_get_upload'",
+    )
+    expect(uploadSource).toContain("userClient, 'media_reserve_resubmission'")
+    expect(uploadSource).toContain(
+      "if (typeof storeId === 'string' || typeof kind === 'string') return unavailable(headers)",
+    )
+  })
 })

@@ -50,6 +50,12 @@ function unavailable(headers: Record<string, string> = {}, status = 503): Respon
   return new Response('Unavailable', { status, headers })
 }
 
+class MediaCapDeniedError extends Error {
+  constructor(readonly payload: Record<string, unknown>) {
+    super('media_cap_exceeded')
+  }
+}
+
 async function rpc<T>(
   client: ReturnType<typeof createClient>,
   command: string,
@@ -100,46 +106,86 @@ Deno.serve(async (request) => {
     const altText = form.get('altText')
     const idempotencyKey = form.get('idempotencyKey')
     const rightsConfirmed = form.get('rightsConfirmed')
+    const originalUploadId = form.get('originalUploadId')
+    const resubmitting = typeof originalUploadId === 'string' && originalUploadId.length > 0
     if (
       !(image instanceof File) ||
-      typeof storeId !== 'string' ||
-      (kind !== 'cover' && kind !== 'gallery') ||
       typeof altText !== 'string' ||
       typeof idempotencyKey !== 'string' ||
       rightsConfirmed !== 'true' ||
       image.size > MEDIA_MAX_IMAGE_BYTES
     )
       return unavailable(headers)
+
+    // Resubmission derives store/kind from the server-locked rejected original;
+    // the client never supplies store authority. Normal uploads read them from
+    // the form as today.
+    let activeStoreId: string
+    let activeKind: 'cover' | 'gallery'
+    if (resubmitting) {
+      if (typeof storeId === 'string' || typeof kind === 'string') return unavailable(headers)
+      const original = await rpc<{ storeId?: unknown; kind?: unknown }>(userClient, 'media_get_upload', {
+        p_upload_id: originalUploadId,
+      })
+      if (typeof original.storeId !== 'string' || (original.kind !== 'cover' && original.kind !== 'gallery'))
+        return unavailable(headers)
+      activeStoreId = original.storeId
+      activeKind = original.kind
+    } else {
+      if (typeof storeId !== 'string' || (kind !== 'cover' && kind !== 'gallery'))
+        return unavailable(headers)
+      activeStoreId = storeId
+      activeKind = kind
+    }
     const bytes = new Uint8Array(await image.arrayBuffer())
 
-    // Tier cap check at intake (M-01 enforcement per #119)
-    const capCheck = await rpc<{ allowed: boolean; remaining?: number; error?: string; message?: string; currentTier?: string; upgradeTier?: string; upgradeCap?: number | null; approvedCount?: number; cap?: number }>(
-      userClient,
-      'partner_private.check_store_media_cap',
-      { p_store_id: storeId, p_kind: kind, p_idempotency_key: idempotencyKey }
-    )
-    if (!capCheck.allowed) {
-      return Response.json(
-        { error: capCheck.error, message: capCheck.message, currentTier: capCheck.currentTier, upgradeTier: capCheck.upgradeTier, upgradeCap: capCheck.upgradeCap, approvedCount: capCheck.approvedCount, cap: capCheck.cap },
-        { status: 409, headers }
+    // Tier cap check at intake for normal uploads (M-01 enforcement per #119).
+    // Resubmission performs the cap check atomically inside media_reserve_resubmission
+    // against the server-derived store/kind; a denial surfaces as a 409 below.
+    if (!resubmitting) {
+      const capCheck = await rpc<{ allowed: boolean; remaining?: number; error?: string; message?: string; currentTier?: string; upgradeTier?: string; upgradeCap?: number | null; approvedCount?: number; cap?: number }>(
+        userClient,
+        'partner_private.check_store_media_cap',
+        { p_store_id: activeStoreId, p_kind: activeKind, p_idempotency_key: idempotencyKey }
       )
+      if (!capCheck.allowed) {
+        return Response.json(
+          { error: capCheck.error, message: capCheck.message, currentTier: capCheck.currentTier, upgradeTier: capCheck.upgradeTier, upgradeCap: capCheck.upgradeCap, approvedCount: capCheck.approvedCount, cap: capCheck.cap },
+          { status: 409, headers }
+        )
+      }
     }
 
     let staged = false
     let acceptedUploadId = ''
     const dependencies: MediaPipelineDependencies = {
       reserve: async (input) => {
-        const value = await rpc<Record<string, unknown>>(userClient, 'media_reserve_upload', {
-          p_store_id: input.storeId,
-          p_kind: input.kind,
-          p_alt_text: input.altText,
-          p_idempotency_key: input.idempotencyKey,
-          p_rights_confirmed: input.rightsConfirmed,
-          p_source_mime: input.inspection.mime,
-          p_source_bytes: input.inspection.bytes,
-          p_source_width: input.inspection.width,
-          p_source_height: input.inspection.height,
-        })
+        let value: Record<string, unknown>
+        if (resubmitting) {
+          value = await rpc<Record<string, unknown>>(userClient, 'media_reserve_resubmission', {
+            p_original_upload_id: input.originalUploadId,
+            p_alt_text: input.altText,
+            p_idempotency_key: input.idempotencyKey,
+            p_rights_confirmed: input.rightsConfirmed,
+            p_source_mime: input.inspection.mime,
+            p_source_bytes: input.inspection.bytes,
+            p_source_width: input.inspection.width,
+            p_source_height: input.inspection.height,
+          })
+          if (value.error === 'media_cap_exceeded') throw new MediaCapDeniedError(value)
+        } else {
+          value = await rpc<Record<string, unknown>>(userClient, 'media_reserve_upload', {
+            p_store_id: input.storeId,
+            p_kind: input.kind,
+            p_alt_text: input.altText,
+            p_idempotency_key: input.idempotencyKey,
+            p_rights_confirmed: input.rightsConfirmed,
+            p_source_mime: input.inspection.mime,
+            p_source_bytes: input.inspection.bytes,
+            p_source_width: input.inspection.width,
+            p_source_height: input.inspection.height,
+          })
+        }
         const uploadId = typeof value.uploadId === 'string' ? value.uploadId : ''
         const originalObjectKey =
           typeof value.originalObjectKey === 'string' ? value.originalObjectKey : ''
@@ -255,11 +301,12 @@ Deno.serve(async (request) => {
       {
         bytes,
         claimedMime: image.type,
-        storeId,
-        kind,
+        storeId: activeStoreId,
+        kind: activeKind,
         altText,
         idempotencyKey,
         rightsConfirmed: true,
+        originalUploadId: resubmitting ? (originalUploadId as string) : undefined,
       },
       dependencies,
     )
@@ -268,7 +315,10 @@ Deno.serve(async (request) => {
       { state: result.state, uploadId: acceptedUploadId },
       { status: 202, headers },
     )
-  } catch {
+  } catch (error) {
+    if (error instanceof MediaCapDeniedError) {
+      return Response.json(error.payload, { status: 409, headers })
+    }
     return unavailable(headers)
   }
 })

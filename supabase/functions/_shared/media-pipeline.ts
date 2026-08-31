@@ -20,6 +20,7 @@ export interface MediaIngestInput {
   altText: string
   idempotencyKey: string
   rightsConfirmed: boolean
+  originalUploadId?: string
 }
 
 interface ReservedUpload {
@@ -45,6 +46,7 @@ export interface MediaPipelineDependencies {
     altText: string
     idempotencyKey: string
     rightsConfirmed: boolean
+    originalUploadId?: string
     inspection: MediaInspection
   }): Promise<ReservedUpload>
   putPrivate(key: string, bytes: Uint8Array, contentType: string): Promise<void>
@@ -214,13 +216,11 @@ async function digestHex(bytes: Uint8Array): Promise<string> {
 }
 
 function validInput(input: MediaIngestInput): boolean {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
   return (
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
-      input.storeId,
-    ) &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
-      input.idempotencyKey,
-    ) &&
+    uuid.test(input.storeId) &&
+    uuid.test(input.idempotencyKey) &&
+    (input.originalUploadId === undefined || uuid.test(input.originalUploadId)) &&
     input.altText === input.altText.trim() &&
     input.altText.length >= 1 &&
     input.altText.length <= 240 &&
@@ -241,6 +241,7 @@ export async function runMediaIngest(
       altText: input.altText,
       idempotencyKey: input.idempotencyKey,
       rightsConfirmed: input.rightsConfirmed,
+      originalUploadId: input.originalUploadId,
       inspection,
     })
     await dependencies.putPrivate(reserved.originalObjectKey, input.bytes, inspection.mime)

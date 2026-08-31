@@ -125,6 +125,30 @@ describe('M-01 media pipeline boundary', () => {
     )
   })
 
+  it('forwards the rejected-original reference to the reserve dependency', async () => {
+    const boundary = dependencies()
+    const originalUploadId = '44444444-4444-4444-8444-444444444444'
+    await runMediaIngest(
+      {
+        bytes: png(),
+        claimedMime: 'image/png',
+        storeId: '22222222-2222-4222-8222-222222222222',
+        kind: 'cover',
+        altText: 'Corrected storefront',
+        idempotencyKey: '33333333-3333-4333-8333-333333333333',
+        rightsConfirmed: true,
+        originalUploadId,
+      },
+      boundary,
+    )
+    expect(boundary.reserve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storeId: '22222222-2222-4222-8222-222222222222',
+        originalUploadId,
+      }),
+    )
+  })
+
   it('leaves the original quarantined when scanning is unavailable', async () => {
     const boundary = dependencies({
       scan: vi.fn(async () => ({ outcome: 'unknown' as const })),

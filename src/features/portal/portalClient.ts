@@ -83,11 +83,14 @@ export function createPortalMediaHttpTransport(options: {
       if (!accessToken) throw new Error(GENERIC_PORTAL_ERROR)
       const body = new FormData()
       body.set('image', input.file)
-      body.set('storeId', input.storeId)
-      body.set('kind', input.kind)
       body.set('altText', input.altText)
       body.set('idempotencyKey', input.idempotencyKey)
-      if (input.originalUploadId) body.set('originalUploadId', input.originalUploadId)
+      if (input.originalUploadId) {
+        body.set('originalUploadId', input.originalUploadId)
+      } else {
+        body.set('storeId', input.storeId)
+        body.set('kind', input.kind)
+      }
       body.set('rightsConfirmed', String(input.rightsConfirmed))
       try {
         const response = await fetcher(endpoint, {
@@ -166,8 +169,8 @@ export function createPortalClient(
       if (!media) throw new Error(GENERIC_PORTAL_ERROR)
       try {
         const receipt = await media.upload({
-          storeId: input.storeId,
-          kind: input.kind,
+          storeId: input.originalUploadId,
+          kind: 'gallery',
           altText: input.altText,
           file: input.file,
           rightsConfirmed: true,

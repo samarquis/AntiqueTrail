@@ -18,6 +18,7 @@ import {
   PortalSupportPage,
   PortalUpdatesPage,
 } from './components'
+import type { PortalMediaResubmitInput } from './types'
 import type { PortalClient, PortalHours, SupportTicket } from './types'
 
 function hours(): PortalHours {
@@ -394,5 +395,58 @@ describe('provider-neutral Store Portal boundary', () => {
       }),
     )
     expect(await screen.findByRole('status')).toHaveTextContent(/processed derivative.*review/i)
+  })
+
+  it('shows the verbatim rejection reason and resubmits without client store authority', async () => {
+    const user = userEvent.setup()
+    const resubmitMedia = vi.fn(async (input: PortalMediaResubmitInput) => ({
+      newUploadId: input.originalUploadId,
+      state: 'awaiting_review' as const,
+    }))
+    const rejectedUpload = {
+      uploadId: '33333333-3333-4333-8333-333333333333',
+      kind: 'gallery' as const,
+      state: 'rejected' as const,
+      altText: 'Front entrance',
+      submittedAt: '2026-08-30T00:00:00Z',
+      rejectionReason: 'Image quality insufficient for storefront',
+    }
+    render(
+      <MemoryRouter>
+        <PortalControlledChangesPage
+          client={client({
+            getMediaCapability: vi.fn(async () => ({ enabled: true, source: 'server' as const })),
+            listMediaUploads: vi.fn(async () => ({ uploads: [rejectedUpload] })),
+            resubmitMedia,
+          })}
+        />
+      </MemoryRouter>,
+    )
+    expect(
+      await screen.findByText(/Image quality insufficient for storefront/i),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /correct and resubmit/i }))
+    expect(await screen.findByLabelText(/alternative text for corrected image/i)).toHaveValue(
+      'Front entrance',
+    )
+    const file = new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' })
+    await user.upload(screen.getByLabelText(/corrected image file/i), file)
+    await user.click(screen.getByLabelText(/rights.*corrected image/i))
+    fireEvent.submit(
+      screen.getByRole('button', { name: /submit corrected image/i }).closest('form')!,
+    )
+
+    expect(resubmitMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        originalUploadId: '33333333-3333-4333-8333-333333333333',
+        file,
+        altText: 'Front entrance',
+        rightsConfirmed: true,
+        idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      }),
+    )
+    expect(resubmitMedia.mock.calls[0][0]).not.toHaveProperty('storeId')
+    expect(resubmitMedia.mock.calls[0][0]).not.toHaveProperty('kind')
+    expect(await screen.findByRole('status')).toHaveTextContent(/awaiting Administrator review/i)
   })
 })
