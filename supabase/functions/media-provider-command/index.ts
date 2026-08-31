@@ -56,6 +56,11 @@ class MediaCapDeniedError extends Error {
   }
 }
 
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+  return [...digest].map((value) => value.toString(16).padStart(2, '0')).join('')
+}
+
 async function rpc<T>(
   client: ReturnType<typeof createClient>,
   command: string,
@@ -138,6 +143,7 @@ Deno.serve(async (request) => {
       activeKind = kind
     }
     const bytes = new Uint8Array(await image.arrayBuffer())
+    const sourceDigest = await sha256Hex(bytes)
 
     // Tier cap check at intake for normal uploads (M-01 enforcement per #119).
     // Resubmission performs the cap check atomically inside media_reserve_resubmission
@@ -171,6 +177,7 @@ Deno.serve(async (request) => {
             p_source_bytes: input.inspection.bytes,
             p_source_width: input.inspection.width,
             p_source_height: input.inspection.height,
+            p_source_digest: sourceDigest,
           })
           if (value.error === 'media_cap_exceeded') throw new MediaCapDeniedError(value)
         } else {
@@ -187,10 +194,16 @@ Deno.serve(async (request) => {
           })
         }
         const uploadId = typeof value.uploadId === 'string' ? value.uploadId : ''
-        const originalObjectKey =
-          typeof value.originalObjectKey === 'string' ? value.originalObjectKey : ''
-        const derivativeObjectKey =
-          typeof value.derivativeObjectKey === 'string' ? value.derivativeObjectKey : ''
+        const originalObjectKey = resubmitting
+          ? `quarantine/${uploadId}/original`
+          : typeof value.originalObjectKey === 'string'
+            ? value.originalObjectKey
+            : ''
+        const derivativeObjectKey = resubmitting
+          ? `quarantine/${uploadId}/derivative.webp`
+          : typeof value.derivativeObjectKey === 'string'
+            ? value.derivativeObjectKey
+            : ''
         if (
           !/^[0-9a-f-]{36}$/iu.test(uploadId) ||
           originalObjectKey !== `quarantine/${uploadId}/original` ||

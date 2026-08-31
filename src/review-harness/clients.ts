@@ -52,6 +52,7 @@ import {
   type PortalHomeSnapshot,
   type PortalHours,
   type PortalManagedFields,
+  type PortalMediaUpload,
   type PortalMediaUploadInput,
   type PortalPendingChange,
   type StoreUpdate,
@@ -1456,6 +1457,16 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
   let officialLinks: OfficialLink[] = [
     { platform: 'instagram', url: 'https://example.invalid/blue-finch', verifiedAt: FIXED_NOW },
   ]
+  const mediaUploads: PortalMediaUpload[] = [
+    {
+      uploadId: 'media-review-rejected',
+      kind: 'gallery',
+      state: 'rejected',
+      altText: 'Blue Finch storefront exterior',
+      submittedAt: FIXED_NOW,
+      rejectionReason: 'Image quality needs more detail.',
+    },
+  ]
   let supportTickets: SupportTicket[] = [
     {
       id: 'ticket-1',
@@ -1551,6 +1562,10 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
         return Promise.reject(new Error(GENERIC_PORTAL_ERROR))
       // M-01 honest media gate: the review build never fabricates an upload receipt.
       throw new Error(GENERIC_PORTAL_ERROR)
+    },
+    async listMediaUploads() {
+      allowed()
+      return failureFixture(state, { uploads: mediaUploads }, { uploads: [] }, GENERIC_PORTAL_ERROR)
     },
     async listUpdates() {
       allowed()

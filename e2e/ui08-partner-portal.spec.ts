@@ -115,10 +115,14 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
     await expect(page.locator('dd').filter({ hasText: 'Hours verified 12 days ago' })).toBeVisible()
     await page.goto(reviewUrl('/store-portal/changes'))
     await expect(
-      page.getByText(
-        'Official images and screenshots are disabled until the M-01 media gate passes.',
-      ),
-    ).toBeVisible()
+      page
+        .getByRole('region', { name: 'Official photos' })
+        .getByText(
+          'Official images and screenshots are disabled until the M-01 media gate passes.',
+        ),
+    ).toHaveCount(2)
+    await expect(page.getByText('Reason: Image quality needs more detail.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Correct and resubmit' })).toHaveCount(0)
     await page.getByLabel('Requested value').fill('200 East Synthetic Avenue')
     await page.getByLabel('Reason for change').fill('Address correction')
     await page.getByRole('button', { name: 'Submit change request' }).click()

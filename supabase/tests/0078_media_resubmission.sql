@@ -5,12 +5,12 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(27);
 
 -- ---- Fixture: actor with active session/MFA and one exact grant on store 1.
-insert into app_public.stores (id, slug, name, town, state_code, address, area_id, summary, description)
-values ('00000000-0000-4000-8000-000000000001','db-ci-resubmit-store','Resubmit Store','Topeka','KS','1 Test Way','00000000-0000-4000-8000-000000000001','Database CI fixture','Resubmit fixture store')
-  ,('00000000-0000-4000-8000-000000000009','db-ci-resubmit-other-store','Other Store','Topeka','KS','2 Test Way','00000000-0000-4000-8000-000000000001','Database CI fixture','Other resubmit fixture store')
+insert into app_public.stores (id, slug, name, town, state_code, address, area_id, summary, description, synthetic, audience)
+values ('00000000-0000-4000-8000-000000000001','db-ci-resubmit-store','Resubmit Store','Topeka','KS','1 Test Way','00000000-0000-4000-8000-000000000001','Database CI fixture','Resubmit fixture store',false,'regional_readiness')
+  ,('00000000-0000-4000-8000-000000000009','db-ci-resubmit-other-store','Other Store','Topeka','KS','2 Test Way','00000000-0000-4000-8000-000000000001','Database CI fixture','Other resubmit fixture store',false,'regional_readiness')
 on conflict (id) do nothing;
 insert into auth.users(id) values ('76000000-0000-4000-8000-000000000001');
 insert into auth.mfa_factors(id, user_id, factor_type, status, created_at, updated_at)
@@ -74,16 +74,18 @@ values
   ('80000000-0000-4000-8000-000000000003',gen_random_uuid(),'00000000-0000-4000-8000-000000000009','gallery','Foreign rejected',statement_timestamp(),gen_random_uuid(),'image/png',1000,640,480,'quarantine/80000000-0000-4000-8000-000000000003/original','quarantine/80000000-0000-4000-8000-000000000003/derivative.webp',decode(repeat('00',32),'hex'),100000,640,480,'clean',true,true,'rejected','Foreign reason',statement_timestamp());
 
 -- ---- Grant visibility checks
-select has_function('app_public','media_reserve_resubmission',array['uuid','text','uuid','boolean','text','bigint','integer','integer'],'media_reserve_resubmission exists');
-select ok(has_function_privilege('authenticated','app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer)','EXECUTE'),'authenticated callers can execute media_reserve_resubmission');
-select ok(not has_function_privilege('anon','app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer)','EXECUTE'),'anon cannot execute media_reserve_resubmission');
-select ok(position('resubmission_of' in pg_get_functiondef('app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure))>0,'resubmission RPC links the new row to the rejected original');
+select has_function('app_public','media_reserve_resubmission',array['uuid','text','uuid','boolean','text','bigint','integer','integer','text'],'media_reserve_resubmission exists');
+select ok(has_function_privilege('authenticated','app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer,text)','EXECUTE'),'authenticated callers can execute media_reserve_resubmission');
+select ok(not has_function_privilege('anon','app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer,text)','EXECUTE'),'anon cannot execute media_reserve_resubmission');
+select ok(position('portal_private.require_portal_scope' in pg_get_functiondef('app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer,text)'::regprocedure))>0,'resubmission RPC requires the shared Portal scope');
 
 -- ---- 1. Valid resubmission: one distinct new reserved row, original unchanged.
-select is(
-  (app_public.media_reserve_resubmission(
-     '80000000-0000-4000-8000-000000000001','Corrected storefront',gen_random_uuid(),true,'image/png',1000,640,480)->>'kind'),'gallery',
-  'resubmission derives kind from the rejected original');
+select ok(
+  (with receipt as (select app_public.media_reserve_resubmission(
+     '80000000-0000-4000-8000-000000000001','Corrected storefront',gen_random_uuid(),true,'image/png',1000,640,480,repeat('a',64)) result)
+   select result ? 'uploadId' and not result ? 'originalObjectKey' and not result ? 'derivativeObjectKey'
+     and not result ? 'storeId' and not result ? 'kind' from receipt),
+  'resubmission returns only an opaque upload receipt');
 select is(
   (select store_id from media_private.media_uploads where resubmission_of='80000000-0000-4000-8000-000000000001' and state='reserved'),
   '00000000-0000-4000-8000-000000000001',
@@ -107,9 +109,9 @@ select ok(
 -- ---- 2. Same-key same-input replay returns the prior receipt; no new row.
 select is(
   (app_public.media_reserve_resubmission(
-     '80000000-0000-4000-8000-000000000001','Corrected storefront','90000000-0000-4000-8000-000000000001',true,'image/png',1000,640,480)->>'uploadId'),
+     '80000000-0000-4000-8000-000000000001','Corrected storefront','90000000-0000-4000-8000-000000000001',true,'image/png',1000,640,480,repeat('b',64))->>'uploadId'),
   (app_public.media_reserve_resubmission(
-     '80000000-0000-4000-8000-000000000001','Corrected storefront','90000000-0000-4000-8000-000000000001',true,'image/png',1000,640,480)->>'uploadId'),
+     '80000000-0000-4000-8000-000000000001','Corrected storefront','90000000-0000-4000-8000-000000000001',true,'image/png',1000,640,480,repeat('b',64))->>'uploadId'),
   'same-key replay returns the identical receipt');
 select is(
   (select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-000000000001'),
@@ -119,17 +121,21 @@ select is(
 -- ---- 3. Same-key different-input fails; no extra row (idempotency is exact).
 select throws_ok($$
   select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000001','Different corrected text','90000000-0000-4000-8000-000000000001',true,'image/png',1000,640,480)$$,
+    '80000000-0000-4000-8000-000000000001','Different corrected text','90000000-0000-4000-8000-000000000001',true,'image/png',1000,640,480,repeat('b',64))$$,
   '22023',null,'same key against changed input fails');
 select is(
   (select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-000000000001'),
   1,
   'same-key changed-input adds no row');
+select throws_ok($$
+  select app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000001','Corrected storefront','90000000-0000-4000-8000-000000000001',true,'image/png',1000,640,480,repeat('c',64))$$,
+  '22023',null,'same key against different file content fails');
 
 -- ---- 4. Non-rejected original denies with no row.
 select throws_ok($$
   select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000002','Corrected','90000000-0000-4000-8000-000000000002',true,'image/png',1000,640,480)$$,
+    '80000000-0000-4000-8000-000000000002','Corrected','90000000-0000-4000-8000-000000000002',true,'image/png',1000,640,480,repeat('d',64))$$,
   '42501',null,'non-rejected original is denied');
 select is(
   (select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-000000000002'),
@@ -139,7 +145,7 @@ select is(
 -- ---- 5. Foreign-store rejected original is denied (no leak, no row).
 select throws_ok($$
   select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000003','Corrected','90000000-0000-4000-8000-000000000003',true,'image/png',1000,640,480)$$,
+    '80000000-0000-4000-8000-000000000003','Corrected','90000000-0000-4000-8000-000000000003',true,'image/png',1000,640,480,repeat('e',64))$$,
   '42501',null,'foreign-store rejected original is denied');
 select is(
   (select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-000000000003'),
@@ -149,22 +155,21 @@ select is(
 -- ---- 6. Invalid rights denies with no row.
 select throws_ok($$
   select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000001','Corrected','90000000-0000-4000-8000-000000000004',false,'image/png',1000,640,480)$$,
+    '80000000-0000-4000-8000-000000000001','Corrected','90000000-0000-4000-8000-000000000004',false,'image/png',1000,640,480,repeat('f',64))$$,
   '42501',null,'missing rights confirmation is denied');
 
--- ---- 7. No active grant denies with no row (revoke the grant first in a subtest).
+-- ---- 7. A rejected original outside the resolved grant scope denies with no row.
 select throws_ok($$
   select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000003','Corrected','90000000-0000-4000-8000-000000000005',true,'image/png',1000,640,480)$$,
+    '80000000-0000-4000-8000-000000000003','Corrected','90000000-0000-4000-8000-000000000005',true,'image/png',1000,640,480,repeat('1',64))$$,
   '42501',null,'store without an active grant is denied');
 
 -- ---- 8. Cover originals are never count-capped (Free cover slot rule).
 insert into media_private.media_uploads(upload_id,actor_tombstone,store_id,kind,alt_text,rights_confirmed_at,idempotency_key,source_mime,source_bytes,source_width,source_height,original_object_key,private_derivative_object_key,scan_state,metadata_stripped,reencoded,state,rejection_reason,rejected_at)
 values ('80000000-0000-4000-8000-000000000004',gen_random_uuid(),'00000000-0000-4000-8000-000000000001','cover','Rejected cover',statement_timestamp(),gen_random_uuid(),'image/png',1000,640,480,'quarantine/80000000-0000-4000-8000-000000000004/original','quarantine/80000000-0000-4000-8000-000000000004/derivative.webp','clean',true,true,'rejected','Cover rejected',statement_timestamp());
-select is(
+select ok(
   (app_public.media_reserve_resubmission(
-     '80000000-0000-4000-8000-000000000004','Corrected cover','90000000-0000-4000-8000-000000000007',true,'image/png',1000,640,480)->>'kind'),
-  'cover',
+     '80000000-0000-4000-8000-000000000004','Corrected cover','90000000-0000-4000-8000-000000000007',true,'image/png',1000,640,480,repeat('2',64))->>'uploadId') is not null,
   'cover resubmission is allowed and not count-capped');
 
 -- ---- 9. Cap: Free store with 5 approved gallery images denies gallery resubmission
@@ -174,7 +179,7 @@ select gen_random_uuid(),gen_random_uuid(),'00000000-0000-4000-8000-000000000001
 from generate_series(1,5) g;
 select is(
   (app_public.media_reserve_resubmission(
-     '80000000-0000-4000-8000-000000000001','Over cap','90000000-0000-4000-8000-000000000006',true,'image/png',1000,640,480)->>'error'),
+     '80000000-0000-4000-8000-000000000001','Over cap','90000000-0000-4000-8000-000000000006',true,'image/png',1000,640,480,repeat('3',64))->>'error'),
   'media_cap_exceeded',
   'over-cap resubmission returns the structured denial payload');
 select is(
@@ -185,8 +190,16 @@ select is(
 -- ---- 10. Missing original denies without leaking existence.
 select throws_ok($$
   select app_public.media_reserve_resubmission(
-    'ffffffff-ffff-4fff-8fff-ffffffffffff','Corrected','90000000-0000-4000-8000-000000000008',true,'image/png',1000,640,480)$$,
+    'ffffffff-ffff-4fff-8fff-ffffffffffff','Corrected','90000000-0000-4000-8000-000000000008',true,'image/png',1000,640,480,repeat('4',64))$$,
   '42501',null,'missing original is denied without leaking existence');
+
+-- ---- 11. A revocation record denies even if the grant row still says active.
+insert into partner_private.partner_access_revocations(grant_id,auth_user_id,store_id,reason_code,idempotency_key)
+values ('76000000-0000-4000-8000-000000000007','76000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','administrator_revoked','resubmit-revocation');
+select throws_ok($$
+  select app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000001','Corrected','90000000-0000-4000-8000-000000000009',true,'image/png',1000,640,480,repeat('5',64))$$,
+  '42501',null,'revoked grant denies resubmission');
 
 select * from finish();
 rollback;

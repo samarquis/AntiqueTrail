@@ -346,6 +346,36 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(screen.queryByLabelText(/official image file/i)).not.toBeInTheDocument()
   })
 
+  it('keeps authorized rejected-photo history readable while M-01 is blocked', async () => {
+    render(
+      <MemoryRouter>
+        <PortalControlledChangesPage
+          client={client({
+            getMediaCapability: vi.fn(async () => ({ enabled: false, source: 'server' as const })),
+            listMediaUploads: vi.fn(async () => ({
+              uploads: [
+                {
+                  uploadId: '33333333-3333-4333-8333-333333333333',
+                  kind: 'gallery' as const,
+                  state: 'rejected' as const,
+                  altText: 'Front entrance',
+                  submittedAt: '2026-08-30T00:00:00Z',
+                  rejectionReason: 'Image quality insufficient for storefront',
+                },
+              ],
+            })),
+          })}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByText(/image quality insufficient for storefront/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /correct and resubmit/i })).not.toBeInTheDocument()
+    expect(screen.getAllByText(new RegExp(MEDIA_GATE_MESSAGE)).length).toBeGreaterThan(0)
+  })
+
   it('announces a successful text publish in the live region', async () => {
     const user = userEvent.setup()
     render(
@@ -448,5 +478,55 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(resubmitMedia.mock.calls[0][0]).not.toHaveProperty('storeId')
     expect(resubmitMedia.mock.calls[0][0]).not.toHaveProperty('kind')
     expect(await screen.findByRole('status')).toHaveTextContent(/awaiting Administrator review/i)
+  })
+
+  it('reuses the same idempotency key when a corrected-image retry keeps the draft unchanged', async () => {
+    const user = userEvent.setup()
+    const resubmitMedia = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('temporary failure'))
+      .mockResolvedValueOnce({
+        newUploadId: '11111111-1111-4111-8111-111111111111',
+        state: 'awaiting_review' as const,
+      })
+    render(
+      <MemoryRouter>
+        <PortalControlledChangesPage
+          client={client({
+            getMediaCapability: vi.fn(async () => ({ enabled: true, source: 'server' as const })),
+            listMediaUploads: vi.fn(async () => ({
+              uploads: [
+                {
+                  uploadId: '33333333-3333-4333-8333-333333333333',
+                  kind: 'gallery' as const,
+                  state: 'rejected' as const,
+                  altText: 'Front entrance',
+                  submittedAt: '2026-08-30T00:00:00Z',
+                  rejectionReason: 'Image quality insufficient for storefront',
+                },
+              ],
+            })),
+            resubmitMedia,
+          })}
+        />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: /correct and resubmit/i }))
+    await user.upload(
+      screen.getByLabelText(/corrected image file/i),
+      new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
+    )
+    await user.click(screen.getByLabelText(/rights.*corrected image/i))
+    const form = screen.getByRole('button', { name: /submit corrected image/i }).closest('form')!
+    fireEvent.submit(form)
+    await screen.findByRole('alert')
+    fireEvent.submit(form)
+
+    await screen.findByRole('status')
+    expect(resubmitMedia).toHaveBeenCalledTimes(2)
+    expect(resubmitMedia.mock.calls[1][0].idempotencyKey).toBe(
+      resubmitMedia.mock.calls[0][0].idempotencyKey,
+    )
   })
 })

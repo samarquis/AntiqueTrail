@@ -1201,11 +1201,14 @@ export function PortalManagedFieldsPage({
 function PortalMediaHistorySection({
   client,
   onStatus,
+  resubmissionEnabled,
 }: {
   client: PortalClient
   onStatus: (message: string) => void
+  resubmissionEnabled: boolean
 }) {
   const [history, setHistory] = useState<PortalMediaUploadHistory | null>(null)
+  const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [selected, setSelected] = useState<PortalMediaUpload | null>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -1213,9 +1216,11 @@ function PortalMediaHistorySection({
   const [rights, setRights] = useState(false)
   const [pending, setPending] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null)
   const selectedRef = useRef<PortalMediaUpload | null>(null)
   selectedRef.current = selected
   const refresh = () => {
+    setLoading(true)
     setLoadError(false)
     client
       .listMediaUploads()
@@ -1225,6 +1230,7 @@ function PortalMediaHistorySection({
           setSelected(null)
       })
       .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
   }
   useEffect(refresh, [client])
 
@@ -1234,6 +1240,7 @@ function PortalMediaHistorySection({
     setFile(null)
     setRights(false)
     setFormError(null)
+    setIdempotencyKey(null)
   }
   function submitResubmit(event: FormEvent) {
     event.preventDefault()
@@ -1244,13 +1251,15 @@ function PortalMediaHistorySection({
     }
     setFormError(null)
     setPending(true)
+    const key = idempotencyKey ?? crypto.randomUUID()
+    setIdempotencyKey(key)
     client
       .resubmitMedia({
         originalUploadId: selected.uploadId,
         file,
         altText: alt,
         rightsConfirmed: true,
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: key,
       })
       .then(() => {
         onStatus('Replacement submitted and is awaiting Administrator review.')
@@ -1258,6 +1267,7 @@ function PortalMediaHistorySection({
         setFile(null)
         setAltText('')
         setRights(false)
+        setIdempotencyKey(null)
         refresh()
       })
       .catch(() => {
@@ -1265,6 +1275,8 @@ function PortalMediaHistorySection({
       })
       .finally(() => setPending(false))
   }
+
+  if (loading && !history) return <p role="status">Loading official photo history…</p>
 
   if (loadError && !history)
     return (
@@ -1284,6 +1296,15 @@ function PortalMediaHistorySection({
           Refresh
         </button>
       </div>
+      {loading && <p role="status">Refreshing official photo history…</p>}
+      {loadError && history && (
+        <div role="alert">
+          <p>We couldn't refresh your media history. Your last loaded history is still shown.</p>
+          <button type="button" className="button button--secondary" onClick={refresh}>
+            Retry refresh
+          </button>
+        </div>
+      )}
       {history && history.uploads.length === 0 ? (
         <p>No images have been submitted yet.</p>
       ) : (
@@ -1296,13 +1317,17 @@ function PortalMediaHistorySection({
               {upload.state === 'rejected' && (
                 <div>
                   <p>Reason: {upload.rejectionReason ?? 'No reason provided'}</p>
-                  <button
-                    type="button"
-                    className="button button--secondary"
-                    onClick={() => beginResubmit(upload)}
-                  >
-                    Correct and resubmit
-                  </button>
+                  {resubmissionEnabled ? (
+                    <button
+                      type="button"
+                      className="button button--secondary"
+                      onClick={() => beginResubmit(upload)}
+                    >
+                      Correct and resubmit
+                    </button>
+                  ) : (
+                    <p role="status">{MEDIA_GATE_MESSAGE}</p>
+                  )}
                 </div>
               )}
             </li>
@@ -1312,12 +1337,19 @@ function PortalMediaHistorySection({
       {selected && (
         <form onSubmit={submitResubmit}>
           <h4>Resubmit a corrected image</h4>
+          <p>
+            You are correcting a rejected {selected.kind} image. The original stays unchanged while
+            your replacement awaits review.
+          </p>
           <label htmlFor="resubmit-file">Corrected image file</label>
           <input
             id="resubmit-file"
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              setFile(event.target.files?.[0] ?? null)
+              setIdempotencyKey(null)
+            }}
             required
           />
           <label htmlFor="resubmit-alt">Alternative text for corrected image</label>
@@ -1325,14 +1357,20 @@ function PortalMediaHistorySection({
             id="resubmit-alt"
             value={altText}
             maxLength={240}
-            onChange={(event) => setAltText(event.target.value)}
+            onChange={(event) => {
+              setAltText(event.target.value)
+              setIdempotencyKey(null)
+            }}
             required
           />
           <label>
             <input
               type="checkbox"
               checked={rights}
-              onChange={(event) => setRights(event.target.checked)}
+              onChange={(event) => {
+                setRights(event.target.checked)
+                setIdempotencyKey(null)
+              }}
             />{' '}
             I confirm that I have rights to publish this corrected image.
           </label>
@@ -1524,13 +1562,17 @@ export function PortalControlledChangesPage({
                 {mediaPending ? 'Submitting…' : 'Submit image for review'}
               </button>
             </form>
-            <PortalMediaHistorySection client={client} onStatus={setMediaStatus} />
           </>
         ) : (
           <p role="status">
             {mediaReady === null ? 'Checking the M-01 media capability…' : MEDIA_GATE_MESSAGE}
           </p>
         )}
+        <PortalMediaHistorySection
+          client={client}
+          onStatus={setMediaStatus}
+          resubmissionEnabled={mediaReady === true}
+        />
       </section>
     </PortalCard>
   )

@@ -10,6 +10,8 @@
 -- 1. New nullable linkage column (forward-only; original immutability is
 --    preserved because no statement in this file writes to the original row).
 alter table media_private.media_uploads
+  add column if not exists source_digest bytea
+    check (source_digest is null or octet_length(source_digest)=32),
   add column if not exists resubmission_of uuid
     references media_private.media_uploads(upload_id) on delete set null;
 
@@ -19,8 +21,11 @@ alter table media_private.media_uploads
 --    original and performs the tier cap check against the current resolver.
 grant media_automation to postgres;
 grant create on schema app_public to media_automation;
+grant usage on schema portal_private to media_automation;
+grant execute on function portal_private.require_portal_scope() to media_automation;
 set role media_automation;
 
+drop function if exists app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer);
 create or replace function app_public.media_reserve_resubmission(
   p_original_upload_id uuid,
   p_alt_text text,
@@ -29,22 +34,23 @@ create or replace function app_public.media_reserve_resubmission(
   p_source_mime text,
   p_source_bytes bigint,
   p_source_width integer,
-  p_source_height integer
+  p_source_height integer,
+  p_source_digest text
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare
   actor uuid:=app_public.request_user_id();
   original media_private.media_uploads%rowtype;
   existing media_private.media_uploads%rowtype;
   new_upload_id uuid:=extensions.gen_random_uuid();
+  scoped_store_id uuid;
   v_store_id uuid;
   v_kind text;
+  v_source_digest bytea;
   cap_result jsonb;
   daily_count integer;
   concurrent_count integer;
 begin
-  if actor is null or not app_private.current_session_is_active() then
-    raise exception using errcode='42501',message='media_unavailable';
-  end if;
+  scoped_store_id:=portal_private.require_portal_scope();
 
   -- Lock and validate the rejected original. Any missing, purged, non-rejected,
   -- or foreign original denies without leaking existence or mutating it.
@@ -56,14 +62,20 @@ begin
   v_store_id:=original.store_id;
   v_kind:=original.kind;
 
-  -- Derive store/kind server-side; the caller on this store must hold an
-  -- active grant. A paused or billing-changed state can never bypass this.
-  if not exists(select 1 from partner_private.store_partner_grants g
-      where g.auth_user_id=actor and g.store_id=v_store_id and g.state='active')
+  -- The Portal helper proves current consent, MFA, recent auth, one active,
+  -- unrevoked grant, and the allowed store audience before this function sees
+  -- the original. The original must belong to that exact resolved scope.
+  if scoped_store_id is distinct from v_store_id
     or not media_private.capability_enabled() or not p_rights_confirmed then
     perform media_private.append_audit('media_resubmission',actor,v_store_id,p_original_upload_id,'denied');
     raise exception using errcode='42501',message='media_unavailable';
   end if;
+
+  if p_source_digest is null or p_source_digest !~ '^[0-9a-f]{64}$' then
+    perform media_private.append_audit('media_resubmission',actor,v_store_id,p_original_upload_id,'denied');
+    raise exception using errcode='22023',message='media_unavailable';
+  end if;
+  v_source_digest:=decode(p_source_digest,'hex');
 
   -- Idempotency: same key/same original returns the prior receipt; reuse of a
   -- key against a different original or different input fails.
@@ -74,16 +86,12 @@ begin
       or existing.store_id<>v_store_id or existing.kind<>v_kind
       or existing.alt_text<>p_alt_text or existing.source_mime<>p_source_mime
       or existing.source_bytes<>p_source_bytes or existing.source_width<>p_source_width
-      or existing.source_height<>p_source_height then
+      or existing.source_height<>p_source_height
+      or existing.source_digest is distinct from v_source_digest then
       perform media_private.append_audit('media_resubmission',actor,v_store_id,p_original_upload_id,'denied');
       raise exception using errcode='22023',message='media_unavailable';
     end if;
-    return jsonb_build_object(
-      'uploadId',existing.upload_id,
-      'originalObjectKey',existing.original_object_key,
-      'derivativeObjectKey',existing.private_derivative_object_key,
-      'storeId',existing.store_id,'kind',existing.kind
-    );
+    return jsonb_build_object('uploadId',existing.upload_id);
   end if;
 
   -- Input shape validation (mirrors media_reserve_upload). No file bytes cross
@@ -125,31 +133,27 @@ begin
 
   insert into media_private.media_uploads(
     upload_id,actor_user_id,store_id,kind,alt_text,rights_confirmed_at,idempotency_key,
-    source_mime,source_bytes,source_width,source_height,original_object_key,
+    source_mime,source_bytes,source_width,source_height,source_digest,original_object_key,
     private_derivative_object_key,purge_due_at,resubmission_of)
   values(
     new_upload_id,actor,v_store_id,v_kind,p_alt_text,statement_timestamp(),p_idempotency_key,
-    p_source_mime,p_source_bytes,p_source_width,p_source_height,
+    p_source_mime,p_source_bytes,p_source_width,p_source_height,v_source_digest,
     'quarantine/'||new_upload_id::text||'/original',
     'quarantine/'||new_upload_id::text||'/derivative.webp',
     statement_timestamp()+interval '24 hours',p_original_upload_id);
   insert into media_private.media_purge_jobs(upload_id,reason_code,due_at)
     values(new_upload_id,'abandoned',statement_timestamp()+interval '24 hours');
   perform media_private.append_audit('media_resubmitted',actor,v_store_id,new_upload_id,'allowed');
-  return jsonb_build_object(
-    'uploadId',new_upload_id,
-    'originalObjectKey','quarantine/'||new_upload_id::text||'/original',
-    'derivativeObjectKey','quarantine/'||new_upload_id::text||'/derivative.webp',
-    'storeId',v_store_id,'kind',v_kind);
+  return jsonb_build_object('uploadId',new_upload_id);
 end $$;
 
 -- 3. Ownership and grants consistent with the other media automation RPCs.
-alter function app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer) owner to media_automation;
-comment on function app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer) is
-  'Server-authoritative rejection resubmission: derives store/kind from the locked rejected original, checks active grant, current-server cap, and idempotency, then creates one distinct new reserved row linked via resubmission_of. Returns the reserved object keys or a 409 media_cap_exceeded payload; never trusts a browser store/kind and never mutates the original.';
-revoke all on function app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer)
+alter function app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer,text) owner to media_automation;
+comment on function app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer,text) is
+  'Server-authoritative rejection resubmission: requires the current Portal scope, derives store/kind from the locked rejected original, checks the current-server cap and content-exact idempotency, then creates one distinct new reserved row linked via resubmission_of. Returns only an opaque upload receipt; never trusts browser scope data or mutates the original.';
+revoke all on function app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer,text)
   from public,anon,authenticated,service_role;
-grant execute on function app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer)
+grant execute on function app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer,text)
   to authenticated,media_automation;
 reset role;
 revoke create on schema app_public from media_automation;

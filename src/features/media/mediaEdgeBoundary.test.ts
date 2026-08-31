@@ -41,6 +41,8 @@ describe('M-01 Edge wiring contract', () => {
       "rpc<{ storeId?: unknown; kind?: unknown }>(userClient, 'media_get_upload'",
     )
     expect(uploadSource).toContain("userClient, 'media_reserve_resubmission'")
+    expect(uploadSource).toContain('p_source_digest: sourceDigest')
+    expect(uploadSource).toContain('async function sha256Hex')
     expect(uploadSource).toContain(
       "if (typeof storeId === 'string' || typeof kind === 'string') return unavailable(headers)",
     )
