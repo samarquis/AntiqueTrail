@@ -48,3 +48,7 @@ Base SHA: e6827a4d6e40f619005aff2e4eecc653f2038f54 (origin/main)
   CHECK: `gh issue view 174 --json state`; TODO row on the default branch
   EXPECT: issue CLOSED and row 03 `[x]` on `main`
   EVIDENCE: PR #193 squash-merged 2026-09-01T21:58:18Z as merge commit `bc606d9a52fd57d61669b5b78bf06eb3385a279d` on `main` (default). Post-merge rerun on merged main: `node --test scripts/security-contract.test.mjs` 8/8 pass; `node scripts/security-contract.mjs` exit 0; `git grep -c` for `priceFeatured|priceUnlimited|STRIPE_PRICE_FEATURED|STRIPE_PRICE_UNLIMITED` over `*.ts` -> zero matches; live `.ts`/`.tsx` scan for `featured|unlimited` -> only StorePhotosPage:73/76/80 documented exception; `OPEN_TICKET_TODO.md` row 03 on main reads `[x] COMPLETE IN PR #193`. Issue #174 closed with evidence comment (criterion mapping, SHAs, check results, reviewer receipt, limitations).
+
+## Ledger delivery note
+
+The R8/R9 rows above became evidence-able only after PR #193 merged, so the completed ledger commit (`6606b85`) was carried to `main` through follow-up PR #194 to keep the acceptance record on the default branch. PR #193's required suite was green on its exact reviewed head (`database`, `web`, `plan-governance` all pass on `79eb650`); PR #194 is a doc-only delta over rows already proven, and re-passed `plan-governance` on head `6606b85` (run 33564908350).
