@@ -36,12 +36,12 @@ Confirmed by a full-working-tree search for `STRIPE_PRICE|priceFeatured|priceUnl
 
 ## Regression coverage
 
-`scripts/security-contract.mjs` now exports `findRetiredTierVocabularyFindings(entries)`, wired into `runSecurityContract` (and therefore `npm run security:contract`, `npm run test:release`, and `npm run check`). It scans live source seams (`src/`, `supabase/functions/`, `e2e/`) and flags any `featured|unlimited` occurrence, case-insensitively, with two documented exceptions:
+`scripts/security-contract.mjs` now exports `findRetiredTierVocabularyFindings(entries)`, wired into `runSecurityContract` (and therefore `npm run security:contract`, enforced on every PR by CI step `ci.yml`). A live-tree regression fixture in `scripts/security-contract.test.mjs` additionally asserts `runSecurityContract()` returns zero findings against the real working tree, so `npm run test:release` and `npm run check` also enforce it locally. The scan examines live source seams (`src/`, `supabase/functions/`, `e2e/`) and flags any `featured|unlimited` occurrence, case-insensitively, with two documented exceptions:
 
 - `src/features/catalog/StorePhotosPage.tsx` — photo-tile layout `Set` named `featured` (documented G1 presentation exception, not tier vocabulary).
 - Non-live paths (`supabase/migrations/` immutable text, `supabase/tests/` 0077 compatibility boundary, `docs/`, `gates/`, root files).
 
-`scripts/security-contract.test.mjs` adds three cases: flags `priceFeatured` and `STRIPE_PRICE_UNLIMITED` in billing-provider/webhook fixtures and `'featured' | 'unlimited'` in a client type; allows StorePhotosPage, 0077 fixture SQL, migration conversion text, docs, and root files; accepts canonical `gallery`/`full_gallery` vocabulary unchanged. 7/7 tests pass; the rendered contract run passes.
+`scripts/security-contract.test.mjs` adds four cases: flags `priceFeatured` and `STRIPE_PRICE_UNLIMITED` in billing-provider/webhook fixtures and `'featured' | 'unlimited'` in a client type; allows StorePhotosPage, 0077 fixture SQL, migration conversion text, docs, and root files; accepts canonical `gallery`/`full_gallery` vocabulary unchanged; and (regression fixture) runs the full security contract against the real tree expecting zero findings. 8/8 tests pass; the rendered contract run passes.
 
 ## Configuration provisioning
 

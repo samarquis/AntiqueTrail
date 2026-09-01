@@ -17,7 +17,7 @@ Base SHA: e6827a4d6e40f619005aff2e4eecc653f2038f54 (origin/main)
 - [x] R3: Retired-vocabulary regression check added to `scripts/security-contract.mjs` scanning live seams, with `security-contract.test.mjs` cases proving it flags legacy names and allows the documented exceptions
   CHECK: `node --test scripts/security-contract.test.mjs` then `npm run security:contract`
   EXPECT: pass; the new check is part of `security:contract` -> `test:release` -> `check`
-  EVIDENCE: `findRetiredTierVocabularyFindings` scans `src/`, `supabase/functions/`, `e2e/`, excludes StorePhotosPage + non-live files, flags any `featured|unlimited` occurrence. 7/7 `node --test` pass (3 new cases: flags price/STRIPE names; allows documented exceptions; accepts canonical names). `npm run security:contract` passes on the renamed tree.
+  EVIDENCE: `findRetiredTierVocabularyFindings` scans `src/`, `supabase/functions/`, `e2e/`, excludes StorePhotosPage + non-live files, flags any `featured|unlimited` occurrence. 8/8 `node --test` pass (4 new cases: flags price/STRIPE names; allows documented exceptions; accepts canonical names; live-tree regression fixture asserts `runSecurityContract()` returns zero findings). `npm run security:contract` passes on the renamed tree, so `test:release` -> `check` and CI step `ci.yml` both enforce the guard.
 
 - [x] R4: Renamed configuration documented and left unset (`.env.example` billing section lists `STRIPE_PRICE_GALLERY`/`STRIPE_PRICE_FULL_GALLERY` as unset placeholders; no legacy price var names anywhere)
   CHECK: read `.env.example`; full-tree search for legacy price names in any file type
@@ -34,10 +34,10 @@ Base SHA: e6827a4d6e40f619005aff2e4eecc653f2038f54 (origin/main)
   EXPECT: pass
   EVIDENCE: `npm run check` passes end to end (typecheck runs, eslint clean, prettier clean after reformat, full vitest suite, `test:release` 68/68, production vite build + PWA synthesize); `npm run security:contract` passes including the new tier-vocabulary check; `git diff --check` exit 0.
 
-- [ ] R7: Independent review by a separate agent (fresh context) covering standards and specification lanes, recorded at `docs/evidence/issue-174/independent-review.md` with reviewed base/head SHAs and no open findings
+- [x] R7: Independent review by a separate agent (fresh context) covering standards and specification lanes, recorded at `docs/evidence/issue-174/independent-review.md` with reviewed base/head SHAs and no open findings
   CHECK: reviewer receipt file with explicit no-open-findings statement
   EXPECT: no open findings
-  EVIDENCE: pending
+  EVIDENCE: fresh-context subagent (general, no shared implementer thread) reviewed diff `e6827a4..1e15bf9` plus follow-up fix commit (see receipt for final head). Lane A PASS with 1 Minor + 2 Nits; Lane B PASS; FINAL VERDICT: APPROVE. Independent runs: tier-vocabulary scan of live `.ts`/`.tsx` finds only StorePhotosPage:73/76/80; `git grep` for the four legacy names -> zero live hits; `node --test scripts/security-contract.test.mjs`; `node scripts/security-contract.mjs` exit 0; pgTAP 0077 29/29 PASS; `git diff --check` exit 0; no plan-authority or plan-text edits. Minor finding (overstated wiring of the scan) fixed here by correcting docs AND adding the live-tree regression fixture, then re-passing tests at 8/8; the two hardening nits are accepted and documented (whole-file StorePhotosPage exception per G1/G8; substring regex is deliberate defense-in-depth). Receipt: docs/evidence/issue-174/independent-review.md.
 
 - [ ] R8: Draft PR whose final diff includes `OPEN_TICKET_TODO.md` row 03 -> `[x] COMPLETE IN PR #<new>`, and hosted `database`, `web`, `plan-governance` checks green on the exact head SHA
   CHECK: `gh pr checks`

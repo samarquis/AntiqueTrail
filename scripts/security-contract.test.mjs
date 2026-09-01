@@ -6,6 +6,7 @@ import {
   findRetiredTierVocabularyFindings,
   findSecretFindings,
   findUnpinnedActions,
+  runSecurityContract,
 } from './security-contract.mjs'
 
 test('detects credential material without flagging ordinary configuration names', () => {
@@ -129,4 +130,8 @@ test('accepts canonical Free/Gallery/Full Gallery vocabulary unchanged', () => {
     ]),
     [],
   )
+})
+
+test('regression: the working tree passes the full security contract', () => {
+  assert.deepEqual(runSecurityContract(), [])
 })
