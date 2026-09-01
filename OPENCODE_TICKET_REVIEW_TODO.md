@@ -1,28 +1,34 @@
-# OpenCode Ticket Review TODO
+# Ticket Review Queue
 
-Status baseline: 2026-08-31. This is the handoff queue between OpenCode implementation and Codex independent production review. It is an operational ledger, not a product decision, plan amendment, ticket admission source, or release authorization. `OPEN_TICKET_TODO.md` remains the sole authoritative project work source and ordered execution/closure ledger; its `[x]` continues to mean merged and closed.
+Status baseline: 2026-09-01. This operational queue is an immutable handoff from an implementation system to a different review system. The historical filename remains stable for tooling. `OPEN_TICKET_TODO.md` is the sole authoritative project work source and ordered execution and closure ledger. Its `[x]` means merged and closed.
 
 ## Purpose and authority
 
-OpenCode implements one governed GitHub ticket at a time. After it has created a reviewable candidate, pushed a draft pull request, and believes every scoped criterion is complete, it marks the matching row below `[x]` on that draft PR's head. That mark is a request for review, not proof of correctness, issue closure, merge authority, or deployment authorization.
+Any implementation system may work a governed GitHub ticket. That includes OpenCode, Codex, a human developer, or another agent. It creates a reviewable candidate, pushes a draft PR, and commits the matching queue row as `[x]` at that PR's final head. `[x]` requests review. It is not proof of correctness, closure, merge authority, or release approval.
 
-Codex owns the next action for every eligible `[x]` row visible at a draft PR's exact head SHA: claim the review, perform the independent senior review, record a traceable verdict, and either approve the exact candidate for merge or return concrete findings. Codex must be a different agent from the OpenCode implementation author. The live issue, PR, default branch, hosted checks, controlling plan, and commit SHAs always override this file.
+A different review system independently reviews that immutable candidate. The reviewer may be Codex, OpenCode, a human, or another agent, but it must have a different stable identity from the implementation system. The live issue, PR, default branch, hosted checks, controlling plan, and commit SHAs override this file.
 
-## Status legend
+Use identities in the form `<platform>/<account-or-host>/<session-or-agent>`. A missing identity, matching identities, or identifiers that cannot distinguish the actors make the request ineligible.
 
-- `[ ]` — OpenCode has not started this ticket in the review queue.
-- `[~]` — OpenCode is implementing; no Codex review may begin yet.
-- `[x]` — OpenCode declares the final draft-PR head complete and requests Codex review. This is the only state that triggers a Codex review claim.
-- `[R]` — Codex has posted a valid review claim and is actively reviewing the pinned candidate SHA.
-- `[A]` — Codex approved the exact reviewed candidate for merge after all applicable local review gates. Hosted and release gates may still be required.
-- `[F]` — Codex found defects or missing evidence. OpenCode must repair the in-scope issue, rerun affected checks, create a new candidate SHA, and mark the row `[x]` again.
-- `[!]` — an external blocker prevents review or required proof. The issue remains open and the blocker must also be recorded on GitHub.
+## State model
 
-Only OpenCode may change its own row from `[ ]` to `[~]` or from `[~]`/`[F]` to `[x]`. Only Codex may write `[R]`, `[A]`, or `[!]`. No status transition changes the matching row in `OPEN_TICKET_TODO.md`; that ledger changes only under its own closure protocol.
+The committed queue contains implementation states only.
+
+- `[ ]` means no implementation has started this row.
+- `[~]` means implementation is active. Review cannot begin.
+- `[x]` means the implementation system submitted one immutable review request at the current draft-PR head.
+
+The reviewer records claim, pass, and fail as SHA-pinned GitHub comments on both the issue and the draft PR. It never writes review state into the candidate branch. A committed reviewer state creates a new head and invalidates the candidate.
+
+```text
+implementation queue: [ ] -> [~] -> [x]
+review comment at exact SHA: unclaimed -> claimed -> PASS or FAIL
+new candidate SHA: invalidates every earlier review comment and requires a new [x]
+```
 
 ## Ordered review queue
 
-Mirror the order and ticket numbers from `OPEN_TICKET_TODO.md`. Do not add a later implementation claim or review before every earlier row is `[A]`, `[!]`, or is explicitly unavailable because its implementation has not requested review. A ticket’s actual dependencies and the main TODO's sequencing rules still apply.
+Mirror the order and ticket numbers from `OPEN_TICKET_TODO.md`. A later candidate is ineligible until every earlier row is closed `[x]` in the authoritative TODO, or has a valid external `[!]` blocker that does not block it. An earlier row with no candidate may be unavailable. A review failure, failing test, missing code, or unresolved repository defect never makes an earlier row skippable.
 
 - [ ] 01. #187 — OpenCode-to-Codex draft-PR review automation.
 - [ ] 02. #123 — Rejected-media resubmission against the current server tier resolver.
@@ -51,25 +57,26 @@ Mirror the order and ticket numbers from `OPEN_TICKET_TODO.md`. Do not add a lat
 - [ ] 25. #180 — Composite paid activation and staged presentation.
 - [ ] 26. #181 — Live paid-tier activation and independent verification.
 
-## OpenCode completion handoff
+## Implementation-system handoff
 
-Immediately after posting a valid implementation claim, OpenCode changes only its matching queue row from `[ ]` to `[~]` and adds its agent identifier, claim URL, start time, base SHA, and branch beneath the row. It commits and pushes that state with ticket-owned work.
+Immediately after posting a valid implementation claim, the implementation system changes only its matching queue row from `[ ]` to `[~]` and adds its stable identity, claim URL, start time, base SHA, and branch beneath the row. It commits and pushes that state with ticket-owned work.
 
-Before changing a row to `[x]`, OpenCode must do all of the following in order:
+Before changing a row to `[x]`, the implementation system must complete these steps in order:
 
-1. Commit the implementation candidate and run every required local check.
-2. Push the candidate branch and create a draft pull request with the required template body. A draft PR is mandatory; `PR: NONE` is invalid.
-3. After GitHub assigns the PR number and every acceptance action is complete, change only the matching `OPEN_TICKET_TODO.md` row from `[ ]` to `[x]` using its required `COMPLETE IN PR #<PR>` format.
-4. In that same final review-request commit, change only the matching review-queue row from `[~]` or `[F]` to `[x]`, attach the base SHA, final candidate SHA, PR URL, and handoff time, then push.
-5. Post the following handoff block on both the issue and the draft PR. Every field must contain a real value; unavailable proof must be labeled `UNAVAILABLE` or `BLOCKED`, never inferred as passing.
+1. Commit the candidate and run every required local check.
+2. Push the branch and create a draft PR. `isDraft` must be true. A ready PR, `PR: NONE`, placeholder URL, or pending PR number is invalid.
+3. Read the live PR URL and `headRefOid`. The final candidate SHA must equal `gh pr view <PR> --json headRefOid --jq .headRefOid` after the queue update is pushed.
+4. In that final commit, change only the matching authoritative TODO row to its required `COMPLETE IN PR #<PR>` `[x]` form and the matching queue row from `[~]` to `[x]`. Record the base SHA, final candidate SHA, PR URL, and handoff time. Push once. Do not commit to that branch again before review.
+5. Post the following complete, identical block on both the issue and draft PR. Every field needs a real value. State `UNAVAILABLE` or `BLOCKED` for unavailable proof. Never infer a pass.
 
 ```text
-OPENCODE REVIEW REQUEST
+IMPLEMENTATION REVIEW REQUEST
 Ticket: #<number> <URL>
-Implementation author/session: <stable identifier>
+Implementation identity: <platform/account-or-host/session-or-agent>
 Base branch and SHA: <branch> <SHA>
 Candidate branch and SHA: <branch> <SHA>
 PR: <draft PR URL>
+PR is draft: true
 Controlling plan headings: <file and exact heading for each requirement>
 Changed paths: <paths>
 Acceptance mapping: <criterion -> code/test/evidence path for every criterion>
@@ -79,32 +86,31 @@ Known risks and non-goals: <text>
 Requested review: code, UI/UX, database, security/privacy, accessibility, and evidence as applicable
 ```
 
-OpenCode must leave its implementation claim/heartbeat in the issue according to `OPEN_TICKET_TODO.md`; it must not replace that claim with a review claim. OpenCode remains responsible for in-scope defects found by Codex and may not merge, deploy, close the issue, or mark a ticket complete on the default branch.
+The implementation system keeps its issue claim/heartbeat. It fixes valid in-scope findings on the same issue. It may not merge, deploy, close the issue, or mark the default-branch TODO complete.
 
 ## Automation visibility contract
 
-The Codex heartbeat must list open draft pull requests, retrieve `OPENCODE_TICKET_REVIEW_TODO.md` at each PR's exact head SHA, and act only on the first eligible `[x]` row whose handoff block names the same PR URL and candidate SHA. It must never infer review readiness from the default branch, an issue checkbox, a local checkout, or a stale PR head. A new commit after a Codex claim invalidates that claim and requires a new `[x]` request for the new head SHA.
+The reviewer or review automation lists open draft PRs and retrieves both TODO files at each PR's exact current head. It acts only on the first eligible `[x]` row whose request comments name the same current PR URL, current candidate SHA, `PR is draft: true`, and a different implementation identity. It never infers readiness from a local checkout, a default-branch checkbox, stale SHA, non-draft PR, or placeholder metadata.
 
-## Codex review and claim protocol
+A review comment is valid only when its candidate SHA equals the PR's current `headRefOid`. A new head invalidates every prior claim, verdict, check assertion, and approval. The next review begins only after a new immutable `[x]` handoff at the new exact head.
 
-When an eligible row becomes `[x]` at a draft PR's exact head SHA, Codex first refreshes the live state. Codex does not review an unpinned working tree, a stale base, an uncommitted candidate, or a candidate authored by the same agent.
+## Independent review and claim protocol
 
-1. Verify the row is the first eligible `[x]` row; read the current `OPEN_TICKET_TODO.md`, live issue, PR, claims, comments, base SHA, candidate SHA, plan headings, gate file, and submitted evidence.
-2. Confirm the implementation claim is valid and no other Codex review claim for the same candidate is active. Post this issue and PR comment before beginning review:
+The review system refreshes the live issue, PR, claims, comments, base SHA, candidate SHA, plan headings, gate file, and evidence before reviewing. It does not review an unpinned working tree, stale base, uncommitted candidate, non-draft PR, or candidate from the same stable identity.
 
-   ```text
-   CODEX REVIEW CLAIM
-   Reviewer/agent: <stable identifier>
-   Started UTC: <ISO-8601>
-   Base SHA: <SHA>
-   Candidate SHA: <SHA>
-   Review queue position: <number>
-   Scope: senior production review of the exact candidate
-   ```
+Confirm the row is the first eligible `[x]` row, the implementation claim is valid, and no other review claim for the same candidate is active. Post this comment verbatim on both the issue and PR before beginning review. Do not alter the candidate branch.
 
-3. Change only that queue row from `[x]` to `[R]`, recording the reviewer, base SHA, candidate SHA, issue URL, and review start time immediately beneath it.
-4. Independently inspect the full base-to-candidate diff and the complete current code paths. Rerun the ticket verification and the relevant repository floor; perform focused checks needed to challenge the submitted evidence. Treat a missing dependency, browser, Docker runtime, credential, provider, or human receipt as unavailable, not a pass.
-5. Review every applicable lane below. Do not approve a candidate because it has green tests in an unrelated lane.
+```text
+INDEPENDENT REVIEW CLAIM
+Reviewer identity: <platform/account-or-host/session-or-agent>
+Started UTC: <ISO-8601>
+Base SHA: <SHA>
+Candidate SHA: <SHA>
+Review queue position: <number>
+Scope: senior production review of the exact candidate
+```
+
+Independently inspect the full base-to-candidate diff and the complete current code paths. Rerun ticket verification and the relevant repository floor. Perform focused checks needed to challenge submitted evidence. Treat a missing dependency, browser, Docker runtime, credential, provider, or human receipt as unavailable, not a pass. Review every applicable lane below. Do not approve a candidate because it has green tests in an unrelated lane.
 
 ### Required senior-review lanes
 
@@ -120,21 +126,40 @@ When an eligible row becomes `[x]` at a draft PR's exact head SHA, Codex first r
 
 Record every finding with severity, file/line or evidence location, impact, required correction, and disposition.
 
-- An unmet acceptance criterion, `P0`/`P1`, security/privacy defect, required evidence gap, or other in-scope defect changes the row to `[F]`. OpenCode must repair it on the same issue, rerun affected checks, and create a new `[x]` handoff for the new SHA.
-- A genuinely independent or out-of-scope defect does not get silently fixed in the candidate. Codex files a governed successor GitHub issue, appends it to `OPEN_TICKET_TODO.md` in a separate reviewed bookkeeping pull request without reordering existing rows, and links it from the review finding. The original ticket may proceed only if the successor is non-blocking for its acceptance criteria.
+- An unmet acceptance criterion, `P0`/`P1`, security/privacy defect, required evidence gap, or other in-scope defect fails review. The implementation system repairs the same issue, reruns affected checks, makes a new candidate SHA, and submits a new `[x]` request.
+- A genuinely independent or out-of-scope defect does not get silently fixed in the candidate. The review system files a governed successor GitHub issue, appends it to `OPEN_TICKET_TODO.md` in a separate reviewed bookkeeping pull request without reordering existing rows, and links it from the review finding. The original may proceed only if the successor is non-blocking for its acceptance criteria.
+- Never use the authoritative TODO's `[!]` external blocker state for review findings, test failures, missing implementation, or any repository-resolvable defect. `[!]` requires the main TODO's dated external blocker protocol and a live GitHub blocker comment.
 - Any new candidate SHA invalidates the prior review receipt. Self-review, a generic “looks good,” or a test pass does not satisfy this gate.
+
+Post one of these blocks on both the issue and PR, using the exact current candidate SHA:
+
+```text
+FINAL INDEPENDENT REVIEW — PASS
+Reviewer identity: <identity>
+Base SHA: <SHA>
+Candidate SHA: <SHA>
+Verdict: no open findings
+Evidence: <independent-review artifact and commands>
+```
+
+```text
+FINAL INDEPENDENT REVIEW — FAIL
+Reviewer identity: <identity>
+Base SHA: <SHA>
+Candidate SHA: <SHA>
+Open findings: <severity, location, required correction>
+Next state: implementation repair and new immutable [x] request
+```
 
 ## Approval, merge, and production meaning
 
-Codex may change `[R]` to `[A]` only after it has reviewed the final full base-to-head diff, found no open findings, and written `docs/evidence/issue-<N>/independent-review.md` with reviewer identity, base/head SHA, all five applicable lanes, commands/results, findings/dispositions, limitations, and the final verdict. Codex then posts a `FINAL INDEPENDENT REVIEW` PR comment naming that exact head SHA and stating `no open findings`.
+A PASS requires the final full base-to-head review, no open findings, and `docs/evidence/issue-<N>/independent-review.md` with identities, base/head SHA, all five applicable lanes, commands/results, findings/dispositions, limitations, and verdict. A pass approves only merge for the scoped ticket. It never approves a production release.
 
-`[A]` means **approved for merge for the scoped ticket**, not automatically approved for a production deployment. Production approval additionally requires all applicable final hosted checks on that exact head, branch protection/mergeability, post-merge verification, and every ticket-specific provider, legal, security, and human release gate. Codex must not call a ticket production-approved while any required proof is blocked, unavailable, stale, failed, skipped, neutral, or pending.
-
-On a later heartbeat, Codex may make an `[A]` draft PR ready and merge it only when the final reviewed head remains current and mergeable, every required hosted check is successful, all review conversations are resolved, and every ticket-specific provider, legal, security, and human merge gate is proved. Codex then follows the existing main TODO closure protocol: refresh the default branch, rerun the required post-merge checks, post criterion-level closure evidence, close the issue, verify its closed state, and only then retain the `OPEN_TICKET_TODO.md` `[x]` row on the default branch. Add a compact final receipt under the queue row with PR URL, merge SHA, final review URL, hosted checks, post-merge result, and the date; retain `[A]` as the review verdict. This automation never deploys a production release; deployment remains a separately authorized, release-gated action.
+On a later run, an automation may make a passed draft PR ready and merge only if the candidate SHA is still current, current required hosted checks for that SHA all succeed, every review conversation is resolved, branch protection and mergeability pass, and all ticket-specific provider, legal, security, and human merge gates are proved. It refreshes the default branch, runs required post-merge verification, posts criterion-level closure evidence, closes and verifies the issue, and confirms the default-branch TODO row. It records a final receipt as a GitHub comment with PR URL, merge SHA, review URL, hosted checks, post-merge result, and date. This workflow never deploys a production release.
 
 ## Queue integrity rules
 
 - A queue mark never overrides the governing plan, ticket scope, dependency, GitHub state, or release policy.
-- Codex reviews changes; it does not silently repair them while acting as the independent reviewer. Return in-scope findings to OpenCode, then review the new candidate afresh.
+- Reviewers do not silently repair implementation changes. They return in-scope findings and review the new candidate from scratch.
 - The final review includes review evidence and all bookkeeping changes, not only the initial implementation commit.
-- Never deploy, spend money, enable a staged capability, contact people, or use production data solely because a queue row is `[A]`.
+- Never deploy, spend money, enable a staged capability, contact people, or use production data solely because a review comment says PASS.
