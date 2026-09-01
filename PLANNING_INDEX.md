@@ -63,6 +63,8 @@ Status: current document-role map as of 2026-08-30. When documents conflict, use
 | --------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `docs/operations/G56_RELEASE_GATE_STATUS_LEDGER.md` | Human/provider release-gate ledger           | Gate contract remains current; 2026-08-23 counts are historical until refreshed row by row |
 | Other `docs/operations/*.md`                        | Runbooks, receipts, and readiness procedures | A template, DRAFT, SCAFFOLDED, NO-GO, or unexecuted runbook is not passing evidence        |
+| `OPEN_TICKET_TODO.md`                               | Ordered ticket execution and closure ledger  | One implementation ticket at a time; reconcile every row against live GitHub issue state   |
+| `OPENCODE_TICKET_REVIEW_TODO.md`                    | Implementation-to-review handoff queue       | The implementing agent/system and the independent reviewer must be different systems        |
 | GitHub issues and pull requests                     | Live work state and acceptance scope         | Refresh live; closed issue scope is not equivalent to release readiness                    |
 | Hosted CI and committed evidence                    | Commit-specific verification                 | Record exact SHA/scope; synthetic harness evidence is not provider/production proof        |
 

@@ -21,8 +21,8 @@ Do not reorder the list because another ticket looks easier. If the first unchec
 
 - [x] 01. #142 — COMPLETE IN PR #166 — Semantic color-token implementation conformance. Dependencies: none.
 - [x] 02. #125 — COMPLETE IN PR #185 — Minimize the Portal media-history response. Dependencies: none; sequenced after #142 to keep one implementation lane.
-- [!] 03. #174 — Migrate tier names, stored state, and server cap authority to Free/Gallery/Full Gallery. Dependencies: #125. BLOCKED 2026-08-31 — an independent production review found retired tier vocabulary in active billing code; repair is under active PR #189 and #174 cannot close until that proof is repaired. Evidence: https://github.com/samarquis/AntiqueTrail/issues/174#issuecomment-5477841893
-- [!] 04. #123 — Complete rejected-media resubmission against the current server tier resolver. Dependencies: #125 and #174. BLOCKED 2026-08-31 — #174 must close with merged evidence; evidence: https://github.com/samarquis/AntiqueTrail/issues/123#issuecomment-5485059361
+- [ ] 03. #174 — Migrate tier names, stored state, and server cap authority to Free/Gallery/Full Gallery. Dependencies: #125. PR #186 merged but the issue remains OPEN pending a repair for retired tier vocabulary found in active billing code; this is an in-scope repository repair, not an external blocker.
+- [ ] 04. #123 — Complete rejected-media resubmission against the current server tier resolver. Dependencies: #125 and #174. Ordered after #174; not started until #174 closes with merged evidence.
 - [ ] 05. #124 — Prove the media-history/resubmit/current-tier contract in pgTAP. Dependencies: #125, #174, and #123.
 - [ ] 06. #126 — Reconcile media issue/evidence truth after the final #125/#174/#123/#124 outcomes are known. Dependencies: #125, #174, #123, and #124.
 - [ ] 07. #182 — Add dated successor mappings to historical Package 6/10A/10B/13 issues and reconcile current ledgers. Dependencies: successor issues #168–#181 exist; no implementation dependency.
@@ -99,8 +99,10 @@ Immediately re-fetch comments, open PRs, and matching remote branches:
 ```powershell
 gh issue view $ticketNumber --comments
 gh pr list --state open --json number,headRefName,updatedAt,url
-git ls-remote --heads origin "refs/heads/codex/issue-${ticketNumber}-*"
+git ls-remote --heads origin "refs/heads/*issue-${ticketNumber}-*"
 ```
+
+The scan above matches any agent system's branch for the same ticket (a legacy `codex/`, `agent/`, `claude/`, `opencode/`, or other prefix), so a branch created by a different system is still detected. The documented creation convention below is the shared default; any system may use a different prefix as long as the collision scan and claim rules above are honored.
 
 The earliest valid claim against the same current base wins. A losing agent stops without changing code. While work is active, post a `CLAIM HEARTBEAT` comment at least every 30 minutes with UTC time, branch, head SHA, last completed gate, and next action. On voluntary stop, post `CLAIM RELEASED` and the reason. A takeover is allowed only after at least 120 minutes without a claim/heartbeat, with no open PR and no matching remote branch; post `CLAIM TAKEOVER` citing those checks before branching. If a branch or PR still exists, a coordinator or human must explicitly release/reassign it—never guess that another agent is dead. A claim is not permission to change the plan, contact people, spend money, enable providers/capabilities, use production data, or bypass a gate.
 
@@ -111,6 +113,8 @@ $ticketSlug = 'short-kebab-summary'
 git switch -c "codex/issue-$ticketNumber-$ticketSlug"
 $ticketBaseSha = git rev-parse HEAD
 ```
+
+`codex/issue-N-<slug>` is the shared default branch convention. Any agent system may follow it directly; a different system that uses its own prefix must still satisfy the claim, heartbeat, and takeover rules and must be discoverable by the `*issue-${N}-*` collision scan.
 
 ### 3. Build an acceptance gate before editing
 
@@ -167,7 +171,7 @@ git commit -m "fix: close issue #$ticketNumber"
 $ticketCandidateSha = git rev-parse HEAD
 ```
 
-The reviewer must be a separate agent that did not author the implementation. Give it the ticket URL/number, exact base SHA, candidate SHA, diff, cited plan headings, `gates/issue-<N>.md`, and test/evidence paths. Require both review lanes:
+The reviewer must be a separate agent that did not author the implementation. Any agent system may implement; the reviewer should be a different agent system where available and at minimum a separate agent session that never shared the implementer's thread. Give it the ticket URL/number, exact base SHA, candidate SHA, diff, cited plan headings, `gates/issue-<N>.md`, and test/evidence paths. Require both review lanes:
 
 - **Standards review:** correctness, security/privacy, authorization, data integrity, accessibility, maintainability, regression/blast radius, and evidence quality.
 - **Specification review:** ticket reason, exact plan conformance, every acceptance criterion, dependencies/non-goals, responsive/state behavior, and no silent plan change.

@@ -28,5 +28,4 @@ integration evidence, review, merge, and closure.
 
 ## Status log
 
-- 2026-08-31: Contract created. Dispatch waits for the #123 blocker protocol
-  to merge, which makes #182 the first eligible non-dependent row.
+- 2026-08-31: Contract created, dispatched as the scoped historical-successor documentation ticket. No ordered-queue-bypass claim is made; the earlier invalid `[!]` blocker marks that suggested #182 was next-available were withdrawn during review correction.

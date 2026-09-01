@@ -1,4 +1,4 @@
-﻿# Antique Trail â€” Codex Handoff
+﻿# Antique Trail — Agent Handoff
 
 This repository contains the approved product, design, security, architecture, and implementation baseline for Antique Trail plus the first local Synthetic Store application slice.
 

@@ -1,4 +1,6 @@
-# Codex Start Prompt
+# Agent Start Prompt
+
+This is the shared current execution authority and stop-conditions prompt. The filename is retained for historical continuity; any agent system (Codex, OpenCode, Claude, or another tool) implementing against this repository treats this document as its starting authority.
 
 You are working on a new commercial-grade public Progressive Web App with the working name **Antique Trail**.
 

@@ -29,7 +29,7 @@ Command: `gh api` readback of each issue and its paginated comments, matching th
 
 ## Current-state reconciliation
 
-- `OPEN_TICKET_TODO.md` no longer falsely marks live Issue #174 complete. It records its dated independent-review blocker and active repair PR #189 while retaining dependency #125.
+- `OPEN_TICKET_TODO.md` no longer falsely marks live Issue #174 complete, and its rows for #174 and #123 are plain `[ ]` scheduling states, not `[!]` external blockers. #174 is an in-scope repository repair (PR #186 merged but issue still OPEN pending the retired-tier-vocabulary fix), and #123 is simply ordered after it.
 - `PROJECT_STATE.md` no longer lists closed #125 as open or says #174 is closed. It distinguishes merged PR #186 from the unresolved live issue.
 - The scans in `ledger-audit.md` found no self-dependency, reversed dependency, obsolete current tier name, or other unsupported completion claim in the reviewed successor bodies and current ledgers after these corrections.
 
@@ -39,6 +39,6 @@ Commands: `node --test scripts/plan-governance-contract.test.mjs`; `npm run test
 
 Result: plan-governance contract `7/7` passed; release suite `65/65` passed; `git diff --check` returned no whitespace errors.
 
-## Governance limitation requiring Product Owner direction
+## Governance amendment for the index registration
 
-`ledger-audit.md` identified a pre-existing omission: `PLANNING_INDEX.md` does not register `OPEN_TICKET_TODO.md` as a current operational source. Adding it would modify the locked `PLANNING_INDEX.md`. `PLAN_GOVERNANCE.md` requires an explicit Product Owner `update plan` directive plus the formal amendment and append-only changelog process for that modification. No such directive was received for this ticket execution, so this branch deliberately does not alter the index or fabricate a changelog receipt. This is an authorization boundary, not evidence that the historical mappings or current-state corrections failed.
+`ledger-audit.md` identified a pre-existing omission: `PLANNING_INDEX.md` does not register `OPEN_TICKET_TODO.md` as a current operational source. The Product Owner issued `update plan` for this head, so `PLANNING_INDEX.md` now registers both `OPEN_TICKET_TODO.md` and `OPENCODE_TICKET_REVIEW_TODO.md` as current operational sources, and the amendment receipt is appended to `PLAN_CHANGELOG.md`. The change is documentation-only and does not alter any controlling requirement.
