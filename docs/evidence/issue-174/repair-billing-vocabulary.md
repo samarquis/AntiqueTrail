@@ -1,6 +1,6 @@
 # Issue #174 repair — retire billing tier vocabulary from live source
 
-Date: 2026-09-01. Base SHA: `e6827a4d6e40f619005aff2e4eecc653f2038f54` (origin/main). Candidate SHA: filled at commit time.
+Date: 2026-09-01. Base SHA: `e6827a4d6e40f619005aff2e4eecc653f2038f54` (origin/main). Candidate SHA: `7d5f68e68ca895afc58ea5b1cb05d734ae77cfef`.
 
 ## Scope
 
