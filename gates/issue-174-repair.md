@@ -39,12 +39,16 @@ Base SHA: e6827a4d6e40f619005aff2e4eecc653f2038f54 (origin/main)
   EXPECT: no open findings
   EVIDENCE: fresh-context subagent (general, no shared implementer thread) reviewed diff `e6827a4..1e15bf9` plus follow-up fix commit (see receipt for final head). Lane A PASS with 1 Minor + 2 Nits; Lane B PASS; FINAL VERDICT: APPROVE. Independent runs: tier-vocabulary scan of live `.ts`/`.tsx` finds only StorePhotosPage:73/76/80; `git grep` for the four legacy names -> zero live hits; `node --test scripts/security-contract.test.mjs`; `node scripts/security-contract.mjs` exit 0; pgTAP 0077 29/29 PASS; `git diff --check` exit 0; no plan-authority or plan-text edits. Minor finding (overstated wiring of the scan) fixed here by correcting docs AND adding the live-tree regression fixture, then re-passing tests at 8/8; the two hardening nits are accepted and documented (whole-file StorePhotosPage exception per G1/G8; substring regex is deliberate defense-in-depth). Receipt: docs/evidence/issue-174/independent-review.md.
 
-- [ ] R8: Draft PR whose final diff includes `OPEN_TICKET_TODO.md` row 03 -> `[x] COMPLETE IN PR #<new>`, and hosted `database`, `web`, `plan-governance` checks green on the exact head SHA
+- [x] R8: Draft PR whose final diff includes `OPEN_TICKET_TODO.md` row 03 -> `[x] COMPLETE IN PR #<new>`, and hosted `database`, `web`, `plan-governance` checks green on the exact head SHA
   CHECK: `gh pr checks`
   EXPECT: all required checks green on the reviewed head
-  EVIDENCE: pending
+  EVIDENCE: PR #193 (draft -> ready). Final head `79eb65008bbb972d0edcb2ef7b0723844752912f` includes row 03 -> `[x] COMPLETE IN PR #193` (required PR-body schema first failed plan-governance; body rewritten with the 7 required sections -> re-pass). Checks on head: database PASS (4m6s), web PASS (7m41s, includes npm run check + security contract + e2e), plan-governance PASS (9s). Supabase Preview skipped (no schema change) as expected for a config-contract-only change.
 
-- [ ] R9: Merge through the PR, post-merge verification rerun, and issue #174 closed with criterion-level evidence (PR URL, SHAs, check results, reviewer receipt, limitations)
+- [x] R9: Merge through the PR, post-merge verification rerun, and issue #174 closed with criterion-level evidence (PR URL, SHAs, check results, reviewer receipt, limitations)
   CHECK: `gh issue view 174 --json state`; TODO row on the default branch
   EXPECT: issue CLOSED and row 03 `[x]` on `main`
-  EVIDENCE: pending
+  EVIDENCE: PR #193 squash-merged 2026-09-01T21:58:18Z as merge commit `bc606d9a52fd57d61669b5b78bf06eb3385a279d` on `main` (default). Post-merge rerun on merged main: `node --test scripts/security-contract.test.mjs` 8/8 pass; `node scripts/security-contract.mjs` exit 0; `git grep -c` for `priceFeatured|priceUnlimited|STRIPE_PRICE_FEATURED|STRIPE_PRICE_UNLIMITED` over `*.ts` -> zero matches; live `.ts`/`.tsx` scan for `featured|unlimited` -> only StorePhotosPage:73/76/80 documented exception; `OPEN_TICKET_TODO.md` row 03 on main reads `[x] COMPLETE IN PR #193`. Issue #174 closed 2026-09-01T22:29:52Z with the criterion-level evidence comment (`issuecomment-5501295648`).
+
+## Ledger delivery note
+
+The R8/R9 rows above became evidence-able only after PR #193 merged, so the completed ledger (rows + this note) is carried to `main` through this follow-up ledger-carrier PR. It is a doc-only delta over the ``gates/issue-174-repair.md`` rows already proven: PR #193's required suite was green on its exact reviewed head (`database`, `web`, `plan-governance` all pass on `79eb650`), issue #174 is closed, and post-merge reruns are recorded in R9. Earlier carriers on the post-merge repair branch (PR #194 on `codex/issue-174-billing-vocabulary-repair`, PR #195 on `codex/issue-174-gates-ledger`) were parked as unmergeable because GitHub stopped dispatching the `pull_request` CI workflow repo-wide from 2026-09-01T21:49Z (web/database never registered; the status page was green and `push`/`pull_request_target` continued to dispatch, so it was not a wider outage). Those PRs remain open solely as parked records; this carrier supersedes them.
