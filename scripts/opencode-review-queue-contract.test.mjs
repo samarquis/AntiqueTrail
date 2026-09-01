@@ -29,7 +29,10 @@ test('review queue contains every currently open ordered ticket in ledger order'
 
 test('review handoff requires a pushed draft PR and exact immutable head', () => {
   assert.match(reviewQueue, /`isDraft` must be true/)
-  assert.match(reviewQueue, /ready PR, `PR: NONE`, placeholder URL, or pending PR number is invalid/)
+  assert.match(
+    reviewQueue,
+    /ready PR, `PR: NONE`, placeholder URL, or pending PR number is invalid/,
+  )
   assert.match(reviewQueue, /Query the live PR URL and `headRefOid` after the push/)
   assert.match(reviewQueue, /A commit cannot truthfully record its own final SHA/)
   assert.match(reviewQueue, /Do not commit to that branch again before review/)
@@ -50,5 +53,8 @@ test('findings stay in scope and external blockers cannot hide repository defect
   assert.match(reviewQueue, /repairs the same issue/is)
   assert.match(reviewQueue, /governed successor GitHub issue/is)
   assert.match(reviewQueue, /without reordering existing rows/is)
-  assert.match(reviewQueue, /Never use the authoritative TODO's `\[!\]` external blocker state for review findings/)
+  assert.match(
+    reviewQueue,
+    /Never use the authoritative TODO's `\[!\]` external blocker state for review findings/,
+  )
 })
