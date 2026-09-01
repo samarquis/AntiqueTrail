@@ -30,7 +30,8 @@ test('review queue contains every currently open ordered ticket in ledger order'
 test('review handoff requires a pushed draft PR and exact immutable head', () => {
   assert.match(reviewQueue, /`isDraft` must be true/)
   assert.match(reviewQueue, /ready PR, `PR: NONE`, placeholder URL, or pending PR number is invalid/)
-  assert.match(reviewQueue, /gh pr view <PR> --json headRefOid --jq \.headRefOid/)
+  assert.match(reviewQueue, /Query the live PR URL and `headRefOid` after the push/)
+  assert.match(reviewQueue, /A commit cannot truthfully record its own final SHA/)
   assert.match(reviewQueue, /Do not commit to that branch again before review/)
   assert.match(reviewQueue, /PR is draft: true/)
   assert.match(reviewQueue, /PR: <draft PR URL>/)

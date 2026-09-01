@@ -65,8 +65,8 @@ Before changing a row to `[x]`, the implementation system must complete these st
 
 1. Commit the candidate and run every required local check.
 2. Push the branch and create a draft PR. `isDraft` must be true. A ready PR, `PR: NONE`, placeholder URL, or pending PR number is invalid.
-3. Read the live PR URL and `headRefOid`. The final candidate SHA must equal `gh pr view <PR> --json headRefOid --jq .headRefOid` after the queue update is pushed.
-4. In that final commit, change only the matching authoritative TODO row to its required `COMPLETE IN PR #<PR>` `[x]` form and the matching queue row from `[~]` to `[x]`. Record the base SHA, final candidate SHA, PR URL, and handoff time. Push once. Do not commit to that branch again before review.
+3. In the final commit, change only the matching queue row from `[~]` to `[x]`. Record the base SHA, PR URL, and handoff time. Push once. Do not commit to that branch again before review.
+4. Query the live PR URL and `headRefOid` after the push. Post the handoff comments with that exact candidate SHA. A commit cannot truthfully record its own final SHA because the record changes the commit.
 5. Post the following complete, identical block on both the issue and draft PR. Every field needs a real value. State `UNAVAILABLE` or `BLOCKED` for unavailable proof. Never infer a pass.
 
 ```text
@@ -153,7 +153,7 @@ Next state: implementation repair and new immutable [x] request
 
 ## Approval, merge, and production meaning
 
-A PASS requires the final full base-to-head review, no open findings, and `docs/evidence/issue-<N>/independent-review.md` with identities, base/head SHA, all five applicable lanes, commands/results, findings/dispositions, limitations, and verdict. A pass approves only merge for the scoped ticket. It never approves a production release.
+A PASS requires the final full base-to-head review, no open findings, and the exact-SHA issue and PR receipt with identities, base/head SHA, applicable lanes, commands/results, findings/dispositions, limitations, and verdict. A pass approves only merge for the scoped ticket. It never approves a production release.
 
 On a later run, an automation may make a passed draft PR ready and merge only if the candidate SHA is still current, current required hosted checks for that SHA all succeed, every review conversation is resolved, branch protection and mergeability pass, and all ticket-specific provider, legal, security, and human merge gates are proved. It refreshes the default branch, runs required post-merge verification, posts criterion-level closure evidence, closes and verifies the issue, and confirms the default-branch TODO row. It records a final receipt as a GitHub comment with PR URL, merge SHA, review URL, hosted checks, post-merge result, and date. This workflow never deploys a production release.
 
