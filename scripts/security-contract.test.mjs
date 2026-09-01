@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   findLicenseFindings,
   findMigrationVersionFindings,
+  findRetiredTierVocabularyFindings,
   findSecretFindings,
   findUnpinnedActions,
 } from './security-contract.mjs'
@@ -64,5 +65,68 @@ test('requires unique fourteen-digit migration versions', () => {
       'supabase/migrations/20260803000000_second.sql: duplicate migration version also used by supabase/migrations/20260803000000_first.sql',
       'supabase/migrations/bad.sql: migration filename must start with a 14-digit version',
     ],
+  )
+})
+
+test('flags retired Featured/Unlimited vocabulary in live billing source', () => {
+  const retire = (path) => `${path}: retired tier vocabulary featured|unlimited`
+  assert.deepEqual(
+    findRetiredTierVocabularyFindings([
+      {
+        path: 'supabase/functions/_shared/billing-provider.ts',
+        text: 'priceFeatured?: string',
+      },
+    ]),
+    [retire('supabase/functions/_shared/billing-provider.ts')],
+  )
+  assert.deepEqual(
+    findRetiredTierVocabularyFindings([
+      {
+        path: 'supabase/functions/store-billing-webhook/index.ts',
+        text: "priceUnlimited: Deno.env.get('STRIPE_PRICE_UNLIMITED')",
+      },
+    ]),
+    [retire('supabase/functions/store-billing-webhook/index.ts')],
+  )
+  assert.deepEqual(
+    findRetiredTierVocabularyFindings([
+      { path: 'src/features/billing/types.ts', text: "tier: 'featured' | 'unlimited'" },
+    ]),
+    [retire('src/features/billing/types.ts')],
+  )
+})
+
+test('allows documented exceptions and files outside live source', () => {
+  assert.deepEqual(
+    findRetiredTierVocabularyFindings([
+      {
+        path: 'src/features/catalog/StorePhotosPage.tsx',
+        text: 'const featured = new Set<number>([0])',
+      },
+      {
+        path: 'supabase/tests/0077_package_13_tier_boundaries.sql',
+        text: "('00000000-0000-4000-8000-000000000003','featured')",
+      },
+      {
+        path: 'supabase/migrations/20260831010000_migrate_photo_tiers_free_gallery_full_gallery.sql',
+        text: "if p_tier = 'featured' then p_tier := 'gallery'; end if;",
+      },
+      { path: 'docs/evidence/issue-174/inventory.md', text: 'featured -> gallery' },
+      { path: 'package.json', text: 'featured' },
+    ]),
+    [],
+  )
+})
+
+test('accepts canonical Free/Gallery/Full Gallery vocabulary unchanged', () => {
+  assert.deepEqual(
+    findRetiredTierVocabularyFindings([
+      { path: 'src/features/billing/types.ts', text: "tier: 'gallery' | 'full_gallery'" },
+      {
+        path: 'supabase/functions/store-billing-webhook/index.ts',
+        text: "if (priceId && priceId === env.priceFullGallery) return 'full_gallery'",
+      },
+    ]),
+    [],
   )
 })
