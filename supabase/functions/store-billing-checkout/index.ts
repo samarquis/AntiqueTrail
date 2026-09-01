@@ -88,8 +88,8 @@ Deno.serve(async (request) => {
 
   const price =
     tier === 'gallery'
-      ? env.priceFeatured
-      : env.priceUnlimited
+      ? env.priceGallery
+      : env.priceFullGallery
   const origin = new URL(env.appOrigin!)
   const minted = await stripeFormPost(
     env,
