@@ -1,6 +1,6 @@
 # Issue #123 independent review receipt
 
-Reviewed source candidate: `c21b462ded603c03f5a8c1cc3897e931b4f2e9d5`  
+Reviewed source candidate: `c21b462ded603c03f5a8c1cc3897e931b4f2e9d5`
 Base: `36b66c9530eaf28ac5cd3749523a1b012ab3704e`
 
 ## Review sequence
