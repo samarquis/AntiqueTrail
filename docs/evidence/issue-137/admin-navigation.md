@@ -42,11 +42,11 @@ do not prove production provider, RPC, RLS, or Storage authorization.
    Review, Access, or More; no child route becomes a primary item.
 2. Domain re-read: More labels only Support/System status as links and truthfully marks readiness,
    narrow D30 audit, evidence, and communities unavailable until a server-authorized exact scope.
-3. Defect hunt: focused app and registry tests pass (23/23 and 10/10); UI-09 passes 39 checks plus
-   three opt-in screenshots. A full adjusted-timeout unit run passes 89 files/612 tests.
+3. Defect hunt: focused app and registry tests pass (23/23 and 10/10). On 2026-09-02 the exact
+   required UI-09/UI-10 command passed 48 tests with six opt-in captures skipped, and the exact
+   repository floor passed under declared Node 20.19.0: 89 files/612 tests and 69 release tests.
 4. Polish: visual inspection of `mobile-admin-more.png` confirms the fixed bottom bar has exactly
    Review, Access, and More with More current; the Sign out control clears the bar.
 
-The candidate is not closure-ready: the exact UI-10/full-check commands in the gate ledger are
-blocked by unrelated cold-start/time-limit failures. See `gates/issue-137.md` for the precise
-commands, observed failures, and environment constraint.
+Implementation and local acceptance evidence are ready. Independent exact-head review, hosted
+checks, merge, and post-merge verification remain intentionally pending for the next session.
