@@ -18,15 +18,14 @@
 
 ## Local evidence
 
-- `npm run typecheck`, `npm run lint`, and `npm run security:contract` completed without diagnostics/findings after the ticket changes.
+- `npm run security:contract` passed. `npm run typecheck` exits 2: `src/review-harness/clients.test.ts(140,7)` still supplies obsolete `storeReference`, and `src/review-harness/clients.ts(2001,11)` still types `submitClaim` with that obsolete property. Both files are outside the ticket-owned paths, so this leaf cannot correct them. `npm run check` stops at that typecheck failure.
 - `npm test -- --run src/features/partners --reporter=dot` passed: 8 files and 38 tests. React Router v7 future-flag warnings were emitted but no test failed.
-- The direct `npm run check` attempt returned after its initial `typecheck` line with no continuing command process or final result. It is incomplete, not a pass.
 - Direct local pgTAP run of `supabase/tests/0078_issue_170_public_free_claim.sql` passed `18/18` before the final public-signal addition. Re-run it after a clean reset.
 
 ## Browser attempt
 
 - `npx playwright test e2e/ui08-partner-portal.spec.ts --project=chromium --project=mobile --workers=1` wrote a failed run ledger with two failures. Chromium did not find the pre-existing `Store Portal unavailable` heading in the role-boundary case. Mobile reached the new exact-listing claim flow and exposed strict-mode ambiguity from `getByRole('status')` after the ticket introduced a second status message.
-- The two ticket-owned claim-flow assertions now use exact `getByText('Claim status: …')` locators. A narrowed rerun did not produce a clean result before the ticket-owned Playwright runner and its 4173 review server were stopped after no clean run ledger appeared; this is unavailable/incomplete browser evidence, not a pass.
+- The two ticket-owned claim-flow assertions now use exact `getByText('Claim status: …')` locators. `npx playwright test --config e2e/issue-170-playwright.config.ts --workers=1` then passed 2/2 (Chromium and Pixel 5) on an isolated ticket-only 4177 review server. The checked flow covers material consent before exact listing controls, one exact listing, submitted then verification-pending state, minimized authority signal, no raw evidence reference, and no other claimant identity. It is deterministic review-harness evidence, not live Supabase activation proof.
 
 ## Verification limitation
 
@@ -35,5 +34,5 @@ The Supabase CLI local project is global to concurrent worktrees (`supabase_db_a
 ## Required before merge/closure
 
 1. Obtain an isolated #170 local Supabase project, then run the complete reset and database suite (G1 is abandoned only for this shared-container limitation).
-2. Re-run the review Playwright configuration to a clean result and run `npm run check` to a complete final result, then run `git diff --check` on the committed candidate.
+2. Have the owner of `src/review-harness/clients.ts` and its test migrate their obsolete `storeReference` contract, then run `npm run check` to a complete final result and `git diff --check` on the committed candidate.
 3. Record candidate, exact pushed head, hosted `web`, `database`, and `plan-governance` results, then request an independent exact-diff review. Do not activate Package 10B or merge from this ticket.
