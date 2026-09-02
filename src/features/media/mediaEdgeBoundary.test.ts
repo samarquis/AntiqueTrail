@@ -41,6 +41,10 @@ describe('M-01 Edge wiring contract', () => {
     expect(uploadSource).toContain("userClient, 'media_reserve_resubmission'")
     expect(uploadSource).toContain('p_source_digest: sourceDigest')
     expect(uploadSource).toContain('upsert: allowOverwrite')
+    expect(uploadSource).toContain('class MediaCapDeniedError extends MediaPipelineError')
+    expect(uploadSource).toContain(
+      "if (value.error === 'media_unavailable') throw new MediaPipelineError()",
+    )
     expect(uploadSource).toContain('async function sha256Hex')
     expect(uploadSource).toContain(
       "if (typeof storeId === 'string' || typeof kind === 'string') return unavailable(headers)",

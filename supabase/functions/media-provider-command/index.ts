@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
 import {
   MEDIA_MAX_IMAGE_BYTES,
+  MediaPipelineError,
   runMediaIngest,
   type MediaPipelineDependencies,
 } from '../_shared/media-pipeline.ts'
@@ -50,9 +51,10 @@ function unavailable(headers: Record<string, string> = {}, status = 503): Respon
   return new Response('Unavailable', { status, headers })
 }
 
-class MediaCapDeniedError extends Error {
+class MediaCapDeniedError extends MediaPipelineError {
   constructor(readonly payload: Record<string, unknown>) {
-    super('media_cap_exceeded')
+    super()
+    this.name = 'MediaCapDeniedError'
   }
 }
 
@@ -142,15 +144,33 @@ Deno.serve(async (request) => {
     // Resubmission performs the cap check atomically inside media_reserve_resubmission
     // against the server-derived store/kind; a denial surfaces as a 409 below.
     if (!resubmitting) {
-      const capCheck = await rpc<{ allowed: boolean; remaining?: number; error?: string; message?: string; currentTier?: string; upgradeTier?: string; upgradeCap?: number | null; approvedCount?: number; cap?: number }>(
-        userClient,
-        'partner_private.check_store_media_cap',
-        { p_store_id: activeStoreId, p_kind: activeKind, p_idempotency_key: idempotencyKey }
-      )
+      const capCheck = await rpc<{
+        allowed: boolean
+        remaining?: number
+        error?: string
+        message?: string
+        currentTier?: string
+        upgradeTier?: string
+        upgradeCap?: number | null
+        approvedCount?: number
+        cap?: number
+      }>(userClient, 'partner_private.check_store_media_cap', {
+        p_store_id: activeStoreId,
+        p_kind: activeKind,
+        p_idempotency_key: idempotencyKey,
+      })
       if (!capCheck.allowed) {
         return Response.json(
-          { error: capCheck.error, message: capCheck.message, currentTier: capCheck.currentTier, upgradeTier: capCheck.upgradeTier, upgradeCap: capCheck.upgradeCap, approvedCount: capCheck.approvedCount, cap: capCheck.cap },
-          { status: 409, headers }
+          {
+            error: capCheck.error,
+            message: capCheck.message,
+            currentTier: capCheck.currentTier,
+            upgradeTier: capCheck.upgradeTier,
+            upgradeCap: capCheck.upgradeCap,
+            approvedCount: capCheck.approvedCount,
+            cap: capCheck.cap,
+          },
+          { status: 409, headers },
         )
       }
     }
@@ -174,6 +194,7 @@ Deno.serve(async (request) => {
             p_source_digest: sourceDigest,
           })
           if (value.error === 'media_cap_exceeded') throw new MediaCapDeniedError(value)
+          if (value.error === 'media_unavailable') throw new MediaPipelineError()
         } else {
           value = await rpc<Record<string, unknown>>(userClient, 'media_reserve_upload', {
             p_store_id: input.storeId,
@@ -202,7 +223,10 @@ Deno.serve(async (request) => {
             : ''
         if (
           !/^[0-9a-f-]{36}$/iu.test(uploadId) ||
-          (resubmitting && state !== 'reserved' && state !== 'staged' && state !== 'awaiting_review') ||
+          (resubmitting &&
+            state !== 'reserved' &&
+            state !== 'staged' &&
+            state !== 'awaiting_review') ||
           originalObjectKey !== `quarantine/${uploadId}/original` ||
           derivativeObjectKey !== `quarantine/${uploadId}/derivative.webp`
         )

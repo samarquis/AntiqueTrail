@@ -5,9 +5,12 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(37);
 
 -- ---- Fixture: actor with active session/MFA and one exact grant on store 1.
+insert into app_public.catalog_areas(id,slug,label,state_code,sort_order)
+values ('00000000-0000-4000-8000-000000000001','db-ci-resubmit-area','Database CI area','KS',0)
+on conflict (id) do nothing;
 insert into app_public.stores (id, slug, name, town, state_code, address, area_id, summary, description, synthetic, audience)
 values ('00000000-0000-4000-8000-000000000001','db-ci-resubmit-store','Resubmit Store','Topeka','KS','1 Test Way','00000000-0000-4000-8000-000000000001','Database CI fixture','Resubmit fixture store',false,'regional_readiness')
   ,('00000000-0000-4000-8000-000000000009','db-ci-resubmit-other-store','Other Store','Topeka','KS','2 Test Way','00000000-0000-4000-8000-000000000001','Database CI fixture','Other resubmit fixture store',false,'regional_readiness')
@@ -71,7 +74,9 @@ insert into media_private.media_uploads(upload_id,actor_tombstone,store_id,kind,
 values
   ('80000000-0000-4000-8000-000000000001',gen_random_uuid(),'00000000-0000-4000-8000-000000000001','gallery','Rejected storefront',statement_timestamp(),gen_random_uuid(),'image/png',1000,640,480,'quarantine/80000000-0000-4000-8000-000000000001/original','quarantine/80000000-0000-4000-8000-000000000001/derivative.webp',decode(repeat('00',32),'hex'),100000,640,480,'clean',true,true,'rejected','Image quality insufficient for storefront',statement_timestamp()),
   ('80000000-0000-4000-8000-000000000002',gen_random_uuid(),'00000000-0000-4000-8000-000000000001','gallery','Waiting review',statement_timestamp(),gen_random_uuid(),'image/png',1000,640,480,'quarantine/80000000-0000-4000-8000-000000000002/original','quarantine/80000000-0000-4000-8000-000000000002/derivative.webp',decode(repeat('00',32),'hex'),100000,640,480,'clean',true,true,'awaiting_review',null,null),
-  ('80000000-0000-4000-8000-000000000003',gen_random_uuid(),'00000000-0000-4000-8000-000000000009','gallery','Foreign rejected',statement_timestamp(),gen_random_uuid(),'image/png',1000,640,480,'quarantine/80000000-0000-4000-8000-000000000003/original','quarantine/80000000-0000-4000-8000-000000000003/derivative.webp',decode(repeat('00',32),'hex'),100000,640,480,'clean',true,true,'rejected','Foreign reason',statement_timestamp());
+  ('80000000-0000-4000-8000-000000000003',gen_random_uuid(),'00000000-0000-4000-8000-000000000009','gallery','Foreign rejected',statement_timestamp(),gen_random_uuid(),'image/png',1000,640,480,'quarantine/80000000-0000-4000-8000-000000000003/original','quarantine/80000000-0000-4000-8000-000000000003/derivative.webp',decode(repeat('00',32),'hex'),100000,640,480,'clean',true,true,'rejected','Foreign reason',statement_timestamp()),
+  ('80000000-0000-4000-8000-000000000005',gen_random_uuid(),'00000000-0000-4000-8000-000000000001','gallery','Purged rejected',statement_timestamp(),gen_random_uuid(),'image/png',1000,640,480,'quarantine/80000000-0000-4000-8000-000000000005/original','quarantine/80000000-0000-4000-8000-000000000005/derivative.webp',decode(repeat('00',32),'hex'),100000,640,480,'clean',true,true,'rejected','Purged reason',statement_timestamp());
+update media_private.media_uploads set purge_due_at=statement_timestamp() where upload_id='80000000-0000-4000-8000-000000000005';
 
 -- ---- Grant visibility checks
 select has_function('app_public','media_reserve_resubmission',array['uuid','text','uuid','boolean','text','bigint','integer','integer','text'],'media_reserve_resubmission exists');
@@ -119,50 +124,58 @@ select is(
   'same-key replay creates exactly one row');
 
 -- ---- 3. Same-key different-input fails; no extra row (idempotency is exact).
-select throws_ok($$
-  select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000001','Different corrected text','90000000-0000-4000-8000-000000000001',true,'image/png',1000,640,480,repeat('b',64))$$,
-  '22023',null,'same key against changed input fails');
+select is(
+  (app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000001','Different corrected text','90000000-0000-4000-8000-000000000001',true,'image/png',1000,640,480,repeat('b',64))->>'error'),
+  'media_unavailable','same key against changed input fails closed without a leak');
 select is(
   (select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-000000000001'),
   1,
   'same-key changed-input adds no row');
-select throws_ok($$
-  select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000001','Corrected storefront','90000000-0000-4000-8000-000000000001',true,'image/png',1000,640,480,repeat('c',64))$$,
-  '22023',null,'same key against different file content fails');
+select is(
+  (app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000001','Corrected storefront','90000000-0000-4000-8000-000000000001',true,'image/png',1000,640,480,repeat('c',64))->>'error'),
+  'media_unavailable','same key against different file content fails closed without a leak');
 
 -- ---- 4. Non-rejected original denies with no row.
-select throws_ok($$
-  select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000002','Corrected','90000000-0000-4000-8000-000000000002',true,'image/png',1000,640,480,repeat('d',64))$$,
-  '42501',null,'non-rejected original is denied');
+select is(
+  (app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000002','Corrected','90000000-0000-4000-8000-000000000002',true,'image/png',1000,640,480,repeat('d',64))->>'error'),
+  'media_unavailable','non-rejected original is denied without a leak');
 select is(
   (select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-000000000002'),
   0,
   'non-rejected original adds no row');
 
 -- ---- 5. Foreign-store rejected original is denied (no leak, no row).
-select throws_ok($$
-  select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000003','Corrected','90000000-0000-4000-8000-000000000003',true,'image/png',1000,640,480,repeat('e',64))$$,
-  '42501',null,'foreign-store rejected original is denied');
+select is(
+  (app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000003','Corrected','90000000-0000-4000-8000-000000000003',true,'image/png',1000,640,480,repeat('e',64))->>'error'),
+  'media_unavailable','foreign-store rejected original is denied without a leak');
 select is(
   (select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-000000000003'),
   0,
   'foreign-store original adds no row');
 
--- ---- 6. Invalid rights denies with no row.
-select throws_ok($$
-  select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000001','Corrected','90000000-0000-4000-8000-000000000004',false,'image/png',1000,640,480,repeat('f',64))$$,
-  '42501',null,'missing rights confirmation is denied');
+-- ---- 6. Explicit false and NULL rights both deny, persist one denial audit,
+-- ---- and never create an upload row.
+select is(
+  (app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000001','Corrected','90000000-0000-4000-8000-000000000004',false,'image/png',1000,640,480,repeat('f',64))->>'error'),
+  'media_unavailable','false rights confirmation is denied without a leaked reason');
+select is((select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-000000000004'),0,'false rights adds no row');
+select ok(exists(select 1 from media_private.media_audit_events where event_kind='media_resubmission' and upload_id='80000000-0000-4000-8000-000000000001' and outcome='denied'),'false rights denial audit persists');
+select is(
+  (app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000001','Corrected','90000000-0000-4000-8000-00000000000a',null,'image/png',1000,640,480,repeat('a',64))->>'error'),
+  'media_unavailable','NULL rights confirmation is denied');
+select is((select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-00000000000a'),0,'NULL rights adds no row');
 
 -- ---- 7. A rejected original outside the resolved grant scope denies with no row.
-select throws_ok($$
-  select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000003','Corrected','90000000-0000-4000-8000-000000000005',true,'image/png',1000,640,480,repeat('1',64))$$,
-  '42501',null,'store without an active grant is denied');
+select is(
+  (app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000003','Corrected','90000000-0000-4000-8000-000000000005',true,'image/png',1000,640,480,repeat('1',64))->>'error'),
+  'media_unavailable','store without an active grant is denied without a leak');
 
 -- ---- 8. Cover originals are never count-capped (Free cover slot rule).
 insert into media_private.media_uploads(upload_id,actor_tombstone,store_id,kind,alt_text,rights_confirmed_at,idempotency_key,source_mime,source_bytes,source_width,source_height,original_object_key,private_derivative_object_key,scan_state,metadata_stripped,reencoded,state,rejection_reason,rejected_at)
@@ -188,18 +201,40 @@ select is(
   'over-cap resubmission creates no row');
 
 -- ---- 10. Missing original denies without leaking existence.
-select throws_ok($$
-  select app_public.media_reserve_resubmission(
-    'ffffffff-ffff-4fff-8fff-ffffffffffff','Corrected','90000000-0000-4000-8000-000000000008',true,'image/png',1000,640,480,repeat('4',64))$$,
-  '42501',null,'missing original is denied without leaking existence');
+select is(
+  (app_public.media_reserve_resubmission(
+    'ffffffff-ffff-4fff-8fff-ffffffffffff','Corrected','90000000-0000-4000-8000-000000000008',true,'image/png',1000,640,480,repeat('4',64))->>'error'),
+  'media_unavailable','missing original is denied without leaking existence');
 
 -- ---- 11. A revocation record denies even if the grant row still says active.
 insert into partner_private.partner_access_revocations(grant_id,auth_user_id,store_id,reason_code,idempotency_key)
 values ('76000000-0000-4000-8000-000000000007','76000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','administrator_revoked','resubmit-revocation');
-select throws_ok($$
-  select app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000001','Corrected','90000000-0000-4000-8000-000000000009',true,'image/png',1000,640,480,repeat('5',64))$$,
-  '42501',null,'revoked grant denies resubmission');
+select is(
+  (app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000001','Corrected','90000000-0000-4000-8000-000000000009',true,'image/png',1000,640,480,repeat('5',64))->>'error'),
+  'media_unavailable','revoked grant denies resubmission without a leak');
+
+-- ---- 12. Purged and malformed requests fail closed, leave no reservation,
+-- ---- and retain only a durable generic denial audit.
+select is(
+  (app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000005','Corrected','90000000-0000-4000-8000-00000000000b',true,'image/png',1000,640,480,repeat('b',64))->>'error'),
+  'media_unavailable','purged original denies without leaking existence');
+select is((select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-00000000000b'),0,'purged original adds no row');
+select is(
+  (app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000001',' trailing ','90000000-0000-4000-8000-00000000000c',true,'image/png',1000,640,480,repeat('c',64))->>'error'),
+  'media_unavailable','malformed resubmission denies without a special response');
+select is((select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-00000000000c'),0,'malformed input adds no row');
+select ok(not exists(select 1 from media_private.media_provider_operations o join media_private.media_uploads u on u.upload_id=o.upload_id where u.idempotency_key in ('90000000-0000-4000-8000-000000000004','90000000-0000-4000-8000-00000000000a','90000000-0000-4000-8000-00000000000b','90000000-0000-4000-8000-00000000000c')),'denials create no provider operation');
+
+-- ---- 13. The live four-argument moderation path delegates gallery capacity to
+-- ---- the current resolver; 0077 separately exercises Free/Gallery/Full
+-- ---- Gallery resolver boundaries against real rows.
+select ok(
+  position('partner_private.check_store_media_cap' in pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure))>0
+  and position('active_count>=5' in replace(pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure),' ',''))=0,
+  'four-argument moderation approval has no hard-coded five-gallery cap');
 
 select * from finish();
 rollback;

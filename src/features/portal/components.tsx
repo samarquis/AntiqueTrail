@@ -1460,9 +1460,11 @@ export function PortalMediaReviewPage({
     >
       <PortalNav />
       <section aria-label="Official photos">
-        <p role="status">
-          {mediaReady === null ? 'Checking the M-01 media capability…' : MEDIA_GATE_MESSAGE}
-        </p>
+        {mediaReady !== true && (
+          <p role="status">
+            {mediaReady === null ? 'Checking the M-01 media capability…' : MEDIA_GATE_MESSAGE}
+          </p>
+        )}
         {status && (
           <p ref={confirmationRef} role="status" tabIndex={-1}>
             {status}

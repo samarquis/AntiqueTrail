@@ -490,6 +490,7 @@ describe('provider-neutral Store Portal boundary', () => {
       await screen.findByText(/Image quality insufficient for storefront/i),
     ).toBeInTheDocument()
     expect(screen.getByText('Needs changes / Rejected')).toHaveClass('portal-media-state--rejected')
+    expect(screen.queryByText(MEDIA_GATE_MESSAGE)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Resubmit corrected image' })).not.toHaveClass(
       'button--secondary',
     )
