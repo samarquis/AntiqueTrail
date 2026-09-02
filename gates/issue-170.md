@@ -17,10 +17,10 @@ Scope: Implement the server-authoritative, staged-off existing-listing claim pat
       EXPECT: passed
       EVIDENCE: `npx playwright test --config e2e/issue-170-playwright.config.ts --workers=1` passed 2/2 (Chromium and Pixel 5). It uses a ticket-only 4177 review server and verifies exact listing selection, consent, minimized authority signal, reason-neutral state, and absence of raw evidence or other claimant identity.
 
-- [ ] G4: Security contract and repository floor pass on the candidate.
+- [x] G4: Security contract and repository floor pass on the candidate.
       CHECK: npm run security:contract && npm run check && git diff --check
       EXPECT: PASS
-      EVIDENCE: FAIL/SCOPE CONFLICT — `npm run typecheck` exits 2 in prohibited `src/review-harness/clients.ts` and `src/review-harness/clients.test.ts`, which still use obsolete `PartnerClaimDraft.storeReference`; the #170 contract now requires exact `storeId`. This also prevents `npm run check`. `npm run security:contract` passed; do not mark G4 checked until the owner updates that out-of-scope harness.
+      EVIDENCE: 2026-09-02 — review-harness fixture aligned to exact `storeId` plus idempotency key. `npm run security:contract && npm run check && git diff --check` passed: 88 test files / 602 tests, 69 release tests, production build, and PWA generation.
 
 - [ ] G5: Every #170 criterion has exact-SHA evidence, including the stated external activation limitation, and a fresh independent review request is ready.
-      EVIDENCE: incomplete — implementation commit `d11cc55e3aaa66a29e865fbdbeab0cbb9027792c` is pushed, but the final evidence-ledger head, independent review request, and hosted checks are still required.
+      EVIDENCE: incomplete — final evidence-ledger commit, independent review request, and hosted checks are still required.

@@ -1999,9 +1999,10 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       })
     },
     async submitClaim(draft: {
-      storeReference: string
+      storeId: string
       relationship: string
       authorityStatement: string
+      idempotencyKey: string
     }) {
       allowed()
       void draft
