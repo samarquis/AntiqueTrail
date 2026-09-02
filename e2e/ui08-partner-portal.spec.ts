@@ -97,13 +97,13 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
     await page.getByLabel('Relationship to the store').fill('Owner')
     await page.getByLabel('Authority statement').fill('I am authorized to manage this one store.')
     await page.getByRole('button', { name: 'Submit claim' }).click()
-    await expect(page.getByRole('status')).toContainText('Claim status: submitted.')
+    await expect(page.getByText('Claim status: submitted.')).toBeVisible()
     await expect(
       page.getByText('Approved scope: this store only (Blue Finch Curios).'),
     ).toBeVisible()
     await page.getByLabel('Evidence reference').fill('published-business-contact')
     await page.getByRole('button', { name: 'Submit authority signal' }).click()
-    await expect(page.getByRole('status')).toContainText('Claim status: verification_pending.')
+    await expect(page.getByText('Claim status: verification_pending.')).toBeVisible()
     await page.getByRole('button', { name: 'Request authority recheck' }).click()
     await expect(page.getByText('Authority recheck due')).toBeVisible()
   })

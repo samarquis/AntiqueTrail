@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -227,7 +227,13 @@ describe('partner onboarding boundary', () => {
     await user.click(screen.getByRole('button', { name: /save draft/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/draft/i)
     await user.click(screen.getByRole('button', { name: /submit draft for review/i }))
-    expect(await screen.findByText(/claim status: submitted/i)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('status')
+          .some((status) => status.textContent?.includes('Draft status: submitted')),
+      ).toBe(true),
+    )
     cleanup()
     renderPage(
       <PartnerStatusPage
@@ -310,7 +316,13 @@ describe('partner onboarding boundary', () => {
       authorityStatement: 'I am authorized to maintain this store listing.',
       idempotencyKey: expect.stringMatching(/^public-claim-/),
     })
-    expect(await screen.findByRole('status')).toHaveTextContent(/submitted/i)
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('status')
+          .some((status) => status.textContent?.includes('Claim status: submitted')),
+      ).toBe(true),
+    )
     expect(screen.getByText(/does not grant access or imply endorsement/i)).toBeInTheDocument()
   })
 
@@ -326,7 +338,13 @@ describe('partner onboarding boundary', () => {
     }))
     renderPage(<PartnerClaimPage client={client({ getClaimStatus, submitAuthoritySignal })} />)
 
-    expect(await screen.findByText(/claim status: verification_pending/i)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('status')
+          .some((status) => status.textContent?.includes('Claim status: verification_pending')),
+      ).toBe(true),
+    )
     expect(screen.queryByText(/authority signals verified/i)).not.toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText(/authority signal channel/i), 'callback')
     await user.type(screen.getByLabelText(/evidence reference/i), 'case-ref-17')
