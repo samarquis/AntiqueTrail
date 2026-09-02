@@ -135,8 +135,8 @@ does not authorize merge of a refreshed head.
 - [x] C3: The refreshed candidate's database, security, plan-governance, focused Portal, and UI-08 verification pass, or each unavailable check is visibly recorded as unavailable rather than passing.
       EVIDENCE: At `baf5bebc814ee7270b7ab1dce8ec1d5e2c5aac19`: full pgTAP passed (78 files/2,173 tests); focused Portal/media Vitest passed (2 files/27 tests); `npm run security:contract` passed; plan governance passed 7/7; and isolated UI-08 exited 0 with 24 passed/6 opt-in captures skipped across desktop, tablet, and mobile.
 
-- [ ] C4: A separate agent approves the complete current-main-to-final-head diff in both standards and specification lanes, with findings/dispositions recorded under `docs/evidence/issue-123/`.
-      EVIDENCE: pending — exact-head review at `80ea71c6711a3aecffd57473ea5eddf0bc6b430d` found and reproduced one final P1 cap-error boundary defect; `baf5bebc814ee7270b7ab1dce8ec1d5e2c5aac19` requires a fresh exact-head review.
+- [x] C4: A separate agent approves the complete current-main-to-final-head diff in both standards and specification lanes, with findings/dispositions recorded under `docs/evidence/issue-123/`.
+      EVIDENCE: independent database/security and application/spec reviews approved source candidate `c21b462ded603c03f5a8c1cc3897e931b4f2e9d5`; earlier P1 findings and their repairs, final approvals, commands, and the synthetic-evidence limitation are recorded in `docs/evidence/issue-123/independent-review.md`.
 
 - [ ] C5: The final candidate includes only #123-owned changes, updates only #123's TODO row, and has a final exact-head review receipt before merge.
       EVIDENCE: pending
