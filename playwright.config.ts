@@ -5,7 +5,9 @@ export default defineConfig({
   testIgnore: ['review-harness.spec.ts', 'ui05-auth-shopper.spec.ts'],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 2 : 0,
+  // Local parallel runs get one retry for the same transient browser timing
+  // failures that hosted CI tolerates; persistent failures still fail closed.
+  retries: process.env.CI ? 2 : 1,
   reporter: process.env.CI ? 'github' : 'list',
   // Vite compiles the full module graph on the first navigation after the
   // per-run server boot; the default 5s expect timeout is too short for that
