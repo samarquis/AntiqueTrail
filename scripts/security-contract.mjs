@@ -36,6 +36,26 @@ const TEXT_EXTENSIONS = new Set([
   '.yml',
 ])
 
+// Retired photo-tier vocabulary (featured/unlimited) must not return to live
+// source. Immutable migrations and the 0077 compatibility boundary stay
+// excluded because their legacy text is the tested conversion contract; the
+// StorePhotosPage exception is a documented photo-tile layout Set, not tier
+// vocabulary (gates/issue-174.md G1/G8).
+const LIVE_SOURCE_PREFIXES = ['src/', 'supabase/functions/', 'e2e/']
+const TIER_VOCABULARY_FILE_EXCEPTIONS = new Set(['src/features/catalog/StorePhotosPage.tsx'])
+const RETIRED_TIER_VOCABULARY = /featured|unlimited/iu
+
+export function findRetiredTierVocabularyFindings(entries) {
+  const findings = []
+  for (const { path, text } of entries) {
+    if (!LIVE_SOURCE_PREFIXES.some((prefix) => path.startsWith(prefix))) continue
+    if (TIER_VOCABULARY_FILE_EXCEPTIONS.has(path)) continue
+    if (RETIRED_TIER_VOCABULARY.test(text))
+      findings.push(`${path}: retired tier vocabulary featured|unlimited`)
+  }
+  return findings
+}
+
 const SECRET_PATTERNS = [
   ['private key', /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u],
   ['AWS access key', /\bAKIA[0-9A-Z]{16}\b/u],
@@ -110,6 +130,7 @@ export function runSecurityContract(paths = trackedFiles()) {
     ...findLicenseFindings(JSON.parse(readFileSync('package-lock.json', 'utf8'))),
     ...findUnpinnedActions(entries.filter(({ path }) => path.startsWith('.github/workflows/'))),
     ...findMigrationVersionFindings(paths),
+    ...findRetiredTierVocabularyFindings(entries),
   ]
 }
 
@@ -119,6 +140,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.error(findings.join('\n'))
     process.exitCode = 1
   } else {
-    console.log('Security contract checks passed: secrets, licenses, action pins, migrations.')
+    console.log(
+      'Security contract checks passed: secrets, licenses, action pins, migrations, tier vocabulary.',
+    )
   }
 }

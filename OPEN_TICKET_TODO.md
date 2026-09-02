@@ -21,8 +21,8 @@ Do not reorder the list because another ticket looks easier. If the first unchec
 
 - [x] 01. #142 — COMPLETE IN PR #166 — Semantic color-token implementation conformance. Dependencies: none.
 - [x] 02. #125 — COMPLETE IN PR #185 — Minimize the Portal media-history response. Dependencies: none; sequenced after #142 to keep one implementation lane.
-- [x] 03. #174 — COMPLETE IN PR #186 — Migrate tier names, stored state, and server cap authority to Free/Gallery/Full Gallery. Dependencies: #125.
-- [ ] 04. #123 — Complete rejected-media resubmission against the current server tier resolver. Dependencies: #125 and #174.
+- [x] 03. #174 — COMPLETE IN PR #193 — Migrate tier names, stored state, and server cap authority to Free/Gallery/Full Gallery; repair PR #193 retires the Featured/Unlimited billing vocabulary (priceGallery/priceFullGallery, STRIPE_PRICE_GALLERY/STRIPE_PRICE_FULL_GALLERY) from live source per the retrospective review. Dependencies: #125.
+- [!] 04. #123 — Complete rejected-media resubmission against the current server tier resolver. Dependencies: #125 and #174. BLOCKED 2026-08-31 — #174 must close with merged evidence; evidence: https://github.com/samarquis/AntiqueTrail/issues/123#issuecomment-5485059361
 - [ ] 05. #124 — Prove the media-history/resubmit/current-tier contract in pgTAP. Dependencies: #125, #174, and #123.
 - [ ] 06. #126 — Reconcile media issue/evidence truth after the final #125/#174/#123/#124 outcomes are known. Dependencies: #125, #174, #123, and #124.
 - [ ] 07. #182 — Add dated successor mappings to historical Package 6/10A/10B/13 issues and reconcile current ledgers. Dependencies: successor issues #168–#181 exist; no implementation dependency.

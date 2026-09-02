@@ -2,8 +2,8 @@ export interface BillingProviderEnv {
   appOrigin?: string
   secretKey?: string
   webhookSecret?: string
-  priceFeatured?: string
-  priceUnlimited?: string
+  priceGallery?: string
+  priceFullGallery?: string
   providerGateAccepted: boolean
 }
 
@@ -12,8 +12,8 @@ export function loadBillingProviderEnv(): BillingProviderEnv {
     appOrigin: Deno.env.get('APP_ORIGIN'),
     secretKey: Deno.env.get('STRIPE_SECRET_KEY'),
     webhookSecret: Deno.env.get('STRIPE_WEBHOOK_SECRET'),
-    priceFeatured: Deno.env.get('STRIPE_PRICE_FEATURED'),
-    priceUnlimited: Deno.env.get('STRIPE_PRICE_UNLIMITED'),
+    priceGallery: Deno.env.get('STRIPE_PRICE_GALLERY'),
+    priceFullGallery: Deno.env.get('STRIPE_PRICE_FULL_GALLERY'),
     providerGateAccepted: Deno.env.get('BILLING_PROVIDER_GATE_ACCEPTED') === 'true',
   }
 }
