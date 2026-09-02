@@ -78,6 +78,8 @@ import {
 import {
   AccessSafetyPage,
   AdminGuard,
+  AdminMorePage,
+  AdminPrimaryNavigation,
   ReviewQueuePage,
   adminSessionFromAuth,
   unavailableAdminClient,
@@ -220,10 +222,7 @@ function AppShell({
         </Link>
         <nav aria-label="Primary navigation">
           {adminNav ? (
-            <>
-              <NavLink to="/admin">Review</NavLink>
-              <NavLink to="/admin/access">Access</NavLink>
-            </>
+            <AdminPrimaryNavigation />
           ) : (
             <>
               <NavLink to="/stores">
@@ -250,25 +249,27 @@ function AppShell({
               </NavLink>
             </>
           )}
-          <Link to="/more" aria-current={moreIsCurrent ? 'page' : undefined}>
-            <svg
-              className="nav-icon"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path
-                d="M4 6h16M4 12h16M4 18h16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-            More
-          </Link>
+          {!adminNav && (
+            <Link to="/more" aria-current={moreIsCurrent ? 'page' : undefined}>
+              <svg
+                className="nav-icon"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M4 6h16M4 12h16M4 18h16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              More
+            </Link>
+          )}
         </nav>
         <ThemeToggle />
       </header>
@@ -1065,6 +1066,17 @@ export default function App({
                 registry={runtime.sessionRegistry}
               >
                 <AccessSafetyPage client={adminClient} />
+              </AuthenticatedAdminGuard>
+            }
+          />
+          <Route
+            path="/admin/more"
+            element={
+              <AuthenticatedAdminGuard
+                override={runtime.adminSession}
+                registry={runtime.sessionRegistry}
+              >
+                <AdminMorePage />
               </AuthenticatedAdminGuard>
             }
           />
