@@ -204,6 +204,65 @@ button:disabled,
   background: var(--danger-hover);
 }
 
+/* #140 moderation single CTA + consequence preview: layout only, colors derive from
+   shared button tokens (all four dispositions stay neutral; Confirm is the one filled CTA). */
+.moderation-choice {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  text-align: left;
+}
+
+.moderation-choice__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.moderation-choice__desc {
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+}
+
+.moderation-hint {
+  margin: 0.25rem 0;
+  color: var(--muted);
+  font-size: var(--type-size-supporting);
+}
+
+.moderation-confirm {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface-chrome);
+}
+
+.moderation-preview {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 0 1rem;
+}
+
+.moderation-preview > div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.moderation-preview dt {
+  font-weight: var(--type-weight-strong);
+}
+
+.moderation-preview dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+.moderation-outcome:focus-visible {
+  outline: 2px solid var(--focus-outer);
+  outline-offset: 4px;
+}
+
 .memory-delete-actions {
   display: flex;
   flex-wrap: wrap;

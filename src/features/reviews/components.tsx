@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   GENERIC_REVIEW_ERROR,
@@ -9,6 +9,10 @@ import {
   conflictLabel,
   formatConflict,
   isReviewCapabilityEnabled,
+  moderationButtonLabel,
+  moderationChoiceConsequence,
+  moderationPreview,
+  moderationResultState,
   publicReviewCard,
   unavailableReviewClient,
   validateReviewDraft,
@@ -521,10 +525,6 @@ export function PublicReviewsPage({
   )
 }
 
-function moderationButtonLabel(action: ModerationAction): string {
-  return action === 'dismiss_report' ? 'Dismiss Report' : action[0].toUpperCase() + action.slice(1)
-}
-
 export function ModerationQueuePage({
   client = unavailableReviewClient,
 }: {
@@ -538,7 +538,10 @@ export function ModerationQueuePage({
     item: ModerationCase
     action: ModerationAction
   } | null>(null)
+  const [decisionError, setDecisionError] = useState(false)
   const [resolved, setResolved] = useState<ModerationCase | null>(null)
+  const decisionErrorRef = useRef<HTMLParagraphElement>(null)
+  const outcomeRef = useRef<HTMLElement>(null)
   useEffect(() => {
     client
       .listModerationCases()
@@ -551,6 +554,12 @@ export function ModerationQueuePage({
         setLoaded(true)
       })
   }, [client])
+  useEffect(() => {
+    if (decisionError) decisionErrorRef.current?.focus()
+  }, [decisionError])
+  useEffect(() => {
+    if (resolved) outcomeRef.current?.focus()
+  }, [resolved])
   function decide(item: ModerationCase, action: ModerationAction) {
     const decision = {
       action,
@@ -565,9 +574,25 @@ export function ModerationQueuePage({
         setCases((current) =>
           current.map((candidate) => (candidate.id === next.id ? next : candidate)),
         )
+        setPendingDecision(null)
+        setDecisionError(false)
         setResolved(next)
       })
-      .catch(() => setError(true))
+      .catch(() => {
+        setDecisionError(true)
+      })
+  }
+  function moderationChoiceGlyph(action: ModerationAction): string {
+    switch (action) {
+      case 'hold':
+        return '◔'
+      case 'remove':
+        return '✕'
+      case 'restore':
+        return '↻'
+      case 'dismiss_report':
+        return '○'
+    }
   }
   return (
     <ReviewCard
@@ -576,17 +601,23 @@ export function ModerationQueuePage({
     >
       {error && <GenericReviewError />}
       {resolved && (
-        <section aria-label="Resolved moderation outcome">
-          <p role="status">Author notice is queued; the review is {resolved.state}.</p>
-          <p>
-            Public aggregate result: this moderation decision is reflected according to the review
-            rules.
+        <section
+          className="moderation-outcome"
+          aria-label="Resolved moderation outcome"
+          ref={outcomeRef}
+          tabIndex={-1}
+        >
+          <p role="status">
+            Review {resolved.id} is now {resolved.state}. Author notice is queued; the store average
+            reflects this decision. Your reason was kept on the case and appended to the audit
+            record.
           </p>
-          <button type="button" onClick={() => setResolved(null)}>
+          <p>Public aggregate result: the store average reflects this decision.</p>
+          <button type="button" className="button--secondary" onClick={() => setResolved(null)}>
             Back to Queue
           </button>{' '}
           {cases.some((item) => item.id !== resolved.id) && (
-            <button type="button" onClick={() => setResolved(null)}>
+            <button type="button" className="button--secondary" onClick={() => setResolved(null)}>
               Review Next
             </button>
           )}
@@ -598,62 +629,116 @@ export function ModerationQueuePage({
         <p>No assigned moderation cases.</p>
       ) : (
         <ul aria-label="Moderation cases">
-          {cases.map((item) => (
-            <li key={item.id}>
-              <article>
-                <h2>Case {item.id}</h2>
-                <p>
-                  Store scope: {item.storeId} · State: {item.state}
-                </p>
-                <p>Reason: {item.reasonCode ?? 'Unspecified report'}</p>
-                <ul>
-                  {item.evidence.map((evidence) => (
-                    <li key={`${item.id}-${evidence.kind}`}>
-                      {evidence.kind}: {evidence.value}
-                    </li>
-                  ))}
-                </ul>
-                <label htmlFor={`moderation-reason-${item.id}`}>Decision reason</label>
-                <textarea
-                  id={`moderation-reason-${item.id}`}
-                  value={reason[item.id] ?? ''}
-                  onChange={(event) => setReason({ ...reason, [item.id]: event.target.value })}
-                />
-                {(['hold', 'remove', 'restore', 'dismiss_report'] as ModerationAction[]).map(
-                  (action) => (
-                    <button
-                      key={action}
-                      type="button"
-                      disabled={!reason[item.id]?.trim()}
-                      onClick={() => setPendingDecision({ item, action })}
+          {cases.map((item) => {
+            const preview =
+              pendingDecision?.item.id === item.id &&
+              moderationPreview(pendingDecision.action, item.state)
+            const action = pendingDecision?.item.id === item.id ? pendingDecision.action : null
+            return (
+              <li key={item.id}>
+                <article>
+                  <h2>Case {item.id}</h2>
+                  <p>
+                    Store scope: {item.storeId} · State: {item.state}
+                  </p>
+                  <p>Reason: {item.reasonCode ?? 'Unspecified report'}</p>
+                  <ul>
+                    {item.evidence.map((evidence) => (
+                      <li key={`${item.id}-${evidence.kind}`}>
+                        {evidence.kind}: {evidence.value}
+                      </li>
+                    ))}
+                  </ul>
+                  <label htmlFor={`moderation-reason-${item.id}`}>Decision reason</label>
+                  <textarea
+                    id={`moderation-reason-${item.id}`}
+                    value={reason[item.id] ?? ''}
+                    onChange={(event) => setReason({ ...reason, [item.id]: event.target.value })}
+                  />
+                  <p className="moderation-hint">
+                    Enter a decision reason, then choose an action to see its exact consequence.
+                  </p>
+                  {(['hold', 'remove', 'restore', 'dismiss_report'] as ModerationAction[]).map(
+                    (choice) => (
+                      <button
+                        key={choice}
+                        type="button"
+                        className="button--secondary moderation-choice"
+                        disabled={!reason[item.id]?.trim()}
+                        onClick={() => setPendingDecision({ item, action: choice })}
+                      >
+                        <span className="moderation-choice__name">
+                          <span aria-hidden="true">{moderationChoiceGlyph(choice)}</span>{' '}
+                          {moderationButtonLabel(choice)}
+                        </span>
+                        <span className="moderation-choice__desc">
+                          {moderationChoiceConsequence(choice)}
+                        </span>
+                      </button>
+                    ),
+                  )}
+                  {preview && action && (
+                    <section
+                      aria-label="Confirm moderation decision"
+                      className="moderation-confirm"
                     >
-                      {moderationButtonLabel(action)}
-                    </button>
-                  ),
-                )}
-                {pendingDecision?.item.id === item.id && (
-                  <section aria-label="Confirm moderation decision">
-                    <p>
-                      Confirm {moderationButtonLabel(pendingDecision.action)}: this changes the
-                      review’s public moderation state and appends your reason to the audit record.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        decide(item, pendingDecision.action)
-                        setPendingDecision(null)
-                      }}
-                    >
-                      Confirm {moderationButtonLabel(pendingDecision.action)}
-                    </button>{' '}
-                    <button type="button" onClick={() => setPendingDecision(null)}>
-                      Cancel moderation decision
-                    </button>
-                  </section>
-                )}
-              </article>
-            </li>
-          ))}
+                      <p>
+                        Confirm {moderationButtonLabel(action)}: this changes the review’s public
+                        moderation state to {moderationResultState(action)}. The preview below shows
+                        the exact consequence of this action.
+                      </p>
+                      <dl className="moderation-preview">
+                        <div>
+                          <dt>Case transition</dt>
+                          <dd>{preview.transition}</dd>
+                        </div>
+                        <div>
+                          <dt>Public aggregate effect</dt>
+                          <dd>{preview.aggregateEffect}</dd>
+                        </div>
+                        <div>
+                          <dt>Author notice</dt>
+                          <dd>{preview.authorNotice}</dd>
+                        </div>
+                        <div>
+                          <dt>Reason and audit</dt>
+                          <dd>{preview.reasonAndAudit}</dd>
+                        </div>
+                        <div>
+                          <dt>Reversibility</dt>
+                          <dd>{preview.reversibility}</dd>
+                        </div>
+                      </dl>
+                      {decisionError && (
+                        <p role="alert" ref={decisionErrorRef} tabIndex={-1}>
+                          This decision could not be completed. Your reason is kept. Review the
+                          preview and try again.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        className={`button${action === 'remove' ? ' button--danger' : ''}`}
+                        onClick={() => decide(item, action)}
+                      >
+                        Confirm {moderationButtonLabel(action)}
+                      </button>{' '}
+                      <button
+                        type="button"
+                        className="button--secondary"
+                        onClick={() => {
+                          setPendingDecision(null)
+                          setDecisionError(false)
+                          document.getElementById(`moderation-reason-${item.id}`)?.focus()
+                        }}
+                      >
+                        Change decision
+                      </button>
+                    </section>
+                  )}
+                </article>
+              </li>
+            )
+          })}
         </ul>
       )}
     </ReviewCard>

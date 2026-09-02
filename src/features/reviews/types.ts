@@ -107,6 +107,14 @@ export interface ModerationDecisionInput {
   recentAuthAt: string | null
 }
 
+export interface ModerationConsequencePreview {
+  transition: string
+  aggregateEffect: string
+  authorNotice: string
+  reasonAndAudit: string
+  reversibility: string
+}
+
 export type RestrictionLevel = 'notice_only' | 'thirty_days' | 'ninety_days' | 'one_eighty_days'
 
 export interface FeatureRestriction {

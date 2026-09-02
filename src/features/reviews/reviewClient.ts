@@ -1,5 +1,8 @@
 import type {
   FeatureRestriction,
+  ModerationAction,
+  ModerationCaseState,
+  ModerationConsequencePreview,
   PublicReview,
   ReviewCapability,
   ReviewClient,
@@ -339,4 +342,74 @@ export function canUndoReviewDeletion(
 
 export function formatConflict(conflict: ReviewConflict): string {
   return conflictLabel(conflict) ?? 'No material conflict disclosed.'
+}
+
+export function moderationButtonLabel(action: ModerationAction): string {
+  return action === 'dismiss_report' ? 'Dismiss Report' : action[0].toUpperCase() + action.slice(1)
+}
+
+export function moderationResultState(action: ModerationAction): ModerationCaseState {
+  switch (action) {
+    case 'hold':
+      return 'held'
+    case 'remove':
+      return 'removed'
+    case 'restore':
+      return 'restored'
+    case 'dismiss_report':
+      return 'dismissed'
+  }
+}
+
+export function moderationChoiceConsequence(action: ModerationAction): string {
+  switch (action) {
+    case 'hold':
+      return 'Hides the review and removes it from the store average.'
+    case 'remove':
+      return 'Removes the review from the store page and model.'
+    case 'restore':
+      return 'Republishes the review only if it still passes eligibility.'
+    case 'dismiss_report':
+      return 'Closes this report without changing the review.'
+  }
+}
+
+export function moderationPreview(
+  action: ModerationAction,
+  currentState: ModerationCaseState,
+): ModerationConsequencePreview {
+  let aggregateEffect: string
+  let authorNotice: string
+  let reversibility: string
+  switch (action) {
+    case 'hold':
+    case 'remove':
+      aggregateEffect = 'The review is hidden and dropped from the store average immediately.'
+      authorNotice = 'A notice to the author is queued.'
+      reversibility =
+        action === 'hold'
+          ? 'Reversible later with a Restore decision.'
+          : 'Reversible through a single appeal by a different moderator within a 30-day window.'
+      break
+    case 'restore':
+      aggregateEffect =
+        'The review is republished and the store average is recomputed only if it still passes eligibility.'
+      authorNotice = 'A republish notice to the author is queued.'
+      reversibility =
+        'The review returns to the normal published lifecycle and may be moderated again.'
+      break
+    case 'dismiss_report':
+      aggregateEffect = 'No change to the review or the store average.'
+      authorNotice = 'No author notice is sent.'
+      reversibility = 'The report is closed; a new report can open a fresh case.'
+      break
+  }
+  return {
+    transition: `${currentState} → ${moderationResultState(action)}`,
+    aggregateEffect,
+    authorNotice,
+    reasonAndAudit:
+      'Your reason is kept on this case and appended to the append-only audit record.',
+    reversibility,
+  }
 }
