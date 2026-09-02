@@ -125,18 +125,18 @@ does not authorize merge of a refreshed head.
 - [x] C1: The branch incorporates current `main` and records its exact refreshed candidate SHA.
       CHECK: git merge-base --is-ancestor 36b66c9530eaf28ac5cd3749523a1b012ab3704e HEAD
       EXPECT: exit 0
-      EVIDENCE: `d9abfef882c77f012566442871b6bebf53856a4f` merges `main` commit `36b66c9530eaf28ac5cd3749523a1b012ab3704e`; rerun at source candidate `c0a68649ab665f62d05ffe043177b62e83d13b77` exited 0.
+      EVIDENCE: `d9abfef882c77f012566442871b6bebf53856a4f` merges `main` commit `36b66c9530eaf28ac5cd3749523a1b012ab3704e`; rerun at active source candidate `cac3c0e66d05ad74258df9be6754eb0cc0a1b788` exited 0.
 
 - [x] C2: The issue's required local verification passes on the refreshed candidate, with exact output and SHA recorded.
       CHECK: npm run check
       EXPECT: built in
-      EVIDENCE: At `c0a68649ab665f62d05ffe043177b62e83d13b77`, `npm run check` exited 0: typecheck, eslint, repository-wide Prettier, Vitest (88 files/610 tests), release tests (69/69), and production build all passed.
+      EVIDENCE: At `cac3c0e66d05ad74258df9be6754eb0cc0a1b788`, `npm run check` exited 0: typecheck, eslint, repository-wide Prettier, Vitest (88 files/612 tests), release tests (69/69), and production build all passed.
 
 - [x] C3: The refreshed candidate's database, security, plan-governance, focused Portal, and UI-08 verification pass, or each unavailable check is visibly recorded as unavailable rather than passing.
-      EVIDENCE: At `c0a68649ab665f62d05ffe043177b62e83d13b77`: full local pgTAP exited 0 (78 files/2,170 tests); focused Portal/media Vitest passed (4 files/38 tests); `npm run security:contract` passed; `node --test scripts/plan-governance-contract.test.mjs` passed 7/7; and `npx playwright test --config=playwright.review.config.ts e2e/ui08-partner-portal.spec.ts` exited 0 with 24 passed/6 opt-in evidence captures skipped across desktop, tablet, and mobile.
+      EVIDENCE: At `cac3c0e66d05ad74258df9be6754eb0cc0a1b788`: clean local reset and full pgTAP passed (78 files/2,173 tests); focused Portal/media Vitest passed (3 files/31 tests); `npm run security:contract` passed; `node --test scripts/plan-governance-contract.test.mjs` passed 7/7; and isolated `npx playwright test --config=playwright.review.config.ts e2e/ui08-partner-portal.spec.ts` exited 0 with 24 passed/6 opt-in evidence captures skipped across desktop, tablet, and mobile.
 
 - [ ] C4: A separate agent approves the complete current-main-to-final-head diff in both standards and specification lanes, with findings/dispositions recorded under `docs/evidence/issue-123/`.
-      EVIDENCE: pending
+      EVIDENCE: pending — independent reviews at `a0e5be15151f3c078c7eefe6a2bae466722d1cc0` found three P1 defects; `b7cf2f2cad595a7916a117ea7691224c746a01b1` requires a fresh exact-head review.
 
 - [ ] C5: The final candidate includes only #123-owned changes, updates only #123's TODO row, and has a final exact-head review receipt before merge.
       EVIDENCE: pending
