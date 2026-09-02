@@ -588,6 +588,7 @@ describe('provider-neutral Store Portal boundary', () => {
                   altText: 'Old exterior',
                   state: 'rejected' as const,
                   rejectionReason: 'Image quality insufficient for storefront',
+                  submittedAt: '2026-08-03',
                 },
               ],
             })),
@@ -609,7 +610,9 @@ describe('provider-neutral Store Portal boundary', () => {
     await user.clear(altText)
     await user.type(altText, 'Corrected exterior')
     fireEvent.click(screen.getByLabelText(/rights to publish this corrected image/i))
-    fireEvent.submit(screen.getByRole('button', { name: 'Submit corrected image' }).closest('form')!)
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'Submit corrected image' }).closest('form')!,
+    )
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Gallery capacity is reached. Upgrade to add more photos.',
     )
