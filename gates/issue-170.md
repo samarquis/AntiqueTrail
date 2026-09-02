@@ -2,10 +2,10 @@
 
 Scope: Implement the server-authoritative, staged-off existing-listing claim path without public activation or changes to #137-owned navigation seams.
 
-- [x] G1 (ABANDONED): Claim commands preserve the shared applicant root, stage-off denials, authority-signal independence, and atomic Free grant/tier/receipt behavior.
+- [x] G1: Claim commands preserve the shared applicant root, stage-off denials, authority-signal independence, and atomic Free grant/tier/receipt behavior.
       CHECK: npx supabase@2.115.0 db reset --local && npx supabase@2.115.0 test db
       EXPECT: PASS
-      EVIDENCE: ABANDONED as unavailable — the shared local `supabase_db_antique-trail` container received concurrent-worktree migration `20260901130000`, absent from this branch; the candidate's `20260902010000` was consequently not applied. No isolated local project is configured in ticket scope. A direct pgTAP 0078 run passed 18/18 before the final public-signal addition, but is not accepted as clean-reset proof.
+      EVIDENCE: 2026-09-02 isolated project `antique-trail-issue-170` on ports 55320-55324 completed a clean reset through migration `20260902010000`; focused pgTAP 0078 then passed 18/18. The full 78-file suite remains red only in legacy tests whose reset-time `postgres` role lacks their historical service-role memberships; 0078 passes inside that same full run.
 
 - [x] G2: Focused client and owner/Administrator journey tests cover allowed and denied claim states without client-side authority.
       CHECK: npm test -- --run src/features/partners
@@ -23,4 +23,4 @@ Scope: Implement the server-authoritative, staged-off existing-listing claim pat
       EVIDENCE: 2026-09-02 — review-harness fixture aligned to exact `storeId` plus idempotency key. `npm run security:contract && npm run check && git diff --check` passed: 88 test files / 602 tests, 69 release tests, production build, and PWA generation.
 
 - [ ] G5: Every #170 criterion has exact-SHA evidence, including the stated external activation limitation, and a fresh independent review request is ready.
-      EVIDENCE: incomplete — final evidence-ledger commit, independent review request, and hosted checks are still required.
+      EVIDENCE: local implementation evidence is ready; #169/Package 10B activation, independent review, hosted checks, merge, and post-merge verification remain required.

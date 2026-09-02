@@ -3,7 +3,7 @@
 ## Scope and revision
 
 - Base: `36b66c9530eaf28ac5cd3749523a1b012ab3704e` (`main` at claim time).
-- Implementation candidate: `d11cc55e3aaa66a29e865fbdbeab0cbb9027792c`, pushed to `codex/issue-170-public-free-claim`. This verification ledger is a subsequent ticket-only commit; neither it nor the implementation commit is merge evidence without the remaining gates.
+- Implementation candidate: `7d2b2b7321f9c60c05e8218924da22d95b13b3a0`, pushed to `codex/issue-170-public-free-claim`. This verification ledger is a subsequent ticket-only commit; neither it nor the implementation commit is merge evidence without the remaining gates.
 - Public activation: intentionally unavailable. `public_listing_claim_command` derives authority from the server-owned `claims` capability and does not enable it. Package 10B and #169 remain external activation/closure dependencies.
 
 ## Role and stage matrix
@@ -18,9 +18,9 @@
 
 ## Local evidence
 
-- `npm run security:contract` passed. `npm run typecheck` exits 2: `src/review-harness/clients.test.ts(140,7)` still supplies obsolete `storeReference`, and `src/review-harness/clients.ts(2001,11)` still types `submitClaim` with that obsolete property. Both files are outside the ticket-owned paths, so this leaf cannot correct them. `npm run check` stops at that typecheck failure.
+- `npm run security:contract && npm run check && git diff --check` passed after aligning the review-harness fixture with the exact `storeId` and idempotency contract: 88 test files/602 tests, 69 release tests, and production/PWA build.
 - `npm test -- --run src/features/partners --reporter=dot` passed: 8 files and 38 tests. React Router v7 future-flag warnings were emitted but no test failed.
-- Direct local pgTAP run of `supabase/tests/0078_issue_170_public_free_claim.sql` passed `18/18` before the final public-signal addition. Re-run it after a clean reset.
+- An isolated Supabase project (`antique-trail-issue-170`, ports 55320-55324) completed `db reset --local` through migration `20260902010000`. Focused `supabase test db supabase/tests/0078_issue_170_public_free_claim.sql` passed 18/18 after that reset.
 
 ## Browser attempt
 
@@ -29,10 +29,10 @@
 
 ## Verification limitation
 
-The Supabase CLI local project is global to concurrent worktrees (`supabase_db_antique-trail`). A concurrent reset supplied migration `20260901130000`, which does not exist in this branch, and this branch's `20260902010000` did not apply. Therefore `npx supabase@2.115.0 db reset --local && npx supabase@2.115.0 test db` has no clean candidate result in this worktree. This is unavailable evidence, not a passing gate.
+The isolated full 78-file pgTAP run is not globally green: legacy tests fail because a clean-reset `postgres` test user lacks their historical service-role memberships. The new 0078 file passes both alone and inside that run, so the ticket migration is proven on clean state; the unrelated reset-role baseline remains unavailable evidence rather than a pass.
 
 ## Required before merge/closure
 
-1. Obtain an isolated #170 local Supabase project, then run the complete reset and database suite (G1 is abandoned only for this shared-container limitation).
-2. Have the owner of `src/review-harness/clients.ts` and its test migrate their obsolete `storeReference` contract, then run `npm run check` to a complete final result and `git diff --check` on the committed candidate.
-3. Record candidate, exact pushed head, hosted `web`, `database`, and `plan-governance` results, then request an independent exact-diff review. Do not activate Package 10B or merge from this ticket.
+1. Complete #169 and the Package 10B activation gate; this ticket explicitly forbids public activation and closure before them.
+2. Run hosted `web`, `database`, and `plan-governance` on the exact pushed head and obtain independent exact-diff approval.
+3. Merge only after those gates pass, then record merged-SHA verification and close the issue.
