@@ -210,7 +210,8 @@ export function createPortalClient(
         )
           throw new Error(GENERIC_PORTAL_ERROR)
         return { newUploadId: receipt.uploadId, state: receipt.state }
-      } catch {
+      } catch (error) {
+        if (error instanceof PortalMediaCapError) throw error
         throw new Error(GENERIC_PORTAL_ERROR)
       }
     },

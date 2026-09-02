@@ -247,6 +247,21 @@ describe('production portal client', () => {
         message: 'Gallery capacity is reached. Upgrade to add more photos.',
       }),
     )
+    const client = createPortalClient({ rpc: vi.fn() }, () => [], transport)
+    await expect(
+      client.resubmitMedia({
+        originalUploadId: '33333333-3333-4333-8333-333333333333',
+        file: new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
+        altText: 'Replacement',
+        rightsConfirmed: true,
+        idempotencyKey: '22222222-2222-4222-8222-222222222222',
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: PortalMediaCapError.name,
+        message: 'Gallery capacity is reached. Upgrade to add more photos.',
+      }),
+    )
   })
 
   it('omits client store authority and kind from a resubmission transport body', async () => {
