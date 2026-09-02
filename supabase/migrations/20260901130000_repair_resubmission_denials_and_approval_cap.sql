@@ -60,6 +60,8 @@ begin
   end if;
   v_source_digest:=decode(p_source_digest,'hex');
 
+  -- Serialize every reuse of one actor-owned idempotency key before lookup.
+  perform pg_advisory_xact_lock(hashtextextended(actor::text||':'||p_idempotency_key::text,0));
   select * into existing from media_private.media_uploads
     where actor_user_id=actor and idempotency_key=p_idempotency_key;
   if found then

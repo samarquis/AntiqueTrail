@@ -28,6 +28,13 @@ export const MEDIA_GATE_MESSAGE =
   'Official images and screenshots are disabled until the M-01 media gate passes.'
 export const RECENT_AUTH_WINDOW_MS = 10 * 60 * 1000
 
+export class PortalMediaCapError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'PortalMediaCapError'
+  }
+}
+
 type PortalRpcName =
   | 'portal_get_home'
   | 'portal_get_hours'
@@ -102,13 +109,30 @@ export function createPortalMediaHttpTransport(options: {
           redirect: 'error',
           referrerPolicy: 'no-referrer',
         })
-        if (!response.ok || !response.headers.get('content-type')?.includes('application/json'))
+        if (!response.headers.get('content-type')?.includes('application/json'))
           throw new Error(GENERIC_PORTAL_ERROR)
-        const result = (await response.json()) as { uploadId?: unknown; state?: unknown }
+        const result = (await response.json()) as {
+          error?: unknown
+          message?: unknown
+          uploadId?: unknown
+          state?: unknown
+        }
+        if (!response.ok) {
+          if (
+            response.status === 409 &&
+            result.error === 'media_cap_exceeded' &&
+            typeof result.message === 'string' &&
+            result.message.length > 0 &&
+            result.message.length <= 240
+          )
+            throw new PortalMediaCapError(result.message)
+          throw new Error(GENERIC_PORTAL_ERROR)
+        }
         if (typeof result.uploadId !== 'string' || result.state !== 'awaiting_review')
           throw new Error(GENERIC_PORTAL_ERROR)
         return { uploadId: result.uploadId, state: result.state }
-      } catch {
+      } catch (error) {
+        if (error instanceof PortalMediaCapError) throw error
         throw new Error(GENERIC_PORTAL_ERROR)
       }
     },
@@ -154,7 +178,8 @@ export function createPortalClient(
         )
           throw new Error(GENERIC_PORTAL_ERROR)
         return receipt
-      } catch {
+      } catch (error) {
+        if (error instanceof PortalMediaCapError) throw error
         throw new Error(GENERIC_PORTAL_ERROR)
       }
     },

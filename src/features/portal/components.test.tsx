@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  GENERIC_PORTAL_ERROR,
   MEDIA_GATE_MESSAGE,
+  PortalMediaCapError,
   copyHoursDay,
   derivePortalFreshness,
   sanitizeDiagnostics,
@@ -569,5 +571,48 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(resubmitMedia.mock.calls[1][0].idempotencyKey).toBe(
       resubmitMedia.mock.calls[0][0].idempotencyKey,
     )
+  })
+
+  it('keeps the approved media-cap guidance actionable instead of flattening it to a portal error', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <PortalControlledChangesPage
+          client={client({
+            getMediaCapability: vi.fn(async () => ({ enabled: true, source: 'server' as const })),
+            listMediaUploads: vi.fn(async () => ({
+              uploads: [
+                {
+                  uploadId: '33333333-3333-4333-8333-333333333333',
+                  kind: 'gallery' as const,
+                  altText: 'Old exterior',
+                  state: 'rejected' as const,
+                  rejectionReason: 'Image quality insufficient for storefront',
+                },
+              ],
+            })),
+            resubmitMedia: vi.fn(async () => {
+              throw new PortalMediaCapError(
+                'Gallery capacity is reached. Upgrade to add more photos.',
+              )
+            }),
+          })}
+        />
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('button', { name: 'Resubmit corrected image' }))
+    await user.upload(
+      screen.getByLabelText('Corrected image file'),
+      new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
+    )
+    const altText = screen.getByLabelText('Alternative text for corrected image')
+    await user.clear(altText)
+    await user.type(altText, 'Corrected exterior')
+    fireEvent.click(screen.getByLabelText(/rights to publish this corrected image/i))
+    fireEvent.submit(screen.getByRole('button', { name: 'Submit corrected image' }).closest('form')!)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Gallery capacity is reached. Upgrade to add more photos.',
+    )
+    expect(screen.queryByText(GENERIC_PORTAL_ERROR)).not.toBeInTheDocument()
   })
 })

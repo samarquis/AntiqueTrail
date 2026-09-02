@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(37);
+select plan(40);
 
 -- ---- Fixture: actor with active session/MFA and one exact grant on store 1.
 insert into app_public.catalog_areas(id,slug,label,state_code,sort_order)
@@ -206,27 +206,29 @@ select is(
     'ffffffff-ffff-4fff-8fff-ffffffffffff','Corrected','90000000-0000-4000-8000-000000000008',true,'image/png',1000,640,480,repeat('4',64))->>'error'),
   'media_unavailable','missing original is denied without leaking existence');
 
--- ---- 11. A revocation record denies even if the grant row still says active.
-insert into partner_private.partner_access_revocations(grant_id,auth_user_id,store_id,reason_code,idempotency_key)
-values ('76000000-0000-4000-8000-000000000007','76000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','administrator_revoked','resubmit-revocation');
-select is(
-  (app_public.media_reserve_resubmission(
-    '80000000-0000-4000-8000-000000000001','Corrected','90000000-0000-4000-8000-000000000009',true,'image/png',1000,640,480,repeat('5',64))->>'error'),
-  'media_unavailable','revoked grant denies resubmission without a leak');
-
--- ---- 12. Purged and malformed requests fail closed, leave no reservation,
+-- ---- 11. Purged and malformed requests fail closed, leave no reservation,
 -- ---- and retain only a durable generic denial audit.
 select is(
   (app_public.media_reserve_resubmission(
     '80000000-0000-4000-8000-000000000005','Corrected','90000000-0000-4000-8000-00000000000b',true,'image/png',1000,640,480,repeat('b',64))->>'error'),
   'media_unavailable','purged original denies without leaking existence');
 select is((select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-00000000000b'),0,'purged original adds no row');
+select ok(exists(select 1 from media_private.media_audit_events where event_kind='media_resubmission' and outcome='denied' and upload_id is null),'purged original denial audit persists');
 select is(
   (app_public.media_reserve_resubmission(
     '80000000-0000-4000-8000-000000000001',' trailing ','90000000-0000-4000-8000-00000000000c',true,'image/png',1000,640,480,repeat('c',64))->>'error'),
   'media_unavailable','malformed resubmission denies without a special response');
 select is((select count(*)::integer from media_private.media_uploads where idempotency_key='90000000-0000-4000-8000-00000000000c'),0,'malformed input adds no row');
+select ok(exists(select 1 from media_private.media_audit_events where event_kind='media_resubmission' and outcome='denied' and upload_id='80000000-0000-4000-8000-000000000001'),'malformed input denial audit persists');
 select ok(not exists(select 1 from media_private.media_provider_operations o join media_private.media_uploads u on u.upload_id=o.upload_id where u.idempotency_key in ('90000000-0000-4000-8000-000000000004','90000000-0000-4000-8000-00000000000a','90000000-0000-4000-8000-00000000000b','90000000-0000-4000-8000-00000000000c')),'denials create no provider operation');
+
+-- ---- 12. A revocation record denies even if the grant row still says active.
+insert into partner_private.partner_access_revocations(grant_id,auth_user_id,store_id,reason_code,idempotency_key)
+values ('76000000-0000-4000-8000-000000000007','76000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','administrator_revoked','resubmit-revocation');
+select is(
+  (app_public.media_reserve_resubmission(
+    '80000000-0000-4000-8000-000000000001','Corrected','90000000-0000-4000-8000-000000000009',true,'image/png',1000,640,480,repeat('5',64))->>'error'),
+  'media_unavailable','revoked grant denies resubmission without a leak');
 
 -- ---- 13. The live four-argument moderation path delegates gallery capacity to
 -- ---- the current resolver; 0077 separately exercises Free/Gallery/Full
@@ -235,6 +237,11 @@ select ok(
   position('partner_private.check_store_media_cap' in pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure))>0
   and position('active_count>=5' in replace(pg_get_functiondef('app_public.media_approve_upload(uuid,integer,bigint,text)'::regprocedure),' ',''))=0,
   'four-argument moderation approval has no hard-coded five-gallery cap');
+select ok(
+  position('pg_advisory_xact_lock(hashtextextended(actor::text||'':''||p_idempotency_key::text,0))' in pg_get_functiondef('app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer,text)'::regprocedure))>0
+  and position('pg_advisory_xact_lock(hashtextextended(actor::text||'':''||p_idempotency_key::text,0))' in pg_get_functiondef('app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer,text)'::regprocedure))
+    < position('where actor_user_id=actor and idempotency_key=p_idempotency_key' in pg_get_functiondef('app_public.media_reserve_resubmission(uuid,text,uuid,boolean,text,bigint,integer,integer,text)'::regprocedure)),
+  'idempotency-key lock precedes the existing receipt lookup');
 
 select * from finish();
 rollback;

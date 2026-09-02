@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   GENERIC_PORTAL_ERROR,
+  PortalMediaCapError,
   createPortalClient,
   createPortalMediaHttpTransport,
   decodePortalMediaUploadHistory,
@@ -214,6 +215,38 @@ describe('production portal client', () => {
     })
     expect(request?.body).toBeInstanceOf(FormData)
     expect((request?.body as FormData).get('image')).toBe(file)
+  })
+
+  it('preserves the approved 409 cap message for resubmission only', async () => {
+    const transport = createPortalMediaHttpTransport({
+      endpoint: 'https://project.supabase.co/functions/v1/media-provider-command',
+      apiKey: 'public-anon-key',
+      getAccessToken: async () => 'user-access-token',
+      fetcher: async () =>
+        Response.json(
+          {
+            error: 'media_cap_exceeded',
+            message: 'Gallery capacity is reached. Upgrade to add more photos.',
+          },
+          { status: 409 },
+        ),
+    })
+    await expect(
+      transport.upload({
+        storeId: '11111111-1111-4111-8111-111111111111',
+        kind: 'gallery',
+        altText: 'Replacement',
+        file: new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
+        rightsConfirmed: true,
+        idempotencyKey: '22222222-2222-4222-8222-222222222222',
+        originalUploadId: '33333333-3333-4333-8333-333333333333',
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: PortalMediaCapError.name,
+        message: 'Gallery capacity is reached. Upgrade to add more photos.',
+      }),
+    )
   })
 
   it('omits client store authority and kind from a resubmission transport body', async () => {

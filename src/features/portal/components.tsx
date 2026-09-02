@@ -4,6 +4,7 @@ import {
   GENERIC_PORTAL_ERROR,
   MEDIA_GATE_MESSAGE,
   PORTAL_ACCESS_ERROR,
+  PortalMediaCapError,
   copyHoursDay,
   unavailablePortalClient,
   validateHours,
@@ -1303,8 +1304,8 @@ function PortalMediaHistorySection({
         setIdempotencyKey(null)
         refresh()
       })
-      .catch(() => {
-        setFormError(GENERIC_PORTAL_ERROR)
+      .catch((error: unknown) => {
+        setFormError(error instanceof PortalMediaCapError ? error.message : GENERIC_PORTAL_ERROR)
       })
       .finally(() => setPending(false))
   }
