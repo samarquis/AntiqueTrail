@@ -89,4 +89,37 @@ describe('partner production transport', () => {
       },
     ])
   })
+
+  it('sends an exact selected store only to the staged server claim command', async () => {
+    const calls: unknown[][] = []
+    const transport = createPartnerProductionTransport({
+      rpc: async <T>(...args: unknown[]): Promise<T> => {
+        calls.push(args)
+        return { state: 'draft' } as T
+      },
+      edge: vi.fn(),
+      emailProviderEnabled: false,
+      mediaProviderEnabled: false,
+      syntheticEnabled: false,
+    })
+    await transport.post('submit_claim', {
+      draft: {
+        storeId: '10000000-0000-4000-8000-000000000001',
+        relationship: 'Owner',
+        authorityStatement: 'I am authorized to represent this store.',
+        idempotencyKey: 'public-claim-170',
+      },
+    })
+    expect(calls).toEqual([
+      [
+        'public_listing_claim_command',
+        {
+          p_operation: 'start',
+          p_payload: expect.objectContaining({
+            storeId: '10000000-0000-4000-8000-000000000001',
+          }),
+        },
+      ],
+    ])
+  })
 })

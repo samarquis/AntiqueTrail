@@ -23,6 +23,31 @@ export async function prepareSyntheticPartnerPayload(
   return safe
 }
 
+/**
+ * Public claim evidence is never persisted verbatim.  The caller's exact
+ * listing scope remains in the database command; this helper only replaces
+ * the transient reference with the server-held, purpose-keyed HMAC.
+ */
+export async function preparePublicClaimSignalPayload(
+  payload: Readonly<Record<string, unknown>>,
+  evidenceHmacSecret?: string,
+): Promise<Record<string, unknown>> {
+  const input = payload.input as Record<string, unknown> | undefined
+  if (
+    !evidenceHmacSecret ||
+    typeof input?.claimId !== 'string' ||
+    typeof input?.channelClass !== 'string' ||
+    typeof input?.evidenceReference !== 'string'
+  )
+    throw new Error('unavailable')
+  const { evidenceReference, ...bounded } = input
+  return {
+    ...bounded,
+    evidenceRefHmac: await hmacHex(normalize(evidenceReference), evidenceHmacSecret),
+    idempotencyKey: `public-signal-${crypto.randomUUID()}`,
+  }
+}
+
 function normalize(value: string): string {
   return value.normalize('NFKC').trim().toLocaleLowerCase()
 }

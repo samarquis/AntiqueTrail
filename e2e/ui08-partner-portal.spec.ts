@@ -88,11 +88,12 @@ test.describe('UI-08 representative onboarding and Store Portal', () => {
     await page.getByRole('button', { name: 'Submit draft for review' }).click()
     await expect(page.getByRole('status')).toContainText('Draft status: submitted.')
 
-    await page.goto(reviewUrl('/partner/claim'))
+    await page.goto(
+      `${reviewUrl('/partner/claim')}&claimStore=10000000-0000-4000-8000-000000000001`,
+    )
     await page.getByRole('checkbox', { name: /read the updated material terms/i }).check()
     await page.getByRole('checkbox', { name: /continue voluntarily/i }).check()
     await page.getByRole('button', { name: 'Accept updated terms' }).click()
-    await page.getByLabel('Store reference').fill('Blue Finch Curios')
     await page.getByLabel('Relationship to the store').fill('Owner')
     await page.getByLabel('Authority statement').fill('I am authorized to manage this one store.')
     await page.getByRole('button', { name: 'Submit claim' }).click()
