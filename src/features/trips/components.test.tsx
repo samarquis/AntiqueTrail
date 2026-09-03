@@ -303,6 +303,47 @@ describe('manual trips', () => {
     expect(screen.getByLabelText(/date/i)).toHaveValue('2026-08-10')
   })
 
+  it('reuses a created trip when adding the store must be retried', async () => {
+    const user = userEvent.setup()
+    const create = vi.fn(async () => trip)
+    const added = {
+      ...trip,
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store' as const,
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'prefer' as const,
+          plannedDwellMinutes: 60,
+          state: 'planned' as const,
+        },
+      ],
+    }
+    const addStoreStop = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('write failed'))
+      .mockResolvedValueOnce(added)
+    renderPage(
+      <AuthProvider>
+        <AddToTripPage storeId="store-1" client={client({ addStoreStop, create })} />
+      </AuthProvider>,
+    )
+    await user.type(await screen.findByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: 'Create trip and add store' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Antique Day was created, but the store was not added',
+    )
+    expect(screen.getByLabelText(/trip name/i)).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Retry adding store' }))
+    expect(await screen.findByRole('heading', { name: 'Added to Antique Day' })).toBeVisible()
+    expect(create).toHaveBeenCalledTimes(1)
+    expect(addStoreStop).toHaveBeenCalledTimes(2)
+    expect(addStoreStop).toHaveBeenNthCalledWith(2, 'trip-1', 'store-1')
+  })
+
   it('recovers from a list failure and guards against duplicate add clicks', async () => {
     const user = userEvent.setup()
     const list = vi.fn().mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce([trip])

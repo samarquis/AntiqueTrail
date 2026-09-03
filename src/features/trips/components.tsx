@@ -209,6 +209,7 @@ export function AddToTripPage({
   const [name, setName] = useState('')
   const [date, setDate] = useState('')
   const [actionError, setActionError] = useState(false)
+  const [createdTripForRetry, setCreatedTripForRetry] = useState<Trip | null>(null)
   const [pendingAction, setPendingAction] = useState<
     { kind: 'existing'; trip: Trip } | { kind: 'new' } | null
   >(null)
@@ -274,12 +275,15 @@ export function AddToTripPage({
     setActionError(false)
     setNotice(null)
     try {
-      const created = await client.create({ name: normalized, localDate: date })
+      const created =
+        createdTripForRetry ?? (await client.create({ name: normalized, localDate: date }))
+      setCreatedTripForRetry(created)
       const next = await client.addStoreStop(created.id, storeId)
       const stop = next.stops.find((candidate) => candidate.storeId === storeId)
       if (!stop) throw new Error('missing added stop')
       setName('')
       setDate('')
+      setCreatedTripForRetry(null)
       setResult({ trip: next, stop })
     } catch {
       setActionError(true)
@@ -400,6 +404,7 @@ export function AddToTripPage({
               id="trip-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
+              disabled={createdTripForRetry !== null}
               maxLength={80}
               required
             />
@@ -409,11 +414,26 @@ export function AddToTripPage({
               type="date"
               value={date}
               onChange={(event) => setDate(event.target.value)}
+              disabled={createdTripForRetry !== null}
               required
             />
-            {actionError && <TripError />}
+            {actionError &&
+              (createdTripForRetry ? (
+                <p role="alert">
+                  {createdTripForRetry.name} was created, but the store was not added. Retry to add
+                  it to that same trip.
+                </p>
+              ) : (
+                <TripError />
+              ))}
             <button className="button" type="submit" disabled={pendingAction !== null || undoing}>
-              {pendingAction?.kind === 'new' ? 'Creating trip…' : 'Create trip and add store'}
+              {pendingAction?.kind === 'new'
+                ? createdTripForRetry
+                  ? 'Adding store…'
+                  : 'Creating trip…'
+                : createdTripForRetry
+                  ? 'Retry adding store'
+                  : 'Create trip and add store'}
             </button>
           </form>
         </>
