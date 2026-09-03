@@ -19,8 +19,8 @@
 ## Local evidence
 
 - `npm run verify:baseline && git diff --check` passed after aligning the end-to-end client, edge, and database contracts: 88 test files/603 tests, 69 release tests, and production/PWA build.
-- `npm test -- --run src/features/partners --reporter=dot` passed: 8 files and 38 tests. React Router v7 future-flag warnings were emitted but no test failed.
-- An isolated Supabase project completed `db reset --local` through migration `20260903040000`. Focused pgTAP 0078 passed 41/41 after that reset, including invitation-independent public consent, signal retry binding, runtime start/retry/signals/verification/approval, exact Free-tier authority, portable receipt export, account purge de-identification, and provider-user deletion.
+- `npm test -- --run src/features/partners --reporter=dot` passed: 8 files and 39 tests. React Router v7 future-flag warnings were emitted but no test failed.
+- An isolated Supabase project completed `db reset --local` through migration `20260903040000`. Focused pgTAP 0078 passed 44/44 after that reset, including invitation-independent public consent, signal retry binding, runtime start/retry/signals/verification/approval, exact Free-tier authority, runtime portable receipt export, applicant/grantor purge de-identification, and provider-user deletion.
 
 ## Browser evidence
 

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(44);
 
 select has_table('partner_private','store_owner_intake_roots','claim and add starts share an applicant root');
 select has_column('partner_private','store_owner_intake_roots','active_kind','the root records the active intake kind');
@@ -232,6 +232,23 @@ select ok(
   'approval atomically creates one exact Representative grant, Free tier, receipt, and clears the matching root'
 );
 
+insert into app_private.account_export_jobs(
+  export_job_id,user_id,state,claim_token,claimed_at,lease_expires_at,attempt_count
+) values (
+  '17000000-0000-4000-8000-000000000070','17000000-0000-4000-8000-000000000001','building',
+  '17000000-0000-4000-8000-000000000071',statement_timestamp(),statement_timestamp()+interval '5 minutes',1
+);
+create temporary table issue_170_export as
+select app_public.build_account_export(
+  '17000000-0000-4000-8000-000000000070','17000000-0000-4000-8000-000000000071'
+)::jsonb as archive;
+select ok(
+  (select archive#>>'{canonical,partnerClaims,consentReceipts,0,policyVersion}' from issue_170_export)
+    =(select policy_version from partner_private.partner_material_terms where is_current)
+  and (select archive#>>'{canonical,partnerClaims,freeActivations,0,tier}' from issue_170_export)='free',
+  'portable export returns the exact consent and Free activation receipts before deletion'
+);
+
 select lives_ok(
   $$select app_private.purge_account_application_data('17000000-0000-4000-8000-000000000001')$$,
   'the established application-data purge de-identifies public claim receipts'
@@ -244,6 +261,14 @@ select ok(
 select lives_ok(
   $$delete from auth.users where id='17000000-0000-4000-8000-000000000001'$$,
   'retained claim receipts do not block provider account deletion'
+);
+select lives_ok(
+  $$select app_private.purge_account_application_data('17000000-0000-4000-8000-000000000002')$$,
+  'administrator deletion de-identifies the grantor side of retained activation receipts'
+);
+select ok(
+  exists(select 1 from partner_private.claim_free_activation_receipts where granted_by is null and grantor_tombstone is not null),
+  'Free activation receipts retain no grantor account identifier after purge'
 );
 select throws_ok(
   $$update partner_private.public_claim_consent_receipts set accepted_at=accepted_at+interval '1 second'$$,
