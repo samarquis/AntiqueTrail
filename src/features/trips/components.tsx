@@ -250,13 +250,25 @@ export function AddToTripPage({
   )
   const backLabel = backTarget === '/saved' ? 'Back to saved stores' : 'Back to stores'
 
+  async function addStoreStopWithReconciliation(tripId: string): Promise<Trip> {
+    try {
+      return await client.addStoreStop(tripId, storeId)
+    } catch (error) {
+      // A committed write can lose its response. Re-read the authoritative trip
+      // before offering a retry so the same stop is never submitted forever.
+      const current = await client.get(tripId).catch(() => null)
+      if (current?.stops.some((stop) => stop.storeId === storeId)) return current
+      throw error
+    }
+  }
+
   async function addToTrip(trip: Trip) {
     if (pendingAction) return
     setPendingAction({ kind: 'existing', trip })
     setActionError(false)
     setNotice(null)
     try {
-      const next = await client.addStoreStop(trip.id, storeId)
+      const next = await addStoreStopWithReconciliation(trip.id)
       const stop = next.stops.find((candidate) => candidate.storeId === storeId)
       if (!stop) throw new Error('missing added stop')
       setResult({ trip: next, stop })
@@ -278,7 +290,7 @@ export function AddToTripPage({
       const created =
         createdTripForRetry ?? (await client.create({ name: normalized, localDate: date }))
       setCreatedTripForRetry(created)
-      const next = await client.addStoreStop(created.id, storeId)
+      const next = await addStoreStopWithReconciliation(created.id)
       const stop = next.stops.find((candidate) => candidate.storeId === storeId)
       if (!stop) throw new Error('missing added stop')
       setName('')

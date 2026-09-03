@@ -344,6 +344,46 @@ describe('manual trips', () => {
     expect(addStoreStop).toHaveBeenNthCalledWith(2, 'trip-1', 'store-1')
   })
 
+  it('reconciles a lost add response without submitting the stop again', async () => {
+    const user = userEvent.setup()
+    const created = vi.fn(async () => trip)
+    const committed = {
+      ...trip,
+      version: 2,
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store' as const,
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'prefer' as const,
+          plannedDwellMinutes: 60,
+          state: 'planned' as const,
+        },
+      ],
+    }
+    const addStoreStop = vi.fn(async () => {
+      throw new Error('response lost')
+    })
+    const get = vi.fn(async () => committed)
+    renderPage(
+      <AuthProvider>
+        <AddToTripPage
+          storeId="store-1"
+          client={client({ addStoreStop, create: created, get })}
+        />
+      </AuthProvider>,
+    )
+    await user.type(await screen.findByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: 'Create trip and add store' }))
+    expect(await screen.findByRole('heading', { name: 'Added to Antique Day' })).toBeVisible()
+    expect(created).toHaveBeenCalledTimes(1)
+    expect(addStoreStop).toHaveBeenCalledTimes(1)
+    expect(get).toHaveBeenCalledWith('trip-1')
+  })
+
   it('recovers from a list failure and guards against duplicate add clicks', async () => {
     const user = userEvent.setup()
     const list = vi.fn().mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce([trip])
