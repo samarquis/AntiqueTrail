@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
-import { GENERIC_REVIEW_ERROR, ReviewApiError, createReviewClient } from './reviewClient'
+import {
+  GENERIC_REVIEW_ERROR,
+  ReviewApiError,
+  createReviewClient,
+  moderationButtonLabel,
+  moderationChoiceConsequence,
+  moderationPreview,
+  moderationResultState,
+} from './reviewClient'
 
 describe('durable review RPC client', () => {
   it('maps the public review lifecycle to exact bounded RPCs', async () => {
@@ -55,6 +63,8 @@ describe('durable review RPC client', () => {
     await client.decideModerationCase('case-1', {
       action: 'remove',
       reason: 'Confirmed policy violation',
+      expectedVersion: 3,
+      idempotencyKey: 'moderate-case-1-v3',
       mfaVerified: true,
       recentAuthAt: new Date().toISOString(),
     })
@@ -67,7 +77,13 @@ describe('durable review RPC client', () => {
     expect(rpc.mock.calls).toEqual([
       [
         'reviews_moderate',
-        { p_case_id: 'case-1', p_action: 'remove', p_reason: 'Confirmed policy violation' },
+        {
+          p_case_id: 'case-1',
+          p_action: 'remove',
+          p_reason: 'Confirmed policy violation',
+          p_expected_version: 3,
+          p_idempotency_key: 'moderate-case-1-v3',
+        },
       ],
       [
         'reviews_decide_restriction_appeal',
@@ -87,5 +103,47 @@ describe('durable review RPC client', () => {
 
     await expect(client.getEligibility('store-1')).rejects.toEqual(new ReviewApiError())
     await expect(client.getStoreReviews('store-1')).rejects.toThrow(GENERIC_REVIEW_ERROR)
+  })
+})
+
+describe('moderation consequence preview', () => {
+  it('labels every disposition and maps each to a state that is not the filled-primary default', () => {
+    expect(moderationButtonLabel('dismiss_report')).toBe('Dismiss Report')
+    expect(moderationButtonLabel('remove')).toBe('Remove')
+    expect(moderationButtonLabel('hold')).toBe('Hold')
+    expect(moderationResultState('hold')).toBe('held')
+    expect(moderationResultState('remove')).toBe('removed')
+    expect(moderationResultState('restore')).toBe('restored')
+    expect(moderationResultState('dismiss_report')).toBe('dismissed')
+  })
+
+  it('gives every disposition an icon-plus-text consequence cue distinct from the others', () => {
+    const consequences = (['hold', 'remove', 'restore', 'dismiss_report'] as const).map((action) =>
+      moderationChoiceConsequence(action),
+    )
+    expect(new Set(consequences).size).toBe(4)
+    expect(consequences[0]).toMatch(/Hides the review/)
+    expect(consequences[1]).toMatch(/Removes the review/)
+    expect(consequences[2]).toMatch(/Republishes the review/)
+    expect(consequences[3]).toMatch(/Closes this report/)
+  })
+
+  it('reports the current-to-resulting transition for a remove decision', () => {
+    const preview = moderationPreview('remove', 'open')
+    expect(preview.transition).toBe('open → removed')
+    expect(preview.aggregateEffect).toContain('dropped from the store average')
+    expect(preview.authorNotice).toBe('Author notice is queued.')
+    expect(preview.reasonAndAudit).toContain('appended to the append-only audit')
+    expect(preview.reversibility).toContain('30-day window')
+  })
+
+  it('keeps dismiss non-destructive and restore recomputation-scoped', () => {
+    const dismiss = moderationPreview('dismiss_report', 'open')
+    expect(dismiss.aggregateEffect).toContain('No change')
+    expect(dismiss.authorNotice).toContain('No author notice')
+    const restore = moderationPreview('restore', 'removed')
+    expect(restore.transition).toBe('removed → restored')
+    expect(restore.aggregateEffect).toContain('recomputed only if it still passes eligibility')
+    expect(restore.authorNotice).toContain('republish notice')
   })
 })

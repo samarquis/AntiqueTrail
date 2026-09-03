@@ -204,6 +204,100 @@ button:disabled,
   background: var(--danger-hover);
 }
 
+/* #140 moderation single CTA + consequence preview. Choices stay neutral; the selected
+   confirmation uses an action-specific semantic treatment plus its text and glyph label. */
+.moderation-choice {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  text-align: left;
+}
+
+.moderation-choice__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.moderation-choice__desc {
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+}
+
+.moderation-hint {
+  margin: 0.25rem 0;
+  color: var(--muted);
+  font-size: var(--type-size-supporting);
+}
+
+.moderation-confirm {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface-chrome);
+}
+
+.moderation-confirm--hold {
+  border-color: var(--gold);
+  background: var(--surface-warning);
+}
+
+.moderation-confirm--remove {
+  border-color: var(--rust);
+  background: var(--surface-status-danger);
+}
+
+.moderation-confirm--restore {
+  border-color: var(--teal);
+  background: var(--mint);
+}
+
+.moderation-confirm--dismiss_report {
+  border-color: var(--olive);
+  background: var(--surface-status-neutral);
+}
+
+.moderation-confirm__action--hold {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 55%, var(--ink));
+}
+
+.moderation-confirm__action--restore {
+  border-color: var(--teal-dark);
+  background: var(--teal-dark);
+}
+
+.moderation-confirm__action--dismiss_report {
+  border-color: var(--olive);
+  background: color-mix(in srgb, var(--olive) 55%, var(--ink));
+}
+
+.moderation-preview {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 0 1rem;
+}
+
+.moderation-preview > div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.moderation-preview dt {
+  font-weight: var(--type-weight-strong);
+}
+
+.moderation-preview dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+.moderation-outcome:focus-visible {
+  outline: 2px solid var(--focus-outer);
+  outline-offset: 4px;
+}
+
 .memory-delete-actions {
   display: flex;
   flex-wrap: wrap;

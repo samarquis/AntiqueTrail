@@ -362,6 +362,8 @@ describe('scenario-aware review clients', () => {
       reviews.decideModerationCase(moderation.id, {
         action: 'remove',
         reason: 'confirmed spam',
+        expectedVersion: moderation.version,
+        idempotencyKey: 'moderation-1-v1',
         mfaVerified: true,
         recentAuthAt: '2026-08-05T12:00:00.000Z',
       }),

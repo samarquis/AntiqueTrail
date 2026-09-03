@@ -224,9 +224,9 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
 
     await page.goto(reviewUrl('/admin/reviews', 'administrator'))
     await page.getByLabel('Decision reason').fill('confirmed spam')
-    await page.getByRole('button', { name: 'Remove', exact: true }).click()
+    await page.getByRole('button', { name: /^Remove / }).click()
     await expect(page.getByLabel('Confirm moderation decision')).toContainText(
-      'public moderation state',
+      'moderation case state',
     )
     await page.getByRole('button', { name: 'Confirm Remove' }).click()
     await expect(page.getByText('State: removed')).toBeVisible()
@@ -370,7 +370,7 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
     await page.setViewportSize({ width: 412, height: 915 })
     await page.goto(reviewUrl('/admin/reviews', 'administrator'))
     await page.getByLabel('Decision reason').fill('confirmed spam')
-    await page.getByRole('button', { name: 'Remove', exact: true }).click()
+    await page.getByRole('button', { name: /^Remove / }).click()
     const confirm = page.getByRole('button', { name: 'Confirm Remove' })
     await confirm.scrollIntoViewIfNeeded()
     const covered = await confirm.evaluate((button) => {
@@ -391,9 +391,10 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
       ['/admin', 'Review Blue Finch Curios'],
       ['/admin/access', 'Preview revoke Blue Finch Curios scope'],
       ['/admin/partners', 'Create synthetic invitation'],
-      ['/admin/reviews', 'Dismiss Report'],
+      ['/admin/reviews', /^Dismiss Report /],
     ] as const) {
       await page.goto(reviewUrl(path, 'administrator'))
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       const target = page.getByRole('button', { name: label })
       await target.scrollIntoViewIfNeeded()
       const covered = await target.evaluate((element) => {
@@ -420,7 +421,7 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       if (slug === 'moderation') {
         await page.getByLabel('Decision reason').fill('confirmed spam')
-        await page.getByRole('button', { name: 'Remove', exact: true }).click()
+        await page.getByRole('button', { name: /^Remove / }).click()
         await page.getByRole('button', { name: 'Confirm Remove' }).click()
         await expect(page.getByLabel('Resolved moderation outcome')).toBeVisible()
       }
