@@ -30,7 +30,7 @@ Scope: Rework the admin moderation decision UI in `src/features/reviews/` so eac
 - [x] G6: The full repository floor and plan-governance contract pass, and the candidate alters no protected plan/design files.
       CHECK: npm run check; if ($LASTEXITCODE -eq 0) { npm run security:contract; if ($LASTEXITCODE -eq 0) { node --test scripts/plan-governance-contract.test.mjs; if ($LASTEXITCODE -eq 0) { git diff --check; git diff --name-only 36b66c9530eaf28ac5cd3749523a1b012ab3704e } } } }
       EXPECT: pass
-      EVIDENCE: 2026-09-02 `npm run check` passed 88 files/611 tests, 69 release tests, and build; security and seven plan-governance tests passed; `git diff --check` passed. UI-09 passed 36 with three opt-in captures skipped. No schema, policy, or protected-plan file changed.
+      EVIDENCE: 2026-09-02 `npm run verify:baseline` passed 88 files/613 tests, 69 release tests, and build; security and seven plan-governance tests passed; `git diff --check` passed. UI-09 passed 36 with three opt-in captures skipped. Clean reset plus focused pgTAP 0079 passed 12/12. No protected-plan file changed.
 
 - [ ] G7: A separate agent approves the final base-to-head diff against standards and ticket specification, with results in `docs/evidence/issue-140/independent-review.md`.
       EVIDENCE: intentionally pending for the user-requested independent review session.
