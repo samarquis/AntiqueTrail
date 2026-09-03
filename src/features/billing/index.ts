@@ -7,11 +7,16 @@ export {
   isBillingCapabilityEnabled,
   unavailableBillingClient,
 } from './billingClient'
-export { BillingGate, BillingUnavailableNotice } from './components'
+export { BillingGate, BillingUnavailableNotice, CommercialResearchPage } from './components'
 export type {
   BillingCapability,
   BillingClient,
   BillingRpcName,
   BillingRpcTransport,
   CheckoutRequest,
+  CommercialResearchAttempt,
+  CommercialResearchChoice,
+  CommercialResearchConfig,
+  CommercialResearchReceipt,
+  FullGalleryLimits,
 } from './types'
