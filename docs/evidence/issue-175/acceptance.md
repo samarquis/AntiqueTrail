@@ -31,6 +31,7 @@ The serialized database lane was granted for the second-review revision. The cle
 | --- | --- |
 | `npx vitest run src/features/billing src/app/App.test.tsx --reporter=dot` | PASS — 4 files, 39 tests, 22.31s |
 | `npx playwright test e2e/issue-175-commercial-research.spec.ts --config playwright.review.config.ts --reporter=line` | PASS — 9 tests, 34.0s |
+| `npx playwright test e2e/issue-175-commercial-research.spec.ts --config playwright.config.ts --reporter=line` | PASS — 6 tests, 19.9s; this is the ordinary hosted web-job matrix and uses deterministic research fixture wiring |
 | `npm run typecheck` | PASS |
 | `npm run lint` | PASS |
 | `npm run build` | PASS — 179 modules, 8.25s |
@@ -41,7 +42,7 @@ The serialized database lane was granted for the second-review revision. The cle
 | `npx supabase@2.115.0 test db supabase/tests/0081_issue_175_inactive_commercial_config.sql` | PASS — 1 file, 53 tests |
 | `npx supabase@2.115.0 test db` | NOT REPEATED POST-REVIEW — the earlier run reached 79 files/2037 tests and failed in 17 historical privilege fixtures; the coordinator authorized only reset plus focused 0081 for the review revision. |
 | `npm run check` | PASS post-review — typecheck, lint, format, 90 Vitest files/640 tests, 69 release tests, and production build (179 modules) |
-| independent review and hosted checks | Candidates `6febf317` and `bc67cbd` received CHANGES REQUIRED. New candidate exact-diff review and hosted checks remain pending. |
+| independent review and hosted checks | Candidates `6febf317` and `bc67cbd` received CHANGES REQUIRED. PR #204 web at `de47cbd` failed only the six Issue #175 cases because default CI omitted the research fixture flag; 407 other tests passed. Replacement exact-diff review and hosted checks remain pending. |
 
 ## Canonicalization and permission design
 

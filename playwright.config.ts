@@ -27,6 +27,7 @@ export default defineConfig({
     // Never reuse a server started in normal mode; review fixtures must match
     // the command above for deterministic local and CI runs.
     reuseExistingServer: false,
+    env: { ...process.env, VITE_COMMERCIAL_RESEARCH_REVIEW: 'true' },
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
