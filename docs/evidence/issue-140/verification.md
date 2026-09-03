@@ -1,7 +1,7 @@
 # Issue #140 verification
 
-- Base: `36b66c9530eaf28ac5cd3749523a1b012ab3704e`.
-- Implementation: `667f777` on `codex/issue-140-moderation-single-cta`.
+- Base: `1ff9a63566159325537a94248c15acc769aac966`.
+- Rebased implementation: `488f09a` on `codex/issue-140-moderation-single-cta`.
 - Scope: neutral consequence-labeled choices, exact-case consequence preview, one explicit confirmation CTA, preserved reason on change/failure, and case-scoped resolved outcome. No database policy or protected-plan file changed.
 
 ## Passed locally on 2026-09-02
