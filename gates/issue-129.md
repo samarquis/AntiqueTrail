@@ -5,7 +5,7 @@ Scope: Complete the saved-store → trip-planning continuation so each saved-sto
 - [x] G1: Every saved-store card offers exactly one filled `Add to Trip` primary action and keeps store removal as a visually distinct destructive (downgraded) action.
       CHECK: npm test -- --run src/features/shopper/components.test.tsx
       EXPECT: Test Files 1 passed
-      EVIDENCE: 2026-09-02 focused shopper/trip/App suite passed 3 files, 68 tests; rebased implementation `2a321d7`.
+      EVIDENCE: 2026-09-02 focused shopper/trip/App suite passed 3 files, 69 tests; senior-review repair `bc27c49`.
 
 - [x] G2: `?addStoreId=` always opens the explicit chooser (eligible existing trips + `Start a New Trip`), retains the exact store through selection, sign-in return, and cancel/back via the existing `returnTo` auth boundary, and never serializes the store object.
       CHECK: npm test -- --run src/features/trips/components.test.tsx
@@ -15,12 +15,12 @@ Scope: Complete the saved-store → trip-planning continuation so each saved-sto
 - [x] G3: Addition ends in named success offering `View Trip` and `Undo`; already-added, full, empty, unavailable-client, duplicate-click, and persistence-failure states are handled truthfully; undo returns to an accurate chooser.
       CHECK: npm test -- --run src/features/trips/components.test.tsx
       EXPECT: Test Files 1 passed
-      EVIDENCE: Focused tests exercise named success, View Trip, Undo, eligibility filtering, empty/error/retry, duplicate-click, and persisted-stop validation.
+      EVIDENCE: Focused tests exercise named success, View Trip, Undo, eligibility filtering, empty/error/retry, duplicate-click, persisted-stop validation, and create-then-add retry without duplicate trip creation.
 
 - [x] G4: The full repository floor, security contract, and plan-governance contract pass; no protected plan/design files are altered. DB/pgTAP and Playwright e2e are delegated evidence.
       CHECK: npm run check; if ($LASTEXITCODE -eq 0) { npm run security:contract; if ($LASTEXITCODE -eq 0) { node --test scripts/plan-governance-contract.test.mjs; if ($LASTEXITCODE -eq 0) { git diff --check; git diff --name-only 36b66c9530eaf28ac5cd3749523a1b012ab3704e } } }
       EXPECT: pass
-      EVIDENCE: `npm run check` passed 88 files/607 tests, 69 release tests, and build; security and seven plan-governance tests passed; `git diff --check` passed. No database or protected-plan file changed.
+      EVIDENCE: `npm run verify:baseline` passed 88 files/608 tests, 69 release tests, and build; security and seven plan-governance tests passed; `git diff --check` passed. No database or protected-plan file changed.
 
 - [x] G5: Issue verification evidence and the leaf-129 gate ledger exist with the delegated DB and e2e runs recorded.
       CHECK: Test-Path docs/evidence/issue-129/verification.md; if ($?) { Get-Content -Raw docs/evidence/issue-129/verification.md }
