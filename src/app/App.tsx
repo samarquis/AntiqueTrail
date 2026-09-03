@@ -133,6 +133,11 @@ import {
 } from '../features/readiness'
 import { BetaControlPage, unavailableBetaClient, type DurableBetaClient } from '../features/beta'
 import { OperationalStatusPage, type OperationalStatusConfig } from '../features/status'
+import {
+  CommercialResearchPage,
+  unavailableBillingClient,
+  type BillingClient,
+} from '../features/billing'
 import type { ReviewHarnessRuntime } from '../review-harness/types'
 
 // The current provider-neutral shell has no privileged session source. Keep the
@@ -570,6 +575,24 @@ function ReadinessStatus({ client }: { client: DurableReadinessClient }) {
   return <ReadinessStatusPage runId={runId} client={client} />
 }
 
+function CommercialResearchRoute({
+  client,
+  runtime,
+}: {
+  client: BillingClient
+  runtime: NonNullable<AppRuntime['commercialResearch']>
+}) {
+  const { authorizationId = '' } = useParams()
+  return (
+    <CommercialResearchPage
+      authorizationId={authorizationId}
+      artifactDigest={runtime.artifactDigest}
+      questionVersion={runtime.questionVersion}
+      client={client}
+    />
+  )
+}
+
 function BetaControl({ client }: { client: DurableBetaClient }) {
   const { cohortId = '' } = useParams()
   return <BetaControlPage cohortId={cohortId} client={client} />
@@ -778,6 +801,7 @@ export interface AppClients {
   reviews?: ReviewClient
   portal?: PortalClient
   readiness?: DurableReadinessClient
+  billing?: BillingClient
   beta?: DurableBetaClient
   operationalStatus?: OperationalStatusConfig
   tripOfflineGrants?: TripOfflineGrantSource
@@ -797,6 +821,8 @@ export interface AppRuntime {
   reviewHarnessUi?: ReviewHarnessUi
   /** Pre-render memory-only callback captured by the bootstrap preflight. */
   authCallback?: AuthCallback | null
+  /** Deployment-protected research builds provide exact frozen artifact/question bindings. */
+  commercialResearch?: { artifactDigest: string; questionVersion: string }
 }
 
 export interface ReviewHarnessUi {
@@ -821,6 +847,7 @@ export default function App({
   const reviewClient = clients.reviews ?? unavailableReviewClient
   const portalClient = clients.portal ?? unavailablePortalClient
   const readinessClient = clients.readiness ?? unavailableReadinessClient
+  const billingClient = clients.billing ?? unavailableBillingClient
   const betaClient = clients.beta ?? unavailableBetaClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
   const tripOfflineRef = useRef<TripOfflineRuntime>(
@@ -947,6 +974,21 @@ export default function App({
           />
           <Route path="/auth/recovery" element={<RecoveryPage provider={authProvider} />} />
           <Route path="/auth/mfa" element={<MfaPage provider={authProvider} />} />
+          <Route
+            path="/research/photo-tiers/:authorizationId"
+            element={
+              runtime.commercialResearch ? (
+                <RequireSession>
+                  <CommercialResearchRoute
+                    client={billingClient}
+                    runtime={runtime.commercialResearch}
+                  />
+                </RequireSession>
+              ) : (
+                <NotFound />
+              )
+            }
+          />
           <Route
             path="/account/*"
             element={

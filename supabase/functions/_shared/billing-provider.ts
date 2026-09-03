@@ -65,8 +65,9 @@ export async function stripeFormPost(
   path: string,
   params: Record<string, string>,
   idempotencyKey: string,
+  surface: 'sales' | 'commercial_research' = 'sales',
 ): Promise<StripeResult> {
-  if (!env.secretKey || !env.providerGateAccepted) return { ok: false }
+  if (surface !== 'sales' || !env.secretKey || !env.providerGateAccepted) return { ok: false }
   let response: Response
   try {
     response = await fetch(`https://api.stripe.com${path}`, {
