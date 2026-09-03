@@ -1,7 +1,7 @@
 -- Issue #175: immutable inactive commercial configuration and private research proof.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(47);
+select plan(53);
 
 select has_table('partner_private','photo_tier_commercial_configs','commercial configs are durable');
 select has_table('partner_private','commercial_research_authorizations','signed research authorizations are durable');
@@ -131,6 +131,31 @@ insert into partner_private.photo_tier_commercial_configs(
   refund_policy_version,support_policy_version,terms_version,privacy_version,
   full_gallery_limits_version,jsonb_set(full_gallery_limits,'{maxFileBytes}','1.5')
 from partner_private.photo_tier_commercial_configs where version=2;
+update partner_private.photo_tier_commercial_configs
+set full_gallery_limits = jsonb_set(full_gallery_limits,'{uploadRateRule}','123') where version=3;
+select ok(not partner_private.commercial_config_is_complete(config),
+  'numeric Full Gallery disclosure is incomplete')
+from partner_private.photo_tier_commercial_configs config where version=3;
+update partner_private.photo_tier_commercial_configs
+set full_gallery_limits = jsonb_set(full_gallery_limits,'{uploadRateRule}','{"unexpected":"object"}') where version=3;
+select ok(not partner_private.commercial_config_is_complete(config),
+  'object Full Gallery disclosure is incomplete')
+from partner_private.photo_tier_commercial_configs config where version=3;
+update partner_private.photo_tier_commercial_configs
+set full_gallery_limits = jsonb_set(full_gallery_limits,'{uploadRateRule}','["unexpected"]') where version=3;
+select ok(not partner_private.commercial_config_is_complete(config),
+  'array Full Gallery disclosure is incomplete')
+from partner_private.photo_tier_commercial_configs config where version=3;
+update partner_private.photo_tier_commercial_configs
+set full_gallery_limits = jsonb_set(full_gallery_limits,'{uploadRateRule}','true') where version=3;
+select ok(not partner_private.commercial_config_is_complete(config),
+  'boolean Full Gallery disclosure is incomplete')
+from partner_private.photo_tier_commercial_configs config where version=3;
+update partner_private.photo_tier_commercial_configs
+set full_gallery_limits = jsonb_set(full_gallery_limits,'{uploadRateRule}','null') where version=3;
+select ok(not partner_private.commercial_config_is_complete(config),
+  'null Full Gallery disclosure is incomplete')
+from partner_private.photo_tier_commercial_configs config where version=3;
 select throws_ok($$select partner_private.issue_commercial_research_signature_challenge(
   3,decode(repeat('23',32),'hex'),'17500000-0000-4000-8000-000000000002',
   array['17500000-0000-4000-8000-000000000021'::uuid,'17500000-0000-4000-8000-000000000022'::uuid,'17500000-0000-4000-8000-000000000023'::uuid],
@@ -149,13 +174,13 @@ insert into partner_private.photo_tier_commercial_configs(
   refund_policy_version,support_policy_version,terms_version,privacy_version,
   full_gallery_limits_version,full_gallery_limits
 from partner_private.photo_tier_commercial_configs
-cross join (values (4::bigint),(5::bigint)) candidate(candidate_version)
+cross join (values (4::bigint),(5::bigint),(6::bigint)) candidate(candidate_version)
 where version=2;
 select partner_private.issue_commercial_research_signature_challenge(
   candidate_version,decode(repeat('24',32),'hex'),'17500000-0000-4000-8000-000000000002',
   array['17500000-0000-4000-8000-000000000021'::uuid,'17500000-0000-4000-8000-000000000022'::uuid,'17500000-0000-4000-8000-000000000023'::uuid],
   statement_timestamp()+interval '1 day')
-from (values (4::bigint),(5::bigint)) candidate(candidate_version);
+from (values (4::bigint),(5::bigint),(6::bigint)) candidate(candidate_version);
 update partner_private.photo_tier_commercial_configs set gallery_price_cents=1300 where version=4;
 reset role;
 
@@ -170,6 +195,14 @@ insert into partner_private.commercial_research_signature_receipts(
   case when config_version=5 then statement_timestamp()+interval '1 minute' else statement_timestamp() end,
   case when config_version=5 then statement_timestamp()+interval '1 minute' else statement_timestamp() end
 from partner_private.commercial_research_signature_challenges where config_version in (4,5);
+select throws_ok($$insert into partner_private.commercial_research_signature_receipts(
+  receipt_id,challenge_id,config_version,config_digest,protocol_digest,signer_user_id,
+  signer_responsibility,signed_payload_digest,provider_verification_id,signed_at,verified_at
+) select
+  '17500000-0000-4000-8000-000000000036',challenge_id,config_version,config_digest,protocol_digest,
+  signer_user_id,'ProductOwner',signed_payload_digest,'trusted-signature-4',statement_timestamp(),statement_timestamp()
+from partner_private.commercial_research_signature_challenges where config_version=6$$,
+'23505',null,'one external provider proof cannot back receipts for different challenges');
 reset role;
 set local role billing_automation;
 select throws_ok($$select partner_private.approve_photo_tier_commercial_config(4,'17500000-0000-4000-8000-000000000034')$$,

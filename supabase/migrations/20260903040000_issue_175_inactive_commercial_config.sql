@@ -96,7 +96,8 @@ create table partner_private.commercial_research_signature_receipts (
   ),
   signed_at timestamptz not null,
   verified_at timestamptz not null default statement_timestamp(),
-  constraint commercial_research_signature_time check (verified_at >= signed_at)
+  constraint commercial_research_signature_time check (verified_at >= signed_at),
+  constraint commercial_research_provider_verification_unique unique (provider_verification_id)
 );
 
 create table partner_private.commercial_research_authorizations (
@@ -232,9 +233,16 @@ create or replace function partner_private.commercial_config_is_complete(
     and case when jsonb_typeof(p_config.full_gallery_limits->'maxHeightPixels') = 'number'
       and (p_config.full_gallery_limits->>'maxHeightPixels') ~ '^[0-9]+$'
       then (p_config.full_gallery_limits->>'maxHeightPixels')::integer between 1 and 20000 else false end
-    and (select bool_and(value = btrim(value) and char_length(value) between 1 and 500 and value !~ '[[:cntrl:]]')
-      from jsonb_each_text(p_config.full_gallery_limits)
-      where key in ('uploadRateRule','quotaOutageRule','moderationAbuseRule','reasonRecoveryAppealRule','paidServiceRemedy'))
+    and not exists(
+      select 1
+      from (values
+        ('uploadRateRule'),('quotaOutageRule'),('moderationAbuseRule'),
+        ('reasonRecoveryAppealRule'),('paidServiceRemedy')
+      ) disclosure(key)
+      where jsonb_typeof(p_config.full_gallery_limits->disclosure.key) <> 'string'
+        or char_length(btrim(p_config.full_gallery_limits->>disclosure.key)) not between 1 and 500
+        or (p_config.full_gallery_limits->>disclosure.key) ~ '[[:cntrl:]]'
+    )
   ,false)
 $$;
 

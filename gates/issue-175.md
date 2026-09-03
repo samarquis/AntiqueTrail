@@ -7,17 +7,17 @@ Base SHA: `56584b6229445424240c07adab1b817867e59868`
 - [x] G1: Inactive approval rejects incomplete or ambiguous commercial disclosures and records canonical bytes, SHA-256 digest, authorization identity, approver, and approval time.
   CHECK: `npx supabase@2.115.0 db reset --local`; `npx supabase@2.115.0 test db`
   EXPECT: `0081_issue_175_inactive_commercial_config.sql` passes on a clean reset.
-  EVIDENCE: Clean reset passed. Focused 0081 passed 47/47 assertions, including strict JSON rejection, three required community reviews, trusted signature-service receipt issuance, exact challenge/digest binding, future/stale/replay rejection, and frozen approval identity/time.
+  EVIDENCE: Clean reset passed. Focused 0081 passed 53/53 assertions, including exact string-type/nonempty disclosure validation, three required community reviews, trusted signature-service receipt issuance, unique provider-proof enforcement across challenges, exact challenge/digest binding, future/stale/replay rejection, and frozen approval identity/time.
 
 - [x] G2: Approved commercial fields are immutable; only named lifecycle transitions are accepted; superseding preserves the frozen packet; activation eligibility requires the exact version and digest.
   CHECK: `npx supabase@2.115.0 test db`
   EXPECT: lifecycle, mutation, stale-digest, and activation-candidate assertions pass.
-  EVIDENCE: Focused 0081 passed 47/47, including field/limits mutation rejection, exact/mismatched activation digest, named transition, and prior-packet preservation assertions.
+  EVIDENCE: Focused 0081 passed 53/53, including field/limits mutation rejection, exact/mismatched activation digest, named transition, and prior-packet preservation assertions.
 
 - [x] G3: Only the signed, eligible, unexpired participant can read the exact approved-inactive configuration; anonymous, ordinary owner, and admin roles cannot enumerate configuration tables or invoke the private projection.
   CHECK: `npx supabase@2.115.0 test db`
   EXPECT: RLS, table-grant, function-grant, session, authorization, participant, and stale-version assertions pass.
-  EVIDENCE: Focused 0081 passed 47/47: all six private tables force RLS, browser/generic-service mutation grants are absent, anonymous execute is absent, authenticated exact-session read passes, and stale version/digest is denied.
+  EVIDENCE: Focused 0081 passed 53/53: all six private tables force RLS, browser/generic-service mutation grants are absent, anonymous execute is absent, authenticated exact-session read passes, and stale version/digest is denied.
 
 - [x] G4: Research receipts bind the participant, consent, configuration version/digest, artifact digest, question version, refusal/abandonment, minimized reason code, and idempotency key without accepting free text.
   CHECK: `npx supabase@2.115.0 test db`; `npx vitest run src/features/billing src/app/App.test.tsx`
@@ -47,4 +47,4 @@ Base SHA: `56584b6229445424240c07adab1b817867e59868`
 - [ ] G9: The complete repository check, independent exact-diff/security review, and hosted `database`, `web`, and `plan-governance` checks pass on the candidate SHA.
   CHECK: `npm run check`; independent review receipt; `gh pr checks <PR_NUMBER> --watch`
   EXPECT: pass with exact base/head/merge SHAs recorded.
-  EVIDENCE: Post-review clean reset and focused 0081 pass (47 assertions). The earlier full pgTAP run was blocked by clean-reset privilege/provisioning failures in 17 historical files (79 files, 2037 assertions reached); it was not repeated after the review changes per the granted database-lane scope. Post-review `npm run check` passes (90 Vitest files/640 tests, 69 release tests, production build). The first candidate `6febf317` was rejected by independent review; replacement-candidate review, PR, hosted checks, merge, and post-merge proof remain pending.
+  EVIDENCE: Second-review clean reset and focused 0081 pass (53 assertions). The earlier full pgTAP run was blocked by clean-reset privilege/provisioning failures in 17 historical files (79 files, 2037 assertions reached); it was not repeated after the review changes per the granted database-lane scope. The prior replacement candidate passed `npm run check` (90 Vitest files/640 tests, 69 release tests, production build); this database-only review revision reran the focused client and security contracts. Both earlier candidates require replacement exact-diff review; PR, hosted checks, merge, and post-merge proof remain pending.
