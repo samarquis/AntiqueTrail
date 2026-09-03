@@ -9,6 +9,7 @@ import { createAccessibleCatalogMapAdapter, demoCatalogClient } from '../feature
 import { unavailableReviewClient } from '../features/reviews'
 import { unavailablePortalClient } from '../features/portal'
 import type { DurableReadinessClient } from '../features/readiness'
+import type { BillingClient, CommercialResearchConfig } from '../features/billing'
 import App from './App'
 import { createReviewHarness } from '../review-harness/harness'
 import {
@@ -381,6 +382,91 @@ describe('app shell', () => {
     )
     expect(await screen.findByText(/not available in this release/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /preview review/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps commercial research absent unless the protected artifact is configured', () => {
+    render(
+      <MemoryRouter initialEntries={['/research/photo-tiers/authorization-1']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { name: /page not found/i })).toBeInTheDocument()
+    expect(screen.queryByText(/exact research offer/i)).not.toBeInTheDocument()
+  })
+
+  it('opens only the authenticated exact-config commercial research route', async () => {
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'research-participant',
+      accessToken: 'memory-only',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaVerified: false,
+    })
+    const config: CommercialResearchConfig = {
+      version: 7,
+      state: 'approved_inactive',
+      digest: 'a'.repeat(64),
+      galleryPriceCents: 1200,
+      fullGalleryPriceCents: 1900,
+      currency: 'USD',
+      taxMode: 'Tax is calculated at checkout.',
+      firstChargeRule: 'First charge follows Checkout confirmation.',
+      renewalRule: 'Renews monthly until canceled.',
+      cancelAnytimeRule: 'Cancel anytime through the self-serve customer portal.',
+      refundWindowRule: 'Request a full refund within 48 hours of a charge; no other refunds.',
+      upgradeProrationRule: 'Upgrades take effect immediately with prorated charges.',
+      downgradeRule:
+        'Downgrades take effect at renewal with no partial refund; the last scheduled downgrade wins.',
+      failedPaymentGraceRule:
+        'Failed payment has a 14-day grace period, then automatically downgrades to Free.',
+      hiddenPhotoDeletionRule:
+        'Photos over the Free limit hide at downgrade and delete after a 30-day grace period.',
+      refundPolicyVersion: 'refund-v1',
+      supportPolicyVersion: 'support-v1',
+      termsVersion: 'terms-v1',
+      privacyVersion: 'privacy-v1',
+      fullGalleryLimitsVersion: 'limits-v1',
+      fullGalleryLimits: {
+        acceptedFileTypes: ['image/jpeg'],
+        maxFileBytes: 10_000_000,
+        maxWidthPixels: 6000,
+        maxHeightPixels: 6000,
+        uploadRateRule: 'Up to 20 uploads per hour.',
+        quotaOutageRule: 'Uploads pause during outages.',
+        moderationAbuseRule: 'Every photo remains moderated.',
+        reasonRecoveryAppealRule: 'A reason, recovery step, and appeal path are provided.',
+        paidServiceRemedy: 'Service failures receive the published remedy.',
+      },
+    }
+    const billing: BillingClient = {
+      getCapability: vi.fn(),
+      startCheckout: vi.fn(),
+      openPortal: vi.fn(),
+      getCommercialResearchConfig: vi.fn(async () => config),
+      recordCommercialResearchAttempt: vi.fn(),
+    }
+    render(
+      <MemoryRouter initialEntries={['/research/photo-tiers/authorization-1']}>
+        <App
+          clients={{ billing }}
+          runtime={{
+            authStore,
+            commercialResearch: {
+              artifactDigest: 'b'.repeat(64),
+              questionVersion: 'questions-v1',
+            },
+          }}
+        />
+      </MemoryRouter>,
+    )
+    expect(
+      await screen.findByRole('heading', { name: /compare optional photo capacity/i }),
+    ).toBeVisible()
+    expect(billing.getCommercialResearchConfig).toHaveBeenCalledWith('authorization-1')
+    expect(billing.startCheckout).not.toHaveBeenCalled()
+    expect(billing.openPortal).not.toHaveBeenCalled()
   })
 
   it('resolves a public store slug before calling the injected durable review client', async () => {
