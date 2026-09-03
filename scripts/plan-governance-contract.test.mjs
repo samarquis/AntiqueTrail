@@ -4,39 +4,50 @@ import test from 'node:test'
 import { validatePlanPullRequest, validatePlanTicket } from './plan-governance-contract.mjs'
 
 const validTicket = `
-## Reason for ticket
-The catalog action layout obscures the intended decision path for shoppers.
-## Current evidence
-Current-main capture at 393px shows the action outside the card task order.
-## Plan requirements
-DESIGN_SYSTEM.md — Critique-derived composition contract: actions follow metadata.
-## Plan conformance
-Existing plan requirement; no plan change
-## What must change
+## Problem
+At the current main SHA, the catalog action sits outside the intended card task order and obscures the shopper decision path.
+## Plan
+DESIGN_SYSTEM.md — Critique-derived composition contract. No dependency; no palette change.
+## Outcome
 Restore the complete card task order end to end.
-## Acceptance criteria
+## Acceptance
 - [ ] DESIGN_SYSTEM.md — Critique-derived composition contract: metadata precedes actions.
 ## Verification
 Run component, keyboard, 393px, and 200% browser checks.
-## Dependencies and non-goals
-No palette, route, or product-scope change.
 `
 
 const validPullRequest = `
 ## Ticket
 Closes #161
-## Reason addressed
+## Outcome
 Restores the documented card task order.
-## Plan requirements
+## Plan
 DESIGN_SYSTEM.md — Critique-derived composition contract.
-## Plan conformance
 Conforming work; no plan change
-## Acceptance evidence
+## Evidence
 The mapped component and browser checks pass.
-## Verification
 npm run check and the hosted web job pass.
 ## Plan change authorization
 Not a plan change.
+`
+
+const legacyTicket = `
+## Reason for ticket
+The old ticket format remains valid during backlog migration.
+## Current evidence
+The ticket predates the simplified template on current main.
+## Plan requirements
+PLAN_GOVERNANCE.md — Ticket admission contract.
+## Plan conformance
+Existing plan requirement; no plan change
+## What must change
+Preserve active work while the backlog is migrated.
+## Acceptance criteria
+- [ ] Existing active tickets still validate.
+## Verification
+Run the governance contract tests.
+## Dependencies and non-goals
+No product behavior change.
 `
 
 test('accepts a complete plan-governed ticket', () => {
@@ -47,13 +58,28 @@ test('rejects a ticket without plan traceability or acceptance checkboxes', () =
   const result = validatePlanTicket(
     validTicket
       .replace(
-        'DESIGN_SYSTEM.md — Critique-derived composition contract: actions follow metadata.',
+        'DESIGN_SYSTEM.md — Critique-derived composition contract. No dependency; no palette change.',
         'The design critique says to fix it.',
       )
       .replace('- [ ]', '- '),
   )
   assert.equal(result.valid, false)
   assert.equal(result.errors.length, 2)
+})
+
+test('rejects more than five acceptance criteria', () => {
+  const result = validatePlanTicket(
+    validTicket.replace(
+      '- [ ] DESIGN_SYSTEM.md — Critique-derived composition contract: metadata precedes actions.',
+      Array.from({ length: 6 }, (_, index) => `- [ ] Criterion ${index + 1}`).join('\n'),
+    ),
+  )
+  assert.equal(result.valid, false)
+  assert.match(result.errors.join('\n'), /no more than five/)
+})
+
+test('accepts the legacy ticket format during migration', () => {
+  assert.deepEqual(validatePlanTicket(legacyTicket), { valid: true, errors: [] })
 })
 
 test('accepts a conforming pull request that does not change the plan', () => {

@@ -1,4 +1,6 @@
-const REQUIRED_TICKET_SECTIONS = [
+const REQUIRED_TICKET_SECTIONS = ['Problem', 'Plan', 'Outcome', 'Acceptance', 'Verification']
+
+const LEGACY_TICKET_SECTIONS = [
   'Reason for ticket',
   'Current evidence',
   'Plan requirements',
@@ -10,6 +12,14 @@ const REQUIRED_TICKET_SECTIONS = [
 ]
 
 const REQUIRED_PULL_REQUEST_SECTIONS = [
+  'Ticket',
+  'Outcome',
+  'Plan',
+  'Evidence',
+  'Plan change authorization',
+]
+
+const LEGACY_PULL_REQUEST_SECTIONS = [
   'Ticket',
   'Reason addressed',
   'Plan requirements',
@@ -111,38 +121,39 @@ function removedLines(patch = '') {
 }
 
 export function validatePlanTicket(body) {
-  const { sections, errors } = validateRequiredSections(body, REQUIRED_TICKET_SECTIONS)
-  const plan = section(sections, 'Plan requirements')
-  const conformance = section(sections, 'Plan conformance')
-  const acceptance = section(sections, 'Acceptance criteria')
+  const parsed = sectionsFrom(body)
+  const legacy = !parsed.has(normalizeHeading('Problem'))
+  const { sections, errors } = validateRequiredSections(
+    body,
+    legacy ? LEGACY_TICKET_SECTIONS : REQUIRED_TICKET_SECTIONS,
+  )
+  const plan = section(sections, legacy ? 'Plan requirements' : 'Plan')
+  const acceptance = section(sections, legacy ? 'Acceptance criteria' : 'Acceptance')
 
   if (plan && !hasExactPlanReference(plan)) {
-    errors.push(
-      'Plan requirements must cite a controlling .md file and an exact heading or section.',
-    )
-  }
-  if (
-    conformance &&
-    !/(existing plan requirement|authorized plan amendment(?: already merged|; product owner update plan directive recorded))/i.test(
-      conformance,
-    )
-  ) {
-    errors.push(
-      'Plan conformance must identify existing-plan work or an authorized amendment already merged.',
-    )
+    errors.push('Plan must cite a controlling .md file and an exact heading or section.')
   }
   if (acceptance && !/^- \[ \]\s+\S/m.test(acceptance)) {
-    errors.push('Acceptance criteria must contain at least one unchecked criterion.')
+    errors.push('Acceptance must contain at least one unchecked criterion.')
+  }
+  const criteria = acceptance.match(/^- \[ \]\s+\S.*$/gm) ?? []
+  if (!legacy && criteria.length > 5) {
+    errors.push('Acceptance must contain no more than five criteria.')
   }
 
   return { valid: errors.length === 0, errors }
 }
 
 export function validatePlanPullRequest(body, files = []) {
-  const { sections, errors } = validateRequiredSections(body, REQUIRED_PULL_REQUEST_SECTIONS)
+  const parsed = sectionsFrom(body)
+  const legacy = !parsed.has(normalizeHeading('Outcome'))
+  const { sections, errors } = validateRequiredSections(
+    body,
+    legacy ? LEGACY_PULL_REQUEST_SECTIONS : REQUIRED_PULL_REQUEST_SECTIONS,
+  )
   const ticket = section(sections, 'Ticket')
-  const plan = section(sections, 'Plan requirements')
-  const conformance = section(sections, 'Plan conformance')
+  const plan = section(sections, legacy ? 'Plan requirements' : 'Plan')
+  const planDeclaration = legacy ? section(sections, 'Plan conformance') : plan
   const authorization = section(sections, 'Plan change authorization')
   const protectedChanges = files.filter(
     (file) =>
@@ -155,20 +166,21 @@ export function validatePlanPullRequest(body, files = []) {
     errors.push('Ticket must reference a GitHub issue number.')
   }
   if (plan && !hasExactPlanReference(plan)) {
-    errors.push(
-      'Plan requirements must cite a controlling .md file and an exact heading or section.',
-    )
+    errors.push('Plan must cite a controlling .md file and an exact heading or section.')
   }
   if (
-    conformance &&
-    !/(conforming work; no plan change|authorized plan amendment)/i.test(conformance)
-  ) {
-    errors.push(
-      'Plan conformance must declare conforming work or identify an authorized amendment.',
+    planDeclaration &&
+    !/(conforming work; no plan change|authorized plan amendment|existing plan requirement|authorized plan amendment already merged)/i.test(
+      planDeclaration,
     )
+  ) {
+    errors.push('Plan must declare conforming work or identify an authorized amendment.')
   }
 
   if (protectedChanges.length > 0) {
+    if (!/authorized plan amendment/i.test(planDeclaration)) {
+      errors.push('Protected plan files changed without an authorized plan amendment declaration.')
+    }
     if (!/\bupdate plan\b/i.test(authorization)) {
       errors.push(
         'Protected plan files changed without the exact update plan authorization directive.',

@@ -38,18 +38,17 @@ An implementation request cannot retroactively authorize a plan change. If the i
 
 ## Ticket admission contract
 
-Every ticket must contain:
+Every implementation ticket contains five short sections:
 
-1. **Reason for ticket** — the user, operational, security, quality, or conformance problem that justifies the work.
-2. **Current evidence** — reproducible evidence of the problem or the explicitly bounded discovery task.
-3. **Plan requirements** — exact controlling file and heading references. Historical evidence alone is insufficient.
-4. **Plan conformance** — a gap against the existing plan, an authorized plan-amendment ticket carrying the Product Owner's `update plan` directive, or a reference to an authorized plan amendment already merged to `main`.
-5. **What must change** — a narrow, end-to-end outcome that addresses the stated reason.
-6. **Acceptance criteria** — observable criteria mapped to the cited plan requirements, including required roles, states, responsive/accessibility behavior, authorization, and failure handling.
-7. **Verification** — executable checks and required evidence.
-8. **Dependencies and non-goals** — prerequisites and explicit scope boundaries.
+1. **Problem** — current evidence and the user or operational harm.
+2. **Plan** — the controlling file and heading, or the merged plan amendment; include dependencies and non-goals only when they matter.
+3. **Outcome** — one independently closable result.
+4. **Acceptance** — one to five observable criteria needed to prove that result.
+5. **Verification** — the smallest executable checks that prove those criteria.
 
-A dependent implementation ticket is invalid when it contradicts the plan, relies on an unmerged plan proposal, lacks a controlling plan citation, addresses only a symptom while leaving the stated reason unresolved, or cannot prove its acceptance criteria. An authorized plan-amendment ticket may exist before its amendment merges, but it authorizes only the plan pull request; dependent implementation remains blocked. Invalid tickets must not carry `ready-for-agent` or `task`.
+An implementation ticket must be closable with repository-controlled work and evidence. Human participation, provider approval, legal review, spending, production configuration, promotion, research cohorts, and public activation belong in a separate dependent gate issue. A broader feature may use a parent issue as a map, but each implementation child still owns one result. Split an untouched oversized issue before work starts; do not churn an active reviewed pull request solely to match the newer format.
+
+A ticket is invalid when it contradicts the plan, relies on an unmerged plan proposal, lacks a controlling plan citation, addresses only a symptom, cannot prove its criteria, or mixes implementation with an external gate. An authorized plan-amendment ticket may exist before its amendment merges, but it authorizes only that plan pull request. Invalid tickets must not carry `ready-for-agent` or `task`.
 
 ## Ticket-to-closure traceability
 
@@ -57,14 +56,18 @@ The implementation and review must preserve this chain:
 
 `ticket reason -> controlling plan requirement -> scoped change -> mapped acceptance check -> commit/PR evidence -> closure evidence`
 
-Before implementation, verify the ticket against current `main`, not a stale branch. Before merge, verify the diff still matches both the ticket reason and every cited requirement. Before closure, record evidence for each acceptance criterion and confirm that no controlling requirement was weakened or silently changed.
+Before implementation, verify the ticket against current `main`, not a stale branch. Before merge, verify the diff still matches the problem, outcome, and cited requirement. Passing tests cannot excuse plan divergence.
 
-Passing tests cannot excuse plan divergence. A ticket is complete only when its reason is addressed, its mapped plan requirements are satisfied, required checks pass, and the evidence is tied to the accepted commit.
+An implementation ticket is complete when its repository outcome is merged, every acceptance criterion has evidence, applicable local and required hosted checks pass, and required review has no unresolved finding. `Closes #N` performs closure at merge. A later discovered failure reopens the issue; routine post-merge repetition of already-passing checks is not required.
+
+External gate issues close only when their named real-world evidence exists. An open external gate blocks activation, not implementation that is safely staged off. Never describe an implementation ticket as blocked merely because its dependent external gate remains open.
+
+Review and verification are proportional to risk. Documentation-only changes need relevant document/contract checks. Application changes need focused tests and repository build checks. UI changes add targeted browser/accessibility proof. Database, authorization, security, payment, or deployment changes add their boundary-specific checks. Independent review is required for plan amendments and for code affecting security, privacy, authorization, money, migrations, destructive lifecycle behavior, or release activation; other tickets use the repository's normal pull-request review. Pin review to the source candidate SHA. A later evidence-only commit preserves that source review after a focused evidence-delta check; any executable, requirement, configuration, fixture, or migration change invalidates the affected review and checks.
 
 ## Enforcement
 
-- `.github/ISSUE_TEMPLATE/plan-governed-ticket.yml` is the required ticket intake form; blank issues are disabled.
+- `.github/ISSUE_TEMPLATE/plan-governed-ticket.yml` is the required implementation-ticket intake form; blank issues are disabled.
 - `scripts/plan-governance-contract.mjs` validates ticket and pull-request bodies.
 - `.github/workflows/issue-plan-governance.yml` marks malformed tickets `plan-invalid` and removes implementation-ready labels.
 - `.github/workflows/pr-plan-governance.yml` rejects pull requests without ticket/plan traceability and rejects protected-plan changes without an `update plan` authorization receipt plus an append-only changelog entry.
-- `main` branch protection must require pull requests, `web`, `database`, and `plan-governance` checks. Repository files cannot prove that hosted protection is enabled; verify it in GitHub after changing the rule.
+- `main` branch protection must require pull requests and the repository's current required checks. Repository files cannot prove that hosted protection is enabled; verify it in GitHub after changing the rule.
