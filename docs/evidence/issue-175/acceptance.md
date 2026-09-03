@@ -42,7 +42,7 @@ The serialized database lane was granted for the second-review revision. The cle
 | `npx supabase@2.115.0 test db supabase/tests/0081_issue_175_inactive_commercial_config.sql` | PASS — 1 file, 53 tests |
 | `npx supabase@2.115.0 test db` | NOT REPEATED POST-REVIEW — the earlier run reached 79 files/2037 tests and failed in 17 historical privilege fixtures; the coordinator authorized only reset plus focused 0081 for the review revision. |
 | `npm run check` | PASS post-review — typecheck, lint, format, 90 Vitest files/640 tests, 69 release tests, and production build (179 modules) |
-| independent review and hosted checks | Candidates `6febf317` and `bc67cbd` received CHANGES REQUIRED. PR #204 web at `de47cbd` failed only the six Issue #175 cases because default CI omitted the research fixture flag; 407 other tests passed. Replacement exact-diff review and hosted checks remain pending. |
+| independent review and hosted checks | Candidates `6febf317` and `bc67cbd` received CHANGES REQUIRED. PR #204 web at `ec0b8e50ee5e6dc516482d5ac097c67ae437773d` failed only the six Issue #175 cases because default CI omitted the research fixture flag; 407 other tests passed. The reviewer approved the replacement implementation head `89353ee51799627d204d31da5406ce8a0b18a0d1`; hosted [database](https://github.com/samarquis/AntiqueTrail/actions/runs/33762555973/job/100672216607) passed in 3m09s, [web](https://github.com/samarquis/AntiqueTrail/actions/runs/33762555973/job/100672216113) passed in 7m35s, and [plan-governance](https://github.com/samarquis/AntiqueTrail/actions/runs/33762554309/job/100672211869) passed in 9s. The required exact-head review comment and final documentation-only-head checks are recorded externally to avoid a self-referential receipt commit. |
 
 ## Canonicalization and permission design
 
@@ -53,6 +53,5 @@ All commercial configuration, challenge, signature-receipt, authorization, parti
 ## Required follow-up before closure
 
 1. Repair or separately reconcile the repository's historical clean-reset privilege/provisioning failures, then rerun the complete pgTAP suite; do not attribute those failures to a passing Issue #175 file.
-2. Commit a reviewable candidate.
-3. Obtain an independent exact base-to-head security/diff review in `docs/evidence/issue-175/independent-review.md`.
-4. Push/open the draft PR, pass hosted `database`, `web`, and `plan-governance`, merge through the verified default branch, and record post-merge commands plus the live issue/PR state.
+2. Merge PR #204 only after its final documentation-only head receives an exact-head independent review comment and passes hosted `database`, `web`, and `plan-governance`.
+3. Record the merge SHA, post-merge command results, and live issue/PR state in the closure comment.

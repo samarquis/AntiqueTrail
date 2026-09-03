@@ -40,7 +40,7 @@ Do not reorder the list because another ticket looks easier. If the first unchec
 - [ ] 19. #135 — Prove Partner/Portal/public-owner-intake direct-route denial, Synthetic-seam exclusion, concurrency, and cross-store isolation. Dependencies: #123, #124, #137, #130, #131, #168, #170, and #171.
 - [ ] 20. #117 — Run the final Packages 9/10A/10B staged-off sweep including the owner research/public routes. Dependencies: #137, #140, #135, #168, #170, #171, and #172.
 - [ ] 21. #56 — Re-audit and close the human/provider Regional Public MVP release tracker. Dependencies: every applicable implementation/evidence ticket above plus every named human/provider gate; close Regional Public MVP last.
-- [ ] 22. #175 — Build immutable inactive commercial configuration and private value-research controls. Dependencies: #174.
+- [x] 22. #175 — COMPLETE IN PR #204 — Immutable inactive commercial configuration and private exact-config value-research controls. Dependencies: #174.
 - [ ] 23. #177 — Deliver paid consent, generation-bound Checkout, verified webhook upgrade, and pause-race refund behavior. Dependencies: #174 and #175; live use remains blocked.
 - [ ] 24. #178 — Deliver proration, downgrade, cancellation, refund, failed-payment, and hidden-photo lifecycle. Dependencies: #174, #177, #123, and #124.
 - [ ] 25. #179 — Implement signed race-safe paid-sales pause, servicing, finality close, late-obligation reopen, and resume. Dependencies: #177 and #178.
