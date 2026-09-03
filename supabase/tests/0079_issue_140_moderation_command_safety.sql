@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(17);
 
 select has_table(
   'review_private',
@@ -30,7 +30,9 @@ select ok(
 
 insert into auth.users(id) values
   ('79000000-0000-4000-8000-000000000001'),
-  ('79000000-0000-4000-8000-000000000002');
+  ('79000000-0000-4000-8000-000000000002'),
+  ('79000000-0000-4000-8000-000000000003'),
+  ('79000000-0000-4000-8000-000000000004');
 insert into app_public.catalog_areas(id,slug,label,state_code)
 values('79000000-0000-4000-8000-000000000010','issue-140-test','Issue 140 Test','KS');
 insert into app_public.stores(
@@ -108,6 +110,56 @@ select throws_ok(
   '42501',
   'review_moderation_denied',
   'a stale case version is denied'
+);
+
+insert into review_private.public_reviews(
+  review_id,author_id,store_id,rating,review_text,display_name,visit_month,visit_year,
+  eligibility_kind,conflict_kind,state
+) values
+  ('79000000-0000-4000-8000-000000000030','79000000-0000-4000-8000-000000000003',
+   '79000000-0000-4000-8000-000000000011',4,'Held report','Reviewer',8,2026,'manual_attestation','none','held'),
+  ('79000000-0000-4000-8000-000000000040','79000000-0000-4000-8000-000000000004',
+   '79000000-0000-4000-8000-000000000011',3,'Ineligible restore','Reviewer',8,2026,'manual_attestation','none','held');
+insert into review_private.moderation_cases(
+  case_id,review_id,store_id,reason_code,assigned_admin_id,state
+) values
+  ('79000000-0000-4000-8000-000000000031','79000000-0000-4000-8000-000000000030',
+   '79000000-0000-4000-8000-000000000011','spam','79000000-0000-4000-8000-000000000001','held'),
+  ('79000000-0000-4000-8000-000000000041','79000000-0000-4000-8000-000000000040',
+   '79000000-0000-4000-8000-000000000011','spam','79000000-0000-4000-8000-000000000001','held');
+
+select lives_ok(
+  $$select app_public.reviews_moderate(
+    '79000000-0000-4000-8000-000000000031','dismiss_report','Report not substantiated',1,'issue-140-dismiss-held'
+  )$$,
+  'dismissing a held report closes only the case'
+);
+select results_eq(
+  $$select state,version from review_private.public_reviews
+    where review_id='79000000-0000-4000-8000-000000000030'$$,
+  $$values ('held'::text,1::bigint)$$,
+  'dismiss report preserves held visibility and review version'
+);
+select results_eq(
+  $$select state from review_private.moderation_cases
+    where case_id='79000000-0000-4000-8000-000000000031'$$,
+  $$values ('dismissed'::text)$$,
+  'dismiss report closes the case'
+);
+select throws_ok(
+  $$select app_public.reviews_moderate(
+    '79000000-0000-4000-8000-000000000041','restore','Restore requested',1,'issue-140-ineligible-restore'
+  )$$,
+  '42501',
+  'review_restore_ineligible',
+  'restore fails closed when author eligibility no longer passes'
+);
+select results_eq(
+  $$select r.state,c.state from review_private.public_reviews r
+    join review_private.moderation_cases c on c.review_id=r.review_id
+    where r.review_id='79000000-0000-4000-8000-000000000040'$$,
+  $$values ('held'::text,'held'::text)$$,
+  'a denied restore changes neither review nor case'
 );
 
 select * from finish();
