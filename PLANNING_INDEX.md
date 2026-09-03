@@ -1,6 +1,6 @@
 # Antique Trail Planning and Evidence Index
 
-Status: current document-role map as of 2026-08-30. When documents conflict, use the source precedence in `README.md` and stop dependent work until the controlling documents are reconciled.
+Status: current document-role map as of 2026-09-03. When documents conflict, use the source precedence in `README.md` and stop only the dependent work until the controlling documents are reconciled.
 
 ## Root Markdown inventory
 
@@ -28,6 +28,7 @@ Status: current document-role map as of 2026-08-30. When documents conflict, use
 | `PLAN.md`                   | Historical 2026-08-24 ticket-execution plan                     |
 | `GATES.md`                  | Historical Issue #122 gate ledger                               |
 | `PLAN_TICKET_SEQUENCE.md`   | Historical 2026-08-29 ordered ticket ledger                     |
+| `OPEN_TICKET_TODO.md`       | Current ticket workflow; no live status                          |
 | `CONTEXT.md`                | Historical discovery context, non-normative                     |
 | `USER_RESEARCH.md`          | Research evidence, non-normative                                |
 | `COMPETITIVE_LANDSCAPE.md`  | Research evidence, non-normative                                |
@@ -95,8 +96,9 @@ Untracked `PLAN_*.md` or `gates/*.md` files in a working tree are local executio
 | Product Owner explicitly directs `update plan`                 | Follow `PLAN_GOVERNANCE.md`; update every affected controlling source and append `PLAN_CHANGELOG.md` before dependent implementation |
 | Product Owner chooses a provider, policy, feature, or deferral | `PRODUCT_DECISIONS.md`, then the affected PRD/design/security/package contract and `PROJECT_STATE.md`                                |
 | A visual critique establishes a reusable rule                  | `DESIGN_SYSTEM.md` or `DESIGN.md`, plus dated evidence                                                                               |
-| Code merges or an issue changes status                         | `PROJECT_STATE.md`; preserve the original ticket/evidence ledger                                                                     |
+| Code merges                                                    | `PROJECT_STATE.md` only when material capability state changes                                                                       |
+| An issue or pull request changes status                        | GitHub only; do not duplicate live state in repository Markdown                                                                      |
 | A human/provider/release gate passes                           | Its signed operational receipt, the G56 ledger, GitHub #56, then `PROJECT_STATE.md`                                                  |
 | An old review becomes stale                                    | Add a prominent historical/superseded banner; do not erase the evidence                                                              |
 
-Tickets never become controlling sources. Every ticket must pass the admission contract in `PLAN_GOVERNANCE.md`, cite the current controlling file and heading for each requirement, and map its reason through acceptance and closure evidence. A critique or ticket that proposes different intended behavior remains non-normative until an authorized plan amendment is merged.
+Tickets never become controlling sources. Every implementation ticket must pass `PLAN_GOVERNANCE.md`, cite the current controlling heading, own one repository-controlled outcome, and use at most five acceptance criteria. External activation evidence belongs in a separate gate issue. A proposal remains non-normative until its authorized plan amendment merges.

@@ -16,20 +16,7 @@ Focused commands are `npm run typecheck`, `npm run lint`, `npm run format`, `npm
 
 ## Start here
 
-Read `PLAN_GOVERNANCE.md` first for the locked-plan, decision, ticket, and amendment rules. Its append-only amendment record is `PLAN_CHANGELOG.md`.
-
-1. Read `PROJECT_STATE.md` for current implementation, backlog, Product Owner decisions, and release state.
-2. Read `PLANNING_INDEX.md` to distinguish controlling sources from historical plans and evidence.
-3. Read `CODEX_START_PROMPT.md` for current authority and stop conditions.
-4. Read `PRODUCT_DECISIONS.md` for approved and unresolved product choices.
-5. Read `PRD.md` for product requirements.
-6. Read `DESIGN.md` and `DESIGN_SYSTEM.md` for interaction and reproducible visual rules.
-7. Read `SECURITY_AND_TRUST.md` for trust, privacy, and operational controls.
-8. Read `IMPLEMENTATION_PLAN.md` for the original delivery roadmap and Package 1 contract.
-9. Read `PACKAGE_CONTRACTS.md` for Packages 2â€“13.
-10. Read `PLAN_ACCEPTANCE.md` for the cross-document dependency and independent-build map.
-11. Use `PHASE_0_REVIEW.md`, `DEEP_SPEC_REVIEW.md`, and `ROLE_BASED_SITE_REVIEW.md` as dated review snapshots, not current state.
-12. Use `USER_RESEARCH.md` and `COMPETITIVE_LANDSCAPE.md` as research evidence, not current requirements.
+Read `PLAN_GOVERNANCE.md`, `PROJECT_STATE.md`, and `PLANNING_INDEX.md` first. Then read only the controlling headings cited by the active ticket and the code paths it changes. Use historical reviews and research as evidence, never current requirements.
 
 ## Source precedence
 
