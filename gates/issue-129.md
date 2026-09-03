@@ -5,7 +5,7 @@ Scope: Complete the saved-store → trip-planning continuation so each saved-sto
 - [x] G1: Every saved-store card offers exactly one filled `Add to Trip` primary action and keeps store removal as a visually distinct destructive (downgraded) action.
       CHECK: npm test -- --run src/features/shopper/components.test.tsx
       EXPECT: Test Files 1 passed
-      EVIDENCE: 2026-09-02 focused shopper/trip/App suite passed 3 files, 68 tests; implementation `a38e09f`.
+      EVIDENCE: 2026-09-02 focused shopper/trip/App suite passed 3 files, 68 tests; rebased implementation `2a321d7`.
 
 - [x] G2: `?addStoreId=` always opens the explicit chooser (eligible existing trips + `Start a New Trip`), retains the exact store through selection, sign-in return, and cancel/back via the existing `returnTo` auth boundary, and never serializes the store object.
       CHECK: npm test -- --run src/features/trips/components.test.tsx

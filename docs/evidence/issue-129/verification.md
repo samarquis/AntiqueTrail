@@ -1,7 +1,7 @@
 # Issue #129 verification
 
-- Base: `36b66c9530eaf28ac5cd3749523a1b012ab3704e`.
-- Implementation: `a38e09f` on `codex/issue-129-saved-trip-continuation`.
+- Base: `1ff9a63566159325537a94248c15acc769aac966`.
+- Rebased implementation: `2a321d7` on `codex/issue-129-saved-trip-continuation`.
 - Scope: saved-card primary Add to Trip, explicit own-trip/new-trip chooser, named success, View Trip, Undo, and safe failure/return behavior. No database, authorization, or protected-plan file changed.
 
 ## Passed locally on 2026-09-02
