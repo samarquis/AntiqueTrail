@@ -3,7 +3,7 @@
 ## Scope and revision
 
 - Base: `1ff9a63566159325537a94248c15acc769aac966`.
-- Rebased implementation candidate: `2d96519`, pushed to `codex/issue-170-public-free-claim`. This verification ledger is a subsequent ticket-only commit; neither it nor the implementation commit is merge evidence without the remaining gates.
+- Rebased implementation plus senior-review repair: `d9cee2e` on `codex/issue-170-public-free-claim`. This verification ledger is a subsequent ticket-only commit; neither it nor the implementation commit is merge evidence without the remaining gates.
 - Public activation: intentionally unavailable. `public_listing_claim_command` derives authority from the server-owned `claims` capability and does not enable it. Package 10B and #169 remain external activation/closure dependencies.
 
 ## Role and stage matrix
@@ -18,9 +18,9 @@
 
 ## Local evidence
 
-- `npm run security:contract && npm run check && git diff --check` passed after aligning the review-harness fixture with the exact `storeId` and idempotency contract: 88 test files/602 tests, 69 release tests, and production/PWA build.
+- `npm run verify:baseline && git diff --check` passed after aligning the end-to-end client, edge, and database contracts: 88 test files/603 tests, 69 release tests, and production/PWA build.
 - `npm test -- --run src/features/partners --reporter=dot` passed: 8 files and 38 tests. React Router v7 future-flag warnings were emitted but no test failed.
-- An isolated Supabase project (`antique-trail-issue-170`, ports 55320-55324) completed `db reset --local` through migration `20260902010000`. Focused `supabase test db supabase/tests/0078_issue_170_public_free_claim.sql` passed 18/18 after that reset.
+- An isolated Supabase project (`antique-trail-issue-170`, ports 55320-55324) completed `db reset --local` through migration `20260902010000`. Focused `supabase test db supabase/tests/0078_issue_170_public_free_claim.sql` passed 27/27 after that reset, including runtime start/retry/signals/verification/approval and exact Free-tier authority.
 
 ## Browser attempt
 
