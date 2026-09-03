@@ -349,6 +349,7 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
       ['/admin/reviews', /^Dismiss Report /],
     ] as const) {
       await page.goto(reviewUrl(path, 'administrator'))
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       const target = page.getByRole('button', { name: label })
       await target.scrollIntoViewIfNeeded()
       const covered = await target.evaluate((element) => {
