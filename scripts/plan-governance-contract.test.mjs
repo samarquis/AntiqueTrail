@@ -82,6 +82,17 @@ test('accepts the legacy ticket format during migration', () => {
   assert.deepEqual(validatePlanTicket(legacyTicket), { valid: true, errors: [] })
 })
 
+test('applies the five-criterion limit to legacy tickets', () => {
+  const result = validatePlanTicket(
+    legacyTicket.replace(
+      '- [ ] Existing active tickets still validate.',
+      Array.from({ length: 6 }, (_, index) => `- [ ] Legacy criterion ${index + 1}`).join('\n'),
+    ),
+  )
+  assert.equal(result.valid, false)
+  assert.match(result.errors.join('\n'), /no more than five/)
+})
+
 test('accepts a conforming pull request that does not change the plan', () => {
   assert.deepEqual(validatePlanPullRequest(validPullRequest, [{ filename: 'src/App.tsx' }]), {
     valid: true,

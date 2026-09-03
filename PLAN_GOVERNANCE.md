@@ -70,4 +70,4 @@ Review and verification are proportional to risk. Documentation-only changes nee
 - `scripts/plan-governance-contract.mjs` validates ticket and pull-request bodies.
 - `.github/workflows/issue-plan-governance.yml` marks malformed tickets `plan-invalid` and removes implementation-ready labels.
 - `.github/workflows/pr-plan-governance.yml` rejects pull requests without ticket/plan traceability and rejects protected-plan changes without an `update plan` authorization receipt plus an append-only changelog entry.
-- `main` branch protection must require pull requests and the repository's current required checks. Repository files cannot prove that hosted protection is enabled; verify it in GitHub after changing the rule.
+- `main` branch protection must require pull requests, `web`, `database`, and `plan-governance` checks. Repository files cannot prove that hosted protection is enabled; verify it in GitHub after changing the rule.

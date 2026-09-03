@@ -137,7 +137,7 @@ export function validatePlanTicket(body) {
     errors.push('Acceptance must contain at least one unchecked criterion.')
   }
   const criteria = acceptance.match(/^- \[ \]\s+\S.*$/gm) ?? []
-  if (!legacy && criteria.length > 5) {
+  if (criteria.length > 5) {
     errors.push('Acceptance must contain no more than five criteria.')
   }
 

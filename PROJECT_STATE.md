@@ -53,7 +53,7 @@ The Product Owner approved the public owner-acquisition plan on 2026-08-30. The 
 
 ## Backlog and repository synchronization
 
-GitHub issues and pull requests are the only live backlog. `OPEN_TICKET_TODO.md` defines workflow but contains no status ledger. The 2026-09-03 reconciliation classifies each open issue as keep, split/replace, close, or external gate; live issue state and comments hold the result.
+GitHub issues and pull requests are the only live backlog. `OPEN_TICKET_TODO.md` defines workflow but contains no status ledger. After this amendment merges, each open issue must be classified as keep, split/replace, close, or external gate; live issue state and comments hold the result.
 
 On 2026-09-03, current `main` passed `npm run check` and `npm run security:contract` from a clean worktree. Every committed local branch/worktree tip found during the reconciliation was pushed to a remote preservation branch; remaining untracked files were left untouched and are not part of `main`. This proves recoverability, not that every preserved branch should merge.
 
