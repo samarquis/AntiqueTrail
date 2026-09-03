@@ -5,7 +5,7 @@
 Candidate branch `codex/issue-137-admin-navigation` implements the `DESIGN_SYSTEM.md`
 privileged-navigation contract: the only Administrator primary parents are `Review | Access | More`.
 The rebased candidate uses base `1ff9a63566159325537a94248c15acc769aac966`; its feature
-implementation begins at `a94240b`.
+implementation begins at `a94240b`; senior-review registry repair is `17c6625`.
 
 ## Route-parent map
 
@@ -40,8 +40,8 @@ do not prove production provider, RPC, RLS, or Storage authorization.
 
 ## Four-pass result
 
-1. Implementation: one `ADMIN_ROUTE_PARENTS` registry now maps every mounted `/admin` route to
-   Review, Access, or More; no child route becomes a primary item.
+1. Implementation: one pure `ADMIN_ROUTES` registry now drives every mounted `/admin` route and
+   maps each route to Review, Access, or More; no child route becomes a primary item.
 2. Domain re-read: More labels only Support/System status as links and truthfully marks readiness,
    narrow D30 audit, evidence, and communities unavailable until a server-authorized exact scope.
 3. Defect hunt: focused app and registry tests pass (23/23 and 10/10). On 2026-09-02 the exact
