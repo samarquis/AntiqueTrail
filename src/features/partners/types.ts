@@ -78,6 +78,7 @@ export interface PartnerClaimDraft {
 
 export interface PartnerClaimSignalInput {
   claimId: string
+  idempotencyKey: string
   channelClass:
     | 'published_business_contact'
     | 'callback'

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(27);
 
 select has_table('partner_private','store_owner_intake_roots','claim and add starts share an applicant root');
 select has_column('partner_private','store_owner_intake_roots','active_kind','the root records the active intake kind');
@@ -13,7 +13,7 @@ select ok(
 select has_function('app_public','public_listing_claim_command',array['text','jsonb']::text[],
   'public claim command exists behind the server release seam');
 select ok(
-  position('partner_private.claim_stage_allowed(store_id)' in lower(pg_get_functiondef('app_public.public_listing_claim_command(text,jsonb)'::regprocedure)))>0
+  position('partner_private.claim_stage_allowed(target_store_id)' in lower(pg_get_functiondef('app_public.public_listing_claim_command(text,jsonb)'::regprocedure)))>0
   and position('not synthetic' in lower(pg_get_functiondef('app_public.public_listing_claim_command(text,jsonb)'::regprocedure)))>0,
   'public start checks server stage and rejects Synthetic/route-selected authority'
 );
@@ -71,6 +71,108 @@ select ok(
 select ok(
   position('public_capability_enabled(''claims'')' in lower(pg_get_functiondef('partner_private.claim_stage_allowed(uuid)'::regprocedure)))>0,
   'the claim capability remains server-owned and staged off by default'
+);
+
+select ok(
+  position('grant_row.store_id=target_store_id' in regexp_replace(lower(pg_get_functiondef('app_public.public_listing_claim_command(text,jsonb)'::regprocedure)),'[[:space:]]','','g'))>0
+  and position('store_id=store_id' in regexp_replace(lower(pg_get_functiondef('app_public.public_listing_claim_command(text,jsonb)'::regprocedure)),'[[:space:]]','','g'))=0,
+  'public start scopes the active-grant check to the exact selected store'
+);
+select ok(
+  position($q$values(actor,target_store_id,relationship,statement)$q$ in regexp_replace(lower(pg_get_functiondef('app_public.public_listing_claim_command(text,jsonb)'::regprocedure)),'[[:space:]]','','g'))>0
+  and position($q$setstate='submitted',version=version+1$q$ in regexp_replace(lower(pg_get_functiondef('app_public.public_listing_claim_command(text,jsonb)'::regprocedure)),'[[:space:]]','','g'))>0,
+  'the production command follows the guarded draft-to-submitted transition'
+);
+select ok(
+  position('ifnotfoundorc.version<>p_expected_version' in regexp_replace(lower(pg_get_functiondef('app_public.partner_admin_claim_command(text,uuid,bigint,text,text,uuid)'::regprocedure)),'[[:space:]]','','g'))
+    < position('perform1frompartner_private.store_partner_grants' in regexp_replace(lower(pg_get_functiondef('app_public.partner_admin_claim_command(text,uuid,bigint,text,text,uuid)'::regprocedure)),'[[:space:]]','','g')),
+  'claim existence and version are checked before a grant-lock PERFORM can overwrite FOUND'
+);
+select ok(
+  position('notsynthetic' in regexp_replace(lower(pg_get_functiondef('partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text)'::regprocedure)),'[[:space:]]','','g'))>0
+  and position('claim_stage_allowed(c.store_id)' in lower(pg_get_functiondef('partner_private.verify_synthetic_claim_signal(uuid,uuid,bytea,uuid,text)'::regprocedure)))>0,
+  'the verifier admits public stores only through the server-owned claim release gate'
+);
+
+insert into auth.users(id) values
+  ('17000000-0000-4000-8000-000000000001'),
+  ('17000000-0000-4000-8000-000000000002');
+insert into app_public.stores(id,slug,name,town,state_code,address,area_id,summary,description,synthetic,audience,publication_state)
+values('17000000-0000-4000-8000-000000000010','issue-170-public-store','Issue 170 Public Store','Topeka','KS','170 Test Street','00000000-0000-4000-8000-000000000001','Runtime claim fixture','Runtime claim fixture',false,'public','active');
+insert into app_private.role_grants(subject_user_id,role,state)
+values('17000000-0000-4000-8000-000000000002','administrator','active');
+grant identity_service to postgres;
+grant usage,create on schema partner_private to identity_service;
+grant usage,create on schema app_private to identity_service;
+set role identity_service;
+create or replace function partner_private.require_claimant() returns uuid
+language sql stable security definer set search_path='' as $$
+  select '17000000-0000-4000-8000-000000000001'::uuid
+$$;
+create or replace function partner_private.require_claim_admin() returns uuid
+language sql stable security definer set search_path='' as $$
+  select '17000000-0000-4000-8000-000000000002'::uuid
+$$;
+create or replace function partner_private.partner_consent_is_current(target_user uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+  select target_user is not null
+$$;
+create or replace function app_private.current_session_is_active()
+returns boolean language sql stable security definer set search_path='' as $$
+  select true
+$$;
+reset role;
+set local "request.jwt.claims"='{"sub":"17000000-0000-4000-8000-000000000001"}';
+
+select throws_ok(
+  $$select app_public.public_listing_claim_command('start','{"storeId":"17000000-0000-4000-8000-000000000010","relationship":"Owner","authorityStatement":"Authorized owner","idempotencyKey":"issue-170-start"}'::jsonb)$$,
+  '42501'::character(5),'listing_claim_unavailable',
+  'the public start remains side-effect-free while Package 10B claims are disabled'
+);
+
+grant release_automation to postgres;
+grant usage,create on schema release_private to release_automation;
+set role release_automation;
+create or replace function release_private.public_capability_enabled(p_capability text)
+returns boolean language sql stable security definer set search_path='' as $$
+  select p_capability='claims'
+$$;
+reset role;
+
+select is(
+  app_public.public_listing_claim_command('start','{"storeId":"17000000-0000-4000-8000-000000000010","relationship":"Owner","authorityStatement":"Authorized owner","idempotencyKey":"issue-170-start"}'::jsonb)->>'state',
+  'submitted','active-stage start reaches the signal-eligible submitted state'
+);
+select is(
+  (select count(*)::integer from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'),
+  1,'idempotent public start creates exactly one claim'
+);
+select lives_ok($$
+do $runtime$
+declare target_claim_id uuid; signal_one uuid; signal_two uuid; claim_version bigint;
+begin
+  select c.claim_id into target_claim_id from partner_private.listing_claims c where c.claimant_id='17000000-0000-4000-8000-000000000001';
+  perform app_public.public_listing_claim_command('start','{"storeId":"17000000-0000-4000-8000-000000000010","relationship":"Owner","authorityStatement":"Authorized owner","idempotencyKey":"issue-170-start"}'::jsonb);
+  perform app_public.public_listing_claim_signal_command(target_claim_id,'published_business_contact',decode(repeat('11',32),'hex'),'issue-170-signal-one');
+  perform app_public.public_listing_claim_signal_command(target_claim_id,'callback',decode(repeat('22',32),'hex'),'issue-170-signal-two');
+  select s.signal_id into signal_one from partner_private.claim_authority_signals s where s.claim_id=target_claim_id and s.channel_class='published_business_contact';
+  select s.signal_id into signal_two from partner_private.claim_authority_signals s where s.claim_id=target_claim_id and s.channel_class='callback';
+  select c.version into claim_version from partner_private.listing_claims c where c.claim_id=target_claim_id;
+  perform app_public.partner_admin_signal_command('verify',target_claim_id,signal_one,claim_version,'issue-170-verify-one','authority_confirmed');
+  select c.version into claim_version from partner_private.listing_claims c where c.claim_id=target_claim_id;
+  perform app_public.partner_admin_signal_command('verify',target_claim_id,signal_two,claim_version,'issue-170-verify-two','authority_confirmed');
+  select c.version into claim_version from partner_private.listing_claims c where c.claim_id=target_claim_id;
+  perform app_public.partner_admin_claim_command('approve',target_claim_id,claim_version,'issue-170-approve','authority_confirmed',null);
+end
+$runtime$;
+$$,'the active-stage public claim executes start, retry, two-signal verification, and approval');
+select ok(
+  exists(select 1 from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001' and state='approved')
+  and exists(select 1 from app_private.role_grants where subject_user_id='17000000-0000-4000-8000-000000000001' and role='representative' and store_id='17000000-0000-4000-8000-000000000010' and state='active')
+  and exists(select 1 from partner_private.store_photo_tier_state where store_id='17000000-0000-4000-8000-000000000010' and tier='free')
+  and exists(select 1 from partner_private.claim_free_activation_receipts where applicant_id='17000000-0000-4000-8000-000000000001' and store_id='17000000-0000-4000-8000-000000000010')
+  and exists(select 1 from partner_private.store_owner_intake_roots where applicant_id='17000000-0000-4000-8000-000000000001' and active_kind='none' and active_id is null),
+  'approval atomically creates one exact Representative grant, Free tier, receipt, and clears the matching root'
 );
 
 select * from finish();

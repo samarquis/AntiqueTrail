@@ -352,6 +352,7 @@ describe('partner onboarding boundary', () => {
 
     expect(submitAuthoritySignal).toHaveBeenCalledWith({
       claimId: 'claim-1',
+      idempotencyKey: expect.stringMatching(/^public-signal-/),
       channelClass: 'callback',
       evidenceReference: 'case-ref-17',
     })

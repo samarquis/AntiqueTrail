@@ -145,6 +145,7 @@ describe('scenario-aware review clients', () => {
     await expect(
       partner.submitAuthoritySignal({
         claimId: claim.claimId,
+        idempotencyKey: 'public-signal-review-partner-1',
         channelClass: 'published_business_contact',
         evidenceReference: 'public-contact',
       }),

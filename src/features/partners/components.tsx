@@ -583,6 +583,9 @@ export function PartnerClaimPage({
     'published_business_contact',
   )
   const [evidenceReference, setEvidenceReference] = useState('')
+  const [signalIdempotencyKey, setSignalIdempotencyKey] = useState(
+    () => `public-signal-${crypto.randomUUID()}`,
+  )
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(false)
   const [consent, setConsent] = useState<PartnerConsentStatus | null>(null)
@@ -636,11 +639,13 @@ export function PartnerClaimPage({
       setStatus(
         await client.submitAuthoritySignal({
           claimId: status.claimId,
+          idempotencyKey: signalIdempotencyKey,
           channelClass: signalChannel,
           evidenceReference: evidenceReference.trim(),
         }),
       )
       setEvidenceReference('')
+      setSignalIdempotencyKey(`public-signal-${crypto.randomUUID()}`)
     } catch {
       setError(true)
     } finally {

@@ -4,6 +4,15 @@
 
 grant identity_service to postgres;
 grant create on schema app_public, partner_private to identity_service;
+grant select,insert,update on partner_private.store_photo_tier_state to identity_service;
+create policy identity_service_claim_free_tier_read
+  on partner_private.store_photo_tier_state for select to identity_service using (true);
+create policy identity_service_claim_free_tier_insert
+  on partner_private.store_photo_tier_state for insert to identity_service
+  with check (tier='free' and source='default');
+create policy identity_service_claim_free_tier_update
+  on partner_private.store_photo_tier_state for update to identity_service
+  using (tier='free' and source='default') with check (tier='free' and source='default');
 
 create table partner_private.store_owner_intake_roots (
   applicant_id uuid primary key references auth.users(id) on delete cascade,
@@ -94,7 +103,7 @@ create or replace function app_public.public_listing_claim_command(
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare
   actor uuid:=partner_private.require_claimant();
-  store_id uuid; root partner_private.store_owner_intake_roots%rowtype;
+  target_store_id uuid; root partner_private.store_owner_intake_roots%rowtype;
   claim partner_private.listing_claims%rowtype; prior partner_private.claim_command_receipts%rowtype;
   relationship text:=nullif(btrim(p_payload->>'relationship'),'');
   statement text:=nullif(btrim(p_payload->>'authorityStatement'),'');
@@ -103,18 +112,18 @@ begin
   if jsonb_typeof(p_payload)<>'object' or p_operation<>'start' then
     raise exception using errcode='42501', message='listing_claim_unavailable';
   end if;
-  begin store_id:=(p_payload->>'storeId')::uuid; exception when others then
+  begin target_store_id:=(p_payload->>'storeId')::uuid; exception when others then
     raise exception using errcode='42501', message='listing_claim_unavailable'; end;
   if relationship is null or statement is null or key !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' then
     raise exception using errcode='42501', message='listing_claim_unavailable';
   end if;
   -- Never trust the route, selected label, or a client capability.  This is
   -- intentionally before root creation to make stage-off writes side-effect free.
-  if not partner_private.claim_stage_allowed(store_id)
-    or not exists(select 1 from app_public.stores where id=store_id and not synthetic and publication_state='active') then
+  if not partner_private.claim_stage_allowed(target_store_id)
+    or not exists(select 1 from app_public.stores where id=target_store_id and not synthetic and publication_state='active') then
     raise exception using errcode='42501', message='listing_claim_unavailable';
   end if;
-  digest:=extensions.digest(convert_to(concat_ws('|','public-start',actor,store_id,relationship,statement),'utf8'),'sha256');
+  digest:=extensions.digest(convert_to(concat_ws('|','public-start',actor,target_store_id,relationship,statement),'utf8'),'sha256');
   select * into prior from partner_private.claim_command_receipts where idempotency_key=key;
   if found then
     if prior.actor_user_id<>actor or prior.operation<>'start' or prior.input_digest<>digest then
@@ -135,16 +144,21 @@ begin
   elsif root.active_kind<>'none' then
     raise exception using errcode='42501', message='listing_claim_unavailable';
   end if;
-  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('partner-store:'||store_id,0));
-  if exists(select 1 from partner_private.store_partner_grants where store_id=store_id and state='active') then
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('partner-store:'||target_store_id,0));
+  if exists(select 1 from partner_private.store_partner_grants as grant_row where grant_row.store_id=target_store_id and grant_row.state='active') then
     raise exception using errcode='42501', message='listing_claim_unavailable';
   end if;
   insert into partner_private.listing_claims(claimant_id,store_id,relationship,authority_statement)
-    values(actor,store_id,relationship,statement) returning * into claim;
-  update partner_private.store_owner_intake_roots set active_kind='claim', active_id=claim.claim_id,
-    version=version+1, updated_at=statement_timestamp() where applicant_id=actor;
+    values(actor,target_store_id,relationship,statement) returning * into claim;
   insert into partner_private.claim_events(claim_id,actor_user_id,event_kind,to_state,idempotency_key)
     values(claim.claim_id,actor,'created','draft',key);
+  update partner_private.listing_claims
+    set state='submitted',version=version+1,updated_at=statement_timestamp()
+    where claim_id=claim.claim_id returning * into claim;
+  insert into partner_private.claim_events(claim_id,actor_user_id,event_kind,from_state,to_state,idempotency_key)
+    values(claim.claim_id,actor,'submitted','draft','submitted',encode(digest,'hex')||':submitted');
+  update partner_private.store_owner_intake_roots set active_kind='claim', active_id=claim.claim_id,
+    version=version+1, updated_at=statement_timestamp() where applicant_id=actor;
   insert into partner_private.claim_command_receipts(idempotency_key,operation,claim_id,actor_user_id,input_digest,result_state)
     values(key,'start',claim.claim_id,actor,digest,claim.state);
   return app_public.public_listing_claim_status(claim.claim_id);
@@ -187,6 +201,67 @@ begin
   insert into partner_private.claim_command_receipts(idempotency_key,operation,claim_id,actor_user_id,input_digest,result_state)
     values(p_idempotency_key,'submit',c.claim_id,actor,digest,'verification_pending');
   return app_public.public_listing_claim_status(c.claim_id);
+end $$;
+
+-- Preserve the established Administrator signal command while extending its
+-- verifier to the staged public-claim shape. Public verification still fails
+-- closed unless the server-owned claim capability is active for the store.
+create or replace function partner_private.verify_synthetic_claim_signal(
+  p_signal_id uuid,
+  p_verifier_user_id uuid,
+  p_authority_object_hmac bytea,
+  p_verification_event_id uuid,
+  p_decision text
+) returns void
+language plpgsql volatile security definer set search_path='' as $$
+declare
+  s partner_private.claim_authority_signals%rowtype;
+  c partner_private.listing_claims%rowtype;
+begin
+  select lc.* into c
+  from partner_private.claim_authority_signals sig
+  join partner_private.listing_claims lc using(claim_id)
+  where sig.signal_id=p_signal_id;
+  if not found then
+    raise exception using errcode='42501',message='partner_signal_verification_denied';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('partner-store:'||c.store_id,0));
+  select * into c from partner_private.listing_claims where claim_id=c.claim_id for update;
+  select * into s from partner_private.claim_authority_signals where signal_id=p_signal_id for update;
+  if s.signal_id is null or s.status<>'submitted' or p_decision not in ('verified','rejected')
+    or p_verifier_user_id=c.claimant_id or octet_length(p_authority_object_hmac)<>32
+    or p_verification_event_id is null
+    or not exists(
+      select 1 from app_private.role_grants
+      where subject_user_id=p_verifier_user_id and role='administrator'
+        and store_id is null and state='active'
+    )
+    or not exists(
+      select 1 from app_public.stores
+      where id=c.store_id and (
+        synthetic or (
+          not synthetic and publication_state='active'
+          and partner_private.claim_stage_allowed(c.store_id)
+        )
+      )
+    )
+  then
+    raise exception using errcode='42501',message='partner_signal_verification_denied';
+  end if;
+  update partner_private.claim_authority_signals
+  set status=p_decision,
+      verified_by=case when p_decision='verified' then p_verifier_user_id else null end,
+      verified_at=case when p_decision='verified' then statement_timestamp() else null end,
+      authority_object_hmac=case when p_decision='verified' then p_authority_object_hmac else null end,
+      verification_event_id=case when p_decision='verified' then p_verification_event_id else null end
+  where signal_id=p_signal_id;
+  insert into partner_private.claim_events(
+    claim_id,actor_user_id,event_kind,from_state,to_state,idempotency_key
+  ) values(
+    c.claim_id,p_verifier_user_id,
+    case when p_decision='verified' then 'signal_verified' else 'signal_rejected' end,
+    c.state,c.state,'verify-'||p_verification_event_id
+  );
 end $$;
 
 -- The older command remains the Synthetic-only harness seam.  Making that
@@ -321,10 +396,10 @@ begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('partner-store:'||c.store_id,0));
   perform 1 from partner_private.claim_authority_signals where claim_id=c.claim_id for update;
   select * into c from partner_private.listing_claims where claim_id=p_claim_id for update;
-  perform 1 from partner_private.store_partner_grants where store_id=c.store_id for update;
   if not found or c.version<>p_expected_version or c.claimant_id=actor
     or (c.assigned_admin_id is not null and c.assigned_admin_id<>actor) then
     raise exception using errcode='40001',message='partner_claim_unavailable_or_stale'; end if;
+  perform 1 from partner_private.store_partner_grants where store_id=c.store_id for update;
   prior_state:=c.state;
   if p_operation='changes' and c.state in ('submitted','verification_pending','conflict') then
     update partner_private.listing_claims set state='changes_requested',assigned_admin_id=actor where claim_id=c.claim_id returning * into c;

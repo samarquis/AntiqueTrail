@@ -36,6 +36,7 @@ export async function preparePublicClaimSignalPayload(
   if (
     !evidenceHmacSecret ||
     typeof input?.claimId !== 'string' ||
+    typeof input?.idempotencyKey !== 'string' ||
     typeof input?.channelClass !== 'string' ||
     typeof input?.evidenceReference !== 'string'
   )
@@ -44,7 +45,7 @@ export async function preparePublicClaimSignalPayload(
   return {
     ...bounded,
     evidenceRefHmac: await hmacHex(normalize(evidenceReference), evidenceHmacSecret),
-    idempotencyKey: `public-signal-${crypto.randomUUID()}`,
+    idempotencyKey: input.idempotencyKey,
   }
 }
 
