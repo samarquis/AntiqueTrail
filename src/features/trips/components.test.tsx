@@ -369,10 +369,7 @@ describe('manual trips', () => {
     const get = vi.fn(async () => committed)
     renderPage(
       <AuthProvider>
-        <AddToTripPage
-          storeId="store-1"
-          client={client({ addStoreStop, create: created, get })}
-        />
+        <AddToTripPage storeId="store-1" client={client({ addStoreStop, create: created, get })} />
       </AuthProvider>,
     )
     await user.type(await screen.findByLabelText(/trip name/i), 'Saturday finds')
