@@ -6,15 +6,6 @@ export default defineConfig(({ mode }) => {
   const base = process.env.GITHUB_PAGES === 'true' ? '/AntiqueTrail/' : '/'
   const ownerResearch = mode === 'owner-research'
   const env = loadEnv(mode, process.cwd(), '')
-  const researchDigest = env.VITE_OWNER_RESEARCH_ARTIFACT_DIGEST ?? ''
-  const researchManifest = {
-    kind: 'antique-trail-owner-research',
-    audience: 'synthetic',
-    route: '/for-stores',
-    indexing: 'noindex',
-    deploymentProtection: 'required',
-    artifactBinding: researchDigest,
-  }
   const plugins: PluginOption[] = [react()]
 
   if (ownerResearch) {
@@ -25,17 +16,10 @@ export default defineConfig(({ mode }) => {
           this.error('VITE_SUPABASE_URL must identify the isolated research project')
         if (!env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY.startsWith('replace-with-'))
           this.error('VITE_SUPABASE_ANON_KEY must identify the isolated research project')
-        if (!/^sha256:[0-9a-f]{64}$/.test(researchDigest))
-          this.error('VITE_OWNER_RESEARCH_ARTIFACT_DIGEST must be an exact sha256 binding')
         if (!/^[a-z0-9-]{3,40}$/.test(env.VITE_OWNER_RESEARCH_COHORT_KEY ?? ''))
           this.error('VITE_OWNER_RESEARCH_COHORT_KEY must identify one bounded cohort')
-      },
-      generateBundle() {
-        this.emitFile({
-          type: 'asset',
-          fileName: 'owner-research-manifest.json',
-          source: `${JSON.stringify(researchManifest, null, 2)}\n`,
-        })
+        if (!/^https:\/\/[^/]+$/u.test(env.VITE_CANONICAL_SITE_URL ?? ''))
+          this.error('VITE_CANONICAL_SITE_URL must be an absolute HTTPS origin')
       },
     })
   } else {

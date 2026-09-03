@@ -16,13 +16,6 @@ const receiptAt = process.env.OWNER_RESEARCH_RECEIPT_AT
 if (!/^sha256:[0-9a-f]{64}$/.test(artifactDigest)) throw new Error('Invalid artifact digest.')
 if (Number.isNaN(Date.parse(receiptAt))) throw new Error('Invalid Package 10A receipt time.')
 
-const deployment = await fetch(
-  `https://api.vercel.com/v13/deployments/${encodeURIComponent(process.env.OWNER_RESEARCH_DEPLOYMENT_ID)}`,
-  { method: 'DELETE', headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` } },
-)
-if (!deployment.ok && deployment.status !== 404)
-  throw new Error(`Deployment teardown failed (${deployment.status}).`)
-
 const purge = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/owner_research_teardown`, {
   method: 'POST',
   headers: {
@@ -33,5 +26,22 @@ const purge = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/owner_researc
   body: JSON.stringify({ p_artifact_digest: artifactDigest, p_receipt_at: receiptAt }),
 })
 if (!purge.ok) throw new Error(`Research-state purge failed (${purge.status}).`)
+const receipt = await purge.json()
+if (
+  receipt.artifactDigest !== artifactDigest ||
+  receipt.deploymentId !== process.env.OWNER_RESEARCH_DEPLOYMENT_ID ||
+  Date.parse(receipt.receiptAt) !== Date.parse(receiptAt) ||
+  receipt.revoked !== true ||
+  !/^sha256:[0-9a-f]{64}$/.test(receipt.receiptDigest ?? '')
+)
+  throw new Error('Research-state purge receipt verification failed.')
 
-console.log(JSON.stringify({ deploymentDestroyed: true, state: await purge.json() }))
+// The database receipt is idempotent; Vercel 404 makes a whole-command retry successful.
+const deployment = await fetch(
+  `https://api.vercel.com/v13/deployments/${encodeURIComponent(process.env.OWNER_RESEARCH_DEPLOYMENT_ID)}`,
+  { method: 'DELETE', headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` } },
+)
+if (!deployment.ok && deployment.status !== 404)
+  throw new Error(`Deployment teardown failed (${deployment.status}).`)
+
+console.log(JSON.stringify({ deploymentDestroyed: true, receipt }))

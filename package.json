@@ -11,7 +11,7 @@
     "dev": "vite",
     "dev:review": "vite --mode review",
     "build": "tsc -b && vite build",
-    "build:owner-research": "tsc -b && vite build --mode owner-research --outDir dist-owner-research",
+    "build:owner-research": "tsc -b && vite build --mode owner-research --outDir dist-owner-research && node scripts/finalize-owner-research-artifact.mjs",
     "owner-research:teardown": "node scripts/owner-research-teardown.mjs",
     "verify:owner-research-artifacts": "node scripts/verify-owner-research-artifacts.mjs",
     "preview": "vite preview",

@@ -61,6 +61,17 @@ for (const scenario of [
       'noindex, nofollow, noarchive',
     )
     await expect(page.getByText(/Private research artifact · Synthetic data only/)).toBeVisible()
+    for (const [name, path] of [
+      ['support', '/help'],
+      ['security', '/security'],
+      ['privacy', '/privacy'],
+      ['terms', '/terms'],
+      ['status', '/status'],
+    ])
+      await expect(page.getByRole('link', { name })).toHaveAttribute(
+        'href',
+        `https://antique-trail-pages.pages.dev${path}`,
+      )
     await page.getByRole('button', { name: 'Add or claim my store' }).click()
     await page.getByRole('radio', { name: scenario.radio }).check()
     await page.getByRole('button', { name: /Continue with this Synthetic scenario/ }).click()

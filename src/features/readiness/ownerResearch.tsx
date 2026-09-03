@@ -57,9 +57,11 @@ const blankDraft = (kind: OwnerIntakeKind): OwnerIntakeDraft => ({
 export function OwnerResearchPage({
   client,
   authenticate,
+  canonicalSiteUrl,
 }: {
   client: OwnerIntakeClient
   authenticate?: (email: string, password: string) => Promise<void>
+  canonicalSiteUrl?: string
 }) {
   const [snapshot, setSnapshot] = useState<OwnerIntakeSnapshot | null>(null)
   const [draft, setDraft] = useState<OwnerIntakeDraft | null>(null)
@@ -270,7 +272,12 @@ export function OwnerResearchPage({
           </button>
         </form>
       )}
-      {!denied && <OwnerAcquisitionContent action={intakeAction} />}
+      {!denied && (
+        <OwnerAcquisitionContent
+          action={intakeAction}
+          canonicalSiteUrl={canonicalSiteUrl ?? 'https://antique-trail-pages.pages.dev'}
+        />
+      )}
     </main>
   )
 }

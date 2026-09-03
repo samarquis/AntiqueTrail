@@ -1,23 +1,31 @@
 import type { ReactNode } from 'react'
 
 export const OWNER_ACQUISITION_SECTION_ORDER = [
-  'audience',
-  'journey',
-  'controls',
+  'audience-area',
+  'shopper-owner-value',
+  'shopper-journey',
+  'fact-controls',
   'eligibility',
+  'claim-or-add',
   'approval',
   'free',
   'trust',
 ] as const
 
 export const OWNER_ACQUISITION_PROHIBITED_COPY = [
-  'most popular',
-  'guaranteed traffic',
-  'guaranteed sales',
-  'verified owner',
-  'join the waitlist',
-  'limited time',
+  /\$\s*\d|\b(price|pricing|premium|upgrade|per month|monthly plan|annual plan)\b/i,
+  /\b(waitlist|join (our|the) list|email updates)\b/i,
+  /\b(testimonial|owners love|trusted by \d+|\d+ stores use)\b/i,
+  /\b(rank higher|boost ranking|priority placement)\b/i,
+  /\b(roi|return on investment|increase (sales|revenue|traffic)|guaranteed (sales|traffic))\b/i,
+  /\b(limited time|act now|hurry|spots? left|last chance)\b/i,
+  /\b(instant verification|same-day approval|fast approval|review(ed)? within \d+)\b/i,
 ] as const
+
+export function assertOwnerAcquisitionCopy(copy: string) {
+  const prohibited = OWNER_ACQUISITION_PROHIBITED_COPY.find((pattern) => pattern.test(copy))
+  if (prohibited) throw new Error(`Prohibited owner-acquisition claim: ${prohibited.source}`)
+}
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
@@ -28,19 +36,30 @@ function Section({ id, title, children }: { id: string; title: string; children:
   )
 }
 
-export function OwnerAcquisitionContent({ action }: { action: ReactNode }) {
+export function OwnerAcquisitionContent({
+  action,
+  canonicalSiteUrl,
+}: {
+  action: ReactNode
+  canonicalSiteUrl: string
+}) {
+  const canonical = (path: string) => new URL(path, `${canonicalSiteUrl}/`).href
   return (
     <article className="owner-acquisition">
-      <header className="owner-acquisition__hero" data-owner-section="audience">
+      <header className="owner-acquisition__hero" data-owner-section="audience-area">
         <p className="eyebrow">For eligible Topeka antique-store owners and managers</p>
         <h1>Help antique shoppers find your store—and make it part of the trip.</h1>
-        <p className="lede">
-          Antique Trail helps shoppers find Topeka antique stores, check current information, and
-          build a practical day before stores close.
-        </p>
       </header>
 
-      <Section id="journey" title="From browsing to a planned stop">
+      <Section id="shopper-owner-value" title="Useful to shoppers, manageable for owners">
+        <p className="lede">
+          Antique Trail helps shoppers find Topeka antique stores, check current information, and
+          build a practical day before stores close. Owners can keep ordinary store information
+          current without paying for the complete Free service.
+        </p>
+      </Section>
+
+      <Section id="shopper-journey" title="From browsing to a planned stop">
         <ol>
           <li>Browse nearby antique and vintage stores.</li>
           <li>Open Store Details and see when important information was checked.</li>
@@ -49,7 +68,7 @@ export function OwnerAcquisitionContent({ action }: { action: ReactNode }) {
         </ol>
       </Section>
 
-      <Section id="controls" title="What you can keep current">
+      <Section id="fact-controls" title="What you can keep current">
         <p>
           You can maintain ordinary details such as hours, website, description, and official social
           links. Sensitive facts and photos are reviewed before publication. Participation never
@@ -57,11 +76,18 @@ export function OwnerAcquisitionContent({ action }: { action: ReactNode }) {
         </p>
       </Section>
 
-      <Section id="eligibility" title="Claim an existing store or ask us to add one">
+      <Section id="eligibility" title="Who is eligible">
         <p>
-          This launch is limited to eligible antique and vintage stores in Topeka. Find your
-          existing listing first; if it is missing, use the add-store path. Multi-location and
-          unsupported businesses use the support path instead of a partially working application.
+          This launch is limited to eligible antique and vintage stores in Topeka. Multi-location
+          and unsupported businesses use the support path instead of a partially working
+          application.
+        </p>
+      </Section>
+
+      <Section id="claim-or-add" title="Claim the listing or ask us to add it">
+        <p>
+          Find your existing listing first and claim it. If the store is missing, use the add-store
+          path; the two paths use the same approval boundary.
         </p>
       </Section>
 
@@ -83,9 +109,9 @@ export function OwnerAcquisitionContent({ action }: { action: ReactNode }) {
       <Section id="trust" title="Trust, privacy, and support">
         <p>
           Learn how the service is operated and get help through the current{' '}
-          <a href="/help">support</a>, <a href="/security">security</a>,{' '}
-          <a href="/privacy">privacy</a>, <a href="/terms">terms</a>, and{' '}
-          <a href="/status">status</a> paths.
+          <a href={canonical('/help')}>support</a>, <a href={canonical('/security')}>security</a>,{' '}
+          <a href={canonical('/privacy')}>privacy</a>, <a href={canonical('/terms')}>terms</a>, and{' '}
+          <a href={canonical('/status')}>status</a> paths.
         </p>
       </Section>
     </article>
