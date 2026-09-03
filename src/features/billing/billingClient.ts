@@ -50,9 +50,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function containsControlCharacter(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0)
+    return codePoint !== undefined && (codePoint <= 31 || codePoint === 127)
+  })
+}
+
 function requiredString(record: Record<string, unknown>, key: string): string {
   const value = record[key]
-  if (typeof value !== 'string' || value.length === 0) throw new Error(GENERIC_BILLING_ERROR)
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > 500 ||
+    value !== value.trim() ||
+    containsControlCharacter(value)
+  )
+    throw new Error(GENERIC_BILLING_ERROR)
   return value
 }
 
@@ -62,20 +76,37 @@ function requiredPositiveInteger(record: Record<string, unknown>, key: string): 
   return Number(value)
 }
 
+function requiredBoundedInteger(
+  record: Record<string, unknown>,
+  key: string,
+  maximum: number,
+): number {
+  const value = requiredPositiveInteger(record, key)
+  if (value > maximum) throw new Error(GENERIC_BILLING_ERROR)
+  return value
+}
+
 function parseLimits(value: unknown): FullGalleryLimits {
   if (!isRecord(value)) throw new Error(GENERIC_BILLING_ERROR)
   const acceptedFileTypes = value.acceptedFileTypes
   if (
     !Array.isArray(acceptedFileTypes) ||
     acceptedFileTypes.length === 0 ||
-    !acceptedFileTypes.every((item) => typeof item === 'string' && item.length > 0)
+    acceptedFileTypes.length > 16 ||
+    !acceptedFileTypes.every(
+      (item) =>
+        typeof item === 'string' &&
+        item === item.trim() &&
+        item.length <= 127 &&
+        /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(item),
+    )
   )
     throw new Error(GENERIC_BILLING_ERROR)
   return {
     acceptedFileTypes,
-    maxFileBytes: requiredPositiveInteger(value, 'maxFileBytes'),
-    maxWidthPixels: requiredPositiveInteger(value, 'maxWidthPixels'),
-    maxHeightPixels: requiredPositiveInteger(value, 'maxHeightPixels'),
+    maxFileBytes: requiredBoundedInteger(value, 'maxFileBytes', 100_000_000),
+    maxWidthPixels: requiredBoundedInteger(value, 'maxWidthPixels', 20_000),
+    maxHeightPixels: requiredBoundedInteger(value, 'maxHeightPixels', 20_000),
     uploadRateRule: requiredString(value, 'uploadRateRule'),
     quotaOutageRule: requiredString(value, 'quotaOutageRule'),
     moderationAbuseRule: requiredString(value, 'moderationAbuseRule'),
@@ -90,13 +121,27 @@ function parseCommercialResearchConfig(value: unknown): CommercialResearchConfig
   return {
     version: requiredPositiveInteger(value, 'version'),
     state: value.state,
-    digest: requiredString(value, 'digest'),
-    galleryPriceCents: requiredPositiveInteger(value, 'galleryPriceCents'),
-    fullGalleryPriceCents: requiredPositiveInteger(value, 'fullGalleryPriceCents'),
-    currency: requiredString(value, 'currency'),
+    digest: (() => {
+      const digest = requiredString(value, 'digest')
+      if (!/^[0-9a-f]{64}$/.test(digest)) throw new Error(GENERIC_BILLING_ERROR)
+      return digest
+    })(),
+    galleryPriceCents: requiredBoundedInteger(value, 'galleryPriceCents', 100_000_000),
+    fullGalleryPriceCents: requiredBoundedInteger(value, 'fullGalleryPriceCents', 100_000_000),
+    currency: (() => {
+      const currency = requiredString(value, 'currency')
+      if (currency !== 'USD') throw new Error(GENERIC_BILLING_ERROR)
+      return currency
+    })(),
     taxMode: requiredString(value, 'taxMode'),
     firstChargeRule: requiredString(value, 'firstChargeRule'),
     renewalRule: requiredString(value, 'renewalRule'),
+    cancelAnytimeRule: requiredString(value, 'cancelAnytimeRule'),
+    refundWindowRule: requiredString(value, 'refundWindowRule'),
+    upgradeProrationRule: requiredString(value, 'upgradeProrationRule'),
+    downgradeRule: requiredString(value, 'downgradeRule'),
+    failedPaymentGraceRule: requiredString(value, 'failedPaymentGraceRule'),
+    hiddenPhotoDeletionRule: requiredString(value, 'hiddenPhotoDeletionRule'),
     refundPolicyVersion: requiredString(value, 'refundPolicyVersion'),
     supportPolicyVersion: requiredString(value, 'supportPolicyVersion'),
     termsVersion: requiredString(value, 'termsVersion'),

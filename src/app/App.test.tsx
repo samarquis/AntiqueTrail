@@ -414,6 +414,15 @@ describe('app shell', () => {
       taxMode: 'Tax is calculated at checkout.',
       firstChargeRule: 'First charge follows Checkout confirmation.',
       renewalRule: 'Renews monthly until canceled.',
+      cancelAnytimeRule: 'Cancel anytime through the self-serve customer portal.',
+      refundWindowRule: 'Request a full refund within 48 hours of a charge; no other refunds.',
+      upgradeProrationRule: 'Upgrades take effect immediately with prorated charges.',
+      downgradeRule:
+        'Downgrades take effect at renewal with no partial refund; the last scheduled downgrade wins.',
+      failedPaymentGraceRule:
+        'Failed payment has a 14-day grace period, then automatically downgrades to Free.',
+      hiddenPhotoDeletionRule:
+        'Photos over the Free limit hide at downgrade and delete after a 30-day grace period.',
       refundPolicyVersion: 'refund-v1',
       supportPolicyVersion: 'support-v1',
       termsVersion: 'terms-v1',

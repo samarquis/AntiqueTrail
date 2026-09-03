@@ -22,6 +22,13 @@ test.describe('issue #175 private inactive commercial research', () => {
     await expect(page.getByText(/Cover plus 15 gallery photos/)).toContainText('$12.00')
     await expect(page.getByText(/no plan-count cap/)).toContainText('$19.00')
     await expect(page.getByText(/reason, recovery step, and appeal path/)).toBeVisible()
+    await expect(page.getByText(/full refund within 48 hours/i)).toBeVisible()
+    await expect(
+      page.getByText(/upgrades take effect immediately with prorated charges/i),
+    ).toBeVisible()
+    await expect(page.getByText(/downgrades take effect at renewal/i)).toBeVisible()
+    await expect(page.getByText(/14-day grace period/)).toBeVisible()
+    await expect(page.getByText(/delete after a 30-day grace period/i)).toBeVisible()
     await expect(page.getByText(/payment never affects publication/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /checkout|buy|upgrade/i })).toHaveCount(0)
     expect(providerRequests).toEqual([])

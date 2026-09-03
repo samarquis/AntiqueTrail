@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import {
   BILLING_STAGE_DISABLED_MESSAGE,
   GENERIC_BILLING_ERROR,
@@ -55,6 +55,8 @@ export function CommercialResearchPage({
   const [reasonCode, setReasonCode] = useState('photo_capacity')
   const [consented, setConsented] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const responseIdentity = useRef({ fingerprint: '', idempotencyKey: '' })
 
   useEffect(() => {
     let robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]')
@@ -84,8 +86,21 @@ export function CommercialResearchPage({
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (!config || !consented || !reasonCode.trim()) return
+    if (!config || !consented || !reasonCode.trim() || submitting) return
+    const fingerprint = [
+      authorizationId,
+      config.version,
+      config.digest,
+      artifactDigest,
+      questionVersion,
+      choice,
+      reasonCode.trim(),
+    ].join(':')
+    if (responseIdentity.current.fingerprint !== fingerprint) {
+      responseIdentity.current = { fingerprint, idempotencyKey: crypto.randomUUID() }
+    }
     setError('')
+    setSubmitting(true)
     try {
       await client.recordCommercialResearchAttempt({
         authorizationId,
@@ -95,11 +110,13 @@ export function CommercialResearchPage({
         questionVersion,
         choice,
         reasonCode: reasonCode.trim(),
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: responseIdentity.current.idempotencyKey,
       })
       setSubmitted(true)
     } catch {
       setError(GENERIC_BILLING_ERROR)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -149,6 +166,12 @@ export function CommercialResearchPage({
           <li>{config.taxMode}</li>
           <li>{config.firstChargeRule}</li>
           <li>{config.renewalRule}</li>
+          <li>{config.cancelAnytimeRule}</li>
+          <li>{config.refundWindowRule}</li>
+          <li>{config.upgradeProrationRule}</li>
+          <li>{config.downgradeRule}</li>
+          <li>{config.failedPaymentGraceRule}</li>
+          <li>{config.hiddenPhotoDeletionRule}</li>
           <li>
             Refund policy {config.refundPolicyVersion}; support policy {config.supportPolicyVersion}
           </li>
@@ -200,8 +223,8 @@ export function CommercialResearchPage({
           />{' '}
           Record this minimized research response
         </label>
-        <button type="submit" disabled={!consented}>
-          Record response
+        <button type="submit" disabled={!consented || submitting}>
+          {submitting ? 'Recording response…' : 'Record response'}
         </button>
       </form>
       {error && <p role="alert">{error}</p>}

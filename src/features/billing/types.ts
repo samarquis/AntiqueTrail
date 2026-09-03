@@ -34,6 +34,12 @@ export interface CommercialResearchConfig {
   taxMode: string
   firstChargeRule: string
   renewalRule: string
+  cancelAnytimeRule: string
+  refundWindowRule: string
+  upgradeProrationRule: string
+  downgradeRule: string
+  failedPaymentGraceRule: string
+  hiddenPhotoDeletionRule: string
   refundPolicyVersion: string
   supportPolicyVersion: string
   termsVersion: string

@@ -56,6 +56,15 @@ const researchConfig: CommercialResearchConfig = {
   taxMode: 'Tax is calculated at checkout.',
   firstChargeRule: 'The first charge follows Checkout confirmation.',
   renewalRule: 'The plan renews monthly until canceled.',
+  cancelAnytimeRule: 'Cancel anytime through the self-serve customer portal.',
+  refundWindowRule: 'Request a full refund within 48 hours of a charge; no other refunds.',
+  upgradeProrationRule: 'Upgrades take effect immediately with prorated charges.',
+  downgradeRule:
+    'Downgrades take effect at renewal with no partial refund; the last scheduled downgrade wins.',
+  failedPaymentGraceRule:
+    'Failed payment has a 14-day grace period, then automatically downgrades to Free.',
+  hiddenPhotoDeletionRule:
+    'Photos over the Free limit hide at downgrade and delete after a 30-day grace period.',
   refundPolicyVersion: 'refund-v1',
   supportPolicyVersion: 'support-v1',
   termsVersion: 'terms-v1',
@@ -105,6 +114,11 @@ describe('CommercialResearchPage', () => {
     )
     expect(screen.getByText(/Cover plus 15 gallery photos/)).toHaveTextContent('$12.00')
     expect(screen.getByText(/no plan-count cap/)).toHaveTextContent('$19.00')
+    expect(screen.getByText(/full refund within 48 hours/)).toBeInTheDocument()
+    expect(screen.getByText(/immediately with prorated charges/)).toBeInTheDocument()
+    expect(screen.getByText(/downgrades take effect at renewal/i)).toBeInTheDocument()
+    expect(screen.getByText(/14-day grace period/)).toBeInTheDocument()
+    expect(screen.getByText(/delete after a 30-day grace period/)).toBeInTheDocument()
     expect(screen.getByText(/reason, recovery step, and appeal path/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /checkout|buy|upgrade/i })).not.toBeInTheDocument()
   })
@@ -140,5 +154,34 @@ describe('CommercialResearchPage', () => {
         reasonCode: 'photo_capacity',
       }),
     )
+  })
+
+  it('reuses one response identity after an ambiguous failed submission', async () => {
+    const client = researchClient()
+    vi.mocked(client.recordCommercialResearchAttempt)
+      .mockRejectedValueOnce(new Error('response_lost'))
+      .mockResolvedValueOnce({
+        attemptId: 'attempt-1',
+        configVersion: researchConfig.version,
+        configDigest: researchConfig.digest,
+      })
+    const user = userEvent.setup()
+    render(
+      <CommercialResearchPage
+        authorizationId="authorization-1"
+        artifactDigest={'b'.repeat(64)}
+        questionVersion="questions-v1"
+        client={client}
+      />,
+    )
+    await screen.findByRole('heading', { name: 'Compare optional photo capacity' })
+    await user.click(screen.getByLabelText('Record this minimized research response'))
+    await user.click(screen.getByRole('button', { name: 'Record response' }))
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: 'Record response' }))
+    await screen.findByText('Your research response was recorded. No purchase was made.')
+    const calls = vi.mocked(client.recordCommercialResearchAttempt).mock.calls
+    expect(calls).toHaveLength(2)
+    expect(calls[0]?.[0].idempotencyKey).toBe(calls[1]?.[0].idempotencyKey)
   })
 })
