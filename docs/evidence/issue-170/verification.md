@@ -3,7 +3,7 @@
 ## Scope and revision
 
 - Base: `1ff9a63566159325537a94248c15acc769aac966`.
-- Rebased implementation plus senior-review repairs: `d9cee2e` and `d51d285` on `codex/issue-170-public-free-claim`. This verification ledger is a subsequent ticket-only commit; neither it nor the implementation commit is merge evidence without the remaining gates.
+- Rebased implementation plus senior-review repairs are on `codex/issue-170-public-free-claim`. The final pushed head is the only merge-review target.
 - Public activation: intentionally unavailable. `public_listing_claim_command` derives authority from the server-owned `claims` capability and does not enable it. Package 10B and #169 remain external activation/closure dependencies.
 
 ## Role and stage matrix
@@ -20,11 +20,11 @@
 
 - `npm run verify:baseline && git diff --check` passed after aligning the end-to-end client, edge, and database contracts: 88 test files/603 tests, 69 release tests, and production/PWA build.
 - `npm test -- --run src/features/partners --reporter=dot` passed: 8 files and 38 tests. React Router v7 future-flag warnings were emitted but no test failed.
-- An isolated Supabase project completed `db reset --local` through migrations `20260902010000` and `20260903030000`. Focused pgTAP 0078 passed 34/34 after that reset, including invitation-independent public consent, signal retry binding, runtime start/retry/signals/verification/approval, and exact Free-tier authority.
+- An isolated Supabase project completed `db reset --local` through migration `20260903040000`. Focused pgTAP 0078 passed 41/41 after that reset, including invitation-independent public consent, signal retry binding, runtime start/retry/signals/verification/approval, exact Free-tier authority, portable receipt export, account purge de-identification, and provider-user deletion.
 
 ## Browser evidence
 
-- `npx playwright test --config e2e/issue-170-playwright.config.ts --workers=1` passed 9/9 across desktop Chromium, an 820px touch tablet, and 320 CSS-pixel mobile. It covers the ordinary-account consent and exact-listing flow; loading, empty, error, changes-requested, conflict, submitted, and verification-pending states; keyboard focus, status semantics, forced colors, 200% Chromium page scale, and no raw evidence or other claimant identity.
+- `npx playwright test --config e2e/issue-170-playwright.config.ts --workers=1` passed 9/9 across desktop Chromium, an 820px touch tablet, and 320 CSS-pixel mobile. It covers the ordinary-account consent and exact-listing flow; loading, empty, error, changes-requested, conflict, submitted, and verification-pending states; keyboard focus, semantic live-status roles, forced colors, narrow reflow, and no raw evidence or other claimant identity. These automated checks are not literal screen-reader or browser-zoom evidence.
 - Inspected captures: `chromium-verification-pending.png`, `tablet-verification-pending.png`, and `mobile-320-verification-pending.png`. These are deterministic review-harness evidence, not live Supabase activation proof.
 
 ## Verification limitation

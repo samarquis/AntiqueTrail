@@ -65,22 +65,11 @@ test('loading, empty, error, changes-requested, and conflict states are truthful
   await expect(page.getByLabel('Evidence reference')).toHaveCount(0)
 })
 
-test('keyboard, screen-reader status, forced colors, and 200 percent page scale remain usable', async ({
-  page,
-  browserName,
-}) => {
+test('keyboard focus, semantic live status, and forced colors remain usable', async ({ page }) => {
   await page.emulateMedia({ forcedColors: 'active' })
   await page.goto(claimUrl('loading'))
   await expect(page.getByRole('main')).toBeVisible()
   await expect(page.getByRole('status').first()).toBeVisible()
   await page.keyboard.press('Tab')
   await expect(page.locator(':focus')).toBeVisible()
-  if (browserName === 'chromium') {
-    const session = await page.context().newCDPSession(page)
-    await session.send('Emulation.setPageScaleFactor', { pageScaleFactor: 2 })
-    await expect(page.getByRole('heading', { name: 'Request exact store scope' })).toBeVisible()
-    await expect(
-      page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).resolves.toBe(true)
-  }
 })

@@ -1,11 +1,17 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(41);
 
 select has_table('partner_private','store_owner_intake_roots','claim and add starts share an applicant root');
 select has_column('partner_private','store_owner_intake_roots','active_kind','the root records the active intake kind');
 select has_table('partner_private','claim_free_activation_receipts','Free approval has an immutable receipt');
 select has_table('partner_private','public_claim_consent_receipts','ordinary public applicants have an invitation-independent consent receipt');
+select ok(
+  exists(select 1 from information_schema.columns where table_schema='partner_private' and table_name='public_claim_consent_receipts' and column_name='actor_tombstone')
+  and exists(select 1 from information_schema.columns where table_schema='partner_private' and table_name='claim_free_activation_receipts' and column_name='applicant_tombstone')
+  and exists(select 1 from information_schema.columns where table_schema='partner_private' and table_name='claim_free_activation_receipts' and column_name='grantor_tombstone'),
+  'retained claim receipts have content-free account deletion tombstones'
+);
 select ok(
   not has_table_privilege('authenticated','partner_private.store_owner_intake_roots','INSERT')
   and not has_table_privilege('authenticated','partner_private.claim_free_activation_receipts','INSERT'),
@@ -76,6 +82,11 @@ select ok(
 select ok(
   position('public_capability_enabled(''claims'')' in lower(pg_get_functiondef('partner_private.claim_stage_allowed(uuid)'::regprocedure)))>0,
   'the claim capability remains server-owned and staged off by default'
+);
+select ok(
+  position('public_claim_consent_receipts' in lower(pg_get_functiondef('app_public.build_account_export_canonical_json(uuid,uuid)'::regprocedure)))>0
+  and position('claim_free_activation_receipts' in lower(pg_get_functiondef('app_public.build_account_export_canonical_json(uuid,uuid)'::regprocedure)))>0,
+  'portable account export includes the applicant claim receipts before deletion'
 );
 
 select ok(
@@ -219,6 +230,30 @@ select ok(
   and exists(select 1 from partner_private.claim_free_activation_receipts where applicant_id='17000000-0000-4000-8000-000000000001' and store_id='17000000-0000-4000-8000-000000000010')
   and exists(select 1 from partner_private.store_owner_intake_roots where applicant_id='17000000-0000-4000-8000-000000000001' and active_kind='none' and active_id is null),
   'approval atomically creates one exact Representative grant, Free tier, receipt, and clears the matching root'
+);
+
+select lives_ok(
+  $$select app_private.purge_account_application_data('17000000-0000-4000-8000-000000000001')$$,
+  'the established application-data purge de-identifies public claim receipts'
+);
+select ok(
+  exists(select 1 from partner_private.public_claim_consent_receipts where auth_user_id is null and actor_tombstone is not null)
+  and exists(select 1 from partner_private.claim_free_activation_receipts where applicant_id is null and applicant_tombstone is not null),
+  'claim receipts retain audit facts but no applicant account identifier after purge'
+);
+select lives_ok(
+  $$delete from auth.users where id='17000000-0000-4000-8000-000000000001'$$,
+  'retained claim receipts do not block provider account deletion'
+);
+select throws_ok(
+  $$update partner_private.public_claim_consent_receipts set accepted_at=accepted_at+interval '1 second'$$,
+  '55000','public_claim_consent_receipt_append_only',
+  'consent receipt audit facts remain append-only after de-identification'
+);
+select throws_ok(
+  $$update partner_private.claim_free_activation_receipts set created_at=created_at+interval '1 second'$$,
+  '55000','claim_free_activation_receipt_append_only',
+  'Free activation audit facts remain append-only after de-identification'
 );
 
 select * from finish();
