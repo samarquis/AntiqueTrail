@@ -15,7 +15,7 @@ Scope: Implement the exact `Review | Access | More` administrator route-parent r
 - [x] G3: Ticket security and repository floor pass on the candidate.
   CHECK: npm run security:contract && npm run check && git diff --check
   EXPECT: PASS
-  EVIDENCE: 2026-09-02 exact `npm run check` passed under declared Node 20.19.0 after the native Node test runner was pointed at `scripts`: 89 files/612 tests, 69 release tests, and production/PWA build. Lint had zero errors and two Fast Refresh warnings; security and `git diff --check` passed.
+  EVIDENCE: 2026-09-02 exact `npm run check` passed under declared Node 20.19.0 through the shared release-test runner: 89 files/612 tests, 69 release tests, and production/PWA build. Lint had zero errors and two Fast Refresh warnings; security and `git diff --check` passed.
 
 - [ ] G4: Every #137 acceptance criterion has exact-SHA evidence and a fresh independent review approves the pushed PR head.
   EVIDENCE: implementation and local evidence are ready; independent review, hosted checks, merge, and post-merge verification are intentionally pending for the user-requested next session.

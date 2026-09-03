@@ -4,6 +4,8 @@
 
 Candidate branch `codex/issue-137-admin-navigation` implements the `DESIGN_SYSTEM.md`
 privileged-navigation contract: the only Administrator primary parents are `Review | Access | More`.
+The rebased candidate uses base `1ff9a63566159325537a94248c15acc769aac966`; its feature
+implementation begins at `a94240b`.
 
 ## Route-parent map
 
