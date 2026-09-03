@@ -3,8 +3,9 @@
 Date: 2026-09-03
 
 - Base SHA: `56584b6229445424240c07adab1b817867e59868`.
-- Initial candidate `b88f285500d89cccc2c4daf0fd2becc07c8f2606` received CHANGES REQUIRED; replacement candidate SHA is pending the repair commit.
-- Canonical post-build content digest: `sha256:6390487d33f08c939dba881aced519fea3af873b2e450d2cc6a743d96763a700`. It is computed from the sorted SHA-256 map of exact generated files, recorded in the manifest, recomputed by the verifier, fetched by the runtime, and foreign-keyed by cohort grants to a verified deployment record. No operator-supplied `VITE` digest participates.
+- Initial candidate `b88f285500d89cccc2c4daf0fd2becc07c8f2606` received CHANGES REQUIRED; the reviewed replacement candidate is `2738e7523b70234dc2c41b9d0c2daf606c707cfd`.
+- Reproducible local candidate artifact digest: `sha256:e359ad7e292d36d7909d061abbbd8aae0d78b5d1179a8a5d24e3bb4f22bb47d5`. The exact inputs were `VITE_SUPABASE_URL=https://uaupykgpegbseboklubv.supabase.co`, `VITE_SUPABASE_ANON_KEY=synthetic-local-anon-key`, `VITE_OWNER_RESEARCH_COHORT_KEY=topeka-owner-10a`, and `VITE_CANONICAL_SITE_URL=https://antique-trail-pages.pages.dev`. This deliberately non-deployable synthetic key makes the local evidence build reproducible; an authorized deployment must be rebuilt with its publishable key, register that resulting manifest digest, and bind cohort grants to that verified deployment record.
+- The digest is computed from the sorted SHA-256 map of exact generated files, recorded in the manifest, recomputed by the verifier, fetched by the runtime, and foreign-keyed by cohort grants. No operator-supplied digest participates.
 - Route matrix: the isolated artifact maps `/for-stores` through `vercel.owner-research.json`; the review server exercises the same entry at `/owner-research.html`; the normal application has no research route or import.
 
 ## Criterion evidence
@@ -33,7 +34,7 @@ Date: 2026-09-03
 | `npx supabase@2.115.0 test db supabase/tests/0080_issue_168_owner_research.sql` | Passed after a clean reset: 1 file / 48 assertions. |
 | `npx supabase@2.115.0 test db` | Not passed: the local unprivileged full-suite runner reports 18 pre-existing role/ACL failures. Hosted database CI remains required. |
 | `npm run check` | Passed after review repairs: typecheck, lint (four existing non-blocking Fast Refresh warnings), format, 92 files / 641 unit tests, 72 release tests, and the normal production build. |
-| `npm run build:owner-research` then `npm run verify:owner-research-artifacts` | Passed; canonical digest `sha256:6390487d33f08c939dba881aced519fea3af873b2e450d2cc6a743d96763a700` was independently recomputed. |
+| Set the four disclosed `VITE_*` inputs above, then run `npm run build:owner-research` and `npm run verify:owner-research-artifacts` | Passed; candidate artifact digest `sha256:e359ad7e292d36d7909d061abbbd8aae0d78b5d1179a8a5d24e3bb4f22bb47d5` was independently recomputed. |
 | `npm run security:contract` | Passed after review repairs. |
 | `git diff --cached --check` | Passed on the staged replacement candidate. |
 

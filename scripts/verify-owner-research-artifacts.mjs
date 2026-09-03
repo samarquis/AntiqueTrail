@@ -10,10 +10,11 @@ const requiredHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Cross-Origin-Opener-Policy': 'same-origin',
-  'Cross-Origin-Resource-Policy': 'same-origin',
-  Vary: 'Authorization, Cookie',
+  'Cross-Origin-Resource-Policy': 'same-site',
+  Vary: 'Authorization, Origin',
   'Content-Security-Policy':
-    "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob: https://uaupykgpegbseboklubv.supabase.co; connect-src 'self' https://uaupykgpegbseboklubv.supabase.co wss://uaupykgpegbseboklubv.supabase.co; manifest-src 'self'; worker-src 'self'; media-src 'self'; upgrade-insecure-requests",
+  'Permissions-Policy': 'geolocation=(self), camera=(), microphone=(), payment=(), usb=()',
 }
 
 function artifactFiles(directory) {
@@ -80,6 +81,7 @@ export function verifyOwnerResearchArtifacts(
     'new-store-a',
     'topeka-owner-10a',
     'Verify your private invitation',
+    'https://uaupykgpegbseboklubv.supabase.co',
   ]) {
     if (normal.includes(marker))
       throw new Error(`Normal artifact contains research surface: ${marker}`)

@@ -13,15 +13,15 @@
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
-        { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" },
-        { "key": "Vary", "value": "Authorization, Cookie" },
+        { "key": "Cross-Origin-Resource-Policy", "value": "same-site" },
+        { "key": "Vary", "value": "Authorization, Origin" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+          "value": "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob: https://uaupykgpegbseboklubv.supabase.co; connect-src 'self' https://uaupykgpegbseboklubv.supabase.co wss://uaupykgpegbseboklubv.supabase.co; manifest-src 'self'; worker-src 'self'; media-src 'self'; upgrade-insecure-requests"
         },
         {
           "key": "Permissions-Policy",
-          "value": "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
+          "value": "geolocation=(self), camera=(), microphone=(), payment=(), usb=()"
         }
       ]
     }

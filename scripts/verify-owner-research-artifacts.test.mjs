@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { verifyOwnerResearchArtifacts } from './verify-owner-research-artifacts.mjs'
 
 const markers =
-  'owner_research_command Private research artifact existing-store-a new-store-a topeka-owner-10a Verify your private invitation'
+  'owner_research_command Private research artifact existing-store-a new-store-a topeka-owner-10a Verify your private invitation https://uaupykgpegbseboklubv.supabase.co'
 
 function fixture() {
   const root = join(tmpdir(), `owner-research-verify-${randomUUID()}`)
@@ -60,11 +60,15 @@ function fixture() {
             ['X-Content-Type-Options', 'nosniff'],
             ['X-Frame-Options', 'DENY'],
             ['Cross-Origin-Opener-Policy', 'same-origin'],
-            ['Cross-Origin-Resource-Policy', 'same-origin'],
-            ['Vary', 'Authorization, Cookie'],
+            ['Cross-Origin-Resource-Policy', 'same-site'],
+            ['Vary', 'Authorization, Origin'],
             [
               'Content-Security-Policy',
-              "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+              "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob: https://uaupykgpegbseboklubv.supabase.co; connect-src 'self' https://uaupykgpegbseboklubv.supabase.co wss://uaupykgpegbseboklubv.supabase.co; manifest-src 'self'; worker-src 'self'; media-src 'self'; upgrade-insecure-requests",
+            ],
+            [
+              'Permissions-Policy',
+              'geolocation=(self), camera=(), microphone=(), payment=(), usb=()',
             ],
           ].map(([key, value]) => ({ key, value })),
         },
@@ -90,7 +94,7 @@ test('accepts only exact digested research bytes and isolation headers', () => {
   }
 })
 
-test('rejects a leaked normal fixture and a missing controlling header', () => {
+test('rejects a leaked normal fixture and every mutated controlling browser header', () => {
   const input = fixture()
   try {
     writeFileSync(join(input.normal, 'index.html'), 'existing-store-a')
@@ -99,15 +103,22 @@ test('rejects a leaked normal fixture and a missing controlling header', () => {
       /normal artifact contains research surface/i,
     )
     writeFileSync(join(input.normal, 'index.html'), 'normal')
-    const config = JSON.parse(readFileSync(input.config, 'utf8'))
-    config.headers[0].headers = config.headers[0].headers.filter(
-      (header) => header.key !== 'Content-Security-Policy',
-    )
-    writeFileSync(input.config, JSON.stringify(config))
-    assert.throws(
-      () => verifyOwnerResearchArtifacts(input.normal, input.research, input.config),
-      /Content-Security-Policy/,
-    )
+    const original = JSON.parse(readFileSync(input.config, 'utf8'))
+    for (const key of [
+      'Content-Security-Policy',
+      'Permissions-Policy',
+      'Cross-Origin-Resource-Policy',
+      'Vary',
+    ]) {
+      const config = JSON.parse(JSON.stringify(original))
+      const header = config.headers[0].headers.find((candidate) => candidate.key === key)
+      header.value = `${header.value} mutated`
+      writeFileSync(input.config, JSON.stringify(config))
+      assert.throws(
+        () => verifyOwnerResearchArtifacts(input.normal, input.research, input.config),
+        new RegExp(key),
+      )
+    }
   } finally {
     rmSync(input.root, { recursive: true, force: true })
   }
