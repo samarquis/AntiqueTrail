@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(22);
 
 select has_table(
   'review_private',
@@ -32,7 +32,12 @@ insert into auth.users(id) values
   ('79000000-0000-4000-8000-000000000001'),
   ('79000000-0000-4000-8000-000000000002'),
   ('79000000-0000-4000-8000-000000000003'),
-  ('79000000-0000-4000-8000-000000000004');
+  ('79000000-0000-4000-8000-000000000004'),
+  ('79000000-0000-4000-8000-000000000005'),
+  ('79000000-0000-4000-8000-000000000006');
+update app_private.profiles
+  set verified_email_snapshot='eligible@example.test',age_18_attested_at=statement_timestamp()
+  where user_id='79000000-0000-4000-8000-000000000006';
 insert into app_public.catalog_areas(id,slug,label,state_code)
 values('79000000-0000-4000-8000-000000000010','issue-140-test','Issue 140 Test','KS');
 insert into app_public.stores(
@@ -119,13 +124,21 @@ insert into review_private.public_reviews(
   ('79000000-0000-4000-8000-000000000030','79000000-0000-4000-8000-000000000003',
    '79000000-0000-4000-8000-000000000011',4,'Held report','Reviewer',8,2026,'manual_attestation','none','held'),
   ('79000000-0000-4000-8000-000000000040','79000000-0000-4000-8000-000000000004',
-   '79000000-0000-4000-8000-000000000011',3,'Ineligible restore','Reviewer',8,2026,'manual_attestation','none','held');
+   '79000000-0000-4000-8000-000000000011',3,'Ineligible restore','Reviewer',8,2026,'manual_attestation','none','held'),
+  ('79000000-0000-4000-8000-000000000050','79000000-0000-4000-8000-000000000005',
+   '79000000-0000-4000-8000-000000000011',2,'Published hold','Reviewer',8,2026,'manual_attestation','none','published'),
+  ('79000000-0000-4000-8000-000000000060','79000000-0000-4000-8000-000000000006',
+   '79000000-0000-4000-8000-000000000011',4,'Eligible restore','Reviewer',8,2026,'manual_attestation','none','held');
 insert into review_private.moderation_cases(
   case_id,review_id,store_id,reason_code,assigned_admin_id,state
 ) values
   ('79000000-0000-4000-8000-000000000031','79000000-0000-4000-8000-000000000030',
    '79000000-0000-4000-8000-000000000011','spam','79000000-0000-4000-8000-000000000001','held'),
   ('79000000-0000-4000-8000-000000000041','79000000-0000-4000-8000-000000000040',
+   '79000000-0000-4000-8000-000000000011','spam','79000000-0000-4000-8000-000000000001','held'),
+  ('79000000-0000-4000-8000-000000000051','79000000-0000-4000-8000-000000000050',
+   '79000000-0000-4000-8000-000000000011','spam','79000000-0000-4000-8000-000000000001','open'),
+  ('79000000-0000-4000-8000-000000000061','79000000-0000-4000-8000-000000000060',
    '79000000-0000-4000-8000-000000000011','spam','79000000-0000-4000-8000-000000000001','held');
 
 select lives_ok(
@@ -160,6 +173,39 @@ select results_eq(
     where r.review_id='79000000-0000-4000-8000-000000000040'$$,
   $$values ('held'::text,'held'::text)$$,
   'a denied restore changes neither review nor case'
+);
+
+select lives_ok(
+  $$select app_public.reviews_moderate(
+    '79000000-0000-4000-8000-000000000051','hold','Pending investigation',1,'issue-140-valid-hold'
+  )$$,
+  'a published review can be held'
+);
+select results_eq(
+  $$select r.state,c.state from review_private.public_reviews r
+    join review_private.moderation_cases c on c.review_id=r.review_id
+    where r.review_id='79000000-0000-4000-8000-000000000050'$$,
+  $$values ('held'::text,'held'::text)$$,
+  'hold changes both the review and case to held'
+);
+select lives_ok(
+  $$select app_public.reviews_moderate(
+    '79000000-0000-4000-8000-000000000061','restore','Eligibility confirmed',1,'issue-140-valid-restore'
+  )$$,
+  'an eligible held review can be restored'
+);
+select results_eq(
+  $$select r.state,r.version,c.state,c.version from review_private.public_reviews r
+    join review_private.moderation_cases c on c.review_id=r.review_id
+    where r.review_id='79000000-0000-4000-8000-000000000060'$$,
+  $$values ('published'::text,2::bigint,'restored'::text,2::bigint)$$,
+  'restore publishes the review and closes the case exactly once'
+);
+select results_eq(
+  $$select eligible_count,rating_sum from review_private.rating_aggregates
+    where store_id='79000000-0000-4000-8000-000000000011'$$,
+  $$values (1::bigint,4::bigint)$$,
+  'restore rebuilds the public rating aggregate from eligible published reviews'
 );
 
 select * from finish();

@@ -625,8 +625,9 @@ export function ModerationQueuePage({
           tabIndex={-1}
         >
           <p role="status">
-            Review {resolved.item.id} is now {resolved.item.state}. {resolved.preview.authorNotice}{' '}
-            {resolved.preview.aggregateEffect} {resolved.preview.reasonAndAudit}
+            Moderation case {resolved.item.id} is now {resolved.item.state}.{' '}
+            {resolved.preview.authorNotice} {resolved.preview.aggregateEffect}{' '}
+            {resolved.preview.reasonAndAudit}
           </p>
           <p>Public aggregate result: {resolved.preview.aggregateEffect}</p>
           <button type="button" className="button--secondary" onClick={() => setResolved(null)}>
@@ -705,9 +706,9 @@ export function ModerationQueuePage({
                       className={`moderation-confirm moderation-confirm--${action}`}
                     >
                       <p>
-                        Confirm {moderationButtonLabel(action)}: this changes the review’s public
-                        moderation state to {moderationResultState(action)}. The preview below shows
-                        the exact consequence of this action.
+                        Confirm {moderationButtonLabel(action)}: this changes the moderation case
+                        state to {moderationResultState(action)}. The preview below shows the exact
+                        consequence for the review.
                       </p>
                       <dl className="moderation-preview">
                         <div>

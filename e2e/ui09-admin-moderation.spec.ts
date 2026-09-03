@@ -181,7 +181,7 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
     await page.getByLabel('Decision reason').fill('confirmed spam')
     await page.getByRole('button', { name: /^Remove / }).click()
     await expect(page.getByLabel('Confirm moderation decision')).toContainText(
-      'public moderation state',
+      'moderation case state',
     )
     await page.getByRole('button', { name: 'Confirm Remove' }).click()
     await expect(page.getByText('State: removed')).toBeVisible()
