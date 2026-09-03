@@ -86,7 +86,15 @@ ticket reason -> exact controlling heading -> root-cause change -> executable ch
 
 Pin the base SHA. Search for current callers, authorization boundaries, fixtures, routes, migrations, failure states, and existing tests before editing. If the evidence has drifted, update the ticket before implementation; do not make code satisfy a stale claim.
 
-If the ticket combines independently deliverable repository work with external activation or unrelated product outcomes, split it before implementation. Keep one parent for the broader milestone and close each child on its own evidence.
+Keep implementation tickets small:
+
+- one independently closable outcome;
+- no more than five acceptance criteria;
+- only the layers needed to prove that outcome end to end;
+- no human, provider, cohort, payment, legal, or production-activation evidence; and
+- one parent issue for any broader feature, dependency map, or release milestone.
+
+Split an untouched oversized issue before claiming it. Do not rewrite an active reviewed PR merely to satisfy the newer ticket shape.
 
 ### 4. Work until wowed
 
