@@ -1,7 +1,8 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ADMIN_ROUTE_PARENTS, AdminPrimaryNavigation, adminRouteParent } from './navigation'
+import { AdminPrimaryNavigation } from './navigation'
+import { ADMIN_ROUTES, ADMIN_ROUTE_PARENTS, adminRouteParent } from './routes'
 
 describe('Administrator route-parent registry', () => {
   afterEach(cleanup)
@@ -16,16 +17,9 @@ describe('Administrator route-parent registry', () => {
     ])
   })
 
-  it.each([
-    ['/admin', 'review'],
-    ['/admin/partners', 'review'],
-    ['/admin/reviews', 'review'],
-    ['/admin/access', 'access'],
-    ['/admin/more', 'more'],
-    ['/admin/readiness/run-1', 'more'],
-    ['/admin/beta/cohort-1', 'more'],
-  ] as const)('gives %s exactly one %s parent', (pathname, expectedParent) => {
-    expect(adminRouteParent(pathname)?.id).toBe(expectedParent)
+  it.each(ADMIN_ROUTES)('gives mounted route $id exactly one $parentId parent', (route) => {
+    const pathname = route.path.replace(':runId', 'run-1').replace(':cohortId', 'cohort-1')
+    expect(adminRouteParent(pathname)?.id).toBe(route.parentId)
   })
 
   it('does not classify an unmounted Administrator path', () => {

@@ -80,10 +80,12 @@ import {
   AdminGuard,
   AdminMorePage,
   AdminPrimaryNavigation,
+  ADMIN_ROUTES,
   ReviewQueuePage,
   adminSessionFromAuth,
   unavailableAdminClient,
   type AdminClient,
+  type AdminRouteId,
   type AdminSession,
 } from '../features/admin'
 import { AlphaGuard, AlphaReadinessPage } from '../features/alpha'
@@ -831,6 +833,16 @@ export default function App({
     [],
   )
 
+  const adminRouteElements: Record<AdminRouteId, ReactNode> = {
+    reviewQueue: <ReviewQueuePage client={adminClient} />,
+    accessSafety: <AccessSafetyPage client={adminClient} />,
+    more: <AdminMorePage />,
+    partners: <PartnerAdminPage client={partnerAdminClient} />,
+    reviews: <ModerationQueuePage client={reviewClient} />,
+    readiness: <ReadinessStatus client={readinessClient} />,
+    beta: <BetaControl client={betaClient} />,
+  }
+
   return (
     <AuthProvider
       provider={authProvider}
@@ -1047,83 +1059,20 @@ export default function App({
               </RequireSession>
             }
           />
-          <Route
-            path="/admin"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <ReviewQueuePage client={adminClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
-          <Route
-            path="/admin/access"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <AccessSafetyPage client={adminClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
-          <Route
-            path="/admin/more"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <AdminMorePage />
-              </AuthenticatedAdminGuard>
-            }
-          />
-          <Route
-            path="/admin/partners"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <PartnerAdminPage client={partnerAdminClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
-          <Route
-            path="/admin/reviews"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <ModerationQueuePage client={reviewClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
-          <Route
-            path="/admin/readiness/:runId"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <ReadinessStatus client={readinessClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
-          <Route
-            path="/admin/beta/:cohortId"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <BetaControl client={betaClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
+          {ADMIN_ROUTES.map((route) => (
+            <Route
+              key={route.id}
+              path={route.path}
+              element={
+                <AuthenticatedAdminGuard
+                  override={runtime.adminSession}
+                  registry={runtime.sessionRegistry}
+                >
+                  {adminRouteElements[route.id]}
+                </AuthenticatedAdminGuard>
+              }
+            />
+          ))}
           <Route
             path="/alpha/readiness"
             element={

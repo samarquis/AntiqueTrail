@@ -1,51 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth'
-
-export type AdminRouteParentId = 'review' | 'access' | 'more'
-
-export interface AdminRouteParent {
-  id: AdminRouteParentId
-  label: 'Review' | 'Access' | 'More'
-  destination: string
-  matches(pathname: string): boolean
-}
-
-const startsWithRoute = (pathname: string, route: string) =>
-  pathname === route || pathname.startsWith(`${route}/`)
-
-/** Every mounted Administrator route belongs to exactly one of these parents. */
-export const ADMIN_ROUTE_PARENTS: readonly AdminRouteParent[] = [
-  {
-    id: 'review',
-    label: 'Review',
-    destination: '/admin',
-    matches: (pathname) =>
-      pathname === '/admin' ||
-      startsWithRoute(pathname, '/admin/partners') ||
-      startsWithRoute(pathname, '/admin/reviews'),
-  },
-  {
-    id: 'access',
-    label: 'Access',
-    destination: '/admin/access',
-    matches: (pathname) => startsWithRoute(pathname, '/admin/access'),
-  },
-  {
-    id: 'more',
-    label: 'More',
-    destination: '/admin/more',
-    matches: (pathname) =>
-      startsWithRoute(pathname, '/admin/more') ||
-      startsWithRoute(pathname, '/admin/readiness') ||
-      startsWithRoute(pathname, '/admin/beta'),
-  },
-]
-
-export function adminRouteParent(pathname: string): AdminRouteParent | null {
-  const matches = ADMIN_ROUTE_PARENTS.filter((parent) => parent.matches(pathname))
-  return matches.length === 1 ? matches[0] : null
-}
+import { ADMIN_ROUTE_PARENTS, adminRouteParent } from './routes'
 
 export function AdminPrimaryNavigation() {
   const { pathname } = useLocation()
