@@ -160,6 +160,36 @@ describe('app shell', () => {
     expect(screen.queryByRole('heading', { name: /review queue/i })).not.toBeInTheDocument()
   })
 
+  it('keeps direct Administrator routes under exactly Review, Access, and More', () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/more']}>
+        <App
+          runtime={{
+            adminSession: {
+              userId: 'admin-1',
+              role: 'Administrator',
+              mfaEnrolled: true,
+              mfaVerified: true,
+              recentAuthAt: Date.now(),
+              sessionActive: true,
+            },
+          }}
+        />
+      </MemoryRouter>,
+    )
+
+    const navigation = screen.getByRole('navigation', { name: /primary navigation/i })
+    expect(navigation).toHaveTextContent('ReviewAccessMore')
+    expect(screen.getByRole('link', { name: 'Review' })).toHaveAttribute('href', '/admin')
+    expect(screen.getByRole('link', { name: 'Access' })).toHaveAttribute('href', '/admin/access')
+    expect(screen.getByRole('link', { name: 'More' })).toHaveAttribute('href', '/admin/more')
+    expect(screen.getByRole('link', { name: 'More' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('heading', { name: 'More' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('navigation', { name: /administrator more destinations/i }),
+    ).toHaveTextContent(/Support.*Readiness.*View Audit.*Evidence.*Communities.*System status/s)
+  })
+
   it('keeps partner administration closed without authoritative recent-auth evidence', async () => {
     render(
       <MemoryRouter initialEntries={['/admin/partners']}>
