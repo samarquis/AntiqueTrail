@@ -29,7 +29,9 @@ test('ordinary-account claim is exact and never exposes submitted evidence', asy
   await page.getByRole('button', { name: 'Submit authority signal' }).click()
   await expect(page.getByText('Claim status: verification_pending.')).toBeVisible()
   await expect(page.getByText('case-ref-170')).toHaveCount(0)
-  await expect(page.getByText(/another claimant|other claimant|authority signals verified/i)).toHaveCount(0)
+  await expect(
+    page.getByText(/another claimant|other claimant|authority signals verified/i),
+  ).toHaveCount(0)
   if (process.env.CAPTURE_ISSUE_170_EVIDENCE === 'true') {
     await page.screenshot({
       path: `docs/evidence/issue-170/${testInfo.project.name}-verification-pending.png`,
@@ -38,7 +40,9 @@ test('ordinary-account claim is exact and never exposes submitted evidence', asy
   }
 })
 
-test('loading, empty, error, changes-requested, and conflict states are truthful', async ({ page }) => {
+test('loading, empty, error, changes-requested, and conflict states are truthful', async ({
+  page,
+}) => {
   await page.goto(claimUrl('loading'))
   await expect(page.getByText('Checking material terms…')).toBeVisible()
 
@@ -75,6 +79,8 @@ test('keyboard, screen-reader status, forced colors, and 200 percent page scale 
     const session = await page.context().newCDPSession(page)
     await session.send('Emulation.setPageScaleFactor', { pageScaleFactor: 2 })
     await expect(page.getByRole('heading', { name: 'Request exact store scope' })).toBeVisible()
-    await expect(page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).resolves.toBe(true)
+    await expect(
+      page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).resolves.toBe(true)
   }
 })

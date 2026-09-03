@@ -3,7 +3,7 @@
 ## Scope and revision
 
 - Base: `1ff9a63566159325537a94248c15acc769aac966`.
-- Rebased implementation plus senior-review repair: `d9cee2e` on `codex/issue-170-public-free-claim`. This verification ledger is a subsequent ticket-only commit; neither it nor the implementation commit is merge evidence without the remaining gates.
+- Rebased implementation plus senior-review repairs: `d9cee2e` and `d51d285` on `codex/issue-170-public-free-claim`. This verification ledger is a subsequent ticket-only commit; neither it nor the implementation commit is merge evidence without the remaining gates.
 - Public activation: intentionally unavailable. `public_listing_claim_command` derives authority from the server-owned `claims` capability and does not enable it. Package 10B and #169 remain external activation/closure dependencies.
 
 ## Role and stage matrix
@@ -20,12 +20,12 @@
 
 - `npm run verify:baseline && git diff --check` passed after aligning the end-to-end client, edge, and database contracts: 88 test files/603 tests, 69 release tests, and production/PWA build.
 - `npm test -- --run src/features/partners --reporter=dot` passed: 8 files and 38 tests. React Router v7 future-flag warnings were emitted but no test failed.
-- An isolated Supabase project (`antique-trail-issue-170`, ports 55320-55324) completed `db reset --local` through migration `20260902010000`. Focused `supabase test db supabase/tests/0078_issue_170_public_free_claim.sql` passed 27/27 after that reset, including runtime start/retry/signals/verification/approval and exact Free-tier authority.
+- An isolated Supabase project completed `db reset --local` through migrations `20260902010000` and `20260903030000`. Focused pgTAP 0078 passed 34/34 after that reset, including invitation-independent public consent, signal retry binding, runtime start/retry/signals/verification/approval, and exact Free-tier authority.
 
-## Browser attempt
+## Browser evidence
 
-- `npx playwright test e2e/ui08-partner-portal.spec.ts --project=chromium --project=mobile --workers=1` wrote a failed run ledger with two failures. Chromium did not find the pre-existing `Store Portal unavailable` heading in the role-boundary case. Mobile reached the new exact-listing claim flow and exposed strict-mode ambiguity from `getByRole('status')` after the ticket introduced a second status message.
-- The two ticket-owned claim-flow assertions now use exact `getByText('Claim status: …')` locators. `npx playwright test --config e2e/issue-170-playwright.config.ts --workers=1` then passed 2/2 (Chromium and Pixel 5) on an isolated ticket-only 4177 review server. The checked flow covers material consent before exact listing controls, one exact listing, submitted then verification-pending state, minimized authority signal, no raw evidence reference, and no other claimant identity. It is deterministic review-harness evidence, not live Supabase activation proof.
+- `npx playwright test --config e2e/issue-170-playwright.config.ts --workers=1` passed 9/9 across desktop Chromium, an 820px touch tablet, and 320 CSS-pixel mobile. It covers the ordinary-account consent and exact-listing flow; loading, empty, error, changes-requested, conflict, submitted, and verification-pending states; keyboard focus, status semantics, forced colors, 200% Chromium page scale, and no raw evidence or other claimant identity.
+- Inspected captures: `chromium-verification-pending.png`, `tablet-verification-pending.png`, and `mobile-320-verification-pending.png`. These are deterministic review-harness evidence, not live Supabase activation proof.
 
 ## Verification limitation
 
