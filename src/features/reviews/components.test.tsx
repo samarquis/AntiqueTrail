@@ -19,6 +19,7 @@ import {
 import { ModerationQueuePage, PublicReviewsPage } from './components'
 import type {
   ModerationAction,
+  ModerationCase,
   PublicReview,
   ReviewClient,
   ReviewEligibility,
@@ -97,6 +98,7 @@ function client(overrides: Partial<ReviewClient> = {}): ReviewClient {
     listModerationCases: vi.fn(async () => []),
     decideModerationCase: vi.fn(async (id) => ({
       id,
+      version: 2,
       reviewId: 'review-1',
       storeId: 'store-1',
       state: 'removed' as const,
@@ -242,6 +244,7 @@ describe('provider-neutral public review boundary', () => {
       listModerationCases: vi.fn(async () => [
         {
           id: 'case-1',
+          version: 1,
           reviewId: 'review-1',
           storeId: 'store-1',
           state: 'open' as const,
@@ -271,6 +274,7 @@ describe('ModerationQueuePage single-CTA decision flow', () => {
       listModerationCases: vi.fn(async () => [
         {
           id: 'case-1',
+          version: 1,
           reviewId: 'review-1',
           storeId: 'store-1',
           state: 'open' as const,
@@ -354,6 +358,7 @@ describe('ModerationQueuePage single-CTA decision flow', () => {
     const reviewClient = caseClient({
       decideModerationCase: vi.fn(async (id) => ({
         id,
+        version: 2,
         reviewId: 'review-1',
         storeId: 'store-1',
         state: 'held' as const,
@@ -378,9 +383,43 @@ describe('ModerationQueuePage single-CTA decision flow', () => {
     expect(reviewClient.decideModerationCase).toHaveBeenCalledWith('case-1', {
       action: 'hold',
       reason: 'approved on review',
+      expectedVersion: 1,
+      idempotencyKey: expect.any(String),
       mfaVerified: true,
       recentAuthAt: expect.any(String),
     })
+  })
+
+  it('announces the exact Dismiss Report outcome without claiming an aggregate or author notice', async () => {
+    const user = userEvent.setup()
+    const reviewClient = caseClient({
+      decideModerationCase: vi.fn(async (id) => ({
+        id,
+        version: 2,
+        reviewId: 'review-1',
+        storeId: 'store-1',
+        state: 'dismissed' as const,
+        reasonCode: 'spam' as const,
+        evidence: [],
+        openedAt: '2026-08-01',
+        updatedAt: '2026-08-01',
+      })),
+    })
+    render(
+      <MemoryRouter>
+        <ModerationQueuePage client={reviewClient} />
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: /case case-1/i })
+    await user.type(screen.getByLabelText('Decision reason'), 'report not supported')
+    await user.click(screen.getByRole('button', { name: /^Dismiss Report / }))
+    const confirm = screen.getByRole('button', { name: 'Confirm Dismiss Report' })
+    expect(confirm.className).toContain('moderation-confirm__action--dismiss_report')
+    await user.click(confirm)
+    const outcome = await screen.findByLabelText('Resolved moderation outcome')
+    expect(outcome).toHaveTextContent('No author notice is sent.')
+    expect(outcome).toHaveTextContent('No change to the review or the store average.')
+    expect(outcome).not.toHaveTextContent('Author notice is queued')
   })
 
   it('keeps the panel and reason and focuses a summary when the decision fails, with no auto-advance', async () => {
@@ -406,12 +445,47 @@ describe('ModerationQueuePage single-CTA decision flow', () => {
     expect(screen.queryByLabelText('Resolved moderation outcome')).not.toBeInTheDocument()
   })
 
+  it('submits a privileged moderation decision only once while it is pending', async () => {
+    const user = userEvent.setup()
+    let finish!: (value: ModerationCase) => void
+    const pending = new Promise<ModerationCase>((resolve) => {
+      finish = resolve
+    })
+    const decideModerationCase = vi.fn(async () => pending)
+    render(
+      <MemoryRouter>
+        <ModerationQueuePage client={caseClient({ decideModerationCase })} />
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: /case case-1/i })
+    await user.type(screen.getByLabelText('Decision reason'), 'confirmed spam')
+    await user.click(screen.getByRole('button', { name: /^Remove / }))
+    const confirm = screen.getByRole('button', { name: 'Confirm Remove' })
+    await user.dblClick(confirm)
+    expect(decideModerationCase).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Confirming Remove…' })).toBeDisabled()
+    finish({
+      id: 'case-1',
+      version: 2,
+      reviewId: 'review-1',
+      storeId: 'store-1',
+      state: 'removed',
+      reasonCode: 'spam',
+      evidence: [],
+      openedAt: '2026-08-01',
+      updatedAt: '2026-08-01',
+    })
+    await pending
+    expect(await screen.findByLabelText('Resolved moderation outcome')).toBeVisible()
+  })
+
   it('updates only the matched case and keeps Back to Queue / Review Next with no auto-advance', async () => {
     const user = userEvent.setup()
     const reviewClient = client({
       listModerationCases: vi.fn(async () => [
         {
           id: 'case-1',
+          version: 1,
           reviewId: 'review-1',
           storeId: 'store-1',
           state: 'open' as const,
@@ -422,6 +496,7 @@ describe('ModerationQueuePage single-CTA decision flow', () => {
         },
         {
           id: 'case-2',
+          version: 1,
           reviewId: 'review-2',
           storeId: 'store-2',
           state: 'open' as const,

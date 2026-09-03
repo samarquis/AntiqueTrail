@@ -1724,6 +1724,7 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
   const FIXED_NOW = '2026-08-05T12:00:00.000Z'
   let moderationCase: ModerationCase = {
     id: 'moderation-1',
+    version: 1,
     reviewId: 'review-1',
     storeId: 'store-blue-finch',
     state: 'open',
@@ -1733,6 +1734,7 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
     updatedAt: FIXED_NOW,
     reporterPseudonym: 'Reporter 17',
   }
+  const moderationReceipts = new Map<string, { digest: string; result: ModerationCase }>()
   return {
     ...unavailableReviewClient,
     async listModerationCases() {
@@ -1742,7 +1744,14 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
     async decideModerationCase(caseId: string, input: ModerationDecisionInput) {
       allowed()
       return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        const digest = JSON.stringify({ caseId, ...input })
+        const prior = moderationReceipts.get(input.idempotencyKey)
+        if (prior) {
+          if (prior.digest !== digest) throw new Error(GENERIC_ADMIN_FAILURE)
+          return prior.result
+        }
         if (caseId !== moderationCase.id) throw new Error('Synthetic exact-case denial.')
+        if (input.expectedVersion !== moderationCase.version) throw new Error(GENERIC_ADMIN_FAILURE)
         if (!input.reason.trim() || !input.mfaVerified || !input.recentAuthAt)
           throw new Error(GENERIC_ADMIN_FAILURE)
         const recentAuthAt = Date.parse(input.recentAuthAt)
@@ -1758,11 +1767,13 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
                 : 'dismissed'
         const updated: ModerationCase = {
           ...moderationCase,
+          version: moderationCase.version + 1,
           state: nextState,
           updatedAt: FIXED_NOW,
           evidence: [...moderationCase.evidence, { kind: 'prior_decision', value: input.reason }],
         }
         moderationCase = updated
+        moderationReceipts.set(input.idempotencyKey, { digest, result: updated })
         return updated
       })
     },

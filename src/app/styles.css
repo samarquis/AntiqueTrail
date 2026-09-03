@@ -204,8 +204,8 @@ button:disabled,
   background: var(--danger-hover);
 }
 
-/* #140 moderation single CTA + consequence preview: layout only, colors derive from
-   shared button tokens (all four dispositions stay neutral; Confirm is the one filled CTA). */
+/* #140 moderation single CTA + consequence preview. Choices stay neutral; the selected
+   confirmation uses an action-specific semantic treatment plus its text and glyph label. */
 .moderation-choice {
   flex-direction: column;
   align-items: flex-start;
@@ -236,6 +236,41 @@ button:disabled,
   border: 1px solid var(--line);
   border-radius: 13px;
   background: var(--surface-chrome);
+}
+
+.moderation-confirm--hold {
+  border-color: var(--gold);
+  background: var(--surface-warning);
+}
+
+.moderation-confirm--remove {
+  border-color: var(--rust);
+  background: var(--surface-status-danger);
+}
+
+.moderation-confirm--restore {
+  border-color: var(--teal);
+  background: var(--mint);
+}
+
+.moderation-confirm--dismiss_report {
+  border-color: var(--olive);
+  background: var(--surface-status-neutral);
+}
+
+.moderation-confirm__action--hold {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 55%, var(--ink));
+}
+
+.moderation-confirm__action--restore {
+  border-color: var(--teal-dark);
+  background: var(--teal-dark);
+}
+
+.moderation-confirm__action--dismiss_report {
+  border-color: var(--olive);
+  background: color-mix(in srgb, var(--olive) 55%, var(--ink));
 }
 
 .moderation-preview {

@@ -90,6 +90,7 @@ export interface ModerationEvidence {
 
 export interface ModerationCase {
   id: string
+  version: number
   reviewId: string
   storeId: string
   state: ModerationCaseState
@@ -103,6 +104,8 @@ export interface ModerationCase {
 export interface ModerationDecisionInput {
   action: ModerationAction
   reason: string
+  expectedVersion: number
+  idempotencyKey: string
   mfaVerified: boolean
   recentAuthAt: string | null
 }

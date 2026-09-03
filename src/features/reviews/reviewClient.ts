@@ -97,6 +97,8 @@ export function createReviewClient(transport: ReviewRpcTransport): DurableReview
         p_case_id: caseId,
         p_action: input.action,
         p_reason: input.reason,
+        p_expected_version: input.expectedVersion,
+        p_idempotency_key: input.idempotencyKey,
       }),
     submitRestrictionAppeal: ({ restrictionId, reason }) =>
       call('reviews_submit_restriction_appeal', {
@@ -385,7 +387,7 @@ export function moderationPreview(
     case 'hold':
     case 'remove':
       aggregateEffect = 'The review is hidden and dropped from the store average immediately.'
-      authorNotice = 'A notice to the author is queued.'
+      authorNotice = 'Author notice is queued.'
       reversibility =
         action === 'hold'
           ? 'Reversible later with a Restore decision.'

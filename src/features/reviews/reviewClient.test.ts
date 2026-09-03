@@ -63,6 +63,8 @@ describe('durable review RPC client', () => {
     await client.decideModerationCase('case-1', {
       action: 'remove',
       reason: 'Confirmed policy violation',
+      expectedVersion: 3,
+      idempotencyKey: 'moderate-case-1-v3',
       mfaVerified: true,
       recentAuthAt: new Date().toISOString(),
     })
@@ -75,7 +77,13 @@ describe('durable review RPC client', () => {
     expect(rpc.mock.calls).toEqual([
       [
         'reviews_moderate',
-        { p_case_id: 'case-1', p_action: 'remove', p_reason: 'Confirmed policy violation' },
+        {
+          p_case_id: 'case-1',
+          p_action: 'remove',
+          p_reason: 'Confirmed policy violation',
+          p_expected_version: 3,
+          p_idempotency_key: 'moderate-case-1-v3',
+        },
       ],
       [
         'reviews_decide_restriction_appeal',
@@ -124,7 +132,7 @@ describe('moderation consequence preview', () => {
     const preview = moderationPreview('remove', 'open')
     expect(preview.transition).toBe('open → removed')
     expect(preview.aggregateEffect).toContain('dropped from the store average')
-    expect(preview.authorNotice).toContain('A notice to the author is queued')
+    expect(preview.authorNotice).toBe('Author notice is queued.')
     expect(preview.reasonAndAudit).toContain('appended to the append-only audit')
     expect(preview.reversibility).toContain('30-day window')
   })
