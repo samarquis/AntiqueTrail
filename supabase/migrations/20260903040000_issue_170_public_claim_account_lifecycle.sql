@@ -4,6 +4,42 @@
 grant identity_service to postgres;
 grant create on schema app_public,app_private,partner_private to identity_service;
 
+alter table partner_private.listing_claims
+  add column assigned_admin_tombstone uuid,
+  add column approved_by_tombstone uuid;
+
+alter table partner_private.claim_authority_signals
+  add column verifier_tombstone uuid,
+  drop constraint claim_signal_verified_shape,
+  add constraint claim_signal_verified_shape check (
+    (status='verified' and verified_at is not null and (
+      (verified_by is not null and verifier_tombstone is null)
+      or (verified_by is null and verifier_tombstone is not null)
+    ))
+    or (status<>'verified' and verified_by is null and verified_at is null and verifier_tombstone is null)
+  );
+
+create or replace function partner_private.guard_claim_signal_current_consent()
+returns trigger language plpgsql security definer set search_path='' as $$
+begin
+  if tg_op='UPDATE' and old.verified_by is not null and new.verified_by is null
+    and old.verifier_tombstone is null and new.verifier_tombstone is null
+    and row(new.signal_id,new.claim_id,new.channel_class,new.signal_type,new.status,new.verified_at,
+      new.evidence_ref_hmac,new.created_at,new.authority_object_hmac,new.verification_event_id)
+      is not distinct from
+      row(old.signal_id,old.claim_id,old.channel_class,old.signal_type,old.status,old.verified_at,
+        old.evidence_ref_hmac,old.created_at,old.authority_object_hmac,old.verification_event_id) then
+    new.verifier_tombstone:=extensions.gen_random_uuid();
+    return new;
+  end if;
+  if not exists(select 1 from partner_private.listing_claims c where c.claim_id=new.claim_id
+    and not c.material_reconsent_required and partner_private.partner_consent_is_current(c.claimant_id)) then
+    raise exception using errcode='42501',message='partner_material_reconsent_required';
+  end if;
+  return new;
+end $$;
+alter function partner_private.guard_claim_signal_current_consent() owner to identity_service;
+
 -- The original guard predates de-identified retained claims. Permit only the
 -- deletion worker's exact terminal unlink; all ordinary identity edits remain
 -- immutable and all other state-machine checks are unchanged.
@@ -20,6 +56,25 @@ begin
     if new.relationship is null or new.authority_statement is null then raise exception 'listing_claim_assertion_required'; end if;
     return new;
   end if;
+  if current_user='identity_service'
+    and new.claimant_id is not distinct from old.claimant_id
+    and new.claim_id is not distinct from old.claim_id and new.store_id is not distinct from old.store_id
+    and new.state is not distinct from old.state and new.risk_tier is not distinct from old.risk_tier
+    and new.submitted_at is not distinct from old.submitted_at and new.approved_at is not distinct from old.approved_at
+    and new.revoked_at is not distinct from old.revoked_at and new.created_at is not distinct from old.created_at
+    and new.relationship is not distinct from old.relationship and new.authority_statement is not distinct from old.authority_statement
+    and new.last_authority_verified_at is not distinct from old.last_authority_verified_at
+    and new.authority_recheck_due_at is not distinct from old.authority_recheck_due_at
+    and new.material_reconsent_required is not distinct from old.material_reconsent_required
+    and ((new.assigned_admin_id is not distinct from old.assigned_admin_id and new.assigned_admin_tombstone is not distinct from old.assigned_admin_tombstone)
+      or (old.assigned_admin_id is not null and new.assigned_admin_id is null and old.assigned_admin_tombstone is null and new.assigned_admin_tombstone is not null))
+    and ((new.approved_by is not distinct from old.approved_by and new.approved_by_tombstone is not distinct from old.approved_by_tombstone)
+      or (old.approved_by is not null and new.approved_by is null and old.approved_by_tombstone is null and new.approved_by_tombstone is not null))
+    and (new.assigned_admin_id is distinct from old.assigned_admin_id or new.approved_by is distinct from old.approved_by) then
+    new.version:=old.version+1;
+    new.updated_at:=statement_timestamp();
+    return new;
+  end if;
   if current_user='identity_service' and old.claimant_id is not null and new.claimant_id is null
     and new.claim_id is not distinct from old.claim_id and new.store_id is not distinct from old.store_id
     and new.created_at is not distinct from old.created_at and new.submitted_at is not distinct from old.submitted_at
@@ -29,6 +84,8 @@ begin
     and new.approved_at is not distinct from old.approved_at and new.approved_by is not distinct from old.approved_by
     and new.last_authority_verified_at is not distinct from old.last_authority_verified_at
     and new.authority_recheck_due_at is not distinct from old.authority_recheck_due_at then
+    new.assigned_admin_id:=case when old.assigned_admin_id=old.claimant_id then null else old.assigned_admin_id end;
+    new.assigned_admin_tombstone:=case when old.assigned_admin_id=old.claimant_id then extensions.gen_random_uuid() else old.assigned_admin_tombstone end;
     new.revoked_at:=coalesce(new.revoked_at,statement_timestamp());
     new.version:=old.version+1;
     new.updated_at:=statement_timestamp();
@@ -151,6 +208,12 @@ begin
       granted_by=case when granted_by=old.user_id then null else granted_by end,
       grantor_tombstone=case when granted_by=old.user_id then tombstone else grantor_tombstone end
     where applicant_id=old.user_id or granted_by=old.user_id;
+  update partner_private.listing_claims
+    set assigned_admin_id=case when assigned_admin_id=old.user_id then null else assigned_admin_id end,
+      assigned_admin_tombstone=case when assigned_admin_id=old.user_id then tombstone else assigned_admin_tombstone end,
+      approved_by=case when approved_by=old.user_id then null else approved_by end,
+      approved_by_tombstone=case when approved_by=old.user_id then tombstone else approved_by_tombstone end
+    where assigned_admin_id=old.user_id or approved_by=old.user_id;
   return old;
 end $$;
 alter function partner_private.deidentify_claim_receipts_for_deleted_profile() owner to identity_service;

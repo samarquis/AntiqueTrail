@@ -18,7 +18,7 @@ Candidate code repair is on `codex/issue-170-public-free-claim`. Final approval 
 ## Commands and limitations
 
 - Clean `npx supabase@2.115.0 db reset --local`: passed.
-- Focused pgTAP `0078_issue_170_public_free_claim.sql`: 44/44 passed after a clean reset through migration `20260903040000`, including runtime portable-export and both applicant/grantor deletion paths.
+- Focused pgTAP `0078_issue_170_public_free_claim.sql`: 46/46 passed after a clean reset through migration `20260903040000`, including runtime portable-export and applicant/Administrator provider-deletion paths.
 - Ticket Playwright config: 9/9 passed.
 - `npm run verify:baseline`: passed on the complete candidate: 88 test files/603 tests, 69 release tests, TypeScript, ESLint, Prettier, and production/PWA build.
 - This evidence does not activate public claims and does not satisfy #169, Package 10B human/provider activation, hosted checks, independent review, merge, or post-merge closure proof.

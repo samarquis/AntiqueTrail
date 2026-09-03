@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(46);
 
 select has_table('partner_private','store_owner_intake_roots','claim and add starts share an applicant root');
 select has_column('partner_private','store_owner_intake_roots','active_kind','the root records the active intake kind');
@@ -267,8 +267,17 @@ select lives_ok(
   'administrator deletion de-identifies the grantor side of retained activation receipts'
 );
 select ok(
-  exists(select 1 from partner_private.claim_free_activation_receipts where granted_by is null and grantor_tombstone is not null),
-  'Free activation receipts retain no grantor account identifier after purge'
+  exists(select 1 from partner_private.claim_free_activation_receipts where granted_by is null and grantor_tombstone is not null)
+  and exists(select 1 from partner_private.listing_claims where assigned_admin_id is null and assigned_admin_tombstone is not null and approved_by is null and approved_by_tombstone is not null),
+  'retained claim audit facts contain no grantor or Administrator account identifier after purge'
+);
+select lives_ok(
+  $$delete from auth.users where id='17000000-0000-4000-8000-000000000002'$$,
+  'de-identified approval facts do not block Administrator provider deletion'
+);
+select ok(
+  exists(select 1 from partner_private.claim_authority_signals where verified_by is null and verifier_tombstone is not null),
+  'provider deletion replaces verified-signal actor links with content-free tombstones'
 );
 select throws_ok(
   $$update partner_private.public_claim_consent_receipts set accepted_at=accepted_at+interval '1 second'$$,

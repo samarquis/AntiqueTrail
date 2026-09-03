@@ -4,8 +4,8 @@ Scope: Implement the server-authoritative, staged-off existing-listing claim pat
 
 - [x] G1: Claim commands preserve the shared applicant root, stage-off denials, authority-signal independence, atomic Free grant/tier/receipt behavior, and deletion-safe audit lifecycle.
       CHECK: npx supabase@2.115.0 db reset --local; npx supabase@2.115.0 test db supabase/tests/0078_issue_170_public_free_claim.sql
-      EXPECT: 44 tests successful
-      EVIDENCE: 2026-09-03 clean reset applied through migration `20260903040000`; focused pgTAP 0078 passed 44/44, including ordinary public consent, signal retry binding, active runtime lifecycle, exact Representative/Free grant, portable receipt export, applicant/grantor de-identification, and provider deletion. The unrelated full 78-file suite remains unavailable as a green gate because legacy tests lack reset-time role memberships.
+      EXPECT: 46 tests successful
+      EVIDENCE: 2026-09-03 clean reset applied through migration `20260903040000`; focused pgTAP 0078 passed 46/46, including ordinary public consent, signal retry binding, active runtime lifecycle, exact Representative/Free grant, portable receipt export, and applicant/Administrator de-identification plus provider deletion. The unrelated full 78-file suite remains unavailable as a green gate because legacy tests lack reset-time role memberships.
 
 - [x] G2: Focused client and owner/Administrator journey tests cover allowed and denied claim states without client-side authority.
       CHECK: npm test -- --run src/features/partners
