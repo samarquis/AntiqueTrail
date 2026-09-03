@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../auth'
 import {
   AcceptTripInvitationPage,
+  AddToTripPage,
   GoPage,
   InviteTripPartnerPage,
   NewTripPage,
@@ -136,7 +137,7 @@ describe('manual trips', () => {
     await user.click(screen.getByRole('button', { name: /create trip/i }))
     expect(create).toHaveBeenCalledWith({ name: 'Saturday finds', localDate: '2026-08-10' })
   })
-  it('seeds an Add-to-Trip store after creating the draft', async () => {
+  it('offers the explicit chooser and seeds a store into a newly created trip on success', async () => {
     const user = userEvent.setup()
     const create = vi.fn(async () => trip)
     const addStoreStop = vi.fn(async () => ({
@@ -160,18 +161,282 @@ describe('manual trips', () => {
           <Routes>
             <Route
               path="/trips/new"
-              element={<NewTripPage client={client({ create, addStoreStop })} />}
+              element={<NewTripPage client={client({ addStoreStop, create })} />}
             />
             <Route path="/trips/:tripId/plan" element={<p>Trip seeded</p>} />
           </Routes>
         </AuthProvider>
       </MemoryRouter>,
     )
+    expect(await screen.findByRole('button', { name: 'Add to Antique Day' })).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Back to stores' })).toHaveAttribute('href', '/stores')
     await user.type(screen.getByLabelText(/trip name/i), 'Saturday finds')
     await user.type(screen.getByLabelText(/date/i), '2026-08-10')
-    await user.click(screen.getByRole('button', { name: /create trip/i }))
+    await user.click(screen.getByRole('button', { name: 'Create trip and add store' }))
+    expect(await screen.findByRole('heading', { name: 'Added to Antique Day' })).toBeVisible()
+    expect(create).toHaveBeenCalledWith({ name: 'Saturday finds', localDate: '2026-08-10' })
     expect(addStoreStop).toHaveBeenCalledWith('trip-1', 'store-1')
+    expect(screen.getByRole('link', { name: 'View Trip' })).toHaveAttribute(
+      'href',
+      '/trips/trip-1/plan',
+    )
+    await user.click(screen.getByRole('link', { name: 'View Trip' }))
     expect(await screen.findByText('Trip seeded')).toBeInTheDocument()
+  })
+
+  it('adds a store to an eligible existing trip and can undo the addition', async () => {
+    const user = userEvent.setup()
+    const addStoreStop = vi.fn(async () => ({
+      ...trip,
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store' as const,
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'prefer' as const,
+          plannedDwellMinutes: 60,
+          state: 'planned' as const,
+        },
+      ],
+    }))
+    const removeStop = vi.fn(async () => trip)
+    render(
+      <MemoryRouter initialEntries={['/trips/new?addStoreId=store-1']}>
+        <AuthProvider>
+          <Routes>
+            <Route
+              path="/trips/new"
+              element={<NewTripPage client={client({ addStoreStop, removeStop })} />}
+            />
+            <Route path="/trips/:tripId/plan" element={<p>Trip seeded</p>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('button', { name: 'Add to Antique Day' }))
+    expect(await screen.findByRole('heading', { name: 'Added to Antique Day' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'The store was removed from Antique Day.',
+    )
+    expect(removeStop).toHaveBeenCalledWith('trip-1', 'stop-1', trip.version)
+    expect(screen.getByRole('button', { name: 'Add to Antique Day' })).toBeVisible()
+  })
+
+  it('excludes full trips and trips that already contain the store, and explains why', async () => {
+    const emptyTrip = { ...trip, name: 'Empty Day' }
+    const alreadyTrip = {
+      ...trip,
+      id: 'trip-2',
+      name: 'Already Trip',
+      stops: [
+        {
+          id: 'stop-0',
+          storeId: 'store-1',
+          kind: 'store' as const,
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'prefer' as const,
+          plannedDwellMinutes: 60,
+          state: 'planned' as const,
+        },
+      ],
+    }
+    const fullTrip = {
+      ...trip,
+      id: 'trip-3',
+      name: 'Full Trip',
+      stops: Array.from({ length: 8 }, (_, index) => ({
+        id: `stop-${index}`,
+        storeId: `other-${index}`,
+        kind: 'store' as const,
+        label: `Store ${index}`,
+        position: index,
+        priority: 'prefer' as const,
+        plannedDwellMinutes: 60,
+        state: 'planned' as const,
+      })),
+    }
+    const list = vi.fn(async () => [alreadyTrip, fullTrip, emptyTrip])
+    renderPage(
+      <AuthProvider>
+        <AddToTripPage storeId="store-1" client={client({ list })} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByText('This store is already on: Already Trip.')).toBeVisible()
+    expect(screen.getByText('One trip is full and is not listed.')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Add to Already Trip' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add to Full Trip' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add to Empty Day' })).toBeVisible()
+    expect(screen.getByText('2026-08-10 · 0 of 8 stops')).toBeVisible()
+  })
+
+  it('explains when no existing trip can receive the store', async () => {
+    const list = vi.fn(async () => [])
+    renderPage(
+      <AuthProvider>
+        <AddToTripPage storeId="store-1" client={client({ list })} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByText('You have no trips yet.')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Create trip and add store' })).toBeVisible()
+    expect(screen.queryByText('Antique Day')).not.toBeInTheDocument()
+  })
+
+  it('preserves the new-trip form and explains when creating the trip fails', async () => {
+    const user = userEvent.setup()
+    const create = vi.fn().mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce(trip)
+    renderPage(
+      <AuthProvider>
+        <AddToTripPage storeId="store-1" client={client({ create })} />
+      </AuthProvider>,
+    )
+    await user.type(await screen.findByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: 'Create trip and add store' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "We couldn't update this trip. Please try again.",
+    )
+    expect(screen.getByLabelText(/trip name/i)).toHaveValue('Saturday finds')
+    expect(screen.getByLabelText(/date/i)).toHaveValue('2026-08-10')
+  })
+
+  it('reuses a created trip when adding the store must be retried', async () => {
+    const user = userEvent.setup()
+    const create = vi.fn(async () => trip)
+    const added = {
+      ...trip,
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store' as const,
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'prefer' as const,
+          plannedDwellMinutes: 60,
+          state: 'planned' as const,
+        },
+      ],
+    }
+    const addStoreStop = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('write failed'))
+      .mockResolvedValueOnce(added)
+    renderPage(
+      <AuthProvider>
+        <AddToTripPage storeId="store-1" client={client({ addStoreStop, create })} />
+      </AuthProvider>,
+    )
+    await user.type(await screen.findByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: 'Create trip and add store' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Antique Day was created, but the store was not added',
+    )
+    expect(screen.getByLabelText(/trip name/i)).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Retry adding store' }))
+    expect(await screen.findByRole('heading', { name: 'Added to Antique Day' })).toBeVisible()
+    expect(create).toHaveBeenCalledTimes(1)
+    expect(addStoreStop).toHaveBeenCalledTimes(2)
+    expect(addStoreStop).toHaveBeenNthCalledWith(2, 'trip-1', 'store-1')
+  })
+
+  it('reconciles a lost add response without submitting the stop again', async () => {
+    const user = userEvent.setup()
+    const created = vi.fn(async () => trip)
+    const committed = {
+      ...trip,
+      version: 2,
+      stops: [
+        {
+          id: 'stop-1',
+          storeId: 'store-1',
+          kind: 'store' as const,
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'prefer' as const,
+          plannedDwellMinutes: 60,
+          state: 'planned' as const,
+        },
+      ],
+    }
+    const addStoreStop = vi.fn(async () => {
+      throw new Error('response lost')
+    })
+    const get = vi.fn(async () => committed)
+    renderPage(
+      <AuthProvider>
+        <AddToTripPage storeId="store-1" client={client({ addStoreStop, create: created, get })} />
+      </AuthProvider>,
+    )
+    await user.type(await screen.findByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: 'Create trip and add store' }))
+    expect(await screen.findByRole('heading', { name: 'Added to Antique Day' })).toBeVisible()
+    expect(created).toHaveBeenCalledTimes(1)
+    expect(addStoreStop).toHaveBeenCalledTimes(1)
+    expect(get).toHaveBeenCalledWith('trip-1')
+  })
+
+  it('recovers from a list failure and guards against duplicate add clicks', async () => {
+    const user = userEvent.setup()
+    const list = vi.fn().mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce([trip])
+    let settle!: (value: Trip) => void
+    const pending = new Promise<Trip>((resolve) => {
+      settle = resolve
+    })
+    const addStoreStop = vi.fn(async () => pending)
+    renderPage(
+      <AuthProvider>
+        <AddToTripPage storeId="store-1" client={client({ addStoreStop, list })} />
+      </AuthProvider>,
+    )
+    await user.click(await screen.findByRole('button', { name: 'Try again' }))
+    const addButton = await screen.findByRole('button', { name: 'Add to Antique Day' })
+    await user.click(addButton)
+    expect(addButton).toBeDisabled()
+    expect(screen.getByText('Adding to Antique Day…')).toBeVisible()
+    await act(async () => {
+      settle({
+        ...trip,
+        stops: [
+          {
+            id: 'stop-1',
+            storeId: 'store-1',
+            kind: 'store',
+            label: 'Oak Antiques',
+            position: 0,
+            priority: 'prefer',
+            plannedDwellMinutes: 60,
+            state: 'planned',
+          },
+        ],
+      })
+      await pending
+    })
+    expect(await screen.findByRole('heading', { name: 'Added to Antique Day' })).toBeVisible()
+  })
+
+  it('routes Back through the same-origin returnTo boundary', async () => {
+    renderPage(
+      <AuthProvider>
+        <AddToTripPage storeId="store-1" returnTo="/saved" client={client()} />
+      </AuthProvider>,
+    )
+    expect(screen.getByRole('link', { name: 'Back to saved stores' })).toHaveAttribute(
+      'href',
+      '/saved',
+    )
+    cleanup()
+    renderPage(
+      <AuthProvider>
+        <AddToTripPage storeId="store-1" returnTo="//evil.example" client={client()} />
+      </AuthProvider>,
+    )
+    expect(screen.getByRole('link', { name: 'Back to stores' })).toHaveAttribute('href', '/stores')
   })
 
   it('saves a manual start before Go and requires explicit acknowledgement for hours warnings', async () => {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { RequireSession } from '../auth'
+import { RequireSession, safeReturnTo } from '../auth'
 import {
   GENERIC_TRIP_ERROR,
   MAX_ACTIVE_STOPS,
@@ -130,10 +130,8 @@ export function TripsPage({ client = unavailableTripClient }: { client?: TripCli
   )
 }
 
-export function NewTripPage({ client = unavailableTripClient }: { client?: TripClient }) {
+function NewTripForm({ client }: { client: TripClient }) {
   const navigate = useNavigate()
-  const location = useLocation()
-  const addStoreId = new URLSearchParams(location.search).get('addStoreId')
   const [name, setName] = useState('')
   const [date, setDate] = useState('')
   const [error, setError] = useState(false)
@@ -146,7 +144,6 @@ export function NewTripPage({ client = unavailableTripClient }: { client?: TripC
     setError(false)
     try {
       const trip = await client.create({ name: normalized, localDate: date })
-      if (addStoreId) await client.addStoreStop(trip.id, addStoreId)
       navigate(`/trips/${trip.id}/plan`)
     } catch {
       setError(true)
@@ -182,6 +179,277 @@ export function NewTripPage({ client = unavailableTripClient }: { client?: TripC
           {pending ? 'Creating…' : 'Create trip'}
         </button>
       </form>
+    </TripCard>
+  )
+}
+
+export function NewTripPage({ client = unavailableTripClient }: { client?: TripClient }) {
+  const location = useLocation()
+  const query = new URLSearchParams(location.search)
+  const addStoreId = query.get('addStoreId')
+  if (!addStoreId) return <NewTripForm client={client} />
+  return <AddToTripPage storeId={addStoreId} returnTo={query.get('returnTo')} client={client} />
+}
+
+// The Add-to-Trip chooser keeps the store identity to the URL seam alone: only the
+// bounded store id travels through the arriving deep link and the auth returnTo
+// boundary. The store object is never serialized into the URL, local storage, or a
+// new cache.
+export function AddToTripPage({
+  storeId,
+  returnTo,
+  client = unavailableTripClient,
+}: {
+  storeId: string
+  returnTo?: string | null
+  client?: TripClient
+}) {
+  const backTarget = safeReturnTo(returnTo ?? null)
+  const [trips, setTrips] = useState<Trip[] | 'error' | null>(null)
+  const [name, setName] = useState('')
+  const [date, setDate] = useState('')
+  const [actionError, setActionError] = useState(false)
+  const [createdTripForRetry, setCreatedTripForRetry] = useState<Trip | null>(null)
+  const [pendingAction, setPendingAction] = useState<
+    { kind: 'existing'; trip: Trip } | { kind: 'new' } | null
+  >(null)
+  const [result, setResult] = useState<{ trip: Trip; stop: Trip['stops'][number] } | null>(null)
+  const [undoing, setUndoing] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    client
+      .list()
+      .then((list) => {
+        if (!cancelled) setTrips(list)
+      })
+      .catch(() => {
+        if (!cancelled) setTrips('error')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [client])
+
+  function reload() {
+    client
+      .list()
+      .then(setTrips)
+      .catch(() => setTrips('error'))
+  }
+
+  const tripsList = Array.isArray(trips) ? trips : []
+  const editable = tripsList.filter((trip) => trip.state === 'draft' || trip.state === 'ready')
+  const alreadyHas = editable.filter((trip) => trip.stops.some((stop) => stop.storeId === storeId))
+  const eligible = editable.filter(
+    (trip) => !alreadyHas.includes(trip) && trip.stops.length < MAX_ACTIVE_STOPS,
+  )
+  const fullTrips = editable.filter(
+    (trip) => !alreadyHas.includes(trip) && trip.stops.length >= MAX_ACTIVE_STOPS,
+  )
+  const backLabel = backTarget === '/saved' ? 'Back to saved stores' : 'Back to stores'
+
+  async function addStoreStopWithReconciliation(tripId: string): Promise<Trip> {
+    try {
+      return await client.addStoreStop(tripId, storeId)
+    } catch (error) {
+      // A committed write can lose its response. Re-read the authoritative trip
+      // before offering a retry so the same stop is never submitted forever.
+      const current = await client.get(tripId).catch(() => null)
+      if (current?.stops.some((stop) => stop.storeId === storeId)) return current
+      throw error
+    }
+  }
+
+  async function addToTrip(trip: Trip) {
+    if (pendingAction) return
+    setPendingAction({ kind: 'existing', trip })
+    setActionError(false)
+    setNotice(null)
+    try {
+      const next = await addStoreStopWithReconciliation(trip.id)
+      const stop = next.stops.find((candidate) => candidate.storeId === storeId)
+      if (!stop) throw new Error('missing added stop')
+      setResult({ trip: next, stop })
+    } catch {
+      setActionError(true)
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  async function createAndAdd(event: FormEvent) {
+    event.preventDefault()
+    const normalized = normalizeTripName(name)
+    if (!normalized || !date || pendingAction) return
+    setPendingAction({ kind: 'new' })
+    setActionError(false)
+    setNotice(null)
+    try {
+      const created =
+        createdTripForRetry ?? (await client.create({ name: normalized, localDate: date }))
+      setCreatedTripForRetry(created)
+      const next = await addStoreStopWithReconciliation(created.id)
+      const stop = next.stops.find((candidate) => candidate.storeId === storeId)
+      if (!stop) throw new Error('missing added stop')
+      setName('')
+      setDate('')
+      setCreatedTripForRetry(null)
+      setResult({ trip: next, stop })
+    } catch {
+      setActionError(true)
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  async function undoAddition() {
+    if (!result || undoing) return
+    setUndoing(true)
+    setActionError(false)
+    try {
+      const next = await client.removeStop(result.trip.id, result.stop.id, result.trip.version)
+      setResult(null)
+      setNotice(`The store was removed from ${next.name}.`)
+      reload()
+    } catch {
+      setActionError(true)
+    } finally {
+      setUndoing(false)
+    }
+  }
+
+  if (result)
+    return (
+      <TripCard
+        title={`Added to ${result.trip.name}`}
+        description="This store is on your dated trip and stays private to you and any invited trip partner."
+        icon="/icons/shopping-trip.svg"
+      >
+        <p>
+          The store is now on {result.trip.name}, dated {result.trip.localDate}.
+        </p>
+        <Link className="button" to={`/trips/${result.trip.id}/plan`}>
+          View Trip
+        </Link>{' '}
+        <button
+          className="button button--secondary"
+          type="button"
+          disabled={undoing}
+          onClick={() => void undoAddition()}
+        >
+          {undoing ? 'Removing…' : 'Undo'}
+        </button>
+        {actionError && <TripError />}
+        <p>
+          <Link to={backTarget}>{backLabel}</Link>
+        </p>
+      </TripCard>
+    )
+
+  return (
+    <TripCard
+      title="Add to Trip"
+      description="Choose an existing trip or start a new trip for this store. Only your own trips are listed here."
+      icon="/icons/shopping-trip.svg"
+    >
+      <p>
+        <Link to={backTarget}>{backLabel}</Link>
+      </p>
+      {notice && <p role="status">{notice}</p>}
+      {trips === 'error' ? (
+        <>
+          <TripError />
+          <button className="button" type="button" onClick={reload}>
+            Try again
+          </button>
+        </>
+      ) : trips === null ? (
+        <p role="status">Loading your trips…</p>
+      ) : (
+        <>
+          {alreadyHas.length > 0 && (
+            <p>This store is already on: {alreadyHas.map((trip) => trip.name).join(', ')}.</p>
+          )}
+          {eligible.length > 0 && (
+            <>
+              <p className="eyebrow">Existing trips</p>
+              <ul aria-label="Existing trips">
+                {eligible.map((trip) => {
+                  const pending =
+                    pendingAction?.kind === 'existing' && pendingAction.trip.id === trip.id
+                  return (
+                    <li key={trip.id}>
+                      <button
+                        className="button"
+                        type="button"
+                        disabled={pendingAction !== null || undoing}
+                        onClick={() => void addToTrip(trip)}
+                      >
+                        {pending ? `Adding to ${trip.name}…` : `Add to ${trip.name}`}
+                      </button>
+                      <p>
+                        {trip.localDate} · {trip.stops.length} of {MAX_ACTIVE_STOPS} stops
+                      </p>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )}
+          {tripsList.length > 0 && eligible.length === 0 && (
+            <p role="status">No existing trip can receive this store right now.</p>
+          )}
+          {tripsList.length === 0 && <p role="status">You have no trips yet.</p>}
+          {fullTrips.length > 0 && (
+            <p>
+              {fullTrips.length === 1
+                ? 'One trip is full and is not listed.'
+                : `${fullTrips.length} trips are full and are not listed.`}
+            </p>
+          )}
+          <p className="eyebrow">Start a new trip</p>
+          <form onSubmit={createAndAdd}>
+            <label htmlFor="trip-name">Trip name</label>
+            <input
+              id="trip-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              disabled={createdTripForRetry !== null}
+              maxLength={80}
+              required
+            />
+            <label htmlFor="trip-date">Date</label>
+            <input
+              id="trip-date"
+              type="date"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              disabled={createdTripForRetry !== null}
+              required
+            />
+            {actionError &&
+              (createdTripForRetry ? (
+                <p role="alert">
+                  {createdTripForRetry.name} was created, but the store was not added. Retry to add
+                  it to that same trip.
+                </p>
+              ) : (
+                <TripError />
+              ))}
+            <button className="button" type="submit" disabled={pendingAction !== null || undoing}>
+              {pendingAction?.kind === 'new'
+                ? createdTripForRetry
+                  ? 'Adding store…'
+                  : 'Creating trip…'
+                : createdTripForRetry
+                  ? 'Retry adding store'
+                  : 'Create trip and add store'}
+            </button>
+          </form>
+        </>
+      )}
     </TripCard>
   )
 }
