@@ -1,14 +1,19 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(34);
 
 select has_table('partner_private','store_owner_intake_roots','claim and add starts share an applicant root');
 select has_column('partner_private','store_owner_intake_roots','active_kind','the root records the active intake kind');
 select has_table('partner_private','claim_free_activation_receipts','Free approval has an immutable receipt');
+select has_table('partner_private','public_claim_consent_receipts','ordinary public applicants have an invitation-independent consent receipt');
 select ok(
   not has_table_privilege('authenticated','partner_private.store_owner_intake_roots','INSERT')
   and not has_table_privilege('authenticated','partner_private.claim_free_activation_receipts','INSERT'),
   'browser roles cannot write root or Free activation receipt rows directly'
+);
+select ok(
+  not has_table_privilege('authenticated','partner_private.public_claim_consent_receipts','INSERT'),
+  'browser roles cannot forge public claim consent receipts'
 );
 select has_function('app_public','public_listing_claim_command',array['text','jsonb']::text[],
   'public claim command exists behind the server release seam');
@@ -101,28 +106,54 @@ insert into app_public.stores(id,slug,name,town,state_code,address,area_id,summa
 values('17000000-0000-4000-8000-000000000010','issue-170-public-store','Issue 170 Public Store','Topeka','KS','170 Test Street','00000000-0000-4000-8000-000000000001','Runtime claim fixture','Runtime claim fixture',false,'public','active');
 insert into app_private.role_grants(subject_user_id,role,state)
 values('17000000-0000-4000-8000-000000000002','administrator','active');
+update app_private.profiles set verified_email_snapshot='owner@example.test',
+  age_18_attested_at=statement_timestamp(),last_authenticated_at=statement_timestamp()
+where user_id='17000000-0000-4000-8000-000000000001';
 grant identity_service to postgres;
 grant usage,create on schema partner_private to identity_service;
 grant usage,create on schema app_private to identity_service;
 set role identity_service;
-create or replace function partner_private.require_claimant() returns uuid
-language sql stable security definer set search_path='' as $$
-  select '17000000-0000-4000-8000-000000000001'::uuid
-$$;
 create or replace function partner_private.require_claim_admin() returns uuid
 language sql stable security definer set search_path='' as $$
   select '17000000-0000-4000-8000-000000000002'::uuid
-$$;
-create or replace function partner_private.partner_consent_is_current(target_user uuid)
-returns boolean language sql stable security definer set search_path='' as $$
-  select target_user is not null
 $$;
 create or replace function app_private.current_session_is_active()
 returns boolean language sql stable security definer set search_path='' as $$
   select true
 $$;
+create or replace function app_private.current_session_has_mfa()
+returns boolean language sql stable security definer set search_path='' as $$
+  select true
+$$;
+create or replace function app_private.current_session_recent_auth(p_window interval default interval '15 minutes')
+returns boolean language sql stable security definer set search_path='' as $$
+  select p_window>interval '0 seconds'
+$$;
 reset role;
 set local "request.jwt.claims"='{"sub":"17000000-0000-4000-8000-000000000001"}';
+
+select is(
+  app_public.partner_consent_command('get_consent_status','{}'::jsonb)->>'reconsentRequired',
+  'true',
+  'an ordinary verified applicant can read the material-consent gate without a pilot identity'
+);
+select lives_ok(
+  $$select app_public.partner_consent_command(
+    'accept_material_terms',
+    jsonb_build_object(
+      'policyVersion',(select policy_version from partner_private.partner_material_terms where is_current),
+      'idempotencyKey','issue-170-public-consent',
+      'acknowledgements',jsonb_build_object('reviewed',true,'voluntary',true)
+    )
+  )$$,
+  'an ordinary verified MFA applicant can accept current material terms'
+);
+select results_eq(
+  $$select count(*) from partner_private.public_claim_consent_receipts
+    where auth_user_id='17000000-0000-4000-8000-000000000001'$$,
+  array[1::bigint],
+  'public consent creates one durable invitation-independent receipt'
+);
 
 select throws_ok(
   $$select app_public.public_listing_claim_command('start','{"storeId":"17000000-0000-4000-8000-000000000010","relationship":"Owner","authorityStatement":"Authorized owner","idempotencyKey":"issue-170-start"}'::jsonb)$$,
@@ -146,6 +177,21 @@ select is(
 select is(
   (select count(*)::integer from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'),
   1,'idempotent public start creates exactly one claim'
+);
+select lives_ok(
+  $$select app_public.public_listing_claim_signal_command(
+    (select claim_id from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'),
+    'published_business_contact',decode(repeat('11',32),'hex'),'issue-170-signal-one'
+  )$$,
+  'the first exact signal command succeeds'
+);
+select throws_ok(
+  $$select app_public.public_listing_claim_signal_command(
+    (select claim_id from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'),
+    'callback',decode(repeat('33',32),'hex'),'issue-170-signal-one'
+  )$$,
+  '42501','listing_claim_unavailable',
+  'a signal retry key cannot falsely accept a different channel or evidence digest'
 );
 select lives_ok($$
 do $runtime$

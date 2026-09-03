@@ -1871,6 +1871,7 @@ function partnerAdminClient(scenario: ReviewScenario, state: ReviewStateId): Par
 
 function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerClient {
   const allowed = () => requireRole(scenario, ['Representative'], true)
+  const allowedClaim = () => requireRole(scenario, ['Shopper', 'Representative'], true)
   const invitation: PartnerInvitation = {
     state: 'active',
     expiresAt: '2026-08-12T12:00:00.000Z',
@@ -1891,8 +1892,23 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
     onboarding: 'draft',
   }
   let status: PartnerStatus = state === 'empty' ? preOnboardingStatus : approvedStatus
-  let acceptedConsentVersion: string | undefined
-  let claimStatus: PartnerClaimStatus | null = null
+  let acceptedConsentVersion: string | undefined =
+    state === 'blocked' || state === 'permission-denied' ? '2026-08-v1' : undefined
+  let claimStatus: PartnerClaimStatus | null =
+    state === 'blocked'
+      ? {
+          claimId: 'claim-review-partner',
+          state: 'conflict',
+          exactStoreScope: 'Blue Finch Curios',
+          conflict: { state: 'open' },
+        }
+      : state === 'permission-denied'
+        ? {
+            claimId: 'claim-review-partner',
+            state: 'changes_requested',
+            exactStoreScope: 'Blue Finch Curios',
+          }
+        : null
   return {
     ...unavailablePartnerClient,
     async exchangeInvitation(token: string) {
@@ -1916,7 +1932,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       return failureFixture(state, preOnboardingStatus, preOnboardingStatus, GENERIC_PARTNER_ERROR)
     },
     async getConsentStatus() {
-      allowed()
+      allowedClaim()
       const consentStatus: PartnerConsentStatus = {
         requiredVersion: '2026-08-v1',
         acceptedVersion: acceptedConsentVersion,
@@ -1930,6 +1946,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
           'You may withdraw at any time',
         ],
       }
+      if (state === 'blocked' || state === 'permission-denied') return consentStatus
       return failureFixture(state, consentStatus, consentStatus, GENERIC_PARTNER_ERROR)
     },
     async acceptMaterialTerms(input: {
@@ -1937,7 +1954,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       acknowledgements: { reviewed: boolean; voluntary: boolean }
       idempotencyKey: string
     }) {
-      allowed()
+      allowedClaim()
       return mutate(state, GENERIC_PARTNER_ERROR, () => {
         if (input.policyVersion !== '2026-08-v1') throw new Error(GENERIC_PARTNER_ERROR)
         if (!input.acknowledgements.reviewed || !input.acknowledgements.voluntary)
@@ -2004,7 +2021,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       authorityStatement: string
       idempotencyKey: string
     }) {
-      allowed()
+      allowedClaim()
       void draft
       return mutate(state, GENERIC_PARTNER_ERROR, () => {
         claimStatus = {
@@ -2016,7 +2033,8 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       })
     },
     async getClaimStatus() {
-      allowed()
+      allowedClaim()
+      if (state === 'blocked' || state === 'permission-denied') return claimStatus
       return failureFixture(state, claimStatus, null, GENERIC_PARTNER_ERROR)
     },
     async submitAuthoritySignal(input: {
@@ -2024,7 +2042,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       channelClass: string
       evidenceReference: string
     }) {
-      allowed()
+      allowedClaim()
       void input
       return mutate(state, GENERIC_PARTNER_ERROR, () => {
         if (!claimStatus) throw new Error('Synthetic claim required.')
@@ -2033,7 +2051,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       })
     },
     async withdrawClaim(claimId: string) {
-      allowed()
+      allowedClaim()
       return mutate(state, GENERIC_PARTNER_ERROR, () => {
         if (!claimStatus || claimStatus.claimId !== claimId)
           throw new Error('Synthetic exact-claim denial.')
@@ -2042,7 +2060,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       })
     },
     async requestAuthorityRecheck(claimId: string) {
-      allowed()
+      allowedClaim()
       return mutate(state, GENERIC_PARTNER_ERROR, () => {
         if (!claimStatus || claimStatus.claimId !== claimId)
           throw new Error('Synthetic exact-claim denial.')

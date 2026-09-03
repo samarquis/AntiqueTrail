@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: '.',
-  testMatch: 'issue-170-public-free-claim.spec.ts',
+  testMatch: 'issue-170-public-claim.spec.ts',
   fullyParallel: false,
   timeout: 45_000,
   expect: { timeout: 15_000 },
@@ -17,6 +17,17 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', use: { ...devices['Pixel 5'] } },
+    {
+      name: 'tablet',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 820, height: 1180 },
+        hasTouch: true,
+      },
+    },
+    {
+      name: 'mobile-320',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 320, height: 720 } },
+    },
   ],
 })
