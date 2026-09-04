@@ -2149,6 +2149,13 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
       storeLabel: 'Blue Finch Curios',
       state: 'active',
       version: 2,
+      verifiedEmail: true,
+      mfaVerified: true,
+      grantedAt: '2026-07-01T12:00:00Z',
+      revokedAt: null,
+      recentActivity: [
+        { action: 'admin_scope_regrant', outcome: 'completed', occurredAt: '2026-08-01T12:00:00Z' },
+      ],
     },
   ]
   let mergePlan: AdminMergePlan | null = {
@@ -2304,6 +2311,15 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
           ...grant,
           state: operation === 'revoke' ? 'revoked' : 'active',
           version: expectedVersion + 1,
+          revokedAt: operation === 'revoke' ? new Date().toISOString() : grant.revokedAt,
+          recentActivity: [
+            {
+              action: operation === 'revoke' ? 'admin_scope_revoke' : 'admin_scope_regrant',
+              outcome: 'completed',
+              occurredAt: new Date().toISOString(),
+            },
+            ...grant.recentActivity,
+          ].slice(0, 5),
         }
         storeGrants = storeGrants.map((g) => (g.grantId === grant.grantId ? updated : g))
         scopePreview = null
