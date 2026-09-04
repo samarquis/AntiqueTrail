@@ -49,6 +49,7 @@ The Product Owner approved the public owner-acquisition plan on 2026-08-30. The 
 - Public Store Browser/Details, shopper saves/trips/private memory, Store Representative workflows, Administrator workflows, staged review/release surfaces, and account lifecycle have substantial implemented coverage.
 - The 2026-08-28 through 2026-08-30 critique tranche merged improvements for review-harness context (#145), form contrast (#141), Store Portal status grouping (#149), catalog action grouping/detail/readability (#148/#151/#147), trip CTA hierarchy and safe removal (#150), sparse Administrator queue composition (#152), semantic typography (#144), and resilient photo overlays (#143).
 - `DESIGN_SYSTEM.md` now contains the semantic typography and public-media overlay contracts. The composition lessons promoted by this reconciliation are also normative there.
+- On 2026-09-04, the Access & Safety page merged exact representative assurance (verified email and MFA), exact scope dates (granted/revoked), and minimized recent privileged activity through PR #209 (`ca863ea`), closing issue #130. The 4-arg preview/change scope contract is unchanged. Database job on that head passed `db reset --local` plus the full pgTAP suite; the web job's audit step cleared on a transient npm-registry rerun.
 - These statements describe repository scope, not a public launch. Synthetic browser evidence remains distinct from production RPC/RLS/provider evidence.
 
 ## Backlog and repository synchronization
