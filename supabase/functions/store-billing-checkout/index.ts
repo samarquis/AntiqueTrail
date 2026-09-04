@@ -102,13 +102,16 @@ Deno.serve(async (request) => {
     checkoutSessionId?: unknown
     priceCents?: unknown
     currency?: unknown
+    expiresAt?: unknown
   } | null
   if (
     typeof reservation?.checkoutSessionId !== 'string' ||
     typeof reservation.priceCents !== 'number' ||
     !Number.isSafeInteger(reservation.priceCents) ||
     reservation.priceCents <= 0 ||
-    reservation.currency !== 'USD'
+    reservation.currency !== 'USD' ||
+    typeof reservation.expiresAt !== 'string' ||
+    !Number.isFinite(Date.parse(reservation.expiresAt))
   )
     return unavailable(headers)
   const origin = new URL(env.appOrigin!)
@@ -128,6 +131,7 @@ Deno.serve(async (request) => {
       'metadata[checkout_session_id]': reservation.checkoutSessionId,
       success_url: `${origin}/store-portal/billing?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/store-portal/billing?canceled=true`,
+      expires_at: String(Math.ceil(Date.now() / 1000) + 30 * 60),
     },
     idempotencyKey,
   )

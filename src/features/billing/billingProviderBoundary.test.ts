@@ -90,8 +90,9 @@ describe('commercial research provider boundary', () => {
         { secretKey: 'sk_test_not_real', providerGateAccepted: true },
         'sub_issue177stale',
         'evt_issue177stale01',
+        'cs_issue177stale01',
       ),
-    ).resolves.toEqual({ ok: true, refundId: 're_issue177refund01' })
+    ).resolves.toEqual({ ok: true, refundId: 're_issue177refund01', status: 'succeeded' })
     expect(fetch.mock.calls.map((call) => [String(call[0]), call[1]?.method ?? 'GET'])).toEqual([
       [
         'https://api.stripe.com/v1/subscriptions/sub_issue177stale?expand[]=latest_invoice.payment_intent',
@@ -102,6 +103,27 @@ describe('commercial research provider boundary', () => {
     ])
   })
 
+  it('returns durable pending refund identity for later verified updates', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          status: 'canceled',
+          latest_invoice: { payment_intent: 'pi_issue177payment02' },
+        }),
+      )
+      .mockResolvedValueOnce(Response.json({ id: 're_issue177refund02', status: 'pending' }))
+    vi.stubGlobal('fetch', fetch)
+    await expect(
+      stripeCancelAndRefundSubscription(
+        { secretKey: 'sk_test_not_real', providerGateAccepted: true },
+        'sub_issue177stale',
+        'evt_issue177stale01',
+        'cs_issue177stale01',
+      ),
+    ).resolves.toEqual({ ok: true, refundId: 're_issue177refund02', status: 'pending' })
+  })
+
   it('verifies the webhook before allowing servicing reconciliation', () => {
     const source = readFileSync('supabase/functions/store-billing-webhook/index.ts', 'utf8')
     expect(source.indexOf('verifyStripeSignature')).toBeLessThan(
@@ -109,6 +131,10 @@ describe('commercial research provider boundary', () => {
     )
     expect(source).toContain("webhookMode.data !== 'servicing_only'")
     expect(source).toContain('stripeCancelAndRefundSubscription')
-    expect(source).toContain('billing_confirm_checkout_refund')
+    expect(source).toContain('billing_record_checkout_refund_state')
+    expect(source).toContain("checkout.payment_status !== 'paid'")
+    expect(source).toContain('checkout.session.async_payment_succeeded')
+    expect(source).toContain('checkout.session.async_payment_failed')
+    expect(source).toContain('refund.updated')
   })
 })

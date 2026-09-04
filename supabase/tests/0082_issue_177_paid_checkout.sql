@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(42);
+select plan(51);
 
 select has_table('partner_private','photo_tier_sales_control','sales generation authority exists');
 select has_table('partner_private','photo_tier_paid_consents','paid consent receipts exist');
@@ -140,6 +140,25 @@ select is(app_public.billing_record_checkout_event('evt_issue177valid01',stateme
 set local role billing_automation;
 update partner_private.store_photo_tier_state set tier='free',source='default',version=2 where store_id='17700000-0000-4000-8000-000000000001';
 reset role;
+select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,repeat('11',32),2,'17700000-0000-4000-8000-000000000060');
+select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','gallery',
+  (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000060'),177,'17700000-0000-4000-8000-000000000061');
+select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions where idempotency_key='17700000-0000-4000-8000-000000000061'),repeat('ee',32),3);
+select is(app_public.billing_record_checkout_payment_failure('evt_issue177failed01',repeat('ee',32),3),'failed','verified asynchronous payment failure closes Checkout');
+select is((select state from partner_private.photo_tier_checkout_sessions where idempotency_key='17700000-0000-4000-8000-000000000061'),'failed','unpaid Checkout never upgrades');
+
+select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,repeat('11',32),2,'17700000-0000-4000-8000-000000000070');
+select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','gallery',
+  (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000070'),177,'17700000-0000-4000-8000-000000000071');
+select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions where idempotency_key='17700000-0000-4000-8000-000000000071'),repeat('fe',32),4);
+set local role billing_automation;
+update partner_private.photo_tier_checkout_sessions set expires_at=statement_timestamp()-interval '1 second'
+  where idempotency_key='17700000-0000-4000-8000-000000000071';
+reset role;
+select is(app_public.billing_record_checkout_event('evt_issue177expired1',statement_timestamp(),repeat('fe',32),4,'cus_issue177expire','sub_issue177expire'),
+  'refund_pending','completion at or after the 30-minute boundary cannot upgrade');
+select is((select tier from partner_private.store_photo_tier_state where store_id='17700000-0000-4000-8000-000000000001'),'free','expired paid Checkout leaves the store Free');
+
 select is(app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','full_gallery',177,repeat('11',32),2,'17700000-0000-4000-8000-000000000050')->>'state','unused','fresh generation can record another exact consent');
 select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','full_gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000050'),177,'17700000-0000-4000-8000-000000000051');
@@ -154,14 +173,21 @@ select is(app_public.billing_record_checkout_event('evt_issue177stale01',stateme
   'refund_pending','old-generation completion enters refund reconciliation');
 select is((select state from partner_private.photo_tier_checkout_sessions where target_tier='full_gallery'),'refund_pending','late Checkout never completes');
 select is((select tier from partner_private.store_photo_tier_state where store_id='17700000-0000-4000-8000-000000000001'),'free','late completion cannot upgrade Free');
-select is((select count(*)::text from partner_private.store_billing_outbox where event_kind='checkout_cancel_full_refund'),'1','late completion queues one cancel/full-refund reconciliation');
-select is((select provider_subscription_id from partner_private.photo_tier_refund_reconciliations),'sub_issue177stale','reconciliation durably stores the provider subscription reference');
-select is(app_public.billing_confirm_checkout_refund('evt_issue177stale01',repeat('cd',32),2,'sub_issue177stale','re_issue177refund01'),
-  'refunded','provider-confirmed full refund settles reconciliation');
+select is((select count(*)::text from partner_private.store_billing_outbox where event_kind='checkout_cancel_full_refund'),'2','expired and paused completions each queue reconciliation');
+select is((select provider_subscription_id from partner_private.photo_tier_refund_reconciliations where provider_event_id='evt_issue177stale01'),'sub_issue177stale','reconciliation durably stores the provider subscription reference');
+select is(app_public.billing_record_checkout_refund_state('evt_issue177stale01',repeat('cd',32),2,'sub_issue177stale','re_issue177refund01','pending'),
+  'refund_pending','provider-pending refund stays open');
+select is((select state from partner_private.photo_tier_refund_reconciliations where provider_event_id='evt_issue177stale01'),'provider_pending','pending provider evidence is durable');
+select is(app_public.billing_record_checkout_refund_state('evt_issue177stale01',repeat('cd',32),2,'sub_issue177stale','re_issue177refund01','failed'),
+  'refund_failed','provider failure remains an unsettled obligation');
+select is((select state from partner_private.photo_tier_refund_reconciliations where provider_event_id='evt_issue177stale01'),'provider_failed','failed provider evidence is durable');
+select is((select state from partner_private.photo_tier_checkout_sessions where target_tier='full_gallery'),'refund_pending','failed refund never claims settlement');
+select is(app_public.billing_record_checkout_refund_state('evt_issue177stale01',repeat('cd',32),2,'sub_issue177stale','re_issue177refund01','succeeded'),
+  'refunded','later provider-confirmed full refund settles reconciliation');
 select is((select state from partner_private.photo_tier_checkout_sessions where target_tier='full_gallery'),'refunded','Checkout becomes refunded only after provider confirmation');
-select is((select state from partner_private.photo_tier_refund_reconciliations),'provider_confirmed','reconciliation records provider-confirmed evidence');
-select is((select state from partner_private.store_billing_outbox where event_kind='checkout_cancel_full_refund'),'consumed','confirmed reconciliation consumes its outbox item');
-select is(app_public.billing_confirm_checkout_refund('evt_issue177stale01',repeat('cd',32),2,'sub_issue177stale','re_issue177refund01'),
+select is((select state from partner_private.photo_tier_refund_reconciliations where provider_event_id='evt_issue177stale01'),'provider_confirmed','reconciliation records provider-confirmed evidence');
+select is((select state from partner_private.store_billing_outbox where event_kind='checkout_cancel_full_refund' and state='consumed'),'consumed','confirmed reconciliation consumes its exact outbox item');
+select is(app_public.billing_record_checkout_refund_state('evt_issue177stale01',repeat('cd',32),2,'sub_issue177stale','re_issue177refund01','succeeded'),
   'refunded','lost confirmation response safely replays');
 select is(app_public.billing_get_capability()->>'enabled','false','servicing-only removes the paid acquisition surface');
 select ok(not has_function_privilege('authenticated','app_public.billing_record_checkout_event(text,timestamptz,text,integer,text,text)','EXECUTE')

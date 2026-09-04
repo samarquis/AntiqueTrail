@@ -48,12 +48,16 @@ export async function stripeCancelAndRefundSubscription(
   env: BillingProviderEnv,
   subscriptionId: string,
   eventId: string,
-): Promise<{ ok: true; refundId: string } | { ok: false }> {
+  providerSessionId: string,
+): Promise<
+  { ok: true; refundId: string; status: 'pending' | 'succeeded' | 'failed' } | { ok: false }
+> {
   if (
     !env.secretKey ||
     !env.providerGateAccepted ||
     !/^sub_[A-Za-z0-9]{8,64}$/.test(subscriptionId) ||
-    !/^evt_[A-Za-z0-9]{8,120}$/.test(eventId)
+    !/^evt_[A-Za-z0-9]{8,120}$/.test(eventId) ||
+    !/^cs_[A-Za-z0-9_]{8,120}$/.test(providerSessionId)
   )
     return { ok: false }
   const headers = { Authorization: `Bearer ${env.secretKey}` }
@@ -100,7 +104,12 @@ export async function stripeCancelAndRefundSubscription(
         'Content-Type': 'application/x-www-form-urlencoded',
         'Idempotency-Key': `${eventId}-refund`,
       },
-      body: new URLSearchParams({ payment_intent: paymentIntent }).toString(),
+      body: new URLSearchParams({
+        payment_intent: paymentIntent,
+        'metadata[checkout_event_id]': eventId,
+        'metadata[checkout_provider_session_id]': providerSessionId,
+        'metadata[subscription_id]': subscriptionId,
+      }).toString(),
       redirect: 'error',
       signal: AbortSignal.timeout(15_000),
     })
@@ -115,10 +124,21 @@ export async function stripeCancelAndRefundSubscription(
   if (
     typeof refund?.id !== 'string' ||
     !/^re_[A-Za-z0-9]{8,120}$/.test(refund.id) ||
-    refund.status !== 'succeeded'
+    !['pending', 'requires_action', 'succeeded', 'failed', 'canceled'].includes(
+      String(refund.status),
+    )
   )
     return { ok: false }
-  return { ok: true, refundId: refund.id }
+  return {
+    ok: true,
+    refundId: refund.id,
+    status:
+      refund.status === 'succeeded'
+        ? 'succeeded'
+        : refund.status === 'failed' || refund.status === 'canceled'
+          ? 'failed'
+          : 'pending',
+  }
 }
 
 const SIGNATURE_TOLERANCE_MS = 300_000
