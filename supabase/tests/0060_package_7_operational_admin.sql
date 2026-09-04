@@ -132,7 +132,7 @@ select ok(position('review_private' in lower(pg_get_functiondef('app_public.admi
 select ok(
   position('provider_user_is_confirmed' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
   and position('provider_user_has_verified_mfa' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
-  and position('recentActivity' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
+  and position('recentactivity' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
   and position('privileged_audit_events' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
   and position('e.resource_id=g.grant_id' in replace(lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)),' ',''))>0
   and position('interval''90days''' in replace(lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)),' ',''))>0

@@ -5,6 +5,8 @@
 grant create on schema app_public to identity_service;
 grant select on app_private.profiles, app_private.active_sessions, app_private.privileged_audit_events to identity_service;
 
+set role identity_service;
+
 create or replace function app_public.admin_list_store_scopes()
 returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare actor uuid:=admin_private.require_operational_admin();
@@ -38,6 +40,8 @@ begin
       order by x.granted_at desc,x.grant_id desc limit 1)),'[]'::jsonb);
 end $$;
 alter function app_public.admin_list_store_scopes() owner to identity_service;
+reset role;
+
 revoke all on function app_public.admin_list_store_scopes() from public,anon;
 grant execute on function app_public.admin_list_store_scopes() to authenticated;
 
