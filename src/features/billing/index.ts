@@ -14,6 +14,8 @@ export type {
   BillingRpcName,
   BillingRpcTransport,
   CheckoutRequest,
+  PaidConsentReceipt,
+  PaidConsentRequest,
   CommercialResearchAttempt,
   CommercialResearchChoice,
   CommercialResearchConfig,

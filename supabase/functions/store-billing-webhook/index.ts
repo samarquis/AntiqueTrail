@@ -11,6 +11,7 @@ const workerJwt = Deno.env.get('BILLING_WORKER_JWT')
 const env = loadBillingProviderEnv()
 
 const HANDLED_KINDS = new Set([
+  'checkout.session.completed',
   'customer.subscription.created',
   'customer.subscription.updated',
   'customer.subscription.deleted',
@@ -44,6 +45,12 @@ interface SubscriptionObject {
   items?: { data?: Array<{ price?: { id?: unknown } }> } | null
 }
 
+interface CheckoutObject {
+  id?: unknown
+  customer?: unknown
+  subscription?: unknown
+}
+
 Deno.serve(async (request) => {
   // Capability first: the endpoint is inert end to end while staged off.
   if (!url || !workerJwt) return unavailable()
@@ -65,7 +72,11 @@ Deno.serve(async (request) => {
 
   // Signature and replay window are verified before any payload inspection.
   if (
-    !(await verifyStripeSignature(env.webhookSecret, rawBody, request.headers.get('stripe-signature')))
+    !(await verifyStripeSignature(
+      env.webhookSecret,
+      rawBody,
+      request.headers.get('stripe-signature'),
+    ))
   )
     return new Response('Invalid signature', { status: 400 })
 
@@ -92,6 +103,30 @@ Deno.serve(async (request) => {
     return received('ignored')
   }
   const object = event.data?.object
+  if (event.type === 'checkout.session.completed') {
+    const checkout = object as CheckoutObject | undefined
+    if (
+      typeof checkout?.id !== 'string' ||
+      !/^cs_[A-Za-z0-9_]{8,120}$/.test(checkout.id) ||
+      typeof checkout.customer !== 'string' ||
+      !/^cus_[A-Za-z0-9]{8,64}$/.test(checkout.customer) ||
+      typeof checkout.subscription !== 'string' ||
+      !/^sub_[A-Za-z0-9]{8,64}$/.test(checkout.subscription)
+    )
+      return received('ignored')
+    const applied = await workerClient.rpc('billing_record_checkout_event', {
+      p_event_id: event.id,
+      p_event_time:
+        typeof event.created === 'number' && Number.isFinite(event.created)
+          ? new Date(event.created * 1000).toISOString()
+          : new Date().toISOString(),
+      p_provider_session_id: checkout.id,
+      p_customer_id: checkout.customer,
+      p_subscription_id: checkout.subscription,
+    })
+    if (applied.error) return unavailable()
+    return received(String(applied.data))
+  }
   if (
     typeof object?.id !== 'string' ||
     !/^sub_[A-Za-z0-9]{8,64}$/.test(object.id) ||

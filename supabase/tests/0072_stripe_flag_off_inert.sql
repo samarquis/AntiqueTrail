@@ -35,7 +35,9 @@ select ok(position($q$message='billing_stage_disabled'$q$ in replace(lower(pg_ge
 select ok(position($q$message='billing_stage_disabled'$q$ in replace(lower(pg_get_functiondef('app_public.billing_create_portal_session(uuid)'::regprocedure)),' ',''))>0,'portal denies with stage_disabled semantics');
 select throws_ok('select app_public.billing_create_checkout_session(gen_random_uuid(),gen_random_uuid())','55000','billing_stage_disabled','checkout is inert while the flag is off');
 select throws_ok('select app_public.billing_create_portal_session(gen_random_uuid())','55000','billing_stage_disabled','portal is inert while the flag is off');
-select ok(position($q$message='billing_stage_disabled'$q$ in replace(lower(pg_get_functiondef('app_public.billing_create_checkout_session(uuid,uuid)'::regprocedure)),' ',''))<position('store_partner_grants' in lower(pg_get_functiondef('app_public.billing_create_checkout_session(uuid,uuid)'::regprocedure))),'checkout checks the capability before any authorization lookup');
+select ok(position($q$message='billing_stage_disabled'$q$ in replace(lower(pg_get_functiondef('app_public.billing_create_checkout_session(uuid,uuid)'::regprocedure)),' ',''))>0
+  and position('store_partner_grants' in lower(pg_get_functiondef('app_public.billing_create_checkout_session(uuid,uuid)'::regprocedure)))=0,
+  'legacy checkout checks capability and cannot bypass paid consent');
 select ok(position($q$message='billing_stage_disabled'$q$ in replace(lower(pg_get_functiondef('app_public.billing_create_portal_session(uuid)'::regprocedure)),' ',''))<position('store_partner_grants' in lower(pg_get_functiondef('app_public.billing_create_portal_session(uuid)'::regprocedure))),'portal checks the capability before any authorization lookup');
 
 select has_function('partner_private','billing_apply_subscription_event',array['text','text','timestamp with time zone','uuid','text','text','text','timestamp with time zone','text'],'webhook apply exists');

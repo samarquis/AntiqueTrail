@@ -38,7 +38,8 @@ async function hmacHex(key: string, message: string): Promise<string> {
 function secureEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
   let difference = 0
-  for (let index = 0; index < a.length; index += 1) difference |= a.charCodeAt(index) ^ b.charCodeAt(index)
+  for (let index = 0; index < a.length; index += 1)
+    difference |= a.charCodeAt(index) ^ b.charCodeAt(index)
   return difference === 0
 }
 
@@ -56,9 +57,7 @@ export async function verifyStripeSignature(
   return [...header.matchAll(/v1=([0-9a-f]{64})/g)].some((m) => secureEqual(m[1], expected))
 }
 
-export type StripeResult =
-  | { ok: true; url: string }
-  | { ok: false }
+export type StripeResult = { ok: true; id: string; url: string } | { ok: false }
 
 export async function stripeFormPost(
   env: BillingProviderEnv,
@@ -85,9 +84,15 @@ export async function stripeFormPost(
     return { ok: false }
   }
   if (!response.ok) return { ok: false }
-  const body = (await response.json().catch(() => null)) as { url?: unknown } | null
-  if (typeof body?.url !== 'string' || !body.url.startsWith('https://')) return { ok: false }
-  return { ok: true, url: body.url }
+  const body = (await response.json().catch(() => null)) as { id?: unknown; url?: unknown } | null
+  if (
+    typeof body?.id !== 'string' ||
+    !/^cs_[A-Za-z0-9_]{8,120}$/.test(body.id) ||
+    typeof body.url !== 'string' ||
+    !body.url.startsWith('https://')
+  )
+    return { ok: false }
+  return { ok: true, id: body.id, url: body.url }
 }
 
 declare const Deno: {

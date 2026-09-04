@@ -86,6 +86,7 @@ const researchConfig: CommercialResearchConfig = {
 function researchClient(): BillingClient {
   return {
     getCapability: vi.fn(),
+    recordPaidTierConsent: vi.fn(),
     startCheckout: vi.fn(),
     openPortal: vi.fn(),
     getCommercialResearchConfig: vi.fn(async () => researchConfig),
