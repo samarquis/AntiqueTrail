@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(76);
+select plan(77);
 
 select has_table('admin_private','admin_command_receipts','Administrator commands have durable idempotency receipts');
 select has_table('admin_private','admin_break_glass_gate','break-glass has an explicit named gate');
@@ -129,6 +129,12 @@ select ok(not has_function_privilege('anon','app_public.admin_list_review_cases(
   and has_function_privilege('authenticated','app_public.admin_list_review_cases()','EXECUTE'),'Administrator RPCs are authenticated only');
 select ok(position('review_private' in lower(pg_get_functiondef('app_public.admin_list_review_cases()'::regprocedure)))=0
   and position('shopper_private' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))=0,'Administrator list surfaces exclude shopper and review-private data');
+select ok(
+  position('provider_user_is_confirmed' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
+  and position('provider_user_has_verified_mfa' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
+  and position('recentActivity' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
+  and position('privileged_audit_events' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0,
+  'Access & Safety list exposes exact assurance, scope dates, and minimized privileged activity without shopper data');
 
 select ok(
   position('p_operation text' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)))>0

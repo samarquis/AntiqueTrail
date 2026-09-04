@@ -48,6 +48,11 @@ function client(overrides: Partial<AdminClient> = {}): AdminClient {
         storeLabel: 'Prairie Clockworks',
         state: 'active',
         version: 1,
+        verifiedEmail: true,
+        mfaVerified: true,
+        grantedAt: '2026-07-01T12:00:00Z',
+        revokedAt: null,
+        recentActivity: [],
       },
     ],
     previewStoreScopeChange: async () => ({
