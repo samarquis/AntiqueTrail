@@ -55,6 +55,7 @@ create table partner_private.photo_tier_checkout_sessions (
   idempotency_key uuid not null unique,
   input_digest bytea not null check (octet_length(input_digest) = 32),
   provider_session_id_hmac bytea unique check (provider_session_id_hmac is null or octet_length(provider_session_id_hmac) = 32),
+  provider_session_hmac_key_version integer check (provider_session_hmac_key_version is null or provider_session_hmac_key_version > 0),
   state text not null default 'open'
     check (state in ('open','completed','expire_pending','expired','refund_pending','refunded','failed')),
   expires_at timestamptz not null,
@@ -64,6 +65,22 @@ create table partner_private.photo_tier_checkout_sessions (
   constraint checkout_expiry check (expires_at <= created_at + interval '30 minutes')
 );
 
+create table partner_private.photo_tier_refund_reconciliations (
+  reconciliation_id uuid primary key default extensions.gen_random_uuid(),
+  checkout_session_id uuid not null unique references partner_private.photo_tier_checkout_sessions(session_id) on delete restrict,
+  provider_event_id text not null unique check (provider_event_id ~ '^evt_[A-Za-z0-9]{8,120}$'),
+  provider_subscription_id text not null check (provider_subscription_id ~ '^sub_[A-Za-z0-9]{8,64}$'),
+  provider_refund_id text unique check (provider_refund_id is null or provider_refund_id ~ '^re_[A-Za-z0-9]{8,120}$'),
+  state text not null default 'queued' check (state in ('queued','provider_confirmed')),
+  created_at timestamptz not null default statement_timestamp(),
+  confirmed_at timestamptz,
+  version bigint not null default 1 check (version > 0),
+  constraint refund_confirmation_shape check (
+    (state='queued' and provider_refund_id is null and confirmed_at is null)
+    or (state='provider_confirmed' and provider_refund_id is not null and confirmed_at is not null)
+  )
+);
+
 reset role;
 alter table partner_private.store_billing_outbox drop constraint store_billing_outbox_event_kind_check;
 alter table partner_private.store_billing_outbox add constraint store_billing_outbox_event_kind_check
@@ -71,7 +88,7 @@ alter table partner_private.store_billing_outbox add constraint store_billing_ou
 set role billing_automation;
 
 do $$ declare table_name text; begin
-  foreach table_name in array array['photo_tier_sales_control','photo_tier_paid_consents','photo_tier_checkout_sessions'] loop
+  foreach table_name in array array['photo_tier_sales_control','photo_tier_paid_consents','photo_tier_checkout_sessions','photo_tier_refund_reconciliations'] loop
     execute format('alter table partner_private.%I enable row level security',table_name);
     execute format('alter table partner_private.%I force row level security',table_name);
     execute format('revoke all on partner_private.%I from public,anon,authenticated,service_role',table_name);
@@ -96,6 +113,11 @@ language sql stable security definer set search_path='' as $$
     join partner_private.photo_tier_commercial_configs c on c.version=s.commercial_config_version and c.state='active'
     where s.singleton and s.state='sales_open'
   ),'source','server')
+$$;
+
+create or replace function app_public.billing_get_webhook_mode() returns text
+language sql stable security definer set search_path='' as $$
+  select state from partner_private.photo_tier_sales_control where singleton
 $$;
 
 create or replace function app_public.billing_record_paid_tier_consent(
@@ -171,21 +193,24 @@ begin
   end if;
   input_hash:=extensions.digest(convert_to(concat_ws('|',p_store_id,p_target_tier,p_consent_id,p_commercial_config_version),'utf8'),'sha256');
   select * into control from partner_private.photo_tier_sales_control where singleton for update;
-  if control.state<>'sales_open' or not partner_private.photo_tier_billing_enabled() then
-    raise exception using errcode='55000',message='billing_stage_disabled';
+  if actor is null or not app_private.current_session_is_active() or not app_private.current_session_has_mfa()
+    or not app_private.current_session_recent_auth(interval '15 minutes')
+    or not exists(select 1 from partner_private.store_partner_grants g where g.auth_user_id=actor and g.store_id=p_store_id and g.state='active') then
+    raise exception using errcode='42501',message='billing_action_denied';
   end if;
   select * into prior from partner_private.photo_tier_checkout_sessions where idempotency_key=p_idempotency_key for update;
   if found then
-    if prior.input_digest<>input_hash then raise exception using errcode='22023',message='billing_idempotency_mismatch'; end if;
+    if prior.input_digest<>input_hash or prior.store_id<>p_store_id or prior.consent_id<>p_consent_id
+      or not exists(select 1 from partner_private.photo_tier_paid_consents c where c.consent_id=prior.consent_id and c.representative_id=actor) then
+      raise exception using errcode='42501',message='billing_action_denied';
+    end if;
     select * into config from partner_private.photo_tier_commercial_configs where version=prior.commercial_config_version;
     return jsonb_build_object('checkoutSessionId',prior.session_id,'storeId',prior.store_id,'targetTier',prior.target_tier,
       'priceCents',case prior.target_tier when 'gallery' then config.gallery_price_cents else config.full_gallery_price_cents end,
       'currency',config.currency,'salesGeneration',prior.sales_generation,'expiresAt',prior.expires_at,'state',prior.state);
   end if;
-  if actor is null or not app_private.current_session_is_active() or not app_private.current_session_has_mfa()
-    or not app_private.current_session_recent_auth(interval '15 minutes')
-    or not exists(select 1 from partner_private.store_partner_grants g where g.auth_user_id=actor and g.store_id=p_store_id and g.state='active') then
-    raise exception using errcode='42501',message='billing_action_denied';
+  if control.state<>'sales_open' or not partner_private.photo_tier_billing_enabled() then
+    raise exception using errcode='55000',message='billing_stage_disabled';
   end if;
   select * into config from partner_private.photo_tier_commercial_configs
     where version=p_commercial_config_version and state='active' for share;
@@ -219,45 +244,49 @@ begin
 end $$;
 
 create or replace function partner_private.billing_bind_checkout_provider(
-  p_checkout_session_id uuid,p_provider_session_id text
+  p_checkout_session_id uuid,p_provider_session_hmac text,p_hmac_key_version integer
 ) returns boolean language plpgsql volatile security definer set search_path='' as $$
 begin
-  if p_checkout_session_id is null or p_provider_session_id !~ '^cs_[A-Za-z0-9_]{8,120}$' then
+  if p_checkout_session_id is null or p_provider_session_hmac !~ '^[0-9a-f]{64}$' or p_hmac_key_version is null or p_hmac_key_version < 1 then
     raise exception using errcode='22023',message='billing_provider_binding_invalid';
   end if;
   update partner_private.photo_tier_checkout_sessions set
-    provider_session_id_hmac=extensions.digest(convert_to(p_provider_session_id,'utf8'),'sha256'),
+    provider_session_id_hmac=decode(p_provider_session_hmac,'hex'),provider_session_hmac_key_version=p_hmac_key_version,
     updated_at=statement_timestamp(),version=version+1
   where session_id=p_checkout_session_id and state='open'
-    and (provider_session_id_hmac is null or provider_session_id_hmac=extensions.digest(convert_to(p_provider_session_id,'utf8'),'sha256'));
+    and (provider_session_id_hmac is null or (provider_session_id_hmac=decode(p_provider_session_hmac,'hex')
+      and provider_session_hmac_key_version=p_hmac_key_version));
   if not found then raise exception using errcode='42501',message='billing_provider_binding_denied'; end if;
   return true;
 end $$;
 
 create or replace function partner_private.billing_apply_checkout_event(
-  p_event_id text,p_event_time timestamptz,p_provider_session_id text,
+  p_event_id text,p_event_time timestamptz,p_provider_session_hmac text,p_hmac_key_version integer,
   p_customer_id text,p_subscription_id text
 ) returns text language plpgsql volatile security definer set search_path='' as $$
 declare control partner_private.photo_tier_sales_control%rowtype; checkout partner_private.photo_tier_checkout_sessions%rowtype;
 begin
   if p_event_id is null or p_event_id !~ '^evt_[A-Za-z0-9]{8,120}$' or p_event_time is null
-    or p_provider_session_id !~ '^cs_[A-Za-z0-9_]{8,120}$'
+    or p_provider_session_hmac !~ '^[0-9a-f]{64}$' or p_hmac_key_version is null or p_hmac_key_version < 1
     or p_customer_id !~ '^cus_[A-Za-z0-9]{8,64}$' or p_subscription_id !~ '^sub_[A-Za-z0-9]{8,64}$' then
     raise exception using errcode='22023',message='billing_webhook_invalid';
   end if;
-  begin
-    insert into partner_private.store_webhook_events(event_id,event_kind) values(p_event_id,'checkout.session.completed');
-  exception when unique_violation then return 'duplicate'; end;
   select * into control from partner_private.photo_tier_sales_control where singleton for update;
   select * into checkout from partner_private.photo_tier_checkout_sessions
-    where provider_session_id_hmac=extensions.digest(convert_to(p_provider_session_id,'utf8'),'sha256') for update;
+    where provider_session_id_hmac=decode(p_provider_session_hmac,'hex')
+      and provider_session_hmac_key_version=p_hmac_key_version for update;
   if not found then return 'unbound'; end if;
+  begin
+    insert into partner_private.store_webhook_events(event_id,event_kind) values(p_event_id,'checkout.session.completed');
+  exception when unique_violation then return checkout.state; end;
   if checkout.state<>'open' then return checkout.state; end if;
   if control.state<>'sales_open' or checkout.sales_generation<>control.sales_generation then
     update partner_private.photo_tier_checkout_sessions set state='refund_pending',updated_at=statement_timestamp(),version=version+1 where session_id=checkout.session_id;
     update partner_private.photo_tier_paid_consents set state='revoked',updated_at=statement_timestamp(),version=version+1 where consent_id=checkout.consent_id;
+    insert into partner_private.photo_tier_refund_reconciliations(checkout_session_id,provider_event_id,provider_subscription_id)
+      values(checkout.session_id,p_event_id,p_subscription_id) on conflict(checkout_session_id) do nothing;
     insert into partner_private.store_billing_outbox(store_id,event_kind,payload_digest) values(
-      checkout.store_id,'checkout_cancel_full_refund',extensions.digest(convert_to(concat_ws('|',p_event_id,p_provider_session_id,p_customer_id,p_subscription_id),'utf8'),'sha256'));
+      checkout.store_id,'checkout_cancel_full_refund',extensions.digest(convert_to(concat_ws('|',p_event_id,checkout.session_id,p_subscription_id),'utf8'),'sha256'));
     perform partner_private.append_audit('billing_checkout_late_completion',null,checkout.store_id,'denied',
       jsonb_build_object('checkoutSessionId',checkout.session_id,'eventId',p_event_id,'salesGeneration',checkout.sales_generation));
     return 'refund_pending';
@@ -279,32 +308,77 @@ begin
   return 'applied';
 end $$;
 
-create or replace function app_public.billing_bind_checkout_provider(p_checkout_session_id uuid,p_provider_session_id text)
+create or replace function partner_private.billing_confirm_checkout_refund(
+  p_event_id text,p_provider_session_hmac text,p_hmac_key_version integer,p_subscription_id text,p_refund_id text
+) returns text language plpgsql volatile security definer set search_path='' as $$
+declare checkout partner_private.photo_tier_checkout_sessions%rowtype; reconciliation partner_private.photo_tier_refund_reconciliations%rowtype;
+begin
+  if p_event_id !~ '^evt_[A-Za-z0-9]{8,120}$' or p_provider_session_hmac !~ '^[0-9a-f]{64}$'
+    or p_hmac_key_version is null or p_hmac_key_version<1 or p_subscription_id !~ '^sub_[A-Za-z0-9]{8,64}$'
+    or p_refund_id !~ '^re_[A-Za-z0-9]{8,120}$' then
+    raise exception using errcode='22023',message='billing_refund_confirmation_invalid';
+  end if;
+  select * into checkout from partner_private.photo_tier_checkout_sessions where
+    provider_session_id_hmac=decode(p_provider_session_hmac,'hex') and provider_session_hmac_key_version=p_hmac_key_version for update;
+  if not found then raise exception using errcode='42501',message='billing_refund_confirmation_denied'; end if;
+  select * into reconciliation from partner_private.photo_tier_refund_reconciliations
+    where checkout_session_id=checkout.session_id and provider_event_id=p_event_id and provider_subscription_id=p_subscription_id for update;
+  if not found or checkout.state not in ('refund_pending','refunded') then
+    raise exception using errcode='42501',message='billing_refund_confirmation_denied';
+  end if;
+  if reconciliation.state='provider_confirmed' then
+    if reconciliation.provider_refund_id<>p_refund_id then raise exception using errcode='42501',message='billing_refund_confirmation_denied'; end if;
+    return 'refunded';
+  end if;
+  update partner_private.photo_tier_refund_reconciliations set state='provider_confirmed',provider_refund_id=p_refund_id,
+    confirmed_at=statement_timestamp(),version=version+1 where reconciliation_id=reconciliation.reconciliation_id;
+  update partner_private.photo_tier_checkout_sessions set state='refunded',updated_at=statement_timestamp(),version=version+1
+    where session_id=checkout.session_id;
+  update partner_private.store_billing_outbox set state='consumed',consumed_at=statement_timestamp()
+    where store_id=checkout.store_id and event_kind='checkout_cancel_full_refund' and state='queued'
+      and payload_digest=extensions.digest(convert_to(concat_ws('|',p_event_id,checkout.session_id,p_subscription_id),'utf8'),'sha256');
+  perform partner_private.append_audit('billing_checkout_refunded',null,checkout.store_id,'allowed',
+    jsonb_build_object('checkoutSessionId',checkout.session_id,'eventId',p_event_id,'refundId',p_refund_id));
+  return 'refunded';
+end $$;
+
+create or replace function app_public.billing_bind_checkout_provider(p_checkout_session_id uuid,p_provider_session_hmac text,p_hmac_key_version integer)
 returns boolean language sql volatile security definer set search_path='' as $$
-  select partner_private.billing_bind_checkout_provider(p_checkout_session_id,p_provider_session_id)
+  select partner_private.billing_bind_checkout_provider(p_checkout_session_id,p_provider_session_hmac,p_hmac_key_version)
 $$;
 create or replace function app_public.billing_record_checkout_event(
-  p_event_id text,p_event_time timestamptz,p_provider_session_id text,p_customer_id text,p_subscription_id text
+  p_event_id text,p_event_time timestamptz,p_provider_session_hmac text,p_hmac_key_version integer,p_customer_id text,p_subscription_id text
 ) returns text language sql volatile security definer set search_path='' as $$
-  select partner_private.billing_apply_checkout_event(p_event_id,p_event_time,p_provider_session_id,p_customer_id,p_subscription_id)
+  select partner_private.billing_apply_checkout_event(p_event_id,p_event_time,p_provider_session_hmac,p_hmac_key_version,p_customer_id,p_subscription_id)
+$$;
+create or replace function app_public.billing_confirm_checkout_refund(
+  p_event_id text,p_provider_session_hmac text,p_hmac_key_version integer,p_subscription_id text,p_refund_id text
+) returns text language sql volatile security definer set search_path='' as $$
+  select partner_private.billing_confirm_checkout_refund(p_event_id,p_provider_session_hmac,p_hmac_key_version,p_subscription_id,p_refund_id)
 $$;
 
 alter function partner_private.photo_tier_billing_enabled() owner to billing_automation;
 alter function app_public.billing_get_capability() owner to billing_automation;
 alter function app_public.billing_record_paid_tier_consent(uuid,text,bigint,text,bigint,uuid) owner to billing_automation;
+alter function app_public.billing_get_webhook_mode() owner to billing_automation;
 alter function app_public.billing_create_checkout_session(uuid,text,uuid,bigint,uuid) owner to billing_automation;
 alter function app_public.billing_create_checkout_session(uuid,uuid) owner to billing_automation;
-alter function partner_private.billing_bind_checkout_provider(uuid,text) owner to billing_automation;
-alter function partner_private.billing_apply_checkout_event(text,timestamptz,text,text,text) owner to billing_automation;
-alter function app_public.billing_bind_checkout_provider(uuid,text) owner to billing_automation;
-alter function app_public.billing_record_checkout_event(text,timestamptz,text,text,text) owner to billing_automation;
+alter function partner_private.billing_bind_checkout_provider(uuid,text,integer) owner to billing_automation;
+alter function partner_private.billing_apply_checkout_event(text,timestamptz,text,integer,text,text) owner to billing_automation;
+alter function partner_private.billing_confirm_checkout_refund(text,text,integer,text,text) owner to billing_automation;
+alter function app_public.billing_bind_checkout_provider(uuid,text,integer) owner to billing_automation;
+alter function app_public.billing_record_checkout_event(text,timestamptz,text,integer,text,text) owner to billing_automation;
+alter function app_public.billing_confirm_checkout_refund(text,text,integer,text,text) owner to billing_automation;
 
 reset role;
 revoke all on function
-  partner_private.billing_bind_checkout_provider(uuid,text),
-  partner_private.billing_apply_checkout_event(text,timestamptz,text,text,text),
-  app_public.billing_bind_checkout_provider(uuid,text),
-  app_public.billing_record_checkout_event(text,timestamptz,text,text,text),
+  partner_private.billing_bind_checkout_provider(uuid,text,integer),
+  partner_private.billing_apply_checkout_event(text,timestamptz,text,integer,text,text),
+  partner_private.billing_confirm_checkout_refund(text,text,integer,text,text),
+  app_public.billing_bind_checkout_provider(uuid,text,integer),
+  app_public.billing_record_checkout_event(text,timestamptz,text,integer,text,text),
+  app_public.billing_confirm_checkout_refund(text,text,integer,text,text),
+  app_public.billing_get_webhook_mode(),
   app_public.billing_record_paid_tier_consent(uuid,text,bigint,text,bigint,uuid),
   app_public.billing_create_checkout_session(uuid,text,uuid,bigint,uuid),
   app_public.billing_create_checkout_session(uuid,uuid)
@@ -316,8 +390,10 @@ grant execute on function
   app_public.billing_create_checkout_session(uuid,uuid)
   to authenticated;
 grant execute on function
-  app_public.billing_bind_checkout_provider(uuid,text),
-  app_public.billing_record_checkout_event(text,timestamptz,text,text,text)
+  app_public.billing_bind_checkout_provider(uuid,text,integer),
+  app_public.billing_record_checkout_event(text,timestamptz,text,integer,text,text),
+  app_public.billing_confirm_checkout_refund(text,text,integer,text,text)
+  ,app_public.billing_get_webhook_mode()
   to billing_mirror_service;
 revoke create on schema partner_private,app_public from billing_automation;
 revoke billing_automation from postgres;

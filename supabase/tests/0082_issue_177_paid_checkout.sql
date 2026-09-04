@@ -1,15 +1,16 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(42);
 
 select has_table('partner_private','photo_tier_sales_control','sales generation authority exists');
 select has_table('partner_private','photo_tier_paid_consents','paid consent receipts exist');
 select has_table('partner_private','photo_tier_checkout_sessions','Checkout reservations exist');
-select ok((select count(*)=3 from pg_class c join pg_namespace n on n.oid=c.relnamespace
-  where n.nspname='partner_private' and c.relname in ('photo_tier_sales_control','photo_tier_paid_consents','photo_tier_checkout_sessions')
+select has_table('partner_private','photo_tier_refund_reconciliations','durable refund reconciliation exists');
+select ok((select count(*)=4 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='partner_private' and c.relname in ('photo_tier_sales_control','photo_tier_paid_consents','photo_tier_checkout_sessions','photo_tier_refund_reconciliations')
   and c.relrowsecurity and c.relforcerowsecurity),'new money tables force RLS');
 select ok(not exists(select 1 from information_schema.role_table_grants where table_schema='partner_private'
-  and table_name in ('photo_tier_sales_control','photo_tier_paid_consents','photo_tier_checkout_sessions')
+  and table_name in ('photo_tier_sales_control','photo_tier_paid_consents','photo_tier_checkout_sessions','photo_tier_refund_reconciliations')
   and grantee in ('anon','authenticated','service_role')),'browser and generic service roles cannot read money tables');
 select is(app_public.billing_get_capability()->>'enabled','false','paid surface defaults off');
 select throws_ok($$select app_public.billing_record_paid_tier_consent(gen_random_uuid(),'gallery',177,repeat('11',32),0,gen_random_uuid())$$,
@@ -114,13 +115,27 @@ select is((select sales_generation::text from partner_private.photo_tier_checkou
 select is((select count(*)::text from partner_private.photo_tier_checkout_sessions),'1','response-loss retry cannot create another session');
 select is(app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000040'),177,'17700000-0000-4000-8000-000000000041')->>'state','open','Checkout retry returns the open reservation');
-select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions),'cs_issue177valid01');
-select is(app_public.billing_record_checkout_event('evt_issue177valid01',statement_timestamp(),'cs_issue177valid01','cus_issue177valid','sub_issue177valid'),
+select set_config('request.jwt.claims',jsonb_build_object('sub','17700000-0000-4000-8000-000000000099','session_id','17700000-0000-4000-8000-000000000017','aal','aal2')::text,true);
+select throws_ok($$select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','gallery',
+  (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000040'),177,'17700000-0000-4000-8000-000000000041')$$,
+  '42501','billing_action_denied','wrong actor cannot read a prior Checkout reservation');
+select set_config('request.jwt.claims',jsonb_build_object(
+  'sub','17700000-0000-4000-8000-000000000010','session_id','17700000-0000-4000-8000-000000000017','aal','aal2',
+  'amr',jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp())::bigint),jsonb_build_object('method','totp','timestamp',extract(epoch from statement_timestamp())::bigint)))::text,true);
+update partner_private.store_partner_grants set state='revoked',revoked_at=statement_timestamp() where grant_id='17700000-0000-4000-8000-000000000016';
+select throws_ok($$select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','gallery',
+  (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000040'),177,'17700000-0000-4000-8000-000000000041')$$,
+  '42501','billing_action_denied','revoked representative cannot read a prior Checkout reservation');
+update partner_private.store_partner_grants set state='active',revoked_at=null,revoked_by=null where grant_id='17700000-0000-4000-8000-000000000016';
+select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions),repeat('ab',32),1);
+select is(app_public.billing_record_checkout_event('evt_issue177wrongkey',statement_timestamp(),repeat('ef',32),1,'cus_issue177valid','sub_issue177valid'),
+  'unbound','wrong provider HMAC cannot select a Checkout');
+select is(app_public.billing_record_checkout_event('evt_issue177valid01',statement_timestamp(),repeat('ab',32),1,'cus_issue177valid','sub_issue177valid'),
   'applied','verified worker event atomically applies the exact Checkout');
 select is((select state from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000040'),'consumed','verified completion consumes consent');
 select is((select tier from partner_private.store_photo_tier_state where store_id='17700000-0000-4000-8000-000000000001'),'gallery','verified completion upgrades exact store');
-select is(app_public.billing_record_checkout_event('evt_issue177valid01',statement_timestamp(),'cs_issue177valid01','cus_issue177valid','sub_issue177valid'),
-  'duplicate','webhook replay is idempotent');
+select is(app_public.billing_record_checkout_event('evt_issue177valid01',statement_timestamp(),repeat('ab',32),1,'cus_issue177valid','sub_issue177valid'),
+  'completed','webhook replay returns the stable completed state');
 
 set local role billing_automation;
 update partner_private.store_photo_tier_state set tier='free',source='default',version=2 where store_id='17700000-0000-4000-8000-000000000001';
@@ -128,18 +143,29 @@ reset role;
 select is(app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','full_gallery',177,repeat('11',32),2,'17700000-0000-4000-8000-000000000050')->>'state','unused','fresh generation can record another exact consent');
 select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','full_gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000050'),177,'17700000-0000-4000-8000-000000000051');
-select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions where target_tier='full_gallery'),'cs_issue177stale01');
+select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions where target_tier='full_gallery'),repeat('cd',32),2);
 set local role billing_automation;
 update partner_private.photo_tier_sales_control set state='servicing_only',sales_generation=2,version=2 where singleton;
 reset role;
-select is(app_public.billing_record_checkout_event('evt_issue177stale01',statement_timestamp(),'cs_issue177stale01','cus_issue177stale','sub_issue177stale'),
+select is(app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','full_gallery',
+  (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000050'),177,'17700000-0000-4000-8000-000000000051')->>'state','open',
+  'authorized response-loss retry returns its reservation after sales pause');
+select is(app_public.billing_record_checkout_event('evt_issue177stale01',statement_timestamp(),repeat('cd',32),2,'cus_issue177stale','sub_issue177stale'),
   'refund_pending','old-generation completion enters refund reconciliation');
 select is((select state from partner_private.photo_tier_checkout_sessions where target_tier='full_gallery'),'refund_pending','late Checkout never completes');
 select is((select tier from partner_private.store_photo_tier_state where store_id='17700000-0000-4000-8000-000000000001'),'free','late completion cannot upgrade Free');
 select is((select count(*)::text from partner_private.store_billing_outbox where event_kind='checkout_cancel_full_refund'),'1','late completion queues one cancel/full-refund reconciliation');
+select is((select provider_subscription_id from partner_private.photo_tier_refund_reconciliations),'sub_issue177stale','reconciliation durably stores the provider subscription reference');
+select is(app_public.billing_confirm_checkout_refund('evt_issue177stale01',repeat('cd',32),2,'sub_issue177stale','re_issue177refund01'),
+  'refunded','provider-confirmed full refund settles reconciliation');
+select is((select state from partner_private.photo_tier_checkout_sessions where target_tier='full_gallery'),'refunded','Checkout becomes refunded only after provider confirmation');
+select is((select state from partner_private.photo_tier_refund_reconciliations),'provider_confirmed','reconciliation records provider-confirmed evidence');
+select is((select state from partner_private.store_billing_outbox where event_kind='checkout_cancel_full_refund'),'consumed','confirmed reconciliation consumes its outbox item');
+select is(app_public.billing_confirm_checkout_refund('evt_issue177stale01',repeat('cd',32),2,'sub_issue177stale','re_issue177refund01'),
+  'refunded','lost confirmation response safely replays');
 select is(app_public.billing_get_capability()->>'enabled','false','servicing-only removes the paid acquisition surface');
-select ok(not has_function_privilege('authenticated','app_public.billing_record_checkout_event(text,timestamptz,text,text,text)','EXECUTE')
-  and has_function_privilege('billing_mirror_service','app_public.billing_record_checkout_event(text,timestamptz,text,text,text)','EXECUTE'),'only the verified webhook worker can apply completion');
+select ok(not has_function_privilege('authenticated','app_public.billing_record_checkout_event(text,timestamptz,text,integer,text,text)','EXECUTE')
+  and has_function_privilege('billing_mirror_service','app_public.billing_record_checkout_event(text,timestamptz,text,integer,text,text)','EXECUTE'),'only the verified webhook worker can apply completion');
 
 select * from finish();
 rollback;

@@ -1,5 +1,9 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.112.1'
-import { loadBillingProviderEnv, stripeFormPost } from '../_shared/billing-provider.ts'
+import {
+  loadBillingProviderEnv,
+  providerIdHmac,
+  stripeFormPost,
+} from '../_shared/billing-provider.ts'
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
@@ -128,13 +132,16 @@ Deno.serve(async (request) => {
     idempotencyKey,
   )
   if (!minted.ok) return unavailable(headers)
+  const providerSessionHmac = await providerIdHmac(env, minted.id)
+  if (!providerSessionHmac) return unavailable(headers)
   const workerClient = createClient(url, workerJwt, {
     db: { schema: 'app_public' },
     auth: { persistSession: false, autoRefreshToken: false },
   })
   const bound = await workerClient.rpc('billing_bind_checkout_provider', {
     p_checkout_session_id: reservation.checkoutSessionId,
-    p_provider_session_id: minted.id,
+    p_provider_session_hmac: providerSessionHmac.digest,
+    p_hmac_key_version: providerSessionHmac.keyVersion,
   })
   if (bound.error || bound.data !== true) return unavailable(headers)
   return Response.json({ url: minted.url }, { status: 200, headers })

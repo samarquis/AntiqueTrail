@@ -1,5 +1,10 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.112.1'
-import { loadBillingProviderEnv, verifyStripeSignature } from '../_shared/billing-provider.ts'
+import {
+  loadBillingProviderEnv,
+  providerIdHmac,
+  stripeCancelAndRefundSubscription,
+  verifyStripeSignature,
+} from '../_shared/billing-provider.ts'
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
@@ -52,16 +57,11 @@ interface CheckoutObject {
 }
 
 Deno.serve(async (request) => {
-  // Capability first: the endpoint is inert end to end while staged off.
   if (!url || !workerJwt) return unavailable()
   const workerClient = createClient(url, workerJwt, {
     db: { schema: 'app_public' },
     auth: { persistSession: false, autoRefreshToken: false },
   })
-  const capability = await workerClient.rpc('billing_get_capability')
-  const value = capability.data as { enabled?: unknown } | null
-  if (capability.error || value?.enabled !== true) return stageDisabled()
-
   if (request.method !== 'POST' || !env.webhookSecret) return unavailable(400)
   let rawBody: string
   try {
@@ -102,6 +102,9 @@ Deno.serve(async (request) => {
     // Unknown types acknowledge without any database write.
     return received('ignored')
   }
+  const webhookMode = await workerClient.rpc('billing_get_webhook_mode')
+  if (webhookMode.error || webhookMode.data === 'off_prelaunch') return stageDisabled()
+  if (webhookMode.data !== 'sales_open' && webhookMode.data !== 'servicing_only') return unavailable()
   const object = event.data?.object
   if (event.type === 'checkout.session.completed') {
     const checkout = object as CheckoutObject | undefined
@@ -114,17 +117,33 @@ Deno.serve(async (request) => {
       !/^sub_[A-Za-z0-9]{8,64}$/.test(checkout.subscription)
     )
       return received('ignored')
+    const providerSessionHmac = await providerIdHmac(env, checkout.id)
+    if (!providerSessionHmac) return unavailable()
     const applied = await workerClient.rpc('billing_record_checkout_event', {
       p_event_id: event.id,
       p_event_time:
         typeof event.created === 'number' && Number.isFinite(event.created)
           ? new Date(event.created * 1000).toISOString()
           : new Date().toISOString(),
-      p_provider_session_id: checkout.id,
+      p_provider_session_hmac: providerSessionHmac.digest,
+      p_hmac_key_version: providerSessionHmac.keyVersion,
       p_customer_id: checkout.customer,
       p_subscription_id: checkout.subscription,
     })
     if (applied.error) return unavailable()
+    if (applied.data === 'refund_pending') {
+      const reconciled = await stripeCancelAndRefundSubscription(env, checkout.subscription, event.id)
+      if (!reconciled.ok) return unavailable()
+      const confirmed = await workerClient.rpc('billing_confirm_checkout_refund', {
+        p_event_id: event.id,
+        p_provider_session_hmac: providerSessionHmac.digest,
+        p_hmac_key_version: providerSessionHmac.keyVersion,
+        p_subscription_id: checkout.subscription,
+        p_refund_id: reconciled.refundId,
+      })
+      if (confirmed.error || confirmed.data !== 'refunded') return unavailable()
+      return received('refunded')
+    }
     return received(String(applied.data))
   }
   if (

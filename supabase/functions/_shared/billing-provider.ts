@@ -4,6 +4,8 @@ export interface BillingProviderEnv {
   webhookSecret?: string
   priceGallery?: string
   priceFullGallery?: string
+  providerIdHmacSecret?: string
+  providerIdHmacKeyVersion?: number
   providerGateAccepted: boolean
 }
 
@@ -14,8 +16,109 @@ export function loadBillingProviderEnv(): BillingProviderEnv {
     webhookSecret: Deno.env.get('STRIPE_WEBHOOK_SECRET'),
     priceGallery: Deno.env.get('STRIPE_PRICE_GALLERY'),
     priceFullGallery: Deno.env.get('STRIPE_PRICE_FULL_GALLERY'),
+    providerIdHmacSecret: Deno.env.get('BILLING_PROVIDER_ID_HMAC_SECRET'),
+    providerIdHmacKeyVersion: Number(Deno.env.get('BILLING_PROVIDER_ID_HMAC_KEY_VERSION') ?? '0'),
     providerGateAccepted: Deno.env.get('BILLING_PROVIDER_GATE_ACCEPTED') === 'true',
   }
+}
+
+export async function providerIdHmac(
+  env: BillingProviderEnv,
+  providerSessionId: string,
+): Promise<{ digest: string; keyVersion: number } | null> {
+  const keyVersion = env.providerIdHmacKeyVersion
+  if (
+    !env.providerIdHmacSecret ||
+    typeof keyVersion !== 'number' ||
+    !Number.isSafeInteger(keyVersion) ||
+    keyVersion < 1 ||
+    !/^cs_[A-Za-z0-9_]{8,120}$/.test(providerSessionId)
+  )
+    return null
+  return {
+    digest: await hmacHex(
+      env.providerIdHmacSecret,
+      `billing-provider-session:v${keyVersion}:${providerSessionId}`,
+    ),
+    keyVersion,
+  }
+}
+
+export async function stripeCancelAndRefundSubscription(
+  env: BillingProviderEnv,
+  subscriptionId: string,
+  eventId: string,
+): Promise<{ ok: true; refundId: string } | { ok: false }> {
+  if (
+    !env.secretKey ||
+    !env.providerGateAccepted ||
+    !/^sub_[A-Za-z0-9]{8,64}$/.test(subscriptionId) ||
+    !/^evt_[A-Za-z0-9]{8,120}$/.test(eventId)
+  )
+    return { ok: false }
+  const headers = { Authorization: `Bearer ${env.secretKey}` }
+  let subscriptionResponse: Response
+  try {
+    subscriptionResponse = await fetch(
+      `https://api.stripe.com/v1/subscriptions/${subscriptionId}?expand[]=latest_invoice.payment_intent`,
+      { headers, redirect: 'error', signal: AbortSignal.timeout(15_000) },
+    )
+  } catch {
+    return { ok: false }
+  }
+  if (!subscriptionResponse.ok) return { ok: false }
+  const subscription = (await subscriptionResponse.json().catch(() => null)) as {
+    status?: unknown
+    latest_invoice?: { payment_intent?: string | { id?: unknown } } | null
+  } | null
+  const paymentIntent =
+    typeof subscription?.latest_invoice?.payment_intent === 'string'
+      ? subscription.latest_invoice.payment_intent
+      : subscription?.latest_invoice?.payment_intent?.id
+  if (typeof paymentIntent !== 'string' || !/^pi_[A-Za-z0-9]{8,120}$/.test(paymentIntent))
+    return { ok: false }
+  if (subscription?.status !== 'canceled') {
+    let cancellation: Response
+    try {
+      cancellation = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
+        method: 'DELETE',
+        headers: { ...headers, 'Idempotency-Key': `${eventId}-cancel` },
+        redirect: 'error',
+        signal: AbortSignal.timeout(15_000),
+      })
+    } catch {
+      return { ok: false }
+    }
+    if (!cancellation.ok) return { ok: false }
+  }
+  let refundResponse: Response
+  try {
+    refundResponse = await fetch('https://api.stripe.com/v1/refunds', {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Idempotency-Key': `${eventId}-refund`,
+      },
+      body: new URLSearchParams({ payment_intent: paymentIntent }).toString(),
+      redirect: 'error',
+      signal: AbortSignal.timeout(15_000),
+    })
+  } catch {
+    return { ok: false }
+  }
+  if (!refundResponse.ok) return { ok: false }
+  const refund = (await refundResponse.json().catch(() => null)) as {
+    id?: unknown
+    status?: unknown
+  } | null
+  if (
+    typeof refund?.id !== 'string' ||
+    !/^re_[A-Za-z0-9]{8,120}$/.test(refund.id) ||
+    refund.status !== 'succeeded'
+  )
+    return { ok: false }
+  return { ok: true, refundId: refund.id }
 }
 
 const SIGNATURE_TOLERANCE_MS = 300_000
