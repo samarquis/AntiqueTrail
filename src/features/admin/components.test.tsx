@@ -358,6 +358,46 @@ describe('Administrator workspace', () => {
     )
   })
 
+  it('renders exact assurance, scope dates, and minimized recent privileged activity', async () => {
+    const withActivity = {
+      ...(await client().listStoreGrants())[0],
+      mfaVerified: false,
+      revokedAt: '2026-08-02T12:00:00Z',
+      recentActivity: [
+        { action: 'admin_scope_revoke', outcome: 'completed', occurredAt: '2026-08-02T12:00:00Z' },
+        { action: 'admin_scope_regrant', outcome: 'completed', occurredAt: '2026-08-01T12:00:00Z' },
+      ],
+    }
+    render(
+      <MemoryRouter>
+        <AccessSafetyPage client={client({ listStoreGrants: async () => [withActivity] })} />
+      </MemoryRouter>,
+    )
+    expect(
+      await screen.findByText(
+        /Assurance: verified email, no MFA\. Granted \d{1,2}\/\d{1,2}\/\d{4}\./,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Revoked \d{1,2}\/\d{1,2}\/\d{4}\./)).toBeInTheDocument()
+    expect(
+      screen.getByText(/admin scope revoke \(completed\), admin scope regrant \(completed\)/),
+    ).toBeInTheDocument()
+  })
+
+  it('shows no recent-activity line when a grant has none', async () => {
+    render(
+      <MemoryRouter>
+        <AccessSafetyPage client={client()} />
+      </MemoryRouter>,
+    )
+    expect(
+      await screen.findByText(
+        /Assurance: verified email, MFA verified\. Granted \d{1,2}\/\d{1,2}\/\d{4}\./,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Recent privileged activity:/)).not.toBeInTheDocument()
+  })
+
   it('does not offer a Package 7 bypass for an initial representative grant', async () => {
     render(
       <MemoryRouter>

@@ -133,8 +133,13 @@ select ok(
   position('provider_user_is_confirmed' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
   and position('provider_user_has_verified_mfa' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
   and position('recentActivity' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
-  and position('privileged_audit_events' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0,
-  'Access & Safety list exposes exact assurance, scope dates, and minimized privileged activity without shopper data');
+  and position('privileged_audit_events' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))>0
+  and position('e.resource_id=g.grant_id' in replace(lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)),' ',''))>0
+  and position('interval''90days''' in replace(lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)),' ',''))>0
+  and position('limit5' in replace(lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)),' ',''))>0
+  and position('shopper_private' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))=0
+  and position('review_private' in lower(pg_get_functiondef('app_public.admin_list_store_scopes()'::regprocedure)))=0,
+  'Access & Safety list exposes exact assurance, scope dates, and privileged activity minimized to the last five events in a 90-day window without private content');
 
 select ok(
   position('p_operation text' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)))>0
