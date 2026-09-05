@@ -299,7 +299,11 @@ export async function configuredComposition(
       return {
         clients: {
           catalog: createReviewHarnessCatalogClient(reviewHarness.state),
-          ...createReviewHarnessClients(reviewHarness.scenario, reviewHarness.state),
+          ...createReviewHarnessClients(
+            reviewHarness.scenario,
+            reviewHarness.state,
+            reviewHarness.mediaReviewEnabled,
+          ),
           ...(import.meta.env.VITE_COMMERCIAL_RESEARCH_REVIEW === 'true'
             ? { billing: commercialResearchReviewClient }
             : {}),
