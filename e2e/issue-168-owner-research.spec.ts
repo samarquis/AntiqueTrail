@@ -128,6 +128,10 @@ test('keeps the protected flow usable in constrained and forced-color rendering'
   await page.goto('/owner-research.html')
   await signIn(page)
   await expect(page.getByRole('button', { name: /Add or claim my store/ })).toBeEnabled()
+  await page.addStyleTag({
+    content:
+      ':root { font-size: 225%; } * { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; } p { margin-bottom: 2em !important; }',
+  })
   await page.keyboard.press('Tab')
   await expect(page.getByRole('button', { name: /Add or claim my store/ })).toBeFocused()
   const overflow = await page.evaluate(
