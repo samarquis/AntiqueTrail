@@ -1,5 +1,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
-import { prepareSyntheticPartnerPayload } from '../_shared/partner-command-payload.ts'
+import {
+  preparePublicClaimSignalPayload,
+  prepareSyntheticPartnerPayload,
+} from '../_shared/partner-command-payload.ts'
 import { partnerCors, partnerPreflight } from '../_shared/partner-cors.ts'
 
 declare const Deno: {
@@ -27,8 +30,24 @@ Deno.serve(async (request) => {
       payload?: Record<string, unknown>
       synthetic?: boolean
     }
-    // This deployment intentionally implements only Synthetic evidence. A
-    // real E-01 path remains unavailable until its approved provider exists.
+    if (!body.synthetic && body.operation === 'submit_authority_signal') {
+      const payload = await preparePublicClaimSignalPayload(body.payload ?? {}, evidenceHmacSecret)
+      const client = createClient(url, anonKey, {
+        db: { schema: 'app_public' },
+        global: { headers: { Authorization: authorization } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+      const result = await client.rpc('public_listing_claim_signal_command', {
+        p_claim_id: payload.claimId,
+        p_channel_class: payload.channelClass,
+        p_evidence_ref_hmac: `\\x${payload.evidenceRefHmac}`,
+        p_idempotency_key: payload.idempotencyKey,
+      })
+      if (result.error) return unavailable(cors.headers)
+      return Response.json(result.data, { headers: cors.headers })
+    }
+    // Invitation and account-provider operations remain Synthetic-only until
+    // E-01. The claim-signal branch above uses no provider identity or mail.
     if (!body.synthetic || !syntheticEnabled) return unavailable(cors.headers)
     if (
       !body.operation ||
