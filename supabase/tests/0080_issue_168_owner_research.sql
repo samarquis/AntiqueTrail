@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(52);
 
 select has_table('research_private','owner_research_artifacts','verified artifact registry exists');
 select has_table('research_private','owner_research_cohort_grants','research cohort grants are private');
@@ -68,6 +68,16 @@ select throws_ok($$select app_public.owner_research_command('resume','sha256:aaa
   '42501','owner_research_unavailable','wrong cohort is denied');
 select is(app_public.owner_research_command('resume','sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','topeka-owner-10a','{}')->>'state','ready','admitted run resumes before start');
 select is(app_public.owner_research_command('start','sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','topeka-owner-10a','{"kind":"existing_claim"}')->>'kind','existing_claim','existing claim starts');
+select throws_ok($$select app_public.owner_research_command('save','sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','topeka-owner-10a','{"draft":{}}')$$,
+  '42501','owner_research_unavailable','empty draft is rejected before persistence');
+select throws_ok($$select app_public.owner_research_command('save','sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','topeka-owner-10a',
+  '{"draft":{"fixture":null,"relationship":"owner","ownerFactsConfirmed":true,"reviewedFactsUnderstood":true}}')$$,
+  '42501','owner_research_unavailable','JSON-null fixture cannot bypass exact fixture enforcement');
+select throws_ok($$select app_public.owner_research_command('save','sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','topeka-owner-10a',
+  '{"draft":{"fixture":"existing-store-a","relationship":null,"ownerFactsConfirmed":true,"reviewedFactsUnderstood":true}}')$$,
+  '42501','owner_research_unavailable','JSON-null relationship is denied');
+select is(app_public.owner_research_command('resume','sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','topeka-owner-10a','{}')->'draft'->>'fixture',
+  'existing-store-a','rejected drafts leave the saved fixture unchanged');
 select is(app_public.owner_research_command('save','sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','topeka-owner-10a',
   '{"draft":{"fixture":"existing-store-a","relationship":"manager","ownerFactsConfirmed":true,"reviewedFactsUnderstood":true}}')->'draft'->>'relationship','manager','fixed safe draft saves');
 select is(app_public.owner_research_command('submit','sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','topeka-owner-10a','{}')->>'state','submitted','complete research draft submits');

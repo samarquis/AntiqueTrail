@@ -60,6 +60,7 @@ describe('owner research boundary', () => {
       status: vi.fn(),
     }
     render(<OwnerResearchPage client={client} />)
+    expect(screen.queryByRole('heading', { name: /Help antique shoppers/ })).not.toBeInTheDocument()
     expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC_OWNER_RESEARCH_DENIAL)
     expect(screen.queryByRole('heading', { name: /Help antique shoppers/ })).not.toBeInTheDocument()
   })

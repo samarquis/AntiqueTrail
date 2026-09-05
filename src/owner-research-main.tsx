@@ -7,6 +7,7 @@ import {
   createOwnerResearchClient,
 } from './features/readiness'
 import './owner-research.css'
+import { createOwnerResearchSession } from './features/readiness/ownerResearchSession'
 
 function unavailable() {
   return (
@@ -59,9 +60,11 @@ async function bootstrap() {
     root.render(<StrictMode>{unavailable()}</StrictMode>)
     return
   }
+  const ensureSession = createOwnerResearchSession(supabase)
   const client = createOwnerResearchClient(
     {
       async rpc(name, args) {
+        await ensureSession()
         const result = await supabase.rpc(name, args)
         return { data: result.data, error: result.error }
       },
@@ -75,6 +78,7 @@ async function bootstrap() {
         authenticate={async (email, password) => {
           const result = await supabase.auth.signInWithPassword({ email, password })
           if (result.error) throw new Error(GENERIC_OWNER_RESEARCH_DENIAL)
+          await ensureSession()
         }}
         canonicalSiteUrl={canonicalSiteUrl}
       />

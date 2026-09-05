@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
 import { verifyOwnerResearchArtifacts } from './verify-owner-research-artifacts.mjs'
 
 const markers =
@@ -131,4 +132,42 @@ test('teardown verifies the idempotent purge receipt before deleting the deploym
   const deployment = source.indexOf('api.vercel.com')
   assert.ok(purge >= 0 && verification > purge && deployment > verification)
   assert.match(source, /deployment\.status !== 404/)
+})
+
+test('teardown executes the app_public purge before deletion and stops on an invalid receipt', () => {
+  for (const invalidReceipt of [false, true]) {
+    const result = spawnSync(process.execPath, ['--input-type=module'], {
+      encoding: 'utf8',
+      input: `
+        import assert from 'node:assert/strict';
+        Object.assign(process.env, {
+          OWNER_RESEARCH_ARTIFACT_DIGEST: 'sha256:' + 'a'.repeat(64),
+          OWNER_RESEARCH_RECEIPT_AT: '2026-09-03T00:00:00Z',
+          OWNER_RESEARCH_DEPLOYMENT_ID: 'synthetic-deployment',
+          VERCEL_TOKEN: 'synthetic', SUPABASE_URL: 'https://synthetic.invalid',
+          SUPABASE_SERVICE_ROLE_KEY: 'synthetic'
+        });
+        const calls = [];
+        globalThis.fetch = async (url, options) => {
+          calls.push(url);
+          if (calls.length === 1) {
+            assert.equal(options.headers['Content-Profile'], 'app_public');
+            assert.equal(options.method, 'POST');
+            return { ok: true, json: async () => ({
+              artifactDigest: process.env.OWNER_RESEARCH_ARTIFACT_DIGEST,
+              deploymentId: ${JSON.stringify(invalidReceipt ? 'wrong-deployment' : 'synthetic-deployment')},
+              receiptAt: process.env.OWNER_RESEARCH_RECEIPT_AT,
+              revoked: true, receiptDigest: 'sha256:' + 'b'.repeat(64)
+            }) };
+          }
+          assert.equal(options.method, 'DELETE');
+          return { ok: false, status: 404 };
+        };
+        const execution = import('./scripts/owner-research-teardown.mjs');
+        ${invalidReceipt ? 'await assert.rejects(execution, /receipt verification failed/);' : 'await execution;'}
+        assert.equal(calls.length, ${invalidReceipt ? 1 : 2});
+      `,
+    })
+    assert.equal(result.status, 0, result.stderr)
+  }
 })

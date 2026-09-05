@@ -223,10 +223,10 @@ export function OwnerResearchPage({
                 type="button"
                 disabled={pending || !draft?.ownerFactsConfirmed || !draft.reviewedFactsUnderstood}
                 onClick={() =>
-                  void run(
-                    () => client.submit(),
-                    'Synthetic application submitted for research. No store or access was created.',
-                  )
+                  void run(async () => {
+                    if (draft) await client.save(draft)
+                    return client.submit()
+                  }, 'Synthetic application submitted for research. No store or access was created.')
                 }
               >
                 Submit Synthetic application
@@ -272,7 +272,7 @@ export function OwnerResearchPage({
           </button>
         </form>
       )}
-      {!denied && (
+      {!denied && snapshot && (
         <OwnerAcquisitionContent
           action={intakeAction}
           canonicalSiteUrl={canonicalSiteUrl ?? 'https://antique-trail-pages.pages.dev'}

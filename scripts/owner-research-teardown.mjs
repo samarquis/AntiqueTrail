@@ -22,6 +22,7 @@ const purge = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/owner_researc
     apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
     Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
     'Content-Type': 'application/json',
+    'Content-Profile': 'app_public',
   },
   body: JSON.stringify({ p_artifact_digest: artifactDigest, p_receipt_at: receiptAt }),
 })
