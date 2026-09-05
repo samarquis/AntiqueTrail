@@ -42,6 +42,7 @@ export interface ReviewHarnessRuntime {
   scenario: ReviewScenario
   state: ReviewStateId
   sessionState: ReviewSessionState
+  mediaReviewEnabled: boolean
   scenarios: readonly ReviewScenario[]
   states: readonly ReviewStateId[]
   authStore: AuthStore
