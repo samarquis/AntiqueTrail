@@ -2,7 +2,13 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createRpcSessionRegistry, toAuthSession } from '../auth/authClient'
 
 /** Register each new provider token before any research request; tokens stay in memory. */
-export function createOwnerResearchSession(supabase: SupabaseClient) {
+export function createOwnerResearchSession(supabase: {
+  auth: Pick<SupabaseClient['auth'], 'getSession'>
+  rpc(
+    command: string,
+    payload: Readonly<Record<string, unknown>>,
+  ): PromiseLike<{ data: unknown; error: unknown }>
+}) {
   let registeredToken: string | undefined
   const registry = createRpcSessionRegistry({
     async invoke(command, payload) {
