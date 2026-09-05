@@ -193,6 +193,87 @@ button:disabled,
   background: var(--teal-dark);
 }
 
+.portal-media-history {
+  display: grid;
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.portal-media-history > li {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.portal-media-placeholder {
+  display: grid;
+  min-height: 5rem;
+  place-items: center;
+  padding: 0.75rem;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--surface-chrome-subtle);
+  font-size: var(--type-size-supporting);
+  text-align: center;
+}
+
+.portal-media-state {
+  width: fit-content;
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
+}
+
+.portal-media-state--awaiting {
+  color: var(--teal-dark);
+  background: var(--mint);
+}
+
+.portal-media-state--rejected {
+  color: var(--ink);
+  background: var(--surface-status-danger);
+}
+
+.portal-media-state--approved {
+  color: var(--ink);
+  background: var(--surface-warning);
+}
+
+.portal-media-state--published {
+  color: var(--teal-dark);
+  background: var(--mint);
+}
+
+.portal-media-state--removed {
+  color: var(--ink);
+  background: var(--surface-status-neutral);
+}
+
+.portal-media-rejection {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 2px solid var(--rust);
+  border-radius: 10px;
+  background: var(--surface-status-danger);
+}
+
+.portal-media-rejection p {
+  margin: 0;
+}
+
+.portal-media-rejection .button {
+  min-block-size: 48px;
+}
+
 .button--danger {
   border-color: var(--rust);
   color: var(--on-action);
@@ -1960,6 +2041,14 @@ main > article dt {
   .page-card {
     border: 1px solid CanvasText;
     box-shadow: none;
+  }
+
+  .portal-media-state,
+  .portal-media-rejection,
+  .portal-media-placeholder {
+    border-color: CanvasText;
+    color: CanvasText;
+    background: Canvas;
   }
 
   input:not([type='checkbox']):not([type='radio']),
