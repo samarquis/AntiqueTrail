@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   GENERIC_PORTAL_ERROR,
+  PortalMediaCapError,
   createPortalClient,
   createPortalMediaHttpTransport,
   decodePortalMediaUploadHistory,
@@ -36,6 +37,7 @@ describe('production portal client', () => {
     await client.saveManagedFields({ phone: '555-0100', website: '', description: 'Local store' })
     await client.submitControlledChange({ field: 'name', requestedValue: 'Oak', reason: 'Legal' })
     await client.getMediaCapability()
+    await client.getMediaCapacity()
     await client.uploadOfficialMedia({
       storeId: '11111111-1111-4111-8111-111111111111',
       kind: 'gallery',
@@ -47,8 +49,6 @@ describe('production portal client', () => {
     await client.listMediaUploads()
     await client.resubmitMedia({
       originalUploadId: '33333333-3333-4333-8333-333333333333',
-      storeId: '11111111-1111-4111-8111-111111111111',
-      kind: 'gallery',
       file: new File([new Uint8Array(32)], 'replacement.png', { type: 'image/png' }),
       altText: 'Replacement front entrance',
       rightsConfirmed: true,
@@ -80,6 +80,7 @@ describe('production portal client', () => {
       'portal_save_managed_fields',
       'portal_submit_controlled_change',
       'media_get_capability',
+      'portal_get_media_capacity',
       'portal_list_media_uploads',
       'portal_list_updates',
       'portal_create_update',
@@ -143,8 +144,6 @@ describe('production portal client', () => {
     await expect(
       unavailablePortalClient.resubmitMedia({
         originalUploadId: '33333333-3333-4333-8333-333333333333',
-        storeId: '11111111-1111-4111-8111-111111111111',
-        kind: 'gallery',
         file: new File([new Uint8Array(1)], 'replacement.png', { type: 'image/png' }),
         altText: 'Replacement',
         rightsConfirmed: true,
@@ -218,5 +217,83 @@ describe('production portal client', () => {
     })
     expect(request?.body).toBeInstanceOf(FormData)
     expect((request?.body as FormData).get('image')).toBe(file)
+  })
+
+  it('preserves the approved 409 cap message for resubmission only', async () => {
+    const transport = createPortalMediaHttpTransport({
+      endpoint: 'https://project.supabase.co/functions/v1/media-provider-command',
+      apiKey: 'public-anon-key',
+      getAccessToken: async () => 'user-access-token',
+      fetcher: async () =>
+        Response.json(
+          {
+            error: 'media_cap_exceeded',
+            message: 'Gallery capacity is reached. Upgrade to add more photos.',
+          },
+          { status: 409 },
+        ),
+    })
+    await expect(
+      transport.upload({
+        storeId: '11111111-1111-4111-8111-111111111111',
+        kind: 'gallery',
+        altText: 'Replacement',
+        file: new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
+        rightsConfirmed: true,
+        idempotencyKey: '22222222-2222-4222-8222-222222222222',
+        originalUploadId: '33333333-3333-4333-8333-333333333333',
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: PortalMediaCapError.name,
+        message: 'Gallery capacity is reached. Upgrade to add more photos.',
+      }),
+    )
+    const client = createPortalClient({ rpc: vi.fn() }, () => [], transport)
+    await expect(
+      client.resubmitMedia({
+        originalUploadId: '33333333-3333-4333-8333-333333333333',
+        file: new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
+        altText: 'Replacement',
+        rightsConfirmed: true,
+        idempotencyKey: '22222222-2222-4222-8222-222222222222',
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: PortalMediaCapError.name,
+        message: 'Gallery capacity is reached. Upgrade to add more photos.',
+      }),
+    )
+  })
+
+  it('omits client store authority and kind from a resubmission transport body', async () => {
+    const requests: RequestInit[] = []
+    const fetcher: typeof fetch = vi.fn(async (_input, init) => {
+      requests.push(init ?? {})
+      return Response.json({
+        uploadId: '11111111-1111-4111-8111-111111111111',
+        state: 'awaiting_review',
+      })
+    })
+    const transport = createPortalMediaHttpTransport({
+      endpoint: 'https://project.supabase.co/functions/v1/media-provider-command',
+      apiKey: 'public-anon-key',
+      getAccessToken: async () => 'user-access-token',
+      fetcher,
+    })
+    const originalUploadId = '33333333-3333-4333-8333-333333333333'
+    await transport.upload({
+      storeId: '11111111-1111-4111-8111-111111111111',
+      kind: 'gallery',
+      altText: 'Replacement',
+      file: new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
+      rightsConfirmed: true,
+      idempotencyKey: '22222222-2222-4222-8222-222222222222',
+      originalUploadId,
+    })
+    const body = requests[0].body as FormData
+    expect(body.get('originalUploadId')).toBe(originalUploadId)
+    expect(body.get('storeId')).toBeNull()
+    expect(body.get('kind')).toBeNull()
   })
 })

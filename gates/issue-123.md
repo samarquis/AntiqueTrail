@@ -1,0 +1,145 @@
+# Gates: Issue #123 Store Portal rejected-media resubmission journey
+
+Scope: Complete the rejected-media resubmission lifecycle end to end - forward-only `media_reserve_resubmission`-style RPC, server-derived store/kind (no client `storeId` authority), distinct `awaiting_review` row that never mutates the rejected original, tier-cap denials through `resolve_store_photo_cap`, and the client history/rejection/correction UI wired to #125's response allowlist.
+
+Base SHA: 186e7b7
+Candidate source-and-evidence SHA: ca1772452d1b67afeda68521e9323a1bd8dcc132
+Component repair SHA: ef09627e12832d5fad018747db4c9ca2db0643ab
+Prior evidence-ledger SHA: 6131a435c5eb5bffb49ecfd2fbc21c150444911f
+Merged SHA: <pending>
+
+## Repair-round evidence — 2026-08-31
+
+This section supersedes the earlier candidate evidence below, which describes
+the rejected `f175f78` implementation. The repaired code candidate is
+`ef09627e12832d5fad018747db4c9ca2db0643ab`; it is not yet independently
+reviewed, in a PR, merged, or eligible for issue closure.
+
+- A1/A3: the reservation RPC now calls `portal_private.require_portal_scope()`
+  before reading the original, then requires that the original store equals the
+  resolved store. This covers current consent, session, MFA, recent auth,
+  exact-one active grant, revocation, and audience/stage checks. `0078` adds a
+  revoked-but-active grant assertion and passes all 27 assertions.
+- A2/A4: a resubmission stores an edge-computed SHA-256 source digest; replay
+  requires the digest and every prior summary value to match. The UI preserves
+  its idempotency key while an unchanged corrected-image request is retried.
+- A5: the RPC returns an opaque upload id plus replay state only. The
+  authenticated edge command derives the two quarantine keys internally;
+  neither private object keys nor store/kind crosses the browser RPC response
+  boundary.
+- A6/A7: history, its rejection reason, loading, refresh failure, and the
+  M-01-blocked state are rendered independently of upload capability. A
+  dedicated Official photos destination uses distinct state badges and a
+  primary rejected-item resubmit action. The full UI-08 browser spec passed 16
+  runnable tests in Chromium and mobile (four opt-in capture cases skipped),
+  including 320px text-spacing/reflow, Chromium 200% page scale, dark theme,
+  and forced colors. The review harness enables its fabricated receipt only
+  through the explicit `reviewMedia=resubmit` query flag; this remains
+  synthetic UI evidence, not provider, billing, publication, or live-media
+  authorization evidence.
+- Local verification: focused Vitest commands (31, 41, and 53 tests), clean
+  local Supabase reset plus full pgTAP (78 files/2,160 assertions), lint,
+  Prettier, security contract, plan-governance contracts, and production build
+  passed. `git diff --check` passed.
+
+## Acceptance criteria (from the issue)
+
+- [x] A1: Representative sees only the authorized store's history and the verbatim reason on a rejected upload, using exactly #125's allowed response keys.
+      CHECK: `npx supabase@2.115.0 test db` (0076 history + 0078 resubmission); `npm test -- --run src/features/portal`
+      EXPECT: pass
+      EVIDENCE: Superseded by the repair-round evidence above: 0078 asserts the verbatim `rejection_reason` survives unchanged, and `require_portal_scope()` resolves the exact authorized, unrevoked store before the original is read. Full Vitest: 607 passing tests.
+
+- [x] A2: Valid corrected submission creates one distinct new `awaiting_review` row; the rejected original and reason remain unchanged.
+      CHECK: `npx supabase@2.115.0 test db` (0078)
+      EXPECT: pass
+      EVIDENCE: 0078 test 1: kind derived from the rejected original (`gallery`), new row scoped to original store, original stays `rejected` with unchanged reason, `count(*)` of `resubmission_of=<original>` equals 1, and the new row is distinct from the original (`upload_id<>original`). The migration inserts a new row with `resubmission_of=p_original_upload_id` and a 24h purge job (migration lines 126-138); no statement in the migration writes to the original row (forward-only, line 10-14). New row lifecycle continues through the standard intake pipeline to `awaiting_review`.
+
+- [x] A3: Missing, purged, non-rejected, foreign-store, revoked-grant, invalid-rights, malformed, and over-cap cases fail closed with no unintended row/audit/outbox change.
+      CHECK: `npx supabase@2.115.0 test db` (0078)
+      EXPECT: pass
+      EVIDENCE: 0078 tests: non-rejected (t4) and foreign-store (t5) and invalid-rights (t6) and no-grant (t7) deny with 42501 and add no row; missing original (t10) denies 42501 with no existence leak (fixed - the denied audit passes `null, null` so the FK fail that previously leaked a 23503 cannot occur); over-cap (t9) returns `media_cap_exceeded` with no row and only the `media_resubmission_capped` denied audit. All deny branches `raise exception ... 42501` (or 22023 for malformed / 54000 for quota) after a plan-required `append_audit` denial event; no upload row, outbox, or provider mutation occurs before insert.
+
+- [x] A4: Same-key retries are idempotent, different-input key reuse fails, and duplicate clicks create only one replacement.
+      CHECK: `npx supabase@2.115.0 test db` (0078)
+      EXPECT: pass
+      EVIDENCE: 0078 test 2: same key + same input returns the identical `uploadId` receipt and `count(*)=1` for that key. Test 3: same key + changed input raises 22023 and adds no row. Client dedupes retries by keeping the RPC idempotent (same key, same form) through `runMediaIngest.reserve`; duplicate clicks and transport retries therefore converge on one row.
+
+- [x] A5: No storage key, bucket path, signed URL, private upload data, or client-authored store authority crosses the response boundary.
+      CHECK: `npm run check`; `npx tsc -b`; `npm test -- --run src/features/portal src/features/media/mediaPipeline.test.ts src/features/media/mediaEdgeBoundary.test.ts`
+      EXPECT: pass
+      EVIDENCE: `PortalMediaResubmitInput` omits `storeId`/`kind`; the edge derives internal scope and object keys. The opaque receipt contains no object keys, storeId, or kind, and 0078 asserts those omissions.
+
+- [x] A6: History refresh, confirmation, error preservation, focus/live status, keyboard flow, 48px targets, 320px reflow, real-browser 200% zoom/reflow and user text-spacing overrides, dark theme, and forced-colors behavior pass.
+      CHECK: `npm run check`; `npm test -- --run src/app/App.test.tsx src/features/portal`
+      EXPECT: pass
+      EVIDENCE: `components.test.tsx` covers history load, distinct rejected treatment, primary resubmit action, preserved errors, correction flow, focus confirmation, and unchanged-retry idempotency. UI-08 passes in Chromium and mobile, including 320px text spacing/reflow, Chromium 200% page scale, dark theme, and forced colors; it is synthetic review-harness evidence and does not claim provider activation.
+
+- [x] A7: Real-media use remains blocked until M-01; synthetic evidence is labeled and does not activate billing or publication.
+      CHECK: `npm run security:contract`; `npx supabase@2.115.0 test db`
+      EXPECT: pass
+      EVIDENCE: The RPC guards on `media_private.capability_enabled()` (migration line 63), which requires the provisioned M-01 chain (release gate kind `provider_m`, external_verified, accepted `media_provider_config`, private_beta stage with `official_media_upload=true`). 0078 test 3 provisions that exact synthetic chain and asserts `capability_enabled`-equivalent chain state before any resubmission succeeds; without the chain every reserve call fails 42501 closed. No billing activation or publication is reachable from the resubmission path (published approval is a separate administrator moderation step).
+
+## Additional acceptance (2026-08-30 tier-contract reconciliation)
+
+- [x] T1: Resubmit uses `resolve_store_photo_cap(store_id)` and never trusts a client tier, count, or upgrade target.
+      CHECK: `npx supabase@2.115.0 test db` (0078 + 0077 + 0074)
+      EXPECT: pass
+      EVIDENCE: migration line 104 calls `partner_private.check_store_media_cap(v_store_id,v_kind,p_idempotency_key)`, which - per 0077/0074 and G9 of #174 - is the single authority delegating the count to `resolve_store_photo_cap(store_id)` (store-id-only signature; no tier/count/upgrade parameter). The resubmission RPC exposes no tier, count, or upgrade-target parameter; the browser supplies neither store nor kind.
+
+- [x] T2: Free and Gallery cap denials use the approved cover/gallery counts; Full Gallery applies its published non-count rules and never an undisclosed count cap.
+      CHECK: `npx supabase@2.115.0 test db`
+      EXPECT: pass
+      EVIDENCE: 0078 test 9 (Free, cover+5 gallery): five `approved_pending_publish` gallery rows push the sixth gallery resubmission to the structured `media_cap_exceeded` payload (`currentTier`/`upgradeTier`/`upgradeCap`/`approvedCount`/`cap`) with no row. 0078 test 8 proves cover originals are never count-capped. Full Gallery uncapped behavior is covered unchanged by 0077 test 9 (20 approved Gallery rows allowed, remaining -1).
+
+- [x] T3: Response, client, UI, audit, and test fixtures contain no retired tier name outside an explicit migration-compatibility test.
+      CHECK: `npm test`; `npm run check`
+      EXPECT: pass
+      EVIDENCE: no `featured`/`unlimited` string in any #123 touchpoint (`types.ts`, `portalClient.ts`, `components.tsx`, edge handler, migration, 0078). Retired-name normalization lives only in the immutable #174 migration boundary; this issue's code consumes only `free|gallery|full_gallery` resolver output for display copy.
+
+- [x] T4: A pause or billing-state change cannot bypass moderation, cap, store scope, original immutability, or idempotency.
+      CHECK: `npx supabase@2.115.0 test db`
+      EXPECT: pass
+      EVIDENCE: the RPC re-derives the grant and capability at each call (migration lines 61-66), so a paused/billing-change state that revokes the grant or disables `capability_enabled()` fails closed 42501 on the next call. Cap, store scope (original lock), original immutability (no write to original row), and idempotency are all enforced server-side per call; none can be skipped by client state.
+
+## Floor verification (recorded with exact commands and SHAs)
+
+- [x] F1: `npx supabase@2.115.0 db reset --local` then `npx supabase@2.115.0 test db`
+      EVIDENCE: clean reset applies all migrations including 20260831020000; full pgTAP suite 78 files / 2,160 tests all PASS (baseline 2133 + new 27).
+- [x] F2: `npm run check`
+      EVIDENCE: typecheck, eslint, Prettier, full Vitest (607), release tests, and Vite production build pass.
+- [x] F3: `npm run security:contract`
+      EVIDENCE: "Security contract checks passed: secrets, licenses, action pins, migrations."
+- [x] F4: `node --test scripts/plan-governance-contract.test.mjs`
+      EVIDENCE: 7/7 pass.
+- [x] F5: `git diff --check`
+      EVIDENCE: passes (0 whitespace errors; only CRLF normalization notices).
+
+SHAs and per-criterion artifacts (commands, output, date, base SHA 186e7b7, candidate SHA, limitations) are recorded under `docs/evidence/issue-123/`. Missing/unavailable evidence is not a pass; no synthetic evidence is claimed as production authorization/provider proof. This gate requires a separate-agent review of the exact base-to-candidate diff and the required hosted `web`, `database`, and `plan-governance` checks to pass on the merged commit before closure by a separate agent.
+
+## Continuation gates — 2026-09-01
+
+The user reassigned the active PR #190 to continue the ordered #123 lane after
+#174 closed. The prior local/hosted evidence is tied to an older candidate and
+does not authorize merge of a refreshed head.
+
+- [x] C1: The branch incorporates current `main` and records its exact refreshed candidate SHA.
+      CHECK: git merge-base --is-ancestor 36b66c9530eaf28ac5cd3749523a1b012ab3704e HEAD
+      EXPECT: exit 0
+      EVIDENCE: `d9abfef882c77f012566442871b6bebf53856a4f` merges `main` commit `36b66c9530eaf28ac5cd3749523a1b012ab3704e`; rerun at active source candidate `baf5bebc814ee7270b7ab1dce8ec1d5e2c5aac19` exited 0.
+
+- [x] C2: The issue's required local verification passes on the refreshed candidate, with exact output and SHA recorded.
+      CHECK: npm run check
+      EXPECT: built in
+      EVIDENCE: At `baf5bebc814ee7270b7ab1dce8ec1d5e2c5aac19`, `npm run check` exited 0: typecheck, eslint, repository-wide Prettier, Vitest (88 files/612 tests), release tests (69/69), and production build all passed.
+
+- [x] C3: The refreshed candidate's database, security, plan-governance, focused Portal, and UI-08 verification pass, or each unavailable check is visibly recorded as unavailable rather than passing.
+      EVIDENCE: At `baf5bebc814ee7270b7ab1dce8ec1d5e2c5aac19`: full pgTAP passed (78 files/2,173 tests); focused Portal/media Vitest passed (2 files/27 tests); `npm run security:contract` passed; plan governance passed 7/7; and isolated UI-08 exited 0 with 24 passed/6 opt-in captures skipped across desktop, tablet, and mobile.
+
+- [x] C4: A separate agent approves the complete current-main-to-final-head diff in both standards and specification lanes, with findings/dispositions recorded under `docs/evidence/issue-123/`.
+      EVIDENCE: independent database/security and application/spec reviews approved source candidate `c21b462ded603c03f5a8c1cc3897e931b4f2e9d5`; earlier P1 findings and their repairs, final approvals, commands, and the synthetic-evidence limitation are recorded in `docs/evidence/issue-123/independent-review.md`.
+
+- [ ] C5: The final candidate includes only #123-owned changes, updates only #123's TODO row, and has a final exact-head review receipt before merge.
+      EVIDENCE: pending
+
+- [ ] C6: Required hosted `web`, `database`, and `plan-governance` checks pass on the final PR head; the PR merges, post-merge checks pass, and Issue #123 is closed with criterion-level evidence.
+      EVIDENCE: pending

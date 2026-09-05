@@ -28,6 +28,13 @@ export const MEDIA_GATE_MESSAGE =
   'Official images and screenshots are disabled until the M-01 media gate passes.'
 export const RECENT_AUTH_WINDOW_MS = 10 * 60 * 1000
 
+export class PortalMediaCapError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'PortalMediaCapError'
+  }
+}
+
 type PortalRpcName =
   | 'portal_get_home'
   | 'portal_get_hours'
@@ -48,6 +55,7 @@ type PortalRpcName =
   | 'portal_reopen_support_ticket'
   | 'portal_preview_public_listing'
   | 'media_get_capability'
+  | 'portal_get_media_capacity'
   | 'portal_list_media_uploads'
   | 'portal_resubmit_media'
 
@@ -83,11 +91,14 @@ export function createPortalMediaHttpTransport(options: {
       if (!accessToken) throw new Error(GENERIC_PORTAL_ERROR)
       const body = new FormData()
       body.set('image', input.file)
-      body.set('storeId', input.storeId)
-      body.set('kind', input.kind)
       body.set('altText', input.altText)
       body.set('idempotencyKey', input.idempotencyKey)
-      if (input.originalUploadId) body.set('originalUploadId', input.originalUploadId)
+      if (input.originalUploadId) {
+        body.set('originalUploadId', input.originalUploadId)
+      } else {
+        body.set('storeId', input.storeId)
+        body.set('kind', input.kind)
+      }
       body.set('rightsConfirmed', String(input.rightsConfirmed))
       try {
         const response = await fetcher(endpoint, {
@@ -99,13 +110,30 @@ export function createPortalMediaHttpTransport(options: {
           redirect: 'error',
           referrerPolicy: 'no-referrer',
         })
-        if (!response.ok || !response.headers.get('content-type')?.includes('application/json'))
+        if (!response.headers.get('content-type')?.includes('application/json'))
           throw new Error(GENERIC_PORTAL_ERROR)
-        const result = (await response.json()) as { uploadId?: unknown; state?: unknown }
+        const result = (await response.json()) as {
+          error?: unknown
+          message?: unknown
+          uploadId?: unknown
+          state?: unknown
+        }
+        if (!response.ok) {
+          if (
+            response.status === 409 &&
+            result.error === 'media_cap_exceeded' &&
+            typeof result.message === 'string' &&
+            result.message.length > 0 &&
+            result.message.length <= 240
+          )
+            throw new PortalMediaCapError(result.message)
+          throw new Error(GENERIC_PORTAL_ERROR)
+        }
         if (typeof result.uploadId !== 'string' || result.state !== 'awaiting_review')
           throw new Error(GENERIC_PORTAL_ERROR)
         return { uploadId: result.uploadId, state: result.state }
-      } catch {
+      } catch (error) {
+        if (error instanceof PortalMediaCapError) throw error
         throw new Error(GENERIC_PORTAL_ERROR)
       }
     },
@@ -139,6 +167,7 @@ export function createPortalClient(
     submitControlledChange: (change: PortalControlledChangeDraft) =>
       call('portal_submit_controlled_change', { p_change: change }),
     getMediaCapability: () => call('media_get_capability'),
+    getMediaCapacity: () => call('portal_get_media_capacity'),
     uploadOfficialMedia: async (input) => {
       if (!media) throw new Error(GENERIC_PORTAL_ERROR)
       try {
@@ -151,7 +180,8 @@ export function createPortalClient(
         )
           throw new Error(GENERIC_PORTAL_ERROR)
         return receipt
-      } catch {
+      } catch (error) {
+        if (error instanceof PortalMediaCapError) throw error
         throw new Error(GENERIC_PORTAL_ERROR)
       }
     },
@@ -166,8 +196,8 @@ export function createPortalClient(
       if (!media) throw new Error(GENERIC_PORTAL_ERROR)
       try {
         const receipt = await media.upload({
-          storeId: input.storeId,
-          kind: input.kind,
+          storeId: input.originalUploadId,
+          kind: 'gallery',
           altText: input.altText,
           file: input.file,
           rightsConfirmed: true,
@@ -182,7 +212,8 @@ export function createPortalClient(
         )
           throw new Error(GENERIC_PORTAL_ERROR)
         return { newUploadId: receipt.uploadId, state: receipt.state }
-      } catch {
+      } catch (error) {
+        if (error instanceof PortalMediaCapError) throw error
         throw new Error(GENERIC_PORTAL_ERROR)
       }
     },
@@ -282,6 +313,7 @@ export const unavailablePortalClient: PortalClient = {
   saveManagedFields: unavailable,
   submitControlledChange: unavailable,
   getMediaCapability: unavailable,
+  getMediaCapacity: unavailable,
   uploadOfficialMedia: unavailable,
   listMediaUploads: unavailable,
   resubmitMedia: unavailable,

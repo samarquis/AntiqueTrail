@@ -186,6 +186,14 @@ describe('scenario-aware review clients', () => {
       pendingChanges: expect.arrayContaining([expect.objectContaining({ id: change.id })]),
     })
     await expect(portal.getMediaCapability()).resolves.toEqual({ enabled: false, source: 'server' })
+    await expect(portal.listMediaUploads()).resolves.toMatchObject({
+      uploads: [
+        expect.objectContaining({
+          state: 'rejected',
+          rejectionReason: 'Image quality needs more detail.',
+        }),
+      ],
+    })
     await expect(
       portal.uploadOfficialMedia({
         storeId: 'store-blue-finch',
