@@ -1,3 +1,4 @@
+import { OwnerAcquisitionPage } from '../features/partners/ownerAcquisitionPage'
 import { StoreApplicationAdminPanel } from '../features/partners/storeApplicationAdminPanel'
 import { StoreApplicationPage } from '../features/partners/storeApplicationPage'
 import {
@@ -483,6 +484,17 @@ function useCatalogClient(override?: CatalogClient) {
       override ?? configuredCatalogClient(() => session?.accessToken ?? null) ?? demoCatalogClient,
     [override, session?.accessToken],
   )
+}
+
+function OwnerAcquisitionRoute({
+  catalog,
+  intakeAvailable,
+}: {
+  catalog?: CatalogClient
+  intakeAvailable: boolean
+}) {
+  const client = useCatalogClient(catalog)
+  return <OwnerAcquisitionPage catalog={client} intakeAvailable={intakeAvailable} />
 }
 
 function StoreBrowser({
@@ -985,6 +997,19 @@ export default function App({
             }
           />
           <Route path="/more" element={<MorePage />} />
+          <Route
+            path="/for-stores"
+            element={
+              publicListingClaimsEnabled ? (
+                <OwnerAcquisitionRoute
+                  catalog={clients.catalog}
+                  intakeAvailable={runtime.reviewHarness?.state === 'success'}
+                />
+              ) : (
+                <NotFound />
+              )
+            }
+          />
           <Route
             path="/install"
             element={
