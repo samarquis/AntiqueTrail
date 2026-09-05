@@ -4,6 +4,7 @@ import type { AdminSession } from './types'
 import { canUseAdminBoundary, GENERIC_ADMIN_FAILURE } from './boundary'
 import type { AdminClient } from './adminClient'
 import { unavailableAdminClient } from './adminClient'
+import { ViewAuditButton } from './audit'
 import type {
   AdminDecision,
   AdminMergePlan,
@@ -325,6 +326,11 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
             </section>
           )}
           <h3>Audit history</h3>
+          <ViewAuditButton
+            access={selected.auditAccess}
+            label={selected.storeLabel}
+            returnTo="/admin"
+          />
           <ul aria-label="Case audit history">
             {selected.audit.map((entry) => (
               <li key={`${entry.action}-${entry.occurredAt}`}>
@@ -504,10 +510,31 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
       {listState === 'loading' ? (
         <p role="status">Loading Store Representative scopes…</p>
       ) : grants.length ? (
-        <ul>
+        <ul aria-label="Store Representative scopes">
           {grants.map((grant) => (
             <li key={grant.grantId}>
-              <strong>{grant.storeLabel}</strong> — {grant.subjectLabel} — {grant.state}{' '}
+              <strong>{grant.storeLabel}</strong> — {grant.subjectLabel} — {grant.state}
+              <ViewAuditButton
+                access={grant.auditAccess}
+                label={grant.storeLabel}
+                returnTo="/admin/access"
+              />
+              <p>
+                Assurance: {grant.verifiedEmail ? 'verified email' : 'no verified email'},{' '}
+                {grant.mfaVerified ? 'MFA verified' : 'no MFA'}. Granted{' '}
+                {new Date(grant.grantedAt).toLocaleDateString()}
+                {grant.revokedAt
+                  ? `. Revoked ${new Date(grant.revokedAt).toLocaleDateString()}.`
+                  : '.'}
+              </p>
+              {grant.recentActivity.length ? (
+                <p>
+                  Recent privileged activity:{' '}
+                  {grant.recentActivity
+                    .map((entry) => `${entry.action.replaceAll('_', ' ')} (${entry.outcome})`)
+                    .join(', ')}
+                </p>
+              ) : null}
               <button
                 type="button"
                 disabled={scopePreview?.grantId === grant.grantId && !scopeReason.trim()}

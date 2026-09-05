@@ -87,6 +87,7 @@ export interface AdminAuditEntry {
 }
 
 export interface AdminReviewCaseDetail extends AdminReviewCaseSummary {
+  auditAccess?: string
   immutableSubmission: true
   context: Record<string, string | number | boolean | null>
   allowedActions: AdminDecision[]
@@ -105,7 +106,14 @@ export interface AdminDecisionResult {
   }
 }
 
+export interface AdminPrivilegedActivity {
+  action: string
+  outcome: string
+  occurredAt: string
+}
+
 export interface AdminStoreScope {
+  auditAccess?: string
   grantId: string
   subjectUserId: string
   subjectLabel: string
@@ -113,6 +121,11 @@ export interface AdminStoreScope {
   storeLabel: string
   state: 'active' | 'revoked' | 'expired' | 'reconsent_required'
   version: number
+  verifiedEmail: boolean
+  mfaVerified: boolean
+  grantedAt: string
+  revokedAt: string | null
+  recentActivity: AdminPrivilegedActivity[]
 }
 
 export interface AdminScopeResult {

@@ -103,6 +103,10 @@ Needs:
 7. Support consent-based, non-monetized regional product promotion through flyers, ordinary QR codes, organic search, and permissioned local channels.
 8. Scale without rebuilding the authorization and data model.
 
+### Delivery and release boundary
+
+Product behavior, repository implementation, and external activation are distinct outcomes. A feature may be implemented and accepted while safely staged off. Human participation, provider approval, legal review, spending, production configuration, promotion, and public release are proved and authorized in separate gate issues; they block only the external action they name. This separation never weakens the security, privacy, accessibility, data-integrity, or stage controls required by the feature.
+
 ## Age-inclusive usability requirements
 
 The primary design audience includes shoppers roughly 50–80+ while the product remains usable by all ages.

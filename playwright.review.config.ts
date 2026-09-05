@@ -16,6 +16,8 @@ export default defineConfig({
     'issue-144-typography.spec.ts',
     'issue-143-media-overlay.spec.ts',
     'issue-147-catalog-metadata.spec.ts',
+    'issue-168-owner-research.spec.ts',
+    'issue-175-commercial-research.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
@@ -32,6 +34,7 @@ export default defineConfig({
     command: 'npm run dev:review -- --host 127.0.0.1 --port 4174',
     url: 'http://127.0.0.1:4174/review',
     reuseExistingServer: false,
+    env: { ...process.env, VITE_COMMERCIAL_RESEARCH_REVIEW: 'true' },
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },

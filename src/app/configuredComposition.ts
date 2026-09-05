@@ -1,5 +1,6 @@
 import { createClient, type Session } from '@supabase/supabase-js'
 import type { AppClients, AppRuntime } from './App'
+import { createAdminClient } from '../features/admin/adminClient'
 import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
 import {
@@ -9,6 +10,7 @@ import {
 } from '../features/portal'
 import { createReadinessClient } from '../features/readiness'
 import { createBetaClient } from '../features/beta'
+import { createBillingClient } from '../features/billing'
 import { createShopperClient } from '../features/shopper'
 import { createCandidateProductionClient } from '../features/candidates'
 import {
@@ -281,10 +283,12 @@ export async function configuredComposition(
         createReviewHarnessClients,
       },
       { ReviewHarnessBanner, ReviewHarnessPage },
+      { commercialResearchReviewClient },
     ] = await Promise.all([
       import('../review-harness/harness'),
       import('../review-harness/clients'),
       import('../review-harness/components'),
+      import('../review-harness/commercialResearch'),
     ])
     const reviewHarness = await createReviewHarness({
       dev: import.meta.env.DEV,
@@ -296,7 +300,14 @@ export async function configuredComposition(
       return {
         clients: {
           catalog: createReviewHarnessCatalogClient(reviewHarness.state),
-          ...createReviewHarnessClients(reviewHarness.scenario, reviewHarness.state),
+          ...createReviewHarnessClients(
+            reviewHarness.scenario,
+            reviewHarness.state,
+            reviewHarness.mediaReviewEnabled,
+          ),
+          ...(import.meta.env.VITE_COMMERCIAL_RESEARCH_REVIEW === 'true'
+            ? { billing: commercialResearchReviewClient }
+            : {}),
         },
         runtime: {
           reviewHarness,
@@ -304,6 +315,14 @@ export async function configuredComposition(
           authStore: reviewHarness.authStore,
           authProvider: createReviewHarnessAuthProvider(reviewHarness.state),
           sessionRegistry: reviewHarness.sessionRegistry,
+          ...(import.meta.env.VITE_COMMERCIAL_RESEARCH_REVIEW === 'true'
+            ? {
+                commercialResearch: {
+                  artifactDigest: 'b'.repeat(64),
+                  questionVersion: 'questions-v1',
+                },
+              }
+            : {}),
         },
       }
     }
@@ -499,6 +518,12 @@ export async function configuredComposition(
     }),
   )
   const partnerAdmin = createPartnerAdminClient({ rpc, edge })
+  const billing = createBillingClient({
+    async rpc(name, args) {
+      const result = await supabase.rpc(name, args)
+      return { data: result.data, error: result.error }
+    },
+  })
   let source: TripOfflineGrantSource | undefined
   if (offline.enabled) {
     source = {
@@ -517,12 +542,32 @@ export async function configuredComposition(
       },
     }
   }
+  const commercialResearchArtifactDigest = configuredValue(
+    import.meta.env.VITE_COMMERCIAL_RESEARCH_ARTIFACT_DIGEST,
+  )
+  const commercialResearchQuestionVersion = configuredValue(
+    import.meta.env.VITE_COMMERCIAL_RESEARCH_QUESTION_VERSION,
+  )
+  const commercialResearch =
+    commercialResearchArtifactDigest?.match(/^[0-9a-f]{64}$/) && commercialResearchQuestionVersion
+      ? {
+          artifactDigest: commercialResearchArtifactDigest,
+          questionVersion: commercialResearchQuestionVersion,
+        }
+      : undefined
   return {
     clients: {
       candidate,
+      admin: createAdminClient({
+        async rpc(name, args) {
+          const result = await supabase.rpc(name, args)
+          return { data: result.data, error: result.error }
+        },
+      }),
       lifecycle,
       partner,
       partnerAdmin,
+      billing,
       shopper,
       reviews: createReviewClient({
         async rpc(name, args) {
@@ -584,6 +629,7 @@ export async function configuredComposition(
       authProvider: createAuthProvider(supabase),
       sessionRegistry,
       tripOffline: offline.runtime,
+      ...(commercialResearch ? { commercialResearch } : {}),
     },
   }
 }

@@ -34,28 +34,149 @@ describe('billing capability gating', () => {
 
   it('maps owner actions to exact bounded RPCs', async () => {
     const rpc = vi.fn(async (name: string) => ({
-      data: name === 'billing_get_capability' ? capability() : { requested: true },
+      data:
+        name === 'billing_get_capability'
+          ? capability()
+          : name === 'billing_record_paid_tier_consent'
+            ? {
+                consentId: 'consent-1',
+                expiresAt: '2099-01-01T00:00:00Z',
+                state: 'unused',
+                configVersion: 7,
+                configDigest: 'a'.repeat(64),
+              }
+            : { requested: true },
       error: null,
     }))
     const client = createBillingClient({ rpc })
     const idempotencyKey = '0b8df3be-6f5e-4a55-9c1d-2f1f7bd2f4aa'
 
     await client.getCapability()
+    await client.recordPaidTierConsent({
+      storeId: 'store-1',
+      targetTier: 'gallery',
+      commercialConfigVersion: 7,
+      disclosureDigest: 'a'.repeat(64),
+      expectedStoreVersion: 0,
+      idempotencyKey: '1b8df3be-6f5e-4a55-9c1d-2f1f7bd2f4aa',
+    })
     await client.startCheckout({
       storeId: 'store-1',
       idempotencyKey,
       tier: 'gallery',
+      consentId: 'consent-1',
+      commercialConfigVersion: 7,
     })
     await client.openPortal('store-1')
 
     expect(rpc.mock.calls).toEqual([
       ['billing_get_capability', {}],
       [
+        'billing_record_paid_tier_consent',
+        {
+          p_store_id: 'store-1',
+          p_target_tier: 'gallery',
+          p_commercial_config_version: 7,
+          p_disclosure_digest: 'a'.repeat(64),
+          p_expected_store_version: 0,
+          p_idempotency_key: '1b8df3be-6f5e-4a55-9c1d-2f1f7bd2f4aa',
+        },
+      ],
+      [
         'billing_create_checkout_session',
-        { p_store_id: 'store-1', p_idempotency_key: idempotencyKey },
+        {
+          p_store_id: 'store-1',
+          p_target_tier: 'gallery',
+          p_consent_id: 'consent-1',
+          p_commercial_config_version: 7,
+          p_idempotency_key: idempotencyKey,
+        },
       ],
       ['billing_create_portal_session', { p_store_id: 'store-1' }],
     ])
+  })
+
+  it('parses one exact inactive research config and records only its bound response', async () => {
+    const config = {
+      version: 7,
+      state: 'approved_inactive',
+      digest: 'a'.repeat(64),
+      galleryPriceCents: 1200,
+      fullGalleryPriceCents: 1900,
+      currency: 'USD',
+      taxMode: 'Tax calculated at checkout.',
+      firstChargeRule: 'First charge occurs after Checkout confirmation.',
+      renewalRule: 'Renews monthly until canceled.',
+      cancelAnytimeRule: 'Cancel anytime through the self-serve customer portal.',
+      refundWindowRule: 'Request a full refund within 48 hours of a charge; no other refunds.',
+      upgradeProrationRule: 'Upgrades take effect immediately with prorated charges.',
+      downgradeRule:
+        'Downgrades take effect at renewal with no partial refund; the last scheduled downgrade wins.',
+      failedPaymentGraceRule:
+        'Failed payment has a 14-day grace period, then automatically downgrades to Free.',
+      hiddenPhotoDeletionRule:
+        'Photos over the Free limit hide at downgrade and delete after a 30-day grace period.',
+      refundPolicyVersion: 'refund-v1',
+      supportPolicyVersion: 'support-v1',
+      termsVersion: 'terms-v1',
+      privacyVersion: 'privacy-v1',
+      fullGalleryLimitsVersion: 'limits-v1',
+      fullGalleryLimits: {
+        acceptedFileTypes: ['image/jpeg'],
+        maxFileBytes: 10_000_000,
+        maxWidthPixels: 6000,
+        maxHeightPixels: 6000,
+        uploadRateRule: 'Up to 20 uploads per hour.',
+        quotaOutageRule: 'Uploads pause during provider outages.',
+        moderationAbuseRule: 'Every photo remains subject to moderation.',
+        reasonRecoveryAppealRule: 'A reason, recovery step, and appeal path are provided.',
+        paidServiceRemedy: 'Service failures receive the published remedy.',
+      },
+    }
+    const rpc = vi.fn(async (name: string) => ({
+      data:
+        name === 'billing_get_commercial_research_config'
+          ? config
+          : { attemptId: 'attempt-1', configVersion: 7, configDigest: 'a'.repeat(64) },
+      error: null,
+    }))
+    const client = createBillingClient({ rpc })
+    await expect(client.getCommercialResearchConfig('authorization-1')).resolves.toEqual(config)
+    await client.recordCommercialResearchAttempt({
+      authorizationId: 'authorization-1',
+      configVersion: 7,
+      configDigest: 'a'.repeat(64),
+      artifactDigest: 'b'.repeat(64),
+      questionVersion: 'questions-v1',
+      choice: 'gallery',
+      reasonCode: 'more_photos',
+      idempotencyKey: 'attempt-key-1',
+    })
+    expect(rpc.mock.calls).toEqual([
+      ['billing_get_commercial_research_config', { p_authorization_id: 'authorization-1' }],
+      [
+        'billing_record_commercial_research_attempt',
+        {
+          p_authorization_id: 'authorization-1',
+          p_config_version: 7,
+          p_config_digest: 'a'.repeat(64),
+          p_artifact_digest: 'b'.repeat(64),
+          p_question_version: 'questions-v1',
+          p_choice: 'gallery',
+          p_reason_code: 'more_photos',
+          p_idempotency_key: 'attempt-key-1',
+        },
+      ],
+    ])
+  })
+
+  it('rejects malformed or non-inactive research payloads at the client boundary', async () => {
+    const client = createBillingClient({
+      rpc: vi.fn(async () => ({ data: { state: 'active', version: 1 }, error: null })),
+    })
+    await expect(client.getCommercialResearchConfig('authorization-1')).rejects.toThrow(
+      GENERIC_BILLING_ERROR,
+    )
   })
 
   it('rejects failed and empty responses with one generic error', async () => {
@@ -76,7 +197,12 @@ describe('billing capability gating', () => {
         storeId: 'store-1',
         idempotencyKey: '0b8df3be-6f5e-4a55-9c1d-2f1f7bd2f4aa',
         tier: 'full_gallery',
+        consentId: 'consent-1',
+        commercialConfigVersion: 7,
       }),
+    ).rejects.toThrow(GENERIC_BILLING_ERROR)
+    await expect(
+      unavailableBillingClient.getCommercialResearchConfig('authorization-1'),
     ).rejects.toThrow(GENERIC_BILLING_ERROR)
     expect(BILLING_STAGE_DISABLED_MESSAGE).toMatch(/not available/)
   })

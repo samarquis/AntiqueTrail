@@ -1,9 +1,10 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   GENERIC_PORTAL_ERROR,
   MEDIA_GATE_MESSAGE,
   PORTAL_ACCESS_ERROR,
+  PortalMediaCapError,
   copyHoursDay,
   unavailablePortalClient,
   validateHours,
@@ -21,6 +22,9 @@ import type {
   PortalHours,
   PortalHomeSnapshot,
   PortalManagedFields,
+  PortalMediaUpload,
+  PortalMediaUploadHistory,
+  PortalMediaCapacity,
   PortalPreview,
   StoreUpdate,
   StoreUpdateDraft,
@@ -91,6 +95,9 @@ function PortalNav() {
           <Link to="/store-portal/changes">Pending changes</Link>
         </li>
         <li>
+          <Link to="/store-portal/photos">Official photos</Link>
+        </li>
+        <li>
           <Link to="/store-portal/updates">Store Updates</Link>
         </li>
         <li>
@@ -112,6 +119,36 @@ function formatPortalDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(date)
+}
+
+function mediaStateLabel(state: PortalMediaUpload['state']) {
+  switch (state) {
+    case 'awaiting_review':
+      return 'Awaiting review'
+    case 'rejected':
+      return 'Needs changes / Rejected'
+    case 'approved_pending_publish':
+      return 'Approved pending publish'
+    case 'published':
+      return 'Published'
+    case 'purged':
+      return 'Removed'
+  }
+}
+
+function mediaStateClass(state: PortalMediaUpload['state']) {
+  switch (state) {
+    case 'awaiting_review':
+      return 'portal-media-state portal-media-state--awaiting'
+    case 'rejected':
+      return 'portal-media-state portal-media-state--rejected'
+    case 'approved_pending_publish':
+      return 'portal-media-state portal-media-state--approved'
+    case 'published':
+      return 'portal-media-state portal-media-state--published'
+    case 'purged':
+      return 'portal-media-state portal-media-state--removed'
+  }
 }
 
 export function PortalAccessDeniedPage() {
@@ -1196,6 +1233,290 @@ export function PortalManagedFieldsPage({
   )
 }
 
+function PortalMediaHistorySection({
+  client,
+  onStatus,
+  resubmissionEnabled,
+}: {
+  client: PortalClient
+  onStatus: (message: string) => void
+  resubmissionEnabled: boolean
+}) {
+  const [history, setHistory] = useState<PortalMediaUploadHistory | null>(null)
+  const [capacity, setCapacity] = useState<PortalMediaCapacity | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [selected, setSelected] = useState<PortalMediaUpload | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [altText, setAltText] = useState('')
+  const [rights, setRights] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null)
+  const selectedRef = useRef<PortalMediaUpload | null>(null)
+  selectedRef.current = selected
+  const refresh = () => {
+    setLoading(true)
+    setLoadError(false)
+    Promise.all([client.listMediaUploads(), client.getMediaCapacity()])
+      .then(([history, capacity]) => {
+        setHistory(history)
+        setCapacity(capacity)
+        if (!history.uploads.some((upload) => upload.uploadId === selectedRef.current?.uploadId))
+          setSelected(null)
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
+  }
+  useEffect(refresh, [client])
+
+  function beginResubmit(upload: PortalMediaUpload) {
+    setSelected(upload)
+    setAltText(upload.altText)
+    setFile(null)
+    setRights(false)
+    setFormError(null)
+    setIdempotencyKey(null)
+  }
+  function submitResubmit(event: FormEvent) {
+    event.preventDefault()
+    if (pending || loading || loadError) return
+    const alt = altText.normalize('NFKC').trim()
+    if (!selected || !file || !rights || !alt) {
+      setFormError('Choose a corrected image, describe it, and confirm your publishing rights.')
+      return
+    }
+    setFormError(null)
+    setPending(true)
+    const key = idempotencyKey ?? crypto.randomUUID()
+    setIdempotencyKey(key)
+    client
+      .resubmitMedia({
+        originalUploadId: selected.uploadId,
+        file,
+        altText: alt,
+        rightsConfirmed: true,
+        idempotencyKey: key,
+      })
+      .then(() => {
+        onStatus('Replacement submitted and is awaiting Administrator review.')
+        setSelected(null)
+        setFile(null)
+        setAltText('')
+        setRights(false)
+        setIdempotencyKey(null)
+        refresh()
+      })
+      .catch((error: unknown) => {
+        setFormError(error instanceof PortalMediaCapError ? error.message : GENERIC_PORTAL_ERROR)
+      })
+      .finally(() => setPending(false))
+  }
+
+  if (loading && !history) return <p role="status">Loading official photo history…</p>
+
+  if (loadError && !history)
+    return (
+      <div>
+        <p role="alert">We couldn't load your media history.</p>
+        <button type="button" className="button" onClick={refresh}>
+          Retry loading history
+        </button>
+      </div>
+    )
+
+  return (
+    <div>
+      <div className="portal-media-history-toolbar">
+        <h3>Submission history</h3>
+        <button
+          type="button"
+          className="button button--secondary"
+          disabled={pending || loading}
+          onClick={refresh}
+        >
+          Refresh
+        </button>
+      </div>
+      {capacity && !loadError && (
+        <p role="status">
+          Current tier:{' '}
+          {capacity.currentTier === 'free'
+            ? 'Free'
+            : capacity.currentTier === 'gallery'
+              ? 'Gallery'
+              : 'Full Gallery'}
+          . {capacity.approvedCount} approved gallery photos;{' '}
+          {capacity.cap === null
+            ? 'no plan-count cap. Operational limits still apply.'
+            : `${Math.max(0, capacity.cap - capacity.approvedCount)} of ${capacity.cap} gallery places available.`}{' '}
+          Capacity is checked again when you submit and when an Administrator approves.
+        </p>
+      )}
+      {loading && <p role="status">Refreshing official photo history…</p>}
+      {loadError && history && (
+        <div role="alert">
+          <p>We couldn't refresh your media history. Your last loaded history is still shown.</p>
+          <button type="button" className="button button--secondary" onClick={refresh}>
+            Retry refresh
+          </button>
+        </div>
+      )}
+      {history && history.uploads.length === 0 ? (
+        <p>No images have been submitted yet.</p>
+      ) : (
+        <ul className="portal-media-history">
+          {(history?.uploads ?? []).map((upload) => (
+            <li key={upload.uploadId}>
+              <div className="portal-media-placeholder" aria-hidden="true">
+                Private image preview unavailable
+              </div>
+              <div>
+                <p>
+                  <strong>{upload.altText}</strong>
+                </p>
+                <p className={mediaStateClass(upload.state)} role="status">
+                  {mediaStateLabel(upload.state)}
+                </p>
+                <p>
+                  Placement: {upload.kind === 'cover' ? 'Cover photo' : 'Gallery photo'} · Submitted{' '}
+                  {formatPortalDate(upload.submittedAt)}
+                </p>
+              </div>
+              {upload.state === 'rejected' && (
+                <div className="portal-media-rejection">
+                  <p>Reason: {upload.rejectionReason ?? 'No reason provided'}</p>
+                  {resubmissionEnabled ? (
+                    <button
+                      type="button"
+                      className="button"
+                      disabled={pending || loading || loadError}
+                      onClick={() => beginResubmit(upload)}
+                    >
+                      Resubmit corrected image
+                    </button>
+                  ) : (
+                    <p role="status">{MEDIA_GATE_MESSAGE}</p>
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {selected && (
+        <form onSubmit={submitResubmit}>
+          <h4>Resubmit a corrected image</h4>
+          <p>
+            You are correcting a rejected {selected.kind} image. The original stays unchanged while
+            your replacement awaits review.
+          </p>
+          <label htmlFor="resubmit-file">Corrected image file</label>
+          <input
+            id="resubmit-file"
+            disabled={pending}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => {
+              setFile(event.target.files?.[0] ?? null)
+              setIdempotencyKey(null)
+            }}
+            required
+          />
+          <label htmlFor="resubmit-alt">Alternative text for corrected image</label>
+          <input
+            id="resubmit-alt"
+            disabled={pending}
+            value={altText}
+            maxLength={240}
+            onChange={(event) => {
+              setAltText(event.target.value)
+              setIdempotencyKey(null)
+            }}
+            required
+          />
+          <label>
+            <input
+              type="checkbox"
+              checked={rights}
+              disabled={pending}
+              onChange={(event) => {
+                setRights(event.target.checked)
+                setIdempotencyKey(null)
+              }}
+            />{' '}
+            I confirm that I have rights to publish this corrected image.
+          </label>
+          {formError && <p role="alert">{formError}</p>}
+          <button className="button" type="submit" disabled={pending || loading || loadError}>
+            {pending ? 'Submitting…' : 'Submit corrected image'}
+          </button>
+          <button
+            type="button"
+            className="button"
+            disabled={pending}
+            onClick={() => setSelected(null)}
+          >
+            Cancel
+          </button>
+        </form>
+      )}
+    </div>
+  )
+}
+
+export function PortalMediaReviewPage({
+  client = unavailablePortalClient,
+}: {
+  client?: PortalClient
+}) {
+  const [mediaReady, setMediaReady] = useState<boolean | null>(null)
+  const [status, setStatus] = useState<string | null>(null)
+  const confirmationRef = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    let active = true
+    client
+      .getMediaCapability()
+      .then((capability) => {
+        if (active) setMediaReady(capability.enabled)
+      })
+      .catch(() => {
+        if (active) setMediaReady(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [client])
+  useEffect(() => {
+    if (status) confirmationRef.current?.focus()
+  }, [status])
+  return (
+    <PortalCard
+      title="Official photos"
+      description="Review your official photo submissions and correct a rejected item without changing the original."
+    >
+      <PortalNav />
+      <section aria-label="Official photos">
+        {mediaReady !== true && (
+          <p role="status">
+            {mediaReady === null ? 'Checking the M-01 media capability…' : MEDIA_GATE_MESSAGE}
+          </p>
+        )}
+        {status && (
+          <p ref={confirmationRef} role="status" tabIndex={-1}>
+            {status}
+          </p>
+        )}
+        <PortalMediaHistorySection
+          client={client}
+          onStatus={setStatus}
+          resubmissionEnabled={mediaReady === true}
+        />
+      </section>
+    </PortalCard>
+  )
+}
+
 export function PortalControlledChangesPage({
   client = unavailablePortalClient,
 }: {
@@ -1326,55 +1647,62 @@ export function PortalControlledChangesPage({
       <section aria-labelledby="official-media-heading">
         <h2 id="official-media-heading">Official photos</h2>
         {mediaReady ? (
-          <form onSubmit={submitMedia}>
-            <p>
-              Images are quarantined, scanned, metadata-stripped, and re-encoded before a separate
-              Administrator review. The original file is never published.
-            </p>
-            <label htmlFor="official-media-kind">Image placement</label>
-            <select
-              id="official-media-kind"
-              value={mediaKind}
-              onChange={(event) => setMediaKind(event.target.value as 'cover' | 'gallery')}
-            >
-              <option value="gallery">Gallery image</option>
-              <option value="cover">Cover image</option>
-            </select>
-            <label htmlFor="official-media-file">Official image file</label>
-            <input
-              id="official-media-file"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(event) => setMediaFile(event.target.files?.[0] ?? null)}
-              required
-            />
-            <label htmlFor="official-media-alt">Alternative text</label>
-            <input
-              id="official-media-alt"
-              value={mediaAltText}
-              maxLength={240}
-              onChange={(event) => setMediaAltText(event.target.value)}
-              required
-            />
-            <label>
+          <>
+            <form onSubmit={submitMedia}>
+              <p>
+                Images are quarantined, scanned, metadata-stripped, and re-encoded before a separate
+                Administrator review. The original file is never published.
+              </p>
+              <label htmlFor="official-media-kind">Image placement</label>
+              <select
+                id="official-media-kind"
+                value={mediaKind}
+                onChange={(event) => setMediaKind(event.target.value as 'cover' | 'gallery')}
+              >
+                <option value="gallery">Gallery image</option>
+                <option value="cover">Cover image</option>
+              </select>
+              <label htmlFor="official-media-file">Official image file</label>
               <input
-                type="checkbox"
-                checked={mediaRights}
-                onChange={(event) => setMediaRights(event.target.checked)}
-              />{' '}
-              I confirm that I have rights to publish this image.
-            </label>
-            {mediaError && <p role="alert">{mediaError}</p>}
-            {mediaStatus && <p role="status">{mediaStatus}</p>}
-            <button className="button" type="submit" disabled={mediaPending}>
-              {mediaPending ? 'Submitting…' : 'Submit image for review'}
-            </button>
-          </form>
+                id="official-media-file"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(event) => setMediaFile(event.target.files?.[0] ?? null)}
+                required
+              />
+              <label htmlFor="official-media-alt">Alternative text</label>
+              <input
+                id="official-media-alt"
+                value={mediaAltText}
+                maxLength={240}
+                onChange={(event) => setMediaAltText(event.target.value)}
+                required
+              />
+              <label>
+                <input
+                  type="checkbox"
+                  checked={mediaRights}
+                  onChange={(event) => setMediaRights(event.target.checked)}
+                />{' '}
+                I confirm that I have rights to publish this image.
+              </label>
+              {mediaError && <p role="alert">{mediaError}</p>}
+              {mediaStatus && <p role="status">{mediaStatus}</p>}
+              <button className="button" type="submit" disabled={mediaPending}>
+                {mediaPending ? 'Submitting…' : 'Submit image for review'}
+              </button>
+            </form>
+          </>
         ) : (
           <p role="status">
             {mediaReady === null ? 'Checking the M-01 media capability…' : MEDIA_GATE_MESSAGE}
           </p>
         )}
+        <PortalMediaHistorySection
+          client={client}
+          onStatus={setMediaStatus}
+          resubmissionEnabled={mediaReady === true}
+        />
       </section>
     </PortalCard>
   )
