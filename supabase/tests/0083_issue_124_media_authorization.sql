@@ -18,6 +18,10 @@ from pg_proc p where p.oid in ('app_public.portal_list_media_uploads()'::regproc
 select ok(c.relrowsecurity and c.relforcerowsecurity, c.oid::regclass || ' forces RLS')
 from pg_class c where c.oid in ('media_private.media_uploads'::regclass,
   'partner_private.store_photo_tier_state'::regclass);
+select is(c.relowner::regrole::text, expected.owner, expected.name || ' retains its server-owned table owner')
+from (values ('media_private.media_uploads','postgres'),
+  ('partner_private.store_photo_tier_state','postgres')) expected(name,owner)
+join pg_class c on c.oid=expected.name::regclass;
 
 set local role authenticated;
 select throws_ok('select * from media_private.media_uploads','42501',null,'browser cannot bulk-read private upload rows');
@@ -51,6 +55,13 @@ savepoint reservation_rollback;
 set local role authenticated;
 select app_public.media_reserve_resubmission('80000000-0000-4000-8000-000000000001','Rollback','12400000-0000-4000-8000-000000000002',true,'image/png',1000,640,480,repeat('b',64));
 reset role;
+do $$ begin
+  if not exists(select 1 from media_private.media_uploads u
+    join media_private.media_purge_jobs j using(upload_id)
+    where u.idempotency_key='12400000-0000-4000-8000-000000000002' and u.state='reserved' and j.state='queued') then
+    raise exception 'rollback precondition: reservation and queued purge job must exist';
+  end if;
+end $$;
 rollback to reservation_rollback;
 select is((select count(*) from media_private.media_uploads where idempotency_key='12400000-0000-4000-8000-000000000002'),0::bigint,'rollback removes reservation');
 select ok(not exists(select 1 from media_private.media_purge_jobs j left join media_private.media_uploads u using(upload_id) where u.upload_id is null),'rollback leaves no orphan purge job');
