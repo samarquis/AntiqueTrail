@@ -15,6 +15,11 @@ test('selected record audit and direct-route denial', async ({ page }) => {
   for (const width of [1280, 768, 320]) {
     await page.setViewportSize({ width, height: 900 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    for (const heading of await page.getByRole('heading').all()) {
+      expect(await heading.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      )
+    }
   }
   await page.screenshot({ path: test.info().outputPath('audit-320.png'), fullPage: true })
   await page.emulateMedia({ colorScheme: 'dark' })
@@ -69,12 +74,23 @@ test('actual 200% browser zoom preserves record audit reflow', async ({
         '* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p { margin-bottom: 2em !important; }',
     })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    for (const heading of await page.getByRole('heading').all()) {
+      expect(await heading.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      )
+    }
     await page.getByRole('link', { name: 'Back to Access & Safety' }).focus()
     await expect(page.getByRole('link', { name: 'Back to Access & Safety' })).toBeFocused()
     await page.screenshot({
       path: testInfo.outputPath('audit-browser-zoom-200.png'),
-      fullPage: true,
+      fullPage: false,
     })
+    await page
+      .getByRole('region', { name: 'Record audit' })
+      .getByRole('listitem')
+      .last()
+      .scrollIntoViewIfNeeded()
+    await page.screenshot({ path: testInfo.outputPath('audit-browser-zoom-200-events.png') })
   } finally {
     await context.close()
   }
