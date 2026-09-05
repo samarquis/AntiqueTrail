@@ -3,6 +3,7 @@ import {
   loadBillingProviderEnv,
   providerIdHmac,
   reconcileCheckoutRefund,
+  subscriptionPeriodEnd,
   verifyStripeSignature,
 } from '../_shared/billing-provider.ts'
 
@@ -138,7 +139,7 @@ Deno.serve(async (request) => {
       p_provider_session_hmac: binding.digest,
       p_hmac_key_version: binding.keyVersion,
     })
-    return result.error ? unavailable() : received(String(result.data))
+    return result.error || result.data === 'unbound' ? unavailable() : received(String(result.data))
   }
   if (
     event.type === 'checkout.session.completed' ||
@@ -168,10 +169,12 @@ Deno.serve(async (request) => {
         p_provider_session_hmac: providerSessionHmac.digest,
         p_hmac_key_version: providerSessionHmac.keyVersion,
       })
-      if (failed.error) return unavailable()
+      if (failed.error || failed.data === 'unbound') return unavailable()
       return received(String(failed.data))
     }
     if (checkout.payment_status !== 'paid') return received('payment_pending')
+    const periodEnd = await subscriptionPeriodEnd(env, checkout.subscription)
+    if (!periodEnd) return unavailable()
     const applied = await workerClient.rpc('billing_record_checkout_event', {
       p_event_id: event.id,
       p_event_time:
@@ -182,8 +185,9 @@ Deno.serve(async (request) => {
       p_hmac_key_version: providerSessionHmac.keyVersion,
       p_customer_id: checkout.customer,
       p_subscription_id: checkout.subscription,
+      p_period_end: periodEnd,
     })
-    if (applied.error) return unavailable()
+    if (applied.error || applied.data === 'unbound') return unavailable()
     if (applied.data === 'refund_pending') {
       const result = await reconcileCheckoutRefund(
         (name, args) => workerClient.rpc(name, args),

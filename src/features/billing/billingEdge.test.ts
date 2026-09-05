@@ -63,6 +63,10 @@ function signed(type: string, object: Record<string, unknown>, valid = true) {
 }
 
 it('executes signed servicing webhooks and denies unpaid or invalid signatures', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json({ id: 'sub_issue177edge', current_period_end: 1900000000 })),
+  )
   const rpc = vi.fn<Rpc>(async (name) => ({
     data: name === 'billing_get_webhook_mode' ? 'servicing_only' : 'applied',
     error: null,
@@ -85,6 +89,128 @@ it('executes signed servicing webhooks and denies unpaid or invalid signatures',
     signed('checkout.session.async_payment_succeeded', { ...checkout, payment_status: 'paid' }),
   )
   expect(rpc.mock.calls.some(([name]) => name === 'billing_record_checkout_event')).toBe(true)
+  expect(
+    rpc.mock.calls.find(([name]) => name === 'billing_record_checkout_event')?.[1]?.p_period_end,
+  ).toBe(new Date(1900000000000).toISOString())
+})
+
+it('retries signed completion and expiry until a lost create response is bound', async () => {
+  let bound = false
+  const rpc = vi.fn<Rpc>(async (name) => ({
+    data: name === 'billing_get_webhook_mode' ? 'sales_open' : bound ? 'applied' : 'unbound',
+    error: null,
+  }))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json({ id: 'sub_issue177edge', current_period_end: 1900000000 })),
+  )
+  const handler = edge('store-billing-webhook', rpc)
+  const checkout = {
+    id: 'cs_issue177edge01',
+    customer: 'cus_issue177edge',
+    subscription: 'sub_issue177edge',
+    payment_status: 'paid',
+    metadata: { hmac_key_version: '1' },
+  }
+  expect((await handler(signed('checkout.session.completed', checkout))).status).toBe(503)
+  expect((await handler(signed('checkout.session.expired', checkout))).status).toBe(503)
+  bound = true
+  expect((await handler(signed('checkout.session.completed', checkout))).status).toBe(200)
+})
+
+const recoveryReservation = () => ({
+  sessionId: 'fixture',
+  createdAt: new Date(Date.now() - 3600000).toISOString(),
+  expiresAt: new Date(Date.now() - 120000).toISOString(),
+  request: {
+    'metadata[hmac_key_version]': '1',
+    'line_items[0][price_data][currency]': 'usd',
+    'line_items[0][price_data][unit_amount]': '1200',
+  },
+})
+const recoveredSession = {
+  id: 'cs_issue177edge01',
+  status: 'complete',
+  url: null,
+  client_reference_id: 'fixture',
+  metadata: { checkout_session_id: 'fixture', hmac_key_version: '1' },
+  mode: 'subscription',
+  currency: 'usd',
+  amount_subtotal: 1200,
+}
+
+it('recovers terminal Checkout identity through a complete read-only provider inventory', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json({ data: [recoveredSession], has_more: false })),
+  )
+  expect(await provider.findProviderCheckout(env, recoveryReservation())).toEqual({
+    id: 'cs_issue177edge01',
+  })
+})
+
+it('proves absence only after every provider page and keeps incomplete scans pending', async () => {
+  const fetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(Response.json({ data: [{ id: 'cs_unrelated0001' }], has_more: true }))
+    .mockResolvedValueOnce(Response.json({ data: [], has_more: false }))
+    .mockResolvedValueOnce(Response.json({ data: [], has_more: true }))
+  vi.stubGlobal('fetch', fetch)
+  expect(await provider.findProviderCheckout(env, recoveryReservation())).toEqual({ id: null })
+  expect(String(fetch.mock.calls[1][0])).toContain('starting_after=cs_unrelated0001')
+  expect(await provider.findProviderCheckout(env, recoveryReservation())).toBeNull()
+  expect(fetch.mock.calls.every(([, init]) => !init?.method)).toBe(true)
+})
+
+it('releases a never-sent prepared request only after a complete empty inventory', async () => {
+  const rpc = vi.fn<Rpc>(async (name) => ({
+    data: name === 'billing_due_checkout_expiry' ? [recoveryReservation()] : 'failed',
+    error: null,
+  }))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json({ data: [], has_more: false })),
+  )
+  const response = await edge(
+    'store-billing-expiry',
+    rpc,
+  )(
+    new Request('https://edge.test', {
+      method: 'POST',
+      headers: { 'x-scheduler-secret': 'fixture-config' },
+    }),
+  )
+  expect(response.status).toBe(200)
+  expect(rpc.mock.calls.some(([name]) => name === 'billing_record_checkout_create_rejected')).toBe(
+    true,
+  )
+})
+
+it('binds a completed lost-response session so signed webhook redelivery can settle it', async () => {
+  const rpc = vi.fn<Rpc>(async (name) => ({
+    data: name === 'billing_due_checkout_expiry' ? [recoveryReservation()] : true,
+    error: null,
+  }))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.includes('?') ? { data: [recoveredSession], has_more: false } : recoveredSession,
+      ),
+    ),
+  )
+  const response = await edge(
+    'store-billing-expiry',
+    rpc,
+  )(
+    new Request('https://edge.test', {
+      method: 'POST',
+      headers: { 'x-scheduler-secret': 'fixture-config' },
+    }),
+  )
+  expect(response.status).toBe(503)
+  expect(rpc.mock.calls.some(([name]) => name === 'billing_bind_checkout_provider')).toBe(true)
+  expect(rpc.mock.calls.some(([name]) => name === 'billing_record_checkout_expired')).toBe(false)
 })
 
 it('retries the real Checkout endpoint with the identical frozen provider request', async () => {

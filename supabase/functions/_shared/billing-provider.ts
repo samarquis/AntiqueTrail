@@ -290,7 +290,11 @@ export async function stripeFormPost(
     return { ok: false }
   }
   if (!response.ok) return { ok: false }
-  const body = (await response.json().catch(() => null)) as { id?: unknown; url?: unknown } | null
+  const body = (await response.json().catch(() => null)) as {
+    id?: unknown
+    url?: unknown
+    status?: unknown
+  } | null
   if (
     typeof body?.id !== 'string' ||
     !(
@@ -303,6 +307,101 @@ export async function stripeFormPost(
   )
     return { ok: false }
   return { ok: true, id: body.id, url: body.url }
+}
+
+/** Read-only recovery after the mint window; validation errors cannot prove absence. */
+export async function findProviderCheckout(
+  env: BillingProviderEnv,
+  reservation: {
+    sessionId: string
+    createdAt: string
+    expiresAt: string
+    request: Record<string, string>
+  },
+): Promise<{ id: string | null } | null> {
+  const from = Date.parse(reservation.createdAt),
+    until = Date.parse(reservation.expiresAt) + 60_000
+  if (
+    !env.secretKey ||
+    !env.providerGateAccepted ||
+    !Number.isFinite(from) ||
+    !Number.isFinite(until) ||
+    Date.now() <= until
+  )
+    return null
+  let cursor = '',
+    found: string | null = null
+  try {
+    for (let page = 0; page < 100; page++) {
+      const params = new URLSearchParams({
+        limit: '100',
+        'created[gte]': String(Math.floor(from / 1000) - 5),
+        'created[lte]': String(Math.ceil(until / 1000)),
+      })
+      if (cursor) params.set('starting_after', cursor)
+      const response = await fetch(`https://api.stripe.com/v1/checkout/sessions?${params}`, {
+        headers: { Authorization: `Bearer ${env.secretKey}` },
+        redirect: 'error',
+        signal: AbortSignal.timeout(15000),
+      })
+      if (!response.ok) return null
+      const body = await response.json()
+      if (!Array.isArray(body.data) || typeof body.has_more !== 'boolean') return null
+      for (const session of body.data) {
+        if (
+          session.client_reference_id !== reservation.sessionId &&
+          session.metadata?.checkout_session_id !== reservation.sessionId
+        )
+          continue
+        if (
+          found ||
+          session.client_reference_id !== reservation.sessionId ||
+          session.metadata?.checkout_session_id !== reservation.sessionId ||
+          session.metadata?.hmac_key_version !==
+            reservation.request['metadata[hmac_key_version]'] ||
+          session.mode !== 'subscription' ||
+          session.currency !== reservation.request['line_items[0][price_data][currency]'] ||
+          session.amount_subtotal !==
+            Number(reservation.request['line_items[0][price_data][unit_amount]']) ||
+          typeof session.id !== 'string' ||
+          !/^cs_[A-Za-z0-9_]{8,120}$/.test(session.id)
+        )
+          return null
+        found = session.id
+      }
+      if (!body.has_more) return { id: found }
+      const next = body.data.at(-1)?.id
+      if (typeof next !== 'string' || next === cursor) return null
+      cursor = next
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+/** Checkout carries the subscription identity; the provider owns its renewal clock. */
+export async function subscriptionPeriodEnd(
+  env: BillingProviderEnv,
+  id: string,
+): Promise<string | null> {
+  if (!env.secretKey || !env.providerGateAccepted || !/^sub_[A-Za-z0-9]{8,64}$/.test(id))
+    return null
+  try {
+    const response = await fetch(`https://api.stripe.com/v1/subscriptions/${id}`, {
+      headers: { Authorization: `Bearer ${env.secretKey}` },
+      redirect: 'error',
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!response.ok) return null
+    const subscription = await response.json()
+    const end = subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end
+    return subscription.id === id && typeof end === 'number' && Number.isSafeInteger(end) && end > 0
+      ? new Date(end * 1000).toISOString()
+      : null
+  } catch {
+    return null
+  }
 }
 
 declare const Deno: {

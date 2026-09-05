@@ -138,8 +138,12 @@ update partner_private.store_partner_grants set state='active',revoked_at=null,r
 select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions),repeat('ab',32),1);
 select is(app_public.billing_record_checkout_event('evt_issue177wrongkey',statement_timestamp(),repeat('ef',32),1,'cus_issue177valid','sub_issue177valid'),
   'unbound','wrong provider HMAC cannot select a Checkout');
-select is(app_public.billing_record_checkout_event('evt_issue177valid01',statement_timestamp(),repeat('ab',32),1,'cus_issue177valid','sub_issue177valid'),
+select throws_ok($$select app_public.billing_record_checkout_event('evt_issue177valid01',statement_timestamp(),repeat('ab',32),1,'cus_issue177valid','sub_issue177valid')$$,
+  '22023','billing_provider_period_required','paid application requires an authoritative provider period');
+select is(app_public.billing_record_checkout_event('evt_issue177valid01',statement_timestamp(),repeat('ab',32),1,'cus_issue177valid','sub_issue177valid','2090-03-12T16:42:00Z'),
   'applied','verified worker event atomically applies the exact Checkout');
+select is((select current_period_end from partner_private.store_subscriptions where store_id='17700000-0000-4000-8000-000000000001'),
+  '2090-03-12T16:42:00Z'::timestamptz,'mirror preserves provider period exactly instead of inventing a month');
 select is((select state from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000040'),'consumed','verified completion consumes consent');
 select is((select tier from partner_private.store_photo_tier_state where store_id='17700000-0000-4000-8000-000000000001'),'gallery','verified completion upgrades exact store');
 select is(app_public.billing_record_checkout_event('evt_issue177valid01',statement_timestamp(),repeat('ab',32),1,'cus_issue177valid','sub_issue177valid'),
@@ -226,8 +230,47 @@ select app_public.billing_record_checkout_refund_state('evt_issue177exhaust',rep
 select is(app_public.billing_reserve_refund_attempt(repeat('fa',32),1)->>'state','escalated','three confirmed failures escalate without a fourth charge request');
 select ok((select escalated_at is not null and jsonb_array_length(attempt_history)=2 from partner_private.photo_tier_refund_reconciliations where provider_event_id='evt_issue177exhaust'),'exhaustion preserves all failure attempts and the escalation time');
 select is(app_public.billing_reserve_refund_attempt(repeat('fa',32),1)->>'state','escalated','exhaustion replay stays terminal');
-select ok(not has_function_privilege('authenticated','app_public.billing_record_checkout_event(text,timestamptz,text,integer,text,text)','EXECUTE')
-  and has_function_privilege('billing_mirror_service','app_public.billing_record_checkout_event(text,timestamptz,text,integer,text,text)','EXECUTE'),'only the verified webhook worker can apply completion');
+select ok(not has_function_privilege('authenticated','app_public.billing_record_checkout_event(text,timestamptz,text,integer,text,text,timestamptz)','EXECUTE')
+  and has_function_privilege('billing_mirror_service','app_public.billing_record_checkout_event(text,timestamptz,text,integer,text,text,timestamptz)','EXECUTE'),'only the verified webhook worker can apply completion');
+
+create temporary table expiry_fixtures as select n,gen_random_uuid() store_id,gen_random_uuid() consent_id,gen_random_uuid() session_id from generate_series(1,21) n;
+insert into app_public.stores(id,slug,name,town,state_code,address,area_id,summary,description,publication_state)
+  select store_id,'issue-177-expiry-'||n,'Expiry fixture','Topeka','KS','1 Test Way',
+    '00000000-0000-4000-8000-000000000001','Database fixture','Database fixture store','active' from expiry_fixtures;
+insert into partner_private.photo_tier_paid_consents(consent_id,store_id,representative_id,target_tier,commercial_config_version,
+  disclosure_digest,expected_store_version,idempotency_key,input_digest,state,expires_at)
+  select consent_id,store_id,'17700000-0000-4000-8000-000000000010','gallery',177,decode(repeat('11',32),'hex'),0,
+    gen_random_uuid(),decode(repeat('22',32),'hex'),'checkout_pending',statement_timestamp()+interval '10 minutes' from expiry_fixtures;
+insert into partner_private.photo_tier_checkout_sessions(session_id,store_id,consent_id,target_tier,commercial_config_version,
+  sales_generation,idempotency_key,input_digest,provider_request,created_at,expires_at)
+  select session_id,store_id,consent_id,'gallery',177,2,gen_random_uuid(),decode(repeat('33',32),'hex'),'{}'::jsonb,
+    statement_timestamp()-interval '1 hour',statement_timestamp()-interval '30 minutes' from expiry_fixtures;
+create temporary table expiry_first_batch as select app_public.billing_due_checkout_expiry() result;
+select is((select jsonb_array_length(result) from expiry_first_batch),20,'expiry dispatch stays bounded');
+select ok((select count(*)=20 from partner_private.photo_tier_checkout_sessions where last_expiry_attempt_at is not null),'dispatch durably records attempts before provider work');
+create temporary table expiry_second_batch as select app_public.billing_due_checkout_expiry() result;
+select ok((select count(*)=21 from (
+  select item->>'sessionId' from expiry_first_batch cross join lateral jsonb_array_elements(result) item
+  union select item->>'sessionId' from expiry_second_batch cross join lateral jsonb_array_elements(result) item
+) reached),'second dispatch reaches the twenty-first checkout despite persistent first-batch failures');
+select is(app_public.billing_record_checkout_create_rejected((select session_id from expiry_fixtures where n=1)),'failed','authoritative provider absence releases a prepared unbound purchase');
+select is(app_public.billing_record_checkout_create_rejected((select session_id from expiry_fixtures where n=1)),'failed','provider absence terminalization safely replays');
+select is((select state from partner_private.photo_tier_paid_consents where consent_id=(select consent_id from expiry_fixtures where n=1)),
+  'revoked','provider absence revokes the reserved consent');
+update partner_private.photo_tier_checkout_sessions set provider_session_id_hmac=decode(repeat('88',32),'hex'),provider_session_hmac_key_version=1
+  where session_id=(select session_id from expiry_fixtures where n=2);
+select throws_ok($$select app_public.billing_record_checkout_create_rejected((select session_id from expiry_fixtures where n=2))$$,
+  '42501','billing_provider_rejection_denied','provider absence cannot terminalize a bound possibly-paid checkout');
+update partner_private.photo_tier_checkout_sessions set created_at=statement_timestamp()-interval '24 hours',expires_at=statement_timestamp()-interval '23 hours 30 minutes'
+  where session_id=(select session_id from expiry_fixtures where n=3);
+select is(app_public.billing_record_checkout_create_rejected((select session_id from expiry_fixtures where n=3)),
+  'failed','complete provider inventory can release a never-created checkout after an extended outage');
+update partner_private.photo_tier_checkout_sessions set created_at=statement_timestamp(),expires_at=statement_timestamp()+interval '30 minutes'
+  where session_id=(select session_id from expiry_fixtures where n=4);
+select throws_ok($$select app_public.billing_record_checkout_create_rejected((select session_id from expiry_fixtures where n=4))$$,
+  '42501','billing_provider_rejection_denied','provider absence cannot release a still-mintable checkout');
+select ok(not has_function_privilege('authenticated','app_public.billing_record_checkout_create_rejected(uuid)','EXECUTE')
+  and has_function_privilege('billing_mirror_service','app_public.billing_record_checkout_create_rejected(uuid)','EXECUTE'),'only the provider worker can attest absence');
 
 select * from finish();
 rollback;

@@ -4,7 +4,7 @@ import {
   expireProviderCheckout,
   loadBillingProviderEnv,
   providerIdHmac,
-  stripeFormPost,
+  findProviderCheckout,
 } from '../_shared/billing-provider.ts'
 
 declare const Deno: {
@@ -37,15 +37,17 @@ Deno.serve(async (request) => {
     let id =
       typeof row.ciphertext === 'string' ? await checkoutReference(env, row.ciphertext, true) : null
     if (!id) {
-      // Recover an ambiguous first response using the original immutable request and key.
-      const recovered = await stripeFormPost(
-        env,
-        '/v1/checkout/sessions',
-        row.request,
-        row.idempotencyKey,
-      )
-      if (!recovered.ok) {
+      // Never create after expiry; a complete provider scan also recovers terminal sessions.
+      const recovered = await findProviderCheckout(env, row)
+      if (!recovered) {
         pending++
+        continue
+      }
+      if (!recovered.id) {
+        const rejected = await client.rpc('billing_record_checkout_create_rejected', {
+          p_checkout_session_id: row.sessionId,
+        })
+        if (rejected.error || rejected.data !== 'failed') pending++
         continue
       }
       id = recovered.id
