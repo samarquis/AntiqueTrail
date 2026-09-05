@@ -107,7 +107,7 @@ select is((select state from portal_private.store_updates where update_id='13500
 
 -- Exercise the same real read boundary with independently changed server facts.
 savepoint active_actor;
-update partner_private.store_partner_grants set state='revoked' where grant_id='76000000-0000-4000-8000-000000000007';
+update partner_private.store_partner_grants set state='revoked', revoked_at=statement_timestamp() where grant_id='76000000-0000-4000-8000-000000000007';
 set local role authenticated;
 select throws_ok($$select app_public.portal_get_home()$$,'42501','portal_unavailable','revoked grant denies next request');
 select throws_ok($$select app_public.portal_list_updates()$$,'42501','portal_unavailable','revoked grant denies list sibling path');
