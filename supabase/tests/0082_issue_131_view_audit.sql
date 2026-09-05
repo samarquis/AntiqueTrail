@@ -100,6 +100,8 @@ insert into admin_private.admin_case_events(case_id,event_kind,to_state,idempote
 values('13100000-0000-4000-8000-000000000001','created','open','131-created',statement_timestamp()-interval '2 minutes'),
 ('13100000-0000-4000-8000-000000000001','claimed','claimed','131-claimed',statement_timestamp()-interval '1 minute'),
 ('13100000-0000-4000-8000-000000000002','rejected','rejected','131-other',statement_timestamp());
+insert into admin_private.admin_case_events(case_id,event_kind,to_state,idempotency_key,occurred_at)
+values('13100000-0000-4000-8000-000000000001','created','open','131-old',statement_timestamp()-interval '3 years');
 set local role identity_service;
 select admin_private.record_operational_admin_event('scope_revoke','76000000-0000-4000-8000-000000000001',
  '76000000-0000-4000-8000-000000000007',decode(repeat('11',32),'hex'),'completed');
@@ -127,7 +129,15 @@ select is((select array_agg(key order by key) from jsonb_object_keys(app_public.
 select is(app_public.admin_read_record_audit(current_setting('test.grant_access'))->0->>'action','admin_scope_revoke','exact grant audit allowed');
 reset role;
 select ok(exists(select 1 from app_private.privileged_audit_events where resource_id='13100000-0000-4000-8000-000000000001' and action='admin_audit_viewed'),'successful read audited');
-select throws_ok($$update app_private.privileged_audit_events set outcome='failed' where resource_id='13100000-0000-4000-8000-000000000001'$$,'42501',null,'audit remains append-only');
+select set_config('test.batch_time',statement_timestamp()::text,true);
+insert into admin_private.admin_case_events(case_id,event_kind,to_state,idempotency_key,occurred_at)
+select '13100000-0000-4000-8000-000000000001','claimed','claimed','131-bounded-'||i,
+  current_setting('test.batch_time')::timestamptz-interval '1 second'*i from generate_series(1,101) i;
+set local role authenticated;
+select is(jsonb_array_length(app_public.admin_read_record_audit(current_setting('test.case_access'))),100,'audit returns at most 100 recent events');
+select ok((app_public.admin_read_record_audit(current_setting('test.case_access'))->0->>'occurredAt')::timestamptz>=current_setting('test.batch_time')::timestamptz-interval '100 seconds','oldest events are excluded from latest 100');
+reset role;
+select throws_ok($$update app_private.privileged_audit_events set outcome='failed' where resource_id='13100000-0000-4000-8000-000000000001'$$,'P0001','privileged_audit_append_only','audit remains append-only');
 -- A second live session cannot reuse the first session's reference.
 insert into app_private.active_sessions(session_id,user_id,provider_created_at,session_epoch,access_token_expires_at)
 values('13100000-0000-4000-8000-000000000008','76000000-0000-4000-8000-000000000001',statement_timestamp(),1,statement_timestamp()+interval '30 minutes');

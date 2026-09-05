@@ -43,6 +43,7 @@ export function ViewAuditButton({
   return (
     <button
       type="button"
+      data-preserve-route-focus
       onClick={(event) => {
         const trigger = event.currentTarget
         context.select({ access, label, returnTo, returnFocus: () => trigger.focus() })

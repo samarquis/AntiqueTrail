@@ -184,7 +184,17 @@ function AppShell({
     if (!content) return
 
     const focusHeading = () => {
-      const heading = content.querySelector<HTMLElement>('h1')
+      const restoredFocus = document.activeElement
+      if (
+        restoredFocus instanceof HTMLElement &&
+        content.contains(restoredFocus) &&
+        restoredFocus.hasAttribute('data-preserve-route-focus') &&
+        !restoredFocus.closest('[hidden]')
+      )
+        return true
+      const heading = Array.from(content.querySelectorAll<HTMLElement>('h1')).find(
+        (item) => !item.closest('[hidden]'),
+      )
       if (!heading) return false
       heading.tabIndex = -1
       heading.focus({ preventScroll: true })
