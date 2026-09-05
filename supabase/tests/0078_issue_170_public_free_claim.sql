@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(53);
+select plan(54);
 
 select has_table('partner_private','store_owner_intake_roots','claim and add starts share an applicant root');
 select has_column('partner_private','store_owner_intake_roots','active_kind','the root records the active intake kind');
@@ -190,6 +190,9 @@ select is(
   1,'idempotent public start creates exactly one claim'
 );
 savepoint claimant_actions;
+select is((select array_agg(k order by k) from jsonb_object_keys(app_public.public_listing_claim_status(null)) k),
+  array['claimId','exactStoreScope','state','version']::text[],
+  'public applicant status excludes risk tiers and internal verification counts');
 select lives_ok($$
   select app_public.partner_admin_claim_command('changes',claim_id,version,'issue-170-changes','more_information',null)
   from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'

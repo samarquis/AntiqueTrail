@@ -88,9 +88,8 @@ begin
     where claimant_id=actor and (p_claim_id is null or claim_id=p_claim_id)
     order by created_at desc limit 1;
   if not found or not partner_private.claim_stage_allowed(c.store_id) then return null; end if;
-  return jsonb_build_object('claimId',c.claim_id,'state',c.state,'riskTier',c.risk_tier,
-    'verifiedSignalCount',(select count(*) from partner_private.claim_authority_signals where claim_id=c.claim_id and status='verified'),
-    'requiredSignalCount',2,'exactStoreScope',(select slug from app_public.stores where id=c.store_id),
+  return jsonb_build_object('claimId',c.claim_id,'state',c.state,
+    'exactStoreScope',(select slug from app_public.stores where id=c.store_id),
     'version',c.version);
 end $$;
 

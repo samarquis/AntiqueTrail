@@ -31,4 +31,3 @@ Scope: Implement the server-authoritative, staged-off existing-listing claim pat
 
 - [ ] G5: Every #170 criterion has exact-SHA evidence, including the stated external activation limitation, and a fresh independent review request is ready.
       EVIDENCE: local implementation evidence is ready; #169/Package 10B activation, independent review, hosted checks, merge, and post-merge verification remain required.
-

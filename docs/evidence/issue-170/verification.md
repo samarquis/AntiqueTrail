@@ -43,4 +43,3 @@ The isolated full 78-file pgTAP run is not globally green: legacy tests fail bec
 1. Complete #169 and the Package 10B activation gate; this ticket explicitly forbids public activation and closure before them.
 2. Run hosted `web`, `database`, and `plan-governance` on the exact pushed head and obtain independent exact-diff approval.
 3. Merge only after those gates pass, then record merged-SHA verification and close the issue.
-
