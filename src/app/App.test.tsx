@@ -443,6 +443,7 @@ describe('app shell', () => {
     const billing: BillingClient = {
       getCapability: vi.fn(),
       startCheckout: vi.fn(),
+      recordPaidTierConsent: vi.fn(),
       openPortal: vi.fn(),
       getCommercialResearchConfig: vi.fn(async () => config),
       recordCommercialResearchAttempt: vi.fn(),

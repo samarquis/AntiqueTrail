@@ -1,5 +1,10 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.112.1'
-import { loadBillingProviderEnv, stripeFormPost } from '../_shared/billing-provider.ts'
+import {
+  loadBillingProviderEnv,
+  providerIdHmac,
+  checkoutReference,
+  stripeFormPost,
+} from '../_shared/billing-provider.ts'
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
@@ -8,6 +13,7 @@ declare const Deno: {
 
 const url = Deno.env.get('SUPABASE_URL')
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+const workerJwt = Deno.env.get('BILLING_WORKER_JWT')
 const env = loadBillingProviderEnv()
 
 function cors(request: Request): Record<string, string> | undefined {
@@ -32,9 +38,7 @@ function stageDisabled(headers: Record<string, string>): Response {
   return Response.json({ error: 'stage_disabled' }, { status: 503, headers })
 }
 
-async function capabilityEnabled(
-  client: ReturnType<typeof createClient>,
-): Promise<boolean> {
+async function capabilityEnabled(client: ReturnType<typeof createClient>): Promise<boolean> {
   const result = await client.rpc('billing_get_capability')
   if (result.error) return false
   const value = result.data as { enabled?: unknown } | null
@@ -45,7 +49,7 @@ Deno.serve(async (request) => {
   const headers = cors(request)
   if (!headers) return unavailable({}, 403)
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers })
-  if (request.method !== 'POST' || !url || !anonKey) return unavailable(headers)
+  if (request.method !== 'POST' || !url || !anonKey || !workerJwt) return unavailable(headers)
   const authorization = request.headers.get('authorization')
   if (!authorization) return unavailable(headers, 401)
 
@@ -66,17 +70,26 @@ Deno.serve(async (request) => {
   const storeId = body.storeId
   const idempotencyKey = body.idempotencyKey
   const tier = body.tier
+  const consentId = body.consentId
+  const commercialConfigVersion = body.commercialConfigVersion
   if (
     typeof storeId !== 'string' ||
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(storeId) ||
     typeof idempotencyKey !== 'string' ||
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(idempotencyKey) ||
+    typeof consentId !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(consentId) ||
+    !Number.isSafeInteger(commercialConfigVersion) ||
+    Number(commercialConfigVersion) <= 0 ||
     (tier !== 'gallery' && tier !== 'full_gallery')
   )
     return unavailable(headers, 400)
 
   const reserved = await userClient.rpc('billing_create_checkout_session', {
     p_store_id: storeId,
+    p_target_tier: tier,
+    p_consent_id: consentId,
+    p_commercial_config_version: commercialConfigVersion,
     p_idempotency_key: idempotencyKey,
   })
   if (reserved.error) {
@@ -86,28 +99,66 @@ Deno.serve(async (request) => {
     return unavailable(headers)
   }
 
-  const price =
-    tier === 'gallery'
-      ? env.priceGallery
-      : env.priceFullGallery
+  const reservation = reserved.data as {
+    checkoutSessionId?: unknown
+    priceCents?: unknown
+    currency?: unknown
+    expiresAt?: unknown
+    state?: unknown
+  } | null
+  if (
+    typeof reservation?.checkoutSessionId !== 'string' ||
+    typeof reservation.priceCents !== 'number' ||
+    !Number.isSafeInteger(reservation.priceCents) ||
+    reservation.priceCents <= 0 ||
+    reservation.currency !== 'USD' ||
+    typeof reservation.expiresAt !== 'string' ||
+    !Number.isFinite(Date.parse(reservation.expiresAt))
+  )
+    return unavailable(headers)
+  if (reservation.state !== 'open' || Date.parse(reservation.expiresAt) <= Date.now())
+    return unavailable(headers, 409)
+  if (!env.providerIdHmacSecret || !env.providerIdHmacKeyVersion) return unavailable(headers)
+  if (!(await checkoutReference(env, 'configuration-probe'))) return unavailable(headers)
   const origin = new URL(env.appOrigin!)
-  const minted = await stripeFormPost(
-    env,
-    '/v1/checkout/sessions',
-    {
+  const workerClient = createClient(url, workerJwt, {
+    db: { schema: 'app_public' },
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const prepared = await workerClient.rpc('billing_prepare_checkout_provider', {
+    p_checkout_session_id: reservation.checkoutSessionId,
+    p_request: {
       mode: 'subscription',
-      'line_items[0][price]': price ?? '',
+      'line_items[0][price_data][currency]': reservation.currency.toLowerCase(),
+      'line_items[0][price_data][unit_amount]': String(reservation.priceCents),
+      'line_items[0][price_data][recurring][interval]': 'month',
+      'line_items[0][price_data][product_data][name]':
+        tier === 'gallery' ? 'Antique Trail Gallery' : 'Antique Trail Full Gallery',
       'line_items[0][quantity]': '1',
-      client_reference_id: storeId,
+      client_reference_id: reservation.checkoutSessionId,
       'subscription_data[metadata][store_id]': storeId,
+      'metadata[checkout_session_id]': reservation.checkoutSessionId,
+      'metadata[hmac_key_version]': String(env.providerIdHmacKeyVersion),
       success_url: `${origin}/store-portal/billing?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/store-portal/billing?canceled=true`,
+      // Stripe requires >=30 minutes from its receipt; the expiry worker enforces the earlier app deadline.
+      expires_at: String(Math.ceil(Date.parse(reservation.expiresAt) / 1000) + 120),
     },
-    idempotencyKey,
-  )
+  })
+  if (prepared.error || !prepared.data || typeof prepared.data !== 'object')
+    return unavailable(headers)
+  const params = prepared.data as Record<string, string>
+  const keyVersion = Number(params['metadata[hmac_key_version]'])
+  const minted = await stripeFormPost(env, '/v1/checkout/sessions', params, idempotencyKey)
   if (!minted.ok) return unavailable(headers)
-  return Response.json(
-    { url: minted.url },
-    { status: 200, headers },
-  )
+  const providerSessionHmac = await providerIdHmac(env, minted.id, keyVersion)
+  if (!providerSessionHmac) return unavailable(headers)
+  const bound = await workerClient.rpc('billing_bind_checkout_provider', {
+    p_checkout_session_id: reservation.checkoutSessionId,
+    p_provider_session_hmac: providerSessionHmac.digest,
+    p_hmac_key_version: providerSessionHmac.keyVersion,
+    p_provider_session_ciphertext: await checkoutReference(env, minted.id),
+  })
+  if (bound.error || bound.data !== true) return unavailable(headers)
+  return Response.json({ url: minted.url }, { status: 200, headers })
 })
