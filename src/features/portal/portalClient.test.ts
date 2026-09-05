@@ -37,6 +37,7 @@ describe('production portal client', () => {
     await client.saveManagedFields({ phone: '555-0100', website: '', description: 'Local store' })
     await client.submitControlledChange({ field: 'name', requestedValue: 'Oak', reason: 'Legal' })
     await client.getMediaCapability()
+    await client.getMediaCapacity()
     await client.uploadOfficialMedia({
       storeId: '11111111-1111-4111-8111-111111111111',
       kind: 'gallery',
@@ -79,6 +80,7 @@ describe('production portal client', () => {
       'portal_save_managed_fields',
       'portal_submit_controlled_change',
       'media_get_capability',
+      'portal_get_media_capacity',
       'portal_list_media_uploads',
       'portal_list_updates',
       'portal_create_update',

@@ -91,6 +91,11 @@ function client(overrides: Partial<PortalClient> = {}): PortalClient {
       submittedAt: '2026-08-03',
     })),
     getMediaCapability: vi.fn(async () => ({ enabled: false, source: 'server' as const })),
+    getMediaCapacity: vi.fn(async () => ({
+      currentTier: 'free' as const,
+      approvedCount: 1,
+      cap: 5,
+    })),
     uploadOfficialMedia: vi.fn(async () => ({
       uploadId: '11111111-1111-4111-8111-111111111111',
       state: 'awaiting_review' as const,
@@ -461,6 +466,94 @@ describe('provider-neutral Store Portal boundary', () => {
       }),
     )
     expect(await screen.findByRole('status')).toHaveTextContent(/processed derivative.*review/i)
+  })
+
+  it.each([
+    ['free', 5, '4 of 5 gallery places available.'],
+    ['gallery', 15, '14 of 15 gallery places available.'],
+    ['full_gallery', null, 'no plan-count cap. Operational limits still apply.'],
+  ] as const)('shows server capacity for %s while M-01 is off', async (currentTier, cap, copy) => {
+    render(
+      <MemoryRouter>
+        <PortalMediaReviewPage
+          client={client({
+            getMediaCapacity: vi.fn(async () => ({ currentTier, cap, approvedCount: 1 })),
+          })}
+        />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText(new RegExp(copy.replaceAll('.', '\\.')))).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Resubmit corrected image' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('offers retry when current capacity is unavailable', async () => {
+    const getMediaCapacity = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('unavailable'))
+      .mockResolvedValue({ currentTier: 'free', cap: 5, approvedCount: 1 })
+    render(
+      <MemoryRouter>
+        <PortalMediaReviewPage client={client({ getMediaCapacity })} />
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry loading history' }))
+    expect(await screen.findByText(/4 of 5 gallery places available/)).toBeInTheDocument()
+  })
+
+  it('locks correction selection and fields until the pending submission settles', async () => {
+    const user = userEvent.setup()
+    let complete!: () => void
+    const resubmitMedia = vi.fn(
+      () =>
+        new Promise<{ newUploadId: string; state: 'awaiting_review' }>((resolve) => {
+          complete = () => resolve({ newUploadId: 'replacement', state: 'awaiting_review' })
+        }),
+    )
+    render(
+      <MemoryRouter>
+        <PortalMediaReviewPage
+          client={client({
+            getMediaCapability: vi.fn(async () => ({ enabled: true, source: 'server' as const })),
+            listMediaUploads: vi.fn(async () => ({
+              uploads: [1, 2].map((id) => ({
+                uploadId: String(id),
+                kind: 'gallery' as const,
+                state: 'rejected' as const,
+                altText: `Photo ${id}`,
+                submittedAt: '2026-09-01T00:00:00Z',
+                rejectionReason: 'Blurry',
+              })),
+            })),
+            resubmitMedia,
+          })}
+        />
+      </MemoryRouter>,
+    )
+    await user.click(
+      (await screen.findAllByRole('button', { name: 'Resubmit corrected image' }))[0],
+    )
+    await user.upload(
+      screen.getByLabelText('Corrected image file'),
+      new File([new Uint8Array(32)], 'replacement.png', { type: 'image/png' }),
+    )
+    await user.click(screen.getByLabelText(/rights.*corrected image/i))
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'Submit corrected image' }).closest('form')!,
+    )
+    for (const button of screen.getAllByRole('button', { name: 'Resubmit corrected image' }))
+      expect(button).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    expect(screen.getByLabelText('Corrected image file')).toBeDisabled()
+    expect(screen.getByLabelText('Alternative text for corrected image')).toBeDisabled()
+    expect(screen.getByLabelText(/rights.*corrected image/i)).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByLabelText('Alternative text for corrected image')).toHaveValue('Photo 1')
+    complete()
+    expect(
+      await screen.findByText('Replacement submitted and is awaiting Administrator review.'),
+    ).toBeInTheDocument()
   })
 
   it('shows the verbatim rejection reason and resubmits without client store authority', async () => {

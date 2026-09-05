@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(40);
+select plan(47);
 
 -- ---- Fixture: actor with active session/MFA and one exact grant on store 1.
 insert into app_public.catalog_areas(id,slug,label,state_code,sort_order)
@@ -223,8 +223,33 @@ select ok(exists(select 1 from media_private.media_audit_events where event_kind
 select ok(not exists(select 1 from media_private.media_provider_operations o join media_private.media_uploads u on u.upload_id=o.upload_id where u.idempotency_key in ('90000000-0000-4000-8000-000000000004','90000000-0000-4000-8000-00000000000a','90000000-0000-4000-8000-00000000000b','90000000-0000-4000-8000-00000000000c')),'denials create no provider operation');
 
 -- ---- 12. A revocation record denies even if the grant row still says active.
+-- The read-only projection uses the same current server resolver and exact scope.
+set local role authenticated;
+select is(app_public.portal_get_media_capacity(),'{"currentTier":"free","approvedCount":5,"cap":5}'::jsonb,'Free capacity returns only current own-store status');
+reset role;
+insert into partner_private.store_photo_tier_state(store_id,tier,source)
+values ('00000000-0000-4000-8000-000000000001','gallery','subscription')
+on conflict(store_id) do update set tier='gallery',source='subscription';
+set local role authenticated;
+select is(app_public.portal_get_media_capacity(),'{"currentTier":"gallery","approvedCount":5,"cap":15}'::jsonb,'Gallery capacity uses current resolver');
+reset role;
+update partner_private.store_photo_tier_state set tier='full_gallery' where store_id='00000000-0000-4000-8000-000000000001';
+set local role authenticated;
+select is(app_public.portal_get_media_capacity(),'{"currentTier":"full_gallery","approvedCount":5,"cap":null}'::jsonb,'Full Gallery exposes no plan-count cap');
+reset role;
+select ok(not has_function_privilege('anon','app_public.portal_get_media_capacity()','EXECUTE'),'anonymous cannot call capacity read');
+savepoint capacity_actor;
+select set_config('request.jwt.claims','{}',true);
+set local role authenticated;
+select throws_ok($$select app_public.portal_get_media_capacity()$$,'42501','portal_unavailable','capacity read denies missing identity');
+reset role;
+rollback to capacity_actor;
+select is((select proconfig from pg_proc where oid='app_public.portal_get_media_capacity()'::regprocedure),array['search_path=""']::text[],'capacity read fixes search path');
 insert into partner_private.partner_access_revocations(grant_id,auth_user_id,store_id,reason_code,idempotency_key)
 values ('76000000-0000-4000-8000-000000000007','76000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','administrator_revoked','resubmit-revocation');
+set local role authenticated;
+select throws_ok($$select app_public.portal_get_media_capacity()$$,'42501','portal_unavailable','capacity read denies revoked-but-active grant');
+reset role;
 select is(
   (app_public.media_reserve_resubmission(
     '80000000-0000-4000-8000-000000000001','Corrected','90000000-0000-4000-8000-000000000009',true,'image/png',1000,640,480,repeat('5',64))->>'error'),

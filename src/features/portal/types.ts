@@ -98,6 +98,12 @@ export interface PortalMediaCapability {
   source: 'server'
 }
 
+export interface PortalMediaCapacity {
+  currentTier: 'free' | 'gallery' | 'full_gallery'
+  approvedCount: number
+  cap: number | null
+}
+
 export type PortalMediaKind = 'cover' | 'gallery'
 
 export interface PortalMediaUploadInput {
@@ -255,6 +261,7 @@ export interface PortalClient {
   saveManagedFields(fields: PortalManagedFields): Promise<PortalHomeSnapshot>
   submitControlledChange(change: PortalControlledChangeDraft): Promise<PortalPendingChange>
   getMediaCapability(): Promise<PortalMediaCapability>
+  getMediaCapacity(): Promise<PortalMediaCapacity>
   uploadOfficialMedia(input: PortalMediaUploadInput): Promise<PortalMediaUploadReceipt>
   listMediaUploads(): Promise<PortalMediaUploadHistory>
   resubmitMedia(input: PortalMediaResubmitInput): Promise<PortalMediaResubmitReceipt>

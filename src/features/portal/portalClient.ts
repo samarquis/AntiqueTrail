@@ -55,6 +55,7 @@ type PortalRpcName =
   | 'portal_reopen_support_ticket'
   | 'portal_preview_public_listing'
   | 'media_get_capability'
+  | 'portal_get_media_capacity'
   | 'portal_list_media_uploads'
   | 'portal_resubmit_media'
 
@@ -166,6 +167,7 @@ export function createPortalClient(
     submitControlledChange: (change: PortalControlledChangeDraft) =>
       call('portal_submit_controlled_change', { p_change: change }),
     getMediaCapability: () => call('media_get_capability'),
+    getMediaCapacity: () => call('portal_get_media_capacity'),
     uploadOfficialMedia: async (input) => {
       if (!media) throw new Error(GENERIC_PORTAL_ERROR)
       try {
@@ -311,6 +313,7 @@ export const unavailablePortalClient: PortalClient = {
   saveManagedFields: unavailable,
   submitControlledChange: unavailable,
   getMediaCapability: unavailable,
+  getMediaCapacity: unavailable,
   uploadOfficialMedia: unavailable,
   listMediaUploads: unavailable,
   resubmitMedia: unavailable,

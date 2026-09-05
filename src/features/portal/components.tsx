@@ -24,6 +24,7 @@ import type {
   PortalManagedFields,
   PortalMediaUpload,
   PortalMediaUploadHistory,
+  PortalMediaCapacity,
   PortalPreview,
   StoreUpdate,
   StoreUpdateDraft,
@@ -1242,6 +1243,7 @@ function PortalMediaHistorySection({
   resubmissionEnabled: boolean
 }) {
   const [history, setHistory] = useState<PortalMediaUploadHistory | null>(null)
+  const [capacity, setCapacity] = useState<PortalMediaCapacity | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [selected, setSelected] = useState<PortalMediaUpload | null>(null)
@@ -1256,10 +1258,10 @@ function PortalMediaHistorySection({
   const refresh = () => {
     setLoading(true)
     setLoadError(false)
-    client
-      .listMediaUploads()
-      .then((history) => {
+    Promise.all([client.listMediaUploads(), client.getMediaCapacity()])
+      .then(([history, capacity]) => {
         setHistory(history)
+        setCapacity(capacity)
         if (!history.uploads.some((upload) => upload.uploadId === selectedRef.current?.uploadId))
           setSelected(null)
       })
@@ -1278,6 +1280,7 @@ function PortalMediaHistorySection({
   }
   function submitResubmit(event: FormEvent) {
     event.preventDefault()
+    if (pending || loading || loadError) return
     const alt = altText.normalize('NFKC').trim()
     if (!selected || !file || !rights || !alt) {
       setFormError('Choose a corrected image, describe it, and confirm your publishing rights.')
@@ -1326,10 +1329,30 @@ function PortalMediaHistorySection({
     <div>
       <div className="portal-media-history-toolbar">
         <h3>Submission history</h3>
-        <button type="button" className="button button--secondary" onClick={refresh}>
+        <button
+          type="button"
+          className="button button--secondary"
+          disabled={pending || loading}
+          onClick={refresh}
+        >
           Refresh
         </button>
       </div>
+      {capacity && !loadError && (
+        <p role="status">
+          Current tier:{' '}
+          {capacity.currentTier === 'free'
+            ? 'Free'
+            : capacity.currentTier === 'gallery'
+              ? 'Gallery'
+              : 'Full Gallery'}
+          . {capacity.approvedCount} approved gallery photos;{' '}
+          {capacity.cap === null
+            ? 'no plan-count cap. Operational limits still apply.'
+            : `${Math.max(0, capacity.cap - capacity.approvedCount)} of ${capacity.cap} gallery places available.`}{' '}
+          Capacity is checked again when you submit and when an Administrator approves.
+        </p>
+      )}
       {loading && <p role="status">Refreshing official photo history…</p>}
       {loadError && history && (
         <div role="alert">
@@ -1364,7 +1387,12 @@ function PortalMediaHistorySection({
                 <div className="portal-media-rejection">
                   <p>Reason: {upload.rejectionReason ?? 'No reason provided'}</p>
                   {resubmissionEnabled ? (
-                    <button type="button" className="button" onClick={() => beginResubmit(upload)}>
+                    <button
+                      type="button"
+                      className="button"
+                      disabled={pending || loading || loadError}
+                      onClick={() => beginResubmit(upload)}
+                    >
                       Resubmit corrected image
                     </button>
                   ) : (
@@ -1386,6 +1414,7 @@ function PortalMediaHistorySection({
           <label htmlFor="resubmit-file">Corrected image file</label>
           <input
             id="resubmit-file"
+            disabled={pending}
             type="file"
             accept="image/jpeg,image/png,image/webp"
             onChange={(event) => {
@@ -1397,6 +1426,7 @@ function PortalMediaHistorySection({
           <label htmlFor="resubmit-alt">Alternative text for corrected image</label>
           <input
             id="resubmit-alt"
+            disabled={pending}
             value={altText}
             maxLength={240}
             onChange={(event) => {
@@ -1409,6 +1439,7 @@ function PortalMediaHistorySection({
             <input
               type="checkbox"
               checked={rights}
+              disabled={pending}
               onChange={(event) => {
                 setRights(event.target.checked)
                 setIdempotencyKey(null)
@@ -1417,10 +1448,15 @@ function PortalMediaHistorySection({
             I confirm that I have rights to publish this corrected image.
           </label>
           {formError && <p role="alert">{formError}</p>}
-          <button className="button" type="submit" disabled={pending}>
+          <button className="button" type="submit" disabled={pending || loading || loadError}>
             {pending ? 'Submitting…' : 'Submit corrected image'}
           </button>
-          <button type="button" className="button" onClick={() => setSelected(null)}>
+          <button
+            type="button"
+            className="button"
+            disabled={pending}
+            onClick={() => setSelected(null)}
+          >
             Cancel
           </button>
         </form>

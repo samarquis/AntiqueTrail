@@ -1567,6 +1567,15 @@ function portalClient(
       // M-01 honest media gate: the review build never fabricates an upload receipt.
       throw new Error(GENERIC_PORTAL_ERROR)
     },
+    async getMediaCapacity() {
+      allowed()
+      return failureFixture(
+        state,
+        { currentTier: 'free', approvedCount: 1, cap: 5 },
+        { currentTier: 'free', approvedCount: 0, cap: 5 },
+        GENERIC_PORTAL_ERROR,
+      )
+    },
     async listMediaUploads() {
       allowed()
       return failureFixture(state, { uploads: mediaUploads }, { uploads: [] }, GENERIC_PORTAL_ERROR)
