@@ -7,10 +7,12 @@ import type {
   AdminScopeResult,
   AdminScopePreview,
   AdminStoreScope,
+  AdminAuditEntry,
 } from './types'
 import { GENERIC_ADMIN_FAILURE } from './boundary'
 
 type AdminRpcName =
+  | 'admin_read_record_audit'
   | 'admin_list_review_cases'
   | 'admin_get_review_case'
   | 'admin_decide_review_case'
@@ -29,6 +31,7 @@ export interface AdminRpcTransport {
 }
 
 export interface AdminClient {
+  readAudit(access: string): Promise<AdminAuditEntry[]>
   listCases(retry?: boolean): Promise<AdminReviewCaseSummary[]>
   getCase(caseId: string): Promise<AdminReviewCaseDetail>
   decideCase(
@@ -80,6 +83,7 @@ export function createAdminClient(transport: AdminRpcTransport): AdminClient {
   }
 
   return {
+    readAudit: (access) => call('admin_read_record_audit', { p_access: access }),
     listCases: () => call('admin_list_review_cases'),
     getCase: (caseId) => call('admin_get_review_case', { p_case_id: caseId }),
     decideCase: (caseId, action, reason, expectedVersion, idempotencyKey) =>
@@ -141,6 +145,7 @@ function unavailable<T>(): Promise<T> {
 }
 
 export const unavailableAdminClient: AdminClient = {
+  readAudit: unavailable,
   listCases: unavailable,
   getCase: unavailable,
   decideCase: unavailable,

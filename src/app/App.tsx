@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
-import { Link, Navigate, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { RecordAuditPage, AdminAuditRoutes } from '../features/admin/audit'
+import { Link, Navigate, NavLink, Route, useLocation, useParams } from 'react-router-dom'
 import {
   CatalogBrowserPage,
   CatalogDetailsPage,
@@ -184,7 +185,17 @@ function AppShell({
     if (!content) return
 
     const focusHeading = () => {
-      const heading = content.querySelector<HTMLElement>('h1')
+      const restoredFocus = document.activeElement
+      if (
+        restoredFocus instanceof HTMLElement &&
+        content.contains(restoredFocus) &&
+        restoredFocus.hasAttribute('data-preserve-route-focus') &&
+        !restoredFocus.closest('[hidden]')
+      )
+        return true
+      const heading = Array.from(content.querySelectorAll<HTMLElement>('h1')).find(
+        (item) => !item.closest('[hidden]'),
+      )
       if (!heading) return false
       heading.tabIndex = -1
       heading.focus({ preventScroll: true })
@@ -862,6 +873,7 @@ export default function App({
   )
 
   const adminRouteElements: Record<AdminRouteId, ReactNode> = {
+    audit: <RecordAuditPage client={adminClient} />,
     reviewQueue: <ReviewQueuePage client={adminClient} />,
     accessSafety: <AccessSafetyPage client={adminClient} />,
     more: <AdminMorePage />,
@@ -888,7 +900,16 @@ export default function App({
         reviewHarness={runtime.reviewHarness}
         reviewHarnessUi={runtime.reviewHarnessUi}
       >
-        <Routes>
+        <AdminAuditRoutes
+          audit={
+            <AuthenticatedAdminGuard
+              override={runtime.adminSession}
+              registry={runtime.sessionRegistry}
+            >
+              {adminRouteElements.audit}
+            </AuthenticatedAdminGuard>
+          }
+        >
           <Route path="/" element={<Navigate replace to="/stores" />} />
           {runtime.reviewHarness && runtime.reviewHarnessUi && (
             <Route
@@ -1252,7 +1273,7 @@ export default function App({
             }
           />
           <Route path="*" element={<NotFound />} />
-        </Routes>
+        </AdminAuditRoutes>
       </AppShell>
     </AuthProvider>
   )

@@ -1,0 +1,9 @@
+ts	phase	decision	why	evidence	result
+2026-09-01T11:17:22Z	frame	Kept OPEN_TICKET_TODO.md as the only authoritative work ledger	The user explicitly retained the existing source of truth	OPEN_TICKET_TODO.md:1	complete
+2026-09-01T12:35:53Z	state-model	Moved reviewer state from committed queue rows to SHA-pinned GitHub comments	A reviewer commit changes the PR head and invalidates immutable review	OPENCODE_TICKET_REVIEW_TODO.md:18	complete
+2026-09-01T12:35:53Z	identity	Made implementation and reviewer roles platform-neutral and identity-distinct	Any system may implement but a different system must review	OPENCODE_TICKET_REVIEW_TODO.md:7	complete
+2026-09-01T12:35:53Z	guard	Added contract checks for draft status exact head identities and external-blocker misuse	The previously observed handoff ambiguities need machine enforcement	scripts/opencode-review-queue-contract.test.mjs	4 of 4 tests pass
+2026-09-01T12:42:15Z	governance	Removed the protected OPEN_TICKET_TODO.md edit	Hosted plan governance rejected it because no exact update plan directive exists	https://github.com/samarquis/AntiqueTrail/actions/runs/33509118218	operational contract remains outside protected plan files
+2026-09-01T12:43:56Z	governance	Removed all protected-file changes from this PR	The current plan-governance rule treats the TODO and PR template as protected	.github/pull_request_template.md and OPEN_TICKET_TODO.md	awaiting fresh hosted check
+2026-09-01T12:43:56Z	immutability	Moved final candidate SHA from committed queue metadata to post-push GitHub comments	A commit cannot contain a truthful hash of itself	OPENCODE_TICKET_REVIEW_TODO.md	awaiting focused test
+2026-09-01T12:52:40Z	hosted-CI	Formatted the queue-contract test	The exact-head web job failed only Prettier formatting	https://github.com/samarquis/AntiqueTrail/actions/runs/33510036808	focused test passes; awaiting rerun
