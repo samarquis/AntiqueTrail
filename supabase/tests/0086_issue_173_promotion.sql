@@ -196,4 +196,3 @@ select is((select count(*) from promotion_private.daily_counts),2::bigint,'180-d
 select is((select count(*) from promotion_private.channel_events where permission_id='17300000-0000-4000-8000-000000000099'),0::bigint,'content-free event expires at three years');
 select * from finish();
 rollback;
-
