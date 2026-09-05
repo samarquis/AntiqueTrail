@@ -10,6 +10,7 @@ afterEach(cleanup)
 
 function client(overrides: Partial<AdminClient> = {}): AdminClient {
   return {
+    readAudit: async () => [],
     listCases: async () => [
       {
         id: 'case-1',

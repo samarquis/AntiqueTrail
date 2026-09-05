@@ -2,6 +2,7 @@ import { matchPath } from 'react-router-dom'
 
 export type AdminRouteParentId = 'review' | 'access' | 'more'
 export type AdminRouteId =
+  | 'audit'
   | 'reviewQueue'
   | 'accessSafety'
   | 'more'
@@ -24,6 +25,7 @@ export interface AdminRouteParent {
 
 /** The single mounted-route matrix consumed by routing, navigation, and tests. */
 export const ADMIN_ROUTES: readonly AdminRouteDefinition[] = [
+  { id: 'audit', path: '/admin/audit', parentId: 'more' },
   { id: 'reviewQueue', path: '/admin', parentId: 'review' },
   { id: 'accessSafety', path: '/admin/access', parentId: 'access' },
   { id: 'more', path: '/admin/more', parentId: 'more' },

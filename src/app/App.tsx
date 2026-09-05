@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
-import { Link, Navigate, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { RecordAuditPage, AdminAuditRoutes } from '../features/admin/audit'
+import { Link, Navigate, NavLink, Route, useLocation, useParams } from 'react-router-dom'
 import {
   CatalogBrowserPage,
   CatalogDetailsPage,
@@ -861,6 +862,7 @@ export default function App({
   )
 
   const adminRouteElements: Record<AdminRouteId, ReactNode> = {
+    audit: <RecordAuditPage client={adminClient} />,
     reviewQueue: <ReviewQueuePage client={adminClient} />,
     accessSafety: <AccessSafetyPage client={adminClient} />,
     more: <AdminMorePage />,
@@ -887,7 +889,16 @@ export default function App({
         reviewHarness={runtime.reviewHarness}
         reviewHarnessUi={runtime.reviewHarnessUi}
       >
-        <Routes>
+        <AdminAuditRoutes
+          audit={
+            <AuthenticatedAdminGuard
+              override={runtime.adminSession}
+              registry={runtime.sessionRegistry}
+            >
+              {adminRouteElements.audit}
+            </AuthenticatedAdminGuard>
+          }
+        >
           <Route path="/" element={<Navigate replace to="/stores" />} />
           {runtime.reviewHarness && runtime.reviewHarnessUi && (
             <Route
@@ -1247,7 +1258,7 @@ export default function App({
             }
           />
           <Route path="*" element={<NotFound />} />
-        </Routes>
+        </AdminAuditRoutes>
       </AppShell>
     </AuthProvider>
   )
