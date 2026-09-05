@@ -1,4 +1,5 @@
 import type { AppClients } from '../app/App'
+import { withRecordAuditReview } from './adminAudit'
 import { demoCatalogClient } from '../features/catalog/demoClient'
 import type { CatalogClient } from '../features/catalog/types'
 import type {
@@ -2454,6 +2455,6 @@ export function createReviewHarnessClients(
     reviews: reviewClient(scenario, state),
     partner: partnerClient(scenario, state),
     partnerAdmin: partnerAdminClient(scenario, state),
-    admin: adminClient(scenario, state),
+    admin: withRecordAuditReview(adminClient(scenario, state)),
   }
 }
