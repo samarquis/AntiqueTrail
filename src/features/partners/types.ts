@@ -69,13 +69,16 @@ export type PartnerClaimState =
 export type PartnerClaimRiskTier = 'standard' | 'elevated' | 'high'
 
 export interface PartnerClaimDraft {
-  storeReference: string
+  /** Server rechecks this exact catalog ID; labels and client flags never authorize a claim. */
+  storeId: string
   relationship: string
   authorityStatement: string
+  idempotencyKey: string
 }
 
 export interface PartnerClaimSignalInput {
   claimId: string
+  idempotencyKey: string
   channelClass:
     | 'published_business_contact'
     | 'callback'
