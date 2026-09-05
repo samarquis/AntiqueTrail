@@ -49,6 +49,26 @@ export async function preparePublicClaimSignalPayload(
   }
 }
 
+export async function prepareStoreApplicationSignalPayload(
+  payload: Readonly<Record<string, unknown>>,
+  evidenceHmacSecret?: string,
+): Promise<Record<string, unknown>> {
+  if (!evidenceHmacSecret || typeof payload.applicationId !== 'string' || typeof payload.version !== 'number'
+    || typeof payload.channelClass !== 'string' || typeof payload.evidenceReference !== 'string'
+    || payload.evidenceReference.length < 1 || payload.evidenceReference.length > 500)
+    throw new Error('unavailable')
+  const evidenceHmac = await hmacHex(`store-application-object:${normalize(payload.evidenceReference)}`, evidenceHmacSecret)
+  const result: Record<string, unknown> = {
+    applicationId: payload.applicationId, version: payload.version, channelClass: payload.channelClass,
+    reasonCode: payload.reasonCode, evidenceHmac,
+  }
+  if (typeof payload.verificationEventReference === 'string' && payload.verificationEventReference.length > 0 && payload.verificationEventReference.length <= 500) {
+    const digest = await hmacHex(`store-application-event:${normalize(payload.verificationEventReference)}`, evidenceHmacSecret)
+    result.verificationEventId = `${digest.slice(0,8)}-${digest.slice(8,12)}-${digest.slice(12,16)}-${digest.slice(16,20)}-${digest.slice(20,32)}`
+  }
+  return result
+}
+
 function normalize(value: string): string {
   return value.normalize('NFKC').trim().toLocaleLowerCase()
 }
