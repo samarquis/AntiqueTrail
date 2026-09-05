@@ -1,6 +1,8 @@
 // Run only against a disposable local database containing the migrated schema.
 // This commits synthetic fixtures; never point it at a shared application DB.
 import assert from 'node:assert/strict'
+import console from 'node:console'
+import process from 'node:process'
 import { spawn, spawnSync } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 
