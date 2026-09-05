@@ -105,6 +105,12 @@ export interface AdminDecisionResult {
   }
 }
 
+export interface AdminPrivilegedActivity {
+  action: string
+  outcome: string
+  occurredAt: string
+}
+
 export interface AdminStoreScope {
   grantId: string
   subjectUserId: string
@@ -113,6 +119,11 @@ export interface AdminStoreScope {
   storeLabel: string
   state: 'active' | 'revoked' | 'expired' | 'reconsent_required'
   version: number
+  verifiedEmail: boolean
+  mfaVerified: boolean
+  grantedAt: string
+  revokedAt: string | null
+  recentActivity: AdminPrivilegedActivity[]
 }
 
 export interface AdminScopeResult {
