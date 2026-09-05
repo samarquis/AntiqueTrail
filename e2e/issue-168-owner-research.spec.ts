@@ -102,9 +102,19 @@ for (const scenario of [
         `https://antique-trail-pages.pages.dev${path}`,
       )
     await page.getByRole('button', { name: 'Add or claim my store' }).click()
+    for (const label of await page.locator('.owner-research__actions label').all()) {
+      const bounds = await label.boundingBox()
+      expect(bounds?.height).toBeGreaterThanOrEqual(48)
+      expect(bounds?.width).toBeGreaterThanOrEqual(48)
+    }
     await page.getByRole('radio', { name: scenario.radio }).check()
     await page.getByRole('button', { name: /Continue with this Synthetic scenario/ }).click()
     await expect(page.getByText(`Scenario: ${scenario.label}`)).toBeVisible()
+    for (const label of await page.locator('.owner-research__actions label').all()) {
+      const bounds = await label.boundingBox()
+      expect(bounds?.height).toBeGreaterThanOrEqual(48)
+      expect(bounds?.width).toBeGreaterThanOrEqual(48)
+    }
     await page.getByLabel(/which Synthetic facts/).check()
     await page.getByLabel(/sensitive facts and photos/).check()
     if (scenario.label === 'existing store claim') {

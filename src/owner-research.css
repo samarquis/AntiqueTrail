@@ -86,6 +86,7 @@ a {
 .owner-research__actions label,
 .owner-research__admission label {
   display: block;
+  min-height: 3rem;
   margin-block: 1rem;
 }
 
