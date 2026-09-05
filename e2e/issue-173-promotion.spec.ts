@@ -18,6 +18,9 @@ test('exact portal channel consent and withdrawal work while distribution remain
   await page.getByRole('button', { name: 'Withdraw permission: Flyer placement' }).click()
   await expect(page.getByText('Removal of remaining materials requested.')).toBeVisible()
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '200%'
+  })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 

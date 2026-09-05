@@ -117,7 +117,7 @@ export function PromotionPage({
     }
   }
   return (
-    <main>
+    <main className="promotion-page">
       <section className="page-card" aria-labelledby="promotion-heading">
         <p className="eyebrow">Store Portal</p>
         <h1 id="promotion-heading">Promotion permissions</h1>
