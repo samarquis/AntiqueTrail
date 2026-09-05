@@ -330,8 +330,10 @@ describe('app shell', () => {
         <App />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('heading', { name: /store portal/i })).toBeInTheDocument()
-    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't update this store portal/i)
+    expect(
+      await screen.findByRole('heading', { name: /store portal unavailable/i }),
+    ).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
   })
 
   it('wires the injected durable Store Portal client into portal routes', async () => {
@@ -357,7 +359,38 @@ describe('app shell', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByText('Oak Antiques')).toBeVisible()
-    expect(getHome).toHaveBeenCalledOnce()
+    expect(getHome).toHaveBeenCalledTimes(2)
+  })
+
+  it('removes the scoped workspace when the next route check denies the same session', async () => {
+    const user = userEvent.setup()
+    const getHome = vi.fn(async () => ({
+      store: {
+        id: 'store-1',
+        name: 'Private scope',
+        listingState: 'active' as const,
+        timeZone: 'America/Chicago',
+      },
+      freshness: { state: 'verified' as const, label: 'Verified' },
+      provenance: {
+        sourceLabel: 'Representative',
+        verifiedBy: 'Administrator',
+        verifiedAt: '2026-08-01T00:00:00Z',
+        ownerConfirmed: true,
+      },
+      pendingChanges: [],
+    }))
+    render(
+      <MemoryRouter initialEntries={['/store-portal']}>
+        <App clients={{ portal: { ...unavailablePortalClient, getHome } }} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Private scope')).toBeVisible()
+    getHome.mockRejectedValue(new Error('revoked'))
+    await user.click(screen.getByRole('link', { name: 'Pending changes' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
+    expect(screen.queryByText('Private scope')).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
   it('keeps External Testing Readiness unavailable until the human gates exist', async () => {

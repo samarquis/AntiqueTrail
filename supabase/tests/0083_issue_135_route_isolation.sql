@@ -137,6 +137,33 @@ select throws_ok($$select app_public.portal_get_home()$$,'42501','portal_unavail
 reset role;
 rollback to active_actor;
 
+-- Real Administrator authorization, without replacing any authorization function.
+insert into auth.users(id) values
+ ('13500000-0000-4000-8000-000000000010'),
+ ('13500000-0000-4000-8000-000000000011');
+insert into partner_private.listing_claims(claim_id,claimant_id,store_id,relationship,authority_statement)
+values
+ ('13500000-0000-4000-8000-000000000020','13500000-0000-4000-8000-000000000010','00000000-0000-4000-8000-000000000001','Owner','Synthetic authority'),
+ ('13500000-0000-4000-8000-000000000021','13500000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000009','Owner','Sibling authority');
+update partner_private.listing_claims set assigned_admin_id=case claim_id when '13500000-0000-4000-8000-000000000020' then '76000000-0000-4000-8000-000000000001'::uuid else '13500000-0000-4000-8000-000000000011'::uuid end where claim_id in ('13500000-0000-4000-8000-000000000020','13500000-0000-4000-8000-000000000021');
+set local role authenticated;
+select throws_ok($$select app_public.partner_admin_claim_case('13500000-0000-4000-8000-000000000020')$$,'42501','partner_administrator_required','Representative cannot read Administrator claim evidence');
+select is(app_public.partner_claim_status('13500000-0000-4000-8000-000000000020'),null::jsonb,'claimant cannot read a sibling claim');
+reset role;
+insert into app_private.role_grants(subject_user_id,role)
+ values('76000000-0000-4000-8000-000000000001','administrator');
+set local role authenticated;
+select is(app_public.partner_admin_claim_case('13500000-0000-4000-8000-000000000020')->>'claimId','13500000-0000-4000-8000-000000000020','active MFA Administrator reads assigned exact claim');
+select throws_ok($$select app_public.partner_admin_claim_case('13500000-0000-4000-8000-000000000021')$$,'55000','partner_claim_case_unavailable','Administrator cannot read sibling assigned claim');
+select throws_ok($$select app_public.partner_admin_claim_case('13500000-0000-4000-8000-000000000099')$$,'55000','partner_claim_case_unavailable','guessed claim returns same denial');
+reset role;
+savepoint active_admin;
+update app_private.role_grants set state='revoked',revoked_at=statement_timestamp() where subject_user_id='76000000-0000-4000-8000-000000000001' and role='administrator';
+set local role authenticated;
+select throws_ok($$select app_public.partner_admin_claim_case('13500000-0000-4000-8000-000000000020')$$,'42501','partner_administrator_required','revoked Administrator cannot reuse the open session');
+reset role;
+rollback to active_admin;
+
 select set_config('request.jwt.claims','{}',true);
 set local role authenticated;
 select throws_ok($$select app_public.portal_get_home()$$,'42501','portal_unavailable','missing identity denies even with authenticated database role');

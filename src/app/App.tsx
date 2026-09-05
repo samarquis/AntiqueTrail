@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { RecordAuditPage, AdminAuditRoutes } from '../features/admin/audit'
-import { Link, Navigate, NavLink, Route, useLocation, useParams } from 'react-router-dom'
+import { Link, Navigate, NavLink, Outlet, Route, useLocation, useParams } from 'react-router-dom'
 import {
   CatalogBrowserPage,
   CatalogDetailsPage,
@@ -109,6 +109,7 @@ import {
   type PartnerClient,
 } from '../features/partners'
 import {
+  PortalAccessDeniedPage,
   PortalControlledChangesPage,
   PortalHomePage,
   PortalHoursPage,
@@ -414,6 +415,43 @@ function MorePage() {
       </nav>
     </main>
   )
+}
+
+function PortalRouteGuard({ client }: { client: PortalClient }) {
+  const { session } = useAuth()
+  const location = useLocation()
+  const [checked, setChecked] = useState<{
+    client: PortalClient
+    session: typeof session
+    locationKey: string
+    allowed: boolean
+  } | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    client.getHome().then(
+      () => {
+        if (!cancelled) setChecked({ client, session, locationKey: location.key, allowed: true })
+      },
+      () => {
+        if (!cancelled) setChecked({ client, session, locationKey: location.key, allowed: false })
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [client, session, location.key])
+  if (
+    !checked ||
+    checked.client !== client ||
+    checked.session !== session ||
+    checked.locationKey !== location.key
+  )
+    return (
+      <main>
+        <p role="status">Loading Store Portal…</p>
+      </main>
+    )
+  return checked.allowed ? <Outlet /> : <PortalAccessDeniedPage />
 }
 
 function InformationPage({ title, children }: { title: string; children: ReactNode }) {
@@ -1177,33 +1215,35 @@ export default function App({
             path="/partner/activate"
             element={<PartnerActivatePage client={partnerClient} />}
           />
-          <Route path="/store-portal" element={<PortalHomePage client={portalClient} />} />
-          <Route path="/store-portal/hours" element={<PortalHoursPage client={portalClient} />} />
-          <Route
-            path="/store-portal/info"
-            element={<PortalManagedFieldsPage client={portalClient} />}
-          />
-          <Route
-            path="/store-portal/changes"
-            element={<PortalControlledChangesPage client={portalClient} />}
-          />
-          <Route
-            path="/store-portal/photos"
-            element={<PortalMediaReviewPage client={portalClient} />}
-          />
-          <Route
-            path="/store-portal/updates"
-            element={<PortalUpdatesPage client={portalClient} />}
-          />
-          <Route path="/store-portal/links" element={<PortalLinksPage client={portalClient} />} />
-          <Route
-            path="/store-portal/support"
-            element={<PortalSupportPage client={portalClient} />}
-          />
-          <Route
-            path="/store-portal/preview"
-            element={<PortalPreviewPage client={portalClient} />}
-          />
+          <Route element={<PortalRouteGuard client={portalClient} />}>
+            <Route path="/store-portal" element={<PortalHomePage client={portalClient} />} />
+            <Route path="/store-portal/hours" element={<PortalHoursPage client={portalClient} />} />
+            <Route
+              path="/store-portal/info"
+              element={<PortalManagedFieldsPage client={portalClient} />}
+            />
+            <Route
+              path="/store-portal/changes"
+              element={<PortalControlledChangesPage client={portalClient} />}
+            />
+            <Route
+              path="/store-portal/photos"
+              element={<PortalMediaReviewPage client={portalClient} />}
+            />
+            <Route
+              path="/store-portal/updates"
+              element={<PortalUpdatesPage client={portalClient} />}
+            />
+            <Route path="/store-portal/links" element={<PortalLinksPage client={portalClient} />} />
+            <Route
+              path="/store-portal/support"
+              element={<PortalSupportPage client={portalClient} />}
+            />
+            <Route
+              path="/store-portal/preview"
+              element={<PortalPreviewPage client={portalClient} />}
+            />
+          </Route>
           <Route
             path="/trips"
             element={

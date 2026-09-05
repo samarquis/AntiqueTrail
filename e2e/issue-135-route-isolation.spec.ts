@@ -1,6 +1,16 @@
 import { expect, test } from '@playwright/test'
 
-const portalRoutes = ['', '/hours', '/changes', '/updates', '/links', '/support', '/preview']
+const portalRoutes = [
+  '',
+  '/info',
+  '/photos',
+  '/hours',
+  '/changes',
+  '/updates',
+  '/links',
+  '/support',
+  '/preview',
+]
 
 for (const route of portalRoutes) {
   test(`Portal ${route || 'home'} denies every unscoped identity on direct navigation`, async ({
@@ -12,7 +22,7 @@ for (const route of portalRoutes) {
         await expect(page.getByRole('heading', { name: 'Store Portal unavailable' })).toBeVisible()
       } else {
         await expect(page.getByRole('alert')).toHaveText(
-          "We couldn't update this store portal. Please try again.",
+          'Store Portal access is unavailable for this account or session.',
         )
       }
       await expect(page.getByText('Blue Finch Curios')).toHaveCount(0)
@@ -27,14 +37,14 @@ for (const route of portalRoutes) {
     await expect(page.locator('main h1')).toBeVisible()
     await page.goto(`/store-portal${route}?reviewAs=representative&reviewState=permission-denied`)
     await expect(page.getByRole('alert')).toHaveText(
-      "We couldn't update this store portal. Please try again.",
+      'Store Portal access is unavailable for this account or session.',
     )
     await expect(page.getByText('Blue Finch Curios')).toHaveCount(0)
     await expect(page.locator('main input, main textarea')).toHaveCount(0)
   })
 }
 
-for (const route of ['status', 'draft', 'claim']) {
+for (const route of ['status', 'draft']) {
   test(`Partner ${route} denies anonymous direct access without exposing a case`, async ({
     page,
   }) => {
@@ -46,3 +56,13 @@ for (const route of ['status', 'draft', 'claim']) {
     await expect(page.locator('main input, main textarea')).toHaveCount(0)
   })
 }
+
+test('anonymous claim access requires sign-in before displaying any claim fields', async ({
+  page,
+}) => {
+  await page.goto('/partner/claim?reviewAs=anonymous&reviewState=success')
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Relationship to the store')).toHaveCount(0)
+  await expect(page.getByLabel('Authority statement')).toHaveCount(0)
+  await expect(page.getByText('Blue Finch Curios')).toHaveCount(0)
+})
