@@ -59,7 +59,11 @@ revoke insert,update,delete on promotion_private.capability,promotion_private.so
 -- Row locking needs UPDATE privilege; the constrained singleton key cannot activate a flag.
 grant update(id) on promotion_private.capability to identity_service;
 grant update(code) on promotion_private.sources to identity_service;
+grant release_automation to postgres;
+set role release_automation;
 grant execute on function release_private.lock_rg01_release(uuid) to identity_service;
+reset role;
+revoke release_automation from postgres;
 
 create function app_public.promotion_channels() returns jsonb
 language plpgsql volatile security definer set search_path='' as $$

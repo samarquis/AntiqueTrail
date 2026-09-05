@@ -104,20 +104,24 @@ select is((select count(*) from promotion_private.channel_permissions where cons
 -- Real gate rows, not mocked authority functions; all rolled back at the end.
 insert into release_private.regional_releases(release_id,region_key,artifact_digest,catalog_digest,prerequisite_receipt_digest,state,
  migration_set_digest,config_digest,frozen_store_set_digest)
-values('17300000-0000-4000-8000-000000000001','topeka-ks','sha256:'||repeat('1',64),'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),'active',
+values('17300000-0000-4000-8000-000000000001','topeka-ks','sha256:'||repeat('1',64),'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),'frozen',
  'sha256:'||repeat('4',64),'sha256:'||repeat('5',64),decode(repeat('6',64),'hex'));
 insert into release_private.release_capabilities(release_id,public_catalog,public_claims,public_reviews,public_registration,product_promotion)
 values('17300000-0000-4000-8000-000000000001',true,true,true,true,true);
-insert into release_private.release_gate_receipts(gate_receipt_id,release_id,gate_kind,receipt_digest,artifact_digest,migration_set_digest,config_digest,frozen_store_set_digest,external_verified,accepted_at)
-values('17300000-0000-4000-8000-000000000002','17300000-0000-4000-8000-000000000001','promotion_rights_consent',decode(repeat('7',64),'hex'),
- 'sha256:'||repeat('1',64),'sha256:'||repeat('4',64),'sha256:'||repeat('5',64),decode(repeat('6',64),'hex'),true,statement_timestamp());
 insert into release_private.release_frozen_stores(release_id,store_id,ordinal,two_person_provenance,required_fields_fresh,excludes_pilot_private_fields,
  rights_and_consent_current,no_duplicate_closure_or_hold,exact_area_verified,source_evidence_digest)
 values('17300000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001',1,true,true,true,true,true,true,decode(repeat('8',64),'hex'));
+update release_private.regional_releases set state='active' where release_id='17300000-0000-4000-8000-000000000001';
 update promotion_private.capability set distribution_enabled=true,measurement_enabled=true;
 set local role authenticated;
 select is(app_public.promotion_channel_command('flyer','reprint',3)->>'allowed','false','release activation cannot resurrect withdrawn permission');
 select is(app_public.promotion_channel_command('flyer','consent',3)->>'allowed','true','fresh channel consent succeeds');
+select is(app_public.promotion_channel_command('flyer','reprint',4)->>'allowed','false','missing exact-store receipt denies use');
+reset role;
+insert into release_private.release_gate_receipts(gate_receipt_id,release_id,gate_kind,receipt_digest,artifact_digest,migration_set_digest,config_digest,frozen_store_set_digest,external_verified,accepted_at)
+values('17300000-0000-4000-8000-000000000002','17300000-0000-4000-8000-000000000001','promotion_rights_consent',decode(repeat('7',64),'hex'),
+ 'sha256:'||repeat('1',64),'sha256:'||repeat('4',64),'sha256:'||repeat('5',64),decode(repeat('6',64),'hex'),true,statement_timestamp());
+set local role authenticated;
 select is(app_public.promotion_channel_command('flyer','reprint',4)->>'allowed','true','current exact-store consent plus release receipt allows reprint authorization');
 select throws_ok($$select app_public.promotion_channel_command('flyer','reprint',4)$$,'40001','promotion_changed','consumed version cannot replay authorization');
 select is(app_public.promotion_channel_command('co_brand','distribute',0)->>'allowed','false','flyer authority cannot authorize co-branding');
@@ -126,20 +130,41 @@ select is(app_public.promotion_channel_command('social','reprint',2)->>'allowed'
 select is(app_public.promotion_channel_command('social','post',2)->>'allowed','true','one voluntary post authorized');
 select is(app_public.promotion_channel_command('social','post',3)->>'allowed','false','one permission cannot authorize a second post');
 reset role;
-update release_private.release_frozen_stores set rights_and_consent_current=false where release_id='17300000-0000-4000-8000-000000000001';
-set local role authenticated;
-select is(app_public.promotion_channel_command('flyer','reprint',5)->>'allowed','false','stale exact-store release consent denies');
-reset role;
 update release_private.regional_releases set state='rolled_back' where release_id='17300000-0000-4000-8000-000000000001';
 set local role authenticated;
 select is(app_public.promotion_channel_command('flyer','reprint',5)->>'allowed','false','release rollback denies future use');
 select is(app_public.promotion_channel_command('flyer','withdraw',5)->>'allowed','true','rollback never prevents withdrawal');
+select is(app_public.promotion_channel_command('owner_card','consent',0)->>'allowed','true','store placement permission can be recorded separately');
 reset role;
-update partner_private.store_partner_grants set state='revoked' where grant_id='76000000-0000-4000-8000-000000000007';
+update partner_private.store_partner_grants set state='revoked',revoked_at=statement_timestamp() where grant_id='76000000-0000-4000-8000-000000000007';
 set local role authenticated;
 select throws_ok($$select app_public.promotion_channels()$$,'42501','portal_unavailable','revoked grant cannot read channel state');
 select throws_ok($$select app_public.promotion_channel_command('flyer','consent',6)$$,'42501','portal_unavailable','revoked grant cannot renew consent');
 reset role;
+
+insert into partner_private.store_partner_grants(grant_id,partnership_id,auth_user_id,store_id)
+values('17300000-0000-4000-8000-000000000007','76000000-0000-4000-8000-000000000006',
+ '76000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001');
+set local role authenticated;
+select is((select x->>'consented' from jsonb_array_elements(app_public.promotion_channels()) x where x->>'channel'='owner_card'),
+ 'false','same actor regrant cannot present old consent as current');
+reset role;
+-- Keep the race fixture's original grant shape after this transaction-local regrant proof.
+update partner_private.store_partner_grants set state='revoked',revoked_at=statement_timestamp() where grant_id='17300000-0000-4000-8000-000000000007';
+insert into app_private.role_grants(subject_user_id,role) values('76000000-0000-4000-8000-000000000001','administrator');
+set local role authenticated;
+select is(app_public.promotion_channel_command('owner_card','consent',0,true)->>'allowed','true','administrator can prepare generic owner-card permission without recipient scope');
+select is(app_public.promotion_channel_command('owner_card','withdraw',2,true)->>'allowed','true','generic channel withdrawal is independent of store placement');
+reset role;
+select is((select count(*) from promotion_private.channel_permissions where store_id is null),1::bigint,'generic permission contains no recipient identity');
+create function pg_temp.fail_promotion_audit() returns trigger language plpgsql as $$ begin
+ if new.action='promotion_consent' then raise exception 'audit unavailable'; end if; return new; end $$;
+create trigger issue173_audit_failure before insert on app_private.privileged_audit_events for each row execute function pg_temp.fail_promotion_audit();
+set local role authenticated;
+select throws_ok($$select app_public.promotion_channel_command('owner_card','consent',3,true)$$,'P0001','audit unavailable','audit failure rolls back consent');
+reset role;
+select is((select consented from promotion_private.channel_permissions where store_id is null),false,'failed audit leaves generic permission withdrawn');
+drop trigger issue173_audit_failure on app_private.privileged_audit_events;
 
 -- Aggregate-only API: strict source allowlist, no caller day or personal payload.
 insert into promotion_private.sources(code,active) values(repeat('a',32),true);
