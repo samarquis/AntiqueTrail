@@ -1,3 +1,4 @@
+import { PromotionPage, type PromotionClient } from '../features/portal/promotion'
 import { OwnerAcquisitionPage } from '../features/partners/ownerAcquisitionPage'
 import { StoreApplicationAdminPanel } from '../features/partners/storeApplicationAdminPanel'
 import { StoreApplicationPage } from '../features/partners/storeApplicationPage'
@@ -870,6 +871,7 @@ export interface AppClients {
   lifecycle?: AccountLifecycleClient
   reviews?: ReviewClient
   storeApplications?: StoreApplicationClient
+  promotion?: PromotionClient
   storeApplicationAdmin?: StoreApplicationAdminClient
   portal?: PortalClient
   readiness?: DurableReadinessClient
@@ -1282,6 +1284,10 @@ export default function App({
             element={<PartnerActivatePage client={partnerClient} />}
           />
           <Route element={<PortalRouteGuard client={portalClient} />}>
+            <Route
+              path="/store-portal/promotion"
+              element={<PromotionPage client={clients.promotion} />}
+            />
             <Route path="/store-portal" element={<PortalHomePage client={portalClient} />} />
             <Route path="/store-portal/hours" element={<PortalHoursPage client={portalClient} />} />
             <Route

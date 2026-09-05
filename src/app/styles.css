@@ -3271,14 +3271,14 @@ main > article dt {
 }
 
 @media (max-width: 1023px) {
-  body:has(.owner-page) .site-header {
+  body:has(:is(.owner-page, .promotion-page)) .site-header {
     flex-wrap: wrap;
     gap: 1rem;
   }
-  body:has(.owner-page) .site-header nav {
+  body:has(:is(.owner-page, .promotion-page)) .site-header nav {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  body:has(.owner-page) .site-header nav a {
+  body:has(:is(.owner-page, .promotion-page)) .site-header nav a {
     min-width: 0;
     flex-direction: column;
     overflow-wrap: anywhere;
@@ -3290,15 +3290,24 @@ main > article dt {
   padding: min(1rem, 4vw);
 }
 @media (max-width: 540px) {
-  body:has(.owner-page) .site-header nav {
+  body:has(:is(.owner-page, .promotion-page)) .site-header nav {
     position: static;
     flex-basis: 100%;
     width: 100%;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
     translate: none;
   }
-  body:has(.owner-page) .site-header nav a {
+  body:has(:is(.owner-page, .promotion-page)) .site-header nav a {
     flex-direction: row;
     overflow-wrap: normal;
   }
+}
+
+.promotion-page .page-card {
+  padding: min(1rem, 4vw);
+  overflow-wrap: anywhere;
+}
+.promotion-page button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }

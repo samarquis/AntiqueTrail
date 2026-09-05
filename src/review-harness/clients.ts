@@ -1,4 +1,5 @@
 import { storeApplicationReviewClients } from './storeApplications'
+import { createPromotionClient, promotionLabels } from '../features/portal/promotion'
 import type { AppClients } from '../app/App'
 import { withRecordAuditReview } from './adminAudit'
 import { demoCatalogClient } from '../features/catalog/demoClient'
@@ -2466,7 +2467,25 @@ export function createReviewHarnessClients(
   state: ReviewStateId,
   mediaReviewEnabled = false,
 ): AppClients {
+  const promotionPermissions = Object.keys(promotionLabels).map((channel) => ({
+    channel,
+    consented: false,
+    version: 0,
+    removalRequested: false,
+  }))
+  const promotion = createPromotionClient(async (name, args) => {
+    if (state !== 'success') throw new Error('Synthetic promotion unavailable')
+    if (name === 'promotion_channels') return structuredClone(promotionPermissions)
+    const permission = promotionPermissions.find((p) => p.channel === args.p_channel)
+    if (!permission || permission.version !== args.p_version)
+      throw new Error('Synthetic stale permission')
+    permission.consented = args.p_operation === 'consent'
+    permission.removalRequested = !permission.consented
+    permission.version++
+    return { allowed: true }
+  })
   return {
+    promotion,
     ...storeApplicationReviewClients(state),
     lifecycle: lifecycleClient(scenario, state),
     shopper: shopperClient(scenario, state),

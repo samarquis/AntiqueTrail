@@ -1,3 +1,4 @@
+import { createPromotionClient } from '../features/portal/promotion'
 import {
   createStoreApplicationClient,
   createStoreApplicationAdminClient,
@@ -603,6 +604,7 @@ export async function configuredComposition(
         if (result.error) throw result.error
         return result.data
       }),
+      promotion: createPromotionClient(rpc),
       portal: createPortalClient(
         {
           async rpc(name, args) {

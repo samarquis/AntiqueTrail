@@ -42,6 +42,7 @@ Deno.serve(async (request) => {
   }
   try {
     await rpc('store_application_retention', {})
+    await rpc('promotion_retention', {})
     const summary = await runAccountLifecycleWorker({
       claimExports: (now, limit) => rpc('claim_account_exports', { p_now: now, p_limit: limit }),
       buildExport: (jobId, claimToken) =>
