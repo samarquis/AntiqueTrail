@@ -8,6 +8,7 @@ body {
   background: var(--color-background, #f6f4f0);
   color: var(--color-text, #24201b);
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 a {
@@ -16,6 +17,7 @@ a {
 }
 
 .button {
+  max-width: 100%;
   min-height: 3rem;
   padding: 0.65rem 1rem;
   border: 2px solid #24201b;
