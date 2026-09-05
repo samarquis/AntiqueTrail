@@ -1,4 +1,5 @@
 import type { AppClients } from '../app/App'
+import { withRecordAuditReview } from './adminAudit'
 import { demoCatalogClient } from '../features/catalog/demoClient'
 import type { CatalogClient } from '../features/catalog/types'
 import type {
@@ -52,6 +53,7 @@ import {
   type PortalHomeSnapshot,
   type PortalHours,
   type PortalManagedFields,
+  type PortalMediaUpload,
   type PortalMediaUploadInput,
   type PortalPendingChange,
   type StoreUpdate,
@@ -1405,7 +1407,11 @@ function failureFixture<T>(
   return Promise.resolve(state === 'empty' ? empty : structuredClone(success))
 }
 
-function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalClient {
+function portalClient(
+  scenario: ReviewScenario,
+  state: ReviewStateId,
+  mediaReviewEnabled = false,
+): PortalClient {
   const allowed = () => requireRole(scenario, ['Representative'], true)
   const home: PortalHomeSnapshot = {
     store: {
@@ -1455,6 +1461,16 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
   ]
   let officialLinks: OfficialLink[] = [
     { platform: 'instagram', url: 'https://example.invalid/blue-finch', verifiedAt: FIXED_NOW },
+  ]
+  let mediaUploads: PortalMediaUpload[] = [
+    {
+      uploadId: 'media-review-rejected',
+      kind: 'gallery',
+      state: 'rejected',
+      altText: 'Blue Finch storefront exterior',
+      submittedAt: FIXED_NOW,
+      rejectionReason: 'Image quality needs more detail.',
+    },
   ]
   let supportTickets: SupportTicket[] = [
     {
@@ -1538,7 +1554,7 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
       allowed()
       return failureFixture(
         state,
-        { enabled: false, source: 'server' },
+        { enabled: mediaReviewEnabled, source: 'server' },
         { enabled: false, source: 'server' },
         GENERIC_PORTAL_ERROR,
       )
@@ -1551,6 +1567,40 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
         return Promise.reject(new Error(GENERIC_PORTAL_ERROR))
       // M-01 honest media gate: the review build never fabricates an upload receipt.
       throw new Error(GENERIC_PORTAL_ERROR)
+    },
+    async getMediaCapacity() {
+      allowed()
+      return failureFixture(
+        state,
+        { currentTier: 'free', approvedCount: 1, cap: 5 },
+        { currentTier: 'free', approvedCount: 0, cap: 5 },
+        GENERIC_PORTAL_ERROR,
+      )
+    },
+    async listMediaUploads() {
+      allowed()
+      return failureFixture(state, { uploads: mediaUploads }, { uploads: [] }, GENERIC_PORTAL_ERROR)
+    },
+    async resubmitMedia(input) {
+      allowed()
+      if (!mediaReviewEnabled) return Promise.reject(new Error(GENERIC_PORTAL_ERROR))
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const original = mediaUploads.find((upload) => upload.uploadId === input.originalUploadId)
+        if (!original || original.state !== 'rejected') throw new Error(GENERIC_PORTAL_ERROR)
+        const newUploadId = `media-review-corrected-${mediaUploads.length + 1}`
+        mediaUploads = [
+          {
+            uploadId: newUploadId,
+            kind: original.kind,
+            state: 'awaiting_review',
+            altText: input.altText,
+            submittedAt: FIXED_NOW,
+            rejectionReason: null,
+          },
+          ...mediaUploads,
+        ]
+        return { newUploadId, state: 'awaiting_review' as const }
+      })
     },
     async listUpdates() {
       allowed()
@@ -1724,6 +1774,7 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
   const FIXED_NOW = '2026-08-05T12:00:00.000Z'
   let moderationCase: ModerationCase = {
     id: 'moderation-1',
+    version: 1,
     reviewId: 'review-1',
     storeId: 'store-blue-finch',
     state: 'open',
@@ -1733,6 +1784,7 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
     updatedAt: FIXED_NOW,
     reporterPseudonym: 'Reporter 17',
   }
+  const moderationReceipts = new Map<string, { digest: string; result: ModerationCase }>()
   return {
     ...unavailableReviewClient,
     async listModerationCases() {
@@ -1742,7 +1794,14 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
     async decideModerationCase(caseId: string, input: ModerationDecisionInput) {
       allowed()
       return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        const digest = JSON.stringify({ caseId, ...input })
+        const prior = moderationReceipts.get(input.idempotencyKey)
+        if (prior) {
+          if (prior.digest !== digest) throw new Error(GENERIC_ADMIN_FAILURE)
+          return prior.result
+        }
         if (caseId !== moderationCase.id) throw new Error('Synthetic exact-case denial.')
+        if (input.expectedVersion !== moderationCase.version) throw new Error(GENERIC_ADMIN_FAILURE)
         if (!input.reason.trim() || !input.mfaVerified || !input.recentAuthAt)
           throw new Error(GENERIC_ADMIN_FAILURE)
         const recentAuthAt = Date.parse(input.recentAuthAt)
@@ -1758,11 +1817,13 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
                 : 'dismissed'
         const updated: ModerationCase = {
           ...moderationCase,
+          version: moderationCase.version + 1,
           state: nextState,
           updatedAt: FIXED_NOW,
           evidence: [...moderationCase.evidence, { kind: 'prior_decision', value: input.reason }],
         }
         moderationCase = updated
+        moderationReceipts.set(input.idempotencyKey, { digest, result: updated })
         return updated
       })
     },
@@ -2138,6 +2199,13 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
       storeLabel: 'Blue Finch Curios',
       state: 'active',
       version: 2,
+      verifiedEmail: true,
+      mfaVerified: true,
+      grantedAt: '2026-07-01T12:00:00Z',
+      revokedAt: null,
+      recentActivity: [
+        { action: 'admin_scope_regrant', outcome: 'completed', occurredAt: '2026-08-01T12:00:00Z' },
+      ],
     },
   ]
   let mergePlan: AdminMergePlan | null = {
@@ -2293,6 +2361,15 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
           ...grant,
           state: operation === 'revoke' ? 'revoked' : 'active',
           version: expectedVersion + 1,
+          revokedAt: operation === 'revoke' ? new Date().toISOString() : grant.revokedAt,
+          recentActivity: [
+            {
+              action: operation === 'revoke' ? 'admin_scope_revoke' : 'admin_scope_regrant',
+              outcome: 'completed',
+              occurredAt: new Date().toISOString(),
+            },
+            ...grant.recentActivity,
+          ].slice(0, 5),
         }
         storeGrants = storeGrants.map((g) => (g.grantId === grant.grantId ? updated : g))
         scopePreview = null
@@ -2367,16 +2444,17 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
 export function createReviewHarnessClients(
   scenario: ReviewScenario,
   state: ReviewStateId,
+  mediaReviewEnabled = false,
 ): AppClients {
   return {
     lifecycle: lifecycleClient(scenario, state),
     shopper: shopperClient(scenario, state),
     candidate: candidateClient(scenario, state),
     trips: tripClient(scenario, state),
-    portal: portalClient(scenario, state),
+    portal: portalClient(scenario, state, mediaReviewEnabled),
     reviews: reviewClient(scenario, state),
     partner: partnerClient(scenario, state),
     partnerAdmin: partnerAdminClient(scenario, state),
-    admin: adminClient(scenario, state),
+    admin: withRecordAuditReview(adminClient(scenario, state)),
   }
 }

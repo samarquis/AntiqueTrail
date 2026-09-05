@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
-import { Link, Navigate, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { RecordAuditPage, AdminAuditRoutes } from '../features/admin/audit'
+import { Link, Navigate, NavLink, Route, useLocation, useParams } from 'react-router-dom'
 import {
   CatalogBrowserPage,
   CatalogDetailsPage,
@@ -78,10 +79,14 @@ import {
 import {
   AccessSafetyPage,
   AdminGuard,
+  AdminMorePage,
+  AdminPrimaryNavigation,
+  ADMIN_ROUTES,
   ReviewQueuePage,
   adminSessionFromAuth,
   unavailableAdminClient,
   type AdminClient,
+  type AdminRouteId,
   type AdminSession,
 } from '../features/admin'
 import { AlphaGuard, AlphaReadinessPage } from '../features/alpha'
@@ -109,6 +114,7 @@ import {
   PortalHoursPage,
   PortalLinksPage,
   PortalManagedFieldsPage,
+  PortalMediaReviewPage,
   PortalPreviewPage,
   PortalSupportPage,
   PortalUpdatesPage,
@@ -129,6 +135,11 @@ import {
 } from '../features/readiness'
 import { BetaControlPage, unavailableBetaClient, type DurableBetaClient } from '../features/beta'
 import { OperationalStatusPage, type OperationalStatusConfig } from '../features/status'
+import {
+  CommercialResearchPage,
+  unavailableBillingClient,
+  type BillingClient,
+} from '../features/billing'
 import type { ReviewHarnessRuntime } from '../review-harness/types'
 
 // The current provider-neutral shell has no privileged session source. Keep the
@@ -174,7 +185,17 @@ function AppShell({
     if (!content) return
 
     const focusHeading = () => {
-      const heading = content.querySelector<HTMLElement>('h1')
+      const restoredFocus = document.activeElement
+      if (
+        restoredFocus instanceof HTMLElement &&
+        content.contains(restoredFocus) &&
+        restoredFocus.hasAttribute('data-preserve-route-focus') &&
+        !restoredFocus.closest('[hidden]')
+      )
+        return true
+      const heading = Array.from(content.querySelectorAll<HTMLElement>('h1')).find(
+        (item) => !item.closest('[hidden]'),
+      )
       if (!heading) return false
       heading.tabIndex = -1
       heading.focus({ preventScroll: true })
@@ -220,10 +241,7 @@ function AppShell({
         </Link>
         <nav aria-label="Primary navigation">
           {adminNav ? (
-            <>
-              <NavLink to="/admin">Review</NavLink>
-              <NavLink to="/admin/access">Access</NavLink>
-            </>
+            <AdminPrimaryNavigation />
           ) : (
             <>
               <NavLink to="/stores">
@@ -250,25 +268,27 @@ function AppShell({
               </NavLink>
             </>
           )}
-          <Link to="/more" aria-current={moreIsCurrent ? 'page' : undefined}>
-            <svg
-              className="nav-icon"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path
-                d="M4 6h16M4 12h16M4 18h16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-            More
-          </Link>
+          {!adminNav && (
+            <Link to="/more" aria-current={moreIsCurrent ? 'page' : undefined}>
+              <svg
+                className="nav-icon"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M4 6h16M4 12h16M4 18h16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              More
+            </Link>
+          )}
         </nav>
         <ThemeToggle />
       </header>
@@ -567,6 +587,24 @@ function ReadinessStatus({ client }: { client: DurableReadinessClient }) {
   return <ReadinessStatusPage runId={runId} client={client} />
 }
 
+function CommercialResearchRoute({
+  client,
+  runtime,
+}: {
+  client: BillingClient
+  runtime: NonNullable<AppRuntime['commercialResearch']>
+}) {
+  const { authorizationId = '' } = useParams()
+  return (
+    <CommercialResearchPage
+      authorizationId={authorizationId}
+      artifactDigest={runtime.artifactDigest}
+      questionVersion={runtime.questionVersion}
+      client={client}
+    />
+  )
+}
+
 function BetaControl({ client }: { client: DurableBetaClient }) {
   const { cohortId = '' } = useParams()
   return <BetaControlPage cohortId={cohortId} client={client} />
@@ -775,6 +813,7 @@ export interface AppClients {
   reviews?: ReviewClient
   portal?: PortalClient
   readiness?: DurableReadinessClient
+  billing?: BillingClient
   beta?: DurableBetaClient
   operationalStatus?: OperationalStatusConfig
   tripOfflineGrants?: TripOfflineGrantSource
@@ -794,6 +833,8 @@ export interface AppRuntime {
   reviewHarnessUi?: ReviewHarnessUi
   /** Pre-render memory-only callback captured by the bootstrap preflight. */
   authCallback?: AuthCallback | null
+  /** Deployment-protected research builds provide exact frozen artifact/question bindings. */
+  commercialResearch?: { artifactDigest: string; questionVersion: string }
 }
 
 export interface ReviewHarnessUi {
@@ -818,6 +859,7 @@ export default function App({
   const reviewClient = clients.reviews ?? unavailableReviewClient
   const portalClient = clients.portal ?? unavailablePortalClient
   const readinessClient = clients.readiness ?? unavailableReadinessClient
+  const billingClient = clients.billing ?? unavailableBillingClient
   const betaClient = clients.beta ?? unavailableBetaClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
   const tripOfflineRef = useRef<TripOfflineRuntime>(
@@ -829,6 +871,17 @@ export default function App({
     () => installBackgroundPlaintextClearer(document, () => setPrivacyEpoch((value) => value + 1)),
     [],
   )
+
+  const adminRouteElements: Record<AdminRouteId, ReactNode> = {
+    audit: <RecordAuditPage client={adminClient} />,
+    reviewQueue: <ReviewQueuePage client={adminClient} />,
+    accessSafety: <AccessSafetyPage client={adminClient} />,
+    more: <AdminMorePage />,
+    partners: <PartnerAdminPage client={partnerAdminClient} />,
+    reviews: <ModerationQueuePage client={reviewClient} />,
+    readiness: <ReadinessStatus client={readinessClient} />,
+    beta: <BetaControl client={betaClient} />,
+  }
 
   return (
     <AuthProvider
@@ -847,7 +900,16 @@ export default function App({
         reviewHarness={runtime.reviewHarness}
         reviewHarnessUi={runtime.reviewHarnessUi}
       >
-        <Routes>
+        <AdminAuditRoutes
+          audit={
+            <AuthenticatedAdminGuard
+              override={runtime.adminSession}
+              registry={runtime.sessionRegistry}
+            >
+              {adminRouteElements.audit}
+            </AuthenticatedAdminGuard>
+          }
+        >
           <Route path="/" element={<Navigate replace to="/stores" />} />
           {runtime.reviewHarness && runtime.reviewHarnessUi && (
             <Route
@@ -934,6 +996,21 @@ export default function App({
           />
           <Route path="/auth/recovery" element={<RecoveryPage provider={authProvider} />} />
           <Route path="/auth/mfa" element={<MfaPage provider={authProvider} />} />
+          <Route
+            path="/research/photo-tiers/:authorizationId"
+            element={
+              runtime.commercialResearch ? (
+                <RequireSession>
+                  <CommercialResearchRoute
+                    client={billingClient}
+                    runtime={runtime.commercialResearch}
+                  />
+                </RequireSession>
+              ) : (
+                <NotFound />
+              )
+            }
+          />
           <Route
             path="/account/*"
             element={
@@ -1046,72 +1123,20 @@ export default function App({
               </RequireSession>
             }
           />
-          <Route
-            path="/admin"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <ReviewQueuePage client={adminClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
-          <Route
-            path="/admin/access"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <AccessSafetyPage client={adminClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
-          <Route
-            path="/admin/partners"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <PartnerAdminPage client={partnerAdminClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
-          <Route
-            path="/admin/reviews"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <ModerationQueuePage client={reviewClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
-          <Route
-            path="/admin/readiness/:runId"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <ReadinessStatus client={readinessClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
-          <Route
-            path="/admin/beta/:cohortId"
-            element={
-              <AuthenticatedAdminGuard
-                override={runtime.adminSession}
-                registry={runtime.sessionRegistry}
-              >
-                <BetaControl client={betaClient} />
-              </AuthenticatedAdminGuard>
-            }
-          />
+          {ADMIN_ROUTES.map((route) => (
+            <Route
+              key={route.id}
+              path={route.path}
+              element={
+                <AuthenticatedAdminGuard
+                  override={runtime.adminSession}
+                  registry={runtime.sessionRegistry}
+                >
+                  {adminRouteElements[route.id]}
+                </AuthenticatedAdminGuard>
+              }
+            />
+          ))}
           <Route
             path="/alpha/readiness"
             element={
@@ -1161,6 +1186,10 @@ export default function App({
           <Route
             path="/store-portal/changes"
             element={<PortalControlledChangesPage client={portalClient} />}
+          />
+          <Route
+            path="/store-portal/photos"
+            element={<PortalMediaReviewPage client={portalClient} />}
           />
           <Route
             path="/store-portal/updates"
@@ -1244,7 +1273,7 @@ export default function App({
             }
           />
           <Route path="*" element={<NotFound />} />
-        </Routes>
+        </AdminAuditRoutes>
       </AppShell>
     </AuthProvider>
   )

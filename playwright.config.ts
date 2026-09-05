@@ -5,7 +5,10 @@ export default defineConfig({
   testIgnore: ['review-harness.spec.ts', 'ui05-auth-shopper.spec.ts'],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 2 : 0,
+  // Keep local and hosted retry behavior aligned.
+  retries: 2,
+  timeout: 60_000,
+  workers: 2,
   reporter: process.env.CI ? 'github' : 'list',
   // Vite compiles the full module graph on the first navigation after the
   // per-run server boot; the default 5s expect timeout is too short for that
@@ -24,6 +27,7 @@ export default defineConfig({
     // Never reuse a server started in normal mode; review fixtures must match
     // the command above for deterministic local and CI runs.
     reuseExistingServer: false,
+    env: { ...process.env, VITE_COMMERCIAL_RESEARCH_REVIEW: 'true' },
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

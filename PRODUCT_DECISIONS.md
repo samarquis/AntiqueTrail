@@ -82,6 +82,8 @@ Start with one strong region and verified store data rather than a sparse nation
 
 Launch first as a controlled-access Private Beta without public user-generated content. After directory, trip planning, moderation, and abuse controls are proven, launch a Regional Public MVP with text-only public ratings and reviews.
 
+Repository implementation and external activation are separate decisions. Implementation may close when the required code, tests, review, and staged-off controls are merged. Human, provider, legal, payment, research-cohort, promotion, and production evidence belongs to the gate that authorizes that external action and does not keep a repository-complete implementation ticket open.
+
 ### Regional Public MVP boundary
 
 The Regional Public MVP requires Packages 1–10B and every named provider, human-capacity, security, privacy, legal, recovery, accessibility, age-representative usability, operations, and release gate. Phase headings are capability groupings, not execution authority. Defer Phase 4 finds/households, Phase 5 preference onboarding/personalization, shopper/review photos, and owner review responses until after the Regional Public MVP.

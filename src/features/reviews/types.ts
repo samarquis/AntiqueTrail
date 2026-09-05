@@ -90,6 +90,7 @@ export interface ModerationEvidence {
 
 export interface ModerationCase {
   id: string
+  version: number
   reviewId: string
   storeId: string
   state: ModerationCaseState
@@ -103,8 +104,18 @@ export interface ModerationCase {
 export interface ModerationDecisionInput {
   action: ModerationAction
   reason: string
+  expectedVersion: number
+  idempotencyKey: string
   mfaVerified: boolean
   recentAuthAt: string | null
+}
+
+export interface ModerationConsequencePreview {
+  transition: string
+  aggregateEffect: string
+  authorNotice: string
+  reasonAndAudit: string
+  reversibility: string
 }
 
 export type RestrictionLevel = 'notice_only' | 'thirty_days' | 'ninety_days' | 'one_eighty_days'

@@ -158,10 +158,12 @@ function StoreRecordCard({
 export function SaveStoreAction({
   storeId,
   initialSaved,
+  dangerWhenSaved = false,
   client = unavailableShopperClient,
 }: {
   storeId: string
   initialSaved?: boolean
+  dangerWhenSaved?: boolean
   client?: ShopperPrivateClient
 }) {
   const online = useOnlineStatus()
@@ -206,11 +208,13 @@ export function SaveStoreAction({
     }
   }
 
+  const dangerousRemove =
+    dangerWhenSaved && saved === true && state !== 'saved' && state !== 'saving'
   return (
     <section aria-label="Private save action">
       {!online && <OfflineNotice />}
       <button
-        className="button"
+        className={dangerousRemove ? 'button button--danger' : 'button'}
         type="button"
         disabled={state === 'saving' || saved === null || !online}
         onClick={toggle}
@@ -491,7 +495,26 @@ export function SavedPage({
               timestamp={store.savedAt}
               sourceLabel="Your private saved-store record"
             >
-              <SaveStoreAction storeId={store.storeId} initialSaved client={client} />
+              <Link
+                className="button"
+                to={`/trips/new?addStoreId=${encodeURIComponent(store.storeId)}&returnTo=${encodeURIComponent('/saved')}`}
+              >
+                <img
+                  className="button__icon"
+                  src="/icons/shopping-trip.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width="20"
+                  height="20"
+                />
+                Add to Trip
+              </Link>{' '}
+              <SaveStoreAction
+                storeId={store.storeId}
+                initialSaved
+                client={client}
+                dangerWhenSaved
+              />
             </StoreRecordCard>
           ))}
         </ul>

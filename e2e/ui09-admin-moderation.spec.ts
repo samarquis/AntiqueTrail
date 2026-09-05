@@ -34,7 +34,13 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
   test('administrator reaches privileged routes while every non-admin role is redirected', async ({
     page,
   }) => {
-    for (const path of ['/admin', '/admin/access', '/admin/partners', '/admin/reviews']) {
+    for (const path of [
+      '/admin',
+      '/admin/access',
+      '/admin/more',
+      '/admin/partners',
+      '/admin/reviews',
+    ]) {
       await page.goto(reviewUrl(path, 'administrator'))
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     }
@@ -44,6 +50,45 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
       await expect(page.getByRole('heading', { level: 1, name: 'Review queue' })).toHaveCount(0)
       await expect(page.getByRole('button', { name: 'Review Blue Finch Curios' })).toHaveCount(0)
     }
+  })
+
+  test('Administrator navigation has only route parents and preserves direct-link history', async ({
+    page,
+  }) => {
+    await page.goto(reviewUrl('/admin/reviews', 'administrator'))
+    const navigation = page.getByRole('navigation', { name: 'Primary navigation' })
+    await expect(navigation.getByRole('link')).toHaveText(['Review', 'Access', 'More'])
+    await expect(navigation.getByRole('link', { name: 'Review' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    await expect(navigation.getByRole('link', { name: 'Access' })).not.toHaveAttribute(
+      'aria-current',
+    )
+    await navigation.getByRole('link', { name: 'Access' }).click()
+    await expect(page).toHaveURL(/\/admin\/access$/)
+    await expect(navigation.getByRole('link', { name: 'Access' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    await page.goBack()
+    await expect(page).toHaveURL(/\/admin\/reviews\?reviewAs=administrator/)
+    await expect(navigation.getByRole('link', { name: 'Review' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    await page.goto(reviewUrl('/admin/more', 'administrator'))
+    await expect(page.getByRole('heading', { level: 1, name: 'More' })).toBeVisible()
+    await expect(navigation.getByRole('link', { name: 'More' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    await expect(
+      page.getByRole('navigation', { name: 'Administrator more destinations' }),
+    ).toContainText(/Support.*Readiness.*View Audit.*Evidence.*Communities.*System status/s)
+    await page.goto(reviewUrl('/admin/more', 'shopper-a'))
+    await expect(page).toHaveURL(/\/stores/)
+    await expect(page.getByRole('heading', { level: 1, name: 'More' })).toHaveCount(0)
   })
 
   test('review queue opens its exact context and resolves the assigned case audibly', async ({
@@ -179,9 +224,9 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
 
     await page.goto(reviewUrl('/admin/reviews', 'administrator'))
     await page.getByLabel('Decision reason').fill('confirmed spam')
-    await page.getByRole('button', { name: 'Remove', exact: true }).click()
+    await page.getByRole('button', { name: /^Remove / }).click()
     await expect(page.getByLabel('Confirm moderation decision')).toContainText(
-      'public moderation state',
+      'moderation case state',
     )
     await page.getByRole('button', { name: 'Confirm Remove' }).click()
     await expect(page.getByText('State: removed')).toBeVisible()
@@ -325,7 +370,7 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
     await page.setViewportSize({ width: 412, height: 915 })
     await page.goto(reviewUrl('/admin/reviews', 'administrator'))
     await page.getByLabel('Decision reason').fill('confirmed spam')
-    await page.getByRole('button', { name: 'Remove', exact: true }).click()
+    await page.getByRole('button', { name: /^Remove / }).click()
     const confirm = page.getByRole('button', { name: 'Confirm Remove' })
     await confirm.scrollIntoViewIfNeeded()
     const covered = await confirm.evaluate((button) => {
@@ -346,9 +391,10 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
       ['/admin', 'Review Blue Finch Curios'],
       ['/admin/access', 'Preview revoke Blue Finch Curios scope'],
       ['/admin/partners', 'Create synthetic invitation'],
-      ['/admin/reviews', 'Dismiss Report'],
+      ['/admin/reviews', /^Dismiss Report /],
     ] as const) {
       await page.goto(reviewUrl(path, 'administrator'))
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       const target = page.getByRole('button', { name: label })
       await target.scrollIntoViewIfNeeded()
       const covered = await target.evaluate((element) => {
@@ -368,18 +414,22 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
       ['/admin/access', 'access'],
       ['/admin/partners', 'partners'],
       ['/admin/reviews', 'moderation'],
+      ['/admin/more', 'more'],
       ['/status', 'status'],
     ] as const) {
       await page.goto(reviewUrl(path, 'administrator'))
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       if (slug === 'moderation') {
         await page.getByLabel('Decision reason').fill('confirmed spam')
-        await page.getByRole('button', { name: 'Remove', exact: true }).click()
+        await page.getByRole('button', { name: /^Remove / }).click()
         await page.getByRole('button', { name: 'Confirm Remove' }).click()
         await expect(page.getByLabel('Resolved moderation outcome')).toBeVisible()
       }
       await page.screenshot({
-        path: `docs/evidence/ui-09/${testInfo.project.name}-${slug}.png`,
+        path:
+          slug === 'more'
+            ? `docs/evidence/issue-137/${testInfo.project.name}-admin-more.png`
+            : `docs/evidence/ui-09/${testInfo.project.name}-${slug}.png`,
         fullPage: true,
       })
     }
