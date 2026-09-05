@@ -65,7 +65,7 @@ jobs:
                 });
               }
 
-              const body = `${marker}\nThis ticket is not implementation-ready under \`PLAN_GOVERNANCE.md\`:\n\n${result.errors.map((error) => `- ${error}`).join("\n")}\n\nEdit the ticket to restore the required reason-to-plan-to-acceptance trace.`;
+              const body = `${marker}\nThis ticket is not implementation-ready under \`PLAN_GOVERNANCE.md\`:\n\n${result.errors.map((error) => `- ${error}`).join("\n")}\n\nEdit the ticket to restore the required problem-to-plan-to-outcome-to-evidence trace.`;
               if (existing) {
                 await github.rest.issues.updateComment({
                   owner,

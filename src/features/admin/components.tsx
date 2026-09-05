@@ -504,10 +504,26 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
       {listState === 'loading' ? (
         <p role="status">Loading Store Representative scopes…</p>
       ) : grants.length ? (
-        <ul>
+        <ul aria-label="Store Representative scopes">
           {grants.map((grant) => (
             <li key={grant.grantId}>
-              <strong>{grant.storeLabel}</strong> — {grant.subjectLabel} — {grant.state}{' '}
+              <strong>{grant.storeLabel}</strong> — {grant.subjectLabel} — {grant.state}
+              <p>
+                Assurance: {grant.verifiedEmail ? 'verified email' : 'no verified email'},{' '}
+                {grant.mfaVerified ? 'MFA verified' : 'no MFA'}. Granted{' '}
+                {new Date(grant.grantedAt).toLocaleDateString()}
+                {grant.revokedAt
+                  ? `. Revoked ${new Date(grant.revokedAt).toLocaleDateString()}.`
+                  : '.'}
+              </p>
+              {grant.recentActivity.length ? (
+                <p>
+                  Recent privileged activity:{' '}
+                  {grant.recentActivity
+                    .map((entry) => `${entry.action.replaceAll('_', ' ')} (${entry.outcome})`)
+                    .join(', ')}
+                </p>
+              ) : null}
               <button
                 type="button"
                 disabled={scopePreview?.grantId === grant.grantId && !scopeReason.trim()}
