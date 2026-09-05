@@ -283,6 +283,10 @@ Token consumption/provisional consent/pending identity is an application transac
 - Use the real shopper layout for preview and distinguish live values from pending changes.
 - Exclude traffic analytics, advertising, shopper ratings, shopper-private data, and marketing tools from MVP.
 
+### Paid-tier changes
+
+At the activated authenticated `/store-portal/plans` surface, initial Free-to-paid purchase retains hosted Checkout. An eligible Gallery-to-Full-Gallery upgrade shows current and target tier and repeats the authoritative paid disclosures before fresh consent, then modifies the existing subscription under Package 13. Pending or compensating state must not claim a completed upgrade: retain the valid current entitlement, explain the pending change or charge reconciliation, and offer the existing support/status path. Stale terms require fresh consent; retry must resume/reconcile the same change without a duplicate charge. In servicing-only, new upgrade actions deny while existing-customer cancellation and reconciliation remain available. Existing responsive, accessibility, focus, and error-recovery rules apply.
+
 ### Publishing labels and hours
 
 - Label every edit `Publishes Immediately` or `Requires Administrator Review` before submission.
