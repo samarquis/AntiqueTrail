@@ -31,7 +31,7 @@ Do not reorder the list because another ticket looks easier. If the first unchec
 - [ ] 10. #130 — Complete exact-scope Access & Safety. Dependencies: #137.
 - [ ] 11. #131 — Implement narrow D30 View Audit. Dependencies: #137 and #130.
 - [ ] 12. #140 — Complete moderation consequence preview and sole confirmation CTA. Dependencies: #142.
-- [ ] 13. #168 — Build the isolated, protected Package 10A owner-research artifact. Dependencies: merged plan PR #167; H-01/S-01/HC-01 block external sessions, not repository build.
+- [x] 13. #168 — Build the isolated, protected Package 10A owner-research artifact. Dependencies: merged plan PR #167; H-01/S-01/HC-01 block external sessions, not repository build.
 - [ ] 14. #169 — Run and pass the exact eight-owner acquisition usability gate. Dependencies: #168 plus H-01, S-01, HC-01, support/security monitoring, and legal/privacy approval.
 - [ ] 15. #170 — Deliver public existing-store claim through atomic Free activation, staged off until Package 10B. Dependencies: #168 and the existing Package 2 identity/MFA contracts; #169 blocks public activation, not repository build.
 - [ ] 16. #171 — Deliver add-store intake, duplicate conversion, provenance, and atomic Free publication. Dependencies: #170; coordinate with completed #130/#131 contracts.
