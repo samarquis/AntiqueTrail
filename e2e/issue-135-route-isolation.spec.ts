@@ -20,7 +20,7 @@ for (const route of portalRoutes) {
     }
   })
 
-  test(`Portal ${route || 'home'} clears protected content when the next request denies`, async ({
+  test(`Portal ${route || 'home'} renders a denied screen for the permission-denied fixture`, async ({
     page,
   }) => {
     await page.goto(`/store-portal${route}?reviewAs=representative&reviewState=success`)

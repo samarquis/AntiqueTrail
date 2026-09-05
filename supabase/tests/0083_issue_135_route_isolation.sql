@@ -115,7 +115,9 @@ reset role;
 rollback to active_actor;
 
 savepoint active_actor;
-update app_private.active_sessions set last_authenticated_at=statement_timestamp()-interval '11 minutes' where session_id='76000000-0000-4000-8000-000000000008';
+select set_config('request.jwt.claims',jsonb_set(current_setting('request.jwt.claims')::jsonb,'{amr}',
+  jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp()-interval '11 minutes')::bigint),
+  jsonb_build_object('method','totp','timestamp',extract(epoch from statement_timestamp()-interval '11 minutes')::bigint)))::text,true);
 set local role authenticated;
 select throws_ok($$select app_public.portal_get_home()$$,'42501','portal_unavailable','stale recent authentication denies');
 reset role;
@@ -147,4 +149,3 @@ reset role;
 select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('portal_private','partner_private') and c.relkind='r' and (not c.relrowsecurity or not c.relforcerowsecurity)),'partner and Portal private tables force RLS');
 select * from finish();
 rollback;
-
