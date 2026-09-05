@@ -85,11 +85,7 @@ test('actual 200% browser zoom preserves record audit reflow', async ({
       path: testInfo.outputPath('audit-browser-zoom-200.png'),
       fullPage: false,
     })
-    await page
-      .getByRole('region', { name: 'Record audit' })
-      .getByRole('listitem')
-      .last()
-      .scrollIntoViewIfNeeded()
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     await page.screenshot({ path: testInfo.outputPath('audit-browser-zoom-200-events.png') })
   } finally {
     await context.close()
