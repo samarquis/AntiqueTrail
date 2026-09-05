@@ -465,7 +465,10 @@ describe('provider-neutral Store Portal boundary', () => {
         idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/i),
       }),
     )
-    expect(await screen.findByRole('status')).toHaveTextContent(/processed derivative.*review/i)
+    expect(await screen.findByText(/processed derivative.*review/i)).toHaveAttribute(
+      'role',
+      'status',
+    )
   })
 
   it.each([
@@ -659,7 +662,7 @@ describe('provider-neutral Store Portal boundary', () => {
     await screen.findByRole('alert')
     fireEvent.submit(form)
 
-    await screen.findByRole('status')
+    await screen.findByText('Replacement submitted and is awaiting Administrator review.')
     expect(resubmitMedia).toHaveBeenCalledTimes(2)
     expect(resubmitMedia.mock.calls[1][0].idempotencyKey).toBe(
       resubmitMedia.mock.calls[0][0].idempotencyKey,
