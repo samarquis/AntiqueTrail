@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
+import process from 'node:process'
 import { verifyOwnerResearchArtifacts } from './verify-owner-research-artifacts.mjs'
 
 const markers =
