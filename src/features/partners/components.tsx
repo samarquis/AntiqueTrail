@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   EMAIL_GATE_MESSAGE,
   GENERIC_PARTNER_ERROR,
@@ -564,19 +564,28 @@ export function PartnerActivatePage({
 
 export function PartnerClaimPage({
   client = unavailablePartnerClient,
+  selectedStoreId,
 }: {
   client?: PartnerClient
+  /** Future Package 10B catalog/CTA wiring supplies this after exact selection. */
+  selectedStoreId?: string
 }) {
+  const location = useLocation()
+  const storeId = selectedStoreId ?? new URLSearchParams(location.search).get('claimStore') ?? ''
   const [draft, setDraft] = useState<PartnerClaimDraft>({
-    storeReference: '',
+    storeId,
     relationship: '',
     authorityStatement: '',
+    idempotencyKey: `public-claim-${crypto.randomUUID()}`,
   })
   const [status, setStatus] = useState<PartnerClaimStatus | null>(null)
   const [signalChannel, setSignalChannel] = useState<PartnerClaimSignalInput['channelClass']>(
     'published_business_contact',
   )
   const [evidenceReference, setEvidenceReference] = useState('')
+  const [signalIdempotencyKey, setSignalIdempotencyKey] = useState(
+    () => `public-signal-${crypto.randomUUID()}`,
+  )
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(false)
   const [consent, setConsent] = useState<PartnerConsentStatus | null>(null)
@@ -608,9 +617,10 @@ export function PartnerClaimPage({
     try {
       setStatus(
         await client.submitClaim({
-          storeReference: draft.storeReference.trim(),
+          storeId: draft.storeId,
           relationship: draft.relationship.trim(),
           authorityStatement: draft.authorityStatement.trim(),
+          idempotencyKey: draft.idempotencyKey,
         }),
       )
     } catch {
@@ -629,11 +639,13 @@ export function PartnerClaimPage({
       setStatus(
         await client.submitAuthoritySignal({
           claimId: status.claimId,
+          idempotencyKey: signalIdempotencyKey,
           channelClass: signalChannel,
           evidenceReference: evidenceReference.trim(),
         }),
       )
       setEvidenceReference('')
+      setSignalIdempotencyKey(`public-signal-${crypto.randomUUID()}`)
     } catch {
       setError(true)
     } finally {
@@ -741,14 +753,11 @@ export function PartnerClaimPage({
             </>
           )}
           <form onSubmit={submit}>
-            <label htmlFor="claim-store-reference">Store reference</label>
-            <input
-              id="claim-store-reference"
-              maxLength={160}
-              value={draft.storeReference}
-              onChange={(event) => setDraft({ ...draft, storeReference: event.target.value })}
-              required
-            />
+            {storeId ? (
+              <p role="status">Selected listing is ready for a server-authoritative claim check.</p>
+            ) : (
+              <p role="status">Select an exact listing before starting a claim.</p>
+            )}
             <label htmlFor="claim-relationship">Relationship to the store</label>
             <input
               id="claim-relationship"
@@ -765,7 +774,7 @@ export function PartnerClaimPage({
               onChange={(event) => setDraft({ ...draft, authorityStatement: event.target.value })}
               required
             />
-            <button className="button" type="submit" disabled={pending}>
+            <button className="button" type="submit" disabled={pending || !storeId}>
               {pending ? 'Submitting…' : 'Submit claim'}
             </button>
           </form>
