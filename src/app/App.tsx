@@ -1,3 +1,11 @@
+import { StoreApplicationAdminPanel } from '../features/partners/storeApplicationAdminPanel'
+import { StoreApplicationPage } from '../features/partners/storeApplicationPage'
+import {
+  unavailableStoreApplicationClient,
+  unavailableStoreApplicationAdminClient,
+  type StoreApplicationAdminClient,
+  type StoreApplicationClient,
+} from '../features/partners/storeApplications'
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { RecordAuditPage, AdminAuditRoutes } from '../features/admin/audit'
 import { Link, Navigate, NavLink, Outlet, Route, useLocation, useParams } from 'react-router-dom'
@@ -849,6 +857,8 @@ export interface AppClients {
   admin?: AdminClient
   lifecycle?: AccountLifecycleClient
   reviews?: ReviewClient
+  storeApplications?: StoreApplicationClient
+  storeApplicationAdmin?: StoreApplicationAdminClient
   portal?: PortalClient
   readiness?: DurableReadinessClient
   billing?: BillingClient
@@ -915,7 +925,18 @@ export default function App({
     reviewQueue: <ReviewQueuePage client={adminClient} />,
     accessSafety: <AccessSafetyPage client={adminClient} />,
     more: <AdminMorePage />,
-    partners: <PartnerAdminPage client={partnerAdminClient} />,
+    partners: (
+      <PartnerAdminPage
+        client={partnerAdminClient}
+        applications={
+          publicListingClaimsEnabled ? (
+            <StoreApplicationAdminPanel
+              client={clients.storeApplicationAdmin ?? unavailableStoreApplicationAdminClient}
+            />
+          ) : undefined
+        }
+      />
+    ),
     reviews: <ModerationQueuePage client={reviewClient} />,
     readiness: <ReadinessStatus client={readinessClient} />,
     beta: <BetaControl client={betaClient} />,
@@ -1195,6 +1216,26 @@ export default function App({
             path="/reviews/restrictions/:restrictionId/appeal"
             element={<RestrictionAppeal client={reviewClient} />}
           />
+          {['/stores/add', '/store-applications', '/store-applications/:applicationId'].map(
+            (path) => (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  publicListingClaimsEnabled ? (
+                    <RequireSession>
+                      <StoreApplicationPage
+                        client={clients.storeApplications ?? unavailableStoreApplicationClient}
+                        partner={partnerClient}
+                      />
+                    </RequireSession>
+                  ) : (
+                    <NotFound />
+                  )
+                }
+              />
+            ),
+          )}
           <Route path="/partner/join" element={<PartnerJoinPage client={partnerClient} />} />
           <Route path="/partner/verify" element={<PartnerVerifyPage client={partnerClient} />} />
           <Route path="/partner/draft" element={<PartnerDraftPage client={partnerClient} />} />

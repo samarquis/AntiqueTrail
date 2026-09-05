@@ -1,3 +1,7 @@
+import {
+  createStoreApplicationClient,
+  createStoreApplicationAdminClient,
+} from '../features/partners/storeApplications'
 import { createClient, type Session } from '@supabase/supabase-js'
 import type { AppClients, AppRuntime } from './App'
 import { createAdminClient } from '../features/admin/adminClient'
@@ -574,6 +578,30 @@ export async function configuredComposition(
           const result = await supabase.rpc(name, args)
           return { data: result.data, error: result.error }
         },
+      }),
+      storeApplicationAdmin: createStoreApplicationAdminClient(async (operation, payload) => {
+        if (operation === 'verify_signal')
+          return edge('partner-provider-command', {
+            operation: 'store_application_verify_signal',
+            payload,
+          })
+        return rpc('store_application_admin_command', {
+          p_operation: operation,
+          p_payload: payload,
+        })
+      }),
+      storeApplications: createStoreApplicationClient(async (operation, payload) => {
+        if (operation === 'signal')
+          return edge('partner-provider-command', {
+            operation: 'store_application_signal',
+            payload,
+          })
+        const result = await supabase.rpc('store_application_command', {
+          p_operation: operation,
+          p_payload: payload,
+        })
+        if (result.error) throw result.error
+        return result.data
       }),
       portal: createPortalClient(
         {

@@ -1,3 +1,4 @@
+import { storeApplicationReviewClients } from './storeApplications'
 import type { AppClients } from '../app/App'
 import { withRecordAuditReview } from './adminAudit'
 import { demoCatalogClient } from '../features/catalog/demoClient'
@@ -2466,6 +2467,7 @@ export function createReviewHarnessClients(
   mediaReviewEnabled = false,
 ): AppClients {
   return {
+    ...storeApplicationReviewClients(state),
     lifecycle: lifecycleClient(scenario, state),
     shopper: shopperClient(scenario, state),
     candidate: candidateClient(scenario, state),

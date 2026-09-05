@@ -456,7 +456,7 @@ export function PartnerStatusPage({
   )
 }
 
-function MaterialTermsGate({
+export function MaterialTermsGate({
   client,
   status,
   onAccepted,

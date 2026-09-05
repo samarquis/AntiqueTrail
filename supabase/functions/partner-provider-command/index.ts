@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
 import {
   preparePublicClaimSignalPayload,
+  prepareStoreApplicationSignalPayload,
   prepareSyntheticPartnerPayload,
 } from '../_shared/partner-command-payload.ts'
 import { partnerCors, partnerPreflight } from '../_shared/partner-cors.ts'
@@ -29,6 +30,19 @@ Deno.serve(async (request) => {
       operation?: string
       payload?: Record<string, unknown>
       synthetic?: boolean
+    }
+    if (!body.synthetic && ['store_application_signal','store_application_verify_signal'].includes(body.operation ?? '')) {
+      const payload = await prepareStoreApplicationSignalPayload(body.payload ?? {}, evidenceHmacSecret)
+      const admin = body.operation === 'store_application_verify_signal'
+      const client = createClient(url, anonKey, {
+        db: { schema: 'app_public' }, global: { headers: { Authorization: authorization } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+      const result = await client.rpc(admin ? 'store_application_admin_command' : 'store_application_command', {
+        p_operation: admin ? 'verify_signal' : 'signal', p_payload: payload,
+      })
+      if (result.error) return unavailable(cors.headers)
+      return Response.json(result.data, { headers: cors.headers })
     }
     if (!body.synthetic && body.operation === 'submit_authority_signal') {
       const payload = await preparePublicClaimSignalPayload(body.payload ?? {}, evidenceHmacSecret)
