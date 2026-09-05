@@ -50,7 +50,7 @@ test.describe('UI-10 integrated product acceptance', () => {
     const cases = [
       ['/saved', 'shopper-a', 'loading', 'Loading'],
       ['/shares', 'shopper-b', 'empty', 'No'],
-      ['/store-portal', 'representative', 'error', "We couldn't update this store portal."],
+      ['/store-portal', 'representative', 'error', 'Store Portal access is unavailable'],
       ['/admin', 'administrator', 'blocked', 'This item is not available.'],
     ] as const
     for (const [path, identity, state, copy] of cases) {

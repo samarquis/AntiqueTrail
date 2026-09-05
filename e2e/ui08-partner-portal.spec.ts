@@ -7,7 +7,7 @@ const syntheticMediaReviewUrl = (path: string) =>
 const INVITATION_URL =
   '/partner/join?reviewAs=representative&reviewState=success#token=review-partner-invite'
 const PARTNER_ERROR = "We couldn't continue this invitation. Check the link or try again."
-const PORTAL_ERROR = "We couldn't update this store portal. Please try again."
+const PORTAL_ERROR = 'Store Portal access is unavailable for this account or session.'
 
 async function assertMinimumTargets(page: Page) {
   expect(
