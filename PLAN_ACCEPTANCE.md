@@ -76,7 +76,7 @@ D31 full Audit History UI/export, households, finds/collections, personalization
 
 ## Independent-builder acceptance
 
-Before a package starts, its execution contract must satisfy every field in `IMPLEMENTATION_PLAN.md` and resolve every dependency shown above. Before the package closes, a clean checkout must reproduce its migrations/fixtures, all allow-and-deny tests must pass, required UI states must be visually and accessibly verified, failure/rollback must be exercised, security/privacy artifacts must contain no forbidden data, and the evidence receipt must be attached to GitHub Issue #1. AI output is never a substitute for a failed executable check or required human gate.
+Before implementation starts, its ticket must cite the current contract and own one repository-controlled outcome. It closes when a clean checkout proves its mapped acceptance criteria with the applicable source, migration, allow/deny, UI, accessibility, failure, rollback, and security/privacy checks. External evidence and authorization close in separate gate issues. AI output is never a substitute for a failed executable check or required human gate.
 
 Security closure additionally requires exact Postgres privilege/FORCE-RLS tests; every session-revocation surface; auth/invitation fragment/cache/referrer denial; stage/capability matrix across route/RLS/Storage/RPC/Function/job; case-scoped sibling/bulk denial; SSRF limit corpus; field/XSS/Unicode boundaries; offline 36-hour/7-day lifecycle; DB/Auth/Storage restore with deletion/revocation replay; audit-chain external-root failure; quota/no-charge degradation; and header/CSP/CI artifact-digest assertions. A plan statement is not evidence of runtime behavior.
 

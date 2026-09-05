@@ -2,26 +2,18 @@
 
 Closes #
 
-## Reason addressed
+## Outcome
 
-Explain how this change resolves the ticket's stated reason rather than only its visible symptom.
+State how the diff resolves the ticket's problem and outcome.
 
-## Plan requirements
+## Plan
 
-List each controlling Markdown file and exact heading this change implements.
+Cite the controlling file and heading. State `Conforming work; no plan change` or identify the authorized amendment.
 
-## Plan conformance
+## Evidence
 
-State `Conforming work; no plan change` or identify the already-merged plan amendment.
-
-## Acceptance evidence
-
-Map each ticket acceptance criterion to the relevant test, artifact, or manual evidence.
-
-## Verification
-
-List local and hosted checks and their results.
+Map each acceptance criterion to its test or artifact and list applicable local and hosted checks.
 
 ## Plan change authorization
 
-State `Not a plan change`. For an authorized plan amendment, record the exact directive `update plan` and ensure `PLAN_CHANGELOG.md` is updated append-only.
+State `Not a plan change`. For an authorized amendment, record `update plan` and append `PLAN_CHANGELOG.md`.

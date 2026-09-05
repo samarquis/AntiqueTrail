@@ -1764,6 +1764,7 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
   const FIXED_NOW = '2026-08-05T12:00:00.000Z'
   let moderationCase: ModerationCase = {
     id: 'moderation-1',
+    version: 1,
     reviewId: 'review-1',
     storeId: 'store-blue-finch',
     state: 'open',
@@ -1773,6 +1774,7 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
     updatedAt: FIXED_NOW,
     reporterPseudonym: 'Reporter 17',
   }
+  const moderationReceipts = new Map<string, { digest: string; result: ModerationCase }>()
   return {
     ...unavailableReviewClient,
     async listModerationCases() {
@@ -1782,7 +1784,14 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
     async decideModerationCase(caseId: string, input: ModerationDecisionInput) {
       allowed()
       return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        const digest = JSON.stringify({ caseId, ...input })
+        const prior = moderationReceipts.get(input.idempotencyKey)
+        if (prior) {
+          if (prior.digest !== digest) throw new Error(GENERIC_ADMIN_FAILURE)
+          return prior.result
+        }
         if (caseId !== moderationCase.id) throw new Error('Synthetic exact-case denial.')
+        if (input.expectedVersion !== moderationCase.version) throw new Error(GENERIC_ADMIN_FAILURE)
         if (!input.reason.trim() || !input.mfaVerified || !input.recentAuthAt)
           throw new Error(GENERIC_ADMIN_FAILURE)
         const recentAuthAt = Date.parse(input.recentAuthAt)
@@ -1798,11 +1807,13 @@ function reviewClient(scenario: ReviewScenario, state: ReviewStateId): ReviewCli
                 : 'dismissed'
         const updated: ModerationCase = {
           ...moderationCase,
+          version: moderationCase.version + 1,
           state: nextState,
           updatedAt: FIXED_NOW,
           evidence: [...moderationCase.evidence, { kind: 'prior_decision', value: input.reason }],
         }
         moderationCase = updated
+        moderationReceipts.set(input.idempotencyKey, { digest, result: updated })
         return updated
       })
     },
@@ -2178,6 +2189,13 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
       storeLabel: 'Blue Finch Curios',
       state: 'active',
       version: 2,
+      verifiedEmail: true,
+      mfaVerified: true,
+      grantedAt: '2026-07-01T12:00:00Z',
+      revokedAt: null,
+      recentActivity: [
+        { action: 'admin_scope_regrant', outcome: 'completed', occurredAt: '2026-08-01T12:00:00Z' },
+      ],
     },
   ]
   let mergePlan: AdminMergePlan | null = {
@@ -2333,6 +2351,15 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
           ...grant,
           state: operation === 'revoke' ? 'revoked' : 'active',
           version: expectedVersion + 1,
+          revokedAt: operation === 'revoke' ? new Date().toISOString() : grant.revokedAt,
+          recentActivity: [
+            {
+              action: operation === 'revoke' ? 'admin_scope_revoke' : 'admin_scope_regrant',
+              outcome: 'completed',
+              occurredAt: new Date().toISOString(),
+            },
+            ...grant.recentActivity,
+          ].slice(0, 5),
         }
         storeGrants = storeGrants.map((g) => (g.grantId === grant.grantId ? updated : g))
         scopePreview = null
