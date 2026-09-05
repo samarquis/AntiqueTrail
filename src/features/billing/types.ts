@@ -7,6 +7,25 @@ export interface CheckoutRequest {
   storeId: string
   idempotencyKey: string
   tier: 'gallery' | 'full_gallery'
+  consentId: string
+  commercialConfigVersion: number
+}
+
+export interface PaidConsentRequest {
+  storeId: string
+  targetTier: 'gallery' | 'full_gallery'
+  commercialConfigVersion: number
+  disclosureDigest: string
+  expectedStoreVersion: number
+  idempotencyKey: string
+}
+
+export interface PaidConsentReceipt {
+  consentId: string
+  expiresAt: string
+  state: 'unused'
+  configVersion: number
+  configDigest: string
 }
 
 export type CommercialConfigState = 'approved_inactive'
@@ -74,6 +93,7 @@ export interface BillingRpcTransport {
 
 export type BillingRpcName =
   | 'billing_get_capability'
+  | 'billing_record_paid_tier_consent'
   | 'billing_create_checkout_session'
   | 'billing_create_portal_session'
   | 'billing_get_commercial_research_config'
@@ -81,6 +101,7 @@ export type BillingRpcName =
 
 export interface BillingClient {
   getCapability(): Promise<BillingCapability>
+  recordPaidTierConsent(request: PaidConsentRequest): Promise<PaidConsentReceipt>
   startCheckout(request: CheckoutRequest): Promise<{ requested: boolean; storeId: string }>
   openPortal(storeId: string): Promise<{ requested: boolean; storeId: string }>
   getCommercialResearchConfig(authorizationId: string): Promise<CommercialResearchConfig>

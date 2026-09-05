@@ -34,25 +34,63 @@ describe('billing capability gating', () => {
 
   it('maps owner actions to exact bounded RPCs', async () => {
     const rpc = vi.fn(async (name: string) => ({
-      data: name === 'billing_get_capability' ? capability() : { requested: true },
+      data:
+        name === 'billing_get_capability'
+          ? capability()
+          : name === 'billing_record_paid_tier_consent'
+            ? {
+                consentId: 'consent-1',
+                expiresAt: '2099-01-01T00:00:00Z',
+                state: 'unused',
+                configVersion: 7,
+                configDigest: 'a'.repeat(64),
+              }
+            : { requested: true },
       error: null,
     }))
     const client = createBillingClient({ rpc })
     const idempotencyKey = '0b8df3be-6f5e-4a55-9c1d-2f1f7bd2f4aa'
 
     await client.getCapability()
+    await client.recordPaidTierConsent({
+      storeId: 'store-1',
+      targetTier: 'gallery',
+      commercialConfigVersion: 7,
+      disclosureDigest: 'a'.repeat(64),
+      expectedStoreVersion: 0,
+      idempotencyKey: '1b8df3be-6f5e-4a55-9c1d-2f1f7bd2f4aa',
+    })
     await client.startCheckout({
       storeId: 'store-1',
       idempotencyKey,
       tier: 'gallery',
+      consentId: 'consent-1',
+      commercialConfigVersion: 7,
     })
     await client.openPortal('store-1')
 
     expect(rpc.mock.calls).toEqual([
       ['billing_get_capability', {}],
       [
+        'billing_record_paid_tier_consent',
+        {
+          p_store_id: 'store-1',
+          p_target_tier: 'gallery',
+          p_commercial_config_version: 7,
+          p_disclosure_digest: 'a'.repeat(64),
+          p_expected_store_version: 0,
+          p_idempotency_key: '1b8df3be-6f5e-4a55-9c1d-2f1f7bd2f4aa',
+        },
+      ],
+      [
         'billing_create_checkout_session',
-        { p_store_id: 'store-1', p_idempotency_key: idempotencyKey },
+        {
+          p_store_id: 'store-1',
+          p_target_tier: 'gallery',
+          p_consent_id: 'consent-1',
+          p_commercial_config_version: 7,
+          p_idempotency_key: idempotencyKey,
+        },
       ],
       ['billing_create_portal_session', { p_store_id: 'store-1' }],
     ])
@@ -159,6 +197,8 @@ describe('billing capability gating', () => {
         storeId: 'store-1',
         idempotencyKey: '0b8df3be-6f5e-4a55-9c1d-2f1f7bd2f4aa',
         tier: 'full_gallery',
+        consentId: 'consent-1',
+        commercialConfigVersion: 7,
       }),
     ).rejects.toThrow(GENERIC_BILLING_ERROR)
     await expect(

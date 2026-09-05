@@ -8,6 +8,8 @@ import type {
   FullGalleryLimits,
   CheckoutRequest,
   CommercialResearchAttempt,
+  PaidConsentReceipt,
+  PaidConsentRequest,
 } from './types'
 
 export const GENERIC_BILLING_ERROR = "We couldn't complete this billing action. Please try again."
@@ -33,6 +35,9 @@ export const unavailableBillingClient: BillingClient = {
     return DISABLED_BILLING_CAPABILITY
   },
   async startCheckout() {
+    return unavailable()
+  },
+  async recordPaidTierConsent() {
     return unavailable()
   },
   async openPortal() {
@@ -160,6 +165,19 @@ function parseCommercialResearchReceipt(value: unknown): CommercialResearchRecei
   }
 }
 
+function parsePaidConsentReceipt(value: unknown): PaidConsentReceipt {
+  if (!isRecord(value) || value.state !== 'unused') throw new Error(GENERIC_BILLING_ERROR)
+  const configDigest = requiredString(value, 'configDigest')
+  if (!/^[0-9a-f]{64}$/.test(configDigest)) throw new Error(GENERIC_BILLING_ERROR)
+  return {
+    consentId: requiredString(value, 'consentId'),
+    expiresAt: requiredString(value, 'expiresAt'),
+    state: value.state,
+    configVersion: requiredPositiveInteger(value, 'configVersion'),
+    configDigest,
+  }
+}
+
 export function createBillingClient(transport: BillingRpcTransport): BillingClient {
   async function call(
     name: BillingRpcName,
@@ -182,9 +200,27 @@ export function createBillingClient(transport: BillingRpcTransport): BillingClie
         throw new Error(GENERIC_BILLING_ERROR)
       return { enabled: value.enabled, source: value.source }
     },
-    startCheckout: ({ storeId, idempotencyKey }: CheckoutRequest) =>
+    recordPaidTierConsent: (request: PaidConsentRequest) =>
+      call('billing_record_paid_tier_consent', {
+        p_store_id: request.storeId,
+        p_target_tier: request.targetTier,
+        p_commercial_config_version: request.commercialConfigVersion,
+        p_disclosure_digest: request.disclosureDigest,
+        p_expected_store_version: request.expectedStoreVersion,
+        p_idempotency_key: request.idempotencyKey,
+      }).then(parsePaidConsentReceipt),
+    startCheckout: ({
+      storeId,
+      tier,
+      consentId,
+      commercialConfigVersion,
+      idempotencyKey,
+    }: CheckoutRequest) =>
       call('billing_create_checkout_session', {
         p_store_id: storeId,
+        p_target_tier: tier,
+        p_consent_id: consentId,
+        p_commercial_config_version: commercialConfigVersion,
         p_idempotency_key: idempotencyKey,
       }).then(() => ({ requested: true, storeId })),
     openPortal: (storeId: string) =>
