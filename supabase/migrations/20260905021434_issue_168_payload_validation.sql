@@ -1,4 +1,5 @@
 -- Reject missing and JSON-null payload fields without SQL three-valued-logic gaps.
+set role identity_service;
 create or replace function research_private.synthetic_owner_payload(
   p_operation text,p_payload jsonb,p_intake research_private.owner_intakes default null
 ) returns jsonb language plpgsql stable security definer set search_path=''
@@ -71,3 +72,5 @@ begin
   elsif coalesce(keys,array[]::text[])<>array[]::text[] then raise exception 'invalid'; end if;
   return p_payload;
 end $$;
+
+reset role;
