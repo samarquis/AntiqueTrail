@@ -83,11 +83,7 @@ select ok(
   position('public_capability_enabled(''claims'')' in lower(pg_get_functiondef('partner_private.claim_stage_allowed(uuid)'::regprocedure)))>0,
   'the claim capability remains server-owned and staged off by default'
 );
-select ok(
-  position('public_claim_consent_receipts' in lower(pg_get_functiondef('app_public.build_account_export_canonical_json(uuid,uuid)'::regprocedure)))>0
-  and position('claim_free_activation_receipts' in lower(pg_get_functiondef('app_public.build_account_export_canonical_json(uuid,uuid)'::regprocedure)))>0,
-  'portable account export includes the applicant claim receipts before deletion'
-);
+
 
 select ok(
   position('grant_row.store_id=target_store_id' in regexp_replace(lower(pg_get_functiondef('app_public.public_listing_claim_command(text,jsonb)'::regprocedure)),'[[:space:]]','','g'))>0
@@ -284,6 +280,11 @@ select ok(
     =(select policy_version from partner_private.partner_material_terms where is_current)
   and (select archive#>>'{canonical,partnerClaims,freeActivations,0,tier}' from issue_170_export)='free',
   'portable export returns the exact consent and Free activation receipts before deletion'
+);
+select ok(
+  jsonb_array_length((select archive#>'{canonical,partnerClaims,consentReceipts}' from issue_170_export))=1
+  and jsonb_array_length((select archive#>'{canonical,partnerClaims,freeActivations}' from issue_170_export))=1,
+  'portable account export contains exactly the applicants claim receipts before deletion'
 );
 
 select lives_ok(
