@@ -113,6 +113,7 @@ import {
   PortalHoursPage,
   PortalLinksPage,
   PortalManagedFieldsPage,
+  PortalMediaReviewPage,
   PortalPreviewPage,
   PortalSupportPage,
   PortalUpdatesPage,
@@ -1164,6 +1165,10 @@ export default function App({
           <Route
             path="/store-portal/changes"
             element={<PortalControlledChangesPage client={portalClient} />}
+          />
+          <Route
+            path="/store-portal/photos"
+            element={<PortalMediaReviewPage client={portalClient} />}
           />
           <Route
             path="/store-portal/updates"
