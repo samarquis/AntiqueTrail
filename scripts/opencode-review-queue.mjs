@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import process from 'node:process'
 import { writeFile, rename } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'

@@ -57,7 +57,7 @@ function fixture() {
   data.handoff = () => {
     const comment = { user: { login: 'builder' }, body: REQUEST + '\n' + JSON.stringify(request) }
     data.comments = [comment]
-    data.issueComments = [structuredClone(comment)]
+    data.issueComments = [{ ...comment, user: { ...comment.user } }]
   }
   data.review = (overrides = {}, fields = {}) => ({
     user: { login: 'reviewer' },
