@@ -1,5 +1,52 @@
 # Issue #168 acceptance evidence
 
+## Reopened closure audit — 2026-09-05
+
+The evidence below dated 2026-09-03 is historical. Current acceptance follows the
+merged PR #208 governance amendment: repository implementation closes #168;
+protected deployment, participant/manual browser evidence, and executed external
+teardown remain in #169. No external activation is authorized by this record.
+
+- Current base: `ca863eae06e3749e839940f0df847b7ccb89a314`.
+- Reviewed source: `a8d5b8c2c984541ac5e087c9a85ddb5684fd20a0`.
+- Independent reviewer `/root/review168`: Standards PASS, Spec PASS, no unresolved
+  source findings. The review repaired session registration, teardown API schema,
+  save-before-submit, pre-admission rendering, nullable SQL validation, and touch targets.
+- Focused unit tests: 4 files, 10 tests PASS in a clean detached checkout with one
+  worker (`--pool=threads`); covers token registration/refresh/retry and bounded UI/client behavior.
+- Local pgTAP: 52/52 PASS with both issue migrations applied inside a rollback-only
+  transaction against local Supabase. This is focused synthetic database evidence;
+  required hosted CI separately performs a clean full reset and full-suite pgTAP.
+- Teardown/artifact contract tests: 4/4 PASS, including executing the command with
+  synthetic transport responses, correct schema, invalid-receipt denial before deletion,
+  and idempotent provider 404 handling.
+- Browser acceptance: nine login/denial/claim/add/resume/touch-target cases PASS
+  across desktop/tablet/mobile at `e08d342`; the three 200% text/spacing/forced-color
+  cases exposed overflow and PASS after the two-line CSS repair at `a8d5b8c`.
+  This proves text resizing/reflow, not literal browser-chrome zoom or a human screen reader.
+- Normal and isolated research Vite builds plus the canonical artifact verifier PASS.
+  Final synthetic content digest:
+  `sha256:fbef5f68a2b4fb30342c4315cbe704ae4cd39a161b458d957449e7826d11916f`.
+  The normal build has no research configuration; the research build uses the four
+  disclosed synthetic `VITE_*` inputs in the historical record below.
+- Plan-governance contract tests: 10/10 PASS; diff whitespace check PASS.
+- Hosted clean reset/full pgTAP: 80 files, 2261 assertions PASS on the unchanged
+  database candidate in [CI run 33939543916](https://github.com/samarquis/AntiqueTrail/actions/runs/33939543916).
+  Required checks must also pass on the final evidence head before merge.
+
+| Current acceptance criterion | Required evidence |
+| --- | --- |
+| Distinct artifact/manifest; normal build excludes research | Separate normal and research builds, canonical digest verifier, byte/header mutation tests |
+| Exact active admission and run namespace; generic denials | 52 pgTAP assertions; session registration/refresh unit test; unauthenticated browser denial |
+| Shared Free-only claim/add start/save/resume/submit/status and accessibility | Shared intake/content unit tests; browser login, both paths, reload/resume, direct submit, 320px/200% text resize/spacing/forced colors/keyboard and 48px targets |
+| No real authority, store, public, evidence, or provider effects | pgTAP privilege, audience, store/claim/grant snapshots; bounded Synthetic payload validation; production exclusion |
+| Shared-domain reuse, copy exclusions, isolation, deterministic teardown | Shared transaction parity and purge/replay pgTAP; content mutation tests; executable teardown transport regression |
+
+The final PR receipt records build/browser results and the required hosted checks
+at the accepted head before merge. These results are not external activation evidence.
+
+## Historical initial implementation evidence
+
 Date: 2026-09-03
 
 - Base SHA: `56584b6229445424240c07adab1b817867e59868`.

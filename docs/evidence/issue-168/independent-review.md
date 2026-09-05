@@ -49,3 +49,34 @@ Final reviewer reruns passed Node artifact tests 3/3, focused Vitest 9/9, the is
 **APPROVED:** the full diff from `56584b6229445424240c07adab1b817867e59868` through `172e62b42c5cd2e1dc14c69938ca938df1a750f0` has no open P0/P1 finding in either review lane.
 
 This source approval is not closure evidence for the unavailable external steps. Hosted `web`, `database`, and `plan-governance` checks, an authorized Deployment-Protection deployment and teardown receipt, literal real-browser 200% evidence, merge, and post-merge verification remain required. This review file necessarily follows the reviewed implementation commit; the PR and issue review receipt must bind this documentation commit and the final pushed head without pretending that a commit can contain its own SHA.
+
+## Reopened audit and refreshed independent review — 2026-09-05
+
+The preceding review is historical. Current governance at merged PR #208 keeps
+external deployment, participant/manual browser evidence, and live teardown in
+#169; routine post-merge repetition is no longer an implementation closure gate.
+
+Reviewer: `/root/review168`, a separate agent that authored no implementation.
+Base: `ca863eae06e3749e839940f0df847b7ccb89a314`.
+Final reviewed source: `a8d5b8c2c984541ac5e087c9a85ddb5684fd20a0`.
+
+The initial audit of `4a1dd6b66d864692ce8d381fe55169e4930d85fd` returned REWORK:
+
+- P1: research sign-in omitted the server session registration. Repaired using
+  the shared registry adapter before new/renewed provider tokens can invoke research.
+- P1: teardown omitted the custom API schema. Repaired with `Content-Profile: app_public`.
+- P2: submit used persisted confirmations while enabling on unsaved input. Repaired
+  by saving the current draft before submit, with a browser regression.
+- P2: acquisition content appeared while admission was pending. It now requires
+  a server snapshot; the unit test checks the initial render as well as denial.
+- P2: SQL null comparisons accepted incomplete drafts. A forward migration rejects
+  missing/null fields, preserving the original migration and function ownership.
+- P2 in the later accessibility review: clickable choice labels were shorter than
+  48px. Minimum heights and browser bounding-box assertions now cover both kinds.
+- The new 200% text/spacing test exposed 75px horizontal overflow at 320px.
+  Text wrapping and bounded button width repair the layout without hiding content.
+
+The final full-scope source review reports **Standards PASS; Spec PASS**, no
+unresolved findings, and passing `git diff --check`. Execution evidence is recorded
+separately in acceptance.md and the final PR receipt; source review alone does not
+certify hosted tests, real deployment, or participant sessions.
