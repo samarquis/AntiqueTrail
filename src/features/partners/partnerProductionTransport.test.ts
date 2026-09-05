@@ -2,6 +2,28 @@ import { describe, expect, it, vi } from 'vitest'
 import { createPartnerProductionTransport } from './partnerProductionTransport'
 
 describe('partner production transport', () => {
+  it('routes ordinary claimant lifecycle actions without a pilot identity or email provider', async () => {
+    const rpc = vi.fn()
+    const edge = vi.fn()
+    const transport = createPartnerProductionTransport({
+      rpc,
+      edge,
+      emailProviderEnabled: false,
+      mediaProviderEnabled: false,
+      syntheticEnabled: false,
+    })
+    await transport.post('withdraw_claim', { claimId: 'own-claim' })
+    await transport.post('request_authority_recheck', { claimId: 'own-claim' })
+    expect(rpc).toHaveBeenNthCalledWith(1, 'public_listing_claim_action', {
+      p_operation: 'withdraw',
+      p_claim_id: 'own-claim',
+    })
+    expect(rpc).toHaveBeenNthCalledWith(2, 'public_listing_claim_action', {
+      p_operation: 'recheck',
+      p_claim_id: 'own-claim',
+    })
+    expect(edge).not.toHaveBeenCalled()
+  })
   it('routes safe synthetic commands through the bounded RPC', async () => {
     const calls: unknown[][] = []
     const rpc = async <T>(...args: unknown[]): Promise<T> => {

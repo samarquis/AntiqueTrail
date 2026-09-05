@@ -1,3 +1,10 @@
+## 2026-09-05 integration and closure contract
+
+The current issue and merged PLAN_GOVERNANCE.md supersede the historical activation-dependent closure wording below: #170 closes on staged-off repository implementation, acceptance, independent review, and required hosted checks. #169 and #56 continue to own external evidence and public activation.
+
+Integrated base: 8228cb123156c14409a68fdec00a47aec07dc5bc. The three unmerged #170 migrations were resequenced after current main because two versions collided with migrations merged by #168/#175. No already-landed migration was renamed.
+
+Independent review found and prompted repairs for PostgreSQL bytea encoding at the real Edge boundary, invitation-independent withdrawal, and changes-requested resubmission. Fresh tests and exact-head review are required; the older test counts below are historical evidence only.
 # Issue #170 criterion-level acceptance evidence
 
 Candidate code repair is on `codex/issue-170-public-free-claim`. Final approval must bind the complete pushed head containing this ledger.
@@ -22,3 +29,4 @@ Candidate code repair is on `codex/issue-170-public-free-claim`. Final approval 
 - Ticket Playwright config: 9/9 passed.
 - `npm run verify:baseline`: passed on the complete candidate: 88 test files/603 tests, 69 release tests, TypeScript, ESLint, Prettier, and production/PWA build.
 - This evidence does not activate public claims and does not satisfy #169, Package 10B human/provider activation, hosted checks, independent review, merge, or post-merge closure proof.
+

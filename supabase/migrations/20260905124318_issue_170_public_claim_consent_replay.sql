@@ -128,8 +128,13 @@ begin
   insert into partner_private.store_owner_intake_roots(applicant_id) values(actor) on conflict (applicant_id) do nothing;
   select * into root from partner_private.store_owner_intake_roots where applicant_id=actor for update;
   select * into c from partner_private.listing_claims where claim_id=p_claim_id and claimant_id=actor for update;
-  if root.active_kind<>'claim' or root.active_id<>c.claim_id or c.state not in ('submitted','verification_pending') then
+  if root.active_kind<>'claim' or root.active_id<>c.claim_id or c.state not in ('submitted','verification_pending','changes_requested') then
     raise exception using errcode='42501',message='listing_claim_unavailable'; end if;
+  if c.state='changes_requested' then
+    perform app_public.partner_claimant_claim_command('submit',c.claim_id,c.version,
+      'public-resubmit-'||encode(extensions.digest(p_idempotency_key,'sha256'),'hex'));
+    select * into c from partner_private.listing_claims where claim_id=p_claim_id;
+  end if;
   insert into partner_private.claim_authority_signals(claim_id,channel_class,signal_type,status,evidence_ref_hmac)
     values(c.claim_id,p_channel_class,signal_type,'submitted',p_evidence_ref_hmac);
   if c.state='submitted' then update partner_private.listing_claims set state='verification_pending' where claim_id=c.claim_id; end if;

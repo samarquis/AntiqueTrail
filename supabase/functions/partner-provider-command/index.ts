@@ -40,7 +40,7 @@ Deno.serve(async (request) => {
       const result = await client.rpc('public_listing_claim_signal_command', {
         p_claim_id: payload.claimId,
         p_channel_class: payload.channelClass,
-        p_evidence_ref_hmac: payload.evidenceRefHmac,
+        p_evidence_ref_hmac: `\\x${payload.evidenceRefHmac}`,
         p_idempotency_key: payload.idempotencyKey,
       })
       if (result.error) return unavailable(cors.headers)

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(46);
+select plan(53);
 
 select has_table('partner_private','store_owner_intake_roots','claim and add starts share an applicant root');
 select has_column('partner_private','store_owner_intake_roots','active_kind','the root records the active intake kind');
@@ -189,6 +189,40 @@ select is(
   (select count(*)::integer from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'),
   1,'idempotent public start creates exactly one claim'
 );
+savepoint claimant_actions;
+select lives_ok($$
+  select app_public.partner_admin_claim_command('changes',claim_id,version,'issue-170-changes','more_information',null)
+  from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'
+$$,'administrator requests changes on the exact claim');
+select is((select app_public.public_listing_claim_action('recheck',claim_id)->>'state'
+  from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'),
+  'submitted','ordinary claimant resubmits requested changes without a pilot identity');
+select lives_ok($$
+  select app_public.public_listing_claim_action('recheck',claim_id)
+  from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'
+$$,'a repeated recheck records no authority');
+select is((select app_public.public_listing_claim_action('withdraw',claim_id)->>'state'
+  from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'),
+  'withdrawn','ordinary claimant withdraws without a pilot identity');
+select is((select active_kind from partner_private.store_owner_intake_roots
+  where applicant_id='17000000-0000-4000-8000-000000000001'),'none','withdrawal clears the matching intake root');
+select is((select app_public.public_listing_claim_action('withdraw',claim_id)->>'state'
+  from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'),
+  'withdrawn','withdrawal replay remains terminal and idempotent');
+rollback to claimant_actions;
+select lives_ok($$
+do $resubmit$
+declare c partner_private.listing_claims%rowtype;
+begin
+  select * into c from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001';
+  perform app_public.partner_admin_claim_command('changes',c.claim_id,c.version,'issue-170-signal-changes','more_information',null);
+  perform app_public.public_listing_claim_signal_command(c.claim_id,'callback',('\x'||repeat('44',32))::bytea,'issue-170-resubmit-signal');
+  if (select state from partner_private.listing_claims where claim_id=c.claim_id)<>'verification_pending' then
+    raise exception 'resubmission did not reach verification'; end if;
+end $resubmit$;
+$$,'a bytea-encoded signal atomically resubmits requested changes and reaches verification');
+rollback to claimant_actions;
+
 select lives_ok(
   $$select app_public.public_listing_claim_signal_command(
     (select claim_id from partner_private.listing_claims where claimant_id='17000000-0000-4000-8000-000000000001'),

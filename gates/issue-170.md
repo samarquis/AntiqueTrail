@@ -1,3 +1,10 @@
+## 2026-09-05 integration and closure contract
+
+The current issue and merged PLAN_GOVERNANCE.md supersede the historical activation-dependent closure wording below: #170 closes on staged-off repository implementation, acceptance, independent review, and required hosted checks. #169 and #56 continue to own external evidence and public activation.
+
+Integrated base: 8228cb123156c14409a68fdec00a47aec07dc5bc. The three unmerged #170 migrations were resequenced after current main because two versions collided with migrations merged by #168/#175. No already-landed migration was renamed.
+
+Independent review found and prompted repairs for PostgreSQL bytea encoding at the real Edge boundary, invitation-independent withdrawal, and changes-requested resubmission. Fresh tests and exact-head review are required; the older test counts below are historical evidence only.
 # Gates: issue #170 staged public existing-listing Free claim
 
 Scope: Implement the server-authoritative, staged-off existing-listing claim path without public activation or changes to #137-owned navigation seams.
@@ -24,3 +31,4 @@ Scope: Implement the server-authoritative, staged-off existing-listing claim pat
 
 - [ ] G5: Every #170 criterion has exact-SHA evidence, including the stated external activation limitation, and a fresh independent review request is ready.
       EVIDENCE: local implementation evidence is ready; #169/Package 10B activation, independent review, hosted checks, merge, and post-merge verification remain required.
+

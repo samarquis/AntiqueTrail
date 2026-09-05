@@ -1,3 +1,10 @@
+## 2026-09-05 integration and closure contract
+
+The current issue and merged PLAN_GOVERNANCE.md supersede the historical activation-dependent closure wording below: #170 closes on staged-off repository implementation, acceptance, independent review, and required hosted checks. #169 and #56 continue to own external evidence and public activation.
+
+Integrated base: 8228cb123156c14409a68fdec00a47aec07dc5bc. The three unmerged #170 migrations were resequenced after current main because two versions collided with migrations merged by #168/#175. No already-landed migration was renamed.
+
+Independent review found and prompted repairs for PostgreSQL bytea encoding at the real Edge boundary, invitation-independent withdrawal, and changes-requested resubmission. Fresh tests and exact-head review are required; the older test counts below are historical evidence only.
 # Issue #170 verification record
 
 ## Scope and revision
@@ -36,3 +43,4 @@ The isolated full 78-file pgTAP run is not globally green: legacy tests fail bec
 1. Complete #169 and the Package 10B activation gate; this ticket explicitly forbids public activation and closure before them.
 2. Run hosted `web`, `database`, and `plan-governance` on the exact pushed head and obtain independent exact-diff approval.
 3. Merge only after those gates pass, then record merged-SHA verification and close the issue.
+
