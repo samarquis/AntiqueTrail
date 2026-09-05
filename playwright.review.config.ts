@@ -16,6 +16,7 @@ export default defineConfig({
     'issue-144-typography.spec.ts',
     'issue-143-media-overlay.spec.ts',
     'issue-147-catalog-metadata.spec.ts',
+    'issue-168-owner-research.spec.ts',
     'issue-175-commercial-research.spec.ts',
   ],
   fullyParallel: false,
