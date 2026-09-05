@@ -78,9 +78,11 @@ export function OwnerAcquisitionContent({
 
       <Section id="eligibility" title="Who is eligible">
         <p>
-          This launch is limited to eligible antique and vintage stores in Topeka. Multi-location
-          and unsupported businesses use the support path instead of a partially working
-          application.
+          This launch is limited to brick-and-mortar stores inside Topeka city limits whose primary
+          inventory is antiques or vintage goods and that have recurring public hours. Event-only
+          markets and general thrift or consignment stores without that primary focus are not
+          eligible. Multi-location and unsupported businesses use the support path instead of a
+          partially working application.
         </p>
       </Section>
 
@@ -103,6 +105,11 @@ export function OwnerAcquisitionContent({
         <p>
           Free plan available · No sales commission · Keep key store details current. Payment is not
           required for publication, support, moderation, verification, ranking, or shopper access.
+        </p>
+        <p>
+          An approved eligible store receives its listing and Store Portal, a cover image and up to
+          five approved gallery images. Free continues at no charge while the listing remains
+          eligible and current; a listing is not removed for nonpayment.
         </p>
       </Section>
 
