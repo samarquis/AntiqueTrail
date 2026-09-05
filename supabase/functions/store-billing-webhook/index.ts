@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.112.1'
 import {
   loadBillingProviderEnv,
   providerIdHmac,
-  stripeCancelAndRefundSubscription,
+  reconcileCheckoutRefund,
   verifyStripeSignature,
 } from '../_shared/billing-provider.ts'
 
@@ -17,6 +17,7 @@ const env = loadBillingProviderEnv()
 
 const HANDLED_KINDS = new Set([
   'checkout.session.completed',
+  'checkout.session.expired',
   'checkout.session.async_payment_succeeded',
   'checkout.session.async_payment_failed',
   'refund.updated',
@@ -58,6 +59,7 @@ interface CheckoutObject {
   customer?: unknown
   subscription?: unknown
   payment_status?: unknown
+  metadata?: { hmac_key_version?: unknown }
 }
 
 interface RefundObject {
@@ -67,6 +69,8 @@ interface RefundObject {
     checkout_event_id?: unknown
     checkout_provider_session_id?: unknown
     subscription_id?: unknown
+    refund_attempt?: unknown
+    hmac_key_version?: unknown
   } | null
 }
 
@@ -118,8 +122,24 @@ Deno.serve(async (request) => {
   }
   const webhookMode = await workerClient.rpc('billing_get_webhook_mode')
   if (webhookMode.error || webhookMode.data === 'off_prelaunch') return stageDisabled()
-  if (webhookMode.data !== 'sales_open' && webhookMode.data !== 'servicing_only') return unavailable()
+  if (webhookMode.data !== 'sales_open' && webhookMode.data !== 'servicing_only')
+    return unavailable()
   const object = event.data?.object
+  if (event.type === 'checkout.session.expired') {
+    const expired = object as CheckoutObject | undefined
+    if (typeof expired?.id !== 'string') return received('ignored')
+    const binding = await providerIdHmac(
+      env,
+      expired.id,
+      Number(expired.metadata?.hmac_key_version),
+    )
+    if (!binding) return unavailable()
+    const result = await workerClient.rpc('billing_record_checkout_expired', {
+      p_provider_session_hmac: binding.digest,
+      p_hmac_key_version: binding.keyVersion,
+    })
+    return result.error ? unavailable() : received(String(result.data))
+  }
   if (
     event.type === 'checkout.session.completed' ||
     event.type === 'checkout.session.async_payment_succeeded' ||
@@ -136,7 +156,11 @@ Deno.serve(async (request) => {
       typeof checkout.payment_status !== 'string'
     )
       return received('ignored')
-    const providerSessionHmac = await providerIdHmac(env, checkout.id)
+    const providerSessionHmac = await providerIdHmac(
+      env,
+      checkout.id,
+      Number(checkout.metadata?.hmac_key_version),
+    )
     if (!providerSessionHmac) return unavailable()
     if (event.type === 'checkout.session.async_payment_failed') {
       const failed = await workerClient.rpc('billing_record_checkout_payment_failure', {
@@ -161,23 +185,13 @@ Deno.serve(async (request) => {
     })
     if (applied.error) return unavailable()
     if (applied.data === 'refund_pending') {
-      const reconciled = await stripeCancelAndRefundSubscription(
+      const result = await reconcileCheckoutRefund(
+        (name, args) => workerClient.rpc(name, args),
         env,
-        checkout.subscription,
-        event.id,
         checkout.id,
+        providerSessionHmac,
       )
-      if (!reconciled.ok) return unavailable()
-      const confirmed = await workerClient.rpc('billing_record_checkout_refund_state', {
-        p_event_id: event.id,
-        p_provider_session_hmac: providerSessionHmac.digest,
-        p_hmac_key_version: providerSessionHmac.keyVersion,
-        p_subscription_id: checkout.subscription,
-        p_refund_id: reconciled.refundId,
-        p_provider_state: reconciled.status,
-      })
-      if (confirmed.error) return unavailable()
-      return received(String(confirmed.data))
+      return result === null ? unavailable() : received(result)
     }
     return received(String(applied.data))
   }
@@ -195,7 +209,11 @@ Deno.serve(async (request) => {
       typeof metadata.subscription_id !== 'string'
     )
       return received('ignored')
-    const providerSessionHmac = await providerIdHmac(env, metadata.checkout_provider_session_id)
+    const providerSessionHmac = await providerIdHmac(
+      env,
+      metadata.checkout_provider_session_id,
+      Number(metadata.hmac_key_version),
+    )
     if (!providerSessionHmac) return unavailable()
     const recorded = await workerClient.rpc('billing_record_checkout_refund_state', {
       p_event_id: metadata.checkout_event_id,
@@ -203,6 +221,7 @@ Deno.serve(async (request) => {
       p_hmac_key_version: providerSessionHmac.keyVersion,
       p_subscription_id: metadata.subscription_id,
       p_refund_id: refund.id,
+      p_attempt: Number(metadata.refund_attempt),
       p_provider_state:
         refund.status === 'succeeded'
           ? 'succeeded'
@@ -211,6 +230,15 @@ Deno.serve(async (request) => {
             : 'pending',
     })
     if (recorded.error) return unavailable()
+    if (recorded.data === 'refund_failed') {
+      const result = await reconcileCheckoutRefund(
+        (name, args) => workerClient.rpc(name, args),
+        env,
+        metadata.checkout_provider_session_id,
+        providerSessionHmac,
+      )
+      return result === null ? unavailable() : received(result)
+    }
     return received(String(recorded.data))
   }
   if (

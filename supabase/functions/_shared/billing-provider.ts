@@ -6,11 +6,23 @@ export interface BillingProviderEnv {
   priceFullGallery?: string
   providerIdHmacSecret?: string
   providerIdHmacKeyVersion?: number
+  providerIdHmacKeys?: Record<string, string>
   providerGateAccepted: boolean
+  referenceKeys?: Record<string, string>
+  referenceKeyVersion?: string
 }
 
 export function loadBillingProviderEnv(): BillingProviderEnv {
+  let keys: Record<string, string> = {}
+  try {
+    keys = JSON.parse(Deno.env.get('BILLING_PROVIDER_ID_HMAC_KEYS') ?? '{}')
+  } catch {
+    /* Missing keys fail closed below. */
+  }
   return {
+    referenceKeys: JSON.parse(Deno.env.get('BILLING_CHECKOUT_REFERENCE_KEYS') ?? '{}'),
+    referenceKeyVersion: Deno.env.get('BILLING_CHECKOUT_REFERENCE_KEY_VERSION'),
+    providerIdHmacKeys: keys,
     appOrigin: Deno.env.get('APP_ORIGIN'),
     secretKey: Deno.env.get('STRIPE_SECRET_KEY'),
     webhookSecret: Deno.env.get('STRIPE_WEBHOOK_SECRET'),
@@ -25,10 +37,16 @@ export function loadBillingProviderEnv(): BillingProviderEnv {
 export async function providerIdHmac(
   env: BillingProviderEnv,
   providerSessionId: string,
+  version = env.providerIdHmacKeyVersion,
 ): Promise<{ digest: string; keyVersion: number } | null> {
-  const keyVersion = env.providerIdHmacKeyVersion
+  const keyVersion = version
+  const secret =
+    keyVersion === env.providerIdHmacKeyVersion
+      ? env.providerIdHmacSecret
+      : env.providerIdHmacKeys?.[String(keyVersion)]
   if (
-    !env.providerIdHmacSecret ||
+    typeof secret !== 'string' ||
+    !secret ||
     typeof keyVersion !== 'number' ||
     !Number.isSafeInteger(keyVersion) ||
     keyVersion < 1 ||
@@ -36,10 +54,7 @@ export async function providerIdHmac(
   )
     return null
   return {
-    digest: await hmacHex(
-      env.providerIdHmacSecret,
-      `billing-provider-session:v${keyVersion}:${providerSessionId}`,
-    ),
+    digest: await hmacHex(secret, `billing-provider-session:v${keyVersion}:${providerSessionId}`),
     keyVersion,
   }
 }
@@ -49,6 +64,8 @@ export async function stripeCancelAndRefundSubscription(
   subscriptionId: string,
   eventId: string,
   providerSessionId: string,
+  attempt = 1,
+  hmacKeyVersion = env.providerIdHmacKeyVersion,
 ): Promise<
   { ok: true; refundId: string; status: 'pending' | 'succeeded' | 'failed' } | { ok: false }
 > {
@@ -102,13 +119,15 @@ export async function stripeCancelAndRefundSubscription(
       headers: {
         ...headers,
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Idempotency-Key': `${eventId}-refund`,
+        'Idempotency-Key': `${eventId}-refund-${attempt}`,
       },
       body: new URLSearchParams({
         payment_intent: paymentIntent,
         'metadata[checkout_event_id]': eventId,
         'metadata[checkout_provider_session_id]': providerSessionId,
         'metadata[subscription_id]': subscriptionId,
+        'metadata[refund_attempt]': String(attempt),
+        'metadata[hmac_key_version]': String(hmacKeyVersion),
       }).toString(),
       redirect: 'error',
       signal: AbortSignal.timeout(15_000),
@@ -142,6 +161,70 @@ export async function stripeCancelAndRefundSubscription(
 }
 
 const SIGNATURE_TOLERANCE_MS = 300_000
+
+export async function checkoutReference(
+  env: BillingProviderEnv,
+  value: string,
+  decrypt = false,
+): Promise<string | null> {
+  try {
+    const [storedVersion, encoded] = value.split('.')
+    const version = decrypt ? storedVersion : env.referenceKeyVersion
+    const secret = version ? env.referenceKeys?.[version] : undefined
+    if (!secret || !/^[0-9a-f]{64}$/i.test(secret)) return null
+    const key = await crypto.subtle.importKey(
+      'raw',
+      Uint8Array.from(secret.match(/../g)!, (part) => parseInt(part, 16)),
+      'AES-GCM',
+      false,
+      [decrypt ? 'decrypt' : 'encrypt'],
+    )
+    if (decrypt) {
+      const bytes = Uint8Array.from(atob(encoded), (part) => part.charCodeAt(0))
+      return new TextDecoder().decode(
+        await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: bytes.slice(0, 12) },
+          key,
+          bytes.slice(12),
+        ),
+      )
+    }
+    const iv = crypto.getRandomValues(new Uint8Array(12))
+    const ciphertext = new Uint8Array(
+      await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(value)),
+    )
+    return `${version}.${btoa(String.fromCharCode(...iv, ...ciphertext))}`
+  } catch {
+    return null
+  }
+}
+
+export async function expireProviderCheckout(
+  env: BillingProviderEnv,
+  id: string,
+): Promise<boolean> {
+  if (!env.secretKey || !env.providerGateAccepted || !/^cs_[A-Za-z0-9_]{8,120}$/.test(id))
+    return false
+  const headers = { Authorization: `Bearer ${env.secretKey}` }
+  try {
+    const read = await fetch(`https://api.stripe.com/v1/checkout/sessions/${id}`, {
+      headers,
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!read.ok) return false
+    const session = await read.json()
+    if (session.status === 'expired') return true
+    if (session.status !== 'open') return false
+    const expired = await fetch(`https://api.stripe.com/v1/checkout/sessions/${id}/expire`, {
+      method: 'POST',
+      headers,
+      signal: AbortSignal.timeout(15000),
+    })
+    return expired.ok && (await expired.json()).status === 'expired'
+  } catch {
+    return false
+  }
+}
 
 function toHex(buffer: ArrayBuffer): string {
   return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -210,7 +293,11 @@ export async function stripeFormPost(
   const body = (await response.json().catch(() => null)) as { id?: unknown; url?: unknown } | null
   if (
     typeof body?.id !== 'string' ||
-    !/^cs_[A-Za-z0-9_]{8,120}$/.test(body.id) ||
+    !(
+      path === '/v1/billing_portal/sessions'
+        ? /^bps_[A-Za-z0-9_]{8,120}$/
+        : /^cs_[A-Za-z0-9_]{8,120}$/
+    ).test(body.id) ||
     typeof body.url !== 'string' ||
     !body.url.startsWith('https://')
   )
@@ -220,4 +307,60 @@ export async function stripeFormPost(
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
+}
+
+type BillingRpc = (
+  name: string,
+  args: Record<string, unknown>,
+) => PromiseLike<{ data: unknown; error: unknown }>
+
+/** Reservations own provider keys; uncertain responses replay the same durable attempt. */
+export async function reconcileCheckoutRefund(
+  rpc: BillingRpc,
+  env: BillingProviderEnv,
+  sessionId: string,
+  binding: { digest: string; keyVersion: number },
+): Promise<string | null> {
+  const scope = { p_provider_session_hmac: binding.digest, p_hmac_key_version: binding.keyVersion }
+  for (let remaining = 3; remaining > 0; remaining--) {
+    const reserved = await rpc('billing_reserve_refund_attempt', scope)
+    if (reserved.error) return null
+    const attempt = reserved.data as {
+      state?: string
+      eventId?: string
+      subscriptionId?: string
+      attempt?: number
+    } | null
+    if (attempt?.state === 'provider_confirmed') return 'refunded'
+    if (attempt?.state === 'provider_pending') return 'refund_pending'
+    if (attempt?.state === 'escalated') return 'refund_escalated'
+    if (
+      attempt?.state !== 'queued' ||
+      !attempt.eventId ||
+      !attempt.subscriptionId ||
+      !attempt.attempt
+    )
+      return null
+    const result = await stripeCancelAndRefundSubscription(
+      env,
+      attempt.subscriptionId,
+      attempt.eventId,
+      sessionId,
+      attempt.attempt,
+      binding.keyVersion,
+    )
+    if (!result.ok) return null
+    const recorded = await rpc('billing_record_checkout_refund_state', {
+      ...scope,
+      p_event_id: attempt.eventId,
+      p_subscription_id: attempt.subscriptionId,
+      p_attempt: attempt.attempt,
+      p_refund_id: result.refundId,
+      p_provider_state: result.status,
+    })
+    if (recorded.error) return null
+    if (recorded.data !== 'refund_failed') return String(recorded.data)
+  }
+  const exhausted = await rpc('billing_reserve_refund_attempt', scope)
+  return exhausted.error ? null : 'refund_escalated'
 }

@@ -130,7 +130,7 @@ describe('commercial research provider boundary', () => {
       source.indexOf('billing_get_webhook_mode'),
     )
     expect(source).toContain("webhookMode.data !== 'servicing_only'")
-    expect(source).toContain('stripeCancelAndRefundSubscription')
+    expect(source).toContain('reconcileCheckoutRefund')
     expect(source).toContain('billing_record_checkout_refund_state')
     expect(source).toContain("checkout.payment_status !== 'paid'")
     expect(source).toContain('checkout.session.async_payment_succeeded')
