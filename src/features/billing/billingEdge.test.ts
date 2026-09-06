@@ -34,6 +34,8 @@ function edge(name: string, rpc: Rpc) {
     Request,
     Response,
     URL,
+    crypto,
+    TextEncoder,
     Date,
     require: (module: string) =>
       module.startsWith('npm:')
@@ -69,7 +71,7 @@ it('executes signed servicing webhooks and denies unpaid or invalid signatures',
     vi.fn(async () => Response.json({ id: 'sub_issue177edge', current_period_end: 1900000000 })),
   )
   const rpc = vi.fn<Rpc>(async (name) => ({
-    data: name === 'billing_get_webhook_mode' ? 'servicing_only' : 'applied',
+    data: name === 'billing_capture_verified_event' ? 'servicing_only' : 'applied',
     error: null,
   }))
   const handler = edge('store-billing-webhook', rpc)
@@ -98,7 +100,7 @@ it('executes signed servicing webhooks and denies unpaid or invalid signatures',
 it('retries signed completion and expiry until a lost create response is bound', async () => {
   let bound = false
   const rpc = vi.fn<Rpc>(async (name) => ({
-    data: name === 'billing_get_webhook_mode' ? 'sales_open' : bound ? 'applied' : 'unbound',
+    data: name === 'billing_capture_verified_event' ? 'sales_open' : bound ? 'applied' : 'unbound',
     error: null,
   }))
   vi.stubGlobal(
@@ -370,4 +372,38 @@ it('executes the expiry worker and records only confirmed provider expiry', asyn
     ).status,
   ).toBe(200)
   expect(rpc.mock.calls.some(([name]) => name === 'billing_record_checkout_expired')).toBe(true)
+})
+
+it('quarantines a signed late dispute with zero business RPCs or provider calls', async () => {
+  const fetch = vi.fn()
+  vi.stubGlobal('fetch', fetch)
+  const rpc = vi.fn<Rpc>(async () => ({ data: 'quarantined', error: null }))
+  const handler = edge('store-billing-webhook', rpc)
+  const response = await handler(signed('charge.dispute.created', { id: 'dp_issue179late' }))
+  expect(await response.json()).toMatchObject({ result: 'quarantined' })
+  expect(rpc).toHaveBeenCalledOnce()
+  expect(rpc.mock.calls[0]).toEqual([
+    'billing_capture_verified_event',
+    {
+      p_event_id: 'evt_issue177edge01',
+      p_event_kind: 'charge.dispute.created',
+      p_payload_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+    },
+  ])
+  expect(fetch).not.toHaveBeenCalled()
+})
+
+it('denies event application if durable capture fails and preserves unknown obligations', async () => {
+  const fetch = vi.fn()
+  vi.stubGlobal('fetch', fetch)
+  const rpc = vi.fn<Rpc>(async () => ({ data: null, error: { message: 'unavailable' } }))
+  const handler = edge('store-billing-webhook', rpc)
+  expect((await handler(signed('checkout.session.completed', {}))).status).toBe(503)
+  expect(rpc).toHaveBeenCalledOnce()
+  rpc.mockClear().mockResolvedValue({ data: 'servicing_only', error: null })
+  expect(await (await handler(signed('charge.dispute.created', {}))).json()).toMatchObject({
+    result: 'reconciliation_required',
+  })
+  expect(rpc).toHaveBeenCalledOnce()
+  expect(fetch).not.toHaveBeenCalled()
 })

@@ -120,14 +120,47 @@ Deno.serve(async (request) => {
   ) {
     return received('ignored')
   }
-  if (!HANDLED_KINDS.has(event.type)) {
-    // Unknown types acknowledge without any database write.
-    return received('ignored')
+  const payloadDigest = Array.from(
+    new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawBody))),
+    (byte) => byte.toString(16).padStart(2, '0'),
+  ).join('')
+  // Capture every verified kind, including disputes not applied by this handler.
+  // Pending journal entries fence closure across provider calls and crashes.
+  const captured = await workerClient.rpc('billing_capture_verified_event', {
+    p_event_id: event.id,
+    p_event_kind: event.type,
+    p_payload_digest: payloadDigest,
+  })
+  if (captured.error) return unavailable()
+  if (captured.data === 'quarantined' || captured.data === 'resolved')
+    return received(captured.data)
+  if (captured.data !== 'sales_open' && captured.data !== 'servicing_only') return unavailable()
+  if (!HANDLED_KINDS.has(event.type)) return received('reconciliation_required')
+  const finish = async (result: string): Promise<Response> => {
+    // Unknown, unbound and nonterminal results stay as explicit obligations.
+    if (
+      [
+        'applied',
+        'completed',
+        'expired',
+        'failed',
+        'refunded',
+        'resolved',
+        'stale',
+        'scheduled',
+        'change_complete',
+        'recorded',
+      ].includes(result)
+    ) {
+      const resolved = await workerClient.rpc('billing_resolve_verified_event', {
+        p_event_id: event.id,
+        p_payload_digest: payloadDigest,
+        p_resolution_digest: payloadDigest,
+      })
+      if (resolved.error) return unavailable()
+    }
+    return received(result)
   }
-  const webhookMode = await workerClient.rpc('billing_get_webhook_mode')
-  if (webhookMode.error || webhookMode.data === 'off_prelaunch') return stageDisabled()
-  if (webhookMode.data !== 'sales_open' && webhookMode.data !== 'servicing_only')
-    return unavailable()
   const object = event.data?.object
   const servicing = await recordServicingEvent(
     (name, args) => workerClient.rpc(name, args),
@@ -135,12 +168,12 @@ Deno.serve(async (request) => {
     env,
   )
   if (servicing === null) return unavailable()
-  if (servicing !== undefined) return received(servicing)
+  if (servicing !== undefined) return finish(servicing)
   if (event.type === 'subscription_schedule.updated' || event.type === 'invoice.payment_succeeded')
-    return received('ignored')
+    return finish('ignored')
   if (event.type === 'checkout.session.expired') {
     const expired = object as CheckoutObject | undefined
-    if (typeof expired?.id !== 'string') return received('ignored')
+    if (typeof expired?.id !== 'string') return finish('ignored')
     const binding = await providerIdHmac(
       env,
       expired.id,
@@ -151,7 +184,7 @@ Deno.serve(async (request) => {
       p_provider_session_hmac: binding.digest,
       p_hmac_key_version: binding.keyVersion,
     })
-    return result.error || result.data === 'unbound' ? unavailable() : received(String(result.data))
+    return result.error || result.data === 'unbound' ? unavailable() : finish(String(result.data))
   }
   if (
     event.type === 'checkout.session.completed' ||
@@ -168,7 +201,7 @@ Deno.serve(async (request) => {
       !/^sub_[A-Za-z0-9]{8,64}$/.test(checkout.subscription) ||
       typeof checkout.payment_status !== 'string'
     )
-      return received('ignored')
+      return finish('ignored')
     const providerSessionHmac = await providerIdHmac(
       env,
       checkout.id,
@@ -182,9 +215,9 @@ Deno.serve(async (request) => {
         p_hmac_key_version: providerSessionHmac.keyVersion,
       })
       if (failed.error || failed.data === 'unbound') return unavailable()
-      return received(String(failed.data))
+      return finish(String(failed.data))
     }
-    if (checkout.payment_status !== 'paid') return received('payment_pending')
+    if (checkout.payment_status !== 'paid') return finish('payment_pending')
     const periodEnd = await subscriptionPeriodEnd(env, checkout.subscription)
     if (!periodEnd) return unavailable()
     const applied = await workerClient.rpc('billing_record_checkout_event', {
@@ -207,9 +240,9 @@ Deno.serve(async (request) => {
         checkout.id,
         providerSessionHmac,
       )
-      return result === null ? unavailable() : received(result)
+      return result === null ? unavailable() : finish(result)
     }
-    return received(String(applied.data))
+    return finish(String(applied.data))
   }
   if (event.type === 'refund.updated') {
     const refund = object as RefundObject | undefined
@@ -224,7 +257,7 @@ Deno.serve(async (request) => {
       typeof metadata.checkout_provider_session_id !== 'string' ||
       typeof metadata.subscription_id !== 'string'
     )
-      return received('ignored')
+      return finish('ignored')
     const providerSessionHmac = await providerIdHmac(
       env,
       metadata.checkout_provider_session_id,
@@ -253,9 +286,9 @@ Deno.serve(async (request) => {
         metadata.checkout_provider_session_id,
         providerSessionHmac,
       )
-      return result === null ? unavailable() : received(result)
+      return result === null ? unavailable() : finish(result)
     }
-    return received(String(recorded.data))
+    return finish(String(recorded.data))
   }
   if (
     typeof object?.id !== 'string' ||
@@ -263,7 +296,7 @@ Deno.serve(async (request) => {
     typeof object.customer !== 'string' ||
     !/^cus_[A-Za-z0-9]{8,64}$/.test(object.customer)
   ) {
-    return received('ignored')
+    return finish('ignored')
   }
 
   const storeId =
@@ -295,8 +328,8 @@ Deno.serve(async (request) => {
   if (applied.error) {
     const message = typeof applied.error.message === 'string' ? applied.error.message : ''
     if (message.includes('billing_stage_disabled')) return stageDisabled()
-    if (message.includes('billing_webhook_invalid')) return received('ignored')
+    if (message.includes('billing_webhook_invalid')) return finish('ignored')
     return unavailable()
   }
-  return received(String(applied.data))
+  return finish(String(applied.data))
 })
