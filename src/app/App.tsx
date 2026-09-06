@@ -1,3 +1,4 @@
+import { PaidPurchasePage, type SalesClient } from '../features/billing/sales'
 import { PromotionPage, type PromotionClient } from '../features/portal/promotion'
 import { PaidServicingPage, type ServicingClient } from '../features/billing/servicing'
 import { OwnerAcquisitionPage } from '../features/partners/ownerAcquisitionPage'
@@ -491,12 +492,14 @@ function useCatalogClient(override?: CatalogClient) {
 function OwnerAcquisitionRoute({
   catalog,
   intakeAvailable,
+  sales,
 }: {
   catalog?: CatalogClient
   intakeAvailable: boolean
+  sales?: SalesClient
 }) {
   const client = useCatalogClient(catalog)
-  return <OwnerAcquisitionPage catalog={client} intakeAvailable={intakeAvailable} />
+  return <OwnerAcquisitionPage catalog={client} intakeAvailable={intakeAvailable} sales={sales} />
 }
 
 function StoreBrowser({
@@ -876,6 +879,7 @@ export interface AppClients {
   storeApplicationAdmin?: StoreApplicationAdminClient
   portal?: PortalClient
   billingServicing?: ServicingClient
+  billingSales?: SalesClient
   readiness?: DurableReadinessClient
   billing?: BillingClient
   beta?: DurableBetaClient
@@ -1007,6 +1011,7 @@ export default function App({
               publicListingClaimsEnabled ? (
                 <OwnerAcquisitionRoute
                   catalog={clients.catalog}
+                  sales={clients.billingSales}
                   intakeAvailable={runtime.reviewHarness?.state === 'success'}
                 />
               ) : (
@@ -1290,11 +1295,33 @@ export default function App({
               <>
                 <Route
                   path="/store-portal/billing"
-                  element={<PaidServicingPage client={clients.billingServicing} />}
+                  element={
+                    <PaidServicingPage
+                      client={clients.billingServicing}
+                      unavailable={<NotFound />}
+                    />
+                  }
                 />
                 <Route
                   path="/store-portal/plans"
-                  element={<PaidServicingPage client={clients.billingServicing} />}
+                  element={
+                    clients.billingSales ? (
+                      <PaidPurchasePage
+                        client={clients.billingSales}
+                        servicing={
+                          <PaidServicingPage
+                            client={clients.billingServicing}
+                            unavailable={<NotFound />}
+                          />
+                        }
+                      />
+                    ) : (
+                      <PaidServicingPage
+                        client={clients.billingServicing}
+                        unavailable={<NotFound />}
+                      />
+                    )
+                  }
                 />
               </>
             )}

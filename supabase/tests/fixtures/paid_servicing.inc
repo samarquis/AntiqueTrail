@@ -66,3 +66,6 @@ select set_config('request.jwt.claims',jsonb_build_object(
     jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp())::bigint),
     jsonb_build_object('method','totp','timestamp',extract(epoch from statement_timestamp())::bigint)
   ))::text,true);
+
+\ir paid_activation.inc
+select pg_temp.seed_paid_activation(178);

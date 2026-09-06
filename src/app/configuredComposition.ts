@@ -1,3 +1,5 @@
+import { createSalesClient } from '../features/billing/sales'
+import { createServicingClient } from '../features/billing/servicing'
 import { createPromotionClient } from '../features/portal/promotion'
 import {
   createStoreApplicationClient,
@@ -578,6 +580,11 @@ export async function configuredComposition(
       partner,
       partnerAdmin,
       billing,
+      billingServicing: createServicingClient((name, args) => supabase.rpc(name, args)),
+      billingSales: createSalesClient(
+        (name, args) => supabase.rpc(name, args),
+        (name, body) => supabase.functions.invoke(name, { body }),
+      ),
       shopper,
       reviews: createReviewClient({
         async rpc(name, args) {

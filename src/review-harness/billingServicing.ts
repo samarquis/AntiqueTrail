@@ -1,7 +1,12 @@
+import { syntheticPaidOffer } from './paidOffer'
+import type { SalesClient } from '../features/billing/sales'
 import type { ServicingClient } from '../features/billing/servicing'
 
 /** Local review composition only; no RPC, provider calls, or activation changes. */
-export function billingServicingReviewClients(url: string): { billingServicing?: ServicingClient } {
+export function billingServicingReviewClients(url: string): {
+  billingServicing?: ServicingClient
+  billingSales?: SalesClient
+} {
   const mode = new URL(url, 'http://127.0.0.1').searchParams.get('reviewBilling')
   if (mode !== 'sales_open' && mode !== 'servicing_only' && mode !== 'off_prelaunch') return {}
   let pending = false
@@ -33,6 +38,20 @@ export function billingServicingReviewClients(url: string): { billingServicing?:
     charges: [],
   }
   return {
+    billingSales: {
+      async getOffer() {
+        return mode === 'sales_open' ? syntheticPaidOffer : null
+      },
+      async getPurchase() {
+        return mode === 'sales_open' &&
+          new URL(url, 'http://localhost').searchParams.get('reviewPurchase') === 'free'
+          ? { storeId: context.storeId, storeVersion: 0, offer: syntheticPaidOffer }
+          : null
+      },
+      async checkout() {
+        throw new Error('Synthetic review does not call Stripe.')
+      },
+    },
     billingServicing: {
       async getContext() {
         return mode === 'off_prelaunch' ? null : { ...context, pending }

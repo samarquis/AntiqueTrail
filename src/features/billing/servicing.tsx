@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { GENERIC_BILLING_ERROR } from './billingClient'
 
@@ -152,7 +152,13 @@ function label(value: Tier) {
   return value === 'free' ? 'Free' : value === 'gallery' ? 'Gallery' : 'Full Gallery'
 }
 
-export function PaidServicingPage({ client }: { client: ServicingClient }) {
+export function PaidServicingPage({
+  client,
+  unavailable = null,
+}: {
+  client: ServicingClient
+  unavailable?: ReactNode
+}) {
   const [context, setContext] = useState<ServicingContext | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -183,7 +189,7 @@ export function PaidServicingPage({ client }: { client: ServicingClient }) {
     }
   }, [client])
   if (loading) return <p role="status">Loading membership…</p>
-  if (!context) return error ? <p role="alert">{error}</p> : null
+  if (!context) return error ? <p role="alert">{error}</p> : unavailable
   const through = new Date(context.paidThrough).toLocaleDateString('en-US', {
     dateStyle: 'long',
     timeZone: 'UTC',

@@ -1,3 +1,4 @@
+import { PublicPaidPlans, type SalesClient } from '../billing/sales'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { CatalogClient, CatalogStore } from '../catalog/types'
@@ -6,9 +7,11 @@ import { OwnerAcquisitionContent } from './ownerAcquisitionContent'
 export function OwnerAcquisitionPage({
   catalog,
   intakeAvailable = false,
+  sales,
 }: {
   catalog: CatalogClient
   intakeAvailable?: boolean
+  sales?: SalesClient
 }) {
   const [selecting, setSelecting] = useState(false)
   const searchHeading = useRef<HTMLHeadingElement>(null)
@@ -39,6 +42,7 @@ export function OwnerAcquisitionPage({
   return (
     <main className="owner-page">
       <OwnerAcquisitionContent action={action} canonicalSiteUrl={window.location.origin} />
+      <PublicPaidPlans client={sales} />
       <section className="owner-acquisition__section" aria-labelledby="owner-questions">
         <h2 id="owner-questions">Before you apply</h2>
         <h3>What is reviewed?</h3>
