@@ -17,9 +17,11 @@ The Product Owner authorized work through closure. This implementation makes no 
 ## Local evidence
 
 Clean migration reset succeeded in isolated `supabase_db_issue178-servicing`.
-Full pgTAP passed: 90 files, 2677 assertions, including 50 focused servicing assertions and actual billing worker roles.
+Full pgTAP passed on source `98d61ec29e7eb1b91ee5e4f5bb341bf73a2a8818`: 90 files, 2686 assertions, including 59 focused servicing assertions and actual billing worker roles.
 The concurrent same-key and pause/dispatch transactions passed.
-The full web verification is being refreshed for the candidate; final results and independent exact-SHA review belong in the PR before landing.
+Application verification passed: 105 Vitest files / 745 tests, 85 release checks, lint/format and production build; the subsequent repair passed all 14 focused provider tests, type checking, formatting, security-contract, and diff checks.
+All six targeted Playwright cases passed in Chromium and mobile. The redundant local full-browser run was stopped without claiming a full-suite pass; required hosted web CI runs the complete browser suite.
+Independent review and final hosted check results are recorded on PR #220 before landing.
 
 ## Evidence boundaries
 
