@@ -440,8 +440,10 @@ export async function recordServicingEvent(
     })
     if (result.error) return null
     return result.data === 'change_complete' ||
-      (['past_due', 'unpaid'].includes(String(object.status)) &&
-        ['awaiting_target', 'awaiting_boundary'].includes(String(result.data)))
+      (['past_due', 'unpaid', 'canceled'].includes(String(object.status)) &&
+        ['awaiting_target', 'awaiting_boundary', 'compensation_pending'].includes(
+          String(result.data),
+        ))
       ? undefined
       : String(result.data)
   }

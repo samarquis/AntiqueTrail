@@ -47,10 +47,11 @@ select throws_ok($$select app_public.billing_record_paid_change_consent('1780000
 insert into partner_private.photo_tier_charge_refunds(store_id,subscription_id,charge_id,charged_at,amount,currency)
 values('17800000-0000-4000-8000-000000000001','sub_servicing178','ch_servicing178',statement_timestamp()-interval '47 hours',1200,'usd');
 set local role authenticated;
-select app_public.billing_request_charge_refund('17800000-0000-4000-8000-000000000001','ch_servicing178','17800000-0000-4000-8000-000000000051');
+select app_public.billing_request_charge_refund('17800000-0000-4000-8000-000000000001',(app_public.billing_get_servicing_context()->'charges'->0->>'refundRequestId'),'17800000-0000-4000-8000-000000000051');
 reset role;
 select is((select state from partner_private.photo_tier_charge_refunds where charge_id='ch_servicing178'),'pending','eligible charge request is durable in servicing-only');
 select is((select amount from partner_private.photo_tier_charge_refunds where charge_id='ch_servicing178'),1200::bigint,'full charge is reserved for refund');
+select is(app_public.billing_request_charge_refund('17800000-0000-4000-8000-000000000001',(select refund_request_id::text from partner_private.photo_tier_charge_refunds where charge_id='ch_servicing178'),'17800000-0000-4000-8000-000000000051')->>'state','pending','opaque refund UUID replay retains the original pending request');
 select ok(not has_table_privilege('authenticated','partner_private.photo_tier_charge_refunds','select'),'charge records are private');
 select ok(not has_function_privilege('authenticated','app_public.billing_prepare_subscription_change(uuid)','execute'),'browser cannot dispatch provider work');
 select ok(not has_function_privilege('authenticated','app_public.billing_bind_provider_mutation(uuid,text,jsonb,text)','execute'),'browser cannot bind a provider mutation');
@@ -174,5 +175,23 @@ update partner_private.store_photo_tier_state set tier='full_gallery',source='su
 select media_private.reconcile_tier_photos('17800000-0000-4000-8000-000000000001',statement_timestamp());
 select is((select count(*)::integer from app_public.store_media where store_id='17800000-0000-4000-8000-000000000001' and kind='gallery'),30,'recovery allocates a free ordinal rather than stranding an eligible hidden image');
 
+
+-- Independently valid lifecycle events keep working while the upgrade is unresolved.
+select is(app_public.billing_record_subscription_event('evt_failure178later','customer.subscription.updated',statement_timestamp(),
+  '17800000-0000-4000-8000-000000000001','cus_servicing178','sub_servicing178','past_due',statement_timestamp()+interval '20 days',null),'applied','payment failure applies while upgrade compensation remains pending');
+select is((select count(*)::integer from partner_private.photo_tier_subscription_changes where state='compensation_pending'),1,'valid failure retains the incremental compensation obligation');
+update partner_private.store_subscriptions set failed_payment_started_at=statement_timestamp()-interval '45 days',entitled_tier='full_gallery' where store_id='17800000-0000-4000-8000-000000000001';
+select app_public.run_due_billing_lifecycle(statement_timestamp()-interval '31 days',50);
+select app_public.run_due_billing_lifecycle(statement_timestamp(),50);
+select is(app_public.billing_record_subscription_event('evt_recovery178later','customer.subscription.updated',statement_timestamp()+interval '1 second',
+  '17800000-0000-4000-8000-000000000001','cus_servicing178','sub_servicing178','active',statement_timestamp()+interval '20 days',null),'applied','payment can recover after photo cleanup without fabricating provider cancellation');
+select is((select tier from partner_private.store_photo_tier_state where store_id='17800000-0000-4000-8000-000000000001'),'full_gallery','recovery restores the previously authorized paid entitlement');
+select is(app_public.billing_record_subscription_event('evt_cancel178later','customer.subscription.deleted',statement_timestamp()+interval '2 seconds',
+  '17800000-0000-4000-8000-000000000001','cus_servicing178','sub_servicing178','canceled',statement_timestamp(),null),'applied','provider cancellation applies during unresolved compensation');
+select is((select tier from partner_private.store_photo_tier_state where store_id='17800000-0000-4000-8000-000000000001'),'free','independent cancellation removes paid entitlement');
+select is((select count(*)::integer from partner_private.photo_tier_subscription_changes where state='compensation_pending'),1,'cancellation never erases unresolved financial compensation');
+
+select is(app_public.billing_record_subscription_event('evt_recoveryaftercancel178','customer.subscription.updated',statement_timestamp()+interval '3 seconds',
+  '17800000-0000-4000-8000-000000000001','cus_servicing178','sub_servicing178','active',statement_timestamp()+interval '20 days',null),'stale','actual provider cancellation cannot be undone by an ordinary active event');
 select * from finish();
 rollback;

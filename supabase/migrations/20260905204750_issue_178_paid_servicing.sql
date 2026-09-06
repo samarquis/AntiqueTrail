@@ -194,7 +194,7 @@ begin
     if statement_timestamp()<r.charged_at or statement_timestamp()>r.charged_at+interval '48 hours' then
       raise exception using errcode='55000',message='billing_refund_window_closed'; end if;
     update partner_private.photo_tier_charge_refunds set requested_at=statement_timestamp(),representative_id=actor,
-      idempotency_key=p_idempotency_key,state='pending' where charge_id=p_charge_id returning * into r;
+      idempotency_key=p_idempotency_key,state='pending' where refund_request_id=r.refund_request_id returning * into r;
   end if;
   return jsonb_build_object('refundRequestId',r.refund_request_id,'state',r.state,'requestedAt',r.requested_at);
 end $$;
@@ -713,6 +713,14 @@ grant billing_automation to postgres;
 grant create on schema partner_private,app_public to billing_automation;
 alter table partner_private.store_subscriptions add column failed_payment_started_at timestamptz;
 alter table partner_private.store_subscriptions add column entitled_tier text check(entitled_tier in ('gallery','full_gallery'));
+-- A failed-payment subscription remains recoverable after its photo grace ends.
+alter table partner_private.store_subscriptions drop constraint subscription_state_shape;
+alter table partner_private.store_subscriptions add constraint subscription_state_shape check (
+  (state='none' and stripe_customer_id is null and stripe_subscription_id is null and current_period_end is null and downgrade_to is null and hide_photos_after is null)
+  or (state in ('active','past_due') and stripe_customer_id is not null and stripe_subscription_id is not null and current_period_end is not null and hide_photos_after is null)
+  or (state='grace' and stripe_customer_id is not null and downgrade_to is null and (hide_photos_after is not null or failed_payment_started_at is not null))
+  or (state='canceled' and stripe_customer_id is not null)
+);
 set role billing_automation;
 update partner_private.store_subscriptions s set entitled_tier=t.tier from partner_private.store_photo_tier_state t
 where t.store_id=s.store_id and t.tier in ('gallery','full_gallery');
@@ -838,7 +846,7 @@ begin
     order by store_id for update skip locked limit p_limit
   loop
     if r.state='grace' then
-      update partner_private.store_subscriptions set state='canceled',hide_photos_after=null,version=version+1,updated_at=p_now where store_id=r.store_id;
+      update partner_private.store_subscriptions set state=case when failed_payment_started_at is not null then 'grace' else 'canceled' end,hide_photos_after=null,version=version+1,updated_at=p_now where store_id=r.store_id;
       closed:=closed+1;
     else
       update partner_private.store_photo_tier_state set tier=case when r.state='past_due' then 'free' else r.downgrade_to end,

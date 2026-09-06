@@ -444,6 +444,30 @@ describe('durable paid servicing boundary', () => {
     )
   })
 
+  it.each(['canceled', 'past_due', 'unpaid'])(
+    'preserves %s lifecycle events during upgrade compensation',
+    async (status) => {
+      const rpc = vi.fn(async () => ({ data: 'compensation_pending', error: null }))
+      expect(
+        await recordServicingEvent(rpc, {
+          id: 'evt_servicing178',
+          type:
+            status === 'canceled'
+              ? 'customer.subscription.deleted'
+              : 'customer.subscription.updated',
+          created: 200,
+          data: {
+            object: {
+              ...subscription('price_upgrade178', changeId),
+              current_period_end: 300,
+              status,
+            },
+          },
+        }),
+      ).toBeUndefined()
+    },
+  )
+
   it('does not swallow ordinary renewal or payment-failure events after a change completes', async () => {
     const rpc = vi.fn(async () => ({ data: 'change_complete', error: null }))
     expect(
