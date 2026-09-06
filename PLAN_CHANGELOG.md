@@ -41,3 +41,13 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Changed sources: SECURITY_AND_TRUST.md, PACKAGE_CONTRACTS.md, PRODUCT_DECISIONS.md, docs/specs/store-membership-spec.md, PRD.md, DESIGN.md, PROJECT_STATE.md, and this append-only PLAN_CHANGELOG.md.
 - Consequences: initial purchase remains Free-only hosted Checkout; existing Gallery subscriptions can upgrade with exact-scope/MFA/recent-auth, immutable source-version/config/generation-bound consent, server-derived proration, one subscription/invoice stream, and verified-event-only application. Pause requires idempotent compensation of the attempted modification and incremental charge while preserving prior valid entitlement and later valid lifecycle events; unknown compensation blocks finality. Mandatory compensation is not limited by the voluntary 48-hour refund window. Required tests now distinguish initial-purchase cancellation from existing-subscription compensation. No provider call, spending, distribution, or live activation is authorized.
 - Affected tickets: #178 owns paid-change servicing and compensation; #179 owns pause/close/reopen and unresolved-obligation denial; #180 owns composite promotion/resume and cross-ticket stage/concurrency proof. Archived #181 supplies no live acceptance evidence.
+
+## 2026-09-05 — Scheduled downgrades with uninterrupted self-service cancellation
+
+- Authorization directive: `update plan`
+- Product Owner direction: `update plan`, supplied in this task after the explanation of same-subscription scheduled downgrades and authenticated application cancellation when Stripe portal cancellation is unavailable.
+- Reason: the literal subscription-update API clause does not define provider-controlled future phase transitions, and Stripe portal cancellation is unavailable while a scheduled update is attached.
+- Evidence: base `5b03ff79328ae07a2b3586b1e4ea549fb87463f9`; Stripe Subscription Schedules and Customer Portal limitations; independent issue-178 readiness review.
+- Changed sources: PRODUCT_DECISIONS.md, PACKAGE_CONTRACTS.md, SECURITY_AND_TRUST.md, DESIGN.md, PRD.md, docs/specs/store-membership-spec.md, PROJECT_STATE.md, PLAN_CHANGELOG.md.
+- Consequences: same-subscription scheduled downgrades, uninterrupted authenticated self-service cancellation, reconciliation of current/future schedule state, and explicit race/replay acceptance; no change to prices, tier capacities, refund windows, or activation authority.
+- Affected tickets: #178 servicing and schedule reconciliation; #179 pending-obligation/closure integration; #180 composite activation and cross-ticket proof.
