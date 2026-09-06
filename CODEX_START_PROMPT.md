@@ -57,3 +57,7 @@ The 2026-07-31 coding hold is historical: subsequent Product Owner-directed impl
 7. H-01 precedes any shared activation; E-01 gates real email; R-01 gates provider-backed routing/geocoding; M-01 gates real media; L-01 gates privileged shared/external mutation; S-01/HC-01 gate first owner contact; SEC-01/B-01/HC-02 and public recovery precede Package 10B; A-01 analytics remains optional. Stripe is selected for store photo-tier payments, but `photo_tiers_enabled` remains false until its signed activation and release gates pass. Regional Public remains blocked until 15-minute RPO/four-hour RTO is proven.
 
 Use the source-precedence table in `README.md` when documents differ. Record major technical choices as Architecture Decision Records. Before implementation, verify the ticket's problem, current plan citation, single outcome, one to five acceptance criteria, proportional verification, and any real dependency. Implementation closes on repository-controlled evidence; external release evidence stays in its gate issue.
+
+## Protected internal synthetic review exception
+
+For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) narrowly supersedes blanket H-01-before-shared-use and CI-only upload clauses. Its isolated synthetic, provider-eligible, zero-spend, protected-Preview context is not Shared Alpha or another release stage. All public/external/paid gates and all security controls outside that exact exception remain mandatory; no formal gate passes by inference.

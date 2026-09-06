@@ -102,3 +102,7 @@ Untracked `PLAN_*.md` or `gates/*.md` files in a working tree are local executio
 | An old review becomes stale                                    | Add a prominent historical/superseded banner; do not erase the evidence                                                              |
 
 Tickets never become controlling sources. Every implementation ticket must pass `PLAN_GOVERNANCE.md`, cite the current controlling heading, own one repository-controlled outcome, and use at most five acceptance criteria. External activation evidence belongs in a separate gate issue. A proposal remains non-normative until its authorized plan amendment merges.
+
+## Internal product-reset deployment boundary
+
+[ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) controls only owner-only protected synthetic review deployment; it is the scoped successor to ADR0006, not public-release acceptance.

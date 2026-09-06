@@ -51,3 +51,15 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Changed sources: PRODUCT_DECISIONS.md, PACKAGE_CONTRACTS.md, SECURITY_AND_TRUST.md, DESIGN.md, PRD.md, docs/specs/store-membership-spec.md, PROJECT_STATE.md, PLAN_CHANGELOG.md.
 - Consequences: same-subscription scheduled downgrades, uninterrupted authenticated self-service cancellation, reconciliation of current/future schedule state, and explicit race/replay acceptance; no change to prices, tier capacities, refund windows, or activation authority.
 - Affected tickets: #178 servicing and schedule reconciliation; #179 pending-obligation/closure integration; #180 composite activation and cross-ticket proof.
+
+## 2026-09-06 — Protected owner-only synthetic review deployment
+
+- Authorization directive: `update plan`
+- Proposed exact directive: `update plan: authorize the protected internal synthetic review deployment described in DEPLOYMENT_DECISION.md, with no paid resources or public activation.`
+- Actual Product Owner confirmation: `yes approved and authorized`, approving that specific proposal in this task; the proposed directive was not typed verbatim by the owner.
+- Reason: the owner requires current-source publication and live verification before workflow review; the existing release-only CI/H-01 contract did not define a bounded internal assessment path.
+- Evidence: main408f4ae; PR224 repaired actual Vercel Build Output validation and SPA routing; local configured artifact4cb98d69b67072c286218645de8ac5ba30c7f3ca66672464fa290a1f3a996323 is preparation only; hosted backend history conflicts and six accounts require isolation.
+- Changed sources: ADR0007, ADR0006, PRODUCT_DECISIONS.md, PRD.md, SECURITY_AND_TRUST.md, PLAN_ACCEPTANCE.md, PACKAGE_CONTRACTS.md, IMPLEMENTATION_PLAN.md, CODEX_START_PROMPT.md, PLANNING_INDEX.md, H01_VERCEL_RELEASE_RUNBOOK.md and this append-only ledger.
+- Consequences: a reviewed local prebuilt artifact may be used only after merge and all ADR0007 prerequisites; provider eligibility, zero-spend, isolated synthetic data, every-host protection, truthful receipts and teardown remain required. Existing data and gate validators remain untouched. No H-01/public/paid/security/human acceptance, provider eligibility or deployment success is created by the amendment.
+- Affected ticket: #225 owns this amendment only; deployment and review retain their separate evidence obligations.
+- Approval-source reconciliation: `docs/research/product-reset-2026-09-06/DEPLOYMENT_DECISION.md` now records the later actual confirmation and is preserved with this amendment as nonnormative authorization evidence.

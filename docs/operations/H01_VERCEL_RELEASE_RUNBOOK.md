@@ -75,3 +75,7 @@ After signed Package 10A, every Package 10B prerequisite gate, and the Product O
 6. issue and sign the final Package 10B deployment receipt only after those checks pass.
 
 Rollback reassigns the last accepted Production deployment without rebuilding and repeats the compatibility, capability, and smoke checks. If the prior deployment cannot be identified or its digest cannot be proven, stop and use the incident runbook; do not rebuild a presumed rollback candidate.
+
+## Separate internal review context
+
+[ADR 0007](../adr/0007-protected-internal-synthetic-review.md) defines an owner-only local-prebuilt review path with its own receipt. That path does not invoke this H-01 workflow, supply fictional signers, or satisfy any H-01 acceptance. This runbook remains mandatory for its release scope.

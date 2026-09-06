@@ -819,3 +819,7 @@ Before public marketing:
 - Analytics disclosure
 - Vulnerability disclosure policy
 - Support contact and dispute process
+
+## Protected internal synthetic review exception
+
+For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) narrowly supersedes blanket H-01-before-shared-use and CI-only upload clauses. Its isolated synthetic, provider-eligible, zero-spend, protected-Preview context is not Shared Alpha or another release stage. All public/external/paid gates and all security controls outside that exact exception remain mandatory; no formal gate passes by inference.
