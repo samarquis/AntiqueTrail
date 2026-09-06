@@ -49,9 +49,9 @@ select ok(position($q$interval '14 days'$q$ in lower(pg_get_functiondef('partner
 
 select has_function('release_private','promote_photo_tier_capability',array['uuid','uuid','uuid[]'],'receipt-bound monetization promotion exists');
 select has_function('release_private','rollback_photo_tier_capability',array['uuid','uuid','text'],'receipt-bound monetization rollback exists');
-select ok(position('external_verified' in lower(pg_get_functiondef('release_private.promote_photo_tier_capability(uuid,uuid,uuid[])'::regprocedure)))>0,'promotion binds externally verified receipts');
-select ok(position('photo_tier_activation_gate' in replace(lower(pg_get_functiondef('release_private.promote_photo_tier_capability(uuid,uuid,uuid[])'::regprocedure)),' ',''))>0,'promotion requires this package''s activation gate receipt');
-select ok(position('rollback_reason_required' in replace(lower(pg_get_functiondef('release_private.rollback_photo_tier_capability(uuid,uuid,text)'::regprocedure)),' ',''))>0,'rollback demands a recorded reason');
+select ok(position('billing_composite_activation_required' in lower(pg_get_functiondef('release_private.promote_photo_tier_capability(uuid,uuid,uuid[])'::regprocedure)))>0,'legacy promotion cannot bypass composite receipts');
+select ok(position('billing_composite_activation_required' in replace(lower(pg_get_functiondef('release_private.promote_photo_tier_capability(uuid,uuid,uuid[])'::regprocedure)),' ',''))>0,'legacy activation remains denied');
+select ok(position('billing_signed_pause_required' in replace(lower(pg_get_functiondef('release_private.rollback_photo_tier_capability(uuid,uuid,text)'::regprocedure)),' ',''))>0,'legacy rollback requires the signed pause path');
 select ok(position('photo_tiers_promote' in replace(lower(pg_get_functiondef('app_public.execute_regional_release_command(text,uuid,uuid,uuid[],text)'::regprocedure)),' ',''))>0 and position('photo_tiers_rollback' in replace(lower(pg_get_functiondef('app_public.execute_regional_release_command(text,uuid,uuid,uuid[],text)'::regprocedure)),' ',''))>0,'executor dispatches both monetization commands');
 select ok(position('photo_tiers_enabled=false' in replace(lower(pg_get_functiondef('release_private.rollback_regional_release(uuid,uuid,text)'::regprocedure)),' ',''))>0,'regional rollback also disables monetization');
 

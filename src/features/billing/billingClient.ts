@@ -120,12 +120,14 @@ function parseLimits(value: unknown): FullGalleryLimits {
   }
 }
 
-function parseCommercialResearchConfig(value: unknown): CommercialResearchConfig {
-  if (!isRecord(value) || value.state !== 'approved_inactive')
-    throw new Error(GENERIC_BILLING_ERROR)
+export function parseCommercialResearchConfig(
+  value: unknown,
+  expectedState = 'approved_inactive',
+): CommercialResearchConfig {
+  if (!isRecord(value) || value.state !== expectedState) throw new Error(GENERIC_BILLING_ERROR)
   return {
     version: requiredPositiveInteger(value, 'version'),
-    state: value.state,
+    state: expectedState === 'active' ? 'active' : 'approved_inactive',
     digest: (() => {
       const digest = requiredString(value, 'digest')
       if (!/^[0-9a-f]{64}$/.test(digest)) throw new Error(GENERIC_BILLING_ERROR)
@@ -231,7 +233,7 @@ export function createBillingClient(transport: BillingRpcTransport): BillingClie
     getCommercialResearchConfig: (authorizationId: string) =>
       call('billing_get_commercial_research_config', {
         p_authorization_id: authorizationId,
-      }).then(parseCommercialResearchConfig),
+      }).then((value) => parseCommercialResearchConfig(value)),
     recordCommercialResearchAttempt: (attempt: CommercialResearchAttempt) =>
       call('billing_record_commercial_research_attempt', {
         p_authorization_id: attempt.authorizationId,

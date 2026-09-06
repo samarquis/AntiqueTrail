@@ -13,21 +13,21 @@ insert into partner_private.store_photo_tier_state(store_id,tier,source)
 values('17800000-0000-4000-8000-000000000001','gallery','subscription');
 insert into partner_private.store_subscriptions(store_id,stripe_customer_id,stripe_subscription_id,state,current_period_end)
 values('17800000-0000-4000-8000-000000000001','cus_servicing178','sub_servicing178','active',statement_timestamp()+interval '20 days');
-select throws_ok($$select app_public.billing_record_paid_tier_consent('17800000-0000-4000-8000-000000000001','full_gallery',178,repeat('11',32),1,gen_random_uuid())$$,
+select throws_ok($$select app_public.billing_record_paid_tier_consent('17800000-0000-4000-8000-000000000001','full_gallery',178,pg_temp.paid_digest(),1,gen_random_uuid())$$,
   '42501','billing_action_denied','initial Checkout consent remains Free-only');
 set local role authenticated;
-select throws_ok($$select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000001',2,1,178,repeat('11',32),gen_random_uuid())$$,
+select throws_ok($$select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000001',2,1,178,pg_temp.paid_digest(),gen_random_uuid())$$,
   '42501','billing_action_denied','stale subscription version cannot consent');
-select throws_ok($$select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000002',1,1,178,repeat('11',32),gen_random_uuid())$$,
+select throws_ok($$select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000002',1,1,178,pg_temp.paid_digest(),gen_random_uuid())$$,
   '42501','billing_action_denied','wrong-store consent is denied');
 select throws_ok($$select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000001',1,1,178,repeat('99',32),gen_random_uuid())$$,
   '42501','billing_action_denied','disclosure mismatch is denied');
-select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000001',1,1,178,repeat('11',32),'17800000-0000-4000-8000-000000000040');
+select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000001',1,1,178,pg_temp.paid_digest(),'17800000-0000-4000-8000-000000000040');
 reset role;
 select is((select count(*)::integer from partner_private.photo_tier_change_consents),1,'one immutable consent');
 select throws_ok($$update partner_private.photo_tier_change_consents set expires_at=expires_at+interval '1 hour'$$,
   '42501','billing_append_only','consent terms cannot mutate');
-select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000001',1,1,178,repeat('11',32),'17800000-0000-4000-8000-000000000040');
+select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000001',1,1,178,pg_temp.paid_digest(),'17800000-0000-4000-8000-000000000040');
 select is((select count(*)::integer from partner_private.photo_tier_change_consents),1,'same consent retry returns prior receipt');
 select app_public.billing_request_subscription_change('17800000-0000-4000-8000-000000000001','full_gallery',
   (select consent_id from partner_private.photo_tier_change_consents),1,'17800000-0000-4000-8000-000000000041');
@@ -42,7 +42,7 @@ update partner_private.photo_tier_sales_control set state='servicing_only',sales
 reset role;
 select is(app_public.billing_prepare_subscription_change((select change_id from partner_private.photo_tier_subscription_changes))->>'state','superseded','pause before dispatch prevents provider work');
 select is((select state from partner_private.store_subscriptions where store_id='17800000-0000-4000-8000-000000000001'),'active','pause never cancels existing subscription');
-select throws_ok($$select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000001',1,1,178,repeat('11',32),gen_random_uuid())$$,
+select throws_ok($$select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000001',1,1,178,pg_temp.paid_digest(),gen_random_uuid())$$,
   '55000','billing_stage_disabled','servicing-only denies fresh upgrade consent');
 insert into partner_private.photo_tier_charge_refunds(store_id,subscription_id,charge_id,charged_at,amount,currency)
 values('17800000-0000-4000-8000-000000000001','sub_servicing178','ch_servicing178',statement_timestamp()-interval '47 hours',1200,'usd');
@@ -96,11 +96,11 @@ update partner_private.photo_tier_sales_control set state='sales_open',sales_gen
 reset role;
 select throws_ok($$select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000001',
   (select version from partner_private.store_subscriptions where store_id='17800000-0000-4000-8000-000000000001'),
-  (select version from partner_private.store_photo_tier_state where store_id='17800000-0000-4000-8000-000000000001'),178,repeat('11',32),gen_random_uuid())$$,
+  (select version from partner_private.store_photo_tier_state where store_id='17800000-0000-4000-8000-000000000001'),178,pg_temp.paid_digest(),gen_random_uuid())$$,
   '42501','billing_action_denied','upgrade cannot omit the accepted future cancellation from consent');
 select app_public.billing_record_paid_change_consent('17800000-0000-4000-8000-000000000001',
   (select version from partner_private.store_subscriptions where store_id='17800000-0000-4000-8000-000000000001'),
-  (select version from partner_private.store_photo_tier_state where store_id='17800000-0000-4000-8000-000000000001'),178,repeat('11',32),'17800000-0000-4000-8000-000000000072',
+  (select version from partner_private.store_photo_tier_state where store_id='17800000-0000-4000-8000-000000000001'),178,pg_temp.paid_digest(),'17800000-0000-4000-8000-000000000072',
   (select change_id from partner_private.photo_tier_subscription_changes where state='scheduled'));
 select app_public.billing_request_subscription_change('17800000-0000-4000-8000-000000000001','full_gallery',
   (select consent_id from partner_private.photo_tier_change_consents where idempotency_key='17800000-0000-4000-8000-000000000072'),
@@ -110,6 +110,17 @@ select app_public.billing_bind_change_request(c.change_id,jsonb_build_object('su
 from partner_private.photo_tier_subscription_changes c join partner_private.store_subscriptions s on s.store_id=c.store_id where c.idempotency_key='17800000-0000-4000-8000-000000000073';
 select app_public.billing_bind_provider_mutation(change_id,'subscriptions/sub_servicing178',jsonb_build_object('metadata[paid_change_id]',change_id::text,'items[0][price]','price_upgrade178','proration_behavior','create_prorations'),'price_upgrade178')
 from partner_private.photo_tier_subscription_changes where idempotency_key='17800000-0000-4000-8000-000000000073';
+savepoint revoked_composite_upgrade;
+insert into partner_private.photo_tier_activation_evidence
+select gen_random_uuid(),kind,revision+1,'revoked',source_id,config_version,commercial_digest,artifact_digest,schema_digest,deployment_config_digest,payload_digest,signed_by_roles,gen_random_uuid()::text,signed_at,verified_at,expires_at
+from partner_private.photo_tier_activation_evidence where kind='provider';
+select is((select state from partner_private.photo_tier_sales_control),'sales_open','upgrade revocation test retains open sales');
+select is(app_public.billing_record_change_event(change_id,'evt_revoked180777',statement_timestamp(),subscription_id,'cus_servicing178','price_upgrade178','active',statement_timestamp()+interval '20 days',false),'compensation_pending','composite revocation compensates an already-dispatched upgrade')
+from partner_private.photo_tier_subscription_changes where idempotency_key='17800000-0000-4000-8000-000000000073';
+select is((select tier from partner_private.store_photo_tier_state where store_id='17800000-0000-4000-8000-000000000001'),'gallery','revoked composite upgrade preserves original paid entitlement');
+select is((select state from partner_private.store_subscriptions where store_id='17800000-0000-4000-8000-000000000001'),'active','revoked composite upgrade never cancels the existing subscription');
+select is((select count(*)::integer from partner_private.photo_tier_subscription_changes where state='scheduled'),1,'revoked composite preserves accepted cancellation intent');
+rollback to revoked_composite_upgrade;
 select is(app_public.billing_record_change_event(change_id,'evt_wrong178777',statement_timestamp(),subscription_id,'cus_servicing178','price_wrong17899','active',statement_timestamp()+interval '20 days',false),
   'awaiting_target','unbound provider price cannot apply an upgrade') from partner_private.photo_tier_subscription_changes where idempotency_key='17800000-0000-4000-8000-000000000073';
 set local role billing_automation;
@@ -129,7 +140,7 @@ insert into media_private.media_uploads(upload_id,actor_tombstone,store_id,kind,
   approved_by,approved_at,approval_reason,catalog_media_id,published_at)
 select id,gen_random_uuid(),store_id,'gallery',alt_text,statement_timestamp(),gen_random_uuid(),'image/png',1000,640,480,
   'quarantine/'||id||'/original','quarantine/'||id||'/derivative.webp','official/'||id||'/v1/'||repeat('a',16)||'.webp',
-  decode(repeat('11',32),'hex'),1000,640,480,'clean',true,true,'published','17800000-0000-4000-8000-000000000010',statement_timestamp(),
+  decode(pg_temp.paid_digest(),'hex'),1000,640,480,'clean',true,true,'published','17800000-0000-4000-8000-000000000010',statement_timestamp(),
   'image_quality_verified',id,statement_timestamp()
 from app_public.store_media where store_id='17800000-0000-4000-8000-000000000001' and display_order in (6,7);
 update partner_private.store_photo_tier_state set tier='free',source='default' where store_id='17800000-0000-4000-8000-000000000001';

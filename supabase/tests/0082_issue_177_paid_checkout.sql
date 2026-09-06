@@ -83,10 +83,13 @@ select set_config('request.jwt.claims',jsonb_build_object(
     jsonb_build_object('method','totp','timestamp',extract(epoch from statement_timestamp())::bigint)
   ))::text,true);
 
+reset role;
+\ir fixtures/paid_activation.inc
+select pg_temp.seed_paid_activation(177);
 select is(app_public.billing_get_capability()->>'enabled','true','exact active config and sales generation expose the server capability');
 select throws_ok($$select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,repeat('99',32),0,'17700000-0000-4000-8000-000000000039')$$,
   '42501','billing_action_denied','consent rejects a disclosure digest that is not the active config digest');
-select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','full_gallery',177,repeat('11',32),0,'17700000-0000-4000-8000-000000000038');
+select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','full_gallery',177,pg_temp.paid_digest(),0,'17700000-0000-4000-8000-000000000038');
 set local role billing_automation;
 update partner_private.photo_tier_paid_consents set expires_at=statement_timestamp()-interval '1 second'
   where idempotency_key='17700000-0000-4000-8000-000000000038';
@@ -94,24 +97,24 @@ reset role;
 select throws_ok($$select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','full_gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000038'),177,'17700000-0000-4000-8000-000000000037')$$,
   '42501','billing_action_denied','expired consent cannot reserve Checkout');
-select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','full_gallery',177,repeat('11',32),0,'17700000-0000-4000-8000-000000000036');
+select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','full_gallery',177,pg_temp.paid_digest(),0,'17700000-0000-4000-8000-000000000036');
 set local role billing_automation;
 update partner_private.photo_tier_paid_consents set state='revoked' where idempotency_key='17700000-0000-4000-8000-000000000036';
 reset role;
 select throws_ok($$select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','full_gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000036'),177,'17700000-0000-4000-8000-000000000035')$$,
   '42501','billing_action_denied','revoked consent cannot reserve Checkout');
-select is(app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,repeat('11',32),0,'17700000-0000-4000-8000-000000000040')->>'state','unused','exact representative records consent');
+select is(app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,pg_temp.paid_digest(),0,'17700000-0000-4000-8000-000000000040')->>'state','unused','exact representative records consent');
 select is((select commercial_config_version::text||':'||target_tier from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000040'),'177:gallery','consent binds config and target tier');
-select is(app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,repeat('11',32),0,'17700000-0000-4000-8000-000000000040')->>'consentId',
+select is(app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,pg_temp.paid_digest(),0,'17700000-0000-4000-8000-000000000040')->>'consentId',
   (select consent_id::text from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000040'),'same-key consent retry returns the first receipt');
-select throws_ok($$select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','full_gallery',177,repeat('11',32),0,'17700000-0000-4000-8000-000000000040')$$,
+select throws_ok($$select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','full_gallery',177,pg_temp.paid_digest(),0,'17700000-0000-4000-8000-000000000040')$$,
   '22023','billing_idempotency_mismatch','same consent key with changed input denies');
 
 select is(app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000040'),177,'17700000-0000-4000-8000-000000000041')->>'priceCents','1200','Checkout derives price from active config');
 select is((select state from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000040'),'checkout_pending','Checkout atomically reserves consent');
-select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,repeat('11',32),0,'17700000-0000-4000-8000-000000000080');
+select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,pg_temp.paid_digest(),0,'17700000-0000-4000-8000-000000000080');
 select throws_ok($$select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000080'),177,'17700000-0000-4000-8000-000000000081')$$,
   '42501','billing_purchase_in_progress','distinct valid consent and key cannot create a parallel purchase');
@@ -153,14 +156,14 @@ set local role billing_automation;
 update partner_private.store_photo_tier_state set tier='free',source='default',version=2 where store_id='17700000-0000-4000-8000-000000000001';
 update partner_private.store_subscriptions set state='canceled' where store_id='17700000-0000-4000-8000-000000000001';
 reset role;
-select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,repeat('11',32),2,'17700000-0000-4000-8000-000000000060');
+select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,pg_temp.paid_digest(),2,'17700000-0000-4000-8000-000000000060');
 select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000060'),177,'17700000-0000-4000-8000-000000000061');
 select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions where idempotency_key='17700000-0000-4000-8000-000000000061'),repeat('ee',32),3);
 select is(app_public.billing_record_checkout_payment_failure('evt_issue177failed01',repeat('ee',32),3),'failed','verified asynchronous payment failure closes Checkout');
 select is((select state from partner_private.photo_tier_checkout_sessions where idempotency_key='17700000-0000-4000-8000-000000000061'),'failed','unpaid Checkout never upgrades');
 
-select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,repeat('11',32),2,'17700000-0000-4000-8000-000000000070');
+select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,pg_temp.paid_digest(),2,'17700000-0000-4000-8000-000000000070');
 select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000070'),177,'17700000-0000-4000-8000-000000000071');
 select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions where idempotency_key='17700000-0000-4000-8000-000000000071'),repeat('fe',32),4);
@@ -173,10 +176,21 @@ select is(app_public.billing_record_checkout_event('evt_issue177expired1',statem
 select is((select tier from partner_private.store_photo_tier_state where store_id='17700000-0000-4000-8000-000000000001'),'free','expired paid Checkout leaves the store Free');
 select app_public.billing_record_checkout_refund_state('evt_issue177expired1',repeat('fe',32),4,'sub_issue177expire','re_issue177expire1','succeeded');
 
-select is(app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','full_gallery',177,repeat('11',32),2,'17700000-0000-4000-8000-000000000050')->>'state','unused','fresh generation can record another exact consent');
+select is(app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','full_gallery',177,pg_temp.paid_digest(),2,'17700000-0000-4000-8000-000000000050')->>'state','unused','fresh generation can record another exact consent');
 select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','full_gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000050'),177,'17700000-0000-4000-8000-000000000051');
 select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions where target_tier='full_gallery'),repeat('cd',32),2);
+
+savepoint revoked_composite_checkout;
+insert into partner_private.photo_tier_activation_evidence
+select gen_random_uuid(),kind,revision+1,'revoked',source_id,config_version,commercial_digest,artifact_digest,schema_digest,deployment_config_digest,payload_digest,signed_by_roles,gen_random_uuid()::text,signed_at,verified_at,expires_at
+from partner_private.photo_tier_activation_evidence where kind='provider';
+select is((select state from partner_private.photo_tier_sales_control),'sales_open','composite revocation test retains open sales and original generation');
+select is(app_public.billing_record_checkout_event('evt_issue180revoked1',statement_timestamp(),repeat('cd',32),2,'cus_issue180revoked','sub_issue180revoked'),'refund_pending','composite revocation sends paid completion to full-refund reconciliation');
+select is((select tier from partner_private.store_photo_tier_state where store_id='17700000-0000-4000-8000-000000000001'),'free','revoked composite completion cannot grant paid entitlement');
+select is((select provider_subscription_id from partner_private.photo_tier_refund_reconciliations where provider_event_id='evt_issue180revoked1'),'sub_issue180revoked','revocation retains the exact provider subscription for cancellation and refund');
+rollback to revoked_composite_checkout;
+
 set local role billing_automation;
 update partner_private.photo_tier_sales_control set state='servicing_only',sales_generation=2,version=2 where singleton;
 reset role;
@@ -215,7 +229,7 @@ select is(app_public.billing_record_subscription_event('evt_issue177bypass1','cu
 set local role billing_automation;
 update partner_private.photo_tier_sales_control set state='sales_open' where singleton;
 reset role;
-select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,repeat('11',32),2,'17700000-0000-4000-8000-000000000090');
+select app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-000000000001','gallery',177,pg_temp.paid_digest(),2,'17700000-0000-4000-8000-000000000090');
 select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000090'),177,'17700000-0000-4000-8000-000000000091');
 select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions where idempotency_key='17700000-0000-4000-8000-000000000091'),repeat('fa',32),1);
@@ -239,7 +253,7 @@ insert into app_public.stores(id,slug,name,town,state_code,address,area_id,summa
     '00000000-0000-4000-8000-000000000001','Database fixture','Database fixture store','active' from expiry_fixtures;
 insert into partner_private.photo_tier_paid_consents(consent_id,store_id,representative_id,target_tier,commercial_config_version,
   disclosure_digest,expected_store_version,idempotency_key,input_digest,state,expires_at)
-  select consent_id,store_id,'17700000-0000-4000-8000-000000000010','gallery',177,decode(repeat('11',32),'hex'),0,
+  select consent_id,store_id,'17700000-0000-4000-8000-000000000010','gallery',177,decode(pg_temp.paid_digest(),'hex'),0,
     gen_random_uuid(),decode(repeat('22',32),'hex'),'checkout_pending',statement_timestamp()+interval '10 minutes' from expiry_fixtures;
 insert into partner_private.photo_tier_checkout_sessions(session_id,store_id,consent_id,target_tier,commercial_config_version,
   sales_generation,idempotency_key,input_digest,provider_request,created_at,expires_at)

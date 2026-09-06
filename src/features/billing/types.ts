@@ -28,7 +28,7 @@ export interface PaidConsentReceipt {
   configDigest: string
 }
 
-export type CommercialConfigState = 'approved_inactive'
+export type CommercialConfigState = 'approved_inactive' | 'active'
 export type CommercialResearchChoice = 'free' | 'gallery' | 'full_gallery' | 'refused' | 'abandoned'
 
 export interface FullGalleryLimits {

@@ -42,7 +42,7 @@ select throws_ok($$update partner_private.photo_tier_transition_authorizations s
 select throws_ok($$update partner_private.photo_tier_transition_signatures set responsibility='ProductOwner'$$,'42501','billing_append_only','signature immutable');
 -- Reserve an initial Checkout with the shipped public API.
 set local role authenticated;
-create temp table consent as select app_public.billing_record_paid_tier_consent('17800000-0000-4000-8000-000000000001','gallery',178,repeat('11',32),
+create temp table consent as select app_public.billing_record_paid_tier_consent('17800000-0000-4000-8000-000000000001','gallery',178,pg_temp.paid_digest(),
  (select 0), '17900000-0000-4000-8000-000000000003') as result;
 reset role;
 set local role authenticated;
@@ -59,7 +59,7 @@ select is((select state from partner_private.photo_tier_checkout_sessions),'expi
 select is(jsonb_array_length((select inventory->'open_checkout_ids' from partner_private.photo_tier_sales_transition_receipts)),1,'stop receipt binds exact Checkout');
 select is(app_public.pause_photo_tier_sales((select id from ids where kind='pause'),1,'17900000-0000-4000-8000-000000000001')->>'version','2','same input replay succeeds');
 select throws_ok($$select app_public.pause_photo_tier_sales((select id from ids where kind='pause'),1,gen_random_uuid())$$,'22023','billing_idempotency_mismatch','different key denies receipt reuse');
-select throws_ok($$select app_public.resume_photo_tier_sales(gen_random_uuid(),gen_random_uuid(),2,gen_random_uuid())$$,'55000','billing_resume_not_implemented','resume denied before 180');
+select throws_ok($$select app_public.resume_photo_tier_sales(gen_random_uuid(),gen_random_uuid(),2,gen_random_uuid())$$,'55000','billing_composite_incomplete','resume denies an absent composite receipt');
 savepoint late_checkout;
 select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions),repeat('5',64),1,'synthetic-reference');
 select is(app_public.billing_record_checkout_event('evt_pause179completion',now(),repeat('5',64),1,'cus_pause179completion','sub_pause179completion',now()+interval '1 month'),'refund_pending','old-generation completion must cancel and fully refund');
@@ -102,7 +102,7 @@ insert into ids values('stale_close',pg_temp.authorize('close',2,'17900000-0000-
 select throws_ok($$select app_public.close_photo_tier_servicing((select id from ids where kind='stale_close'),2,gen_random_uuid())$$,'55000','billing_finality_unproved','stale provider observation denies closure');
 savepoint compensation;
 insert into partner_private.photo_tier_subscription_changes(store_id,representative_id,subscription_id,subscription_version,source_tier,source_tier_version,target_tier,config_version,config_digest,sales_generation,idempotency_key,state,effective_at)
-values('17800000-0000-4000-8000-000000000001','17800000-0000-4000-8000-000000000010','sub_unknown179',1,'full_gallery',1,'gallery',178,decode(repeat('11',32),'hex'),1,gen_random_uuid(),'compensation_pending',now());
+values('17800000-0000-4000-8000-000000000001','17800000-0000-4000-8000-000000000010','sub_unknown179',1,'full_gallery',1,'gallery',178,decode(pg_temp.paid_digest(),'hex'),1,gen_random_uuid(),'compensation_pending',now());
 insert into ids values('compensation_close',pg_temp.authorize('close',2,pg_temp.finality(2)));
 select throws_ok($$select app_public.close_photo_tier_servicing((select id from ids where kind='compensation_close'),2,gen_random_uuid())$$,'55000','billing_obligations_open','unresolved compensation blocks even provider zero');
 rollback to compensation;
