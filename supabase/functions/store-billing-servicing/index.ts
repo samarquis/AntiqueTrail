@@ -15,12 +15,14 @@ Deno.serve(async (request) => {
   const secret = Deno.env.get('BILLING_SERVICING_SCHEDULER_SECRET')
   const url = Deno.env.get('SUPABASE_URL')
   const jwt = Deno.env.get('BILLING_WORKER_JWT')
+  const lifecycleJwt = Deno.env.get('BILLING_LIFECYCLE_WORKER_JWT')
   if (
     request.method !== 'POST' ||
     !secret ||
     request.headers.get('x-scheduler-secret') !== secret ||
     !url ||
-    !jwt
+    !jwt ||
+    !lifecycleJwt
   )
     return new Response('Unavailable', { status: 403 })
   const client = createClient(url, jwt, {
@@ -36,6 +38,7 @@ Deno.serve(async (request) => {
   )
     return new Response('Unavailable', { status: 503 })
   const env = loadBillingProviderEnv()
+  if (!env.providerGateAccepted) return new Response('Unavailable', { status: 503 })
   let pending = 0
   for (const id of due.data.changes) {
     if (
@@ -51,6 +54,15 @@ Deno.serve(async (request) => {
     )
       pending++
   }
+  const lifecycle = createClient(url, lifecycleJwt, {
+    db: { schema: 'app_public' },
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const swept = await lifecycle.rpc('run_due_billing_lifecycle', {
+    p_now: new Date().toISOString(),
+    p_limit: 50,
+  })
+  if (swept.error) pending++
   return Response.json(
     { pending },
     { status: pending ? 503 : 200, headers: { 'Cache-Control': 'no-store' } },

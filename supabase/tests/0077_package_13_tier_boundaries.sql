@@ -157,6 +157,10 @@ select is((partner_private.check_store_media_cap('00000000-0000-4000-8000-000000
 
 -- Test 10: legacy webhook tier names normalize to canonical at the
 -- migration-compatibility boundary (featured -> gallery, unlimited -> full_gallery).
+set local role billing_automation;
+insert into partner_private.photo_tier_commercial_configs(version) values(777);
+update partner_private.photo_tier_sales_control set state='servicing_only',commercial_config_version=777;
+reset role;
 insert into release_private.regional_releases(release_id,region_key,artifact_digest,catalog_digest,prerequisite_receipt_digest,state)
   values ('77000000-0000-4000-8000-000000000099','topeka-ks','sha256:'||repeat('a',64),'sha256:'||repeat('b',64),'sha256:'||repeat('c',64),'active');
 insert into release_private.release_capabilities(release_id,public_catalog,public_claims,public_reviews,public_registration,product_promotion,photo_tiers_enabled)

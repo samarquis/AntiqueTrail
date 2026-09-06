@@ -6,6 +6,7 @@ import {
   subscriptionPeriodEnd,
   verifyStripeSignature,
 } from '../_shared/billing-provider.ts'
+import { recordServicingEvent } from '../_shared/billing-servicing-provider.ts'
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
@@ -25,6 +26,8 @@ const HANDLED_KINDS = new Set([
   'customer.subscription.created',
   'customer.subscription.updated',
   'customer.subscription.deleted',
+  'subscription_schedule.updated',
+  'invoice.payment_succeeded',
 ])
 
 function unavailable(status = 503): Response {
@@ -126,6 +129,15 @@ Deno.serve(async (request) => {
   if (webhookMode.data !== 'sales_open' && webhookMode.data !== 'servicing_only')
     return unavailable()
   const object = event.data?.object
+  const servicing = await recordServicingEvent(
+    (name, args) => workerClient.rpc(name, args),
+    event,
+    env,
+  )
+  if (servicing === null) return unavailable()
+  if (servicing !== undefined) return received(servicing)
+  if (event.type === 'subscription_schedule.updated' || event.type === 'invoice.payment_succeeded')
+    return received('ignored')
   if (event.type === 'checkout.session.expired') {
     const expired = object as CheckoutObject | undefined
     if (typeof expired?.id !== 'string') return received('ignored')

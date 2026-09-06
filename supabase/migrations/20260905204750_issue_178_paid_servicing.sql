@@ -1,4 +1,5 @@
 -- #178: staged servicing. No activation, scheduler installation, or provider call.
+grant usage on schema app_public to billing_mirror_service,billing_lifecycle_service;
 grant billing_automation to postgres;
 grant create on schema partner_private, app_public to billing_automation;
 grant update(grant_id) on partner_private.store_partner_grants to billing_automation;
@@ -19,6 +20,7 @@ create table partner_private.photo_tier_change_consents (
   sales_generation bigint not null,
   idempotency_key uuid not null,
   input_digest bytea not null,
+  future_change_id uuid,
   created_at timestamptz not null default statement_timestamp(),
   expires_at timestamptz not null default statement_timestamp()+interval '15 minutes',
   unique(representative_id,idempotency_key),
@@ -33,7 +35,7 @@ create table partner_private.photo_tier_subscription_changes (
   representative_id uuid not null,
   subscription_id text not null,
   subscription_version bigint not null,
-  source_tier text not null check(source_tier in ('gallery','full_gallery')),
+  source_tier text not null check(source_tier in ('free','gallery','full_gallery')),
   source_tier_version bigint not null,
   target_tier text not null check(target_tier in ('free','gallery','full_gallery')),
   consent_id uuid unique references partner_private.photo_tier_change_consents(consent_id),
@@ -41,11 +43,14 @@ create table partner_private.photo_tier_subscription_changes (
   config_digest bytea not null check(octet_length(config_digest)=32),
   sales_generation bigint not null,
   idempotency_key uuid not null unique,
-  state text not null default 'pending' check(state in ('pending','applied','compensation_pending','compensated','superseded')),
+  state text not null default 'pending' check(state in ('pending','scheduled','applied','compensation_pending','compensated','superseded')),
   effective_at timestamptz not null,
   provider_request jsonb,
+  provider_mutation jsonb,
+  target_price_id text check(target_price_id~'^price_[A-Za-z0-9]{8,120}$'),
   dispatched_at timestamptz,
   provider_observation jsonb,
+  compensation_items jsonb,
   completed_at timestamptz,
   created_at timestamptz not null default statement_timestamp(),
   check((target_tier='full_gallery')=(consent_id is not null)),
@@ -66,6 +71,8 @@ create table partner_private.photo_tier_charge_refunds (
   representative_id uuid,
   idempotency_key uuid unique,
   provider_refund_id text,
+  provider_attempt integer not null default 1 check(provider_attempt>0),
+  prior_failed_refunds text[] not null default '{}',
   state text not null default 'available' check(state in ('available','pending','succeeded','failed')),
   check(requested_at is null or requested_at between charged_at and charged_at+interval '48 hours')
 );
@@ -93,11 +100,11 @@ begin
 end $$;
 
 create function app_public.billing_record_paid_change_consent(
-  p_store_id uuid,p_subscription_version bigint,p_tier_version bigint,p_config_version bigint,p_config_digest text,p_idempotency_key uuid
+  p_store_id uuid,p_subscription_version bigint,p_tier_version bigint,p_config_version bigint,p_config_digest text,p_idempotency_key uuid,p_expected_future_change_id uuid default null
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare control partner_private.photo_tier_sales_control%rowtype; config partner_private.photo_tier_commercial_configs%rowtype;
   sub partner_private.store_subscriptions%rowtype; tier partner_private.store_photo_tier_state%rowtype;
-  receipt partner_private.photo_tier_change_consents%rowtype; actor uuid; input bytea;
+  receipt partner_private.photo_tier_change_consents%rowtype; actor uuid; input bytea; future_id uuid;
 begin
   select * into control from partner_private.photo_tier_sales_control where singleton for update;
   if control.state<>'sales_open' or not partner_private.photo_tier_billing_enabled() then
@@ -107,7 +114,7 @@ begin
   if config.version is null or config.version<>control.commercial_config_version or p_config_digest is null
     or encode(config.digest,'hex')<>p_config_digest or p_idempotency_key is null or p_subscription_version is null or p_tier_version is null then
     raise exception using errcode='42501',message='billing_action_denied'; end if;
-  input:=extensions.digest(convert_to(jsonb_build_array(p_store_id,p_subscription_version,p_tier_version,p_config_version,p_config_digest)::text,'utf8'),'sha256');
+  input:=extensions.digest(convert_to(jsonb_build_array(p_store_id,p_subscription_version,p_tier_version,p_config_version,p_config_digest,p_expected_future_change_id)::text,'utf8'),'sha256');
   select * into receipt from partner_private.photo_tier_change_consents where representative_id=actor and idempotency_key=p_idempotency_key for share;
   if found then
     if receipt.input_digest<>input then raise exception using errcode='22023',message='billing_idempotency_mismatch'; end if;
@@ -115,12 +122,13 @@ begin
   end if;
   select * into sub from partner_private.store_subscriptions where store_id=p_store_id for update;
   select * into tier from partner_private.store_photo_tier_state where store_id=p_store_id for update;
+  select change_id into future_id from partner_private.photo_tier_subscription_changes where subscription_id=sub.stripe_subscription_id and state='scheduled' order by created_at desc limit 1;
   if sub.state is distinct from 'active' or sub.version<>p_subscription_version or tier.tier is distinct from 'gallery'
-    or tier.version<>p_tier_version or exists(select 1 from partner_private.photo_tier_subscription_changes where subscription_id=sub.stripe_subscription_id and state in ('pending','compensation_pending')) then
+    or tier.version<>p_tier_version or future_id is distinct from p_expected_future_change_id or exists(select 1 from partner_private.photo_tier_subscription_changes where subscription_id=sub.stripe_subscription_id and state in ('pending','compensation_pending')) then
     raise exception using errcode='42501',message='billing_action_denied'; end if;
   insert into partner_private.photo_tier_change_consents(store_id,representative_id,subscription_id,subscription_version,source_tier,source_tier_version,
-    config_version,config_digest,sales_generation,idempotency_key,input_digest)
-  values(p_store_id,actor,sub.stripe_subscription_id,sub.version,tier.tier,tier.version,config.version,config.digest,control.sales_generation,p_idempotency_key,input)
+    config_version,config_digest,sales_generation,idempotency_key,input_digest,future_change_id)
+  values(p_store_id,actor,sub.stripe_subscription_id,sub.version,tier.tier,tier.version,config.version,config.digest,control.sales_generation,p_idempotency_key,input,future_id)
   returning * into receipt;
   return jsonb_build_object('consentId',receipt.consent_id,'expiresAt',receipt.expires_at);
 end $$;
@@ -147,13 +155,15 @@ begin
     return jsonb_build_object('changeId',prior.change_id,'state',prior.state,'effectiveAt',prior.effective_at);
   end if;
   if p_target_tier is null or p_target_tier not in ('free','gallery','full_gallery') or p_idempotency_key is null
-    or sub.state is distinct from 'active' or sub.version is distinct from p_subscription_version or tier.tier not in ('gallery','full_gallery')
-    or tier.tier=p_target_tier then raise exception using errcode='42501',message='billing_action_denied'; end if;
+    or (case when p_target_tier='free' then sub.state not in ('active','past_due','grace') else sub.state is distinct from 'active' end)
+    or sub.version is distinct from p_subscription_version or tier.tier not in ('free','gallery','full_gallery')
+    or (p_target_tier<>'free' and (tier.tier=p_target_tier or tier.tier='free')) then raise exception using errcode='42501',message='billing_action_denied'; end if;
   if p_target_tier='full_gallery' then
     if consent.consent_id is null or consent.store_id<>p_store_id or consent.representative_id<>actor
       or consent.subscription_id<>sub.stripe_subscription_id or consent.subscription_version<>sub.version
       or consent.source_tier<>tier.tier or consent.source_tier_version<>tier.version or consent.config_version<>config.version
       or consent.config_digest<>config.digest or consent.sales_generation<>control.sales_generation
+      or consent.future_change_id is distinct from (select change_id from partner_private.photo_tier_subscription_changes where subscription_id=sub.stripe_subscription_id and state='scheduled' order by created_at desc limit 1)
       or consent.expires_at<=statement_timestamp() then raise exception using errcode='42501',message='billing_action_denied'; end if;
   elsif p_consent_id is not null then raise exception using errcode='42501',message='billing_action_denied'; end if;
   -- Only an undispatched scheduled downgrade can be replaced. In-flight work reconciles first.
@@ -176,7 +186,7 @@ begin
   perform 1 from partner_private.photo_tier_sales_control where singleton and state<>'off_prelaunch' for update;
   if not found then raise exception using errcode='55000',message='billing_stage_disabled'; end if;
   actor:=partner_private.assert_servicing_actor(p_store_id);
-  select * into r from partner_private.photo_tier_charge_refunds where store_id=p_store_id and charge_id=p_charge_id for update;
+  select * into r from partner_private.photo_tier_charge_refunds where store_id=p_store_id and (charge_id=p_charge_id or refund_request_id::text=p_charge_id) for update;
   if not found or p_idempotency_key is null then raise exception using errcode='42501',message='billing_action_denied'; end if;
   if r.requested_at is not null then
     if r.idempotency_key<>p_idempotency_key or r.representative_id<>actor then raise exception using errcode='22023',message='billing_idempotency_mismatch'; end if;
@@ -189,7 +199,64 @@ begin
   return jsonb_build_object('refundRequestId',r.refund_request_id,'state',r.state,'requestedAt',r.requested_at);
 end $$;
 
+create function app_public.billing_get_servicing_context() returns jsonb
+language plpgsql volatile security definer set search_path='' as $$
+declare control partner_private.photo_tier_sales_control%rowtype; actor uuid:=app_public.request_user_id(); store uuid;
+  sub partner_private.store_subscriptions%rowtype; tier partner_private.store_photo_tier_state%rowtype;
+  config partner_private.photo_tier_commercial_configs%rowtype;
+begin
+  select * into control from partner_private.photo_tier_sales_control where singleton for share;
+  if control.state='off_prelaunch' then return null; end if;
+  select (array_agg(store_id))[1] into store from partner_private.store_partner_grants where auth_user_id=actor and state='active' having count(*)=1;
+  perform partner_private.assert_servicing_actor(store);
+  select * into sub from partner_private.store_subscriptions where store_id=store;
+  select * into tier from partner_private.store_photo_tier_state where store_id=store;
+  if sub.stripe_subscription_id is null then return null; end if;
+  select * into config from partner_private.photo_tier_commercial_configs where version=control.commercial_config_version;
+  return jsonb_build_object('storeId',store,'subscriptionVersion',sub.version,'tierVersion',tier.version,'tier',tier.tier,
+    'salesOpen',control.state='sales_open','state',sub.state,'paidThrough',sub.current_period_end,
+    'configVersion',config.version,'configDigest',encode(config.digest,'hex'),
+    'galleryPriceCents',config.gallery_price_cents,'fullGalleryPriceCents',config.full_gallery_price_cents,'currency',config.currency,
+    'terms',jsonb_build_array(config.tax_mode,config.renewal_rule,config.cancel_anytime_rule,config.refund_window_rule,
+      config.upgrade_proration_rule,config.downgrade_rule,config.failed_payment_grace_rule,config.hidden_photo_deletion_rule,
+      'Accepted file types: '||(select string_agg(value,', ') from jsonb_array_elements_text(config.full_gallery_limits->'acceptedFileTypes')),
+      'Maximum file size: '||(config.full_gallery_limits->>'maxFileBytes')||' bytes; maximum dimensions: '||(config.full_gallery_limits->>'maxWidthPixels')||' by '||(config.full_gallery_limits->>'maxHeightPixels')||' pixels.',
+      config.full_gallery_limits->>'uploadRateRule',config.full_gallery_limits->>'quotaOutageRule',config.full_gallery_limits->>'moderationAbuseRule',
+      config.full_gallery_limits->>'reasonRecoveryAppealRule',config.full_gallery_limits->>'paidServiceRemedy',
+      'Terms: '||config.terms_version||'; privacy: '||config.privacy_version||'; refund policy: '||config.refund_policy_version||'; support policy: '||config.support_policy_version||'; Full Gallery limits: '||config.full_gallery_limits_version),
+    'scheduledTier',(select target_tier from partner_private.photo_tier_subscription_changes where subscription_id=sub.stripe_subscription_id and state='scheduled' order by created_at desc limit 1),
+    'scheduledChangeId',(select change_id from partner_private.photo_tier_subscription_changes where subscription_id=sub.stripe_subscription_id and state='scheduled' order by created_at desc limit 1),
+    'pending',exists(select 1 from partner_private.photo_tier_subscription_changes where subscription_id=sub.stripe_subscription_id and state in ('pending','compensation_pending')),
+    'charges',(select coalesce(jsonb_agg(jsonb_build_object('refundRequestId',refund_request_id,'chargedAt',charged_at,'amount',amount,'currency',currency,'state',state) order by charged_at desc),'[]'::jsonb)
+      from partner_private.photo_tier_charge_refunds where store_id=store and (charged_at>=statement_timestamp()-interval '48 hours' or state='pending')));
+end $$;
+
 -- The same durable rows are the #179 pause/closure obligation inventory.
+create or replace function app_public.billing_create_portal_session(p_store_id uuid) returns jsonb
+language plpgsql volatile security definer set search_path='' as $$
+declare actor uuid;
+begin
+  perform 1 from partner_private.photo_tier_sales_control where singleton and state<>'off_prelaunch' for share;
+  if not found then raise exception using errcode='55000',message='billing_stage_disabled'; end if;
+  actor:=partner_private.assert_servicing_actor(p_store_id);
+  perform 1 from partner_private.store_subscriptions where store_id=p_store_id and stripe_subscription_id is not null and state<>'none' for share;
+  if not found then raise exception using errcode='55000',message='billing_portal_unavailable'; end if;
+  perform partner_private.append_audit('billing_portal_requested',actor,p_store_id,'allowed','{}'::jsonb);
+  return jsonb_build_object('requested',true,'storeId',p_store_id);
+end $$;
+
+create function app_public.billing_get_servicing_provider_context(p_store_id uuid) returns jsonb
+language plpgsql volatile security definer set search_path='' as $$
+declare sub partner_private.store_subscriptions%rowtype;
+begin
+  perform 1 from partner_private.photo_tier_sales_control where singleton and state<>'off_prelaunch' for share;
+  if not found then raise exception using errcode='55000',message='billing_stage_disabled'; end if;
+  select * into sub from partner_private.store_subscriptions where store_id=p_store_id for share;
+  if sub.stripe_subscription_id is null or (select count(*) from partner_private.store_subscriptions where stripe_customer_id=sub.stripe_customer_id)<>1 then
+    raise exception using errcode='42501',message='billing_action_denied'; end if;
+  return jsonb_build_object('subscriptionId',sub.stripe_subscription_id,'customerId',sub.stripe_customer_id);
+end $$;
+
 create function app_public.billing_due_servicing() returns jsonb
 language plpgsql volatile security definer set search_path='' as $$
 begin
@@ -197,9 +264,9 @@ begin
   if not found then raise exception using errcode='55000',message='billing_stage_disabled'; end if;
   return jsonb_build_object('changes',(select coalesce(jsonb_agg(change_id),'[]'::jsonb) from (
     select change_id from partner_private.photo_tier_subscription_changes where state in ('pending','compensation_pending')
-      and effective_at<=statement_timestamp() order by created_at limit 50) c),
+      order by created_at limit 50) c),
     'refunds',(select coalesce(jsonb_agg(refund_request_id),'[]'::jsonb) from (
-      select refund_request_id from partner_private.photo_tier_charge_refunds where state='pending' order by requested_at limit 50) r));
+      select refund_request_id from partner_private.photo_tier_charge_refunds where state in ('pending','failed') order by requested_at limit 50) r));
 end $$;
 
 create function app_public.billing_prepare_subscription_change(p_change_id uuid) returns jsonb
@@ -220,13 +287,13 @@ begin
   select * into tier from partner_private.store_photo_tier_state where store_id=change.store_id for update;
   select * into change from partner_private.photo_tier_subscription_changes where change_id=p_change_id for update;
   if change.state not in ('pending','compensation_pending') then return jsonb_build_object('state',change.state); end if;
-  if change.effective_at>statement_timestamp() then return jsonb_build_object('state','scheduled'); end if;
-  valid:=valid and sub.stripe_subscription_id=change.subscription_id and sub.state='active'
-    and tier.tier=change.source_tier;
+  valid:=valid and sub.stripe_subscription_id=change.subscription_id and (sub.state='active' or (change.target_tier='free' and sub.state in ('past_due','grace')))
+    and (change.target_tier='free' or tier.tier=change.source_tier);
   if change.target_tier='full_gallery' then
     valid:=valid and control.state='sales_open' and control.sales_generation=change.sales_generation
       and control.commercial_config_version=config.version and config.state='active' and config.digest=change.config_digest
       and sub.version=change.subscription_version and tier.version=change.source_tier_version
+      and consent.future_change_id is not distinct from (select change_id from partner_private.photo_tier_subscription_changes where subscription_id=change.subscription_id and state='scheduled' order by created_at desc limit 1)
       and (change.dispatched_at is not null or consent.expires_at>statement_timestamp());
   end if;
   if not coalesce(valid,false) and change.state='pending' then
@@ -234,13 +301,15 @@ begin
       completed_at=case when dispatched_at is null then statement_timestamp() else null end where change_id=p_change_id returning * into change;
     if change.state='superseded' then return jsonb_build_object('state',change.state); end if;
   end if;
-  update partner_private.photo_tier_subscription_changes set dispatched_at=coalesce(dispatched_at,statement_timestamp())
-    where change_id=p_change_id returning * into change;
   return jsonb_build_object('changeId',change.change_id,'state',change.state,'storeId',change.store_id,
     'subscriptionId',change.subscription_id,'customerId',sub.stripe_customer_id,'sourceTier',change.source_tier,'targetTier',change.target_tier,
-    'priceCents',case change.target_tier when 'gallery' then config.gallery_price_cents else config.full_gallery_price_cents end,
+    'priceCents',case change.target_tier when 'gallery' then config.gallery_price_cents when 'full_gallery' then config.full_gallery_price_cents else 0 end,
     'currency',lower(config.currency),'generation',change.sales_generation,'request',change.provider_request,
-    'currentTier',tier.tier,'currentState',sub.state,'currentSubscriptionVersion',sub.version);
+    'mutation',change.provider_mutation,'targetPriceId',change.target_price_id,
+    'compensationItems',change.compensation_items,'dispatchedAt',change.dispatched_at,
+    'currentTier',tier.tier,'currentState',sub.state,'currentSubscriptionVersion',sub.version,
+    'currentPriceId',coalesce((select target_price_id from partner_private.photo_tier_subscription_changes where subscription_id=change.subscription_id and state='applied' and target_tier=tier.tier order by completed_at desc limit 1),
+      case when tier.tier=change.source_tier then change.provider_request->>'sourcePriceId' else null end));
 end $$;
 
 create function app_public.billing_bind_change_request(p_change_id uuid,p_request jsonb) returns jsonb
@@ -258,35 +327,86 @@ begin
     or p_request->>'customerId' is distinct from context->>'customerId'
     or p_request->>'itemId' is null or p_request->>'itemId' !~ '^si_[A-Za-z0-9]{8,120}$'
     or p_request->>'sourcePriceId' is null or p_request->>'sourcePriceId' !~ '^price_[A-Za-z0-9]{8,120}$'
+    or p_request->>'productId' is null or p_request->>'productId' !~ '^prod_[A-Za-z0-9]{8,120}$'
+    or jsonb_typeof(p_request->'periodEnd') is distinct from 'number'
+    or (p_request->>'periodEnd')::numeric<>extract(epoch from (select current_period_end from partner_private.store_subscriptions where store_id=c.store_id))
     or p_request->>'targetTier' is distinct from c.target_tier
     or p_request->>'priceCents' is distinct from context->>'priceCents'
     or p_request->>'currency' is distinct from context->>'currency'
-    or p_request - array['subscriptionId','customerId','itemId','sourcePriceId','targetTier','priceCents','currency'] <> '{}'::jsonb then
+    or p_request - array['subscriptionId','customerId','itemId','sourcePriceId','productId','periodEnd','targetTier','priceCents','currency'] <> '{}'::jsonb then
     raise exception using errcode='42501',message='billing_action_denied'; end if;
   update partner_private.photo_tier_subscription_changes set provider_request=p_request where change_id=p_change_id;
   return context||jsonb_build_object('request',p_request);
 end $$;
 
+create function app_public.billing_bind_provider_mutation(p_change_id uuid,p_path text,p_parameters jsonb,p_price_id text)
+returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare c partner_private.photo_tier_subscription_changes%rowtype; context jsonb;
+begin
+  context:=app_public.billing_prepare_subscription_change(p_change_id);
+  select * into c from partner_private.photo_tier_subscription_changes where change_id=p_change_id for update;
+  if c.provider_mutation is not null then return c.provider_mutation; end if;
+  if c.state<>'pending' or c.provider_request is null or jsonb_typeof(p_parameters) is distinct from 'object'
+    or p_parameters->>'metadata[paid_change_id]' is distinct from p_change_id::text
+    or p_path is null or not (p_path='subscriptions/'||c.subscription_id or p_path~'^subscription_schedules/sub_sched_[A-Za-z0-9]{8,120}$')
+    or (c.target_tier='free') is distinct from (p_price_id is null)
+    or exists(select 1 from jsonb_each(p_parameters) where jsonb_typeof(value)<>'string'
+      or key!~ '^(metadata\[paid_change_id\]|proration_behavior|end_behavior|cancel_at_period_end|items\[|phases\[)') then
+    raise exception using errcode='42501',message='billing_action_denied'; end if;
+  update partner_private.photo_tier_subscription_changes set provider_mutation=jsonb_build_object('path',p_path,'parameters',p_parameters),target_price_id=p_price_id,dispatched_at=statement_timestamp()
+    where change_id=p_change_id returning * into c;
+  return c.provider_mutation;
+end $$;
+
 create function app_public.billing_record_change_event(p_change_id uuid,p_event_id text,p_event_time timestamptz,
-  p_subscription_id text,p_customer_id text,p_tier text,p_period_end timestamptz) returns text
+  p_subscription_id text,p_customer_id text,p_price_id text,p_status text,p_period_end timestamptz,p_cancel_at_period_end boolean) returns text
 language plpgsql volatile security definer set search_path='' as $$
 declare context jsonb; c partner_private.photo_tier_subscription_changes%rowtype; result text;
 begin
   context:=app_public.billing_prepare_subscription_change(p_change_id);
   select * into c from partner_private.photo_tier_subscription_changes where change_id=p_change_id for update;
-  if c.subscription_id is distinct from p_subscription_id or context->>'customerId' is distinct from p_customer_id
-    or c.target_tier is distinct from p_tier or c.provider_request is null or p_event_time is null
+  if c.subscription_id is distinct from p_subscription_id or not exists(select 1 from partner_private.store_subscriptions where store_id=c.store_id and stripe_customer_id=p_customer_id)
+    or c.provider_request is null or p_event_time is null
     or p_event_time<c.created_at-interval '1 second' or p_event_time>statement_timestamp()+interval '5 minutes'
     or p_period_end is null then raise exception using errcode='42501',message='billing_action_denied'; end if;
   if c.state='compensation_pending' then return 'compensation_pending'; end if;
-  if c.state<>'pending' then return c.state; end if;
+  if c.state not in ('pending','scheduled') then return 'change_complete'; end if;
+  if c.target_tier='free' then
+    if p_status in ('active','past_due','unpaid') and p_cancel_at_period_end and p_period_end=c.effective_at then
+      update partner_private.photo_tier_subscription_changes set state='superseded',completed_at=statement_timestamp()
+        where subscription_id=c.subscription_id and state='scheduled' and change_id<>p_change_id;
+      update partner_private.photo_tier_subscription_changes set state='scheduled' where change_id=p_change_id;
+      return 'scheduled';
+    end if;
+    if p_status is distinct from 'canceled' or p_event_time<c.effective_at then return 'awaiting_boundary'; end if;
+  elsif p_price_id is distinct from c.target_price_id or p_status is distinct from 'active' then return 'awaiting_target';
+  elsif c.target_tier='gallery' and p_event_time<c.effective_at then return 'awaiting_boundary'; end if;
   result:=partner_private.billing_apply_subscription_event(p_event_id,'customer.subscription.updated',p_event_time,c.store_id,
-    p_customer_id,p_subscription_id,case when p_tier='free' then 'canceled' else 'active' end,p_period_end,
-    case when p_tier='free' then null else p_tier end);
+    p_customer_id,p_subscription_id,p_status,p_period_end,
+    case when c.target_tier='free' then null else c.target_tier end);
   if result='applied' then
     update partner_private.photo_tier_subscription_changes set state='applied',completed_at=statement_timestamp() where change_id=p_change_id;
   end if;
   return result;
+end $$;
+
+create function app_public.billing_record_schedule_event(p_change_id uuid,p_subscription_id text,p_customer_id text,p_schedule_id text,p_price_id text,p_boundary timestamptz)
+returns text language plpgsql volatile security definer set search_path='' as $$
+declare c partner_private.photo_tier_subscription_changes%rowtype; context jsonb;
+begin
+  context:=app_public.billing_prepare_subscription_change(p_change_id);
+  select * into c from partner_private.photo_tier_subscription_changes where change_id=p_change_id for update;
+  if c.subscription_id is distinct from p_subscription_id or not exists(select 1 from partner_private.store_subscriptions where store_id=c.store_id and stripe_customer_id=p_customer_id)
+    or c.provider_mutation->>'path' is distinct from 'subscription_schedules/'||p_schedule_id then
+    raise exception using errcode='42501',message='billing_action_denied'; end if;
+  if c.target_tier='full_gallery' then return 'awaiting_subscription'; end if;
+  if c.target_price_id is distinct from p_price_id or c.effective_at is distinct from p_boundary then
+    raise exception using errcode='42501',message='billing_action_denied'; end if;
+  if c.state<>'pending' then return c.state; end if;
+  update partner_private.photo_tier_subscription_changes set state='superseded',completed_at=statement_timestamp()
+    where subscription_id=c.subscription_id and state='scheduled' and change_id<>p_change_id;
+  update partner_private.photo_tier_subscription_changes set state='scheduled' where change_id=p_change_id;
+  return 'scheduled';
 end $$;
 
 create function app_public.billing_record_change_compensation(p_change_id uuid,p_subscription_id text,p_observation jsonb) returns text
@@ -298,6 +418,8 @@ begin
   if c.state='compensated' then return 'compensated'; end if;
   if c.state<>'compensation_pending' or c.subscription_id is distinct from p_subscription_id
     or jsonb_typeof(p_observation) is distinct from 'object' or p_observation->>'subscriptionId' is distinct from c.subscription_id
+    or p_observation-array['subscriptionId','entitlementReconciled','incrementalChargeReconciled','currentSubscriptionVersion','observedAt']<>'{}'::jsonb
+    or c.compensation_items is null
     or p_observation->>'entitlementReconciled' is distinct from 'true' or p_observation->>'incrementalChargeReconciled' is distinct from 'true'
     or p_observation->>'currentSubscriptionVersion' is distinct from context->>'currentSubscriptionVersion'
     or p_observation->>'observedAt' is null or (p_observation->>'observedAt')::timestamptz<statement_timestamp()-interval '1 minute'
@@ -309,18 +431,34 @@ begin
   return 'compensated';
 end $$;
 
+create function app_public.billing_bind_compensation_items(p_change_id uuid,p_items jsonb) returns jsonb
+language plpgsql volatile security definer set search_path='' as $$
+declare c partner_private.photo_tier_subscription_changes%rowtype;
+begin
+  perform app_public.billing_prepare_subscription_change(p_change_id);
+  select * into c from partner_private.photo_tier_subscription_changes where change_id=p_change_id for update;
+  if c.compensation_items is not null then return c.compensation_items; end if;
+  if c.state<>'compensation_pending' or jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items)<>2
+    or exists(select 1 from jsonb_array_elements(p_items) item where jsonb_typeof(item) is distinct from 'string'
+      or item#>>'{}'!~'^ii_[A-Za-z0-9]{8,120}$')
+    or p_items->>0=p_items->>1 then raise exception using errcode='42501',message='billing_action_denied'; end if;
+  update partner_private.photo_tier_subscription_changes set compensation_items=p_items where change_id=p_change_id;
+  return p_items;
+end $$;
+
 create function app_public.billing_record_charge(p_store_id uuid,p_subscription_id text,p_customer_id text,p_charge_id text,
   p_charged_at timestamptz,p_amount bigint,p_currency text) returns text
 language plpgsql volatile security definer set search_path='' as $$
+declare scoped_store uuid;
 begin
   perform 1 from partner_private.photo_tier_sales_control where singleton and state<>'off_prelaunch' for update;
   if not found then raise exception using errcode='55000',message='billing_stage_disabled'; end if;
-  perform 1 from partner_private.store_subscriptions where store_id=p_store_id and stripe_subscription_id=p_subscription_id and stripe_customer_id=p_customer_id for update;
+  select store_id into scoped_store from partner_private.store_subscriptions where (p_store_id is null or store_id=p_store_id) and stripe_subscription_id=p_subscription_id and stripe_customer_id=p_customer_id for update;
   if not found then return 'unbound'; end if;
   if p_charged_at is null or p_charged_at>statement_timestamp()+interval '5 minutes' then raise exception using errcode='22023',message='billing_charge_invalid'; end if;
   insert into partner_private.photo_tier_charge_refunds(store_id,subscription_id,charge_id,charged_at,amount,currency)
-    values(p_store_id,p_subscription_id,p_charge_id,p_charged_at,p_amount,p_currency) on conflict(charge_id) do nothing;
-  if not exists(select 1 from partner_private.photo_tier_charge_refunds where charge_id=p_charge_id and store_id=p_store_id
+    values(scoped_store,p_subscription_id,p_charge_id,p_charged_at,p_amount,p_currency) on conflict(charge_id) do nothing;
+  if not exists(select 1 from partner_private.photo_tier_charge_refunds where charge_id=p_charge_id and store_id=scoped_store
     and subscription_id=p_subscription_id and charged_at=p_charged_at and amount=p_amount and currency=p_currency) then
     raise exception using errcode='22023',message='billing_idempotency_mismatch'; end if;
   return 'recorded';
@@ -334,16 +472,24 @@ begin
   if not found then raise exception using errcode='55000',message='billing_stage_disabled'; end if;
   select * into r from partner_private.photo_tier_charge_refunds where refund_request_id=p_refund_request_id for update;
   if not found or r.requested_at is null then raise exception using errcode='42501',message='billing_action_denied'; end if;
+  if r.state='failed' then
+    update partner_private.photo_tier_charge_refunds set state='pending',provider_attempt=provider_attempt+1,
+      prior_failed_refunds=array_append(prior_failed_refunds,provider_refund_id),provider_refund_id=null where refund_request_id=p_refund_request_id returning * into r;
+  end if;
   return jsonb_build_object('refundRequestId',r.refund_request_id,'chargeId',r.charge_id,'amount',r.amount,'currency',r.currency,
-    'state',r.state,'providerRefundId',r.provider_refund_id);
+    'state',r.state,'providerRefundId',r.provider_refund_id,'attempt',r.provider_attempt);
 end $$;
 
 create function app_public.billing_record_charge_refund(p_refund_request_id uuid,p_charge_id text,p_refund_id text,p_state text,p_amount bigint) returns text
 language plpgsql volatile security definer set search_path='' as $$
 declare r partner_private.photo_tier_charge_refunds%rowtype;
 begin
-  perform app_public.billing_prepare_charge_refund(p_refund_request_id);
+  perform 1 from partner_private.photo_tier_sales_control where singleton and state<>'off_prelaunch' for update;
+  if not found then raise exception using errcode='55000',message='billing_stage_disabled'; end if;
   select * into r from partner_private.photo_tier_charge_refunds where refund_request_id=p_refund_request_id for update;
+  if not found or r.requested_at is null then raise exception using errcode='42501',message='billing_action_denied'; end if;
+  if r.charge_id is distinct from p_charge_id or r.amount is distinct from p_amount then raise exception using errcode='42501',message='billing_action_denied'; end if;
+  if p_refund_id=any(r.prior_failed_refunds) and p_state='failed' then return r.state; end if;
   if r.charge_id is distinct from p_charge_id or r.amount is distinct from p_amount or p_state is null or p_state not in ('pending','succeeded','failed')
     or p_refund_id is null or p_refund_id !~ '^re_[A-Za-z0-9]{8,120}$'
     or (r.provider_refund_id is not null and r.provider_refund_id<>p_refund_id) then raise exception using errcode='42501',message='billing_action_denied'; end if;
@@ -354,25 +500,41 @@ end $$;
 
 reset role;
 revoke all on function partner_private.assert_servicing_actor(uuid),
-  app_public.billing_record_paid_change_consent(uuid,bigint,bigint,bigint,text,uuid),
+  app_public.billing_record_paid_change_consent(uuid,bigint,bigint,bigint,text,uuid,uuid),
   app_public.billing_request_subscription_change(uuid,text,uuid,bigint,uuid),
   app_public.billing_request_charge_refund(uuid,text,uuid) from public,anon,authenticated,service_role;
-grant execute on function app_public.billing_record_paid_change_consent(uuid,bigint,bigint,bigint,text,uuid),
+revoke all on function app_public.billing_get_servicing_context() from public,anon,authenticated,service_role;
+grant execute on function app_public.billing_get_servicing_context() to authenticated;
+grant execute on function app_public.billing_record_paid_change_consent(uuid,bigint,bigint,bigint,text,uuid,uuid),
   app_public.billing_request_subscription_change(uuid,text,uuid,bigint,uuid),
   app_public.billing_request_charge_refund(uuid,text,uuid) to authenticated;
 revoke create on schema partner_private,app_public from billing_automation;
 revoke all on function app_public.billing_due_servicing(),app_public.billing_prepare_subscription_change(uuid),
-  app_public.billing_bind_change_request(uuid,jsonb) from public,anon,authenticated,service_role;
+  app_public.billing_get_servicing_provider_context(uuid),
+  app_public.billing_bind_change_request(uuid,jsonb),app_public.billing_bind_provider_mutation(uuid,text,jsonb,text) from public,anon,authenticated,service_role;
 grant execute on function app_public.billing_due_servicing(),app_public.billing_prepare_subscription_change(uuid),
-  app_public.billing_bind_change_request(uuid,jsonb) to billing_mirror_service;
-revoke all on function app_public.billing_record_change_event(uuid,text,timestamptz,text,text,text,timestamptz),
+  app_public.billing_get_servicing_provider_context(uuid),
+  app_public.billing_bind_change_request(uuid,jsonb),app_public.billing_bind_provider_mutation(uuid,text,jsonb,text) to billing_mirror_service;
+revoke all on function app_public.billing_record_change_event(uuid,text,timestamptz,text,text,text,text,timestamptz,boolean),
+  app_public.billing_record_schedule_event(uuid,text,text,text,text,timestamptz),
   app_public.billing_record_change_compensation(uuid,text,jsonb),app_public.billing_record_charge(uuid,text,text,text,timestamptz,bigint,text),
+  app_public.billing_bind_compensation_items(uuid,jsonb),
   app_public.billing_prepare_charge_refund(uuid),app_public.billing_record_charge_refund(uuid,text,text,text,bigint)
   from public,anon,authenticated,service_role;
-grant execute on function app_public.billing_record_change_event(uuid,text,timestamptz,text,text,text,timestamptz),
+grant execute on function app_public.billing_record_change_event(uuid,text,timestamptz,text,text,text,text,timestamptz,boolean),
+  app_public.billing_record_schedule_event(uuid,text,text,text,text,timestamptz),
   app_public.billing_record_change_compensation(uuid,text,jsonb),app_public.billing_record_charge(uuid,text,text,text,timestamptz,bigint,text),
+  app_public.billing_bind_compensation_items(uuid,jsonb),
   app_public.billing_prepare_charge_refund(uuid),app_public.billing_record_charge_refund(uuid,text,text,text,bigint) to billing_mirror_service;
 revoke billing_automation from postgres;
+
+-- Ordering is an ordinal, not a plan count gate. Paid galleries can exceed 20.
+alter table app_public.store_media drop constraint media_order_range;
+alter table app_public.store_media alter column display_order type integer;
+alter table app_public.store_media add constraint media_order_range check(display_order>=0);
+alter table media_private.media_uploads drop constraint media_uploads_display_order_check;
+alter table media_private.media_uploads alter column display_order type integer;
+alter table media_private.media_uploads add constraint media_uploads_display_order_check check(display_order>=0);
 
 -- Remove hidden photos from the publication projection, leaving catalog_details unchanged.
 grant media_automation to postgres;
@@ -402,7 +564,7 @@ revoke all on media_private.tier_hidden_photos from public,anon,authenticated,se
 
 create function media_private.reconcile_tier_photos(p_store_id uuid,p_now timestamptz) returns void
 language plpgsql volatile security definer set search_path='' as $$
-declare cap integer; r record; current_count integer;
+declare cap integer; r record; current_count integer; restored_order integer;
 begin
   perform pg_advisory_xact_lock(hashtextextended(p_store_id::text,0));
   cap:=partner_private.resolve_store_photo_cap(p_store_id);
@@ -430,27 +592,130 @@ begin
         end if;
       end if;
     elsif (cap is null or current_count<cap)
-      and not exists(select 1 from app_public.store_media where store_id=p_store_id and display_order=(r.projection->>'display_order')::integer)
       and (r.upload_id is null or exists(select 1 from media_private.media_uploads where upload_id=r.upload_id and state='tier_hidden'
         and scan_state='clean' and approved_at is not null and public_deleted_at is null)) then
-      insert into app_public.store_media select (jsonb_populate_record(null::app_public.store_media,r.projection)).*;
-      update media_private.media_uploads set state='published',catalog_media_id=r.media_id,updated_at=p_now,version=version+1 where upload_id=r.upload_id;
+      restored_order:=(r.projection->>'display_order')::integer;
+      if exists(select 1 from app_public.store_media where store_id=p_store_id and display_order=restored_order) then
+        select coalesce(max(display_order)+1,0) into restored_order from app_public.store_media where store_id=p_store_id;
+      end if;
+      insert into app_public.store_media select (jsonb_populate_record(null::app_public.store_media,
+        r.projection||jsonb_build_object('display_order',restored_order))).*;
+      update media_private.media_uploads set state='published',catalog_media_id=r.media_id,display_order=restored_order,updated_at=p_now,version=version+1 where upload_id=r.upload_id;
       update media_private.tier_hidden_photos set state='restored' where media_id=r.media_id;
       current_count:=current_count+1;
     end if;
   end loop;
 end $$;
+create or replace function media_private.claim_publish_job(p_job_id uuid) returns jsonb
+language plpgsql volatile security definer set search_path='' as $$
+declare u media_private.media_uploads%rowtype;
+begin
+  update media_private.media_uploads set public_derivative_object_key=coalesce(public_derivative_object_key,'official/'||upload_id::text||'/v'||version::text||'/'||substr(encode(derivative_digest,'hex'),1,32)||'.webp'),publish_claimed_at=statement_timestamp(),updated_at=statement_timestamp()
+    where upload_id=p_job_id and state='approved_pending_publish' and (publish_claimed_at is null or publish_claimed_at<statement_timestamp()-interval '15 minutes') returning * into u;
+  if not found then raise exception using errcode='55000',message='media_worker_unavailable'; end if;
+  return jsonb_build_object('uploadId',u.upload_id,'privateDerivativeKey',u.private_derivative_object_key,'publicDerivativeKey',u.public_derivative_object_key);
+end $$;
+
+create or replace function media_private.complete_publish_job(p_job_id uuid,p_upload_id uuid,p_public_key text) returns jsonb
+language plpgsql volatile security definer set search_path='' as $$
+declare u media_private.media_uploads%rowtype; media_id uuid:=extensions.gen_random_uuid(); old_upload uuid; target_store uuid; next_order integer;
+begin
+  select store_id into target_store from media_private.media_uploads where upload_id=p_upload_id and upload_id=p_job_id;
+  if target_store is null then raise exception using errcode='55000',message='media_worker_unavailable'; end if;
+  -- Match tier reconciliation: store lock before any published-upload row lock.
+  perform pg_advisory_xact_lock(hashtextextended(target_store::text,0));
+  select * into u from media_private.media_uploads where upload_id=p_upload_id and upload_id=p_job_id for update;
+  if not found or u.state<>'approved_pending_publish' or u.public_derivative_object_key is null or p_public_key is null or u.public_derivative_object_key<>p_public_key or u.publish_claimed_at is null then raise exception using errcode='55000',message='media_worker_unavailable'; end if;
+  if u.kind='cover' then
+    select mu.upload_id into old_upload from media_private.media_uploads mu where mu.store_id=u.store_id and mu.kind='cover' and mu.state='published' for update;
+    if old_upload is not null then
+      update media_private.media_uploads set state='purge_pending',purge_due_at=statement_timestamp()+interval '24 hours',updated_at=statement_timestamp(),version=version+1 where upload_id=old_upload;
+      delete from app_public.store_media where id=(select catalog_media_id from media_private.media_uploads where upload_id=old_upload);
+      insert into media_private.media_purge_jobs(upload_id,reason_code,include_private,include_public,due_at) values(old_upload,'replacement',true,true,statement_timestamp()+interval '24 hours') on conflict do nothing;
+    end if;
+  end if;
+  next_order:=u.display_order;
+  if next_order is null or exists(select 1 from app_public.store_media where store_id=u.store_id and display_order=next_order) then
+    select coalesce(max(display_order)+1,0) into next_order from app_public.store_media where store_id=u.store_id;
+  end if;
+  insert into app_public.store_media(id,store_id,asset_path,kind,alt_text,display_order)
+    values(media_id,u.store_id,'/media/'||p_public_key,u.kind::app_public.media_kind,u.alt_text,next_order);
+  update media_private.media_uploads set state='published',display_order=next_order,catalog_media_id=media_id,published_at=statement_timestamp(),publish_claimed_at=null,updated_at=statement_timestamp(),version=version+1
+    where upload_id=u.upload_id returning * into u;
+  insert into media_private.media_purge_jobs(upload_id,reason_code,include_private,include_public,due_at)
+    values(u.upload_id,'private_after_publish',true,false,statement_timestamp()+interval '24 hours') on conflict do nothing;
+  perform media_private.append_audit('media_published',null,u.store_id,u.upload_id,'completed');
+  -- A downgrade between approval and publication must never expose excess media.
+  perform media_private.reconcile_tier_photos(u.store_id,statement_timestamp());
+  return jsonb_build_object('state','published');
+end $$;
+
 reset role;
+grant create on schema app_public to media_automation;
+set role media_automation;
+create or replace function app_public.media_approve_upload(
+  p_upload_id uuid,p_display_order integer,p_expected_version bigint,p_reason text
+) returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare
+  actor uuid:=app_public.request_user_id();
+  u media_private.media_uploads%rowtype;
+  cap_result jsonb;
+begin
+  if actor is null or not app_private.current_session_is_active() or not app_private.current_user_has_role('administrator'::app_private.app_role)
+    or not app_private.current_session_has_mfa() or not app_private.current_session_recent_auth(interval '15 minutes')
+    or p_reason!~'^[a-z][a-z0-9_]{1,63}$' or p_display_order is null or p_display_order<0 then
+    raise exception using errcode='42501',message='media_unavailable';
+  end if;
+  select * into u from media_private.media_uploads where upload_id=p_upload_id for update;
+  if not found or u.state<>'awaiting_review' or u.version<>p_expected_version then
+    raise exception using errcode='40001',message='media_unavailable';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(u.store_id::text,0));
+  cap_result:=partner_private.check_store_media_cap(u.store_id,u.kind,u.idempotency_key);
+  if not coalesce((cap_result->>'allowed')::boolean,false) then
+    raise exception using errcode='23505',message='media_unavailable';
+  end if;
+  update media_private.media_uploads set state='approved_pending_publish',approved_by=actor,approved_at=statement_timestamp(),approval_reason=p_reason,
+    display_order=p_display_order,public_derivative_object_key='official/'||u.store_id::text||'/v'||u.version::text||'/'||substr(encode(u.derivative_digest,'hex'),1,32)||'.webp',updated_at=statement_timestamp(),version=version+1
+    where upload_id=u.upload_id returning * into u;
+  perform media_private.append_audit('media_approved',actor,u.store_id,u.upload_id,'allowed');
+  return jsonb_build_object('uploadId',u.upload_id,'state',u.state,'jobId',u.upload_id,'version',u.version);
+end $$;
+
+reset role;
+revoke create on schema app_public from media_automation;
 revoke all on function media_private.reconcile_tier_photos(uuid,timestamptz) from public,anon,authenticated,service_role;
 grant usage on schema media_private to billing_automation;
 grant execute on function media_private.reconcile_tier_photos(uuid,timestamptz) to billing_automation;
+set role media_automation;
+create function media_private.reconcile_due_tier_photos(p_now timestamptz,p_limit integer) returns void
+language plpgsql volatile security definer set search_path='' as $$
+declare r record;
+begin
+  -- Select actual obligations, so stores later in the UUID order cannot starve.
+  for r in select store_id,min(delete_after) as due from media_private.tier_hidden_photos
+    where state='hidden' and delete_after<=p_now group by store_id order by due,store_id limit p_limit loop
+    perform media_private.reconcile_tier_photos(r.store_id,p_now);
+  end loop;
+  update media_private.tier_hidden_photos h set state='purged',projection='{}'::jsonb
+    where h.media_id in (select pending.media_id from media_private.tier_hidden_photos pending
+      join media_private.media_uploads u on u.upload_id=pending.upload_id
+      where pending.state='purge_pending' and u.state='purged' and u.public_deleted_at is not null and u.private_deleted_at is not null
+      order by pending.delete_after,pending.media_id limit p_limit);
+end $$;
+revoke all on function media_private.reconcile_due_tier_photos(timestamptz,integer) from public,anon,authenticated,service_role;
+grant execute on function media_private.reconcile_due_tier_photos(timestamptz,integer) to billing_automation;
+reset role;
 revoke create on schema media_private from media_automation;
 revoke media_automation from postgres;
 
 grant billing_automation to postgres;
 grant create on schema partner_private,app_public to billing_automation;
 alter table partner_private.store_subscriptions add column failed_payment_started_at timestamptz;
+alter table partner_private.store_subscriptions add column entitled_tier text check(entitled_tier in ('gallery','full_gallery'));
 set role billing_automation;
+update partner_private.store_subscriptions s set entitled_tier=t.tier from partner_private.store_photo_tier_state t
+where t.store_id=s.store_id and t.tier in ('gallery','full_gallery');
 create or replace function partner_private.billing_apply_subscription_event(
   p_event_id text,p_event_kind text,p_event_time timestamptz,
   p_store_id uuid,p_customer_id text,p_subscription_id text,
@@ -505,7 +770,7 @@ begin
     v_next:='active';
     update partner_private.store_subscriptions set state=v_next,stripe_customer_id=p_customer_id,
       stripe_subscription_id=p_subscription_id,current_period_end=p_period_end,downgrade_to=null,
-      failed_payment_started_at=null,hide_photos_after=null,last_event_id=p_event_id,last_event_at=p_event_time,
+      entitled_tier=p_tier,failed_payment_started_at=null,hide_photos_after=null,last_event_id=p_event_id,last_event_at=p_event_time,
       updated_at=statement_timestamp(),version=version+1 where store_id=v_store;
     insert into partner_private.store_photo_tier_state(store_id,tier,source) values(v_store,p_tier,'subscription')
       on conflict(store_id) do update set tier=excluded.tier,source='subscription',
@@ -518,10 +783,13 @@ begin
       updated_at=statement_timestamp(),version=version+1 where store_id=v_store;
   else
     v_next:='canceled';
-    update partner_private.store_subscriptions set state='canceled',stripe_customer_id=p_customer_id,
-      current_period_end=p_event_time,downgrade_to='free',
+    update partner_private.store_subscriptions set state='grace',stripe_customer_id=p_customer_id,
+      current_period_end=p_event_time,downgrade_to=null,failed_payment_started_at=null,hide_photos_after=statement_timestamp()+interval '30 days',
       last_event_id=p_event_id,last_event_at=p_event_time,
       updated_at=statement_timestamp(),version=version+1 where store_id=v_store;
+    update partner_private.store_photo_tier_state set tier='free',source='default',updated_at=statement_timestamp(),version=version+1 where store_id=v_store;
+    update partner_private.photo_tier_subscription_changes set state='applied',completed_at=statement_timestamp()
+      where subscription_id=p_subscription_id and store_id=v_store and target_tier='free' and state='scheduled';
   end if;
   insert into partner_private.store_billing_outbox(store_id,event_kind,payload_digest)
     values(v_store,'subscription_synced',extensions.digest(convert_to(p_event_id||'|'||coalesce(p_status,''),'utf8'),'sha256'));
@@ -530,6 +798,28 @@ begin
   perform media_private.reconcile_tier_photos(v_store,statement_timestamp());
   return 'applied';
 end $$;
+create or replace function app_public.billing_record_subscription_event(
+  p_event_id text,p_event_kind text,p_event_time timestamptz,p_store_id uuid,p_customer_id text,p_subscription_id text,
+  p_status text,p_period_end timestamptz,p_tier text
+) returns text language plpgsql volatile security definer set search_path='' as $$
+declare subscription partner_private.store_subscriptions%rowtype; bound_tier text;
+begin
+  perform 1 from partner_private.photo_tier_sales_control where singleton and state<>'off_prelaunch' for update;
+  if not found then raise exception using errcode='55000',message='billing_stage_disabled'; end if;
+  select * into subscription from partner_private.store_subscriptions where stripe_customer_id=p_customer_id
+    and stripe_subscription_id=p_subscription_id and (p_store_id is null or store_id=p_store_id) for update;
+  if not found then return 'unbound'; end if;
+  select tier into bound_tier from partner_private.store_photo_tier_state where store_id=subscription.store_id;
+  if p_status in ('active','trialing') and bound_tier='free' then
+    if subscription.state in ('past_due','grace') and subscription.failed_payment_started_at is not null and subscription.entitled_tier is not null then
+      bound_tier:=subscription.entitled_tier;
+    else return 'stale'; end if;
+  end if;
+  if p_status in ('active','trialing') and subscription.state='canceled' then return 'stale'; end if;
+  return partner_private.billing_apply_subscription_event(p_event_id,p_event_kind,p_event_time,subscription.store_id,
+    p_customer_id,p_subscription_id,p_status,p_period_end,bound_tier);
+end $$;
+
 create or replace function partner_private.apply_due_subscription_lifecycles(p_now timestamptz,p_limit integer default 50)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare r partner_private.store_subscriptions%rowtype; scheduled integer:=0; expired integer:=0; closed integer:=0;
@@ -538,6 +828,9 @@ begin
     raise exception using errcode='22023',message='billing_lifecycle_input_invalid'; end if;
   perform 1 from partner_private.photo_tier_sales_control where singleton and state<>'off_prelaunch' for update;
   if not found then raise exception using errcode='55000',message='billing_stage_disabled'; end if;
+  if not pg_try_advisory_xact_lock(hashtextextended('billing-lifecycle-singleton',0)) then
+    return jsonb_build_object('scheduledDowngrades',0,'failedPaymentGraceExpired',0,'hiddenPhotoGracesClosed',0);
+  end if;
   for r in select * from partner_private.store_subscriptions
     where (state in ('active','canceled') and downgrade_to is not null and current_period_end<=p_now)
       or (state='past_due' and coalesce(failed_payment_started_at,current_period_end)+interval '14 days'<=p_now)
@@ -558,9 +851,7 @@ begin
     perform media_private.reconcile_tier_photos(r.store_id,p_now);
   end loop;
   -- Paid-to-paid downgrades have the same independent photo-deletion obligation.
-  for r in select * from partner_private.store_subscriptions order by store_id limit p_limit loop
-    perform media_private.reconcile_tier_photos(r.store_id,p_now);
-  end loop;
+  perform media_private.reconcile_due_tier_photos(p_now,p_limit);
   return jsonb_build_object('scheduledDowngrades',scheduled,'failedPaymentGraceExpired',expired,'hiddenPhotoGracesClosed',closed);
 end $$;
 reset role;

@@ -289,11 +289,13 @@ export async function configuredComposition(
       },
       { ReviewHarnessBanner, ReviewHarnessPage },
       { commercialResearchReviewClient },
+      { billingServicingReviewClients },
     ] = await Promise.all([
       import('../review-harness/harness'),
       import('../review-harness/clients'),
       import('../review-harness/components'),
       import('../review-harness/commercialResearch'),
+      import('../review-harness/billingServicing'),
     ])
     const reviewHarness = await createReviewHarness({
       dev: import.meta.env.DEV,
@@ -305,6 +307,9 @@ export async function configuredComposition(
       return {
         clients: {
           catalog: createReviewHarnessCatalogClient(reviewHarness.state),
+          ...billingServicingReviewClients(
+            typeof window === 'undefined' ? '' : window.location.href,
+          ),
           ...createReviewHarnessClients(
             reviewHarness.scenario,
             reviewHarness.state,

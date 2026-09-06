@@ -253,6 +253,8 @@ const PORTAL_MEDIA_STATES = new Set<PortalMediaState>([
   'awaiting_review',
   'approved_pending_publish',
   'published',
+  'tier_hidden',
+  'purge_pending',
   'rejected',
   'purged',
 ])

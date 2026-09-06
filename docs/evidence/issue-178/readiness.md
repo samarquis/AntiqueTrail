@@ -1,34 +1,29 @@
-# Issue 178 readiness handoff
+# Issue 178 implementation evidence
 
-Plan amendment: PR #219, candidate `17c22cb57336ff58fc0d09f3919d63f21f637115`.
-Base: `5b03ff79328ae07a2b3586b1e4ea549fb87463f9`.
-Status: merged in PR #219 at `666985d6ca137ff3d00be3ad9e7b5d121a5cc801`; independent Standards and Spec PASS, with required web, database, and plan-governance checks passing. The amendment is merged into this implementation branch without rewriting the draft.
+## Contract
 
-## Approved scope
+Package 13 in `PACKAGE_CONTRACTS.md`, including Existing-subscription upgrades, Scheduled downgrades and cancellation, and Jobs/tests/rollback, governs this implementation.
+Plan amendments #218 and #219 are merged; the fixed review base is `666985d6ca137ff3d00be3ad9e7b5d121a5cc801`.
+The Product Owner authorized work through closure. This implementation makes no further plan change.
 
-The Product Owner supplied `update plan` after the explanation of same-subscription scheduled downgrades and authenticated application cancellation when Stripe's portal cannot cancel a scheduled subscription.
-PR #219 reconciles eight documents and records that authorization in the append-only changelog.
-The current phase retains paid entitlement through its cycle boundary; accepted future phases survive upgrades, compensation, pause, and replay unless explicitly replaced.
-Free ends the paid subscription at that boundary rather than creating a zero-price recurring phase.
-Payments and provider activation remain off.
+## Acceptance mapping
 
-## Preserved implementation
+- Exact-subscription upgrade consent, source/config/generation fences, immediate provider schedule attachment, future-phase preservation, cancellation fallback, and 48-hour full-charge refunds: `billingSchedule.test.ts`, `billingServicing.test.ts`, `servicing.test.tsx`, and `0087_issue_178_paid_servicing.sql`.
+- Failure at 14 days, Free retention, 30-day hidden grace, restore, and both-object deletion receipts: controlled SQL clocks and existing media worker calls in `0087_issue_178_paid_servicing.sql`.
+- Current tier enforcement, moderation publication beyond legacy 5/20 ordinals, recovery with an occupied ordinal, private hidden states, and unchanged uncapped catalog projection: focused SQL plus the full existing media/portal suite.
+- Same-key concurrent requests and pause-before-dispatch locking: `scripts/test-paid-servicing-concurrency.mjs` uses separate actual database transactions and observes lock waits; each run creates and removes its own disposable database clone.
+- Desktop/mobile cancellation dismissal, servicing-only upgrade denial, unchecked consent with future-intent disclosure, and off-state content: `e2e/issue-178-servicing.spec.ts`.
 
-The incomplete implementation is on `codex/issue-178-servicing` at `e3f04333f1fc3399356e6c2a0887c2316d6da9a0`.
-It must not be deployed, merged, or used as #179's stable interface yet.
-The old `downgrade-mechanism-proposal.md` and unapplied proposed patch are historical preparation artifacts once PR #219 lands; merged controlling documents take precedence.
+## Local evidence
 
-## Remaining work
-
-- Replace the draft renewal-time downgrade dispatch with provider-controlled schedules; add the authenticated cancellation fallback and current/future phase reconciliation.
-- Complete exact provider request binding, verified webhook routing, source/version/generation replay checks, and successful incremental-charge compensation; the draft compensation helper intentionally cannot claim financial completion.
-- Finish 48-hour refund ingestion/processing, servicing-only portal configuration, grace-clock behavior, and bounded media cleanup/recovery without starvation.
-- Reconcile hidden-media states with portal parsing, status, recovery, appeal, current-cap enforcement, and moderation concurrency.
-- Run focused Edge/application tests, a fresh full migration reset and pgTAP, concurrency/allow-deny/restore-replay tests, security contracts, and an independent review of the final implementation SHA before hosted checks and closure.
+Clean migration reset succeeded in isolated `supabase_db_issue178-servicing`.
+Full pgTAP passed: 90 files, 2677 assertions, including 50 focused servicing assertions and actual billing worker roles.
+The concurrent same-key and pause/dispatch transactions passed.
+The full web verification is being refreshed for the candidate; final results and independent exact-SHA review belong in the PR before landing.
 
 ## Evidence boundaries
 
-Ten governance tests, actual committed PR-contract validation, and diff checks passed for the amendment; independent review passed on the exact candidate.
-Twenty-four focused SQL checks passed on an earlier implementation draft; subsequent source edits have not received full acceptance verification.
-The isolated development container is `supabase_db_issue178-servicing` (database port 54832), configured from a temporary copy at `C:/Users/samar/AppData/Local/Temp/antiquetrail-issue178-db`; synchronize final migrations before using that copy for a clean reset.
-No shared database reset, hosted deployment, Stripe call, or paid activation was performed.
+Provider tests use mocked pinned-version Stripe responses; they are not real provider, activation, or production receipts.
+The authenticated servicing component and client are staged for injection; only the local review composition installs a fixture client. Production billing remains off, and activation belongs to #180.
+No shared database reset, hosted deployment, live Stripe mutation, or paid activation was performed.
+Unknown provider or compensation outcomes remain durable unresolved obligations and cannot grant entitlement or assert financial completion.

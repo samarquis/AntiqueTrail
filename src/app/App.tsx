@@ -1,4 +1,5 @@
 import { PromotionPage, type PromotionClient } from '../features/portal/promotion'
+import { PaidServicingPage, type ServicingClient } from '../features/billing/servicing'
 import { OwnerAcquisitionPage } from '../features/partners/ownerAcquisitionPage'
 import { StoreApplicationAdminPanel } from '../features/partners/storeApplicationAdminPanel'
 import { StoreApplicationPage } from '../features/partners/storeApplicationPage'
@@ -874,6 +875,7 @@ export interface AppClients {
   promotion?: PromotionClient
   storeApplicationAdmin?: StoreApplicationAdminClient
   portal?: PortalClient
+  billingServicing?: ServicingClient
   readiness?: DurableReadinessClient
   billing?: BillingClient
   beta?: DurableBetaClient
@@ -1284,6 +1286,18 @@ export default function App({
             element={<PartnerActivatePage client={partnerClient} />}
           />
           <Route element={<PortalRouteGuard client={portalClient} />}>
+            {clients.billingServicing && (
+              <>
+                <Route
+                  path="/store-portal/billing"
+                  element={<PaidServicingPage client={clients.billingServicing} />}
+                />
+                <Route
+                  path="/store-portal/plans"
+                  element={<PaidServicingPage client={clients.billingServicing} />}
+                />
+              </>
+            )}
             <Route
               path="/store-portal/promotion"
               element={<PromotionPage client={clients.promotion} />}

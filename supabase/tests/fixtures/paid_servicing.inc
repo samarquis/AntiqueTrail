@@ -3,6 +3,8 @@ grant billing_automation,commercial_research_signature_service to postgres;
 insert into app_public.stores(id,slug,name,town,state_code,address,area_id,summary,description,publication_state)
 values ('17800000-0000-4000-8000-000000000001','issue-178-store','Issue 178 Store','Topeka','KS','1 Test Way',
   '00000000-0000-4000-8000-000000000001','Database fixture','Database fixture store','active');
+insert into app_public.store_category_assignments(store_id,category_id)
+select '17800000-0000-4000-8000-000000000001',id from app_public.store_categories order by id limit 1;
 insert into auth.users(id) values ('17800000-0000-4000-8000-000000000010');
 insert into auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at)
 values ('17800000-0000-4000-8000-000000000018','17800000-0000-4000-8000-000000000010','totp','verified',statement_timestamp(),statement_timestamp());

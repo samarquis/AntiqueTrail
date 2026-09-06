@@ -38,7 +38,7 @@ select throws_ok('select app_public.billing_create_portal_session(gen_random_uui
 select ok(position($q$message='billing_stage_disabled'$q$ in replace(lower(pg_get_functiondef('app_public.billing_create_checkout_session(uuid,uuid)'::regprocedure)),' ',''))>0
   and position('store_partner_grants' in lower(pg_get_functiondef('app_public.billing_create_checkout_session(uuid,uuid)'::regprocedure)))=0,
   'legacy checkout checks capability and cannot bypass paid consent');
-select ok(position($q$message='billing_stage_disabled'$q$ in replace(lower(pg_get_functiondef('app_public.billing_create_portal_session(uuid)'::regprocedure)),' ',''))<position('store_partner_grants' in lower(pg_get_functiondef('app_public.billing_create_portal_session(uuid)'::regprocedure))),'portal checks the capability before any authorization lookup');
+select throws_ok($$select app_public.billing_create_portal_session(null)$$,'55000','billing_stage_disabled','portal rejects staged-off requests before actor or store lookup');
 
 select has_function('partner_private','billing_apply_subscription_event',array['text','text','timestamp with time zone','uuid','text','text','text','timestamp with time zone','text'],'webhook apply exists');
 select ok(not has_function_privilege('authenticated','partner_private.billing_apply_subscription_event(text,text,timestamptz,uuid,text,text,text,timestamptz,text)','EXECUTE') and not has_function_privilege('anon','partner_private.billing_apply_subscription_event(text,text,timestamptz,uuid,text,text,text,timestamptz,text)','EXECUTE'),'no browser role gains webhook EXECUTE while off or ever');

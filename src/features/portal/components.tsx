@@ -134,6 +134,10 @@ function mediaStateLabel(state: PortalMediaUpload['state']) {
       return 'Approved pending publish'
     case 'published':
       return 'Published'
+    case 'tier_hidden':
+      return 'Hidden: photo limit'
+    case 'purge_pending':
+      return 'Removal pending'
     case 'purged':
       return 'Removed'
   }
@@ -150,6 +154,8 @@ function mediaStateClass(state: PortalMediaUpload['state']) {
     case 'published':
       return 'portal-media-state portal-media-state--published'
     case 'purged':
+    case 'purge_pending':
+    case 'tier_hidden':
       return 'portal-media-state portal-media-state--removed'
   }
 }
@@ -1386,6 +1392,17 @@ function PortalMediaHistorySection({
                   {formatPortalDate(upload.submittedAt)}
                 </p>
               </div>
+              {upload.state === 'tier_hidden' && (
+                <div className="portal-media-rejection">
+                  <p>
+                    This photo exceeds your current photo limit. Hidden photos are kept for 30 days
+                    before deletion. Restoring enough photo capacity during that time restores
+                    eligible approved photos.
+                  </p>
+                  <Link to="/store-portal/plans">Review photo plans</Link>{' '}
+                  <Link to="/store-portal/support">Get help or appeal</Link>
+                </div>
+              )}
               {upload.state === 'rejected' && (
                 <div className="portal-media-rejection">
                   <p>Reason: {upload.rejectionReason ?? 'No reason provided'}</p>

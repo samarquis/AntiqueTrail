@@ -166,6 +166,10 @@ describe('production portal client', () => {
       ],
     }
     expect(decodePortalMediaUploadHistory(exact)).toEqual(exact)
+    for (const state of ['tier_hidden', 'purge_pending']) {
+      const hidden = { uploads: [{ ...exact.uploads[0], state, rejectionReason: null }] }
+      expect(decodePortalMediaUploadHistory(hidden)).toEqual(hidden)
+    }
     expect(() =>
       decodePortalMediaUploadHistory({
         uploads: [{ ...exact.uploads[0], originalObjectKey: 'quarantine/private/original' }],
