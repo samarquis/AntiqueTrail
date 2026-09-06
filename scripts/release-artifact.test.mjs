@@ -199,27 +199,40 @@ const VERCEL_COMMON = {
   'runner-arch': 'X64',
 }
 
+// Shape emitted by vercel build for this static Vite SPA, including compiled
+// header patterns and the filesystem-first rewrite (not vercel.json input).
+function vercelOutputConfig() {
+  return {
+    version: 3,
+    routes: [
+      ...VERCEL_AUTH_SOURCES.map((source) => ({
+        src: `^${source.replace('/:path*', '')}(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?$`,
+        headers: { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer' },
+        continue: true,
+      })),
+      {
+        src: '^/for-stores(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?$',
+        headers: { 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'private, no-store' },
+        continue: true,
+      },
+      { handle: 'filesystem' },
+      { src: '^(?:/(.*))$', dest: '/index.html', check: true },
+      { handle: 'error' },
+      { status: 404, src: '^(?!/api).*$', dest: '/404.html' },
+    ],
+    framework: { version: '6.4.3' },
+    crons: [],
+  }
+}
+
 async function vercelFixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), 'antique-trail-vercel-release-'))
   const dist = path.join(root, 'output')
   const bundle = path.join(root, 'bundle')
   const lockfile = path.join(root, 'package-lock.json')
-  await mkdir(dist, { recursive: true })
-  await writeFile(path.join(dist, 'index.html'), '<h1>Antique Trail</h1>\n')
-  await writeFile(
-    path.join(dist, 'config.json'),
-    JSON.stringify({
-      version: 3,
-      routes: null,
-      headers: VERCEL_AUTH_SOURCES.map((source) => ({
-        source,
-        headers: [
-          { key: 'Cache-Control', value: 'private, no-store' },
-          { key: 'Referrer-Policy', value: 'no-referrer' },
-        ],
-      })),
-    }),
-  )
+  await mkdir(path.join(dist, 'static'), { recursive: true })
+  await writeFile(path.join(dist, 'static', 'index.html'), '<h1>Antique Trail</h1>\n')
+  await writeFile(path.join(dist, 'config.json'), JSON.stringify(vercelOutputConfig()))
   await writeFile(lockfile, '{}\n')
   return { root, dist, bundle, lockfile }
 }
@@ -253,6 +266,27 @@ test('creates and verifies a deterministic Vercel prebuilt bundle', async () => 
   assert.deepEqual(verified.files, firstManifest.files)
 })
 
+test('records only the explicitly supplied runner image', async () => {
+  for (const [runnerOs, runnerImage] of [
+    ['Windows', undefined],
+    ['Linux', 'ubuntu-latest'],
+  ]) {
+    const item = await vercelFixture()
+    const manifest = await createRelease({
+      ...VERCEL_COMMON,
+      kind: 'vercel',
+      'source-sha': SOURCE_SHA,
+      'runner-os': runnerOs,
+      ...(runnerImage ? { 'runner-image': runnerImage } : {}),
+      dist: item.dist,
+      out: item.bundle,
+      lockfile: item.lockfile,
+    })
+    assert.equal(manifest.buildEnvironment.runnerOs, runnerOs)
+    assert.equal(manifest.buildEnvironment.runnerImage, runnerImage ?? null)
+  }
+})
+
 test('rejects a Vercel bundle without a readable config.json', async () => {
   const item = await vercelFixture()
   await rm(path.join(item.dist, 'config.json'))
@@ -271,10 +305,9 @@ test('rejects a Vercel bundle without a readable config.json', async () => {
 
 test('rejects a Vercel bundle without route-specific private auth headers', async () => {
   const item = await vercelFixture()
-  await writeFile(
-    path.join(item.dist, 'config.json'),
-    JSON.stringify({ version: 3, routes: null, headers: [] }),
-  )
+  const config = vercelOutputConfig()
+  config.routes.shift()
+  await writeFile(path.join(item.dist, 'config.json'), JSON.stringify(config))
   await assert.rejects(
     createRelease({
       ...VERCEL_COMMON,
@@ -285,5 +318,184 @@ test('rejects a Vercel bundle without route-specific private auth headers', asyn
       lockfile: item.lockfile,
     }),
     /lacks private no-store auth headers/,
+  )
+})
+
+for (const [name, change, error] of [
+  [
+    'source-config headers instead of emitted routes',
+    (config) => {
+      config.routes = null
+    },
+    /routing/,
+  ],
+  [
+    'unsupported output version',
+    (config) => {
+      config.version = 2
+    },
+    /routing/,
+  ],
+  [
+    'missing cache policy',
+    (config) => {
+      delete config.routes[0].headers['Cache-Control']
+    },
+    /lacks private/,
+  ],
+  [
+    'missing referrer policy',
+    (config) => {
+      delete config.routes[0].headers['Referrer-Policy']
+    },
+    /lacks private/,
+  ],
+  [
+    'malformed header map',
+    (config) => {
+      config.routes[0].headers = []
+    },
+    /header routing/,
+  ],
+  [
+    'nonstring header value',
+    (config) => {
+      config.routes[0].headers['Cache-Control'] = null
+    },
+    /Malformed/,
+  ],
+  [
+    'case-colliding header names',
+    (config) => {
+      config.routes[0].headers['cache-control'] = 'public'
+    },
+    /Malformed/,
+  ],
+  [
+    'conditional auth headers',
+    (config) => {
+      config.routes[0].has = [{ type: 'header', key: 'x-preview' }]
+    },
+    /header routing/,
+  ],
+  [
+    'method-limited auth headers',
+    (config) => {
+      config.routes[0].methods = ['GET']
+    },
+    /header routing/,
+  ],
+  [
+    'terminal auth header rule',
+    (config) => {
+      config.routes[0].continue = false
+    },
+    /header routing/,
+  ],
+  [
+    'base-only auth match',
+    (config) => {
+      config.routes[0].src = '^/auth/callback$'
+    },
+    /lacks private/,
+  ],
+  [
+    'public cache override',
+    (config) => {
+      config.routes.splice(4, 0, {
+        src: '^/auth/.*$',
+        headers: { 'Cache-Control': 'public, max-age=60' },
+        continue: true,
+      })
+    },
+    /weakens private/,
+  ],
+  [
+    'referrer override',
+    (config) => {
+      config.routes[0].headers['Referrer-Policy'] = 'origin'
+    },
+    /weakens private/,
+  ],
+  [
+    'conditional later override',
+    (config) => {
+      config.routes.splice(4, 0, {
+        src: '^/auth/.*$',
+        headers: { 'Cache-Control': 'public' },
+        continue: true,
+        has: [{ type: 'cookie', key: 'preview' }],
+      })
+    },
+    /header routing/,
+  ],
+  [
+    'missing filesystem handler',
+    (config) => {
+      config.routes.splice(5, 1)
+    },
+    /filesystem-first/,
+  ],
+  [
+    'missing SPA rewrite',
+    (config) => {
+      config.routes.splice(6, 1)
+    },
+    /SPA fallback required/,
+  ],
+  [
+    'external SPA rewrite',
+    (config) => {
+      config.routes[6].dest = 'https://example.test/'
+    },
+    /SPA fallback required/,
+  ],
+  [
+    'conditional SPA rewrite',
+    (config) => {
+      config.routes[6].has = [{ type: 'header', key: 'x-preview' }]
+    },
+    /SPA fallback required/,
+  ],
+  [
+    'late header override',
+    (config) => {
+      config.routes.push({ src: '.*', headers: { 'Cache-Control': 'public' }, continue: true })
+    },
+    /SPA fallback required/,
+  ],
+]) {
+  test(`rejects Vercel output with ${name}`, async () => {
+    const item = await vercelFixture()
+    const config = vercelOutputConfig()
+    change(config)
+    await writeFile(path.join(item.dist, 'config.json'), JSON.stringify(config))
+    await assert.rejects(
+      createRelease({
+        ...VERCEL_COMMON,
+        kind: 'vercel',
+        'source-sha': SOURCE_SHA,
+        dist: item.dist,
+        out: item.bundle,
+        lockfile: item.lockfile,
+      }),
+      error,
+    )
+  })
+}
+
+test('rejects a Vercel rewrite whose static entry file is missing', async () => {
+  const item = await vercelFixture()
+  await rm(path.join(item.dist, 'static', 'index.html'))
+  await assert.rejects(
+    createRelease({
+      ...VERCEL_COMMON,
+      kind: 'vercel',
+      'source-sha': SOURCE_SHA,
+      dist: item.dist,
+      out: item.bundle,
+      lockfile: item.lockfile,
+    }),
+    /lacks static\/index\.html/,
   )
 })

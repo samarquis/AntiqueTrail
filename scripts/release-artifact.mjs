@@ -78,18 +78,69 @@ function assertPagesAuthHeaders(headersText) {
 }
 
 function assertVercelAuthHeaders(config) {
-  const entries = Array.isArray(config?.headers) ? config.headers : []
-  for (const route of VERCEL_AUTH_ROUTES) {
-    const block = entries.find((item) => item?.source === route)?.headers ?? []
-    const value = (key) =>
-      block.find((item) => typeof item?.key === 'string' && item.key.toLowerCase() === key)
-        ?.value ?? ''
+  // Validate the emitted Build Output v3 contract, not vercel.json's input shape.
+  // This deliberately supports our static SPA routing shape only: new middleware,
+  // conditional rules or rewrites require review rather than a partial router emulator.
+  if (config?.version !== 3 || !Array.isArray(config.routes))
+    throw new Error('Unsupported Vercel build output routing')
+  const filesystem = config.routes.findIndex((route) => route?.handle === 'filesystem')
+  if (filesystem < 0) throw new Error('Vercel build output lacks filesystem-first SPA fallback')
+  const headersBySource = new Map()
+  for (const route of config.routes.slice(0, filesystem)) {
     if (
-      !/private,\s*no-store/iu.test(value('cache-control')) ||
-      !/^no-referrer$/iu.test(value('referrer-policy'))
+      !route ||
+      typeof route.src !== 'string' ||
+      route.continue !== true ||
+      Object.keys(route).some((key) => !['src', 'headers', 'continue'].includes(key)) ||
+      !route.headers ||
+      typeof route.headers !== 'object' ||
+      Array.isArray(route.headers) ||
+      headersBySource.has(route.src)
     )
+      throw new Error('Unsupported Vercel header routing')
+    const headers = new Map()
+    for (const [key, value] of Object.entries(route.headers)) {
+      const normalized = key.toLowerCase()
+      if (typeof value !== 'string' || headers.has(normalized))
+        throw new Error('Malformed Vercel response headers')
+      headers.set(normalized, value)
+    }
+    // No additional rule may weaken these headers, even through a broader match.
+    // Other cache policies need an explicit routing review before being supported.
+    const cache = headers.get('cache-control')
+    const directives = cache
+      ?.toLowerCase()
+      .split(',')
+      .map((value) => value.trim())
+    if (
+      (cache !== undefined &&
+        (directives.length !== 2 ||
+          !directives.includes('private') ||
+          !directives.includes('no-store'))) ||
+      (headers.has('referrer-policy') && headers.get('referrer-policy') !== 'no-referrer')
+    )
+      throw new Error('Vercel header routing weakens private auth headers')
+    headersBySource.set(route.src, headers)
+  }
+  for (const route of VERCEL_AUTH_ROUTES) {
+    const root = route.replace('/:path*', '')
+    // Vercel's compiled form of the authored /auth/.../:path* header source.
+    const source = `^${root}(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?$`
+    const headers = headersBySource.get(source)
+    if (!headers?.has('cache-control') || headers.get('referrer-policy') !== 'no-referrer')
       throw new Error(`Production artifact lacks private no-store auth headers: ${route}`)
   }
+  const fallback = [
+    { handle: 'filesystem' },
+    { src: '^(?:/(.*))$', dest: '/index.html', check: true },
+  ]
+  const errorFallback = [
+    { handle: 'error' },
+    { status: 404, src: '^(?!/api).*$', dest: '/404.html' },
+  ]
+  const tail = canonicalJson(config.routes.slice(filesystem))
+  if (tail !== canonicalJson(fallback) && tail !== canonicalJson([...fallback, ...errorFallback]))
+    throw new Error('Unsupported Vercel routing after private headers; SPA fallback required')
 }
 
 export async function assertProductionArtifact(root, kind = 'pages') {
@@ -107,6 +158,8 @@ export async function assertProductionArtifact(root, kind = 'pages') {
       throw new Error('Vercel build output lacks a readable config.json')
     }
     assertVercelAuthHeaders(config)
+    if (!files.some((file) => file.path === 'static/index.html'))
+      throw new Error('Vercel SPA fallback lacks static/index.html')
     return
   }
   if (kind !== 'pages') throw new Error(`Unsupported artifact kind: ${kind}`)
@@ -161,7 +214,7 @@ export async function createRelease(options) {
       npmVersion,
       runnerOs,
       runnerArch,
-      runnerImage: 'ubuntu-latest',
+      runnerImage: options['runner-image'] ?? null,
     },
     lockfile: { path: path.basename(lockfile), sha256: sha256(await readFile(lockfile)) },
     files,
