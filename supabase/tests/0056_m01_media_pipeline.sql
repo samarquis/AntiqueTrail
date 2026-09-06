@@ -9,8 +9,8 @@ select has_table('media_private','media_provider_operations','provider outcomes 
 select has_table('media_private','media_purge_jobs','deletion work is durable');
 select has_table('media_private','media_audit_events','narrow audit events are durable');
 select is((select state from media_private.media_provider_config where id=1),'blocked','media is blocked by default');
-select ok((select count(*)=5 from pg_class c join pg_namespace n on n.oid=c.relnamespace
-  where n.nspname='media_private' and c.relkind='r' and c.relrowsecurity and c.relforcerowsecurity),
+select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='media_private' and c.relkind='r' and (not c.relrowsecurity or not c.relforcerowsecurity)),
   'every M-01 table forces RLS');
 select ok(not exists(select 1 from information_schema.role_table_grants
   where table_schema='media_private' and grantee in ('anon','authenticated','service_role')),

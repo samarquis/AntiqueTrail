@@ -4,6 +4,7 @@ import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
 import { afterEach, expect, it, vi } from 'vitest'
 import * as provider from '../../../supabase/functions/_shared/billing-provider'
+import * as servicing from '../../../supabase/functions/_shared/billing-servicing-provider'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -37,7 +38,7 @@ function edge(name: string, rpc: Rpc) {
     require: (module: string) =>
       module.startsWith('npm:')
         ? { createClient: () => ({ rpc }) }
-        : { ...provider, loadBillingProviderEnv: () => env },
+        : { ...provider, ...servicing, loadBillingProviderEnv: () => env },
     Deno: {
       env: { get: () => 'fixture-config' },
       serve: (callback: typeof handler) => {

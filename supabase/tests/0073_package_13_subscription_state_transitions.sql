@@ -6,6 +6,11 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(18);
+-- Existing-subscription lifecycle work runs in servicing_only, never off_prelaunch.
+set local role billing_automation;
+insert into partner_private.photo_tier_commercial_configs(version) values(733);
+update partner_private.photo_tier_sales_control set state='servicing_only',commercial_config_version=733;
+reset role;
 
 -- The cap rows reference real stores; keep these fixtures local to the test.
 select has_table('app_public','stores','catalog stores table exists');
