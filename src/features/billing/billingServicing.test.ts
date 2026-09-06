@@ -104,22 +104,20 @@ describe('durable paid servicing boundary', () => {
           : 'succeeded',
       error: null,
     }))
-    const fetch = vi
-      .fn()
-      .mockResolvedValue(
-        Response.json({
-          has_more: false,
-          data: [
-            {
-              id: 're_servicing178',
-              charge: 'ch_servicing178',
-              amount: 1200,
-              status: 'succeeded',
-              metadata: { servicing_refund_id: id },
-            },
-          ],
-        }),
-      )
+    const fetch = vi.fn().mockResolvedValue(
+      Response.json({
+        has_more: false,
+        data: [
+          {
+            id: 're_servicing178',
+            charge: 'ch_servicing178',
+            amount: 1200,
+            status: 'succeeded',
+            metadata: { servicing_refund_id: id },
+          },
+        ],
+      }),
+    )
     vi.stubGlobal('fetch', fetch)
     expect(await refundCharge(rpc, { providerGateAccepted: true, secretKey: 'fixture' }, id)).toBe(
       true,

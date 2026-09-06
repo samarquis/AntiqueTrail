@@ -290,9 +290,13 @@ export function PaidServicingPage({ client }: { client: ServicingClient }) {
             }}
           >
             <h2>{target === 'free' ? 'Confirm cancellation' : `Confirm ${label(target)}`}</h2>
-          {target === 'full_gallery' ? (
-            <>
-              <p>Full Gallery includes one cover and no plan-count cap on gallery photos. Published file, upload, quota, and moderation rules still apply. Payment does not buy publication, ranking, shopper data, or other rights.</p>
+            {target === 'full_gallery' ? (
+              <>
+                <p>
+                  Full Gallery includes one cover and no plan-count cap on gallery photos. Published
+                  file, upload, quota, and moderation rules still apply. Payment does not buy
+                  publication, ranking, shopper data, or other rights.
+                </p>
                 <p>
                   {new Intl.NumberFormat('en-US', {
                     style: 'currency',
