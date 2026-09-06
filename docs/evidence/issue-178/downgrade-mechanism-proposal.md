@@ -1,6 +1,6 @@
 # Issue 178 downgrade mechanism proposal
 
-Status: proposal only; no plan authorization or implementation acceptance.
+Status: historical proposal, resolved by authorized plan PR #219, merged at `666985d6ca137ff3d00be3ad9e7b5d121a5cc801`. See `readiness.md` and current controlling documents; the final amendment also covers scheduled-subscription cancellation and preservation of future phases. No implementation acceptance is claimed.
 Base: `5b03ff79328ae07a2b3586b1e4ea549fb87463f9`.
 
 ## Verified contract and provider behavior
