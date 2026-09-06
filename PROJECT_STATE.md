@@ -47,6 +47,10 @@ Approved plan intent: Gallery-to-Full-Gallery upgrades modify the existing subsc
 
 The Product Owner approved the public owner-acquisition plan on 2026-08-30. The controlling plan now specifies a dedicated `/for-stores` page, a separate prospective-owner QR/card, public Free claim/add-store intake after Package 10B, and Administrator approval that atomically creates the listing/scope/Free before any optional later paid upgrade. This is approved plan intent only: the route, card, public add-store state machine, Free-provisioning transaction, renamed tier values, commercial copy/config/consent, sales lifecycle, and composite activation are not established as implemented or live by this amendment. Prices remain unset and the current Boolean remains false; paid activation additionally requires signed Package 10B, RG-01, three separately approved passing community reviews, an inactive commercial-research authorization, signed owner-value packet, final monetization decision ratifying the exact config, Package 13/current provider evidence, and a signed composite activation receipt.
 
+### Scheduled servicing amendment
+
+The amended Package 13 plan specifies same-subscription schedules for cycle-end paid-to-paid downgrades and authenticated application cancellation when a schedule prevents Stripe portal cancellation. This is plan intent, not implemented or verified servicing; the preserved #178 draft still requires provider reconciliation, lifecycle/media recovery, full tests, and independent review. Paid activation remains off.
+
 ## Current implemented baseline
 
 - The React/TypeScript/Vite PWA, deterministic review harness, Supabase/PostgreSQL data boundary, migrations, RLS/RPC/Edge surfaces, and CI exist.
