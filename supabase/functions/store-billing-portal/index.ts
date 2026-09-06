@@ -1,3 +1,4 @@
+import { withBillingProviderWork } from '../_shared/billing-work.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2.112.1'
 import { loadBillingProviderEnv } from '../_shared/billing-provider.ts'
 import { cancellationPortal, record } from '../_shared/billing-servicing-provider.ts'
@@ -80,15 +81,21 @@ Deno.serve(async (request) => {
     db: { schema: 'app_public' },
     auth: { persistSession: false, autoRefreshToken: false },
   })
-  const context = await workerClient.rpc('billing_get_servicing_provider_context', {
-    p_store_id: storeId,
-  })
-  if (context.error) return unavailable(headers)
-  const minted = await cancellationPortal(
-    env,
-    context.data,
-    Deno.env.get('BILLING_CANCELLATION_PORTAL_CONFIG'),
+  return withBillingProviderWork(
+    (name, args) => workerClient.rpc(name, args),
+    async () => {
+      const context = await workerClient.rpc('billing_get_servicing_provider_context', {
+        p_store_id: storeId,
+      })
+      if (context.error) return unavailable(headers)
+      const minted = await cancellationPortal(
+        env,
+        context.data,
+        Deno.env.get('BILLING_CANCELLATION_PORTAL_CONFIG'),
+      )
+      if (!minted) return unavailable(headers)
+      return Response.json({ url: minted.url }, { status: 200, headers })
+    },
+    headers,
   )
-  if (!minted) return unavailable(headers)
-  return Response.json({ url: minted.url }, { status: 200, headers })
 })

@@ -127,9 +127,9 @@ describe('commercial research provider boundary', () => {
   it('verifies the webhook before allowing servicing reconciliation', () => {
     const source = readFileSync('supabase/functions/store-billing-webhook/index.ts', 'utf8')
     expect(source.indexOf('verifyStripeSignature')).toBeLessThan(
-      source.indexOf('billing_get_webhook_mode'),
+      source.indexOf('billing_capture_verified_event'),
     )
-    expect(source).toContain("webhookMode.data !== 'servicing_only'")
+    expect(source).toContain("captured.data !== 'servicing_only'")
     expect(source).toContain('reconcileCheckoutRefund')
     expect(source).toContain('billing_record_checkout_refund_state')
     expect(source).toContain("checkout.payment_status !== 'paid'")

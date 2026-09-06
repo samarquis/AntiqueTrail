@@ -1,3 +1,4 @@
+import { withBillingProviderWork } from '../_shared/billing-work.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2.112.1'
 import {
   loadBillingProviderEnv,
@@ -125,40 +126,46 @@ Deno.serve(async (request) => {
     db: { schema: 'app_public' },
     auth: { persistSession: false, autoRefreshToken: false },
   })
-  const prepared = await workerClient.rpc('billing_prepare_checkout_provider', {
-    p_checkout_session_id: reservation.checkoutSessionId,
-    p_request: {
-      mode: 'subscription',
-      'line_items[0][price_data][currency]': reservation.currency.toLowerCase(),
-      'line_items[0][price_data][unit_amount]': String(reservation.priceCents),
-      'line_items[0][price_data][recurring][interval]': 'month',
-      'line_items[0][price_data][product_data][name]':
-        tier === 'gallery' ? 'Antique Trail Gallery' : 'Antique Trail Full Gallery',
-      'line_items[0][quantity]': '1',
-      client_reference_id: reservation.checkoutSessionId,
-      'subscription_data[metadata][store_id]': storeId,
-      'metadata[checkout_session_id]': reservation.checkoutSessionId,
-      'metadata[hmac_key_version]': String(env.providerIdHmacKeyVersion),
-      success_url: `${origin}/store-portal/billing?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/store-portal/billing?canceled=true`,
-      // Stripe requires >=30 minutes from its receipt; the expiry worker enforces the earlier app deadline.
-      expires_at: String(Math.ceil(Date.parse(reservation.expiresAt) / 1000) + 120),
+  return withBillingProviderWork(
+    (name, args) => workerClient.rpc(name, args),
+    async () => {
+      const prepared = await workerClient.rpc('billing_prepare_checkout_provider', {
+        p_checkout_session_id: reservation.checkoutSessionId,
+        p_request: {
+          mode: 'subscription',
+          'line_items[0][price_data][currency]': reservation.currency.toLowerCase(),
+          'line_items[0][price_data][unit_amount]': String(reservation.priceCents),
+          'line_items[0][price_data][recurring][interval]': 'month',
+          'line_items[0][price_data][product_data][name]':
+            tier === 'gallery' ? 'Antique Trail Gallery' : 'Antique Trail Full Gallery',
+          'line_items[0][quantity]': '1',
+          client_reference_id: reservation.checkoutSessionId,
+          'subscription_data[metadata][store_id]': storeId,
+          'metadata[checkout_session_id]': reservation.checkoutSessionId,
+          'metadata[hmac_key_version]': String(env.providerIdHmacKeyVersion),
+          success_url: `${origin}/store-portal/billing?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${origin}/store-portal/billing?canceled=true`,
+          // Stripe requires >=30 minutes from its receipt; the expiry worker enforces the earlier app deadline.
+          expires_at: String(Math.ceil(Date.parse(reservation.expiresAt) / 1000) + 120),
+        },
+      })
+      if (prepared.error || !prepared.data || typeof prepared.data !== 'object')
+        return unavailable(headers)
+      const params = prepared.data as Record<string, string>
+      const keyVersion = Number(params['metadata[hmac_key_version]'])
+      const minted = await stripeFormPost(env, '/v1/checkout/sessions', params, idempotencyKey)
+      if (!minted.ok) return unavailable(headers)
+      const providerSessionHmac = await providerIdHmac(env, minted.id, keyVersion)
+      if (!providerSessionHmac) return unavailable(headers)
+      const bound = await workerClient.rpc('billing_bind_checkout_provider', {
+        p_checkout_session_id: reservation.checkoutSessionId,
+        p_provider_session_hmac: providerSessionHmac.digest,
+        p_hmac_key_version: providerSessionHmac.keyVersion,
+        p_provider_session_ciphertext: await checkoutReference(env, minted.id),
+      })
+      if (bound.error || bound.data !== true) return unavailable(headers)
+      return Response.json({ url: minted.url }, { status: 200, headers })
     },
-  })
-  if (prepared.error || !prepared.data || typeof prepared.data !== 'object')
-    return unavailable(headers)
-  const params = prepared.data as Record<string, string>
-  const keyVersion = Number(params['metadata[hmac_key_version]'])
-  const minted = await stripeFormPost(env, '/v1/checkout/sessions', params, idempotencyKey)
-  if (!minted.ok) return unavailable(headers)
-  const providerSessionHmac = await providerIdHmac(env, minted.id, keyVersion)
-  if (!providerSessionHmac) return unavailable(headers)
-  const bound = await workerClient.rpc('billing_bind_checkout_provider', {
-    p_checkout_session_id: reservation.checkoutSessionId,
-    p_provider_session_hmac: providerSessionHmac.digest,
-    p_hmac_key_version: providerSessionHmac.keyVersion,
-    p_provider_session_ciphertext: await checkoutReference(env, minted.id),
-  })
-  if (bound.error || bound.data !== true) return unavailable(headers)
-  return Response.json({ url: minted.url }, { status: 200, headers })
+    headers,
+  )
 })
