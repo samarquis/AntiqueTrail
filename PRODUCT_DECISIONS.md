@@ -405,3 +405,7 @@ Rules the Administrator applies when reviewing store-submitted photos. They alig
 15. H-01 signed environment activation receipt; ADRs 0005/0006 accept the topology but no shared environment until Vercel plan eligibility, automatic-deployment disablement, Deployment Protection, prebuilt artifact binding, serial restore, Auth/Storage recovery, quotas, and rollback pass
 16. L-01 separately administered append-only audit-anchor sink; startup privileged remote mutation stays disabled unless a `$0` option passes
 17. SEC-01 named independent public-release security reviewer and signed/retested result
+
+## Protected internal synthetic review exception
+
+For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) narrowly supersedes blanket H-01-before-shared-use and CI-only upload clauses. Its isolated synthetic, provider-eligible, zero-spend, protected-Preview context is not Shared Alpha or another release stage. All public/external/paid gates and all security controls outside that exact exception remain mandatory; no formal gate passes by inference.

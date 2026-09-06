@@ -284,3 +284,7 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 ## Independent-build acceptance
 
 Package 1 plus these contracts cover every Regional Public MVP package, postlaunch RG-01, and one-community activation. A builder may select an explicitly gated provider only through its ADR; they may not invent product policy, weaken a denial, enable an absent stage, add post-MVP scope, or skip evidence. If a package-specific implementation detail is not mechanically derivable from this file and the controlling source hierarchy, stop that package and record the exact gap on Issue #1 before code.
+
+## Protected internal synthetic review exception
+
+For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) narrowly supersedes blanket H-01-before-shared-use and CI-only upload clauses. Its isolated synthetic, provider-eligible, zero-spend, protected-Preview context is not Shared Alpha or another release stage. All public/external/paid gates and all security controls outside that exact exception remain mandatory; no formal gate passes by inference.

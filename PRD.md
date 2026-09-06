@@ -1117,3 +1117,7 @@ Earlier discovery candidates, not an approved launch sequence:
 Only Topeka city limits is approved for the Regional Public MVP. Each later community requires selection under the approved eligibility rule, and larger-metro geography requires separate approval after the three-community review.
 
 The seeded store database may include known stores from product discovery only under the Store Data Provenance policy. It must contain no private household ratings, notes, photos, copied descriptions, third-party reviews, or unlicensed provider content.
+
+## Protected internal synthetic review exception
+
+For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) narrowly supersedes blanket H-01-before-shared-use and CI-only upload clauses. Its isolated synthetic, provider-eligible, zero-spend, protected-Preview context is not Shared Alpha or another release stage. All public/external/paid gates and all security controls outside that exact exception remain mandatory; no formal gate passes by inference.

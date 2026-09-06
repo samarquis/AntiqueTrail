@@ -97,3 +97,7 @@ No value belongs in documentation, source, workflow output, or evidence. Cloudfl
 - Promote a Preview deployment to Production: rejected because Vercel performs a new Production build, breaking the tested-artifact identity.
 - Treat Hobby as automatically eligible or sufficient: rejected because plan-use eligibility and production-domain protection are separate unresolved facts.
 - Put Supabase secret/service-role credentials in `VITE_*`: rejected because all `VITE_*` values are browser-visible.
+
+## Scoped successor
+
+[ADR 0007](0007-protected-internal-synthetic-review.md) supersedes this ADR only for its owner-only protected internal synthetic review context; this ADR remains controlling for every release stage and provider boundary outside that exception.
