@@ -23,3 +23,7 @@ The minimized journal stores event identity, kind, body digest, capture version/
 ## Verification record
 
 Local verification results and the independent exact-source-SHA verdict are recorded on the pull request before landing. Synthetic finality fixtures prove repository behavior only; they are not production finality, signature-provider acceptance, or activation receipts.
+
+## Independent review repair
+
+The first review identified a closure race across independently running provider invocations, including duplicate webhook and expiry workers and a delayed portal request. Each of the five billing Edge workers now reserves its own durable provider-work attempt before its provider work; the close inventory counts every unresolved invocation independently. One worker cannot terminalize a peer's fence. Successful invocations complete their own token only after their work returns; failures and crashes do not expire automatically. The finality service can reconcile such an attempt only after verifying the exact invocation has terminated and all provider outcomes have been reconciled, with fresh evidence bound to that attempt. `billingWork.test.ts`, SQL duplicate-worker denials and the real concurrent-transactions runner cover this correction.

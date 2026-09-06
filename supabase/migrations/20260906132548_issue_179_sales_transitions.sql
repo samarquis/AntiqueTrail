@@ -72,6 +72,25 @@ end $$;
 create trigger journal_identity_immutable before update or delete on partner_private.photo_tier_webhook_journal
   for each row execute function partner_private.billing_journal_immutable();
 revoke all on function partner_private.billing_journal_immutable() from public,anon,authenticated,service_role;
+-- Every authorized provider invocation has its own durable closure fence.
+create table partner_private.photo_tier_provider_work (
+  attempt_id uuid primary key,
+  sales_version bigint not null,
+  started_at timestamptz not null default statement_timestamp(),
+  completed_at timestamptz,
+  reconciliation_evidence jsonb
+);
+create function partner_private.billing_work_immutable() returns trigger
+language plpgsql set search_path='' as $$ begin
+  if tg_op='DELETE' then raise exception using errcode='42501',message='billing_append_only'; end if;
+  if new.attempt_id<>old.attempt_id or new.sales_version<>old.sales_version or new.started_at<>old.started_at
+    or (old.completed_at is not null and new is distinct from old) then
+    raise exception using errcode='42501',message='billing_append_only'; end if;
+  return new;
+end $$;
+create trigger provider_work_immutable before update or delete on partner_private.photo_tier_provider_work
+  for each row execute function partner_private.billing_work_immutable();
+revoke all on function partner_private.billing_work_immutable() from public,anon,authenticated,service_role;
 create table partner_private.photo_tier_sales_transition_receipts (
   receipt_id uuid primary key references partner_private.photo_tier_transition_authorizations(receipt_id),
   action text not null,
@@ -103,16 +122,18 @@ alter table partner_private.photo_tier_transition_authorizations add foreign key
   references partner_private.photo_tier_sales_transition_receipts(receipt_id);
 
 do $$ declare t text; begin
-  foreach t in array array['photo_tier_transition_authorizations','photo_tier_transition_signatures','photo_tier_provider_finality','photo_tier_webhook_journal','photo_tier_sales_transition_receipts'] loop
+  foreach t in array array['photo_tier_transition_authorizations','photo_tier_transition_signatures','photo_tier_provider_finality','photo_tier_webhook_journal','photo_tier_sales_transition_receipts','photo_tier_provider_work'] loop
     execute format('alter table partner_private.%I enable row level security',t);
     execute format('alter table partner_private.%I force row level security',t);
     execute format('revoke all on partner_private.%I from public,anon,authenticated,service_role',t);
     execute format('create policy billing_owner on partner_private.%I for all to billing_automation using(true) with check(true)',t);
-    if t<>'photo_tier_webhook_journal' then
+    if t not in ('photo_tier_webhook_journal','photo_tier_provider_work') then
       execute format('create trigger immutable_receipt before update or delete on partner_private.%I for each row execute function partner_private.reject_append_only_mutation()',t);
     end if;
   end loop;
 end $$;
+grant select on partner_private.photo_tier_provider_work to billing_finality_service;
+create policy finality_work_inventory on partner_private.photo_tier_provider_work for select to billing_finality_service using(true);
 grant select,insert on partner_private.photo_tier_transition_authorizations to billing_transition_service;
 create policy transition_authorizations on partner_private.photo_tier_transition_authorizations for all to billing_transition_service using(true) with check(true);
 grant select on partner_private.photo_tier_transition_authorizations to billing_signature_service;
@@ -145,7 +166,8 @@ begin
   perform 1 from partner_private.store_webhook_events order by event_id for share;
   perform 1 from partner_private.photo_tier_webhook_journal order by event_id for update;
   perform 1 from partner_private.store_billing_outbox order by outbox_id for update;
-  foreach t in array array['photo_tier_checkout_sessions','store_subscriptions','photo_tier_subscription_changes','photo_tier_charge_refunds','photo_tier_refund_reconciliations','store_webhook_events','photo_tier_webhook_journal','store_billing_outbox'] loop
+  perform 1 from partner_private.photo_tier_provider_work order by attempt_id for update;
+  foreach t in array array['photo_tier_checkout_sessions','store_subscriptions','photo_tier_subscription_changes','photo_tier_charge_refunds','photo_tier_refund_reconciliations','store_webhook_events','photo_tier_webhook_journal','store_billing_outbox','photo_tier_provider_work'] loop
     execute format('select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),''[]''::jsonb) from partner_private.%I r',t) into rows;
     result:=result||jsonb_build_object(t,jsonb_build_object('count',jsonb_array_length(rows),'digest',encode(extensions.digest(convert_to(rows::text,'utf8'),'sha256'),'hex')));
   end loop;
@@ -191,6 +213,7 @@ begin
     or exists(select 1 from partner_private.photo_tier_refund_reconciliations where state<>'provider_confirmed')
     or exists(select 1 from partner_private.photo_tier_webhook_journal where resolved_at is null)
     or exists(select 1 from partner_private.store_billing_outbox where state<>'consumed')
+    or exists(select 1 from partner_private.photo_tier_provider_work where completed_at is null)
   then raise exception using errcode='55000',message='billing_obligations_open'; end if;
 end $$;
 
@@ -281,6 +304,49 @@ begin
   if not found then raise exception using errcode='42501',message='billing_event_unbound'; end if;
   return 'resolved';
 end $$;
+
+create function app_public.billing_begin_provider_work(p_attempt_id uuid) returns boolean
+language plpgsql volatile security definer set search_path='' as $$
+declare v bigint; begin
+  select version into v from partner_private.photo_tier_sales_control where singleton and state<>'off_prelaunch' for update;
+  if not found then raise exception using errcode='55000',message='billing_stage_disabled'; end if;
+  insert into partner_private.photo_tier_provider_work(attempt_id,sales_version) values(p_attempt_id,v);
+  return true;
+end $$;
+create function app_public.billing_finish_provider_work(p_attempt_id uuid) returns boolean
+language plpgsql volatile security definer set search_path='' as $$ begin
+  perform 1 from partner_private.photo_tier_sales_control where singleton for update;
+  update partner_private.photo_tier_provider_work set completed_at=coalesce(completed_at,statement_timestamp()) where attempt_id=p_attempt_id;
+  if not found then raise exception using errcode='42501',message='billing_work_unbound'; end if;
+  return true;
+end $$;
+create function app_public.billing_reconcile_provider_work(p_attempt_id uuid,p_evidence jsonb) returns boolean
+language plpgsql volatile security definer set search_path='' as $$
+declare w partner_private.photo_tier_provider_work%rowtype; observed timestamptz; begin
+  perform 1 from partner_private.photo_tier_sales_control where singleton and state<>'off_prelaunch' for update;
+  if not found then raise exception using errcode='55000',message='billing_stage_disabled'; end if;
+  select * into w from partner_private.photo_tier_provider_work where attempt_id=p_attempt_id for update;
+  if not found then raise exception using errcode='42501',message='billing_work_unbound'; end if;
+  if w.completed_at is not null then
+    if w.reconciliation_evidence is distinct from p_evidence then raise exception using errcode='22023',message='billing_idempotency_mismatch'; end if;
+    return true;
+  end if;
+  observed:=(p_evidence->>'observed_at')::timestamptz;
+  if jsonb_typeof(p_evidence) is distinct from 'object'
+    or p_evidence-array['invocation_terminated','provider_reconciled','attempt_id','evidence_digest','observed_at']<>'{}'::jsonb
+    or p_evidence->>'invocation_terminated' is distinct from 'true'
+    or p_evidence->>'provider_reconciled' is distinct from 'true'
+    or p_evidence->>'attempt_id' is distinct from p_attempt_id::text
+    or coalesce(p_evidence->>'evidence_digest','') !~ '^[0-9a-f]{64}$'
+    or observed is null or not isfinite(observed) or observed<w.started_at or observed>statement_timestamp()
+    or observed<statement_timestamp()-interval '1 minute' then
+    raise exception using errcode='55000',message='billing_work_unresolved'; end if;
+  update partner_private.photo_tier_provider_work set completed_at=statement_timestamp(),reconciliation_evidence=p_evidence where attempt_id=p_attempt_id;
+  return true;
+end $$;
+revoke all on function app_public.billing_begin_provider_work(uuid),app_public.billing_finish_provider_work(uuid),app_public.billing_reconcile_provider_work(uuid,jsonb) from public,anon,authenticated,service_role;
+grant execute on function app_public.billing_begin_provider_work(uuid),app_public.billing_finish_provider_work(uuid) to billing_mirror_service;
+grant execute on function app_public.billing_reconcile_provider_work(uuid,jsonb) to billing_finality_service;
 
 -- Fence legacy worker RPCs at entry, before they take any row locks. Preserve
 -- their existing validation and idempotency logic verbatim.

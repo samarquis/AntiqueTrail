@@ -184,6 +184,20 @@ try {
   // Synthetic cancellation/finality: no live provider. The real competing
   // sessions prove capture waits for closure and cannot apply before reopen.
   sql("update partner_private.store_subscriptions set state='canceled';")
+  sql(
+    "set role billing_mirror_service; select app_public.billing_begin_provider_work('17900000-0000-4000-8000-000000000090'); select app_public.billing_begin_provider_work('17900000-0000-4000-8000-000000000091'); select app_public.billing_finish_provider_work('17900000-0000-4000-8000-000000000090');",
+  )
+  const blockedClose = sql("select issue179_test.authorize('close',2,issue179_test.finality(2));")
+  assert.throws(
+    () =>
+      sql(
+        `set role billing_transition_service; select app_public.close_photo_tier_servicing(${literal(blockedClose)},2,'17900000-0000-4000-8000-000000000092');`,
+      ),
+    /billing_obligations_open/,
+  )
+  sql(
+    "set role billing_mirror_service; select app_public.billing_finish_provider_work('17900000-0000-4000-8000-000000000091');",
+  )
   const closeReceipt = sql("select issue179_test.authorize('close',2,issue179_test.finality(2));")
   const closing = session(
     `begin; set role billing_transition_service; select app_public.close_photo_tier_servicing(${literal(closeReceipt)},2,'17900000-0000-4000-8000-000000000081'); select 'CLOSED';\n`,

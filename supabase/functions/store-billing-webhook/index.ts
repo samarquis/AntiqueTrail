@@ -1,3 +1,4 @@
+import { withBillingProviderWork } from '../_shared/billing-work.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2.112.1'
 import {
   loadBillingProviderEnv,
@@ -136,200 +137,210 @@ Deno.serve(async (request) => {
     return received(captured.data)
   if (captured.data !== 'sales_open' && captured.data !== 'servicing_only') return unavailable()
   if (!HANDLED_KINDS.has(event.type)) return received('reconciliation_required')
-  const finish = async (result: string): Promise<Response> => {
-    // Unknown, unbound and nonterminal results stay as explicit obligations.
-    if (
-      [
-        'applied',
-        'completed',
-        'expired',
-        'failed',
-        'refunded',
-        'resolved',
-        'stale',
-        'scheduled',
-        'change_complete',
-        'recorded',
-      ].includes(result)
-    ) {
-      const resolved = await workerClient.rpc('billing_resolve_verified_event', {
-        p_event_id: event.id,
-        p_payload_digest: payloadDigest,
-        p_resolution_digest: payloadDigest,
-      })
-      if (resolved.error) return unavailable()
-    }
-    return received(result)
-  }
-  const object = event.data?.object
-  const servicing = await recordServicingEvent(
+  return withBillingProviderWork(
     (name, args) => workerClient.rpc(name, args),
-    event,
-    env,
-  )
-  if (servicing === null) return unavailable()
-  if (servicing !== undefined) return finish(servicing)
-  if (event.type === 'subscription_schedule.updated' || event.type === 'invoice.payment_succeeded')
-    return finish('ignored')
-  if (event.type === 'checkout.session.expired') {
-    const expired = object as CheckoutObject | undefined
-    if (typeof expired?.id !== 'string') return finish('ignored')
-    const binding = await providerIdHmac(
-      env,
-      expired.id,
-      Number(expired.metadata?.hmac_key_version),
-    )
-    if (!binding) return unavailable()
-    const result = await workerClient.rpc('billing_record_checkout_expired', {
-      p_provider_session_hmac: binding.digest,
-      p_hmac_key_version: binding.keyVersion,
-    })
-    return result.error || result.data === 'unbound' ? unavailable() : finish(String(result.data))
-  }
-  if (
-    event.type === 'checkout.session.completed' ||
-    event.type === 'checkout.session.async_payment_succeeded' ||
-    event.type === 'checkout.session.async_payment_failed'
-  ) {
-    const checkout = object as CheckoutObject | undefined
-    if (
-      typeof checkout?.id !== 'string' ||
-      !/^cs_[A-Za-z0-9_]{8,120}$/.test(checkout.id) ||
-      typeof checkout.customer !== 'string' ||
-      !/^cus_[A-Za-z0-9]{8,64}$/.test(checkout.customer) ||
-      typeof checkout.subscription !== 'string' ||
-      !/^sub_[A-Za-z0-9]{8,64}$/.test(checkout.subscription) ||
-      typeof checkout.payment_status !== 'string'
-    )
-      return finish('ignored')
-    const providerSessionHmac = await providerIdHmac(
-      env,
-      checkout.id,
-      Number(checkout.metadata?.hmac_key_version),
-    )
-    if (!providerSessionHmac) return unavailable()
-    if (event.type === 'checkout.session.async_payment_failed') {
-      const failed = await workerClient.rpc('billing_record_checkout_payment_failure', {
+    async () => {
+      const finish = async (result: string): Promise<Response> => {
+        // Unknown, unbound and nonterminal results stay as explicit obligations.
+        if (
+          [
+            'applied',
+            'completed',
+            'expired',
+            'failed',
+            'refunded',
+            'resolved',
+            'stale',
+            'scheduled',
+            'change_complete',
+            'recorded',
+          ].includes(result)
+        ) {
+          const resolved = await workerClient.rpc('billing_resolve_verified_event', {
+            p_event_id: event.id,
+            p_payload_digest: payloadDigest,
+            p_resolution_digest: payloadDigest,
+          })
+          if (resolved.error) return unavailable()
+        }
+        return received(result)
+      }
+      const object = event.data?.object
+      const servicing = await recordServicingEvent(
+        (name, args) => workerClient.rpc(name, args),
+        event,
+        env,
+      )
+      if (servicing === null) return unavailable()
+      if (servicing !== undefined) return finish(servicing)
+      if (
+        event.type === 'subscription_schedule.updated' ||
+        event.type === 'invoice.payment_succeeded'
+      )
+        return finish('ignored')
+      if (event.type === 'checkout.session.expired') {
+        const expired = object as CheckoutObject | undefined
+        if (typeof expired?.id !== 'string') return finish('ignored')
+        const binding = await providerIdHmac(
+          env,
+          expired.id,
+          Number(expired.metadata?.hmac_key_version),
+        )
+        if (!binding) return unavailable()
+        const result = await workerClient.rpc('billing_record_checkout_expired', {
+          p_provider_session_hmac: binding.digest,
+          p_hmac_key_version: binding.keyVersion,
+        })
+        return result.error || result.data === 'unbound'
+          ? unavailable()
+          : finish(String(result.data))
+      }
+      if (
+        event.type === 'checkout.session.completed' ||
+        event.type === 'checkout.session.async_payment_succeeded' ||
+        event.type === 'checkout.session.async_payment_failed'
+      ) {
+        const checkout = object as CheckoutObject | undefined
+        if (
+          typeof checkout?.id !== 'string' ||
+          !/^cs_[A-Za-z0-9_]{8,120}$/.test(checkout.id) ||
+          typeof checkout.customer !== 'string' ||
+          !/^cus_[A-Za-z0-9]{8,64}$/.test(checkout.customer) ||
+          typeof checkout.subscription !== 'string' ||
+          !/^sub_[A-Za-z0-9]{8,64}$/.test(checkout.subscription) ||
+          typeof checkout.payment_status !== 'string'
+        )
+          return finish('ignored')
+        const providerSessionHmac = await providerIdHmac(
+          env,
+          checkout.id,
+          Number(checkout.metadata?.hmac_key_version),
+        )
+        if (!providerSessionHmac) return unavailable()
+        if (event.type === 'checkout.session.async_payment_failed') {
+          const failed = await workerClient.rpc('billing_record_checkout_payment_failure', {
+            p_event_id: event.id,
+            p_provider_session_hmac: providerSessionHmac.digest,
+            p_hmac_key_version: providerSessionHmac.keyVersion,
+          })
+          if (failed.error || failed.data === 'unbound') return unavailable()
+          return finish(String(failed.data))
+        }
+        if (checkout.payment_status !== 'paid') return finish('payment_pending')
+        const periodEnd = await subscriptionPeriodEnd(env, checkout.subscription)
+        if (!periodEnd) return unavailable()
+        const applied = await workerClient.rpc('billing_record_checkout_event', {
+          p_event_id: event.id,
+          p_event_time:
+            typeof event.created === 'number' && Number.isFinite(event.created)
+              ? new Date(event.created * 1000).toISOString()
+              : new Date().toISOString(),
+          p_provider_session_hmac: providerSessionHmac.digest,
+          p_hmac_key_version: providerSessionHmac.keyVersion,
+          p_customer_id: checkout.customer,
+          p_subscription_id: checkout.subscription,
+          p_period_end: periodEnd,
+        })
+        if (applied.error || applied.data === 'unbound') return unavailable()
+        if (applied.data === 'refund_pending') {
+          const result = await reconcileCheckoutRefund(
+            (name, args) => workerClient.rpc(name, args),
+            env,
+            checkout.id,
+            providerSessionHmac,
+          )
+          return result === null ? unavailable() : finish(result)
+        }
+        return finish(String(applied.data))
+      }
+      if (event.type === 'refund.updated') {
+        const refund = object as RefundObject | undefined
+        const metadata = refund?.metadata
+        if (
+          typeof refund?.id !== 'string' ||
+          !/^re_[A-Za-z0-9]{8,120}$/.test(refund.id) ||
+          !['pending', 'requires_action', 'succeeded', 'failed', 'canceled'].includes(
+            String(refund.status),
+          ) ||
+          typeof metadata?.checkout_event_id !== 'string' ||
+          typeof metadata.checkout_provider_session_id !== 'string' ||
+          typeof metadata.subscription_id !== 'string'
+        )
+          return finish('ignored')
+        const providerSessionHmac = await providerIdHmac(
+          env,
+          metadata.checkout_provider_session_id,
+          Number(metadata.hmac_key_version),
+        )
+        if (!providerSessionHmac) return unavailable()
+        const recorded = await workerClient.rpc('billing_record_checkout_refund_state', {
+          p_event_id: metadata.checkout_event_id,
+          p_provider_session_hmac: providerSessionHmac.digest,
+          p_hmac_key_version: providerSessionHmac.keyVersion,
+          p_subscription_id: metadata.subscription_id,
+          p_refund_id: refund.id,
+          p_attempt: Number(metadata.refund_attempt),
+          p_provider_state:
+            refund.status === 'succeeded'
+              ? 'succeeded'
+              : refund.status === 'failed' || refund.status === 'canceled'
+                ? 'failed'
+                : 'pending',
+        })
+        if (recorded.error) return unavailable()
+        if (recorded.data === 'refund_failed') {
+          const result = await reconcileCheckoutRefund(
+            (name, args) => workerClient.rpc(name, args),
+            env,
+            metadata.checkout_provider_session_id,
+            providerSessionHmac,
+          )
+          return result === null ? unavailable() : finish(result)
+        }
+        return finish(String(recorded.data))
+      }
+      if (
+        typeof object?.id !== 'string' ||
+        !/^sub_[A-Za-z0-9]{8,64}$/.test(object.id) ||
+        typeof object.customer !== 'string' ||
+        !/^cus_[A-Za-z0-9]{8,64}$/.test(object.customer)
+      ) {
+        return finish('ignored')
+      }
+
+      const storeId =
+        typeof object.metadata?.store_id === 'string' &&
+        /^[0-9a-f-]{36}$/iu.test(object.metadata.store_id)
+          ? object.metadata.store_id
+          : null
+      const periodEnd =
+        typeof object.current_period_end === 'number' && Number.isFinite(object.current_period_end)
+          ? new Date(object.current_period_end * 1000).toISOString()
+          : null
+      const tier = tierForPrice(object.items?.data?.[0]?.price?.id)
+
+      const applied = await workerClient.rpc('billing_record_subscription_event', {
         p_event_id: event.id,
-        p_provider_session_hmac: providerSessionHmac.digest,
-        p_hmac_key_version: providerSessionHmac.keyVersion,
+        p_event_kind: event.type,
+        // Stripe's event clock anchors out-of-order protection, not receipt time.
+        p_event_time:
+          typeof event.created === 'number' && Number.isFinite(event.created)
+            ? new Date(event.created * 1000).toISOString()
+            : new Date().toISOString(),
+        p_store_id: storeId,
+        p_customer_id: object.customer,
+        p_subscription_id: object.id,
+        p_status: typeof object.status === 'string' ? object.status : null,
+        p_period_end: periodEnd,
+        p_tier: tier,
       })
-      if (failed.error || failed.data === 'unbound') return unavailable()
-      return finish(String(failed.data))
-    }
-    if (checkout.payment_status !== 'paid') return finish('payment_pending')
-    const periodEnd = await subscriptionPeriodEnd(env, checkout.subscription)
-    if (!periodEnd) return unavailable()
-    const applied = await workerClient.rpc('billing_record_checkout_event', {
-      p_event_id: event.id,
-      p_event_time:
-        typeof event.created === 'number' && Number.isFinite(event.created)
-          ? new Date(event.created * 1000).toISOString()
-          : new Date().toISOString(),
-      p_provider_session_hmac: providerSessionHmac.digest,
-      p_hmac_key_version: providerSessionHmac.keyVersion,
-      p_customer_id: checkout.customer,
-      p_subscription_id: checkout.subscription,
-      p_period_end: periodEnd,
-    })
-    if (applied.error || applied.data === 'unbound') return unavailable()
-    if (applied.data === 'refund_pending') {
-      const result = await reconcileCheckoutRefund(
-        (name, args) => workerClient.rpc(name, args),
-        env,
-        checkout.id,
-        providerSessionHmac,
-      )
-      return result === null ? unavailable() : finish(result)
-    }
-    return finish(String(applied.data))
-  }
-  if (event.type === 'refund.updated') {
-    const refund = object as RefundObject | undefined
-    const metadata = refund?.metadata
-    if (
-      typeof refund?.id !== 'string' ||
-      !/^re_[A-Za-z0-9]{8,120}$/.test(refund.id) ||
-      !['pending', 'requires_action', 'succeeded', 'failed', 'canceled'].includes(
-        String(refund.status),
-      ) ||
-      typeof metadata?.checkout_event_id !== 'string' ||
-      typeof metadata.checkout_provider_session_id !== 'string' ||
-      typeof metadata.subscription_id !== 'string'
-    )
-      return finish('ignored')
-    const providerSessionHmac = await providerIdHmac(
-      env,
-      metadata.checkout_provider_session_id,
-      Number(metadata.hmac_key_version),
-    )
-    if (!providerSessionHmac) return unavailable()
-    const recorded = await workerClient.rpc('billing_record_checkout_refund_state', {
-      p_event_id: metadata.checkout_event_id,
-      p_provider_session_hmac: providerSessionHmac.digest,
-      p_hmac_key_version: providerSessionHmac.keyVersion,
-      p_subscription_id: metadata.subscription_id,
-      p_refund_id: refund.id,
-      p_attempt: Number(metadata.refund_attempt),
-      p_provider_state:
-        refund.status === 'succeeded'
-          ? 'succeeded'
-          : refund.status === 'failed' || refund.status === 'canceled'
-            ? 'failed'
-            : 'pending',
-    })
-    if (recorded.error) return unavailable()
-    if (recorded.data === 'refund_failed') {
-      const result = await reconcileCheckoutRefund(
-        (name, args) => workerClient.rpc(name, args),
-        env,
-        metadata.checkout_provider_session_id,
-        providerSessionHmac,
-      )
-      return result === null ? unavailable() : finish(result)
-    }
-    return finish(String(recorded.data))
-  }
-  if (
-    typeof object?.id !== 'string' ||
-    !/^sub_[A-Za-z0-9]{8,64}$/.test(object.id) ||
-    typeof object.customer !== 'string' ||
-    !/^cus_[A-Za-z0-9]{8,64}$/.test(object.customer)
-  ) {
-    return finish('ignored')
-  }
-
-  const storeId =
-    typeof object.metadata?.store_id === 'string' &&
-    /^[0-9a-f-]{36}$/iu.test(object.metadata.store_id)
-      ? object.metadata.store_id
-      : null
-  const periodEnd =
-    typeof object.current_period_end === 'number' && Number.isFinite(object.current_period_end)
-      ? new Date(object.current_period_end * 1000).toISOString()
-      : null
-  const tier = tierForPrice(object.items?.data?.[0]?.price?.id)
-
-  const applied = await workerClient.rpc('billing_record_subscription_event', {
-    p_event_id: event.id,
-    p_event_kind: event.type,
-    // Stripe's event clock anchors out-of-order protection, not receipt time.
-    p_event_time:
-      typeof event.created === 'number' && Number.isFinite(event.created)
-        ? new Date(event.created * 1000).toISOString()
-        : new Date().toISOString(),
-    p_store_id: storeId,
-    p_customer_id: object.customer,
-    p_subscription_id: object.id,
-    p_status: typeof object.status === 'string' ? object.status : null,
-    p_period_end: periodEnd,
-    p_tier: tier,
-  })
-  if (applied.error) {
-    const message = typeof applied.error.message === 'string' ? applied.error.message : ''
-    if (message.includes('billing_stage_disabled')) return stageDisabled()
-    if (message.includes('billing_webhook_invalid')) return finish('ignored')
-    return unavailable()
-  }
-  return finish(String(applied.data))
+      if (applied.error) {
+        const message = typeof applied.error.message === 'string' ? applied.error.message : ''
+        if (message.includes('billing_stage_disabled')) return stageDisabled()
+        if (message.includes('billing_webhook_invalid')) return finish('ignored')
+        return unavailable()
+      }
+      return finish(String(applied.data))
+    },
+  )
 })

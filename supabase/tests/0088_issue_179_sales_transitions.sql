@@ -112,6 +112,17 @@ values('17800000-0000-4000-8000-000000000001','sub_unknown179','ch_refundable179
 insert into ids values('refundable_close',pg_temp.authorize('close',2,pg_temp.finality(2)));
 select throws_ok($$select app_public.close_photo_tier_servicing((select id from ids where kind='refundable_close'),2,gen_random_uuid())$$,'55000','billing_obligations_open','promised 48-hour refund window blocks closure');
 rollback to refundable;
+savepoint overlapping_workers;
+select ok(app_public.billing_begin_provider_work('17900000-0000-4000-8000-000000000090'),'first provider invocation fenced');
+select ok(app_public.billing_begin_provider_work('17900000-0000-4000-8000-000000000091'),'duplicate provider invocation independently fenced');
+select ok(app_public.billing_finish_provider_work('17900000-0000-4000-8000-000000000090'),'first worker completes only its own fence');
+insert into ids values('worker_close',pg_temp.authorize('close',2,pg_temp.finality(2)));
+select throws_ok($$select app_public.close_photo_tier_servicing((select id from ids where kind='worker_close'),2,gen_random_uuid())$$,'55000','billing_obligations_open','a delayed duplicate worker blocks closure after peer completion');
+select throws_ok($$select app_public.billing_reconcile_provider_work('17900000-0000-4000-8000-000000000091','{}')$$,'55000','billing_work_unresolved','crashed worker cannot time out without termination and provider proof');
+select ok(app_public.billing_reconcile_provider_work('17900000-0000-4000-8000-000000000091',jsonb_build_object('attempt_id','17900000-0000-4000-8000-000000000091','invocation_terminated',true,'provider_reconciled',true,'observed_at',statement_timestamp(),'evidence_digest',repeat('9',64))),'verified termination and reconciliation resolve crashed invocation');
+select ok(not has_function_privilege('billing_mirror_service','app_public.billing_reconcile_provider_work(uuid,jsonb)','execute'),'ordinary worker cannot attest independent termination/reconciliation');
+select ok(not has_function_privilege('authenticated','app_public.billing_begin_provider_work(uuid)','execute'),'browser cannot reserve provider work');
+rollback to overlapping_workers;
 insert into ids values('close',pg_temp.authorize('close',2,pg_temp.finality(2)));
 savepoint close_crash;
 select is(app_public.close_photo_tier_servicing((select id from ids where kind='close'),2,'17900000-0000-4000-8000-000000000005')->>'state','off_prelaunch','complete finality closes');
