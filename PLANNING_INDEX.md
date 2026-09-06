@@ -106,3 +106,8 @@ Tickets never become controlling sources. Every implementation ticket must pass 
 ## Internal product-reset deployment boundary
 
 [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) controls only owner-only protected synthetic review deployment; it is the scoped successor to ADR0006, not public-release acceptance.
+
+
+## Governed internal synthetic admission
+
+[ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md) extends only the ADR0007 owner-only assessment with a genuine, short-lived internal authorization for allowlisted synthetic identities and owned fixtures on the named isolated backend. Its server validation, role/scope/assurance controls, expiry, revocation and teardown are mandatory. Existing release receipts and public/shared/paid activation gates retain their meaning; no invented release evidence, real delivery, external participants or spending is authorized. The coordinated amendment must merge before dependent implementation.

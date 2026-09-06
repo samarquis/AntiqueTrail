@@ -63,3 +63,12 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Consequences: a reviewed local prebuilt artifact may be used only after merge and all ADR0007 prerequisites; provider eligibility, zero-spend, isolated synthetic data, every-host protection, truthful receipts and teardown remain required. Existing data and gate validators remain untouched. No H-01/public/paid/security/human acceptance, provider eligibility or deployment success is created by the amendment.
 - Affected ticket: #225 owns this amendment only; deployment and review retain their separate evidence obligations.
 - Approval-source reconciliation: `docs/research/product-reset-2026-09-06/DEPLOYMENT_DECISION.md` now records the later actual confirmation and is preserved with this amendment as nonnormative authorization evidence.
+
+## 2026-09-06 — Governed internal synthetic assessment admission
+
+- Authorization directive: `update plan`
+- Actual Product Owner confirmation: `approved`, answering the scoped `update plan` proposal in INTERNAL_REVIEW_UNBLOCK_PROPOSAL.md; the owner did not type the proposed directive verbatim.
+- Reason: protected source1549c6f is published, but the isolated backend has no gateway role membership or legitimate internal admission context; publication alone cannot enable the requested hosted workflow review.
+- Changed sources: ADR0008, ADR0007, PRODUCT_DECISIONS.md, PRD.md, SECURITY_AND_TRUST.md, PLAN_ACCEPTANCE.md, PACKAGE_CONTRACTS.md, IMPLEMENTATION_PLAN.md, CODEX_START_PROMPT.md, PLANNING_INDEX.md; approved proposal preserved as evidence.
+- Consequences: define a distinct validated internal record, seven allowlisted synthetic aliases and manifest-owned fixtures, isolated-project/candidate/origin binding, at most24-hour expiry, revocation and cleanup. Preserve server scope/MFA/session/private-data controls, original gate meanings, free-resource eligibility and all external/provider/payment exclusions. No gate receipt is forged or declared passed.
+- Affected ticket: #227 is the dedicated amendment; conforming gateway/admission implementation follows merge with separate independent checks and hosted acceptance evidence.
