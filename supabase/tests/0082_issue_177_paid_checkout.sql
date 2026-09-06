@@ -180,6 +180,17 @@ select is(app_public.billing_record_paid_tier_consent('17700000-0000-4000-8000-0
 select app_public.billing_create_checkout_session('17700000-0000-4000-8000-000000000001','full_gallery',
   (select consent_id from partner_private.photo_tier_paid_consents where idempotency_key='17700000-0000-4000-8000-000000000050'),177,'17700000-0000-4000-8000-000000000051');
 select app_public.billing_bind_checkout_provider((select session_id from partner_private.photo_tier_checkout_sessions where target_tier='full_gallery'),repeat('cd',32),2);
+
+savepoint revoked_composite_checkout;
+insert into partner_private.photo_tier_activation_evidence
+select gen_random_uuid(),kind,revision+1,'revoked',source_id,config_version,commercial_digest,artifact_digest,schema_digest,deployment_config_digest,payload_digest,signed_by_roles,gen_random_uuid()::text,signed_at,verified_at,expires_at
+from partner_private.photo_tier_activation_evidence where kind='provider';
+select is((select state from partner_private.photo_tier_sales_control),'sales_open','composite revocation test retains open sales and original generation');
+select is(app_public.billing_record_checkout_event('evt_issue180revoked1',statement_timestamp(),repeat('cd',32),2,'cus_issue180revoked','sub_issue180revoked'),'refund_pending','composite revocation sends paid completion to full-refund reconciliation');
+select is((select tier from partner_private.store_photo_tier_state where store_id='17700000-0000-4000-8000-000000000001'),'free','revoked composite completion cannot grant paid entitlement');
+select is((select provider_subscription_id from partner_private.photo_tier_refund_reconciliations where provider_event_id='evt_issue180revoked1'),'sub_issue180revoked','revocation retains the exact provider subscription for cancellation and refund');
+rollback to revoked_composite_checkout;
+
 set local role billing_automation;
 update partner_private.photo_tier_sales_control set state='servicing_only',sales_generation=2,version=2 where singleton;
 reset role;

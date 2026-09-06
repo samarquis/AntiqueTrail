@@ -110,6 +110,17 @@ select app_public.billing_bind_change_request(c.change_id,jsonb_build_object('su
 from partner_private.photo_tier_subscription_changes c join partner_private.store_subscriptions s on s.store_id=c.store_id where c.idempotency_key='17800000-0000-4000-8000-000000000073';
 select app_public.billing_bind_provider_mutation(change_id,'subscriptions/sub_servicing178',jsonb_build_object('metadata[paid_change_id]',change_id::text,'items[0][price]','price_upgrade178','proration_behavior','create_prorations'),'price_upgrade178')
 from partner_private.photo_tier_subscription_changes where idempotency_key='17800000-0000-4000-8000-000000000073';
+savepoint revoked_composite_upgrade;
+insert into partner_private.photo_tier_activation_evidence
+select gen_random_uuid(),kind,revision+1,'revoked',source_id,config_version,commercial_digest,artifact_digest,schema_digest,deployment_config_digest,payload_digest,signed_by_roles,gen_random_uuid()::text,signed_at,verified_at,expires_at
+from partner_private.photo_tier_activation_evidence where kind='provider';
+select is((select state from partner_private.photo_tier_sales_control),'sales_open','upgrade revocation test retains open sales');
+select is(app_public.billing_record_change_event(change_id,'evt_revoked180777',statement_timestamp(),subscription_id,'cus_servicing178','price_upgrade178','active',statement_timestamp()+interval '20 days',false),'compensation_pending','composite revocation compensates an already-dispatched upgrade')
+from partner_private.photo_tier_subscription_changes where idempotency_key='17800000-0000-4000-8000-000000000073';
+select is((select tier from partner_private.store_photo_tier_state where store_id='17800000-0000-4000-8000-000000000001'),'gallery','revoked composite upgrade preserves original paid entitlement');
+select is((select state from partner_private.store_subscriptions where store_id='17800000-0000-4000-8000-000000000001'),'active','revoked composite upgrade never cancels the existing subscription');
+select is((select count(*)::integer from partner_private.photo_tier_subscription_changes where state='scheduled'),1,'revoked composite preserves accepted cancellation intent');
+rollback to revoked_composite_upgrade;
 select is(app_public.billing_record_change_event(change_id,'evt_wrong178777',statement_timestamp(),subscription_id,'cus_servicing178','price_wrong17899','active',statement_timestamp()+interval '20 days',false),
   'awaiting_target','unbound provider price cannot apply an upgrade') from partner_private.photo_tier_subscription_changes where idempotency_key='17800000-0000-4000-8000-000000000073';
 set local role billing_automation;

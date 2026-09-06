@@ -88,14 +88,29 @@ select throws_ok($$select app_public.promote_photo_tier_capability((select id fr
 insert into ids values('pause',gen_random_uuid());
 insert into partner_private.photo_tier_transition_authorizations(receipt_id,action,expected_sales_version,reason,expires_at,product_owner_notified_at)
   values((select id from ids where kind='pause'),'pause',2,'synthetic_pause',now()+interval '10 minutes',now());
+-- Reconstruct the exact pre-#180 row shape; its already-signed digest must survive.
+select is(partner_private.billing_transition_payload(a.receipt_id),extensions.digest(convert_to((to_jsonb(a)-'activation_receipt_id')::text,'utf8'),'sha256'),'legacy pause signature payload retains the pre-migration row shape')
+from partner_private.photo_tier_transition_authorizations a where receipt_id=(select id from ids where kind='pause');
 insert into partner_private.photo_tier_transition_signatures(receipt_id,responsibility,signer_id,payload_digest,provider_verification_id)
-  select id,r,gen_random_uuid(),partner_private.billing_transition_payload(id),gen_random_uuid()::text from ids cross join unnest(array['Operations','Security']) r where kind='pause';
+  select a.receipt_id,r,gen_random_uuid(),extensions.digest(convert_to((to_jsonb(a)-'activation_receipt_id')::text,'utf8'),'sha256'),gen_random_uuid()::text
+  from partner_private.photo_tier_transition_authorizations a cross join unnest(array['Operations','Security']) r where a.receipt_id=(select id from ids where kind='pause');
 select is(app_public.pause_photo_tier_sales((select id from ids where kind='pause'),2,gen_random_uuid())->>'state','servicing_only','signed #179 pause integrates');
 select is(app_public.billing_get_capability()->>'enabled','false','servicing removes paid acquisition');
 select is(app_public.billing_get_sales_offer(),null::jsonb,'servicing removes all public price copy');
 insert into ids values('bad_resume',pg_temp.resume_auth((select id from ids where kind='activation'),array['Operations','Security']));
 select throws_ok($$select app_public.resume_photo_tier_sales((select id from ids where kind='bad_resume'),(select id from ids where kind='activation'),3,gen_random_uuid())$$,'42501','billing_transition_signatures_required','resume requires Product Owner, not Security substitution');
 insert into ids values('resume',pg_temp.resume_auth((select id from ids where kind='activation')));
+
+-- A signed receipt cannot resume a configuration that is no longer current.
+savepoint stale_resume_config;
+update partner_private.photo_tier_commercial_configs set state='superseded' where version=178;
+select throws_ok($$select app_public.resume_photo_tier_sales((select id from ids where kind='resume'),(select id from ids where kind='activation'),3,gen_random_uuid())$$,'55000','billing_composite_config_invalid','superseded commercial config denies resume');
+select is((select state from partner_private.photo_tier_sales_control),'servicing_only','stale config denial preserves servicing');
+select is((select sales_generation from partner_private.photo_tier_sales_control),3::bigint,'stale config denial does not advance generation');
+select is((select count(*)::integer from partner_private.photo_tier_sales_transition_receipts where action='resume'),0,'stale config denial leaves no partial resume receipt');
+select is(app_public.billing_get_sales_offer(),null::jsonb,'stale config exposes no public price');
+rollback to stale_resume_config;
+
 savepoint stale_resume;
 select pg_temp.revise('hosted_ci','{}');
 select throws_ok($$select app_public.resume_photo_tier_sales((select id from ids where kind='resume'),(select id from ids where kind='activation'),3,gen_random_uuid())$$,'55000','billing_composite_evidence_invalid','changed prerequisite requires newly prepared composite');
@@ -116,5 +131,3 @@ rollback to public_stale;
 select throws_ok($$update partner_private.photo_tier_activation_receipts set snapshot='{}'$$,'42501','billing_append_only','prepared receipt cannot be rewritten');
 select * from finish();
 rollback;
-
-
