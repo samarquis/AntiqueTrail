@@ -9,12 +9,12 @@ it('forwards only the configured allowed origin and provider-verified actor to t
     | ((request: Request, info: { remoteAddr: { hostname: string } }) => Promise<Response>)
     | undefined
   const rpc = vi.fn(async () => ({ data: [], error: null }))
-  const createClient = vi.fn(
-    (_url: string, _key: string, _options?: { accessToken?: () => Promise<string> }) => ({
-      rpc,
-      auth: { getUser: async () => ({ data: { user: { id: 'verified-user' } } }) },
-    }),
-  )
+  const createClient = vi.fn<
+    (url: string, key: string, options?: { accessToken?: () => Promise<string> }) => unknown
+  >(() => ({
+    rpc,
+    auth: { getUser: async () => ({ data: { user: { id: 'verified-user' } } }) },
+  }))
   const values: Record<string, string> = {
     SUPABASE_URL: 'https://backend.invalid',
     SUPABASE_ANON_KEY: 'anon',
