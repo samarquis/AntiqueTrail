@@ -1,5 +1,5 @@
 begin;
-select plan(38);
+select plan(41);
 
 select has_table('app_private','password_recovery_operations','dedicated recovery operation ledger exists');
 select ok((select relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
@@ -14,7 +14,9 @@ select has_function('app_public','password_recovery_status',array['uuid'],'conte
 select has_function('app_public','begin_password_recovery',array['uuid','uuid','uuid'],'recovery fence operation exists');
 select has_function('app_public','complete_password_recovery',array['uuid'],'recovery completion operation exists');
 select has_function('app_public','mark_password_recovery_uncertain',array['uuid'],'uncertain recovery disposition exists');
+select has_function('app_public','mark_password_recovery_provider_pending',array['uuid'],'provider retry disposition exists');
 select has_function('app_public','complete_provider_revocation',array['text'],'provider outbox completion exists');
+select has_function('app_public','complete_provider_revocations_for_user',array['uuid'],'user scoped provider retry helper exists');
 select ok(has_function_privilege('service_role','app_public.password_recovery_status(uuid)','EXECUTE'),
   'only the server boundary can read recovery disposition');
 select ok(has_function_privilege('service_role','app_public.begin_password_recovery(uuid,uuid,uuid)','EXECUTE'),
@@ -132,5 +134,8 @@ select ok(position('state=''completed''' in lower(pg_get_functiondef(
 select ok(position('state=''uncertain''' in lower(pg_get_functiondef(
   'app_public.mark_password_recovery_uncertain(uuid)'::regprocedure)))>0,
   'provider uncertainty is content-free and terminal for this request');
+select ok(position('state=''provider_pending''' in lower(pg_get_functiondef(
+  'app_public.mark_password_recovery_provider_pending(uuid)'::regprocedure)))>0,
+  'provider failure is a content-free retry disposition');
 select * from finish();
 rollback;

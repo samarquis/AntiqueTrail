@@ -42,7 +42,13 @@ function dependencies(): PasswordRecoveryCompletionDependencies {
       const result = await admin.rpc('password_recovery_status', { p_request_id: requestId })
       if (result.error) throw result.error
       const state = result.data
-      if (state === 'unknown' || state === 'invalidated' || state === 'completed' || state === 'uncertain')
+      if (
+        state === 'unknown' ||
+        state === 'invalidated' ||
+        state === 'provider_pending' ||
+        state === 'completed' ||
+        state === 'uncertain'
+      )
         return state
       throw new Error('password_recovery_status_unavailable')
     },
@@ -66,18 +72,32 @@ function dependencies(): PasswordRecoveryCompletionDependencies {
       if (result.error || !result.data || typeof result.data !== 'object')
         throw result.error ?? new Error('password_recovery_begin_unavailable')
       const state = (result.data as { state?: unknown }).state
-      if (state === 'ready' || state === 'completed' || state === 'retry_required') return state
+      if (
+        state === 'ready' ||
+        state === 'completed' ||
+        state === 'provider_retry' ||
+        state === 'retry_required'
+      )
+        return state
       throw new Error('password_recovery_begin_unavailable')
     },
     async updatePassword(_credential, password) {
       const result = await verifier.auth.updateUser({ password })
       if (result.error) throw result.error
     },
-    async revokeProviderSessions({ requestId }) {
-      const result = await verifier.auth.signOut()
-      if (result.error) throw result.error
-      const settled = await admin.rpc('complete_provider_revocation', {
-        p_idempotency_key: `${requestId}:provider-revoke`,
+    async revokeProviderSessions({ credential }) {
+      let lastError: unknown
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const result = await verifier.auth.signOut()
+        if (!result.error) {
+          lastError = undefined
+          break
+        }
+        lastError = result.error
+      }
+      if (lastError) throw lastError
+      const settled = await admin.rpc('complete_provider_revocations_for_user', {
+        p_user_id: credential.userId,
       })
       if (settled.error) throw settled.error
     },
@@ -90,6 +110,12 @@ function dependencies(): PasswordRecoveryCompletionDependencies {
     },
     async markUncertain(requestId) {
       await admin.rpc('mark_password_recovery_uncertain', { p_request_id: requestId })
+    },
+    async markProviderPending(requestId) {
+      const result = await admin.rpc('mark_password_recovery_provider_pending', {
+        p_request_id: requestId,
+      })
+      if (result.error) throw result.error
     },
   }
 }
@@ -106,6 +132,7 @@ function unavailableDependencies(): PasswordRecoveryCompletionDependencies {
     revokeProviderSessions: unavailable,
     complete: unavailable,
     markUncertain: unavailable,
+    markProviderPending: unavailable,
   }
 }
 
@@ -113,7 +140,9 @@ function sessionIdFromAccessToken(session: Session): string | null {
   try {
     const payload = session.access_token.split('.')[1]
     const normalized = payload.replaceAll('-', '+').replaceAll('_', '/')
-    const claims = JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='))) as {
+    const claims = JSON.parse(
+      atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')),
+    ) as {
       session_id?: unknown
     }
     return typeof claims.session_id === 'string' &&
