@@ -4,7 +4,7 @@
 
 Authority order:
 
-1. `PRODUCT_DECISIONS.md`, `PRD.md`, and `SECURITY_AND_TRUST.md` control product and trust policy.
+1. [README source precedence](../../README.md#source-precedence) defines current ownership: `PRD.md` owns product outcomes and `SECURITY_AND_TRUST.md` owns privacy/security controls. `PRODUCT_DECISIONS.md` preserves decision history and links to those current owners.
 2. `DESIGN.md` controls journeys and interaction intent.
 3. `DESIGN_SYSTEM.md` controls reproducible tokens, component states, responsive behavior, and screen acceptance.
 4. `PALETTE_PROPOSAL.md` and `palette-midnight-archive.svg` are the approved visual reference for the Daylight Archive light theme and Midnight Archive dark theme; their values are canonical only through `DESIGN_SYSTEM.md`. `palette-proposal-field-and-brass.svg` is superseded and must not guide new work.

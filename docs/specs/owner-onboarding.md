@@ -101,8 +101,8 @@ flow with generic enumeration-resistant errors (DESIGN_SYSTEM.md). This spec add
 
 - Before signup: `This step creates your private sign-in. Only you should use
   this account.` (reinforces owner-controlled, gently, no helper accounts).
-- MFA enrollment screen: `A second check keeps your store safe. We'll send a
-  code to your email each time you sign in.`
+- MFA enrollment screen: `A second check keeps your store safe. Use the code
+  from your authenticator app when you sign in.`
 - Recovery codes: `Write these codes down and keep them in a safe place. If you
   ever lose your phone or email access, these codes are how you get back in.`
   Require a plain confirm step ("I saved my codes") before continuing.

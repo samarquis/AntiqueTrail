@@ -95,3 +95,10 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Evidence: reviewed local source `53ed4c6715612de7d22286f1146758f75207409e`, evidence-only successor `44f216eae11bd21b3b759939c9e1856557ebc985`, and the owner's subsequent adoption instruction. Fresh publication review and required hosted checks must pass before merge.
 - Consequences: PRD is the product entry point; README assigns specialist ownership; current requirements remain locked under existing amendment governance. Historical decisions, roadmaps, and review receipts retain their original scope. The recorded typography interpretation remains a bounded unresolved question for dependent design work, not an authorization to change visual values.
 - Tracking: PR references existing amendment issue #235 for provenance only; this publication does not change or close it and does not modify the separate PR #211.
+
+## 2026-09-07 — Reconcile publication-review document references
+
+- Authorization directive: `update plan`; scope remains the approved consolidation and documentation-only publication above.
+- Evidence: fresh independent publication review of `23fbc434a9633f6904ae6bfa390e81fb4801ba5d` found a stale design authority entry and inherited onboarding copy that described email MFA despite Package 2 requiring an authenticator app.
+- Changed sources: docs/design/README.md now points to current README ownership; docs/specs/owner-onboarding.md aligns its guided MFA wording with the existing authentication contract; the proposal records the findings.
+- Consequences: no new authentication method, visual values, or implementation is authorized; both corrections make linked documentation consistent with its existing controlling requirements. Issue #235 remains a provenance reference only.
