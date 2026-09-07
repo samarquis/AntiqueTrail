@@ -87,7 +87,9 @@ export function AuthoritativeCheckMyDayPage({
         {requestFailed && (
           <p role="alert">
             Check My Day could not be completed. Your manual order is unchanged.{' '}
-            <button type="button" onClick={() => void run()}>Retry</button>
+            <button type="button" onClick={() => void run()}>
+              Retry
+            </button>
           </p>
         )}
         {result?.state === 'blocked' && <p role="status">{ROUTING_BLOCKED_MESSAGE}</p>}
@@ -140,7 +142,9 @@ export function AuthoritativeCheckMyDayPage({
                       onUseSuggested={() => saveChoice(() => onUseSuggestedOrder?.(ids))}
                       onKeepOrder={() => saveChoice(() => onKeepMyOrder?.())}
                     />
-                    {choiceFailed && <p role="alert">Your choice could not be saved. Please try again.</p>}
+                    {choiceFailed && (
+                      <p role="alert">Your choice could not be saved. Please try again.</p>
+                    )}
                   </section>
                 )}
               </>
