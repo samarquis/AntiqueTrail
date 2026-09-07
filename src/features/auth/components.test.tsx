@@ -107,7 +107,7 @@ describe('auth states', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/return to the action/i)
     expect(screen.getByRole('link', { name: /cancel and return without saving/i })).toHaveAttribute(
       'href',
-      '/stores/oak/memory',
+      '/stores/oak',
     )
     expect(unavailableProvider.signIn).not.toHaveBeenCalled()
   })
