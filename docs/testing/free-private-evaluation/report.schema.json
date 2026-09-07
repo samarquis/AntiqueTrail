@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://antiquetrail.invalid/schemas/free-private-evaluation-report-v1.json",
+  "title": "Antique Trail Free private evaluation local report",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "evaluationId",
+    "mode",
+    "generatedAt",
+    "source",
+    "personas",
+    "evidenceBoundary",
+    "ownerPacket",
+    "disposition",
+    "summary"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "evaluationId": { "const": "free-private-evaluation" },
+    "mode": { "const": "local" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "required": ["commitSha", "fixtureId", "harness", "command", "browser"],
+      "properties": {
+        "commitSha": { "type": "string", "minLength": 7 },
+        "branch": { "type": "string" },
+        "fixtureId": { "const": "local-review-harness-fictional-v1" },
+        "harness": { "const": "local-review-harness" },
+        "command": { "type": "string", "minLength": 1 },
+        "browser": { "type": "object" }
+      }
+    },
+    "personas": { "type": "array", "minItems": 5 },
+    "evidenceBoundary": { "type": "object" },
+    "ownerPacket": { "type": "object" },
+    "disposition": { "type": "object" },
+    "summary": { "type": "object" }
+  }
+}
