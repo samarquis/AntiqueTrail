@@ -301,7 +301,9 @@ export function AuthProvider({
   const valueRef = useRef(value)
   valueRef.current = value
   useEffect(() => {
-    if (!providerReady || !provider.onSessionChange) return
+    // Subscribe before restoration starts so a refresh event cannot arrive in
+    // the gap between provider bootstrap and exposing the private tree.
+    if (!provider.onSessionChange) return
     let cancelled = false
     const unsubscribe = provider.onSessionChange((next) => {
       if (cancelled) return
@@ -316,7 +318,7 @@ export function AuthProvider({
       cancelled = true
       unsubscribe()
     }
-  }, [loseSession, provider, providerReady, resolvedStore])
+  }, [loseSession, provider, resolvedStore])
   if (!providerReady) return <p role="status">Restoring your session…</p>
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
