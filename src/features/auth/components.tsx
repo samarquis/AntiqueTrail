@@ -178,7 +178,11 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
           Create account
         </Link>
       </p>
-      {returnTo !== '/stores' && <Link to={returnTo}>Cancel and return without saving</Link>}
+      {returnTo !== '/stores' && (
+        <Link to={safeCancelTarget(returnTo)} onClick={clearPendingPrivateAction}>
+          Cancel and return without saving
+        </Link>
+      )}
     </AuthCard>
   )
 }
@@ -348,7 +352,9 @@ export function RegisterPage({ provider }: { provider: AuthProviderAdapter }) {
           {pending ? 'Creating account…' : 'Create account'}
         </button>
       </form>
-      <Link to={returnTo}>Cancel and return without saving</Link>
+      <Link to={safeCancelTarget(returnTo)} onClick={clearPendingPrivateAction}>
+        Cancel and return without saving
+      </Link>
     </AuthCard>
   )
 }
@@ -368,7 +374,9 @@ export function VerifyAccountPage() {
         Continue to sign in
       </Link>
       <p>
-        <Link to={returnTo}>Cancel and return without saving</Link>
+        <Link to={safeCancelTarget(returnTo)} onClick={clearPendingPrivateAction}>
+          Cancel and return without saving
+        </Link>
       </p>
     </AuthCard>
   )
@@ -734,6 +742,19 @@ export function AccountPage() {
 /** Kept for existing route imports while the account screen graduates from its placeholder. */
 export const AccountPlaceholder = AccountPage
 
+function clearPendingPrivateAction() {
+  if (typeof window !== 'undefined')
+    window.sessionStorage.removeItem('antique-trail:jit-private-action:v1')
+}
+
+export function safeCancelTarget(value: string): string {
+  const safe = safeReturnTo(value)
+  const storeMatch = safe.match(/^\/stores\/([^/]+)\/(?:memory|correction|claim)(?:\/|$)/u)
+  if (storeMatch) return `/stores/${storeMatch[1]}`
+  if (safe.startsWith('/trips/') || safe.startsWith('/account/') || safe.startsWith('/auth/'))
+    return '/stores'
+  return safe
+}
 // eslint-disable-next-line react-refresh/only-export-components
 export function safeReturnTo(value: string | null): string {
   // Preserve only same-origin application paths; never navigate to a protocol-relative URL.
