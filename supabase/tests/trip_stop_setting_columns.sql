@@ -127,7 +127,7 @@ select ok(app_public.register_current_session((extract(epoch from statement_time
 select set_config('test.first_competing_edit', app_public.set_trip_stop_priority('25600000-0000-4000-8000-000000000992', '25600000-0000-4000-8000-000000000994', 'must', 20)::text, false);
 select is((current_setting('test.first_competing_edit')::jsonb->>'version')::bigint, 21::bigint, 'first same-version edit succeeds');
 select throws_ok($$select app_public.set_trip_stop_dwell('25600000-0000-4000-8000-000000000992','25600000-0000-4000-8000-000000000995',30,20)$$, 'P0001', 'conflict', 'second same-version edit returns a conflict');
-reset role;
+set local role identity_service;
 select is((select s.priority from trip_private.trip_stops as s where s.stop_id = '25600000-0000-4000-8000-000000000994'::uuid), 'must', 'first competing edit is persisted');
 select is((select s.planned_dwell_minutes::integer from trip_private.trip_stops as s where s.stop_id = '25600000-0000-4000-8000-000000000995'::uuid), 60, 'conflicting competing edit does not mutate its stop');
 select is((select t.version from trip_private.trips as t where t.trip_id = '25600000-0000-4000-8000-000000000992'::uuid), 21::bigint, 'conflicting competing edit does not increment the trip version');
