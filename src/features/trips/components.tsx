@@ -458,6 +458,11 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
   const { tripId = '' } = useParams()
   const [trip, setTrip] = useState<Trip | null>(null)
   const [error, setError] = useState(false)
+  const [actionPending, setActionPending] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<{
+    label: string
+    retry: () => Promise<void>
+  } | null>(null)
   const [label, setLabel] = useState('')
   const [priority, setPriority] = useState<StopPriority>('prefer')
   const [dwell, setDwell] = useState(60)
@@ -478,6 +483,18 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     state: 'empty',
     pendingCount: 0,
   })
+  async function runAction(label: string, action: () => Promise<void>) {
+    if (actionPending) return
+    setActionPending(label)
+    setActionError(null)
+    try {
+      await action()
+    } catch {
+      setActionError({ label, retry: action })
+    } finally {
+      setActionPending(null)
+    }
+  }
   useEffect(() => {
     let cancelled = false
     client
@@ -516,7 +533,7 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       !validDwellMinutes(dwell)
     )
       return
-    try {
+    await runAction('add this stop', async () => {
       setTrip(
         await client.addStop(trip.id, {
           kind: 'store',
@@ -526,38 +543,33 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
         }),
       )
       setLabel('')
-    } catch {
-      setError(true)
-    }
+    })
   }
   async function reviewHours(acknowledgeWarnings = false) {
     if (!trip) return
-    try {
+    await runAction('review hours', async () => {
       setTrip(await client.reviewHours(trip.id, acknowledgeWarnings))
       setHoursAcknowledged(false)
-    } catch {
-      setError(true)
-    }
+    })
   }
   async function saveStart(event: FormEvent) {
     event.preventDefault()
-    if (!trip || !client.setStart || !startLabel.trim() || !departureTime) return
+    const setStart = client.setStart
+    if (!trip || !setStart || !startLabel.trim() || !departureTime) return
     const [hours, minutes] = departureTime.split(':').map(Number)
-    try {
+    await runAction('save the trip start', async () => {
       setTrip(
-        await client.setStart(trip.id, {
+        await setStart(trip.id, {
           kind: 'manual',
           label: startLabel.trim(),
           departureMinute: hours * 60 + minutes,
         }),
       )
-    } catch {
-      setError(true)
-    }
+    })
   }
   async function applyRename(name: string, expectedVersion: number) {
     if (!trip || !normalizeTripName(name)) return
-    try {
+    await runAction('rename the trip', async () => {
       const result = await client.renameTrip(trip.id, name, expectedVersion, crypto.randomUUID())
       if (result.state === 'conflict') {
         setRenameConflict({ attemptedName: normalizeTripName(name), latest: result.latest })
@@ -566,9 +578,7 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       setRenameConflict(null)
       setTrip(result.trip)
       setTripName(result.trip.name)
-    } catch {
-      setError(true)
-    }
+    })
   }
   async function rename(event: FormEvent) {
     event.preventDefault()
@@ -579,7 +589,7 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     event.preventDefault()
     if (!trip || !scheduleDate) return
     const [hours, minutes] = departureTime ? departureTime.split(':').map(Number) : []
-    try {
+    await runAction('save the trip schedule', async () => {
       setTrip(
         await client.updateSchedule(
           trip.id,
@@ -590,58 +600,53 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
           trip.version,
         ),
       )
-    } catch {
-      setError(true)
-    }
+    })
   }
   async function replay() {
     if (!trip) return
     setOfflineQueue((current) => ({ ...current, state: 'replaying' }))
-    try {
-      setTrip(await client.replayOffline(trip.id))
-      setOfflineQueue(await client.getOfflineQueue(trip.id))
-    } catch {
-      setOfflineQueue((current) => ({
-        ...current,
-        state: 'conflict',
-        conflict: { id: 'replay', summary: 'Saved changes could not be replayed automatically.' },
-      }))
-    }
+    await runAction('replay saved changes', async () => {
+      try {
+        setTrip(await client.replayOffline(trip.id))
+        setOfflineQueue(await client.getOfflineQueue(trip.id))
+      } catch (error) {
+        setOfflineQueue((current) => ({
+          ...current,
+          state: 'conflict',
+          conflict: { id: 'replay', summary: 'Saved changes could not be replayed automatically.' },
+        }))
+        throw error
+      }
+    })
   }
   async function queueOffline() {
     if (!trip) return
-    try {
+    await runAction('queue this trip change', async () => {
       setOfflineQueue(await client.queueOfflineAction(trip.id, { kind: 'plan_edit' }))
-    } catch {
-      setError(true)
-    }
+    })
   }
   async function resolveConflict(choice: 'phone' | 'saved') {
     if (!trip) return
-    try {
+    await runAction('resolve the offline conflict', async () => {
       setOfflineQueue(await client.resolveOfflineConflict(trip.id, choice))
-    } catch {
-      setError(true)
-    }
+    })
   }
   async function confirmRemoval() {
     if (!trip || !pendingRemoval) return
     setRemovingStopId(pendingRemoval.id)
-    try {
+    await runAction(`remove ${pendingRemoval.label}`, async () => {
       setTrip(await client.removeStop(trip.id, pendingRemoval.id, trip.version))
       setRemovalStatus(`${pendingRemoval.label} was removed from this trip.`)
       setPendingRemoval(null)
-    } catch {
-      setError(true)
-    } finally {
+    }).finally(() => {
       setRemovingStopId(null)
-    }
+    })
   }
   function cancelRemoval() {
     setPendingRemoval(null)
     removalTriggerRef.current?.focus()
   }
-  if (error)
+  if (error && !trip)
     return (
       <TripCard title="Trip unavailable" description="This private trip could not be loaded.">
         <TripError />
@@ -659,6 +664,22 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       description="Review Hours shows store hours only. Travel time is not included, and no feasible-order or arrival claim is made."
       icon="/icons/trail-map.svg"
     >
+      {actionError && (
+        <div role="alert">
+          <p>Couldn&apos;t {actionError.label}. Your last saved trip is still shown.</p>
+          <button
+            className="button"
+            type="button"
+            disabled={actionPending !== null}
+            onClick={() => void runAction(actionError.label, actionError.retry)}
+          >
+            {actionPending ? 'Retrying…' : 'Retry'}
+          </button>
+          <button type="button" onClick={() => setActionError(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
       <p>Trip date: {trip.localDate}</p>
       <section className="trip-plan-section" aria-labelledby="trip-identity-heading">
         <h2 id="trip-identity-heading">Trip identity</h2>
@@ -848,17 +869,14 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
                 <select
                   id={`priority-${stop.id}`}
                   value={stop.priority}
-                  onChange={(event) =>
-                    client
-                      .setStopPriority(
-                        trip.id,
-                        stop.id,
-                        event.target.value as StopPriority,
-                        trip.version,
+                  onChange={(event) => {
+                    const nextPriority = event.target.value as StopPriority
+                    void runAction('save the priority', async () => {
+                      setTrip(
+                        await client.setStopPriority(trip.id, stop.id, nextPriority, trip.version),
                       )
-                      .then(setTrip)
-                      .catch(() => setError(true))
-                  }
+                    })
+                  }}
                 >
                   <option value="must">Must</option>
                   <option value="prefer">Prefer</option>
@@ -875,10 +893,9 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
                   onBlur={(event) => {
                     const next = Number(event.target.value)
                     if (!validDwellMinutes(next)) return setError(true)
-                    void client
-                      .setStopDwell(trip.id, stop.id, next, trip.version)
-                      .then(setTrip)
-                      .catch(() => setError(true))
+                    void runAction('save the dwell time', async () => {
+                      setTrip(await client.setStopDwell(trip.id, stop.id, next, trip.version))
+                    })
                   }}
                 />
                 <button
@@ -887,10 +904,9 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
                   disabled={index === 0}
                   aria-label={`Move ${stop.label} up`}
                   onClick={() =>
-                    client
-                      .reorderStop(trip.id, stop.id, index - 1)
-                      .then(setTrip)
-                      .catch(() => setError(true))
+                    void runAction('reorder the trip', async () => {
+                      setTrip(await client.reorderStop(trip.id, stop.id, index - 1))
+                    })
                   }
                 >
                   Move Up
@@ -901,10 +917,9 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
                   disabled={index === trip.stops.length - 1}
                   aria-label={`Move ${stop.label} down`}
                   onClick={() =>
-                    client
-                      .reorderStop(trip.id, stop.id, index + 1)
-                      .then(setTrip)
-                      .catch(() => setError(true))
+                    void runAction('reorder the trip', async () => {
+                      setTrip(await client.reorderStop(trip.id, stop.id, index + 1))
+                    })
                   }
                 >
                   Move Down
