@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "evaluationId": "free-private-evaluation",
+  "fixtureId": "local-review-harness-fictional-v1",
+  "personas": [
+    {
+      "id": "shopper-priority",
+      "approvedRole": "shopper",
+      "fixtureIdentity": "shopper-a",
+      "fixtureRole": "Shopper",
+      "device": {
+        "order": ["computer", "phone"],
+        "computer": "desktop browser",
+        "phone": "phone browser"
+      },
+      "accessibility": ["keyboard", "focus-and-status", "reduced-motion", "200-percent-zoom"],
+      "digitalConfidence": "comfortable-but-interrupted",
+      "tasks": [
+        {
+          "id": "browse-details-photos-save-trip",
+          "e2eTestId": "shopper-priority-computer",
+          "transition": "Browse -> Details -> permitted photos -> Save -> new trip",
+          "steps": [
+            "Open the fictional Blue Finch Curios result from Browse.",
+            "Open Details and inspect the permitted gallery with keyboard controls.",
+            "Save the store and follow Add to Trip into a new dated trip.",
+            "Set manual date, order, priority, and dwell without provider routing claims."
+          ],
+          "assertions": [
+            "The selected fictional store and its provenance remain visible.",
+            "The save result is private to the local Shopper fixture.",
+            "Trip creation preserves the selected store and exposes manual planning controls."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shopper-returning",
+      "approvedRole": "shopper",
+      "fixtureIdentity": "shopper-a",
+      "fixtureRole": "Shopper",
+      "device": {
+        "order": ["phone", "computer"],
+        "computer": "desktop browser",
+        "phone": "phone browser"
+      },
+      "accessibility": ["keyboard", "focus-and-status", "offline-aware"],
+      "digitalConfidence": "returning-but-easily-distracted",
+      "tasks": [
+        {
+          "id": "return-account-switch-cancel-offline",
+          "e2eTestId": "shopper-returning-interruption",
+          "transition": "returning account -> cancelled private action -> offline interruption",
+          "steps": [
+            "Return to a saved private view as Shopper A.",
+            "Switch to the anonymous save entry point and cancel without replaying the save.",
+            "Take the saved view offline and confirm the mutation is paused, not hidden or fabricated."
+          ],
+          "assertions": [
+            "Cancellation removes the pending just-in-time action.",
+            "Offline state keeps private data visible and disables unsafe mutation."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "partner-navigator",
+      "approvedRole": "partner_navigator",
+      "fixtureIdentity": "shopper-b",
+      "fixtureRole": "Shopper fixture acting as Trip Partner/Navigator",
+      "device": {
+        "order": ["phone", "computer"],
+        "computer": "desktop browser",
+        "phone": "phone browser"
+      },
+      "accessibility": ["keyboard", "focus-and-status", "reduced-motion"],
+      "digitalConfidence": "needs-clear-handoff",
+      "tasks": [
+        {
+          "id": "one-trip-partner-boundary",
+          "e2eTestId": "partner-navigator-boundary",
+          "transition": "one-trip invitation -> partner acceptance boundary -> Navigator entry point",
+          "steps": [
+            "Open the creator's Trip Partner and Navigator entry point.",
+            "Send the fictional verified-email invitation to Shopper B.",
+            "Attempt the local acceptance fixture and retain the generic fail-closed result.",
+            "Open Go as the creator and inspect the current-stop navigation handoff."
+          ],
+          "assertions": [
+            "The invitation is scoped to one trip.",
+            "The current local fixture does not claim cross-account acceptance or live sharing.",
+            "Go does not claim route feasibility or travel time."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "representative",
+      "approvedRole": "representative",
+      "fixtureIdentity": "representative",
+      "fixtureRole": "Representative",
+      "device": {
+        "order": ["computer", "phone"],
+        "computer": "desktop browser",
+        "phone": "phone browser"
+      },
+      "accessibility": ["keyboard", "focus-and-status", "200-percent-zoom"],
+      "digitalConfidence": "task-focused",
+      "tasks": [
+        {
+          "id": "representative-scoped-portal",
+          "e2eTestId": "representative-boundary",
+          "transition": "Representative portal -> store-scoped work -> shopper-private denial",
+          "steps": [
+            "Open the local Store Portal fixture for the granted store.",
+            "Confirm the role-specific portal surface is available.",
+            "Attempt a shopper-private correction route and retain the denial."
+          ],
+          "assertions": [
+            "The Representative fixture sees only the store-scoped portal entry point.",
+            "Shopper-private data is not exposed through the local fixture."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "administrator",
+      "approvedRole": "administrator",
+      "fixtureIdentity": "administrator",
+      "fixtureRole": "Administrator",
+      "device": {
+        "order": ["computer", "phone"],
+        "computer": "desktop browser",
+        "phone": "phone browser"
+      },
+      "accessibility": ["keyboard", "focus-and-status", "reduced-motion", "200-percent-zoom"],
+      "digitalConfidence": "experienced-but-scope-conscious",
+      "tasks": [
+        {
+          "id": "administrator-queue-boundary",
+          "e2eTestId": "administrator-boundary",
+          "transition": "Administrator queue -> scoped operational surface -> shopper-private denial",
+          "steps": [
+            "Open the local Administrator review queue.",
+            "Confirm metadata-only operational cases are visible.",
+            "Attempt a shopper-private correction route and retain the denial."
+          ],
+          "assertions": [
+            "The Administrator fixture can reach its review queue.",
+            "Administrator access does not become shopper-private access."
+          ]
+        }
+      ]
+    }
+  ]
+}

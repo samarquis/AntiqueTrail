@@ -9,6 +9,8 @@ import {
 import { useAuth } from './AuthContext'
 import { exchangePreflightAuthCallback, takePreflightAuthCallback } from './callbackPreflight'
 import type { AuthCallback } from './authBoundary'
+import { hasStagedRecoveryToken, stageRecoveryToken } from './passwordRecoveryClient'
+import { PasswordReplacementPage } from './PasswordReplacementPage'
 import type { AuthProviderAdapter, OAuthProviderId, ProviderCallbackResult } from './types'
 
 function AuthCard({
@@ -188,6 +190,15 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
 }
 
 export function RecoveryPage({ provider }: { provider: AuthProviderAdapter }) {
+  const location = useLocation()
+  const returnTo = safeReturnTo(new URLSearchParams(location.search).get('returnTo'))
+  if (hasStagedRecoveryToken()) {
+    return <PasswordReplacementPage provider={provider} returnTo={returnTo} />
+  }
+  return <RecoveryRequestPage provider={provider} />
+}
+
+function RecoveryRequestPage({ provider }: { provider: AuthProviderAdapter }) {
   const location = useLocation()
   const initialEmail = new URLSearchParams(location.search).get('email') ?? ''
   const [email, setEmail] = useState(initialEmail)
@@ -405,6 +416,12 @@ export function AuthCallbackPage({
     const callback = callbackRef.current
     if (!callback) {
       setState('error')
+      return
+    }
+    if (callback.kind === 'recovery') {
+      stageRecoveryToken(callback.tokenHash)
+      callbackRef.current = null
+      navigate(`/auth/recovery?returnTo=${encodeURIComponent(returnTo)}`, { replace: true })
       return
     }
     let exchange: (() => Promise<ProviderCallbackResult>) | null = null
