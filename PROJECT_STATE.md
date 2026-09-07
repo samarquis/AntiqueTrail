@@ -1,6 +1,10 @@
 # Antique Trail Current Project State
 
-Status date: 2026-09-03. Code baseline: `origin/main` at `ab8cee725a7f33b0db2a4f6186657db372ec4af9`.
+Current document checkpoint: 2026-09-07 local consolidation draft, based on fetched main `63a47ac499c0b52e6af7c0601e5b627c26fa08f0`. The owner authorized `update plan as proposed, and show me the changes before publishing`; this draft is not merged or published and does not start implementation.
+
+The next intended milestone is the PRD's Free private experience evaluation. The completed product-reset review reported real trip/privacy/session/hours/saved-state failures and incomplete coverage; these are dated findings requiring current-path confirmation, not a fresh whole-product score. Its separate assessment backend was torn down according to the dated review receipt; a replacement hosted test requires its own scoped authority, and the older beta's health has not been rechecked here. Public and paid readiness remain unproved.
+
+The operational baseline below was recorded on 2026-09-03 against `ab8cee725a7f33b0db2a4f6186657db372ec4af9`, with later dated plan-intent additions. Treat those implementation and staged-off statements as historical until refreshed against current source and specific evidence; this consolidation does not claim a new implementation audit. Live issues/PRs remain on GitHub.
 
 This file is the current-state index. It reports what is implemented, what is merely specified or scaffolded, what is blocked, and where current work is tracked. It does not replace the product, design, security, package, or ADR contracts in `README.md`.
 
@@ -51,7 +55,7 @@ The Product Owner approved the public owner-acquisition plan on 2026-08-30. The 
 
 The amended Package 13 plan specifies same-subscription schedules for cycle-end paid-to-paid downgrades and authenticated application cancellation when a schedule prevents Stripe portal cancellation. This is plan intent, not implemented or verified servicing; the preserved #178 draft still requires provider reconciliation, lifecycle/media recovery, full tests, and independent review. Paid activation remains off.
 
-## Current implemented baseline
+## Historical implemented baseline
 
 - The React/TypeScript/Vite PWA, deterministic review harness, Supabase/PostgreSQL data boundary, migrations, RLS/RPC/Edge surfaces, and CI exist.
 - Public Store Browser/Details, shopper saves/trips/private memory, Store Representative workflows, Administrator workflows, staged review/release surfaces, and account lifecycle have substantial implemented coverage.
@@ -67,7 +71,7 @@ On 2026-09-03, current `main` passed `npm run check` and `npm run security:contr
 
 ## Release state
 
-Public release is **NO-GO**. Issue #56 and `docs/operations/G56_RELEASE_GATE_STATUS_LEDGER.md` control the remaining provider, human, operational, security, brand/domain, synthetic-checkpoint, and launch receipts. The ledger's 2026-08-23 row counts are historical until re-audited; scaffolding, migrations, green local tests, or a closed implementation ticket do not satisfy those gates.
+Public release is **NO-GO**. The current PRD, security/architecture requirements, and named operational procedures control remaining provider, human, security, recovery, brand/domain, and release requirements. Issue #56 and the G56 ledger preserve dated tracking/evidence; closing the tracker does not pass or remove those requirements. The ledger's 2026-08-23 row counts are historical until re-audited; scaffolding, migrations, green local tests, or a closed implementation ticket do not satisfy those gates.
 
 This plan amendment does not activate Vercel publication, Supabase shared-stage capabilities, Stripe billing, public reviews, real provider calls, owner outreach, external participation, promotion, or public release.
 

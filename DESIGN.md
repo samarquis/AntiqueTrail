@@ -2,7 +2,9 @@
 
 Status: current normative interaction baseline, incorporating the 2026-08-03 hardening and 2026-08-18 visual-identity decisions. Stable critique-derived rules are promoted into `DESIGN_SYSTEM.md`; dated implementation evidence does not silently redefine this contract. Current implementation and backlog state live in `PROJECT_STATE.md`. D31 full Audit History UI and export policy remain unresolved; two-year append-only privileged-audit retention is approved.
 
-This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines exact visual tokens, responsive rules, recurring component states, navigation, and screen-level acceptance; `docs/design/ICON_PLACEMENT_SPEC.md` defines the approved use of the icon family. `PRD.md` defines product requirements, `PRODUCT_DECISIONS.md` records approved scope, `SECURITY_AND_TRUST.md` defines trust boundaries, and `IMPLEMENTATION_PLAN.md` defines delivery order. When a visual prototype conflicts with these documents, these documents win.
+This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines exact visual tokens, responsive rules, recurring component states, navigation, and screen-level acceptance; `docs/design/ICON_PLACEMENT_SPEC.md` defines the approved use of the icon family. `PRD.md` defines product requirements, `PRODUCT_DECISIONS.md` preserves decision history, `SECURITY_AND_TRUST.md` defines trust boundaries, and `PRD.md` defines current stage prerequisites and `PACKAGE_CONTRACTS.md` defines engineering mechanics. When a visual prototype conflicts with these documents, these documents win.
+
+Detailed invited-owner interaction and consent/resume screens are delegated to [owner onboarding](docs/specs/owner-onboarding.md); exact public acquisition and commercial mechanics are delegated to [store membership](docs/specs/store-membership-spec.md). These named boundaries must agree with the parent PRD and security controls; ambiguity stops affected work.
 
 ## Product promise and audience
 
@@ -14,7 +16,7 @@ Use the accepted Daylight Archive direction in light theme and Midnight Archive 
 
 ## Global interaction rules
 
-- Use the Age-Inclusive Usability Baseline in `PRODUCT.md` and `PRD.md`.
+- Use the exact Age-inclusive usability baseline in `DESIGN_SYSTEM.md`.
 - Keep one obvious primary action per screen and preserve entered data after errors.
 - Explain disabled actions and identify the missing requirement.
 - Pair status color with an icon and plain text.
@@ -419,3 +421,17 @@ Before external testing, prove at minimum:
 7. Administrator review and access revocation work from separate MFA sessions and never expose shopper-private data.
 8. All forbidden actions fail server-side and all privileged attempts create audit records.
 9. Public-review routes are absent through Private Beta; at Regional release, eligibility, compose/preview, pending/published, edit/delete, report, moderation, and one appeal preserve privacy and update the arithmetic aggregate transactionally.
+
+## Product brand personality
+
+Trustworthy, practical, welcoming.
+
+## Product design principles
+
+1. **Browse Stores is home.** Use readable list-first discovery, with Store Details, Save, and Add to Trip close at hand; the map is optional.
+2. **Show why information is trustworthy.** Keep source, verification date, freshness, hours state, and uncertainty visible where decisions are made.
+3. **Make only supportable claims.** Use truthful hours checks until routing data supports arrival-time and feasibility claims.
+4. **Keep private boundaries understandable.** Require recipient authentication, share only the chosen candidate or trip, and keep each shopper's ideas, edits, notes, and ratings separate.
+5. **Capture without pretending to verify.** Preserve original URL and source state; label extracted facts as suggestions until reviewed; keep blocked sources usable through manual fallback.
+6. **Design for the trip, not the roadmap.** Prioritize one-handed link capture, idea review, planning, navigation handoff, stop status, and private memory; omit deferred features from the first slice.
+7. **Make the day feel inviting.** Use approved store imagery, a clear ordered trail, stop count, and calm readiness summary while keeping hours warnings prominent and truthful.

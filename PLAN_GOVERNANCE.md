@@ -4,7 +4,7 @@ Status: locked governance contract. Effective 2026-08-30.
 
 ## One source of truth
 
-The plan is the controlling document set listed in `PLANNING_INDEX.md`; it is not a ticket, chat summary, critique, mockup, branch, or implementation detail. `README.md` defines precedence inside that set. `PROJECT_STATE.md` reports current state but cannot create or change product, design, security, architecture, or delivery requirements.
+The plan has one product entry point in `PRD.md` and linked specialist requirements with the exact ownership boundaries in `README.md`. `PLANNING_INDEX.md` classifies current sources and historical evidence. Tickets, chat summaries, critiques, mockups, branches, and implementation details cannot create product authority. `PROJECT_STATE.md` reports current state but cannot create or change product, design, security, architecture, or delivery requirements.
 
 When sources conflict, stop the affected work. Reconcile the controlling sources through the plan-change process before creating or implementing dependent tickets.
 
@@ -30,7 +30,7 @@ An implementation request cannot retroactively authorize a plan change. If the i
 
 ## Decision discipline
 
-- Product, scope, provider, policy, release, or design decisions belong in `PRODUCT_DECISIONS.md` and every affected controlling contract.
+- Put each current product, scope, provider, policy, release, or design requirement in its one owning PRD/specialist section under README.md. Record the reason and authorization history in `PRODUCT_DECISIONS.md` and `PLAN_CHANGELOG.md`, with links to the current rule; the history is not a competing requirement source. Update affected references together without copying the rule into every document.
 - Architecture decisions belong in a new or superseding ADR and every affected controlling contract.
 - Tickets and pull requests may apply an approved decision; they may not become the only record of one.
 - A critique finding may show that implementation violates the plan. If it proposes different intended behavior, it remains a proposal until the plan is explicitly updated.
@@ -41,10 +41,10 @@ An implementation request cannot retroactively authorize a plan change. If the i
 Every implementation ticket contains five short sections:
 
 1. **Problem** — current evidence and the user or operational harm.
-2. **Plan** — the controlling file and heading, or the merged plan amendment; include dependencies and non-goals only when they matter.
-3. **Outcome** — one independently closable result.
+2. **Plan** — link the PRD overview and connected journey, the exact capability and relevant specialist headings, or the merged amendment; include dependencies and non-goals only when they matter.
+3. **Outcome** — one independently closable result and its place in that connected experience.
 4. **Acceptance** — one to five observable criteria needed to prove that result.
-5. **Verification** — the smallest executable checks that prove those criteria.
+5. **Verification** — the smallest executable checks that prove those criteria, including the affected transition to adjacent steps; milestone-level walkthroughs separately prove the joined experience.
 
 An implementation ticket must be closable with repository-controlled work and evidence. Human participation, provider approval, legal review, spending, production configuration, promotion, research cohorts, and public activation belong in a separate dependent gate issue. A broader feature may use a parent issue as a map, but each implementation child still owns one result. Split an untouched oversized issue before work starts; do not churn an active reviewed pull request solely to match the newer format.
 
@@ -71,3 +71,11 @@ Review and verification are proportional to risk. Documentation-only changes nee
 - `.github/workflows/issue-plan-governance.yml` marks malformed tickets `plan-invalid` and removes implementation-ready labels.
 - `.github/workflows/pr-plan-governance.yml` rejects pull requests without ticket/plan traceability and rejects protected-plan changes without an `update plan` authorization receipt plus an append-only changelog entry.
 - `main` branch protection must require pull requests, `web`, `database`, and `plan-governance` checks. Repository files cannot prove that hosted protection is enabled; verify it in GitHub after changing the rule.
+
+## Plan and implementation verification
+
+Before implementation starts, its ticket must cite the current contract and own one repository-controlled outcome. It closes when a clean checkout proves its mapped acceptance criteria with the applicable source, migration, allow/deny, UI, accessibility, failure, rollback, and security/privacy checks. External evidence and authorization close in separate gate issues. AI output is never a substitute for a failed executable check or required human gate.
+
+Security closure additionally requires exact Postgres privilege/FORCE-RLS tests; every session-revocation surface; auth/invitation fragment/cache/referrer denial; stage/capability matrix across route/RLS/Storage/RPC/Function/job; case-scoped sibling/bulk denial; SSRF limit corpus; field/XSS/Unicode boundaries; offline 36-hour/7-day lifecycle; DB/Auth/Storage restore with deletion/revocation replay; audit-chain external-root failure; quota/no-charge degradation; and header/CSP/CI artifact-digest assertions. A plan statement is not evidence of runtime behavior.
+
+The plan itself is accepted only when a fresh seven-lens review of the current full manifest finds no material P1/P2 contradiction, omission, untestable gate, privacy/security defect, design reproducibility defect, or unauthorized scope path. A numerical score is reported only with that finding set; the document cannot self-award 100.

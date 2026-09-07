@@ -1,4 +1,6 @@
-# Regional Public MVP Package Execution Contracts
+# Capability Engineering Contracts
+
+Current scope: engineering mechanics for Packages 1-13. Package identifiers preserve compatibility with existing source, tests, and history; they do not impose a blanket serial queue. Product outcomes and stage prerequisites live in PRD.md. Read the linked product/design/security owner before applying any technical contract.
 
 Status: normative engineering handoff for Packages 2â€“13. This file translates approved behavior into bounded implementation contracts; it does not report current completion and does not override product behavior in `PRODUCT_DECISIONS.md`, interaction behavior in `DESIGN.md`, visual rules in `DESIGN_SYSTEM.md`, or security policy in `SECURITY_AND_TRUST.md`. Package 1 remains controlled by the bounded contract in `IMPLEMENTATION_PLAN.md`; current implementation and release state live in `PROJECT_STATE.md`.
 
@@ -287,9 +289,247 @@ Package 1 plus these contracts cover every Regional Public MVP package, postlaun
 
 ## Protected internal synthetic review exception
 
-For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) narrowly supersedes blanket H-01-before-shared-use and CI-only upload clauses. Its isolated synthetic, provider-eligible, zero-spend, protected-Preview context is not Shared Alpha or another release stage. All public/external/paid gates and all security controls outside that exact exception remain mandatory; no formal gate passes by inference.
+Scope and constraints: [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md). This reference supplies no new assessment authorization; see [current assessment boundary](PRD.md#assessment-environment-boundary).
 
 
 ## Governed internal synthetic admission
 
-[ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md) extends only the ADR0007 owner-only assessment with a genuine, short-lived internal authorization for allowlisted synthetic identities and owned fixtures on the named isolated backend. Its server validation, role/scope/assurance controls, expiry, revocation and teardown are mandatory. Existing release receipts and public/shared/paid activation gates retain their meaning; no invented release evidence, real delivery, external participants or spending is authorized. The coordinated amendment must merge before dependent implementation.
+Scope and constraints: [ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md). This reference supplies no new assessment authorization; see [current assessment boundary](PRD.md#assessment-environment-boundary).
+
+## Repository structure baseline
+
+```text
+/
+├─ src/
+│  ├─ app/
+│  ├─ components/
+│  ├─ features/
+│  │  ├─ auth/
+│  │  ├─ catalog/
+│  │  ├─ capture/
+│  │  ├─ trips/
+│  │  ├─ store-portal/
+│  │  ├─ admin/
+│  │  └─ reviews/
+│  ├─ lib/
+│  └─ service-worker/
+├─ public/
+├─ supabase/
+│  ├─ migrations/
+│  ├─ functions/
+│  ├─ seed/
+│  └─ tests/
+├─ docs/
+│  ├─ adr/
+│  ├─ design/
+│  ├─ product/
+│  ├─ security/
+│  └─ operations/
+├─ tests/
+│  ├─ authorization/
+│  └─ e2e/
+├─ .github/workflows/
+├─ package.json
+└─ README.md
+```
+
+Start with one React/TypeScript/Vite PWA and one deployable. Keep shopper, Store Portal, and Administrator routes in the same application while enforcing server-side boundaries. Do not create a monorepo, shared package layer, or second admin application until a second deployable or proven reuse exists. Provider selections still require separate ADRs before dependent implementation.
+
+Create only directories required by the active slice. The broader tree above reserves ownership boundaries; it does not authorize empty feature scaffolding.
+
+## Package 1 — Local Synthetic catalog foundation
+
+This is the first implementation package, not the complete Regional Public MVP. It turns the approved Store Browser front door into a locally runnable, testable foundation while preserving every later phase.
+
+### Outcome and acceptance boundary
+
+The slice is complete only when a clean checkout can reproduce the local stack and all automated gates pass for:
+
+- one React/TypeScript/Vite PWA using the approved single-application architecture
+- local Supabase schema, migrations, RLS, grants, deterministic seed data, and generated database types
+- Synthetic Stores only, with fictional names, content, and rights-safe generated or neutral local images
+- anonymous list-first Store Browser at `/stores` and Store Details at `/stores/:slug`
+- search by name, town/area, and category; manual browsing without sign-in, device location, or map access
+- cover-image fallback, category summary, today's hours/open state, freshness state, full hours/exceptions, contact links, provenance/freshness, and plain verification caveat; correction reporting begins in Package 3
+- Age-Inclusive Usability Baseline across both routes
+- unit/component, database authorization, accessibility, and browser end-to-end tests
+- GitHub Actions CI that installs from the lockfile, checks formatting/lint/types/tests, starts the local Supabase stack for database tests, builds the PWA, and runs browser tests
+- local setup and verification instructions in `README.md`
+
+This slice does not create private data or private actions. Hide `Save`, `Add to Trip`, private ratings/notes, and `Report correction`; do not render disabled or teaser controls. Store Details may show only `Website`, `Call`, and external-map address links when valid fixture data exists. Later packages add private/correction actions with their complete authentication and endpoint contracts.
+
+### NOT in scope
+
+- authentication, accounts, profiles, roles, scoped grants, or privileged audit events
+- Candidate Link/Share, Trip Ideas, saved stores, personal ratings, or private notes
+- trip planning, routing, maps, device location, navigation handoff, Go, or authenticated offline data
+- Store Portal, Store Partner Invitation, Administrator, moderation, support, or break-glass workflows
+- public reviews, public user-generated content, events, vendor access, or social-feed synchronization
+- uploads, Supabase Storage, remote image fetching, scraping, email, notifications, analytics, or external APIs
+- real store names, records, media, owners, shoppers, or public entities
+- external participant testing, owner outreach, advertising, public release, hosting choice, or deployment
+
+### What already exists
+
+Historical starting-state facts remain in [the original roadmap](IMPLEMENTATION_PLAN.md#what-already-exists); use PROJECT_STATE.md and current code for implementation state.
+
+### Runtime and data flow
+
+```text
+Anonymous browser
+  -> React routes
+       -> /stores
+            -> one bounded `catalog_list` database RPC per page
+            -> loading | results | empty | recoverable error
+            -> search/category/area controls update URL/query state and issue a new server request
+            -> one deterministic bounded result; `catalog_too_large` fails closed instead of truncating
+       -> /stores/:slug
+             -> one bounded `catalog_details` database RPC
+            -> details | not found | recoverable error
+  -> Supabase browser client using publishable/anonymous key only
+       -> PostgREST Data API
+             -> EXECUTE only on the two catalog RPCs
+             -> no anonymous base-table grants
+             -> fixed-search-path functions and explicit parent visibility checks
+             -> only active, current Synthetic Store rows
+  -> local Postgres seeded only from versioned SQL
+
+Static PWA shell and fictional images
+  -> Vite build output
+  -> service worker caches shell/assets only
+  -> no authenticated, user, trip, provider, or catalog response cache
+```
+
+Keep one catalog data-access module. Do not add a repository interface, factory, service layer, state library, or second application. The three Package 1 filters apply server-side to the bounded set. Components receive typed catalog results and render explicit loading, empty, error, and success states; pagination remains absent until Package 10A proves it is needed.
+
+### Minimal data model and security boundary
+
+Versioned migrations are the schema source of truth. Dashboard-only schema changes are prohibited.
+
+- `catalog_areas`: immutable UUID, canonical slug, display label, state code, and sort order. Slug is lowercase ASCII `a-z`, `0-9`, and single hyphens only, 1–64 characters, unique; display label is NFKC/trimmed, 1–80 Unicode code points. Package 1 seeds only `topeka-ks` / `Topeka` / `KS`.
+- `store_categories`: immutable UUID, canonical slug, display label, and sort order under the same slug/label rules. Package 1 seeds `antique-mall`, `vintage`, `furniture`, `collectibles`, `home-decor`, and `flea-market`; later taxonomy changes require a migration/data receipt, never client-created values.
+- `stores`: synthetic flag/audience, publication state, unique slug, name, town, state, address, `area_id` required foreign key to `catalog_areas`, optional coordinates for display-only fixtures, summary, description, phone, website, store time zone, and created/updated timestamps
+- `store_category_assignments`: `(store_id, category_id)` primary key with cascading removal only when the parent store is deliberately removed; no free-text category value
+- `store_fact_verifications`: store, required group enum (`identity_location`, `contact`, `hours`, `categories_attributes`, optional `media_social`), verified-at UTC, public provenance label, and fixture verifier kind; listing freshness uses the oldest required core group and never refreshes all groups from one edit
+- `store_weekly_hours`: `(store_id, iso_weekday, interval_index, is_closed, opens_at, closes_at)` with unique store/day/index; an open day has interval indexes 1 and optionally 2, while a closed day has one index-1 row with null times
+- `store_hour_exceptions`: `(store_id, local_date, interval_index, is_closed, opens_at, closes_at, label)` with unique store/date/index; a date has one closed row or one/two replacement intervals and replaces, never layers onto, the weekly day
+- `store_media`: store, local fictional asset path, cover/gallery kind, alternative text, and display order
+
+Database constraints enforce required fields, ISO weekdays 1–7, IANA store time zones, unique store/area/category slugs, unique normalized area/category labels, one required area per store, at least one category assignment per published store, zero or one cover image per store through a partial unique constraint, bounded gallery order, valid HTTP/HTTPS contact links, and Synthetic Store-only seed values. A photo-less or rights-withdrawn listing has zero media rows and renders the neutral UI placeholder; no fake placeholder media record is stored. B-tree indexes cover `stores(area_id, publication_state)`, category assignment in both directions, and canonical area/category slugs. An open interval requires `start < end`; overnight ranges are prohibited and must be split at midnight; a day has at most two ordered intervals; overlap or touching intervals are rejected instead of silently merged; `closed` requires zero intervals. An exception date is unique per store and replaces the weekly day. Local wall time is interpreted in the approved store time zone; nonexistent DST wall times are invalid, while an ambiguous open uses the earlier offset and an ambiguous close uses the later offset. Missing or invalid hours return `Hours unavailable` and never an open/closed claim.
+
+Seed rows include stable IDs and fact-group provenance/verification fields so `supabase db reset` produces identical fixtures. Production freshness, local date, and open state are calculated inside the catalog RPC from database `statement_timestamp()`; the client receives `as_of_utc` and display-ready state and does not make a security/freshness decision from its device clock. Tests may override time only through a test-schema function enabled by the local test migration; production migrations, anonymous roles, built assets, and hosted environments cannot execute or reference that override. Wall-clock passage cannot change deterministic seed-test outcomes.
+
+Every base table enables and `FORCE ROW LEVEL SECURITY`; runtime/authenticator/function-owner roles own no application table. Revoke schema create, table/sequence privileges, and function execute from `PUBLIC`; `anon` has no table privilege and receives `EXECUTE` only on `catalog_list`/`catalog_details`. Those are explicitly `SECURITY DEFINER`, owned by a dedicated no-login role with only minimum base-table `SELECT`, no inheritance/BYPASSRLS/table ownership, a literal `search_path=pg_catalog,app_public`, schema-qualified objects, no dynamic SQL, bounded typed output, and explicit input constraints. Every child join passes the trusted parent predicate requiring `synthetic=true`, active publication, and freshness ≤365 days. Unknown/hidden/stale/non-Synthetic detail returns the same not-found. Tests prove direct base/child denial, indirect RPC sibling/hidden denial, hostile search path/object input, excessive result denial, and all anonymous writes denied. Browser receives only the publishable key; service/database credentials never enter client/build/log/CI.
+
+That direct `anon` RPC grant is Package 1 local/Synthetic scope only. Package 10B must revoke it and expose public list/detail solely through the rate-limited Supabase Edge Function catalog gateway contracted in `SECURITY_AND_TRUST.md` and `PACKAGE_CONTRACTS.md`; direct PostgREST bypass must deny. No Package 1 code may assume the direct transport is permanent.
+
+Each RPC returns the complete bounded projection needed by its route, including hours/media children, to prevent per-card queries. The database owns trusted open/freshness state; one matching pure formatter may render returned schedules and is verified against RPC fixtures but cannot widen visibility or contradict `as_of_utc`. No provider call or device location participates.
+
+#### Bounded catalog query contract
+
+- URL parameters are only `q`, `category`, and `area`; each is single-valued. Repeated values use the first and the canonical URL removes the rest.
+- Trim/collapse whitespace, reject control characters, and cap `q` at 100 Unicode code points. Empty becomes no text filter. Package 1 uses case-insensitive substring search over store name, town, area label, and category labels; it adds no search extension, normalization trigger, or speculative scale index.
+- `category` and `area` are exact slug matches. Unknown valid values return zero; malformed values are removed with an accessible explanation.
+- Default order is store name ascending, then immutable store UUID ascending. The deterministic seed contains 12 Synthetic Stores and one RPC returns the full bounded set; Package 1 has no cursor, `Load More`, catalog revision, open/freshness filter, or 100-store scale proof.
+- Package 10A adds release-scale Unicode/accent search, `Open Today`, `Open Now`, freshness filtering, index/query-plan proof, and revision-bound pagination only if the verified regional catalog can exceed 50 active listings or measurements show the bounded query is insufficient.
+
+### PWA, dependency, and developer-experience choices
+
+- package manager: `npm` with committed lockfile
+- runtime: current supported Node.js LTS pinned in `.nvmrc` and `package.json#engines` when implementation starts; exact npm version pinned in `packageManager`
+- application: React, TypeScript strict mode, Vite, and React Router
+- data: `@supabase/supabase-js` plus generated database types
+- PWA: `vite-plugin-pwa` manifest plus generated service worker limited to the static shell and versioned local assets
+- browser/cache: shell/service worker `no-cache`; hashed assets one-year immutable; API/RPC `no-store`; service worker never caches Supabase/API/private data; production uses the exact CSP/security headers in `SECURITY_AND_TRUST.md`
+- code quality: ESLint flat configuration with `typescript-eslint`, React hooks rules, and Prettier
+- tests: Vitest, Testing Library, `@testing-library/jest-dom`, pgTAP through the Supabase CLI, Playwright, and `@axe-core/playwright`
+- versioning: every direct dependency and the Supabase CLI are exact versions in `package.json`; the committed npm lockfile and Playwright browser revision are authoritative. A dependency update is a separate reviewed lockfile change, not an implicit install-time choice.
+- CI supply chain: pin every GitHub Action to a full commit SHA; default workflow permissions read-only; no provider/deployment secrets in untrusted PR jobs; protected deployment approval; lockfile/dependency/license/secret/SAST/migration checks; CycloneDX SBOM and tested artifact digest
+- configuration: committed `.env.example`; ignored local environment file; startup fails clearly when required public configuration is absent
+- commands: one documented `npm run check` aggregate plus focused `dev`, `build`, `typecheck`, `lint`, unit, database, and end-to-end commands
+
+Local Supabase requires a supported Docker-compatible runtime. Treat stack startup failure as an environment error with a documented recovery path, not a reason to bypass database authorization tests. `supabase db reset` is local/destructive and must never point at a shared or production project.
+
+### Failure modes and required behavior
+
+| Failure | Required behavior | Proof |
+|---|---|---|
+| Supabase unavailable or request times out | Keep app shell usable; show plain error plus Retry; never show stale success | Component and browser test |
+| Seed contains zero visible stores | Show intentional empty state, not blank screen or crash | Component and browser test |
+| Search/filter returns zero matches | Preserve controls and query; show Clear Filters | Component and browser test |
+| More than 50 stores match unexpectedly | Return `catalog_too_large`, show a plain retry/support state, and block Package 1 acceptance; never truncate silently. Package 10A owns measured pagination | Database and browser test |
+| Store slug is unknown, hidden, or malformed | Show the same not-found state without leaking hidden-row existence | Database and browser test |
+| Hours or exception data is missing/invalid | Show `Hours unavailable`; never guess open state | Unit and component test |
+| Image is missing or fails to load | Render neutral accessible placeholder without layout shift | Component and browser test |
+| Slow response | Show non-blocking loading state; controls remain understandable; no duplicate request storm | Component test |
+| RLS or grants are misconfigured | CI fails on allowed/denied matrix before browser acceptance | pgTAP test |
+| Service worker is unsupported or update fails | Online browsing still works; no private/catalog response is cached | Build and browser test |
+| CI runner cannot start local Supabase | Job fails with stack logs; database tests are not skipped | CI workflow test |
+
+### Test coverage contract
+
+No code exists yet, so current executable coverage is 0%. Implementation writes tests with each path; tests are not a later hardening phase.
+
+```text
+CODE/DATA PATHS                                      USER FLOWS
+[PLANNED] catalog query                              [PLANNED] Browse Stores [-> E2E]
+  +-- allowed active synthetic rows                    +-- immediate list without sign-in/location
+  +-- denied non-synthetic/hidden rows                 +-- search name, area, category
+  +-- denied anonymous writes                          +-- zero matches -> Clear Filters
+  +-- success | empty | timeout/error                  +-- Retry after failed request
+
+[PLANNED] hours/open-state formatter                 [PLANNED] Store Details [-> E2E]
+  +-- weekly hours                                      +-- open card by pointer and keyboard
+  +-- dated exception overrides                         +-- direct/deep URL
+  +-- store-local time zone                             +-- unknown/hidden slug -> not found
+  +-- missing/invalid -> unavailable                    +-- Back preserves Browse state
+
+[PLANNED] media rendering                            [PLANNED] Age-inclusive access [-> E2E]
+  +-- cover/gallery order                               +-- keyboard + visible focus
+  +-- missing/failing image -> placeholder              +-- 200% text resize/reflow
+  +-- meaningful alt text                               +-- 48x48 targets, labeled/non-color status
+
+TARGET: 100% statements/branches/functions/lines for slice-owned catalog
+logic and data access. Generated types, framework entry files, and static data
+are excluded. Critical browser and RLS behavior must pass independently of
+line coverage.
+```
+
+Required tests:
+
+- unit: bounded query validation, exact category/area matching, freshness labels with injected test clock, weekly/exception hours invariants, DST boundaries, and invalid/missing-data fallbacks
+- component: loading, results, empty seed, zero matches, retry, missing image, hours unavailable, and accessible names/status
+- database: schema/hour constraints, deterministic 12-store seed, test-clock isolation, server-side `q/category/area` filtering, deterministic order, active/current Synthetic Store RPC reads, direct base/child-table denial, stale/hidden/non-synthetic denial, all anonymous write denial, and unknown-versus-hidden indistinguishability
+- end to end: `/stores` search/filter to `/stores/:slug`, direct details URL, browser Back/query state, keyboard-only path, 200% zoom/reflow, no auth/location prompt, request failure/retry, not found, and installable shell
+- CI: clean install, static checks, unit/component tests with coverage, local Supabase reset plus pgTAP, production build, Playwright, and artifact/log retention on failure
+
+### Performance contract
+
+- one catalog request per Store Browser page and one for Store Details; no per-card or per-hour request loop
+- explicit selected columns; server-side filters; deterministic sort with stable unique tie-breaker; hard maximum 50 rows
+- ordinary indexes supporting active-synthetic filtering, category tags, slug lookup, and store/hour joins; measured release-scale search/pagination indexes belong to Package 10A
+- no map SDK, remote feed, remote image fetch, prefetch of every detail record, or speculative client cache
+- responsive local images with declared dimensions; lazy-load below-fold images
+- initial JavaScript target at or below 250 KiB compressed; exceeding it requires a measured reason recorded in the plan
+- lab targets: LCP at or below 2.5 seconds, INP at or below 200 ms, and CLS at or below 0.1 on a local production build in the Playwright-pinned Chromium, `390x844` viewport, 4x CPU slowdown, Fast 4G (`1.6 Mbps` down, `750 Kbps` up, `150ms` RTT), cold HTTP/service-worker cache, and median of three runs per route. Record browser revision, machine/runner, bundle size, request count, bytes, and all three measurements. Field 75th-percentile validation waits for a real authorized audience.
+- exercise list, search, and details with the exact deterministic 12-store Synthetic fixture; record query count, transferred bytes, and timings in the slice receipt
+
+### Execution order, gates, and rollback
+
+One sequential implementation lane is preferred; this slice is too small for parallel ownership before schema and route contracts stabilize.
+
+1. Create minimal Vite application, package/lockfile, strict TypeScript, formatting/linting, PWA shell, and CI skeleton. Gate: clean install, typecheck, build, and shell smoke test.
+2. Add local Supabase config, migrations, deterministic 12-store Synthetic seed/test clock, generated types, grants/RLS, and pgTAP tests. Gate: reset succeeds twice from clean local state; bounded filter and allowed/denied authorization cases pass.
+3. Add catalog data module and pure hours/freshness logic with unit tests. Gate: coverage contract and failure paths pass.
+4. Build `/stores` and `/stores/:slug` against `DESIGN.md` and `DESIGN_SYSTEM.md`, including all states and age-inclusive baseline. The archival flow lab is not an implementation source. Gate: component, accessibility, and browser tests pass on phone, tablet, and desktop viewports.
+5. Run full `npm run check`, local reset, production build, and browser suite; inspect built assets for secrets and forbidden data; record evidence on the GitHub tracker. Gate: zero failing checks, zero real-store data, zero auth/location/provider calls, and explicit product-owner review before any next slice.
+
+Failure routes to the owning step; never weaken a gate or replace a failed database/browser check with AI judgment. Rollback is a normal Git revert of the bounded slice plus local `supabase db reset`; there is no remote data or deployment to recover. Stop immediately if real-store data appears, a public deployment would be required, authorization tests cannot run, or implementation needs a product decision outside this contract.
+
+### Authoritative implementation references
+
+- [Supabase local development workflow](https://supabase.com/docs/guides/local-development/cli-workflows) for versioned migrations, deterministic local setup, and Docker-compatible runtime requirements
+- [Supabase secure data guidance](https://supabase.com/docs/guides/database/secure-data) for publishable-key, grants, RLS, and service-role boundaries
+- [Supabase database testing](https://supabase.com/docs/guides/local-development/testing/overview) for pgTAP, RLS, negative authorization, and CI tests
+- [Playwright continuous integration](https://playwright.dev/docs/ci) for browser installation, stable CI execution, and failure artifacts
+- [Core Web Vitals thresholds](https://web.dev/articles/defining-core-web-vitals-thresholds) for LCP, INP, CLS, and future 75th-percentile field validation

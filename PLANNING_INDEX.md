@@ -1,113 +1,33 @@
 # Antique Trail Planning and Evidence Index
 
-Status: current document-role map as of 2026-09-03. When documents conflict, use the source precedence in `README.md` and stop only the dependent work until the controlling documents are reconciled.
+Document classification as of the 2026-09-07 local consolidation draft. [README source precedence](README.md#source-precedence) owns the responsibility table; [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md) owns change and closure rules.
 
-## Root Markdown inventory
+## Current requirements
 
-| File                        | Classification                                                  |
-| --------------------------- | --------------------------------------------------------------- |
-| `README.md`                 | Orientation and source-precedence map                           |
-| `PLAN_GOVERNANCE.md`        | Locked-plan, decision, amendment, and ticket-admission contract |
-| `PLAN_CHANGELOG.md`         | Append-only authorized plan-amendment ledger                    |
-| `PROJECT_STATE.md`          | Current-state index                                             |
-| `PLANNING_INDEX.md`         | Document-role and maintenance map                               |
-| `CODEX_START_PROMPT.md`     | Current execution authority and stop conditions                 |
-| `PRODUCT_DECISIONS.md`      | Controlling product policy                                      |
-| `PRD.md`                    | Controlling product requirements                                |
-| `PRODUCT.md`                | Concise supporting product register                             |
-| `DESIGN.md`                 | Controlling interaction contract                                |
-| `DESIGN_SYSTEM.md`          | Controlling visual/component/screen contract                    |
-| `SECURITY_AND_TRUST.md`     | Controlling security, privacy, and operations policy            |
-| `IMPLEMENTATION_PLAN.md`    | Original roadmap plus Package 1 contract                        |
-| `PACKAGE_CONTRACTS.md`      | Packages 2-13 execution contracts                               |
-| `PLAN_ACCEPTANCE.md`        | Dependency/acceptance index and historical plan-quality receipt |
-| `PHASE_0_REVIEW.md`         | Historical 2026-07-30/31 review snapshot                        |
-| `DEEP_SPEC_REVIEW.md`       | Historical 2026-08-16 spec-gap snapshot                         |
-| `ROLE_BASED_SITE_REVIEW.md` | Historical 2026-08-18 role review snapshot                      |
-| `REVIEW_VERDICTS.md`        | Append-only dated verification ledger                           |
-| `PLAN.md`                   | Historical 2026-08-24 ticket-execution plan                     |
-| `GATES.md`                  | Historical Issue #122 gate ledger                               |
-| `PLAN_TICKET_SEQUENCE.md`   | Historical 2026-08-29 ordered ticket ledger                     |
-| `OPEN_TICKET_TODO.md`       | Current ticket workflow; no live status                          |
-| `CONTEXT.md`                | Historical discovery context, non-normative                     |
-| `USER_RESEARCH.md`          | Research evidence, non-normative                                |
-| `COMPETITIVE_LANDSCAPE.md`  | Research evidence, non-normative                                |
-| `SEED_STORE_NOTES.md`       | Synthetic fixture notes, not product or release authority       |
+- [PRD.md](PRD.md): start with purpose, connected journeys, and the next Free private evaluation, then use detailed capability and later-stage headings.
+- [DESIGN.md](DESIGN.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [SECURITY_AND_TRUST.md](SECURITY_AND_TRUST.md), [PACKAGE_CONTRACTS.md](PACKAGE_CONTRACTS.md): linked specialist detail; Package 1 technical requirements now live with the other capability contracts.
+- [Store membership](docs/specs/store-membership-spec.md), [invited-owner onboarding](docs/specs/owner-onboarding.md), and approved [design references](docs/design/README.md): detail for explicitly delegated boundaries.
+- [Accepted ADRs](docs/adr/): architecture constraints; ADR0007/0008 retain only their original assessment scope and provide no replacement test authority.
+- [Operational runbooks](docs/operations/): executable procedures and named gate criteria under the applicable security/architecture contract; inspect each artifact's date, scope, and status.
 
-## Current controlling sources
+## Navigation and workflow
 
-| Document                 | Role                                                                              | Maintenance rule                                                                                                |
-| ------------------------ | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `PLAN_GOVERNANCE.md`     | Controls plan authority, design lock, decisions, amendments, and ticket admission | Amend only after an explicit Product Owner `update plan` directive; record the amendment in `PLAN_CHANGELOG.md` |
-| `PROJECT_STATE.md`       | Current implementation, backlog, decision, and release-state index                | Refresh from `main`, live GitHub, and dated gate evidence; never use it to invent product policy                |
-| `PRODUCT_DECISIONS.md`   | Approved scope and policy decisions                                               | Append or amend only with Product Owner authority; keep deferred choices explicit                               |
-| `PRD.md`                 | Product behavior, outcomes, MVP boundary, and acceptance requirements             | Change when intended product behavior changes, not merely when implementation status changes                    |
-| `DESIGN.md`              | Canonical journeys, interaction behavior, and copy intent                         | Promote accepted interaction changes here                                                                       |
-| `DESIGN_SYSTEM.md`       | Exact tokens, responsive rules, component states, and screen acceptance           | Promote stable critique lessons and verified design-system contracts here                                       |
-| `SECURITY_AND_TRUST.md`  | Security, privacy, authorization, retention, and operational policy               | Keep implementation and release claims separate from required controls                                          |
-| Most recent accepted ADR | Architecture decision for its named boundary                                      | A newer accepted ADR may supersede only the boundary it names                                                   |
+- README.md, CODEX_START_PROMPT.md, repository agent guides: entry instructions and links, not extra product policies.
+- PLAN_GOVERNANCE.md: amendment, admission, review, verification, and closure requirements.
+- OPEN_TICKET_TODO.md and docs/agents/issue-tracker.md: applying that workflow; no live backlog copies.
+- PLAN_ACCEPTANCE.md: linked capability navigation and historical acceptance receipts.
+- PRODUCT.md: compatibility link to the PRD.
+- manifest.json: handoff file inventory and reading order, not the PWA manifest.
 
-## Delivery and acceptance contracts
+## Facts and evidence
 
-| Document                              | Role                                                | Current interpretation                                                                                                     |
-| ------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `IMPLEMENTATION_PLAN.md`              | Original roadmap plus normative Package 1 contract  | Roadmap sequencing is historical where packages have already shipped; package requirements remain useful unless superseded |
-| `PACKAGE_CONTRACTS.md`                | Normative Packages 2-13 engineering contracts       | Contracts do not prove completion; Package 13 includes staged-off Stripe billing                                           |
-| `PLAN_ACCEPTANCE.md`                  | Cross-document dependency and independent-build map | The 2026-08-03 score is a historical plan-quality receipt, not current readiness                                           |
-| `docs/specs/store-membership-spec.md` | Public owner acquisition, photo-tier, and Stripe flow contract | Free-only public intake starts at 10B; paid activation remains separately gated                                  |
-| `docs/specs/owner-onboarding.md`      | Detailed invited-owner onboarding interaction amendment | Pilot/invitation variant; public applicants reuse protections only through the membership contract                 |
-| `docs/specs/TDD_DEVELOPMENT_PLAN.md`  | 2026-08-23 ticket-cut plan                          | Historical execution snapshot; use current issues and `PROJECT_STATE.md` for status                                        |
+- PROJECT_STATE.md: dated implementation and environment facts with scoped evidence; GitHub is authoritative for live issues and PRs.
+- PRODUCT_DECISIONS.md: preserved decisions and reasons, linked to current requirements; PLAN_CHANGELOG.md: append-only amendment history.
+- IMPLEMENTATION_PLAN.md: historical phase/package roadmap, with links to migrated requirements.
+- PHASE_0_REVIEW.md, DEEP_SPEC_REVIEW.md, ROLE_BASED_SITE_REVIEW.md, REVIEW_VERDICTS.md: dated reviews, not current whole-product acceptance.
+- PLAN.md, PLAN_TICKET_SEQUENCE.md, GATES.md, OPENCODE_TICKET_REVIEW_TODO.md: historical execution/scope-specific handoff material; refresh exact source and live state before reuse.
+- docs/operations/G56_RELEASE_GATE_STATUS_LEDGER.md: historical row states and pointers to named gate procedures; issue #56's closure does not waive surviving requirements.
+- USER_RESEARCH.md, COMPETITIVE_LANDSCAPE.md, CONTEXT.md, SEED_STORE_NOTES.md, docs/research/, docs/testing/, docs/evidence/, and gates/: discovery, synthetic notes, or dated evidence at their stated scope.
+- docs/design/antique-trail-flow-lab.html: archival concept evidence, not product implementation or acceptance.
 
-## Current operational sources
-
-| Document                                            | Role                                         | Current interpretation                                                                     |
-| --------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `docs/operations/G56_RELEASE_GATE_STATUS_LEDGER.md` | Human/provider release-gate ledger           | Gate contract remains current; 2026-08-23 counts are historical until refreshed row by row |
-| Other `docs/operations/*.md`                        | Runbooks, receipts, and readiness procedures | A template, DRAFT, SCAFFOLDED, NO-GO, or unexecuted runbook is not passing evidence        |
-| GitHub issues and pull requests                     | Live work state and acceptance scope         | Refresh live; closed issue scope is not equivalent to release readiness                    |
-| Hosted CI and committed evidence                    | Commit-specific verification                 | Record exact SHA/scope; synthetic harness evidence is not provider/production proof        |
-
-## Historical snapshots and ledgers
-
-| Document                             | Snapshot meaning                                                                                |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `PHASE_0_REVIEW.md`                  | 2026-07-31 product/security/architecture review that approved the original bounded build plan   |
-| `DEEP_SPEC_REVIEW.md`                | 2026-08-16 browser/spec gap snapshot; its eight named findings were later ticketed and repaired |
-| `ROLE_BASED_SITE_REVIEW.md`          | 2026-08-18 role-based review-harness snapshot; not a current full-site verdict                  |
-| `REVIEW_VERDICTS.md`                 | Append-only dated acceptance evidence and caveats; entries retain their original scope          |
-| `PLAN.md`                            | 2026-08-24 eleven-ticket execution plan; not the current backlog                                |
-| `GATES.md`                           | Issue #122 completion ledger; not the global project gate file                                  |
-| `PLAN_TICKET_SEQUENCE.md`            | 2026-08-29 ordered ticket execution ledger; completed rows remain historical evidence           |
-| `docs/testing/*.md` and `gates/*.md` | Per-ticket/agent review and gate evidence; never global product state                           |
-
-Untracked `PLAN_*.md` or `gates/*.md` files in a working tree are local execution artifacts until deliberately reviewed and committed. They cannot override any controlling source.
-
-## Research and design evidence
-
-- `USER_RESEARCH.md`, `COMPETITIVE_LANDSCAPE.md`, `CONTEXT.md`, and `docs/research/*` provide discovery or technical research evidence; they are not current requirements unless promoted into a controlling source.
-- `docs/design/*` contains approved references, placement rules, gauntlets, and concept artifacts. `DESIGN_SYSTEM.md` controls values and reusable rules; the flow lab remains concept-only.
-- `docs/evidence/*` records dated, scope-bounded verification. Evidence should not be rewritten into broader claims than its own boundary permits.
-- `PRODUCT.md` is a concise product register and orientation summary. `PRD.md` wins for detailed behavior.
-
-## Where a new fact belongs
-
-| New fact                                                       | Update                                                                                                                               |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Product Owner explicitly directs `update plan`                 | Follow `PLAN_GOVERNANCE.md`; update every affected controlling source and append `PLAN_CHANGELOG.md` before dependent implementation |
-| Product Owner chooses a provider, policy, feature, or deferral | `PRODUCT_DECISIONS.md`, then the affected PRD/design/security/package contract and `PROJECT_STATE.md`                                |
-| A visual critique establishes a reusable rule                  | `DESIGN_SYSTEM.md` or `DESIGN.md`, plus dated evidence                                                                               |
-| Code merges                                                    | `PROJECT_STATE.md` only when material capability state changes                                                                       |
-| An issue or pull request changes status                        | GitHub only; do not duplicate live state in repository Markdown                                                                      |
-| A human/provider/release gate passes                           | Its signed operational receipt, the G56 ledger, GitHub #56, then `PROJECT_STATE.md`                                                  |
-| An old review becomes stale                                    | Add a prominent historical/superseded banner; do not erase the evidence                                                              |
-
-Tickets never become controlling sources. Every implementation ticket must pass `PLAN_GOVERNANCE.md`, cite the current controlling heading, own one repository-controlled outcome, and use at most five acceptance criteria. External activation evidence belongs in a separate gate issue. A proposal remains non-normative until its authorized plan amendment merges.
-
-## Internal product-reset deployment boundary
-
-[ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) controls only owner-only protected synthetic review deployment; it is the scoped successor to ADR0006, not public-release acceptance.
-
-
-## Governed internal synthetic admission
-
-[ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md) extends only the ADR0007 owner-only assessment with a genuine, short-lived internal authorization for allowlisted synthetic identities and owned fixtures on the named isolated backend. Its server validation, role/scope/assurance controls, expiry, revocation and teardown are mandatory. Existing release receipts and public/shared/paid activation gates retain their meaning; no invented release evidence, real delivery, external participants or spending is authorized. The coordinated amendment must merge before dependent implementation.
+Untracked local artifacts do not become published authority by appearing in a checkout. Promote intended changes only through the authorized amendment; preserve original findings and label supersession instead of rewriting old evidence as current fact.

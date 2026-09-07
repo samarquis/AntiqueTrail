@@ -822,9 +822,169 @@ Before public marketing:
 
 ## Protected internal synthetic review exception
 
-For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) narrowly supersedes blanket H-01-before-shared-use and CI-only upload clauses. Its isolated synthetic, provider-eligible, zero-spend, protected-Preview context is not Shared Alpha or another release stage. All public/external/paid gates and all security controls outside that exact exception remain mandatory; no formal gate passes by inference.
+Scope and constraints: [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md). This reference supplies no new assessment authorization; see [current assessment boundary](PRD.md#assessment-environment-boundary).
 
 
 ## Governed internal synthetic admission
 
-[ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md) extends only the ADR0007 owner-only assessment with a genuine, short-lived internal authorization for allowlisted synthetic identities and owned fixtures on the named isolated backend. Its server validation, role/scope/assurance controls, expiry, revocation and teardown are mandatory. Existing release receipts and public/shared/paid activation gates retain their meaning; no invented release evidence, real delivery, external participants or spending is authorized. The coordinated amendment must merge before dependent implementation.
+Scope and constraints: [ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md). This reference supplies no new assessment authorization; see [current assessment boundary](PRD.md#assessment-environment-boundary).
+
+## Product private content lifetime controls
+
+- Keep private saves, trips, trip history, personal ratings, notes, and accepted Trip Ideas until their owner deletes the supported record or deletes the account.
+- Do not expire this content only because it is old.
+- Individual deletion removes the record from view immediately, offers a short Undo, and deletes its primary database row and associated Storage objects within 24 hours.
+- Account deletion revokes access immediately, offers a clearly disclosed seven-day cancellation period, and completes primary database and Storage deletion by day 8 if not cancelled.
+- Recoverable backups containing deleted data age out within 30 days. A disaster restore reapplies completed deletion requests before normal access resumes.
+- At the first UTC daily job on/after three years without successful sign-in, schedule deletion 90 days later and warn at 90/30/7 days; then apply the seven-day cancellation window. Successful sign-in atomically cancels; jobs are milestone-idempotent, notification failure does not extend retention, and leap-day anniversary uses February's last day.
+- Determine inactivity only from authentication state, never browsing, trip, location, or behavior tracking. Reset Synthetic Internal Alpha accounts manually instead of applying this timer.
+- Pending Candidate Shares expire after 30 days. Revoked, dismissed, blocked, reported, or expired payloads follow the exact closure/evidence rules in the Candidate Share section; accepted outbound URL/note deletes after 30 days and content-free accepted status after 90 days.
+- Raw Trip/Store Partner tokens are never stored. Terminal token hashes/payloads delete within 24 hours; Trip invitation status remains 90 days, accepted participation follows trip lifetime, and Store Partner invitation history remains three years after relationship end.
+- Exact completed-trip start/return coordinates delete within 24 hours after sync, are excluded from export, and age out of backups within 30 days.
+
+## Product operational retention controls
+
+- Application/error logs: 30 days.
+- Authentication/security events: 90 days.
+- Raw IP/device/destination abuse telemetry: 30 days; irreversible security-only aggregates: 90 days; never reuse for analytics or personalization.
+- Privileged Store Representative and Administrator audit events: two years.
+- Support and moderation cases: two years after closure.
+- Pilot consent, authority-verification, and role-grant records: three years after the relationship ends.
+- Rejected or quarantined uploads: 30 days.
+- Approved store media: unpublish immediately on rights withdrawal/pilot end; delete source/derivatives within 24 hours and backups within 30 days; content-free provenance/audit follows the three-year relationship rule.
+- Support screenshots: delete 30 days after case closure or earlier removal and backups within 30 days; the text case may retain two years.
+- Content-free deletion receipts: 31 days.
+- Never copy shopper-private content into logs or audit events. Securely delete or irreversibly de-identify each record at its deadline.
+- Legal review may require longer retention before external testing. A shorter period requires product-owner approval.
+
+## Product recovery objectives controls
+
+| Stage | Maximum data loss (RPO) | Maximum outage (RTO) |
+|---|---:|---:|
+| Internal Alpha | 24 hours | One business day |
+| Private Beta | 4 hours | 8 hours |
+| Regional Public MVP | 15 minutes | 4 hours |
+
+Database and Storage recovery must pass separate restore tests before each stage gate. Provider documentation or a successful database-only restore does not prove complete recovery.
+
+## Product break-glass emergency access controls
+
+- Disable break-glass access during Synthetic Internal Alpha.
+- During Private Beta and Regional Public MVP, allow it only for a confirmed security or data-recovery incident, never routine support.
+- Require Administrator MFA, recent authentication, an incident ID, a plain-language reason, and the exact requested data scope.
+- Make access read-only by default and expire it after 30 minutes.
+- Require a second Administrator's approval when available. While Scott is the sole Administrator, require an independent review within 24 hours of activation.
+- Notify the affected user when safe and legally allowed.
+- Audit every attempt for two years in append-only hash-chained records with externally anchored chain roots.
+- Prohibit bulk export, role changes, deletion bypass, and access to unrelated data.
+
+## Account authentication policy
+
+Use Supabase Authentication for Antique Trail accounts. Public Browse and Store Details remain anonymous; private actions use just-in-time sign-in. Shopper accounts use verified email/password and the separately approved admitted-account social providers. Store Representative and Administrator access additionally requires the documented admission, MFA, recent-authentication, role, revocation, and exact-scope controls. Authentication never replaces server-side authorization. Originally approved 2026-07-31; provider choice reaffirmed by the Product Owner 2026-08-30.
+
+## Routing location policy
+
+Antique Trail may send only the coordinates necessary for a user-requested route to a named routing provider disclosed in the privacy notice. Device location requires explicit while-in-use permission; users may instead enter a start location manually. Directory browsing and manual trip planning work without device-location permission. Do not collect background or continuous location, raw movement history, or precise coordinates in analytics, application logs, email, or support records. Saved trip locations remain private to their shopper. Completed-trip location data follows a separately approved retention policy.
+
+## Private shopper-content policy
+
+Private saves, trips, trip history, personal ratings, notes, and accepted Trip Ideas remain available while their account owner wants Antique Trail to remember them. They do not expire only because they are old. The owner may delete an individual supported record or delete the account. Temporary invitations, pending Candidate Shares, inactive-account handling, primary-system deletion timing, backup aging, and operational-record retention use separately approved rules. Approved 2026-07-31.
+
+## Deletion and backup policy
+
+Deleting an individual supported private record removes it from the user experience immediately, offers a short Undo, and deletes its primary database row and associated Storage objects within 24 hours. Account deletion immediately revokes access and starts a clearly disclosed seven-day cancellation period; cancellation restores access, otherwise primary database and Storage deletion completes by day 8. Managed recoverable backups containing deleted data must age out within 30 days. A disaster restore must reapply completed deletion requests before normal access resumes. Retain only a content-free opaque deletion receipt long enough to cover the backup window and prove/reapply deletion. Approved 2026-07-31.
+
+## Inactive-account policy
+
+An account becomes inactive after three years without a successful sign-in. Send warnings to its verified email 90, 30, and 7 days before scheduled account deletion. Any successful sign-in cancels the schedule. Measure inactivity only from authentication state; do not use browsing, trip, device-location, or behavioral tracking. Synthetic Internal Alpha accounts are excluded from this timer and reset manually. Approved 2026-07-31.
+
+## Operational-record policy
+
+Retain application/error logs for 30 days; authentication/security events for 90 days; privileged Store Representative and Administrator audit events for two years; support and moderation cases for two years after closure; Pilot Consent Receipts, authority verification, and role-grant history for three years after the relationship ends; rejected or quarantined uploads for 30 days; and content-free deletion receipts for 31 days. Never copy shopper-private content into logs or audit events. At each deadline, securely delete or irreversibly de-identify the record. Legal review may require a longer period before external testing; no shorter period is allowed without product-owner approval. Approved 2026-07-31.
+
+## Stage recovery policy
+
+Use staged recovery targets. Internal Alpha permits at most 24 hours of data loss and one business day of outage. Private Beta permits at most four hours of data loss and eight hours of outage. Regional Public MVP permits at most 15 minutes of data loss and four hours of outage. Prove database and Storage recovery separately before passing each corresponding gate; a provider backup claim alone is insufficient. Approved 2026-07-31.
+
+## Emergency-access policy
+
+Disable break-glass access during Synthetic Internal Alpha. During Private Beta and Regional Public MVP, allow it only for a confirmed security or data-recovery incident, never routine support. Require Administrator MFA, recent authentication, an incident ID, a plain-language reason, and the exact requested data scope. Access is read-only by default and expires after 30 minutes. Require a second Administrator's approval when available; while Scott is the sole Administrator, permit activation only with an independent review within 24 hours. Notify the affected user when safe and legally allowed. Audit every attempt for two years in append-only hash-chained records with the externally anchored chain-root verification defined by the security plan. Prohibit bulk export, role changes, deletion bypass, and access to unrelated data. Approved 2026-07-31; storage wording aligned 2026-08-03.
+
+## Inactive-account timing requirements
+
+- **Inactive-account timing:** use UTC instants. On the first daily job run at or after the third anniversary of the last successful sign-in, schedule deletion for 90 days later and send the 90-day warning; send the remaining warnings at or after 30 and 7 days. A successful sign-in before deletion atomically clears the schedule. Jobs are idempotent by account and milestone; retries do not duplicate deletion requests, and notification failure alerts operations but does not extend retention. At the deletion instant, apply the approved seven-day account-deletion cancellation period, so primary deletion completes by day 98 after scheduling unless cancelled. Leap-day anniversaries use February's last day. Approved 2026-07-31.
+
+## Completed-trip location requirements
+
+- **Completed-trip location:** device/provider traces are never stored. Exact manual/current start and optional return coordinates are removed from primary data within 24 hours after completed-trip synchronization; only a user-entered coarse label, store IDs, chosen order, planned/actual stop states, and user-authored private memory remain. Coordinates are excluded from later exports and age out of backups within 30 days. Approved 2026-07-31.
+
+## Candidate Share terminal states requirements
+
+- **Candidate Share terminal states:** on acceptance, the recipient-owned Trip Idea becomes the independent retained copy. The outbound envelope remains visible only to the sender for 30 days, then its URL and note are deleted; a content-free `Accepted` status may remain for 90 days. Block immediately closes the share, deletes its payload within 24 hours, and retains only a pseudonymous sender-recipient block edge until unblock or account deletion. Report closes the share and copies only opaque party IDs, an HMAC of the normalized destination host, reason, timestamps, and the minimum reported text necessary to evaluate abuse into the moderation case; neither the full URL nor path/query/fragment is retained. The share payload then deletes within 24 hours. Case evidence follows the approved two-year-after-closure rule. Approved 2026-08-03.
+
+## Invitation terminal states requirements
+
+- **Invitation terminal states:** raw tokens are never retained. Pending token hashes expire at the stated deadline; expired, cancelled, revoked, malformed, or consumed token hashes delete within 24 hours. Content-free Trip Partner invitation status/actor/time records remain 90 days; an accepted participant record follows the trip lifetime and deletes within 30 days after the trip/account deletion request. Content-free Store Partner invitation history follows the three-years-after-relationship rule. Backups age deleted token hashes/payloads out within 30 days; exports include only the requesting user's visible status metadata, never tokens or verification evidence. Approved 2026-07-31.
+
+## Participant exit requirements
+
+- **Participant exit:** a recipient can unblock a sender from privacy controls. An accepted Trip Partner can leave immediately; access ends on the next request, offline authorization fails on reconnect, and Go pauses if that partner was Navigator until the remaining creator assigns a Navigator. The creator may remove the partner under the same rule. Approved 2026-07-31.
+
+## Duplicate merge requirements
+
+- **Duplicate merge:** Administrator-only, MFA/recent-auth, previewed, and audited. Choose one canonical store; in one transaction reparent allowed public references, saves, trip stops, review identities, provenance, and nonconflicting approved media without changing private authorship or visibility. Never reparent active authority. Duplicate saves collapse to the earliest. Same-user memory collisions preserve one active canonical record plus an own-only conflict copy for explicit user choice. Same-author active-review collisions keep the canonical review active, hide the other from public/aggregate, and require explicit author choice; trip-stop duplicates preserve both with a private warning and count once for readiness. Record every collision state/aggregate delta in the merge ledger. Quarantine/revoke noncanonical claims/grants; replacement scope requires normal reverification/new grant. Rollback restores original IDs/states/aggregates but never silently reactivates access. Approved 2026-07-31.
+
+## Authentication requirements
+
+- **Authentication:** Supabase Auth owns credentials. Regional Public MVP uses verified email plus a 12–128-character password, single-use 30-minute verification and recovery links under the provider's shared email-link expiry, 15-minute access tokens, rotating refresh sessions expiring after 30 days of inactivity, refresh-reuse revocation, and enumeration-resistant/rate-limited account flows. Password recovery and account deletion revoke all sessions. Administrator and Representative roles require TOTP MFA and 10-minute password+MFA recent authentication; shoppers may enable MFA. Approved 2026-07-31.
+
+## Account-deletion cancellation and recent authentication requirements
+
+- **Account-deletion cancellation and recent authentication:** cancelling within seven days restores ordinary account/private-data access but never silently restores Administrator or Store Representative grants; those require the normal audited identity/authority/regrant path. Before scheduling deletion or issuing/regenerating an export download URL, the server requires shopper password authentication within 10 minutes and the shopper's MFA when enrolled. Approved 2026-07-31.
+
+## Portability requirements
+
+- **Portability:** shopper export is a ZIP containing canonical UTF-8 JSON, convenience CSV tables, and user-owned media files with a manifest; it excludes secrets, other users' private data, purged precise coordinates, moderation evidence, and internal verification data. D31 privileged-audit export remains unresolved and separate. Approved 2026-07-31.
+
+## Browser/device baseline requirements
+
+- **Browser/device baseline:** test latest and previous major Chrome, Edge, Firefox, and Safari desktop; current and previous iOS Safari; current Chrome Android; 320px through 1280px+ responsive widths; keyboard; NVDA with Firefox/Chrome on Windows; and VoiceOver with Safari on iOS/macOS. Run each critical Browse-to-Plan and Go/handoff synthetic journey ten times in every applicable browser/device matrix cell. A public gate requires zero Blocking Defects, no repeatable journey failure, and at least 99% successful executions across that recorded repeated release suite. Approved 2026-07-31.
+
+## External support requirements
+
+- **External support:** before first owner contact, publish one monitored support address/form and one security contact. During Private Beta acknowledge security/privacy reports within four clock hours and other tickets within two business days; during Regional Public MVP acknowledge security/privacy reports within four clock hours and other tickets within one business day. Publish planned/unplanned incident status in the PWA and status channel; name the on-call owner and backup in the release runbook. Approved 2026-07-31.
+
+## Metric gate RG-01 requirements
+
+- **Metric gate RG-01:** D30 remains Access & Safety. The Topeka-to-community expansion scorecard is `RG-01`, not a product-decision number. Formulas and eligibility rules in `PRD.md` are approved. Targets are 100% current verification coverage, zero Blocking Defects, at least 25 eligible Topeka shoppers completing a first qualifying trip, at least 10 completing a second qualifying trip on a later date, at least three active consented flyer locations, and support load no greater than one new case per active store plus one per ten completed trips during the evidence window. Each human counts once through one nonprivileged shopper account; Scott, the Independent Internal Tester, AI/Synthetic/test operators, duplicate accounts, and own-store Representative activity are excluded. Use a rolling 180-day maximum evidence window but no minimum elapsed duration; the gate passes as soon as all denominators and targets are met with dated evidence. Claim conversion is reported, not pass/fail, during first regional launch. Approved 2026-07-31.
+
+## Admitted-account social sign-in
+
+- **Posture A social login:** Sign-in offers Continue with Google and Continue with Facebook alongside email and password. An OAuth identity is admitted only when its provider account maps to an active Antique Trail admission receipt checked by `oauth_admission_check` immediately after the PKCE exchange; every other identity is signed out locally and shown an invitation-required screen before any private action. Before Package 10B, account registration stays closed, so the register screen intentionally has no social buttons and no new account can be created through a provider. Package 10B may open the already-contracted ordinary verified-email/password registration mode; a prospective Store Representative may then create only an ordinary nonprivileged account for a claim/add-store application. Public OAuth registration remains closed, and no application grants a role, store scope, publication, or payment access. Supabase may create the orphan provider identity row before the bounce; this is accepted and documented. Age attestation is required by the applicable admission or public-registration flow. Approved 2026-08-21; public owner-applicant boundary clarified 2026-08-30.
+
+## Foundation acceptance
+
+Deliverables:
+
+- Finalized PRD
+- Product name exploration
+- Data classification
+- Threat model
+- Authorization matrix
+- Privacy model
+- Review and moderation policy
+- Business-claim policy
+- Architecture proposal
+- Architecture Decision Records
+- Repository standards
+- CI/CD design
+- Stage/provider topology from ADRs 0005/0006: Vercel prebuilt frontend deployment with Supabase, `$0` local/shared startup unless separately funded, no automatic paid overage, 25% headroom, conditional `$0` Private Beta only when plan eligibility plus access/restore/availability gates pass, and public release blocked until 15-minute RPO is funded or otherwise proven.
+- Regional launch definition
+
+Exit criteria:
+
+- No unresolved contradiction in public/private data behavior
+- Every role has documented permissions
+- Every sensitive data class implemented in the next slice has an approved retention and deletion behavior
+- A provider ADR and legal/data review exist before any provider-dependent feature is enabled
+- D31 full Audit History UI remains excluded; two-year append-only privileged audit events required by D30 are specified

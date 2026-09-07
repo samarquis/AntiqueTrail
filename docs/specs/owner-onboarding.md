@@ -1,12 +1,12 @@
 # Owner Onboarding Spec — Simple 70-Year-Old-Friendly Store Partner Journey
 
-Status: **Draft for handoff** (approved baseline; implementable). Resolves wayfinder
+Status: approved specialist interaction baseline for invited-owner onboarding. Resolves wayfinder
 map #61. Reconciled against PRD.md, DESIGN.md, DESIGN_SYSTEM.md, PACKAGE_CONTRACTS.md
 Package 6, ADR 0002, ADR 0003, PRODUCT_DECISIONS.md (2026-07-31 older-adult cohort).
 
 Controlling-doc precedence applies (README.md source-precedence table). Where this
-spec states interaction/copy, it amends DESIGN.md/DESIGN_SYSTEM.md (see "Contract
-reconciliation" below); product behavior remains PRD.md.
+spec states invited-owner interaction/copy, PRD.md and DESIGN.md explicitly delegate that detail here (see "Contract
+reconciliation" below); product behavior remains PRD.md, visual values remain DESIGN_SYSTEM.md, and security controls remain SECURITY_AND_TRUST.md.
 
 ## 0. Purpose and baseline
 

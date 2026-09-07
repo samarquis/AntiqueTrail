@@ -322,3 +322,35 @@ These rows are the complete screen boundary. Field schemas/limits come from the 
 | Public review | eligibility/attestation, compose, pending/published/removed, report, edit/delete, appeal | Package 9 row above plus `DESIGN.md`; flow lab is not authoritative | Stage-off denial, aggregate transaction, privacy, moderation/appeal, accessibility tests |
 
 A slice is not ready to code until its execution contract names every required screen, field, state, responsive variant, authorization rule, failure route, and executable acceptance check. Later slices may refine this system but cannot silently diverge from it.
+
+## Age-inclusive usability baseline
+
+The primary design audience includes shoppers roughly 50–80+ while the product remains usable by all ages.
+
+- Target WCAG 2.2 AA across the PWA.
+- Default body text is at least 18 CSS px with 1.5 line height; essential text is never below 16 CSS px.
+- Support 200% text resize, responsive reflow, and user text-spacing overrides without loss of content or function.
+- Mobile touch targets are at least 48 by 48 CSS pixels.
+- Primary icons have text labels; status never depends on color alone.
+- Support keyboard use, visible focus, screen readers, reduced motion, and non-drag alternatives.
+- Use plain, concrete labels and keep one primary action visually clear at a time.
+- Do not auto-advance or impose time pressure on core tasks; preserve entered data after validation errors.
+- Allow store images to enlarge, provide meaningful alternative text or captions, and never place the only essential information inside an image.
+- Keep browsing list-first. A map may assist discovery but is never the only path.
+- Before public launch, pass the approved eight-person older-adult cohort, composition, task, error, and completion thresholds in `PRODUCT_DECISIONS.md`.
+
+## Age-inclusive decision constraints
+
+Design first for shoppers roughly 50–80+ without creating a separate age mode. Target WCAG 2.2 AA. Use at least 18 CSS px default body text, 1.5 line height, and no essential text below 16 CSS px; support 200% text resize, reflow, and user text-spacing overrides without loss. Use at least 48 by 48 CSS pixel mobile targets, keyboard access, visible focus, meaningful image alternatives, text with primary icons, and status that does not rely on color alone. Keep labels plain, one primary action clear at a time, inputs preserved after errors, and alternatives to drag gestures. Avoid automatic advancement or time pressure. Images may enlarge but never contain the only copy of essential information. Test required shopper journeys with the approved 2026-07-31 older-adult cohort and pass thresholds before public launch.
+
+## Selected visual direction
+
+Keep the existing Daylight Archive light theme, Midnight Archive dark theme, and approved V3 storefront identity. The exact current values in `DESIGN_SYSTEM.md` are selected; semantic-token or brand-governance work may remove drift and improve review references but must not replace this palette without a new Product Owner decision. Reaffirmed 2026-08-30.
+
+## Product anti-references
+
+Do not resemble a rustic antique-shop cliché. No parchment, distressed type, barnwood, sepia, or decorative antique clutter. Trust must come from accurate current information, clear state, and familiar product interaction rather than category costume.
+
+## Accessibility and inclusion
+
+Design first for shoppers roughly 50–80+ without a separate age mode. Target WCAG 2.2 AA across the application. Default body text is at least 18 CSS px with 1.5 line height; essential text is never below 16 CSS px. Require keyboard and screen-reader access, visible focus, text with primary icons, non-color-only state, reduced motion, 200% text resizing/reflow, user text-spacing tolerance, accessible alternatives to drag reordering, preservation of entered data after errors, meaningful image alternatives, and mobile touch targets of at least 48 by 48 CSS pixels. Core tasks have no automatic advancement or time pressure. Public launch requires the approved eight-person older-adult cohort and task/pass thresholds in `PRODUCT_DECISIONS.md`.

@@ -1,7 +1,7 @@
 {
   "project": "Antique Trail",
-  "handoff_version": "2.9",
-  "generated_date": "2026-08-30",
+  "handoff_version": "3.0",
+  "generated_date": "2026-09-07",
   "files": [
     "README.md",
     "PLAN_GOVERNANCE.md",
@@ -50,7 +50,18 @@
     "public/icons/navigate.svg",
     "public/icons/shared-trip.svg",
     "public/icons/private-notes.svg",
-    "public/icons/store-details.svg"
+    "public/icons/store-details.svg",
+    "docs/adr/0007-protected-internal-synthetic-review.md",
+    "docs/adr/0008-governed-internal-synthetic-admission.md",
+    "docs/specs/owner-onboarding.md",
+    "docs/specs/store-membership-spec.md"
   ],
-  "purpose": "Approved product, design, security, architecture, and implementation context"
+  "purpose": "One product reading path with explicitly owned specialist requirements and separately classified history/evidence; local owner-review draft before publishing",
+  "reading_order": [
+    "PRD.md",
+    "README.md",
+    "PLAN_GOVERNANCE.md",
+    "PROJECT_STATE.md",
+    "PLANNING_INDEX.md"
+  ]
 }

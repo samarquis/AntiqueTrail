@@ -2,9 +2,9 @@
 
 Regional Public MVP boundary: Packages 1–10B plus every named gate. Package 11 is the postlaunch RG-01 evidence gate; each Package 12 run activates one separately approved small community, ordinals 1–3, with the prior community's gate required before the next. Phases 4–5 remain deferred.
 
-Status: original roadmap and normative Package 1 execution contract, hardened through the 2026-08-03 adversarial review. The historical coding hold was superseded by subsequent Product Owner-directed implementation. Use `PROJECT_STATE.md` and live GitHub state for current progress; the full PRD remains intact. Deferred decisions still gate only dependent features/releases. No real-store outreach, external participant, public launch, promotion, billing activation, or public deployment is authorized by this plan.
+Status: historical roadmap, preserved at the 2026-09-07 consolidation. Original wording below is evidence of the earlier build sequence, not current authority or a current implementation report. Current product/stage requirements are in PRD.md; Package 1 and other technical contracts are in PACKAGE_CONTRACTS.md; README.md assigns the remaining owners.
 
-**Execution authority:** phase headings are capability groupings only. Packages are the sole executable order. Package 1 is controlled by this file; Packages 2–13 by `PACKAGE_CONTRACTS.md`. A phase heading never authorizes its full feature set.
+**Historical execution authority:** phase headings are capability groupings only. Packages are the sole executable order. Package 1 is controlled by this file; Packages 2–13 by `PACKAGE_CONTRACTS.md`. A phase heading never authorizes its full feature set.
 
 | Capability grouping | Executable packages |
 |---|---|
@@ -22,6 +22,8 @@ Status: original roadmap and normative Package 1 execution contract, hardened th
 **Milestones:** first development slice is Package 1 local Synthetic Browse/Details only. `SLM-01` is the private Synthetic checkpoint after Packages 1, 2, 3, and 5A. Regional Public MVP remains Packages 1–10B. None authorizes the next milestone automatically.
 
 ## Phase 0 — Product and security foundation
+
+Current requirements: [Foundation acceptance](SECURITY_AND_TRUST.md#foundation-acceptance). Original roadmap text follows as history.
 
 Deliverables:
 
@@ -49,6 +51,8 @@ Exit criteria:
 - D31 full Audit History UI remains excluded; two-year append-only privileged audit events required by D30 are specified
 
 ## Phase 1 — Public directory foundation
+
+Current requirements: [Directory capability acceptance](PRD.md#directory-capability-acceptance). Original roadmap text follows as history.
 
 Features:
 
@@ -99,6 +103,8 @@ Exit criteria:
 - Freshness rules enforce the 180-day verified window, overdue hours-feature exclusion through day 365, and discovery hiding after day 365 without deleting provenance
 
 ## Cross-phase Internal Alpha gate
+
+Current requirements: [Complete Internal Alpha and external-readiness acceptance](PRD.md#complete-internal-alpha-and-external-readiness-acceptance). Original roadmap text follows as history.
 
 Assemble the Phase 1, Phase 2A, and Phase 3 synthetic slices and test this gate before Phase 2B public reviews, real-store import, or owner outreach.
 
@@ -293,6 +299,8 @@ Store Partner Pilot Support:
 
 ## Phase 2A — Store claims, Store Portal, and administration before external testing
 
+Current requirements: [Store and administrator capability acceptance](PRD.md#store-and-administrator-capability-acceptance). Original roadmap text follows as history.
+
 Entry conditions:
 
 - Phase 1 public-directory and identity foundations required by this work are complete.
@@ -326,6 +334,8 @@ Exit criteria:
 
 ## Phase 2B — Public reviews and moderation after Internal Alpha
 
+Current requirements: [Public-review capability acceptance](PRD.md#public-review-capability-acceptance). Original roadmap text follows as history.
+
 Entry conditions:
 
 - Cross-phase Internal Alpha gate has passed.
@@ -355,6 +365,8 @@ Exit criteria:
 - Public-review UI passes the applicable `DESIGN.md` and `DESIGN_SYSTEM.md` states without exposing shopper-private data.
 
 ## Phase 3 — Trip planner
+
+Current requirements: [Trip capability acceptance](PRD.md#trip-capability-acceptance). Original roadmap text follows as history.
 
 Features:
 
@@ -391,6 +403,8 @@ Exit criteria:
 
 ## Phase 4 — Personal finds and households
 
+Current requirements: [Deferred finds and household capability acceptance](PRD.md#deferred-finds-and-household-capability-acceptance). Original roadmap text follows as history.
+
 Features:
 
 - Find capture
@@ -413,6 +427,8 @@ Security:
 
 ## Phase 5 — Personalization
 
+Current requirements: [Deferred personalization capability acceptance](PRD.md#deferred-personalization-capability-acceptance). Original roadmap text follows as history.
+
 Features:
 
 - Preference onboarding
@@ -431,6 +447,8 @@ Rules:
 - No sensitive inference beyond product purpose
 
 ## Phase 6 — Regional launch
+
+Current requirements: [Regional launch and expansion acceptance](PRD.md#regional-launch-and-expansion-acceptance). Original roadmap text follows as history.
 
 Phase 6 is a capability grouping implemented only through Packages 10A–10B after every earlier package/gate, not another feature bundle. Phases 4–5 remain deferred.
 
@@ -668,6 +686,8 @@ Failure routes to the owning step; never weaken a gate or replace a failed datab
 - [Core Web Vitals thresholds](https://web.dev/articles/defining-core-web-vitals-thresholds) for LCP, INP, CLS, and future 75th-percentile field validation
 
 ## Repository structure baseline
+
+Current requirements: [Repository structure baseline](PACKAGE_CONTRACTS.md#repository-structure-baseline). Original roadmap text follows as history.
 
 ```text
 /
