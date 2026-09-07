@@ -67,6 +67,38 @@ describe('configured authoritative account operations', () => {
       },
     })
     expect(updateUser).not.toHaveBeenCalled()
-    expect(signOut).toHaveBeenCalledWith({ scope: 'local' })
+    expect(signOut).not.toHaveBeenCalled()
+  })
+
+  it('installs verified email sessions into the configured SDK before returning authenticated', async () => {
+    const session = {
+      access_token: 'verified-access',
+      refresh_token: 'verified-refresh',
+      expires_at: 1_900_000_000,
+      token_type: 'bearer',
+      user: {
+        id: 'verified-user',
+        email: 'verified@example.test',
+        email_confirmed_at: '2026-09-07T00:00:00Z',
+        app_metadata: { role: 'Shopper' },
+        user_metadata: {},
+      },
+    }
+    const invoke = vi.fn(async () => ({ data: { state: 'authenticated', session }, error: null }))
+    const setSession = vi.fn(async () => ({ data: { session }, error: null }))
+    const signOut = vi.fn(async () => ({ error: null }))
+    const provider = createAuthProvider({
+      functions: { invoke },
+      auth: { setSession, signOut },
+    } as never)
+    await expect(provider.verifyCallback?.('verify', 'opaque-hash')).resolves.toMatchObject({
+      kind: 'authenticated',
+      session: { userId: 'verified-user' },
+    })
+    expect(setSession).toHaveBeenCalledWith({
+      access_token: 'verified-access',
+      refresh_token: 'verified-refresh',
+    })
+    expect(signOut).not.toHaveBeenCalled()
   })
 })

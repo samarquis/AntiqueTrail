@@ -8,7 +8,12 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { InMemoryAuthStore, InMemorySessionRegistry, unavailableAuthProvider } from './authClient'
+import {
+  InMemoryAuthStore,
+  InMemorySessionRegistry,
+  toAuthSession,
+  unavailableAuthProvider,
+} from './authClient'
 import type { AuthProviderAdapter, AuthSession, AuthStore, SessionRegistryClient } from './types'
 import type { AccountLifecycleClient } from './lifecycle'
 
@@ -47,6 +52,7 @@ export function AuthProvider({
   const resolvedStore = authStoreRef.current
   const resolvedRegistry = registryRef.current
   const [session, setSession] = useState<AuthSession | null>(() => resolvedStore.getSession())
+  const [providerReady, setProviderReady] = useState(() => !provider.restoreSession)
   const [lifecycleReady, setLifecycleReady] = useState(
     () => !lifecycle || !resolvedStore.getSession(),
   )
@@ -60,6 +66,30 @@ export function AuthProvider({
     },
     [resolvedStore],
   )
+
+  useEffect(() => {
+    const restore = provider.restoreSession
+    if (!restore) {
+      setProviderReady(true)
+      return
+    }
+    let cancelled = false
+    setProviderReady(false)
+    restore()
+      .then(async (restored) => {
+        if (cancelled || !restored) return
+        const next = toAuthSession(restored)
+        await resolvedRegistry.registerCurrentSession(next)
+        if (!cancelled) replaceSession(next)
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setProviderReady(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [provider, replaceSession, resolvedRegistry])
 
   const purgeAndRevoke = useCallback(
     async (current: AuthSession, reason: string) => {
@@ -81,8 +111,10 @@ export function AuthProvider({
       // Hide private content synchronously; cleanup and server revocation follow fail-closed.
       replaceSession(null)
       void purgeAndRevoke(current, reason).catch(() => undefined)
+      const clearSessionMaterial = provider.clearSessionMaterial
+      if (clearSessionMaterial) void clearSessionMaterial().catch(() => undefined)
     },
-    [purgeAndRevoke, replaceSession],
+    [provider, purgeAndRevoke, replaceSession],
   )
 
   useEffect(() => {
@@ -266,6 +298,28 @@ export function AuthProvider({
       lifecycleReady,
     ],
   )
+  const valueRef = useRef(value)
+  valueRef.current = value
+  useEffect(() => {
+    // Subscribe before restoration starts so a refresh event cannot arrive in
+    // the gap between provider bootstrap and exposing the private tree.
+    if (!provider.onSessionChange) return
+    let cancelled = false
+    const unsubscribe = provider.onSessionChange((next) => {
+      if (cancelled) return
+      if (!next) {
+        const current = resolvedStore.getSession()
+        if (current) loseSession(current, 'provider_signed_out')
+        return
+      }
+      void valueRef.current.signIn(toAuthSession(next))
+    })
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [loseSession, provider, resolvedStore])
+  if (!providerReady) return <p role="status">Restoring your session…</p>
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

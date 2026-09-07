@@ -21,16 +21,20 @@ export function PasswordReplacementPage({
   provider: AuthProviderAdapter
   returnTo: string
 }) {
-  const { signOut } = useAuth()
+  const { session, signOut } = useAuth()
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [completed, setCompleted] = useState(false)
   const requestIdRef = useRef<string | null>(null)
+  const sessionRef = useRef(session)
   const errorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => clearStagedRecoveryToken, [])
+  useEffect(() => {
+    sessionRef.current = session
+  }, [session])
   useEffect(() => {
     if (error) errorRef.current?.focus()
   }, [error])
@@ -53,6 +57,7 @@ export function PasswordReplacementPage({
     setPending(true)
     setError(null)
     requestIdRef.current ??= crypto.randomUUID()
+    const submittedSession = sessionRef.current
     try {
       const result = await provider.completePasswordRecovery({
         tokenHash,
@@ -66,7 +71,13 @@ export function PasswordReplacementPage({
       setPassword('')
       setConfirmation('')
       setCompleted(true)
-      await signOut().catch(() => undefined)
+      const currentSession = sessionRef.current
+      if (
+        submittedSession &&
+        currentSession?.userId === submittedSession.userId &&
+        currentSession.accessToken === submittedSession.accessToken
+      )
+        await signOut().catch(() => undefined)
     } catch {
       setError(PASSWORD_RECOVERY_ERROR)
     } finally {

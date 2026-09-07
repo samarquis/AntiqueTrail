@@ -117,6 +117,13 @@ describe('private shopper screens', () => {
     expect(setSave).toHaveBeenNthCalledWith(2, 'store-1', false)
   })
 
+  it('loads the authoritative saved state for ordinary catalog actions', async () => {
+    const getSaveState = vi.fn(async () => ({ saved: true }))
+    renderPage(<SaveStoreAction storeId="store-1" client={client({ getSaveState })} />)
+    expect(await screen.findByRole('button', { name: 'Remove saved store' })).toBeEnabled()
+    expect(getSaveState).toHaveBeenCalledWith('store-1')
+  })
+
   it('stores a bounded JIT Save intent for anonymous catalog visitors', async () => {
     const user = userEvent.setup()
     render(
