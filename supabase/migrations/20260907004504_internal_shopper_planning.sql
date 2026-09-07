@@ -149,6 +149,15 @@ create policy internal_planning_scope on trip_private.trip_participants as restr
     (internal_review_private.owns_trip(trip_id) and user_id=app_public.request_user_id()
       and participant_role='creator'
       and internal_review_private.planning_receipt(user_id) is not null));
+-- rename_trip replays a receipt before its ownership check; constrain that read too.
+create policy internal_planning_scope on trip_private.trip_mutation_receipts as restrictive to identity_service
+  using(not internal_review_private.is_internal(app_public.request_user_id()) or
+    (internal_review_private.owns_trip(trip_id)
+      and internal_review_private.planning_receipt(app_public.request_user_id()) is not null));
+create policy internal_planning_scope on trip_private.trip_mutation_conflicts as restrictive to identity_service
+  using(not internal_review_private.is_internal(app_public.request_user_id()) or
+    (internal_review_private.owns_trip(trip_id)
+      and internal_review_private.planning_receipt(app_public.request_user_id()) is not null));
 
 revoke all on function internal_review_private.planning_receipt(uuid),internal_review_private.planning_path(text),
   internal_review_private.reserve_trip(),internal_review_private.owns_trip(uuid),internal_review_private.owned_store(uuid)

@@ -71,6 +71,9 @@ select throws_ok($$select app_public.add_trip_stop(current_setting('test.owned_t
 select set_config('request.path','rpc/get_trip',true);
 select is(app_public.get_trip(current_setting('test.owned_trip'))->>'name','Owned synthetic trip','owner reads own trip');
 select throws_ok($$select app_public.get_trip('99000000-0000-4000-8000-000000009999')$$,'P0001','authorization_lost','unowned trip denied');
+select set_config('request.path','rpc/rename_trip',true);
+select is(app_public.rename_trip(current_setting('test.owned_trip'),'Renamed owned trip',2,'owned-rename-key')->>'name','Renamed owned trip','owned rename writes a retry receipt');
+select is(app_public.rename_trip(current_setting('test.owned_trip'),'Renamed owned trip',2,'owned-rename-key')->>'name','Renamed owned trip','owned retry returns its original result');
 select set_config('request.path','rpc/create_trip',true);
 select lives_ok($$select app_public.create_trip('Second owned trip','2026-09-08')$$,'second bounded fixture succeeds');
 select lives_ok($$select app_public.create_trip('Third owned trip','2026-09-08')$$,'third bounded fixture succeeds');
@@ -100,6 +103,8 @@ select set_config('request.path','rpc/shopper_list_memories',true);
 select is(app_public.shopper_list_memories(),'[]'::jsonb,'sibling memory list excludes first account');
 select set_config('request.path','rpc/get_trip',true);
 select throws_ok($$select app_public.get_trip(current_setting('test.owned_trip'))$$,'P0001','authorization_lost','real sibling trip denied');
+select set_config('request.path','rpc/rename_trip',true);
+select throws_ok($$select app_public.rename_trip(current_setting('test.owned_trip'),'Foreign rename',2,'owned-rename-key')$$,'P0001','not_allowed','foreign retry key cannot expose cached trip result');
 select set_config('request.path','rpc/list_trips',true);
 select is(app_public.list_trips(),'[]'::jsonb,'sibling trip list excludes first account');
 reset role;
