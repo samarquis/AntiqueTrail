@@ -46,6 +46,10 @@ import {
   type AuthProviderAdapter,
   type ProviderSession,
 } from '../features/auth'
+import {
+  IndexedDbRefreshSessionStorage,
+  type RefreshSessionStorage,
+} from '../features/auth/refreshSessionStorage'
 
 export interface ConfiguredComposition {
   clients: AppClients
@@ -109,12 +113,50 @@ export function createAuthProvider<
     functions: ReturnType<typeof createClient>['functions']
     rpc: ReturnType<typeof createClient>['rpc']
   },
->(supabase: T): AuthProviderAdapter {
+>(
+  supabase: T,
+  options: { refreshSessionStorage?: RefreshSessionStorage } = {},
+): AuthProviderAdapter {
   const challenges = new Map<string, { factorId: string; session: ProviderSession }>()
+  const refreshStorage = options.refreshSessionStorage
+  let persistenceEnabled = true
+  let persistenceGeneration = 0
+  let activeProviderUserId: string | null = null
+  const clearPersistedSession = async () => {
+    persistenceGeneration += 1
+    persistenceEnabled = false
+    activeProviderUserId = null
+    await refreshStorage?.clear()
+  }
+  const persistProviderSession = async (session: Session) => {
+    if (!refreshStorage || !persistenceEnabled) return
+    if (activeProviderUserId && activeProviderUserId !== session.user.id)
+      throw new Error('Auth persistence account was superseded.')
+    const generation = persistenceGeneration
+    const userId = session.user.id
+    await refreshStorage.writeRefreshToken(session.refresh_token)
+    if (
+      generation !== persistenceGeneration ||
+      !persistenceEnabled ||
+      activeProviderUserId !== userId
+    )
+      throw new Error('Auth persistence was superseded.')
+  }
+  const persistOrSignOut = async (session: Session) => {
+    activeProviderUserId = session.user.id
+    try {
+      await persistProviderSession(session)
+    } catch {
+      await clearPersistedSession().catch(() => undefined)
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+      throw new Error('Auth persistence unavailable.')
+    }
+  }
   return {
     async signIn(email, password) {
       const result = await supabase.auth.signInWithPassword({ email, password })
       if (result.error || !result.data.session) return { kind: 'error' }
+      persistenceEnabled = true
       const session = providerSession(result.data.session)
       const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
       if (
@@ -133,6 +175,11 @@ export function createAuthProvider<
           challengeId: challenge.data.id,
           session: { ...session, mfaRequired: true },
         }
+      }
+      try {
+        await persistOrSignOut(result.data.session)
+      } catch {
+        return { kind: 'error' }
       }
       return { kind: 'authenticated', session }
     },
@@ -154,6 +201,12 @@ export function createAuthProvider<
       })
       if (result.error) return null
       challenges.delete(challengeId)
+      persistenceEnabled = true
+      try {
+        await persistOrSignOut(result.data)
+      } catch {
+        return null
+      }
       return providerSession(result.data)
     },
     async register(request) {
@@ -178,9 +231,14 @@ export function createAuthProvider<
       if (result.error) return { kind: 'error' }
       if (result.data?.state === 'blocked') return { kind: 'blocked' }
       if (result.data?.state === 'verified') return { kind: 'verified' }
-      return result.data?.state === 'authenticated' && result.data.session
-        ? { kind: 'authenticated', session: providerSession(result.data.session as Session) }
-        : { kind: 'error' }
+      if (result.data?.state !== 'authenticated' || !result.data.session) return { kind: 'error' }
+      persistenceEnabled = true
+      try {
+        await persistOrSignOut(result.data.session as Session)
+      } catch {
+        return { kind: 'error' }
+      }
+      return { kind: 'authenticated', session: providerSession(result.data.session as Session) }
     },
     async signInWithProvider(providerId, returnTo) {
       const target = new URL('/auth/callback', window.location.origin)
@@ -204,9 +262,60 @@ export function createAuthProvider<
         await supabase.auth.signOut({ scope: 'local' })
         return { kind: 'blocked' }
       }
+      persistenceEnabled = true
+      try {
+        await persistOrSignOut(exchanged.data.session)
+      } catch {
+        return { kind: 'error' }
+      }
       return { kind: 'authenticated', session: providerSession(exchanged.data.session) }
     },
+    async restoreSession() {
+      if (!refreshStorage || typeof supabase.auth.refreshSession !== 'function') return null
+      try {
+        const refreshToken = await refreshStorage.readRefreshToken()
+        if (!refreshToken) return null
+        persistenceEnabled = true
+        const refreshed = await supabase.auth.refreshSession({ refresh_token: refreshToken })
+        if (refreshed.error || !refreshed.data.session)
+          throw refreshed.error ?? new Error('Session restore failed.')
+        await persistOrSignOut(refreshed.data.session)
+        return providerSession(refreshed.data.session)
+      } catch {
+        await clearPersistedSession().catch(() => undefined)
+        return null
+      }
+    },
+    onSessionChange(listener) {
+      if (typeof supabase.auth.onAuthStateChange !== 'function')
+        return { unsubscribe: () => undefined }
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT') {
+          void clearPersistedSession().catch(() => undefined)
+          listener('SIGNED_OUT', null)
+          return
+        }
+        if ((event !== 'SIGNED_IN' && event !== 'TOKEN_REFRESHED') || !session) return
+        const generation = persistenceGeneration
+        if (!persistenceEnabled) return
+        if (activeProviderUserId && activeProviderUserId !== session.user.id) return
+        void persistProviderSession(session)
+          .then(() => {
+            if (generation === persistenceGeneration && persistenceEnabled)
+              listener(event, providerSession(session))
+          })
+          .catch(() => {
+            void clearPersistedSession().catch(() => undefined)
+            listener('SIGNED_OUT', null)
+          })
+      })
+      return { unsubscribe: () => data.subscription.unsubscribe() }
+    },
+    async clearPersistedSession() {
+      await clearPersistedSession()
+    },
     async signOut() {
+      await clearPersistedSession().catch(() => undefined)
       await supabase.auth.signOut({ scope: 'local' })
     },
   }
@@ -668,7 +777,9 @@ export async function configuredComposition(
       }),
     },
     runtime: {
-      authProvider: createAuthProvider(supabase),
+      authProvider: createAuthProvider(supabase, {
+        refreshSessionStorage: new IndexedDbRefreshSessionStorage(),
+      }),
       sessionRegistry,
       tripOffline: offline.runtime,
       ...(commercialResearch ? { commercialResearch } : {}),

@@ -8,7 +8,12 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { InMemoryAuthStore, InMemorySessionRegistry, unavailableAuthProvider } from './authClient'
+import {
+  InMemoryAuthStore,
+  InMemorySessionRegistry,
+  toAuthSession,
+  unavailableAuthProvider,
+} from './authClient'
 import type { AuthProviderAdapter, AuthSession, AuthStore, SessionRegistryClient } from './types'
 import type { AccountLifecycleClient } from './lifecycle'
 
@@ -52,6 +57,8 @@ export function AuthProvider({
   )
   const hydratedSessionRef = useRef<string | null>(null)
   const lostSessionRef = useRef<string | null>(null)
+  const sessionEpochRef = useRef(0)
+  const restoringRef = useRef(false)
   const replaceSession = useCallback(
     (next: AuthSession | null) => {
       if (next) resolvedStore.setSession(next)
@@ -63,14 +70,16 @@ export function AuthProvider({
 
   const purgeAndRevoke = useCallback(
     async (current: AuthSession, reason: string) => {
-      const [purge, revoke] = await Promise.allSettled([
+      const [purge, revoke, clear] = await Promise.allSettled([
         onLocalSignOut?.(current),
         resolvedRegistry.revoke(current, reason),
+        provider.clearPersistedSession?.(),
       ])
       if (purge.status === 'rejected') throw purge.reason
       if (revoke.status === 'rejected') throw revoke.reason
+      if (clear.status === 'rejected') throw clear.reason
     },
-    [onLocalSignOut, resolvedRegistry],
+    [onLocalSignOut, provider, resolvedRegistry],
   )
 
   const loseSession = useCallback(
@@ -78,12 +87,93 @@ export function AuthProvider({
       const key = `${current.userId}:${current.accessToken}`
       if (lostSessionRef.current === key) return
       lostSessionRef.current = key
+      sessionEpochRef.current += 1
+      restoringRef.current = false
       // Hide private content synchronously; cleanup and server revocation follow fail-closed.
       replaceSession(null)
       void purgeAndRevoke(current, reason).catch(() => undefined)
     },
     [purgeAndRevoke, replaceSession],
   )
+
+  const acceptSession = useCallback(
+    async (next: AuthSession) => {
+      const current = resolvedStore.getSession()
+      const sameAccount = current?.userId === next.userId
+      if (current && current.userId !== next.userId) {
+        replaceSession(null)
+        try {
+          await purgeAndRevoke(current, 'account_switch')
+        } finally {
+          try {
+            await provider.signOut(current)
+          } catch {
+            // Application revocation remains authoritative.
+          }
+        }
+      }
+      await resolvedRegistry.registerCurrentSession(next)
+      const replacement = sameAccount
+        ? {
+            ...next,
+            ...(current?.accountState ? { accountState: current.accountState } : {}),
+            ...(current?.deletionDueAt ? { deletionDueAt: current.deletionDueAt } : {}),
+          }
+        : next
+      if (lifecycle && !sameAccount) {
+        hydratedSessionRef.current = null
+        setLifecycleReady(false)
+      } else if (lifecycle) {
+        hydratedSessionRef.current = `${replacement.userId}:${replacement.accessToken}`
+      }
+      replaceSession(replacement)
+    },
+    [lifecycle, provider, purgeAndRevoke, replaceSession, resolvedRegistry, resolvedStore],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    const subscription = provider.onSessionChange?.((event, next) => {
+      if (cancelled) return
+      if (event === 'SIGNED_OUT' || !next) {
+        const current = resolvedStore.getSession()
+        if (current) loseSession(current, 'provider_signed_out')
+        return
+      }
+      if (event !== 'TOKEN_REFRESHED') return
+      const current = resolvedStore.getSession()
+      // A late refresh from an old account must not switch or resurrect a session.
+      if (current && current.userId !== next.userId) return
+      if (!current && !restoringRef.current) return
+      void acceptSession(toAuthSession(next)).catch(() => {
+        const active = resolvedStore.getSession()
+        if (active) loseSession(active, 'provider_refresh_failed')
+      })
+    })
+    if (!resolvedStore.getSession() && provider.restoreSession) {
+      const epoch = sessionEpochRef.current
+      restoringRef.current = true
+      void provider
+        .restoreSession()
+        .then((restored) => {
+          if (
+            epoch !== sessionEpochRef.current ||
+            cancelled ||
+            !restored ||
+            resolvedStore.getSession()
+          )
+            return undefined
+          return acceptSession(toAuthSession(restored)).catch(() => undefined)
+        })
+        .finally(() => {
+          if (epoch === sessionEpochRef.current) restoringRef.current = false
+        })
+    }
+    return () => {
+      cancelled = true
+      subscription?.unsubscribe()
+    }
+  }, [acceptSession, loseSession, provider, resolvedStore])
 
   useEffect(() => {
     if (!session) return
@@ -186,57 +276,23 @@ export function AuthProvider({
       session,
       lifecycleReady,
       async signIn(next) {
-        const current = resolvedStore.getSession()
-        const sameAccount = current?.userId === next.userId
-        if (current && current.userId !== next.userId) {
-          replaceSession(null)
-          try {
-            await purgeAndRevoke(current, 'account_switch')
-          } finally {
-            try {
-              await provider.signOut(current)
-            } catch {
-              // Application revocation remains authoritative.
-            }
-          }
-        }
-        await resolvedRegistry.registerCurrentSession(next)
-        const replacement = sameAccount
-          ? {
-              ...next,
-              ...(current?.accountState ? { accountState: current.accountState } : {}),
-              ...(current?.deletionDueAt ? { deletionDueAt: current.deletionDueAt } : {}),
-            }
-          : next
-        if (lifecycle && !sameAccount) {
-          hydratedSessionRef.current = null
-          setLifecycleReady(false)
-        } else if (lifecycle) {
-          // A password/MFA refresh for the already-hydrated account must not tear down
-          // the private action that requested it.
-          hydratedSessionRef.current = `${replacement.userId}:${replacement.accessToken}`
-        }
-        replaceSession(replacement)
+        sessionEpochRef.current += 1
+        restoringRef.current = false
+        await acceptSession(next)
       },
       async signOut() {
+        sessionEpochRef.current += 1
+        restoringRef.current = false
         const current = resolvedStore.getSession()
         if (current) {
           replaceSession(null)
           try {
-            await onLocalSignOut?.(current)
+            await purgeAndRevoke(current, 'user_sign_out')
           } finally {
-            try {
-              await resolvedRegistry.revoke(current, 'user_sign_out')
-            } finally {
-              // Local state was cleared before awaiting any external cleanup.
-            }
+            // Local state was cleared before awaiting any external cleanup.
           }
           // Provider logout is best-effort after the application has become locally signed out.
-          try {
-            await provider.signOut(current)
-          } catch {
-            // The revoked application session and local purge remain authoritative.
-          }
+          await provider.signOut(current).catch(() => undefined)
           return
         }
         replaceSession(null)
@@ -255,14 +311,12 @@ export function AuthProvider({
       },
     }),
     [
-      onLocalSignOut,
+      acceptSession,
       provider,
       purgeAndRevoke,
       replaceSession,
-      resolvedRegistry,
       resolvedStore,
       session,
-      lifecycle,
       lifecycleReady,
     ],
   )

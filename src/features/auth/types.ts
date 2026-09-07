@@ -57,11 +57,18 @@ export type ProviderCallbackResult =
 
 export type OAuthProviderId = 'google' | 'facebook'
 
+export type AuthProviderEvent = 'SIGNED_IN' | 'TOKEN_REFRESHED' | 'SIGNED_OUT'
+
 export interface AuthProviderAdapter {
   signIn(email: string, password: string): Promise<ProviderSignInResult>
   sendRecovery(email: string): Promise<void>
   verifyMfa(challengeId: string, code: string): Promise<ProviderSession | null>
   signOut(session: AuthSession): Promise<void>
+  restoreSession?(): Promise<ProviderSession | null>
+  onSessionChange?(listener: (event: AuthProviderEvent, session: ProviderSession | null) => void): {
+    unsubscribe(): void
+  }
+  clearPersistedSession?(): Promise<void>
   register?(request: RegistrationRequest): Promise<ProviderRegistrationResult>
   verifyCallback?(kind: 'verify' | 'recovery', tokenHash: string): Promise<ProviderCallbackResult>
   /**
