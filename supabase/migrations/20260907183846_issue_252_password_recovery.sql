@@ -80,10 +80,6 @@ begin
   if exists(
     select 1 from app_private.password_recovery_operations
       where user_id=p_user_id and state='provider_pending'
-  ) or exists(
-    select 1 from app_private.provider_revocation_outbox
-      where user_id=p_user_id and reason_code='password_recovery'
-        and state in ('pending','calling','failed')
   ) then
     insert into app_private.password_recovery_operations(
       idempotency_key,user_id,recovery_session_id,state,invalidated_at,updated_at

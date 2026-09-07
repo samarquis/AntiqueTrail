@@ -1,5 +1,5 @@
 begin;
-select plan(41);
+select plan(42);
 
 select has_table('app_private','password_recovery_operations','dedicated recovery operation ledger exists');
 select ok((select relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
@@ -137,5 +137,8 @@ select ok(position('state=''uncertain''' in lower(pg_get_functiondef(
 select ok(position('state=''provider_pending''' in lower(pg_get_functiondef(
   'app_public.mark_password_recovery_provider_pending(uuid)'::regprocedure)))>0,
   'provider failure is a content-free retry disposition');
+select ok(position('state=''provider_pending''' in lower(pg_get_functiondef(
+  'app_public.begin_password_recovery(uuid,uuid,uuid)'::regprocedure)))>0,
+  'provider-only retry requires a completed password-update disposition');
 select * from finish();
 rollback;

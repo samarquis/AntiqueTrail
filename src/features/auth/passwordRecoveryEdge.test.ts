@@ -123,4 +123,17 @@ describe('password recovery completion boundary', () => {
     expect(await retryResponse.json()).toEqual({ state: 'completed' })
     expect(retry.order).toEqual(['provider-retry', 'provider-revoke', 'complete'])
   })
+
+  it('keeps a fresh recovery on the full replacement path after uncertainty', async () => {
+    const retry = dependencies({
+      status: async () => 'unknown',
+      invalidateApplicationSessions: async () => {
+        retry.order.push('invalidate')
+        return 'ready'
+      },
+    })
+    const response = await handlePasswordRecoveryCompletion(request(valid), retry.dependencies)
+    expect(await response.json()).toEqual({ state: 'completed' })
+    expect(retry.order).toEqual(['invalidate', 'update', 'provider-revoke', 'complete'])
+  })
 })
