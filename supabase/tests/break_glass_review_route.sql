@@ -1,3 +1,5 @@
+select plan(13);
+
 select has_table('review_private','break_glass_cases','break-glass packet cases exist');
 select has_table('review_private','break_glass_review_capabilities','break-glass capabilities exist');
 select has_table('review_private','break_glass_review_receipts','break-glass decision receipts exist');
