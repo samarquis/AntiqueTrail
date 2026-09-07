@@ -737,7 +737,9 @@ export function BrowsePage({
             <div className="catalog-results-heading">
               <div>
                 <p className="eyebrow">Local directory</p>
-                <h2>{state.stores.length} stores to explore</h2>
+                <h2>
+                  {state.stores.length} {state.stores.length === 1 ? 'store' : 'stores'} to explore
+                </h2>
               </div>
               <p>Fictional listings for safe product review</p>
             </div>
@@ -1184,7 +1186,7 @@ export function DetailsPage({
               href={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/photos`)}
               onClick={() => rememberStoreReturn(store.id)}
             >
-              See all {store.media.length} photos
+              See all {store.media.length} {store.media.length === 1 ? 'photo' : 'photos'}
             </a>
           </p>
         )}
