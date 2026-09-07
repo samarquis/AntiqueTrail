@@ -386,7 +386,7 @@ function MorePage() {
   const destinations: Array<{ to: string; label: string; requiresSignIn: boolean; icon?: string }> =
     [
       { to: '/saved', label: 'Saved Stores', requiresSignIn: true, icon: '/icons/saved-store.svg' },
-      { to: '/new-since', label: 'New Since Your Last Visit', requiresSignIn: false },
+      { to: '/new-since', label: 'New Since Your Last Visit', requiresSignIn: true },
       {
         to: '/account/history',
         label: 'Private History',
