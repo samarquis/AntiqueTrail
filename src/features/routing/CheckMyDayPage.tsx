@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CheckMyDayChoice } from './components'
 import {
   checkMyDay,
@@ -8,20 +8,39 @@ import {
 } from './checkMyDay'
 import { ROUTING_BLOCKED_MESSAGE } from './boundary'
 import type { CheckMyDayServerResult } from '../trips'
+import type { Trip } from '../trips'
 
 export function AuthoritativeCheckMyDayPage({
   requestServer,
   pollServer,
+  loadTrip,
   onUseSuggestedOrder,
   onKeepMyOrder,
 }: {
   requestServer: () => Promise<CheckMyDayServerResult>
   pollServer: (requestId: string) => Promise<CheckMyDayServerResult>
+  loadTrip?: () => Promise<Trip | null>
   onUseSuggestedOrder?: (stopIds: string[]) => void | Promise<void>
   onKeepMyOrder?: () => void | Promise<void>
 }) {
   const [result, setResult] = useState<CheckMyDayServerResult | null>(null)
   const [pending, setPending] = useState(false)
+  const [trip, setTrip] = useState<Trip | null>(null)
+  const [tripLoadFailed, setTripLoadFailed] = useState(false)
+  useEffect(() => {
+    if (!loadTrip) return
+    let cancelled = false
+    void loadTrip()
+      .then((next) => {
+        if (!cancelled) setTrip(next)
+      })
+      .catch(() => {
+        if (!cancelled) setTripLoadFailed(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [loadTrip])
   async function run() {
     setPending(true)
     try {
@@ -53,7 +72,54 @@ export function AuthoritativeCheckMyDayPage({
         {result?.state === 'failed' && (
           <p role="status">The trip changed. Your manual order is unchanged.</p>
         )}
-        {result?.state === 'suggested' && result.orderedStopIds && (
+        {result?.state === 'suggested' && tripLoadFailed && (
+          <p role="status">The trip could not be refreshed. Your manual order is unchanged.</p>
+        )}
+        {result?.state === 'suggested' && loadTrip && !tripLoadFailed && !trip && (
+          <p role="status">Loading the current trip…</p>
+        )}
+        {result?.state === 'suggested' &&
+          trip &&
+          !tripLoadFailed &&
+          result.orderedStopIds &&
+          (() => {
+            const ids = result.orderedStopIds!
+            const unique = new Set(ids)
+            const valid =
+              ids.length === trip.stops.length &&
+              unique.size === ids.length &&
+              ids.every((id) => trip.stops.some((stop) => stop.id === id))
+            const orderedStops = valid
+              ? ids.map((id) => trip.stops.find((stop) => stop.id === id)!)
+              : []
+            return (
+              <>
+                {!valid && (
+                  <p role="status">
+                    The suggested order is stale or incomplete. Your manual order is unchanged.
+                  </p>
+                )}
+                {valid && (
+                  <ol aria-label="Suggested stop order">
+                    {orderedStops.map((stop) => (
+                      <li key={stop.id}>{stop.label}</li>
+                    ))}
+                  </ol>
+                )}
+                {valid && (
+                  <section aria-labelledby="authoritative-suggestion-heading">
+                    <h2 id="authoritative-suggestion-heading">Suggested order</h2>
+                    <ul>{result.explanation?.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                    <CheckMyDayChoice
+                      onUseSuggested={() => onUseSuggestedOrder?.(ids)}
+                      onKeepOrder={() => onKeepMyOrder?.()}
+                    />
+                  </section>
+                )}
+              </>
+            )
+          })()}
+        {result?.state === 'suggested' && !loadTrip && result.orderedStopIds && (
           <section aria-labelledby="authoritative-suggestion-heading">
             <h2 id="authoritative-suggestion-heading">Suggested order</h2>
             <ul>{result.explanation?.map((reason) => <li key={reason}>{reason}</li>)}</ul>
