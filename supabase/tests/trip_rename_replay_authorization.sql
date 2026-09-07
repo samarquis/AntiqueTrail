@@ -31,7 +31,9 @@ select set_config('request.jwt.claims','{"sub":"99000000-0000-4000-8000-00000000
 set local role authenticated;
 select is(app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint),true,'owner session registers');
 select is(app_public.rename_trip('99000000-0000-4000-8000-000000000121','ignored',1,'replay-key')->>'name','Private trip','owner replay returns cached result');
+set local role identity_service;
 select is((select version from trip_private.trips where trip_id='99000000-0000-4000-8000-000000000121'),1::bigint,'owner replay does not write');
+set local role authenticated;
 
 select set_config('request.jwt.claims','{"sub":"99000000-0000-4000-8000-000000000102","role":"authenticated","session_id":"99000000-0000-4000-8000-000000000112"}',true);
 select is(app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint),true,'foreign account session registers');
