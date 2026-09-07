@@ -1,3 +1,5 @@
 export * from './types'
 export * from './reviewClient'
 export * from './components'
+export * from './breakGlassReviewClient'
+export * from './breakGlassReviewRoute'

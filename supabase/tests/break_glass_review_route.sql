@@ -1,0 +1,14 @@
+select plan(12);
+
+select has_table('review_private','break_glass_cases','break-glass packet cases exist');
+select has_table('review_private','break_glass_review_capabilities','break-glass capabilities exist');
+select has_table('review_private','break_glass_review_receipts','break-glass decision receipts exist');
+select has_function('app_public','reviews_get_break_glass_packet',array['text'],'packet exchange exists');
+select has_function('app_public','reviews_request_break_glass_assertion',array['text','uuid'],'assertion request exists');
+select has_function('app_public','reviews_submit_break_glass_review',array['text','uuid','bytea','text','text','text','uuid'],'decision submission exists');
+select ok(not has_function_privilege('authenticated','app_public.reviews_get_break_glass_packet(text)','EXECUTE'),'normal authenticated session cannot read a break-glass packet');
+select ok(not has_function_privilege('authenticated','app_public.reviews_submit_break_glass_review(text,uuid,bytea,text,text,text,uuid)','EXECUTE'),'normal authenticated session cannot submit a break-glass receipt');
+select ok(position('least' in lower(pg_get_functiondef('review_private.freeze_break_glass_packet(uuid,timestamp with time zone)'::regprocedure)))>0,'freeze never extends the fixed review deadline');
+select ok(position('packet_hash' in lower(pg_get_functiondef('app_public.reviews_submit_break_glass_review(text,uuid,bytea,text,text,text,uuid)'::regprocedure)))>0 and position('break_glass_review_submitted' in lower(pg_get_functiondef('app_public.reviews_submit_break_glass_review(text,uuid,bytea,text,text,text,uuid)'::regprocedure)))>0,'submission binds the frozen packet and appends audit');
+select ok(position('interval ''5 minutes''' in lower(pg_get_functiondef('review_private.watch_break_glass_review_deadlines(timestamp with time zone,integer)'::regprocedure)))>0 and position('break_glass_review_missing' in lower(pg_get_functiondef('review_private.watch_break_glass_review_deadlines(timestamp with time zone,integer)'::regprocedure)))>0,'watchdog disables missing or unfrozen review cases');
+select ok(position('provider_key_id' in lower(pg_get_functiondef('review_private.complete_break_glass_assertion(uuid,bytea,bytea,text,text,bigint)'::regprocedure)))>0 and position('p_sign_count<cred.sign_count' in replace(lower(pg_get_functiondef('review_private.complete_break_glass_assertion(uuid,bytea,bytea,text,text,bigint)'::regprocedure)),' ',''))>0,'assertion completion uses accepted provider identity and monotonic counters');

@@ -11,6 +11,7 @@ import type { AppClients, AppRuntime } from './App'
 import { createAdminClient } from '../features/admin/adminClient'
 import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
+import { createBreakGlassReviewClient } from '../features/reviews'
 import {
   createPortalClient,
   createPortalMediaHttpTransport,
@@ -671,6 +672,13 @@ export async function configuredComposition(
         async rpc(name, args) {
           const result = await supabase.rpc(name, args)
           return { data: result.data, error: result.error }
+        },
+      }),
+      breakGlassReview: createBreakGlassReviewClient({
+        async execute(command) {
+          const result = await supabase.functions.invoke('break-glass-review', { body: command })
+          if (result.error) throw result.error
+          return result.data
         },
       }),
       storeApplicationAdmin: createStoreApplicationAdminClient(async (operation, payload) => {
