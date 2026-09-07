@@ -1,0 +1,4 @@
+-- Disposable local-only fixture notes for the configured shopper probe.
+-- The runner must create users through local GoTrue Admin and obtain real
+-- password-grant sessions. It must never manufacture JWT claims or copy users.
+-- Any application rows created here must be run-scoped and removed by owner.
