@@ -88,6 +88,7 @@ import {
   type CheckMyDayProvider,
   type CheckMyDayRequest,
 } from '../features/routing'
+import { InstallPage } from '../features/install/InstallPage'
 import {
   AccessSafetyPage,
   AdminGuard,
@@ -1019,14 +1020,7 @@ export default function App({
               )
             }
           />
-          <Route
-            path="/install"
-            element={
-              <InformationPage title="Install Antique Trail">
-                Install guidance will appear here when this device supports the approved app flow.
-              </InformationPage>
-            }
-          />
+          <Route path="/install" element={<InstallPage />} />
           <Route
             path="/help"
             element={
