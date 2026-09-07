@@ -341,12 +341,14 @@ export function CatalogPrivateActions({
 }) {
   const { session } = useAuth()
   const location = useLocation()
-  const [resumedSaved, setResumedSaved] = useState(false)
+  const [resumedSaved, setResumedSaved] = useState<boolean | undefined>(undefined)
   const [resumeState, setResumeState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const resumePromiseRef = useRef<Promise<{ saved: boolean }> | null>(null)
   const returnTo = `${location.pathname}${location.search}`
 
   useEffect(() => {
+    setResumedSaved(undefined)
+    setResumeState('idle')
     const intent = readJitSaveIntent()
     const inFlight = resumePromiseRef.current
     if (inFlight) {
