@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { BreakGlassReviewRoute, type BreakGlassReviewClient } from './breakGlassReviewRoute'
 
@@ -32,14 +33,22 @@ function client(): BreakGlassReviewClient {
 
 describe('BreakGlassReviewRoute', () => {
   it('loads the exact packet route without normal navigation', async () => {
-    render(<BreakGlassReviewRoute token={token} client={client()} />)
+    render(
+      <MemoryRouter>
+        <BreakGlassReviewRoute token={token} client={client()} />
+      </MemoryRouter>,
+    )
     await waitFor(() => expect(screen.getByText(/INC-1/u)).toBeInTheDocument())
     expect(screen.getByRole('button', { name: /verify identity/iu })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/stores')
   })
 
   it('shows a generic terminal failure for missing or invalid capability', () => {
-    render(<BreakGlassReviewRoute token={null} client={client()} />)
+    render(
+      <MemoryRouter>
+        <BreakGlassReviewRoute token={null} client={client()} />
+      </MemoryRouter>,
+    )
     expect(screen.getByRole('alert')).toHaveTextContent(/invalid, expired, or unavailable/iu)
   })
 })

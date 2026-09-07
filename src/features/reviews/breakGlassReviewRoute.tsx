@@ -159,10 +159,54 @@ export function BreakGlassReviewRoute({
             <p>
               Packet {reviewPacket.incidentId} is frozen through {reviewPacket.reviewDueAt}.
             </p>
-            <p>
-              Only the incident scope, counts, access outcomes, notice status, and audit hash are
-              shown.
-            </p>
+            <dl>
+              <div>
+                <dt>Severity</dt>
+                <dd>{reviewPacket.severity}</dd>
+              </div>
+              <div>
+                <dt>Requesting actor</dt>
+                <dd>{reviewPacket.requestingActor}</dd>
+              </div>
+              <div>
+                <dt>Approvals</dt>
+                <dd>{reviewPacket.approvals.join(', ') || 'None recorded'}</dd>
+              </div>
+              <div>
+                <dt>Reason</dt>
+                <dd>{reviewPacket.reason}</dd>
+              </div>
+              <div>
+                <dt>Authorized scope</dt>
+                <dd>{reviewPacket.authorizedScope}</dd>
+              </div>
+              <div>
+                <dt>Queries</dt>
+                <dd>{reviewPacket.queries.join(', ') || 'None recorded'}</dd>
+              </div>
+              <div>
+                <dt>Record counts</dt>
+                <dd>{reviewPacket.recordCounts.join(', ') || '0'}</dd>
+              </div>
+              <div>
+                <dt>Access window</dt>
+                <dd>
+                  {reviewPacket.startedAt} to {reviewPacket.expiresAt}
+                </dd>
+              </div>
+              <div>
+                <dt>Access results</dt>
+                <dd>{reviewPacket.accessResults.join(', ') || 'None recorded'}</dd>
+              </div>
+              <div>
+                <dt>Notice status</dt>
+                <dd>{reviewPacket.noticeStatus}</dd>
+              </div>
+              <div>
+                <dt>Audit-chain hash</dt>
+                <dd>{reviewPacket.auditChainHash}</dd>
+              </div>
+            </dl>
             <button className="button" type="button" onClick={() => void requestAssertion()}>
               Verify identity
             </button>
