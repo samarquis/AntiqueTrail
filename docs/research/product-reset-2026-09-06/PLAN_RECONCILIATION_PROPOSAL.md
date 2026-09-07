@@ -1,6 +1,6 @@
 # Proposed reconciliation of the product plan after review
 
-Status: discussion proposal, revised 2026-09-07 after the owner accepted the consolidation direction. The final section, "Revised document structure proposal", supersedes the earlier document-ownership proposal for the next amendment. Protected plan edits remain paused pending the scoped `update plan` directive and the owner's document-review checkpoint.
+Status: authorized local amendment draft under the exact 2026-09-07 direction `update plan as proposed, and show me the changes before publishing`. Earlier proposal wording below preserves the discussion; the final local migration receipt records the prepared changes and review status. No publication or implementation has been performed.
 
 Baseline checked: fetched `origin/main` at `63a47ac499c0b52e6af7c0601e5b627c26fa08f0`, the completed product-reset review, and the recorded owner choices in OWNER_DECISION_WORKSHEET.md.
 
@@ -184,3 +184,171 @@ Before declaring the local draft ready for owner review:
 5. Stop at the owner's document-review checkpoint before publishing; later ticket preparation follows the agreed plan, and implementation resumes only when directed.
 
 This proposal is ready for a scoped authorization to prepare the local amendment. It is not a completed migration, an independent review, or approval to publish.
+
+## Local migration receipt and owner review
+
+### Scope and checkpoint
+
+Baseline: fetched main `63a47ac499c0b52e6af7c0601e5b627c26fa08f0`. Exact owner direction: `update plan as proposed, and show me the changes before publishing`. Work is isolated in the existing `codex/private-experience-plan` checkout; the user's older main checkout and unrelated local files are preserved. This is a local amendment for owner review, not a publication, ready implementation backlog, hosted environment, or accepted release.
+
+The PRD now opens with the full connected experience and the next Free private evaluation. README contains the one responsibility table; agent entry documents link to it. Package 1 engineering detail joins the other capability contracts. Current policy links replace repeated decision/phase/acceptance authority; original decisions and roadmap text remain as history. All worksheet identifiers remain local discussion labels.
+
+### Owner-choice trace
+
+| Worksheet choice | Current draft requirement |
+| --- | --- |
+| D1: Free private evaluation first | [Next milestone](../../../PRD.md#next-milestone-free-private-experience-evaluation) |
+| D2: usability, appearance, flow, enjoyment and usefulness | [Evaluation acceptance and disposition](../../../PRD.md#evaluation-acceptance-and-disposition) |
+| D3/D8: discovery, photos, favorites and trip; intended distinctive appeal | [Connected shopper experience](../../../PRD.md#the-connected-shopper-experience) and [product promise](../../../PRD.md#purpose-people-and-product-promise) |
+| D4: owner plus simulated personas | [Evaluation scope and evidence](../../../PRD.md#evaluation-scope-and-evidence) |
+| D5: computer, then phone | [Evaluation scope and evidence](../../../PRD.md#evaluation-scope-and-evidence) |
+| D6: realistic labeled synthetic content with permitted imagery | [Evaluation scope and evidence](../../../PRD.md#evaluation-scope-and-evidence) and [environment boundary](../../../PRD.md#assessment-environment-boundary) |
+| D7: working name now, complete later rename | [Working title](../../../PRD.md#working-title) |
+| D9: no new out-of-pocket spending | [Budget and commercial direction](../../../PRD.md#budget-and-commercial-direction) |
+| D10: store photo-capacity revenue later | [Budget and commercial direction](../../../PRD.md#budget-and-commercial-direction) and [membership contract](../../specs/store-membership-spec.md) |
+| D11: experience the connected journey before judging appearance changes | [Evaluation acceptance and disposition](../../../PRD.md#evaluation-acceptance-and-disposition) |
+
+### Requirement migration map
+
+Each row identifies a source passage and its current owner. "Existing current owner" means the richer current contract retains the requirement rather than copying older approval wording into a new active section; this is a reviewed semantic mapping, not a claim that a string-matching check proves equivalence. Earlier emergency-access clocks and build-from-zero claims remain historical; their newer current controls are preserved. Original decision identifiers, original roadmap headings, and dated receipts remain available.
+
+| Source passage at the baseline | Current destination | Treatment |
+| --- | --- | --- |
+| `PRD.md` / Private content lifetime | [SECURITY_AND_TRUST.md / Privacy by default](../../../SECURITY_AND_TRUST.md#privacy-by-default) | Existing current owner |
+| `PRD.md` / Operational retention | [SECURITY_AND_TRUST.md / Operational retention](../../../SECURITY_AND_TRUST.md#operational-retention) | Existing current owner |
+| `PRD.md` / Recovery objectives | [SECURITY_AND_TRUST.md / Backups](../../../SECURITY_AND_TRUST.md#backups) | Existing current owner |
+| `PRD.md` / Break-glass emergency access | [SECURITY_AND_TRUST.md / Break-glass emergency access](../../../SECURITY_AND_TRUST.md#break-glass-emergency-access) | Existing current owner |
+| `PRD.md` / Age-inclusive usability requirements | [DESIGN_SYSTEM.md / Age-inclusive usability baseline](../../../DESIGN_SYSTEM.md#age-inclusive-usability-baseline) | Moved |
+| `PRODUCT_DECISIONS.md` / Public, multi-user product | [PRD.md / Purpose, people, and product promise](../../../PRD.md#purpose-people-and-product-promise) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / PWA first | [PRD.md / Product type](../../../PRD.md#product-type) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Login platform | [SECURITY_AND_TRUST.md / Authentication](../../../SECURITY_AND_TRUST.md#authentication) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Public ratings resemble Google-style ratings | [PRD.md / Rating model](../../../PRD.md#rating-model) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Separate rating concepts | [PRD.md / Rating model](../../../PRD.md#rating-model) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Preference profile belongs to the user account | [PRD.md / Deferred Phase 5 — Onboarding and taste profile (not authorized for Regional Public MVP)](../../../PRD.md#deferred-phase-5--onboarding-and-taste-profile-not-authorized-for-regional-public-mvp) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Directory data sources and provenance | [PRD.md / Public store directory](../../../PRD.md#public-store-directory) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Store Browser is the shopper front door | [PRD.md / Store Browser requirements](../../../PRD.md#store-browser-requirements) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Official Store Profile Photos | [PRD.md / Official Store Profile Photos](../../../PRD.md#official-store-profile-photos) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Age-inclusive usability baseline | [DESIGN_SYSTEM.md / Age-inclusive usability baseline](../../../DESIGN_SYSTEM.md#age-inclusive-usability-baseline) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Current visual direction | [DESIGN_SYSTEM.md / Selected visual direction](../../../DESIGN_SYSTEM.md#selected-visual-direction) | Moved |
+| `PRODUCT_DECISIONS.md` / Listing freshness and stale behavior | [PRD.md / Listing freshness](../../../PRD.md#listing-freshness) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Trip app owns the itinerary | [PRD.md / Today's Trip requirements](../../../PRD.md#todays-trip-requirements) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Routing location privacy | [SECURITY_AND_TRUST.md / Location privacy](../../../SECURITY_AND_TRUST.md#location-privacy) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Professional and commercial standard | [PRD.md / Product goals](../../../PRD.md#product-goals) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Security is launch-blocking | [PRD.md / Regional Public MVP](../../../PRD.md#regional-public-mvp) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Regional launch | [PRD.md / Regional launch strategy](../../../PRD.md#regional-launch-strategy) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Staged release gates | [PRD.md / Delivery and release boundary](../../../PRD.md#delivery-and-release-boundary) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Regional Public MVP boundary | [PRD.md / Regional Public MVP](../../../PRD.md#regional-public-mvp) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / In-person store-partner pilot | [PRD.md / First Store Partner onboarding](../../../PRD.md#first-store-partner-onboarding) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Topeka Private Beta Pilot Area | [PRD.md / First Pilot Store Record](../../../PRD.md#first-pilot-store-record) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Internal Alpha before external participation | [PRD.md / Internal Alpha](../../../PRD.md#internal-alpha) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Separate Internal Alpha accounts | [PRD.md / Internal Alpha](../../../PRD.md#internal-alpha) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Recipient-specific Candidate Share | [PRD.md / Candidate-link capture and Trip Ideas](../../../PRD.md#candidate-link-capture-and-trip-ideas) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Candidate Share expiry and cleanup | [PRD.md / Candidate-link capture and Trip Ideas](../../../PRD.md#candidate-link-capture-and-trip-ideas) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Candidate Share delivery and abuse protection | [PRD.md / Candidate-link capture and Trip Ideas](../../../PRD.md#candidate-link-capture-and-trip-ideas) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Representative Test Account | [PRD.md / Internal Alpha](../../../PRD.md#internal-alpha) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Store Representative publishing split | [PRD.md / Business accounts](../../../PRD.md#business-accounts) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Administrator approval during Internal Alpha and Private Beta | [PRD.md / Business accounts](../../../PRD.md#business-accounts) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Internal Alpha feature boundary | [PRD.md / Internal Alpha](../../../PRD.md#internal-alpha) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Internal Alpha shopper-trip exit gate | [PRD.md / Internal Alpha](../../../PRD.md#internal-alpha) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Internal Alpha privileged-workflow exit gate | [PRD.md / Internal Alpha](../../../PRD.md#internal-alpha) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / No store-owner participation before readiness | [PRD.md / Internal Alpha](../../../PRD.md#internal-alpha) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / External Testing Readiness gate | [PRD.md / Internal Alpha](../../../PRD.md#internal-alpha) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / First Store Partner onboarding | [PRD.md / First Store Partner onboarding](../../../PRD.md#first-store-partner-onboarding) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / First Pilot Store Record | [PRD.md / First Pilot Store Record](../../../PRD.md#first-pilot-store-record) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Initial Private Beta Cohort | [PRD.md / Initial Private Beta Cohort](../../../PRD.md#initial-private-beta-cohort) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Initial Private Beta Expansion Gate | [PRD.md / Initial Private Beta Expansion Gate](../../../PRD.md#initial-private-beta-expansion-gate) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Controlled Private Beta Expansion | [PRD.md / Controlled Private Beta Expansion](../../../PRD.md#controlled-private-beta-expansion) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Regional Public Readiness Gate | [PRD.md / Regional Public Readiness Gate](../../../PRD.md#regional-public-readiness-gate) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Regional growth sequence | [PRD.md / Regional launch strategy](../../../PRD.md#regional-launch-strategy) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Community Expansion Gate | [PRD.md / Regional launch strategy](../../../PRD.md#regional-launch-strategy) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / In-person Store Partner QR invitation | [PRD.md / Store Partner Invitation](../../../PRD.md#store-partner-invitation) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Store Partner pilot-consent capture | [PRD.md / Pilot consent capture](../../../PRD.md#pilot-consent-capture) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Pilot Store Draft review and approval | [PRD.md / Pilot Store Draft](../../../PRD.md#pilot-store-draft) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Representative activation and first login | [PRD.md / Representative activation and first login](../../../PRD.md#representative-activation-and-first-login) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Store Partner Pilot Support | [PRD.md / Store Partner Pilot Support](../../../PRD.md#store-partner-pilot-support) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Product promise and first arrival | [PRD.md / Core workflow](../../../PRD.md#core-workflow) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Trip construction and readiness | [PRD.md / Today's Trip requirements](../../../PRD.md#todays-trip-requirements) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Active trip and private visit memory | [PRD.md / Active-trip actions](../../../PRD.md#active-trip-actions) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / One-trip partner handoff | [PRD.md / One-trip roles and invitation](../../../PRD.md#one-trip-roles-and-invitation) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Offline active trip | [PRD.md / Offline active trip](../../../PRD.md#offline-active-trip) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Offline active-trip storage | [PRD.md / Offline active trip](../../../PRD.md#offline-active-trip) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Offline synchronization and device precedence | [PRD.md / Offline active trip](../../../PRD.md#offline-active-trip) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Store Portal and publishing states | [PRD.md / Store Portal home and publishing labels](../../../PRD.md#store-portal-home-and-publishing-labels) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Hours editing | [PRD.md / Hours editor](../../../PRD.md#hours-editor) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Store Updates and Vendor Contributor boundary | [PRD.md / Store Updates, images, and social links](../../../PRD.md#store-updates-images-and-social-links) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Official images and social links | [PRD.md / Store Updates, images, and social links](../../../PRD.md#store-updates-images-and-social-links) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Store Update lifecycle and support | [PRD.md / Store Updates, images, and social links](../../../PRD.md#store-updates-images-and-social-links) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / New-store discovery | [PRD.md / Store Browser requirements](../../../PRD.md#store-browser-requirements) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Administrator home and review workspace | [PRD.md / Administrator workspace](../../../PRD.md#administrator-workspace) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Access & Safety | [PRD.md / Access & Safety](../../../PRD.md#access--safety) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Historical implementation authorization transition | [PRODUCT_DECISIONS.md / Historical implementation authorization transition](../../../PRODUCT_DECISIONS.md#historical-implementation-authorization-transition) | Historical sequencing only |
+| `PRODUCT_DECISIONS.md` / Bounded first development slice | [PRODUCT_DECISIONS.md / Bounded first development slice](../../../PRODUCT_DECISIONS.md#bounded-first-development-slice) | Historical sequencing only |
+| `PRODUCT_DECISIONS.md` / Startup Learning MVP | [PRD.md / Startup Learning MVP (`SLM-01`)](../../../PRD.md#startup-learning-mvp-slm-01) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Startup free-service and hosting boundary | [PRD.md / Budget and commercial direction](../../../PRD.md#budget-and-commercial-direction) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Product promotion is not monetization | [PRD.md / Regional launch strategy](../../../PRD.md#regional-launch-strategy) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Correction, claim, and review-delete closure decisions | [PRD.md / Business accounts](../../../PRD.md#business-accounts) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Private shopper-content lifetime | [SECURITY_AND_TRUST.md / Privacy by default](../../../SECURITY_AND_TRUST.md#privacy-by-default) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Private-content deletion and backup aging | [SECURITY_AND_TRUST.md / Privacy by default](../../../SECURITY_AND_TRUST.md#privacy-by-default) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Inactive-account lifecycle | [SECURITY_AND_TRUST.md / Privacy by default](../../../SECURITY_AND_TRUST.md#privacy-by-default) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Operational-record retention | [SECURITY_AND_TRUST.md / Operational retention](../../../SECURITY_AND_TRUST.md#operational-retention) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Recovery objectives | [SECURITY_AND_TRUST.md / Backups](../../../SECURITY_AND_TRUST.md#backups) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Break-glass emergency access | [SECURITY_AND_TRUST.md / Break-glass emergency access](../../../SECURITY_AND_TRUST.md#break-glass-emergency-access) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Inactive-account timing | [SECURITY_AND_TRUST.md / Privacy by default](../../../SECURITY_AND_TRUST.md#privacy-by-default) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Completed-trip location | [SECURITY_AND_TRUST.md / Operational retention](../../../SECURITY_AND_TRUST.md#operational-retention) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Candidate Share terminal states | [SECURITY_AND_TRUST.md / Privacy by default](../../../SECURITY_AND_TRUST.md#privacy-by-default) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Invitation terminal states | [SECURITY_AND_TRUST.md / Operational retention](../../../SECURITY_AND_TRUST.md#operational-retention) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Participant exit | [SECURITY_AND_TRUST.md / User controls](../../../SECURITY_AND_TRUST.md#user-controls) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Freshness | [PRD.md / Listing freshness](../../../PRD.md#listing-freshness) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Duplicate merge | [SECURITY_AND_TRUST.md / Directory data provenance and integrity](../../../SECURITY_AND_TRUST.md#directory-data-provenance-and-integrity) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Account scope | [PRD.md / Account scope requirements](../../../PRD.md#account-scope-requirements) | Moved |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Authentication | [SECURITY_AND_TRUST.md / Authentication](../../../SECURITY_AND_TRUST.md#authentication) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Trip duration and Check My Day | [PRD.md / Package 5B planning factors and output](../../../PRD.md#package-5b-planning-factors-and-output) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Account-deletion cancellation and recent authentication | [SECURITY_AND_TRUST.md / Privacy by default](../../../SECURITY_AND_TRUST.md#privacy-by-default) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Portability | [SECURITY_AND_TRUST.md / User controls](../../../SECURITY_AND_TRUST.md#user-controls) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Browser/device baseline | [DESIGN_SYSTEM.md / Browser and device acceptance matrix](../../../DESIGN_SYSTEM.md#browser-and-device-acceptance-matrix) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Older-adult cohort | [PRD.md / Human usability acceptance](../../../PRD.md#human-usability-acceptance) | Moved |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / External support | [SECURITY_AND_TRUST.md / External support requirements](../../../SECURITY_AND_TRUST.md#external-support-requirements) | Moved |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Metric gate RG-01 | [PRD.md / Operating scorecard and RG-01](../../../PRD.md#operating-scorecard-and-rg-01) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Public review and scalable claim policy | [PRD.md / Review requirements](../../../PRD.md#review-requirements) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Social sign-in for admitted accounts | [SECURITY_AND_TRUST.md / Authentication](../../../SECURITY_AND_TRUST.md#authentication) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Photo-tier memberships: onboarding, pilot grandfathering, and tier changes | [docs/specs/store-membership-spec.md / Tier model](../../../docs/specs/store-membership-spec.md#tier-model) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Photo moderation criteria (#92) | [docs/specs/store-membership-spec.md / Photo moderation criteria](../../../docs/specs/store-membership-spec.md#photo-moderation-criteria) | Moved |
+| `PRODUCT_DECISIONS.md` / Remaining deferred or provider-gated decisions | [PRD.md / Unresolved product and provider choices](../../../PRD.md#unresolved-product-and-provider-choices) | Moved |
+| `IMPLEMENTATION_PLAN.md` / Phase 0 — Product and security foundation | [SECURITY_AND_TRUST.md / Foundation acceptance](../../../SECURITY_AND_TRUST.md#foundation-acceptance) | Moved |
+| `IMPLEMENTATION_PLAN.md` / Phase 1 — Public directory foundation | [PRD.md / Public store directory](../../../PRD.md#public-store-directory) | Existing current owner |
+| `IMPLEMENTATION_PLAN.md` / Cross-phase Internal Alpha gate | [PRD.md / Internal Alpha](../../../PRD.md#internal-alpha) | Existing current owner |
+| `IMPLEMENTATION_PLAN.md` / Phase 2A — Store claims, Store Portal, and administration before external testing | [PRD.md / Business accounts](../../../PRD.md#business-accounts) | Existing current owner |
+| `IMPLEMENTATION_PLAN.md` / Phase 2B — Public reviews and moderation after Internal Alpha | [PRD.md / Review requirements](../../../PRD.md#review-requirements) | Existing current owner |
+| `IMPLEMENTATION_PLAN.md` / Phase 3 — Trip planner | [PRD.md / Today's Trip requirements](../../../PRD.md#todays-trip-requirements) | Existing current owner |
+| `IMPLEMENTATION_PLAN.md` / Phase 4 — Personal finds and households | [PRD.md / Deferred Phase 4 — Find capture (not authorized for Regional Public MVP)](../../../PRD.md#deferred-phase-4--find-capture-not-authorized-for-regional-public-mvp) | Existing current owner |
+| `IMPLEMENTATION_PLAN.md` / Phase 5 — Personalization | [PRD.md / Deferred Phase 5 — Onboarding and taste profile (not authorized for Regional Public MVP)](../../../PRD.md#deferred-phase-5--onboarding-and-taste-profile-not-authorized-for-regional-public-mvp) | Existing current owner |
+| `IMPLEMENTATION_PLAN.md` / Phase 6 — Regional launch | [PRD.md / Regional launch strategy](../../../PRD.md#regional-launch-strategy) | Existing current owner |
+| `IMPLEMENTATION_PLAN.md` / Repository structure baseline | [PACKAGE_CONTRACTS.md / Repository structure baseline](../../../PACKAGE_CONTRACTS.md#repository-structure-baseline) | Moved |
+| `IMPLEMENTATION_PLAN.md` / Bounded first development slice — execution contract | [PACKAGE_CONTRACTS.md / Package 1 — Local Synthetic catalog foundation](../../../PACKAGE_CONTRACTS.md#package-1--local-synthetic-catalog-foundation) | Moved |
+| `PLAN_ACCEPTANCE.md` / Release dependency chain | [PRD.md / Stage dependencies](../../../PRD.md#stage-dependencies) | Moved |
+| `PLAN_ACCEPTANCE.md` / Provider and external-decision boundary | [PRD.md / Provider and external-action prerequisites](../../../PRD.md#provider-and-external-action-prerequisites) | Moved |
+| `PLAN_ACCEPTANCE.md` / Intentional exclusions | [PRD.md / Deferred implementation boundary](../../../PRD.md#deferred-implementation-boundary) | Moved |
+| `PLAN_ACCEPTANCE.md` / Independent-builder acceptance | [PLAN_GOVERNANCE.md / Plan and implementation verification](../../../PLAN_GOVERNANCE.md#plan-and-implementation-verification) | Moved |
+| `PRODUCT.md` / Brand Personality | [DESIGN.md / Product brand personality](../../../DESIGN.md#product-brand-personality) | Moved |
+| `PRODUCT.md` / Anti-references | [DESIGN_SYSTEM.md / Product anti-references](../../../DESIGN_SYSTEM.md#product-anti-references) | Moved |
+| `PRODUCT.md` / Design Principles | [DESIGN.md / Product design principles](../../../DESIGN.md#product-design-principles) | Moved |
+| `PRODUCT.md` / Product Purpose | [PRD.md / Startup Learning MVP (`SLM-01`)](../../../PRD.md#startup-learning-mvp-slm-01) | Existing current owner |
+| `PRODUCT.md` / Users | [PRD.md / Primary users](../../../PRD.md#primary-users) | Existing current owner |
+| `PRODUCT.md` / Accessibility & Inclusion | [DESIGN_SYSTEM.md / Age-inclusive usability baseline](../../../DESIGN_SYSTEM.md#age-inclusive-usability-baseline) | Existing current owner |
+
+Additional consolidations: Package contracts now link to current product outcomes and security controls while retaining schemas, commands, concurrency, technical failure checks, and rollback. Detailed authentication interaction moved from DESIGN_SYSTEM to DESIGN, preserving the old anchor as a reference. Deterministic plan checks and Engineering/Security/Design/Operations accountability moved from the historical roadmap to PLAN_GOVERNANCE; its proportional-check table preserves the former workflow detail. ADR0007/0008 definitions and ordinary required CI/security enforcement remain unchanged.
+
+### Independent review record
+
+Initial local candidate `13e646c9ed9cbec80fa000222a19a1ecb784fdbd` received separate Standards and Spec reviews. Findings are preserved here before their corrections:
+
+| Axis | Finding | Correction in the revised local draft |
+| --- | --- | --- |
+| Standards P1 | Copying older emergency-access policy reintroduced its obsolete review deadline beside the current frozen-packet/reviewer-enrollment control | Removed the copied policy and linked the decision record to the current security section; retained current disabled-stage and deadline rules |
+| Spec P1 | A paragraph-deduplication attempt removed Required/Excluded labels from copied Alpha lists | Restored source block structure, then integrated exit checks into the existing Internal Alpha section with explicit scope lists |
+| Both P2 | Package status still pointed at retired requirement owners; Package 1 copied an obsolete zero-code/zero-coverage claim | Corrected current ownership and made the diagram a list of test obligations, not a current-coverage report |
+| Both P2 | Copied policy/phase blocks left extensive active duplication | Consolidated 102 generated sections into existing owners, preserving unique clauses, direct links, and historical evidence |
+| Spec P2 | Deterministic plan checks and delivery responsibility could lose current authority when the roadmap became historical | Moved current checks and role accountability to PLAN_GOVERNANCE, preserving obsolete chronology only as history |
+| Standards P2 | Browser/device and RG-01 rules were assigned to security despite their product/design ownership | Routed them to DESIGN_SYSTEM acceptance and PRD success metrics |
+
+The initial verdict does not approve the revised candidate. The final verification and follow-up review result are recorded below when available; a full-manifest acceptance review and hosted checks remain separate from this owner-review checkpoint.

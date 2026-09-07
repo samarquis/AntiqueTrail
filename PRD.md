@@ -1,5 +1,7 @@
 # Product Requirements Document
 
+Status: consolidated product-requirements draft authorized 2026-09-07 for local owner review before publishing. The amendment must complete governance review and merge before dependent implementation. Current implementation and evidence remain separate from intended behavior.
+
 ## Purpose, people, and product promise
 
 Antique Trail makes a fun day of antique shopping easy to see, easy to plan, and easy to trust. It brings store discovery, trustworthy details and photographs, hours-aware trip planning, navigation handoff, and private visit memory into one connected experience.
@@ -7,6 +9,8 @@ Antique Trail makes a fun day of antique shopping easy to see, easy to plan, and
 The product serves individual shoppers and explicitly invited trip partners, with separate Store Representative and Administrator workflows that keep listings useful and trustworthy. Design first for shoppers roughly 50-80+ while keeping the product usable by all ages; [primary users](#primary-users) and [age-inclusive usability](#age-inclusive-usability-requirements) retain the full requirements. It is a public, multi-user PWA, with mobile-first design and desktop/tablet support; a later Android package remains possible.
 
 The intended memorable experience is exploring interesting antique shops through photography, discovering favorites, and turning that inspiration into a shopping day. Usefulness, ease, appearance, natural transitions, enjoyment, and a reason to return are desired outcomes. They are not evidence of market demand or demonstrated differentiation.
+
+The public product must contain no original household personal data or implicit household/private-sharing assumptions.
 
 ## The connected shopper experience
 
@@ -57,7 +61,7 @@ The remaining sections specify capability outcomes, product-wide commitments, la
 
 Small tickets link to this overview, their place in the connected journey, the exact capability heading, and the relevant specialist rules. Their checks include affected transitions, while the milestone walkthrough checks the joined experience. Current implementation and dated evidence live in [PROJECT_STATE](PROJECT_STATE.md), and GitHub owns live work status.
 
-Status: consolidated product-requirements draft authorized 2026-09-07 for local owner review before publishing. The amendment must complete governance review and merge before dependent implementation. Current implementation and evidence remain separate from intended behavior.
+
 
 ## Working title
 
@@ -166,25 +170,27 @@ Needs:
 
 Product behavior, repository implementation, and external activation are distinct outcomes. A feature may be implemented and accepted while safely staged off. Human participation, provider approval, legal review, spending, production configuration, promotion, and public release are proved and authorized in separate gate issues; they block only the external action they name. This separation never weakens the security, privacy, accessibility, data-integrity, or stage controls required by the feature.
 
+The application must be secure, maintainable, moderated, monitored, and polished enough for participating stores to promote it through opt-in printed flyers and QR codes.
+
 ## Age-inclusive usability requirements
 
 Design first for shoppers roughly 50-80+ while remaining usable by all ages, without a separate age mode. Meet the exact [age-inclusive usability baseline](DESIGN_SYSTEM.md#age-inclusive-usability-baseline) and the later [human usability acceptance](#human-usability-acceptance); the owner's first evaluation does not replace that release evidence.
 
 ## Private content lifetime
 
-Private saves, trips, personal ratings, notes, and accepted Trip Ideas remain the owner's private memory until the approved deletion/account-lifecycle rules apply; age alone does not expire them. Exact controls: [Private content lifetime](SECURITY_AND_TRUST.md#product-private-content-lifetime-controls).
+Private saves, trips, personal ratings, notes, and accepted Trip Ideas remain the owner's private memory until the approved deletion/account-lifecycle rules apply; age alone does not expire them. Exact controls: [Private content lifetime](SECURITY_AND_TRUST.md#privacy-by-default).
 
 ## Operational retention
 
-Operational records have defined deletion deadlines and must not become a second store of shopper-private content. Exact controls: [Operational retention](SECURITY_AND_TRUST.md#product-operational-retention-controls).
+Operational records have defined deletion deadlines and must not become a second store of shopper-private content. Exact controls: [Operational retention](SECURITY_AND_TRUST.md#operational-retention).
 
 ## Recovery objectives
 
-Every stage must prove its required recovery of both database and Storage; a provider promise or database-only restore does not establish recovery. Exact controls: [Recovery objectives](SECURITY_AND_TRUST.md#product-recovery-objectives-controls).
+Every stage must prove its required recovery of both database and Storage; a provider promise or database-only restore does not establish recovery. Exact controls: [Recovery objectives](SECURITY_AND_TRUST.md#backups).
 
 ## Break-glass emergency access
 
-Emergency private-data access remains disabled where the stage or independent-review requirements prohibit it and is never routine support. Exact controls: [Break-glass emergency access](SECURITY_AND_TRUST.md#product-break-glass-emergency-access-controls).
+Emergency private-data access remains disabled where the stage or independent-review requirements prohibit it and is never routine support. Exact controls: [Break-glass emergency access](SECURITY_AND_TRUST.md#break-glass-emergency-access).
 
 ## Non-goals for MVP
 
@@ -464,6 +470,8 @@ Package 5A checks the current manual order against known store-day hours and fre
 - Backtracking
 - Return destination
 - Whether a store can reasonably be reached before closing
+
+The exact deterministic scoring, limits, start/return treatment, tie-breaks, waiting, and exhaustive permutation contract live in [Package 5B](PACKAGE_CONTRACTS.md#package-5b-â-secondary-browse-map-and-check-my-day). The interface offers explicit use/keep choices and never automatically applies an order or claims real-world optimality.
 
 ### Output
 
@@ -931,45 +939,60 @@ Excluded:
 - Owner analytics
 - Advanced personalization
 
-Shopper-trip exit gate:
+Shopper-trip exit criteria:
 
-- Primary Internal Tester as Test User A and Independent Internal Tester as Test User B each complete three successful Shopper Trip Acceptance Runs on separate accounts and phones
-- Test User B sends at least one synthetic Candidate Share to Test User A; only Test User A can accept it into a recipient-owned Trip Idea and add it to Plan
-- Anonymous, wrong-recipient, Representative, and Administrator reads or mutations of the Candidate Share and Trip Idea are denied
-- Sender cannot read recipient edits, notes, ratings, or resulting trips; recipient cannot read sender's unrelated private records
-- Blocked-source/manual fallback and failed extraction preserve the original Candidate Link without publishing it
+- Primary Internal Tester as Test User A and Independent Internal Tester as Test User B each complete three successful Shopper Trip Acceptance Runs using separate accounts on separate phones
+- Test User B sends a synthetic Candidate Share to Test User A; Test User A alone accepts it into a recipient-owned Trip Idea and adds it to Plan
+- Anonymous, wrong-recipient, Representative, and Administrator access is denied; sender cannot read recipient edits, notes, ratings, or resulting trips
+- Synthetic clock-advance, revoke, and dismiss tests prove immediate denial and 24-hour unaccepted-payload deletion without deleting an accepted recipient-owned Trip Idea
+- Accept, Dismiss, Block, and Report tests prove recipient-only actions; Block denies future sends, Report creates a private moderation case, and the sender sees only `Pending`, `Accepted`, or indistinguishable `Closed`
+- Blocked-source/manual fallback and failed extraction preserve the original link without public publication
 - Each account proves active-trip recovery after refresh or app restart and while offline in at least one run
-- The six runs collectively exercise navigation handoff, arrived/completed/skipped/closed stop states, and route recalculation
+- Each account proves that only its Navigator snapshot and pending mutations exist in encrypted IndexedDB, no authenticated trip data enters public Cache Storage, and another account cannot decrypt or resume it
+- Completed synced trips purge locally; account switch and confirmed logout purge locally; logout with unsynced changes requires an explicit data-loss warning
+- A simulated offline revocation is denied before reconnect sync or refreshed private display and purges the local key/cache
+- Go accepts mutations from one active Navigator device only; authenticated online transfer causes later old-device mutations to fail
+- Duplicate/retried offline mutations apply exactly once and valid actions replay in recorded local order
+- Server authorization, Navigator/device assignment, and trip state reject stale or incompatible queued actions without cross-account disclosure
+- Same-author rating/note conflicts preserve both versions and require an explicit `Keep This Phone's Version` or `Keep Saved Version` choice
+- Across the runs, exercise Synthetic Store discovery/details/updates/official links, just-in-time auth, explicit Add to Trip, progressive Plan, Check My Day choice/warnings, one-trip partner handoff, Navigator-only Go, manual arrival, private review, skip/Undo, summary/Plan Again, and recalculation
 - AI-assisted or Primary Internal Tester runs as Test User B are supplemental and cannot replace the Independent Internal Tester's runs
 - Zero Blocking Defects
 - Zero cross-account exposure or modification of shopper-private data
 
-Privileged-workflow exit gate:
+Privileged-workflow exit criteria:
 
-- Primary Internal Tester operates two complete Privileged Workflow Acceptance Cycles; Independent Internal Tester is not required to operate privileged accounts
+- Primary Internal Tester operates two complete Privileged Workflow Acceptance Cycles using separate representative and MFA-protected administrator sessions; Independent Internal Tester is not required to operate privileged accounts
 - Every Representative-Managed Field publishes directly for the assigned Synthetic Store
 - At least one Store Change Request is approved and one rejected; unapproved Controlled Store Fields remain unpublished
 - Representative self-approval is denied
-- Administrator uses a separate MFA-protected session to grant and revoke the representative's store scope
-- Revocation denies further writes from the representative's existing session
+- Administrator grants and revokes the representative's store scope; revocation denies further writes from the representative's existing session
 - Every privileged action has an audit record
-- Direct/controlled labels, hours preview, image hold/replacement, social-link validation, update archive, support lifecycle, and review context behave as specified in `DESIGN.md`
-- Revocation and regrant affect only the selected store scope; an already-open Representative session cannot perform another authorized write after revocation
-- Representative and Administrator Test Accounts cannot read or modify Test User A or Test User B shopper-private data
+- Store content/image/social/support review paths enforce their labels and lifecycle; Administrators cannot edit submissions or bulk approve
+- Access revocation and regrant affect only the selected store scope; an already-open Representative session is denied on its next write
+- Representative and Administrator Test Accounts cannot read or modify either shopper Test Account's private data
+- Every Synthetic Internal Alpha break-glass request is denied and audited
 - Zero Blocking Defects; every allowed action succeeds and every forbidden action is denied
 
-External Testing Readiness gate before first-owner contact:
+External Testing Readiness criteria before first-owner contact:
 
 - Dated passing evidence for Solo Agent-Assisted Alpha and Two-Person Acceptance
 - Complete authorization and security test set passes
 - Zero open Blocking Defects or known privacy, security, or data-loss defects
 - Backup restore and rollback rehearsals pass
+- Database and Storage restores separately meet the current stage's approved RPO/RTO
+- Before Private Beta, a synthetic-data rehearsal proves every break-glass request is denied and audited while Scott is the sole Administrator through Packages 8/8B. If a real second qualified Administrator exists, also rehearse the enabled path's scope, read-only default, 30-minute expiry, approval, notice, two-year hash-chained audit, and external anchor. Otherwise defer that enabled-path rehearsal until Package 9 reviewer enrollment and capability tests pass; Private Beta proceeds only with break-glass disabled.
+- A full Private-Beta incident rehearsal proves detection/severity, containment, credential/store-scope revocation, user/store/status communication, database and Storage recovery, deletion-receipt replay, and post-incident evidence
 - Pilot-environment monitoring, error reporting, and support intake work
+- Monitored support address/form and security contact are published; the Private Beta response commitments, named on-call owner and backup, and in-PWA/status-channel incident path are exercised
 - Pilot privacy notice and owner consent are ready
-- One External Testing Dress Rehearsal passes
-- One full Private-Beta incident rehearsal passes
 - Qualified professional evidence confirms the operating legal entity and required pilot insurance are active for owner contact and participation
+- One External Testing Dress Rehearsal passes end to end
 - Primary Internal Tester approves every check; AI Test Agents may collect evidence but cannot approve the gate
+
+Any failed check blocks owner outreach, real-store import, and external participation.
+
+The retained human roles are Scott as Primary Internal Tester and his wife as Independent Internal Tester on her own newly created account and phone. The first owner-only evaluation does not replace her later independent acceptance. Synthetic records may represent store types and owner workflows but cannot use real names, logos, photos, reviews, or imply affiliation.
 
 ## Startup Learning MVP (`SLM-01`)
 
@@ -1149,300 +1172,15 @@ Later operating expenditure may be funded from actual available site revenue, bu
 
 The intended revenue remains optional store listing/photo-capacity upgrades under the approved [Free/Gallery/Full Gallery membership contract](docs/specs/store-membership-spec.md). There are no inferred shopper charges, sales commissions, paid ranking, new prices, or live billing. Paid activation remains subject to the existing commercial and release gates.
 
-## Public, multi-user product policy
-
-The application is not built for one household. Original research informs the design but personal data and personal assumptions must be removed.
-
-## PWA first policy
-
-Build a Progressive Web App first. Preserve the ability to package the same app for Android later with Capacitor.
-
-## Public ratings resemble Google-style ratings policy
-
-Stores have public 1–5 star aggregate ratings and review counts.
-
-## Separate rating concepts policy
-
-- Public store rating
-- Private personal rating
-- Private personalized match score
-
-## Preference profile belongs to the user account policy
-
-Every user's taste model is private and individualized.
-
-## Directory data sources and provenance policy
-
-Store Partners provide and confirm their own listing data. A non-partner listing may contain only manually verified public business facts: name, address, phone, hours, website, and categories. Preserve Store Data Provenance with the source URL or owner confirmation, verifier, and verification date. Do not copy descriptions, photos, or reviews without permission. Do not scrape or bulk-import a source without written license review. Google Places content is not the stored catalog; an optional Google place ID may be retained for a later approved live lookup that follows current [Google Places policies](https://developers.google.com/maps/documentation/places/web-service/policies), attribution, and provider terms.
-
-## Store Browser is the shopper front door policy
-
-Open on a list-first Store Browser, not the trip planner or map. Search supports store name, town or area, and category. Manual area browsing works without device location. An optional map is a secondary view. Each store card shows a cover image or neutral placeholder, name, town or distance when available, category/what-you-will-find summary, today's hours and open state, freshness state, Save, and Add to Trip. Store Details adds the approved gallery, description, address/map, full hours/exceptions, contact links, provenance/freshness, Navigate, Report correction, and shopper-private history.
-
-## Official Store Profile Photos policy
-
-Include rights-cleared Official Store Profile Photos in the Store Browser, Store Details, and trip presentation. Internal Alpha uses generated fictional images for Synthetic Stores. Real images must be provided by an authorized Store Partner or have specific documented permission; automatic website/social screenshots and copied third-party images are prohibited. Store Representatives submit photos through a Store Change Request; quarantine, validation, re-encoding, metadata removal, accessible alternative text, and Administrator approval precede display. A missing photo uses a neutral placeholder and does not hide an otherwise valid listing. Shopper/review photo submissions remain deferred until after the Regional Public MVP.
-
-## Listing freshness and stale behavior policy
-
-A listing remains verified for 180 days after Store Partner confirmation or manual source verification. A correction or closure report triggers immediate review. From day 181 through day 365, label the listing `Verification overdue`, keep it searchable with a warning, and exclude it from Open Now and automatic trip ordering. After day 365, hide it from normal discovery until reverified. Never automatically delete the listing or its provenance. Successful reverification resets the clock.
-
-## Trip app owns the itinerary policy
-
-Navigation providers handle only the current leg.
-
-Regional Public MVP limits one trip to eight active stops. This bounds phone usability, offline state, and deterministic Check My Day evaluation; a later measured need may raise the limit through a product/algorithm contract change.
-
-## Professional and commercial standard policy
-
-The application must be secure, maintainable, moderated, monitored, and polished enough to promote through opt-in printed flyers in participating stores.
-
-## Security is launch-blocking policy
-
-Security, privacy, moderation, backups, logs, incident response, and authorization testing are required before launch.
-
-## Regional launch policy
-
-Start with one strong region and verified store data rather than a sparse national launch.
-
-## Staged release gates policy
-
-Launch first as a controlled-access Private Beta without public user-generated content. After directory, trip planning, moderation, and abuse controls are proven, launch a Regional Public MVP with text-only public ratings and reviews.
-
-Repository implementation and external activation are separate decisions. Implementation may close when the required code, tests, review, and staged-off controls are merged. Human, provider, legal, payment, research-cohort, promotion, and production evidence belongs to the gate that authorizes that external action and does not keep a repository-complete implementation ticket open.
-
-## Regional Public MVP boundary policy
-
-The Regional Public MVP requires Packages 1–10B and every named provider, human-capacity, security, privacy, legal, recovery, accessibility, age-representative usability, operations, and release gate. Phase headings are capability groupings, not execution authority. Defer Phase 4 finds/households, Phase 5 preference onboarding/personalization, shopper/review photos, and owner review responses until after the Regional Public MVP.
-
-## In-person store-partner pilot policy
-
-Choose a Pilot Area where direct shop-owner outreach is practical before public product promotion. A candidate shop is a Prospective Store Partner until an authorized owner or manager explicitly agrees to participate; that person may then join the Private Beta as a Beta Tester. Do not imply a partnership before consent.
-
-## Topeka Private Beta Pilot Area policy
-
-Use Topeka city limits as the future Private Beta Pilot Area. Store outreach, partner claims, and real-location import remain deferred until a separate pre-pilot readiness gate is defined and passed.
-
-## Internal Alpha before external participation policy
-
-Run an Internal Alpha before adding real stores or contacting any owner or public entity. It begins with a Solo Agent-Assisted Alpha: Scott, as Primary Internal Tester, operates all separate role accounts and may supervise AI Test Agents. It ends with Two-Person Acceptance: Scott's wife, as Independent Internal Tester, performs shopper acceptance using her own account and phone. AI evidence cannot substitute for her independent acceptance or approve a release gate. Test with Synthetic Stores only. Synthetic records may represent store types and owner workflows, but must not use real names, logos, photos, reviews, or imply affiliation.
-
-## Separate Internal Alpha accounts policy
-
-Every role uses a separate Test Account. During Solo Agent-Assisted Alpha, the Primary Internal Tester operates Test User A and may use a separate Agent-Assisted Shopper Account for user-two simulation while preserving separate sessions, ownership, and visibility. During Two-Person Acceptance, the Independent Internal Tester uses a newly created Test User B account on her own phone; the solo-stage account is never reassigned to her. Test User A and Test User B may intentionally perform identical actions or enter duplicate values, but neither can read or change the other's private data. Household sharing remains disabled during this isolation test; recipient-specific Candidate Share grants no household membership or broader access.
-
-## Recipient-specific Candidate Share policy
-
-An authenticated shopper may send one Candidate Link to one named authenticated recipient. The recipient may accept or dismiss only that share; acceptance creates a recipient-owned Trip Idea. Preserve the original URL, capture time, sender-supplied note, and extraction provenance. Treat extracted name, address, hours, contact, inventory, or event hints as unverified suggestions until the recipient reviews them. A blocked, private, or unsupported source retains the link and uses manual-entry fallback. Candidate Share never publishes a store or event, implies a Store Partner relationship, enables household access, or exposes either shopper's other private records. Include this narrow Capture workflow in Internal Alpha and the Regional Public MVP while full household lists and public Events remain deferred. Approved 2026-07-30.
-
-## Candidate Share expiry and cleanup policy
-
-A pending Candidate Share expires 30 days after it is sent. The sender may revoke it while pending, and the named recipient may dismiss it. An expired, revoked, or dismissed unaccepted payload becomes unreadable and unclaimable immediately and is deleted from the primary database and associated Storage within 24 hours. Acceptance creates a recipient-owned Trip Idea governed by the approved private-content lifetime; it does not expose later recipient edits or activity to the sender. Approved 2026-07-31.
-
-## Candidate Share delivery and abuse protection policy
-
-The sender addresses a Candidate Share to the verified email of an existing Antique Trail account. The server resolves the address to that account without revealing whether an account, block, or delivery match exists; only the matched verified account may receive or open the payload. The recipient may Accept, Dismiss, Block, or Report. Block closes the current share and denies later shares from that sender. Report closes the share and creates an access-controlled moderation case. The sender sees only `Pending`, `Accepted`, or `Closed`; `Closed` does not distinguish an unknown or unverified address, dismissal, block, report, revocation, or expiry. Use the same generic confirmation, response shape, and timing behavior for matched, unmatched, and blocked addresses, with server-side rate limits. Do not send an invitation or payload to an unregistered address. Approved 2026-07-31.
-
-## Representative Test Account policy
-
-Internal Alpha includes a separate Representative Test Account scoped to one Synthetic Store and operated by the Primary Internal Tester. It is never shared with shopper sessions. The Independent Internal Tester is not required to use it. It cannot access shopper saves, personal ratings, notes, trips, or other private records.
-
-## Store Representative publishing split policy
-
-Store Representatives may directly publish regular hours, holiday hours, phone, website, official description, and temporary closure for their assigned store. Name, address or coordinates, ownership, permanent closure, category tags, and Official Store Profile Photos require an approved Store Change Request. Store Representatives never edit reviews or access shopper-private data. See `docs/adr/0001-split-store-representative-publishing-by-field-risk.md`.
-
-## Administrator approval during Internal Alpha and Private Beta policy
-
-Use a fourth, separate Administrator Test Account to approve or reject Store Change Requests, grant or revoke representative roles, and inspect audit records. It uses a separate session with MFA and cannot access shopper-private data. For initial Regional Public MVP, the Administrator also performs narrowly scoped routine review moderation with MFA, recent authentication, reason-coded transitions, minimized case evidence, and append-only hash-chained audit with externally anchored roots. Defer a separately staffed Moderator role until review volume requires one.
-
-## Internal Alpha feature boundary policy
-
-Internal Alpha includes four-role authentication; a list-first Synthetic Store Browser with search, optional map, details, hours, and generated fictional profile images; private Candidate Link capture, recipient-specific Candidate Share, and Trip Ideas using synthetic sources; private saves, personal ratings, and notes; hours-aware trip planning; active-trip navigation handoff; offline recovery; Store Representative and Administrator workflows; and audit records. It applies the Age-Inclusive Usability Baseline. It excludes public reviews, shopper/review photos, household lists or broad shared access, finds and collections, public Event records, notifications, owner analytics, advanced personalization, and real stores.
-
-## Internal Alpha shopper-trip exit gate policy
-
-The Primary Internal Tester using Test User A and the Independent Internal Tester using Test User B must each complete three successful Shopper Trip Acceptance Runs on separate phones and accounts. At least one run must prove Test User B can send a synthetic Candidate Share to Test User A, Test User A alone can accept it into a recipient-owned Trip Idea and add it to Plan, and neither account can read the other's unrelated private records or recipient edits. Anonymous, wrong-recipient, Representative, and Administrator access must be denied. For each account, at least one run must prove active-trip recovery after refresh or app restart and while offline. Across the runs, the tester must exercise navigation handoff, arrived/completed/skipped/closed stop states, and route recalculation. AI-assisted or Primary Internal Tester runs against Test User B are supplemental and do not replace the Independent Internal Tester's three runs. The gate requires zero Blocking Defects and zero unauthorized cross-account exposure or modification of shopper-private data.
-
-## Internal Alpha privileged-workflow exit gate policy
-
-The Primary Internal Tester must operate two complete Privileged Workflow Acceptance Cycles using the separate Representative Test Account and MFA-protected Administrator Test Account; the Independent Internal Tester is not required to operate privileged accounts. Across each cycle, every Representative-Managed Field must publish directly; at least one Store Change Request must be approved and one rejected; unapproved Controlled Store Fields must remain unpublished; representative self-approval must fail; revocation must block further writes from the representative's existing session; and all privileged actions must have audit records. Both privileged accounts must remain unable to read or modify Test User A or Test User B shopper-private data. The gate requires zero Blocking Defects; every allowed action must succeed and every forbidden action must be denied.
-
-## No store-owner participation before readiness policy
-
-Do not contact or include a store owner, import a real store, or add any external participant until Solo Agent-Assisted Alpha and Two-Person Acceptance pass and a separate External Testing Readiness gate is defined and passed. After that gate passes, invite one consenting Store Partner representative into the controlled, invitation-only Private Beta to test the real owner workflow before public access. The gate does not authorize public product promotion.
-
-## External Testing Readiness gate policy
-
-Before first-owner contact, require dated passing evidence approved by the Primary Internal Tester for all nine checks: both Internal Alpha stages; the complete authorization and security test set; zero open Blocking Defects or known privacy, security, or data-loss defects; successful backup-restore and rollback rehearsals; working pilot-environment monitoring, error reporting, and support intake; legally reviewed final pilot privacy notice and owner-consent wording; one successful External Testing Dress Rehearsal; one Private-Beta incident rehearsal covering detection, containment, credential/scope revocation, user/store communication, database and Storage recovery, deletion-receipt replay, and post-incident evidence; and documented confirmation from qualified counsel/insurance professionals that the operating legal entity and required pilot insurance are active for the planned owner contact and participation. A failed check blocks outreach. AI Test Agents may collect evidence but cannot approve the gate.
-
-## First Store Partner onboarding policy
-
-Demonstrate the product using Synthetic Stores only. Before creating a real store record or representative account, obtain Store Partner Pilot Consent and verify the representative's authority both in person and through a published business contact. The representative must use an owner-controlled verified email and MFA; shared credentials are prohibited. Consent states that the pilot is voluntary, invitation-only, unpaid, non-endorsing, and not public product promotion. On withdrawal, revoke representative access and remove the real store from the active pilot. Audit onboarding, scope grants, withdrawal, and revocation.
-
-## First Pilot Store Record policy
-
-After consent and authority verification, atomic Administrator approval of the owner-submitted Pilot Store Draft creates one Pilot Store Record using owner-confirmed name, address, phone, website, regular and holiday hours, official description, and category tags. Record the source/provenance and verification date. The Store Representative then tests the already-approved Representative-Managed Field workflow and submits rights-confirmed Official Store Profile Photos through Store Change Requests. Quarantine and process images before Administrator approval and display. Restrict the record to invited Private Beta participants. Exclude ratings/reviews, shopper/review photos, events, owner responses, and analytics.
-
-## Initial Private Beta Cohort policy
-
-Limit the Initial Private Beta Cohort to four human accounts and one Pilot Store Record: Scott's separate shopper and Administrator accounts, Scott's wife's separate shopper account, and the first owner's Store Representative account. The owner does not use the representative account for shopper activity; any future shopper testing requires a separately approved account. AI and Agent-Assisted Test Accounts remain restricted to Synthetic Store data. Do not add another user or real store until a separate expansion gate passes.
-
-## Initial Private Beta Expansion Gate policy
-
-Before adding any additional user or a second real store, require dated evidence approved by the Primary Internal Tester that: the owner completed Representative-Managed Field edits, one independently completed direct hours/content edit, submitted two Store Change Requests that the Administrator approved and rejected respectively, used MFA, and participated in a scheduled revoke/regrant test; Scott and the Independent Internal Tester each completed two shopper trip runs containing the Pilot Store Record; support and feedback intake worked; privileged audit records were complete; monitoring, backup restore, and rollback checks remained passing; and no Blocking Defect or known privacy, security, or data-loss defect remained open. The owner must independently record `continue` or `withdraw` and whether the listing is useful, hours maintenance and reviewed changes are understandable, each flyer/social channel is accepted or declined, and the operator interventions/minutes/support cases were acceptable. `Withdraw` or missing owner evidence blocks expansion; `continue` still requires Product Owner acceptance of support load. No minimum calendar duration applies. A failed check blocks expansion.
-
-## Controlled Private Beta Expansion policy
-
-After the Initial Private Beta Expansion Gate passes, add one Store Partner and one Pilot Store Record at a time. Apply the same consent, authority verification, account onboarding, owner workflow, shopper-trip, security, audit, support, and recovery checks to each addition before adding the next. Cap the controlled Private Beta at three total Store Partners and stores. Keep it invitation-only with no public product promotion. After all three pass, stop expansion and conduct the separate Regional Public Readiness Gate below; passing the pilot does not automatically authorize public access.
-
-## Regional Public Readiness Gate policy
-
-Public access remains blocked until dated evidence proves all three Controlled Private Beta additions passed; every Package 1–10A prerequisite required by the Regional Public MVP passed; all provider, human-capacity, security, privacy, legal, accessibility, browser/device, support, availability, DB/Auth/Storage recovery, and incident gates passed; and zero Blocking Defects or known privacy, security, or data-loss defects remain. Topeka catalog readiness additionally requires 100% of active discoverable listings inside their approved verification interval, at least 12 active verified listings inside Topeka city limits, at least 70% coverage of an independently enumerated eligible-shop baseline, and at least three valid unique three-store itineraries on each of Tuesday, Friday, and Saturday—nine total—using current hours. Use one non-holiday date per named day within 30 days after the baseline recheck; each itinerary starts at the first store's verified opening, allows 45 minutes per store plus a 10-minute transition buffer, uses the accepted Package 5B provider's recorded travel-time matrix, and finishes every visit no later than verified closing. An eligible shop is a brick-and-mortar business inside Topeka city limits, open to the public on at least one recurring day per week, whose primary advertised inventory is antiques or vintage goods; event-only markets and general thrift or consignment businesses without that primary focus are excluded. Two people independently enumerate the baseline from dated public sources, reconcile disagreements, preserve the source list, and recheck it within 30 days before signature. If the 70% rule requires fewer than 12 listings, 12 still controls; if fewer than 12 eligible shops exist, the Product Owner must approve a written market-size exception instead of silently weakening the gate. Before public product promotion, at least eight invited independent Topeka shoppers outside the Initial Private Beta household/owner cohort—including the approved older-adult cohort where eligible—must attempt Browse, Details, Plan, Go, and private visit memory; at least seven must complete without a Blocking Defect and at least five must confirm return intent or complete a second trip. The Product Owner signs the evidence. Public deployment, product promotion, and anonymous real-store access remain unauthorized until that signature and Package 10B's public recovery/domain/capacity gate.
-
-## Regional growth sequence policy
-
-Use Topeka city limits for the first Regional Public MVP. After Package 11 RG-01 passes and the Product Owner separately selects one Eligible Small Community, Package 12 privately recruits its approved anchor owner, verifies at least two listings, and reuses Package 10A/10B exact catalog, consented-promotion, recovery/capacity, preactivation signature, and rollback controls before activating only that area. After activation, run the Community Expansion Gate below; its passing receipt is required before a separately approved Package 12 run for another community. Package 12 is repeatable once per area for ordinals 1–3, with a separate Product Owner selection each time. An Eligible Small Community is outside a larger metro, roughly within a 60-minute drive of Topeka, has at least two antique or vintage shops, and has at least one willing anchor Store Partner before activation. Stop after three communities and conduct a separate larger-metro readiness review before considering Kansas City or another larger metro. Exact communities remain unresolved.
-
-## Community Expansion Gate policy
-
-Before activating another small community, require dated Primary Internal Tester approval that the current community has: at least two verified active shop listings; one anchor Store Partner who completed onboarding, one direct edit, one controlled change, and one support request; separate-phone/account multi-stop trip runs completed by Scott and the Independent Internal Tester; voluntary trip-use confirmation from five additional shoppers without requiring precise-location tracking; passing monitoring, support, and store-data accuracy checks; and zero open Blocking Defects or known privacy, security, or data-loss defects. No minimum calendar duration applies. A failed or incomplete check blocks the next community.
-
-## In-person Store Partner QR invitation policy
-
-After a Synthetic Store demonstration and verbal interest, the recently authenticated MFA-protected Administrator creates a Store Partner Invitation and displays its QR code. The QR contains only an opaque random token, expires after 30 minutes or one successful redemption, and contains no owner, store, email, or role data. Scanning opens the same PWA's partner-onboarding page; it does not install the PWA or grant access. The owner reviews the pilot privacy notice and terms, enters the required consent statements and identity credentials, and submits once. One idempotent transaction consumes the invitation, stores an immutable provisional consent submission, and creates an owner-controlled Pending Partner Identity with no store, role, scope, or pilot-data grant. The owner then verifies email and configures MFA. Only after verified email and MFA does the system finalize the immutable Pilot Consent Receipt, bind it to that verified email, and deliver the owner copy. Interruption before transaction commit consumes nothing; interruption after commit resumes the same pending onboarding record and cannot create a second identity or receipt. The invitation remains pending for authority review until the Administrator independently verifies authority through the published business contact and approves it. Only final Pilot Store Draft approval may create the Pilot Store Record and store-scoped Store Representative grant. Installation instructions appear after approved sign-in. Generation, expiry, revocation, consumption, provisional consent, identity creation, email/MFA verification, receipt finalization, authority review, approval, role grant, and installation handoff are audited. See ADR 0002.
-
-## Store Partner pilot-consent capture policy
-
-Use a phone-friendly consent screen with a plain-language summary and links to the full, legally reviewed pilot privacy notice and terms. Require separate acknowledgments of authority, voluntary participation, permitted store-data use, no payment or endorsement, and withdrawal. Require typed name, business title, store name, and owner-controlled email. Submission creates the immutable provisional consent record and unprivileged Pending Partner Identity atomically; it does not grant access. After email verification and MFA, finalize the immutable Pilot Consent Receipt with the provisional submission, verified email, finalization timestamp, invitation identifier, and policy version. Email the owner a receipt/PDF copy without internal verification evidence. Administrators may view but never edit either consent record. A material term change requires fresh consent before continued participation.
-
-## Pilot Store Draft review and approval policy
-
-After consent, verified email, and MFA, the Pending Partner Identity enters the owner-confirmed core listing fields into a Pilot Store Draft. Only that identity and Administrators may read it. The owner may edit while draft or changes-requested and submits it for review. The Administrator verifies the submission against the published business contact and may approve it or return comments, but may not silently edit owner-submitted values. The owner corrects and resubmits. Approval requires MFA, recent authentication, and an exact final preview. One atomic transaction freezes the approved draft snapshot and provenance, creates the Pilot Store Record, and grants only its store-scoped Store Representative role; any failure creates neither record nor grant. Preserve comments and all state transitions in the audit history. See ADR 0003.
-
-## Representative activation and first login policy
-
-After successful approval, send a status-only email containing the normal PWA sign-in link; never send a reusable invitation, magic role, or authorization token. The owner signs in using the already verified email and MFA. The portal shows the exact approved Pilot Store Record, store-scoped Representative permissions, Pilot Consent Receipt, and approval history, then offers device-appropriate PWA installation instructions. Start a guided checklist: confirm the listing, review hours, make one Representative-Managed Field edit, submit one Store Change Request, and use pilot support. Changes-requested or rejected emails contain status only; comments and store data require authenticated portal access. Audit email delivery, first approved sign-in, installation handoff, and checklist progress. See ADR 0002.
-
-## Store Partner Pilot Support policy
-
-Provide an in-app Pilot Support Ticket workflow with categories for bug, confusing workflow, store-data correction, feature idea, and security/privacy concern. Automatically attach only store/account identifiers, app version, timestamp, and basic device/browser details; never attach tokens, shopper data, precise location, or internal logs. Allow an optional screenshot only after owner preview. The submitting Store Representative and Administrators may read the ticket, replies, and status in the authenticated portal. Email contains status only. Security/privacy concerns trigger an urgent Administrator alert. A fallback support email accepts sign-in-failure reports but exposes no pilot data until identity is verified. The owner may confirm resolution or reopen the ticket.
-
-## Product promise and first arrival policy
-
-The product promise is: “Antique Trail makes a fun day of antique shopping easy to see, easy to plan, and easy to trust.” Browse Stores is the first-arrival screen for the approved area and shows results immediately without sign-in or location permission. Anonymous visitors may Browse, open Store Details, and Navigate. Save, Add to Trip, private ratings, and private notes use just-in-time authentication and return to the interrupted action without creating a write on cancellation or failure. Approved through D5–D6 on 2026-07-30.
-
-## Trip construction and readiness policy
-
-Add to Trip always names the destination trip and supports an explicit existing-trip or new-trip choice. A new trip initially requires only editable area name and date; starting point, departure, optional return, and stop durations are completed progressively in Plan. Starting location is private, manual by default, and may use current location only after an explicit action. Check My Day previews a suggested feasible order, explains reasons and warnings, and never silently reorders. Users choose `Use Suggested Order` or `Keep My Order`; accessible move controls remain available. Approved through D7–D14 on 2026-07-30.
-
-## Active trip and private visit memory policy
-
-Arrival is manual; Antique Trail does not geofence or provide turn-by-turn navigation. Go shows one stop at a time and hands the current leg to an external map. A quiet active-visit screen ends with `Done Here`, then offers an optional private 1–5 rating, return choice of No/Maybe/Yes, and note. Skip is immediate and reversible with Undo. Completion or confirmed early ending produces a private summary and immutable visit history; private notes and ratings remain editable, and `Plan Again` clones the trip. Approved through D15–D19 on 2026-07-30.
-
-## One-trip partner handoff policy
-
-A Trip Creator may invite one Trip Partner to one trip. Both may edit the draft, and either may be assigned Navigator. Only the Navigator controls Go; the other participant sees read-only progress. Ratings and notes stay private to their author, and neither participant gains access to the other person's unrelated trips or account data. The invitation is bound to a verified matching email, single-use, valid seven days, and may be presented through the native share sheet or a QR code. Removal of an active Navigator pauses the trip until another Navigator is assigned. Approved through D20–D21 on 2026-07-30.
-
-## Offline active trip policy
-
-Only the assigned Navigator receives the minimum offline snapshot for the active trip. Arrival, completion, skip, private rating, and private note may be recorded offline with a visible pending-sync state and safe resume after refresh or restart. Draft collaboration stays online-only. The partner sees last-updated state, and external-map offline availability remains outside Antique Trail's control. Approved as D22 on 2026-07-30.
-
-## Offline active-trip storage policy
-
-Persist only the assigned Navigator's minimum active-trip snapshot and pending offline mutations in encrypted IndexedDB. Bind the cache cryptographically to the authenticated account and local PWA installation with a non-extractable device-local Web Crypto key; never place authenticated trip data in the public service-worker cache. The snapshot may survive refresh, browser close, and PWA restart. Purge it after completed-trip changes successfully synchronize, on account switch, and on logout. If unsynced changes exist, logout must warn plainly that continuing will delete those local changes and require explicit confirmation. On known authorization loss, delete the key and cache; when the device was offline during revocation, recheck authorization on reconnect and purge before accepting sync or showing refreshed private data. Already decrypted data on an offline device cannot be remotely recalled. Approved 2026-07-31.
-
-## Offline synchronization and device precedence policy
-
-Bind each active Go session to one Navigator account and one active Navigator device. A device transfer requires authenticated online confirmation; the old device cannot submit later mutations after transfer. Give every offline mutation a unique idempotency key and local sequence number, then replay authorized mutations exactly once in their original order. Server authorization, current Navigator/device assignment, and trip lifecycle/state always win. Reject queued actions that lost authorization or conflict with a completed/reassigned trip, and show a plain sync explanation without exposing other-account data. Apply non-conflicting actions normally. If the same private rating or note changed from the offline base version on another device, preserve both versions and require the author to choose `Keep This Phone's Version` or `Keep Saved Version`; never silently overwrite either. Approved 2026-07-31.
-
-Online shared-draft edits use one monotonically increasing trip version and an idempotency key per mutation. Every reorder, add/remove, time/duration, return, partner, or Navigator mutation names its base version. A stale base is rejected without partial application; the client loads the latest plan, highlights the changed fields/order, and offers `Reapply My Change` or `Keep Latest`. Reapply is a new authorized mutation against the new version. Never last-write-wins, silently merge ordered lists, or expose the other participant's private fields. Approved 2026-07-31.
-
-## Store Portal and publishing states policy
-
-Store Portal home shows store identity, listing status, hours verification/staleness, `Update Hours`, and `Preview Listing`, with secondary access to Store Info, Photos, Pending Changes, and Access & Help. It excludes analytics, advertising, and shopper data. Every field is labeled `Publishes Immediately` or `Requires Admin Review`; controlled changes preserve the current public value and use Pending, Changes Requested, Approved, or Rejected states. Approved through D23–D24 on 2026-07-30.
-
-## Hours editing policy
-
-Representatives maintain weekly Open/Closed hours, one range plus an optional second range, dated exceptions, and closure dates. Approved address determines time zone. A 14-day preview and explicit confirmation precede publication; successful publication refreshes verification and offers Undo. Active trips receive updated hours on next sync while completed history remains frozen. Approved as D25 on 2026-07-30.
-
-## Store Updates and Vendor Contributor boundary policy
-
-Store Representatives may post native Store Updates of New Finds, Sale, Announcement, or Store News. Text publishes directly; any image remains held for Administrator image approval. The latest three appear on Store Details with `See All`. No scraping, feed synchronization, comments, likes, or event system is included. MVP may label store-posted vendor content, but a separate Vendor Contributor role is deferred until pilot demand and authorization testing justify it; if added, it is store/booth-scoped and draft-only. Approved through D26–D27 on 2026-07-30.
-
-## Official images and social links policy
-
-Free allows one cover plus five gallery images; Gallery allows one cover plus fifteen gallery images; Full Gallery follows its active published non-count limits and has no plan-count cap. A Store Update may contain one image. Every profile-image change requires Administrator approval, and the current image remains live during replacement. Uploads require preview/crop, meaningful alternative text, rights confirmation, quarantine, re-encoding, metadata removal, and review. Copied website/social screenshots and shopper images are prohibited. A verified Representative may directly publish one validated official link for each approved social platform; no credentials, embed, scrape, sync, or imported tracking is allowed. Approved through D24–D25 on 2026-07-30; tier-specific cap amendment approved 2026-08-30.
-
-## Store Update lifecycle and support policy
-
-Sales require an end date and auto-archive. Announcements may have an end date; New Finds and Store News archive manually. Archive is reversible and representatives do not permanently delete history. Pilot Support uses categorized tickets, allowlisted diagnostics, at most one previewed/sanitized screenshot, authenticated replies/history, status-only email, urgent security routing, and a verified-identity fallback for sign-in failure. Approved through D26–D27 on 2026-07-30.
-
-## New-store discovery policy
-
-Authenticated shoppers may see `New Since Your Last Visit` based only on a coarse last-seen timestamp and manually selected area. The in-app card appears in Browse and home/return context, links to the new listings, and may be dismissed. No push/email notification, background location, or behavior tracking is implied. Approved as D28A on 2026-07-30.
-
-## Administrator home and review workspace policy
-
-Administrator home shows role/environment, urgent safety items, and one grouped `Needs Review` queue ordered urgent-first then oldest. It excludes shopper activity, ratings, trips, traffic, and marketing. The review workspace preserves fixed context, shows current and requested values or image evidence, provides type-specific Approve/Request Changes/Reject actions, requires reasons where applicable, confirms effects, and writes audit records. Administrators cannot directly edit submissions, bulk approve, or silently advance. Approved through D28–D29 on 2026-07-30.
-
-## Access & Safety policy
-
-Access & Safety separates pending invitations from active Store Representative grants and shows exact scope, verified-email/MFA state, dates, and relevant privileged activity without shopper activity. Revocation requires Administrator MFA, recent authentication, reason, and consequence preview; it removes only the selected store scope and blocks the next server-authorized write, including an open session. Regrant repeats identity and scope gates. No bulk changes, multi-store Representative grants, self-service role changes, or history deletion are allowed. Approved as D30 on 2026-07-30.
-
-## Startup Learning MVP policy
-
-After the first slice, `SLM-01` is a later private value checkpoint: Packages 1, 2, 3, and 5A with Synthetic Stores. It proves separate Test User A and Agent-Assisted Shopper accounts can complete Browse → Details → Save → manually ordered hours-aware Trip → one-trip Partner/Navigator handoff → external-map Go → private visit memory, including refresh/offline recovery and cross-account denial. Package 4 Candidate Share is a separate branch and does not block this checkpoint. SLM-01 excludes Package 5B routing suggestions, Store Partner/Admin workflows, real stores, external participants, public reviews, public indexing, acquisition, or advertising. Completion authorizes only Product Owner continue/revise/stop disposition; it does not skip any Regional Public MVP package or gate. Approved 2026-08-03.
-
-SLM-01 `continue` additionally requires both accounts to finish without an outside planning document, retain every input through refresh/offline replay, correctly explain hours warnings and the absence of travel-time calculation, pass every cross-account allow/deny result, and show a written comparison with the current completion-time/retyping/tool-switch baseline. The Product Owner must identify at least one reduced burden without material regression in the others and record both testers' return intent. Any privacy/authorization/data-loss failure is `stop`; incomplete flow, warning misunderstanding, or no supported burden improvement is `revise` or `stop`. Approved 2026-08-03.
-
-## Startup free-service and hosting boundary policy
-
-The startup `$0` infrastructure boundary includes audit anchoring and geocoding as well as the services listed below; failure to find a compliant free L-01/R-01 option disables the dependent remote capability rather than authorizing spend.
-
-Local development, Shared Synthetic Alpha, SLM-01, and Controlled Private Beta must use `$0` recurring infrastructure unless the Product Owner separately approves a paid service. Automatic upgrades and paid overages are prohibited. The rule includes hosting, database/Auth/Storage/functions, email, routing, backups, monitoring/status, scanning, and bandwidth; domain registration, legal/insurance services, and optional printing remain separate approval-controlled costs. A free plan that cannot prove eligibility or the applicable access, security, privacy, deletion, recovery, or abuse requirement blocks that stage; the requirement is not weakened. Vercel prebuilt deployment plus Supabase is selected under ADRs 0006/0005; Vercel replaced Cloudflare for the frontend on 2026-08-20. Regional Public MVP remains blocked until its 15-minute RPO is proven by an approved paid configuration or validated `$0` alternative.
-
-## Product promotion is not monetization policy
-
-Antique Trail may promote its own Regional Public MVP only after Package 10B signature. Startup has no ad inventory, sponsored listing, paid ranking, affiliate link, lead sale, shopper-data sale, paid claim verification, paid Store Partner tier, ad network, or behavioral targeting. Verification, discovery order, public ratings, and moderation cannot be purchased. Any monetization requires a new Product Decision and is deferred at least through RG-01 and the separately approved first three small-community reviews. Approved 2026-08-03.
-
-Approved unpaid launch channels are opt-in Store Partner counter flyers and ordinary shopper QR codes, prospective-owner acquisition cards, one voluntary Store Partner social post, founder-owned public posts, permission-based antique/community groups, tourism/chamber/community calendars, earned local press/radio/newsletters, organic search, and native sharing of canonical Store Details URLs. No scraped lists, bulk unsolicited email, automated posting, group-rule bypass, or unapproved partnership claim. Scott is the initial Local Acquisition Owner. Package 10A prepares private artifacts and channel-specific consent; Package 10B alone authorizes publication/distribution. Withdrawal stops future distribution and reprinting, requests removal of remaining materials, and removes future logo/co-brand use. Non-partner listings may use verified public facts only and never imply participation. Approved 2026-08-03; owner-acquisition channel added 2026-08-30.
-
-Three QR classes are mandatory and cannot be repurposed. Shopper promotional QR codes open `/stores?area=topeka-ks`. Prospective-owner acquisition cards open public `/for-stores`; they convey no admission, claim, account, or store authority. Secure Partner/readiness invitations alone use their fragment-token routes, remain short-lived and single-use, and are issued only after the applicable approval. The two public QR classes contain no bearer, account, authority, location, or user-identifying token. Privacy-safe source measurement, if enabled at Package 10B, uses only an allowlisted opaque aggregate `src` code and daily aggregate opens, Store Details opens, and share actions: no campaign cookie, device ID, fingerprint, IP-derived identity, user/account linkage, or owner-facing shopper analytics. Daily aggregates delete after 180 days; signed gate-receipt aggregates retain three years. Approved 2026-08-03; QR classes clarified 2026-08-30.
-
-## Correction, claim, and review-delete closure decisions policy
-
-- **Correction identity:** anyone may draft a correction, but submission requires just-in-time verified account authentication. Cancellation writes nothing. The submitter may read only reason-neutral status for their own report; anonymous writes and internal case detail are denied. Approved 2026-08-03.
-- **Claim stage and evidence:** Package 6 builds/tests claims with Synthetic data while `public_listing_claims_enabled=false` through Alpha, Private Beta, and Package 10A. Package 10B alone may enable it after release signature. Two authority signals must use distinct channel classes, evidence objects, and verification events; the same email, phone, document, or contact cannot count twice. Regional Public MVP accepts content-free callback, mailed-code, public-filing, or in-person verification records. User-uploaded claim documents are not accepted; lease/utility evidence may be inspected in person but no copy is retained. Raw digital claim evidence has no approved storage path. Approved 2026-08-03.
-- **Add-store stage and evidence:** Package 6 builds/tests a separate new-store application with Synthetic data while `public_store_applications_enabled=false`; Package 10B alone enables it with public claims. Search-before-add and repeated server duplicate matching are mandatory. Likely duplicates enter review and convert only with applicant confirmation to the existing-store claim path. A new store requires current Topeka eligibility, owner-confirmed core facts, independent Administrator verification/provenance, the same two independent authority-channel rule, and one atomic approval that creates public projection, exact grant, and default Free or creates none. Draft/terminal retention and rollback follow Package 6. Approved 2026-08-30.
-- **Claim cardinality:** Regional Public MVP permits one active Store Representative grant per store and one active store scope per Representative. Transfer revokes the old grant before a new one can activate. Multi-representative and multi-store grants require a later Product Decision. Approved 2026-08-03.
-- **Review delete:** deletion atomically removes public display and aggregate effect, enters `delete_pending`, and offers an accessible 60-second Undo. After the window, text purge completes within 24 hours subject only to minimum evidence already copied to an active restricted moderation/legal case. Approved 2026-08-03.
-
-## Freshness requirements
-
-- **Freshness:** track identity/location, contact, hours, categories/attributes, and media/social provenance independently. Listing-level freshness is the oldest required core fact group among identity/location, contact, hours, and categories/attributes; optional media/social does not stale the listing. Editing one group refreshes only that group. At day 181 show overdue and exclude the listing from hours-dependent route promises; after day 365 hide normal discovery until every required core group is reverified. Approved 2026-07-31.
+The existing startup infrastructure boundary includes hosting, database/Auth/Storage/functions, email, routing/geocoding, audit anchoring, backups, monitoring/status, scanning, and bandwidth under [ADR0005](docs/adr/0005-host-free-first-on-cloudflare-pages-and-supabase.md) and [ADR0006](docs/adr/0006-deploy-static-pwa-on-vercel-with-supabase.md). It permits no automatic upgrade or overage and cannot waive provider eligibility or stage safeguards; the current no-new-spending direction also covers previously separate domain, legal/insurance, printing, tooling, and asset costs.
 
 ## Account scope requirements
 
 - **Account scope:** Regional Public MVP is United States only. Anonymous browsing has no age gate; account creation, public reviewing, Store Partner participation, and trip sharing require age 18 or older until legal review approves broader participation. Approved 2026-07-31.
 
-## Trip duration and Check My Day requirements
-
-- **Trip duration and Check My Day:** one trip has at most eight active store/rest stops. Default dwell is the verified store estimate or 60 minutes; presets are 30/45/60/90, and Custom accepts whole minutes from 5 through 720. Optional maximum drive is 1–500 miles and optional maximum total duration is 30–1,440 minutes. Stop priority is `Must`, `Prefer`, or `Flexible`; `Must` is the required-stop value. Package 5B uses the accepted provider's start/stop/optional-return distance/time matrix, exhaustively evaluates all orders, permits waiting before opening, and adds a 10-minute transition buffer. It selects by: routes satisfying every set maximum; most `Must` stores completed by closing; most on-time priority points (`Must=3`, `Prefer=2`, `Flexible=1`); most stores completed by closing; least summed proportional excess over unmet maximums; least late minutes; least travel minutes; most original adjacent pairs; then stable stop-ID sequence. Departure-to-first and last-to-return legs affect arrivals, distance, duration, limits, estimated finish, and scoring; rest stops are always-available private waypoints. The algorithm never drops a stop, auto-applies, or claims real-world optimality. Only provider selection remains ADR-gated. Approved 2026-07-31.
-
 ## Human usability acceptance
 
 - **Older-adult cohort:** before public release, at least eight participants age 55+, including at least three age 70+ and at least two who use low-vision, motor, or assistive-technology adaptations, attempt Browse, Details, Add/Create Trip, Check My Day, Go/handoff, and private visit memory on their own device. At least 90% of required tasks must complete without moderator intervention, zero participant may encounter a safety/privacy/authorization failure, the group average is no more than one noncritical task error per participant, and every repeated critical failure must be fixed and retested. Approved 2026-07-31.
-
-## Public review and scalable claim policy policy
-
-- **Review eligibility:** Regional Public MVP accounts are verified-email, age-attested 18+, and rate-limited. A user may review after an Antique Trail trip marks that store `Done Here`, or after a manual `I visited` attestation that displays the honesty/conflict rules. One active review per user/store; rating is integer 1–5 with optional text. A new or edited review enters automated validation and may remain pending moderation. Approved 2026-07-31.
-- **Display and aggregate:** publish rating, allowed text, author-chosen public display name, visit month/year, edit marker, and disclosed conflict only. Never publish email, exact visit time, trip, note, location, or account history. Aggregate is the arithmetic mean and count of active eligible ratings, updated transactionally with review state; show from the first eligible rating and label the count. No weighting, paid boost, owner override, or hidden personalized score changes the public aggregate. Approved 2026-07-31.
-- **Conflicts:** the author must disclose current/recent employment, ownership, family, vendor, or compensated connection to the reviewed store. A currently scoped Store Representative cannot review that same store. Disclosed reviews remain visibly labeled and excluded from the aggregate; undisclosed material conflicts may be removed. Approved 2026-07-31.
-- **Moderation:** reject or remove spam/duplicates, threats, harassment/hate, personal or sensitive information, illegal content, impersonation, undisclosed material conflict, compensated manipulation, irrelevant content, and claims that cannot safely remain while a legal/safety review is open. Do not remove a review merely because it is negative. At initial launch, an MFA/recent-auth Administrator may perform only the case-scoped `Hold`, `Remove`, `Restore`, and `Dismiss Report` transitions with a reason; every transition is append-only audited and evidence is minimized. A separately staffed Moderator role remains deferred until volume requires it. Store Representatives may report but cannot edit, suppress, answer, or identify reviewers. Owner responses remain deferred. Approved 2026-07-31.
-- **Edit/delete/report:** author edits preserve internal version history and recompute aggregate atomically. Author deletion immediately removes public/aggregate effect, offers author-only accessible Undo for 60 seconds, then irreversibly finalizes and deletes current/historical text within 24 hours unless an open moderation/legal case already holds minimum copied evidence. Retain only content-free review/version/audit metadata after purge. Reports are rate-limited, reason-coded, non-public, and reveal no reporter identity to the store. Cases retain minimum evidence two years after closure. Updated 2026-08-03.
-- **Appeal:** the author or scoped Store Representative may appeal a moderation result once within 30 days. The appeal states the challenged rule and new evidence. A different Administrator reviews when available; with one Administrator, an independent qualified reviewer signs the decision. Target decision is 14 business days. Restore recomputes aggregate; uphold supplies a plain rule-based reason. Appeal records follow the moderation-case retention. Approved 2026-07-31.
-- **Review effect of account deletion:** scheduling account deletion immediately hides every active or pending authored review and removes its aggregate effect in the same transaction. During the seven-day cancellation window, the content remains private and inaccessible except to the cancellation workflow or a live restricted moderation/legal case. A successful cancellation restores the prior published/pending state only if the review remains eligible and is not held/removed. On day 8, delete the public display name and all current/historical review text; retain only content-free version/audit metadata, or the minimum evidence already copied into a live restricted case. Approved 2026-07-31.
-- **Scalable claim verification:** after the three-store pilot, continue manual risk-tiered verification. Require verified email, MFA, exact store scope, and two independent authority signals from different channel classes: one claimant-controlled business-domain/published-contact response plus one of in-person inspection, published phone callback, business filing, or mailed code. Lease/utility evidence may be viewed in person but no copy is stored; user-uploaded claim documents are unavailable. High-risk conflicts, ownership transfers, closures, or duplicate claims require Administrator review and no silent auto-approval. Reverify authority annually and on risk signal; revoke exact scope immediately when authority ends. Approved 2026-08-03.
 
 ## Unresolved product and provider choices
 
@@ -1463,397 +1201,6 @@ Three QR classes are mandatory and cannot be repurposed. Shopper promotional QR 
 15. H-01 signed environment activation receipt; ADRs 0005/0006 accept the topology but no shared environment until Vercel plan eligibility, automatic-deployment disablement, Deployment Protection, prebuilt artifact binding, serial restore, Auth/Storage recovery, quotas, and rollback pass
 16. L-01 separately administered append-only audit-anchor sink; startup privileged remote mutation stays disabled unless a `$0` option passes
 17. SEC-01 named independent public-release security reviewer and signed/retested result
-
-## Directory capability acceptance
-
-Features:
-
-- Responsive app shell
-- List-first Store Browser as the default shopper entry point
-- Search by store name, town/area, and category
-- Optional map toggle; never the only discovery path
-- Scannable store cards and Store Details
-- Approved Official Store Profile Photo cover/gallery with neutral fallback
-- Hours
-- Categories
-- Last-verified information
-- Listing freshness state and warnings
-- Report incorrect information
-- Provenance-controlled seed import
-- Authentication
-- Just-in-time authentication that resumes the interrupted private action
-- `New Since Your Last Visit` using coarse last-seen state and a manual area
-- Private Candidate Link capture and Trip Ideas
-- Recipient-specific Candidate Share between two authenticated shoppers
-- Source-aware unverified extraction with blocked/private-source manual fallback
-- Private saved stores
-- Personal ratings
-- Age-Inclusive Usability Baseline: readable defaults, 48-by-48 targets, labeled actions, 200% text resizing/reflow, keyboard/screen-reader support, non-color-only status, and non-drag alternatives
-
-Security:
-
-- RLS
-- Storage policies
-- Rate limiting
-- Secure session handling
-- Audit framework
-- Environment separation
-- Isolated external-link fetcher with SSRF, redirect, DNS-rebinding, size, timeout, content-type, and rate-limit controls
-
-Exit criteria:
-
-- User A cannot access User B data
-- Candidate Share is readable and actionable only by its sender and named recipient; acceptance creates a recipient-owned Trip Idea without exposing recipient edits or other private records
-- Pending Candidate Shares expire after 30 days; revoke, dismiss, and expiry deny further access immediately and delete unaccepted payloads from primary database and Storage within 24 hours
-- Candidate Share verified-email matching returns indistinguishable results for matched, unmatched, unverified, and blocked addresses; only the matched account receives a payload, and unregistered addresses receive no invitation
-- Failed or blocked extraction preserves the original Candidate Link and cannot write public store or Event data
-- Public browsing works without an account
-- Saved stores remain private
-- Seed data has provenance and verification fields
-- Seed validation rejects copied descriptions, photos, reviews, and unlicensed provider content
-- Official photo pipeline rejects unscoped or unpermissioned submissions and publishes only approved processed derivatives with alternative text
-- Freshness rules enforce the 180-day verified window, overdue hours-feature exclusion through day 365, and discovery hiding after day 365 without deleting provenance
-
-## Complete Internal Alpha and external-readiness acceptance
-
-Assemble the Phase 1, Phase 2A, and Phase 3 synthetic slices and test this gate before Phase 2B public reviews, real-store import, or owner outreach.
-
-- Solo Agent-Assisted Alpha: Primary Internal Tester operates all separate roles; supervised AI Test Agents may execute repeatable tests but cannot replace human acceptance or approve a gate
-- Two-Person Acceptance: Independent Internal Tester performs shopper acceptance using a newly created Test User B account on her own phone; no solo-stage account is reassigned to her
-- External Testing Readiness: separately defined gate required after both internal stages; passing permits one consenting Store Partner representative and one real store in controlled Private Beta, but not public access or advertising
-
-- Phase 1 Store Browser/authentication/private-data foundation using Synthetic Stores and generated fictional profile images only
-- Candidate Link capture, recipient-specific Candidate Share, and recipient-owned Trip Ideas using synthetic pages and fictional data only
-- Explicit trip selection/creation, progressive Plan setup, Check My Day warnings/order choice, readiness, manual-arrival Go, private visit memory, summary, and offline recovery
-- One-trip Creator/Partner/Navigator invitation and server-side authorization
-- Test User A, Test User B, Representative Test Account, and Administrator Test Account
-- Optional Agent-Assisted Shopper Account for isolated user-two simulation during Solo Agent-Assisted Alpha
-- Store Portal home, hours editor, Store Updates, official image/social-link workflows, support, and Store Change Requests
-- Administrator home, review workspace, Access & Safety, revocation, and regrant
-- Audit records for privileged actions
-- Age-Inclusive Usability Baseline across browse, details, plan, and active-trip journeys
-
-- Public reviews, shopper/review photos, and other Public User-Generated Content
-- Real stores or external participants
-- Household accounts/shared lists, finds/collections, public Event records, push notifications, owner analytics, and advanced personalization; one-trip Partner access and recipient-specific Candidate Share are the only approved narrow cross-account exceptions
-
-Shopper-trip exit criteria:
-
-- Primary Internal Tester as Test User A and Independent Internal Tester as Test User B each complete three successful Shopper Trip Acceptance Runs using separate accounts on separate phones
-- Test User B sends a synthetic Candidate Share to Test User A; Test User A alone accepts it into a recipient-owned Trip Idea and adds it to Plan
-- Anonymous, wrong-recipient, Representative, and Administrator access is denied; sender cannot read recipient edits, notes, ratings, or resulting trips
-- Synthetic clock-advance, revoke, and dismiss tests prove immediate denial and 24-hour unaccepted-payload deletion without deleting an accepted recipient-owned Trip Idea
-- Accept, Dismiss, Block, and Report tests prove recipient-only actions; Block denies future sends, Report creates a private moderation case, and the sender sees only `Pending`, `Accepted`, or indistinguishable `Closed`
-- Blocked-source/manual fallback and failed extraction preserve the original link without public publication
-- Each account proves active-trip recovery after refresh or app restart and while offline in at least one run
-- Each account proves that only its Navigator snapshot and pending mutations exist in encrypted IndexedDB, no authenticated trip data enters public Cache Storage, and another account cannot decrypt or resume it
-- Completed synced trips purge locally; account switch and confirmed logout purge locally; logout with unsynced changes requires an explicit data-loss warning
-- A simulated offline revocation is denied before reconnect sync or refreshed private display and purges the local key/cache
-- Go accepts mutations from one active Navigator device only; authenticated online transfer causes later old-device mutations to fail
-- Duplicate/retried offline mutations apply exactly once and valid actions replay in recorded local order
-- Server authorization, Navigator/device assignment, and trip state reject stale or incompatible queued actions without cross-account disclosure
-- Same-author rating/note conflicts preserve both versions and require an explicit `Keep This Phone's Version` or `Keep Saved Version` choice
-- Across the runs, exercise Synthetic Store discovery/details/updates/official links, just-in-time auth, explicit Add to Trip, progressive Plan, Check My Day choice/warnings, one-trip partner handoff, Navigator-only Go, manual arrival, private review, skip/Undo, summary/Plan Again, and recalculation
-- AI-assisted or Primary Internal Tester runs as Test User B are supplemental and cannot replace the Independent Internal Tester's runs
-- Zero Blocking Defects
-- Zero cross-account exposure or modification of shopper-private data
-
-Privileged-workflow exit criteria:
-
-- Primary Internal Tester operates two complete Privileged Workflow Acceptance Cycles using separate representative and MFA-protected administrator sessions; Independent Internal Tester is not required to operate privileged accounts
-- Every Representative-Managed Field publishes directly for the assigned Synthetic Store
-- At least one Store Change Request is approved and one rejected; unapproved Controlled Store Fields remain unpublished
-- Representative self-approval is denied
-- Administrator grants and revokes the representative's store scope; revocation denies further writes from the representative's existing session
-- Every privileged action has an audit record
-- Store content/image/social/support review paths enforce their labels and lifecycle; Administrators cannot edit submissions or bulk approve
-- Access revocation and regrant affect only the selected store scope; an already-open Representative session is denied on its next write
-- Representative and Administrator Test Accounts cannot read or modify either shopper Test Account's private data
-- Every Synthetic Internal Alpha break-glass request is denied and audited
-- Zero Blocking Defects; every allowed action succeeds and every forbidden action is denied
-
-External Testing Readiness criteria before first-owner contact:
-
-- Dated passing evidence for Solo Agent-Assisted Alpha and Two-Person Acceptance
-- Complete authorization and security test set passes
-- Zero open Blocking Defects or known privacy, security, or data-loss defects
-- Backup restore and rollback rehearsals pass
-- Database and Storage restores separately meet the current stage's approved RPO/RTO
-- Before Private Beta, a synthetic-data rehearsal proves every break-glass request is denied and audited while Scott is the sole Administrator through Packages 8/8B. If a real second qualified Administrator exists, also rehearse the enabled path's scope, read-only default, 30-minute expiry, approval, notice, two-year hash-chained audit, and external anchor. Otherwise defer that enabled-path rehearsal until Package 9 reviewer enrollment and capability tests pass; Private Beta proceeds only with break-glass disabled.
-- A full Private-Beta incident rehearsal proves detection/severity, containment, credential/store-scope revocation, user/store/status communication, database and Storage recovery, deletion-receipt replay, and post-incident evidence
-- Pilot-environment monitoring, error reporting, and support intake work
-- Monitored support address/form and security contact are published; the Private Beta response commitments, named on-call owner and backup, and in-PWA/status-channel incident path are exercised
-- Pilot privacy notice and owner consent are ready
-- Qualified professional evidence confirms the operating legal entity and required pilot insurance are active for owner contact and participation
-- One External Testing Dress Rehearsal passes end to end
-- Primary Internal Tester approves every check; AI Test Agents may collect evidence but cannot approve the gate
-
-Any failed check blocks owner outreach, real-store import, and external participation.
-
-First Store Partner onboarding:
-
-- Demonstrate with Synthetic Stores only
-- Obtain Store Partner Pilot Consent before creating a real store record or representative account
-- Verify representative authority in person and through a published business contact
-- Require owner-controlled verified email and MFA; prohibit shared credentials
-- Record voluntary, invitation-only, unpaid, non-endorsing, and non-advertised pilot terms
-- On withdrawal, revoke representative access and remove the real store from the active pilot
-- Audit onboarding, scope grants, withdrawal, and revocation
-
-First Pilot Store Record:
-
-- Atomic Administrator approval of the owner-submitted Pilot Store Draft creates one record after consent and authority verification
-- Owner confirms name, address, phone, website, regular and holiday hours, official description, and category tags
-- Record source/provenance and verification date
-- Restrict visibility to invited Private Beta participants; deny anonymous/public access
-- Preserve Representative-Managed Field and Controlled Store Field authorization rules
-- Submit rights-confirmed Official Store Profile Photos through Store Change Requests; display only approved processed derivatives with alternative text
-- Exclude ratings/reviews, shopper/review photos, events, owner responses, and analytics
-
-Initial Private Beta Cohort:
-
-- Scott uses separate shopper and Administrator accounts
-- Scott's wife uses a separate shopper account
-- First owner uses a Store Representative account only
-- Restrict the cohort to one Pilot Store Record
-- Require separate approval and a separate account before owner shopper activity
-- Keep AI and Agent-Assisted Test Accounts restricted to Synthetic Store data
-- Block additional users and real stores until a separate expansion gate passes
-
-Initial Private Beta Expansion Gate:
-
-- Owner completes Representative-Managed Field edits, submits two Store Change Requests respectively approved and rejected by the Administrator, uses MFA, and participates in scheduled revoke/regrant testing
-- Scott and Independent Internal Tester each complete two shopper trip runs containing the Pilot Store Record
-- Support and feedback intake works
-- Privileged audit records are complete
-- Monitoring, backup restore, and rollback checks remain passing
-- Zero open Blocking Defects or known privacy, security, or data-loss defects
-- Owner confirms that the workflow is understandable
-- Primary Internal Tester approves dated evidence for every check
-- No minimum calendar duration; any failed check blocks expansion
-
-Controlled Private Beta Expansion:
-
-- Add one verified Store Partner and one Pilot Store Record at a time
-- Repeat consent, authority verification, onboarding, owner workflow, shopper-trip, security, audit, support, and recovery checks for each addition
-- Block the next addition until the current one passes
-- Cap at three total Store Partners and Pilot Store Records
-- Keep access invitation-only with no public product promotion
-- Stop after all three pass and conduct a separate public-readiness review
-
-Store Partner Invitation:
-
-- Require Administrator MFA and recent authentication to generate an in-person invitation
-- Generate a high-entropy opaque token, store only its hash, and embed no identity, store, email, or role data in the QR
-- Expire after 30 minutes or one successful atomic consumption; support revocation and regeneration
-- Route the QR to the existing PWA partner-onboarding page without granting access or triggering installation
-- Present pilot terms and collect consent statements plus identity credentials before any identity/grant exists
-- In one idempotent transaction consume the invitation, store the immutable provisional consent submission, and create one unprivileged Pending Partner Identity; rollback all on failure and resume the same record after interruption
-- Require verified owner-controlled email and MFA, then finalize the immutable Pilot Consent Receipt bound to the verified identity
-- Require published-business-contact authority verification and separate Administrator approval
-- Create the Pilot Store Record and store-scoped Store Representative grant only after approval
-- Show PWA installation instructions after approved sign-in
-- Audit every invitation and authorization transition
-
-Pilot consent capture:
-
-- Render a phone-friendly plain-language summary and full-policy links
-- Require separate authority, voluntary-participation, permitted-data-use, no-payment/endorsement, and withdrawal acknowledgments
-- Capture typed name, business title, store name, and owner-controlled email
-- Create the immutable provisional submission atomically with invitation consumption and the Pending Partner Identity
-- After email verification/MFA, finalize the immutable Pilot Consent Receipt bound to the provisional submission, verified email, finalization timestamp, invitation identifier, and policy version
-- Email a receipt/PDF copy without internal verification evidence
-- Permit Administrator read access but no update/delete
-- Require fresh consent after material term changes
-- Complete legal review of final wording before external use
-
-Pilot Store Draft:
-
-- Allow Pending Partner Identity to create/read/edit only its own draft after consent, verified email, and MFA
-- Support draft, submitted, changes-requested, resubmitted, and approved states
-- Permit Administrator read/comment/return/approve but no owner-field edits
-- Require the owner to correct and resubmit returned drafts
-- Require Administrator MFA, recent authentication, and exact final preview for approval
-- Atomically freeze the submitted snapshot and provenance, create the Pilot Store Record, and grant its store-scoped Store Representative role
-- Fail closed: create neither the store nor grant if any approval step fails
-- Audit comments, transitions, submitted snapshots, approval identity, and timestamps
-
-Representative activation and first login:
-
-- Send status-only approval email with the normal PWA sign-in link
-- Do not email a reusable invitation, magic role link, or authorization token
-- Require verified-email and MFA sign-in
-- Render only the exact approved Pilot Store Record, scoped permissions, Pilot Consent Receipt, and approval history
-- Offer device-appropriate PWA installation instructions
-- Guide listing confirmation, hours review, one Representative-Managed Field edit, one Store Change Request, and pilot-support use
-- Keep changes-requested/rejected emails status-only; require authenticated portal access for details
-- Audit delivery, first approved sign-in, installation handoff, and checklist progress
-
-Store Partner Pilot Support:
-
-- Create categorized pilot-restricted tickets for bug, confusing workflow, store-data correction, feature idea, and security/privacy concern
-- Attach an allowlist only: store/account identifiers, app version, timestamp, and basic device/browser details
-- Exclude tokens, shopper data, precise location, and internal logs
-- Permit one optional screenshot only after warning, crop/redact, final preview, and confirmation; scan, quarantine, re-encode, strip metadata, and delete it 30 days after ticket closure or sooner on removal
-- Restrict ticket/reply/status access to submitting Store Representative and Administrators
-- Send status-only notification email
-- Alert Administrator urgently for security/privacy concern
-- Accept sign-in-failure fallback email without disclosing pilot data until identity verification
-- Allow owner resolution confirmation and reopen
-
-## Store and administrator capability acceptance
-
-Entry conditions:
-
-- Phase 1 public-directory and identity foundations required by this work are complete.
-- Store Partner invitation, consent, Pending Partner Identity, draft, approval, role-grant, support, and audit contracts are bounded using the approved first-pilot rules.
-- Only Synthetic Stores and separate test accounts are present.
-
-- Claim-listing intake and first-pilot authority-verification workflow
-- Store Partner Invitation, consent, Pending Partner Identity, Pilot Store Draft, atomic approval, and scoped role grant
-- Store Portal home and direct/controlled publishing labels
-- Owner-managed weekly hours, dated exceptions, 14-day preview, confirmation, and Undo
-- Native Store Updates, reversible archive, and image hold/review
-- Official Store Profile media and validated social profile links
-- Pilot Support lifecycle
-- Administrator home, type-aware content/claim review workspace, Access & Safety, revocation, regrant, and narrow D30 `View Audit`
-
-Security and trust:
-
-- Role assignment and every privileged state transition are server-side.
-- Store Representative access is one-store scoped and existing-session revocation is tested.
-- Client code cannot approve drafts, publish reviewed fields/media, grant roles, or alter audit records.
-- Privileged audit events are append-only and retained for two years; D31 full Audit History UI/export remain excluded.
-- Public-review routes, tables, policies, and UI remain absent or server-denied during this subphase.
-
-- Representative cannot access shopper activity or write outside the assigned store.
-- Direct versus reviewed content, atomic onboarding, image replacement, support, and access revocation/regrant pass the `DESIGN.md` journeys.
-- Phase 2A plus Phase 1 and Phase 3 synthetic work can enter the Cross-phase Internal Alpha gate without enabling Public User-Generated Content.
-
-## Public-review capability acceptance
-
-- Cross-phase Internal Alpha gate has passed.
-- The approved review identity, eligibility, conflict, deletion, arithmetic aggregate, moderation, evidence, appeal, and abuse rules in the controlling documents are translated without policy invention into the Package 9 execution contract.
-- Server-owned `public_reviews_enabled` remains false in every Internal Alpha and Private Beta environment; direct route/read/write denial is part of entry and exit evidence.
-- Public release remains disabled until Phase 6 gates pass.
-
-- Public star rating and text review
-- Review editing and deletion behavior
-- Reporting and moderation queue
-- Rating aggregation
-- Approved appeal path
-
-Deferred beyond the Regional Public MVP: store responses and shopper/review photos. Official Store Profile Photos are delivered in Phase 1.
-
-- Review abuse controls, rate limits, eligibility enforcement, and moderation audit logs
-- Store owner cannot alter or suppress user reviews.
-- Client cannot approve, publish, or change rating aggregation directly.
-
-- Public review and moderation authorization, abuse, aggregation, edit/delete, report, and appeal tests pass.
-- Public-review UI passes the applicable `DESIGN.md` and `DESIGN_SYSTEM.md` states without exposing shopper-private data.
-
-## Trip capability acceptance
-
-- Add reviewed Trip Ideas as candidate stops
-- Explicit existing-trip/new-trip chooser with area and required date
-- Progressive starting point, departure, optional return, and per-stop durations
-- Explicit while-in-use device-location request with manual start fallback
-- Departure time
-- Return destination
-- Browse-duration estimates
-- Priority stops
-- Check My Day suggested feasible order with explanations and explicit Use/Keep choice
-- Amber/red/gray schedule warnings with corrective actions and one explicit start confirmation
-- Readiness card
-- One-trip Creator/Partner invitation, draft collaboration, and Navigator assignment
-- Navigator-only active trip with manual arrival
-- Done Here private rating/return choice/note
-- Skip/Undo, recalculation, summary, immutable history, and Plan Again clone
-- Waze handoff
-- Google Maps handoff
-- Minimum Navigator-only offline active trip with visible pending sync
-- Trip history
-
-- Correct next-stop handoff
-- Offline trip recovery
-- Schedule warnings tested across time zones and daylight-saving changes
-- No hidden background tracking
-- No precise coordinates in analytics, application logs, email, or support records
-- Directory and manual trip planning work when device-location permission is denied
-- Trip Partner can access only the invited trip, and only Navigator can mutate Go
-- Offline arrival/completion/skip/private-note mutations synchronize exactly once in local order; server authority rejects invalid state, and conflicting private text/rating requires explicit author choice
-
-## Deferred finds and household capability acceptance
-
-- Find capture
-- Photos
-- Price
-- Measurements
-- Votes
-- Shared household trips
-- Shared lists
-- Private collection
-- Export
-
-- Explicit sharing only
-- Immediate revocation
-- Private image URLs
-- EXIF stripping
-- Household authorization tests
-
-## Deferred personalization capability acceptance
-
-- Preference onboarding
-- Match score
-- Explainable reasons
-- Recommendation feedback
-- Similar-store suggestions
-- Route-aware recommendations
-
-Rules:
-
-- Recommendations are estimates
-- Public rating remains separate
-- Users can disable personalization
-- Users can correct interests
-- No sensitive inference beyond product purpose
-
-## Regional launch and expansion acceptance
-
-Phase 6 is a capability grouping implemented only through Packages 10A–10B after every earlier package/gate, not another feature bundle. Phases 4–5 remain deferred.
-
-- External security review
-- Legal review
-- Support workflow
-- Monitoring
-- Backup restore
-- Store-owner onboarding kit
-- Marketing site
-- Printed flyer
-- QR code
-- Store claim instructions
-- Regional data verification
-- Launch runbook
-- Incident response rehearsal
-- WCAG 2.2 AA conformance review
-- Representative older-adult browse-to-plan and active-trip usability test using the approved cohort and pass thresholds
-- All three Controlled Private Beta Store Partners and stores passed their sequential addition gates
-- At least 12 active verified Topeka listings and 70% of the independently enumerated eligible baseline, unless the Product Owner signs the defined market-size exception
-- Three unique three-store current-hours itineraries per named day for one non-holiday Tuesday, Friday, and Saturday—nine total—within 30 days of evidence: first-store opening start, 45-minute dwell, 10-minute transition buffer, accepted-provider travel matrix, and every visit completed by verified closing
-- Eight independent invited Topeka shoppers attempted the core journey; at least seven completed without a Blocking Defect and at least five confirmed return intent or completed a second trip
-- Browser/device matrix shows zero Blocking Defects, no repeatable journey failure, and at least 99% success after each critical Browse-to-Plan and Go/handoff synthetic journey runs ten times in every applicable matrix cell
-- Named support/security contacts, on-call/backup, status path, and passed Private-Beta plus public incident rehearsals
-- Product Owner signs the Regional Public Readiness receipt before real-store anonymous access, public deployment, or advertising
-
-Regional growth order after launch readiness:
-
-1. Launch Topeka city limits
-2. Select a community outside a larger metro and roughly within a 60-minute drive of Topeka, with at least two antique/vintage shops and one willing anchor Store Partner
-3. Privately prepare and sign the one-area readiness receipt, activate only that community, then pass its Community Expansion Gate: two verified active listings; completed anchor-partner onboarding, direct-edit, controlled-change, and support workflows; separate-account/phone multi-stop trips by Scott and the Independent Internal Tester; voluntary trip-use confirmation from five additional shoppers without precise-location tracking; passing monitoring, support, and data-accuracy checks; zero Blocking/privacy/security/data-loss defects; and dated Primary Internal Tester approval
-4. Start another separately approved Package 12 run only after the prior gate passes; stop after ordinal 3
-5. Conduct a separate larger-metro readiness review before considering Kansas City or another larger metro
-
-No minimum calendar duration applies to the Community Expansion Gate. Exact community choices remain unresolved.
 
 ## Stage dependencies
 
@@ -1897,17 +1244,3 @@ An independent team may build only the provider-neutral contract until the named
 ## Deferred implementation boundary
 
 D31 full Audit History UI/export, households, finds/collections, personalization, shopper/review photos, owner review responses, structured Events, Vendor Contributor, paid placement/ad products, Android packaging, marketplace, AI valuation/authentication, embedded social feeds, and national expansion are not Regional Public MVP work. Consent-based Antique Trail product promotion is release work, not monetization. Empty scaffolding for deferred items is prohibited.
-
-## Product purpose and later value proof
-
-Antique Trail makes nearby antique stores easy to see, understand, save, and turn into a fun, hours-aware day. Its Store Browser is the front door; Candidate Link capture handles places found outside the app. It keeps discovery, planning, navigation handoff, stop status, and a private 1–5 return rating in one place.
-
-The later success test (`SLM-01`) is whether two separate shopper accounts using only Synthetic Stores can replace the fragmented research-to-message-to-route-to-maps-to-notes workflow with a trustworthy Browse → Store Details → Save → manual hours-aware Trip → Partner/Navigator handoff → external-map Go → private memory flow. Capture → Review Idea remains a separate later branch. Both must finish without outside planning documents, lose no input, understand hours/travel-time limits, pass account isolation/offline replay, and show a documented burden improvement against the current baseline before Product Owner `continue`; otherwise disposition is `revise` or `stop`. It is not a public release.
-
-The first public success test is whether Topeka shoppers can discover current listings and build useful days without paid placement, behavioral tracking, or owner access to shopper data. Promotion begins only after Package 10B through separately purposed shopper flyers/QRs, prospective-owner cards to `/for-stores`, permissioned local channels, organic search, and canonical Store sharing. Owner acquisition succeeds only when eligible owners understand the offer and trust boundaries, can start/return to claim or add a store, and no payment or application bypasses authority/listing approval.
-
-## Audience context
-
-The primary early user is an antique shopper, commonly around age 50–80+, researching and planning a multi-store day on a phone. They need to browse readable store cards, understand trustworthy details and images, capture outside leads without retyping them, assemble an understandable trip, navigate one stop at a time, and retain private visit memory without switching among messages, email, documents, maps, and notes.
-
-A second authenticated shopper may send or receive one Candidate Link through a recipient-specific Candidate Share and may receive one explicitly shared trip. Accepting a candidate creates a recipient-owned Trip Idea without exposing either shopper's other ideas, trips, notes, ratings, or profile. Eligible store owners/managers are a separately targeted post-Package-10B audience: `/for-stores` explains how shoppers use listings, supports claim/add-store application without privilege, and routes approved Representatives to Free or separately activated paid photo capacity. Moderators and administrators remain controlled workflows, not the focus of the first shopper slice.

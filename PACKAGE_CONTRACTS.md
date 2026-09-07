@@ -2,7 +2,7 @@
 
 Current scope: engineering mechanics for Packages 1-13. Package identifiers preserve compatibility with existing source, tests, and history; they do not impose a blanket serial queue. Product outcomes and stage prerequisites live in PRD.md. Read the linked product/design/security owner before applying any technical contract.
 
-Status: normative engineering handoff for Packages 2â€“13. This file translates approved behavior into bounded implementation contracts; it does not report current completion and does not override product behavior in `PRODUCT_DECISIONS.md`, interaction behavior in `DESIGN.md`, visual rules in `DESIGN_SYSTEM.md`, or security policy in `SECURITY_AND_TRUST.md`. Package 1 remains controlled by the bounded contract in `IMPLEMENTATION_PLAN.md`; current implementation and release state live in `PROJECT_STATE.md`.
+Status: current capability engineering contracts for Packages 1-13; no statement here proves implementation or readiness. PRD.md owns product behavior and stage outcomes, DESIGN.md owns interactions, DESIGN_SYSTEM.md owns visual/accessibility rules and routes, and SECURITY_AND_TRUST.md owns exact security controls. Package 1 is included below; PROJECT_STATE.md and scoped evidence report dated implementation facts.
 
 ## Shared execution rules
 
@@ -18,18 +18,20 @@ Every package uses the single React/TypeScript/Vite PWA and Supabase/PostgreSQL 
 - **Migrations/rollback:** additive schema and disabled server capability first; backfill with counts/checksums; enable only after tests. Rollback disables capability/routes before reverting compatible code. Destructive rollback uses the prior database/Storage restore point and deletion-receipt replay. Never roll back by weakening RLS or restoring revoked grants.
 - **Quality budget:** zero known authorization/privacy/data-loss defects; WCAG 2.2 AA; approved browser/device matrix; no unhandled console error. Non-provider commands target p95 â‰¤1 second and p99 â‰¤2 seconds under the package load profile. User-visible provider/upload jobs show progress by 1 second, never block the main thread, and use the package timeout/fallback. Each package records query plans for high-volume paths and sets rate/cost limits before enablement.
 - **Evidence:** each implementation ticket proves only its acceptance criteria with the applicable source, database, browser, accessibility, security, performance, lifecycle, or rollback checks. External owner/provider/release evidence stays in the package's separate gate issue. A failed required check blocks only the outcome that requires it.
-- **Database privileges:** enable and `FORCE RLS` on application tables. Runtime/authenticator roles never own tables. Revoke schema/table/sequence/function privileges from `PUBLIC`. Prefer `SECURITY INVOKER`; every necessary `SECURITY DEFINER` function is owned by a dedicated non-login non-table-owner role without `BYPASSRLS`, uses a literal fixed search path and schema-qualified objects, validates session/stage/role/scope, and has direct-table plus sibling-row denial tests. Service-role operations are isolated approved jobs/functions only.
-- **Sessions:** Package 2's application session registry and `current_session_is_active()` gate every private/privileged table, Storage policy, RPC, Edge Function, export, signed URL, and offline sync. Provider revocation failure never restores application access. Refresh material uses only the dedicated IndexedDB adapter; access tokens stay in memory.
-- **Cache and headers:** shell/service worker `no-cache`; hashed static assets one-year immutable; all startup API/RPC `no-store`; authenticated/mixed/pilot/readiness/operational responses `private, no-store` plus `Vary: Authorization, Origin`. Service worker caches no API/private data. Every route/error/redirect passes the exact CSP/security-header contract in `SECURITY_AND_TRUST.md`.
-- **Validation:** every field enforces the global code-point/byte/normalization/control-character/rendering matrix in `SECURITY_AND_TRUST.md` plus narrower package limits. Prose is text-only; URL fields alone become validated links. Preview/publication share one escape path.
-- **Capabilities:** server stages/capabilities default false and are checked by RLS, Storage, RPC, Edge, route loader, job, and signed-URL issuer. Only a receipt-bound deployment command changes them atomically. Client flags never authorize. Rollback disables capabilities first.
-- **HMAC/audit:** use independent purpose/environment HMAC keys with version/rotation lifecycle. Privileged audit is append-only hash-chained and externally anchors content-free roots; missed root for 24 hours disables privileged mutations. No package may claim immutable audit without this proof.
-- **Provider/cost gates:** H-01 precedes any shared environment; E-01 real email; R-01 Package 5B; M-01 any real media; L-01 external audit-chain anchoring before privileged shared/external use; S-01 first owner contact; SEC-01 independent security review and B-01 final brand/domain before Package 10B; A-01 optional analytics. ADR 0006's Vercel deployment boundary and ADR 0005's retained `$0`, 25% headroom, 75% pause, 90% degradation, no-overage, full DB/Auth/Storage restore, and public-release block are normative. A failed gate blocks only its dependent capability.
-- **Human capacity:** HC-01 before first owner contact names Product, Engineering/Security/Operations, support/on-call primary and human backup, second catalog verifier, legal/insurance contacts, and any independent reviewer. HC-02 before public promotion names routine moderation, independent appeal, support, on-call backup, two catalog verifiers, accessibility/usability, and incident communication owners and rehearses handoffs. An AI is never human coverage or independent approval.
+- **Database privileges:** apply [Database function privilege contract](SECURITY_AND_TRUST.md#database-function-privilege-contract).
+- **Sessions:** apply [Session storage and next-request revocation](SECURITY_AND_TRUST.md#session-storage-and-next-request-revocation).
+- **Cache and headers:** apply [HTTP, browser, and cache contract](SECURITY_AND_TRUST.md#http-browser-and-cache-contract).
+- **Validation:** apply [Global untrusted-field contract](SECURITY_AND_TRUST.md#global-untrusted-field-contract).
+- **Capabilities:** apply [Stage and capability authorization](SECURITY_AND_TRUST.md#stage-and-capability-authorization).
+- **HMAC/audit:** apply [Audit tamper evidence](SECURITY_AND_TRUST.md#audit-tamper-evidence).
+- **Provider/cost gates:** apply [PRD provider and external-action prerequisites](PRD.md#provider-and-external-action-prerequisites) and the named accepted ADR; capability failure does not authorize spending or a weaker safeguard.
+- **Human capacity:** apply [Human operational capacity](SECURITY_AND_TRUST.md#human-operational-capacity).
 - **Feature restrictions:** automated signals and rate limits may open a case but never impose a restriction. Only a final case-scoped MFA/recent-auth decision may restrict the same abused feature/store scope. First upheld case in 180 days gives notice only; second in 180 days permits 30 days; third in 365 days permits 90 days; fourth in 365 days permits 180 days only after a different qualified reviewer signs the evidence. Counts never cross feature types. Commands are `open_abuse_case`, `finalize_abuse_case`, `impose_feature_restriction`, `submit_restriction_appeal`, `decide_restriction_appeal`, and `expire_feature_restriction`. One appeal may be filed within 30 days and is decided by a different qualified reviewer. Expiry is automatic. Tests cover thresholds, notice, exact scope, denial without hiding existing content-management/export/delete/appeal, different-reviewer decision, expiry, and no shadow/global suspension.
 - **Clean reproduction:** each implementation PR runs the checks applicable to its diff and ticket. Package or stage gate issues run the full matrix they name. Free CI exhaustion delays a required check; it never turns an unavailable check into a pass.
 
 ## Package 2 â€” Identity, sessions, roles, audit, and account lifecycle
+
+Product requirement and stage scope: [Account scope requirements](PRD.md#account-scope-requirements). The contract below owns engineering details and their technical acceptance.
 
 `completed_terminal_cleanup` is a derived privacy predicate, never an admission state: `state=cleanup_pending`, authoritative provider deletion/absence and every non-metadata cleanup step are terminal, and only deletion-only admission-metadata clear plus final linkage purge remain. It cannot authorize registration, delivery, verification, profile creation, or any state transition except completing that privacy purge.
 
@@ -55,7 +57,6 @@ Partner/readiness parent invitations never pre-create an unrecoverable child sec
 
 **Admission privacy lifecycle:** raw admission and provider action-link secrets exist only in the intended recipient's fragment or server memory and never enter logs, telemetry, analytics, browser storage, exports, backups as newly written plaintext, or support/audit payloads. Within 24 hours after `active`, `expired`, `revoked`, or completed terminal cleanup, delete `token_hash`, email HMAC, idempotency key, provider-call timing, reconciliation metadata, provider linkage, and Auth `app_metadata.antique_trail_admission_id`; account deletion triggers the same purge immediately and deleted remnants age out of backups within 30 days. The privacy job first purges every field except the exact provider ID/admission UUID needed for deletion-only `clear_admission_metadata`; only authoritative field absence lets the same workflow delete that final linkage and terminal operation evidence. Failure at 24 hours opens a privacy/security incident and disables shared registration; it retains only that restricted pair solely for retry and never reports purge success. Retain only purpose, content-free outcome, and timestamps after successful clear: 90 days for initial-admin/synthetic/public registration security evidence, three years after relationship end for partner/readiness consent history, or two years when the event is already part of privileged audit. These records are excluded from shopper export and ordinary logs; an authenticated privacy request receives only the person's visible registration status, never tokens, HMACs, provider evidence, or internal identifiers.
 
-**Outcome and scope:** verified-email 18+ shopper accounts; MFA/recent-auth for privileged roles; secure recovery/session revocation; exact store-scoped grants; append-only hash-chained audit with external root anchoring; account export/deletion/inactivity. No shopper feature data, partner onboarding, moderation, or external participants.
 
 **Routes/states:** the authentication routes and states in `DESIGN_SYSTEM.md`, including `/auth/callback`; `/account/privacy`, `/account/export`, `/account/delete`, `/account/delete/cancel`, `/account/restrictions`; Administrator test-only role/session setup. Account states are `pending_verification`, `active`, `deletion_scheduled`, `deleted`; session states are `active`, `cancellation_only`, `revoked`. Export states are `queued`, `building`, `ready`, `failed`, `expired`. Grant states are `pending`, `active`, `revoked`, `expired`.
 
@@ -77,7 +78,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 
 ## Package 3 â€” Shopper-private actions, New Since, and correction intake
 
-**Outcome and scope:** saves, private 1â€“5 rating/note/visit memory, coarse catalog-last-seen, New Since, and correction reports. No sharing, trip plan, public review, or privileged correction approval.
+Product requirement and stage scope: [Store Browser requirements](PRD.md#store-browser-requirements). The contract below owns engineering details and their technical acceptance.
+
 
 **Routes/states:** Package 1 Browse/Details gain JIT-auth `Save`; `Add` remains absent until 5A; private memory controls; `/saved`, `/account/history`, `/stores/:slug/correction`, `/corrections/:id`. Private action states are loading/saved/updated/delete-pending/undone/deleted/error. Correction draft may start anonymously, but submit requires JIT verified-account auth; cancellation writes nothing. Correction is `submitted`, `triaged`, `resolved`, or `closed` with own reason-neutral status.
 
@@ -89,7 +91,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 
 ## Package 4 â€” Candidate Link and Candidate Share
 
-**Outcome and scope:** private manual/URL candidate capture, one-recipient verified-email share, recipient-owned Trip Idea, block/unblock/report. No unregistered delivery, public listing publication, household grant, social scraping, or automatic event/store creation.
+Product requirement and stage scope: [Candidate-link capture and Trip Ideas](PRD.md#candidate-link-capture-and-trip-ideas). The contract below owns engineering details and their technical acceptance.
+
 
 **Routes/states:** `/capture`, `/shares`, `/shares/:shareId`, `/trip-ideas`, privacy blocked-sender control. Capture is `manual_draft`, `extracting`, `needs_review`, `saved`. Share sender state is only `Pending`, `Accepted`, `Closed`; recipient action is Accept/Dismiss/Block/Report; all nonaccepted terminal reasons conflate.
 
@@ -103,7 +106,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 
 ## Package 5A â€” Manual Trip, collaboration, Go, and offline
 
-**Outcome and scope:** manual trip creation/order, one invited partner, readiness warnings from hours only, Creator/Partner/Navigator rules, active Go, external Google Maps/Waze leg handoff, visit memory, encrypted offline active-trip recovery. No suggested ordering, discovery map, travel-time provider call, or route optimality claim.
+Product requirement and stage scope: [Today's Trip requirements](PRD.md#todays-trip-requirements). The contract below owns engineering details and their technical acceptance.
+
 
 **Limits/routes/states:** maximum eight active stops per trip. Routes are `/trips`, `/trips/new`, `/trips/:id/invite`, `/trip-invitations#token=...`, `/trips/:id/plan`, `/trips/:id/go`, `/trips/:id/summary`. Trip is `draft`, `ready`, `active`, `completed`, `cancelled`; stop is `planned`, `arrived`, `completed`, `skipped`, or `observed_closed`; invitation is `pending`, `accepted`, `revoked`, `expired`; participant is `creator` or `partner`; exactly one active Navigator account/device during Go. Package 5A action is `Review Hours`, states `Travel time is not included`, and makes no arrival/finish/feasibility/suggested-order claim.
 
@@ -114,6 +118,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 **Offline/failure:** `start_trip` issues a signed offline grant bound to account/trip/Navigator device/session-security version/device key for at most 36 hours; it never authorizes the server. Only the matching local Auth subject decrypts; otherwise show only that an offline trip exists. Clear plaintext after 15 minutes backgrounded. At 36 hours lock display/mutation pending sync; matching online reauth within seven days may replay/purge, then purge on next execution. Clock rollback over five minutes locks until online. Account switch/known revoke/confirmed logout purges immediately. No authenticated trip data enters Cache Storage. Ordered replay rechecks current application session, trip grant, Navigator/device, trip state, version, and idempotency; same-author note/rating/return-choice conflict preserves both versions for explicit choice. External handoff uses encoded current-stop address and user tap; missing app falls back to HTTPS. Prove 36-hour/7-day/background/clock boundaries, cold/wrong/no-account restart, every stop including observed-closed/Undo/last-stop Summary, partner leave/remove, Go pause, device transfer, replay exactly once, denied old device, all location purges, cross-account denial, eight-stop bound, and accessibility.
 
 ## Package 5B â€” Secondary Browse map and Check My Day
+
+Product requirement and stage scope: [Package 5B planning factors and output](PRD.md#package-5b-planning-factors-and-output). The contract below owns engineering details and their technical acceptance.
 
 **Geocoding contract:** R-01 must select and test geocoding as well as routing. Send only the user-entered start/return/rest place text needed for the request; disclose no account, trip/store ID, note, or precise device location. Show a bounded candidate list with readable address/context and require explicit user confirmation before saving coordinates or routing. Ambiguous/no-result/provider-failure states preserve the original text and offer Edit, Retry, choose a store/manual map link, or continue with Package 5A hours-only review. Never silently choose the first candidate. Store the confirmed label/coordinates privately under the approved location lifecycle; test similarly named/wrong-city results, accessibility, quota, timeout, retention, correction, and provider outage.
 
@@ -129,9 +135,10 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 
 ## Package 6 â€” Partner onboarding and Store Portal
 
+Product requirement and stage scope: [Business accounts](PRD.md#business-accounts). The contract below owns engineering details and their technical acceptance.
+
 **Outer-access admission:** before any Private-Beta QR is generated, H-01 requires the Administrator to record the verbally confirmed owner email/consent and create one expiring Vercel Deployment Protection access grant, using an independently accepted enrollment mechanism, covering every onboarding/Auth callback hostname/path. Hosting identity is only the outer network boundary and grants no application user/role/store scope. Wrong/expired identity denies before the app; removing the hosting grant does not replace application/session/grant revocation. Synthetic local Package 6 needs no hosting grant. If the selected Vercel plan cannot provide bounded participant enrollment without exposing another hostname, Private Beta remains blocked.
 
-**Outcome and scope:** phone-first QR/fragment pilot onboarding; application-atomic provisional consent/pending identity followed by separate Supabase Auth binding; owner-controlled draft; authority verification; Synthetic existing-claim and add-store application workflows; exact one-store grant plus default Free tier after approval; direct/controlled store text/hours/social/support. Official media and screenshots remain placeholder/disabled until M-01. No self-approval, shopper-private access, public reviews, analytics, claim document upload, multi-store Representative, or multiple active Representatives for one store.
 
 **Prerequisites/stage:** E-01 is required before real verification/recovery/status email; M-01 before any real owner image/screenshot upload; H-01/S-01/HC-01 before external use. Build the existing-claim and add-store implementation with Synthetic data, but keep `public_listing_claims_enabled=false` and `public_store_applications_enabled=false` in Alpha, Private Beta, and Package 10A. In every normal shared/production artifact the public claim/add routes are not found, reads are empty, and writes are stage-disabled. Package 10A may expose only the separately built, Deployment-Protection-gated, `noindex` owner-research artifact described under Verification; it can read/write only isolated `audience=synthetic` fixtures for an exact active research-cohort grant and confers no Auth role, store scope, public projection, or reusable test capability. Package 10B alone may enable the normal public claim/add routes in the atomic regional release. A failed media gate keeps placeholders and blocks any gate requiring owner media; it never publishes unscanned content.
 
@@ -151,7 +158,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 
 ## Package 7 â€” Administrator review, Access & Safety, and duplicate merge
 
-**Outcome and scope:** typed review queue; partner/store/image/support decisions; exact-scope grant/revoke/regrant; narrow D30 View Audit; reversible duplicate merge. No shopper-private browsing, full D31 search/export, bulk approval, or routine public-review moderation.
+Product requirement and stage scope: [Administrator workspace](PRD.md#administrator-workspace). The contract below owns engineering details and their technical acceptance.
+
 
 **Schema/commands:** `admin_review_cases` with typed target/snapshot/state/lock/version; `admin_case_events`; `merge_ledgers`; `store_tombstones`; existing grants/audit. Commands: `claim_review_case`; `request_case_changes`; `approve_case`; `reject_case`; `revoke_store_scope`; `regrant_store_scope`; `view_resource_audit`; `preview_duplicate_merge`; `execute_duplicate_merge`; `rollback_duplicate_merge`. Initial production Representative grants are impossible here and exist only through Package 6 approved onboarding/claim transactions. Regrant requires a prior revoked exact-scope grant plus current subject verified email/MFA, current authority evidence, approved onboarding/claim state, Administrator MFA/recent-auth, exact scope preview, reason, and audit; a direct call missing any prerequisite denies. Case lock expires after 15 minutes and never authorizes action by itself.
 
@@ -163,6 +171,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 
 ## Package 8 â€” Synthetic Internal Alpha and External Testing Readiness
 
+Product requirement and stage scope: [Internal Alpha](PRD.md#internal-alpha). The contract below owns engineering details and their technical acceptance.
+
 **Outcome:** after H-01 has protected every shared hostname and proven Alpha recovery, prove Packages 1â€“7/5B together with Synthetic data. L-01 must pass before any shared privileged mutation; until then, privileged cycles are local-only. Then prove E-01/M-01/S-01/HC-01 and all owner-contact prerequisites. It creates no public capability and authorizes no owner contact until every gate passes.
 
 **Evidence model:** `environment_stage(stage, capabilities, changed_by, receipt_id)` is server-owned; `test_run_receipts`; `release_gate_receipts`; `evidence_responsibility_grants(user_id, responsibility ProductOwner|PrimaryInternalTester|Engineering|Security|Operations, state, source_receipt_id, version)`; one-use `gate_signing_capabilities(token_hash, user_id, responsibility, gate_kind, frozen_digest, expires_at, state)`; signed content-addressed evidence manifest containing artifact hashes/links, not private payloads. Evidence responsibility is not an application role and grants no catalog, shopper, store, case, or admin data authority. The same Product+Security bootstrap receipt may let the deployment service grant the verified initial Administrator's MFA account the first `ProductOwner` and `PrimaryInternalTester` responsibilities; every later grant/replacement requires the signed HC receipt. Neither path is callable by an application Administrator, and Administrator alone never suffices. After evidence freeze, the trusted service issues a 30-minute exact-digest decision capability whether checks pass or fail. `Pass/Sign` is permitted only when every gate predicate passes; `Reject` is always permitted and must bind immutable failed-check codes/reasons. Decision derives current user, exact gate-required responsibility, MFA/recent-auth, capability, digest, expected version, and decision; same-input replay returns the receipt and any mismatch denies. Revoke responsibility on HC replacement or account deletion; keep content-free grant history three years after responsibility ends, delete capability hashes within 24 hours after use/expiry and from backups within 30 days, and exclude both from shopper export/logs. Internal Alpha stage is `synthetic_alpha`; real-store predicates deny. Break-glass stays disabled through Package 8/8B for a sole Administrator; a second qualified Administrator may satisfy its separate approval rule. Package 9 owns the independent-reviewer credential path. Tests prove bootstrap/later grant boundaries, ProductOwner versus PrimaryInternalTester gate mapping, responsibility-only frozen-packet read/decision, pass-on-failure denial, authenticated rejection, Administrator-without-responsibility denial, no expanded data read, expiry/revoke/replay/lifecycle, and immutable receipt.
@@ -173,6 +183,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 
 ## Package 8B â€” Three-store Controlled Private Beta
 
+Product requirement and stage scope: [Initial Private Beta Cohort](PRD.md#initial-private-beta-cohort). The contract below owns engineering details and their technical acceptance.
+
 **Outcome and bounds:** exactly one verified Partner/Pilot Store at a time, maximum three, invitation-only. No advertising, anonymous real-store access, public reviews/UGC, or automatic next-store admission.
 
 **Schema/authorization:** `pilot_cohorts`; `pilot_visibility_grants(user_id, cohort_id, expires_at, revoked_at)`; `pilot_store_admissions(store_id, ordinal 1..3, gate_state, receipt_id)`; `pilot_gate_receipts`. Only invited verified accounts with active cohort grants read active Pilot Store Records. Representative sees assigned store. Grant revocation/expiry denies next request.
@@ -182,6 +194,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 **Rollback/stop:** withdraw/hide exact store, revoke exact grants, preserve approved audit/consent retention, notify cohort, and restore prior stage. Any scope leak, public route, owner implication, or unapproved fourth store is Blocking.
 
 ## Package 9 â€” Public reviews, moderation, and appeal
+
+Product requirement and stage scope: [Review requirements](PRD.md#review-requirements). The contract below owns engineering details and their technical acceptance.
 
 **Outcome and stage:** implement the complete text-only review system and narrow independent-reviewer WebAuthn service with Synthetic records while `public_reviews_enabled=false`. Package 10B alone enables public reviews after readiness signature. Shopper/review photos and owner responses stay absent.
 
@@ -198,6 +212,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 **Jobs/tests/rollback:** validation/rate/abuse queue; 14-business-day appeal target alert; case retention; text purge; aggregate reconciliation. Prove stage absence at route/RLS/RPC, eligibility/conflicts, one active review, arithmetic aggregate, edit/delete/account delete, report privacy, reason codes, hold/remove/restore, different reviewer, capability scope/expiry/revoke, author/Representative privacy, all denials. Rollback disables capability and preserves restricted case/audit data; aggregate mismatch or evidence exposure blocks enablement.
 
 ## Package 10A â€” Controlled Regional Readiness Evidence
+
+Product requirement and stage scope: [Regional Public Readiness Gate](PRD.md#regional-public-readiness-gate). The contract below owns engineering details and their technical acceptance.
 
 **Readiness routing exceptions:** after R-01 is accepted, a trusted Package 10A job may make one bounded evidence call per frozen itinerary containing only required public business coordinates. An active readiness-cohort user may also explicitly invoke `Check My Day`; that call may send the selected business coordinates and only an optional manually confirmed start/return coordinate required by R-01. External-map Go handoff sends only the current business destination; Antique Trail supplies no start and lets the external map app use its own location permission. No call sends internal listing ID, audience/cohort/grant/partner status, user/account/email, private note, campaign code, or evidence identifier, and Antique Trail logs no coordinate payload. Results stay in the restricted trip/evidence scope and never create an anonymous/public provider projection. Test explicit action/consent, active-grant requirement, exact payload allowlists, wrong-area/unauthorized coordinate denial, Google/Waze URL contents, quota/fallback, revocation, and R-01 deletion/retention.
 
@@ -225,6 +241,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 
 ## Package 10B â€” Regional promotion and Topeka release
 
+Product requirement and stage scope: [Regional Public MVP](PRD.md#regional-public-mvp). The contract below owns engineering details and their technical acceptance.
+
 **Prerequisite/outcome:** complete signed Package 10A receipt; accepted H/E/R/M/L/S provider gates as applicable; HC-02; SEC-01; B-01 final brand/domain; monitored support/security contacts with named operator and backup; 99.5% availability/capacity proof; production DB/Auth/Storage restore proving 15-minute RPO/four-hour RTO. Supabase Free does not satisfy the current recovery proof, so release remains blocked until the Product Owner approves paid recovery or a validated `$0` equivalent. Promote the same tested artifact/schema/config, exact frozen catalog set, claims, public reviews, approved product promotion, public Free-only `/for-stores`, and claim/add-store intake, and record release. Paid prices/actions remain off.
 
 **Commands/state:** `promote_release(candidate_receipt_id, artifact_digest, migration_set_digest)` locks the Package 2 registration quarantine latch first, requires `latch.state=open`, holds that lock through the entire release transaction, and requires Product Owner plus Engineering/Security/Operations evidence roles; `promote_regional_catalog(candidate_receipt_id, frozen_store_ids)` locks the signed receipt and atomically changes only that exact set from `regional_readiness` to `public` after rechecking two-person provenance, required-field freshness, no pilot/private fields, rights/consent, no duplicate/closure/hold, and exact area. It builds the public projection without copying cohort, claim evidence, private owner data, readiness events, or pilot grants. Any set mismatch or failed store rolls back the whole transaction. Deployment-only `set_server_capability` changes public catalog, claims, store applications, reviews, owner acquisition, and promotion only inside promotion and invokes Package 2 `set_account_registration_mode(public, candidate_receipt_id, expected_version)` in the same release transaction; no second registration command exists. Either `draining` or `blocked`, including a concurrent attempted transition, rolls back catalog publication, registration, claims, store applications, owner acquisition, reviews, and promotion together. `rollback_release` disables new capabilities first, sets registration `closed`, and withdraws the exact promoted projection while retaining the restricted source/receipt for safe repair. `release_receipts` record the frozen store set plus actor approvals, artifact/migration/config hashes, owner-usability receipt, DB/Auth/Storage recovery, capacity/cost thresholds, monitoring, promotion consents/artifacts, smoke tests, and time.
@@ -236,6 +254,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 **Rollback/stop:** predefined alerts for authorization/privacy/data loss, migration errors, availability/recovery failure, elevated error/latency, 75% quota forecast, consent withdrawal, broken/substituted QR, unauthorized partnership copy, stale listing, spam, support overload, or incorrect publication pause affected promotion/capability. At 90% stop new promotion and optional provider/media/email functions before core safety. Reapply deletion/revocation receipts before reopening. Any failed smoke/incomplete receipt leaves public capability off. Review a channel after four weeks and at least 50 attributed opens; Product Owner records continue/change/stop without an invented conversion threshold.
 
 ## Package 11 â€” RG-01 Topeka success evidence
+
+Product requirement and stage scope: [Operating scorecard and RG-01](PRD.md#operating-scorecard-and-rg-01). The contract below owns engineering details and their technical acceptance.
 
 **Prerequisite/outcome:** begin after a signed Package 10B receipt, required production smoke/monitoring checks currently pass, and no release stop condition is active; no added elapsed-time minimum applies. Calculate/sign RG-01 from live Topeka evidence. Passage permits only Product Owner consideration of a separately gated first-community plan; it never selects a community, imports listings, contacts owners, promotes, or activates expansion.
 
@@ -251,6 +271,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 
 ## Package 12 â€” One-community activation run
 
+Product requirement and stage scope: [Regional launch strategy](PRD.md#regional-launch-strategy). The contract below owns engineering details and their technical acceptance.
+
 **Prerequisite/outcome:** this is one repeatable per-area run, ordinal 1â€“3. Run 1 begins only after a signed passing Package 11 RG-01 receipt and a separate Product Owner decision naming one Eligible Small Community. Runs 2â€“3 each require a new Product Owner community selection plus a signed passing Community Expansion Gate receipt for the previously activated community. One run prepares and activates exactly one named area; it never chooses another area or authorizes Kansas City/larger-metro work.
 
 **Private preparation/readiness:** create an exact area slug and frozen candidate-store set; privately recruit the approved willing anchor owner through the Package 6 invitation/consent/authority flow; verify at least two active listings with two-person provenance; prove exact catalog/consent, two separate-phone internal trips, monitoring, recovery, security, support path/capacity, quota, rollback, and zero Blocking/privacy/security/data-loss defect. Product Owner signs this preactivation receipt. No public listing, owner implication, or promotion occurs before that signature. Non-partner listings remain fact-only.
@@ -265,6 +287,8 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 
 
 ## Package 13 — Photo-tier memberships, moderation, and staged-off billing
+
+Product requirement and stage scope: [Business accounts](PRD.md#business-accounts). The contract below owns engineering details and their technical acceptance.
 
 **Outcome and stage:** implement paid photo-tier upgrades (Gallery cover+15 / Full Gallery cover+no plan-count cap), tier enforcement at upload intake, authenticated `/store-portal/plans`, the Administrator moderation queue, rejection visibility/resubmit, and complete Stripe billing. Package 6 owns Synthetic claim/add plus atomic Free provisioning; Package 10A owns the private acquisition-page/usability receipt; Package 10B owns public Free intake. Package 13 begins in `off_prelaunch`, may privately test an approved inactive commercial configuration without Stripe calls, and enters `sales_open` only through the composite activation command below. Free (cover plus five approved gallery images, no charge indefinitely for an eligible/current listing, no removal for nonpayment) remains available regardless of paid-sales state.
 
@@ -285,7 +309,7 @@ Package 2 additionally proves current/all-device/password-recovery/deletion/secu
 **Jobs/tests/rollback:** shared idempotent job rules apply. Prove schedule attachment to the existing subscription, provider-controlled cycle-end pricing, no downgrade proration, last-accepted-target wins, cancellation with an attached schedule, abandoned confirmation preserving the schedule, response-loss replay, boundary-versus-reschedule, upgrade-versus-future-phase, pause preserving accepted servicing intent, and unresolved schedule state denying close. Tests red-first cover existing Gallery-to-Full-Gallery consent/source-version/config/generation binding, same-subscription serialization, single invoice stream, server-derived proration, verified-event-only application, replay/response loss, pause before/after provider modification and charge, full incremental-charge compensation without cancelling the prior subscription or forcing Free, later valid lifecycle events during compensation, unknown compensation blocking close, and unchanged initial Free-only Checkout; tier caps and Full Gallery non-count enforcement/reason/recovery/appeal/no-hidden-count-cap; legacy-name and M-01 hard-cap migration; moderation authorization/resubmit; inactive-config privacy and zero provider call; consent/config/tier/store/version mismatch, 15-minute expiry/revoke/replay, server-derived price, 30-minute Checkout, duplicate/response-loss; webhook signature/replay/order; exact disclosure; proration/refund; grace → Free → hide → delete; every missing/stale/failed/superseded/wrong-community activation receipt; atomic activation; `off_prelaunch|sales_open|servicing_only` route/RLS/RPC/Function/job matrix; pause before/after provider session creation and before/after payment completion, with the explicit oracle that a pre-pause session can never upgrade after pause and any resulting charge reaches provider-confirmed full refund; pause replay/wrong signer/stale version; servicing-only forbidden changes and cancellation-only portal; close denial for each open Checkout, refundable-window or provider-horizon charge, nonterminal subscription, refund/dispute/invoice/payment/webhook/outbox item, unsettled balance, absent/unknown finality, stale provider observation, and Stripe/mirror mismatch; closure crash/replay; a late verified dispute after close is quarantined with no business/provider effect, reopens servicing only through the exact signed event-bound command, settles there, and must pass a new finality-bound close; resume with unchanged versus stale prerequisite/config, resume-vs-close; concurrent claim/add start versus claim approval/transfer with one lock order, exact root CAS/clear, and zero duplicate intake/grant; and unchanged `catalog_details`. Paid browser acceptance uses the separate eligible-owner protocol with exact inactive configuration before activation. M-01 blocks REAL image processing; Synthetic uploads remain the fixture until it passes.
 ## Independent-build acceptance
 
-Package 1 plus these contracts cover every Regional Public MVP package, postlaunch RG-01, and one-community activation. A builder may select an explicitly gated provider only through its ADR; they may not invent product policy, weaken a denial, enable an absent stage, add post-MVP scope, or skip evidence. If a package-specific implementation detail is not mechanically derivable from this file and the controlling source hierarchy, stop that package and record the exact gap on Issue #1 before code.
+Package 1 plus these contracts cover every Regional Public MVP package, postlaunch RG-01, and one-community activation. A builder may select an explicitly gated provider only through its ADR; they may not invent product policy, weaken a denial, enable an absent stage, add post-MVP scope, or skip evidence. If a package-specific implementation detail is not mechanically derivable from this file and the controlling source hierarchy, stop affected work and record the exact gap through the current issue workflow before code.
 
 ## Protected internal synthetic review exception
 
@@ -468,23 +492,23 @@ Local Supabase requires a supported Docker-compatible runtime. Treat stack start
 
 ### Test coverage contract
 
-No code exists yet, so current executable coverage is 0%. Implementation writes tests with each path; tests are not a later hardening phase.
+The diagram below inventories Package 1 test obligations, not current coverage. Implementation writes tests with each path; tests are not a later hardening phase.
 
 ```text
 CODE/DATA PATHS                                      USER FLOWS
-[PLANNED] catalog query                              [PLANNED] Browse Stores [-> E2E]
+[REQUIRED] catalog query                              [REQUIRED] Browse Stores [-> E2E]
   +-- allowed active synthetic rows                    +-- immediate list without sign-in/location
   +-- denied non-synthetic/hidden rows                 +-- search name, area, category
   +-- denied anonymous writes                          +-- zero matches -> Clear Filters
   +-- success | empty | timeout/error                  +-- Retry after failed request
 
-[PLANNED] hours/open-state formatter                 [PLANNED] Store Details [-> E2E]
+[REQUIRED] hours/open-state formatter                 [REQUIRED] Store Details [-> E2E]
   +-- weekly hours                                      +-- open card by pointer and keyboard
   +-- dated exception overrides                         +-- direct/deep URL
   +-- store-local time zone                             +-- unknown/hidden slug -> not found
   +-- missing/invalid -> unavailable                    +-- Back preserves Browse state
 
-[PLANNED] media rendering                            [PLANNED] Age-inclusive access [-> E2E]
+[REQUIRED] media rendering                            [REQUIRED] Age-inclusive access [-> E2E]
   +-- cover/gallery order                               +-- keyboard + visible focus
   +-- missing/failing image -> placeholder              +-- 200% text resize/reflow
   +-- meaningful alt text                               +-- 48x48 targets, labeled/non-color status

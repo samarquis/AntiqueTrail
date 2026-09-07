@@ -76,6 +76,28 @@ Review and verification are proportional to risk. Documentation-only changes nee
 
 Before implementation starts, its ticket must cite the current contract and own one repository-controlled outcome. It closes when a clean checkout proves its mapped acceptance criteria with the applicable source, migration, allow/deny, UI, accessibility, failure, rollback, and security/privacy checks. External evidence and authorization close in separate gate issues. AI output is never a substitute for a failed executable check or required human gate.
 
-Security closure additionally requires exact Postgres privilege/FORCE-RLS tests; every session-revocation surface; auth/invitation fragment/cache/referrer denial; stage/capability matrix across route/RLS/Storage/RPC/Function/job; case-scoped sibling/bulk denial; SSRF limit corpus; field/XSS/Unicode boundaries; offline 36-hour/7-day lifecycle; DB/Auth/Storage restore with deletion/revocation replay; audit-chain external-root failure; quota/no-charge degradation; and header/CSP/CI artifact-digest assertions. A plan statement is not evidence of runtime behavior.
+Boundary-specific security verification is defined in [SECURITY_AND_TRUST.md](SECURITY_AND_TRUST.md#required-pre-launch-testing).
 
 The plan itself is accepted only when a fresh seven-lens review of the current full manifest finds no material P1/P2 contradiction, omission, untestable gate, privacy/security defect, design reproducibility defect, or unauthorized scope path. A numerical score is reported only with that finding set; the document cannot self-award 100.
+
+Plan amendments must verify manifest coverage, local file/heading references, JSON parsing, diff whitespace, and absence of stale policy language before final review. An archival flow lab may establish concept provenance but cannot prove current interaction, visual, or package acceptance; parsing source alone is insufficient. For application browser acceptance, try the Codex in-app browser first and record any isolation failure before using the available Playwright browser against the running build at phone and desktop widths. The artifact must exist before claiming its check passed.
+
+Engineering owns implementation/automated proof, Security owns authorization/privacy review, Design owns interaction/visual/accessibility acceptance, and Operations owns deployment/recovery evidence for their named scope; human approval requirements remain human and cannot be replaced by agents. Package identifiers describe capability boundaries and actual prerequisites, not a blanket lock across unrelated ready work.
+
+## Proportional checks
+
+| Change | Required proof |
+| --- | --- |
+| Documentation or workflow | Relevant contract tests and `git diff --check` |
+| TypeScript or application behavior | Focused tests, typecheck, lint, format, and build |
+| UI behavior or layout | Application checks plus the targeted browser and ticket-named accessibility states |
+| SQL, RLS, RPC, Edge authorization, security, payment, or destructive lifecycle | Focused allow/deny tests, clean database test environment, and applicable security checks |
+| Provider or production activation | Only the ticket-named provider/production checks, with authorized credentials and real receipts |
+
+A missing required environment is `UNAVAILABLE`, not `PASS`. Do not run unrelated suites to create the appearance of evidence.
+
+## Applying the implementation workflow
+
+Before claiming an implementation issue, verify that it is open, passes the ticket validator, has merged/closed dependencies with evidence, and has no active PR or branch already owning the outcome. Refresh main, live issues/PRs, and matching branches; inspect actual shared files before treating work as parallel. Use a clean isolated worktree and `codex/issue-N-short-name`; when publication is authorized, push ownership promptly so another agent can see it.
+
+Map every acceptance criterion to executable proof, inspect the complete diff, and stage/commit only task-owned files. For an authorized delivery, use `Closes #N` in the PR, resolve findings, pass required hosted checks, and merge only the reviewed source candidate and evidence. A failed accepted result reopens its issue. External activation remains limited to its separately authorized gate and evidence.

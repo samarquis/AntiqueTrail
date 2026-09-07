@@ -250,17 +250,7 @@ Package 10A adds one Store Details action, `Share this store`. It shares the can
 
 ## Authentication screen flow
 
-1. Private action records a safe return target and opens sign-in without performing the write.
-2. Sign-in, registration, email verification, MFA enrollment/challenge, recent-auth, recovery, rate-limit, and revoked-session states use generic account-enumeration-resistant errors.
-3. Successful authentication returns to the original context and asks the user to confirm the original private action when required.
-4. Cancel/failure returns without the private write and preserves safe entered data.
-5. Administrator and Store Representative routes require MFA; privileged mutations may add recent-auth confirmation.
-6. Access token stays in memory; refresh-session persistence uses only the dedicated IndexedDB adapter. Logout/account switch clears it. Next-request session/grant revocation routes to generic signed-out/access-lost recovery without displaying cached private content.
-7. Cancellation-only account state exposes only deletion cancellation, recovery, and sign-out. No visual route or stale service worker may reach another private action.
-
-If the registration quarantine latch is `draining|blocked`, `/auth/register`, only an admission-bound signup-verification `/auth/callback` with UI type `verify`, `/partner/verify`, and any readiness registration step render one terminal state after fragment scrubbing/provider-token exchange: H1 `Account setup paused`; body `We couldn't finish this account setup. For your security, this attempt can't continue.` A callback with UI type `recovery` is existing-account password recovery, does not consult the registration latch, and follows the ordinary recovery flow. The paused-state primary action `Back to store list` goes to `/stores`, clears the interrupted return target, and cannot reopen authentication. Receipt-only partner/readiness variants add `Contact the person who invited you for a new invitation after account setup reopens.` Public mode adds the approved S-01 `Contact Antique Trail` channel. There is no Retry, registration resend, or reuse-old-link action. Purge email, password, receipt/token, and other registration fields from browser memory; retain no draft. Focus the H1, announce the state once, keep it readable at 320px/200%, and expose no incident, account-existence, provider, subject, or timing detail.
-
-Each authentication slice must provide exact field constraints and error copy in its bounded execution contract before implementation.
+Detailed interaction and recovery: [DESIGN authentication screen flow](DESIGN.md#authentication-screen-flow). This document retains route, visual, responsive, component, and accessibility acceptance.
 
 ## Shared asynchronous-state matrix
 
@@ -287,6 +277,8 @@ Each authentication slice must provide exact field constraints and error copy in
 - Reorder provides Up/Down controls and announces the new position; drag is optional enhancement only.
 - Icons never replace required text labels. Images require meaningful alternative text or empty alt text when decorative.
 - Reduced motion, dark theme, forced colors, keyboard-only operation, screen reader labels, 200% zoom, and text-spacing overrides are mandatory acceptance checks.
+
+The [Age-inclusive usability baseline](#age-inclusive-usability-baseline) owns exact shared measurements and no-time-pressure/image/input rules; [PRD human usability acceptance](PRD.md#human-usability-acceptance) owns the participant cohort and pass thresholds.
 
 ## Package screen contracts
 
@@ -337,11 +329,7 @@ The primary design audience includes shoppers roughly 50–80+ while the product
 - Do not auto-advance or impose time pressure on core tasks; preserve entered data after validation errors.
 - Allow store images to enlarge, provide meaningful alternative text or captions, and never place the only essential information inside an image.
 - Keep browsing list-first. A map may assist discovery but is never the only path.
-- Before public launch, pass the approved eight-person older-adult cohort, composition, task, error, and completion thresholds in `PRODUCT_DECISIONS.md`.
-
-## Age-inclusive decision constraints
-
-Design first for shoppers roughly 50–80+ without creating a separate age mode. Target WCAG 2.2 AA. Use at least 18 CSS px default body text, 1.5 line height, and no essential text below 16 CSS px; support 200% text resize, reflow, and user text-spacing overrides without loss. Use at least 48 by 48 CSS pixel mobile targets, keyboard access, visible focus, meaningful image alternatives, text with primary icons, and status that does not rely on color alone. Keep labels plain, one primary action clear at a time, inputs preserved after errors, and alternatives to drag gestures. Avoid automatic advancement or time pressure. Images may enlarge but never contain the only copy of essential information. Test required shopper journeys with the approved 2026-07-31 older-adult cohort and pass thresholds before public launch.
+- Before public launch, pass the approved eight-person older-adult cohort, composition, task, error, and completion thresholds in [PRD human usability acceptance](PRD.md#human-usability-acceptance).
 
 ## Selected visual direction
 
@@ -351,6 +339,8 @@ Keep the existing Daylight Archive light theme, Midnight Archive dark theme, and
 
 Do not resemble a rustic antique-shop cliché. No parchment, distressed type, barnwood, sepia, or decorative antique clutter. Trust must come from accurate current information, clear state, and familiar product interaction rather than category costume.
 
-## Accessibility and inclusion
+Avoid teal, mint-glass, bottle-green, public-star decoration in private workflows, dense dashboards, and unprovable route claims; palette/type values and theme names remain defined by the current visual tokens. Keep the approved storefront identity and icon placement rules.
 
-Design first for shoppers roughly 50–80+ without a separate age mode. Target WCAG 2.2 AA across the application. Default body text is at least 18 CSS px with 1.5 line height; essential text is never below 16 CSS px. Require keyboard and screen-reader access, visible focus, text with primary icons, non-color-only state, reduced motion, 200% text resizing/reflow, user text-spacing tolerance, accessible alternatives to drag reordering, preservation of entered data after errors, meaningful image alternatives, and mobile touch targets of at least 48 by 48 CSS pixels. Core tasks have no automatic advancement or time pressure. Public launch requires the approved eight-person older-adult cohort and task/pass thresholds in `PRODUCT_DECISIONS.md`.
+## Browser and device acceptance matrix
+
+- **Browser/device baseline:** test latest and previous major Chrome, Edge, Firefox, and Safari desktop; current and previous iOS Safari; current Chrome Android; 320px through 1280px+ responsive widths; keyboard; NVDA with Firefox/Chrome on Windows; and VoiceOver with Safari on iOS/macOS. Run each critical Browse-to-Plan and Go/handoff synthetic journey ten times in every applicable browser/device matrix cell. A public gate requires zero Blocking Defects, no repeatable journey failure, and at least 99% successful executions across that recorded repeated release suite. Approved 2026-07-31.
