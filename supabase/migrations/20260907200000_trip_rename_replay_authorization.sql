@@ -1,4 +1,9 @@
 -- Issue #254: authorize rename replays before reading private receipts.
+grant create on schema app_public to identity_service;
+do $wrap$
+begin
+  perform set_config('role', 'identity_service', true);
+  execute $fn$
 create or replace function app_public.rename_trip(trip_id text,new_name text,expected_version bigint,idempotency_key text)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_trip uuid;v_name text;v_prior jsonb;v_version bigint;v_result jsonb;
@@ -23,4 +28,8 @@ begin
     values(v_trip,rename_trip.idempotency_key,expected_version,'applied',v_version+1,v_result);
   return v_result;
 end; $$;
-alter function app_public.rename_trip(text,text,bigint,text) owner to identity_service;
+  $fn$;
+  perform set_config('role', 'none', true);
+end;
+$wrap$;
+revoke create on schema app_public from identity_service;
