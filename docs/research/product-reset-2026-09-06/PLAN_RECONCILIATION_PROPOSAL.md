@@ -362,3 +362,20 @@ The revised Standards review at `819d0b016cde6cb3e6d9af6993cc87f220b79612` found
 The Spec follow-up at `819d0b016cde6cb3e6d9af6993cc87f220b79612` found that shopper password authentication within 10 minutes plus enrolled MFA, before account deletion or issuing/regenerating export URLs, had lost its live owner during consolidation. That precise requirement is restored under Security / Privacy by default. The duplicate-merge historical alias now points to Directory data provenance and integrity. The support anchor was confirmed present by the local link checker, contrary to the review's missing-anchor description; its duplicated paragraph has now been consolidated into the existing Incident response section and both references were updated.
 
 The follow-up also checked preservation of inactive-account timing, Candidate Share and invitation lifecycle, partner exit, duplicate collision mechanics, routing scoring, public-review lifecycle, paid servicing/research boundaries, human cohort acceptance, and repeated browser/device tests. These checks are scoped review evidence and do not certify the full manifest or release.
+
+### Final local verification
+
+Source candidate: `53ed4c6715612de7d22286f1146758f75207409e`, based on `63a47ac499c0b52e6af7c0601e5b627c26fa08f0`. Separate Standards and Spec reviewers checked the candidate and final corrective delta; their scoped findings are resolved, with no new material finding in that delta. The inherited typography interpretation above remains explicitly unresolved and must not be described as settled design acceptance.
+
+| Check | Local result |
+| --- | --- |
+| Existing plan-governance unit tests | 10 passed, 0 failed |
+| Actual amendment validation with exact authorization and full before/after changelog | PASS; append-only receipt preserved |
+| Changed-document local file and heading links | No broken links or missing targets found |
+| Incoming references from repository Markdown | 203 files scanned, 318 incoming links checked before the final additive correction section; no existing anchor broken; subsequent delta removes only a newly introduced duplicate support anchor and updates its references |
+| Handoff manifest | JSON parses; all 52 listed files exist; Prettier check passes |
+| Whitespace and scope | `git diff --check` passes; 23 changed files, Markdown and manifest only |
+| Independent review | Original findings preserved above; scoped Standards and Spec findings cleared at the source candidate |
+| Publication boundary | Remote amendment branch still at the original baseline; no push, PR publication, issue mutation, merge, application change, or resource creation performed |
+
+This evidence-only addition records the local owner-review checkpoint. It does not change requirements or establish full seven-lens plan acceptance, hosted CI, implementation acceptance, a replacement test environment, or release readiness. Publication and subsequent ticket/implementation work remain at the owner's review checkpoint.
