@@ -55,6 +55,14 @@ export type ProviderCallbackResult =
   | { kind: 'blocked' }
   | { kind: 'error' }
 
+export interface PasswordRecoveryRequest {
+  tokenHash: string
+  password: string
+  requestId: string
+}
+
+export type PasswordRecoveryResult = { kind: 'completed' } | { kind: 'error' }
+
 export type OAuthProviderId = 'google' | 'facebook'
 
 export interface AuthProviderAdapter {
@@ -64,6 +72,7 @@ export interface AuthProviderAdapter {
   signOut(session: AuthSession): Promise<void>
   register?(request: RegistrationRequest): Promise<ProviderRegistrationResult>
   verifyCallback?(kind: 'verify' | 'recovery', tokenHash: string): Promise<ProviderCallbackResult>
+  completePasswordRecovery?(request: PasswordRecoveryRequest): Promise<PasswordRecoveryResult>
   /**
    * Starts the browser redirect to a social provider. Resolves only when the
    * redirect could not start; on success the page navigates away.

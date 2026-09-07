@@ -111,4 +111,7 @@ export const unavailableAuthProvider: AuthProviderAdapter = {
   async signOut() {
     return undefined
   },
+  async completePasswordRecovery() {
+    return { kind: 'error' as const }
+  },
 }
