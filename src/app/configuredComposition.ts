@@ -40,6 +40,10 @@ import {
   type TripOfflineGrantSource,
 } from '../features/trips'
 import {
+  IndexedDbRefreshSessionStorage,
+  type RefreshSessionStorage,
+} from '../features/auth/refreshSessionStorage'
+import {
   createAccountLifecycleClient,
   createRpcSessionRegistry,
   type AccountRole,
@@ -109,12 +113,21 @@ export function createAuthProvider<
     functions: ReturnType<typeof createClient>['functions']
     rpc: ReturnType<typeof createClient>['rpc']
   },
->(supabase: T): AuthProviderAdapter {
+>(
+  supabase: T,
+  refreshStorage: RefreshSessionStorage = new IndexedDbRefreshSessionStorage(),
+): AuthProviderAdapter {
   const challenges = new Map<string, { factorId: string; session: ProviderSession }>()
+  const remember = async (session: Session) => {
+    await refreshStorage
+      .write({ userId: session.user.id, refreshToken: session.refresh_token })
+      .catch(() => undefined)
+  }
   return {
     async signIn(email, password) {
       const result = await supabase.auth.signInWithPassword({ email, password })
       if (result.error || !result.data.session) return { kind: 'error' }
+      await remember(result.data.session)
       const session = providerSession(result.data.session)
       const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
       if (
@@ -154,6 +167,7 @@ export function createAuthProvider<
       })
       if (result.error) return null
       challenges.delete(challengeId)
+      await remember(result.data)
       return providerSession(result.data)
     },
     async register(request) {
@@ -195,6 +209,7 @@ export function createAuthProvider<
           return { kind: 'error' }
         }
       }
+      await remember(returnedSession)
       return { kind: 'authenticated', session }
     },
     async signInWithProvider(providerId, returnTo) {
@@ -217,12 +232,50 @@ export function createAuthProvider<
       }
       if (admission.error || admission.data?.state !== 'active') {
         await supabase.auth.signOut({ scope: 'local' })
+        await refreshStorage.clear().catch(() => undefined)
         return { kind: 'blocked' }
       }
+      await remember(exchanged.data.session)
       return { kind: 'authenticated', session: providerSession(exchanged.data.session) }
     },
+    async restoreSession() {
+      try {
+        const material = await refreshStorage.read()
+        if (!material) return null
+        const refreshed = await supabase.auth.refreshSession({
+          refresh_token: material.refreshToken,
+        })
+        if (refreshed.error || !refreshed.data.session) throw new Error('refresh_failed')
+        if (refreshed.data.session.user.id !== material.userId) throw new Error('account_mismatch')
+        await remember(refreshed.data.session)
+        return providerSession(refreshed.data.session)
+      } catch {
+        await refreshStorage.clear().catch(() => undefined)
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+        return null
+      }
+    },
+    onSessionChange(listener) {
+      const subscription = supabase.auth.onAuthStateChange((event, session) => {
+        if (!session || event === 'SIGNED_OUT') {
+          void refreshStorage.clear().catch(() => undefined)
+          listener(null)
+          return
+        }
+        void remember(session).catch(() => undefined)
+        listener(providerSession(session))
+      })
+      return () => subscription.data.subscription.unsubscribe()
+    },
+    async clearSessionMaterial() {
+      await refreshStorage.clear()
+    },
     async signOut() {
-      await supabase.auth.signOut({ scope: 'local' })
+      try {
+        await supabase.auth.signOut({ scope: 'local' })
+      } finally {
+        await refreshStorage.clear().catch(() => undefined)
+      }
     },
   }
 }
