@@ -296,12 +296,33 @@ export function PrivacyPage({
         <p>This account has been deleted. Sign out and return to the store list.</p>
       ) : (
         <>
+          <section aria-label="Account identity">
+            <h2>Signed-in account</h2>
+            <p>
+              Email: <strong>{auth?.session?.email ?? 'Email unavailable'}</strong>
+            </p>
+            <p>
+              Email status:{' '}
+              <strong>
+                {auth?.session?.emailVerified === true
+                  ? 'Verified'
+                  : auth?.session?.emailVerified === false
+                    ? 'Not verified'
+                    : 'Verification status unavailable'}
+              </strong>
+            </p>
+          </section>
           <p>Your account is active.</p>
           <p>
             <Link to="/account/export">Request an export</Link>
           </p>
           <p>
             <Link to="/account/delete">Schedule account deletion</Link>
+          </p>
+          <p>
+            <Link className="button" to="/account">
+              Back to account
+            </Link>
           </p>
         </>
       )}
