@@ -66,6 +66,8 @@ export interface AuthProviderAdapter {
   restoreSession?(): Promise<ProviderSession | null>
   /** Reports provider refresh/sign-out events without exposing provider storage. */
   onSessionChange?(listener: (session: ProviderSession | null) => void): () => void
+  /** Clears persisted provider refresh material without changing application state. */
+  clearSessionMaterial?(): Promise<void>
   register?(request: RegistrationRequest): Promise<ProviderRegistrationResult>
   verifyCallback?(kind: 'verify' | 'recovery', tokenHash: string): Promise<ProviderCallbackResult>
   /**

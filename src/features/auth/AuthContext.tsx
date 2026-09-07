@@ -111,8 +111,10 @@ export function AuthProvider({
       // Hide private content synchronously; cleanup and server revocation follow fail-closed.
       replaceSession(null)
       void purgeAndRevoke(current, reason).catch(() => undefined)
+      const clearSessionMaterial = provider.clearSessionMaterial
+      if (clearSessionMaterial) void clearSessionMaterial().catch(() => undefined)
     },
-    [purgeAndRevoke, replaceSession],
+    [provider, purgeAndRevoke, replaceSession],
   )
 
   useEffect(() => {

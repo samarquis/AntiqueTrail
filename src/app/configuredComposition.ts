@@ -255,6 +255,9 @@ export function createAuthProvider<
       })
       return () => subscription.data.subscription.unsubscribe()
     },
+    async clearSessionMaterial() {
+      await refreshStorage.clear()
+    },
     async signOut() {
       try {
         await supabase.auth.signOut({ scope: 'local' })
