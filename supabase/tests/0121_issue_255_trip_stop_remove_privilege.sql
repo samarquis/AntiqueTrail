@@ -42,9 +42,13 @@ select set_config('request.jwt.claims','{"sub":"25500000-0000-4000-8000-00000000
 set local role authenticated;
 select ok(app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint),'owner session is registered');
 select is((app_public.remove_trip_stop('25500000-0000-4000-8000-000000000101','25500000-0000-4000-8000-000000000201',1)->'stops')->0->>'position','0','first stop is removed and remaining stop is contiguous');
+set local role identity_service;
 select is((select count(*) from trip_private.trip_stops where trip_id='25500000-0000-4000-8000-000000000101'),1::bigint,'one stop remains after removal');
 select is((select version from trip_private.trips where trip_id='25500000-0000-4000-8000-000000000101'),2::bigint,'trip version increments once');
+reset role;
+set local role authenticated;
 select throws_ok($$select app_public.remove_trip_stop('25500000-0000-4000-8000-000000000102','25500000-0000-4000-8000-000000000203',1)$$,'P0001','not_allowed','foreign trip removal is denied');
+set local role identity_service;
 select is((select count(*) from trip_private.trip_stops where trip_id='25500000-0000-4000-8000-000000000102'),1::bigint,'denied removal preserves foreign trip state');
 reset role;
 
