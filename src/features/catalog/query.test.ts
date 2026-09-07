@@ -80,6 +80,34 @@ describe('hours formatter', () => {
     })
   })
 
+  it('uses the store timezone across local midnight and preserves closed days', () => {
+    const store = {
+      ...syntheticStores[0],
+      timeZone: 'America/Chicago',
+      hoursExceptions: [],
+      hours: [
+        { weekday: 7, label: 'Sunday', status: 'closed' as const, intervals: [] },
+        {
+          weekday: 1,
+          label: 'Monday',
+          status: 'open' as const,
+          intervals: [{ opensAt: '01:00', closesAt: '02:00' }],
+        },
+      ],
+    }
+
+    expect(todayHoursSummary({ ...store, asOfUtc: '2026-09-07T00:37:00Z' })).toMatchObject({
+      dayLabel: 'Sunday',
+      hoursLabel: 'Closed',
+      openState: 'closed',
+    })
+    expect(todayHoursSummary({ ...store, asOfUtc: '2026-09-07T06:37:00Z' })).toMatchObject({
+      dayLabel: 'Monday',
+      hoursLabel: '1:00 AM–2:00 AM',
+      openState: 'open',
+    })
+  })
+
   it('uses date-specific exceptions instead of the weekly schedule', () => {
     expect(
       todayHoursSummary({

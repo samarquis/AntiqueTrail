@@ -177,7 +177,7 @@ function toStore(value: unknown): CatalogStore {
     description: stringOrNull(row.description),
     phone: stringOrNull(row.phone),
     website: stringOrNull(row.website),
-    timeZone: stringOrNull(row.time_zone ?? row.timeZone),
+    timeZone: stringOrNull(row.timezone_name ?? row.time_zone ?? row.timeZone),
     freshness: parseFreshness(
       row.freshness ?? row.freshness_state,
       row.verified_at ?? row.oldest_verified_at,
