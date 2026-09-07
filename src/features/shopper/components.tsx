@@ -216,6 +216,7 @@ export function SaveStoreAction({
       <button
         className={dangerousRemove ? 'button button--danger' : 'button'}
         type="button"
+        aria-label={saved === null ? 'Save store' : undefined}
         disabled={state === 'saving' || saved === null || !online}
         onClick={toggle}
       >
