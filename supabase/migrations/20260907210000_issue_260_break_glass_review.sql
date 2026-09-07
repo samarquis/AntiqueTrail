@@ -3,6 +3,7 @@
 -- only exchange it, present verifier output, and submit one decision receipt.
 
 grant review_automation to postgres;
+grant usage on schema review_private,app_public to review_automation;
 grant create on schema review_private to review_automation;
 
 create table review_private.break_glass_cases (
