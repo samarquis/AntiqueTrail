@@ -1298,7 +1298,7 @@ export default function App({
               element={
                 <OwnerIntakeAvailabilityGuard
                   client={ownerIntakeAvailabilityClient}
-                  requirement="intakeAvailable"
+                  requirement="routeVisible"
                 >
                   {() => (
                     <RequireSession>
