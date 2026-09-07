@@ -3,6 +3,7 @@
 -- only exchange it, present verifier output, and submit one decision receipt.
 
 grant review_automation to postgres;
+grant create on schema review_private to review_automation;
 
 create table review_private.break_glass_cases (
   case_id uuid primary key default extensions.gen_random_uuid(),
@@ -229,3 +230,4 @@ revoke all on function review_private.watch_break_glass_review_deadlines(timesta
 grant execute on function review_private.watch_break_glass_review_deadlines(timestamptz,integer) to review_automation;
 
 revoke review_automation from postgres;
+revoke create on schema review_private from review_automation;
