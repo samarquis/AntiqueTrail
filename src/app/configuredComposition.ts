@@ -192,13 +192,25 @@ export function createAuthProvider<
       if (result.error) return { kind: 'error' }
       if (result.data?.state === 'blocked') return { kind: 'blocked' }
       if (result.data?.state === 'verified') return { kind: 'verified' }
-      return result.data?.state === 'authenticated' && result.data.session
-        ? (await remember(result.data.session as Session),
-          {
-            kind: 'authenticated',
-            session: providerSession(result.data.session as Session),
-          })
-        : { kind: 'error' }
+      if (result.data?.state !== 'authenticated' || !result.data.session) return { kind: 'error' }
+      const returnedSession = result.data.session as Session
+      const session = providerSession(returnedSession)
+      if (kind === 'verify') {
+        const installed = await supabase.auth.setSession({
+          access_token: returnedSession.access_token,
+          refresh_token: returnedSession.refresh_token,
+        })
+        if (
+          installed.error ||
+          !installed.data.session ||
+          installed.data.session.user.id !== session.userId
+        ) {
+          await supabase.auth.signOut({ scope: 'local' })
+          return { kind: 'error' }
+        }
+      }
+      await remember(returnedSession)
+      return { kind: 'authenticated', session }
     },
     async signInWithProvider(providerId, returnTo) {
       const target = new URL('/auth/callback', window.location.origin)
