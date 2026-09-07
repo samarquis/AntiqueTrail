@@ -54,6 +54,15 @@ select set_config('request.headers','{"origin":"https://antique-trail-test-scott
 set local role authenticated;
 select lives_ok($$select app_public.internal_review_pre_request()$$,'exact authenticated allowed origin/path passes pre-request');
 select ok(app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint),'real provider session registration succeeds');
+select set_config('request.path','rpc/account_lifecycle_status',true);
+select lives_ok($$select app_public.internal_review_pre_request()$$,'mandatory account-status hydration is allowed');
+select is(app_public.account_lifecycle_status()->>'state','active','registered shopper can hydrate authoritative account state');
+select set_config('request.path','rpc/request_account_deletion',true);
+select throws_ok($$select app_public.internal_review_pre_request()$$,'42501','internal_request_denied','account-status read does not enable deletion');
+select set_config('request.path','rpc/request_account_export',true);
+select throws_ok($$select app_public.internal_review_pre_request()$$,'42501','internal_request_denied','account-status read does not enable export');
+select set_config('request.path','rpc/register_current_session',true);
+
 reset role;
 select ok((select access_token_expires_at <= statement_timestamp()+interval '20 minutes' from app_private.active_sessions where user_id='99000000-0000-4000-8000-000000000001'),'app session expiry clamps to authorization deadline');
 select set_config('request.headers','{"origin":"https://foreign.invalid"}',true);

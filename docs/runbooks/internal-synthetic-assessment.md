@@ -1,6 +1,6 @@
 # Internal synthetic catalog assessment operator runbook
 
-Authority: ADR0008; implementation issue #229. This first slice admits only session registration/status/revocation and catalog list/details. It does not enable trip, owner, administrator, export, offline, media, routing, email or billing operations. No ordinary release receipt is issued or changed.
+Authority: ADR0008; implementation issue #229. This first slice admits only session registration/status/revocation, mandatory actor-bound account-status hydration and catalog list/details. It does not enable trip, owner, administrator, export, offline, media, routing, email or billing operations. No ordinary release receipt is issued or changed.
 
 ## Prepare the candidate and resource manifest
 
@@ -19,7 +19,7 @@ The trusted SQL operator is the sole writer of `internal_review_private.runtime_
 
 - Inspect `pg_roles.rolconfig` for authenticator before installation. Preserve any existing hook; do not overwrite another pre-request function. On this isolated project only, when no conflicting hook exists, set `pgrst.db_pre_request` to `app_public.internal_review_pre_request`, then `NOTIFY pgrst, 'reload config'`. Verify live REST requests actually invoke it; presence in role configuration alone is not transport proof.
 - Insert singleton runtime binding with actual backend, source SHA, artifact/configuration digests, deployment ID/origin, verified_at and monotonically increasing version. Keep prior verified records in the private evidence ledger. A new build requires an independently verified replacement and a new authorization, not editing the old authorization.
-- Insert the complete typed authorization with the owner decision reference, task ID, exact runtime fields, private fixture manifest digest, exact admitted UUID array and only `['catalog','session']`. Issue time is now; expiry is no later than 24 hours. There is no scheduled/automatic renewal. Record receipt ID privately and secret-safe timing/digests in the evidence report.
+- Insert the complete typed authorization with the owner decision reference, task ID, exact runtime fields, private fixture manifest digest, exact admitted UUID array and only `['catalog','session']` (including the required read-only `account_lifecycle_status` hydration). Issue time is now; expiry is no later than 24 hours. There is no scheduled/automatic renewal. Record receipt ID privately and secret-safe timing/digests in the evidence report.
 - Confirm all ordinary stage/private/public/paid receipts and capability flags are unchanged. Assert unknown identities, unknown paths and foreign origins are denied before opening the test session.
 
 ## Hosted acceptance evidence
