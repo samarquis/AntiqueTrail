@@ -28,14 +28,14 @@ insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date)
 select '25500000-0000-4000-8000-000000000101','25500000-0000-4000-8000-000000000001',id,'Issue 255 trip','2026-09-08'
 from app_public.catalog_areas limit 1;
 insert into trip_private.trip_stops(stop_id,trip_id,kind,store_id,position) values
-  ('25500000-0000-4000-8000-000000000201','25500000-0000-4000-8000-000000000101','store','00000000-0000-0000-0000-000000001001',0);
+  ('25500000-0000-4000-8000-000000000201','25500000-0000-4000-8000-000000000101','store',(select id from app_public.stores order by id limit 1),0);
 insert into trip_private.trip_stops(stop_id,trip_id,kind,rest_label,rest_address,position) values
   ('25500000-0000-4000-8000-000000000202','25500000-0000-4000-8000-000000000101','rest','Issue 255 rest stop','Synthetic address',1);
 insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date,state)
 select '25500000-0000-4000-8000-000000000102','25500000-0000-4000-8000-000000000002',id,'Foreign trip','2026-09-08','draft'
 from app_public.catalog_areas limit 1;
 insert into trip_private.trip_stops(stop_id,trip_id,kind,store_id,position)
-values ('25500000-0000-4000-8000-000000000203','25500000-0000-4000-8000-000000000102','store','00000000-0000-0000-0000-000000001001',0);
+values ('25500000-0000-4000-8000-000000000203','25500000-0000-4000-8000-000000000102','store',(select id from app_public.stores order by id limit 1),0);
 reset role;
 
 select set_config('request.jwt.claims','{"sub":"25500000-0000-4000-8000-000000000001","role":"authenticated","session_id":"25500000-0000-4000-8000-000000000011"}',true);
