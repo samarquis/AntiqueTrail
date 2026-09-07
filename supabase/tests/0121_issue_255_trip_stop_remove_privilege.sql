@@ -17,7 +17,10 @@ insert into auth.sessions(id,user_id,created_at,updated_at) values
 set local role identity_service;
 insert into app_private.profiles(user_id,verified_email_snapshot,age_18_attested_at) values
   ('25500000-0000-4000-8000-000000000001','issue-255-owner@invalid.test',statement_timestamp()),
-  ('25500000-0000-4000-8000-000000000002','issue-255-foreign@invalid.test',statement_timestamp());
+  ('25500000-0000-4000-8000-000000000002','issue-255-foreign@invalid.test',statement_timestamp())
+on conflict (user_id) do update set
+  verified_email_snapshot=excluded.verified_email_snapshot,
+  age_18_attested_at=excluded.age_18_attested_at;
 insert into app_private.role_grants(subject_user_id,role,state) values
   ('25500000-0000-4000-8000-000000000001','shopper','active'),
   ('25500000-0000-4000-8000-000000000002','shopper','active');
