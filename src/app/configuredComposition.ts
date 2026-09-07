@@ -5,6 +5,7 @@ import {
   createStoreApplicationClient,
   createStoreApplicationAdminClient,
 } from '../features/partners/storeApplications'
+import { createOwnerIntakeAvailabilityClient } from '../features/partners/ownerIntakeAvailability'
 import { createClient, type Session } from '@supabase/supabase-js'
 import type { AppClients, AppRuntime } from './App'
 import { createAdminClient } from '../features/admin/adminClient'
@@ -630,6 +631,10 @@ export async function configuredComposition(
         })
         if (result.error) throw result.error
         return result.data
+      }),
+      ownerIntakeAvailability: createOwnerIntakeAvailabilityClient(async (name) => {
+        const result = await supabase.rpc(name)
+        return { data: result.data, error: result.error }
       }),
       promotion: createPromotionClient(rpc),
       portal: createPortalClient(

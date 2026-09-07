@@ -1,4 +1,5 @@
 import { storeApplicationReviewClients } from './storeApplications'
+import { createReviewOwnerIntakeAvailabilityClient } from './ownerIntakeAvailability'
 import { createPromotionClient, promotionLabels } from '../features/portal/promotion'
 import type { AppClients } from '../app/App'
 import { withRecordAuditReview } from './adminAudit'
@@ -2486,6 +2487,7 @@ export function createReviewHarnessClients(
   })
   return {
     promotion,
+    ownerIntakeAvailability: createReviewOwnerIntakeAvailabilityClient(state),
     ...storeApplicationReviewClients(state),
     lifecycle: lifecycleClient(scenario, state),
     shopper: shopperClient(scenario, state),
