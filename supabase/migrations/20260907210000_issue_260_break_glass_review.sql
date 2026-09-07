@@ -2,6 +2,8 @@
 -- The capability is issued by the trusted reviewer service; browser roles can
 -- only exchange it, present verifier output, and submit one decision receipt.
 
+grant review_automation to postgres;
+
 create table review_private.break_glass_cases (
   case_id uuid primary key default extensions.gen_random_uuid(),
   incident_id text not null unique check(incident_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'),
@@ -225,3 +227,5 @@ end $$;
 alter function review_private.watch_break_glass_review_deadlines(timestamptz,integer) owner to review_automation;
 revoke all on function review_private.watch_break_glass_review_deadlines(timestamptz,integer) from public,anon,authenticated;
 grant execute on function review_private.watch_break_glass_review_deadlines(timestamptz,integer) to review_automation;
+
+revoke review_automation from postgres;
