@@ -33,7 +33,9 @@ values('25300000-0000-4000-8000-000000000001','topeka-ks','sha256:'||repeat('1',
   'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),'active');
 insert into release_private.release_capabilities(
   release_id,public_catalog,public_claims,public_reviews,public_registration,product_promotion)
-values('25300000-0000-4000-8000-000000000001',true,true,false,true,false);
+-- release_capabilities is intentionally atomic: a public release enables the
+-- complete public capability set, while a non-public release enables none.
+values('25300000-0000-4000-8000-000000000001',true,true,true,true,true);
 update partner_private.store_application_capability set public_store_applications_enabled=true where id;
 update app_private.environment_stage set stage='regional_public' where id=1;
 select is(app_public.owner_intake_availability(),
