@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+/* global Buffer */
 import { verifyManifest } from './verify-free-private-assets.mjs'
 
 function fixtureManifest(root, overrides = {}) {
@@ -62,7 +63,7 @@ test('reports modified bytes and missing provenance evidence', () => {
 
 test('reports synthetic-scope mismatch', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'free-assets-'))
-  const { manifestPath, asset } = fixtureManifest(root, {
+  const { manifestPath } = fixtureManifest(root, {
     path: 'public/images/synthetic-stores/fixture.bin',
     syntheticRestriction: 'public evidence allowed',
   })
