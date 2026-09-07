@@ -4,7 +4,7 @@
 
 Authority order:
 
-1. `PRODUCT_DECISIONS.md`, `PRD.md`, and `SECURITY_AND_TRUST.md` control product and trust policy.
+1. [README source precedence](../../README.md#source-precedence) defines current ownership: `PRD.md` owns product outcomes and `SECURITY_AND_TRUST.md` owns privacy/security controls. `PRODUCT_DECISIONS.md` preserves decision history and links to those current owners.
 2. `DESIGN.md` controls journeys and interaction intent.
 3. `DESIGN_SYSTEM.md` controls reproducible tokens, component states, responsive behavior, and screen acceptance.
 4. `PALETTE_PROPOSAL.md` and `palette-midnight-archive.svg` are the approved visual reference for the Daylight Archive light theme and Midnight Archive dark theme; their values are canonical only through `DESIGN_SYSTEM.md`. `palette-proposal-field-and-brass.svg` is superseded and must not guide new work.
@@ -16,6 +16,8 @@ The flow lab contains fictional stores, test identities, a role switcher, editab
 Google-hosted fonts are prototype-only. Production self-hosts the approved licensed WOFF2 subsets and sends no Google Fonts request.
 
 Do not use an external screenshot or temporary local prototype as the sole source for implementation acceptance. New approved visual evidence belongs in this folder and must be listed in `manifest.json`.
+
+`STOREFRONT_IDENTITY_GAUNTLET.md` preserves dated exploration and its then-current verdict; it is historical evidence, not the current V3 approval or production status.
 
 ## Approved current visual identity
 

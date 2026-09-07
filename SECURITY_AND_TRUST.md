@@ -105,6 +105,8 @@ Private saves, trips, trip history, personal ratings, notes, and accepted Trip I
 
 For an individual supported private record, revoke reads immediately, allow only a short Undo, and delete both its primary database row and associated Storage objects within 24 hours. Account deletion revokes all sessions and grants immediately, permits cancellation for seven clearly disclosed days, and deletes primary database and Storage data by day 8 when not cancelled. Cancellation restores ordinary access only; privileged grants remain revoked until normal audited identity/authority/regrant checks pass. Scheduling deletion also hides every active/pending authored public review and removes its aggregate effect transactionally. The seven-day cancellation-only account mode may restore the prior published/pending state only when the review remains eligible and is not held/removed. Day-8 processing deletes the public display name and all current/historical review text; a live moderation/legal case may retain only the minimum evidence already copied into its restricted record. Keep only content-free review/version/audit metadata and a content-free opaque deletion receipt outside the restored dataset for the backup window. A restore procedure must reapply completed deletion requests before users regain access.
 
+Before scheduling account deletion or issuing/regenerating an export download URL, the server requires shopper password authentication within 10 minutes and the shopper's MFA when enrolled. Cancelling deletion restores ordinary account access only; privileged grants require the normal audited identity/authority/regrant path.
+
 Use UTC authentication timestamps. On the first daily job at or after the third anniversary of last successful sign-in, schedule deletion for 90 days later and send the 90-day warning; send 30- and 7-day warnings at their milestones. A successful sign-in atomically cancels the schedule. Idempotency is `(account, milestone)`; retries cannot duplicate schedules or warnings. Delivery failure alerts operations but does not extend retention. At the scheduled instant apply the seven-day account-deletion cancellation period, completing primary deletion by day 98 unless cancelled. Leap-day anniversaries use February's last day. Use no browsing, trip, device-location, analytics, or behavioral state. Synthetic Internal Alpha accounts are excluded and reset manually.
 
 Candidate Link extraction must never create or update public store, event, review, claim, or Store Partner data. Extracted values remain unverified private suggestions until the recipient reviews them. A source URL is provenance, not proof that its content is accurate, licensed for republication, or authorized by a business owner.
@@ -122,6 +124,8 @@ Every new field must receive:
 - Export behavior
 
 Admission records are security-sensitive pseudonymous identity linkages. Raw admission and provider action-link secrets remain only in the recipient fragment or server memory. Token hash, email HMAC, idempotency key, provider-call timing/linkage, reconciliation metadata, and Auth admission metadata delete within 24 hours after active or terminal cleanup, immediately on account deletion, and from backups within 30 days. Only content-free purpose/outcome/time remains for 90 days, three years after a partner/readiness relationship, or two years when already required as privileged audit. These internals never enter logs, telemetry, ordinary account export, or support payloads.
+
+- **Candidate Share terminal states:** on acceptance, the recipient-owned Trip Idea becomes the independent retained copy. The outbound envelope remains visible only to the sender for 30 days, then its URL and note are deleted; a content-free `Accepted` status may remain for 90 days. Block immediately closes the share, deletes its payload within 24 hours, and retains only a pseudonymous sender-recipient block edge until unblock or account deletion. Report closes the share and copies only opaque party IDs, an HMAC of the normalized destination host, reason, timestamps, and the minimum reported text necessary to evaluate abuse into the moderation case; neither the full URL nor path/query/fragment is retained. The share payload then deletes within 24 hours. Case evidence follows the approved two-year-after-closure rule. Approved 2026-08-03.
 
 ## Location privacy
 
@@ -173,7 +177,9 @@ Admission records are security-sensitive pseudonymous identity linkages. Raw adm
 
 General shopper/Representative/Administrator passkeys remain deferred, as does any social path that creates an account. Social sign-in itself is approved only in the narrow admitted-accounts form below. One narrow WebAuthn reviewer capability is approved solely for the independent appeal and break-glass reviewer flows that require phishing-resistant MFA; it is not a reusable Antique Trail account or general sign-in path.
 
-Admitted-accounts social sign-in (Google/Facebook): the auth-callback preflight captures the OAuth PKCE `code` (or provider error) from the URL, scrubs it before application import, and exchanges it exactly once through the same single-use latch as email token hashes; the Supabase client runs `flowType: 'pkce'` with `detectSessionInUrl` disabled so nothing else can consume the code. After exchange the app calls `app_public.oauth_admission_check()`, a `SECURITY DEFINER SET search_path=''` function granted only to `authenticated`: an identity passes only when its own `raw_user_meta_data->>'antique_trail_admission_id'` resolves to that identity's `active` row in `app_private.account_admission_receipts`; malformed ids fail closed. A non-admitted identity is signed out locally (`scope: 'local'`) before any private request and shown the invitation-required screen. Accepted tradeoff: Supabase may create the orphan provider identity row before the bounce; it holds no Antique Trail profile, registered session, or data access. Registration stays closed, so OAuth introduces no age-attestation gap; opening OAuth-driven registration later requires a new product decision. Manual setup checklist (dashboard, not code): enable the Google and Facebook Auth providers with console-issued client IDs/secrets, add `<site-url>/auth/callback` to Site URL/additional redirect URLs for every deployed origin, keep PKCE enabled, and re-verify the bounce behavior after each provider change.
+**Unresolved social-admission predicate:** The previously specified check below depends on mutable admission metadata that Package 2 clears and whose linkage its privacy lifecycle purges. It is retained here as the unresolved proposal, not an executable authorization contract. Under PLAN_GOVERNANCE conflict handling, dependent social-sign-in implementation or enablement is blocked until a separate scoped plan reconciliation specifies an authoritative admission predicate that survives the required purge and proves admitted-user success and non-admitted denial. This consolidation does not choose a replacement identity linkage, extend retention, permit OAuth registration, or grant provider-only identities application access; existing privacy cleanup and registration restrictions continue to control.
+
+**Prior predicate pending reconciliation (not current authorization):** Admitted-accounts social sign-in (Google/Facebook): the auth-callback preflight captures the OAuth PKCE `code` (or provider error) from the URL, scrubs it before application import, and exchanges it exactly once through the same single-use latch as email token hashes; the Supabase client runs `flowType: 'pkce'` with `detectSessionInUrl` disabled so nothing else can consume the code. After exchange the app calls `app_public.oauth_admission_check()`, a `SECURITY DEFINER SET search_path=''` function granted only to `authenticated`: an identity passes only when its own `raw_user_meta_data->>'antique_trail_admission_id'` resolves to that identity's `active` row in `app_private.account_admission_receipts`; malformed ids fail closed. A non-admitted identity is signed out locally (`scope: 'local'`) before any private request and shown the invitation-required screen. Accepted tradeoff: Supabase may create the orphan provider identity row before the bounce; it holds no Antique Trail profile, registered session, or data access. Registration stays closed, so OAuth introduces no age-attestation gap; opening OAuth-driven registration later requires a new product decision. Manual setup checklist (dashboard, not code): enable the Google and Facebook Auth providers with console-issued client IDs/secrets, add `<site-url>/auth/callback` to Site URL/additional redirect URLs for every deployed origin, keep PKCE enabled, and re-verify the bounce behavior after each provider change.
 
 `reviewer_webauthn_credentials` stores reviewer identity reference, RP ID, credential-ID hash, public key, signature counter, transports, enrollment/last-used/revoked timestamps, and version—never a biometric or private key. Product Owner and the named reviewer complete identity/confidentiality checks, then enroll two non-discoverable hardware/platform WebAuthn credentials through a one-use 30-minute setup capability. Require HTTPS, exact production RP ID/origin, user verification, challenge single-use/expiry, origin/RP/signature/counter validation, and a fresh WebAuthn assertion for every case-capability exchange. Credential management requires repeat Product Owner-verified identity and a separate ten-minute one-use fragment capability that derives the exact reviewer and `allowCredentials`; no username lookup, discoverable-credential ceremony, or normal session exists. Lost-device recovery requires repeat identity proof, revokes every prior credential/capability, and is audited. Setup/management/recovery capability hashes and challenges delete within 24 hours after use/expiry and from backups within 30 days, with no logging or export. Keep active credentials only during the reviewer relationship; on credential revocation or relationship end delete public key/transports/counter/direct linkage, retain only a purpose-keyed credential-ID HMAC for 90 days against immediate reuse, then delete it. Qualification/decision audit follows the two-year privileged-case rule then de-identifies. Reviewer authentication artifacts are excluded from shopper/ordinary privileged export and disclosed only through separately verified reviewer privacy handling. Tests cover management identification/capability, no typed/discoverable lookup, wrong origin/RP, replay, cloned-counter signal, revoked/lost credential, absent user verification, lifecycle purge/backup aging/export exclusion, and no expansion into normal authentication. Without successful enrollment, independent-review paths stay disabled; a second qualified Administrator is the only allowed substitute.
 
@@ -447,7 +453,7 @@ Suggested domains:
 - Scanning opens onboarding but cannot grant access, install software, or create a Pilot Store Record
 - Present terms and collect consent statements plus typed name/title/store/normalized email before any access grant; password and MFA credentials never pass through application tables
 - In one application-database transaction, lock/consume the token hash, store immutable provisional consent, and create one application-only unprivileged Pending Partner Identity with a purpose-specific email HMAC. Auth signup happens separately through Supabase. Interruption leaves the pending identity resumable and never unconsumes the invitation.
-- `bind_partner_identity()` derives the current verified Auth email/user from the session, requires MFA, matches and locks the pending identity by purpose-specific email HMAC, binds one Auth user once, and finalizes the immutable receipt in one application transaction. Existing Auth users use normal sign-in; orphan Auth users remain ordinary unprivileged shoppers.
+- `bind_partner_identity()` derives the current verified Auth email/user from the session, requires MFA, matches and locks the pending identity by purpose-specific email HMAC, binds one Auth user once, and finalizes the immutable receipt in one application transaction. Existing Auth users use normal sign-in; successfully admitted Antique Trail accounts awaiting partner binding remain ordinary unprivileged shoppers. Provider-only orphans have no Antique Trail profile, registered session, or private-data access and follow Package 2 cleanup.
 - Unbound pending identities expire after 30 days. Delete typed PII/provisional consent within 24 hours after expiry unless legal review requires otherwise; retain only content-free invitation outcome.
 - Keep the pending identity unprivileged until published-contact verification and Administrator approval
 - Audit generation, expiry, revocation, atomic consumption, provisional consent, identity creation, email/MFA verification, receipt finalization, authority review, approval, and grant events
@@ -565,7 +571,7 @@ Verification options may include:
 
 A social-media account alone should not automatically grant ownership.
 
-Directory data provenance:
+### Directory data provenance and integrity
 
 - Accept Store Partner-confirmed listing data after the applicable consent and authority checks.
 - Limit non-partner records to manually verified public facts: name, address, phone, hours, website, and categories.
@@ -577,6 +583,8 @@ Directory data provenance:
 - Track identity/location, contact, hours, categories/attributes, and media/social verification independently. Listing freshness is the oldest required core group among the first four; media/social is optional. Editing one group refreshes only that group. Treat required groups as current for 180 days. Corrections and closure reports trigger immediate review.
 - From day 181 through day 365, warn that verification is overdue and exclude the listing from Open Now and automatic trip ordering.
 - After day 365, hide the listing from normal discovery until every required core fact group is reverified; never automatically delete the record or provenance.
+
+The exact duplicate-save, private-memory conflict-copy, same-author review, trip-stop collision, aggregate, and rollback mechanics live in [Package 7](PACKAGE_CONTRACTS.md#package-7-â-administrator-review-access--safety-and-duplicate-merge). These operations cannot change private ownership or silently reactivate access.
 
 ## API security
 
@@ -687,6 +695,8 @@ Critical, High, Medium, authorization/privacy/data-loss, or reproducible release
 
 Before Package 10B, the Product Owner signs the final public product name and owned HTTPS domain. The receipt binds domain ownership/control; PWA `name`, `short_name`, `id`, `start_url`, scope, icons, and install copy; canonical/redirect URLs; Supabase/Auth/Access/SMTP redirect and origin allowlists; legal/privacy/support/security-contact naming; sitemap/robots/structured data; flyer/QR/social preview assets; and email sender identity. All must use one approved name/domain and pass TLS, CSP, callback, QR/plain-URL, install/upgrade, and stale-domain redirect tests. `Antique Trail` remains the working name until this receipt; an unapproved name/domain cannot pass 10B.
 
+Security closure additionally requires exact Postgres privilege/FORCE-RLS tests; every session-revocation surface; auth/invitation fragment/cache/referrer denial; stage/capability matrix across route/RLS/Storage/RPC/Function/job; case-scoped sibling/bulk denial; SSRF limit corpus; field/XSS/Unicode boundaries; offline 36-hour/7-day lifecycle; DB/Auth/Storage restore with deletion/revocation replay; audit-chain external-root failure; quota/no-charge degradation; and header/CSP/CI artifact-digest assertions. A plan statement is not evidence of runtime behavior.
+
 ## External Testing Readiness
 
 Before first-owner contact, retain dated evidence that:
@@ -722,6 +732,8 @@ The Primary Internal Tester approves every check. AI Test Agents may execute tes
 Completed-trip location: never retain provider/device traces. Delete exact start and optional return coordinates from primary data within 24 hours after completed-trip synchronization; retain only an optional user-entered coarse label, store IDs/order, stop states, and user-authored private memory. Exclude purged coordinates from export and age them out of backups within 30 days.
 
 Invitation lifecycle: never store raw tokens. Delete expired, cancelled, revoked, malformed, or consumed token hashes and payloads within 24 hours. Keep content-free Trip Partner status/actor/time for 90 days; accepted participation follows trip lifetime and deletes within 30 days after the applicable trip/account deletion request. Keep content-free Store Partner invitation history for three years after the relationship ends. Exports expose only the requesting user's visible status metadata, never tokens or verification evidence.
+
+Approved-media deletion and provenance follow [Upload security](#upload-security); support-screenshot removal and retention follow [Store Partner Pilot Support security](#store-partner-pilot-support-security). Backup aging and deletion replay follow [Backups](#backups).
 
 ### Backups
 
@@ -786,6 +798,10 @@ Required:
 
 External support commitments: publish a monitored support form/address and security contact before first-owner contact. Acknowledge security/privacy reports within four clock hours; acknowledge other Private Beta tickets within two business days and Regional Public MVP tickets within one business day. The release runbook names the primary on-call owner and backup and defines the in-PWA/status-channel message path for planned and unplanned incidents.
 
+### Human operational capacity
+
+HC-01 before first owner contact names Product, Engineering/Security/Operations, support/on-call primary and human backup, second catalog verifier, legal/insurance contacts, and any independent reviewer. HC-02 before public promotion names routine moderation, independent appeal, support, on-call backup, two catalog verifiers, accessibility/usability, and incident communication owners and rehearses handoffs. An AI is never human coverage or independent approval.
+
 ## User controls
 
 - Export data
@@ -803,6 +819,8 @@ External support commitments: publish a monitored support form/address and secur
 - Manage personalization — **POST-MVP; absent in Packages 1–10B**
 - Manage location permission
 - Manage notifications — **POST-MVP; essential transactional status email preferences only in Regional MVP**
+
+- **Portability:** shopper export is a ZIP containing canonical UTF-8 JSON, convenience CSV tables, and user-owned media files with a manifest; it excludes secrets, other users' private data, purged precise coordinates, moderation evidence, and internal verification data. D31 privileged-audit export remains unresolved and separate. Approved 2026-07-31.
 
 ## Legal and trust documents
 
@@ -822,9 +840,15 @@ Before public marketing:
 
 ## Protected internal synthetic review exception
 
-For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) narrowly supersedes blanket H-01-before-shared-use and CI-only upload clauses. Its isolated synthetic, provider-eligible, zero-spend, protected-Preview context is not Shared Alpha or another release stage. All public/external/paid gates and all security controls outside that exact exception remain mandatory; no formal gate passes by inference.
+Scope and constraints: [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md). This reference supplies no new assessment authorization; see [current assessment boundary](PRD.md#assessment-environment-boundary).
 
 
 ## Governed internal synthetic admission
 
-[ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md) extends only the ADR0007 owner-only assessment with a genuine, short-lived internal authorization for allowlisted synthetic identities and owned fixtures on the named isolated backend. Its server validation, role/scope/assurance controls, expiry, revocation and teardown are mandatory. Existing release receipts and public/shared/paid activation gates retain their meaning; no invented release evidence, real delivery, external participants or spending is authorized. The coordinated amendment must merge before dependent implementation.
+Scope and constraints: [ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md). This reference supplies no new assessment authorization; see [current assessment boundary](PRD.md#assessment-environment-boundary).
+
+## Foundation acceptance
+
+Before implementing a sensitive boundary, retain an approved PRD, data classification, threat model, role authorization matrix, privacy/retention/deletion policy, review/moderation/claim policy, architecture decisions, repository standards, and CI/CD design for that scope. Resolve public/private contradictions, document each role's permissions, and complete the applicable provider ADR and legal/data review before enabling a provider-dependent feature. D31 full Audit History UI remains excluded; required D30 append-only audit remains in scope.
+
+Provider topology, free-service quotas/headroom, overage prohibition, and recovery prerequisites follow the accepted ADRs; no foundation checklist changes those requirements. Product naming and regional launch remain separate product decisions and gates.

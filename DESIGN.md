@@ -2,7 +2,9 @@
 
 Status: current normative interaction baseline, incorporating the 2026-08-03 hardening and 2026-08-18 visual-identity decisions. Stable critique-derived rules are promoted into `DESIGN_SYSTEM.md`; dated implementation evidence does not silently redefine this contract. Current implementation and backlog state live in `PROJECT_STATE.md`. D31 full Audit History UI and export policy remain unresolved; two-year append-only privileged-audit retention is approved.
 
-This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines exact visual tokens, responsive rules, recurring component states, navigation, and screen-level acceptance; `docs/design/ICON_PLACEMENT_SPEC.md` defines the approved use of the icon family. `PRD.md` defines product requirements, `PRODUCT_DECISIONS.md` records approved scope, `SECURITY_AND_TRUST.md` defines trust boundaries, and `IMPLEMENTATION_PLAN.md` defines delivery order. When a visual prototype conflicts with these documents, these documents win.
+This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines exact visual tokens, responsive rules, recurring component states, navigation, and screen-level acceptance; `docs/design/ICON_PLACEMENT_SPEC.md` defines the approved use of the icon family. `PRD.md` defines product requirements, `PRODUCT_DECISIONS.md` preserves decision history, `SECURITY_AND_TRUST.md` defines trust boundaries, and `PRD.md` defines current stage prerequisites and `PACKAGE_CONTRACTS.md` defines engineering mechanics. When a visual prototype conflicts with these documents, these documents win.
+
+Detailed invited-owner interaction and consent/resume screens are delegated to [owner onboarding](docs/specs/owner-onboarding.md); exact public acquisition and commercial mechanics are delegated to [store membership](docs/specs/store-membership-spec.md). These named boundaries must agree with the parent PRD and security controls; ambiguity stops affected work.
 
 ## Product promise and audience
 
@@ -10,11 +12,11 @@ This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines 
 
 Design first for shoppers roughly 50–80+ without creating a separate age mode. The first proven workflow has one person researching and creating a trip and another person navigating it. The product must also work for an individual shopper.
 
-Use the accepted Daylight Archive direction in light theme and Midnight Archive direction in dark theme, with exact tokens in `DESIGN_SYSTEM.md`: soft stone/ivory surfaces, blue-black ink, slate-blue actions, slate context, restrained brass/clay status, Newsreader editorial headings, Atkinson Hyperlegible body text, and real or clearly fictional store imagery. Follow `docs/design/ICON_PLACEMENT_SPEC.md` for every icon's purpose and location. Avoid teal, mint-glass, bottle-green, antique-shop costume, distressed type, barnwood, parchment, public-star decoration in private workflows, dense dashboards, or unprovable route claims.
+Use the [selected visual direction](DESIGN_SYSTEM.md#selected-visual-direction), exact [visual tokens](DESIGN_SYSTEM.md#visual-tokens), and [product anti-references](DESIGN_SYSTEM.md#product-anti-references); approved icon placement remains in docs/design/ICON_PLACEMENT_SPEC.md.
 
 ## Global interaction rules
 
-- Use the Age-Inclusive Usability Baseline in `PRODUCT.md` and `PRD.md`.
+- Use the exact Age-inclusive usability baseline in `DESIGN_SYSTEM.md`.
 - Keep one obvious primary action per screen and preserve entered data after errors.
 - Explain disabled actions and identify the missing requirement.
 - Pair status color with an icon and plain text.
@@ -70,6 +72,20 @@ The role switcher in `docs/design/antique-trail-flow-lab.html` is a prototype te
 - Keep viewed or dismissed entries under `Recently Added` for 30 days.
 - Treat a second location as a separate listing. Show `New location` only when the relationship is verified.
 - This is in-app catalog freshness, not push/email notification, a notification center, behavioral profiling, or personalization.
+
+### Authentication screen flow
+
+1. Private action records a safe return target and opens sign-in without performing the write.
+2. Sign-in, registration, email verification, MFA enrollment/challenge, recent-auth, recovery, rate-limit, and revoked-session states use generic account-enumeration-resistant errors.
+3. Successful authentication returns to the original context and asks the user to confirm the original private action when required.
+4. Cancel/failure returns without the private write and preserves safe entered data.
+5. Administrator and Store Representative routes require MFA; privileged mutations may add recent-auth confirmation.
+6. Access token stays in memory; refresh-session persistence uses only the dedicated IndexedDB adapter. Logout/account switch clears it. Next-request session/grant revocation routes to generic signed-out/access-lost recovery without displaying cached private content.
+7. Cancellation-only account state exposes only deletion cancellation, recovery, and sign-out. No visual route or stale service worker may reach another private action.
+
+If the registration quarantine latch is `draining|blocked`, `/auth/register`, only an admission-bound signup-verification `/auth/callback` with UI type `verify`, `/partner/verify`, and any readiness registration step render one terminal state after fragment scrubbing/provider-token exchange: H1 `Account setup paused`; body `We couldn't finish this account setup. For your security, this attempt can't continue.` A callback with UI type `recovery` is existing-account password recovery, does not consult the registration latch, and follows the ordinary recovery flow. The paused-state primary action `Back to store list` goes to `/stores`, clears the interrupted return target, and cannot reopen authentication. Receipt-only partner/readiness variants add `Contact the person who invited you for a new invitation after account setup reopens.` Public mode adds the approved S-01 `Contact Antique Trail` channel. There is no Retry, registration resend, or reuse-old-link action. Purge email, password, receipt/token, and other registration fields from browser memory; retain no draft. Focus the H1, announce the state once, keep it readable at 320px/200%, and expose no incident, account-existence, provider, subject, or timing detail.
+
+Each authentication slice must provide exact field constraints and error copy in its bounded execution contract before implementation.
 
 ## Store Details
 
@@ -419,3 +435,17 @@ Before external testing, prove at minimum:
 7. Administrator review and access revocation work from separate MFA sessions and never expose shopper-private data.
 8. All forbidden actions fail server-side and all privileged attempts create audit records.
 9. Public-review routes are absent through Private Beta; at Regional release, eligibility, compose/preview, pending/published, edit/delete, report, moderation, and one appeal preserve privacy and update the arithmetic aggregate transactionally.
+
+## Product brand personality
+
+Trustworthy, practical, welcoming.
+
+## Product design principles
+
+1. **Browse Stores is home.** Use readable list-first discovery, with Store Details, Save, and Add to Trip close at hand; the map is optional.
+2. **Show why information is trustworthy.** Keep source, verification date, freshness, hours state, and uncertainty visible where decisions are made.
+3. **Make only supportable claims.** Use truthful hours checks until routing data supports arrival-time and feasibility claims.
+4. **Keep private boundaries understandable.** Require recipient authentication, share only the chosen candidate or trip, and keep each shopper's ideas, edits, notes, and ratings separate.
+5. **Capture without pretending to verify.** Preserve original URL and source state; label extracted facts as suggestions until reviewed; keep blocked sources usable through manual fallback.
+6. **Design for the trip, not the roadmap.** Prioritize one-handed link capture, idea review, planning, navigation handoff, stop status, and private memory; omit deferred features from the first slice.
+7. **Make the day feel inviting.** Use approved store imagery, a clear ordered trail, stop count, and calm readiness summary while keeping hours warnings prominent and truthful.

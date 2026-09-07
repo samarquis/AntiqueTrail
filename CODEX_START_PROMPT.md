@@ -1,68 +1,9 @@
 # Codex Start Prompt
 
-You are working on a new commercial-grade public Progressive Web App with the working name **Antique Trail**.
+Read [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md), the [PRD overview](PRD.md#purpose-people-and-product-promise), [connected journey](PRD.md#the-connected-shopper-experience), and [next milestone](PRD.md#next-milestone-free-private-experience-evaluation). Use [PROJECT_STATE.md](PROJECT_STATE.md) for dated facts and [PLANNING_INDEX.md](PLANNING_INDEX.md) to locate the current specialist sources under [README source precedence](README.md#source-precedence).
 
-Read `PLAN_GOVERNANCE.md`, `PROJECT_STATE.md`, `PLANNING_INDEX.md`, and the controlling sources named below before proposing architecture, creating or refining a ticket, or writing code. Historical reviews, ticket plans, and gate ledgers are evidence, not global current authority.
+For the selected task, refresh main and live GitHub state, then read the exact capability/specialist headings and affected code paths. Preserve unrelated work. Keep the existing five-section ticket trace, one independently closable outcome, and focused acceptance proof under PLAN_GOVERNANCE.md; include the affected transition within the connected journey.
 
-The plan and design are locked by default. Do not edit a controlling requirement unless the Product Owner explicitly directs `update plan`; an implementation, fix, critique, ticket, or redesign request is not equivalent authorization. Every decision and ticket must follow `PLAN_GOVERNANCE.md`, and dependent work stops until any required amendment is merged to `main`.
+Follow the owner's active scope. The consolidated PRD and linked specialist sources define the current documentation system when merged to main; adopting that system does not itself start application implementation. Changes to intended behavior follow the plan-amendment process. Environment access, provider calls, real data, external contact, spending, and activation require the applicable current authorization; see [assessment environment boundary](PRD.md#assessment-environment-boundary) and the relevant ADRs rather than inferring permission from an old receipt.
 
-## Product goal
-
-Build an easy-to-use application that antique shoppers can use before, during, and after a shopping trip. The product should be professional and trustworthy enough that antique-store owners will display printed flyers and QR codes promoting it at their registers.
-
-## Core product promise
-
-> Antique Trail makes a fun day of antique shopping easy to see, easy to plan, and easy to trust.
-
-## Critical constraints
-
-- This is a public multi-user application, not a personal app.
-- Do not include names, personal photos, household details, or private preference assumptions from the original product discovery.
-- Public store ratings must behave like a general 1–5 star aggregate rating.
-- Personal store ratings, notes, finds, trips, collections, and preference profiles are private by default.
-- Public ratings, personal ratings, and personalized match scores are separate concepts.
-- Security, privacy, moderation, authorization, logging, backups, and incident response are launch requirements.
-- Do not trust the frontend for authorization.
-- Use deny-by-default database access policies.
-- Never expose service-role credentials or private storage URLs to clients.
-- Precise location should be collected only when needed and should not become hidden background location history.
-- Build PWA-first and preserve a future path to an Android package through Capacitor.
-- Use ADR 0006 for Vercel frontend deployment and ADR 0005 for the retained free-first Supabase/recovery/cost topology. No automatic paid upgrade/overage is authorized. If the selected Vercel plan is ineligible or cannot meet a stage's access, security, recovery, or availability gate, block the stage.
-
-## Initial technical direction
-
-Preferred stack unless a documented architectural reason changes it:
-
-- React
-- TypeScript
-- Vite
-- Supabase/PostgreSQL
-- Supabase Authentication
-- Supabase Storage
-- Row Level Security
-- A mapping/routing provider selected through an architecture decision
-- Waze and Google Maps deep-link handoff
-- Capacitor later for Android packaging
-
-## Current implementation status
-
-The 2026-07-31 coding hold is historical: subsequent Product Owner-directed implementation is present on `main`. Continue only work explicitly requested by the Product Owner or already authorized in a controlling contract; do not infer permission for live provider activation, billing, external contact, real-store data, promotion, or release. `PROJECT_STATE.md` is the dated implementation/backlog/release index. D31 full Audit History UI/export, the final public domain, paid production recovery authority, provider receipts, independent security review, named human operational roles, and post-Topeka expansion choices remain gated as documented.
-
-1. Read `PLAN_GOVERNANCE.md`, `PROJECT_STATE.md`, and `PLANNING_INDEX.md`, then only the controlling headings cited by the active ticket and the code paths it changes.
-2. Treat the Package 1 starting instruction in `IMPLEMENTATION_PLAN.md` as historical sequencing; inspect current code, live issues, and accepted contracts before selecting work.
-3. Treat unresolved decisions as gates only for their dependent feature or release; do not invent policy.
-4. Do not add a real store, contact an owner, admit an external participant, advertise, or launch publicly before the documented gates pass.
-5. Keep D31 full Audit History UI and export out of scope until approved; retain append-only privileged events for two years and implement only narrow D30 `View Audit` access.
-6. Treat Package 1 as the first coding slice, `SLM-01` as a later private Synthetic checkpoint after Packages 1/2/3/5A, Packages 1–10B as Regional Public MVP delivery, Package 11 as postlaunch RG-01, and Package 12 as one separately approved small-community activation. No milestone authorizes the next one.
-7. H-01 precedes any shared activation; E-01 gates real email; R-01 gates provider-backed routing/geocoding; M-01 gates real media; L-01 gates privileged shared/external mutation; S-01/HC-01 gate first owner contact; SEC-01/B-01/HC-02 and public recovery precede Package 10B; A-01 analytics remains optional. Stripe is selected for store photo-tier payments, but `photo_tiers_enabled` remains false until its signed activation and release gates pass. Regional Public remains blocked until 15-minute RPO/four-hour RTO is proven.
-
-Use the source-precedence table in `README.md` when documents differ. Record major technical choices as Architecture Decision Records. Before implementation, verify the ticket's problem, current plan citation, single outcome, one to five acceptance criteria, proportional verification, and any real dependency. Implementation closes on repository-controlled evidence; external release evidence stays in its gate issue.
-
-## Protected internal synthetic review exception
-
-For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) narrowly supersedes blanket H-01-before-shared-use and CI-only upload clauses. Its isolated synthetic, provider-eligible, zero-spend, protected-Preview context is not Shared Alpha or another release stage. All public/external/paid gates and all security controls outside that exact exception remain mandatory; no formal gate passes by inference.
-
-
-## Governed internal synthetic admission
-
-[ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md) extends only the ADR0007 owner-only assessment with a genuine, short-lived internal authorization for allowlisted synthetic identities and owned fixtures on the named isolated backend. Its server validation, role/scope/assurance controls, expiry, revocation and teardown are mandatory. Existing release receipts and public/shared/paid activation gates retain their meaning; no invented release evidence, real delivery, external participants or spending is authorized. The coordinated amendment must merge before dependent implementation.
+Do not use historical package sequencing as a blanket serial lock, historical decision text as current policy, or fixture success as actual server/provider/human evidence. Apply the proportional verification and independent review required by PLAN_GOVERNANCE.md, and report uncertainty and unavailable evidence plainly.

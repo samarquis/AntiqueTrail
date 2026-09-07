@@ -1,86 +1,51 @@
 # Plan Acceptance and Independent Build Map
 
-Status: normative dependency and acceptance index derived from the 2026-08-03 handoff. It adds no product behavior, does not report current implementation, and never overrides the source-precedence table in `README.md`. Package 1 is contracted in `IMPLEMENTATION_PLAN.md`; Packages 2–13 are contracted in `PACKAGE_CONTRACTS.md`. The original coding hold is historical; current implementation and release state live in `PROJECT_STATE.md`.
+Status: linked capability/acceptance map and historical review receipts. It introduces no product, gate, or verification requirement and reports no current readiness. See README.md for current requirement ownership.
 
 ## Release dependency chain
 
-```text
-Package 1 local catalog
-  -> Package 2 identity/audit/lifecycle
-     -> Package 3 private actions/corrections
-        -> Package 4 Candidate Share (separate branch)
-        -> Package 5A manual trip/collaboration/Go/offline -> SLM-01 checkpoint
-           -> R-01 -> Package 5B provider-backed Check My Day
-     -> Package 6 Synthetic partner onboarding/Store Portal/existing-claim/add-store + atomic Free provisioning
-        -> E-01 gates real email; M-01 gates real media; both plus H/S/HC gate external use
-        -> Package 7 Administrator review/Access & Safety
-           -> H-01 + L-01 for shared privileged cycles + S-01 + HC-01 -> Package 8 full Synthetic Internal Alpha + External Testing Readiness
-              -> Package 8B three-store Controlled Private Beta
-              -> Package 9 public reviews + human dress rehearsal, still disabled in beta
-              -> Package 10A Step 0 CAT-01 -> HC-02 + accepted gates -> remaining controlled Regional Readiness
-                 -> Package 10B, after Product Owner signature, Topeka release
-                    -> signed receipt + passing smoke/monitoring + no active stop -> Package 11 RG-01
-                       -> separate Product Owner first-community selection -> Package 12 run 1 activation -> passing current-community gate + next selection -> Package 12 runs 2–3, one area each
-                          -> inactive commercial-research authorization -> paid-value packet -> final Product Owner monetization decision -> Package 13 composite paid-activation receipt
-```
-
-No arrow authorizes real data, external contact, paid service, promotion, public access, or geography expansion. The applicable evidence gate and Product Owner signature do.
+Current requirements: [Stage dependencies](PRD.md#stage-dependencies).
 
 ## Traceability
 
 | Capability | Controlling behavior/design | Security/authorization | Delivery/evidence owner |
 |---|---|---|---|
-| Anonymous Store Browser/Details | `PRD.md` Store Browser/Details; `DESIGN.md`; `DESIGN_SYSTEM.md` | Catalog RPC boundary in `IMPLEMENTATION_PLAN.md` | Package 1 |
+| Anonymous Store Browser/Details | `PRD.md` Store Browser/Details; `DESIGN.md`; `DESIGN_SYSTEM.md` | Package 1 in `PACKAGE_CONTRACTS.md` | Package 1 |
 | Identity/session/MFA/recovery | `PRD.md` authentication; `DESIGN_SYSTEM.md` auth flow | `SECURITY_AND_TRUST.md` Authentication/Authorization | Package 2 |
-| Audit and account lifecycle/export | `PRODUCT_DECISIONS.md` lifecycle/portability | Atomic audit, inactivity, retention, backups | Package 2 |
+| Audit and account lifecycle/export | `SECURITY_AND_TRUST.md` lifecycle/portability | Atomic audit, inactivity, retention, backups | Package 2 |
 | Saves, private rating/note, New Since, correction report | `PRD.md`; `DESIGN.md` JIT auth | User ownership; operational correction scope | Package 3 |
 | Candidate Link/Share/Trip Idea | `PRD.md`; `DESIGN.md` Candidate Share | Reason-neutral resolution, block/report/retention | Package 4 |
 | Manual Plan, partner, Go, offline | `PRD.md`; `DESIGN.md` Plan/Go | One trip, one partner, one Navigator/device, ordered replay | Package 5A |
-| Startup Learning MVP | `PRODUCT_DECISIONS.md` SLM-01 | Separate accounts, Synthetic only, cross-account denial, offline recovery; no external authority | Packages 1, 2, 3, 5A + Product Owner disposition |
+| Startup Learning MVP | `PRD.md` SLM-01 | Separate accounts, Synthetic only, cross-account denial, offline recovery; no external authority | Packages 1, 2, 3, 5A + Product Owner disposition |
 | Suggested feasible order | `DESIGN.md` Check My Day | Minimized disclosed provider call; no precise-location logs | Package 5B after routing ADR |
 | Partner QR/consent/draft/activation | `PRD.md`; ADR 0002/0003 | Atomic provisional consent/pending identity; verified email/MFA; exact store scope | Package 6 |
-| Public listing claim/add-store intake and verification | `PRD.md`; `PRODUCT_DECISIONS.md` scalable claim policy | Own status/draft, search/duplicate conversion, two authority signals, provenance, atomic store/projection/grant/Free, retention/rollback | Build Synthetic Package 6; validate private Package 10A; enable only Package 10B |
+| Public listing claim/add-store intake and verification | [PRD Business accounts](PRD.md#business-accounts); `docs/specs/store-membership-spec.md` | Own status/draft, search/duplicate conversion, two authority signals, provenance, atomic store/projection/grant/Free, retention/rollback | Build Synthetic Package 6; validate private Package 10A; enable only Package 10B |
 | Store Portal content/hours/media/social/support | `DESIGN.md` Store Representative | Direct/controlled split; media/support lifecycles | Package 6 |
 | Admin typed review, revocation, narrow audit | `DESIGN.md` Administrator | No shopper-private access; all-path revocation; atomic audit | Package 7 |
-| Synthetic Internal Alpha and first-owner readiness | `PRODUCT_DECISIONS.md`; `IMPLEMENTATION_PLAN.md` | H-01 shared protection; L-01 before shared privileged mutation; full matrix, DB/Storage recovery, incident rehearsal | Package 8 |
-| Three-store controlled pilot | `PRODUCT_DECISIONS.md` Private Beta gates | Cohort isolation, one store at a time, no public UGC/advertising | Package 8B |
+| Synthetic Internal Alpha and first-owner readiness | [PRD Internal Alpha](PRD.md#internal-alpha); [Security External Testing Readiness](SECURITY_AND_TRUST.md#external-testing-readiness) | H-01 shared protection; L-01 before shared privileged mutation; full matrix, DB/Storage recovery, incident rehearsal | Package 8 |
+| Three-store controlled pilot | `PRD.md` First Pilot Store Record and Controlled Private Beta Expansion | Cohort isolation, one store at a time, no public UGC/advertising | Package 8B |
 | Public ratings/reviews/moderation/appeal | `PRD.md` Review requirements; `DESIGN.md` Public reviews | Server stage flag, eligibility, arithmetic aggregate, privacy, appeal | Package 9; enabled only by Package 10B |
 | Topeka readiness evidence | Regional Public Readiness Gate | Bounded fact-only catalog preparation and invited cohort; legal/security/accessibility/browser/support/recovery/incident proof | Package 10A |
-| Consent-based product promotion | `PRODUCT_DECISIONS.md`; `PRD.md` launch strategy | Channel-specific consent, ordinary QR, no paid ranking/tracking, quota/withdrawal rollback | Prepare 10A; distribute 10B |
+| Consent-based product promotion | [PRD Regional launch strategy](PRD.md#regional-launch-strategy) | Channel-specific consent, ordinary QR, no paid ranking/tracking, quota/withdrawal rollback | Prepare 10A; distribute 10B |
 | Prospective-owner acquisition and Free claim/add intake | `PRD.md`; `DESIGN.md`; `docs/specs/store-membership-spec.md` | Three QR classes; ordinary account only; separate eligible-owner cohort; approval atomically creates Free; no payment dependency | Build underlying flow Package 6; private/noindex page and owner evidence 10A; public Free-only 10B |
 | Topeka public release | Signed Regional Public Readiness receipt | Tested digest, server capabilities, 15m RPO/4h RTO, 99.5% target, monitoring, rollback | Package 10B + Product Owner |
 | RG-01 Topeka evidence | `PRD.md` formulas; Package 11 | Authoritative consenting evidence, deterministic frozen/signed receipt, linkage purge | Package 11 + Product Owner |
 | First small-community selection | Community Expansion Gate | Separate choice; no automatic import/contact/promotion | Product Owner after RG-01 |
 | Small-community activation ordinals 1–3 | Repeatable Package 12 per-area run | Exact area/catalog/owner consent, preactivation receipt, reused 10A/10B promotion/recovery/rollback; current-community gate before any next run | Package 12 + Product Owner |
 
-| Photo-tier upgrades, moderation, and staged-off Stripe billing | `PRODUCT_DECISIONS.md` photo-tier decisions; `docs/specs/store-membership-spec.md` | Versioned inactive config; receipt-bound consent/price; composite activation; off/sales/servicing lifecycle | Build Package 13; activate only after 10B, RG-01, three passing community reviews, owner-value/monetization decision, commercial/provider gates, signed composite receipt |
+| Photo-tier upgrades, moderation, and staged-off Stripe billing | `PRD.md` Business accounts; `docs/specs/store-membership-spec.md` | Versioned inactive config; receipt-bound consent/price; composite activation; off/sales/servicing lifecycle | Build Package 13; activate only after 10B, RG-01, three passing community reviews, owner-value/monetization decision, commercial/provider gates, signed composite receipt |
 
 ## Provider and external-decision boundary
 
-An independent team may build only the provider-neutral contract until the named ADR is accepted. The ADR must select the provider/version/plan and record data sent, processor role and retention, region, authentication, quotas/cost caps, timeouts/retry/idempotency, outage fallback, observability without private payloads, replacement path, legal review, and executable contract tests.
-
-- Routing ADR blocks only Package 5B; Package 5A remains manual-order/hours-only.
-- Transactional-email ADR blocks real invitation/status delivery and Package 6 external use, not Synthetic UI tests.
-- ADRs 0005/0006 and H-01 block any shared environment until Vercel plan eligibility, disabled automatic Git deployment, protection of every reachable hostname, and Alpha restore/quotas pass. Startup has `$0` recurring infrastructure/no overage unless separately funded. Regional Public remains blocked until 15-minute RPO is funded or independently proven at `$0`; no paid ceiling is approved.
-- L-01 blocks privileged shared/external mutation until a separately administered append-only chain-root sink passes at `$0` for startup; no sink means local-only privileged testing.
-- SEC-01 independent security review and B-01 final brand/domain block Package 10B.
-- M-01 blocks real Official Store media/support screenshots; placeholders/text remain. Claim-document upload is not Regional Public MVP scope.
-- S-01/HC-01 block first owner contact; HC-02 blocks public promotion. An AI cannot be on-call backup or independent reviewer.
-- Analytics remains off; it is never a launch dependency.
-- Shopper-image moderation remains post-MVP and off.
-- A named independent break-glass reviewer is required only to enable break-glass. Without that artifact the safer disabled state remains mandatory and does not grant an exception.
+Current requirements: [Provider and external-action prerequisites](PRD.md#provider-and-external-action-prerequisites).
 
 ## Intentional exclusions
 
-D31 full Audit History UI/export, households, finds/collections, personalization, shopper/review photos, owner review responses, structured Events, Vendor Contributor, paid placement/ad products, Android packaging, marketplace, AI valuation/authentication, embedded social feeds, and national expansion are not Regional Public MVP work. Consent-based Antique Trail product promotion is release work, not monetization. Empty scaffolding for deferred items is prohibited.
+Current requirements: [Deferred implementation boundary](PRD.md#deferred-implementation-boundary).
 
 ## Independent-builder acceptance
 
-Before implementation starts, its ticket must cite the current contract and own one repository-controlled outcome. It closes when a clean checkout proves its mapped acceptance criteria with the applicable source, migration, allow/deny, UI, accessibility, failure, rollback, and security/privacy checks. External evidence and authorization close in separate gate issues. AI output is never a substitute for a failed executable check or required human gate.
-
-Security closure additionally requires exact Postgres privilege/FORCE-RLS tests; every session-revocation surface; auth/invitation fragment/cache/referrer denial; stage/capability matrix across route/RLS/Storage/RPC/Function/job; case-scoped sibling/bulk denial; SSRF limit corpus; field/XSS/Unicode boundaries; offline 36-hour/7-day lifecycle; DB/Auth/Storage restore with deletion/revocation replay; audit-chain external-root failure; quota/no-charge degradation; and header/CSP/CI artifact-digest assertions. A plan statement is not evidence of runtime behavior.
-
-The plan itself is accepted only when a fresh seven-lens review of the current full manifest finds no material P1/P2 contradiction, omission, untestable gate, privacy/security defect, design reproducibility defect, or unauthorized scope path. A numerical score is reported only with that finding set; the document cannot self-award 100.
+Current requirements: [Plan and implementation verification](PLAN_GOVERNANCE.md#plan-and-implementation-verification).
 
 ## Independent review receipt — 2026-08-03
 
@@ -101,9 +66,9 @@ This 100/100 rates the original implementation-plan handoff, not the current cor
 
 ## Protected internal synthetic review exception
 
-For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md) narrowly supersedes blanket H-01-before-shared-use and CI-only upload clauses. Its isolated synthetic, provider-eligible, zero-spend, protected-Preview context is not Shared Alpha or another release stage. All public/external/paid gates and all security controls outside that exact exception remain mandatory; no formal gate passes by inference.
+Scope and constraints: [ADR 0007](docs/adr/0007-protected-internal-synthetic-review.md). This reference supplies no new assessment authorization; see [current assessment boundary](PRD.md#assessment-environment-boundary).
 
 
 ## Governed internal synthetic admission
 
-[ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md) extends only the ADR0007 owner-only assessment with a genuine, short-lived internal authorization for allowlisted synthetic identities and owned fixtures on the named isolated backend. Its server validation, role/scope/assurance controls, expiry, revocation and teardown are mandatory. Existing release receipts and public/shared/paid activation gates retain their meaning; no invented release evidence, real delivery, external participants or spending is authorized. The coordinated amendment must merge before dependent implementation.
+Scope and constraints: [ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md). This reference supplies no new assessment authorization; see [current assessment boundary](PRD.md#assessment-environment-boundary).

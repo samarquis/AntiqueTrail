@@ -72,3 +72,42 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Changed sources: ADR0008, ADR0007, PRODUCT_DECISIONS.md, PRD.md, SECURITY_AND_TRUST.md, PLAN_ACCEPTANCE.md, PACKAGE_CONTRACTS.md, IMPLEMENTATION_PLAN.md, CODEX_START_PROMPT.md, PLANNING_INDEX.md; approved proposal preserved as evidence.
 - Consequences: define a distinct validated internal record, seven allowlisted synthetic aliases and manifest-owned fixtures, isolated-project/candidate/origin binding, at most24-hour expiry, revocation and cleanup. Preserve server scope/MFA/session/private-data controls, original gate meanings, free-resource eligibility and all external/provider/payment exclusions. No gate receipt is forged or declared passed.
 - Affected ticket: #227 is the dedicated amendment; conforming gateway/admission implementation follows merge with separate independent checks and hosted acceptance evidence.
+
+## 2026-09-07 — Consolidated product plan and Free private evaluation
+
+- Authorization directive: `update plan`
+- Exact Product Owner direction: `update plan as proposed, and show me the changes before publishing`.
+- Approved scope: the revised document structure proposal plus Amendment A's previously recorded owner decisions; replacement hosted-test authority in Amendment B remains excluded.
+- Reason: duplicated authority across product, decision, roadmap, acceptance, and agent-entry documents made the full experience hard to understand and changes difficult to reconcile.
+- Evidence: baseline main `63a47ac499c0b52e6af7c0601e5b627c26fa08f0`; docs/research/product-reset-2026-09-06/OWNER_DECISION_WORKSHEET.md and PLAN_RECONCILIATION_PROPOSAL.md, including the migration receipt. Worksheet D1-D11 identifiers remain local discussion labels.
+- Changed sources: CODEX_START_PROMPT.md, DESIGN.md, DESIGN_SYSTEM.md, IMPLEMENTATION_PLAN.md, OPEN_TICKET_TODO.md, PACKAGE_CONTRACTS.md, PLANNING_INDEX.md, PLAN_ACCEPTANCE.md, PLAN_GOVERNANCE.md, PRD.md, PRODUCT.md, PRODUCT_DECISIONS.md, PROJECT_STATE.md, README.md, SECURITY_AND_TRUST.md, docs/agents/issue-tracker.md, docs/operations/G56_RELEASE_GATE_STATUS_LEDGER.md, docs/research/product-reset-2026-09-06/OWNER_DECISION_WORKSHEET.md, docs/research/product-reset-2026-09-06/PLAN_RECONCILIATION_PROPOSAL.md, docs/specs/owner-onboarding.md, docs/specs/store-membership-spec.md, manifest.json, PLAN_CHANGELOG.md.
+- Consequences: PRD is the main product reading path; specialist sources own exact detail; decision/roadmap/acceptance history no longer creates competing current requirements. Incorporate the Free private evaluation, connected shopper priority, separate persona/software/human evidence, computer-then-phone order, permitted synthetic content, no-new-spending direction, working-name/full-rename requirement, existing photo-tier revenue boundary, and deferred appearance judgment. Preserve all later human/security/provider/release/commercial obligations and exact architecture exceptions.
+- Review checkpoint: local documents and verification only until the owner reviews the changes; no publication, issue edits, implementation, environment creation, spending, or activation is authorized here. Dedicated PR, required independent review, checks, and merge remain necessary before dependent implementation.
+- Affected ticket: existing #235 describes the earlier Amendment A scope; its body will require reconciliation with this consolidation only after publication is authorized. No ticket is changed or closed by this local draft. Preserve the separate PROJECT_STATE work in PR #211 and refresh overlap before publication.
+
+## 2026-09-07 — Adopt and publish the consolidated PRD system
+
+- Authorization directive: `update plan`
+- Prior amendment authority: `update plan as proposed, and show me the changes before publishing`.
+- Publication/adoption authority after owner review: `ok publish and make this the new system`, narrowed and reaffirmed by `yes do that only update and publish the new prd and it new system`.
+- Scope: publish and merge the reviewed PRD/document-ownership amendment only; replace temporary local-review instructions with durable system guidance and add the repository AGENTS.md entry point. No implementation-ticket workflow, issue mutation, application work, deployment, spending, or provider activation is included.
+- Changed sources for this adoption delta: AGENTS.md, CODEX_START_PROMPT.md, PRD.md, PLANNING_INDEX.md, PROJECT_STATE.md, manifest.json, this changelog, and the existing proposal's publication/review record.
+- Evidence: reviewed local source `53ed4c6715612de7d22286f1146758f75207409e`, evidence-only successor `44f216eae11bd21b3b759939c9e1856557ebc985`, and the owner's subsequent adoption instruction. Fresh publication review and required hosted checks must pass before merge.
+- Consequences: PRD is the product entry point; README assigns specialist ownership; current requirements remain locked under existing amendment governance. Historical decisions, roadmaps, and review receipts retain their original scope. The recorded typography interpretation remains a bounded unresolved question for dependent design work, not an authorization to change visual values.
+- Tracking: PR references existing amendment issue #235 for provenance only; this publication does not change or close it and does not modify the separate PR #211.
+
+## 2026-09-07 — Reconcile publication-review document references
+
+- Authorization directive: `update plan`; scope remains the approved consolidation and documentation-only publication above.
+- Evidence: fresh independent publication review of `23fbc434a9633f6904ae6bfa390e81fb4801ba5d` found a stale design authority entry and inherited onboarding copy that described email MFA despite Package 2 requiring an authenticator app.
+- Changed sources: docs/design/README.md now points to current README ownership; docs/specs/owner-onboarding.md aligns its guided MFA wording with the existing authentication contract; the proposal records the findings.
+- Consequences: no new authentication method, visual values, or implementation is authorized; both corrections make linked documentation consistent with its existing controlling requirements. Issue #235 remains a provenance reference only.
+
+
+## 2026-09-07 — Preserve remaining requirements and bound inherited conflicts
+
+- Authorization directive: `update plan`; these corrections remain within the approved consolidation and documentation-only publication.
+- Evidence: the fresh seven-lens publication review identified lost live ownership for the Topeka pilot boundary and controlled SLM-01 protocol, remaining historical-owner links, ambiguous orphan-account terminology, and an inherited social-admission predicate that conflicts with required metadata purge.
+- Changed sources: PRD.md, USER_RESEARCH.md, PLAN_ACCEPTANCE.md, SECURITY_AND_TRUST.md, PACKAGE_CONTRACTS.md, docs/specs/owner-onboarding.md, docs/specs/store-membership-spec.md, docs/adr/0002-qr-partner-invitations-start-onboarding-not-authorization.md, docs/design/README.md, and the proposal review record.
+- Consequences: preserve the exact pilot area and comparison protocol under the PRD; route current links to current owners; clarify admitted accounts versus provider-only orphans without granting access or changing the ADR boundary. The inconsistent social-admission predicate is explicitly non-executable pending a separate scoped reconciliation under the existing conflict rule; no replacement auth design or longer retention is approved. Historical identity exploration remains evidence.
+- Affected work: dependent social-admission work remains blocked on that named reconciliation; this publication does not implement, enable, change, or close any issue or feature, including #235.
