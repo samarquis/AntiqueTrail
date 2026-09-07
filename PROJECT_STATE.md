@@ -1,6 +1,6 @@
 # Antique Trail Current Project State
 
-Current document checkpoint: 2026-09-07 local consolidation draft, based on fetched main `63a47ac499c0b52e6af7c0601e5b627c26fa08f0`. The owner authorized `update plan as proposed, and show me the changes before publishing`; this draft is not merged or published and does not start implementation.
+Documentation baseline: the 2026-09-07 consolidated PRD system, based on `63a47ac499c0b52e6af7c0601e5b627c26fa08f0`, becomes current when this amendment merges to main. After reviewing the local draft, the owner directed `yes do that only update and publish the new prd and it new system`. This authorizes adoption of the documentation system, not application implementation or external activation.
 
 The next intended milestone is the PRD's Free private experience evaluation. The [dated review follow-up](docs/research/product-reset-2026-09-06/OWNER_DECISION_WORKSHEET.md#what-the-review-means) reported real trip/privacy/session/hours/saved-state failures and incomplete coverage; these are dated findings requiring current-path confirmation, not a fresh whole-product score. Its separate assessment backend was torn down according to the dated review receipt; a replacement hosted test requires its own scoped authority, and the older beta's health has not been rechecked here. Public and paid readiness remain unproved.
 

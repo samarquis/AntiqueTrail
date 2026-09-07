@@ -4,6 +4,7 @@
   "generated_date": "2026-09-07",
   "files": [
     "README.md",
+    "AGENTS.md",
     "PLAN_GOVERNANCE.md",
     "PLAN_CHANGELOG.md",
     "PROJECT_STATE.md",
@@ -56,7 +57,7 @@
     "docs/specs/owner-onboarding.md",
     "docs/specs/store-membership-spec.md"
   ],
-  "purpose": "One product reading path with explicitly owned specialist requirements and separately classified history/evidence; local owner-review draft before publishing",
+  "purpose": "One product reading path with explicitly owned specialist requirements and separately classified history/evidence",
   "reading_order": [
     "PRD.md",
     "README.md",

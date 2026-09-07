@@ -1,6 +1,6 @@
 # Antique Trail Planning and Evidence Index
 
-Document classification as of the 2026-09-07 local consolidation draft. [README source precedence](README.md#source-precedence) owns the responsibility table; [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md) owns change and closure rules.
+Document classification for the consolidated system adopted through the 2026-09-07 amendment. [README source precedence](README.md#source-precedence) owns the responsibility table; [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md) owns change and closure rules.
 
 ## Current requirements
 

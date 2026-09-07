@@ -1,6 +1,6 @@
 # Product Requirements Document
 
-Status: consolidated product-requirements draft authorized 2026-09-07 for local owner review before publishing. The amendment must complete governance review and merge before dependent implementation. Current implementation and evidence remain separate from intended behavior.
+Status: consolidated product requirements authorized 2026-09-07, adopted through the reviewed amendment on main. Current implementation and evidence remain separate from intended behavior; subsequent changes follow PLAN_GOVERNANCE.md.
 
 ## Purpose, people, and product promise
 

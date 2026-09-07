@@ -1,6 +1,6 @@
 # Proposed reconciliation of the product plan after review
 
-Status: authorized local amendment draft under the exact 2026-09-07 direction `update plan as proposed, and show me the changes before publishing`. Earlier proposal wording below preserves the discussion; the final local migration receipt records the prepared changes and review status. No publication or implementation has been performed.
+Status: approved for documentation-only publication and adoption after owner review on 2026-09-07. Earlier proposal and local-review wording below preserve their dated scope; the final publication record supersedes the temporary publication hold. Application implementation and external activation remain outside this amendment.
 
 Baseline checked: fetched `origin/main` at `63a47ac499c0b52e6af7c0601e5b627c26fa08f0`, the completed product-reset review, and the recorded owner choices in OWNER_DECISION_WORKSHEET.md.
 
@@ -379,3 +379,9 @@ Source candidate: `53ed4c6715612de7d22286f1146758f75207409e`, based on `63a47ac4
 | Publication boundary | Remote amendment branch still at the original baseline; no push, PR publication, issue mutation, merge, application change, or resource creation performed |
 
 This evidence-only addition records the local owner-review checkpoint. It does not change requirements or establish full seven-lens plan acceptance, hosted CI, implementation acceptance, a replacement test environment, or release readiness. Publication and subsequent ticket/implementation work remain at the owner's review checkpoint.
+
+## Publication and adoption record
+
+After reviewing the local draft, the owner directed `ok publish and make this the new system`, then clarified `yes do that only update and publish the new prd and it new system`. The documentation system alone is authorized for publication and merge after its required review and hosted checks. Existing issue #235 is a provenance reference, not an implementation workflow or an issue to update/close in this task. The earlier local-only statements remain historical receipts of the completed owner-review checkpoint.
+
+The adoption delta replaces temporary review wording with durable PRD/agent-entry guidance, adds the repository AGENTS.md, and updates the handoff inventory. It does not alter the reviewed capability, security, stage, commercial, or visual requirements. Independent publication review and hosted verification results are recorded with the amendment PR.
