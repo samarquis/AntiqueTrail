@@ -148,6 +148,8 @@ export function BreakGlassReviewRoute({
         <p className="lede">This one-case link is not normal navigation or an account session.</p>
         {!token || !client ? (
           <p role="alert">This review link is invalid, expired, or unavailable.</p>
+        ) : error && !reviewPacket ? (
+          <p role="alert">This review link is invalid, expired, or unavailable.</p>
         ) : error ? (
           <p role="alert">{GENERIC_ERROR}</p>
         ) : !reviewPacket ? (
