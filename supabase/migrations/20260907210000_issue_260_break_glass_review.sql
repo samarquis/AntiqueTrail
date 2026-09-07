@@ -101,8 +101,8 @@ declare prior review_private.break_glass_review_capabilities%rowtype; cid uuid;
 begin
   select * into prior from review_private.break_glass_review_capabilities where issuance_idempotency_key=p_idempotency_key;
   if found then return prior.capability_id; end if;
-  if octet_length(p_token_hash)<>32 or p_expires_at>statement_timestamp()+interval '24 hours'
-    or not exists(select 1 from review_private.break_glass_cases where case_id=p_case_id and state='review_pending' and packet_hash is not null and p_expires_at<=review_due_at)
+  if octet_length(p_token_hash)<>32
+    or not exists(select 1 from review_private.break_glass_cases where case_id=p_case_id and state='review_pending' and packet_hash is not null and p_expires_at=review_due_at)
     or not exists(select 1 from review_private.reviewer_identities i join review_private.reviewer_verifier_config c on c.singleton and c.state='accepted' where i.reviewer_identity_id=p_reviewer_identity_id and i.state='active' and i.active_credential_count>=2 and i.relationship_ended_at is null) then
     raise exception using errcode='42501',message='break_glass_review_unavailable';
   end if;
@@ -205,3 +205,23 @@ end $$;
 alter function app_public.reviews_submit_break_glass_review(text,uuid,bytea,text,text,text,uuid) owner to review_automation;
 revoke all on function app_public.reviews_submit_break_glass_review(text,uuid,bytea,text,text,text,uuid) from public,authenticated;
 grant execute on function app_public.reviews_submit_break_glass_review(text,uuid,bytea,text,text,text,uuid) to anon;
+
+create function review_private.watch_break_glass_review_deadlines(p_now timestamptz default statement_timestamp(),p_limit integer default 500) returns jsonb
+language plpgsql security definer set search_path='' as $$
+declare frozen_count integer:=0; missing_count integer:=0; c review_private.break_glass_cases%rowtype;
+begin
+  for c in select * from review_private.break_glass_cases where state='review_pending' and review_due_at<=p_now order by review_due_at limit greatest(0,least(p_limit,500)) for update loop
+    update review_private.break_glass_cases set state='disabled' where case_id=c.case_id;
+    perform review_private.append_audit('break_glass_review_missing',null,null,c.case_id,'disabled',jsonb_build_object('reviewDueAt',c.review_due_at,'packetHash',encode(c.packet_hash,'hex')));
+    missing_count:=missing_count+1;
+  end loop;
+  for c in select * from review_private.break_glass_cases where state in ('closed','expired') and packet_hash is null and coalesce(access_closed_at,access_expires_at)+interval '5 minutes'<=p_now order by access_expires_at limit greatest(0,least(p_limit,500)) for update loop
+    update review_private.break_glass_cases set state='disabled' where case_id=c.case_id;
+    perform review_private.append_audit('break_glass_packet_freeze_failed',null,null,c.case_id,'disabled',jsonb_build_object('closedAt',c.access_closed_at,'watchdogAt',p_now));
+    frozen_count:=frozen_count+1;
+  end loop;
+  return jsonb_build_object('missingReviews',missing_count,'unfrozenPackets',frozen_count);
+end $$;
+alter function review_private.watch_break_glass_review_deadlines(timestamptz,integer) owner to review_automation;
+revoke all on function review_private.watch_break_glass_review_deadlines(timestamptz,integer) from public,anon,authenticated;
+grant execute on function review_private.watch_break_glass_review_deadlines(timestamptz,integer) to review_automation;
