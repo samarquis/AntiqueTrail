@@ -18,8 +18,9 @@ on conflict (user_id) do update set
 insert into app_private.role_grants(subject_user_id,role,state) values
   ('99000000-0000-4000-8000-000000000101','shopper','active'),
   ('99000000-0000-4000-8000-000000000102','shopper','active');
-insert into trip_private.trips(trip_id,owner_id,name,state,version)
-  values('99000000-0000-4000-8000-000000000121','99000000-0000-4000-8000-000000000101','Private trip','draft',1);
+insert into trip_private.trips(trip_id,owner_id,area_id,name,state,version)
+select '99000000-0000-4000-8000-000000000121','99000000-0000-4000-8000-000000000101',id,'Private trip','draft',1
+from app_public.catalog_areas limit 1;
 insert into trip_private.trip_participants(trip_id,user_id,participant_role)
   values('99000000-0000-4000-8000-000000000121','99000000-0000-4000-8000-000000000101','creator');
 insert into trip_private.trip_mutation_receipts(trip_id,idempotency_key,base_version,result_state,resulting_version,result_metadata)
