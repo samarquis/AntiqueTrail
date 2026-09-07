@@ -491,7 +491,7 @@ test('catalog action area keeps visit planning first across anonymous and shoppe
     const shopperControls = shopperActions.locator('a, button')
     await expect(shopperActions).toBeVisible()
     await expect(shopperControls.nth(0)).toHaveAccessibleName('Add to Trip')
-    await expect(shopperActions.getByRole('button', { name: 'Save store' })).toBeVisible()
+    await expect(shopperActions.getByRole('button', { name: 'Remove saved store' })).toBeVisible()
   }
 })
 
