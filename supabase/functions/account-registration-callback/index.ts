@@ -62,7 +62,7 @@ Deno.serve(async (request) => {
         )
           throw queued.error ?? new Error('cleanup ticket unavailable')
       }
-      const admissionMetadata = result.data.user.user_metadata.antique_trail_admission_id
+      const admissionMetadata = result.data.user.app_metadata.antique_trail_admission_id
       const admissionId =
         typeof admissionMetadata === 'string' &&
         /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
