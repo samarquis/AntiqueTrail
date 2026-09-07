@@ -144,6 +144,9 @@ import {
   ModerationQueuePage,
   PublicReviewsPage,
   ReviewAppealPage,
+  BreakGlassReviewRoute,
+  unavailableBreakGlassReviewClient,
+  type BreakGlassReviewClient,
   unavailableReviewClient,
   type ReviewClient,
 } from '../features/reviews'
@@ -911,6 +914,7 @@ export interface AppClients {
   admin?: AdminClient
   lifecycle?: AccountLifecycleClient
   reviews?: ReviewClient
+  breakGlassReview?: BreakGlassReviewClient
   storeApplications?: StoreApplicationClient
   promotion?: PromotionClient
   storeApplicationAdmin?: StoreApplicationAdminClient
@@ -939,6 +943,7 @@ export interface AppRuntime {
   reviewHarnessUi?: ReviewHarnessUi
   /** Pre-render memory-only callback captured by the bootstrap preflight. */
   authCallback?: AuthCallback | null
+  breakGlassReviewToken?: string | null
   /** Deployment-protected research builds provide exact frozen artifact/question bindings. */
   commercialResearch?: { artifactDigest: string; questionVersion: string }
 }
@@ -963,6 +968,7 @@ export default function App({
   const adminClient = clients.admin ?? unavailableAdminClient
   const lifecycleClient = clients.lifecycle ?? unavailableLifecycleClient
   const reviewClient = clients.reviews ?? unavailableReviewClient
+  const breakGlassReviewClient = clients.breakGlassReview ?? unavailableBreakGlassReviewClient
   const portalClient = clients.portal ?? unavailablePortalClient
   const readinessClient = clients.readiness ?? unavailableReadinessClient
   const billingClient = clients.billing ?? unavailableBillingClient
@@ -1290,6 +1296,15 @@ export default function App({
           <Route
             path="/reviews/restrictions/:restrictionId/appeal"
             element={<RestrictionAppeal client={reviewClient} />}
+          />
+          <Route
+            path="/break-glass-review"
+            element={
+              <BreakGlassReviewRoute
+                token={runtime.breakGlassReviewToken}
+                client={breakGlassReviewClient}
+              />
+            }
           />
           {['/stores/add', '/store-applications'].map((path) => (
             <Route
