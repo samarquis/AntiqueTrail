@@ -1,3 +1,5 @@
+import { Link, useInRouterContext } from 'react-router-dom'
+import { createElement, type ReactNode } from 'react'
 const BROWSE_RETURN_KEY = 'antique-trail:browse-return'
 
 export function catalogAppHref(path: string, base = import.meta.env.BASE_URL): string {
@@ -5,6 +7,19 @@ export function catalogAppHref(path: string, base = import.meta.env.BASE_URL): s
   return `${normalizedBase}${path.replace(/^\/+/, '')}`
 }
 
+export function CatalogLink({
+  to,
+  children,
+  ...props
+}: {
+  to: string
+  children: ReactNode
+} & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>) {
+  const inRouter = useInRouterContext()
+  return inRouter
+    ? createElement(Link, { to, ...props }, children)
+    : createElement('a', { href: to, ...props }, children)
+}
 interface BrowseReturnState {
   href: string
   scrollY: number
