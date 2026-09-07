@@ -606,14 +606,17 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     if (!trip) return
     setOfflineQueue((current) => ({ ...current, state: 'replaying' }))
     await runAction('replay saved changes', async () => {
-      setTrip(await client.replayOffline(trip.id))
-      setOfflineQueue(await client.getOfflineQueue(trip.id))
-    }).catch(() => {
-      setOfflineQueue((current) => ({
-        ...current,
-        state: 'conflict',
-        conflict: { id: 'replay', summary: 'Saved changes could not be replayed automatically.' },
-      }))
+      try {
+        setTrip(await client.replayOffline(trip.id))
+        setOfflineQueue(await client.getOfflineQueue(trip.id))
+      } catch (error) {
+        setOfflineQueue((current) => ({
+          ...current,
+          state: 'conflict',
+          conflict: { id: 'replay', summary: 'Saved changes could not be replayed automatically.' },
+        }))
+        throw error
+      }
     })
   }
   async function queueOffline() {
