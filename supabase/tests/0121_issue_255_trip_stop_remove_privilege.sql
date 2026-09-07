@@ -1,5 +1,5 @@
 begin;
-select plan(8);
+select plan(9);
 
 select ok(has_table_privilege('identity_service','trip_private.trip_stops','DELETE'),
   'identity_service has the narrow trip-stop DELETE privilege');
