@@ -61,7 +61,7 @@ export async function handlePasswordRecoveryCompletion(
 
     const prior = await dependencies.status(requestId)
     if (prior === 'completed') return json({ state: PASSWORD_RECOVERY_SUCCESS })
-    if (prior !== 'unknown' && prior !== 'provider_pending') return json({ state: 'error' })
+    if (prior !== 'unknown') return json({ state: 'error' })
 
     const credential = await dependencies.verifyToken(tokenHash)
     if (!credential) return json({ state: 'error' })

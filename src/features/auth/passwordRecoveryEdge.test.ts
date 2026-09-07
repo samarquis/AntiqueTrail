@@ -113,7 +113,7 @@ describe('password recovery completion boundary', () => {
     expect(first.order).toEqual(['invalidate', 'update', 'provider-pending'])
 
     const retry = dependencies({
-      status: async () => 'provider_pending',
+      status: async () => 'unknown',
       invalidateApplicationSessions: async () => {
         retry.order.push('provider-retry')
         return 'provider_retry'
@@ -122,6 +122,13 @@ describe('password recovery completion boundary', () => {
     const retryResponse = await handlePasswordRecoveryCompletion(request(valid), retry.dependencies)
     expect(await retryResponse.json()).toEqual({ state: 'completed' })
     expect(retry.order).toEqual(['provider-retry', 'provider-revoke', 'complete'])
+  })
+
+  it('does not replay a provider-pending request with its consumed recovery token', async () => {
+    const retry = dependencies({ status: async () => 'provider_pending' })
+    const response = await handlePasswordRecoveryCompletion(request(valid), retry.dependencies)
+    expect(await response.json()).toEqual({ state: 'error' })
+    expect(retry.order).toEqual([])
   })
 
   it('keeps a fresh recovery on the full replacement path after uncertainty', async () => {
