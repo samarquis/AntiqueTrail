@@ -747,6 +747,8 @@ Store Representatives may not:
 
 ### First Pilot Store Record
 
+Use Topeka city limits as the future Private Beta Pilot Area. Store outreach, partner claims, and real-location import remain blocked until the existing pre-pilot readiness gate passes.
+
 - Atomic Administrator approval of the owner-submitted Pilot Store Draft creates the record only after Store Partner Pilot Consent and authority verification
 - Owner confirms name, address, phone, website, regular and holiday hours, official description, and category tags
 - Record source/provenance and verification date
@@ -999,6 +1001,8 @@ Any failed check blocks owner outreach, real-store import, and external particip
 The retained human roles are Scott as Primary Internal Tester and his wife as Independent Internal Tester on her own newly created account and phone. The first owner-only evaluation does not replace her later independent acceptance. Synthetic records may represent store types and owner workflows but cannot use real names, logos, photos, reviews, or imply affiliation.
 
 ## Startup Learning MVP (`SLM-01`)
+
+SLM-01 compares only the planning work both paths can perform without provider routing or store sourcing. Freeze one fixture containing the same six Synthetic Stores, hours/exceptions, fictional starting place, desired visit date/departure, priority/dwell inputs, and end condition. For the legacy run, give each tester the fixture as the same plain source list and allow only the previously used document/manual-map workflow; for the Antique Trail run, preload the identical stores and use Packages 1/2/3/5A. Exclude finding stores, Candidate Share, travel-time calculation, suggested optimization, and live navigation from both measured intervals. Start when the tester begins transferring/selecting fixture stores; stop when a saved ordered hours-aware trip is ready for external-map Go and private-memory entry. Record tester identity, fixture/version, start/end time, manual field transfers, application/tool switches, hours warnings shown and correctly explained, lost/re-entered input, outside planning document used, and stated reuse. Run both paths on the same phone class and network condition in counterbalanced order; do not replace a failed run. Compare only like-for-like fields and preserve the signed raw worksheet with the SLM-01 receipt.
 
 SLM-01 is a private Synthetic-data checkpoint, not the Regional Public MVP. It contains Packages 1, 2, 3, and 5A only. Separate Test User A and Agent-Assisted Shopper accounts must each complete Browse → Details → Save → manually ordered hours-aware Trip → one-trip Partner/Navigator handoff → external-map Go → private visit memory. The evidence records completion time, manual retyping/tool switches, warning comprehension, offline restart/replay, return intent, and every cross-account allow/deny result.
 

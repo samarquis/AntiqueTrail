@@ -17,6 +17,8 @@ Google-hosted fonts are prototype-only. Production self-hosts the approved licen
 
 Do not use an external screenshot or temporary local prototype as the sole source for implementation acceptance. New approved visual evidence belongs in this folder and must be listed in `manifest.json`.
 
+`STOREFRONT_IDENTITY_GAUNTLET.md` preserves dated exploration and its then-current verdict; it is historical evidence, not the current V3 approval or production status.
+
 ## Approved current visual identity
 
 - **Light theme — Daylight Archive:** stone canvas, ivory cards, blue-black ink, slate-blue actions, slate context, brass attention, and clay destructive states.

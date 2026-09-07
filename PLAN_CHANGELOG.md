@@ -102,3 +102,12 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Evidence: fresh independent publication review of `23fbc434a9633f6904ae6bfa390e81fb4801ba5d` found a stale design authority entry and inherited onboarding copy that described email MFA despite Package 2 requiring an authenticator app.
 - Changed sources: docs/design/README.md now points to current README ownership; docs/specs/owner-onboarding.md aligns its guided MFA wording with the existing authentication contract; the proposal records the findings.
 - Consequences: no new authentication method, visual values, or implementation is authorized; both corrections make linked documentation consistent with its existing controlling requirements. Issue #235 remains a provenance reference only.
+
+
+## 2026-09-07 — Preserve remaining requirements and bound inherited conflicts
+
+- Authorization directive: `update plan`; these corrections remain within the approved consolidation and documentation-only publication.
+- Evidence: the fresh seven-lens publication review identified lost live ownership for the Topeka pilot boundary and controlled SLM-01 protocol, remaining historical-owner links, ambiguous orphan-account terminology, and an inherited social-admission predicate that conflicts with required metadata purge.
+- Changed sources: PRD.md, USER_RESEARCH.md, PLAN_ACCEPTANCE.md, SECURITY_AND_TRUST.md, PACKAGE_CONTRACTS.md, docs/specs/owner-onboarding.md, docs/specs/store-membership-spec.md, docs/adr/0002-qr-partner-invitations-start-onboarding-not-authorization.md, docs/design/README.md, and the proposal review record.
+- Consequences: preserve the exact pilot area and comparison protocol under the PRD; route current links to current owners; clarify admitted accounts versus provider-only orphans without granting access or changing the ADR boundary. The inconsistent social-admission predicate is explicitly non-executable pending a separate scoped reconciliation under the existing conflict rule; no replacement auth design or longer retention is approved. Historical identity exploration remains evidence.
+- Affected work: dependent social-admission work remains blocked on that named reconciliation; this publication does not implement, enable, change, or close any issue or feature, including #235.

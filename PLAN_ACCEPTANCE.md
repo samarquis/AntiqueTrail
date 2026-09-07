@@ -19,21 +19,21 @@ Current requirements: [Stage dependencies](PRD.md#stage-dependencies).
 | Startup Learning MVP | `PRD.md` SLM-01 | Separate accounts, Synthetic only, cross-account denial, offline recovery; no external authority | Packages 1, 2, 3, 5A + Product Owner disposition |
 | Suggested feasible order | `DESIGN.md` Check My Day | Minimized disclosed provider call; no precise-location logs | Package 5B after routing ADR |
 | Partner QR/consent/draft/activation | `PRD.md`; ADR 0002/0003 | Atomic provisional consent/pending identity; verified email/MFA; exact store scope | Package 6 |
-| Public listing claim/add-store intake and verification | `PRD.md`; `PRODUCT_DECISIONS.md` scalable claim policy | Own status/draft, search/duplicate conversion, two authority signals, provenance, atomic store/projection/grant/Free, retention/rollback | Build Synthetic Package 6; validate private Package 10A; enable only Package 10B |
+| Public listing claim/add-store intake and verification | `PRD.md` Scalable listing claims and add-store intake; `docs/specs/store-membership-spec.md` | Own status/draft, search/duplicate conversion, two authority signals, provenance, atomic store/projection/grant/Free, retention/rollback | Build Synthetic Package 6; validate private Package 10A; enable only Package 10B |
 | Store Portal content/hours/media/social/support | `DESIGN.md` Store Representative | Direct/controlled split; media/support lifecycles | Package 6 |
 | Admin typed review, revocation, narrow audit | `DESIGN.md` Administrator | No shopper-private access; all-path revocation; atomic audit | Package 7 |
-| Synthetic Internal Alpha and first-owner readiness | `PRODUCT_DECISIONS.md`; `IMPLEMENTATION_PLAN.md` | H-01 shared protection; L-01 before shared privileged mutation; full matrix, DB/Storage recovery, incident rehearsal | Package 8 |
-| Three-store controlled pilot | `PRODUCT_DECISIONS.md` Private Beta gates | Cohort isolation, one store at a time, no public UGC/advertising | Package 8B |
+| Synthetic Internal Alpha and first-owner readiness | `PRD.md` Internal Alpha and Pre-Pilot Readiness Gate | H-01 shared protection; L-01 before shared privileged mutation; full matrix, DB/Storage recovery, incident rehearsal | Package 8 |
+| Three-store controlled pilot | `PRD.md` First Pilot Store Record and Controlled Private Beta Expansion | Cohort isolation, one store at a time, no public UGC/advertising | Package 8B |
 | Public ratings/reviews/moderation/appeal | `PRD.md` Review requirements; `DESIGN.md` Public reviews | Server stage flag, eligibility, arithmetic aggregate, privacy, appeal | Package 9; enabled only by Package 10B |
 | Topeka readiness evidence | Regional Public Readiness Gate | Bounded fact-only catalog preparation and invited cohort; legal/security/accessibility/browser/support/recovery/incident proof | Package 10A |
-| Consent-based product promotion | `PRODUCT_DECISIONS.md`; `PRD.md` launch strategy | Channel-specific consent, ordinary QR, no paid ranking/tracking, quota/withdrawal rollback | Prepare 10A; distribute 10B |
+| Consent-based product promotion | `PRD.md` Launch strategy | Channel-specific consent, ordinary QR, no paid ranking/tracking, quota/withdrawal rollback | Prepare 10A; distribute 10B |
 | Prospective-owner acquisition and Free claim/add intake | `PRD.md`; `DESIGN.md`; `docs/specs/store-membership-spec.md` | Three QR classes; ordinary account only; separate eligible-owner cohort; approval atomically creates Free; no payment dependency | Build underlying flow Package 6; private/noindex page and owner evidence 10A; public Free-only 10B |
 | Topeka public release | Signed Regional Public Readiness receipt | Tested digest, server capabilities, 15m RPO/4h RTO, 99.5% target, monitoring, rollback | Package 10B + Product Owner |
 | RG-01 Topeka evidence | `PRD.md` formulas; Package 11 | Authoritative consenting evidence, deterministic frozen/signed receipt, linkage purge | Package 11 + Product Owner |
 | First small-community selection | Community Expansion Gate | Separate choice; no automatic import/contact/promotion | Product Owner after RG-01 |
 | Small-community activation ordinals 1–3 | Repeatable Package 12 per-area run | Exact area/catalog/owner consent, preactivation receipt, reused 10A/10B promotion/recovery/rollback; current-community gate before any next run | Package 12 + Product Owner |
 
-| Photo-tier upgrades, moderation, and staged-off Stripe billing | `PRODUCT_DECISIONS.md` photo-tier decisions; `docs/specs/store-membership-spec.md` | Versioned inactive config; receipt-bound consent/price; composite activation; off/sales/servicing lifecycle | Build Package 13; activate only after 10B, RG-01, three passing community reviews, owner-value/monetization decision, commercial/provider gates, signed composite receipt |
+| Photo-tier upgrades, moderation, and staged-off Stripe billing | `PRD.md` Business accounts; `docs/specs/store-membership-spec.md` | Versioned inactive config; receipt-bound consent/price; composite activation; off/sales/servicing lifecycle | Build Package 13; activate only after 10B, RG-01, three passing community reviews, owner-value/monetization decision, commercial/provider gates, signed composite receipt |
 
 ## Provider and external-decision boundary
 

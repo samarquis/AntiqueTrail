@@ -2,7 +2,7 @@
 
 Status: approved specialist interaction baseline for invited-owner onboarding. Resolves wayfinder
 map #61. Reconciled against PRD.md, DESIGN.md, DESIGN_SYSTEM.md, PACKAGE_CONTRACTS.md
-Package 6, ADR 0002, ADR 0003, PRODUCT_DECISIONS.md (2026-07-31 older-adult cohort).
+Package 6, ADR 0002, ADR 0003, and [PRD human usability acceptance](../../PRD.md#human-usability-acceptance).
 
 Controlling-doc precedence applies (README.md source-precedence table). Where this
 spec states invited-owner interaction/copy, PRD.md and DESIGN.md explicitly delegate that detail here (see "Contract
@@ -153,8 +153,10 @@ resume semantics; DESIGN_SYSTEM route-contract safe-draft preservation):
    invitation) — **the spec does not amend the expiry**; it designs around it.
    Post-submit interruption resumes the same unprivileged pending identity
    (unbound records expire after 30 days per ADR 0002).
-3. **Task 2**: interrupted signup remains resumable and unprivileged; orphan
-   Auth accounts remain ordinary shoppers. Reassurance copy only.
+3. **Task 2**: interrupted signup remains resumable and unprivileged; successfully admitted Antique Trail accounts awaiting partner binding remain
+   ordinary shoppers. A provider-only orphan has no Antique Trail profile,
+   registered session, or private-data access and follows Package 2 cleanup.
+   Reassurance copy only.
 4. **Task 3**: each field auto-saves on advance; return resumes at the exact
    field with all prior answers intact; Back preserves safe fields; submission
    requires the final preview (no partial submission).
@@ -224,7 +226,7 @@ plain language; one primary action per screen.
 
 ## 10. Acceptance criteria (older-adult cohort)
 
-Cohort (PRODUCT_DECISIONS.md 2026-07-31): ≥8 participants 55+, ≥3 at 70+, ≥2
+Cohort ([PRD human usability acceptance](../../PRD.md#human-usability-acceptance)): ≥8 participants 55+, ≥3 at 70+, ≥2
 with low-vision/motor/assistive-tech adaptations; own device.
 
 | # | Journey step | Pass threshold | Evidence |
