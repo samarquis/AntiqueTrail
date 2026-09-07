@@ -27,12 +27,17 @@ export function AuthoritativeCheckMyDayPage({
   const [pending, setPending] = useState(false)
   const [trip, setTrip] = useState<Trip | null>(null)
   const [tripLoadFailed, setTripLoadFailed] = useState(false)
+  const [requestFailed, setRequestFailed] = useState(false)
+  const [choicePending, setChoicePending] = useState(false)
+  const [choiceFailed, setChoiceFailed] = useState(false)
   useEffect(() => {
     if (!loadTrip) return
     let cancelled = false
     void loadTrip()
       .then((next) => {
-        if (!cancelled) setTrip(next)
+        if (cancelled) return
+        if (next) setTrip(next)
+        else setTripLoadFailed(true)
       })
       .catch(() => {
         if (!cancelled) setTripLoadFailed(true)
@@ -43,6 +48,7 @@ export function AuthoritativeCheckMyDayPage({
   }, [loadTrip])
   async function run() {
     setPending(true)
+    setRequestFailed(false)
     try {
       let next = await requestServer()
       for (
@@ -53,8 +59,21 @@ export function AuthoritativeCheckMyDayPage({
         next = await pollServer(next.requestId)
       }
       setResult(next)
+    } catch {
+      setRequestFailed(true)
     } finally {
       setPending(false)
+    }
+  }
+  async function saveChoice(save: () => void | Promise<void>) {
+    setChoicePending(true)
+    setChoiceFailed(false)
+    try {
+      await save()
+    } catch {
+      setChoiceFailed(true)
+    } finally {
+      setChoicePending(false)
     }
   }
   return (
@@ -65,6 +84,12 @@ export function AuthoritativeCheckMyDayPage({
         <button className="button" type="button" disabled={pending} onClick={() => void run()}>
           {pending ? 'Checking…' : 'Check My Day'}
         </button>
+        {requestFailed && (
+          <p role="alert">
+            Check My Day could not be completed. Your manual order is unchanged.{' '}
+            <button type="button" onClick={() => void run()}>Retry</button>
+          </p>
+        )}
         {result?.state === 'blocked' && <p role="status">{ROUTING_BLOCKED_MESSAGE}</p>}
         {(result?.state === 'ready' || result?.state === 'running') && (
           <p role="status">Preparing your suggestion…</p>
@@ -111,9 +136,11 @@ export function AuthoritativeCheckMyDayPage({
                     <h2 id="authoritative-suggestion-heading">Suggested order</h2>
                     <ul>{result.explanation?.map((reason) => <li key={reason}>{reason}</li>)}</ul>
                     <CheckMyDayChoice
-                      onUseSuggested={() => onUseSuggestedOrder?.(ids)}
-                      onKeepOrder={() => onKeepMyOrder?.()}
+                      disabled={choicePending}
+                      onUseSuggested={() => saveChoice(() => onUseSuggestedOrder?.(ids))}
+                      onKeepOrder={() => saveChoice(() => onKeepMyOrder?.())}
                     />
+                    {choiceFailed && <p role="alert">Your choice could not be saved. Please try again.</p>}
                   </section>
                 )}
               </>
@@ -124,9 +151,11 @@ export function AuthoritativeCheckMyDayPage({
             <h2 id="authoritative-suggestion-heading">Suggested order</h2>
             <ul>{result.explanation?.map((reason) => <li key={reason}>{reason}</li>)}</ul>
             <CheckMyDayChoice
-              onUseSuggested={() => onUseSuggestedOrder?.(result.orderedStopIds!)}
-              onKeepOrder={() => onKeepMyOrder?.()}
+              disabled={choicePending}
+              onUseSuggested={() => saveChoice(() => onUseSuggestedOrder?.(result.orderedStopIds!))}
+              onKeepOrder={() => saveChoice(() => onKeepMyOrder?.())}
             />
+            {choiceFailed && <p role="alert">Your choice could not be saved. Please try again.</p>}
           </section>
         )}
       </section>
