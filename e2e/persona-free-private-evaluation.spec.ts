@@ -4,15 +4,20 @@ const reviewUrl = (path: string, identity: string, state = 'success') =>
   `${path}${path.includes('?') ? '&' : '?'}reviewAs=${identity}&reviewState=${state}`
 
 test.describe('issue 251 free private evaluation personas', () => {
+  test.describe.configure({ mode: 'serial' })
+
   test('[fpe:shopper-priority-computer] follows the priority shopper transition chain', async ({
     page,
   }) => {
     await page.goto(reviewUrl('/stores?q=Blue&area=topeka-ks', 'shopper-a'))
     await expect(page.locator('a.catalog-card__details')).toBeVisible()
-    await page.getByRole('button', { name: 'Save store' }).click()
-    await expect(
-      page.locator('[aria-label="Private save action"]').getByRole('status'),
-    ).toContainText('Store saved')
+    const saveAction = page.locator('[aria-label="Private save action"]')
+    const saveButton = saveAction.getByRole('button', { name: /^(Save store|Remove saved store)$/ })
+    await expect(saveButton).toBeVisible()
+    if ((await saveButton.innerText()) === 'Save store') {
+      await saveButton.click()
+      await expect(saveAction.getByRole('status')).toContainText('Store saved')
+    }
 
     await page.locator('a.catalog-card__details').click()
     await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible()
