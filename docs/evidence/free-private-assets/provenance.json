@@ -1,0 +1,586 @@
+{
+  "schemaVersion": 1,
+  "inspectedSourceSha": "8189828",
+  "inspectedSourceNote": "origin/main at the ticket implementation baseline; refresh this record when assets change.",
+  "generatedBy": "scripts/verify-free-private-assets.mjs",
+  "assets": [
+    {
+      "path": "public/icons/antique-store.svg",
+      "sha256": "cedff859a655eeac81bb3d30f09ce163347d34c351132ca3693af36da7a5adca",
+      "use": "runtime feature icon referenced by the application icon placement contract",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not."
+    },
+    {
+      "path": "public/icons/navigate.svg",
+      "sha256": "81ecd1f4b3378f1b21fe135c6f4c8169bfda8a3c26cc632d58d0355d485e6cd5",
+      "use": "runtime feature icon referenced by the application icon placement contract",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not."
+    },
+    {
+      "path": "public/icons/private-notes.svg",
+      "sha256": "1cdfe633645b33a9e7a2ae2dcd7be14909d71c5d35c707c83c8f8addfec4dde6",
+      "use": "runtime feature icon referenced by the application icon placement contract",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not."
+    },
+    {
+      "path": "public/icons/saved-store.svg",
+      "sha256": "12f2ecab12fe3fb528bab89b36ef2e33f464daa6d22da5432c072bd1f4f0f580",
+      "use": "runtime feature icon referenced by the application icon placement contract",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not."
+    },
+    {
+      "path": "public/icons/shared-trip.svg",
+      "sha256": "97466e13053d78f09bcb141cfaa75d9b6f0d3997973194a049a213debe3f146b",
+      "use": "runtime feature icon referenced by the application icon placement contract",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not."
+    },
+    {
+      "path": "public/icons/shopping-trip.svg",
+      "sha256": "585f8b3fa14422c153eabb77284d0d0d01d3e403d6a8402af9d89127679a1395",
+      "use": "runtime feature icon referenced by the application icon placement contract",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not."
+    },
+    {
+      "path": "public/icons/store-details.svg",
+      "sha256": "dc041ae922b1ea2d02bc974baa40166b28fb66910c7e7567a4ac35b04f2ba543",
+      "use": "runtime feature icon referenced by the application icon placement contract",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not."
+    },
+    {
+      "path": "public/icons/store-hours.svg",
+      "sha256": "17c667e2d464eb0855236a987950f004805efb1b1148ad96a89380708ad6855f",
+      "use": "runtime feature icon referenced by the application icon placement contract",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not."
+    },
+    {
+      "path": "public/icons/trail-map.svg",
+      "sha256": "9caf9dd65e5603190b3ee8939b44a84f14e9ecccbacd06334431e1d8bce2b253",
+      "use": "runtime feature icon referenced by the application icon placement contract",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not."
+    },
+    {
+      "path": "public/icons/treasure-find.svg",
+      "sha256": "287904a807c20806b713b5b9cdf1f88d964d9b43e68f3930e245698a07ee200c",
+      "use": "runtime feature icon referenced by the application icon placement contract",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not."
+    },
+    {
+      "path": "public/fonts/AtkinsonHyperlegible-Bold.woff2",
+      "sha256": "da8fce41a04f8498fbf79076f92d304b12e70c76f71b143c5dcfb6536c93c075",
+      "use": "self-hosted production body font",
+      "source": "public/fonts/AtkinsonHyperlegible-OFL.txt",
+      "rightsStatus": "declared_license_notice"
+    },
+    {
+      "path": "public/fonts/AtkinsonHyperlegible-OFL.txt",
+      "sha256": "07264880ba15bd664da8c605f5baa34ecd4da4a0c0091f7d2cb23a0ebce3094b",
+      "use": "self-hosted production body font",
+      "source": "public/fonts/AtkinsonHyperlegible-OFL.txt",
+      "rightsStatus": "declared_license_notice"
+    },
+    {
+      "path": "public/fonts/AtkinsonHyperlegible-Regular.woff2",
+      "sha256": "2df4ba17804bc7a36f123127966075d8427bff2df58d0d76820c1130bb1a4150",
+      "use": "self-hosted production body font",
+      "source": "public/fonts/AtkinsonHyperlegible-OFL.txt",
+      "rightsStatus": "declared_license_notice"
+    },
+    {
+      "path": "public/fonts/Newsreader-Bold.woff2",
+      "sha256": "4785c0388ea38c0b8932c275cc2b0a72067bbeb040a46d9e58068b6ad36520da",
+      "use": "self-hosted production display font",
+      "source": "public/fonts/Newsreader-OFL.txt",
+      "rightsStatus": "declared_license_notice"
+    },
+    {
+      "path": "public/fonts/Newsreader-OFL.txt",
+      "sha256": "dca5a91eaf1d4a431e74801dfa745db53856bb92ec1f982506f837a00a5a94a7",
+      "use": "self-hosted production display font",
+      "source": "public/fonts/Newsreader-OFL.txt",
+      "rightsStatus": "declared_license_notice"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/blue-finch-curios-cover.webp",
+      "sha256": "542a1a4fa4ad5413c27fd54a9baab2c9395413e8cd576d925b5144eee4ab5672",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/blue-finch-curios-gallery-aisle.webp",
+      "sha256": "d593fe3663588678af2b154727b4333d77ebe8feb9784be883a19b8054ebb390",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/blue-finch-curios-gallery-cabinet.webp",
+      "sha256": "b7bcde1c9981fecea54e1251fab0d1ecc9ff85c5e014932d57057fa75d017c9d",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/blue-finch-curios-gallery-vignette.webp",
+      "sha256": "36766b89c34b8c154f0f82edd770f701186c19da2bf1e51b05a288562e974a45",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/cedar-and-brass-cover.webp",
+      "sha256": "55c6d4b6c75afdf95d1bfea6ef0eeae22961579bf2e75228fd3bf1e2b7b3450e",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/elm-street-finds-cover.webp",
+      "sha256": "b7020c55cd91219df0c3adab2c8c7c86a8d8380d380b924050a6cd56155060d0",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/juniper-house-cover.webp",
+      "sha256": "7eba2e1920a55771f986cb4a483daa0a7cd26f579eb7e5a842799328e7494b7d",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/maple-lantern-cover.webp",
+      "sha256": "9b3a64ee5265d15c9a97b273c26007aec5205cf95b678d56e27c98e8aece06eb",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/north-star-relics-cover.webp",
+      "sha256": "0be5eb4aa14fd27e0052eeccd6741e8bba6cd23f8067e3f4aa24380aaf58634c",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/prairie-cabinet-cover.webp",
+      "sha256": "f71b6cdf671d0c94001f43187ce5ba1771aec4c6587b944ced0279a0dd9255f4",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/redbud-market-cover.webp",
+      "sha256": "e506061b3201954a5491728212878c6886b3b5fb4fd41e6e54179c7c69450701",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/sunflower-salvage-cover.webp",
+      "sha256": "a355b3131ce66fb122269ac095570f7dcf6465886aaa207730754376f18295ec",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/tallgrass-treasures-cover.webp",
+      "sha256": "7ad98ce4f5d56f152548a5851ed94340480a3d9656ac75d544628f0781d47e10",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/union-station-vintage-cover.webp",
+      "sha256": "18dc85155b6ee23476f1fa943c3223e6e852429605801b3c0542baf21230a1da",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/1280w/willow-and-wren-cover.webp",
+      "sha256": "2cd5139e938f0e7fec45774f3440940102666bdb478677030da86f76f8d8070f",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "1280x853"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/blue-finch-curios-cover.webp",
+      "sha256": "053c4a34dc5eedf2087d3924512e6f6c35ecd288510fd15f09c1daac96cc5501",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/blue-finch-curios-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/blue-finch-curios-gallery-aisle.webp",
+      "sha256": "50599f7587e38d9afc8185c2f66ff160f0db2a25ef4c6bab06a22aa84f865624",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/blue-finch-curios-gallery-aisle.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/blue-finch-curios-gallery-cabinet.webp",
+      "sha256": "de17be5b92b26faceba897cd663fcedd42c7e0be7ec302eff251e315b49194cf",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/blue-finch-curios-gallery-cabinet.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/blue-finch-curios-gallery-vignette.webp",
+      "sha256": "56d90a9c643ed9d94137b4192cfebf83237fcc3f4961ac89c01983ed64b49345",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/blue-finch-curios-gallery-vignette.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/cedar-and-brass-cover.webp",
+      "sha256": "40deb36baaf95f4c9253e8d8ecf17963dfabc9ae970fa7466d85521a2857585c",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/cedar-and-brass-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/elm-street-finds-cover.webp",
+      "sha256": "a57317b5aee32964b1552f32f60126bb0572384429988a542486d199c633b8ac",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/elm-street-finds-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/juniper-house-cover.webp",
+      "sha256": "32842c621fa703798cbbd30670c02e915c0dc2923f390aedbb5412a90145f246",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/juniper-house-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/maple-lantern-cover.webp",
+      "sha256": "4c5d249bd10f2664511caea1a893affa4054f9e95c7b698def8467bc1e9cfa0f",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/maple-lantern-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/north-star-relics-cover.webp",
+      "sha256": "959d60cef68a498ac64b36b1f23bb54133b1e085adeef3359fda8021d862af53",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/north-star-relics-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/prairie-cabinet-cover.webp",
+      "sha256": "1189be43627a98f135c800c1a5581d35aa93bc3dfb3584b6f29a98aefbc8551b",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/prairie-cabinet-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/redbud-market-cover.webp",
+      "sha256": "0e84acbb0b01e6461ddd9e8d67e7abda5d66a7ccec3edbdbc1383eab65a3f484",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/redbud-market-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/sunflower-salvage-cover.webp",
+      "sha256": "6a737ffb0b586e7f5bafd1bac03c0819b2c5da164587a36aa23d85a8ab133e0f",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/sunflower-salvage-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/tallgrass-treasures-cover.webp",
+      "sha256": "8cb138bc774e4cc4acdad0646fa76f471b4006031fc9c76f7a499e4aaec5e60b",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/tallgrass-treasures-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/union-station-vintage-cover.webp",
+      "sha256": "58fb3201fbffa9631389bcd107ea117e43d0849133e913e6844bfe2cc9a45ac8",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/union-station-vintage-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/480w/willow-and-wren-cover.webp",
+      "sha256": "0631348c136d72762059140d15033e102178444e50b2e9df93f140714bcbdb04",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "480x320",
+      "derivativeParent": "public/images/synthetic-stores/1280w/willow-and-wren-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/blue-finch-curios-cover.webp",
+      "sha256": "463224139b9e589a01cf413edeb0c5a7e885c15415acefaa68fdea9cbf2d8264",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/blue-finch-curios-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/blue-finch-curios-gallery-aisle.webp",
+      "sha256": "2001a53fd237a25b88d12cadbdfd6dcea24d2f928c4c479f557ad59f87d3c3fb",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/blue-finch-curios-gallery-aisle.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/blue-finch-curios-gallery-cabinet.webp",
+      "sha256": "9014f80670afb4d68021c8bb4eda0e3a5f190bcc166df6897b7331e857c53f82",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/blue-finch-curios-gallery-cabinet.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/blue-finch-curios-gallery-vignette.webp",
+      "sha256": "f1fc63cb3f281c8f56b1c90bfcb6cb4416a5904d68c0699d630ab9924accf667",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/blue-finch-curios-gallery-vignette.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/cedar-and-brass-cover.webp",
+      "sha256": "be34e74bc9ecbf8fd0b709ca7bc166042ad5fd0846196012f1a90bae45fb4ef3",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/cedar-and-brass-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/elm-street-finds-cover.webp",
+      "sha256": "2825075493543774ebc7e51541bd0e595076f2124400a03606d65c5ce578f2aa",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/elm-street-finds-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/juniper-house-cover.webp",
+      "sha256": "4247d13b26010d523f57d4056985d75906da01b183db0e91274f041c70644893",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/juniper-house-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/maple-lantern-cover.webp",
+      "sha256": "0c08a53b387761d7c98fbbc1494393653c47adabb7d31ef88689fd22112cbf85",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/maple-lantern-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/north-star-relics-cover.webp",
+      "sha256": "1f579f8847c750ef1dc59557bf6eb7462cf63664025bdd4c1983e8de9370b6d3",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/north-star-relics-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/prairie-cabinet-cover.webp",
+      "sha256": "8e18dfce774aa6135dfd97ce88d5a92353298a6cdf0d007f0405712f4f8c2aca",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/prairie-cabinet-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/redbud-market-cover.webp",
+      "sha256": "f12d42ff4f598abefe80ae53fbcc82f2716265e7b9685dd30e715dccf99a6348",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/redbud-market-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/sunflower-salvage-cover.webp",
+      "sha256": "fddad5ca6d281e88cc4e9cf3c949408e991ccc9cfccd1df61c2c37784f0119ca",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/sunflower-salvage-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/tallgrass-treasures-cover.webp",
+      "sha256": "0045d951433954f6845760fae9385ddf18d465188076af41c14650b994b73ed5",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/tallgrass-treasures-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/union-station-vintage-cover.webp",
+      "sha256": "9817e5c20bf115d9203f1510900a0fe08da1fdea231cd77b5f32b36a07504b98",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/union-station-vintage-cover.webp"
+    },
+    {
+      "path": "public/images/synthetic-stores/800w/willow-and-wren-cover.webp",
+      "sha256": "cccd90f5a5bd2810cadda3a32575afd2c58d84dd51e19a5cf6be2d5d06d4676a",
+      "use": "private evaluation synthetic store image served by src/features/catalog/demoClient.ts",
+      "source": "docs/evidence/ui-03/PROVENANCE.md",
+      "rightsStatus": "declared_internal_synthetic",
+      "syntheticRestriction": "Internal Alpha fixtures only; fictional stores; not public or commercial evidence",
+      "dimensions": "800x533",
+      "derivativeParent": "public/images/synthetic-stores/1280w/willow-and-wren-cover.webp"
+    },
+    {
+      "path": "public/app-icon-192.png",
+      "sha256": "2a545609640611d6d1482968b40db3e232b36f0a2f41ebea194cf700fca46cc3",
+      "use": "rendered derivative of public/app-icon.svg for install and touch-icon surfaces",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "derivativeParent": "public/app-icon.svg",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not.",
+      "dimensions": "192x192"
+    },
+    {
+      "path": "public/app-icon-512.png",
+      "sha256": "81029038bcf60c720976067fb0d94b52f460e113dc3bc21fa1688836fc74651e",
+      "use": "rendered derivative of public/app-icon.svg for install and touch-icon surfaces",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "derivativeParent": "public/app-icon.svg",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not.",
+      "dimensions": "512x512"
+    },
+    {
+      "path": "public/app-icon.svg",
+      "sha256": "474a6545363bd22223c5f0949b1f6a45eac9f1099d7898e008ec32a2ce7c9622",
+      "use": "runtime install mark, favicon, and app identity",
+      "source": "docs/design/ICON_PLACEMENT_SPEC.md",
+      "rightsStatus": "unknown",
+      "rightsEvidence": "Approved placement and appearance are recorded; creator or license clearance is not."
+    }
+  ]
+}
