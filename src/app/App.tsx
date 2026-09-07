@@ -837,6 +837,7 @@ function TripCheckMyDayRoute({ client }: { client: TripClient }) {
     <AuthoritativeCheckMyDayPage
       requestServer={() => client.requestCheckMyDay!(tripId)}
       pollServer={(requestId) => client.getCheckMyDaySuggestion!(requestId)}
+      loadTrip={() => client.get(tripId)}
       onUseSuggestedOrder={(ids) => persist('suggested', ids)}
       onKeepMyOrder={async () => {
         const trip = await client.get(tripId)
