@@ -556,6 +556,35 @@ describe('app shell', () => {
     expect(screen.queryByRole('heading', { name: /claim a listing/i })).not.toBeInTheDocument()
   })
 
+  it('uses server-owned availability for the normal owner search branch', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/for-stores']}>
+        <App
+          clients={{
+            catalog: demoCatalogClient,
+            ownerIntakeAvailability: {
+              getAvailability: async () => ({
+                routeVisible: true,
+                intakeAvailable: true,
+                claimsAvailable: true,
+              }),
+            },
+          }}
+        />
+      </MemoryRouter>,
+    )
+
+    await user.click((await screen.findAllByRole('button', { name: 'Add or claim my store' }))[0])
+    await user.type(screen.getByLabelText('Public store name'), 'Blue')
+    await user.click(screen.getByRole('button', { name: 'Search stores' }))
+
+    expect(
+      await screen.findByRole('link', { name: /claim blue finch curios/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /my store is missing/i })).toBeInTheDocument()
+  })
+
   it('uses the injected auth provider on the sign-in route', async () => {
     const user = userEvent.setup()
     const signIn = vi.fn(async () => ({ kind: 'error' as const }))
