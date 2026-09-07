@@ -11,7 +11,10 @@ insert into auth.sessions(id,user_id,created_at,updated_at) values
 set local role identity_service;
 insert into app_private.profiles(user_id,verified_email_snapshot,age_18_attested_at) values
   ('99000000-0000-4000-8000-000000000101','rename-a@example.invalid',statement_timestamp()),
-  ('99000000-0000-4000-8000-000000000102','rename-b@example.invalid',statement_timestamp());
+  ('99000000-0000-4000-8000-000000000102','rename-b@example.invalid',statement_timestamp())
+on conflict (user_id) do update set
+  verified_email_snapshot=excluded.verified_email_snapshot,
+  age_18_attested_at=excluded.age_18_attested_at;
 insert into app_private.role_grants(subject_user_id,role,state) values
   ('99000000-0000-4000-8000-000000000101','shopper','active'),
   ('99000000-0000-4000-8000-000000000102','shopper','active');
