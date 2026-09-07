@@ -105,6 +105,8 @@ Private saves, trips, trip history, personal ratings, notes, and accepted Trip I
 
 For an individual supported private record, revoke reads immediately, allow only a short Undo, and delete both its primary database row and associated Storage objects within 24 hours. Account deletion revokes all sessions and grants immediately, permits cancellation for seven clearly disclosed days, and deletes primary database and Storage data by day 8 when not cancelled. Cancellation restores ordinary access only; privileged grants remain revoked until normal audited identity/authority/regrant checks pass. Scheduling deletion also hides every active/pending authored public review and removes its aggregate effect transactionally. The seven-day cancellation-only account mode may restore the prior published/pending state only when the review remains eligible and is not held/removed. Day-8 processing deletes the public display name and all current/historical review text; a live moderation/legal case may retain only the minimum evidence already copied into its restricted record. Keep only content-free review/version/audit metadata and a content-free opaque deletion receipt outside the restored dataset for the backup window. A restore procedure must reapply completed deletion requests before users regain access.
 
+Before scheduling account deletion or issuing/regenerating an export download URL, the server requires shopper password authentication within 10 minutes and the shopper's MFA when enrolled. Cancelling deletion restores ordinary account access only; privileged grants require the normal audited identity/authority/regrant path.
+
 Use UTC authentication timestamps. On the first daily job at or after the third anniversary of last successful sign-in, schedule deletion for 90 days later and send the 90-day warning; send 30- and 7-day warnings at their milestones. A successful sign-in atomically cancels the schedule. Idempotency is `(account, milestone)`; retries cannot duplicate schedules or warnings. Delivery failure alerts operations but does not extend retention. At the scheduled instant apply the seven-day account-deletion cancellation period, completing primary deletion by day 98 unless cancelled. Leap-day anniversaries use February's last day. Use no browsing, trip, device-location, analytics, or behavioral state. Synthetic Internal Alpha accounts are excluded and reset manually.
 
 Candidate Link extraction must never create or update public store, event, review, claim, or Store Partner data. Extracted values remain unverified private suggestions until the recipient reviews them. A source URL is provenance, not proof that its content is accurate, licensed for republication, or authorized by a business owner.
@@ -842,10 +844,6 @@ Scope and constraints: [ADR 0007](docs/adr/0007-protected-internal-synthetic-rev
 ## Governed internal synthetic admission
 
 Scope and constraints: [ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md). This reference supplies no new assessment authorization; see [current assessment boundary](PRD.md#assessment-environment-boundary).
-
-## External support requirements
-
-- **External support:** before first owner contact, publish one monitored support address/form and one security contact. During Private Beta acknowledge security/privacy reports within four clock hours and other tickets within two business days; during Regional Public MVP acknowledge security/privacy reports within four clock hours and other tickets within one business day. Publish planned/unplanned incident status in the PWA and status channel; name the on-call owner and backup in the release runbook. Approved 2026-07-31.
 
 ## Foundation acceptance
 

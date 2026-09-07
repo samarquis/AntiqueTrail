@@ -300,6 +300,10 @@ Public store records may include:
 - Never request social credentials, embed or synchronize a feed, scrape posts, import tracking parameters, or imply that the external profile is Antique Trail content.
 - A separate Vendor Contributor role is deferred until pilot demand and authorization testing justify it. MVP may label vendor-supplied content posted by the Store Representative.
 
+### Corrections
+
+Anyone may draft a correction, but submission requires just-in-time verified account authentication; cancellation writes nothing. The submitter can read only the reason-neutral status of their own report, with no anonymous submission or internal case-detail access. The exact commands, authorization tests, retry handling, and case lifecycle live in Package 3 of PACKAGE_CONTRACTS.md.
+
 ## Store categories and attributes
 
 Possible tags:

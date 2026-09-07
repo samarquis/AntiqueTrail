@@ -286,7 +286,7 @@ Each row identifies a source passage and its current owner. "Existing current ow
 | `PRODUCT_DECISIONS.md` / Startup Learning MVP | [PRD.md / Startup Learning MVP (`SLM-01`)](../../../PRD.md#startup-learning-mvp-slm-01) | Existing current owner |
 | `PRODUCT_DECISIONS.md` / Startup free-service and hosting boundary | [PRD.md / Budget and commercial direction](../../../PRD.md#budget-and-commercial-direction) | Existing current owner |
 | `PRODUCT_DECISIONS.md` / Product promotion is not monetization | [PRD.md / Regional launch strategy](../../../PRD.md#regional-launch-strategy) | Existing current owner |
-| `PRODUCT_DECISIONS.md` / Correction, claim, and review-delete closure decisions | [PRD.md / Business accounts](../../../PRD.md#business-accounts) | Existing current owner |
+| `PRODUCT_DECISIONS.md` / Correction, claim, and review-delete closure decisions | [PRD / Corrections](../../../PRD.md#corrections); [PRD / Business accounts](../../../PRD.md#business-accounts); [Security / Reviews and abuse](../../../SECURITY_AND_TRUST.md#reviews-and-abuse) | Split across current product and exact security owners |
 | `PRODUCT_DECISIONS.md` / Private shopper-content lifetime | [SECURITY_AND_TRUST.md / Privacy by default](../../../SECURITY_AND_TRUST.md#privacy-by-default) | Existing current owner |
 | `PRODUCT_DECISIONS.md` / Private-content deletion and backup aging | [SECURITY_AND_TRUST.md / Privacy by default](../../../SECURITY_AND_TRUST.md#privacy-by-default) | Existing current owner |
 | `PRODUCT_DECISIONS.md` / Inactive-account lifecycle | [SECURITY_AND_TRUST.md / Privacy by default](../../../SECURITY_AND_TRUST.md#privacy-by-default) | Existing current owner |
@@ -307,7 +307,7 @@ Each row identifies a source passage and its current owner. "Existing current ow
 | `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Portability | [SECURITY_AND_TRUST.md / User controls](../../../SECURITY_AND_TRUST.md#user-controls) | Existing current owner |
 | `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Browser/device baseline | [DESIGN_SYSTEM.md / Browser and device acceptance matrix](../../../DESIGN_SYSTEM.md#browser-and-device-acceptance-matrix) | Existing current owner |
 | `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Older-adult cohort | [PRD.md / Human usability acceptance](../../../PRD.md#human-usability-acceptance) | Moved |
-| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / External support | [SECURITY_AND_TRUST.md / External support requirements](../../../SECURITY_AND_TRUST.md#external-support-requirements) | Moved |
+| `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / External support | [SECURITY_AND_TRUST.md / Incident response](../../../SECURITY_AND_TRUST.md#incident-response) | Moved |
 | `PRODUCT_DECISIONS.md` / Closed lifecycle, portability, usability, and release decisions / Metric gate RG-01 | [PRD.md / Operating scorecard and RG-01](../../../PRD.md#operating-scorecard-and-rg-01) | Existing current owner |
 | `PRODUCT_DECISIONS.md` / Public review and scalable claim policy | [PRD.md / Review requirements](../../../PRD.md#review-requirements) | Existing current owner |
 | `PRODUCT_DECISIONS.md` / Social sign-in for admitted accounts | [SECURITY_AND_TRUST.md / Authentication](../../../SECURITY_AND_TRUST.md#authentication) | Existing current owner |
@@ -352,3 +352,13 @@ Initial local candidate `13e646c9ed9cbec80fa000222a19a1ecb784fdbd` received sepa
 | Standards P2 | Browser/device and RG-01 rules were assigned to security despite their product/design ownership | Routed them to DESIGN_SYSTEM acceptance and PRD success metrics |
 
 The initial verdict does not approve the revised candidate. The final verification and follow-up review result are recorded below when available; a full-manifest acceptance review and hosted checks remain separate from this owner-review checkpoint.
+
+### Inherited typography interpretation for owner review
+
+The baseline already combined an essential-text minimum of 16px in PRD with DESIGN_SYSTEM typography minima of 14px mobile core text and 15px core eyebrow/section labels, while primary application body remained 18px/1.5. Consolidation preserves those original values in the design owner; it does not authorize new sizes. The open interpretation is whether those narrower core-content minima permit sub-16px essential text. All minima can be satisfied at 16px or above, but this amendment does not silently select a changed visual contract or certify typography acceptance. Resolve that scope/precedence interpretation before dependent typography changes or a claim that the design requirements are fully reconciled.
+
+The revised Standards review at `819d0b016cde6cb3e6d9af6993cc87f220b79612` found the four initial Standards findings resolved and requested a more precise correction/claim/review-delete mapping. That mapping is now split into the actual owning sections above; no deletion or Undo control was removed. Final evidence records distinguish that local follow-up from full-manifest acceptance.
+
+The Spec follow-up at `819d0b016cde6cb3e6d9af6993cc87f220b79612` found that shopper password authentication within 10 minutes plus enrolled MFA, before account deletion or issuing/regenerating export URLs, had lost its live owner during consolidation. That precise requirement is restored under Security / Privacy by default. The duplicate-merge historical alias now points to Directory data provenance and integrity. The support anchor was confirmed present by the local link checker, contrary to the review's missing-anchor description; its duplicated paragraph has now been consolidated into the existing Incident response section and both references were updated.
+
+The follow-up also checked preservation of inactive-account timing, Candidate Share and invitation lifecycle, partner exit, duplicate collision mechanics, routing scoring, public-review lifecycle, paid servicing/research boundaries, human cohort acceptance, and repeated browser/device tests. These checks are scoped review evidence and do not certify the full manifest or release.
