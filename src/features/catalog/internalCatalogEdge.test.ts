@@ -9,10 +9,12 @@ it('forwards only the configured allowed origin and provider-verified actor to t
     | ((request: Request, info: { remoteAddr: { hostname: string } }) => Promise<Response>)
     | undefined
   const rpc = vi.fn(async () => ({ data: [], error: null }))
-  const createClient = vi.fn(() => ({
-    rpc,
-    auth: { getUser: async () => ({ data: { user: { id: 'verified-user' } } }) },
-  }))
+  const createClient = vi.fn(
+    (_url: string, _key: string, _options?: { accessToken?: () => Promise<string> }) => ({
+      rpc,
+      auth: { getUser: async () => ({ data: { user: { id: 'verified-user' } } }) },
+    }),
+  )
   const values: Record<string, string> = {
     SUPABASE_URL: 'https://backend.invalid',
     SUPABASE_ANON_KEY: 'anon',
@@ -59,11 +61,13 @@ it('forwards only the configured allowed origin and provider-verified actor to t
   ).toBe(200)
   expect(createClient).toHaveBeenCalledWith(
     'https://backend.invalid',
-    'gateway',
+    'anon',
     expect.objectContaining({
       global: { headers: { Origin: 'https://review.invalid' } },
+      accessToken: expect.any(Function),
     }),
   )
+  expect(await createClient.mock.calls[0]?.[2]?.accessToken?.()).toBe('gateway')
   expect(rpc).toHaveBeenCalledWith(
     'synthetic_catalog_gateway_request',
     expect.objectContaining({
