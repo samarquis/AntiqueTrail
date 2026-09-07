@@ -1,4 +1,4 @@
-select no_plan();
+select plan(43);
 
 select has_function('app_public', 'set_trip_stop_priority', array['text', 'text', 'text', 'bigint'], 'priority RPC keeps its public signature');
 select has_function('app_public', 'set_trip_stop_dwell', array['text', 'text', 'integer', 'bigint'], 'dwell RPC keeps its public signature');
@@ -102,8 +102,8 @@ reset role;
 select set_config('request.jwt.claims', '{"sub":"25600000-0000-4000-8000-000000000001","role":"authenticated","session_id":"25600000-0000-4000-8000-000000000011"}', true);
 set local role authenticated;
 select app_public.revoke_current_session('issue256_revoke');
-select throws_ok($$select app_public.set_trip_stop_priority('25600000-0000-4000-8000-000000000101','25600000-0000-4000-8000-000000000201','prefer',14)$$, 'P0001', 'authorization_lost', 'revoked priority caller is denied');
-select throws_ok($$select app_public.set_trip_stop_dwell('25600000-0000-4000-8000-000000000101','25600000-0000-4000-8000-000000000201',30,14)$$, 'P0001', 'authorization_lost', 'revoked dwell caller is denied');
+select throws_ok($$select app_public.set_trip_stop_priority('25600000-0000-4000-8000-000000000101','25600000-0000-4000-8000-000000000201','prefer',14)$$, 'P0001', 'not_allowed', 'revoked priority caller is denied');
+select throws_ok($$select app_public.set_trip_stop_dwell('25600000-0000-4000-8000-000000000101','25600000-0000-4000-8000-000000000201',30,14)$$, 'P0001', 'not_allowed', 'revoked dwell caller is denied');
 set local role identity_service;
 select is((select t.version from trip_private.trips as t where t.trip_id = '25600000-0000-4000-8000-000000000101'::uuid), 14::bigint, 'revoked requests do not mutate the trip version');
 
@@ -112,7 +112,10 @@ rollback;
 begin;
 insert into auth.users(id) values ('25600000-0000-4000-8000-000000000902');
 insert into auth.sessions(id, user_id, created_at, updated_at) values ('25600000-0000-4000-8000-000000000912', '25600000-0000-4000-8000-000000000902', statement_timestamp(), statement_timestamp());
-insert into app_private.profiles(user_id, verified_email_snapshot, age_18_attested_at) values ('25600000-0000-4000-8000-000000000902', 'issue256-c@example.invalid', statement_timestamp());
+insert into app_private.profiles(user_id, verified_email_snapshot, age_18_attested_at) values ('25600000-0000-4000-8000-000000000902', 'issue256-c@example.invalid', statement_timestamp())
+on conflict (user_id) do update set
+  verified_email_snapshot = excluded.verified_email_snapshot,
+  age_18_attested_at = excluded.age_18_attested_at;
 insert into app_private.role_grants(subject_user_id, role) values ('25600000-0000-4000-8000-000000000902', 'shopper');
 insert into trip_private.trips(trip_id, owner_id, area_id, name, local_date, version)
 select '25600000-0000-4000-8000-000000000992', '25600000-0000-4000-8000-000000000902', id, 'Conflict trip', date '2026-09-08', 20
