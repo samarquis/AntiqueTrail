@@ -35,6 +35,19 @@ describe('catalog RPC client', () => {
     expect(result.asOfUtc).toBe('2026-01-01T00:00:00Z')
   })
 
+  it('preserves the SQL timezone_name projection for local-hours rendering', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        stores: [{ id: '1', slug: 'oak-mall', name: 'Oak Mall', timezone_name: 'America/Chicago' }],
+      },
+      error: null,
+    })
+
+    const result = await createCatalogClient({ rpc }).list({})
+
+    expect(result.stores[0].timeZone).toBe('America/Chicago')
+  })
+
   it('maps not-found details to null and does not leak row errors', async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: { code: 'NOT_FOUND' } })
     await expect(createCatalogClient({ rpc }).details('hidden-store')).resolves.toBeNull()

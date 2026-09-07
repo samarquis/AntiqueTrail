@@ -186,7 +186,7 @@ export function todayHoursSummary(store: CatalogStore, now = new Date()): TodayH
   const today = store.hours.find((day) => day.weekday === weekday)
   const dayLabel = today?.label || displayDayLabel(weekday)
 
-  if (!today || today.status === 'unavailable' || !today.intervals.length) {
+  if (!today || today.status === 'unavailable') {
     return {
       dayLabel,
       hoursLabel: 'Hours unavailable',
@@ -196,6 +196,14 @@ export function todayHoursSummary(store: CatalogStore, now = new Date()): TodayH
   }
   if (today.status === 'closed') {
     return { dayLabel, hoursLabel: 'Closed', openState: 'closed', openStateLabel: 'Closed today' }
+  }
+  if (!today.intervals.length) {
+    return {
+      dayLabel,
+      hoursLabel: 'Hours unavailable',
+      openState: 'unavailable',
+      openStateLabel: 'Open state unavailable',
+    }
   }
 
   const minuteOfDay = zoned.hour * 60 + zoned.minute
