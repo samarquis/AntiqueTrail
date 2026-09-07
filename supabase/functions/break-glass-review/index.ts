@@ -12,9 +12,21 @@ const url = Deno.env.get('SUPABASE_URL')
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
 const verifierJwt = Deno.env.get('REVIEW_CREDENTIAL_VERIFIER_JWT')
 const verifierToken = Deno.env.get('REVIEW_CREDENTIAL_PROVIDER_TOKEN')
-const verifierUrl = Deno.env.get('REVIEW_CREDENTIAL_VERIFY_URL')
+const verifierUrl = exactHttps(Deno.env.get('REVIEW_CREDENTIAL_VERIFY_URL'))
 const appOrigin = Deno.env.get('APP_ORIGIN')
 const enabled = Deno.env.get('BREAK_GLASS_REVIEW_ACCEPTED') === 'true'
+
+function exactHttps(raw: string | undefined): string | undefined {
+  if (!raw) return undefined
+  try {
+    const value = new URL(raw)
+    return value.protocol === 'https:' && !value.username && !value.password && !value.hash
+      ? value.toString()
+      : undefined
+  } catch {
+    return undefined
+  }
+}
 
 function response(status: number, body: unknown, origin?: string) {
   return new Response(JSON.stringify(body), {
@@ -95,7 +107,8 @@ Deno.serve(async (request) => {
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
     })
-    if (!verification.ok) return response(503, { status: 'verification_unavailable' }, appOrigin)
+    if (!verification.ok || !verification.headers.get('content-type')?.includes('application/json'))
+      return response(503, { status: 'verification_unavailable' }, appOrigin)
     const proof = parseBreakGlassVerification(
       command.payload.challengeId,
       await verification.json(),

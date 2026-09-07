@@ -17,6 +17,8 @@ describe('break-glass review Edge boundary', () => {
     expect(edge).toContain("'cache-control': 'no-store'")
     expect(edge).toContain("referrerPolicy: 'no-referrer'")
     expect(edge).toContain('REVIEW_CREDENTIAL_VERIFIER_JWT')
+    expect(edge).toContain("value.protocol === 'https:'")
+    expect(edge).toContain("content-type')?.includes('application/json')")
     expect(parser).toContain("operation === 'packet'")
     expect(parser).toContain("operation === 'submit'")
     expect(parser).toContain('invalid shape')
