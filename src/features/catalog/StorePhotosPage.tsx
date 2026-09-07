@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorState, LoadingState } from './states'
-import { catalogAppHref, readBrowseReturn, responsiveCatalogImage } from './shared'
+import { CatalogLink, catalogAppHref, readBrowseReturn, responsiveCatalogImage } from './shared'
 import type { CatalogClient, CatalogStore } from './types'
 import {
   MEDIA_OVERLAY_CONTROL_CLASS,
@@ -61,7 +61,9 @@ export function StorePhotosPage({ client, slug }: { client: CatalogClient; slug:
       <main>
         <h1>Store not found</h1>
         <p>That store is not available in the catalog.</p>
-        <a href={catalogAppHref(readBrowseReturn()?.href ?? '/stores')}>Back to stores</a>
+        <CatalogLink to={catalogAppHref(readBrowseReturn()?.href ?? '/stores')}>
+          Back to stores
+        </CatalogLink>
       </main>
     )
   return <StorePhotosView store={state.store} />
@@ -218,13 +220,13 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
   if (media.length === 0) {
     return (
       <main className="store-photos">
-        <a className="store-photos__back" href={detailsHref}>
+        <CatalogLink className="store-photos__back" to={detailsHref}>
           <span aria-hidden="true">←</span> {backLabel}
-        </a>
+        </CatalogLink>
         <h1>{store.name}</h1>
         <p className="honesty-note">This store has not published any photos yet.</p>
         <p>
-          <a href={detailsHref}>Visit store details</a>
+          <CatalogLink to={detailsHref}>Visit store details</CatalogLink>
         </p>
       </main>
     )
@@ -317,9 +319,9 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
 
       <div ref={backgroundRef} className="store-photos__background">
         <header className="store-photos__header">
-          <a className="store-photos__back" href={detailsHref}>
+          <CatalogLink className="store-photos__back" to={detailsHref}>
             <span aria-hidden="true">←</span> {backLabel}
-          </a>
+          </CatalogLink>
           <h1>{store.name}</h1>
           <p className="store-photos__location">
             {store.town}, {store.state}
