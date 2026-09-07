@@ -44,6 +44,32 @@ describe('configured authoritative account operations', () => {
     expect(verifyOtp).not.toHaveBeenCalled()
   })
 
+  it('submits recovery only to the dedicated server function and does not install a session', async () => {
+    const invoke = vi.fn(async () => ({ data: { state: 'completed' }, error: null }))
+    const updateUser = vi.fn()
+    const signOut = vi.fn(async () => ({ error: null }))
+    const provider = createAuthProvider({
+      functions: { invoke },
+      auth: { updateUser, signOut },
+    } as never)
+    await expect(
+      provider.completePasswordRecovery?.({
+        tokenHash: 'opaque-token',
+        password: 'new-password-123',
+        requestId: '00000000-0000-4000-8000-000000000001',
+      }),
+    ).resolves.toEqual({ kind: 'completed' })
+    expect(invoke).toHaveBeenCalledWith('auth-recovery-complete', {
+      body: {
+        token_hash: 'opaque-token',
+        password: 'new-password-123',
+        request_id: '00000000-0000-4000-8000-000000000001',
+      },
+    })
+    expect(updateUser).not.toHaveBeenCalled()
+    expect(signOut).not.toHaveBeenCalled()
+  })
+
   it('installs verified email sessions into the configured SDK before returning authenticated', async () => {
     const session = {
       access_token: 'verified-access',

@@ -48,6 +48,7 @@ import {
   createRpcSessionRegistry,
   type AccountRole,
   type AuthProviderAdapter,
+  type PasswordRecoveryRequest,
   type ProviderSession,
 } from '../features/auth'
 
@@ -211,6 +212,17 @@ export function createAuthProvider<
       }
       await remember(returnedSession)
       return { kind: 'authenticated', session }
+    },
+    async completePasswordRecovery(request: PasswordRecoveryRequest) {
+      const result = await supabase.functions.invoke('auth-recovery-complete', {
+        body: {
+          token_hash: request.tokenHash,
+          password: request.password,
+          request_id: request.requestId,
+        },
+      })
+      if (result.error || result.data?.state !== 'completed') return { kind: 'error' }
+      return { kind: 'completed' }
     },
     async signInWithProvider(providerId, returnTo) {
       const target = new URL('/auth/callback', window.location.origin)
