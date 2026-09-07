@@ -10,6 +10,11 @@ import {
   type StoreApplicationAdminClient,
   type StoreApplicationClient,
 } from '../features/partners/storeApplications'
+import {
+  unavailableOwnerIntakeAvailabilityClient,
+  type OwnerIntakeAvailability,
+  type OwnerIntakeAvailabilityClient,
+} from '../features/partners/ownerIntakeAvailability'
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { RecordAuditPage, AdminAuditRoutes } from '../features/admin/audit'
 import { Link, Navigate, NavLink, Outlet, Route, useLocation, useParams } from 'react-router-dom'
@@ -160,9 +165,6 @@ import type { ReviewHarnessRuntime } from '../review-harness/types'
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
 const unavailableAlphaAccount = null
 const unavailableExternalAccounts: SyntheticTestAccount[] = []
-// Claims are available only in the local review harness until the production
-// authority boundary is approved.
-const publicListingClaimsEnabled = import.meta.env.VITE_REVIEW_HARNESS === 'true'
 const blockedCheckMyDayProvider: CheckMyDayProvider = {
   async getCoordinateMatrix() {
     throw new Error('Routing provider is disabled until R-01 is approved.')
@@ -501,6 +503,39 @@ function OwnerAcquisitionRoute({
 }) {
   const client = useCatalogClient(catalog)
   return <OwnerAcquisitionPage catalog={client} intakeAvailable={intakeAvailable} sales={sales} />
+}
+
+function OwnerIntakeAvailabilityGuard({
+  client,
+  requirement,
+  children,
+}: {
+  client: OwnerIntakeAvailabilityClient
+  requirement: keyof OwnerIntakeAvailability
+  children: (availability: OwnerIntakeAvailability) => ReactNode
+}) {
+  const [state, setState] = useState<
+    | { kind: 'loading' }
+    | { kind: 'ready'; availability: OwnerIntakeAvailability }
+    | { kind: 'unavailable' }
+  >({ kind: 'loading' })
+  useEffect(() => {
+    let cancelled = false
+    setState({ kind: 'loading' })
+    client.getAvailability().then(
+      (availability) => {
+        if (!cancelled) setState({ kind: 'ready', availability })
+      },
+      () => {
+        if (!cancelled) setState({ kind: 'unavailable' })
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [client])
+  if (state.kind !== 'ready' || !state.availability[requirement]) return <NotFound />
+  return <>{children(state.availability)}</>
 }
 
 function StoreBrowser({
@@ -879,6 +914,7 @@ export interface AppClients {
   storeApplications?: StoreApplicationClient
   promotion?: PromotionClient
   storeApplicationAdmin?: StoreApplicationAdminClient
+  ownerIntakeAvailability?: OwnerIntakeAvailabilityClient
   portal?: PortalClient
   billingServicing?: ServicingClient
   billingSales?: SalesClient
@@ -931,6 +967,8 @@ export default function App({
   const readinessClient = clients.readiness ?? unavailableReadinessClient
   const billingClient = clients.billing ?? unavailableBillingClient
   const betaClient = clients.beta ?? unavailableBetaClient
+  const ownerIntakeAvailabilityClient =
+    clients.ownerIntakeAvailability ?? unavailableOwnerIntakeAvailabilityClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
   const tripOfflineRef = useRef<TripOfflineRuntime>(
     runtime.tripOffline ?? createTripOfflineRuntime(),
@@ -951,11 +989,16 @@ export default function App({
       <PartnerAdminPage
         client={partnerAdminClient}
         applications={
-          publicListingClaimsEnabled ? (
-            <StoreApplicationAdminPanel
-              client={clients.storeApplicationAdmin ?? unavailableStoreApplicationAdminClient}
-            />
-          ) : undefined
+          <OwnerIntakeAvailabilityGuard
+            client={ownerIntakeAvailabilityClient}
+            requirement="intakeAvailable"
+          >
+            {() => (
+              <StoreApplicationAdminPanel
+                client={clients.storeApplicationAdmin ?? unavailableStoreApplicationAdminClient}
+              />
+            )}
+          </OwnerIntakeAvailabilityGuard>
         }
       />
     ),
@@ -1010,15 +1053,18 @@ export default function App({
           <Route
             path="/for-stores"
             element={
-              publicListingClaimsEnabled ? (
-                <OwnerAcquisitionRoute
-                  catalog={clients.catalog}
-                  sales={clients.billingSales}
-                  intakeAvailable={runtime.reviewHarness?.state === 'success'}
-                />
-              ) : (
-                <NotFound />
-              )
+              <OwnerIntakeAvailabilityGuard
+                client={ownerIntakeAvailabilityClient}
+                requirement="routeVisible"
+              >
+                {(availability) => (
+                  <OwnerAcquisitionRoute
+                    catalog={clients.catalog}
+                    sales={clients.billingSales}
+                    intakeAvailable={availability.intakeAvailable}
+                  />
+                )}
+              </OwnerIntakeAvailabilityGuard>
             }
           />
           <Route path="/install" element={<InstallPage />} />
@@ -1245,26 +1291,45 @@ export default function App({
             path="/reviews/restrictions/:restrictionId/appeal"
             element={<RestrictionAppeal client={reviewClient} />}
           />
-          {['/stores/add', '/store-applications', '/store-applications/:applicationId'].map(
-            (path) => (
-              <Route
-                key={path}
-                path={path}
-                element={
-                  publicListingClaimsEnabled ? (
+          {['/stores/add', '/store-applications'].map((path) => (
+            <Route
+              key={path}
+              path={path}
+              element={
+                <OwnerIntakeAvailabilityGuard
+                  client={ownerIntakeAvailabilityClient}
+                  requirement="routeVisible"
+                >
+                  {() => (
                     <RequireSession>
                       <StoreApplicationPage
                         client={clients.storeApplications ?? unavailableStoreApplicationClient}
                         partner={partnerClient}
                       />
                     </RequireSession>
-                  ) : (
-                    <NotFound />
-                  )
-                }
-              />
-            ),
-          )}
+                  )}
+                </OwnerIntakeAvailabilityGuard>
+              }
+            />
+          ))}
+          <Route
+            path="/store-applications/:applicationId"
+            element={
+              <OwnerIntakeAvailabilityGuard
+                client={ownerIntakeAvailabilityClient}
+                requirement="routeVisible"
+              >
+                {() => (
+                  <RequireSession>
+                    <StoreApplicationPage
+                      client={clients.storeApplications ?? unavailableStoreApplicationClient}
+                      partner={partnerClient}
+                    />
+                  </RequireSession>
+                )}
+              </OwnerIntakeAvailabilityGuard>
+            }
+          />
           <Route path="/partner/join" element={<PartnerJoinPage client={partnerClient} />} />
           <Route path="/partner/verify" element={<PartnerVerifyPage client={partnerClient} />} />
           <Route path="/partner/draft" element={<PartnerDraftPage client={partnerClient} />} />
@@ -1272,13 +1337,16 @@ export default function App({
           <Route
             path="/partner/claim"
             element={
-              publicListingClaimsEnabled ? (
-                <RequireSession>
-                  <PartnerClaimPage client={partnerClient} />
-                </RequireSession>
-              ) : (
-                <NotFound />
-              )
+              <OwnerIntakeAvailabilityGuard
+                client={ownerIntakeAvailabilityClient}
+                requirement="claimsAvailable"
+              >
+                {() => (
+                  <RequireSession>
+                    <PartnerClaimPage client={partnerClient} />
+                  </RequireSession>
+                )}
+              </OwnerIntakeAvailabilityGuard>
             }
           />
           <Route

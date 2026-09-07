@@ -311,6 +311,21 @@ describe('configured Trip grant composition', () => {
     expect(enabled!.clients.map!.render).toEqual(expect.any(Function))
   })
 
+  it('wires owner intake availability through the server projection RPC', async () => {
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    harness.supabase.rpc.mockResolvedValueOnce({
+      data: { routeVisible: true, intakeAvailable: true, claimsAvailable: true },
+      error: null,
+    } as never)
+
+    await expect(composition!.clients.ownerIntakeAvailability!.getAvailability()).resolves.toEqual({
+      routeVisible: true,
+      intakeAvailable: true,
+      claimsAvailable: true,
+    })
+    expect(harness.supabase.rpc).toHaveBeenCalledWith('owner_intake_availability')
+  })
+
   it('routes password recovery through the fail-closed Edge boundary', async () => {
     const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
     const authProvider = composition?.runtime.authProvider
