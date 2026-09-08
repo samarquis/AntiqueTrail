@@ -92,6 +92,7 @@ import {
   type TripStop,
 } from '../features/trips'
 import type { ReviewScenario, ReviewStateId } from './types'
+import { createOwnConsentClient, type OwnConsentClient } from '../features/rg01'
 
 const FIXED_NOW = '2026-08-05T12:00:00.000Z'
 
@@ -2624,8 +2625,29 @@ export function createReviewHarnessClients(
     permission.version++
     return { allowed: true }
   })
+  let ownConsentState: 'not_consented' | 'consented' | 'withdrawn' = 'not_consented'
+  const ownConsent: OwnConsentClient = createOwnConsentClient(async (name, args) => {
+    if (state !== 'success' || !scenario.id.startsWith('shopper-'))
+      throw new Error('Synthetic RG-01 unavailable')
+    if (name === 'rg01_get_own_consent')
+      return {
+        status: 'available',
+        collectionActive: true,
+        consentState: ownConsentState,
+        consentedAt: ownConsentState === 'not_consented' ? null : FIXED_NOW,
+        withdrawnAt: ownConsentState === 'withdrawn' ? FIXED_NOW : null,
+      }
+    if (name === 'rg01_set_own_consent') {
+      if (Object.keys(args).join(',') !== 'p_consent' || typeof args.p_consent !== 'boolean')
+        throw new Error('Synthetic RG-01 command shape invalid')
+      ownConsentState = args.p_consent ? 'consented' : 'withdrawn'
+      return null
+    }
+    throw new Error('Synthetic RG-01 command unavailable')
+  })
   return {
     promotion,
+    ownConsent,
     ownerIntakeAvailability: createReviewOwnerIntakeAvailabilityClient(state),
     ...storeApplicationReviewClients(state),
     lifecycle: lifecycleClient(scenario, state),
