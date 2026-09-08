@@ -21,6 +21,11 @@ export const COMMANDS = [
   'set_dwell',
   'reorder_stops',
 ]
+function commandRole(command) {
+  return command.startsWith('catalog_')
+    ? 'authenticated-shopper-via-public-catalog-edge'
+    : 'authenticated-shopper'
+}
 export function requireLoopbackUrl(value) {
   let url
   try {
@@ -82,13 +87,14 @@ export async function runChecks({
         command,
         status: result.status,
         evidenceClass: result.evidenceClass ?? 'configured-local-transport',
-        role: result.role ?? 'test-executor',
+        role: commandRole(command),
         detail: redact(result.detail),
       })
     } catch (error) {
       results.push({
         command,
         status: 'fail',
+        role: commandRole(command),
         evidenceClass: 'configured-local-transport',
         detail: redact(error instanceof Error ? error.message : String(error)),
       })
@@ -114,6 +120,7 @@ export async function runProbe({
       schemaVersion: 2,
       runId: run.runId,
       status: 'unavailable',
+      endpointClass: 'local-loopback',
       cleanup: 'not-started',
       errors: [],
       checks: [],
@@ -193,6 +200,7 @@ export async function runProbe({
       report.checks = COMMANDS.map((command) => ({
         command,
         status: 'unavailable',
+        role: commandRole(command),
         evidenceClass: 'configured-local-transport',
         detail: 'Setup did not complete',
       }))

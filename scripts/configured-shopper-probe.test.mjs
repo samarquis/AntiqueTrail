@@ -292,3 +292,44 @@ test('failed recovery cleanup removes credentials and retains ownership for retr
     await service.cleanup()
   }
 })
+
+test(
+  'cleanup accepts a child whose signal termination already emitted close',
+  { timeout: 5000 },
+  async () => {
+    const { spawn } = await import('node:child_process')
+    const { stopChild } = await import('./configured-shopper-local.mjs')
+    const child = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], {
+      windowsHide: true,
+      stdio: 'ignore',
+    })
+    await new Promise((resolve) => child.once('spawn', resolve))
+    const closed = new Promise((resolve) => child.once('close', resolve))
+    child.kill()
+    await closed
+    assert.equal(child.exitCode, null)
+    assert.ok(child.signalCode)
+    await stopChild(child)
+  },
+)
+test('failed and unavailable checks retain role and endpoint classifications', async (t) => {
+  const failed = await runProbe({
+    output: output(t),
+    execute: async () => {
+      throw new Error('HTTP 403 not_allowed')
+    },
+  })
+  assert.equal(failed.endpointClass, 'local-loopback')
+  assert.ok(failed.checks.every((c) => c.role.startsWith('authenticated-shopper')))
+  const unavailable = await runProbe({
+    output: output(t),
+    serviceFactory: () => ({
+      start: async () => {
+        throw new Error('No service')
+      },
+      cleanup: async () => 'removed',
+    }),
+  })
+  assert.equal(unavailable.endpointClass, 'local-loopback')
+  assert.ok(unavailable.checks.every((c) => c.role.startsWith('authenticated-shopper')))
+})

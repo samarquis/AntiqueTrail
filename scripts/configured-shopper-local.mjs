@@ -10,6 +10,12 @@ import { fileURLToPath } from 'node:url'
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const CLI_VERSION = '2.115.0'
+export async function stopChild(child) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return
+  const closed = new Promise((resolve) => child.once('close', resolve))
+  child.kill()
+  await closed
+}
 export function command(
   file,
   args,
@@ -449,11 +455,7 @@ export function createLocalService({ signal, resumeDirectory } = {}) {
     if (cleaned) return 'removed'
     try {
       validateOwner(run)
-      if (serving && serving.exitCode === null) {
-        const exited = new Promise((resolve) => serving.once('close', resolve))
-        serving.kill()
-        await exited
-      }
+      await stopChild(serving)
       if (networkCreated) {
         const networkId = (
           await command('docker', ['network', 'ls', '-q', '--filter', 'name=^' + projectId + '$'])
@@ -506,7 +508,7 @@ export function createLocalService({ signal, resumeDirectory } = {}) {
       }
       cleaned = true
     } finally {
-      if (serving && serving.exitCode === null) serving.kill()
+      await stopChild(serving)
       if (proxy) await proxy.close()
       const owned = validateOwner(run)
       fs.rmSync(path.join(owned, 'supabase/functions/.env'), { force: true })
