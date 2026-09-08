@@ -714,6 +714,14 @@ main > header > p:last-child {
   z-index: 2;
 }
 
+.community-gate-card {
+  pointer-events: none;
+}
+
+.community-gate-card :is(a, button) {
+  pointer-events: auto;
+}
+
 .community-gate-actions ~ * {
   position: relative;
   z-index: 0;

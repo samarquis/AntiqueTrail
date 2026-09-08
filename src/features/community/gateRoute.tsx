@@ -46,7 +46,7 @@ export function CommunityGateRoute({ client }: { client: CommunityGateClient }) 
   }
   return (
     <main>
-      <section className="page-card" aria-labelledby="community-gate-heading">
+      <section className="page-card community-gate-card" aria-labelledby="community-gate-heading">
         <Link to={`/admin/communities/${runId}${location.search}`}>Back to run</Link>
         <p className="eyebrow">Current-area evidence</p>
         <h1 id="community-gate-heading">Community Expansion Gate</h1>
