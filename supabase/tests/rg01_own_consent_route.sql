@@ -91,7 +91,7 @@ select set_config('request.jwt.claims',jsonb_build_object(
 select is((app_public.rg01_get_own_consent()->>'status'),'unavailable','wrong actor receives generic denial');
 select throws_ok($$select app_public.rg01_set_own_consent(true)$$,'42501','rg01_shopper_required','ineligible actor cannot re-consent');
 reset role;
-select is((select count(*) from rg01_private.rg01_subject_consents
+select is((select count(*)::integer from rg01_private.rg01_subject_consents
   where user_id='26100000-0000-4000-8000-000000000002'),0,'denied actor cannot create or mutate consent');
 set local role authenticated;
 
