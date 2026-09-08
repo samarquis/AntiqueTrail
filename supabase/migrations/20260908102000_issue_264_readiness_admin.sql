@@ -3,6 +3,7 @@
 
 grant readiness_automation to postgres;
 grant create on schema readiness_private to readiness_automation;
+grant create on schema app_public to readiness_automation;
 
 create table readiness_private.readiness_cohorts (
   cohort_id uuid primary key default extensions.gen_random_uuid(),
@@ -535,41 +536,10 @@ begin
 end
 $$;
 
--- Preserve the legacy status route, but do not leave its signing challenge as
--- a generic administrator capability after the exact ProductOwner boundary is
--- mounted.
-create or replace function app_public.readiness_request_signing_challenge(p_run_id uuid)
-returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare run_row readiness_private.readiness_runs%rowtype;
-declare challenge readiness_private.readiness_signing_challenges%rowtype;
-declare challenge_nonce bytea := extensions.gen_random_bytes(32);
-declare challenge_expires_at timestamptz := statement_timestamp()+interval '5 minutes';
-begin
-  select * into run_row from readiness_private.readiness_runs where run_id=p_run_id for update;
-  if not found then raise exception using errcode='P0002', message='readiness_run_not_found'; end if;
-  if not readiness_private.workspace_access(run_row.cohort_id,p_run_id,'ProductOwner') then
-    raise exception using errcode='42501', message='readiness_access_denied';
-  end if;
-  if run_row.state<>'frozen' or cardinality(run_row.blockers)>0 then
-    raise exception using errcode='55000', message='readiness_signing_blocked';
-  end if;
-  delete from readiness_private.readiness_signing_challenges
-    where run_id=p_run_id and signer_user_id=app_public.request_user_id() and consumed_at is null
-      and expires_at<=statement_timestamp();
-  insert into readiness_private.readiness_signing_challenges(
-    run_id,signer_user_id,nonce,frozen_digest,payload_digest,expires_at
-  ) values(
-    p_run_id,app_public.request_user_id(),challenge_nonce,run_row.source_digest,
-    extensions.digest(convert_to(concat_ws('|',p_run_id::text,encode(run_row.source_digest,'hex'),
-      app_public.request_user_id()::text,encode(challenge_nonce,'hex'),challenge_expires_at::text),'UTF8'),'sha256'),
-    challenge_expires_at
-  ) returning * into challenge;
-  return jsonb_build_object('challengeId',challenge.challenge_id,
-    'payloadDigest',encode(challenge.payload_digest,'hex'),'expiresAt',challenge.expires_at);
-exception when unique_violation then
-  raise exception using errcode='55000', message='readiness_challenge_already_active';
-end
-$$;
+-- The legacy challenge RPC is superseded by the capability-bound admin flow;
+-- remove the authenticated surface so it cannot remain a generic-admin path.
+revoke execute on function app_public.readiness_request_signing_challenge(uuid)
+  from public,anon,authenticated;
 
 do $$ declare t text; begin
   foreach t in array array['readiness_cohorts','readiness_admin_responsibility_grants','readiness_subjects','readiness_invitations','readiness_visibility_grants','readiness_admin_runs','readiness_admin_signing_capabilities'] loop
