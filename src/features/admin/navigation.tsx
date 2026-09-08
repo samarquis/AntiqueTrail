@@ -32,6 +32,7 @@ export function AdminMorePage({
   const { signOut } = useAuth()
   const [signingOut, setSigningOut] = useState(false)
   const [evidenceAvailable, setEvidenceAvailable] = useState(false)
+  const [communitiesAvailable, setCommunitiesAvailable] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -49,7 +50,6 @@ export function AdminMorePage({
       cancelled = true
     }
   }, [rg01])
-  const [communitiesAvailable, setCommunitiesAvailable] = useState(false)
 
   useEffect(() => {
     if (!communityClient) return
