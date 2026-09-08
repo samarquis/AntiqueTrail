@@ -54,15 +54,22 @@ function EnrollmentRoute({
     try {
       const idempotencyKey = (pendingIdempotencyKey.current ??= uuid())
       const rawChallenge = await client.requestRegistration(token, idempotencyKey)
-      if ((rawChallenge as { state?: string }).state === 'consumed') {
-        pendingIdempotencyKey.current = null
-        throw new Error(GENERIC_ERROR)
-      }
-      const current = Number(
+      const progress = Number(
         (rawChallenge as { registrationCompletedCount?: number }).registrationCompletedCount ??
           completed ??
           0,
       )
+      if ((rawChallenge as { state?: string }).state === 'consumed' && progress === 2) {
+        pendingIdempotencyKey.current = null
+        setCompleted(2)
+        setFinished(true)
+        return
+      }
+      if ((rawChallenge as { state?: string }).state === 'consumed') {
+        pendingIdempotencyKey.current = null
+        throw new Error(GENERIC_ERROR)
+      }
+      const current = progress
       if (!Number.isInteger(current) || current < 0 || current > 1) throw new Error(GENERIC_ERROR)
       setCompleted(current)
       const value = challenge(rawChallenge)

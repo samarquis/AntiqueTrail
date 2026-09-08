@@ -115,6 +115,23 @@ describe('reviewer credential routes', () => {
     expect(requestRegistration.mock.calls[0]?.[1]).toBe(requestRegistration.mock.calls[1]?.[1])
   })
 
+  it('treats a consumed two-key challenge as success after a lost completion response', async () => {
+    const client = setupClient()
+    vi.mocked(client.requestRegistration).mockResolvedValueOnce({
+      ...challenge,
+      state: 'consumed',
+      registrationCompletedCount: 2,
+    })
+    render(
+      <MemoryRouter>
+        <ReviewerCredentialSetupRoute token={token} client={client} />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add first security key/iu }))
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Finish' })).toBeInTheDocument())
+    expect(client.completeRegistration).not.toHaveBeenCalled()
+  })
+
   it('shows the same generic terminal state without a scrubbed capability', () => {
     render(
       <MemoryRouter>
