@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   createReviewerBrowserCeremony,
@@ -45,14 +45,19 @@ function EnrollmentRoute({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [finished, setFinished] = useState(false)
+  const pendingIdempotencyKey = useRef<string | null>(null)
 
   async function addCredential() {
     if (!token || !client || busy || completed === 2) return
     setBusy(true)
     setError(null)
     try {
-      const idempotencyKey = uuid()
+      const idempotencyKey = (pendingIdempotencyKey.current ??= uuid())
       const rawChallenge = await client.requestRegistration(token, idempotencyKey)
+      if ((rawChallenge as { state?: string }).state === 'consumed') {
+        pendingIdempotencyKey.current = null
+        throw new Error(GENERIC_ERROR)
+      }
       const current = Number(
         (rawChallenge as { registrationCompletedCount?: number }).registrationCompletedCount ??
           completed ??
@@ -71,6 +76,7 @@ function EnrollmentRoute({
         state?: string
       }
       if (!result.credentialRecordId) throw new Error(GENERIC_ERROR)
+      pendingIdempotencyKey.current = null
       const next = current + 1
       setCompleted(next)
       if (result.state === 'active' || next === 2) setFinished(true)

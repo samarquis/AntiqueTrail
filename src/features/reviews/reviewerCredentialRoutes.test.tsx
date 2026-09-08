@@ -6,6 +6,7 @@ import {
   ReviewerCredentialSetupRoute,
 } from './reviewerCredentialRoutes'
 import type { ReviewerCredentialClient } from './reviewerCredentialClient'
+import { createReviewerBrowserCeremony } from './reviewerCredentialBrowser'
 
 vi.mock('./reviewerCredentialBrowser', async () => {
   const actual = await vi.importActual<typeof import('./reviewerCredentialBrowser')>(
@@ -92,6 +93,26 @@ describe('reviewer credential routes', () => {
     expect(client.completeAssertion).toHaveBeenCalledTimes(2)
     expect(client.list).toHaveBeenCalledTimes(1)
     expect(client.revoke).toHaveBeenCalledWith(token, 'credential-1', expect.any(String))
+  })
+
+  it('reuses the pending registration idempotency key after a cancelled browser ceremony', async () => {
+    const client = setupClient()
+    const browserCeremony = vi.mocked(createReviewerBrowserCeremony)
+    browserCeremony.mockRejectedValueOnce(new Error('cancelled'))
+    render(
+      <MemoryRouter>
+        <ReviewerCredentialSetupRoute token={token} client={client} />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add first security key/iu }))
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() =>
+      expect(screen.getByText(/security keys added: 1 of 2/iu)).toBeInTheDocument(),
+    )
+    const requestRegistration = vi.mocked(client.requestRegistration)
+    expect(requestRegistration).toHaveBeenCalledTimes(2)
+    expect(requestRegistration.mock.calls[0]?.[1]).toBe(requestRegistration.mock.calls[1]?.[1])
   })
 
   it('shows the same generic terminal state without a scrubbed capability', () => {

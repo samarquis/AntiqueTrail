@@ -41,7 +41,11 @@ async function installCredentialStub(page: import('@playwright/test').Page) {
 
 test('setup completes two credentials and scrubs the capability at phone and desktop widths', async ({
   page,
-}) => {
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name === 'chromium' || testInfo.project.name === 'mobile',
+    'The default browser suite runs the local review harness; use reviewer-credentials-route.config.ts for this transport-backed route test.',
+  )
   page.setDefaultTimeout(60_000)
   let registrations = 0
   await page.route('**/auth/v1/**', async (route) =>
