@@ -102,10 +102,8 @@ export function AdminMorePage({
               '— unavailable until the server authorizes an exact evidence responsibility.'}
           </li>
           <li>
-            {communityClient ? (
-              communitiesAvailable ? (
-                <Link to="/admin/communities">Communities</Link>
-              ) : null
+            {communitiesAvailable ? (
+              <Link to="/admin/communities">Communities</Link>
             ) : (
               <>
                 <strong>Communities</strong> — unavailable until the server authorizes the
