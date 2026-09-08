@@ -1,5 +1,5 @@
 begin;
-select plan(38);
+select plan(44);
 
 select has_table('app_private','password_recovery_operations','dedicated recovery operation ledger exists');
 select ok((select relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
@@ -14,7 +14,9 @@ select has_function('app_public','password_recovery_status',array['uuid'],'conte
 select has_function('app_public','begin_password_recovery',array['uuid','uuid','uuid'],'recovery fence operation exists');
 select has_function('app_public','complete_password_recovery',array['uuid'],'recovery completion operation exists');
 select has_function('app_public','mark_password_recovery_uncertain',array['uuid'],'uncertain recovery disposition exists');
+select has_function('app_public','mark_password_recovery_provider_pending',array['uuid'],'provider retry disposition exists');
 select has_function('app_public','complete_provider_revocation',array['text'],'provider outbox completion exists');
+select has_function('app_public','complete_provider_revocations_for_user',array['uuid'],'user scoped provider retry helper exists');
 select ok(has_function_privilege('service_role','app_public.password_recovery_status(uuid)','EXECUTE'),
   'only the server boundary can read recovery disposition');
 select ok(has_function_privilege('service_role','app_public.begin_password_recovery(uuid,uuid,uuid)','EXECUTE'),
@@ -102,6 +104,17 @@ select is((select state from app_private.provider_revocation_outbox
 
 set local role service_role;
 select is((app_public.begin_password_recovery(
+  '25200000-0000-4000-8000-000000000004',
+  '25200000-0000-4000-8000-000000000001',
+  '25200000-0000-4000-8000-000000000002'
+))->>'state','retry_required',
+  'a new recovery cannot replay a password while the earlier outcome is unresolved');
+reset role;
+select is((select count(*) from app_private.password_recovery_operations),1::bigint,
+  'response-loss retry does not create a second password operation');
+
+set local role service_role;
+select is((app_public.begin_password_recovery(
   '25200000-0000-4000-8000-000000000003',
   '25200000-0000-4000-8000-000000000001',
   '25200000-0000-4000-8000-000000000002'
@@ -132,5 +145,11 @@ select ok(position('state=''completed''' in lower(pg_get_functiondef(
 select ok(position('state=''uncertain''' in lower(pg_get_functiondef(
   'app_public.mark_password_recovery_uncertain(uuid)'::regprocedure)))>0,
   'provider uncertainty is content-free and terminal for this request');
+select ok(position('state=''provider_pending''' in lower(pg_get_functiondef(
+  'app_public.mark_password_recovery_provider_pending(uuid)'::regprocedure)))>0,
+  'provider failure is a content-free retry disposition');
+select ok(position('state=''provider_pending''' in lower(pg_get_functiondef(
+  'app_public.begin_password_recovery(uuid,uuid,uuid)'::regprocedure)))>0,
+  'provider-only retry requires a completed password-update disposition');
 select * from finish();
 rollback;

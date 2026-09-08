@@ -5,7 +5,12 @@ export const PASSWORD_RECOVERY_SUCCESS = 'completed'
 const REQUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 const TOKEN_HASH = /^[\s\S]{32,4096}$/u
 
-export type PasswordRecoveryDisposition = 'unknown' | 'invalidated' | 'completed' | 'uncertain'
+export type PasswordRecoveryDisposition =
+  | 'unknown'
+  | 'invalidated'
+  | 'provider_pending'
+  | 'completed'
+  | 'uncertain'
 
 export interface VerifiedRecoveryCredential {
   userId: string
@@ -20,7 +25,7 @@ export interface PasswordRecoveryCompletionDependencies {
     requestId: string
     userId: string
     sessionId: string
-  }): Promise<'ready' | 'completed' | 'retry_required'>
+  }): Promise<'ready' | 'completed' | 'provider_retry' | 'retry_required'>
   updatePassword(credential: VerifiedRecoveryCredential, password: string): Promise<void>
   revokeProviderSessions(input: {
     credential: VerifiedRecoveryCredential
@@ -28,6 +33,7 @@ export interface PasswordRecoveryCompletionDependencies {
   }): Promise<void>
   complete(requestId: string): Promise<'completed' | 'retry_required'>
   markUncertain(requestId: string): Promise<void>
+  markProviderPending(requestId: string): Promise<void>
 }
 
 export async function handlePasswordRecoveryCompletion(
@@ -65,6 +71,16 @@ export async function handlePasswordRecoveryCompletion(
       sessionId: credential.sessionId,
     })
     if (invalidation === 'completed') return json({ state: PASSWORD_RECOVERY_SUCCESS })
+    if (invalidation === 'provider_retry') {
+      try {
+        await dependencies.revokeProviderSessions({ credential, requestId })
+        const completed = await dependencies.complete(requestId)
+        return json({ state: completed === 'completed' ? PASSWORD_RECOVERY_SUCCESS : 'error' })
+      } catch {
+        await dependencies.markProviderPending(requestId).catch(() => undefined)
+        return json({ state: 'error' })
+      }
+    }
     if (invalidation !== 'ready') return json({ state: 'error' })
 
     try {
@@ -74,9 +90,13 @@ export async function handlePasswordRecoveryCompletion(
       return json({ state: 'error' })
     }
 
-    // Provider revocation is best effort after the application fence. A failed call
-    // leaves the content-free outbox item pending for a later recovery attempt.
-    await dependencies.revokeProviderSessions({ credential, requestId }).catch(() => undefined)
+    try {
+      await dependencies.markProviderPending(requestId)
+      await dependencies.revokeProviderSessions({ credential, requestId })
+    } catch {
+      await dependencies.markProviderPending(requestId).catch(() => undefined)
+      return json({ state: 'error' })
+    }
     const completed = await dependencies.complete(requestId)
     return json({ state: completed === 'completed' ? PASSWORD_RECOVERY_SUCCESS : 'error' })
   } catch {
