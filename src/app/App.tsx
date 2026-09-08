@@ -168,6 +168,14 @@ import {
 } from '../features/reviews/reviewerCredentialRoutes'
 import type { ReviewerCredentialClient } from '../features/reviews/reviewerCredentialClient'
 import {
+  CommunityGateRoute,
+  CommunityPreparationRoutes,
+  unavailableCommunityGateClient,
+  unavailableCommunityPreparationClient,
+  type CommunityGateClient,
+  type CommunityPreparationClient,
+} from '../features/community'
+import {
   ReadinessStatusPage,
   ReadinessAdminPage,
   unavailableReadinessClient,
@@ -981,6 +989,8 @@ export interface AppClients {
   billing?: BillingClient
   beta?: DurableBetaClient
   rg01?: RG01Client
+  communityPreparation?: CommunityPreparationClient
+  communityGate?: CommunityGateClient
   operationalStatus?: OperationalStatusConfig
   tripOfflineGrants?: TripOfflineGrantSource
   routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
@@ -1042,6 +1052,9 @@ export default function App({
   const billingClient = clients.billing ?? unavailableBillingClient
   const betaClient = clients.beta ?? unavailableBetaClient
   const rg01Client = clients.rg01 ?? unavailableRG01Client
+  const communityPreparationClient =
+    clients.communityPreparation ?? unavailableCommunityPreparationClient
+  const communityGateClient = clients.communityGate ?? unavailableCommunityGateClient
   const ownerIntakeAvailabilityClient =
     clients.ownerIntakeAvailability ?? unavailableOwnerIntakeAvailabilityClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
@@ -1059,7 +1072,7 @@ export default function App({
     audit: <RecordAuditPage client={adminClient} />,
     reviewQueue: <ReviewQueuePage client={adminClient} />,
     accessSafety: <AccessSafetyPage client={adminClient} />,
-    more: <AdminMorePage rg01={rg01Client} />,
+    more: <AdminMorePage rg01={rg01Client} communityClient={communityPreparationClient} />,
     partners: (
       <PartnerAdminPage
         client={partnerAdminClient}
@@ -1083,6 +1096,9 @@ export default function App({
     beta: <BetaControl client={betaClient} />,
     rg01: <RG01OperationsListPage client={rg01Client} />,
     rg01Run: <RG01OperationsRunPage client={rg01Client} />,
+    communities: <CommunityPreparationRoutes client={communityPreparationClient} />,
+    communityDetail: <CommunityPreparationRoutes client={communityPreparationClient} />,
+    communityGate: <CommunityGateRoute client={communityGateClient} />,
   }
 
   return (
