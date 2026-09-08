@@ -4,6 +4,7 @@ import { useAuth } from '../auth'
 import type { RG01Client } from '../rg01'
 import { projectRG01Status } from '../rg01'
 import { ADMIN_ROUTE_PARENTS, adminRouteParent } from './routes'
+import type { CommunityPreparationClient } from '../community'
 
 export function AdminPrimaryNavigation() {
   const { pathname } = useLocation()
@@ -24,7 +25,10 @@ export function AdminPrimaryNavigation() {
   )
 }
 
-export function AdminMorePage({ rg01 }: { rg01?: RG01Client }) {
+export function AdminMorePage({
+  rg01,
+  communityClient,
+}: { rg01?: RG01Client; communityClient?: CommunityPreparationClient } = {}) {
   const { signOut } = useAuth()
   const [signingOut, setSigningOut] = useState(false)
   const [evidenceAvailable, setEvidenceAvailable] = useState(false)
@@ -45,6 +49,21 @@ export function AdminMorePage({ rg01 }: { rg01?: RG01Client }) {
       cancelled = true
     }
   }, [rg01])
+  const [communitiesAvailable, setCommunitiesAvailable] = useState(false)
+
+  useEffect(() => {
+    if (!communityClient) return
+    let mounted = true
+    void communityClient
+      .list()
+      .then((projection) => {
+        if (mounted) setCommunitiesAvailable(projection.status === 'available')
+      })
+      .catch(() => undefined)
+    return () => {
+      mounted = false
+    }
+  }, [communityClient])
 
   async function submitSignOut() {
     setSigningOut(true)
@@ -83,8 +102,16 @@ export function AdminMorePage({ rg01 }: { rg01?: RG01Client }) {
               '— unavailable until the server authorizes an exact evidence responsibility.'}
           </li>
           <li>
-            <strong>Communities</strong> — unavailable until the server authorizes the applicable
-            operational scope.
+            {communityClient ? (
+              communitiesAvailable ? (
+                <Link to="/admin/communities">Communities</Link>
+              ) : null
+            ) : (
+              <>
+                <strong>Communities</strong> — unavailable until the server authorizes the
+                applicable operational scope.
+              </>
+            )}
           </li>
           <li>
             <Link to="/status">System status</Link>
