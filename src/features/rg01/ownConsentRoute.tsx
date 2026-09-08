@@ -144,7 +144,7 @@ export function OwnConsentPage({ client }: { client: OwnConsentClient }) {
         </p>
         <p>
           We use your consent and qualifying trip activity for the private RG-01 evidence review. We
-          do not show you totals, other participants, metrics, or private trip details here.
+          do not show you totals, other participants, or private activity here.
         </p>
         <p>
           You can withdraw at any time. Withdrawal stops your future inclusion; existing evidence
