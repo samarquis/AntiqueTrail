@@ -17,7 +17,7 @@ import {
   createPortalMediaHttpTransport,
   sanitizeDiagnostics,
 } from '../features/portal'
-import { createReadinessClient } from '../features/readiness'
+import { createReadinessAdminClient, createReadinessClient } from '../features/readiness'
 import { createBetaClient } from '../features/beta'
 import { createBillingClient } from '../features/billing'
 import { createShopperClient } from '../features/shopper'
@@ -733,6 +733,12 @@ export async function configuredComposition(
         }),
       ),
       readiness: createReadinessClient({
+        async rpc(name, args) {
+          const result = await supabase.rpc(name, args)
+          return { data: result.data, error: result.error }
+        },
+      }),
+      readinessAdmin: createReadinessAdminClient({
         async rpc(name, args) {
           const result = await supabase.rpc(name, args)
           return { data: result.data, error: result.error }

@@ -46,7 +46,8 @@ export function AdminMorePage() {
             <Link to="/help">Support</Link>
           </li>
           <li>
-            <strong>Readiness</strong> — available only from a server-authorized exact run.
+            <Link to="/admin/readiness">Readiness</Link> — available only from a server-authorized
+            exact cohort.
           </li>
           <li>
             <strong>View Audit</strong> — narrow D30 audit is available only from its exact

@@ -70,6 +70,7 @@ import {
   type ModerationDecisionInput,
   type ReviewClient,
 } from '../features/reviews'
+import type { ReadinessAdminClient, ReadinessAdminWorkspace } from '../features/readiness'
 import {
   unavailableShopperClient,
   type PrivateStoreMemory,
@@ -93,6 +94,144 @@ import {
 import type { ReviewScenario, ReviewStateId } from './types'
 
 const FIXED_NOW = '2026-08-05T12:00:00.000Z'
+
+function readinessAdminReviewClient(state: ReviewStateId): ReadinessAdminClient {
+  let workspace: ReadinessAdminWorkspace = {
+    cohort: {
+      cohortId: 'review-readiness-cohort',
+      areaSlug: 'topeka-ks',
+      state: 'active',
+      version: 1,
+    },
+    invitations: [],
+    subjects: [],
+    run: null,
+    capabilities: {
+      listingsPrivate: true,
+      noindex: true,
+      anonymousRealStoreAccess: false,
+      publicReviews: false,
+      publicPromotion: false,
+    },
+  }
+  const allowed = () => {
+    if (state !== 'success') throw new Error('Synthetic readiness unavailable')
+  }
+  return {
+    async getWorkspace() {
+      allowed()
+      return structuredClone(workspace)
+    },
+    async createInvitation() {
+      allowed()
+      const invitation = {
+        invitationId: `review-invitation-${workspace.invitations.length + 1}`,
+        state: 'pending' as const,
+        expiresAt: '2026-08-12T12:00:00.000Z',
+        subjectId: null,
+        version: 1,
+      }
+      workspace = { ...workspace, invitations: [...workspace.invitations, invitation] }
+      return { ...invitation, token: 'review-synthetic-token', replayed: false }
+    },
+    async revokeInvitation(invitationId) {
+      allowed()
+      workspace = {
+        ...workspace,
+        invitations: workspace.invitations.map((item) =>
+          item.invitationId === invitationId ? { ...item, state: 'revoked' as const } : item,
+        ),
+      }
+      return {}
+    },
+    async markStarted() {
+      allowed()
+      return {}
+    },
+    async excludeSubject() {
+      allowed()
+      return {}
+    },
+    async beginRun(_cohortId, runId) {
+      allowed()
+      workspace = {
+        ...workspace,
+        run: {
+          runId,
+          state: 'in_progress',
+          version: 1,
+          frozenDigest: null,
+          blockers: [],
+          receiptId: null,
+          calculatedAt: null,
+          factCollectionState: 'collecting',
+        },
+      }
+      return {}
+    },
+    async calculateGate() {
+      allowed()
+      return {
+        runId: workspace.run?.runId ?? 'missing',
+        blockers: [],
+        canPass: true,
+        source: 'server_authoritative_facts' as const,
+      }
+    },
+    async freezeReceipt() {
+      allowed()
+      const run = workspace.run
+      if (!run) throw new Error('Synthetic readiness run unavailable')
+      workspace = {
+        ...workspace,
+        run: {
+          ...run,
+          state: 'completed',
+          frozenDigest: 'a'.repeat(64),
+          factCollectionState: 'frozen',
+        },
+      }
+      return {
+        runId: run.runId,
+        state: 'frozen' as const,
+        frozenDigest: 'a'.repeat(64),
+        blockers: [],
+        calculatedAt: FIXED_NOW,
+        adminRunState: 'completed' as const,
+      }
+    },
+    async requestSigningCapability() {
+      allowed()
+      return {
+        capabilityId: 'review-capability',
+        capabilityToken: 'review-token',
+        frozenDigest: 'a'.repeat(64),
+        expiresAt: '2026-08-05T12:30:00.000Z',
+        blockers: [],
+      }
+    },
+    async decideReceipt(input) {
+      allowed()
+      const run = workspace.run
+      if (!run) throw new Error('Synthetic readiness run unavailable')
+      workspace = {
+        ...workspace,
+        run: {
+          ...run,
+          state: input.decision === 'pass' ? 'completed' : 'blocked',
+          receiptId: 'review-receipt-1',
+        },
+      }
+      return {
+        receiptId: 'review-receipt-1',
+        runId: run.runId,
+        state: input.decision === 'pass' ? ('signed' as const) : ('rejected' as const),
+        decision: input.decision,
+        replayed: false,
+      }
+    },
+  }
+}
 
 export function createReviewHarnessCatalogClient(state: ReviewStateId): CatalogClient {
   return {
@@ -2498,5 +2637,6 @@ export function createReviewHarnessClients(
     partner: partnerClient(scenario, state),
     partnerAdmin: partnerAdminClient(scenario, state),
     admin: withRecordAuditReview(adminClient(scenario, state)),
+    readinessAdmin: readinessAdminReviewClient(state),
   }
 }

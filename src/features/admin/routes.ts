@@ -9,6 +9,7 @@ export type AdminRouteId =
   | 'partners'
   | 'reviews'
   | 'readiness'
+  | 'readinessAdmin'
   | 'beta'
 
 export interface AdminRouteDefinition {
@@ -31,6 +32,7 @@ export const ADMIN_ROUTES: readonly AdminRouteDefinition[] = [
   { id: 'more', path: '/admin/more', parentId: 'more' },
   { id: 'partners', path: '/admin/partners', parentId: 'review' },
   { id: 'reviews', path: '/admin/reviews', parentId: 'review' },
+  { id: 'readinessAdmin', path: '/admin/readiness', parentId: 'more' },
   { id: 'readiness', path: '/admin/readiness/:runId', parentId: 'more' },
   { id: 'beta', path: '/admin/beta/:cohortId', parentId: 'more' },
 ]
