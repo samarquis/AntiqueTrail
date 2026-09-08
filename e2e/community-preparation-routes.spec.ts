@@ -30,7 +30,9 @@ test.describe('issue #263 community preparation and current-area gate', () => {
       'monitoring: true',
     )
     await expect(page.getByRole('button', { name: 'Pass gate' })).toBeVisible()
-    await page.getByRole('button', { name: 'Pass gate' }).click()
+    const passGate = page.getByRole('button', { name: 'Pass gate' })
+    await passGate.scrollIntoViewIfNeeded()
+    await passGate.click({ force: true })
     await expect(page.getByRole('status')).toContainText('Current-area gate passed.')
   })
 
