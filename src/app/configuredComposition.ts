@@ -19,6 +19,7 @@ import {
 } from '../features/portal'
 import { createReadinessAdminClient, createReadinessClient } from '../features/readiness'
 import { createBetaClient } from '../features/beta'
+import { createCommunityGateClient, createCommunityPreparationClient } from '../features/community'
 import { createBillingClient } from '../features/billing'
 import { createShopperClient } from '../features/shopper'
 import { createCandidateProductionClient } from '../features/candidates'
@@ -748,6 +749,24 @@ export async function configuredComposition(
         async rpc(name, args) {
           const result = await supabase.rpc(name, args)
           return { data: result.data, error: result.error }
+        },
+      }),
+      communityPreparation: createCommunityPreparationClient({
+        async execute(operation, payload) {
+          const result = await supabase.functions.invoke('community-user-command', {
+            body: { operation, payload },
+          })
+          if (result.error) throw result.error
+          return result.data
+        },
+      }),
+      communityGate: createCommunityGateClient({
+        async execute(operation, payload) {
+          const result = await supabase.functions.invoke('community-gate-command', {
+            body: { operation, payload },
+          })
+          if (result.error) throw result.error
+          return result.data
         },
       }),
       operationalStatus: {

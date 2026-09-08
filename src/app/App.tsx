@@ -151,6 +151,14 @@ import {
   type ReviewClient,
 } from '../features/reviews'
 import {
+  CommunityGateRoute,
+  CommunityPreparationRoutes,
+  unavailableCommunityGateClient,
+  unavailableCommunityPreparationClient,
+  type CommunityGateClient,
+  type CommunityPreparationClient,
+} from '../features/community'
+import {
   ReadinessStatusPage,
   ReadinessAdminPage,
   unavailableReadinessClient,
@@ -929,6 +937,8 @@ export interface AppClients {
   readinessAdmin?: ReadinessAdminClient
   billing?: BillingClient
   beta?: DurableBetaClient
+  communityPreparation?: CommunityPreparationClient
+  communityGate?: CommunityGateClient
   operationalStatus?: OperationalStatusConfig
   tripOfflineGrants?: TripOfflineGrantSource
   routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
@@ -978,6 +988,9 @@ export default function App({
   const readinessAdminClient = clients.readinessAdmin ?? unavailableReadinessAdminClient
   const billingClient = clients.billing ?? unavailableBillingClient
   const betaClient = clients.beta ?? unavailableBetaClient
+  const communityPreparationClient =
+    clients.communityPreparation ?? unavailableCommunityPreparationClient
+  const communityGateClient = clients.communityGate ?? unavailableCommunityGateClient
   const ownerIntakeAvailabilityClient =
     clients.ownerIntakeAvailability ?? unavailableOwnerIntakeAvailabilityClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
@@ -995,7 +1008,7 @@ export default function App({
     audit: <RecordAuditPage client={adminClient} />,
     reviewQueue: <ReviewQueuePage client={adminClient} />,
     accessSafety: <AccessSafetyPage client={adminClient} />,
-    more: <AdminMorePage />,
+    more: <AdminMorePage communityClient={clients.communityPreparation} />,
     partners: (
       <PartnerAdminPage
         client={partnerAdminClient}
@@ -1017,6 +1030,9 @@ export default function App({
     readiness: <ReadinessStatus client={readinessClient} />,
     readinessAdmin: <ReadinessAdminPage client={readinessAdminClient} />,
     beta: <BetaControl client={betaClient} />,
+    communities: <CommunityPreparationRoutes client={communityPreparationClient} />,
+    communityDetail: <CommunityPreparationRoutes client={communityPreparationClient} />,
+    communityGate: <CommunityGateRoute client={communityGateClient} />,
   }
 
   return (

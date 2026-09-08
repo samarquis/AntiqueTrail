@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { ADMIN_ROUTE_PARENTS, adminRouteParent } from './routes'
+import type { CommunityPreparationClient } from '../community'
 
 export function AdminPrimaryNavigation() {
   const { pathname } = useLocation()
@@ -22,9 +23,26 @@ export function AdminPrimaryNavigation() {
   )
 }
 
-export function AdminMorePage() {
+export function AdminMorePage({
+  communityClient,
+}: { communityClient?: CommunityPreparationClient } = {}) {
   const { signOut } = useAuth()
   const [signingOut, setSigningOut] = useState(false)
+  const [communitiesAvailable, setCommunitiesAvailable] = useState(false)
+
+  useEffect(() => {
+    if (!communityClient) return
+    let mounted = true
+    void communityClient
+      .list()
+      .then((projection) => {
+        if (mounted) setCommunitiesAvailable(projection.status === 'available')
+      })
+      .catch(() => undefined)
+    return () => {
+      mounted = false
+    }
+  }, [communityClient])
 
   async function submitSignOut() {
     setSigningOut(true)
@@ -58,8 +76,16 @@ export function AdminMorePage() {
             evidence link.
           </li>
           <li>
-            <strong>Communities</strong> — unavailable until the server authorizes the applicable
-            operational scope.
+            {communityClient ? (
+              communitiesAvailable ? (
+                <Link to="/admin/communities">Communities</Link>
+              ) : null
+            ) : (
+              <>
+                <strong>Communities</strong> — unavailable until the server authorizes the
+                applicable operational scope.
+              </>
+            )}
           </li>
           <li>
             <Link to="/status">System status</Link>
