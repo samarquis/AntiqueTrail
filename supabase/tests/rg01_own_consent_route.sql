@@ -48,13 +48,21 @@ insert into release_private.regional_releases(
 ) values (
   '26100000-0000-4000-8000-000000000201','topeka-ks',
   'sha256:'||repeat('1',64),'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),
-  'active',9,'release-261'
+  'active',9,'26100000-0000-4000-8000-000000000202'
+);
+insert into release_private.release_evidence_receipts(
+  receipt_id,release_id,step,artifact_digest,catalog_digest,prerequisite_receipt_digest,payload_digest,external_verified
+) values (
+  '26100000-0000-4000-8000-000000000202','26100000-0000-4000-8000-000000000201','signed_release_receipt',
+  'sha256:'||repeat('1',64),'sha256:'||repeat('2',64),'sha256:'||repeat('3',64),decode(repeat('09',32),'hex'),true
 );
 insert into release_private.release_capabilities(
   release_id,public_catalog,public_claims,public_reviews,public_registration,product_promotion
 ) values ('26100000-0000-4000-8000-000000000201',true,true,true,true,true);
 update rg01_private.rg01_capability
-   set collection_enabled=true,release_id='26100000-0000-4000-8000-000000000201',version=version+1
+   set collection_enabled=true,release_id='26100000-0000-4000-8000-000000000201',
+       release_receipt_id='26100000-0000-4000-8000-000000000202',
+       release_receipt_digest=decode(repeat('09',32),'hex'),version=version+1
  where singleton_id=1;
 
 set local role authenticated;
