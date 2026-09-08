@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth'
+import type { RG01Client } from '../rg01'
+import { projectRG01Status } from '../rg01'
 import { ADMIN_ROUTE_PARENTS, adminRouteParent } from './routes'
 
 export function AdminPrimaryNavigation() {
@@ -22,9 +24,27 @@ export function AdminPrimaryNavigation() {
   )
 }
 
-export function AdminMorePage() {
+export function AdminMorePage({ rg01 }: { rg01?: RG01Client }) {
   const { signOut } = useAuth()
   const [signingOut, setSigningOut] = useState(false)
+  const [evidenceAvailable, setEvidenceAvailable] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setEvidenceAvailable(false)
+    if (!rg01) return () => undefined
+    rg01
+      .status()
+      .then((value) => {
+        if (!cancelled) setEvidenceAvailable(Boolean(projectRG01Status(value)))
+      })
+      .catch(() => {
+        if (!cancelled) setEvidenceAvailable(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [rg01])
 
   async function submitSignOut() {
     setSigningOut(true)
@@ -54,8 +74,13 @@ export function AdminMorePage() {
             authorized record; full Audit History and export are not approved.
           </li>
           <li>
-            <strong>Evidence</strong> — unavailable until the server authorizes an exact frozen
-            evidence link.
+            {evidenceAvailable ? (
+              <Link to="/admin/evidence/rg-01">Evidence</Link>
+            ) : (
+              <strong>Evidence</strong>
+            )}{' '}
+            {!evidenceAvailable &&
+              '— unavailable until the server authorizes an exact evidence responsibility.'}
           </li>
           <li>
             <strong>Communities</strong> — unavailable until the server authorizes the applicable

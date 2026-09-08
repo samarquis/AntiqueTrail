@@ -84,7 +84,9 @@ Deno.serve(async (request) => {
       if (rpc.error) throw new Error('unavailable')
       return reply(200, rpc.data, appOrigin)
     }
-    const authorization = await user.rpc('rg01_get_operational_status', { p_run_id: null })
+    const authorization = await user.rpc('rg01_authorize_operational_command', {
+      p_operation: command.operation,
+    })
     if (authorization.error) return reply(404, { status: 'unavailable' }, appOrigin)
     if (command.operation === 'consume_decision') {
       if (!signatureJwt || !signingUrl || !signingToken)

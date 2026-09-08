@@ -54,6 +54,8 @@ import {
   type PasswordRecoveryRequest,
   type ProviderSession,
 } from '../features/auth'
+import { createRG01Client } from '../features/rg01/rg01Client'
+import { createRG01HttpTransport } from '../features/rg01/rg01HttpTransport'
 
 export interface ConfiguredComposition {
   clients: AppClients
@@ -583,6 +585,15 @@ export async function configuredComposition(
     return result.data as T
   }
   const candidate = createCandidateProductionClient({ rpc, edge })
+  const rg01 = createRG01Client(
+    createRG01HttpTransport({
+      endpoint: `${url}/functions/v1/rg01-command`,
+      async getAccessToken() {
+        const session = await supabase.auth.getSession()
+        return session.data.session?.access_token ?? ''
+      },
+    }),
+  )
   const lifecycle = createAccountLifecycleClient({
     rpc,
     async download(jobId) {
@@ -756,6 +767,7 @@ export async function configuredComposition(
         if (result.error) throw result.error
         return result.data
       }),
+      rg01,
       operationalStatus: {
         supportUrl: configuredValue(import.meta.env.VITE_SUPPORT_URL) ?? undefined,
         securityUrl: configuredValue(import.meta.env.VITE_SECURITY_CONTACT_URL) ?? undefined,

@@ -151,6 +151,13 @@ import {
   type ReviewClient,
 } from '../features/reviews'
 import {
+  RG01OperationsListPage,
+  RG01OperationsRunPage,
+  RG01SigningPage,
+  unavailableRG01Client,
+  type RG01Client,
+} from '../features/rg01'
+import {
   ReadinessStatusPage,
   ReadinessAdminPage,
   unavailableReadinessClient,
@@ -961,6 +968,7 @@ export interface AppClients {
   readinessAdmin?: ReadinessAdminClient
   billing?: BillingClient
   beta?: DurableBetaClient
+  rg01?: RG01Client
   operationalStatus?: OperationalStatusConfig
   tripOfflineGrants?: TripOfflineGrantSource
   routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
@@ -1011,6 +1019,7 @@ export default function App({
   const readinessAdminClient = clients.readinessAdmin ?? unavailableReadinessAdminClient
   const billingClient = clients.billing ?? unavailableBillingClient
   const betaClient = clients.beta ?? unavailableBetaClient
+  const rg01Client = clients.rg01 ?? unavailableRG01Client
   const ownerIntakeAvailabilityClient =
     clients.ownerIntakeAvailability ?? unavailableOwnerIntakeAvailabilityClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
@@ -1028,7 +1037,7 @@ export default function App({
     audit: <RecordAuditPage client={adminClient} />,
     reviewQueue: <ReviewQueuePage client={adminClient} />,
     accessSafety: <AccessSafetyPage client={adminClient} />,
-    more: <AdminMorePage />,
+    more: <AdminMorePage rg01={rg01Client} />,
     partners: (
       <PartnerAdminPage
         client={partnerAdminClient}
@@ -1050,6 +1059,8 @@ export default function App({
     readiness: <ReadinessStatus client={readinessClient} />,
     readinessAdmin: <ReadinessAdminPage client={readinessAdminClient} />,
     beta: <BetaControl client={betaClient} />,
+    rg01: <RG01OperationsListPage client={rg01Client} />,
+    rg01Run: <RG01OperationsRunPage client={rg01Client} />,
   }
 
   return (
@@ -1324,6 +1335,17 @@ export default function App({
               }
             />
           ))}
+          <Route
+            path="/admin/evidence/rg-01/:runId/sign"
+            element={
+              <AuthenticatedAdminGuard
+                override={runtime.adminSession}
+                registry={runtime.sessionRegistry}
+              >
+                <RG01SigningPage client={rg01Client} />
+              </AuthenticatedAdminGuard>
+            }
+          />
           <Route
             path="/alpha/readiness"
             element={
