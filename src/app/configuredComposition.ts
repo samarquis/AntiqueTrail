@@ -11,6 +11,7 @@ import type { AppClients, AppRuntime } from './App'
 import { createAdminClient } from '../features/admin/adminClient'
 import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
+import { createReviewerCredentialClient } from '../features/reviews/reviewerCredentialClient'
 import { createBreakGlassReviewClient } from '../features/reviews'
 import {
   createPortalClient,
@@ -684,6 +685,11 @@ export async function configuredComposition(
         async rpc(name, args) {
           const result = await supabase.rpc(name, args)
           return { data: result.data, error: result.error }
+        },
+      }),
+      reviewerCredentials: createReviewerCredentialClient({
+        async execute(command) {
+          return edge('reviewer-credentials', command)
         },
       }),
       breakGlassReview: createBreakGlassReviewClient({
