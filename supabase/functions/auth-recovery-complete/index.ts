@@ -109,13 +109,18 @@ function dependencies(): PasswordRecoveryCompletionDependencies {
       return state === 'completed' ? 'completed' : 'retry_required'
     },
     async markUncertain(requestId) {
-      await admin.rpc('mark_password_recovery_uncertain', { p_request_id: requestId })
+      const result = await admin.rpc('mark_password_recovery_uncertain', {
+        p_request_id: requestId,
+      })
+      if (result.error || result.data !== true)
+        throw result.error ?? new Error('password_recovery_uncertain_unavailable')
     },
     async markProviderPending(requestId) {
       const result = await admin.rpc('mark_password_recovery_provider_pending', {
         p_request_id: requestId,
       })
-      if (result.error) throw result.error
+      if (result.error || result.data !== true)
+        throw result.error ?? new Error('password_recovery_provider_pending_unavailable')
     },
   }
 }

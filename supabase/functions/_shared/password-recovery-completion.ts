@@ -91,6 +91,7 @@ export async function handlePasswordRecoveryCompletion(
     }
 
     try {
+      await dependencies.markProviderPending(requestId)
       await dependencies.revokeProviderSessions({ credential, requestId })
     } catch {
       await dependencies.markProviderPending(requestId).catch(() => undefined)

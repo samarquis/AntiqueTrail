@@ -61,7 +61,13 @@ describe('password recovery completion boundary', () => {
     const boundary = dependencies()
     const response = await handlePasswordRecoveryCompletion(request(valid), boundary.dependencies)
     expect(await response.json()).toEqual({ state: 'completed' })
-    expect(boundary.order).toEqual(['invalidate', 'update', 'provider-revoke', 'complete'])
+    expect(boundary.order).toEqual([
+      'invalidate',
+      'update',
+      'provider-pending',
+      'provider-revoke',
+      'complete',
+    ])
   })
 
   it('does not replay a consumed or uncertain operation', async () => {
@@ -110,7 +116,7 @@ describe('password recovery completion boundary', () => {
     })
     const firstResponse = await handlePasswordRecoveryCompletion(request(valid), first.dependencies)
     expect(await firstResponse.json()).toEqual({ state: 'error' })
-    expect(first.order).toEqual(['invalidate', 'update', 'provider-pending'])
+    expect(first.order).toEqual(['invalidate', 'update', 'provider-pending', 'provider-pending'])
 
     const retry = dependencies({
       status: async () => 'unknown',
@@ -141,6 +147,25 @@ describe('password recovery completion boundary', () => {
     })
     const response = await handlePasswordRecoveryCompletion(request(valid), retry.dependencies)
     expect(await response.json()).toEqual({ state: 'completed' })
-    expect(retry.order).toEqual(['invalidate', 'update', 'provider-revoke', 'complete'])
+    expect(retry.order).toEqual([
+      'invalidate',
+      'update',
+      'provider-pending',
+      'provider-revoke',
+      'complete',
+    ])
+  })
+
+  it('does not replay a password after a response-loss state is retried', async () => {
+    const retry = dependencies({
+      status: async () => 'unknown',
+      invalidateApplicationSessions: async () => {
+        retry.order.push('retry-required')
+        return 'retry_required'
+      },
+    })
+    const response = await handlePasswordRecoveryCompletion(request(valid), retry.dependencies)
+    expect(await response.json()).toEqual({ state: 'error' })
+    expect(retry.order).toEqual(['retry-required'])
   })
 })

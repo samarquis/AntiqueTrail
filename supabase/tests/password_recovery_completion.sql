@@ -1,5 +1,5 @@
 begin;
-select plan(42);
+select plan(44);
 
 select has_table('app_private','password_recovery_operations','dedicated recovery operation ledger exists');
 select ok((select relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
@@ -101,6 +101,17 @@ select is((select state from app_private.password_recovery_operations
 select is((select state from app_private.provider_revocation_outbox
   where idempotency_key='25200000-0000-4000-8000-000000000003:provider-revoke'),'pending',
   'valid recovery records pending provider revocation work');
+
+set local role service_role;
+select is((app_public.begin_password_recovery(
+  '25200000-0000-4000-8000-000000000004',
+  '25200000-0000-4000-8000-000000000001',
+  '25200000-0000-4000-8000-000000000002'
+))->>'state','retry_required',
+  'a new recovery cannot replay a password while the earlier outcome is unresolved');
+reset role;
+select is((select count(*) from app_private.password_recovery_operations),1::bigint,
+  'response-loss retry does not create a second password operation');
 
 set local role service_role;
 select is((app_public.begin_password_recovery(

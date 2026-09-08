@@ -8,7 +8,7 @@ create table app_private.password_recovery_operations (
   idempotency_key uuid not null unique,
   user_id uuid not null references auth.users(id) on delete cascade,
   recovery_session_id uuid not null,
-  state text not null check (state in ('invalidated','provider_pending','completed','uncertain')),
+  state text not null check (state in ('invalidated','completed','uncertain')),
   created_at timestamptz not null default statement_timestamp(),
   invalidated_at timestamptz not null default statement_timestamp(),
   completed_at timestamptz,
@@ -77,15 +77,6 @@ begin
   update app_private.profiles set session_epoch=session_epoch+1,
     sessions_revoked_before=v_revoked_at,updated_at=v_revoked_at,version=version+1
     where user_id=p_user_id;
-  if exists(
-    select 1 from app_private.password_recovery_operations
-      where user_id=p_user_id and state='provider_pending'
-  ) then
-    insert into app_private.password_recovery_operations(
-      idempotency_key,user_id,recovery_session_id,state,invalidated_at,updated_at
-    ) values (p_request_id,p_user_id,p_session_id,'provider_pending',v_revoked_at,v_revoked_at);
-    return jsonb_build_object('state','provider_retry');
-  end if;
   insert into app_private.provider_revocation_outbox(
     user_id,session_id,provider_user_id,reason_code,idempotency_key
   ) values (p_user_id,null,p_user_id,'password_recovery',p_request_id::text||':provider-revoke')
@@ -106,15 +97,6 @@ returns boolean language sql volatile security definer set search_path='' as $$
   returning true;
 $$;
 alter function app_public.mark_password_recovery_uncertain(uuid) owner to identity_service;
-
-create or replace function app_public.mark_password_recovery_provider_pending(p_request_id uuid)
-returns boolean language sql volatile security definer set search_path='' as $$
-  update app_private.password_recovery_operations
-    set state='provider_pending',updated_at=statement_timestamp(),version=version+1
-    where idempotency_key=p_request_id and state in ('invalidated','provider_pending')
-  returning true;
-$$;
-alter function app_public.mark_password_recovery_provider_pending(uuid) owner to identity_service;
 
 create or replace function app_public.complete_password_recovery(p_request_id uuid)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
@@ -144,40 +126,17 @@ returns boolean language sql volatile security definer set search_path='' as $$
 $$;
 alter function app_public.complete_provider_revocation(text) owner to identity_service;
 
-create or replace function app_public.complete_provider_revocations_for_user(p_user_id uuid)
-returns boolean language plpgsql volatile security definer set search_path='' as $$
-declare settled boolean;
-begin
-  if p_user_id is null then
-    raise exception using errcode='22023',message='password_recovery_unavailable';
-  end if;
-  update app_private.provider_revocation_outbox set state='sent',sent_at=statement_timestamp(),
-    last_error_code=null,attempts=attempts+1
-    where user_id=p_user_id and reason_code='password_recovery' and state in ('pending','calling','failed');
-  settled:=found;
-  update app_private.password_recovery_operations set state='completed',
-    completed_at=statement_timestamp(),updated_at=statement_timestamp(),version=version+1
-    where user_id=p_user_id and state='provider_pending';
-  return settled or found;
-end;
-$$;
-alter function app_public.complete_provider_revocations_for_user(uuid) owner to identity_service;
-
 revoke all on function app_public.password_recovery_status(uuid),
   app_public.begin_password_recovery(uuid,uuid,uuid),
   app_public.mark_password_recovery_uncertain(uuid),
-  app_public.mark_password_recovery_provider_pending(uuid),
   app_public.complete_password_recovery(uuid),
-  app_public.complete_provider_revocation(text),
-  app_public.complete_provider_revocations_for_user(uuid)
+  app_public.complete_provider_revocation(text)
   from public,anon,authenticated,identity_service;
 grant execute on function app_public.password_recovery_status(uuid),
   app_public.begin_password_recovery(uuid,uuid,uuid),
   app_public.mark_password_recovery_uncertain(uuid),
-  app_public.mark_password_recovery_provider_pending(uuid),
   app_public.complete_password_recovery(uuid),
-  app_public.complete_provider_revocation(text),
-  app_public.complete_provider_revocations_for_user(uuid)
+  app_public.complete_provider_revocation(text)
   to service_role;
 
 revoke create on schema app_public from identity_service;
