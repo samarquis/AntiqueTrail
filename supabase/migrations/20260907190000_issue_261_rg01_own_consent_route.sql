@@ -55,6 +55,7 @@ begin
 end
 $$;
 
+grant create, usage on schema app_public to identity_service;
 alter function app_public.rg01_get_own_consent() owner to identity_service;
 revoke all on function app_public.rg01_get_own_consent() from public,anon,authenticated;
 grant execute on function app_public.rg01_get_own_consent() to authenticated;
