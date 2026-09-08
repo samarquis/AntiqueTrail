@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import {
-  CommunityPreparationError,
-  type CommunityPreparationClient,
-} from './preparationClient'
+import { CommunityPreparationError, type CommunityPreparationClient } from './preparationClient'
 
 export function CommunityPreparationRoutes({ client }: { client: CommunityPreparationClient }) {
   const { runId } = useParams()
