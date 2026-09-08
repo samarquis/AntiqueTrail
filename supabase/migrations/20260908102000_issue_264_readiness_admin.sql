@@ -4,6 +4,7 @@
 grant readiness_automation to postgres;
 grant create on schema readiness_private to readiness_automation;
 grant create on schema app_public to readiness_automation;
+grant usage on schema app_private,app_public to readiness_automation;
 
 create table readiness_private.readiness_cohorts (
   cohort_id uuid primary key default extensions.gen_random_uuid(),
