@@ -46,3 +46,5 @@ export function createReviewerCredentialClient(transport: ReviewerCredentialTran
       }),
   }
 }
+
+export type ReviewerCredentialClient = ReturnType<typeof createReviewerCredentialClient>

@@ -11,6 +11,7 @@ import type { AppClients, AppRuntime } from './App'
 import { createAdminClient } from '../features/admin/adminClient'
 import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
+import { createReviewerCredentialClient } from '../features/reviews/reviewerCredentialClient'
 import { createBreakGlassReviewClient } from '../features/reviews'
 import {
   createPortalClient,
@@ -437,6 +438,27 @@ export async function configuredComposition(
       flowType: 'pkce',
     },
   })
+  if (
+    typeof window !== 'undefined' &&
+    ['/reviewer/setup', '/reviewer/credentials', '/reviewer/recover'].includes(
+      window.location.pathname,
+    )
+  ) {
+    return {
+      clients: {
+        reviewerCredentials: createReviewerCredentialClient({
+          async execute(command) {
+            const result = await supabase.functions.invoke('reviewer-credentials', {
+              body: command,
+            })
+            if (result.error) throw result.error
+            return result.data
+          },
+        }),
+      },
+      runtime: {},
+    }
+  }
   const offline = await offlineConfiguration(
     options.tripOfflineDatabase ?? new IndexedDbOfflineDatabase(),
   )
@@ -684,6 +706,11 @@ export async function configuredComposition(
         async rpc(name, args) {
           const result = await supabase.rpc(name, args)
           return { data: result.data, error: result.error }
+        },
+      }),
+      reviewerCredentials: createReviewerCredentialClient({
+        async execute(command) {
+          return edge('reviewer-credentials', command)
         },
       }),
       breakGlassReview: createBreakGlassReviewClient({

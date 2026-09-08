@@ -40,6 +40,7 @@ export type ReviewerVerification =
       providerCredentialId: string
       providerVerificationId: string
       providerKeyId: string
+      allowCredentialId: string
       discoverable: false
       signCount: number
     }
@@ -142,6 +143,7 @@ export function parseReviewerVerification(
           'providerCredentialId',
           'providerVerificationId',
           'providerKeyId',
+          'allowCredentialId',
           'discoverable',
           'signCount',
         ]
@@ -169,7 +171,9 @@ export function parseReviewerVerification(
     (typeof proof.publicKeyDigest !== 'string' ||
       !HEX.test(proof.publicKeyDigest) ||
       typeof proof.providerCredentialId !== 'string' ||
-      proof.discoverable !== false)
+      proof.discoverable !== false ||
+      typeof proof.allowCredentialId !== 'string' ||
+      !B64.test(proof.allowCredentialId))
   )
     throw new Error('invalid verification')
   if (

@@ -157,6 +157,13 @@ import {
   unavailableRG01Client,
   type RG01Client,
 } from '../features/rg01'
+// Reviewer credential routes remain separate from RG-01 authority routes.
+import {
+  ReviewerCredentialManagementRoute,
+  ReviewerCredentialRecoveryRoute,
+  ReviewerCredentialSetupRoute,
+} from '../features/reviews/reviewerCredentialRoutes'
+import type { ReviewerCredentialClient } from '../features/reviews/reviewerCredentialClient'
 import {
   ReadinessStatusPage,
   ReadinessAdminPage,
@@ -956,6 +963,7 @@ export interface AppClients {
   lifecycle?: AccountLifecycleClient
   ownConsent?: OwnConsentClient
   reviews?: ReviewClient
+  reviewerCredentials?: ReviewerCredentialClient
   breakGlassReview?: BreakGlassReviewClient
   storeApplications?: StoreApplicationClient
   promotion?: PromotionClient
@@ -988,6 +996,7 @@ export interface AppRuntime {
   /** Pre-render memory-only callback captured by the bootstrap preflight. */
   authCallback?: AuthCallback | null
   breakGlassReviewToken?: string | null
+  reviewerCapabilityToken?: string | null
   /** Deployment-protected research builds provide exact frozen artifact/question bindings. */
   commercialResearch?: { artifactDigest: string; questionVersion: string }
 }
@@ -1004,6 +1013,12 @@ export default function App({
   clients?: AppClients
   runtime?: AppRuntime
 }) {
+  const location = useLocation()
+  const capabilityOnlyRoute = [
+    '/reviewer/setup',
+    '/reviewer/credentials',
+    '/reviewer/recover',
+  ].includes(location.pathname)
   const candidateClient = clients.candidate ?? unavailableCandidateClient
   const shopperClient = clients.shopper ?? unavailableShopperClient
   const tripClient = clients.trips ?? unavailableTripClient
@@ -1065,10 +1080,10 @@ export default function App({
 
   return (
     <AuthProvider
-      provider={authProvider}
-      authStore={runtime.authStore}
-      registry={runtime.sessionRegistry}
-      lifecycle={clients.lifecycle}
+      provider={capabilityOnlyRoute ? unavailableAuthProvider : authProvider}
+      authStore={capabilityOnlyRoute ? undefined : runtime.authStore}
+      registry={capabilityOnlyRoute ? undefined : runtime.sessionRegistry}
+      lifecycle={capabilityOnlyRoute ? undefined : clients.lifecycle}
       onLocalSignOut={async (session) => {
         await tripOffline.prepareSignOut(session.userId)
         await tripOffline.purgeAccount(session.userId, 'confirmed_logout')
@@ -1103,6 +1118,33 @@ export default function App({
               <main>
                 <OperationalStatusPage config={clients.operationalStatus ?? {}} />
               </main>
+            }
+          />
+          <Route
+            path="/reviewer/setup"
+            element={
+              <ReviewerCredentialSetupRoute
+                token={runtime.reviewerCapabilityToken}
+                client={clients.reviewerCredentials}
+              />
+            }
+          />
+          <Route
+            path="/reviewer/credentials"
+            element={
+              <ReviewerCredentialManagementRoute
+                token={runtime.reviewerCapabilityToken}
+                client={clients.reviewerCredentials}
+              />
+            }
+          />
+          <Route
+            path="/reviewer/recover"
+            element={
+              <ReviewerCredentialRecoveryRoute
+                token={runtime.reviewerCapabilityToken}
+                client={clients.reviewerCredentials}
+              />
             }
           />
           <Route path="/more" element={<MorePage ownConsentClient={ownConsentClient} />} />

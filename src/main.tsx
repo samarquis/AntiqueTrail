@@ -1,10 +1,16 @@
 import { preflightAuthCallback } from './features/auth/callbackPreflight'
 import { preflightBreakGlassReview } from './features/reviews/breakGlassReviewClient'
+import {
+  preflightReviewerCapability,
+  takePreflightReviewerCapability,
+} from './features/reviews/reviewerCredentialBrowser'
 
 // This must stay ahead of every application import. Callback credentials leave the
 // address bar before any module capable of networking or registering a worker loads.
 const authCallback = preflightAuthCallback()
 const breakGlassReviewToken = preflightBreakGlassReview()
+preflightReviewerCapability()
+const reviewerCapabilityToken = takePreflightReviewerCapability()
 
 async function bootstrap() {
   const [{ StrictMode }, { createRoot }, { BrowserRouter }, { default: App }, compositionModule] =
@@ -23,7 +29,12 @@ async function bootstrap() {
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <App
           clients={composition?.clients}
-          runtime={{ ...composition?.runtime, authCallback, breakGlassReviewToken }}
+          runtime={{
+            ...composition?.runtime,
+            authCallback,
+            breakGlassReviewToken,
+            reviewerCapabilityToken,
+          }}
         />
       </BrowserRouter>
     </StrictMode>,
