@@ -26,8 +26,10 @@ select ok(has_function_privilege('rg01_signature_service','app_public.rg01_consu
 select ok(has_function_privilege('rg01_lifecycle_service','app_public.rg01_complete_verified_purge(uuid,text,bytea,text,uuid)','EXECUTE') and not has_function_privilege('authenticated','app_public.rg01_complete_verified_purge(uuid,text,bytea,text,uuid)','EXECUTE'),'only lifecycle service completes verified purge');
 select ok(has_function_privilege('rg01_lifecycle_service','app_public.rg01_lifecycle_watchdog(timestamp with time zone)','EXECUTE') and not has_function_privilege('authenticated','app_public.rg01_lifecycle_watchdog(timestamp with time zone)','EXECUTE'),'only lifecycle service runs the watchdog');
 
-select ok(position($q$not exists(select 1 from rg01_private.rg01_product_owner_grants$q$ in lower(pg_get_functiondef('app_public.rg01_get_operational_status(uuid)'::regprocedure)))>0,'status requires an active Product Owner grant');
-select ok(position('rg01_private.source_head_digest()' in lower(pg_get_functiondef('app_public.rg01_get_operational_status(uuid)'::regprocedure)))>0,'status reports binding to the current live source head');
+select ok(position('has_current_evidence_responsibility' in lower(pg_get_functiondef('app_public.rg01_get_operational_status(uuid)'::regprocedure)))>0
+  and position('productowner' in lower(pg_get_functiondef('app_public.rg01_get_operational_status(uuid)'::regprocedure)))>0,'status requires an active Product Owner grant');
+select ok(position('operational_run_projection' in lower(pg_get_functiondef('app_public.rg01_get_operational_status(uuid)'::regprocedure)))>0
+  and position('source_head_digest' in lower(pg_get_functiondef('rg01_private.operational_run_projection(uuid)'::regprocedure)))>0,'status reports binding to the current live source head');
 select ok(position($q$array['runid','idempotencykey','windowstart','windowend','supersedesreceiptid']$q$ in replace(lower(pg_get_functiondef('app_public.rg01_execute_calculation(text,jsonb)'::regprocedure)),' ',''))>0,'begin uses an exact operational allowlist');
 select ok(position($q$array['runid','idempotencykey']$q$ in replace(lower(pg_get_functiondef('app_public.rg01_execute_calculation(text,jsonb)'::regprocedure)),' ',''))>0,'freeze accepts only run and idempotency IDs');
 select ok(position($q$array['totals','denominator','exclusions','signature','failedcodes']$q$ in replace(lower(pg_get_functiondef('app_public.rg01_execute_calculation(text,jsonb)'::regprocedure)),' ',''))>0,'calculation rejects browser totals exclusions and signatures');

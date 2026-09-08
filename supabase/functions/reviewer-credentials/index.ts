@@ -127,6 +127,7 @@ Deno.serve(async (request) => {
             p_provider_credential_id: proof.providerCredentialId,
             p_provider_verification_id: proof.providerVerificationId,
             p_provider_key_id: proof.providerKeyId,
+            p_allow_credential_id: proof.allowCredentialId,
             p_discoverable: proof.discoverable,
             p_sign_count: proof.signCount,
           })

@@ -9,7 +9,13 @@ export type AdminRouteId =
   | 'partners'
   | 'reviews'
   | 'readiness'
+  | 'readinessAdmin'
   | 'beta'
+  | 'rg01'
+  | 'rg01Run'
+  | 'communities'
+  | 'communityDetail'
+  | 'communityGate'
 
 export interface AdminRouteDefinition {
   id: AdminRouteId
@@ -31,8 +37,14 @@ export const ADMIN_ROUTES: readonly AdminRouteDefinition[] = [
   { id: 'more', path: '/admin/more', parentId: 'more' },
   { id: 'partners', path: '/admin/partners', parentId: 'review' },
   { id: 'reviews', path: '/admin/reviews', parentId: 'review' },
+  { id: 'readinessAdmin', path: '/admin/readiness', parentId: 'more' },
   { id: 'readiness', path: '/admin/readiness/:runId', parentId: 'more' },
   { id: 'beta', path: '/admin/beta/:cohortId', parentId: 'more' },
+  { id: 'rg01', path: '/admin/evidence/rg-01', parentId: 'more' },
+  { id: 'rg01Run', path: '/admin/evidence/rg-01/:runId', parentId: 'more' },
+  { id: 'communities', path: '/admin/communities', parentId: 'more' },
+  { id: 'communityDetail', path: '/admin/communities/:runId', parentId: 'more' },
+  { id: 'communityGate', path: '/admin/communities/:runId/gate', parentId: 'more' },
 ]
 
 /** Every mounted Administrator route belongs to exactly one of these parents. */

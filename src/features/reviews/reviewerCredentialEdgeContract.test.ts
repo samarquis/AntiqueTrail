@@ -19,5 +19,7 @@ describe('reviewer credential Edge capability boundary', () => {
   it('keeps provider completion behind the dedicated verifier identity', () => {
     expect(source).toContain('REVIEW_CREDENTIAL_VERIFIER_JWT')
     expect(source).toContain('authorization: `Bearer ${verifierJwt}`')
+    expect(source).toContain('p_allow_credential_id: proof.allowCredentialId')
+    expect(source).not.toContain('p_allow_credential_id: proof.providerCredentialId')
   })
 })

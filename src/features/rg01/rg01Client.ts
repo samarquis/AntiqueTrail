@@ -52,3 +52,9 @@ export function createRG01Client(transport: RG01Transport): RG01Client {
       }),
   }
 }
+
+export const unavailableRG01Client: RG01Client = createRG01Client({
+  execute: async () => {
+    throw new RG01CommandError()
+  },
+})

@@ -8,8 +8,6 @@ declare const Deno: {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
-const calculationJwt = Deno.env.get('RG01_CALCULATION_JWT')
-const signatureJwt = Deno.env.get('RG01_SIGNATURE_JWT')
 const signingToken = Deno.env.get('RG01_SIGNING_PROVIDER_TOKEN')
 const signingUrl = exactHttps(Deno.env.get('RG01_SIGNING_VERIFY_URL'))
 const appOrigin = Deno.env.get('APP_ORIGIN')
@@ -84,11 +82,8 @@ Deno.serve(async (request) => {
       if (rpc.error) throw new Error('unavailable')
       return reply(200, rpc.data, appOrigin)
     }
-    const authorization = await user.rpc('rg01_get_operational_status', { p_run_id: null })
-    if (authorization.error) return reply(404, { status: 'unavailable' }, appOrigin)
     if (command.operation === 'consume_decision') {
-      if (!signatureJwt || !signingUrl || !signingToken)
-        return reply(503, { status: 'no_go' }, appOrigin)
+      if (!signingUrl || !signingToken) return reply(503, { status: 'no_go' }, appOrigin)
       const verification = await fetch(signingUrl, {
         method: 'POST',
         headers: {
@@ -120,12 +115,7 @@ Deno.serve(async (request) => {
         typeof proof.providerVerificationId !== 'string'
       )
         return reply(503, { status: 'verification_invalid' }, appOrigin)
-      const service = createClient(supabaseUrl, anonKey, {
-        db: { schema: 'app_public' },
-        global: { headers: { authorization: `Bearer ${signatureJwt}` } },
-        auth: { persistSession: false, autoRefreshToken: false },
-      })
-      const rpc = await service.rpc('rg01_consume_verified_decision', {
+      const rpc = await user.rpc('rg01_consume_operational_decision', {
         p_challenge_id: command.payload.challengeId,
         p_payload_digest: `\\x${command.payload.payloadDigest}`,
         p_signature_digest: `\\x${proof.signatureDigest}`,
@@ -136,13 +126,7 @@ Deno.serve(async (request) => {
       if (rpc.error) throw new Error('unavailable')
       return reply(200, rpc.data, appOrigin)
     }
-    if (!calculationJwt) return reply(503, { status: 'no_go' }, appOrigin)
-    const service = createClient(supabaseUrl, anonKey, {
-      db: { schema: 'app_public' },
-      global: { headers: { authorization: `Bearer ${calculationJwt}` } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
-    const rpc = await service.rpc('rg01_execute_calculation', {
+    const rpc = await user.rpc('rg01_execute_operational_command', {
       p_operation: command.operation,
       p_payload: command.payload,
     })
