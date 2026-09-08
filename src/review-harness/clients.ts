@@ -2806,6 +2806,7 @@ export function createReviewHarnessClients(
     admin: withRecordAuditReview(adminClient(scenario, state)),
     readinessAdmin: readinessAdminReviewClient(state),
     rg01,
+    ...communityReviewClients(scenario, state),
   }
 }
 

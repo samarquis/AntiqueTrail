@@ -25,10 +25,14 @@ export function AdminPrimaryNavigation() {
   )
 }
 
-export function AdminMorePage({ rg01 }: { rg01?: RG01Client }) {
+export function AdminMorePage({
+  rg01,
+  communityClient,
+}: { rg01?: RG01Client; communityClient?: CommunityPreparationClient } = {}) {
   const { signOut } = useAuth()
   const [signingOut, setSigningOut] = useState(false)
   const [evidenceAvailable, setEvidenceAvailable] = useState(false)
+  const [communitiesAvailable, setCommunitiesAvailable] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -46,6 +50,20 @@ export function AdminMorePage({ rg01 }: { rg01?: RG01Client }) {
       cancelled = true
     }
   }, [rg01])
+
+  useEffect(() => {
+    if (!communityClient) return
+    let mounted = true
+    void communityClient
+      .list()
+      .then((projection) => {
+        if (mounted) setCommunitiesAvailable(projection.status === 'available')
+      })
+      .catch(() => undefined)
+    return () => {
+      mounted = false
+    }
+  }, [communityClient])
 
   async function submitSignOut() {
     setSigningOut(true)

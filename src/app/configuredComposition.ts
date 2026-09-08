@@ -804,6 +804,24 @@ export async function configuredComposition(
         return result.data
       }),
       rg01,
+      communityPreparation: createCommunityPreparationClient({
+        async execute(operation, payload) {
+          const result = await supabase.functions.invoke('community-user-command', {
+            body: { operation, payload },
+          })
+          if (result.error) throw result.error
+          return result.data
+        },
+      }),
+      communityGate: createCommunityGateClient({
+        async execute(operation, payload) {
+          const result = await supabase.functions.invoke('community-gate-command', {
+            body: { operation, payload },
+          })
+          if (result.error) throw result.error
+          return result.data
+        },
+      }),
       operationalStatus: {
         supportUrl: configuredValue(import.meta.env.VITE_SUPPORT_URL) ?? undefined,
         securityUrl: configuredValue(import.meta.env.VITE_SECURITY_CONTACT_URL) ?? undefined,
