@@ -21,6 +21,7 @@ import { createReadinessAdminClient, createReadinessClient } from '../features/r
 import { createBetaClient } from '../features/beta'
 import { createBillingClient } from '../features/billing'
 import { createShopperClient } from '../features/shopper'
+import { createOwnConsentClient } from '../features/rg01'
 import { createCandidateProductionClient } from '../features/candidates'
 import {
   createPartnerAdminClient,
@@ -749,6 +750,11 @@ export async function configuredComposition(
           const result = await supabase.rpc(name, args)
           return { data: result.data, error: result.error }
         },
+      }),
+      ownConsent: createOwnConsentClient(async (name, args) => {
+        const result = await supabase.rpc(name, args)
+        if (result.error) throw result.error
+        return result.data
       }),
       operationalStatus: {
         supportUrl: configuredValue(import.meta.env.VITE_SUPPORT_URL) ?? undefined,

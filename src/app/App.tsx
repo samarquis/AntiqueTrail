@@ -161,6 +161,11 @@ import {
 import { BetaControlPage, unavailableBetaClient, type DurableBetaClient } from '../features/beta'
 import { OperationalStatusPage, type OperationalStatusConfig } from '../features/status'
 import {
+  OwnConsentPage,
+  unavailableOwnConsentClient,
+  type OwnConsentClient,
+} from '../features/rg01'
+import {
   CommercialResearchPage,
   unavailableBillingClient,
   type BillingClient,
@@ -389,9 +394,26 @@ function MoreMenuLock() {
   )
 }
 
-function MorePage() {
+function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) {
   const { session } = useAuth()
   const signedIn = Boolean(session)
+  const [rg01Available, setRg01Available] = useState(false)
+  useEffect(() => {
+    let current = true
+    setRg01Available(false)
+    if (!session || session.role !== 'Shopper') return () => undefined
+    ownConsentClient
+      .getStatus()
+      .then((status) => {
+        if (current) setRg01Available(status.kind === 'available')
+      })
+      .catch(() => {
+        if (current) setRg01Available(false)
+      })
+    return () => {
+      current = false
+    }
+  }, [ownConsentClient, session, signedIn])
   const destinations: Array<{ to: string; label: string; requiresSignIn: boolean; icon?: string }> =
     [
       { to: '/saved', label: 'Saved Stores', requiresSignIn: true, icon: '/icons/saved-store.svg' },
@@ -406,6 +428,15 @@ function MorePage() {
       { to: '/shares', label: 'Shared with Me', requiresSignIn: true },
       { to: '/trip-ideas', label: 'Trip Ideas', requiresSignIn: true },
       { to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true },
+      ...(rg01Available
+        ? [
+            {
+              to: '/account/research/rg-01',
+              label: 'Research participation',
+              requiresSignIn: true,
+            },
+          ]
+        : []),
       { to: '/install', label: 'Install', requiresSignIn: false },
       { to: '/help', label: 'Help', requiresSignIn: false },
     ]
@@ -916,6 +947,7 @@ export interface AppClients {
   partnerAdmin?: PartnerAdminClient
   admin?: AdminClient
   lifecycle?: AccountLifecycleClient
+  ownConsent?: OwnConsentClient
   reviews?: ReviewClient
   breakGlassReview?: BreakGlassReviewClient
   storeApplications?: StoreApplicationClient
@@ -971,6 +1003,7 @@ export default function App({
   const partnerAdminClient = clients.partnerAdmin ?? unavailablePartnerAdminClient
   const adminClient = clients.admin ?? unavailableAdminClient
   const lifecycleClient = clients.lifecycle ?? unavailableLifecycleClient
+  const ownConsentClient = clients.ownConsent ?? unavailableOwnConsentClient
   const reviewClient = clients.reviews ?? unavailableReviewClient
   const breakGlassReviewClient = clients.breakGlassReview ?? unavailableBreakGlassReviewClient
   const portalClient = clients.portal ?? unavailablePortalClient
@@ -1061,7 +1094,7 @@ export default function App({
               </main>
             }
           />
-          <Route path="/more" element={<MorePage />} />
+          <Route path="/more" element={<MorePage ownConsentClient={ownConsentClient} />} />
           <Route
             path="/for-stores"
             element={
@@ -1170,6 +1203,14 @@ export default function App({
             element={
               <RequireSession requiredRole="Shopper">
                 <PrivacyPage client={lifecycleClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/account/research/rg-01"
+            element={
+              <RequireSession requiredRole="Shopper">
+                <OwnConsentPage client={ownConsentClient} />
               </RequireSession>
             }
           />
