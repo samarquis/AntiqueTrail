@@ -4,6 +4,7 @@ import { useAuth } from '../auth'
 import type { RG01Client } from '../rg01'
 import { projectRG01Status } from '../rg01'
 import { ADMIN_ROUTE_PARENTS, adminRouteParent } from './routes'
+import type { CommunityPreparationClient } from '../community'
 
 export function AdminPrimaryNavigation() {
   const { pathname } = useLocation()
@@ -83,8 +84,14 @@ export function AdminMorePage({ rg01 }: { rg01?: RG01Client }) {
               '— unavailable until the server authorizes an exact evidence responsibility.'}
           </li>
           <li>
-            <strong>Communities</strong> — unavailable until the server authorizes the applicable
-            operational scope.
+            {communitiesAvailable ? (
+              <Link to="/admin/communities">Communities</Link>
+            ) : (
+              <>
+                <strong>Communities</strong> — unavailable until the server authorizes the
+                applicable operational scope.
+              </>
+            )}
           </li>
           <li>
             <Link to="/status">System status</Link>
