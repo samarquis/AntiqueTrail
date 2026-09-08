@@ -7,7 +7,10 @@ import {
 
 describe('independent appeal client', () => {
   it('maps the appeal-only command boundary without actor or role fields', async () => {
-    const execute = vi.fn(async (_command: unknown) => ({ state: 'ready' }))
+    const execute = vi.fn(async (...args: unknown[]) => {
+      void args
+      return { state: 'ready' }
+    })
     const client = createIndependentAppealClient({ execute })
     await client.getPacket('A'.repeat(32), '00000000-0000-4000-8000-000000000001')
     expect(execute).toHaveBeenCalledWith({
