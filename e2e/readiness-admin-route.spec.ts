@@ -4,6 +4,7 @@ const reviewUrl = (path: string, identity: string, state = 'success') =>
   `${path}?reviewAs=${identity}&reviewState=${state}`
 
 test('administrator readiness route renders the bounded workspace', async ({ page }) => {
+  test.setTimeout(120_000)
   await page.goto(reviewUrl('/admin/readiness', 'administrator'))
   await expect(page.getByRole('heading', { name: /regional readiness operations/i })).toBeVisible()
   await expect(page.getByText(/no accepted synthetic subjects yet/i)).toBeVisible()

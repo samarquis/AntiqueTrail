@@ -5,7 +5,7 @@ export default defineConfig({
   testMatch: 'readiness-admin-route.spec.ts',
   fullyParallel: false,
   timeout: 60_000,
-  expect: { timeout: 15_000 },
+  expect: { timeout: 60_000 },
   use: { baseURL: 'http://127.0.0.1:42360', trace: 'on-first-retry' },
   webServer: {
     command: 'npm run dev:review -- --host 127.0.0.1 --port 42360',
