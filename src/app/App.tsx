@@ -157,6 +157,8 @@ import {
   unavailableRG01Client,
   type RG01Client,
 } from '../features/rg01'
+// Reviewer credential routes remain separate from RG-01 authority routes.
+import {
   ReviewerCredentialManagementRoute,
   ReviewerCredentialRecoveryRoute,
   ReviewerCredentialSetupRoute,
