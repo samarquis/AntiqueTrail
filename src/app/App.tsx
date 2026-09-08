@@ -147,6 +147,9 @@ import {
   BreakGlassReviewRoute,
   unavailableBreakGlassReviewClient,
   type BreakGlassReviewClient,
+  IndependentAppealRoute,
+  unavailableIndependentAppealReviewClient,
+  type IndependentAppealReviewClient,
   unavailableReviewClient,
   type ReviewClient,
 } from '../features/reviews'
@@ -965,6 +968,7 @@ export interface AppClients {
   reviews?: ReviewClient
   reviewerCredentials?: ReviewerCredentialClient
   breakGlassReview?: BreakGlassReviewClient
+  independentAppealReview?: IndependentAppealReviewClient
   storeApplications?: StoreApplicationClient
   promotion?: PromotionClient
   storeApplicationAdmin?: StoreApplicationAdminClient
@@ -997,6 +1001,7 @@ export interface AppRuntime {
   authCallback?: AuthCallback | null
   breakGlassReviewToken?: string | null
   reviewerCapabilityToken?: string | null
+  independentAppealToken?: string | null
   /** Deployment-protected research builds provide exact frozen artifact/question bindings. */
   commercialResearch?: { artifactDigest: string; questionVersion: string }
 }
@@ -1029,6 +1034,8 @@ export default function App({
   const ownConsentClient = clients.ownConsent ?? unavailableOwnConsentClient
   const reviewClient = clients.reviews ?? unavailableReviewClient
   const breakGlassReviewClient = clients.breakGlassReview ?? unavailableBreakGlassReviewClient
+  const independentAppealReviewClient =
+    clients.independentAppealReview ?? unavailableIndependentAppealReviewClient
   const portalClient = clients.portal ?? unavailablePortalClient
   const readinessClient = clients.readiness ?? unavailableReadinessClient
   const readinessAdminClient = clients.readinessAdmin ?? unavailableReadinessAdminClient
@@ -1414,6 +1421,15 @@ export default function App({
               <BreakGlassReviewRoute
                 token={runtime.breakGlassReviewToken}
                 client={breakGlassReviewClient}
+              />
+            }
+          />
+          <Route
+            path="/appeal-review"
+            element={
+              <IndependentAppealRoute
+                token={runtime.independentAppealToken}
+                client={independentAppealReviewClient}
               />
             }
           />

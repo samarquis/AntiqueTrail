@@ -13,6 +13,7 @@ import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
 import { createReviewerCredentialClient } from '../features/reviews/reviewerCredentialClient'
 import { createBreakGlassReviewClient } from '../features/reviews'
+import { createIndependentAppealClient } from '../features/reviews'
 import {
   createPortalClient,
   createPortalMediaHttpTransport,
@@ -716,6 +717,13 @@ export async function configuredComposition(
       breakGlassReview: createBreakGlassReviewClient({
         async execute(command) {
           const result = await supabase.functions.invoke('break-glass-review', { body: command })
+          if (result.error) throw result.error
+          return result.data
+        },
+      }),
+      independentAppealReview: createIndependentAppealClient({
+        async execute(command) {
+          const result = await supabase.functions.invoke('appeal-review', { body: command })
           if (result.error) throw result.error
           return result.data
         },
