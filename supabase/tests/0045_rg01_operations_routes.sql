@@ -1,5 +1,5 @@
 begin;
-select plan(17);
+select plan(21);
 
 select has_function('app_public','rg01_get_operational_status',array['uuid'],'bounded RG-01 operational projection exists');
 select has_function('app_public','rg01_authorize_operational_command',array['text'],'operational command authorization exists');
@@ -10,6 +10,21 @@ select ok(has_function_privilege('authenticated','app_public.rg01_authorize_oper
 select ok(not has_function_privilege('anon','app_public.rg01_get_operational_status(uuid)','EXECUTE')
   and not has_function_privilege('anon','app_public.rg01_authorize_operational_command(text)','EXECUTE'),
   'anonymous callers cannot reach RG-01 evidence commands');
+
+set local role anon;
+select throws_ok($$select app_public.rg01_get_operational_status(null)$$,'42501',null,
+  'anonymous execution of the operational projection is denied');
+select throws_ok($$select app_public.rg01_authorize_operational_command('begin')$$,'42501',null,
+  'anonymous execution of the operations gate is denied');
+reset role;
+
+select set_config('request.jwt.claims','{"sub":"26200000-0000-4000-8000-000000000001","session_id":"26200000-0000-4000-8000-000000000011"}',true);
+set local role authenticated;
+select throws_ok($$select app_public.rg01_get_operational_status(null)$$,'42501',null,
+  'authenticated execution without a retained responsibility is denied');
+select throws_ok($$select app_public.rg01_authorize_operational_command('begin')$$,'42501',null,
+  'authenticated execution without live Operations authority is denied');
+reset role;
 
 select ok(position('has_current_evidence_responsibility' in lower(pg_get_functiondef('app_public.rg01_get_operational_status(uuid)'::regprocedure)))>0
   and position('operations' in lower(pg_get_functiondef('app_public.rg01_get_operational_status(uuid)'::regprocedure)))>0

@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RG01SigningPage } from './signingRoute'
 import type { RG01Client } from './rg01Client'
 
@@ -44,6 +44,8 @@ function client(): RG01Client {
 }
 
 describe('RG01 signing route', () => {
+  afterEach(cleanup)
+
   it('shows a read-only frozen digest decision without a client signature field', async () => {
     render(
       <MemoryRouter initialEntries={[`/admin/evidence/rg-01/${runId}/sign`]}>
@@ -56,5 +58,25 @@ describe('RG01 signing route', () => {
     expect(screen.getByRole('button', { name: 'Sign' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument()
     expect(screen.queryByLabelText(/signature/iu)).not.toBeInTheDocument()
+  })
+
+  it('sends only the server challenge and provider receipt flow', async () => {
+    const rg01 = client()
+    const view = render(
+      <MemoryRouter initialEntries={[`/admin/evidence/rg-01/${runId}/sign`]}>
+        <RG01SigningPage client={rg01} />
+      </MemoryRouter>,
+    )
+    fireEvent.click(await view.findByRole('button', { name: 'Sign' }))
+    await waitFor(() =>
+      expect(rg01.requestDecision).toHaveBeenCalledWith(runId, 'pass', expect.any(String)),
+    )
+    await waitFor(() =>
+      expect(rg01.consumeDecision).toHaveBeenCalledWith(
+        challengeId,
+        'b'.repeat(64),
+        expect.any(String),
+      ),
+    )
   })
 })
