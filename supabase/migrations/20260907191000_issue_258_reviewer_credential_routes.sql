@@ -7,7 +7,7 @@ grant create on schema review_private,app_public to review_automation;
 
 create table review_private.reviewer_verifier_allow_credentials(
   provider_credential_id text primary key,
-  allow_credential_id text not null check(allow_credential_id ~ '^[A-Za-z0-9_-]{1,8192}$'),
+  allow_credential_id text not null check(char_length(allow_credential_id) between 1 and 8192 and allow_credential_id !~ '[^-A-Za-z0-9_]'),
   verifier_version bigint not null check(verifier_version>0),
   created_at timestamptz not null default statement_timestamp()
 );
@@ -18,6 +18,12 @@ grant select,insert,update,delete on review_private.reviewer_verifier_allow_cred
 create policy reviewer_automation_allow_credentials
   on review_private.reviewer_verifier_allow_credentials
   for all to review_automation using(true) with check(true);
+
+alter table review_private.reviewer_credential_challenges
+  drop constraint if exists reviewer_credential_challenges_check1;
+alter table review_private.reviewer_credential_challenges
+  add constraint reviewer_credential_challenges_ceremony_case
+  check((ceremony='registration' and case_id is null) or ceremony='assertion');
 
 create or replace function review_private.scrub_reviewer_verifier_allow_credential()
 returns trigger language plpgsql security definer set search_path='' as $$
@@ -79,7 +85,7 @@ begin
     or c.rp_id<>cfg.rp_id or c.expected_origin<>cfg.expected_origin or p_provider_key_id<>cfg.provider_key_id or p_discoverable
     or octet_length(p_credential_id_digest)<>32 or octet_length(p_public_key_digest)<>32 or p_sign_count<0
     or p_provider_credential_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$' or p_provider_verification_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$'
-    or p_allow_credential_id !~ '^[A-Za-z0-9_-]{1,8192}$' then
+    or char_length(p_allow_credential_id) not between 1 and 8192 or p_allow_credential_id ~ '[^-A-Za-z0-9_]' then
     raise exception using errcode='42501',message='reviewer_registration_verification_invalid'; end if;
   delete from review_private.reviewer_credential_reuse_markers m using review_private.reviewer_credential_reuse_keys k
     where k.key_version=m.key_version and m.purge_after<=statement_timestamp()
@@ -118,7 +124,7 @@ create or replace function app_public.reviews_request_reviewer_capability_challe
 ) returns jsonb language plpgsql security definer set search_path='' as $$
 declare cap review_private.reviewer_management_capabilities%rowtype; i review_private.reviewer_identities%rowtype; cfg review_private.reviewer_verifier_config%rowtype; c review_private.reviewer_credential_challenges%rowtype; nonce bytea:=extensions.gen_random_bytes(32); request_hash bytea; allow_list jsonb; completed smallint;
 begin
-  if p_capability_token !~ '^[A-Za-z0-9_-]{32,512}$' or p_ceremony not in ('registration','assertion') then raise exception using errcode='42501',message='reviewer_credential_unavailable'; end if;
+  if char_length(p_capability_token) not between 32 and 512 or p_capability_token ~ '[^-A-Za-z0-9_]' or p_ceremony not in ('registration','assertion') then raise exception using errcode='42501',message='reviewer_credential_unavailable'; end if;
   select * into cap from review_private.reviewer_management_capabilities where token_hash=extensions.digest(convert_to(p_capability_token,'utf8'),'sha256') for update;
   request_hash:=extensions.digest(convert_to(concat_ws('|',cap.capability_id,p_ceremony),'utf8'),'sha256');
   select * into c from review_private.reviewer_credential_challenges where idempotency_key=p_idempotency_key;
