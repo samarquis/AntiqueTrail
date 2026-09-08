@@ -16,9 +16,9 @@ test('Administrator can prepare, freeze, and review a bounded RG-01 run', async 
   await page.evaluate(() => {
     document.documentElement.style.zoom = '2'
   })
-  expect(
-    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-  ).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
   expect(await new AxeBuilder({ page }).analyze()).toMatchObject({ violations: [] })
 })
 
