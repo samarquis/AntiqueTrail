@@ -701,11 +701,17 @@ main > header > p:last-child {
 .community-gate-actions {
   position: relative;
   z-index: 1;
+  isolation: isolate;
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 1.25rem;
   scroll-margin-bottom: calc(7rem + env(safe-area-inset-bottom));
+}
+
+.community-gate-actions button {
+  position: relative;
+  z-index: 2;
 }
 
 .community-gate-actions ~ * {
