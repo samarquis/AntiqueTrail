@@ -24,6 +24,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:review": "playwright test --config playwright.review.config.ts",
+    "test:e2e:configured-shopper": "node scripts/configured-free-shopper.mjs",
     "security:contract": "node scripts/security-contract.mjs",
     "security:audit": "npm audit --audit-level=high",
     "auth:provider-smoke": "node scripts/auth-provider-gate.mjs smoke",

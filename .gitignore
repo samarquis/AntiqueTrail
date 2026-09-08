@@ -19,3 +19,6 @@ store-details-focus.png
 supabase/.branches/
 skills-lock.json
 set-token.ps1
+
+# Real local browser diagnostics may contain disposable Auth credentials.
+artifacts/configured-shopper-*/

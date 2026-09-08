@@ -10,6 +10,7 @@ export default tseslint.config(
       'dist-*',
       'coverage',
       'playwright-report',
+      'artifacts/configured-shopper-*',
       'node_modules',
       '.github/skills',
       'supabase/.temp',
