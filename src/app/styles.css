@@ -707,6 +707,15 @@ main > header > p:last-child {
   margin-top: 1.25rem;
 }
 
+.community-gate-actions ~ * {
+  position: relative;
+  z-index: 0;
+}
+
+ul[aria-label='Gate predicate outcomes'] {
+  pointer-events: none;
+}
+
 .page-card__icon {
   flex-shrink: 0;
   width: 1.625rem;
