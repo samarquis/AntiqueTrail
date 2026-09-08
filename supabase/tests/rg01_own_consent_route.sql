@@ -73,7 +73,7 @@ select set_config('request.jwt.claims',jsonb_build_object(
 select is((app_public.rg01_get_own_consent()->>'status'),'available','eligible shopper receives an available projection');
 select is((app_public.rg01_get_own_consent()->>'consentState'),'not_consented','loading and first read never imply consent');
 select is((select array_agg(key order by key) from jsonb_object_keys(app_public.rg01_get_own_consent()) key),
-  array['collectionActive','consentState','consentedAt','status','withdrawnAt']::text[],
+  array['collectionActive','consentedAt','consentState','status','withdrawnAt']::text[],
   'available response has an exact privacy allowlist');
 select ok((app_public.rg01_get_own_consent()::text not like '%26100000%')
   and (app_public.rg01_get_own_consent()::text not like '%metrics%'),
@@ -90,8 +90,10 @@ select set_config('request.jwt.claims',jsonb_build_object(
 )::text,true);
 select is((app_public.rg01_get_own_consent()->>'status'),'unavailable','wrong actor receives generic denial');
 select throws_ok($$select app_public.rg01_set_own_consent(true)$$,'42501','rg01_shopper_required','ineligible actor cannot re-consent');
+reset role;
 select is((select count(*) from rg01_private.rg01_subject_consents
   where user_id='26100000-0000-4000-8000-000000000002'),0,'denied actor cannot create or mutate consent');
+set local role authenticated;
 
 select set_config('request.jwt.claims',jsonb_build_object(
   'sub','26100000-0000-4000-8000-000000000001'
