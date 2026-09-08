@@ -1,5 +1,7 @@
 -- Issue #261: expose only the current shopper's own RG-01 consent projection.
 
+grant identity_service to postgres;
+
 create function app_public.rg01_get_own_consent()
 returns jsonb
 language plpgsql
@@ -121,3 +123,4 @@ revoke all on function app_public.rg01_set_own_consent(boolean) from public,anon
 grant execute on function app_public.rg01_set_own_consent(boolean) to authenticated;
 
 notify pgrst, 'reload schema';
+revoke identity_service from postgres;
