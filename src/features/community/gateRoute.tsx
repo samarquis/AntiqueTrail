@@ -68,7 +68,11 @@ export function CommunityGateRoute({ client }: { client: CommunityGateClient }) 
             {packet.failureCodes.length > 0 && (
               <p role="status">Failed predicates: {packet.failureCodes.join(', ')}</p>
             )}
-            <div role="group" aria-label="Primary Internal Tester decision">
+            <div
+              className="community-gate-actions"
+              role="group"
+              aria-label="Primary Internal Tester decision"
+            >
               <button type="button" disabled={pending} onClick={() => void decide('pass')}>
                 Pass gate
               </button>

@@ -680,6 +680,15 @@ main > header > p:last-child {
   gap: 0.6rem;
 }
 
+.community-gate-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
 .page-card__icon {
   flex-shrink: 0;
   width: 1.625rem;
