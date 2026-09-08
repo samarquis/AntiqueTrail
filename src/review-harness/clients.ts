@@ -2806,6 +2806,7 @@ export function createReviewHarnessClients(
     admin: withRecordAuditReview(adminClient(scenario, state)),
     readinessAdmin: readinessAdminReviewClient(state),
     rg01,
+    ...communityReviewClients(scenario, state),
   }
 }
 
@@ -2864,6 +2865,5 @@ function createRG01ReviewClient(scenario: ReviewScenario, state: ReviewStateId):
       runState = 'signed'
       return { receiptId: '44444444-4444-4444-8444-444444444444', state: 'settled' }
     },
-    ...communityReviewClients(scenario, state),
   }
 }

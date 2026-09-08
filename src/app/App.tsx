@@ -1072,7 +1072,7 @@ export default function App({
     audit: <RecordAuditPage client={adminClient} />,
     reviewQueue: <ReviewQueuePage client={adminClient} />,
     accessSafety: <AccessSafetyPage client={adminClient} />,
-    more: <AdminMorePage rg01={rg01Client} communityClient={clients.communityPreparation} />,
+    more: <AdminMorePage rg01={rg01Client} communityClient={communityPreparationClient} />,
     partners: (
       <PartnerAdminPage
         client={partnerAdminClient}
