@@ -12,6 +12,7 @@ export function RG01SigningPage({ client }: { client: RG01Client }) {
   const [searchParams] = useSearchParams()
   const filter = searchParams.get('state') ?? 'all'
   const [run, setRun] = useState<RG01RunProjection | null>(null)
+  const [canSign, setCanSign] = useState(false)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const [working, setWorking] = useState(false)
@@ -20,9 +21,12 @@ export function RG01SigningPage({ client }: { client: RG01Client }) {
     setLoading(true)
     setFailed(false)
     try {
-      setRun(projectRG01Status(await client.status(runId)).run)
+      const projection = projectRG01Status(await client.status(runId))
+      setRun(projection.run)
+      setCanSign(projection.permissions.sign)
     } catch {
       setRun(null)
+      setCanSign(false)
       setFailed(true)
     } finally {
       setLoading(false)
@@ -105,7 +109,7 @@ export function RG01SigningPage({ client }: { client: RG01Client }) {
               : 'No blockers are recorded for this frozen digest.'}
           </p>
           {outcome && <p role="status">{outcome}</p>}
-          {run.state === 'frozen' && run.currentSource && (
+          {canSign && run.state === 'frozen' && run.currentSource && (
             <div className="memory-delete-actions">
               <button
                 className="button"

@@ -176,7 +176,11 @@ export function RG01OperationsListPage({ client }: { client: RG01Client }) {
         </p>
       )}
       {projection.permissions.prepare && projection.collectionEnabled && (
-        <PrepareRun client={client} onComplete={retry} />
+        <PrepareRun
+          client={client}
+          onComplete={retry}
+          supersedesReceiptId={projection.run?.receiptId ?? undefined}
+        />
       )}
       <label htmlFor="rg01-state-filter">Filter runs</label>{' '}
       <select
@@ -208,7 +212,15 @@ export function RG01OperationsListPage({ client }: { client: RG01Client }) {
   )
 }
 
-function PrepareRun({ client, onComplete }: { client: RG01Client; onComplete: () => void }) {
+function PrepareRun({
+  client,
+  onComplete,
+  supersedesReceiptId,
+}: {
+  client: RG01Client
+  onComplete: () => void
+  supersedesReceiptId?: string
+}) {
   const now = new Date()
   const end = now.toISOString().slice(0, 16)
   const start = new Date(now.getTime() - 180 * 86_400_000).toISOString().slice(0, 16)
@@ -226,6 +238,7 @@ function PrepareRun({ client, onComplete }: { client: RG01Client; onComplete: ()
         idempotencyKey: newIdempotencyKey(),
         windowStart: new Date(windowStart).toISOString(),
         windowEnd: new Date(windowEnd).toISOString(),
+        ...(supersedesReceiptId ? { supersedesReceiptId } : {}),
       })
       onComplete()
     } catch {

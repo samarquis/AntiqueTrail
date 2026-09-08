@@ -113,11 +113,40 @@ begin
   raise exception using errcode='42501',message='rg01_operational_authority_required';
 end $$;
 
+create or replace function app_public.rg01_execute_operational_command(p_operation text,p_payload jsonb)
+returns jsonb language plpgsql security definer set search_path='' as $$
+begin
+  if p_operation not in ('begin','freeze') or not rg01_private.has_live_operations_authority() then
+    raise exception using errcode='42501',message='rg01_operational_authority_required';
+  end if;
+  return app_public.rg01_execute_calculation(p_operation,p_payload);
+end $$;
+
+create or replace function app_public.rg01_consume_operational_decision(
+  p_challenge_id uuid,p_payload_digest bytea,p_signature_digest bytea,p_provider_key_id text,
+  p_provider_verification_id text,p_idempotency_key uuid
+)
+returns jsonb language plpgsql security definer set search_path='' as $$
+begin
+  if not rg01_private.has_current_evidence_responsibility('ProductOwner')
+    or not app_private.current_session_has_mfa()
+    or not app_private.current_session_recent_auth(interval '15 minutes')
+    or rg01_private.bound_release_id() is null then
+    raise exception using errcode='42501',message='rg01_product_owner_required';
+  end if;
+  return app_public.rg01_consume_verified_decision(
+    p_challenge_id,p_payload_digest,p_signature_digest,p_provider_key_id,
+    p_provider_verification_id,p_idempotency_key
+  );
+end $$;
+
 alter function rg01_private.has_current_evidence_responsibility(text) owner to postgres;
 alter function rg01_private.has_live_operations_authority() owner to postgres;
 alter function rg01_private.operational_run_projection(uuid) owner to postgres;
 alter function app_public.rg01_get_operational_status(uuid) owner to postgres;
 alter function app_public.rg01_authorize_operational_command(text) owner to postgres;
+alter function app_public.rg01_execute_operational_command(text,jsonb) owner to postgres;
+alter function app_public.rg01_consume_operational_decision(uuid,bytea,bytea,text,text,uuid) owner to postgres;
 revoke all on function rg01_private.has_current_evidence_responsibility(text),rg01_private.has_live_operations_authority(),rg01_private.operational_run_projection(uuid) from public,anon,authenticated;
-revoke all on function app_public.rg01_get_operational_status(uuid),app_public.rg01_authorize_operational_command(text) from public,anon;
-grant execute on function app_public.rg01_get_operational_status(uuid),app_public.rg01_authorize_operational_command(text) to authenticated;
+revoke all on function app_public.rg01_get_operational_status(uuid),app_public.rg01_authorize_operational_command(text),app_public.rg01_execute_operational_command(text,jsonb),app_public.rg01_consume_operational_decision(uuid,bytea,bytea,text,text,uuid) from public,anon;
+grant execute on function app_public.rg01_get_operational_status(uuid),app_public.rg01_authorize_operational_command(text),app_public.rg01_execute_operational_command(text,jsonb),app_public.rg01_consume_operational_decision(uuid,bytea,bytea,text,text,uuid) to authenticated;
