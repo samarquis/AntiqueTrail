@@ -152,7 +152,10 @@ import {
 } from '../features/reviews'
 import {
   ReadinessStatusPage,
+  ReadinessAdminPage,
   unavailableReadinessClient,
+  unavailableReadinessAdminClient,
+  type ReadinessAdminClient,
   type DurableReadinessClient,
 } from '../features/readiness'
 import { BetaControlPage, unavailableBetaClient, type DurableBetaClient } from '../features/beta'
@@ -923,6 +926,7 @@ export interface AppClients {
   billingServicing?: ServicingClient
   billingSales?: SalesClient
   readiness?: DurableReadinessClient
+  readinessAdmin?: ReadinessAdminClient
   billing?: BillingClient
   beta?: DurableBetaClient
   operationalStatus?: OperationalStatusConfig
@@ -971,6 +975,7 @@ export default function App({
   const breakGlassReviewClient = clients.breakGlassReview ?? unavailableBreakGlassReviewClient
   const portalClient = clients.portal ?? unavailablePortalClient
   const readinessClient = clients.readiness ?? unavailableReadinessClient
+  const readinessAdminClient = clients.readinessAdmin ?? unavailableReadinessAdminClient
   const billingClient = clients.billing ?? unavailableBillingClient
   const betaClient = clients.beta ?? unavailableBetaClient
   const ownerIntakeAvailabilityClient =
@@ -1010,6 +1015,7 @@ export default function App({
     ),
     reviews: <ModerationQueuePage client={reviewClient} />,
     readiness: <ReadinessStatus client={readinessClient} />,
+    readinessAdmin: <ReadinessAdminPage client={readinessAdminClient} />,
     beta: <BetaControl client={betaClient} />,
   }
 
