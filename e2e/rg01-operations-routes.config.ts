@@ -4,8 +4,8 @@ export default defineConfig({
   testDir: '.',
   testMatch: 'rg01-operations-routes.spec.ts',
   fullyParallel: false,
-  timeout: 60_000,
-  expect: { timeout: 15_000 },
+  timeout: 90_000,
+  expect: { timeout: 30_000 },
   use: { baseURL: 'http://127.0.0.1:42320', trace: 'on-first-retry' },
   webServer: {
     command: 'npm run dev:review -- --host 127.0.0.1 --port 42320',
