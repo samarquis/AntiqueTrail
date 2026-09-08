@@ -1,6 +1,5 @@
 import { preflightAuthCallback } from './features/auth/callbackPreflight'
 import { preflightBreakGlassReview } from './features/reviews/breakGlassReviewClient'
-<<<<<<< HEAD
 import {
   preflightReviewerCapability,
   takePreflightReviewerCapability,
@@ -11,7 +10,6 @@ import { preflightIndependentAppeal } from './features/reviews/independentAppeal
 // address bar before any module capable of networking or registering a worker loads.
 const authCallback = preflightAuthCallback()
 const breakGlassReviewToken = preflightBreakGlassReview()
-<<<<<<< HEAD
 preflightReviewerCapability()
 const reviewerCapabilityToken = takePreflightReviewerCapability()
 const independentAppealToken = preflightIndependentAppeal()
@@ -33,7 +31,6 @@ async function bootstrap() {
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <App
           clients={composition?.clients}
-<<<<<<< HEAD
           runtime={{
             ...composition?.runtime,
             authCallback,

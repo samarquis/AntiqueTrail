@@ -79,6 +79,9 @@ do $$ declare t text; begin
   end loop;
 end $$;
 
+grant select on app_public.catalog_areas to review_automation;
+create policy issue259_catalog_areas on app_public.catalog_areas for select to review_automation using(true);
+
 -- Package 9 revokes CREATE after its ownership pass; ownership transfer also
 -- requires it for the service role, so grant it only for this migration.
 grant review_automation to postgres;
@@ -128,7 +131,7 @@ create function app_public.reviews_request_independent_appeal_assertion(p_capabi
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare cap review_private.appeal_reviewer_capabilities%rowtype; a review_private.review_appeals%rowtype; c review_private.moderation_cases%rowtype; i review_private.reviewer_identities%rowtype; cfg review_private.reviewer_verifier_config%rowtype; h review_private.appeal_reviewer_challenges%rowtype; nonce bytea:=extensions.gen_random_bytes(32); request_hash bytea;
 begin
-  if p_capability_token !~ '^[A-Za-z0-9_-]{32,512}$' then raise exception using errcode='42501',message='appeal_reviewer_unavailable'; end if;
+  if char_length(p_capability_token) not between 32 and 512 or p_capability_token !~ '^[A-Za-z0-9_-]+$' then raise exception using errcode='42501',message='appeal_reviewer_unavailable'; end if;
   select * into cap from review_private.appeal_reviewer_capabilities where token_hash=extensions.digest(convert_to(p_capability_token,'utf8'),'sha256') for update;
   if cap.capability_id is null then raise exception using errcode='42501',message='appeal_reviewer_unavailable'; end if;
   request_hash:=extensions.digest(convert_to(cap.capability_id::text,'utf8'),'sha256');
@@ -198,7 +201,7 @@ grant execute on function app_public.reviews_complete_independent_appeal_asserti
 
 create function review_private.independent_appeal_packet(
   p_cap review_private.appeal_reviewer_capabilities,p_a review_private.review_appeals,p_c review_private.moderation_cases,p_r review_private.public_reviews
-) returns jsonb language sql stable set search_path='' as $$
+) returns jsonb language sql stable security definer set search_path='' as $$
   select jsonb_build_object(
     'caseId',p_c.case_id,'appealId',p_a.appeal_id,'reviewId',p_r.review_id,
     'store',jsonb_build_object('name',s.name,'town',s.town,'stateCode',s.state_code,'areaLabel',ar.label),
@@ -211,6 +214,7 @@ create function review_private.independent_appeal_packet(
   from app_public.stores s join app_public.catalog_areas ar on ar.id=s.area_id
   where s.id=p_r.store_id
 $$;
+alter function review_private.independent_appeal_packet(review_private.appeal_reviewer_capabilities,review_private.review_appeals,review_private.moderation_cases,review_private.public_reviews) owner to review_automation;
 
 create function app_public.reviews_get_independent_appeal_packet(p_capability_token text,p_assertion_receipt_id uuid) returns jsonb
 language plpgsql security definer set search_path='' as $$
