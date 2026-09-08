@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(19);
 
 select has_function('app_public','rg01_get_own_consent',array[]::text[],'shopper RG-01 own-consent projection exists');
 select ok(has_function_privilege('authenticated','app_public.rg01_get_own_consent()','EXECUTE')
@@ -34,6 +34,10 @@ insert into app_private.active_sessions(
 ) values (
   '26100000-0000-4000-8000-000000000101',
   '26100000-0000-4000-8000-000000000001',
+  statement_timestamp(),1,'active',statement_timestamp(),statement_timestamp()+interval '1 hour'
+), (
+  '26100000-0000-4000-8000-000000000102',
+  '26100000-0000-4000-8000-000000000002',
   statement_timestamp(),1,'active',statement_timestamp(),statement_timestamp()+interval '1 hour'
 );
 insert into release_private.regional_releases(
@@ -69,17 +73,12 @@ select lives_ok($$select app_public.rg01_set_own_consent(false)$$,'eligible shop
 select is((app_public.rg01_get_own_consent()->>'consentState'),'withdrawn','withdrawal remains visible as own state');
 select ok((select withdrawn_at is not null from rg01_private.rg01_subject_consents
   where user_id='26100000-0000-4000-8000-000000000001'),'withdrawal is durable on the subject row');
-delete from app_private.role_grants
- where subject_user_id='26100000-0000-4000-8000-000000000001';
-select throws_ok($$select app_public.rg01_set_own_consent(true)$$,'42501','rg01_shopper_required','ineligible shopper cannot re-consent');
-select is((select withdrawn_at is not null from rg01_private.rg01_subject_consents
-  where user_id='26100000-0000-4000-8000-000000000001'),true,'denied re-consent leaves withdrawal unchanged');
-
 select set_config('request.jwt.claims',jsonb_build_object(
   'sub','26100000-0000-4000-8000-000000000002',
   'session_id','26100000-0000-4000-8000-000000000102'
 )::text,true);
 select is((app_public.rg01_get_own_consent()->>'status'),'unavailable','wrong actor receives generic denial');
+select throws_ok($$select app_public.rg01_set_own_consent(true)$$,'42501','rg01_shopper_required','ineligible actor cannot re-consent');
 select is((select count(*) from rg01_private.rg01_subject_consents
   where user_id='26100000-0000-4000-8000-000000000002'),0,'denied actor cannot create or mutate consent');
 

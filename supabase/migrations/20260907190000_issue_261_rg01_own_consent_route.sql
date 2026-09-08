@@ -68,9 +68,9 @@ as $$
 declare
   uid uuid := app_public.request_user_id();
 begin
-  if not (select c.collection_enabled and rg01_private.release_is_active(c.release_id)
-            from rg01_private.rg01_capability c
-           where c.singleton_id=1)
+  if not coalesce((select c.collection_enabled and rg01_private.release_is_active(c.release_id)
+                     from rg01_private.rg01_capability c
+                    where c.singleton_id=1),false)
   then
     raise exception using errcode='55000',message='rg01_collection_disabled';
   end if;
