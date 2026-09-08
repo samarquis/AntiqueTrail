@@ -699,27 +699,20 @@ main > header > p:last-child {
 }
 
 .community-gate-actions {
-  position: relative;
+  position: sticky;
+  bottom: calc(6.5rem + env(safe-area-inset-bottom));
   z-index: 1;
-  isolation: isolate;
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 1.25rem;
+  padding: 1rem 0;
+  background: var(--card);
   scroll-margin-bottom: calc(7rem + env(safe-area-inset-bottom));
 }
 
 .community-gate-actions button {
-  position: relative;
-  z-index: 2;
-}
-
-.community-gate-card {
-  pointer-events: none;
-}
-
-.community-gate-card :is(a, button) {
-  pointer-events: auto;
+  flex: 1 1 12rem;
 }
 
 .community-gate-actions ~ * {
