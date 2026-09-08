@@ -26,7 +26,10 @@ insert into auth.users(id) values
   ('26100000-0000-4000-8000-000000000002');
 insert into app_private.profiles(user_id,age_18_attested_at,status)
 values ('26100000-0000-4000-8000-000000000001',statement_timestamp(),'active'),
-       ('26100000-0000-4000-8000-000000000002',statement_timestamp(),'active');
+       ('26100000-0000-4000-8000-000000000002',statement_timestamp(),'active')
+on conflict (user_id) do update set
+  age_18_attested_at=excluded.age_18_attested_at,
+  status=excluded.status;
 insert into app_private.role_grants(subject_user_id,role,state)
 values ('26100000-0000-4000-8000-000000000001','shopper','active');
 insert into app_private.active_sessions(
