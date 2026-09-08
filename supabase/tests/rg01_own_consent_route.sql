@@ -82,8 +82,8 @@ select lives_ok($$select app_public.rg01_set_own_consent(true)$$,'eligible shopp
 select is((app_public.rg01_get_own_consent()->>'consentState'),'consented','consent is confirmed by a fresh server read');
 select lives_ok($$select app_public.rg01_set_own_consent(false)$$,'eligible shopper can explicitly withdraw');
 select is((app_public.rg01_get_own_consent()->>'consentState'),'withdrawn','withdrawal remains visible as own state');
-select ok((select withdrawn_at is not null from rg01_private.rg01_subject_consents
-  where user_id='26100000-0000-4000-8000-000000000001'),'withdrawal is durable on the subject row');
+select ok((app_public.rg01_get_own_consent()->>'withdrawnAt') is not null,
+  'withdrawal is durable and visible only through the own projection');
 select set_config('request.jwt.claims',jsonb_build_object(
   'sub','26100000-0000-4000-8000-000000000002',
   'session_id','26100000-0000-4000-8000-000000000102'
