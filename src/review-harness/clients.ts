@@ -71,6 +71,7 @@ import {
   type ReviewClient,
 } from '../features/reviews'
 import type { ReadinessAdminClient, ReadinessAdminWorkspace } from '../features/readiness'
+import type { RG01Client } from '../features/rg01'
 import {
   unavailableShopperClient,
   type PrivateStoreMemory,
@@ -2645,6 +2646,7 @@ export function createReviewHarnessClients(
     }
     throw new Error('Synthetic RG-01 command unavailable')
   })
+  const rg01 = createRG01ReviewClient(scenario, state)
   return {
     promotion,
     ownConsent,
@@ -2660,5 +2662,64 @@ export function createReviewHarnessClients(
     partnerAdmin: partnerAdminClient(scenario, state),
     admin: withRecordAuditReview(adminClient(scenario, state)),
     readinessAdmin: readinessAdminReviewClient(state),
+    rg01,
+  }
+}
+
+function createRG01ReviewClient(scenario: ReviewScenario, state: ReviewStateId): RG01Client {
+  const allowed = () => requireRole(scenario, ['Administrator'], true)
+  const runId = '11111111-1111-4111-8111-111111111111'
+  let runState: 'collecting' | 'frozen' | 'signed' | 'rejected' = 'collecting'
+  const projection = () => ({
+    collectionEnabled: true,
+    permissions: { prepare: true, freeze: true, sign: true },
+    run: {
+      runId,
+      state: runState,
+      windowStart: '2026-02-06T00:00:00.000Z',
+      windowEnd: '2026-08-05T00:00:00.000Z',
+      sourceCutoff: runState === 'collecting' ? null : '2026-08-05T00:00:00.000Z',
+      currentSource: runState !== 'collecting',
+      manifestDigest: runState === 'collecting' ? null : 'a'.repeat(64),
+      blockers: [],
+      metrics: runState === 'collecting' ? {} : { first_trip_shoppers: 25 },
+      receiptId: null,
+      receiptStatus: 'none',
+      supersedesReceiptId: null,
+      supersessionStatus: 'none',
+      linkagePurgeDueAt: null,
+      purgeStatus: 'not_due',
+      linkagePurged: false,
+    },
+    runs: [],
+  })
+  return {
+    async status() {
+      allowed()
+      if (state !== 'success') throw new Error('Synthetic RG-01 unavailable')
+      const value = projection()
+      return { ...value, runs: [value.run] }
+    },
+    async begin() {
+      allowed()
+      if (state !== 'success') throw new Error('Synthetic RG-01 unavailable')
+      runState = 'collecting'
+      return { runId, state: runState }
+    },
+    async freeze() {
+      allowed()
+      if (state !== 'success') throw new Error('Synthetic RG-01 unavailable')
+      runState = 'frozen'
+      return { runId, state: runState, blockers: [] }
+    },
+    async requestDecision() {
+      allowed()
+      return { challengeId: '33333333-3333-4333-8333-333333333333', payloadDigest: 'b'.repeat(64) }
+    },
+    async consumeDecision() {
+      allowed()
+      runState = 'signed'
+      return { receiptId: '44444444-4444-4444-8444-444444444444', state: 'settled' }
+    },
   }
 }

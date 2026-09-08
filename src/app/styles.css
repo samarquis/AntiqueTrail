@@ -674,6 +674,24 @@ main > header > p:last-child {
   box-shadow: var(--shadow-raised);
 }
 
+.rg01-facts,
+.rg01-metrics {
+  display: grid;
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.rg01-facts > div,
+.rg01-metrics > div {
+  min-width: 0;
+}
+
+.rg01-facts dd,
+.rg01-metrics dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
 .page-card__heading {
   display: flex;
   align-items: center;

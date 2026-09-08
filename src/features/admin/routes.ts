@@ -11,6 +11,8 @@ export type AdminRouteId =
   | 'readiness'
   | 'readinessAdmin'
   | 'beta'
+  | 'rg01'
+  | 'rg01Run'
 
 export interface AdminRouteDefinition {
   id: AdminRouteId
@@ -35,6 +37,8 @@ export const ADMIN_ROUTES: readonly AdminRouteDefinition[] = [
   { id: 'readinessAdmin', path: '/admin/readiness', parentId: 'more' },
   { id: 'readiness', path: '/admin/readiness/:runId', parentId: 'more' },
   { id: 'beta', path: '/admin/beta/:cohortId', parentId: 'more' },
+  { id: 'rg01', path: '/admin/evidence/rg-01', parentId: 'more' },
+  { id: 'rg01Run', path: '/admin/evidence/rg-01/:runId', parentId: 'more' },
 ]
 
 /** Every mounted Administrator route belongs to exactly one of these parents. */
