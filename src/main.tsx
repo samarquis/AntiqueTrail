@@ -4,6 +4,7 @@ import {
   preflightReviewerCapability,
   takePreflightReviewerCapability,
 } from './features/reviews/reviewerCredentialBrowser'
+import { preflightIndependentAppeal } from './features/reviews/independentAppealClient'
 
 // This must stay ahead of every application import. Callback credentials leave the
 // address bar before any module capable of networking or registering a worker loads.
@@ -11,6 +12,7 @@ const authCallback = preflightAuthCallback()
 const breakGlassReviewToken = preflightBreakGlassReview()
 preflightReviewerCapability()
 const reviewerCapabilityToken = takePreflightReviewerCapability()
+const independentAppealToken = preflightIndependentAppeal()
 
 async function bootstrap() {
   const [{ StrictMode }, { createRoot }, { BrowserRouter }, { default: App }, compositionModule] =
@@ -34,6 +36,7 @@ async function bootstrap() {
             authCallback,
             breakGlassReviewToken,
             reviewerCapabilityToken,
+            independentAppealToken,
           }}
         />
       </BrowserRouter>
