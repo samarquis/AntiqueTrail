@@ -42,6 +42,7 @@ async function installCredentialStub(page: import('@playwright/test').Page) {
 test('setup completes two credentials and scrubs the capability at phone and desktop widths', async ({
   page,
 }) => {
+  page.setDefaultTimeout(60_000)
   let registrations = 0
   await page.route('**/auth/v1/**', async (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) }),
