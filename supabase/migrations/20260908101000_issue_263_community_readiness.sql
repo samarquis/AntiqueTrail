@@ -4,6 +4,7 @@
 
 grant identity_service, community_automation to postgres;
 grant create on schema community_private, app_public to community_automation;
+grant usage, create on schema community_private to identity_service;
 grant usage on schema readiness_private to identity_service;
 
 create or replace function community_private.require_user_responsibility(
@@ -366,4 +367,5 @@ revoke all on function app_public.community_gate_command(text,jsonb) from public
 grant execute on function app_public.community_gate_command(text,jsonb) to authenticated;
 
 revoke create on schema community_private,app_public from community_automation;
+revoke create on schema community_private from identity_service;
 revoke identity_service,community_automation from postgres;
