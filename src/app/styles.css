@@ -2116,8 +2116,31 @@ main > article dt {
   max-width: 45rem;
 }
 
+@media (min-width: 1024px) {
+  .store-detail {
+    max-width: none;
+    padding: 0;
+  }
+
+  main.store-detail {
+    width: 100%;
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
 .store-detail__back {
   margin-bottom: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .store-detail__back {
+    position: absolute;
+    top: 1rem;
+    left: clamp(32px, 3vw, 64px);
+    z-index: 11;
+  }
 }
 
 .store-detail > .store-detail__article {
@@ -2140,6 +2163,13 @@ main > article dt {
     var(--card),
     color-mix(in srgb, var(--mint) 48%, var(--card))
   );
+}
+
+@media (min-width: 1024px) {
+  .store-detail__header {
+    padding: clamp(32px, 3vw, 64px);
+    padding-bottom: clamp(64px, 5.56vw, 96px);
+  }
 }
 
 .store-detail__header h1 {
@@ -2215,6 +2245,14 @@ main > article dt {
   padding: 1.5rem 1rem 2rem;
 }
 
+@media (min-width: 1024px) {
+  .store-gallery {
+    padding: clamp(32px, 3vw, 64px);
+    padding-top: clamp(64px, 5.56vw, 96px);
+    padding-bottom: clamp(64px, 5.56vw, 96px);
+  }
+}
+
 .store-gallery__hero {
   position: relative;
   margin: 0;
@@ -2257,6 +2295,13 @@ main > article dt {
   box-shadow: var(--shadow-raised);
 }
 
+@media (min-width: 1024px) {
+  .store-gallery__enlarge {
+    aspect-ratio: 2.2 / 1;
+    min-height: 0;
+  }
+}
+
 .store-gallery__enlarge:hover,
 .store-gallery__enlarge:active {
   background: var(--card);
@@ -2269,6 +2314,12 @@ main > article dt {
   display: block;
   border-radius: 2px;
   object-fit: cover;
+}
+
+@media (min-width: 1024px) {
+  .store-gallery__enlarge img {
+    height: 100%;
+  }
 }
 
 /* Museum plate under the pinned print. */
@@ -2299,6 +2350,17 @@ main > article dt {
   line-height: var(--type-leading-display-tight);
 }
 
+.store-detail__gallery-link {
+  padding: 1rem clamp(1.25rem, 5vw, 2rem);
+  text-align: center;
+}
+
+@media (min-width: 1024px) {
+  .store-detail__gallery-link {
+    padding: 1rem clamp(32px, 3vw, 64px);
+  }
+}
+
 /* The wall itself: a contact-sheet grid of framed prints. auto-fill keeps
    the wall flowing for any photo count; the pinned print lifts in place. */
 .store-gallery__wall {
@@ -2306,6 +2368,23 @@ main > article dt {
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
   gap: 0.85rem;
   margin-top: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .store-gallery__wall {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .store-gallery__wall > :first-child {
+    grid-column: 1;
+    aspect-ratio: 1.35 / 1;
+  }
+
+  .store-gallery__wall > :nth-child(n + 2) {
+    grid-column: span 1;
+    aspect-ratio: 1 / 1;
+  }
 }
 
 .store-gallery__print {
@@ -2456,6 +2535,16 @@ main > article dt {
   border-bottom: 1px solid var(--line);
 }
 
+@media (min-width: 1024px) {
+  .store-detail__intro,
+  .store-detail__panel,
+  .store-detail__provenance {
+    padding: clamp(32px, 3vw, 64px);
+    padding-top: clamp(64px, 5.56vw, 96px);
+    padding-bottom: clamp(64px, 5.56vw, 96px);
+  }
+}
+
 .store-detail__intro > h2,
 .store-detail__panel > h2,
 .store-detail__provenance > h2 {
@@ -2469,6 +2558,12 @@ main > article dt {
   padding: 1rem clamp(1.25rem, 5vw, 2rem);
   border-bottom: 1px solid var(--line);
   background: var(--card);
+}
+
+@media (min-width: 1024px) {
+  .store-detail__actions {
+    padding: clamp(32px, 3vw, 64px);
+  }
 }
 
 .store-detail__actions .button--secondary {
@@ -2560,6 +2655,47 @@ main > article dt {
 .store-detail__provenance {
   border-bottom: 0;
   background: color-mix(in srgb, var(--mint) 35%, var(--card));
+}
+
+/* Section navigation for full-width Store Details */
+.store-detail__section-nav {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .store-detail__section-nav {
+    display: flex;
+    gap: 1.5rem;
+    padding: 1rem clamp(32px, 3vw, 64px);
+    background: var(--surface-chrome);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .store-detail__section-nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: var(--type-size-label);
+    font-weight: var(--type-weight-strong);
+    padding: 0.5rem 0;
+    border-bottom: 2px solid transparent;
+    transition:
+      color 160ms ease,
+      border-color 160ms ease;
+  }
+
+  .store-detail__section-nav a:hover,
+  .store-detail__section-nav a:focus {
+    color: var(--teal-dark);
+    border-bottom-color: var(--teal-dark);
+  }
+
+  .store-detail__section-nav a[aria-current='true'] {
+    color: var(--ink);
+    border-bottom-color: var(--teal-dark);
+  }
 }
 
 @media (max-width: 800px) {
