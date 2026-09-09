@@ -142,10 +142,7 @@ try {
         '--config',
         'e2e/configured-free-shopper-playwright.config.ts',
         ...(mediaOnly
-          ? [
-              '--grep',
-              'JIT trip entry, authenticated catalog, photo, save and two-store creation$',
-            ]
+          ? ['--grep', 'JIT trip entry, authenticated catalog, photo, save and two-store creation$']
           : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
