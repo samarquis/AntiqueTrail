@@ -32,9 +32,11 @@ export function MapFallback({ capability }: { capability: RoutingCapability }) {
 export function CheckMyDayChoice({
   onUseSuggested,
   onKeepOrder,
+  disabled = false,
 }: {
   onUseSuggested: () => void
   onKeepOrder: () => void
+  disabled?: boolean
 }) {
   return (
     <section aria-labelledby="check-day-choice">
@@ -43,10 +45,10 @@ export function CheckMyDayChoice({
         Suggestions are based on your selected limits and available hours; they are not a claim of
         real-world optimality.
       </p>
-      <button type="button" onClick={onUseSuggested}>
+      <button type="button" disabled={disabled} onClick={onUseSuggested}>
         Use Suggested Order
       </button>
-      <button type="button" onClick={onKeepOrder}>
+      <button type="button" disabled={disabled} onClick={onKeepOrder}>
         Keep My Order
       </button>
     </section>

@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
 import {
   MEDIA_MAX_IMAGE_BYTES,
+  MediaPipelineError,
   runMediaIngest,
   type MediaPipelineDependencies,
 } from '../_shared/media-pipeline.ts'
@@ -48,6 +49,18 @@ function cors(request: Request): Record<string, string> | undefined {
 
 function unavailable(headers: Record<string, string> = {}, status = 503): Response {
   return new Response('Unavailable', { status, headers })
+}
+
+class MediaCapDeniedError extends MediaPipelineError {
+  constructor(readonly payload: Record<string, unknown>) {
+    super()
+    this.name = 'MediaCapDeniedError'
+  }
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+  return [...digest].map((value) => value.toString(16).padStart(2, '0')).join('')
 }
 
 async function rpc<T>(
@@ -100,69 +113,139 @@ Deno.serve(async (request) => {
     const altText = form.get('altText')
     const idempotencyKey = form.get('idempotencyKey')
     const rightsConfirmed = form.get('rightsConfirmed')
+    const originalUploadId = form.get('originalUploadId')
+    const resubmitting = typeof originalUploadId === 'string' && originalUploadId.length > 0
     if (
       !(image instanceof File) ||
-      typeof storeId !== 'string' ||
-      (kind !== 'cover' && kind !== 'gallery') ||
       typeof altText !== 'string' ||
       typeof idempotencyKey !== 'string' ||
       rightsConfirmed !== 'true' ||
       image.size > MEDIA_MAX_IMAGE_BYTES
     )
       return unavailable(headers)
-    const bytes = new Uint8Array(await image.arrayBuffer())
 
-    // Tier cap check at intake (M-01 enforcement per #119)
-    const capCheck = await rpc<{ allowed: boolean; remaining?: number; error?: string; message?: string; currentTier?: string; upgradeTier?: string; upgradeCap?: number | null; approvedCount?: number; cap?: number }>(
-      userClient,
-      'partner_private.check_store_media_cap',
-      { p_store_id: storeId, p_kind: kind, p_idempotency_key: idempotencyKey }
-    )
-    if (!capCheck.allowed) {
-      return Response.json(
-        { error: capCheck.error, message: capCheck.message, currentTier: capCheck.currentTier, upgradeTier: capCheck.upgradeTier, upgradeCap: capCheck.upgradeCap, approvedCount: capCheck.approvedCount, cap: capCheck.cap },
-        { status: 409, headers }
-      )
+    // Resubmission derives store/kind from the server-locked rejected original;
+    // the client never supplies store authority. Normal uploads read them from
+    // the form as today.
+    let activeStoreId: string | undefined
+    let activeKind: 'cover' | 'gallery' | undefined
+    if (resubmitting) {
+      if (typeof storeId === 'string' || typeof kind === 'string') return unavailable(headers)
+    } else {
+      if (typeof storeId !== 'string' || (kind !== 'cover' && kind !== 'gallery'))
+        return unavailable(headers)
+      activeStoreId = storeId
+      activeKind = kind
+    }
+    const bytes = new Uint8Array(await image.arrayBuffer())
+    const sourceDigest = await sha256Hex(bytes)
+
+    // Tier cap check at intake for normal uploads (M-01 enforcement per #119).
+    // Resubmission performs the cap check atomically inside media_reserve_resubmission
+    // against the server-derived store/kind; a denial surfaces as a 409 below.
+    if (!resubmitting) {
+      const capCheck = await rpc<{
+        allowed: boolean
+        remaining?: number
+        error?: string
+        message?: string
+        currentTier?: string
+        upgradeTier?: string
+        upgradeCap?: number | null
+        approvedCount?: number
+        cap?: number
+      }>(userClient, 'partner_private.check_store_media_cap', {
+        p_store_id: activeStoreId,
+        p_kind: activeKind,
+        p_idempotency_key: idempotencyKey,
+      })
+      if (!capCheck.allowed) {
+        return Response.json(
+          {
+            error: capCheck.error,
+            message: capCheck.message,
+            currentTier: capCheck.currentTier,
+            upgradeTier: capCheck.upgradeTier,
+            upgradeCap: capCheck.upgradeCap,
+            approvedCount: capCheck.approvedCount,
+            cap: capCheck.cap,
+          },
+          { status: 409, headers },
+        )
+      }
     }
 
     let staged = false
     let acceptedUploadId = ''
+    let replayedReservation = false
     const dependencies: MediaPipelineDependencies = {
       reserve: async (input) => {
-        const value = await rpc<Record<string, unknown>>(userClient, 'media_reserve_upload', {
-          p_store_id: input.storeId,
-          p_kind: input.kind,
-          p_alt_text: input.altText,
-          p_idempotency_key: input.idempotencyKey,
-          p_rights_confirmed: input.rightsConfirmed,
-          p_source_mime: input.inspection.mime,
-          p_source_bytes: input.inspection.bytes,
-          p_source_width: input.inspection.width,
-          p_source_height: input.inspection.height,
-        })
+        let value: Record<string, unknown>
+        if (resubmitting) {
+          value = await rpc<Record<string, unknown>>(userClient, 'media_reserve_resubmission', {
+            p_original_upload_id: input.originalUploadId,
+            p_alt_text: input.altText,
+            p_idempotency_key: input.idempotencyKey,
+            p_rights_confirmed: input.rightsConfirmed,
+            p_source_mime: input.inspection.mime,
+            p_source_bytes: input.inspection.bytes,
+            p_source_width: input.inspection.width,
+            p_source_height: input.inspection.height,
+            p_source_digest: sourceDigest,
+          })
+          if (value.error === 'media_cap_exceeded') throw new MediaCapDeniedError(value)
+          if (value.error === 'media_unavailable') throw new MediaPipelineError()
+        } else {
+          value = await rpc<Record<string, unknown>>(userClient, 'media_reserve_upload', {
+            p_store_id: input.storeId,
+            p_kind: input.kind,
+            p_alt_text: input.altText,
+            p_idempotency_key: input.idempotencyKey,
+            p_rights_confirmed: input.rightsConfirmed,
+            p_source_mime: input.inspection.mime,
+            p_source_bytes: input.inspection.bytes,
+            p_source_width: input.inspection.width,
+            p_source_height: input.inspection.height,
+          })
+        }
         const uploadId = typeof value.uploadId === 'string' ? value.uploadId : ''
-        const originalObjectKey =
-          typeof value.originalObjectKey === 'string' ? value.originalObjectKey : ''
-        const derivativeObjectKey =
-          typeof value.derivativeObjectKey === 'string' ? value.derivativeObjectKey : ''
+        const state = value.state
+        const replayed = value.replayed === true
+        const originalObjectKey = resubmitting
+          ? `quarantine/${uploadId}/original`
+          : typeof value.originalObjectKey === 'string'
+            ? value.originalObjectKey
+            : ''
+        const derivativeObjectKey = resubmitting
+          ? `quarantine/${uploadId}/derivative.webp`
+          : typeof value.derivativeObjectKey === 'string'
+            ? value.derivativeObjectKey
+            : ''
         if (
           !/^[0-9a-f-]{36}$/iu.test(uploadId) ||
+          (resubmitting &&
+            state !== 'reserved' &&
+            state !== 'staged' &&
+            state !== 'awaiting_review') ||
           originalObjectKey !== `quarantine/${uploadId}/original` ||
           derivativeObjectKey !== `quarantine/${uploadId}/derivative.webp`
         )
           throw new Error('media_unavailable')
         acceptedUploadId = uploadId
+        replayedReservation = resubmitting && replayed
         return {
           uploadId,
           originalObjectKey,
           derivativeObjectKey,
+          state: resubmitting ? state : 'reserved',
+          isReplay: replayedReservation,
         }
       },
-      async putPrivate(key, value, contentType) {
+      async putPrivate(key, value, contentType, allowOverwrite = false) {
         const result = await workerClient.storage.from(privateBucket).upload(key, value, {
           cacheControl: '0',
           contentType,
-          upsert: false,
+          upsert: allowOverwrite,
         })
         if (result.error) throw result.error
         if (!staged && key.endsWith('/original')) {
@@ -255,11 +338,12 @@ Deno.serve(async (request) => {
       {
         bytes,
         claimedMime: image.type,
-        storeId,
-        kind,
+        storeId: resubmitting ? undefined : activeStoreId,
+        kind: resubmitting ? undefined : activeKind,
         altText,
         idempotencyKey,
         rightsConfirmed: true,
+        originalUploadId: resubmitting ? (originalUploadId as string) : undefined,
       },
       dependencies,
     )
@@ -268,7 +352,10 @@ Deno.serve(async (request) => {
       { state: result.state, uploadId: acceptedUploadId },
       { status: 202, headers },
     )
-  } catch {
+  } catch (error) {
+    if (error instanceof MediaCapDeniedError) {
+      return Response.json(error.payload, { status: 409, headers })
+    }
     return unavailable(headers)
   }
 })

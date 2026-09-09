@@ -43,4 +43,62 @@ describe('configured authoritative account operations', () => {
     })
     expect(verifyOtp).not.toHaveBeenCalled()
   })
+
+  it('submits recovery only to the dedicated server function and does not install a session', async () => {
+    const invoke = vi.fn(async () => ({ data: { state: 'completed' }, error: null }))
+    const updateUser = vi.fn()
+    const signOut = vi.fn(async () => ({ error: null }))
+    const provider = createAuthProvider({
+      functions: { invoke },
+      auth: { updateUser, signOut },
+    } as never)
+    await expect(
+      provider.completePasswordRecovery?.({
+        tokenHash: 'opaque-token',
+        password: 'new-password-123',
+        requestId: '00000000-0000-4000-8000-000000000001',
+      }),
+    ).resolves.toEqual({ kind: 'completed' })
+    expect(invoke).toHaveBeenCalledWith('auth-recovery-complete', {
+      body: {
+        token_hash: 'opaque-token',
+        password: 'new-password-123',
+        request_id: '00000000-0000-4000-8000-000000000001',
+      },
+    })
+    expect(updateUser).not.toHaveBeenCalled()
+    expect(signOut).not.toHaveBeenCalled()
+  })
+
+  it('installs verified email sessions into the configured SDK before returning authenticated', async () => {
+    const session = {
+      access_token: 'verified-access',
+      refresh_token: 'verified-refresh',
+      expires_at: 1_900_000_000,
+      token_type: 'bearer',
+      user: {
+        id: 'verified-user',
+        email: 'verified@example.test',
+        email_confirmed_at: '2026-09-07T00:00:00Z',
+        app_metadata: { role: 'Shopper' },
+        user_metadata: {},
+      },
+    }
+    const invoke = vi.fn(async () => ({ data: { state: 'authenticated', session }, error: null }))
+    const setSession = vi.fn(async () => ({ data: { session }, error: null }))
+    const signOut = vi.fn(async () => ({ error: null }))
+    const provider = createAuthProvider({
+      functions: { invoke },
+      auth: { setSession, signOut },
+    } as never)
+    await expect(provider.verifyCallback?.('verify', 'opaque-hash')).resolves.toMatchObject({
+      kind: 'authenticated',
+      session: { userId: 'verified-user' },
+    })
+    expect(setSession).toHaveBeenCalledWith({
+      access_token: 'verified-access',
+      refresh_token: 'verified-refresh',
+    })
+    expect(signOut).not.toHaveBeenCalled()
+  })
 })

@@ -1,15 +1,30 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
   const base = process.env.GITHUB_PAGES === 'true' ? '/AntiqueTrail/' : '/'
+  const ownerResearch = mode === 'owner-research'
+  const env = loadEnv(mode, process.cwd(), '')
+  const plugins: PluginOption[] = [react()]
 
-  return {
-    base,
-    plugins: [
-      react(),
-      VitePWA({
+  if (ownerResearch) {
+    plugins.push({
+      name: 'owner-research-artifact-contract',
+      buildStart() {
+        if (!/^https:\/\/.+\.supabase\.co$/u.test(env.VITE_SUPABASE_URL ?? ''))
+          this.error('VITE_SUPABASE_URL must identify the isolated research project')
+        if (!env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY.startsWith('replace-with-'))
+          this.error('VITE_SUPABASE_ANON_KEY must identify the isolated research project')
+        if (!/^[a-z0-9-]{3,40}$/.test(env.VITE_OWNER_RESEARCH_COHORT_KEY ?? ''))
+          this.error('VITE_OWNER_RESEARCH_COHORT_KEY must identify one bounded cohort')
+        if (!/^https:\/\/[^/]+$/u.test(env.VITE_CANONICAL_SITE_URL ?? ''))
+          this.error('VITE_CANONICAL_SITE_URL must be an absolute HTTPS origin')
+      },
+    })
+  } else {
+    plugins.push(
+      ...VitePWA({
         registerType: 'autoUpdate',
         includeAssets: [
           'favicon.svg',
@@ -55,7 +70,15 @@ export default defineConfig(() => {
         name: 'exclude-review-harness-from-production',
         apply: 'build',
         generateBundle(_options, bundle) {
-          const forbidden = ['Synthetic Review Harness', 'review-shopper-a', 'reviewAs=']
+          const forbidden = [
+            'Synthetic Review Harness',
+            'review-shopper-a',
+            'reviewAs=',
+            'owner_research_command',
+            'Private research artifact',
+            'existing-store-a',
+            'topeka-owner-10a',
+          ]
           for (const asset of Object.values(bundle)) {
             const source = asset.type === 'chunk' ? asset.code : String(asset.source)
             const marker = forbidden.find((value) => source.includes(value))
@@ -63,7 +86,14 @@ export default defineConfig(() => {
           }
         },
       },
-    ],
+    )
+  }
+
+  return {
+    base,
+    build: ownerResearch ? { rollupOptions: { input: 'owner-research.html' } } : undefined,
+    plugins,
+    publicDir: ownerResearch ? false : undefined,
     server: { port: 4173, strictPort: true },
     preview: { port: 4173, strictPort: true },
   }

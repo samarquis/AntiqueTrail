@@ -1,5 +1,23 @@
+import { PaidPurchasePage, type SalesClient } from '../features/billing/sales'
+import { PromotionPage, type PromotionClient } from '../features/portal/promotion'
+import { PaidServicingPage, type ServicingClient } from '../features/billing/servicing'
+import { OwnerAcquisitionPage } from '../features/partners/ownerAcquisitionPage'
+import { StoreApplicationAdminPanel } from '../features/partners/storeApplicationAdminPanel'
+import { StoreApplicationPage } from '../features/partners/storeApplicationPage'
+import {
+  unavailableStoreApplicationClient,
+  unavailableStoreApplicationAdminClient,
+  type StoreApplicationAdminClient,
+  type StoreApplicationClient,
+} from '../features/partners/storeApplications'
+import {
+  unavailableOwnerIntakeAvailabilityClient,
+  type OwnerIntakeAvailability,
+  type OwnerIntakeAvailabilityClient,
+} from '../features/partners/ownerIntakeAvailability'
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
-import { Link, Navigate, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { RecordAuditPage, AdminAuditRoutes } from '../features/admin/audit'
+import { Link, Navigate, NavLink, Outlet, Route, useLocation, useParams } from 'react-router-dom'
 import {
   CatalogBrowserPage,
   CatalogDetailsPage,
@@ -75,6 +93,7 @@ import {
   type CheckMyDayProvider,
   type CheckMyDayRequest,
 } from '../features/routing'
+import { InstallPage } from '../features/install/InstallPage'
 import {
   AccessSafetyPage,
   AdminGuard,
@@ -108,11 +127,13 @@ import {
   type PartnerClient,
 } from '../features/partners'
 import {
+  PortalAccessDeniedPage,
   PortalControlledChangesPage,
   PortalHomePage,
   PortalHoursPage,
   PortalLinksPage,
   PortalManagedFieldsPage,
+  PortalMediaReviewPage,
   PortalPreviewPage,
   PortalSupportPage,
   PortalUpdatesPage,
@@ -123,16 +144,51 @@ import {
   ModerationQueuePage,
   PublicReviewsPage,
   ReviewAppealPage,
+  BreakGlassReviewRoute,
+  unavailableBreakGlassReviewClient,
+  type BreakGlassReviewClient,
+  IndependentAppealRoute,
+  unavailableIndependentAppealReviewClient,
+  type IndependentAppealReviewClient,
   unavailableReviewClient,
   type ReviewClient,
 } from '../features/reviews'
 import {
+  RG01OperationsListPage,
+  RG01OperationsRunPage,
+  RG01SigningPage,
+  unavailableRG01Client,
+  type RG01Client,
+} from '../features/rg01'
+import {
+  ReviewerCredentialManagementRoute,
+  ReviewerCredentialRecoveryRoute,
+  ReviewerCredentialSetupRoute,
+} from '../features/reviews/reviewerCredentialRoutes'
+import type { ReviewerCredentialClient } from '../features/reviews/reviewerCredentialClient'
+import {
+  CommunityGateRoute,
+  CommunityPreparationRoutes,
+  unavailableCommunityGateClient,
+  unavailableCommunityPreparationClient,
+  type CommunityGateClient,
+  type CommunityPreparationClient,
+} from '../features/community'
+import {
   ReadinessStatusPage,
+  ReadinessAdminPage,
   unavailableReadinessClient,
+  unavailableReadinessAdminClient,
+  type ReadinessAdminClient,
   type DurableReadinessClient,
 } from '../features/readiness'
 import { BetaControlPage, unavailableBetaClient, type DurableBetaClient } from '../features/beta'
 import { OperationalStatusPage, type OperationalStatusConfig } from '../features/status'
+import {
+  OwnConsentPage,
+  unavailableOwnConsentClient,
+  type OwnConsentClient,
+} from '../features/rg01'
 import {
   CommercialResearchPage,
   unavailableBillingClient,
@@ -144,9 +200,6 @@ import type { ReviewHarnessRuntime } from '../review-harness/types'
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
 const unavailableAlphaAccount = null
 const unavailableExternalAccounts: SyntheticTestAccount[] = []
-// Claims are available only in the local review harness until the production
-// authority boundary is approved.
-const publicListingClaimsEnabled = import.meta.env.VITE_REVIEW_HARNESS === 'true'
 const blockedCheckMyDayProvider: CheckMyDayProvider = {
   async getCoordinateMatrix() {
     throw new Error('Routing provider is disabled until R-01 is approved.')
@@ -183,7 +236,17 @@ function AppShell({
     if (!content) return
 
     const focusHeading = () => {
-      const heading = content.querySelector<HTMLElement>('h1')
+      const restoredFocus = document.activeElement
+      if (
+        restoredFocus instanceof HTMLElement &&
+        content.contains(restoredFocus) &&
+        restoredFocus.hasAttribute('data-preserve-route-focus') &&
+        !restoredFocus.closest('[hidden]')
+      )
+        return true
+      const heading = Array.from(content.querySelectorAll<HTMLElement>('h1')).find(
+        (item) => !item.closest('[hidden]'),
+      )
       if (!heading) return false
       heading.tabIndex = -1
       heading.focus({ preventScroll: true })
@@ -355,13 +418,30 @@ function MoreMenuLock() {
   )
 }
 
-function MorePage() {
+function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) {
   const { session } = useAuth()
   const signedIn = Boolean(session)
+  const [rg01Available, setRg01Available] = useState(false)
+  useEffect(() => {
+    let current = true
+    setRg01Available(false)
+    if (!session || session.role !== 'Shopper') return () => undefined
+    ownConsentClient
+      .getStatus()
+      .then((status) => {
+        if (current) setRg01Available(status.kind === 'available')
+      })
+      .catch(() => {
+        if (current) setRg01Available(false)
+      })
+    return () => {
+      current = false
+    }
+  }, [ownConsentClient, session, signedIn])
   const destinations: Array<{ to: string; label: string; requiresSignIn: boolean; icon?: string }> =
     [
       { to: '/saved', label: 'Saved Stores', requiresSignIn: true, icon: '/icons/saved-store.svg' },
-      { to: '/new-since', label: 'New Since Your Last Visit', requiresSignIn: false },
+      { to: '/new-since', label: 'New Since Your Last Visit', requiresSignIn: true },
       {
         to: '/account/history',
         label: 'Private History',
@@ -372,6 +452,15 @@ function MorePage() {
       { to: '/shares', label: 'Shared with Me', requiresSignIn: true },
       { to: '/trip-ideas', label: 'Trip Ideas', requiresSignIn: true },
       { to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true },
+      ...(rg01Available
+        ? [
+            {
+              to: '/account/research/rg-01',
+              label: 'Research participation',
+              requiresSignIn: true,
+            },
+          ]
+        : []),
       { to: '/install', label: 'Install', requiresSignIn: false },
       { to: '/help', label: 'Help', requiresSignIn: false },
     ]
@@ -404,6 +493,43 @@ function MorePage() {
   )
 }
 
+function PortalRouteGuard({ client }: { client: PortalClient }) {
+  const { session } = useAuth()
+  const location = useLocation()
+  const [checked, setChecked] = useState<{
+    client: PortalClient
+    session: typeof session
+    locationKey: string
+    allowed: boolean
+  } | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    client.getHome().then(
+      () => {
+        if (!cancelled) setChecked({ client, session, locationKey: location.key, allowed: true })
+      },
+      () => {
+        if (!cancelled) setChecked({ client, session, locationKey: location.key, allowed: false })
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [client, session, location.key])
+  if (
+    !checked ||
+    checked.client !== client ||
+    checked.session !== session ||
+    checked.locationKey !== location.key
+  )
+    return (
+      <main>
+        <p role="status">Loading Store Portal…</p>
+      </main>
+    )
+  return checked.allowed ? <Outlet /> : <PortalAccessDeniedPage />
+}
+
 function InformationPage({ title, children }: { title: string; children: ReactNode }) {
   return (
     <main>
@@ -425,6 +551,52 @@ function useCatalogClient(override?: CatalogClient) {
       override ?? configuredCatalogClient(() => session?.accessToken ?? null) ?? demoCatalogClient,
     [override, session?.accessToken],
   )
+}
+
+function OwnerAcquisitionRoute({
+  catalog,
+  intakeAvailable,
+  sales,
+}: {
+  catalog?: CatalogClient
+  intakeAvailable: boolean
+  sales?: SalesClient
+}) {
+  const client = useCatalogClient(catalog)
+  return <OwnerAcquisitionPage catalog={client} intakeAvailable={intakeAvailable} sales={sales} />
+}
+
+function OwnerIntakeAvailabilityGuard({
+  client,
+  requirement,
+  children,
+}: {
+  client: OwnerIntakeAvailabilityClient
+  requirement: keyof OwnerIntakeAvailability
+  children: (availability: OwnerIntakeAvailability) => ReactNode
+}) {
+  const [state, setState] = useState<
+    | { kind: 'loading' }
+    | { kind: 'ready'; availability: OwnerIntakeAvailability }
+    | { kind: 'unavailable' }
+  >({ kind: 'loading' })
+  useEffect(() => {
+    let cancelled = false
+    setState({ kind: 'loading' })
+    client.getAvailability().then(
+      (availability) => {
+        if (!cancelled) setState({ kind: 'ready', availability })
+      },
+      () => {
+        if (!cancelled) setState({ kind: 'unavailable' })
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [client])
+  if (state.kind !== 'ready' || !state.availability[requirement]) return <NotFound />
+  return <>{children(state.availability)}</>
 }
 
 function StoreBrowser({
@@ -762,6 +934,7 @@ function TripCheckMyDayRoute({ client }: { client: TripClient }) {
     <AuthoritativeCheckMyDayPage
       requestServer={() => client.requestCheckMyDay!(tripId)}
       pollServer={(requestId) => client.getCheckMyDaySuggestion!(requestId)}
+      loadTrip={() => client.get(tripId)}
       onUseSuggestedOrder={(ids) => persist('suggested', ids)}
       onKeepMyOrder={async () => {
         const trip = await client.get(tripId)
@@ -798,11 +971,25 @@ export interface AppClients {
   partnerAdmin?: PartnerAdminClient
   admin?: AdminClient
   lifecycle?: AccountLifecycleClient
+  ownConsent?: OwnConsentClient
   reviews?: ReviewClient
+  reviewerCredentials?: ReviewerCredentialClient
+  breakGlassReview?: BreakGlassReviewClient
+  independentAppealReview?: IndependentAppealReviewClient
+  storeApplications?: StoreApplicationClient
+  promotion?: PromotionClient
+  storeApplicationAdmin?: StoreApplicationAdminClient
+  ownerIntakeAvailability?: OwnerIntakeAvailabilityClient
   portal?: PortalClient
+  billingServicing?: ServicingClient
+  billingSales?: SalesClient
   readiness?: DurableReadinessClient
+  readinessAdmin?: ReadinessAdminClient
   billing?: BillingClient
   beta?: DurableBetaClient
+  rg01?: RG01Client
+  communityPreparation?: CommunityPreparationClient
+  communityGate?: CommunityGateClient
   operationalStatus?: OperationalStatusConfig
   tripOfflineGrants?: TripOfflineGrantSource
   routing?: { provider: CheckMyDayProvider; capability: CheckMyDayRequest['capability'] }
@@ -821,6 +1008,9 @@ export interface AppRuntime {
   reviewHarnessUi?: ReviewHarnessUi
   /** Pre-render memory-only callback captured by the bootstrap preflight. */
   authCallback?: AuthCallback | null
+  breakGlassReviewToken?: string | null
+  reviewerCapabilityToken?: string | null
+  independentAppealToken?: string | null
   /** Deployment-protected research builds provide exact frozen artifact/question bindings. */
   commercialResearch?: { artifactDigest: string; questionVersion: string }
 }
@@ -837,6 +1027,12 @@ export default function App({
   clients?: AppClients
   runtime?: AppRuntime
 }) {
+  const location = useLocation()
+  const capabilityOnlyRoute = [
+    '/reviewer/setup',
+    '/reviewer/credentials',
+    '/reviewer/recover',
+  ].includes(location.pathname)
   const candidateClient = clients.candidate ?? unavailableCandidateClient
   const shopperClient = clients.shopper ?? unavailableShopperClient
   const tripClient = clients.trips ?? unavailableTripClient
@@ -844,11 +1040,22 @@ export default function App({
   const partnerAdminClient = clients.partnerAdmin ?? unavailablePartnerAdminClient
   const adminClient = clients.admin ?? unavailableAdminClient
   const lifecycleClient = clients.lifecycle ?? unavailableLifecycleClient
+  const ownConsentClient = clients.ownConsent ?? unavailableOwnConsentClient
   const reviewClient = clients.reviews ?? unavailableReviewClient
+  const breakGlassReviewClient = clients.breakGlassReview ?? unavailableBreakGlassReviewClient
+  const independentAppealReviewClient =
+    clients.independentAppealReview ?? unavailableIndependentAppealReviewClient
   const portalClient = clients.portal ?? unavailablePortalClient
   const readinessClient = clients.readiness ?? unavailableReadinessClient
+  const readinessAdminClient = clients.readinessAdmin ?? unavailableReadinessAdminClient
   const billingClient = clients.billing ?? unavailableBillingClient
   const betaClient = clients.beta ?? unavailableBetaClient
+  const rg01Client = clients.rg01 ?? unavailableRG01Client
+  const communityPreparationClient =
+    clients.communityPreparation ?? unavailableCommunityPreparationClient
+  const communityGateClient = clients.communityGate ?? unavailableCommunityGateClient
+  const ownerIntakeAvailabilityClient =
+    clients.ownerIntakeAvailability ?? unavailableOwnerIntakeAvailabilityClient
   const authProvider = runtime.authProvider ?? unavailableAuthProvider
   const tripOfflineRef = useRef<TripOfflineRuntime>(
     runtime.tripOffline ?? createTripOfflineRuntime(),
@@ -861,21 +1068,44 @@ export default function App({
   )
 
   const adminRouteElements: Record<AdminRouteId, ReactNode> = {
+    audit: <RecordAuditPage client={adminClient} />,
     reviewQueue: <ReviewQueuePage client={adminClient} />,
     accessSafety: <AccessSafetyPage client={adminClient} />,
-    more: <AdminMorePage />,
-    partners: <PartnerAdminPage client={partnerAdminClient} />,
+    more: <AdminMorePage rg01={rg01Client} communityClient={communityPreparationClient} />,
+    partners: (
+      <PartnerAdminPage
+        client={partnerAdminClient}
+        applications={
+          <OwnerIntakeAvailabilityGuard
+            client={ownerIntakeAvailabilityClient}
+            requirement="intakeAvailable"
+          >
+            {() => (
+              <StoreApplicationAdminPanel
+                client={clients.storeApplicationAdmin ?? unavailableStoreApplicationAdminClient}
+              />
+            )}
+          </OwnerIntakeAvailabilityGuard>
+        }
+      />
+    ),
     reviews: <ModerationQueuePage client={reviewClient} />,
     readiness: <ReadinessStatus client={readinessClient} />,
+    readinessAdmin: <ReadinessAdminPage client={readinessAdminClient} />,
     beta: <BetaControl client={betaClient} />,
+    rg01: <RG01OperationsListPage client={rg01Client} />,
+    rg01Run: <RG01OperationsRunPage client={rg01Client} />,
+    communities: <CommunityPreparationRoutes client={communityPreparationClient} />,
+    communityDetail: <CommunityPreparationRoutes client={communityPreparationClient} />,
+    communityGate: <CommunityGateRoute client={communityGateClient} />,
   }
 
   return (
     <AuthProvider
-      provider={authProvider}
-      authStore={runtime.authStore}
-      registry={runtime.sessionRegistry}
-      lifecycle={clients.lifecycle}
+      provider={capabilityOnlyRoute ? unavailableAuthProvider : authProvider}
+      authStore={capabilityOnlyRoute ? undefined : runtime.authStore}
+      registry={capabilityOnlyRoute ? undefined : runtime.sessionRegistry}
+      lifecycle={capabilityOnlyRoute ? undefined : clients.lifecycle}
       onLocalSignOut={async (session) => {
         await tripOffline.prepareSignOut(session.userId)
         await tripOffline.purgeAccount(session.userId, 'confirmed_logout')
@@ -887,7 +1117,16 @@ export default function App({
         reviewHarness={runtime.reviewHarness}
         reviewHarnessUi={runtime.reviewHarnessUi}
       >
-        <Routes>
+        <AdminAuditRoutes
+          audit={
+            <AuthenticatedAdminGuard
+              override={runtime.adminSession}
+              registry={runtime.sessionRegistry}
+            >
+              {adminRouteElements.audit}
+            </AuthenticatedAdminGuard>
+          }
+        >
           <Route path="/" element={<Navigate replace to="/stores" />} />
           {runtime.reviewHarness && runtime.reviewHarnessUi && (
             <Route
@@ -903,15 +1142,52 @@ export default function App({
               </main>
             }
           />
-          <Route path="/more" element={<MorePage />} />
           <Route
-            path="/install"
+            path="/reviewer/setup"
             element={
-              <InformationPage title="Install Antique Trail">
-                Install guidance will appear here when this device supports the approved app flow.
-              </InformationPage>
+              <ReviewerCredentialSetupRoute
+                token={runtime.reviewerCapabilityToken}
+                client={clients.reviewerCredentials}
+              />
             }
           />
+          <Route
+            path="/reviewer/credentials"
+            element={
+              <ReviewerCredentialManagementRoute
+                token={runtime.reviewerCapabilityToken}
+                client={clients.reviewerCredentials}
+              />
+            }
+          />
+          <Route
+            path="/reviewer/recover"
+            element={
+              <ReviewerCredentialRecoveryRoute
+                token={runtime.reviewerCapabilityToken}
+                client={clients.reviewerCredentials}
+              />
+            }
+          />
+          <Route path="/more" element={<MorePage ownConsentClient={ownConsentClient} />} />
+          <Route
+            path="/for-stores"
+            element={
+              <OwnerIntakeAvailabilityGuard
+                client={ownerIntakeAvailabilityClient}
+                requirement="routeVisible"
+              >
+                {(availability) => (
+                  <OwnerAcquisitionRoute
+                    catalog={clients.catalog}
+                    sales={clients.billingSales}
+                    intakeAvailable={availability.intakeAvailable}
+                  />
+                )}
+              </OwnerIntakeAvailabilityGuard>
+            }
+          />
+          <Route path="/install" element={<InstallPage />} />
           <Route
             path="/help"
             element={
@@ -1002,6 +1278,14 @@ export default function App({
             element={
               <RequireSession requiredRole="Shopper">
                 <PrivacyPage client={lifecycleClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/account/research/rg-01"
+            element={
+              <RequireSession requiredRole="Shopper">
+                <OwnConsentPage client={ownConsentClient} />
               </RequireSession>
             }
           />
@@ -1116,6 +1400,17 @@ export default function App({
             />
           ))}
           <Route
+            path="/admin/evidence/rg-01/:runId/sign"
+            element={
+              <AuthenticatedAdminGuard
+                override={runtime.adminSession}
+                registry={runtime.sessionRegistry}
+              >
+                <RG01SigningPage client={rg01Client} />
+              </AuthenticatedAdminGuard>
+            }
+          />
+          <Route
             path="/alpha/readiness"
             element={
               <AlphaGuard account={unavailableAlphaAccount}>
@@ -1135,6 +1430,63 @@ export default function App({
             path="/reviews/restrictions/:restrictionId/appeal"
             element={<RestrictionAppeal client={reviewClient} />}
           />
+          <Route
+            path="/break-glass-review"
+            element={
+              <BreakGlassReviewRoute
+                token={runtime.breakGlassReviewToken}
+                client={breakGlassReviewClient}
+              />
+            }
+          />
+          <Route
+            path="/appeal-review"
+            element={
+              <IndependentAppealRoute
+                token={runtime.independentAppealToken}
+                client={independentAppealReviewClient}
+              />
+            }
+          />
+          {['/stores/add', '/store-applications'].map((path) => (
+            <Route
+              key={path}
+              path={path}
+              element={
+                <OwnerIntakeAvailabilityGuard
+                  client={ownerIntakeAvailabilityClient}
+                  requirement="routeVisible"
+                >
+                  {() => (
+                    <RequireSession>
+                      <StoreApplicationPage
+                        client={clients.storeApplications ?? unavailableStoreApplicationClient}
+                        partner={partnerClient}
+                      />
+                    </RequireSession>
+                  )}
+                </OwnerIntakeAvailabilityGuard>
+              }
+            />
+          ))}
+          <Route
+            path="/store-applications/:applicationId"
+            element={
+              <OwnerIntakeAvailabilityGuard
+                client={ownerIntakeAvailabilityClient}
+                requirement="routeVisible"
+              >
+                {() => (
+                  <RequireSession>
+                    <StoreApplicationPage
+                      client={clients.storeApplications ?? unavailableStoreApplicationClient}
+                      partner={partnerClient}
+                    />
+                  </RequireSession>
+                )}
+              </OwnerIntakeAvailabilityGuard>
+            }
+          />
           <Route path="/partner/join" element={<PartnerJoinPage client={partnerClient} />} />
           <Route path="/partner/verify" element={<PartnerVerifyPage client={partnerClient} />} />
           <Route path="/partner/draft" element={<PartnerDraftPage client={partnerClient} />} />
@@ -1142,42 +1494,89 @@ export default function App({
           <Route
             path="/partner/claim"
             element={
-              publicListingClaimsEnabled ? (
-                <RequireSession>
-                  <PartnerClaimPage client={partnerClient} />
-                </RequireSession>
-              ) : (
-                <NotFound />
-              )
+              <OwnerIntakeAvailabilityGuard
+                client={ownerIntakeAvailabilityClient}
+                requirement="claimsAvailable"
+              >
+                {() => (
+                  <RequireSession>
+                    <PartnerClaimPage client={partnerClient} />
+                  </RequireSession>
+                )}
+              </OwnerIntakeAvailabilityGuard>
             }
           />
           <Route
             path="/partner/activate"
             element={<PartnerActivatePage client={partnerClient} />}
           />
-          <Route path="/store-portal" element={<PortalHomePage client={portalClient} />} />
-          <Route path="/store-portal/hours" element={<PortalHoursPage client={portalClient} />} />
-          <Route
-            path="/store-portal/info"
-            element={<PortalManagedFieldsPage client={portalClient} />}
-          />
-          <Route
-            path="/store-portal/changes"
-            element={<PortalControlledChangesPage client={portalClient} />}
-          />
-          <Route
-            path="/store-portal/updates"
-            element={<PortalUpdatesPage client={portalClient} />}
-          />
-          <Route path="/store-portal/links" element={<PortalLinksPage client={portalClient} />} />
-          <Route
-            path="/store-portal/support"
-            element={<PortalSupportPage client={portalClient} />}
-          />
-          <Route
-            path="/store-portal/preview"
-            element={<PortalPreviewPage client={portalClient} />}
-          />
+          <Route element={<PortalRouteGuard client={portalClient} />}>
+            {clients.billingServicing && (
+              <>
+                <Route
+                  path="/store-portal/billing"
+                  element={
+                    <PaidServicingPage
+                      client={clients.billingServicing}
+                      unavailable={<NotFound />}
+                    />
+                  }
+                />
+                <Route
+                  path="/store-portal/plans"
+                  element={
+                    clients.billingSales ? (
+                      <PaidPurchasePage
+                        client={clients.billingSales}
+                        servicing={
+                          <PaidServicingPage
+                            client={clients.billingServicing}
+                            unavailable={<NotFound />}
+                          />
+                        }
+                      />
+                    ) : (
+                      <PaidServicingPage
+                        client={clients.billingServicing}
+                        unavailable={<NotFound />}
+                      />
+                    )
+                  }
+                />
+              </>
+            )}
+            <Route
+              path="/store-portal/promotion"
+              element={<PromotionPage client={clients.promotion} />}
+            />
+            <Route path="/store-portal" element={<PortalHomePage client={portalClient} />} />
+            <Route path="/store-portal/hours" element={<PortalHoursPage client={portalClient} />} />
+            <Route
+              path="/store-portal/info"
+              element={<PortalManagedFieldsPage client={portalClient} />}
+            />
+            <Route
+              path="/store-portal/changes"
+              element={<PortalControlledChangesPage client={portalClient} />}
+            />
+            <Route
+              path="/store-portal/photos"
+              element={<PortalMediaReviewPage client={portalClient} />}
+            />
+            <Route
+              path="/store-portal/updates"
+              element={<PortalUpdatesPage client={portalClient} />}
+            />
+            <Route path="/store-portal/links" element={<PortalLinksPage client={portalClient} />} />
+            <Route
+              path="/store-portal/support"
+              element={<PortalSupportPage client={portalClient} />}
+            />
+            <Route
+              path="/store-portal/preview"
+              element={<PortalPreviewPage client={portalClient} />}
+            />
+          </Route>
           <Route
             path="/trips"
             element={
@@ -1247,7 +1646,7 @@ export default function App({
             }
           />
           <Route path="*" element={<NotFound />} />
-        </Routes>
+        </AdminAuditRoutes>
       </AppShell>
     </AuthProvider>
   )

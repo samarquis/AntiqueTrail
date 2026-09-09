@@ -1,0 +1,121 @@
+:root {
+  font-size: 112.5%;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background, #f6f4f0);
+  color: var(--color-text, #24201b);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+a {
+  color: #674212;
+  text-underline-offset: 0.2em;
+}
+
+.button {
+  max-width: 100%;
+  min-height: 3rem;
+  padding: 0.65rem 1rem;
+  border: 2px solid #24201b;
+  border-radius: 0.25rem;
+  background: #24201b;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button--secondary {
+  background: transparent;
+  color: #24201b;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+:focus-visible {
+  outline: 3px solid #9a5b00;
+  outline-offset: 3px;
+}
+
+.owner-research-shell {
+  width: min(100% - 2rem, 48rem);
+  margin-inline: auto;
+  padding-block: 1rem 4rem;
+}
+
+.owner-research-label {
+  padding: 0.75rem 1rem;
+  border: 2px solid currentColor;
+  font-weight: 700;
+}
+
+.owner-acquisition__hero,
+.owner-acquisition__section {
+  padding-block: 1.5rem;
+  border-bottom: 1px solid currentColor;
+}
+
+.owner-acquisition li + li {
+  margin-top: 0.75rem;
+}
+
+.owner-research__actions,
+.owner-research__admission {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 2px solid currentColor;
+}
+
+.owner-research__actions fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 1rem;
+}
+
+.owner-research__choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.owner-research__actions label,
+.owner-research__admission label {
+  display: block;
+  min-height: 3rem;
+  margin-block: 1rem;
+}
+
+.owner-research__actions select,
+.owner-research__admission input {
+  display: block;
+  width: min(100%, 26rem);
+  box-sizing: border-box;
+  min-height: 3rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  font: inherit;
+}
+
+@media (max-width: 24rem) {
+  .owner-research-shell {
+    width: min(100% - 1rem, 48rem);
+  }
+
+  .owner-research__choice > * {
+    width: 100%;
+  }
+}
+
+@media (forced-colors: active) {
+  .owner-research-label,
+  .owner-research__actions {
+    border-color: CanvasText;
+  }
+}

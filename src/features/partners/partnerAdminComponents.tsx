@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { GENERIC_ADMIN_FAILURE } from '../admin'
 import type {
@@ -22,7 +22,13 @@ function labelState(state: string) {
   return state.replaceAll('_', ' ')
 }
 
-export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
+export function PartnerAdminPage({
+  client,
+  applications,
+}: {
+  client: PartnerAdminClient
+  applications?: ReactNode
+}) {
   const [email, setEmail] = useState('')
   const [invitationKey, setInvitationKey] = useState('')
   const [invitation, setInvitation] = useState<SyntheticPartnerInvitation | null>(null)
@@ -141,6 +147,7 @@ export function PartnerAdminPage({ client }: { client: PartnerAdminClient }) {
         <p>Work with one invitation or one exact claim at a time.</p>
         {error && <p role="alert">{GENERIC_ADMIN_FAILURE}</p>}
 
+        {applications}
         <h2>Synthetic Store Partner invitation</h2>
         <p>
           Email delivery remains disabled until E-01 and HC-01 pass. The recipient email enters the

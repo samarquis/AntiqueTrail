@@ -4,6 +4,7 @@ import type { AdminSession } from './types'
 import { canUseAdminBoundary, GENERIC_ADMIN_FAILURE } from './boundary'
 import type { AdminClient } from './adminClient'
 import { unavailableAdminClient } from './adminClient'
+import { ViewAuditButton } from './audit'
 import type {
   AdminDecision,
   AdminMergePlan,
@@ -325,6 +326,11 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
             </section>
           )}
           <h3>Audit history</h3>
+          <ViewAuditButton
+            access={selected.auditAccess}
+            label={selected.storeLabel}
+            returnTo="/admin"
+          />
           <ul aria-label="Case audit history">
             {selected.audit.map((entry) => (
               <li key={`${entry.action}-${entry.occurredAt}`}>
@@ -508,6 +514,11 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
           {grants.map((grant) => (
             <li key={grant.grantId}>
               <strong>{grant.storeLabel}</strong> — {grant.subjectLabel} — {grant.state}
+              <ViewAuditButton
+                access={grant.auditAccess}
+                label={grant.storeLabel}
+                returnTo="/admin/access"
+              />
               <p>
                 Assurance: {grant.verifiedEmail ? 'verified email' : 'no verified email'},{' '}
                 {grant.mfaVerified ? 'MFA verified' : 'no MFA'}. Granted{' '}

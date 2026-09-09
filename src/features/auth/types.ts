@@ -55,6 +55,14 @@ export type ProviderCallbackResult =
   | { kind: 'blocked' }
   | { kind: 'error' }
 
+export interface PasswordRecoveryRequest {
+  tokenHash: string
+  password: string
+  requestId: string
+}
+
+export type PasswordRecoveryResult = { kind: 'completed' } | { kind: 'error' }
+
 export type OAuthProviderId = 'google' | 'facebook'
 
 export interface AuthProviderAdapter {
@@ -62,8 +70,15 @@ export interface AuthProviderAdapter {
   sendRecovery(email: string): Promise<void>
   verifyMfa(challengeId: string, code: string): Promise<ProviderSession | null>
   signOut(session: AuthSession): Promise<void>
+  /** Restores a provider session from the dedicated refresh-material store. */
+  restoreSession?(): Promise<ProviderSession | null>
+  /** Reports provider refresh/sign-out events without exposing provider storage. */
+  onSessionChange?(listener: (session: ProviderSession | null) => void): () => void
+  /** Clears persisted provider refresh material without changing application state. */
+  clearSessionMaterial?(): Promise<void>
   register?(request: RegistrationRequest): Promise<ProviderRegistrationResult>
   verifyCallback?(kind: 'verify' | 'recovery', tokenHash: string): Promise<ProviderCallbackResult>
+  completePasswordRecovery?(request: PasswordRecoveryRequest): Promise<PasswordRecoveryResult>
   /**
    * Starts the browser redirect to a social provider. Resolves only when the
    * redirect could not start; on success the page navigates away.

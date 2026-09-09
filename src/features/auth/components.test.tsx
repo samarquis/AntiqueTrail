@@ -19,6 +19,7 @@ import {
 } from './components'
 import type { AuthProviderAdapter, AuthSession, AuthStore } from './types'
 import { preflightAuthCallback } from './callbackPreflight'
+import { clearStagedRecoveryToken } from './passwordRecoveryClient'
 
 function renderAuth(element: ReactNode, provider: AuthProviderAdapter) {
   return render(
@@ -36,7 +37,10 @@ const unavailableProvider: AuthProviderAdapter = {
 }
 
 describe('auth states', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    clearStagedRecoveryToken()
+  })
   afterEach(() => cleanup())
   it('rejects cross-origin post-login return targets', () => {
     expect(safeReturnTo('https://example.test')).toBe('/stores')
@@ -107,7 +111,7 @@ describe('auth states', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/return to the action/i)
     expect(screen.getByRole('link', { name: /cancel and return without saving/i })).toHaveAttribute(
       'href',
-      '/stores/oak/memory',
+      '/stores/oak',
     )
     expect(unavailableProvider.signIn).not.toHaveBeenCalled()
   })
@@ -298,6 +302,43 @@ describe('auth states', () => {
     expect(document.body).not.toHaveTextContent('review-verify-a')
     expect(await screen.findByText(/safe sign in/i)).toBeInTheDocument()
     expect(verifyCallback).toHaveBeenCalledWith('verify', 'review-verify-a')
+  })
+
+  it('routes a recovery callback to the dedicated replacement form without provider exchange', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/auth/callback?returnTo=%2Faccount%2Fprivacy#token_hash=recovery-secret&type=recovery',
+    )
+    preflightAuthCallback()
+    const verifyCallback = vi.fn()
+    const completePasswordRecovery = vi.fn(async () => ({ kind: 'completed' as const }))
+    render(
+      <MemoryRouter initialEntries={['/auth/callback?returnTo=%2Faccount%2Fprivacy']}>
+        <AuthProvider provider={unavailableProvider}>
+          <Routes>
+            <Route
+              path="/auth/callback"
+              element={
+                <AuthCallbackPage
+                  provider={{ ...unavailableProvider, verifyCallback, completePasswordRecovery }}
+                />
+              }
+            />
+            <Route
+              path="/auth/recovery"
+              element={
+                <RecoveryPage provider={{ ...unavailableProvider, completePasswordRecovery }} />
+              }
+            />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Set a new password' })).toBeInTheDocument()
+    expect(screen.getByLabelText('New password')).toHaveAttribute('autocomplete', 'new-password')
+    expect(document.body).not.toHaveTextContent('recovery-secret')
+    expect(verifyCallback).not.toHaveBeenCalled()
   })
 
   it('renders the terminal reason-neutral setup pause when callback admission is blocked', async () => {

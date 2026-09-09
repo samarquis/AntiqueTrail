@@ -87,6 +87,7 @@ export interface AdminAuditEntry {
 }
 
 export interface AdminReviewCaseDetail extends AdminReviewCaseSummary {
+  auditAccess?: string
   immutableSubmission: true
   context: Record<string, string | number | boolean | null>
   allowedActions: AdminDecision[]
@@ -112,6 +113,7 @@ export interface AdminPrivilegedActivity {
 }
 
 export interface AdminStoreScope {
+  auditAccess?: string
   grantId: string
   subjectUserId: string
   subjectLabel: string

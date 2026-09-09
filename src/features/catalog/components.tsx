@@ -22,6 +22,7 @@ import {
   upcomingHoursExceptions,
 } from './query'
 import {
+  CatalogLink,
   catalogAppHref,
   clearBrowseReturn,
   readBrowseReturn,
@@ -339,9 +340,9 @@ export function CatalogCard({
       )}
       <div className="catalog-card__body">
         <h2>
-          <a href={detailsHref} onClick={rememberDetailReturn}>
+          <CatalogLink to={detailsHref} onClick={rememberDetailReturn}>
             {store.name}
-          </a>
+          </CatalogLink>
         </h2>
         <p className="catalog-card__area">{store.area.label}</p>
         <p>
@@ -360,25 +361,25 @@ export function CatalogCard({
           </span>
         </p>
         <p className="catalog-card__freshness">{freshnessLabel(store)}</p>
-        <a
+        <CatalogLink
           className="button catalog-card__details"
-          href={detailsHref}
+          to={detailsHref}
           onClick={rememberDetailReturn}
         >
           View {store.name} details
-        </a>
+        </CatalogLink>
         {onShowOnMap && (
           <button type="button" onClick={onShowOnMap}>
             Show {store.name} on map
           </button>
         )}
         <section className="catalog-card__actions" aria-label={`Visit options for ${store.name}`}>
-          <a
+          <CatalogLink
             className="button button--secondary catalog-card__add-to-trip"
-            href={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
+            to={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
           >
             Add to Trip
-          </a>
+          </CatalogLink>
           {privateActions && <div className="catalog-card__private-actions">{privateActions}</div>}
         </section>
       </div>
@@ -687,20 +688,20 @@ export function BrowsePage({
                                     ? ` · ${point.visited ? 'Visited' : 'Not visited'}`
                                     : ''}
                                 </p>
-                                <a
-                                  href={catalogAppHref(`/stores/${point.slug}`)}
+                                <CatalogLink
+                                  to={catalogAppHref(`/stores/${point.slug}`)}
                                   onClick={() => rememberBrowseReturn(point.storeId)}
                                 >
                                   View store details
-                                </a>
+                                </CatalogLink>
                                 {renderPrivateActions?.(point.store)}
-                                <a
-                                  href={catalogAppHref(
+                                <CatalogLink
+                                  to={catalogAppHref(
                                     `/trips/new?addStoreId=${encodeURIComponent(point.storeId)}`,
                                   )}
                                 >
                                   Add to Trip
-                                </a>
+                                </CatalogLink>
                                 {map.navigationHref && (
                                   <a href={map.navigationHref(point)}>Navigate</a>
                                 )}
@@ -728,7 +729,7 @@ export function BrowsePage({
         >
           <h2 id="catalog-blocked-heading">Browse is unavailable</h2>
           <p>{state.message}</p>
-          <a href={catalogAppHref('/')}>Return home</a>
+          <CatalogLink to={catalogAppHref('/')}>Return home</CatalogLink>
         </section>
       )}
       {state.kind === 'success' &&
@@ -737,7 +738,9 @@ export function BrowsePage({
             <div className="catalog-results-heading">
               <div>
                 <p className="eyebrow">Local directory</p>
-                <h2>{state.stores.length} stores to explore</h2>
+                <h2>
+                  {state.stores.length} {state.stores.length === 1 ? 'store' : 'stores'} to explore
+                </h2>
               </div>
               <p>Fictional listings for safe product review</p>
             </div>
@@ -1139,7 +1142,9 @@ export function DetailsPage({
       <main>
         <h1>Store not found</h1>
         <p>That store is not available in the catalog.</p>
-        <a href={catalogAppHref(readBrowseReturn()?.href ?? '/stores')}>Back to stores</a>
+        <CatalogLink to={catalogAppHref(readBrowseReturn()?.href ?? '/stores')}>
+          Back to stores
+        </CatalogLink>
       </main>
     )
   const store = state.store!
@@ -1151,9 +1156,9 @@ export function DetailsPage({
   const canAddToTrip = detailsStageRank[stage] >= detailsStageRank['package-5a']
   return (
     <main className="store-detail">
-      <a className="store-detail__back" href={catalogAppHref(backHref)}>
+      <CatalogLink className="store-detail__back" to={catalogAppHref(backHref)}>
         <span aria-hidden="true">←</span> Back to Browse
-      </a>
+      </CatalogLink>
       <article className="store-detail__article">
         <header className="store-detail__header">
           <p className="eyebrow">{store.area.label} trail stop</p>
@@ -1180,12 +1185,12 @@ export function DetailsPage({
         <StoreGallery store={store} />
         {store.media.length > 0 && (
           <p className="store-detail__gallery-link">
-            <a
-              href={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/photos`)}
+            <CatalogLink
+              to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/photos`)}
               onClick={() => rememberStoreReturn(store.id)}
             >
-              See all {store.media.length} photos
-            </a>
+              See all {store.media.length} {store.media.length === 1 ? 'photo' : 'photos'}
+            </CatalogLink>
           </p>
         )}
 
@@ -1223,9 +1228,9 @@ export function DetailsPage({
             <span className="sr-only"> (opens in a new window)</span>
           </a>
           {canAddToTrip && (
-            <a
+            <CatalogLink
               className="button button--secondary"
-              href={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
+              to={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
             >
               <img
                 className="button__icon"
@@ -1236,7 +1241,7 @@ export function DetailsPage({
                 height="20"
               />
               Add to Trip
-            </a>
+            </CatalogLink>
           )}
           {renderPrivateActions?.(store)}
         </nav>
@@ -1332,12 +1337,12 @@ export function DetailsPage({
                 ))}
               </ol>
               {store.updates.length > 3 && (
-                <a
-                  href={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/updates`)}
+                <CatalogLink
+                  to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/updates`)}
                   onClick={() => rememberStoreReturn(store.id)}
                 >
                   See all store updates
-                </a>
+                </CatalogLink>
               )}
             </>
           ) : (
@@ -1423,7 +1428,9 @@ export function StoreUpdatesPage({ client, slug }: { client: CatalogClient; slug
       <main>
         <h1>Store not found</h1>
         <p>That store is not available in the catalog.</p>
-        <a href={catalogAppHref(readBrowseReturn()?.href ?? '/stores')}>Back to stores</a>
+        <CatalogLink to={catalogAppHref(readBrowseReturn()?.href ?? '/stores')}>
+          Back to stores
+        </CatalogLink>
       </main>
     )
   const store = state.store!
@@ -1432,12 +1439,12 @@ export function StoreUpdatesPage({ client, slug }: { client: CatalogClient; slug
   )
   return (
     <main className="store-detail">
-      <a
+      <CatalogLink
         className="store-detail__back"
-        href={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}`)}
+        to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}`)}
       >
         <span aria-hidden="true">←</span> Back to {store.name}
-      </a>
+      </CatalogLink>
       <article className="store-detail__article">
         <header className="store-detail__header">
           <p className="eyebrow">{store.area.label} trail stop</p>

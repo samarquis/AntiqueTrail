@@ -1,6 +1,31 @@
-﻿# Antique Trail â€” Codex Handoff
+# Antique Trail
 
-This repository contains the approved product, design, security, architecture, and implementation baseline for Antique Trail plus the first local Synthetic Store application slice.
+## Start here
+
+Read the [PRD product overview](PRD.md#purpose-people-and-product-promise), [connected shopper experience](PRD.md#the-connected-shopper-experience), and [next Free private evaluation](PRD.md#next-milestone-free-private-experience-evaluation) for the whole intended product and current priority. For task work, read [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md), the [dated state index](PROJECT_STATE.md), and only the relevant capability and specialist headings.
+
+## Source precedence
+
+| Question | Current owner |
+| --- | --- |
+| Product purpose, behavior, capability outcomes, product-stage acceptance, deferred choices | [PRD.md](PRD.md) |
+| Detailed journeys, action transitions, interruption/error recovery, interaction/copy intent | [DESIGN.md](DESIGN.md) |
+| Exact visual tokens, responsive layout, reusable component/accessibility rules, routes and visual screen acceptance | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) |
+| Exact privacy, authorization, retention, recovery, abuse and security controls | [SECURITY_AND_TRUST.md](SECURITY_AND_TRUST.md) |
+| Schema, commands, jobs, concurrency, technical failure/verification/rollback contracts | [PACKAGE_CONTRACTS.md](PACKAGE_CONTRACTS.md), including Package 1 |
+| Invited-owner interaction variant | [Owner onboarding](docs/specs/owner-onboarding.md), explicitly delegated by PRD/DESIGN |
+| Exact acquisition, membership, commercial-consent and servicing mechanics | [Store membership](docs/specs/store-membership-spec.md), explicitly delegated by PRD/DESIGN |
+| Architecture choices and constraints for a named boundary | Most recent applicable accepted [ADR](docs/adr/); supersession is limited to its stated boundary |
+| Plan authority, amendments, ticket admission, review and closure | [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md) |
+| Document inventory and current/historical classification | [PLANNING_INDEX.md](PLANNING_INDEX.md); this table owns responsibilities |
+| Implementation/environment facts and evidence links | [PROJECT_STATE.md](PROJECT_STATE.md), dated and scope-bound |
+| Live issue/PR status | GitHub |
+
+The PRD is the product entry point, not permission to override specialist controls. Each rule has one current owner; other files link to that rule instead of independently restating it. If owners conflict, stop the affected work and reconcile through PLAN_GOVERNANCE.md. New product intent requires an authorized amendment; a ticket, prototype, historical decision, dated receipt, or existing implementation cannot silently change it.
+
+PRODUCT_DECISIONS.md preserves decision history and links to current rules; PLAN_CHANGELOG.md preserves authorization history. IMPLEMENTATION_PLAN.md is the old roadmap; PLAN_ACCEPTANCE.md is a linked map and historical review record; PRODUCT.md is a compatibility pointer. Operational runbooks own the concrete procedures delegated by security/architecture requirements; a signed receipt proves only its named action and scope. Research, older reviews, and the flow lab are evidence, not current requirements.
+
+The file manifest.json inventories this documentation handoff; it is separate from the installable PWA manifest.
 
 ## Run the local Synthetic Store journey
 
@@ -13,46 +38,3 @@ npm run dev
 Open `http://127.0.0.1:4173/stores`. With no environment file, the app uses the deterministic 12-store fictional catalog so the browser journey is reproducible without external services. To exercise the bounded Supabase RPC transport, copy `.env.example` to `.env.local`, set the local anonymous key, and run `npx supabase@2.115.0 start` followed by `npx supabase@2.115.0 db reset`. Boot and reset provision the stress-gateway PostgREST privileges through migration `20260824000000_post_boot_authenticator_privileges.sql`; for a drifted running volume, `npm run db:post-boot` reapplies them without a destructive reset. To serve the production catalog gateway function locally (`POST /functions/v1/public-catalog`), follow `docs/operations/RUNBOOK_LOCAL_FUNCTIONS_GATEWAY.md`. CLI 2.33.9 is broken: it pins a storage-api image tag whose Docker Hub dist is empty, so the storage schema never initializes and migration `20260819400000_account_lifecycle_export.sql` fails on `relation "storage.buckets" does not exist`. If you must stay on an older CLI, retag `supabase/storage-api:v1.11.2` over the empty tag before `start`.
 
 Focused commands are `npm run typecheck`, `npm run lint`, `npm run format`, `npm run test`, `npm run test:e2e`, and `npm run build`. Browser tests install Chromium with `npx playwright install --with-deps chromium` when needed. Database tests require a Docker-compatible runtime and the Supabase CLI; they intentionally fail rather than silently skip when that runtime is unavailable.
-
-## Start here
-
-Read `PLAN_GOVERNANCE.md`, `PROJECT_STATE.md`, and `PLANNING_INDEX.md` first. Then read only the controlling headings cited by the active ticket and the code paths it changes. Use historical reviews and research as evidence, never current requirements.
-
-## Source precedence
-
-| Question                                                                 | Controlling source                             | Supporting source                          |
-| ------------------------------------------------------------------------ | ---------------------------------------------- | ------------------------------------------ |
-| Plan authority, design lock, amendments, decisions, and ticket admission | `PLAN_GOVERNANCE.md`                           | `PLAN_CHANGELOG.md`, `PLANNING_INDEX.md`   |
-| Current implementation, backlog, and release state                       | `PROJECT_STATE.md`                             | Live GitHub state and dated evidence       |
-| Document role and maintenance ownership                                  | `PLANNING_INDEX.md`                            | This table                                 |
-| Current authorization and stop conditions                                | `CODEX_START_PROMPT.md`                        | `PROJECT_STATE.md`, `PRODUCT_DECISIONS.md` |
-| Approved scope or unresolved product choice                              | `PRODUCT_DECISIONS.md`                         | `PRD.md`                                   |
-| Product behavior and acceptance requirement                              | `PRD.md`                                       | `PRODUCT.md`                               |
-| Interaction, screen flow, and copy intent                                | `DESIGN.md`                                    | `DESIGN_SYSTEM.md`                         |
-| Exact visual tokens, responsive rules, and component states              | `DESIGN_SYSTEM.md`                             | `DESIGN.md`                                |
-| Security, privacy, authorization, retention, and operations              | `SECURITY_AND_TRUST.md`                        | `PHASE_0_REVIEW.md` threat model/matrix    |
-| Delivery order and Package 1 execution contract                          | `IMPLEMENTATION_PLAN.md`                       | ADRs                                       |
-| Packages 2â€“13 execution contracts                                      | `PACKAGE_CONTRACTS.md`                         | `IMPLEMENTATION_PLAN.md`, ADRs             |
-| Cross-document dependency/acceptance index                               | `PLAN_ACCEPTANCE.md`                           | All controlling sources above              |
-| Architecture decision                                                    | Most recent accepted ADR                       | `PHASE_0_REVIEW.md` architecture baseline  |
-| Historical discovery evidence                                            | `USER_RESEARCH.md`, `COMPETITIVE_LANDSCAPE.md` | Not normative                              |
-
-If two controlling sources conflict, stop the dependent work and reconcile the documents. Do not choose whichever instruction is easier. The controlling plan is locked by default: only an explicit Product Owner directive containing `update plan` authorizes an amendment, and the amendment must follow `PLAN_GOVERNANCE.md` before dependent tickets or implementation proceed.
-
-Architecture baseline is recorded in ADR 0004. ADR 0006 replaces ADR 0005's Cloudflare frontend selection with a gated Vercel prebuilt-deployment path; ADR 0005 remains controlling for Supabase, recovery, startup cost, media transition, and service gates. Shared startup still requires `$0` recurring infrastructure/no automatic overage unless separately funded, and public release remains blocked until the approved 15-minute RPO is funded or otherwise proven. **The approved path to paid hosting (recovery funding, R2/S3 media bucket, retained originals, lifted space caps, future video) remains the "Paid-tier transition plan" in ADR 0005, with media-specific steps in `docs/operations/M01_MEDIA_PROVIDER_RUNBOOK.md`; it activates only by a Product Owner funding approval and gate receipt.** Email, routing, media, support/status, and optional analytics retain their named feature gates. `manifest.json` is the documentation handoff inventory, not the installable PWA web-app manifest.
-
-## Product direction
-
-Build a professional, public-facing Progressive Web App for antique shoppers.
-
-The implementation baseline leads with:
-
-- Antique-store discovery
-- Trustworthy store details, photos, hours, updates, and official links
-- Store-hours-aware multi-stop trip planning
-- One-trip handoff from a researcher/creator to an assigned navigator
-- One-stop-at-a-time navigation handoff to Waze or Google Maps
-- Private saves, personal ratings, notes, trips, and visit memory
-- Verified Store Representative and Administrator workflows
-
-Public reviews enter only in the Regional Public MVP after moderation controls pass. Finds, households, personalization, shopper photos, and owner review responses remain deferred. The original discovery work came from one household's antiquing habits, but the product must contain no personal data or implicit household access.

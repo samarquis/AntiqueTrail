@@ -44,6 +44,9 @@ export const commercialResearchReviewClient: BillingClient = {
   async startCheckout() {
     throw new Error('provider_call_forbidden')
   },
+  async recordPaidTierConsent() {
+    throw new Error('provider_call_forbidden')
+  },
   async openPortal() {
     throw new Error('provider_call_forbidden')
   },

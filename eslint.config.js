@@ -7,8 +7,10 @@ export default tseslint.config(
   {
     ignores: [
       'dist',
+      'dist-*',
       'coverage',
       'playwright-report',
+      'artifacts/configured-shopper-*',
       'node_modules',
       '.github/skills',
       'supabase/.temp',

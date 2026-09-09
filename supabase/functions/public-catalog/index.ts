@@ -53,6 +53,7 @@ Deno.serve(async (request, connection) => {
     !anonKey ||
     !gatewayJwt ||
     !rateSalt ||
+    !allowedOrigin ||
     !platformAddress ||
     origin !== allowedOrigin
   )
@@ -65,8 +66,10 @@ Deno.serve(async (request, connection) => {
   }
   if (body.operation !== 'list' && body.operation !== 'details' && body.operation !== 'map')
     return Response.json({ error: { code: 'INVALID_OPERATION' } }, { status: 400, headers })
-  const gatewayClient = createClient(url, gatewayJwt, {
+  const gatewayClient = createClient(url, anonKey, {
+    accessToken: async () => gatewayJwt,
     db: { schema: 'app_public' },
+    global: { headers: { Origin: allowedOrigin } },
     auth: { persistSession: false, autoRefreshToken: false },
   })
   const authorization = request.headers.get('authorization')

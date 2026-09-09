@@ -1,0 +1,11 @@
+# Issue 172 verification
+
+Contract: `PRD.md` - Launch promotion and prospective-owner acquisition; `DESIGN_SYSTEM.md` - Store-owner acquisition page contract. Base is landed issue 171, ac67d952eba269d9e6ef547f503ee1ae33e97ac6. Publication and human cohort evidence remain issues 56/169.
+
+- Content/order: existing acquisition content is reused with complete Free allowances and exact Topeka eligibility. It distinguishes directly maintained versus reviewed facts, includes trust/support/terms paths and consequences, and repeats the same primary action. Seven focused tests cover order, prohibited copy, noindex lifecycle, closed intake, normal-build route denial and failed-search preservation.
+- Handoff: public catalog search precedes selection; exact claimStore or add-store route is preserved by existing RequireSession sign-in return. Selection itself creates no account, grant, application or authority. Closed intake provides a status explanation and collects no contact details.
+- UI/accessibility: twelve targeted Playwright checks pass on desktop, tablet and 320px: exact claim and missing-store handoff, unavailable stage, keyboard/focus, live status, axe WCAG A/AA checks, dark and forced colors, and 200% text reflow. Three affected reflow checks pass after the final owner-page-only navigation/card spacing adjustment. Screenshots are synthetic local evidence; the 320px viewport was visually inspected.
+- Stage/indexing: the actual built production artifact renders Page not found even with forged enable/review query parameters. The production artifact assertion passes. Pages and Vercel configurations keep /for-stores noindex/nofollow and private/no-store; the local page also installs and removes its own robots meta. Browse remains the primary shopper route.
+- Local verification: full check passes 101 files / 720 tests, 82 release checks, typecheck, lint (existing warnings), formatting and build. The final CSS build and production browser probe pass. Security contract and diff checks pass.
+
+No deployment, paid capability, waitlist, real owner data collection, external distribution or human acceptance was performed. Independent exact-SHA review and hosted web/database/plan-governance results belong on the PR before landing.

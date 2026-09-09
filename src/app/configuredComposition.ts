@@ -1,16 +1,30 @@
+import { createSalesClient } from '../features/billing/sales'
+import { createServicingClient } from '../features/billing/servicing'
+import { createPromotionClient } from '../features/portal/promotion'
+import {
+  createStoreApplicationClient,
+  createStoreApplicationAdminClient,
+} from '../features/partners/storeApplications'
+import { createOwnerIntakeAvailabilityClient } from '../features/partners/ownerIntakeAvailability'
 import { createClient, type Session } from '@supabase/supabase-js'
 import type { AppClients, AppRuntime } from './App'
+import { createAdminClient } from '../features/admin/adminClient'
 import { createAccessibleCatalogMapAdapter } from '../features/catalog'
 import { createReviewClient } from '../features/reviews'
+import { createReviewerCredentialClient } from '../features/reviews/reviewerCredentialClient'
+import { createBreakGlassReviewClient } from '../features/reviews'
+import { createIndependentAppealClient } from '../features/reviews'
 import {
   createPortalClient,
   createPortalMediaHttpTransport,
   sanitizeDiagnostics,
 } from '../features/portal'
-import { createReadinessClient } from '../features/readiness'
+import { createReadinessAdminClient, createReadinessClient } from '../features/readiness'
 import { createBetaClient } from '../features/beta'
+import { createCommunityGateClient, createCommunityPreparationClient } from '../features/community'
 import { createBillingClient } from '../features/billing'
 import { createShopperClient } from '../features/shopper'
+import { createOwnConsentClient } from '../features/rg01'
 import { createCandidateProductionClient } from '../features/candidates'
 import {
   createPartnerAdminClient,
@@ -32,12 +46,19 @@ import {
   type TripOfflineGrantSource,
 } from '../features/trips'
 import {
+  IndexedDbRefreshSessionStorage,
+  type RefreshSessionStorage,
+} from '../features/auth/refreshSessionStorage'
+import {
   createAccountLifecycleClient,
   createRpcSessionRegistry,
   type AccountRole,
   type AuthProviderAdapter,
+  type PasswordRecoveryRequest,
   type ProviderSession,
 } from '../features/auth'
+import { createRG01Client } from '../features/rg01/rg01Client'
+import { createRG01HttpTransport } from '../features/rg01/rg01HttpTransport'
 
 export interface ConfiguredComposition {
   clients: AppClients
@@ -101,12 +122,21 @@ export function createAuthProvider<
     functions: ReturnType<typeof createClient>['functions']
     rpc: ReturnType<typeof createClient>['rpc']
   },
->(supabase: T): AuthProviderAdapter {
+>(
+  supabase: T,
+  refreshStorage: RefreshSessionStorage = new IndexedDbRefreshSessionStorage(),
+): AuthProviderAdapter {
   const challenges = new Map<string, { factorId: string; session: ProviderSession }>()
+  const remember = async (session: Session) => {
+    await refreshStorage
+      .write({ userId: session.user.id, refreshToken: session.refresh_token })
+      .catch(() => undefined)
+  }
   return {
     async signIn(email, password) {
       const result = await supabase.auth.signInWithPassword({ email, password })
       if (result.error || !result.data.session) return { kind: 'error' }
+      await remember(result.data.session)
       const session = providerSession(result.data.session)
       const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
       if (
@@ -146,6 +176,7 @@ export function createAuthProvider<
       })
       if (result.error) return null
       challenges.delete(challengeId)
+      await remember(result.data)
       return providerSession(result.data)
     },
     async register(request) {
@@ -170,9 +201,36 @@ export function createAuthProvider<
       if (result.error) return { kind: 'error' }
       if (result.data?.state === 'blocked') return { kind: 'blocked' }
       if (result.data?.state === 'verified') return { kind: 'verified' }
-      return result.data?.state === 'authenticated' && result.data.session
-        ? { kind: 'authenticated', session: providerSession(result.data.session as Session) }
-        : { kind: 'error' }
+      if (result.data?.state !== 'authenticated' || !result.data.session) return { kind: 'error' }
+      const returnedSession = result.data.session as Session
+      const session = providerSession(returnedSession)
+      if (kind === 'verify') {
+        const installed = await supabase.auth.setSession({
+          access_token: returnedSession.access_token,
+          refresh_token: returnedSession.refresh_token,
+        })
+        if (
+          installed.error ||
+          !installed.data.session ||
+          installed.data.session.user.id !== session.userId
+        ) {
+          await supabase.auth.signOut({ scope: 'local' })
+          return { kind: 'error' }
+        }
+      }
+      await remember(returnedSession)
+      return { kind: 'authenticated', session }
+    },
+    async completePasswordRecovery(request: PasswordRecoveryRequest) {
+      const result = await supabase.functions.invoke('auth-recovery-complete', {
+        body: {
+          token_hash: request.tokenHash,
+          password: request.password,
+          request_id: request.requestId,
+        },
+      })
+      if (result.error || result.data?.state !== 'completed') return { kind: 'error' }
+      return { kind: 'completed' }
     },
     async signInWithProvider(providerId, returnTo) {
       const target = new URL('/auth/callback', window.location.origin)
@@ -194,12 +252,50 @@ export function createAuthProvider<
       }
       if (admission.error || admission.data?.state !== 'active') {
         await supabase.auth.signOut({ scope: 'local' })
+        await refreshStorage.clear().catch(() => undefined)
         return { kind: 'blocked' }
       }
+      await remember(exchanged.data.session)
       return { kind: 'authenticated', session: providerSession(exchanged.data.session) }
     },
+    async restoreSession() {
+      try {
+        const material = await refreshStorage.read()
+        if (!material) return null
+        const refreshed = await supabase.auth.refreshSession({
+          refresh_token: material.refreshToken,
+        })
+        if (refreshed.error || !refreshed.data.session) throw new Error('refresh_failed')
+        if (refreshed.data.session.user.id !== material.userId) throw new Error('account_mismatch')
+        await remember(refreshed.data.session)
+        return providerSession(refreshed.data.session)
+      } catch {
+        await refreshStorage.clear().catch(() => undefined)
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+        return null
+      }
+    },
+    onSessionChange(listener) {
+      const subscription = supabase.auth.onAuthStateChange((event, session) => {
+        if (!session || event === 'SIGNED_OUT') {
+          void refreshStorage.clear().catch(() => undefined)
+          listener(null)
+          return
+        }
+        void remember(session).catch(() => undefined)
+        listener(providerSession(session))
+      })
+      return () => subscription.data.subscription.unsubscribe()
+    },
+    async clearSessionMaterial() {
+      await refreshStorage.clear()
+    },
     async signOut() {
-      await supabase.auth.signOut({ scope: 'local' })
+      try {
+        await supabase.auth.signOut({ scope: 'local' })
+      } finally {
+        await refreshStorage.clear().catch(() => undefined)
+      }
     },
   }
 }
@@ -283,11 +379,13 @@ export async function configuredComposition(
       },
       { ReviewHarnessBanner, ReviewHarnessPage },
       { commercialResearchReviewClient },
+      { billingServicingReviewClients },
     ] = await Promise.all([
       import('../review-harness/harness'),
       import('../review-harness/clients'),
       import('../review-harness/components'),
       import('../review-harness/commercialResearch'),
+      import('../review-harness/billingServicing'),
     ])
     const reviewHarness = await createReviewHarness({
       dev: import.meta.env.DEV,
@@ -299,7 +397,14 @@ export async function configuredComposition(
       return {
         clients: {
           catalog: createReviewHarnessCatalogClient(reviewHarness.state),
-          ...createReviewHarnessClients(reviewHarness.scenario, reviewHarness.state),
+          ...billingServicingReviewClients(
+            typeof window === 'undefined' ? '' : window.location.href,
+          ),
+          ...createReviewHarnessClients(
+            reviewHarness.scenario,
+            reviewHarness.state,
+            reviewHarness.mediaReviewEnabled,
+          ),
           ...(import.meta.env.VITE_COMMERCIAL_RESEARCH_REVIEW === 'true'
             ? { billing: commercialResearchReviewClient }
             : {}),
@@ -335,6 +440,27 @@ export async function configuredComposition(
       flowType: 'pkce',
     },
   })
+  if (
+    typeof window !== 'undefined' &&
+    ['/reviewer/setup', '/reviewer/credentials', '/reviewer/recover'].includes(
+      window.location.pathname,
+    )
+  ) {
+    return {
+      clients: {
+        reviewerCredentials: createReviewerCredentialClient({
+          async execute(command) {
+            const result = await supabase.functions.invoke('reviewer-credentials', {
+              body: command,
+            })
+            if (result.error) throw result.error
+            return result.data
+          },
+        }),
+      },
+      runtime: {},
+    }
+  }
   const offline = await offlineConfiguration(
     options.tripOfflineDatabase ?? new IndexedDbOfflineDatabase(),
   )
@@ -483,6 +609,15 @@ export async function configuredComposition(
     return result.data as T
   }
   const candidate = createCandidateProductionClient({ rpc, edge })
+  const rg01 = createRG01Client(
+    createRG01HttpTransport({
+      endpoint: `${url}/functions/v1/rg01-command`,
+      async getAccessToken() {
+        const session = await supabase.auth.getSession()
+        return session.data.session?.access_token ?? ''
+      },
+    }),
+  )
   const lifecycle = createAccountLifecycleClient({
     rpc,
     async download(jobId) {
@@ -553,10 +688,21 @@ export async function configuredComposition(
   return {
     clients: {
       candidate,
+      admin: createAdminClient({
+        async rpc(name, args) {
+          const result = await supabase.rpc(name, args)
+          return { data: result.data, error: result.error }
+        },
+      }),
       lifecycle,
       partner,
       partnerAdmin,
       billing,
+      billingServicing: createServicingClient((name, args) => supabase.rpc(name, args)),
+      billingSales: createSalesClient(
+        (name, args) => supabase.rpc(name, args),
+        (name, body) => supabase.functions.invoke(name, { body }),
+      ),
       shopper,
       reviews: createReviewClient({
         async rpc(name, args) {
@@ -564,6 +710,54 @@ export async function configuredComposition(
           return { data: result.data, error: result.error }
         },
       }),
+      reviewerCredentials: createReviewerCredentialClient({
+        async execute(command) {
+          return edge('reviewer-credentials', command)
+        },
+      }),
+      breakGlassReview: createBreakGlassReviewClient({
+        async execute(command) {
+          const result = await supabase.functions.invoke('break-glass-review', { body: command })
+          if (result.error) throw result.error
+          return result.data
+        },
+      }),
+      independentAppealReview: createIndependentAppealClient({
+        async execute(command) {
+          const result = await supabase.functions.invoke('appeal-review', { body: command })
+          if (result.error) throw result.error
+          return result.data
+        },
+      }),
+      storeApplicationAdmin: createStoreApplicationAdminClient(async (operation, payload) => {
+        if (operation === 'verify_signal')
+          return edge('partner-provider-command', {
+            operation: 'store_application_verify_signal',
+            payload,
+          })
+        return rpc('store_application_admin_command', {
+          p_operation: operation,
+          p_payload: payload,
+        })
+      }),
+      storeApplications: createStoreApplicationClient(async (operation, payload) => {
+        if (operation === 'signal')
+          return edge('partner-provider-command', {
+            operation: 'store_application_signal',
+            payload,
+          })
+        const result = await supabase.rpc('store_application_command', {
+          p_operation: operation,
+          p_payload: payload,
+        })
+        if (result.error) throw result.error
+        return result.data
+      }),
+      ownerIntakeAvailability: createOwnerIntakeAvailabilityClient(async (name) => {
+        const result = await supabase.rpc(name)
+        return { data: result.data, error: result.error }
+      }),
+      promotion: createPromotionClient(rpc),
       portal: createPortalClient(
         {
           async rpc(name, args) {
@@ -592,10 +786,40 @@ export async function configuredComposition(
           return { data: result.data, error: result.error }
         },
       }),
+      readinessAdmin: createReadinessAdminClient({
+        async rpc(name, args) {
+          const result = await supabase.rpc(name, args)
+          return { data: result.data, error: result.error }
+        },
+      }),
       beta: createBetaClient({
         async rpc(name, args) {
           const result = await supabase.rpc(name, args)
           return { data: result.data, error: result.error }
+        },
+      }),
+      ownConsent: createOwnConsentClient(async (name, args) => {
+        const result = await supabase.rpc(name, args)
+        if (result.error) throw result.error
+        return result.data
+      }),
+      rg01,
+      communityPreparation: createCommunityPreparationClient({
+        async execute(operation, payload) {
+          const result = await supabase.functions.invoke('community-user-command', {
+            body: { operation, payload },
+          })
+          if (result.error) throw result.error
+          return result.data
+        },
+      }),
+      communityGate: createCommunityGateClient({
+        async execute(operation, payload) {
+          const result = await supabase.functions.invoke('community-gate-command', {
+            body: { operation, payload },
+          })
+          if (result.error) throw result.error
+          return result.data
         },
       }),
       operationalStatus: {

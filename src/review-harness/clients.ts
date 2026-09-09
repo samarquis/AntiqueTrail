@@ -1,4 +1,8 @@
+import { storeApplicationReviewClients } from './storeApplications'
+import { createReviewOwnerIntakeAvailabilityClient } from './ownerIntakeAvailability'
+import { createPromotionClient, promotionLabels } from '../features/portal/promotion'
 import type { AppClients } from '../app/App'
+import { withRecordAuditReview } from './adminAudit'
 import { demoCatalogClient } from '../features/catalog/demoClient'
 import type { CatalogClient } from '../features/catalog/types'
 import type {
@@ -52,6 +56,7 @@ import {
   type PortalHomeSnapshot,
   type PortalHours,
   type PortalManagedFields,
+  type PortalMediaUpload,
   type PortalMediaUploadInput,
   type PortalPendingChange,
   type StoreUpdate,
@@ -65,6 +70,8 @@ import {
   type ModerationDecisionInput,
   type ReviewClient,
 } from '../features/reviews'
+import type { ReadinessAdminClient, ReadinessAdminWorkspace } from '../features/readiness'
+import type { RG01Client } from '../features/rg01'
 import {
   unavailableShopperClient,
   type PrivateStoreMemory,
@@ -86,8 +93,154 @@ import {
   type TripStop,
 } from '../features/trips'
 import type { ReviewScenario, ReviewStateId } from './types'
+import { createOwnConsentClient, type OwnConsentClient } from '../features/rg01'
+import type {
+  CommunityGateClient,
+  CommunityGatePacket,
+  CommunityPreparationClient,
+  CommunityPreparationProjection,
+  CommunityPreparationRun,
+} from '../features/community'
 
 const FIXED_NOW = '2026-08-05T12:00:00.000Z'
+
+function readinessAdminReviewClient(state: ReviewStateId): ReadinessAdminClient {
+  let workspace: ReadinessAdminWorkspace = {
+    cohort: {
+      cohortId: 'review-readiness-cohort',
+      areaSlug: 'topeka-ks',
+      state: 'active',
+      version: 1,
+    },
+    invitations: [],
+    subjects: [],
+    run: null,
+    capabilities: {
+      listingsPrivate: true,
+      noindex: true,
+      anonymousRealStoreAccess: false,
+      publicReviews: false,
+      publicPromotion: false,
+    },
+  }
+  const allowed = () => {
+    if (state !== 'success') throw new Error('Synthetic readiness unavailable')
+  }
+  return {
+    async getWorkspace() {
+      allowed()
+      return structuredClone(workspace)
+    },
+    async createInvitation() {
+      allowed()
+      const invitation = {
+        invitationId: `review-invitation-${workspace.invitations.length + 1}`,
+        state: 'pending' as const,
+        expiresAt: '2026-08-12T12:00:00.000Z',
+        subjectId: null,
+        version: 1,
+      }
+      workspace = { ...workspace, invitations: [...workspace.invitations, invitation] }
+      return { ...invitation, token: 'review-synthetic-token', replayed: false }
+    },
+    async revokeInvitation(invitationId) {
+      allowed()
+      workspace = {
+        ...workspace,
+        invitations: workspace.invitations.map((item) =>
+          item.invitationId === invitationId ? { ...item, state: 'revoked' as const } : item,
+        ),
+      }
+      return {}
+    },
+    async markStarted() {
+      allowed()
+      return {}
+    },
+    async excludeSubject() {
+      allowed()
+      return {}
+    },
+    async beginRun(_cohortId, runId) {
+      allowed()
+      workspace = {
+        ...workspace,
+        run: {
+          runId,
+          state: 'in_progress',
+          version: 1,
+          frozenDigest: null,
+          blockers: [],
+          receiptId: null,
+          calculatedAt: null,
+          factCollectionState: 'collecting',
+        },
+      }
+      return {}
+    },
+    async calculateGate() {
+      allowed()
+      return {
+        runId: workspace.run?.runId ?? 'missing',
+        blockers: [],
+        canPass: true,
+        source: 'server_authoritative_facts' as const,
+      }
+    },
+    async freezeReceipt() {
+      allowed()
+      const run = workspace.run
+      if (!run) throw new Error('Synthetic readiness run unavailable')
+      workspace = {
+        ...workspace,
+        run: {
+          ...run,
+          state: 'completed',
+          frozenDigest: 'a'.repeat(64),
+          factCollectionState: 'frozen',
+        },
+      }
+      return {
+        runId: run.runId,
+        state: 'frozen' as const,
+        frozenDigest: 'a'.repeat(64),
+        blockers: [],
+        calculatedAt: FIXED_NOW,
+        adminRunState: 'completed' as const,
+      }
+    },
+    async requestSigningCapability() {
+      allowed()
+      return {
+        capabilityId: 'review-capability',
+        capabilityToken: 'review-token',
+        frozenDigest: 'a'.repeat(64),
+        expiresAt: '2026-08-05T12:30:00.000Z',
+        blockers: [],
+      }
+    },
+    async decideReceipt(input) {
+      allowed()
+      const run = workspace.run
+      if (!run) throw new Error('Synthetic readiness run unavailable')
+      workspace = {
+        ...workspace,
+        run: {
+          ...run,
+          state: input.decision === 'pass' ? 'completed' : 'blocked',
+          receiptId: 'review-receipt-1',
+        },
+      }
+      return {
+        receiptId: 'review-receipt-1',
+        runId: run.runId,
+        state: input.decision === 'pass' ? ('signed' as const) : ('rejected' as const),
+        decision: input.decision,
+        replayed: false,
+      }
+    },
+  }
+}
 
 export function createReviewHarnessCatalogClient(state: ReviewStateId): CatalogClient {
   return {
@@ -244,6 +397,142 @@ function fixture<T>(state: ReviewStateId, success: T, empty: T): Promise<T> {
 function requireRole<T>(scenario: ReviewScenario, allowed: ReviewScenario['role'][], value: T): T {
   if (!allowed.includes(scenario.role)) throw new Error('Synthetic permission denied.')
   return value
+}
+
+function communityReviewClients(
+  scenario: ReviewScenario,
+  state: ReviewStateId,
+): Pick<AppClients, 'communityPreparation' | 'communityGate'> {
+  const allowed = () => requireRole(scenario, ['Administrator'], true)
+  const runId = '00000000-0000-4000-8000-000000000263'
+  let runState: CommunityPreparationRun['state'] = 'readiness_signed'
+  const run = (): CommunityPreparationRun => ({
+    runId,
+    areaId: 'cedar-valley',
+    areaName: 'Cedar Valley',
+    targetOrdinal: 1,
+    attemptSequence: 1,
+    state: runState,
+    version: runState === 'live' ? 5 : 4,
+    expectedRootVersion: 3,
+    artifactDigest: 'a'.repeat(64),
+    storeSetDigest: 'b'.repeat(64),
+    readinessStatus: 'signed',
+    receipts: {
+      selection: '00000000-0000-4000-8000-000000000201',
+      prerequisite: '00000000-0000-4000-8000-000000000202',
+      readiness: '00000000-0000-4000-8000-000000000203',
+      cancellation: null,
+    },
+  })
+  const projection = (): CommunityPreparationProjection => ({
+    status: 'available',
+    root: {
+      expectedVersion: 3,
+      lastActivationOrdinal: 0,
+      lastAttemptSequence: 1,
+      activeRunId: runId,
+    },
+    runs: [run()],
+  })
+  const unavailable = () => {
+    if (state !== 'success') throw new Error('Synthetic community preparation unavailable.')
+  }
+  const preparation: CommunityPreparationClient = {
+    async list() {
+      allowed()
+      unavailable()
+      return projection()
+    },
+    async detail(id) {
+      allowed()
+      unavailable()
+      if (id !== runId) throw new Error('Synthetic exact community run denial.')
+      return projection()
+    },
+    async prepare() {
+      allowed()
+      unavailable()
+      return { runId, state: 'prepared' }
+    },
+    async freeze() {
+      allowed()
+      unavailable()
+      return { runId, state: 'prepared' }
+    },
+    async requestSign() {
+      allowed()
+      unavailable()
+      return {
+        capabilityId: '00000000-0000-4000-8000-000000000204',
+        payloadDigest: 'c'.repeat(64),
+        expiresAt: '2026-08-05T12:30:00.000Z',
+      }
+    },
+    async sign() {
+      allowed()
+      unavailable()
+      runState = 'readiness_signed'
+      return { runId, state: runState }
+    },
+    async cancel() {
+      allowed()
+      unavailable()
+      runState = 'cancelled'
+      return { runId, state: runState }
+    },
+  }
+  const packet: CommunityGatePacket = {
+    runId,
+    areaId: 'cedar-valley',
+    areaName: 'Cedar Valley',
+    version: 4,
+    frozenEvidenceDigest: 'a'.repeat(64),
+    predicateOutcomes: {
+      twoVerifiedActiveListings: true,
+      anchorDirectEdit: true,
+      reviewedControlledChange: true,
+      anchorSupportRequest: true,
+      primaryTesterSeparateAccountPhoneTrip: true,
+      independentTesterSeparateAccountPhoneTrip: true,
+      voluntaryShopperTripConfirmations: 5,
+      noPreciseLocationTracking: true,
+      monitoring: true,
+      support: true,
+      storeDataAccuracy: true,
+      zeroBlockingPrivacySecurityDataLossDefects: true,
+    },
+    failureCodes: [],
+    priorDecision: null,
+  }
+  const gate: CommunityGateClient = {
+    async packet(id) {
+      allowed()
+      unavailable()
+      if (id !== runId) throw new Error('Synthetic exact community run denial.')
+      return structuredClone(packet)
+    },
+    async request(id, decision) {
+      allowed()
+      unavailable()
+      if (id !== runId || decision !== 'pass') throw new Error('Synthetic gate decision denial.')
+      return {
+        challengeId: '00000000-0000-4000-8000-000000000205',
+        payloadDigest: 'd'.repeat(64),
+        expiresAt: '2026-08-05T12:30:00.000Z',
+        decision,
+      }
+    },
+    async decide(input) {
+      allowed()
+      unavailable()
+      if (input.runId !== runId || input.decision !== 'pass')
+        throw new Error('Synthetic gate decision denial.')
+      runState = 'live'
+      return { runId, decision: 'pass', state: runState, failureCodes: [] }
+    },
+  }
+  return { communityPreparation: preparation, communityGate: gate }
 }
 
 function shopperClient(scenario: ReviewScenario, state: ReviewStateId): ShopperPrivateClient {
@@ -1405,7 +1694,11 @@ function failureFixture<T>(
   return Promise.resolve(state === 'empty' ? empty : structuredClone(success))
 }
 
-function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalClient {
+function portalClient(
+  scenario: ReviewScenario,
+  state: ReviewStateId,
+  mediaReviewEnabled = false,
+): PortalClient {
   const allowed = () => requireRole(scenario, ['Representative'], true)
   const home: PortalHomeSnapshot = {
     store: {
@@ -1455,6 +1748,16 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
   ]
   let officialLinks: OfficialLink[] = [
     { platform: 'instagram', url: 'https://example.invalid/blue-finch', verifiedAt: FIXED_NOW },
+  ]
+  let mediaUploads: PortalMediaUpload[] = [
+    {
+      uploadId: 'media-review-rejected',
+      kind: 'gallery',
+      state: 'rejected',
+      altText: 'Blue Finch storefront exterior',
+      submittedAt: FIXED_NOW,
+      rejectionReason: 'Image quality needs more detail.',
+    },
   ]
   let supportTickets: SupportTicket[] = [
     {
@@ -1538,7 +1841,7 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
       allowed()
       return failureFixture(
         state,
-        { enabled: false, source: 'server' },
+        { enabled: mediaReviewEnabled, source: 'server' },
         { enabled: false, source: 'server' },
         GENERIC_PORTAL_ERROR,
       )
@@ -1551,6 +1854,40 @@ function portalClient(scenario: ReviewScenario, state: ReviewStateId): PortalCli
         return Promise.reject(new Error(GENERIC_PORTAL_ERROR))
       // M-01 honest media gate: the review build never fabricates an upload receipt.
       throw new Error(GENERIC_PORTAL_ERROR)
+    },
+    async getMediaCapacity() {
+      allowed()
+      return failureFixture(
+        state,
+        { currentTier: 'free', approvedCount: 1, cap: 5 },
+        { currentTier: 'free', approvedCount: 0, cap: 5 },
+        GENERIC_PORTAL_ERROR,
+      )
+    },
+    async listMediaUploads() {
+      allowed()
+      return failureFixture(state, { uploads: mediaUploads }, { uploads: [] }, GENERIC_PORTAL_ERROR)
+    },
+    async resubmitMedia(input) {
+      allowed()
+      if (!mediaReviewEnabled) return Promise.reject(new Error(GENERIC_PORTAL_ERROR))
+      return mutate(state, GENERIC_PORTAL_ERROR, () => {
+        const original = mediaUploads.find((upload) => upload.uploadId === input.originalUploadId)
+        if (!original || original.state !== 'rejected') throw new Error(GENERIC_PORTAL_ERROR)
+        const newUploadId = `media-review-corrected-${mediaUploads.length + 1}`
+        mediaUploads = [
+          {
+            uploadId: newUploadId,
+            kind: original.kind,
+            state: 'awaiting_review',
+            altText: input.altText,
+            submittedAt: FIXED_NOW,
+            rejectionReason: null,
+          },
+          ...mediaUploads,
+        ]
+        return { newUploadId, state: 'awaiting_review' as const }
+      })
     },
     async listUpdates() {
       allowed()
@@ -1882,6 +2219,7 @@ function partnerAdminClient(scenario: ReviewScenario, state: ReviewStateId): Par
 
 function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerClient {
   const allowed = () => requireRole(scenario, ['Representative'], true)
+  const allowedClaim = () => requireRole(scenario, ['Shopper', 'Representative'], true)
   const invitation: PartnerInvitation = {
     state: 'active',
     expiresAt: '2026-08-12T12:00:00.000Z',
@@ -1902,8 +2240,23 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
     onboarding: 'draft',
   }
   let status: PartnerStatus = state === 'empty' ? preOnboardingStatus : approvedStatus
-  let acceptedConsentVersion: string | undefined
-  let claimStatus: PartnerClaimStatus | null = null
+  let acceptedConsentVersion: string | undefined =
+    state === 'blocked' || state === 'permission-denied' ? '2026-08-v1' : undefined
+  let claimStatus: PartnerClaimStatus | null =
+    state === 'blocked'
+      ? {
+          claimId: 'claim-review-partner',
+          state: 'conflict',
+          exactStoreScope: 'Blue Finch Curios',
+          conflict: { state: 'open' },
+        }
+      : state === 'permission-denied'
+        ? {
+            claimId: 'claim-review-partner',
+            state: 'changes_requested',
+            exactStoreScope: 'Blue Finch Curios',
+          }
+        : null
   return {
     ...unavailablePartnerClient,
     async exchangeInvitation(token: string) {
@@ -1927,7 +2280,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       return failureFixture(state, preOnboardingStatus, preOnboardingStatus, GENERIC_PARTNER_ERROR)
     },
     async getConsentStatus() {
-      allowed()
+      allowedClaim()
       const consentStatus: PartnerConsentStatus = {
         requiredVersion: '2026-08-v1',
         acceptedVersion: acceptedConsentVersion,
@@ -1941,6 +2294,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
           'You may withdraw at any time',
         ],
       }
+      if (state === 'blocked' || state === 'permission-denied') return consentStatus
       return failureFixture(state, consentStatus, consentStatus, GENERIC_PARTNER_ERROR)
     },
     async acceptMaterialTerms(input: {
@@ -1948,7 +2302,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       acknowledgements: { reviewed: boolean; voluntary: boolean }
       idempotencyKey: string
     }) {
-      allowed()
+      allowedClaim()
       return mutate(state, GENERIC_PARTNER_ERROR, () => {
         if (input.policyVersion !== '2026-08-v1') throw new Error(GENERIC_PARTNER_ERROR)
         if (!input.acknowledgements.reviewed || !input.acknowledgements.voluntary)
@@ -2010,11 +2364,12 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       })
     },
     async submitClaim(draft: {
-      storeReference: string
+      storeId: string
       relationship: string
       authorityStatement: string
+      idempotencyKey: string
     }) {
-      allowed()
+      allowedClaim()
       void draft
       return mutate(state, GENERIC_PARTNER_ERROR, () => {
         claimStatus = {
@@ -2026,7 +2381,8 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       })
     },
     async getClaimStatus() {
-      allowed()
+      allowedClaim()
+      if (state === 'blocked' || state === 'permission-denied') return claimStatus
       return failureFixture(state, claimStatus, null, GENERIC_PARTNER_ERROR)
     },
     async submitAuthoritySignal(input: {
@@ -2034,7 +2390,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       channelClass: string
       evidenceReference: string
     }) {
-      allowed()
+      allowedClaim()
       void input
       return mutate(state, GENERIC_PARTNER_ERROR, () => {
         if (!claimStatus) throw new Error('Synthetic claim required.')
@@ -2043,7 +2399,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       })
     },
     async withdrawClaim(claimId: string) {
-      allowed()
+      allowedClaim()
       return mutate(state, GENERIC_PARTNER_ERROR, () => {
         if (!claimStatus || claimStatus.claimId !== claimId)
           throw new Error('Synthetic exact-claim denial.')
@@ -2052,7 +2408,7 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
       })
     },
     async requestAuthorityRecheck(claimId: string) {
-      allowed()
+      allowedClaim()
       return mutate(state, GENERIC_PARTNER_ERROR, () => {
         if (!claimStatus || claimStatus.claimId !== claimId)
           throw new Error('Synthetic exact-claim denial.')
@@ -2394,16 +2750,120 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
 export function createReviewHarnessClients(
   scenario: ReviewScenario,
   state: ReviewStateId,
+  mediaReviewEnabled = false,
 ): AppClients {
+  const promotionPermissions = Object.keys(promotionLabels).map((channel) => ({
+    channel,
+    consented: false,
+    version: 0,
+    removalRequested: false,
+  }))
+  const promotion = createPromotionClient(async (name, args) => {
+    if (state !== 'success') throw new Error('Synthetic promotion unavailable')
+    if (name === 'promotion_channels') return structuredClone(promotionPermissions)
+    const permission = promotionPermissions.find((p) => p.channel === args.p_channel)
+    if (!permission || permission.version !== args.p_version)
+      throw new Error('Synthetic stale permission')
+    permission.consented = args.p_operation === 'consent'
+    permission.removalRequested = !permission.consented
+    permission.version++
+    return { allowed: true }
+  })
+  let ownConsentState: 'not_consented' | 'consented' | 'withdrawn' = 'not_consented'
+  const ownConsent: OwnConsentClient = createOwnConsentClient(async (name, args) => {
+    if (state !== 'success' || !scenario.id.startsWith('shopper-'))
+      throw new Error('Synthetic RG-01 unavailable')
+    if (name === 'rg01_get_own_consent')
+      return {
+        status: 'available',
+        collectionActive: true,
+        consentState: ownConsentState,
+        consentedAt: ownConsentState === 'not_consented' ? null : FIXED_NOW,
+        withdrawnAt: ownConsentState === 'withdrawn' ? FIXED_NOW : null,
+      }
+    if (name === 'rg01_set_own_consent') {
+      if (Object.keys(args).join(',') !== 'p_consent' || typeof args.p_consent !== 'boolean')
+        throw new Error('Synthetic RG-01 command shape invalid')
+      ownConsentState = args.p_consent ? 'consented' : 'withdrawn'
+      return null
+    }
+    throw new Error('Synthetic RG-01 command unavailable')
+  })
+  const rg01 = createRG01ReviewClient(scenario, state)
   return {
+    promotion,
+    ownConsent,
+    ownerIntakeAvailability: createReviewOwnerIntakeAvailabilityClient(state),
+    ...storeApplicationReviewClients(state),
     lifecycle: lifecycleClient(scenario, state),
     shopper: shopperClient(scenario, state),
     candidate: candidateClient(scenario, state),
     trips: tripClient(scenario, state),
-    portal: portalClient(scenario, state),
+    portal: portalClient(scenario, state, mediaReviewEnabled),
     reviews: reviewClient(scenario, state),
     partner: partnerClient(scenario, state),
     partnerAdmin: partnerAdminClient(scenario, state),
-    admin: adminClient(scenario, state),
+    admin: withRecordAuditReview(adminClient(scenario, state)),
+    readinessAdmin: readinessAdminReviewClient(state),
+    rg01,
+    ...communityReviewClients(scenario, state),
+  }
+}
+
+function createRG01ReviewClient(scenario: ReviewScenario, state: ReviewStateId): RG01Client {
+  const allowed = () => requireRole(scenario, ['Administrator'], true)
+  const runId = '11111111-1111-4111-8111-111111111111'
+  let runState: 'collecting' | 'frozen' | 'signed' | 'rejected' = 'collecting'
+  const projection = () => ({
+    collectionEnabled: true,
+    permissions: { prepare: true, freeze: true, sign: true },
+    run: {
+      runId,
+      state: runState,
+      windowStart: '2026-02-06T00:00:00.000Z',
+      windowEnd: '2026-08-05T00:00:00.000Z',
+      sourceCutoff: runState === 'collecting' ? null : '2026-08-05T00:00:00.000Z',
+      currentSource: runState !== 'collecting',
+      manifestDigest: runState === 'collecting' ? null : 'a'.repeat(64),
+      blockers: [],
+      metrics: runState === 'collecting' ? {} : { first_trip_shoppers: 25 },
+      receiptId: null,
+      receiptStatus: 'none',
+      supersedesReceiptId: null,
+      supersessionStatus: 'none',
+      linkagePurgeDueAt: null,
+      purgeStatus: 'not_due',
+      linkagePurged: false,
+    },
+    runs: [],
+  })
+  return {
+    async status() {
+      allowed()
+      if (state !== 'success') throw new Error('Synthetic RG-01 unavailable')
+      const value = projection()
+      return { ...value, runs: [value.run] }
+    },
+    async begin() {
+      allowed()
+      if (state !== 'success') throw new Error('Synthetic RG-01 unavailable')
+      runState = 'collecting'
+      return { runId, state: runState }
+    },
+    async freeze() {
+      allowed()
+      if (state !== 'success') throw new Error('Synthetic RG-01 unavailable')
+      runState = 'frozen'
+      return { runId, state: runState, blockers: [] }
+    },
+    async requestDecision() {
+      allowed()
+      return { challengeId: '33333333-3333-4333-8333-333333333333', payloadDigest: 'b'.repeat(64) }
+    },
+    async consumeDecision() {
+      allowed()
+      runState = 'signed'
+      return { receiptId: '44444444-4444-4444-8444-444444444444', state: 'settled' }
+    },
   }
 }

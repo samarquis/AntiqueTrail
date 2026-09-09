@@ -1,10 +1,10 @@
 # Issue tracker: GitHub
 
-Issues and PRDs for this repository live as GitHub issues. Use the `gh` CLI for operations and `PLAN_GOVERNANCE.md` as the controlling admission and closure contract.
+GitHub owns live issues and pull requests. PRD.md owns the product plan, with specialist detail assigned by README.md. Use the `gh` CLI for operations and `PLAN_GOVERNANCE.md` as the controlling admission and closure contract.
 
 ## Required workflow
 
-1. Read current `main`, `PLAN_GOVERNANCE.md`, `PLANNING_INDEX.md`, and the controlling sources relevant to the finding.
+1. Read current `main`, `PLAN_GOVERNANCE.md`, the PRD overview and connected journey, then the exact capability and relevant specialist headings.
 2. Search open and closed issues for duplicates before creating a ticket.
 3. Decide whether the finding is implementation drift or a proposal to change intended behavior.
 4. If it changes intended behavior, stop. The Product Owner must explicitly direct `update plan`, and the plan amendment must merge before the dependent implementation ticket can be ready.
@@ -16,7 +16,7 @@ Issues and PRDs for this repository live as GitHub issues. Use the `gh` CLI for 
 
 Every implementation ticket must preserve:
 
-`problem and evidence -> controlling plan heading -> one outcome -> 1-5 acceptance criteria -> executable verification`
+`problem and evidence -> connected journey and exact requirement -> one outcome -> 1-5 acceptance criteria -> executable verification`
 
 The ticket must address the cause, not only a visible symptom. Include roles, states, authorization, responsive/accessibility behavior, errors, or recovery only when required by its outcome. Historical evidence cannot replace a controlling plan reference.
 

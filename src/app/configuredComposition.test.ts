@@ -187,6 +187,20 @@ describe('social sign-in provider adapter', () => {
 })
 
 describe('configured Trip grant composition', () => {
+  it('wires production audit selection and read through the authenticated RPC client', async () => {
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    expect(composition?.clients.admin).toBeDefined()
+    await composition!.clients.admin!.getCase('case-131')
+    await composition!.clients.admin!.listStoreGrants()
+    await composition!.clients.admin!.readAudit('opaque-reference')
+    expect(harness.supabase.rpc).toHaveBeenCalledWith('admin_get_review_case', {
+      p_case_id: 'case-131',
+    })
+    expect(harness.supabase.rpc).toHaveBeenCalledWith('admin_list_store_scopes', undefined)
+    expect(harness.supabase.rpc).toHaveBeenCalledWith('admin_read_record_audit', {
+      p_access: 'opaque-reference',
+    })
+  })
   beforeEach(async () => {
     harness.events.length = 0
     harness.supabase.rpc.mockClear()
@@ -295,6 +309,21 @@ describe('configured Trip grant composition', () => {
       attribution: 'Map data © approved provider v1',
     })
     expect(enabled!.clients.map!.render).toEqual(expect.any(Function))
+  })
+
+  it('wires owner intake availability through the server projection RPC', async () => {
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    harness.supabase.rpc.mockResolvedValueOnce({
+      data: { routeVisible: true, intakeAvailable: true, claimsAvailable: true },
+      error: null,
+    } as never)
+
+    await expect(composition!.clients.ownerIntakeAvailability!.getAvailability()).resolves.toEqual({
+      routeVisible: true,
+      intakeAvailable: true,
+      claimsAvailable: true,
+    })
+    expect(harness.supabase.rpc).toHaveBeenCalledWith('owner_intake_availability')
   })
 
   it('routes password recovery through the fail-closed Edge boundary', async () => {

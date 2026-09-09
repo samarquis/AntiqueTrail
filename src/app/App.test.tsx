@@ -330,8 +330,10 @@ describe('app shell', () => {
         <App />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('heading', { name: /store portal/i })).toBeInTheDocument()
-    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't update this store portal/i)
+    expect(
+      await screen.findByRole('heading', { name: /store portal unavailable/i }),
+    ).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
   })
 
   it('wires the injected durable Store Portal client into portal routes', async () => {
@@ -357,7 +359,38 @@ describe('app shell', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByText('Oak Antiques')).toBeVisible()
-    expect(getHome).toHaveBeenCalledOnce()
+    expect(getHome).toHaveBeenCalledTimes(2)
+  })
+
+  it('removes the scoped workspace when the next route check denies the same session', async () => {
+    const user = userEvent.setup()
+    const getHome = vi.fn(async () => ({
+      store: {
+        id: 'store-1',
+        name: 'Private scope',
+        listingState: 'active' as const,
+        timeZone: 'America/Chicago',
+      },
+      freshness: { state: 'verified' as const, label: 'Verified' },
+      provenance: {
+        sourceLabel: 'Representative',
+        verifiedBy: 'Administrator',
+        verifiedAt: '2026-08-01T00:00:00Z',
+        ownerConfirmed: true,
+      },
+      pendingChanges: [],
+    }))
+    render(
+      <MemoryRouter initialEntries={['/store-portal']}>
+        <App clients={{ portal: { ...unavailablePortalClient, getHome } }} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Private scope')).toBeVisible()
+    getHome.mockRejectedValue(new Error('revoked'))
+    await user.click(screen.getByRole('link', { name: 'Pending changes' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
+    expect(screen.queryByText('Private scope')).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
   it('keeps External Testing Readiness unavailable until the human gates exist', async () => {
@@ -443,6 +476,7 @@ describe('app shell', () => {
     const billing: BillingClient = {
       getCapability: vi.fn(),
       startCheckout: vi.fn(),
+      recordPaidTierConsent: vi.fn(),
       openPortal: vi.fn(),
       getCommercialResearchConfig: vi.fn(async () => config),
       recordCommercialResearchAttempt: vi.fn(),
@@ -520,6 +554,35 @@ describe('app shell', () => {
     )
     expect(screen.getByRole('heading', { name: /page not found/i })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /claim a listing/i })).not.toBeInTheDocument()
+  })
+
+  it('uses server-owned availability for the normal owner search branch', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/for-stores']}>
+        <App
+          clients={{
+            catalog: demoCatalogClient,
+            ownerIntakeAvailability: {
+              getAvailability: async () => ({
+                routeVisible: true,
+                intakeAvailable: true,
+                claimsAvailable: true,
+              }),
+            },
+          }}
+        />
+      </MemoryRouter>,
+    )
+
+    await user.click((await screen.findAllByRole('button', { name: 'Add or claim my store' }))[0])
+    await user.type(screen.getByLabelText('Public store name'), 'Blue')
+    await user.click(screen.getByRole('button', { name: 'Search stores' }))
+
+    expect(
+      await screen.findByRole('link', { name: /claim blue finch curios/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /my store is missing/i })).toBeInTheDocument()
   })
 
   it('uses the injected auth provider on the sign-in route', async () => {

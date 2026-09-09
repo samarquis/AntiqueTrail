@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { prepareSyntheticPartnerPayload } from '../../../supabase/functions/_shared/partner-command-payload'
+import {
+  preparePublicClaimSignalPayload,
+  prepareSyntheticPartnerPayload,
+} from '../../../supabase/functions/_shared/partner-command-payload'
 
 describe('partner provider payload minimization', () => {
   it('replaces raw signal evidence with a deterministic 32-byte HMAC', async () => {
@@ -31,5 +34,26 @@ describe('partner provider payload minimization', () => {
         {},
       ),
     ).rejects.toThrow('unavailable')
+  })
+
+  it('preserves the client retry key while removing a public evidence reference', async () => {
+    const result = await preparePublicClaimSignalPayload(
+      {
+        input: {
+          claimId: 'claim-1',
+          idempotencyKey: 'public-signal-stable-1',
+          channelClass: 'callback',
+          evidenceReference: ' Call completed at test number ',
+        },
+      },
+      'test-only-secret',
+    )
+    expect(result).toMatchObject({
+      claimId: 'claim-1',
+      idempotencyKey: 'public-signal-stable-1',
+      channelClass: 'callback',
+    })
+    expect(result.evidenceReference).toBeUndefined()
+    expect(result.evidenceRefHmac).toMatch(/^[0-9a-f]{64}$/)
   })
 })

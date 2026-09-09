@@ -63,6 +63,7 @@ describe('reviewer credential command allowlist', () => {
       providerCredentialId: 'provider-credential',
       providerVerificationId: 'verification-1',
       providerKeyId: 'key-1',
+      allowCredentialId: 'raw-credential-id',
       discoverable: false,
       signCount: 0,
     }

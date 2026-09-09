@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -227,7 +227,13 @@ describe('partner onboarding boundary', () => {
     await user.click(screen.getByRole('button', { name: /save draft/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/draft/i)
     await user.click(screen.getByRole('button', { name: /submit draft for review/i }))
-    expect(await screen.findByRole('status')).toHaveTextContent(/submitted/i)
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('status')
+          .some((status) => status.textContent?.includes('Draft status: submitted')),
+      ).toBe(true),
+    )
     cleanup()
     renderPage(
       <PartnerStatusPage
@@ -289,9 +295,14 @@ describe('partner onboarding boundary', () => {
       claimId: 'claim-1',
       state: 'submitted' as const,
     }))
-    renderPage(<PartnerClaimPage client={client({ submitClaim })} />)
+    renderPage(
+      <PartnerClaimPage
+        client={client({ submitClaim })}
+        selectedStoreId="10000000-0000-4000-8000-000000000001"
+      />,
+    )
 
-    await user.type(await screen.findByLabelText(/store reference/i), ' synthetic-store-1 ')
+    await screen.findByText(/selected listing is ready/i)
     await user.type(screen.getByLabelText(/relationship to the store/i), ' Owner ')
     await user.type(
       screen.getByLabelText(/authority statement/i),
@@ -300,11 +311,18 @@ describe('partner onboarding boundary', () => {
     await user.click(screen.getByRole('button', { name: /submit claim/i }))
 
     expect(submitClaim).toHaveBeenCalledWith({
-      storeReference: 'synthetic-store-1',
+      storeId: '10000000-0000-4000-8000-000000000001',
       relationship: 'Owner',
       authorityStatement: 'I am authorized to maintain this store listing.',
+      idempotencyKey: expect.stringMatching(/^public-claim-/),
     })
-    expect(await screen.findByRole('status')).toHaveTextContent(/submitted/i)
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('status')
+          .some((status) => status.textContent?.includes('Claim status: submitted')),
+      ).toBe(true),
+    )
     expect(screen.getByText(/does not grant access or imply endorsement/i)).toBeInTheDocument()
   })
 
@@ -320,7 +338,13 @@ describe('partner onboarding boundary', () => {
     }))
     renderPage(<PartnerClaimPage client={client({ getClaimStatus, submitAuthoritySignal })} />)
 
-    expect(await screen.findByText(/claim status: verification_pending/i)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('status')
+          .some((status) => status.textContent?.includes('Claim status: verification_pending')),
+      ).toBe(true),
+    )
     expect(screen.queryByText(/authority signals verified/i)).not.toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText(/authority signal channel/i), 'callback')
     await user.type(screen.getByLabelText(/evidence reference/i), 'case-ref-17')
@@ -328,6 +352,7 @@ describe('partner onboarding boundary', () => {
 
     expect(submitAuthoritySignal).toHaveBeenCalledWith({
       claimId: 'claim-1',
+      idempotencyKey: expect.stringMatching(/^public-signal-/),
       channelClass: 'callback',
       evidenceReference: 'case-ref-17',
     })
@@ -351,6 +376,7 @@ describe('partner onboarding boundary', () => {
             conflict: { state: 'open' as const },
           })),
         })}
+        selectedStoreId="10000000-0000-4000-8000-000000000001"
       />,
     )
 

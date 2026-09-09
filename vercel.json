@@ -3,6 +3,7 @@
   "git": {
     "deploymentEnabled": false
   },
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/auth/callback/:path*",
@@ -30,6 +31,13 @@
       "headers": [
         { "key": "Cache-Control", "value": "private, no-store" },
         { "key": "Referrer-Policy", "value": "no-referrer" }
+      ]
+    },
+    {
+      "source": "/for-stores/:path*",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+        { "key": "Cache-Control", "value": "private, no-store" }
       ]
     }
   ]

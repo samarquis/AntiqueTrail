@@ -1,5 +1,7 @@
+import { withBillingProviderWork } from '../_shared/billing-work.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2.112.1'
-import { loadBillingProviderEnv, stripeFormPost } from '../_shared/billing-provider.ts'
+import { loadBillingProviderEnv } from '../_shared/billing-provider.ts'
+import { cancellationPortal, record } from '../_shared/billing-servicing-provider.ts'
 
 declare const Deno: {
   env: { get(name: string): string | undefined }
@@ -33,13 +35,10 @@ function stageDisabled(headers: Record<string, string>): Response {
   return Response.json({ error: 'stage_disabled' }, { status: 503, headers })
 }
 
-async function capabilityEnabled(
-  client: ReturnType<typeof createClient>,
-): Promise<boolean> {
-  const result = await client.rpc('billing_get_capability')
+async function capabilityEnabled(client: ReturnType<typeof createClient>): Promise<boolean> {
+  const result = await client.rpc('billing_get_servicing_context')
   if (result.error) return false
-  const value = result.data as { enabled?: unknown } | null
-  return value?.enabled === true
+  return record(result.data) && typeof result.data.storeId === 'string'
 }
 
 Deno.serve(async (request) => {
@@ -60,7 +59,9 @@ Deno.serve(async (request) => {
 
   let body: Record<string, unknown>
   try {
-    body = (await request.json()) as Record<string, unknown>
+    const value: unknown = await request.json()
+    if (!record(value)) return unavailable(headers, 400)
+    body = value
   } catch {
     return unavailable(headers, 400)
   }
@@ -80,23 +81,21 @@ Deno.serve(async (request) => {
     db: { schema: 'app_public' },
     auth: { persistSession: false, autoRefreshToken: false },
   })
-  const context = await workerClient.rpc('billing_get_portal_context', { p_store_id: storeId })
-  const customerId =
-    typeof context.data === 'string' ? context.data : undefined
-  if (!customerId || !/^cus_[A-Za-z0-9]{8,64}$/.test(customerId)) return unavailable(headers)
-
-  const minted = await stripeFormPost(
-    env,
-    '/v1/billing_portal/sessions',
-    {
-      customer: customerId,
-      return_url: `${new URL(env.appOrigin!).origin}/store-portal/billing`,
+  return withBillingProviderWork(
+    (name, args) => workerClient.rpc(name, args),
+    async () => {
+      const context = await workerClient.rpc('billing_get_servicing_provider_context', {
+        p_store_id: storeId,
+      })
+      if (context.error) return unavailable(headers)
+      const minted = await cancellationPortal(
+        env,
+        context.data,
+        Deno.env.get('BILLING_CANCELLATION_PORTAL_CONFIG'),
+      )
+      if (!minted) return unavailable(headers)
+      return Response.json({ url: minted.url }, { status: 200, headers })
     },
-    crypto.randomUUID(),
-  )
-  if (!minted.ok) return unavailable(headers)
-  return Response.json(
-    { url: minted.url },
-    { status: 200, headers },
+    headers,
   )
 })

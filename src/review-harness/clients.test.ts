@@ -137,13 +137,15 @@ describe('scenario-aware review clients', () => {
     ).resolves.toMatchObject({ onboarding: 'draft' })
     await expect(partner.submitDraft()).resolves.toMatchObject({ onboarding: 'submitted' })
     const claim = await partner.submitClaim({
-      storeReference: 'Blue Finch Curios',
+      storeId: 'store-review-partner',
       relationship: 'Owner',
       authorityStatement: 'I am authorized.',
+      idempotencyKey: 'claim-review-partner-1',
     })
     await expect(
       partner.submitAuthoritySignal({
         claimId: claim.claimId,
+        idempotencyKey: 'public-signal-review-partner-1',
         channelClass: 'published_business_contact',
         evidenceReference: 'public-contact',
       }),
@@ -186,6 +188,14 @@ describe('scenario-aware review clients', () => {
       pendingChanges: expect.arrayContaining([expect.objectContaining({ id: change.id })]),
     })
     await expect(portal.getMediaCapability()).resolves.toEqual({ enabled: false, source: 'server' })
+    await expect(portal.listMediaUploads()).resolves.toMatchObject({
+      uploads: [
+        expect.objectContaining({
+          state: 'rejected',
+          rejectionReason: 'Image quality needs more detail.',
+        }),
+      ],
+    })
     await expect(
       portal.uploadOfficialMedia({
         storeId: 'store-blue-finch',
