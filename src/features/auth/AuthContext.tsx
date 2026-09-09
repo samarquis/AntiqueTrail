@@ -52,6 +52,10 @@ export function AuthProvider({
   const resolvedStore = authStoreRef.current
   const resolvedRegistry = registryRef.current
   const [session, setSession] = useState<AuthSession | null>(() => resolvedStore.getSession())
+  const [signingOut, setSigningOut] = useState(false)
+  const [signOutFailed, setSignOutFailed] = useState(false)
+  const signingOutSession = useRef<AuthSession | null>(null)
+  const signOutGeneration = useRef(0)
   const [providerReady, setProviderReady] = useState(() => !provider.restoreSession)
   const [lifecycleReady, setLifecycleReady] = useState(
     () => !lifecycle || !resolvedStore.getSession(),
@@ -118,7 +122,7 @@ export function AuthProvider({
   )
 
   useEffect(() => {
-    if (!session) return
+    if (!session || signingOut) return
     lostSessionRef.current = null
     let cancelled = false
     let expiryTimer = 0
@@ -157,7 +161,7 @@ export function AuthProvider({
       window.clearTimeout(expiryTimer)
       window.clearTimeout(validationTimer)
     }
-  }, [loseSession, resolvedRegistry, session])
+  }, [loseSession, resolvedRegistry, session, signingOut])
 
   useEffect(() => {
     if (!session || !lifecycle) {
@@ -218,6 +222,8 @@ export function AuthProvider({
       session,
       lifecycleReady,
       async signIn(next) {
+        if (signingOutSession.current) return
+        const generation = signOutGeneration.current
         const current = resolvedStore.getSession()
         const sameAccount = current?.userId === next.userId
         if (current && current.userId !== next.userId) {
@@ -233,6 +239,7 @@ export function AuthProvider({
           }
         }
         await resolvedRegistry.registerCurrentSession(next)
+        if (generation !== signOutGeneration.current) return
         const replacement = sameAccount
           ? {
               ...next,
@@ -251,35 +258,43 @@ export function AuthProvider({
         replaceSession(replacement)
       },
       async signOut() {
-        const current = resolvedStore.getSession()
+        const current = signingOutSession.current ?? resolvedStore.getSession()
         if (current) {
-          replaceSession(null)
+          signOutGeneration.current += 1
+          signingOutSession.current = current
+          setSigningOut(true)
+          setSignOutFailed(false)
+          resolvedStore.clearSession()
+          let localCleared = !provider.clearSessionMaterial
+          let failure: unknown
           try {
-            // A reload starts a new provider adapter.  Remove its only durable
-            // restoration input before beginning any acknowledgement that can
-            // yield, so it cannot resurrect this application session.
-            await provider.clearSessionMaterial?.()
-          } catch {
-            // Provider sign-out below retries its own local cleanup.  The
-            // application session is already fail-closed, so still acknowledge
-            // the server-side revocation rather than claiming it happened.
-          }
-          try {
-            await onLocalSignOut?.(current)
+            try {
+              await provider.clearSessionMaterial?.()
+              localCleared = true
+            } catch (error) {
+              failure = error
+            }
+            try {
+              await onLocalSignOut?.(current)
+            } finally {
+              await resolvedRegistry.revoke(current, 'user_sign_out')
+            }
+          } catch (error) {
+            failure = error
           } finally {
             try {
-              await resolvedRegistry.revoke(current, 'user_sign_out')
-            } finally {
-              // Local state and durable refresh material were cleared before
-              // awaiting the server acknowledgement.
+              await provider.signOut(current)
+            } catch (error) {
+              if (!localCleared) failure = error
             }
           }
-          // Provider logout is best-effort after the application has become locally signed out.
-          try {
-            await provider.signOut(current)
-          } catch {
-            // The revoked application session and local purge remain authoritative.
+          if (failure) {
+            setSignOutFailed(true)
+            throw failure
           }
+          signingOutSession.current = null
+          replaceSession(null)
+          setSigningOut(false)
           return
         }
         replaceSession(null)
@@ -317,7 +332,7 @@ export function AuthProvider({
     if (!provider.onSessionChange) return
     let cancelled = false
     const unsubscribe = provider.onSessionChange((next) => {
-      if (cancelled) return
+      if (cancelled || signingOutSession.current) return
       if (!next) {
         const current = resolvedStore.getSession()
         if (current) loseSession(current, 'provider_signed_out')
@@ -330,8 +345,22 @@ export function AuthProvider({
       unsubscribe()
     }
   }, [loseSession, provider, resolvedStore])
-  if (!providerReady) return <p role="status">Restoring your session…</p>
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  if (!providerReady) return <p role="status">Restoring your session�</p>
+  return (
+    <AuthContext.Provider value={value}>
+      {signingOut && (
+        <div>
+          <p role="status">{signOutFailed ? 'Sign-out could not finish.' : 'Signing out...'}</p>
+          {signOutFailed && (
+            <button type="button" onClick={() => void value.signOut().catch(() => undefined)}>
+              Retry sign out
+            </button>
+          )}
+        </div>
+      )}
+      <div style={{ display: signingOut ? 'none' : 'contents' }}>{children}</div>
+    </AuthContext.Provider>
+  )
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

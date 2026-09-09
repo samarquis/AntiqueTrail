@@ -102,3 +102,52 @@ describe('configured authoritative account operations', () => {
     expect(signOut).not.toHaveBeenCalled()
   })
 })
+
+describe('sign-out refresh races', () => {
+  it('drains a pending refresh write and ignores late provider refresh events', async () => {
+    let event!: (kind: string, session: unknown) => void
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let material: unknown = null
+    const storage = {
+      read: vi.fn(async () => null),
+      write: vi.fn(async (next: unknown) => {
+        await pending
+        material = next
+      }),
+      clear: vi.fn(async () => {
+        material = null
+      }),
+    }
+    const provider = createAuthProvider(
+      {
+        auth: {
+          onAuthStateChange: (listener: typeof event) => {
+            event = listener
+            return { data: { subscription: { unsubscribe: vi.fn() } } }
+          },
+        },
+      } as never,
+      storage,
+    )
+    const listener = vi.fn()
+    provider.onSessionChange!(listener)
+    const refreshed = {
+      access_token: 'token',
+      refresh_token: 'refresh',
+      expires_at: 1900000000,
+      user: { id: 'user-1', app_metadata: {}, user_metadata: {} },
+    }
+    event('TOKEN_REFRESHED', refreshed)
+    await Promise.resolve()
+    const clearing = provider.clearSessionMaterial!()
+    event('TOKEN_REFRESHED', refreshed)
+    release()
+    await clearing
+    expect(material).toBeNull()
+    expect(storage.write).toHaveBeenCalledTimes(1)
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+})
