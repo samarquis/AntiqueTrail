@@ -205,7 +205,7 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
   await service.sql(
     `insert into shopper_private.saved_stores(user_id,store_id) values ('${owner}','${A}');`,
   )
-  await login(page, 0, `/trips/${id}/plan`)
+  const ownerToken = await login(page, 0, `/trips/${id}/plan`)
   await expect(page.getByLabel('Trip name', { exact: true })).toHaveValue(before.name)
   const sibling = await browser.newContext({ baseURL: input.origin })
   try {
@@ -239,9 +239,11 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect(page).toHaveURL(/\/auth\/sign-in/)
   await page.goto(`/trips/${id}/plan`)
-  // Preserve sign-out failures while still exercising the independent account switch.
-  await expect.soft(page).toHaveURL(/\/auth\/sign-in/)
-  await expect.soft(page.getByLabel('Trip name', { exact: true })).toHaveCount(0)
+  await expect(page).toHaveURL(/\/auth\/sign-in/)
+  await expect(page.getByLabel('Trip name', { exact: true })).toHaveCount(0)
+  await expect(rpc(ownerToken, 'get_trip', { trip_id: id })).rejects.toThrow(
+    /401|403|authorization_lost|not_allowed/,
+  )
   await page.screenshot({ path: testInfo.outputPath('signout-after-reload.png') })
   await login(page, 1, '/saved')
   await expect(page.getByText('You have no saved stores yet.', { exact: true })).toBeVisible()

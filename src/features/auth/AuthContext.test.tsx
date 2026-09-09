@@ -82,6 +82,9 @@ describe('auth local sign-out cleanup', () => {
       signOut: vi.fn(async () => {
         events.push('provider')
       }),
+      clearSessionMaterial: vi.fn(async () => {
+        events.push('clear-refresh')
+      }),
     }
 
     render(
@@ -105,7 +108,7 @@ describe('auth local sign-out cleanup', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
 
     await waitFor(() => expect(screen.getByText('signed-out')).toBeInTheDocument())
-    expect(events).toEqual(['purge:user-1', 'revoke', 'provider'])
+    expect(events).toEqual(['clear-refresh', 'purge:user-1', 'revoke', 'provider'])
     expect(store.getSession()).toBeNull()
   })
 

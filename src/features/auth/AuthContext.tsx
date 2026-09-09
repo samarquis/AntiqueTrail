@@ -255,12 +255,23 @@ export function AuthProvider({
         if (current) {
           replaceSession(null)
           try {
+            // A reload starts a new provider adapter.  Remove its only durable
+            // restoration input before beginning any acknowledgement that can
+            // yield, so it cannot resurrect this application session.
+            await provider.clearSessionMaterial?.()
+          } catch {
+            // Provider sign-out below retries its own local cleanup.  The
+            // application session is already fail-closed, so still acknowledge
+            // the server-side revocation rather than claiming it happened.
+          }
+          try {
             await onLocalSignOut?.(current)
           } finally {
             try {
               await resolvedRegistry.revoke(current, 'user_sign_out')
             } finally {
-              // Local state was cleared before awaiting any external cleanup.
+              // Local state and durable refresh material were cleared before
+              // awaiting the server acknowledgement.
             }
           }
           // Provider logout is best-effort after the application has become locally signed out.
