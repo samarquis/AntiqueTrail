@@ -2562,6 +2562,175 @@ main > article dt {
   background: color-mix(in srgb, var(--mint) 35%, var(--card));
 }
 
+/* Route-scoped full-width Store Details composition. The narrow application
+   shell remains the contract for every other route. */
+.store-detail__sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  padding: 1rem clamp(1rem, 4vw, 2rem);
+  border-block: 1px solid var(--line);
+  background: var(--surface-chrome);
+}
+
+.store-detail__sections a {
+  min-height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  font-weight: var(--type-weight-strong);
+}
+
+.store-detail :is(#about, #visit, #source, #photos) {
+  scroll-margin-top: 5rem;
+}
+
+.store-detail__visit {
+  display: grid;
+  gap: 0;
+}
+
+@media (min-width: 1024px) {
+  body:has(.store-detail) .site-header {
+    position: relative;
+  }
+
+  main.store-detail {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0 0 clamp(4rem, 6vw, 6rem);
+  }
+
+  .store-detail__back {
+    display: inline-flex;
+    margin: 1.5rem clamp(2rem, 3vw, 4rem);
+  }
+
+  .store-detail > .store-detail__article {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .store-detail__header,
+  .store-detail__intro,
+  .store-detail__panel,
+  .store-detail__provenance,
+  .store-detail__actions {
+    padding-inline: clamp(2rem, 3vw, 4rem);
+  }
+
+  .store-detail__header {
+    padding-block: clamp(3rem, 7vw, 7rem) clamp(2.5rem, 5vw, 5rem);
+  }
+
+  .store-detail__header h1 {
+    max-width: none;
+  }
+
+  .store-detail__address,
+  .store-detail__intro > p,
+  .store-detail__provenance > p,
+  .store-detail__provenance dl,
+  .store-detail .store-hours {
+    max-width: 65ch;
+  }
+
+  .store-detail__sections {
+    position: sticky;
+    z-index: 20;
+    top: 0;
+    padding-inline: clamp(2rem, 3vw, 4rem);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 8%, transparent);
+  }
+
+  .store-gallery {
+    padding: clamp(2.5rem, 5vw, 5rem) clamp(2rem, 3vw, 4rem);
+  }
+
+  .store-gallery__enlarge,
+  .store-gallery__enlarge img {
+    min-height: 0;
+    height: auto;
+    aspect-ratio: 2.2 / 1;
+  }
+
+  .store-gallery__wall {
+    grid-template-columns: 1.35fr 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .store-gallery__print img,
+  .store-gallery__print-unavailable {
+    aspect-ratio: 1.15 / 1;
+  }
+
+  .store-detail__intro {
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.6fr) minmax(0, 1.4fr);
+    column-gap: clamp(2.5rem, 4vw, 4rem);
+    padding-block: clamp(4rem, 5.56vw, 6rem);
+  }
+
+  .store-detail__intro > :is(.eyebrow, h2) {
+    grid-column: 1;
+  }
+
+  .store-detail__intro > :not(.eyebrow):not(h2) {
+    grid-column: 2;
+  }
+
+  .store-detail__visit {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(2.5rem, 4vw, 4rem);
+    padding: clamp(4rem, 5.56vw, 6rem) clamp(2rem, 3vw, 4rem);
+  }
+
+  .store-detail__visit > .store-detail__actions {
+    grid-column: 1 / -1;
+    padding: 0 0 1.5rem;
+    border: 0;
+    background: transparent;
+  }
+
+  .store-detail__visit > .store-detail__panel {
+    padding: 0;
+    border: 0;
+  }
+
+  .store-detail__visit > .store-detail__panel:nth-of-type(1) {
+    grid-column: 1;
+  }
+
+  .store-detail__visit > .store-detail__panel:nth-of-type(2) {
+    grid-column: 2;
+  }
+
+  .store-detail__visit > .store-detail__panel:nth-of-type(3) {
+    grid-column: 2;
+  }
+
+  .store-detail__panel,
+  .store-detail__provenance {
+    padding-block: clamp(3rem, 5.56vw, 6rem);
+  }
+
+  .store-detail .store-hours {
+    max-width: 36rem;
+  }
+
+  .store-detail__actions--continue {
+    margin-top: clamp(3rem, 5.56vw, 6rem);
+    padding-block: 1.5rem;
+  }
+}
+
 @media (max-width: 800px) {
   .store-detail__actions {
     display: grid;

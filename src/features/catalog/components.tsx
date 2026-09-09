@@ -868,7 +868,7 @@ function StoreGallery({ store }: { store: CatalogStore }) {
   )
 
   return (
-    <section className="store-gallery" aria-labelledby="gallery-heading">
+    <section id="photos" className="store-gallery" aria-labelledby="gallery-heading">
       <div ref={background} className="store-gallery__background">
         <h2 id="gallery-heading" className="sr-only">
           Store photos
@@ -903,37 +903,40 @@ function StoreGallery({ store }: { store: CatalogStore }) {
         )}
         {media.length > 1 && (
           <div className="store-gallery__wall" role="group" aria-label="Choose a store photo">
-            {media.map((item, index) => (
-              <button
-                ref={(element) => {
-                  choiceButtons.current[index] = element
-                }}
-                key={`${item.src}-${index}`}
-                type="button"
-                className="store-gallery__print"
-                aria-label={`Show image ${index + 1}: ${item.alt}`}
-                aria-pressed={selectedIndex === index}
-                onClick={() => setSelectedIndex(index)}
-              >
-                {failed.has(index) ? (
-                  <span
-                    className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__print-unavailable`}
-                  >
-                    Unavailable
-                  </span>
-                ) : (
-                  <>
-                    <img
-                      src={item.src}
-                      {...responsiveCatalogImage(item.src, '220px')}
-                      alt=""
-                      onError={() => markFailed(index)}
-                    />
-                    <span className="store-gallery__print-plate">No. {index + 1}</span>
-                  </>
-                )}
-              </button>
-            ))}
+            {media.slice(1).map((item, galleryIndex) => {
+              const index = galleryIndex + 1
+              return (
+                <button
+                  ref={(element) => {
+                    choiceButtons.current[index] = element
+                  }}
+                  key={`${item.src}-${index}`}
+                  type="button"
+                  className="store-gallery__print"
+                  aria-label={`Show image ${index + 1}: ${item.alt}`}
+                  aria-pressed={selectedIndex === index}
+                  onClick={() => setSelectedIndex(index)}
+                >
+                  {failed.has(index) ? (
+                    <span
+                      className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__print-unavailable`}
+                    >
+                      Unavailable
+                    </span>
+                  ) : (
+                    <>
+                      <img
+                        src={item.src}
+                        {...responsiveCatalogImage(item.src, '220px')}
+                        alt=""
+                        onError={() => markFailed(index)}
+                      />
+                      <span className="store-gallery__print-plate">No. {index + 1}</span>
+                    </>
+                  )}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
@@ -1154,6 +1157,11 @@ export function DetailsPage({
   const provenanceDate = formatCatalogDate(store.provenance?.updatedAt)
   const hasContact = Boolean(store.website || store.phone || store.email)
   const canAddToTrip = detailsStageRank[stage] >= detailsStageRank['package-5a']
+  const focusSection = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    const target = document.querySelector<HTMLElement>(event.currentTarget.hash)
+    if (!target) return
+    requestAnimationFrame(() => target.focus({ preventScroll: true }))
+  }
   return (
     <main className="store-detail">
       <CatalogLink className="store-detail__back" to={catalogAppHref(backHref)}>
@@ -1182,54 +1190,16 @@ export function DetailsPage({
           </div>
         </header>
 
-        <StoreGallery store={store} />
-        {store.media.length > 0 && (
-          <p className="store-detail__gallery-link">
-            <CatalogLink
-              to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/photos`)}
-              onClick={() => rememberStoreReturn(store.id)}
-            >
-              See all {store.media.length} {store.media.length === 1 ? 'photo' : 'photos'}
-            </CatalogLink>
-          </p>
-        )}
-
-        <section className="store-detail__intro" aria-labelledby="about-heading">
-          <p className="eyebrow">What you’ll find</p>
-          <h2 id="about-heading">About this store</h2>
-          <p>{store.description || 'A store description has not been supplied.'}</p>
-          {store.categories.length ? (
-            <ul className="catalog-card__categories" aria-label="Store categories">
-              {store.categories.map((category) => (
-                <li key={category.slug}>{category.label}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="honesty-note">Store categories are unavailable.</p>
-          )}
-        </section>
-
-        <nav className="store-detail__actions" aria-label="Store visit actions">
-          <a
-            className="button"
-            href={externalNavigationHref(store)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <img
-              className="button__icon"
-              src="/icons/navigate.svg"
-              alt=""
-              aria-hidden="true"
-              width="20"
-              height="20"
-            />
-            Navigate in Maps <span aria-hidden="true">↗</span>
-            <span className="sr-only"> (opens in a new window)</span>
+        <nav
+          className="store-detail__actions store-detail__actions--arrival"
+          aria-label="Start your visit"
+        >
+          <a className="button button--secondary" href="#visit">
+            Hours &amp; location
           </a>
           {canAddToTrip && (
             <CatalogLink
-              className="button button--secondary"
+              className="button"
               to={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
             >
               <img
@@ -1246,75 +1216,165 @@ export function DetailsPage({
           {renderPrivateActions?.(store)}
         </nav>
 
-        <StoreHours store={store} />
+        <StoreGallery store={store} />
+        <nav className="store-detail__sections" aria-label="On this page">
+          <a href="#about" onClick={focusSection}>
+            About
+          </a>
+          <a href="#photos" onClick={focusSection}>
+            Photos
+          </a>
+          <a href="#visit" onClick={focusSection}>
+            Plan your visit
+          </a>
+          <a href="#source" onClick={focusSection}>
+            Source
+          </a>
+        </nav>
+        {store.media.length > 0 && (
+          <p className="store-detail__gallery-link">
+            <CatalogLink
+              to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/photos`)}
+              onClick={() => rememberStoreReturn(store.id)}
+            >
+              See all {store.media.length} {store.media.length === 1 ? 'photo' : 'photos'}
+            </CatalogLink>
+          </p>
+        )}
 
-        <section className="store-detail__panel" aria-labelledby="contact-heading">
-          <p className="eyebrow">Confirm your visit</p>
-          <h2 id="contact-heading">Contact &amp; location</h2>
-          <address>
-            {store.address}, {store.town}, {store.state}
-          </address>
-          {hasContact ? (
-            <ul className="store-detail__link-list">
-              {store.phone && (
-                <li>
-                  <a href={`tel:${store.phone}`}>Call {store.phone}</a>
-                </li>
-              )}
-              {store.email && (
-                <li>
-                  <a href={`mailto:${store.email}`}>Email the store</a>
-                </li>
-              )}
-              {store.website && (
-                <li>
-                  <a href={store.website} target="_blank" rel="noreferrer">
-                    Visit official website <span aria-hidden="true">↗</span>
-                    <span className="sr-only"> (opens in a new window)</span>
-                  </a>
-                </li>
-              )}
+        <section
+          id="about"
+          className="store-detail__intro"
+          aria-labelledby="about-heading"
+          tabIndex={-1}
+        >
+          <p className="eyebrow">What you’ll find</p>
+          <h2 id="about-heading">About this store</h2>
+          <p>{store.description || 'A store description has not been supplied.'}</p>
+          {store.categories.length ? (
+            <ul className="catalog-card__categories" aria-label="Store categories">
+              {store.categories.map((category) => (
+                <li key={category.slug}>{category.label}</li>
+              ))}
             </ul>
           ) : (
-            <p className="honesty-note">Contact details have not been supplied.</p>
+            <p className="honesty-note">Store categories are unavailable.</p>
           )}
         </section>
 
-        <section className="store-detail__panel" aria-labelledby="accessibility-heading">
-          <p className="eyebrow">Know before you go</p>
-          <h2 id="accessibility-heading">Accessibility</h2>
-          {store.accessibility?.status === 'verified' && store.accessibility.details.length ? (
-            <>
-              <ul>
-                {store.accessibility.details.map((detail) => (
-                  <li key={detail}>{detail}</li>
-                ))}
+        <section
+          id="visit"
+          className="store-detail__visit"
+          aria-label="Plan your visit"
+          tabIndex={-1}
+        >
+          <nav className="store-detail__actions" aria-label="Visit actions">
+            <a
+              className="button"
+              href={externalNavigationHref(store)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <img
+                className="button__icon"
+                src="/icons/navigate.svg"
+                alt=""
+                aria-hidden="true"
+                width="20"
+                height="20"
+              />
+              Navigate in Maps <span aria-hidden="true">↗</span>
+              <span className="sr-only"> (opens in a new window)</span>
+            </a>
+            {canAddToTrip && (
+              <CatalogLink
+                className="button button--secondary"
+                to={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
+              >
+                <img
+                  className="button__icon"
+                  src="/icons/shopping-trip.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width="20"
+                  height="20"
+                />
+                Add to Trip
+              </CatalogLink>
+            )}
+          </nav>
+
+          <StoreHours store={store} />
+
+          <section className="store-detail__panel" aria-labelledby="contact-heading">
+            <p className="eyebrow">Confirm your visit</p>
+            <h2 id="contact-heading">Contact &amp; location</h2>
+            <address>
+              {store.address}, {store.town}, {store.state}
+            </address>
+            {hasContact ? (
+              <ul className="store-detail__link-list">
+                {store.phone && (
+                  <li>
+                    <a href={`tel:${store.phone}`}>Call {store.phone}</a>
+                  </li>
+                )}
+                {store.email && (
+                  <li>
+                    <a href={`mailto:${store.email}`}>Email the store</a>
+                  </li>
+                )}
+                {store.website && (
+                  <li>
+                    <a href={store.website} target="_blank" rel="noreferrer">
+                      Visit official website <span aria-hidden="true">↗</span>
+                      <span className="sr-only"> (opens in a new window)</span>
+                    </a>
+                  </li>
+                )}
               </ul>
-              <p className="store-detail__source">
-                Verified accessibility information
-                {formatCatalogDate(store.accessibility.verifiedAt)
-                  ? ` on ${formatCatalogDate(store.accessibility.verifiedAt)}`
-                  : ''}
-                .
-              </p>
-            </>
-          ) : store.accessibility?.status === 'unverified' && store.accessibility.details.length ? (
-            <>
-              <ul>
-                {store.accessibility.details.map((detail) => (
-                  <li key={detail}>{detail}</li>
-                ))}
-              </ul>
+            ) : (
+              <p className="honesty-note">Contact details have not been supplied.</p>
+            )}
+          </section>
+
+          <section className="store-detail__panel" aria-labelledby="accessibility-heading">
+            <p className="eyebrow">Know before you go</p>
+            <h2 id="accessibility-heading">Accessibility</h2>
+            {store.accessibility?.status === 'verified' && store.accessibility.details.length ? (
+              <>
+                <ul>
+                  {store.accessibility.details.map((detail) => (
+                    <li key={detail}>{detail}</li>
+                  ))}
+                </ul>
+                <p className="store-detail__source">
+                  Verified accessibility information
+                  {formatCatalogDate(store.accessibility.verifiedAt)
+                    ? ` on ${formatCatalogDate(store.accessibility.verifiedAt)}`
+                    : ''}
+                  .
+                </p>
+              </>
+            ) : store.accessibility?.status === 'unverified' &&
+              store.accessibility.details.length ? (
+              <>
+                <ul>
+                  {store.accessibility.details.map((detail) => (
+                    <li key={detail}>{detail}</li>
+                  ))}
+                </ul>
+                <p className="honesty-note">
+                  These details have not yet been verified. Contact the store to confirm.
+                </p>
+              </>
+            ) : (
               <p className="honesty-note">
-                These details have not yet been verified. Contact the store to confirm.
+                Accessibility information is unavailable. Contact the store before visiting if you
+                need an accommodation.
               </p>
-            </>
-          ) : (
-            <p className="honesty-note">
-              Accessibility information is unavailable. Contact the store before visiting if you
-              need an accommodation.
-            </p>
-          )}
+            )}
+          </section>
         </section>
 
         <section className="store-detail__panel" aria-labelledby="updates-heading">
@@ -1368,7 +1428,12 @@ export function DetailsPage({
           </section>
         ) : null}
 
-        <section className="store-detail__provenance" aria-labelledby="source-heading">
+        <section
+          id="source"
+          className="store-detail__provenance"
+          aria-labelledby="source-heading"
+          tabIndex={-1}
+        >
           <p className="eyebrow">Why you can trust this listing</p>
           <h2 id="source-heading">Source &amp; freshness</h2>
           <dl>
@@ -1384,6 +1449,30 @@ export function DetailsPage({
             Photo rights are shown with each image when supplied.
           </p>
         </section>
+        <nav
+          className="store-detail__actions store-detail__actions--continue"
+          aria-label="Continue your visit"
+        >
+          {canAddToTrip && (
+            <CatalogLink
+              className="button"
+              to={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
+            >
+              <img
+                className="button__icon"
+                src="/icons/shopping-trip.svg"
+                alt=""
+                aria-hidden="true"
+                width="20"
+                height="20"
+              />
+              Add to Trip
+            </CatalogLink>
+          )}
+          <a className="button button--secondary" href="#about">
+            Back to store details
+          </a>
+        </nav>
       </article>
     </main>
   )

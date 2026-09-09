@@ -549,10 +549,12 @@ describe('trustworthy Store Details contract', () => {
 
     render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} stage="package-5a" />)
     await screen.findByRole('heading', { level: 1, name: detailedStore.name })
-    expect(screen.getByRole('link', { name: /add to trip/i })).toHaveAttribute(
-      'href',
-      `/trips/new?addStoreId=${detailedStore.id}`,
-    )
+    expect(screen.getAllByRole('link', { name: /add to trip/i })).toHaveLength(3)
+    screen
+      .getAllByRole('link', { name: /add to trip/i })
+      .forEach((action) =>
+        expect(action).toHaveAttribute('href', `/trips/new?addStoreId=${detailedStore.id}`),
+      )
   })
 
   it('states missing decision information instead of silently omitting it', async () => {
