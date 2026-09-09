@@ -205,7 +205,7 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
   await service.sql(
     `insert into shopper_private.saved_stores(user_id,store_id) values ('${owner}','${A}');`,
   )
-  const ownerToken = await login(page, 0, `/trips/${id}/plan`)
+  let ownerToken = await login(page, 0, `/trips/${id}/plan`)
   await expect(page.getByLabel('Trip name', { exact: true })).toHaveValue(before.name)
   const sibling = await browser.newContext({ baseURL: input.origin })
   try {
@@ -235,23 +235,110 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
   } finally {
     await sibling.close()
   }
-  await page.goto('/account')
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click()
-  await expect(page).toHaveURL(/\/auth\/sign-in/)
-  await page.goto(`/trips/${id}/plan`)
-  await expect(page).toHaveURL(/\/auth\/sign-in/)
-  await expect(page.getByLabel('Trip name', { exact: true })).toHaveCount(0)
-  await expect(rpc(ownerToken, 'get_trip', { trip_id: id })).rejects.toThrow(
-    /401|403|authorization_lost|not_allowed/,
-  )
-  await page.screenshot({ path: testInfo.outputPath('signout-after-reload.png') })
-  await login(page, 1, '/saved')
-  await expect(page.getByText('You have no saved stores yet.', { exact: true })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toHaveCount(0)
-  await page.goto(`/trips/${id}/plan`)
-  await expect(page.getByRole('heading', { name: 'Trip unavailable', exact: true })).toBeVisible()
-  await expect(page.getByLabel('Trip name', { exact: true })).toHaveCount(0)
-  expect(await read(id)).toEqual(before)
+  test.setTimeout(240_000)
+  for (let repetition = 0; repetition < 3; repetition++) {
+    if (repetition) ownerToken = await login(page, 0, `/trips/${id}/plan`)
+    await page.goto('/account')
+    // Hold a real transaction ahead of cleanup, without replacing storage or
+    // Auth/RPC results. The former implementation acknowledged sign-out here.
+    expect(
+      await page.evaluate(
+        () =>
+          new Promise<boolean>((resolve, reject) => {
+            const request = indexedDB.open('antique-trail-auth-refresh-v1', 1)
+            request.onerror = () => reject(request.error)
+            request.onsuccess = () => {
+              const database = request.result
+              const transaction = database.transaction('refresh-material', 'readonly')
+              const store = transaction.objectStore('refresh-material')
+              let held = true
+              ;(window as Window & { releaseSignoutStorage?: () => void }).releaseSignoutStorage =
+                () => {
+                  held = false
+                }
+              transaction.oncomplete = () => database.close()
+              transaction.onabort = () => {
+                database.close()
+                reject(transaction.error)
+              }
+              const keepAlive = () => {
+                const key = store.getKey('current')
+                key.onerror = () => reject(key.error)
+                key.onsuccess = () => {
+                  resolve(key.result === 'current')
+                  if (held) keepAlive()
+                }
+              }
+              keepAlive()
+            }
+          }),
+      ),
+    ).toBe(true)
+    try {
+      await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+      await expect(page.getByRole('status')).toHaveText('Signing out...')
+      await expect(page).toHaveURL(/\/account$/)
+    } finally {
+      await page.evaluate(() => {
+        ;(window as Window & { releaseSignoutStorage?: () => void }).releaseSignoutStorage?.()
+      })
+    }
+    await expect(page).toHaveURL(/\/auth\/sign-in/)
+    // Navigate immediately after acknowledgement, then verify durable absence.
+    await page.goto(`/trips/${id}/plan`)
+    await expect(page).toHaveURL(/\/auth\/sign-in/)
+    await expect(page.getByLabel('Trip name', { exact: true })).toHaveCount(0)
+    await page.reload()
+    await expect(page).toHaveURL(/\/auth\/sign-in/)
+    expect(
+      await page.evaluate(
+        () =>
+          new Promise<boolean>((resolve, reject) => {
+            const request = indexedDB.open('antique-trail-auth-refresh-v1', 1)
+            request.onerror = () => reject(request.error)
+            request.onsuccess = () => {
+              const database = request.result
+              const transaction = database.transaction('refresh-material', 'readonly')
+              const key = transaction.objectStore('refresh-material').getKey('current')
+              key.onerror = () => reject(key.error)
+              key.onsuccess = () => resolve(key.result === undefined)
+              transaction.oncomplete = () => database.close()
+              transaction.onabort = () => {
+                database.close()
+                reject(transaction.error)
+              }
+            }
+          }),
+      ),
+    ).toBe(true)
+    await expect(page.getByLabel('Trip name', { exact: true })).toHaveCount(0)
+    await expect(rpc(ownerToken, 'get_trip', { trip_id: id })).rejects.toThrow(
+      /401|403|authorization_lost|not_allowed/,
+    )
+    await expect(
+      rpc(ownerToken, 'rename_trip', {
+        trip_id: id,
+        new_name: 'Revoked signout attempt',
+        expected_version: 1,
+        idempotency_key: crypto.randomUUID(),
+      }),
+    ).rejects.toThrow(/401|403|authorization_lost|not_allowed/)
+    await expect(
+      rpc(ownerToken, 'shopper_set_save', {
+        p_store_id: A,
+        p_saved: false,
+      }),
+    ).rejects.toThrow(/401|403|authorization_lost|not_allowed/)
+    await page.screenshot({ path: testInfo.outputPath(`signout-after-reload-${repetition}.png`) })
+    await login(page, 1, '/saved')
+    await expect(page.getByText('You have no saved stores yet.', { exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toHaveCount(0)
+    await page.goto(`/trips/${id}/plan`)
+    await expect(page.getByRole('heading', { name: 'Trip unavailable', exact: true })).toBeVisible()
+    await expect(page.getByLabel('Trip name', { exact: true })).toHaveCount(0)
+    expect(await read(id)).toEqual(before)
+    expect(await saved()).toBe(1)
+  }
 })
 
 test('revoked session denies next UI mutation with feedback and unchanged backend', async ({
