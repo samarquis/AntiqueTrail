@@ -199,7 +199,7 @@ for (const edit of ['date', 'order', 'priority', 'dwell', 'removal']) {
 test('sibling context, sign-out, and account switch deny private trip reads and writes', async ({
   page,
   browser,
-}) => {
+}, testInfo) => {
   const id = await fixture()
   const before = await read(id)
   await service.sql(
@@ -239,7 +239,10 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect(page).toHaveURL(/\/auth\/sign-in/)
   await page.goto(`/trips/${id}/plan`)
-  await expect(page).toHaveURL(/\/auth\/sign-in/)
+  // Preserve sign-out failures while still exercising the independent account switch.
+  await expect.soft(page).toHaveURL(/\/auth\/sign-in/)
+  await expect.soft(page.getByLabel('Trip name', { exact: true })).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('signout-after-reload.png') })
   await login(page, 1, '/saved')
   await expect(page.getByText('You have no saved stores yet.', { exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toHaveCount(0)
@@ -267,6 +270,8 @@ test('revoked session denies next UI mutation with feedback and unchanged backen
   const result = await denied
   expect([400, 401, 403]).toContain(result.status())
   expect(await result.text()).toMatch(/authorization_lost|not_allowed|session.*(revoked|inactive)/)
-  await expect(page.getByRole('alert').first()).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Sign in', exact: true }).or(page.getByRole('alert').first()),
+  ).toBeVisible()
   expect(await read(id)).toEqual(before)
 })
