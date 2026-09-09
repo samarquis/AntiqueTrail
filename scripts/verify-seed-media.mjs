@@ -4,10 +4,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const SEED_MEDIA_PATH = /\/images\/synthetic-stores\/(?:480w|800w|1280w)\/[a-z0-9-]+\.webp/g
+// Collect paths before validating them so malformed namespaces/extensions cannot
+// disappear from the inventory while other valid entries keep the check green.
+const SEED_MEDIA_PATH = /'((?:\/)[^']*)'/g
 
 export function seededMediaPaths(seedSql) {
-  return [...new Set(seedSql.match(SEED_MEDIA_PATH) ?? [])]
+  return [...new Set([...seedSql.matchAll(SEED_MEDIA_PATH)].map((match) => match[1]))]
 }
 
 export function verifySeedMedia(root, builtRoot) {

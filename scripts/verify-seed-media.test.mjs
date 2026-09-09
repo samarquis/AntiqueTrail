@@ -3,6 +3,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { seededMediaPaths, verifySeedMedia } from './verify-seed-media.mjs'
 
 function fixture() {
@@ -49,4 +51,29 @@ test('rejects a deleted or misspelled built seed media asset', () => {
     ),
     true,
   )
+})
+
+test('rejects malformed paths alongside valid seed assets', () => {
+  const { root, built } = fixture()
+  for (const invalid of [
+    '/image/synthetic-stores/1280w/fixture.webp',
+    '/images/synthetic-stores/1280w/fixture.wepb',
+  ]) {
+    fs.appendFileSync(path.join(root, 'supabase/seed.sql'), `, ('broken','${invalid}')`)
+    assert.ok(
+      verifySeedMedia(root, built).errors.includes(`seed media lacks provenance: ${invalid}`),
+    )
+  }
+})
+
+test('CLI exits nonzero for a deleted seeded asset', () => {
+  const { root, built, assetPath } = fixture()
+  fs.rmSync(path.join(built, assetPath.slice(1)))
+  const result = spawnSync(
+    'node',
+    [fileURLToPath(new URL('./verify-seed-media.mjs', import.meta.url)), '--built-root', built],
+    { cwd: root, encoding: 'utf8' },
+  )
+  assert.equal(result.status, 1)
+  assert.match(result.stdout, /missing from built static inventory/)
 })
