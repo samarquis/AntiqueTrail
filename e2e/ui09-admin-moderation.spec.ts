@@ -42,6 +42,9 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
       '/admin/reviews',
     ]) {
       await page.goto(reviewUrl(path, 'administrator'))
+      // Availability resolves asynchronously; reject persistent duplicate
+      // headings while allowing the route's initial guard to settle.
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     }
     for (const identity of ['anonymous', 'shopper-a', 'representative'] as const) {
