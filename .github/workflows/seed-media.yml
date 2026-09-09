@@ -1,0 +1,50 @@
+name: Configured seed media
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/seed-media.yml'
+      - 'supabase/seed.sql'
+      - 'supabase/migrations/**'
+      - 'public/images/synthetic-stores/**'
+      - 'scripts/configured-free-shopper*'
+      - 'scripts/configured-shopper*'
+      - 'scripts/verify-seed-media*'
+      - 'e2e/configured-free-shopper*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: configured-seed-media-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  configured-seed-media:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Verify configured desktop and phone media
+        run: node scripts/configured-free-shopper.mjs --media-only
+      - name: Upload scoped result receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: configured-seed-media
+          path: |
+            artifacts/configured-shopper-*/report.json
+            artifacts/configured-shopper-*/playwright.json
+          if-no-files-found: error
