@@ -344,7 +344,7 @@ export function AuthProvider({
       unsubscribe()
     }
   }, [loseSession, provider, resolvedStore])
-  if (!providerReady) return <p role="status">Restoring your session�</p>
+  if (!providerReady) return <p role="status">Restoring your session…</p>
   return (
     <AuthContext.Provider value={value}>
       {signingOut && (
