@@ -6,6 +6,12 @@ Status: historical decision record with links to current requirement owners. Ori
 
 ## Confirmed decisions
 
+### Full-width desktop Store Details — 2026-09-09
+
+Authorization: `update plan for this full-width store layout.` The Product Owner approved the concrete 2026-09-09 layout exploration after requesting Apple-like components and scrolling rather than color or font changes. The reason is that the previous 720px Store Details composition cramped the available computer screen; the selected direction uses broad photographs and sections with readable local text bounds.
+
+Current requirement owners: [Store Details scroll sequence](DESIGN.md#store-details-scroll-sequence) and [Full-width Store Details](DESIGN_SYSTEM.md#full-width-store-details). These headings, rather than the exploratory mockup or this decision history, define the section order, responsive geometry, action placement, and acceptance requirements. The dedicated gallery route, existing palette/typography, photo entitlements, private-action flows, and release gates keep their current owners. This decision authorizes the scoped plan amendment; application implementation and the separate 50-photo evaluation require their own governed work.
+
 ### Public, multi-user product
 
 Current requirement owner: [Public, multi-user product policy](PRD.md#purpose-people-and-product-promise). The record below preserves its original wording.

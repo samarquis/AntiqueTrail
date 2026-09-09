@@ -174,7 +174,7 @@ export async function loopbackRequest(
   }
   return data
 }
-async function freePort() {
+export async function freePort() {
   const server = net.createServer()
   await new Promise((resolve, reject) => {
     server.once('error', reject)
@@ -206,7 +206,9 @@ export function validateOwner(run) {
     throw new Error('Project identity mismatch')
   return root
 }
-export function createLocalService({ signal, resumeDirectory } = {}) {
+export function createLocalService({ signal, resumeDirectory, browserOrigin } = {}) {
+  if (browserOrigin && !/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(browserOrigin))
+    throw new Error('Browser origin must use literal loopback')
   let run
   if (resumeDirectory) {
     const directory = path.resolve(resumeDirectory)
@@ -309,7 +311,7 @@ export function createLocalService({ signal, resumeDirectory } = {}) {
     while (ports.size < 5) ports.add(await freePort())
     const [api, db, shadow, mail, inspector] = [...ports]
     run.endpoint = `http://127.0.0.1:${api}`
-    run.origin = 'http://127.0.0.1:4173'
+    run.origin = browserOrigin ?? 'http://127.0.0.1:4173'
     let config = fs
       .readFileSync(path.join(ROOT, 'supabase/config.toml'), 'utf8')
       .replace(/\r\n/g, '\n')
@@ -413,7 +415,7 @@ export function createLocalService({ signal, resumeDirectory } = {}) {
         key: run.anonKey,
         body: { email, password },
       })
-      const actor = { id: user.id, token: session.access_token }
+      const actor = { id: user.id, token: session.access_token, email, password }
       if (session.user?.id !== user.id || !actor.token)
         throw new Error('Password grant did not establish the expected identity')
       const registered = await request('/rest/v1/rpc/register_current_session', {
