@@ -16,8 +16,10 @@ Node-only setup credentials never enter the application bundle. It accepts no ex
 backend, changes no shared Supabase config, and enables no hosted or paid capability.
 
 The dedicated Playwright configuration runs desktop and phone-sized Chromium serially.
-The discovery test joins catalog, permitted seed cover image, just-in-time login, favorite
-readback/reload, and two-store trip creation. Five independent tests seed clearly labeled
+The anonymous test attempts discovery, photos and just-in-time saving without weakening
+the synthetic-stage authentication boundary. A separate test uses just-in-time trip login,
+then joins authenticated catalog, permitted cover/gallery images, favorite readback/reload,
+and two-store trip creation. Five independent tests seed clearly labeled
 prerequisite trips through SQL, then exercise date/order/priority/dwell/removal through the
 browser and verify persisted values with independent SQL. These prerequisites do not count
 as browser creation evidence. Separate tests cover sibling and switched accounts, sign-out,
@@ -46,7 +48,7 @@ npm run test:e2e:configured-shopper -- --inspect
 ```
 
 For a negative control, set `CONFIGURED_SHOPPER_WRONG_READBACK=1` for the same command.
-The discovery test then requires an impossible saved count of two for a unique user/store
+The authenticated journey then requires an impossible saved count of two for a unique user/store
 row. It must fail and exit nonzero; this tests the real readback rather than intercepting a
 browser or backend response. Remove the environment variable after the run.
 
@@ -54,6 +56,12 @@ On normal success, failure, SIGINT, or SIGTERM, the wrapper stops its preview an
 #243's ownership-checked cleanup. If cleanup fails, the report retains `temporaryProject`;
 use the recovery command documented in `configured-shopper-probe.md` for that exact directory.
 Never stop a shared stack to recover this run.
+
+The browser fixture maps the Clockwork Cabinet cover/gallery to existing Internal Alpha
+imagery from `docs/evidence/ui-03/PROVENANCE.md`. The runner verifies each file against the
+declared internal synthetic asset manifest, copies it into the run-owned build, and updates
+only the run-owned media rows. The fixture digest includes this SQL and the image bytes.
+This supplies real local static media without changing the standard seed or #251 packet.
 
 This is local configured software evidence. It preserves #251's fixture report and blank
 human feedback. Phone-sized automation supplies no physical-device, owner, provider,

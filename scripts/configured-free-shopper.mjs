@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* global process, console, AbortController, setTimeout, fetch, URL */
 import fs from 'node:fs'
+import crypto from 'node:crypto'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import {
@@ -36,6 +37,35 @@ try {
   report.temporaryProject = service.run.directory
   console.log(`Starting run-owned services. Evidence: ${output.directory}`)
   const local = await service.start()
+  const fixtureSql = fs.readFileSync(
+    path.join(ROOT, 'scripts/configured-free-shopper-fixtures.sql'),
+    'utf8',
+  )
+  const media = [
+    ['blue-finch-curios-cover.webp', 'clockwork-cabinet.webp'],
+    ['blue-finch-curios-gallery-cabinet.webp', 'clockwork-cabinet-gallery.webp'],
+  ]
+  const provenance = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'docs/evidence/free-private-assets/provenance.json'), 'utf8'),
+  )
+  const fixtureHash = crypto.createHash('sha256').update(local.fixtureIdentity).update(fixtureSql)
+  for (const [source] of media) {
+    const relative = `public/images/synthetic-stores/1280w/${source}`
+    const bytes = fs.readFileSync(path.join(ROOT, relative))
+    const digest = crypto.createHash('sha256').update(bytes).digest('hex')
+    if (
+      !provenance.assets.some(
+        (asset) =>
+          asset.path === relative &&
+          asset.sha256 === digest &&
+          asset.rightsStatus === 'declared_internal_synthetic',
+      )
+    )
+      throw new Error('Browser fixture media lacks matching internal synthetic provenance')
+    fixtureHash.update(relative).update(bytes)
+  }
+  await service.sql(fixtureSql)
+  local.fixtureIdentity = fixtureHash.digest('hex')
   for (const key of [
     'sourceSha',
     'sourceDirty',
@@ -71,6 +101,13 @@ try {
     env,
     signal: controller.signal,
   })
+  const mediaDirectory = path.join(build, 'assets/synthetic/stores')
+  fs.mkdirSync(mediaDirectory, { recursive: true })
+  for (const [source, destination] of media)
+    fs.copyFileSync(
+      path.join(ROOT, 'public/images/synthetic-stores/1280w', source),
+      path.join(mediaDirectory, destination),
+    )
   server = spawn(
     process.execPath,
     [

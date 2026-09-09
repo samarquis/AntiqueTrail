@@ -101,6 +101,24 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
     await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
   ).toBe(true)
   await page.getByRole('button', { name: 'Save store', exact: true }).click()
+  const choices = page.getByRole('group', { name: 'Choose a store photo' }).getByRole('button')
+  await expect(choices).toHaveCount(2)
+  await choices.nth(1).click()
+  const gallery = page
+    .getByRole('img', {
+      name: 'Synthetic antique cabinet scene for Clockwork Cabinet',
+      exact: true,
+    })
+    .first()
+  await expect(gallery).toBeVisible()
+  expect(
+    await gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+  ).toBe(true)
+  const enlarge = page.getByRole('button', { name: /Enlarge image:/ })
+  await enlarge.click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(enlarge).toBeFocused()
   await expect.poll(saved).toBe(process.env.CONFIGURED_SHOPPER_WRONG_READBACK === '1' ? 2 : 1)
   await page.reload()
   await expect(page.getByRole('button', { name: 'Remove saved store', exact: true })).toBeVisible()
@@ -247,7 +265,8 @@ test('revoked session denies next UI mutation with feedback and unchanged backen
   const denied = page.waitForResponse((r) => r.url().endsWith('/rest/v1/rpc/rename_trip'))
   await page.getByRole('button', { name: 'Rename trip', exact: true }).click()
   const result = await denied
-  expect([401, 403]).toContain(result.status())
+  expect([400, 401, 403]).toContain(result.status())
+  expect(await result.text()).toMatch(/authorization_lost|not_allowed|session.*(revoked|inactive)/)
   await expect(page.getByRole('alert').first()).toBeVisible()
   expect(await read(id)).toEqual(before)
 })
