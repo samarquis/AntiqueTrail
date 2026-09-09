@@ -265,12 +265,10 @@ export function AuthProvider({
           setSigningOut(true)
           setSignOutFailed(false)
           resolvedStore.clearSession()
-          let localCleared = !provider.clearSessionMaterial
           let failure: unknown
           try {
             try {
               await provider.clearSessionMaterial?.()
-              localCleared = true
             } catch (error) {
               failure = error
             }
@@ -281,16 +279,17 @@ export function AuthProvider({
             }
           } catch (error) {
             failure = error
-          } finally {
-            try {
-              await provider.signOut(current)
-            } catch (error) {
-              if (!localCleared) failure = error
-            }
           }
           if (failure) {
+            // Keep only the provider's in-memory credential for an authenticated
+            // retry. Durable restoration is disabled before this work begins.
             setSignOutFailed(true)
             throw failure
+          }
+          try {
+            await provider.signOut(current)
+          } catch {
+            // Local purge and application revocation have both completed.
           }
           signingOutSession.current = null
           replaceSession(null)
