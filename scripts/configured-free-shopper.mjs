@@ -15,7 +15,9 @@ import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
 import { browserReport } from './configured-free-shopper-report.mjs'
 
 const output = createRunDirectory(path.join(ROOT, 'artifacts'))
+const sessionSignout = process.argv.includes('--session-signout')
 const report = {
+  scope: sessionSignout ? 'session-signout' : 'full-shopper',
   status: 'unavailable',
   sourceSha: '',
   cleanup: 'not-started',
@@ -149,6 +151,12 @@ try {
         'test',
         '--config',
         'e2e/configured-free-shopper-playwright.config.ts',
+        ...(sessionSignout
+          ? [
+              '--grep',
+              '(sibling context, sign-out, and account switch deny private trip reads and writes|revoked session denies next UI mutation with feedback and unchanged backend)$',
+            ]
+          : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
@@ -162,7 +170,7 @@ try {
     report.status = 'unavailable'
     report.errors.push('Missing Playwright report')
   } else {
-    const results = browserReport(fs.readFileSync(resultPath, 'utf8'))
+    const results = browserReport(fs.readFileSync(resultPath, 'utf8'), sessionSignout ? 4 : 18)
     report.stats = results.stats
     report.checks = results.checks
     if (results.status !== 'passed') report.status = 'failed'
