@@ -144,7 +144,7 @@ try {
         ...(mediaOnly
           ? [
               '--grep',
-              '^JIT trip entry, authenticated catalog, photo, save and two-store creation$',
+              'JIT trip entry, authenticated catalog, photo, save and two-store creation$',
             ]
           : []),
       ],
