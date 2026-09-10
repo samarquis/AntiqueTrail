@@ -106,7 +106,10 @@ import type {
 
 const FIXED_NOW = '2026-08-05T12:00:00.000Z'
 
-function readinessAdminReviewClient(state: ReviewStateId): ReadinessAdminClient {
+function readinessAdminReviewClient(
+  scenario: ReviewScenario,
+  state: ReviewStateId,
+): ReadinessAdminClient {
   let workspace: ReadinessAdminWorkspace = {
     cohort: {
       cohortId: 'review-readiness-cohort',
@@ -126,6 +129,7 @@ function readinessAdminReviewClient(state: ReviewStateId): ReadinessAdminClient 
     },
   }
   const allowed = () => {
+    requireRole(scenario, ['Administrator'], true)
     if (state !== 'success') throw new Error('Synthetic readiness unavailable')
   }
   return {
@@ -2869,7 +2873,7 @@ export function createReviewHarnessClients(
       partner: partnerClient(scenario, state),
       partnerAdmin: partnerAdminClient(scenario, state),
       admin: withRecordAuditReview(adminClient(scenario, state)),
-      readinessAdmin: readinessAdminReviewClient(state),
+      readinessAdmin: readinessAdminReviewClient(scenario, state),
       rg01,
       ...communityReviewClients(scenario, state),
     },

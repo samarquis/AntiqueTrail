@@ -20,6 +20,7 @@ describe('scenario-aware review clients', () => {
     })
     await expect(clients.ownerIntakeAvailability!.getAvailability()).resolves.toBeDefined()
     await expect(clients.portal!.getHome()).rejects.toThrow(/permission denied/i)
+    await expect(clients.readinessAdmin!.getWorkspace()).rejects.toThrow(/permission denied/i)
   })
 
   it.each(['expired', 'revoked'] as const)(
