@@ -291,9 +291,8 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
           this.name === 'refresh-material' &&
           query === 'current'
         ) {
-          const store = this
           const keepAlive = () => {
-            const next = store.getKey('current')
+            const next = this.getKey('current')
             next.onsuccess = () => {
               if (held) keepAlive()
             }
