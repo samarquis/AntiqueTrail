@@ -301,7 +301,7 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
     await expect(page.getByRole('alert')).toHaveCount(0)
   })
 
-  test('partner invitation sends and acceptance stays fail-closed', async ({ page }) => {
+  test('partner invitation sends and recipient opens the one shared trip', async ({ page }) => {
     await page.goto(reviewUrl('/trips/trip-a/invite', 'shopper-a'))
     await expect(
       page.getByRole('heading', { level: 1, name: 'Trip Partner and Navigator' }),
@@ -312,12 +312,11 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
     await expect(page.getByText(/One invitation is pending until/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Revoke invitation', exact: true })).toBeVisible()
 
-    // Until the harness seeds shopper-b's collaboration, acceptance fails closed
-    // with the generic alert and no cross-account trip content.
     await page.goto(ACCEPT_URL)
-    await expect(page.getByRole('alert')).toContainText(GENERIC_TRIP_ALERT)
-    await expect(page.getByText('You joined this one trip as Trip Partner.')).toHaveCount(0)
-    await expect(page.getByText("Avery's antique day")).toHaveCount(0)
+    await expect(page.getByRole('status')).toHaveText('You joined this one trip as Trip Partner.')
+    await page.getByRole('link', { name: 'Open shared trip' }).click()
+    await expect(page).toHaveURL(/\/trips\/trip-a\/plan$/)
+    await expect(page.getByRole('heading', { level: 1, name: "Avery's antique day" })).toBeVisible()
   })
 
   test('loading, empty, error, blocked, and permission-denied states stay honest', async ({

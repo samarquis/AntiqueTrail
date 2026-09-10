@@ -22,7 +22,9 @@ test.describe('issue 320 synthetic one-trip partner acceptance', () => {
     await page.getByRole('link', { name: 'Open shared trip' }).click()
     await expect(page).toHaveURL(/\/trips\/trip-a\/plan$/)
     await expect(page.getByRole('heading', { level: 1, name: "Avery's antique day" })).toBeVisible()
-    await expect(page.getByText('Blue Finch Curios')).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 3, name: /Blue Finch Curios — must, 60/ }),
+    ).toBeVisible()
     await expect(page.getByText('Creator private rating 5 — Walnut secretary')).toHaveCount(0)
     await expect(page.getByText('Unrelated creator trip')).toHaveCount(0)
     await page.screenshot({ path: testInfo.outputPath('shared-trip-plan.png'), fullPage: true })
