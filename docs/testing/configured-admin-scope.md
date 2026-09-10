@@ -19,3 +19,7 @@ incorrect independent readback, or failed cleanup. It never targets an externall
 For the negative control, the stale request uses a consumed/mismatched server preview and a new
 idempotency key; server denial is required. This is real-local browser evidence only. It does not
 establish a hosted, provider, human, production, launch, or paid-activation gate.
+
+Set `CONFIGURED_ADMIN_SCOPE_WRONG_READBACK=1` for the negative readback control. The suite then
+requires an impossible action count and must fail nonzero; remove the variable before the normal
+run.

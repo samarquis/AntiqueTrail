@@ -81,6 +81,8 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
   await row.getByLabel('Administrative reason').fill('scope_review')
   await row.getByRole('button', { name: 'Cancel scope change', exact: true }).click()
   expect(await read(target)).toMatchObject({ partner: 'active', role: 'active', actions: 0 })
+  await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).click()
+  await row.getByLabel('Administrative reason').fill('scope_review')
   await row.getByRole('button', { name: /Confirm revoke Clockwork Cabinet scope/ }).click()
   await expect
     .poll(() => read(target))
@@ -92,20 +94,33 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
   await revoked.getByRole('button', { name: /Preview regrant Clockwork Cabinet scope/ }).click()
   await revoked.getByLabel('Administrative reason').fill('scope_reapproved')
   await revoked.getByRole('button', { name: /Confirm regrant Clockwork Cabinet scope/ }).click()
-  await expect
-    .poll(() => read(target))
-    .toMatchObject({ partner: 'active', role: 'active', actions: 2, audit: 2 })
+  await expect.poll(() => read(target)).toMatchObject({
+    partner: 'active',
+    role: 'active',
+    actions: input.wrongReadback ? 99 : 2,
+    audit: 2,
+  })
   expect(await read(sibling)).toMatchObject({ partner: 'active', role: 'active' })
   await expect(
     targetRow(page).getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }),
-  )
-    .toBeFocused({ timeout: 12_000 })
-    .catch(() => undefined)
+  ).toBeVisible()
 })
 
 test('stale replay and missing assurance fail closed while focus and scoped record survive desktop and phone use', async ({
   page,
 }) => {
+  const aal1 = await service.request('/auth/v1/token?grant_type=password', {
+    key: input.anonKey,
+    body: { email: input.actors.admin.email, password: input.actors.admin.password },
+  })
+  await expect(
+    loopbackRequest(input.endpoint, '/rest/v1/rpc/admin_preview_store_scope_change', {
+      key: input.anonKey,
+      token: aal1.access_token,
+      schema: 'app_public',
+      body: { p_operation: 'revoke', p_subject_user_id: input.actors.subject.id, p_store_id: target, p_expected_version: 1 },
+    }),
+  ).rejects.toThrow(/401|403|admin_unavailable/)
   await login(page)
   const row = targetRow(page)
   await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).focus()
@@ -118,23 +133,17 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
     candidate.url().includes('/rest/v1/rpc/admin_change_store_scope'),
   )
   await row.getByRole('button', { name: /Confirm revoke Clockwork Cabinet scope/ }).click()
-  const token = (await request).headers().authorization?.replace(/^Bearer\s+/i, '')
+  const browserRequest = await request
+  const token = browserRequest.headers().authorization?.replace(/^Bearer\s+/i, '')
   if (!token) throw new Error('Browser mutation did not use an actual bearer session')
+  const stale = browserRequest.postDataJSON()
   await expect.poll(() => read(target)).toMatchObject({ partner: 'revoked', role: 'revoked' })
   await expect(
     loopbackRequest(input.endpoint, '/rest/v1/rpc/admin_change_store_scope', {
       key: input.anonKey,
       token,
       schema: 'app_public',
-      body: {
-        p_operation: 'revoke',
-        p_subject_user_id: input.actors.subject.id,
-        p_store_id: target,
-        p_expected_version: 1,
-        p_reason_code: 'stale_control',
-        p_idempotency_key: `stale-${crypto.randomUUID()}`,
-        p_preview_id: crypto.randomUUID(),
-      },
+      body: { ...stale, p_idempotency_key: `stale-${crypto.randomUUID()}` },
     }),
   ).rejects.toThrow(/401|403|400|admin_unavailable/)
   await expect(

@@ -175,6 +175,7 @@ try {
       ...local,
       output: output.directory,
       origin,
+      wrongReadback: process.env.CONFIGURED_ADMIN_SCOPE_WRONG_READBACK === '1',
       actors,
       secret,
       stores: {
@@ -254,12 +255,12 @@ try {
     const parsed = JSON.parse(fs.readFileSync(resultPath, 'utf8'))
     const specs = parsed.suites.flatMap((suite) => suite.specs ?? [])
     report.stats = parsed.stats
-    report.checks = specs.map((spec) => ({
-      title: spec.title,
-      status: spec.tests.every((test) => test.results.at(-1)?.status === 'passed')
-        ? 'passed'
-        : 'failed',
-    }))
+    report.checks = specs.flatMap((spec) =>
+      spec.tests.map((test) => ({
+        title: `${test.projectName ?? 'unknown'}: ${spec.title}`,
+        status: test.results.at(-1)?.status === 'passed' ? 'passed' : 'failed',
+      })),
+    )
     if (report.checks.length !== 6 || report.checks.some((check) => check.status !== 'passed'))
       report.status = 'failed'
   }
