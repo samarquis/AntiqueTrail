@@ -37,7 +37,10 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
     await expect(page).toHaveURL(/\/stores\/blue-finch-curios\/photos/)
 
     const tiles = page.getByRole('button', { name: /View photo \d+:/ })
-    await expect(tiles).toHaveCount(50)
+    await expect(page.getByText('50 photos', { exact: true })).toBeVisible()
+    // The gallery's two feature images are intentionally not buttons; the
+    // remaining 48 images are the interactive scrolled-grid photo controls.
+    await expect(tiles).toHaveCount(48)
     const scrolledTile = tiles.nth(20)
     await scrolledTile.scrollIntoViewIfNeeded()
     await scrolledTile.click()
@@ -62,11 +65,15 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
   test('keeps one, many, and failed-image states named and returnable', async ({ page }) => {
     await page.goto(reviewUrl('/stores/cedar-and-brass/photos'))
     await expect(page.getByRole('main')).toBeVisible()
-    await expect(page.getByRole('button', { name: /View photo 1:/ })).toHaveCount(1)
+    await expect(page.getByText('1 photo', { exact: true })).toBeVisible()
+    await expect(
+      page.getByRole('img', { name: /Cedar-clad storefront displaying a walnut cabinet/i }),
+    ).toBeVisible()
     await expect(page.getByRole('link', { name: /Back to Cedar & Brass/ })).toBeVisible()
 
     await page.goto(reviewUrl('/stores/blue-finch-curios/photos'))
-    await expect(page.getByRole('button', { name: /View photo \d+:/ })).toHaveCount(50)
+    await expect(page.getByText('50 photos', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: /View photo \d+:/ })).toHaveCount(48)
 
     await page.route(/blue-finch-curios-gallery-aisle\.webp(?:\?.*)?$/u, (route) =>
       route.abort('failed'),
