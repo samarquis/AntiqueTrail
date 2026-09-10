@@ -66,6 +66,7 @@ function readStoreReturn(storeId: string): StoreReturnState | null {
       !/^\/stores\/[^/]+(?:\?|$)/u.test(parsed.href) ||
       typeof parsed.scrollY !== 'number' ||
       !Number.isFinite(parsed.scrollY) ||
+      (parsed.returnTarget !== 'photos' && parsed.returnTarget !== 'updates') ||
       typeof parsed.savedAt !== 'number' ||
       Date.now() - parsed.savedAt > 30 * 60_000
     )
@@ -76,13 +77,13 @@ function readStoreReturn(storeId: string): StoreReturnState | null {
   }
 }
 
-function rememberStoreReturn(storeId: string) {
+function rememberStoreReturn(storeId: string, returnTarget: StoreReturnState['returnTarget']) {
   if (typeof window === 'undefined') return
   const href = `${window.location.pathname}${window.location.search}`
   if (!/^\/stores\/[^/]+(?:\?|$)/u.test(href)) return
   window.sessionStorage.setItem(
     STORE_RETURN_KEY,
-    JSON.stringify({ href, scrollY: window.scrollY, storeId, savedAt: Date.now() }),
+    JSON.stringify({ href, scrollY: window.scrollY, storeId, returnTarget, savedAt: Date.now() }),
   )
 }
 
@@ -90,6 +91,7 @@ interface StoreReturnState {
   href: string
   scrollY: number
   storeId: string
+  returnTarget: 'photos' | 'updates'
   savedAt: number
 }
 
@@ -1128,12 +1130,12 @@ export function DetailsPage({
     const saved = readStoreReturn(state.store.id)
     const currentHref = `${window.location.pathname}${window.location.search}`
     if (!saved || saved.href !== currentHref) return
-    const seeAllLink = document.querySelector<HTMLElement>('a[href$="/updates"]')
-    if (!seeAllLink) return
+    const returnLink = document.querySelector<HTMLElement>(`a[href$="/${saved.returnTarget}"]`)
+    if (!returnLink) return
     window.sessionStorage.removeItem(STORE_RETURN_KEY)
     requestAnimationFrame(() => {
       window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
-      seeAllLink.focus({ preventScroll: true })
+      returnLink.focus({ preventScroll: true })
     })
   }, [state.kind, state.store])
   if (state.kind === 'loading')
@@ -1198,7 +1200,7 @@ export function DetailsPage({
           <p className="store-detail__gallery-link">
             <CatalogLink
               to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/photos`)}
-              onClick={() => rememberStoreReturn(store.id)}
+              onClick={() => rememberStoreReturn(store.id, 'photos')}
             >
               See all {store.media.length} {store.media.length === 1 ? 'photo' : 'photos'}
             </CatalogLink>
@@ -1358,7 +1360,7 @@ export function DetailsPage({
               {store.updates.length > 3 && (
                 <CatalogLink
                   to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/updates`)}
-                  onClick={() => rememberStoreReturn(store.id)}
+                  onClick={() => rememberStoreReturn(store.id, 'updates')}
                 >
                   See all store updates
                 </CatalogLink>

@@ -843,6 +843,7 @@ describe('store photos page contract', () => {
     const saved = window.sessionStorage.getItem('antique-trail:store-return')
     expect(saved).toBeTruthy()
     expect(JSON.parse(saved ?? '{}').storeId).toEqual(galleryStore.id)
+    expect(JSON.parse(saved ?? '{}').returnTarget).toEqual('photos')
     window.history.replaceState({}, '', '/')
   })
 })
