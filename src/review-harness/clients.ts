@@ -418,6 +418,10 @@ async function requireActiveReviewFixtureSession(
   session: ReviewFixtureSession,
   scenario: ReviewScenario,
 ): Promise<void> {
+  // Anonymous review paths deliberately exercise public catalog and intake
+  // surfaces. Their individual clients still enforce role checks for every
+  // private operation, but must not require a fixture session to render.
+  if (scenario.role === 'Anonymous') return
   if (session.state !== 'active')
     throw new Error('Synthetic session is unavailable. Sign in again to continue.')
 

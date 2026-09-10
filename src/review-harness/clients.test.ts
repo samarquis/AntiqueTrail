@@ -12,6 +12,16 @@ function scenario(id: (typeof reviewScenarios)[number]['id']) {
 }
 
 describe('scenario-aware review clients', () => {
+  it('keeps anonymous public review fixtures available without a session', async () => {
+    const clients = createReviewHarnessClients(scenario('anonymous'), 'success', false, {
+      state: 'active',
+      authStore: new InMemoryAuthStore(),
+      sessionRegistry: new InMemorySessionRegistry(),
+    })
+    await expect(clients.ownerIntakeAvailability!.getAvailability()).resolves.toBeDefined()
+    await expect(clients.portal!.getHome()).rejects.toThrow(/permission denied/i)
+  })
+
   it.each(['expired', 'revoked'] as const)(
     'denies every advertised private or privileged fixture client for a %s session',
     async (state) => {
