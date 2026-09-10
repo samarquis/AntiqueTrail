@@ -501,9 +501,6 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                           id={`hours-${day.weekday}-close-2`}
                           type="time"
                           value={second.closesAt}
-                          onFocus={(event) => {
-                            activeHoursFieldRef.current = event.currentTarget
-                          }}
                           onChange={(event) =>
                             setHours(
                               updateInterval(
