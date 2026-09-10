@@ -238,7 +238,7 @@ const FORMS = {
         `<rect x="${cx}" y="${round(-h * 0.52)}" width="2" height="${round(r * 0.45)}" fill="${colors.ink}"/>`,
         `<rect x="${cx}" y="${cy}" width="${round(r * 0.4)}" height="2" fill="${colors.ink}"/>`,
         `<rect x="${round(cx - w * 0.16)}" y="${round(-h * 0.66)}" width="${round(w * 0.32)}" height="${round(h * 0.34)}" fill="${colors.body}"/>`,
-        `<rect x="${round(cx - w * 0.05)}" 0 width="${round(w * 0.1)}" height="${round(h * 0.12)}" fill="${colors.trim}"/>`,
+        `<rect x="${round(cx - w * 0.05)}" y="${round(-h * 0.49)}" width="${round(w * 0.1)}" height="${round(h * 0.12)}" fill="${colors.trim}"/>`,
       ].join('')
     },
   },

@@ -18,6 +18,8 @@ import {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PRIVATE_CANARY =
   /object[_ -]?key|signed[_ -]?url|private[_ -]?key|token=|signature=|expires=|x-amz-|reviewer|moderation|provider response/iu
+const MALFORMED_ATTR =
+  /"\s*[\d.]+\s+(?:x|y|width|height|fill|stroke|cx|cy|r|rx|ry|translate|points)="/
 
 export function verifyFixtureMedia(reportRoot = root) {
   const errors = []
@@ -69,6 +71,8 @@ export function verifyFixtureMedia(reportRoot = root) {
       if (!content.startsWith('<?xml')) errors.push(`svg missing xml declaration: ${filePath}`)
       if (!content.includes('width="1280"') || !content.includes('height="960"'))
         errors.push(`svg missing expected dimensions: ${filePath}`)
+      if (MALFORMED_ATTR.test(content))
+        errors.push(`svg malformed attribute value (unquoted number): ${filePath}`)
       if (PRIVATE_CANARY.test(content)) errors.push(`private content leak: ${filePath}`)
       if (record.width !== 1280 || record.height !== 960)
         errors.push(`record dimensions mismatch: ${filePath}`)
