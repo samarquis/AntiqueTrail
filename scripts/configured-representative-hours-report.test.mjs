@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import assert from 'node:assert/strict'
+import test from 'node:test'
 import { representativeHoursReport } from './configured-representative-hours-report.mjs'
 
 const passing = JSON.stringify({
@@ -19,15 +20,12 @@ const passing = JSON.stringify({
   ],
 })
 
-describe('representative hours report', () => {
-  it('requires every configured browser case', () => {
-    expect(representativeHoursReport(passing)).toMatchObject({ status: 'passed' })
-    expect(representativeHoursReport(passing, 3)).toMatchObject({ status: 'failed' })
-  })
-  it('rejects malformed and failed reports', () => {
-    expect(() => representativeHoursReport('{}')).toThrow('Malformed browser report')
-    expect(representativeHoursReport(passing.replace('"passed"', '"failed"'))).toMatchObject({
-      status: 'failed',
-    })
-  })
+test('representative hours report requires every configured browser case', () => {
+  assert.equal(representativeHoursReport(passing).status, 'passed')
+  assert.equal(representativeHoursReport(passing, 3).status, 'failed')
+})
+
+test('representative hours report rejects malformed and failed reports', () => {
+  assert.throws(() => representativeHoursReport('{}'), /Malformed browser report/)
+  assert.equal(representativeHoursReport(passing.replace('"passed"', '"failed"')).status, 'failed')
 })
