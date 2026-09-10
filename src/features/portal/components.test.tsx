@@ -15,6 +15,7 @@ import {
 } from './portalClient'
 import {
   PortalControlledChangesPage,
+  PortalHoursPage,
   PortalHomePage,
   PortalManagedFieldsPage,
   PortalMediaReviewPage,
@@ -163,6 +164,21 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(copied.weekly[1].intervals).toEqual(original.weekly[0].intervals)
     expect(copied.weekly[1].label).toBe('Tuesday')
     expect(original.weekly[1].intervals[0].opensAt).toBe('10:00')
+  })
+
+  it('returns focus to the edited hours field when publication is denied', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <PortalHoursPage client={client({ saveHours: vi.fn(async () => Promise.reject()) })} />
+      </MemoryRouter>,
+    )
+    const close = (await screen.findAllByLabelText('First closing'))[0]
+    await user.clear(close)
+    await user.type(close, '2015')
+    await user.click(screen.getByRole('button', { name: 'Save hours' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC_PORTAL_ERROR)
+    expect(close).toHaveFocus()
   })
 
   it('rejects shorteners and unrelated social hosts while normalizing official links', () => {

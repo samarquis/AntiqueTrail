@@ -332,6 +332,7 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const activeHoursFieldRef = useRef<HTMLInputElement | null>(null)
   useEffect(() => {
     let cancelled = false
     client
@@ -346,6 +347,9 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
       cancelled = true
     }
   }, [client])
+  useEffect(() => {
+    if (error && hours) activeHoursFieldRef.current?.focus()
+  }, [error, hours])
   if (error && !hours)
     return (
       <PortalCard title="Hours & holidays" description="Keep the public schedule current.">
@@ -422,6 +426,9 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                       id={`hours-${day.weekday}-open-1`}
                       type="time"
                       value={first.opensAt}
+                      onFocus={(event) => {
+                        activeHoursFieldRef.current = event.currentTarget
+                      }}
                       onChange={(event) =>
                         setHours(
                           updateInterval(
@@ -439,6 +446,9 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                       id={`hours-${day.weekday}-close-1`}
                       type="time"
                       value={first.closesAt}
+                      onFocus={(event) => {
+                        activeHoursFieldRef.current = event.currentTarget
+                      }}
                       onChange={(event) =>
                         setHours(
                           updateInterval(
@@ -480,6 +490,9 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                           id={`hours-${day.weekday}-open-2`}
                           type="time"
                           value={second.opensAt}
+                          onFocus={(event) => {
+                            activeHoursFieldRef.current = event.currentTarget
+                          }}
                           onChange={(event) =>
                             setHours(
                               updateInterval(
@@ -497,6 +510,9 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                           id={`hours-${day.weekday}-close-2`}
                           type="time"
                           value={second.closesAt}
+                          onFocus={(event) => {
+                            activeHoursFieldRef.current = event.currentTarget
+                          }}
                           onChange={(event) =>
                             setHours(
                               updateInterval(
