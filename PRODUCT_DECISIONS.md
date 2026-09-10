@@ -6,6 +6,12 @@ Status: historical decision record with links to current requirement owners. Ori
 
 ## Confirmed decisions
 
+### Fixture-only 50-photo synthetic store-wall evaluation — 2026-09-09
+
+Authorization: `update plan`. The Product Owner requested roughly 50 photos per test store to evaluate a long editorial photo wall and chose the fixture-only evaluation profile over any tier/state change: an internal evaluation surface that cannot be confused with a Free listing and leaves real-media gating, entitlement capacities, and release gates unchanged.
+
+Current requirement owners: [Fixture-only 50-photo evaluation profile](DESIGN.md#fixture-only-50-photo-evaluation-profile), the [Store photo gallery page](DESIGN.md#store-photo-gallery-page), and the routes/count surface in [Production navigation and routes](DESIGN_SYSTEM.md#production-navigation-and-routes) and [Shared asynchronous-state matrix](DESIGN_SYSTEM.md#shared-asynchronous-state-matrix). These headings, not this decision history, define the designated store set, approximate 50-photo count, labeling, provenance, and boundary behaviors. This decision authorizes the scoped plan amendment only; issue #309's delivered fixtures, deterministic checks, browser journeys, and exact-candidate deployment require their own governed work.
+
 ### Full-width desktop Store Details — 2026-09-09
 
 Authorization: `update plan for this full-width store layout.` The Product Owner approved the concrete 2026-09-09 layout exploration after requesting Apple-like components and scrolling rather than color or font changes. The reason is that the previous 720px Store Details composition cramped the available computer screen; the selected direction uses broad photographs and sections with readable local text bounds.

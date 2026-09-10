@@ -127,6 +127,14 @@ Store Details links `See all photos` to a full store photo gallery page. The loc
 
 Motion is decorative only: all content stays readable without hover, no drag-only or time-pressured interaction, and reduced-motion users get the same information without parallax or reveal animation. The prototype route remains as visual reference until this page is implemented for real; then remove the throwaway route and variants. Before paid activation every store is Free (cover+5 gallery); after activation Store Details renders all approved images allowed by the current tier without changing gallery interaction.
 
+### Fixture-only 50-photo evaluation profile
+
+This profile is the separately authorized snapshot for issue #309's evaluation only; it is not a public tier, does not change Free/Gallery/Full Gallery capacity, and never unguards real media.
+
+- **Designated store set:** all 12 deterministic Synthetic Stores (Blue Finch Curios, Cedar & Brass, Elm Street Finds, Juniper House, Maple Lantern, North Star Relics, Prairie Cabinet, Redbud Market, Sunflower Salvage, Tallgrass Treasures, Union Station Vintage, Willow & Wren).
+- **Approximate photo count:** approximately 50 distinct, locally hosted, generated fictional media records per designated store, each with meaningful alternative text, an internal-only label, and recorded provenance. The count is an evaluation fixture, not an entitlement claim.
+- **Non-confusability safeguard:** the profile renders only through the existing [Store photo gallery page](#store-photo-gallery-page) and [Store Details](DESIGN_SYSTEM.md#full-width-store-details) interactions; it must be visibly labeled as a synthetic evaluation fixture and never be mistaken for a real or public listing. The existing Free cover+5 gallery, sparse/empty-media, missing-image, keyboard/lightbox, reduced-motion, and return-to-details behaviors remain unchanged and apply on top of the fixture. Real stores, real media, public release, and paid/provider activation stay outside the profile and require their own gates.
+
 ### Claim this listing
 
 Store Details shows `Is this your store? Claim this listing` only for active, unclaimed, claimable listings after Package 10B enables public claims. Anyone may open the explanation; submission requires verified email and MFA. `/stores/:slug/claim` identifies the exact store and explains that a claim publishes nothing and grants no Portal access. The claimant confirms identity/relationship, two approved independent authority signals, consent, and exact store before `Submit Claim`. Each signal shows `Not started`, `Submitted`, `Changes requested`, or `Accepted`; competing claimant/internal fraud evidence stays hidden.
