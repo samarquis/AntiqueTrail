@@ -432,7 +432,7 @@ async function requireActiveReviewFixtureSession(
     throw new Error('Synthetic session is unavailable. Sign in again to continue.')
 }
 
-function withReviewFixtureSessionGuard<T extends object>(
+export function withReviewFixtureSessionGuard<T extends object>(
   client: T,
   session: ReviewFixtureSession,
   scenario: ReviewScenario,
