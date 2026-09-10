@@ -122,6 +122,15 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
   await expect.poll(saved).toBe(process.env.CONFIGURED_SHOPPER_WRONG_READBACK === '1' ? 2 : 1)
   await page.reload()
   await expect(page.getByRole('button', { name: 'Remove saved store', exact: true })).toBeVisible()
+  await expect(photo).toBeVisible()
+  await expect
+    .poll(() => photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
+    .toBe(true)
+  await choices.nth(1).click()
+  await expect(gallery).toBeVisible()
+  await expect
+    .poll(() => gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
+    .toBe(true)
   await page.goto('/saved')
   await expect(page.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toBeVisible()
   await page.goto('/stores/clockwork-cabinet')
@@ -239,8 +248,9 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
   for (let repetition = 0; repetition < 3; repetition++) {
     if (repetition) ownerToken = await login(page, 0, `/trips/${id}/plan`)
     await page.goto('/account')
-    // Hold a real transaction ahead of cleanup, without replacing storage or
-    // Auth/RPC results. The former implementation acknowledged sign-out here.
+    await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible()
+    // Hold the actual delete transaction after request success but before commit.
+    // All storage operations and Auth/RPC results remain real.
     expect(
       await page.evaluate(
         () =>
@@ -251,31 +261,60 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
               const database = request.result
               const transaction = database.transaction('refresh-material', 'readonly')
               const store = transaction.objectStore('refresh-material')
-              let held = true
-              ;(window as Window & { releaseSignoutStorage?: () => void }).releaseSignoutStorage =
-                () => {
-                  held = false
-                }
               transaction.oncomplete = () => database.close()
               transaction.onabort = () => {
                 database.close()
                 reject(transaction.error)
               }
-              const keepAlive = () => {
-                const key = store.getKey('current')
-                key.onerror = () => reject(key.error)
-                key.onsuccess = () => {
-                  resolve(key.result === 'current')
-                  if (held) keepAlive()
-                }
-              }
-              keepAlive()
+              const key = store.getKey('current')
+              key.onerror = () => reject(key.error)
+              key.onsuccess = () => resolve(key.result === 'current')
             }
           }),
       ),
     ).toBe(true)
+    await page.evaluate(() => {
+      const state = window as Window & {
+        releaseSignoutStorage?: () => void
+        signoutStorageBlocked?: boolean
+      }
+      let held = true
+      const originalDelete = IDBObjectStore.prototype.delete
+      state.releaseSignoutStorage = () => {
+        held = false
+        IDBObjectStore.prototype.delete = originalDelete
+      }
+      IDBObjectStore.prototype.delete = function (query) {
+        const request = originalDelete.call(this, query)
+        if (
+          this.transaction.db.name === 'antique-trail-auth-refresh-v1' &&
+          this.name === 'refresh-material' &&
+          query === 'current'
+        ) {
+          const store = this
+          const keepAlive = () => {
+            const next = store.getKey('current')
+            next.onsuccess = () => {
+              if (held) keepAlive()
+            }
+          }
+          request.addEventListener('success', () => {
+            state.signoutStorageBlocked = true
+            keepAlive()
+          })
+        }
+        return request
+      }
+    })
     try {
       await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => (window as Window & { signoutStorageBlocked?: boolean }).signoutStorageBlocked,
+          ),
+        )
+        .toBe(true)
       await expect(page.getByRole('status')).toHaveText('Signing out...')
       await expect(page).toHaveURL(/\/account$/)
     } finally {

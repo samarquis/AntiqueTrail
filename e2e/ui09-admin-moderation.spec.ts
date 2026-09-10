@@ -42,8 +42,7 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
       '/admin/reviews',
     ]) {
       await page.goto(reviewUrl(path, 'administrator'))
-      // Availability resolves asynchronously; reject persistent duplicate
-      // headings while allowing the route's initial guard to settle.
+      // Availability resolves asynchronously; require one settled page heading.
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     }
@@ -353,6 +352,8 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
       '/status',
     ]) {
       await page.goto(reviewUrl(path, 'administrator'))
+      // Availability resolves asynchronously; require one settled page heading.
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await assertMinimumTargets(page)
     }
@@ -397,6 +398,8 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
       ['/admin/reviews', /^Dismiss Report /],
     ] as const) {
       await page.goto(reviewUrl(path, 'administrator'))
+      // Availability resolves asynchronously; require one settled page heading.
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       const target = page.getByRole('button', { name: label })
       await target.scrollIntoViewIfNeeded()
@@ -421,6 +424,8 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
       ['/status', 'status'],
     ] as const) {
       await page.goto(reviewUrl(path, 'administrator'))
+      // Availability resolves asynchronously; require one settled page heading.
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       if (slug === 'moderation') {
         await page.getByLabel('Decision reason').fill('confirmed spam')

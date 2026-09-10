@@ -23,7 +23,13 @@ export function browserReport(text, expected = 18) {
             status: final?.status ?? 'unavailable',
             ...(final?.status !== 'passed' && {
               failure: {
-                sourceLine: line ? Number(line[1]) : undefined,
+                sourceLine: line
+                  ? Number(line[1])
+                  : String(error?.location?.file ?? '').endsWith(
+                        'configured-free-shopper.spec.ts',
+                      ) && Number.isSafeInteger(error.location.line)
+                    ? error.location.line
+                    : undefined,
                 assertion: [
                   'toHaveText',
                   'toHaveURL',

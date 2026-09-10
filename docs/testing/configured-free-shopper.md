@@ -15,6 +15,7 @@ and revoked-next-mutation at desktop and phone widths. Each sign-out scenario re
 three times with a real IndexedDB transaction blocking cleanup, immediate navigation
 and reload, durable-material absence, and stale-token private read/write denial. This
 scoped result does not pass the other shopper journeys; preserve full-suite failures.
+The `--session-signout` and `--media-only` scopes are mutually exclusive; selecting both fails before service startup.
 
 The command reuses #243's `createLocalService`: pinned local Supabase, a unique temporary
 project, unused loopback ports, current migrations/functions/seed, two real GoTrue users,
@@ -65,12 +66,23 @@ On normal success, failure, SIGINT, or SIGTERM, the wrapper stops its preview an
 use the recovery command documented in `configured-shopper-probe.md` for that exact directory.
 Never stop a shared stack to recover this run.
 
-The browser fixture maps the Clockwork Cabinet cover/gallery to existing Internal Alpha
-imagery from `docs/evidence/ui-03/PROVENANCE.md`. The runner verifies each file against the
-declared internal synthetic asset manifest, copies it into the run-owned build, and updates
-only the run-owned media rows. The fixture digest includes this SQL and the image bytes.
-This supplies real local static media without changing the standard seed or #251 packet.
+The standard seed supplies the Clockwork Cabinet cover from maintained Internal Alpha
+imagery; the browser fixture adds one gallery image from the same provenance inventory.
+The runner verifies both files against the declared internal synthetic asset manifest.
+The ordinary Vite build serves these assets without a run-only file-copy workaround.
+The fixture digest includes the gallery SQL and image bytes; #251's packet is unchanged.
 
-This is local configured software evidence. It preserves #251's fixture report and blank
+For the seed-media outcome only, use `npm run test:e2e:configured-shopper -- --media-only`.
+This selects the authenticated catalog/photo/save/two-store journey on desktop and phone,
+including loaded cover/gallery assertions after reload. Its report requires exactly two
+passing tests and labels the scope `seed-media-desktop-phone`; it does not establish full
+shopper-suite acceptance. The default command still requires all eighteen results.
+
+The `Configured seed media` pull-request workflow runs this focused command on an ephemeral
+CI runner with temporary loopback-only services and the exact PR source SHA. It uploads an
+allowlisted summary of source identity, scope, status, cleanup, counts, and named outcomes.
+Raw errors, Playwright reports, traces, credentials, and temporary input files are excluded.
+
+This is loopback configured software evidence, whether run locally or in CI. It preserves #251's fixture report and blank
 human feedback. Phone-sized automation supplies no physical-device, owner, provider,
-hosted, launch, or paid-activation acceptance.
+hosted-product, launch, or paid-activation acceptance.
