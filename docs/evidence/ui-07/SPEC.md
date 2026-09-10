@@ -161,10 +161,8 @@ no trip access at all.
       `/trip-invitations?reviewAs=shopper-b&reviewState=success#token=review-trip-invite-shopper-b`
       and expect "You joined this one trip as Trip Partner." with **Open shared
       trip**. The token fragment follows the real query string (query before
-      `#hash`). Until the fixture change lands, this resolves to the generic
-      private-data alert with no shopper-a trip content — the honest fail-closed
-      row, documented by the "keeps shopper-b trips isolated while allowing
-      self-created trips" unit test (`clients.test.ts`).
+      `#hash`). Click **Open shared trip** and expect the canonical
+      `/trips/trip-a/plan` route; the recipient sees the invited trip only.
 
 13. **Loading, empty, error, blocked, and permission-denied states stay honest.**
     - `/trips?reviewAs=shopper-a&reviewState=loading` → "Loading…"
