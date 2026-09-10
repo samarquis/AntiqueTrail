@@ -414,19 +414,28 @@ export interface ReviewFixtureSession {
 
 const ACTIVE_REVIEW_FIXTURE_SESSION: ReviewFixtureSession = { state: 'active' }
 
-async function requireActiveReviewFixtureSession(session: ReviewFixtureSession): Promise<void> {
+async function requireActiveReviewFixtureSession(
+  session: ReviewFixtureSession,
+  scenario: ReviewScenario,
+): Promise<void> {
   if (session.state !== 'active')
     throw new Error('Synthetic session is unavailable. Sign in again to continue.')
 
   if (!session.authStore || !session.sessionRegistry) return
   const current = session.authStore.getSession()
-  if (!current || !(await session.sessionRegistry.isActive(current)))
+  if (
+    !current ||
+    current.userId !== `review-${scenario.id}` ||
+    current.role !== scenario.role ||
+    !(await session.sessionRegistry.isActive(current))
+  )
     throw new Error('Synthetic session is unavailable. Sign in again to continue.')
 }
 
 function withReviewFixtureSessionGuard<T extends object>(
   client: T,
   session: ReviewFixtureSession,
+  scenario: ReviewScenario,
   seen = new WeakMap<object, object>(),
 ): T {
   const cached = seen.get(client)
@@ -436,12 +445,12 @@ function withReviewFixtureSessionGuard<T extends object>(
       const value = Reflect.get(target, property, receiver)
       if (typeof value === 'function') {
         return async (...args: unknown[]) => {
-          await requireActiveReviewFixtureSession(session)
+          await requireActiveReviewFixtureSession(session, scenario)
           return value.apply(target, args)
         }
       }
       return value && typeof value === 'object'
-        ? withReviewFixtureSessionGuard(value, session, seen)
+        ? withReviewFixtureSessionGuard(value, session, scenario, seen)
         : value
     },
   })
@@ -2858,7 +2867,7 @@ export function createReviewHarnessClients(
     readinessAdmin: readinessAdminReviewClient(state),
     rg01,
     ...communityReviewClients(scenario, state),
-  }, session)
+  }, session, scenario)
 }
 
 function createRG01ReviewClient(scenario: ReviewScenario, state: ReviewStateId): RG01Client {

@@ -60,6 +60,20 @@ describe('scenario-aware review clients', () => {
     authStore.setSession(session)
     await sessionRegistry.registerCurrentSession(session)
     await expect(clients.portal!.getHours()).resolves.toMatchObject({ version: 2 })
+
+    const shopperSession = {
+      ...session,
+      userId: 'review-shopper-a',
+      accessToken: 'local-review-only:shopper-a',
+      role: 'Shopper' as const,
+    }
+    authStore.setSession(shopperSession)
+    await sessionRegistry.registerCurrentSession(shopperSession)
+    await expect(clients.portal!.getHours()).rejects.toThrow(/session is unavailable/i)
+
+    authStore.setSession(session)
+    await sessionRegistry.registerCurrentSession(session)
+    await expect(clients.portal!.getHours()).resolves.toMatchObject({ version: 2 })
   })
 
   it('exposes deterministic populated, empty, and error catalog states', async () => {
