@@ -739,9 +739,9 @@ describe('scenario-aware review clients', () => {
     await expect(trips.invitePartner('trip-a', 'review-shopper-b@local.invalid')).rejects.toThrow(
       /already pending/i,
     )
-    await expect(trips.acceptInvitation('review-trip-invite-shopper-b')).resolves.toMatchObject({
-      currentUserId: 'review-shopper-a',
-    })
+    await expect(trips.acceptInvitation('review-trip-invite-shopper-b')).rejects.toThrow(
+      /unavailable or expired/i,
+    )
     await expect(trips.acceptInvitation('unknown-token')).rejects.toThrow(/unavailable or expired/i)
     await expect(trips.assignNavigator('trip-a', 'review-shopper-a')).resolves.toMatchObject({
       navigatorUserId: 'review-shopper-a',
@@ -824,14 +824,36 @@ describe('scenario-aware review clients', () => {
     expect(remembered.stops[0]).toMatchObject({ memoryStatus: 'saved' })
   })
 
-  it('keeps shopper-b trips isolated while allowing self-created trips', async () => {
+  it('seeds one recipient-bound invitation without exposing the trip before acceptance', async () => {
     const trips = createReviewHarnessClients(scenario('shopper-b'), 'success').trips!
     await expect(trips.list()).resolves.toEqual([])
     await expect(trips.get('trip-a')).resolves.toBeNull()
-    await expect(trips.acceptInvitation('review-trip-invite-shopper-b')).rejects.toThrow(
-      /trip unavailable/i,
+    await expect(trips.get('trip-creator-private')).resolves.toBeNull()
+    await expect(trips.getCollaboration('trip-a')).rejects.toThrow(/collaboration unavailable/i)
+    await expect(trips.acceptInvitation('review-trip-invite-expired-shopper-b')).rejects.toThrow(
+      /unavailable or expired/i,
     )
+    await expect(trips.acceptInvitation('review-trip-invite-revoked-shopper-b')).rejects.toThrow(
+      /unavailable or expired/i,
+    )
+    await expect(trips.acceptInvitation('review-trip-invite-shopper-a')).rejects.toThrow(
+      /unavailable or expired/i,
+    )
+    await expect(trips.acceptInvitation('review-trip-invite-shopper-b')).resolves.toMatchObject({
+      tripId: 'trip-a',
+      currentUserId: 'review-shopper-b',
+      participants: [
+        { userId: 'review-shopper-a', displayName: 'Avery', role: 'creator' },
+        { userId: 'review-shopper-b', displayName: 'Shopper B', role: 'partner' },
+      ],
+    })
+    await expect(trips.list()).resolves.toEqual([expect.objectContaining({ id: 'trip-a' })])
+    await expect(trips.get('trip-a')).resolves.toMatchObject({ id: 'trip-a' })
+    await expect(trips.get('trip-creator-private')).resolves.toBeNull()
     const created = await trips.create({ name: 'B trip', localDate: '2026-08-10' })
-    await expect(trips.list()).resolves.toEqual([expect.objectContaining({ id: created.id })])
+    await expect(trips.list()).resolves.toEqual([
+      expect.objectContaining({ id: 'trip-a' }),
+      expect.objectContaining({ id: created.id }),
+    ])
   })
 })

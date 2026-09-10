@@ -95,7 +95,7 @@ test.describe('issue 251 free private evaluation personas', () => {
     await expect(page.getByText(/One invitation is pending until/)).toBeVisible()
 
     await page.goto(
-      '/trip-invitations?reviewAs=shopper-b&reviewState=success#token=review-trip-invite-shopper-b',
+      '/trip-invitations?reviewAs=shopper-b&reviewState=success#token=review-trip-invite-shopper-a',
     )
     await expect(page.getByRole('alert')).toContainText(/couldn't update this trip/i)
     await expect(page.getByText("Avery's antique day")).toHaveCount(0)

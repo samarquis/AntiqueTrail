@@ -23,6 +23,7 @@ import {
   type TripIdea,
 } from '../features/candidates'
 import {
+  AdminVersionConflictError,
   GENERIC_ADMIN_FAILURE,
   unavailableAdminClient,
   type AdminCaseState,
@@ -94,7 +95,12 @@ import {
   type TripCollaboration,
   type TripStop,
 } from '../features/trips'
-import type { ReviewScenario, ReviewSessionState, ReviewStateId } from './types'
+import type {
+  ReviewAdminDecisionMode,
+  ReviewScenario,
+  ReviewSessionState,
+  ReviewStateId,
+} from './types'
 import { createOwnConsentClient, type OwnConsentClient } from '../features/rg01'
 import type {
   CommunityGateClient,
@@ -1005,6 +1011,29 @@ const tripSeed: Trip = {
   ],
 }
 
+// This fixture is deliberately present only to exercise the recipient access
+// filter. It is never a permitted trip and its synthetic label must not render
+// for Shopper B before or after accepting trip-a.
+const creatorPrivateTripSeed: Trip = {
+  id: 'trip-creator-private',
+  name: 'Unrelated creator trip',
+  localDate: '2026-08-09',
+  state: 'draft',
+  version: 1,
+  stops: [
+    {
+      id: 'stop-creator-private',
+      kind: 'rest',
+      label: 'Creator private rating 5 — Walnut secretary',
+      position: 0,
+      priority: 'flexible',
+      plannedDwellMinutes: 30,
+      state: 'planned',
+      memoryStatus: 'not_applicable',
+    },
+  ],
+}
+
 const syntheticStoreCatalog: Record<
   string,
   { label: string; address: string; hours: NonNullable<TripStop['hours']> }
@@ -1029,6 +1058,57 @@ const syntheticStoreCatalog: Record<
 const TRIP_A_INVITATION_TOKEN = 'review-trip-invite-shopper-b'
 const INVITATION_EXPIRES_AT = '2026-08-12T12:00:00.000Z'
 
+type SyntheticTripInvitationState = 'pending' | 'expired' | 'revoked'
+
+interface SyntheticTripInvitationFixture {
+  tripId: string
+  invitationId: string
+  recipientUserId: string
+  state: SyntheticTripInvitationState
+}
+
+// These values exist only in the in-memory review harness. They model one
+// recipient-bound positive path alongside deterministic denial fixtures; they
+// are not production invitation tokens or a cross-browser shared store.
+const tripInvitationFixtures: ReadonlyMap<string, SyntheticTripInvitationFixture> = new Map([
+  [
+    TRIP_A_INVITATION_TOKEN,
+    {
+      tripId: 'trip-a',
+      invitationId: 'trip-a-invite-shopper-b',
+      recipientUserId: 'review-shopper-b',
+      state: 'pending',
+    },
+  ],
+  [
+    'review-trip-invite-expired-shopper-b',
+    {
+      tripId: 'trip-a',
+      invitationId: 'trip-a-invite-expired-shopper-b',
+      recipientUserId: 'review-shopper-b',
+      state: 'expired',
+    },
+  ],
+  [
+    'review-trip-invite-revoked-shopper-b',
+    {
+      tripId: 'trip-a',
+      invitationId: 'trip-a-invite-revoked-shopper-b',
+      recipientUserId: 'review-shopper-b',
+      state: 'revoked',
+    },
+  ],
+  [
+    'review-trip-invite-shopper-a',
+    {
+      tripId: 'trip-a',
+      invitationId: 'trip-a-invite-shopper-a',
+      recipientUserId: 'review-shopper-a',
+      state: 'pending',
+    },
+  ],
+])
+
 interface QueuedOfflineAction {
   kind: string
   stopId?: string
@@ -1052,7 +1132,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
   const collaborations = new Map<string, TripCollaboration>()
   const offlineQueues = new Map<string, OfflineQueueSnapshot>()
   const checkMyDay = new Map<string, CheckMyDayServerResult>()
-  const invitationTokens = new Map<string, { tripId: string; invitationId: string }>()
+  const invitationTokens = new Map(tripInvitationFixtures)
   const offlinePending = new Map<string, QueuedOfflineAction[]>()
   const visitMemories = new Map<
     string,
@@ -1071,14 +1151,30 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
       navigatorUserId: currentUserId,
     })
   }
-  invitationTokens.set(TRIP_A_INVITATION_TOKEN, {
-    tripId: 'trip-a',
-    invitationId: 'trip-a-invite-shopper-b',
-  })
+  if (scenario.id === 'shopper-b') {
+    // A new recipient context starts with a pending invitation but no readable
+    // trip. Acceptance below grants the one seeded trip in this context only.
+    trips.set(tripSeed.id, structuredClone(tripSeed))
+    trips.set(creatorPrivateTripSeed.id, structuredClone(creatorPrivateTripSeed))
+    collaborations.set(tripSeed.id, {
+      tripId: tripSeed.id,
+      currentUserId,
+      participants: [{ userId: 'review-shopper-a', displayName: 'Avery', role: 'creator' }],
+      navigatorUserId: 'review-shopper-a',
+      invitation: {
+        id: 'trip-a-invite-shopper-b',
+        state: 'pending',
+        expiresAt: INVITATION_EXPIRES_AT,
+      },
+    })
+  }
 
   function findTrip(tripId: string): Trip {
     const trip = trips.get(tripId)
     if (!trip) throw new Error('Synthetic trip unavailable.')
+    const collaboration = collaborations.get(tripId)
+    if (!collaboration?.participants.some((participant) => participant.userId === currentUserId))
+      throw new Error('Synthetic trip unavailable.')
     return trip
   }
 
@@ -1097,7 +1193,11 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
 
   function requireCollaboration(tripId: string): TripCollaboration {
     const collaboration = collaborations.get(tripId)
-    if (!collaboration || collaboration.currentUserId !== currentUserId)
+    if (
+      !collaboration ||
+      collaboration.currentUserId !== currentUserId ||
+      !collaboration.participants.some((participant) => participant.userId === currentUserId)
+    )
       throw new Error('Synthetic collaboration unavailable.')
     return collaboration
   }
@@ -1152,12 +1252,25 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
     ...unavailableTripClient,
     async list() {
       allowed()
-      return fixture(state, [...trips.values()], [])
+      return fixture(
+        state,
+        [...trips.values()].filter((trip) =>
+          collaborations
+            .get(trip.id)
+            ?.participants.some((participant) => participant.userId === currentUserId),
+        ),
+        [],
+      )
     },
     async get(id) {
       allowed()
       const trip = trips.get(id)
-      if (!trip) return null
+      const collaboration = collaborations.get(id)
+      if (
+        !trip ||
+        !collaboration?.participants.some((participant) => participant.userId === currentUserId)
+      )
+        return null
       return fixture(state, trip, null)
     },
     async create(input) {
@@ -1612,7 +1725,12 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
       if (collaboration.invitation?.state === 'pending')
         throw new Error('Synthetic invitation already pending.')
       const invitationId = `inv-${tripId}`
-      invitationTokens.set(TRIP_A_INVITATION_TOKEN, { tripId, invitationId })
+      invitationTokens.set(TRIP_A_INVITATION_TOKEN, {
+        tripId,
+        invitationId,
+        recipientUserId: 'review-shopper-b',
+        state: 'pending',
+      })
       return persistCollaboration({
         ...collaboration,
         invitation: { id: invitationId, state: 'pending', expiresAt: INVITATION_EXPIRES_AT },
@@ -1633,7 +1751,8 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
       allowed()
       await fixture(state, true, true)
       const binding = invitationTokens.get(fragmentToken)
-      if (!binding) throw new Error('Synthetic invitation unavailable or expired.')
+      if (!binding || binding.recipientUserId !== currentUserId || binding.state !== 'pending')
+        throw new Error('Synthetic invitation unavailable or expired.')
       const collaboration = collaborations.get(binding.tripId)
       if (!collaboration) throw new Error('Synthetic trip unavailable.')
       if (collaboration.participants.some((participant) => participant.userId === currentUserId))
@@ -2490,9 +2609,14 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
   }
 }
 
-function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClient {
+function adminClient(
+  scenario: ReviewScenario,
+  state: ReviewStateId,
+  decisionMode: ReviewAdminDecisionMode,
+): AdminClient {
   const allowed = () => requireRole(scenario, ['Administrator'], true)
   const FIXED_NOW = '2026-08-05T12:00:00.000Z'
+  let staleDecisionInjected = false
   let reviewCases: AdminReviewCaseDetail[] = [
     {
       id: 'case-1',
@@ -2563,6 +2687,15 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
       ],
     },
   ]
+  // The interrupted fixture models a request that reached the authoritative
+  // service before the browser vanished. sessionStorage is deliberately used
+  // only in this local fixture so a reload can read back the settled case.
+  if (
+    decisionMode === 'interrupted' &&
+    typeof window !== 'undefined' &&
+    window.sessionStorage.getItem('admin-decision-case-1') === 'approved'
+  )
+    reviewCases = reviewCases.filter((reviewCase) => reviewCase.id !== 'case-1')
   let storeGrants: AdminStoreScope[] = [
     {
       grantId: 'grant-1',
@@ -2636,9 +2769,19 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
     ) {
       allowed()
       void idempotencyKey
+      if (decisionMode === 'pending') await new Promise((resolve) => setTimeout(resolve, 750))
       return mutate(state, GENERIC_ADMIN_FAILURE, () => {
         const target = reviewCases.find((c) => c.id === caseId)
         if (!target) throw new Error('Synthetic exact-case denial.')
+        if (decisionMode === 'stale' && !staleDecisionInjected) {
+          staleDecisionInjected = true
+          target.version += 1
+          throw new AdminVersionConflictError()
+        }
+        if (decisionMode === 'interrupted' && typeof window !== 'undefined') {
+          window.sessionStorage.setItem(`admin-decision-${caseId}`, 'approved')
+          return new Promise<never>(() => undefined)
+        }
         if (target.version !== expectedVersion) throw new Error('Synthetic version conflict.')
         const nextState: AdminCaseState =
           action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'changes_requested'
@@ -2819,6 +2962,7 @@ export function createReviewHarnessClients(
   state: ReviewStateId,
   mediaReviewEnabled = false,
   session: ReviewFixtureSession = ACTIVE_REVIEW_FIXTURE_SESSION,
+  adminDecisionMode: ReviewAdminDecisionMode = 'ordinary',
 ): AppClients {
   const promotionPermissions = Object.keys(promotionLabels).map((channel) => ({
     channel,
@@ -2872,7 +3016,7 @@ export function createReviewHarnessClients(
       reviews: reviewClient(scenario, state),
       partner: partnerClient(scenario, state),
       partnerAdmin: partnerAdminClient(scenario, state),
-      admin: withRecordAuditReview(adminClient(scenario, state)),
+      admin: withRecordAuditReview(adminClient(scenario, state, adminDecisionMode)),
       readinessAdmin: readinessAdminReviewClient(scenario, state),
       rg01,
       ...communityReviewClients(scenario, state),

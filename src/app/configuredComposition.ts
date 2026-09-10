@@ -445,6 +445,7 @@ export async function configuredComposition(
               authStore: reviewHarness.authStore,
               sessionRegistry: reviewHarness.sessionRegistry,
             },
+            reviewHarness.adminDecisionMode,
           ),
           ...(import.meta.env.VITE_COMMERCIAL_RESEARCH_REVIEW === 'true'
             ? withReviewFixtureSessionGuard(
