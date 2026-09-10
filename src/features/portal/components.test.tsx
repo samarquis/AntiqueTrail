@@ -180,6 +180,7 @@ describe('provider-neutral Store Portal boundary', () => {
     const error = await screen.findByRole('alert')
     expect(error).toHaveTextContent(GENERIC_PORTAL_ERROR)
     expect(error).toHaveFocus()
+    expect(close).toHaveValue('20:15')
     expect(screen.getByRole('button', { name: 'Save hours' }).closest('form')).toHaveAttribute(
       'aria-describedby',
       'hours-error',
