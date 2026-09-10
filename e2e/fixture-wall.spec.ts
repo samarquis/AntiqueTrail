@@ -2,7 +2,12 @@ import { expect, test } from '@playwright/test'
 
 const baseSlug = 'cedar-and-brass'
 
-async function waitForWallReady(page: Awaited<ReturnType<typeof test['info']> extends never ? never : import('@playwright/test').Page>, choicesCount: number) {
+async function waitForWallReady(
+  page: Awaited<
+    ReturnType<(typeof test)['info']> extends never ? never : import('@playwright/test').Page
+  >,
+  choicesCount: number,
+) {
   await page
     .locator('.store-photos__grid .store-photos__grid-button')
     .nth(choicesCount - 1)
@@ -19,7 +24,9 @@ async function getColumnCount(page: import('@playwright/test').Page, selector: s
 }
 
 for (const viewport of ['desktop', 'mobile'] as const) {
-  test(`fixture wall ${viewport} renders 50 tiles with correct label`, async ({ page }, testInfo) => {
+  test(`fixture wall ${viewport} renders 50 tiles with correct label`, async ({
+    page,
+  }, testInfo) => {
     test.skip(
       testInfo.project.name !== viewport,
       `One deterministic run for ${viewport} is sufficient.`,
@@ -46,10 +53,7 @@ for (const viewport of ['desktop', 'mobile'] as const) {
     await expect(dialog).toBeVisible()
     await expect(dialog.getByRole('status')).toHaveText('Photo 1 of 50')
     await expect(dialog.locator('.media-overlay-img')).toBeVisible()
-    await expect(dialog.locator('.media-overlay-img')).toHaveAttribute(
-      'alt',
-      /Cedar & Brass/,
-    )
+    await expect(dialog.locator('.media-overlay-img')).toHaveAttribute('alt', /Cedar & Brass/)
     await page.keyboard.press('Space')
     await expect(dialog.getByRole('status')).toHaveText('Photo 2 of 50')
     await page.keyboard.press('End')
