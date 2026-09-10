@@ -426,7 +426,9 @@ export async function configuredComposition(
         clients: {
           catalog: createReviewHarnessCatalogClient(reviewHarness.state),
           ...withReviewFixtureSessionGuard(
-            billingServicingReviewClients(typeof window === 'undefined' ? '' : window.location.href),
+            billingServicingReviewClients(
+              typeof window === 'undefined' ? '' : window.location.href,
+            ),
             {
               state: reviewHarness.sessionState,
               authStore: reviewHarness.authStore,

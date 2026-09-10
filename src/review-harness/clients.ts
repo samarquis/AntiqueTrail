@@ -2850,24 +2850,28 @@ export function createReviewHarnessClients(
     throw new Error('Synthetic RG-01 command unavailable')
   })
   const rg01 = createRG01ReviewClient(scenario, state)
-  return withReviewFixtureSessionGuard({
-    promotion,
-    ownConsent,
-    ownerIntakeAvailability: createReviewOwnerIntakeAvailabilityClient(state),
-    ...storeApplicationReviewClients(state),
-    lifecycle: lifecycleClient(scenario, state),
-    shopper: shopperClient(scenario, state),
-    candidate: candidateClient(scenario, state),
-    trips: tripClient(scenario, state),
-    portal: portalClient(scenario, state, mediaReviewEnabled),
-    reviews: reviewClient(scenario, state),
-    partner: partnerClient(scenario, state),
-    partnerAdmin: partnerAdminClient(scenario, state),
-    admin: withRecordAuditReview(adminClient(scenario, state)),
-    readinessAdmin: readinessAdminReviewClient(state),
-    rg01,
-    ...communityReviewClients(scenario, state),
-  }, session, scenario)
+  return withReviewFixtureSessionGuard(
+    {
+      promotion,
+      ownConsent,
+      ownerIntakeAvailability: createReviewOwnerIntakeAvailabilityClient(state),
+      ...storeApplicationReviewClients(state),
+      lifecycle: lifecycleClient(scenario, state),
+      shopper: shopperClient(scenario, state),
+      candidate: candidateClient(scenario, state),
+      trips: tripClient(scenario, state),
+      portal: portalClient(scenario, state, mediaReviewEnabled),
+      reviews: reviewClient(scenario, state),
+      partner: partnerClient(scenario, state),
+      partnerAdmin: partnerAdminClient(scenario, state),
+      admin: withRecordAuditReview(adminClient(scenario, state)),
+      readinessAdmin: readinessAdminReviewClient(state),
+      rg01,
+      ...communityReviewClients(scenario, state),
+    },
+    session,
+    scenario,
+  )
 }
 
 function createRG01ReviewClient(scenario: ReviewScenario, state: ReviewStateId): RG01Client {

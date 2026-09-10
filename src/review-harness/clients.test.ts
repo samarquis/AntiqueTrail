@@ -18,13 +18,17 @@ describe('scenario-aware review clients', () => {
       const clients = createReviewHarnessClients(scenario('representative'), 'success', false, {
         state,
       })
-      await expect(clients.portal!.getHours()).rejects.toThrow(/session is unavailable.*sign in again/i)
-      await expect(clients.portal!.saveHours({
-        timeZone: 'America/Chicago',
-        weekly: [],
-        holidays: [],
-        version: 2,
-      })).rejects.toThrow(/session is unavailable.*sign in again/i)
+      await expect(clients.portal!.getHours()).rejects.toThrow(
+        /session is unavailable.*sign in again/i,
+      )
+      await expect(
+        clients.portal!.saveHours({
+          timeZone: 'America/Chicago',
+          weekly: [],
+          holidays: [],
+          version: 2,
+        }),
+      ).rejects.toThrow(/session is unavailable.*sign in again/i)
       await expect(clients.partner!.getStatus()).rejects.toThrow(/session is unavailable/i)
       await expect(clients.admin!.listCases()).rejects.toThrow(/session is unavailable/i)
       await expect(clients.shopper!.listSaved()).rejects.toThrow(/session is unavailable/i)
