@@ -179,11 +179,10 @@ test.describe('Store Details decision-screen contract', () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(expectedScroll)
   })
 
-  test('returns from full photos to the originating photo link with its reading position', async ({
-    page,
-  }) => {
+  test('returns from full photos to Details focus with its reading position', async ({ page }) => {
     await openPrimaryStore(page)
     const photosLink = page.getByRole('link', { name: /see all 50 photos/i })
+    const heading = page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })
     await photosLink.scrollIntoViewIfNeeded()
     await page.evaluate(() => window.scrollTo(0, 760))
     const expectedScroll = await page.evaluate(() => window.scrollY)
@@ -194,7 +193,7 @@ test.describe('Store Details decision-screen contract', () => {
 
     await expect(page).toHaveURL(/\/stores\/blue-finch-curios$/)
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(expectedScroll)
-    await expect(photosLink).toBeFocused()
+    await expect(heading).toBeFocused()
   })
 
   test('reflows at the 320px CSS viewport equivalent to 200% zoom', async ({ page }) => {

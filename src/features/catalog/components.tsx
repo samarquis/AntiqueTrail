@@ -1130,8 +1130,8 @@ export function DetailsPage({
     const saved = readStoreReturn(state.store.id)
     const currentHref = `${window.location.pathname}${window.location.search}`
     if (!saved || saved.href !== currentHref) return
-    const returnLink = document.querySelector<HTMLElement>(`a[href$="/${saved.returnTarget}"]`)
-    if (!returnLink) return
+    const returnHeading = document.querySelector<HTMLElement>('.store-detail h1')
+    if (!returnHeading) return
     window.sessionStorage.removeItem(STORE_RETURN_KEY)
     const root = document.documentElement
     const previousOverflowAnchor = root.style.overflowAnchor
@@ -1141,9 +1141,9 @@ export function DetailsPage({
     const restoreScroll = () =>
       window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
     requestAnimationFrame(() => {
-      returnLink.focus({ preventScroll: true })
-      // Some engines still scroll a newly mounted link when it receives focus.
-      // Keep scroll anchoring off while images settle so the focused link does
+      returnHeading.tabIndex = -1
+      returnHeading.focus({ preventScroll: true })
+      // Keep scroll anchoring off while images settle so restoring focus does
       // not pull the shopper away from their saved reading position.
       requestAnimationFrame(() => {
         restoreScroll()
