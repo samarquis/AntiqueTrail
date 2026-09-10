@@ -166,7 +166,7 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(original.weekly[1].intervals[0].opensAt).toBe('10:00')
   })
 
-  it('returns focus to the edited hours field when publication is denied', async () => {
+  it('focuses the linked hours error summary when publication is denied', async () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter>
@@ -177,22 +177,13 @@ describe('provider-neutral Store Portal boundary', () => {
     await user.clear(close)
     await user.type(close, '2015')
     await user.click(screen.getByRole('button', { name: 'Save hours' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC_PORTAL_ERROR)
-    expect(close).toHaveFocus()
-  })
-
-  it('returns focus to the edited weekly checkbox when publication is denied', async () => {
-    const user = userEvent.setup()
-    render(
-      <MemoryRouter>
-        <PortalHoursPage client={client({ saveHours: vi.fn(async () => Promise.reject()) })} />
-      </MemoryRouter>,
+    const error = await screen.findByRole('alert')
+    expect(error).toHaveTextContent(GENERIC_PORTAL_ERROR)
+    expect(error).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Save hours' }).closest('form')).toHaveAttribute(
+      'aria-describedby',
+      'hours-error',
     )
-    const closed = (await screen.findAllByLabelText('Closed'))[0]
-    await user.click(closed)
-    await user.click(screen.getByRole('button', { name: 'Save hours' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC_PORTAL_ERROR)
-    expect(closed).toHaveFocus()
   })
 
   it('rejects shorteners and unrelated social hosts while normalizing official links', () => {

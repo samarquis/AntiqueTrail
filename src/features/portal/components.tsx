@@ -332,7 +332,7 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const activeHoursFieldRef = useRef<HTMLInputElement | null>(null)
+  const errorSummaryRef = useRef<HTMLParagraphElement | null>(null)
   useEffect(() => {
     let cancelled = false
     client
@@ -348,7 +348,7 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
     }
   }, [client])
   useEffect(() => {
-    if (error && hours) activeHoursFieldRef.current?.focus()
+    if (error && hours) errorSummaryRef.current?.focus()
   }, [error, hours])
   if (error && !hours)
     return (
@@ -389,7 +389,7 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
       description={`Publishes Immediately · Store timezone: ${currentHours.timeZone}`}
     >
       <PortalNav />
-      <form onSubmit={submit}>
+      <form aria-describedby={error ? 'hours-error' : undefined} onSubmit={submit}>
         <fieldset>
           <legend>Weekly hours</legend>
           {currentHours.weekly.map((day) => {
@@ -402,9 +402,6 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                   <input
                     type="checkbox"
                     checked={day.isClosed}
-                    onFocus={(event) => {
-                      activeHoursFieldRef.current = event.currentTarget
-                    }}
                     onChange={(event) =>
                       setHours({
                         ...currentHours,
@@ -429,9 +426,6 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                       id={`hours-${day.weekday}-open-1`}
                       type="time"
                       value={first.opensAt}
-                      onFocus={(event) => {
-                        activeHoursFieldRef.current = event.currentTarget
-                      }}
                       onChange={(event) =>
                         setHours(
                           updateInterval(
@@ -449,9 +443,6 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                       id={`hours-${day.weekday}-close-1`}
                       type="time"
                       value={first.closesAt}
-                      onFocus={(event) => {
-                        activeHoursFieldRef.current = event.currentTarget
-                      }}
                       onChange={(event) =>
                         setHours(
                           updateInterval(
@@ -468,9 +459,6 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                       <input
                         type="checkbox"
                         checked={Boolean(second)}
-                        onFocus={(event) => {
-                          activeHoursFieldRef.current = event.currentTarget
-                        }}
                         onChange={(event) =>
                           setHours({
                             ...currentHours,
@@ -496,9 +484,6 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                           id={`hours-${day.weekday}-open-2`}
                           type="time"
                           value={second.opensAt}
-                          onFocus={(event) => {
-                            activeHoursFieldRef.current = event.currentTarget
-                          }}
                           onChange={(event) =>
                             setHours(
                               updateInterval(
@@ -653,7 +638,11 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
             }
           />
         </fieldset>
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p ref={errorSummaryRef} id="hours-error" role="alert" tabIndex={-1}>
+            {error}
+          </p>
+        )}
         {status && <p role="status">{status}</p>}
         <button className="button" type="submit" disabled={pending}>
           {pending ? 'Saving…' : 'Save hours'}
