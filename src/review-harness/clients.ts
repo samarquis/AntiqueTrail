@@ -92,7 +92,7 @@ import {
   type TripCollaboration,
   type TripStop,
 } from '../features/trips'
-import type { ReviewScenario, ReviewStateId } from './types'
+import type { ReviewAdminDecisionMode, ReviewScenario, ReviewStateId } from './types'
 import { createOwnConsentClient, type OwnConsentClient } from '../features/rg01'
 import type {
   CommunityGateClient,
@@ -2536,9 +2536,14 @@ function partnerClient(scenario: ReviewScenario, state: ReviewStateId): PartnerC
   }
 }
 
-function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClient {
+function adminClient(
+  scenario: ReviewScenario,
+  state: ReviewStateId,
+  decisionMode: ReviewAdminDecisionMode,
+): AdminClient {
   const allowed = () => requireRole(scenario, ['Administrator'], true)
   const FIXED_NOW = '2026-08-05T12:00:00.000Z'
+  let staleDecisionInjected = false
   let reviewCases: AdminReviewCaseDetail[] = [
     {
       id: 'case-1',
@@ -2609,6 +2614,15 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
       ],
     },
   ]
+  // The interrupted fixture models a request that reached the authoritative
+  // service before the browser vanished. sessionStorage is deliberately used
+  // only in this local fixture so a reload can read back the settled case.
+  if (
+    decisionMode === 'interrupted' &&
+    typeof window !== 'undefined' &&
+    window.sessionStorage.getItem('admin-decision-case-1') === 'approved'
+  )
+    reviewCases = reviewCases.filter((reviewCase) => reviewCase.id !== 'case-1')
   let storeGrants: AdminStoreScope[] = [
     {
       grantId: 'grant-1',
@@ -2682,9 +2696,19 @@ function adminClient(scenario: ReviewScenario, state: ReviewStateId): AdminClien
     ) {
       allowed()
       void idempotencyKey
+      if (decisionMode === 'pending') await new Promise((resolve) => setTimeout(resolve, 750))
       return mutate(state, GENERIC_ADMIN_FAILURE, () => {
         const target = reviewCases.find((c) => c.id === caseId)
         if (!target) throw new Error('Synthetic exact-case denial.')
+        if (decisionMode === 'stale' && !staleDecisionInjected) {
+          staleDecisionInjected = true
+          target.version += 1
+          throw new Error('Synthetic version conflict.')
+        }
+        if (decisionMode === 'interrupted' && typeof window !== 'undefined') {
+          window.sessionStorage.setItem(`admin-decision-${caseId}`, 'approved')
+          return new Promise<never>(() => undefined)
+        }
         if (target.version !== expectedVersion) throw new Error('Synthetic version conflict.')
         const nextState: AdminCaseState =
           action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'changes_requested'
@@ -2864,6 +2888,7 @@ export function createReviewHarnessClients(
   scenario: ReviewScenario,
   state: ReviewStateId,
   mediaReviewEnabled = false,
+  adminDecisionMode: ReviewAdminDecisionMode = 'ordinary',
 ): AppClients {
   const promotionPermissions = Object.keys(promotionLabels).map((channel) => ({
     channel,
@@ -2916,7 +2941,7 @@ export function createReviewHarnessClients(
     reviews: reviewClient(scenario, state),
     partner: partnerClient(scenario, state),
     partnerAdmin: partnerAdminClient(scenario, state),
-    admin: withRecordAuditReview(adminClient(scenario, state)),
+    admin: withRecordAuditReview(adminClient(scenario, state, adminDecisionMode)),
     readinessAdmin: readinessAdminReviewClient(state),
     rg01,
     ...communityReviewClients(scenario, state),

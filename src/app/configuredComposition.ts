@@ -431,6 +431,7 @@ export async function configuredComposition(
             reviewHarness.scenario,
             reviewHarness.state,
             reviewHarness.mediaReviewEnabled,
+            reviewHarness.adminDecisionMode,
           ),
           ...(import.meta.env.VITE_COMMERCIAL_RESEARCH_REVIEW === 'true'
             ? { billing: commercialResearchReviewClient }
