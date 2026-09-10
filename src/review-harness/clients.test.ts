@@ -5,12 +5,63 @@ import {
   createReviewHarnessClients,
 } from './clients'
 import { reviewScenarios } from './harness'
+import { InMemoryAuthStore, InMemorySessionRegistry } from '../features/auth'
 
 function scenario(id: (typeof reviewScenarios)[number]['id']) {
   return reviewScenarios.find((candidate) => candidate.id === id)!
 }
 
 describe('scenario-aware review clients', () => {
+  it.each(['expired', 'revoked'] as const)(
+    'denies every advertised private or privileged fixture client for a %s session',
+    async (state) => {
+      const clients = createReviewHarnessClients(scenario('representative'), 'success', false, {
+        state,
+      })
+      await expect(clients.portal!.getHours()).rejects.toThrow(/session is unavailable.*sign in again/i)
+      await expect(clients.portal!.saveHours({
+        timeZone: 'America/Chicago',
+        weekly: [],
+        holidays: [],
+        version: 2,
+      })).rejects.toThrow(/session is unavailable.*sign in again/i)
+      await expect(clients.partner!.getStatus()).rejects.toThrow(/session is unavailable/i)
+      await expect(clients.admin!.listCases()).rejects.toThrow(/session is unavailable/i)
+      await expect(clients.shopper!.listSaved()).rejects.toThrow(/session is unavailable/i)
+    },
+  )
+
+  it('removes stale fixture authority after sign-out and permits only a fresh active session', async () => {
+    const authStore = new InMemoryAuthStore()
+    const sessionRegistry = new InMemorySessionRegistry()
+    const session = {
+      userId: 'review-representative',
+      accessToken: 'local-review-only:representative',
+      expiresAt: Date.now() + 60_000,
+      role: 'Representative' as const,
+      mfaRequired: true,
+      mfaEnrolled: true,
+      mfaVerified: true,
+      passwordAuthenticatedAt: new Date().toISOString(),
+      mfaVerifiedAt: new Date().toISOString(),
+    }
+    authStore.setSession(session)
+    await sessionRegistry.registerCurrentSession(session)
+    const clients = createReviewHarnessClients(scenario('representative'), 'success', false, {
+      state: 'active',
+      authStore,
+      sessionRegistry,
+    })
+
+    await expect(clients.portal!.getHours()).resolves.toMatchObject({ version: 2 })
+    authStore.clearSession()
+    await expect(clients.portal!.getHours()).rejects.toThrow(/session is unavailable/i)
+
+    authStore.setSession(session)
+    await sessionRegistry.registerCurrentSession(session)
+    await expect(clients.portal!.getHours()).resolves.toMatchObject({ version: 2 })
+  })
+
   it('exposes deterministic populated, empty, and error catalog states', async () => {
     await expect(createReviewHarnessCatalogClient('success').list({})).resolves.toMatchObject({
       stores: expect.arrayContaining([expect.objectContaining({ name: 'Blue Finch Curios' })]),

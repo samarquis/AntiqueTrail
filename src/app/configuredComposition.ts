@@ -431,6 +431,11 @@ export async function configuredComposition(
             reviewHarness.scenario,
             reviewHarness.state,
             reviewHarness.mediaReviewEnabled,
+            {
+              state: reviewHarness.sessionState,
+              authStore: reviewHarness.authStore,
+              sessionRegistry: reviewHarness.sessionRegistry,
+            },
           ),
           ...(import.meta.env.VITE_COMMERCIAL_RESEARCH_REVIEW === 'true'
             ? { billing: commercialResearchReviewClient }

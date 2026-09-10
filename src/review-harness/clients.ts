@@ -9,7 +9,9 @@ import type {
   AccountLifecycleClient,
   AccountLifecycleSnapshot,
   AuthProviderAdapter,
+  AuthStore,
   ProviderSession,
+  SessionRegistryClient,
 } from '../features/auth'
 import {
   unavailableCandidateClient,
@@ -92,7 +94,7 @@ import {
   type TripCollaboration,
   type TripStop,
 } from '../features/trips'
-import type { ReviewScenario, ReviewStateId } from './types'
+import type { ReviewScenario, ReviewSessionState, ReviewStateId } from './types'
 import { createOwnConsentClient, type OwnConsentClient } from '../features/rg01'
 import type {
   CommunityGateClient,
@@ -397,6 +399,54 @@ function fixture<T>(state: ReviewStateId, success: T, empty: T): Promise<T> {
 function requireRole<T>(scenario: ReviewScenario, allowed: ReviewScenario['role'][], value: T): T {
   if (!allowed.includes(scenario.role)) throw new Error('Synthetic permission denied.')
   return value
+}
+
+/**
+ * The local review harness has no real Auth/RPC boundary.  Keep its advertised
+ * session states at the outer fixture boundary so every private or privileged
+ * fixture client fails before it can read or mutate deterministic records.
+ */
+export interface ReviewFixtureSession {
+  state: ReviewSessionState
+  authStore?: AuthStore
+  sessionRegistry?: SessionRegistryClient
+}
+
+const ACTIVE_REVIEW_FIXTURE_SESSION: ReviewFixtureSession = { state: 'active' }
+
+async function requireActiveReviewFixtureSession(session: ReviewFixtureSession): Promise<void> {
+  if (session.state !== 'active')
+    throw new Error('Synthetic session is unavailable. Sign in again to continue.')
+
+  if (!session.authStore || !session.sessionRegistry) return
+  const current = session.authStore.getSession()
+  if (!current || !(await session.sessionRegistry.isActive(current)))
+    throw new Error('Synthetic session is unavailable. Sign in again to continue.')
+}
+
+function withReviewFixtureSessionGuard<T extends object>(
+  client: T,
+  session: ReviewFixtureSession,
+  seen = new WeakMap<object, object>(),
+): T {
+  const cached = seen.get(client)
+  if (cached) return cached as T
+  const guarded = new Proxy(client, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver)
+      if (typeof value === 'function') {
+        return async (...args: unknown[]) => {
+          await requireActiveReviewFixtureSession(session)
+          return value.apply(target, args)
+        }
+      }
+      return value && typeof value === 'object'
+        ? withReviewFixtureSessionGuard(value, session, seen)
+        : value
+    },
+  })
+  seen.set(client, guarded)
+  return guarded
 }
 
 function communityReviewClients(
@@ -2751,6 +2801,7 @@ export function createReviewHarnessClients(
   scenario: ReviewScenario,
   state: ReviewStateId,
   mediaReviewEnabled = false,
+  session: ReviewFixtureSession = ACTIVE_REVIEW_FIXTURE_SESSION,
 ): AppClients {
   const promotionPermissions = Object.keys(promotionLabels).map((channel) => ({
     channel,
@@ -2790,7 +2841,7 @@ export function createReviewHarnessClients(
     throw new Error('Synthetic RG-01 command unavailable')
   })
   const rg01 = createRG01ReviewClient(scenario, state)
-  return {
+  return withReviewFixtureSessionGuard({
     promotion,
     ownConsent,
     ownerIntakeAvailability: createReviewOwnerIntakeAvailabilityClient(state),
@@ -2807,7 +2858,7 @@ export function createReviewHarnessClients(
     readinessAdmin: readinessAdminReviewClient(state),
     rg01,
     ...communityReviewClients(scenario, state),
-  }
+  }, session)
 }
 
 function createRG01ReviewClient(scenario: ReviewScenario, state: ReviewStateId): RG01Client {
