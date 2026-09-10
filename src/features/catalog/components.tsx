@@ -1135,7 +1135,9 @@ export function DetailsPage({
     window.sessionStorage.removeItem(STORE_RETURN_KEY)
     const root = document.documentElement
     const previousOverflowAnchor = root.style.overflowAnchor
+    const previousScrollBehavior = root.style.scrollBehavior
     root.style.overflowAnchor = 'none'
+    root.style.scrollBehavior = 'auto'
     requestAnimationFrame(() => {
       returnLink.focus({ preventScroll: true })
       // Some engines still scroll a newly mounted link when it receives focus.
@@ -1145,6 +1147,7 @@ export function DetailsPage({
         window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
         window.setTimeout(() => {
           root.style.overflowAnchor = previousOverflowAnchor
+          root.style.scrollBehavior = previousScrollBehavior
         }, 1_000)
       })
     })
