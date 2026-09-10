@@ -1134,8 +1134,10 @@ export function DetailsPage({
     if (!returnLink) return
     window.sessionStorage.removeItem(STORE_RETURN_KEY)
     requestAnimationFrame(() => {
-      window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
       returnLink.focus({ preventScroll: true })
+      // Some engines still scroll a newly mounted link when it receives focus.
+      // Restore the reading position last so focus and context both survive.
+      window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
     })
   }, [state.kind, state.store])
   if (state.kind === 'loading')
