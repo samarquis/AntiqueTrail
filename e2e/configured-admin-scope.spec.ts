@@ -94,12 +94,14 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
   await revoked.getByRole('button', { name: /Preview regrant Clockwork Cabinet scope/ }).click()
   await revoked.getByLabel('Administrative reason').fill('scope_reapproved')
   await revoked.getByRole('button', { name: /Confirm regrant Clockwork Cabinet scope/ }).click()
-  await expect.poll(() => read(target)).toMatchObject({
-    partner: 'active',
-    role: 'active',
-    actions: input.wrongReadback ? 99 : 2,
-    audit: 2,
-  })
+  await expect
+    .poll(() => read(target))
+    .toMatchObject({
+      partner: 'active',
+      role: 'active',
+      actions: input.wrongReadback ? 99 : 2,
+      audit: 2,
+    })
   expect(await read(sibling)).toMatchObject({ partner: 'active', role: 'active' })
   await expect(
     targetRow(page).getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }),
@@ -118,7 +120,12 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
       key: input.anonKey,
       token: aal1.access_token,
       schema: 'app_public',
-      body: { p_operation: 'revoke', p_subject_user_id: input.actors.subject.id, p_store_id: target, p_expected_version: 1 },
+      body: {
+        p_operation: 'revoke',
+        p_subject_user_id: input.actors.subject.id,
+        p_store_id: target,
+        p_expected_version: 1,
+      },
     }),
   ).rejects.toThrow(/401|403|admin_unavailable/)
   await login(page)
