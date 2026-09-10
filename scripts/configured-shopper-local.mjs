@@ -39,7 +39,11 @@ export function command(
       stderr += data
       if (stderr.length > 4_000_000) stderr = stderr.slice(-4_000_000)
     })
-    const timer = setTimeout(() => child.kill(), timeout)
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      child.kill()
+    }, timeout)
     child.on('error', (error) => {
       clearTimeout(timer)
       reject(error)
@@ -55,9 +59,8 @@ export function command(
         } catch {
           /* Only structured error output is included. */
         }
-        reject(
-          new Error(`${path.basename(file)} exited ${code}: ${summary} ${stderr.slice(-2000)}`),
-        )
+        const outcome = timedOut ? `timed out after ${timeout}ms` : `exited ${code}`
+        reject(new Error(`${path.basename(file)} ${outcome}: ${summary} ${stderr.slice(-2000)}`))
       }
     })
     child.stdin.on('error', () => {})
@@ -385,7 +388,9 @@ inspector_port = ${inspector}
         '--exclude',
         'studio,postgres-meta,realtime,imgproxy,logflare,vector,supavisor',
       ],
-      { env: proxy.env, signal },
+      // Initial image pulls plus this repository's migrations and seed can exceed the
+      // ordinary command deadline on a cold local Docker cache.
+      { env: proxy.env, signal, timeout: 1_200_000 },
     )
     await verifyContainers()
     const status = JSON.parse(await cli(['status', '--workdir', directory, '-o', 'json']))
