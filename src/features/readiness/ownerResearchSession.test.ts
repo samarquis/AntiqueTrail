@@ -19,6 +19,7 @@ it('registers new provider sessions before use, refreshes changed tokens, and re
       )
     expect(String(input)).toContain('/rpc/register_current_session')
     expect(new Headers(init?.headers).get('Content-Profile')).toBe('app_public')
+    expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${token}`)
     expect(JSON.parse(String(init?.body)).access_token_expires_at).toBeGreaterThan(Date.now())
     return new Response(registrationFails ? '{"message":"denied"}' : 'true', {
       status: registrationFails ? 403 : 200,

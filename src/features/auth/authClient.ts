@@ -53,24 +53,32 @@ export class InMemorySessionRegistry implements SessionRegistryClient {
 }
 
 export interface SessionRegistryTransport {
-  invoke(command: string, payload: Readonly<Record<string, unknown>>): Promise<unknown>
+  invoke(
+    command: string,
+    payload: Readonly<Record<string, unknown>>,
+    session: AuthSession,
+  ): Promise<unknown>
 }
 
-/** Server-owned registry adapter. The bearer token stays in the provider client. */
+/** Server-owned registry adapter. Session credentials belong in transport headers, not payloads. */
 export function createRpcSessionRegistry(
   transport: SessionRegistryTransport,
 ): SessionRegistryClient {
   return {
     async registerCurrentSession(session) {
-      await transport.invoke('register_current_session', {
-        access_token_expires_at: session.expiresAt,
-      })
+      await transport.invoke(
+        'register_current_session',
+        {
+          access_token_expires_at: session.expiresAt,
+        },
+        session,
+      )
     },
-    async isActive() {
-      return (await transport.invoke('current_session_is_active', {})) === true
+    async isActive(session) {
+      return (await transport.invoke('current_session_is_active', {}, session)) === true
     },
-    async revoke(_session, reason = 'user_sign_out') {
-      await transport.invoke('revoke_current_session', { reason })
+    async revoke(session, reason = 'user_sign_out') {
+      await transport.invoke('revoke_current_session', { reason }, session)
     },
   }
 }

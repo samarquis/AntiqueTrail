@@ -128,9 +128,11 @@ export function createAuthProvider<
 ): AuthProviderAdapter {
   const challenges = new Map<string, { factorId: string; session: ProviderSession }>()
   let acceptingSessions = true
+  let providerUserId: string | undefined
   let storageWork = Promise.resolve()
   const remember = (session: Session) => {
     if (!acceptingSessions) return Promise.resolve()
+    providerUserId = session.user.id
     storageWork = storageWork
       .then(() =>
         refreshStorage.write({ userId: session.user.id, refreshToken: session.refresh_token }),
@@ -308,7 +310,13 @@ export function createAuthProvider<
     async clearSessionMaterial() {
       await clearMaterial()
     },
-    async signOut() {
+    async signOut(session) {
+      if (providerUserId && providerUserId !== session.userId) {
+        // Account-switch cleanup must not sign out the newly installed identity.
+        const result = await supabase.auth.admin.signOut(session.accessToken, 'local')
+        if (result.error) throw result.error
+        return
+      }
       acceptingSessions = false
       try {
         await supabase.auth.signOut({ scope: 'local' })
@@ -595,8 +603,10 @@ export async function configuredComposition(
     },
   )
   const sessionRegistry = createRpcSessionRegistry({
-    async invoke(command, payload) {
-      const result = await supabase.rpc(command, payload)
+    async invoke(command, payload, session) {
+      const result = await supabase
+        .rpc(command, payload)
+        .setHeader('Authorization', `Bearer ${session.accessToken}`)
       if (result.error) throw result.error
       return result.data
     },
