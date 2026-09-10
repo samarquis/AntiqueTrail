@@ -53,7 +53,7 @@ async function auth(endpoint, key, token, route, body) {
     const code = String(data?.code ?? '')
       .replace(/[^A-Za-z0-9_]/g, '')
       .slice(0, 80)
-    const message = String(data?.message ?? '')
+    const message = String(data?.message ?? data?.error ?? data?.msg ?? '')
       .replace(/[^A-Za-z0-9_ .-]/g, '')
       .slice(0, 160)
     throw new Error(`Local Auth ${route} failed with ${response.status} ${code} ${message}`)
