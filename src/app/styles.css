@@ -2120,6 +2120,116 @@ main > article dt {
   margin-bottom: 1rem;
 }
 
+/* Store Details section navigation: always present in normal flow so it is a
+   true in-page navigation at every width, wraps on narrow screens, and on
+   desktop becomes the single pinned band once the global header has scrolled
+   away (DESIGN_SYSTEM.md "Full-width Store Details"). */
+.store-detail__section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-chrome);
+}
+
+.store-detail__section-nav a {
+  min-inline-size: 3rem;
+  padding: 0.4rem 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  text-align: center;
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
+  text-decoration: none;
+}
+
+.store-detail__section-nav a:hover,
+.store-detail__section-nav a:focus-visible {
+  color: var(--teal-dark);
+  border-bottom-color: var(--teal-dark);
+}
+
+/* Full-width desktop composition (approved by plan amendment #310/#311): the
+   cover, section navigation, and readable flow span the viewport, and the
+   global header scrolls away so the local navigation is the only pinned band. */
+@media (min-width: 1024px) {
+  body:has(main.store-detail) .site-header {
+    position: static;
+  }
+
+  main.store-detail {
+    width: 100%;
+    max-width: none;
+    padding: 0 0 6rem;
+  }
+
+  .store-detail__back {
+    padding: 1rem clamp(32px, 3vw, 64px);
+  }
+
+  .store-detail__header {
+    padding: clamp(32px, 3vw, 64px);
+    padding-bottom: clamp(64px, 5.56vw, 96px);
+  }
+
+  .store-gallery {
+    padding: clamp(32px, 3vw, 64px);
+    padding-block: clamp(64px, 5.56vw, 96px);
+  }
+
+  .store-gallery__enlarge,
+  .store-gallery__enlarge img {
+    min-height: 0;
+  }
+
+  .store-gallery__enlarge {
+    aspect-ratio: 2.2 / 1;
+  }
+
+  .store-gallery__wall {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .store-gallery__wall > :first-child {
+    grid-column: 1;
+    aspect-ratio: 1.35 / 1;
+  }
+
+  .store-gallery__wall > :nth-child(n + 2) {
+    aspect-ratio: 1 / 1;
+  }
+
+  .store-detail__gallery-link {
+    padding: 1rem clamp(32px, 3vw, 64px);
+  }
+
+  .store-detail__intro,
+  .store-detail__panel,
+  .store-detail__provenance {
+    padding: clamp(32px, 3vw, 64px);
+    padding-block: clamp(64px, 5.56vw, 96px);
+  }
+
+  .store-detail__actions {
+    padding: clamp(32px, 3vw, 64px);
+  }
+
+  .store-detail__section-nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 1rem clamp(32px, 3vw, 64px);
+    border-top: 0;
+  }
+
+  .store-detail__article :is(#about-heading, #gallery-heading, #hours-heading, #source-heading) {
+    scroll-margin-top: 5rem;
+  }
+}
+
 .store-detail > .store-detail__article {
   margin-top: 0;
   padding: 0;

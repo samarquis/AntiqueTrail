@@ -1017,6 +1017,17 @@ function StoreGallery({ store }: { store: CatalogStore }) {
   )
 }
 
+function StoreSectionNav() {
+  return (
+    <nav className="store-detail__section-nav" aria-label="Store sections">
+      <a href="#about-heading">About</a>
+      <a href="#gallery-heading">Photos</a>
+      <a href="#hours-heading">Plan your visit</a>
+      <a href="#source-heading">Source</a>
+    </nav>
+  )
+}
+
 function StoreHours({ store }: { store: CatalogStore }) {
   const today = todayHoursSummary(store)
   return (
@@ -1193,6 +1204,8 @@ export function DetailsPage({
             </CatalogLink>
           </p>
         )}
+
+        <StoreSectionNav />
 
         <section className="store-detail__intro" aria-labelledby="about-heading">
           <p className="eyebrow">What you’ll find</p>
