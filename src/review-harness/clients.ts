@@ -9,7 +9,9 @@ import type {
   AccountLifecycleClient,
   AccountLifecycleSnapshot,
   AuthProviderAdapter,
+  AuthStore,
   ProviderSession,
+  SessionRegistryClient,
 } from '../features/auth'
 import {
   unavailableCandidateClient,
@@ -93,7 +95,12 @@ import {
   type TripCollaboration,
   type TripStop,
 } from '../features/trips'
-import type { ReviewAdminDecisionMode, ReviewScenario, ReviewStateId } from './types'
+import type {
+  ReviewAdminDecisionMode,
+  ReviewScenario,
+  ReviewSessionState,
+  ReviewStateId,
+} from './types'
 import { createOwnConsentClient, type OwnConsentClient } from '../features/rg01'
 import type {
   CommunityGateClient,
@@ -105,7 +112,10 @@ import type {
 
 const FIXED_NOW = '2026-08-05T12:00:00.000Z'
 
-function readinessAdminReviewClient(state: ReviewStateId): ReadinessAdminClient {
+function readinessAdminReviewClient(
+  scenario: ReviewScenario,
+  state: ReviewStateId,
+): ReadinessAdminClient {
   let workspace: ReadinessAdminWorkspace = {
     cohort: {
       cohortId: 'review-readiness-cohort',
@@ -125,6 +135,7 @@ function readinessAdminReviewClient(state: ReviewStateId): ReadinessAdminClient 
     },
   }
   const allowed = () => {
+    requireRole(scenario, ['Administrator'], true)
     if (state !== 'success') throw new Error('Synthetic readiness unavailable')
   }
   return {
@@ -398,6 +409,67 @@ function fixture<T>(state: ReviewStateId, success: T, empty: T): Promise<T> {
 function requireRole<T>(scenario: ReviewScenario, allowed: ReviewScenario['role'][], value: T): T {
   if (!allowed.includes(scenario.role)) throw new Error('Synthetic permission denied.')
   return value
+}
+
+/**
+ * The local review harness has no real Auth/RPC boundary.  Keep its advertised
+ * session states at the outer fixture boundary so every private or privileged
+ * fixture client fails before it can read or mutate deterministic records.
+ */
+export interface ReviewFixtureSession {
+  state: ReviewSessionState
+  authStore?: AuthStore
+  sessionRegistry?: SessionRegistryClient
+}
+
+const ACTIVE_REVIEW_FIXTURE_SESSION: ReviewFixtureSession = { state: 'active' }
+
+async function requireActiveReviewFixtureSession(
+  session: ReviewFixtureSession,
+  scenario: ReviewScenario,
+): Promise<void> {
+  // Anonymous review paths deliberately exercise public catalog and intake
+  // surfaces. Their individual clients still enforce role checks for every
+  // private operation, but must not require a fixture session to render.
+  if (scenario.role === 'Anonymous') return
+  if (session.state !== 'active')
+    throw new Error('Synthetic session is unavailable. Sign in again to continue.')
+
+  if (!session.authStore || !session.sessionRegistry) return
+  const current = session.authStore.getSession()
+  if (
+    !current ||
+    current.userId !== `review-${scenario.id}` ||
+    current.role !== scenario.role ||
+    !(await session.sessionRegistry.isActive(current))
+  )
+    throw new Error('Synthetic session is unavailable. Sign in again to continue.')
+}
+
+export function withReviewFixtureSessionGuard<T extends object>(
+  client: T,
+  session: ReviewFixtureSession,
+  scenario: ReviewScenario,
+  seen = new WeakMap<object, object>(),
+): T {
+  const cached = seen.get(client)
+  if (cached) return cached as T
+  const guarded = new Proxy(client, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver)
+      if (typeof value === 'function') {
+        return async (...args: unknown[]) => {
+          await requireActiveReviewFixtureSession(session, scenario)
+          return value.apply(target, args)
+        }
+      }
+      return value && typeof value === 'object'
+        ? withReviewFixtureSessionGuard(value, session, scenario, seen)
+        : value
+    },
+  })
+  seen.set(client, guarded)
+  return guarded
 }
 
 function communityReviewClients(
@@ -2889,6 +2961,7 @@ export function createReviewHarnessClients(
   scenario: ReviewScenario,
   state: ReviewStateId,
   mediaReviewEnabled = false,
+  session: ReviewFixtureSession = ACTIVE_REVIEW_FIXTURE_SESSION,
   adminDecisionMode: ReviewAdminDecisionMode = 'ordinary',
 ): AppClients {
   const promotionPermissions = Object.keys(promotionLabels).map((channel) => ({
@@ -2898,6 +2971,7 @@ export function createReviewHarnessClients(
     removalRequested: false,
   }))
   const promotion = createPromotionClient(async (name, args) => {
+    requireRole(scenario, ['Representative'], true)
     if (state !== 'success') throw new Error('Synthetic promotion unavailable')
     if (name === 'promotion_channels') return structuredClone(promotionPermissions)
     const permission = promotionPermissions.find((p) => p.channel === args.p_channel)
@@ -2929,24 +3003,28 @@ export function createReviewHarnessClients(
     throw new Error('Synthetic RG-01 command unavailable')
   })
   const rg01 = createRG01ReviewClient(scenario, state)
-  return {
-    promotion,
-    ownConsent,
-    ownerIntakeAvailability: createReviewOwnerIntakeAvailabilityClient(state),
-    ...storeApplicationReviewClients(state),
-    lifecycle: lifecycleClient(scenario, state),
-    shopper: shopperClient(scenario, state),
-    candidate: candidateClient(scenario, state),
-    trips: tripClient(scenario, state),
-    portal: portalClient(scenario, state, mediaReviewEnabled),
-    reviews: reviewClient(scenario, state),
-    partner: partnerClient(scenario, state),
-    partnerAdmin: partnerAdminClient(scenario, state),
-    admin: withRecordAuditReview(adminClient(scenario, state, adminDecisionMode)),
-    readinessAdmin: readinessAdminReviewClient(state),
-    rg01,
-    ...communityReviewClients(scenario, state),
-  }
+  return withReviewFixtureSessionGuard(
+    {
+      promotion,
+      ownConsent,
+      ownerIntakeAvailability: createReviewOwnerIntakeAvailabilityClient(state),
+      ...storeApplicationReviewClients(state),
+      lifecycle: lifecycleClient(scenario, state),
+      shopper: shopperClient(scenario, state),
+      candidate: candidateClient(scenario, state),
+      trips: tripClient(scenario, state),
+      portal: portalClient(scenario, state, mediaReviewEnabled),
+      reviews: reviewClient(scenario, state),
+      partner: partnerClient(scenario, state),
+      partnerAdmin: partnerAdminClient(scenario, state),
+      admin: withRecordAuditReview(adminClient(scenario, state, adminDecisionMode)),
+      readinessAdmin: readinessAdminReviewClient(scenario, state),
+      rg01,
+      ...communityReviewClients(scenario, state),
+    },
+    session,
+    scenario,
+  )
 }
 
 function createRG01ReviewClient(scenario: ReviewScenario, state: ReviewStateId): RG01Client {

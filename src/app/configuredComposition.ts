@@ -403,6 +403,7 @@ export async function configuredComposition(
         createReviewHarnessAuthProvider,
         createReviewHarnessCatalogClient,
         createReviewHarnessClients,
+        withReviewFixtureSessionGuard,
       },
       { ReviewHarnessBanner, ReviewHarnessPage },
       { commercialResearchReviewClient },
@@ -424,17 +425,38 @@ export async function configuredComposition(
       return {
         clients: {
           catalog: createReviewHarnessCatalogClient(reviewHarness.state),
-          ...billingServicingReviewClients(
-            typeof window === 'undefined' ? '' : window.location.href,
+          ...withReviewFixtureSessionGuard(
+            billingServicingReviewClients(
+              typeof window === 'undefined' ? '' : window.location.href,
+            ),
+            {
+              state: reviewHarness.sessionState,
+              authStore: reviewHarness.authStore,
+              sessionRegistry: reviewHarness.sessionRegistry,
+            },
+            reviewHarness.scenario,
           ),
           ...createReviewHarnessClients(
             reviewHarness.scenario,
             reviewHarness.state,
             reviewHarness.mediaReviewEnabled,
+            {
+              state: reviewHarness.sessionState,
+              authStore: reviewHarness.authStore,
+              sessionRegistry: reviewHarness.sessionRegistry,
+            },
             reviewHarness.adminDecisionMode,
           ),
           ...(import.meta.env.VITE_COMMERCIAL_RESEARCH_REVIEW === 'true'
-            ? { billing: commercialResearchReviewClient }
+            ? withReviewFixtureSessionGuard(
+                { billing: commercialResearchReviewClient },
+                {
+                  state: reviewHarness.sessionState,
+                  authStore: reviewHarness.authStore,
+                  sessionRegistry: reviewHarness.sessionRegistry,
+                },
+                reviewHarness.scenario,
+              )
             : {}),
         },
         runtime: {
