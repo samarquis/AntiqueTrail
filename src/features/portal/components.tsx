@@ -402,6 +402,9 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                   <input
                     type="checkbox"
                     checked={day.isClosed}
+                    onFocus={(event) => {
+                      activeHoursFieldRef.current = event.currentTarget
+                    }}
                     onChange={(event) =>
                       setHours({
                         ...currentHours,
@@ -465,6 +468,9 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
                       <input
                         type="checkbox"
                         checked={Boolean(second)}
+                        onFocus={(event) => {
+                          activeHoursFieldRef.current = event.currentTarget
+                        }}
                         onChange={(event) =>
                           setHours({
                             ...currentHours,

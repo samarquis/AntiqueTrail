@@ -181,6 +181,20 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(close).toHaveFocus()
   })
 
+  it('returns focus to the edited weekly checkbox when publication is denied', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <PortalHoursPage client={client({ saveHours: vi.fn(async () => Promise.reject()) })} />
+      </MemoryRouter>,
+    )
+    const closed = (await screen.findAllByLabelText('Closed'))[0]
+    await user.click(closed)
+    await user.click(screen.getByRole('button', { name: 'Save hours' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC_PORTAL_ERROR)
+    expect(closed).toHaveFocus()
+  })
+
   it('rejects shorteners and unrelated social hosts while normalizing official links', () => {
     expect(
       validateOfficialLink('facebook', 'https://www.facebook.com/oak?utm_source=test'),
