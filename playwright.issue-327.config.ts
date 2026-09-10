@@ -9,10 +9,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   timeout: 60_000,
   expect: { timeout: 15_000 },
-  reporter: [
-    ['list'],
-    ['json', { outputFile: 'docs/evidence/issue-327/latest-results.json' }],
-  ],
+  reporter: [['list'], ['json', { outputFile: 'docs/evidence/issue-327/latest-results.json' }]],
   use: {
     baseURL: 'http://127.0.0.1:43217',
     trace: 'retain-on-failure',

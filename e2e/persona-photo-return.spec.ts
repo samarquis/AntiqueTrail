@@ -13,10 +13,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 async function expectGalleryControls(page: Page) {
-  for (const control of await page
-    .getByRole('dialog')
-    .getByRole('button')
-    .all()) {
+  for (const control of await page.getByRole('dialog').getByRole('button').all()) {
     const bounds = await control.evaluate((element) => {
       const rect = element.getBoundingClientRect()
       return { width: rect.width, height: rect.height }
