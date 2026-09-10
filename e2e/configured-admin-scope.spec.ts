@@ -109,7 +109,7 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
 test('stale replay and missing assurance fail closed while focus and scoped record survive desktop and phone use', async ({
   page,
 }) => {
-  const aal1 = await service.request('/auth/v1/token?grant_type=password', {
+  const aal1 = await loopbackRequest(input.endpoint, '/auth/v1/token?grant_type=password', {
     key: input.anonKey,
     body: { email: input.actors.admin.email, password: input.actors.admin.password },
   })
