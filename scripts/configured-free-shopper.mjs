@@ -15,6 +15,7 @@ import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
 import { browserReport } from './configured-free-shopper-report.mjs'
 
 const output = createRunDirectory(path.join(ROOT, 'artifacts'))
+const mediaOnly = process.argv.includes('--media-only')
 const report = {
   status: 'unavailable',
   sourceSha: '',
@@ -22,6 +23,7 @@ const report = {
   errors: [],
   evidenceClass: 'real-local-browser',
   ownerFeedback: 'not-collected',
+  scope: mediaOnly ? 'seed-media-desktop-phone' : 'connected-shopper',
 }
 const controller = new AbortController()
 const interrupt = () => controller.abort()
@@ -41,15 +43,12 @@ try {
     path.join(ROOT, 'scripts/configured-free-shopper-fixtures.sql'),
     'utf8',
   )
-  const media = [
-    ['blue-finch-curios-cover.webp', 'clockwork-cabinet.webp'],
-    ['blue-finch-curios-gallery-cabinet.webp', 'clockwork-cabinet-gallery.webp'],
-  ]
+  const media = ['blue-finch-curios-cover.webp', 'blue-finch-curios-gallery-cabinet.webp']
   const provenance = JSON.parse(
     fs.readFileSync(path.join(ROOT, 'docs/evidence/free-private-assets/provenance.json'), 'utf8'),
   )
   const fixtureHash = crypto.createHash('sha256').update(local.fixtureIdentity).update(fixtureSql)
-  for (const [source] of media) {
+  for (const source of media) {
     const relative = `public/images/synthetic-stores/1280w/${source}`
     const bytes = fs.readFileSync(path.join(ROOT, relative))
     const digest = crypto.createHash('sha256').update(bytes).digest('hex')
@@ -101,13 +100,6 @@ try {
     env,
     signal: controller.signal,
   })
-  const mediaDirectory = path.join(build, 'assets/synthetic/stores')
-  fs.mkdirSync(mediaDirectory, { recursive: true })
-  for (const [source, destination] of media)
-    fs.copyFileSync(
-      path.join(ROOT, 'public/images/synthetic-stores/1280w', source),
-      path.join(mediaDirectory, destination),
-    )
   server = spawn(
     process.execPath,
     [
@@ -149,6 +141,9 @@ try {
         'test',
         '--config',
         'e2e/configured-free-shopper-playwright.config.ts',
+        ...(mediaOnly
+          ? ['--grep', 'JIT trip entry, authenticated catalog, photo, save and two-store creation$']
+          : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
@@ -162,7 +157,7 @@ try {
     report.status = 'unavailable'
     report.errors.push('Missing Playwright report')
   } else {
-    const results = browserReport(fs.readFileSync(resultPath, 'utf8'))
+    const results = browserReport(fs.readFileSync(resultPath, 'utf8'), mediaOnly ? 2 : 18)
     report.stats = results.stats
     report.checks = results.checks
     if (results.status !== 'passed') report.status = 'failed'

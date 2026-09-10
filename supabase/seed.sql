@@ -53,5 +53,20 @@ insert into app_public.store_hour_exceptions (store_id,local_date,interval_index
 values ('00000000-0000-4000-8000-000000001001','2026-12-24',1,false,'11:00','15:00','Synthetic winter schedule');
 
 insert into app_public.store_media (store_id,asset_path,kind,alt_text,display_order)
-select id, '/assets/synthetic/stores/' || slug || '.svg', 'cover', 'Illustrated synthetic cover for ' || name, 0
-from app_public.stores where slug not in ('willow-warehouse','velvet-veranda');
+select s.id, m.asset_path, 'cover', 'Illustrated synthetic cover for ' || s.name, 0
+from app_public.stores s
+join (values
+ ('clockwork-cabinet','/images/synthetic-stores/1280w/blue-finch-curios-cover.webp'),
+ ('prairie-patina','/images/synthetic-stores/1280w/prairie-cabinet-cover.webp'),
+ ('juniper-junction','/images/synthetic-stores/1280w/juniper-house-cover.webp'),
+ ('foundry-and-fable','/images/synthetic-stores/1280w/cedar-and-brass-cover.webp'),
+ ('meadow-motif','/images/synthetic-stores/1280w/maple-lantern-cover.webp'),
+ ('northstar-nook','/images/synthetic-stores/1280w/north-star-relics-cover.webp'),
+ ('paper-moon-market','/images/synthetic-stores/1280w/redbud-market-cover.webp'),
+ ('rail-and-ribbon','/images/synthetic-stores/1280w/union-station-vintage-cover.webp'),
+ ('sunroom-salvage','/images/synthetic-stores/1280w/sunflower-salvage-cover.webp'),
+ ('tin-roof-trove','/images/synthetic-stores/1280w/tallgrass-treasures-cover.webp')
+) as m(slug,asset_path) on m.slug=s.slug;
+
+-- willow-warehouse and velvet-veranda intentionally have no media so the
+-- configured catalog retains explicit neutral-placeholder coverage.
