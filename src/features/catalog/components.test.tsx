@@ -481,6 +481,45 @@ describe('trustworthy Store Details contract', () => {
     expect(screen.getByRole('link', { name: /instagram/i })).toHaveAttribute('target', '_blank')
   })
 
+  it('offers in-page Store sections navigation to each following section', async () => {
+    render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
+
+    await screen.findByRole('heading', { level: 1, name: detailedStore.name })
+
+    const nav = screen.getByRole('navigation', { name: 'Store sections' })
+    expect(nav).toBeVisible()
+    const links = within(nav).getAllByRole('link')
+    expect(links.map((link) => link.textContent)).toEqual([
+      'About',
+      'Photos',
+      'Plan your visit',
+      'Source',
+    ])
+    expect(within(nav).getByRole('link', { name: 'About' })).toHaveAttribute(
+      'href',
+      '#about-heading',
+    )
+    expect(within(nav).getByRole('link', { name: 'Photos' })).toHaveAttribute(
+      'href',
+      '#gallery-heading',
+    )
+    expect(within(nav).getByRole('link', { name: 'Plan your visit' })).toHaveAttribute(
+      'href',
+      '#hours-heading',
+    )
+    expect(within(nav).getByRole('link', { name: 'Source' })).toHaveAttribute(
+      'href',
+      '#source-heading',
+    )
+
+    const targets = ['#about-heading', '#gallery-heading', '#hours-heading', '#source-heading']
+    const ids = targets.map((target) => target.slice(1))
+    const headings = screen.getAllByRole('heading')
+    ids.forEach((id) => {
+      expect(headings.some((heading) => heading.id === id)).toBe(true)
+    })
+  })
+
   it('provides a keyboard-operable gallery with failure and enlargement behavior', async () => {
     const user = userEvent.setup()
     render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
