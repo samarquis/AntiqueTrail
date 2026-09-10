@@ -193,8 +193,8 @@ test.describe('Store Details decision-screen contract', () => {
     await page.getByRole('link', { name: 'Back to Blue Finch Curios' }).click()
 
     await expect(page).toHaveURL(/\/stores\/blue-finch-curios$/)
-    await expect(photosLink).toBeFocused()
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(expectedScroll)
+    await expect(photosLink).toBeFocused()
   })
 
   test('reflows at the 320px CSS viewport equivalent to 200% zoom', async ({ page }) => {
