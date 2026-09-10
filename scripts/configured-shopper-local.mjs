@@ -340,7 +340,15 @@ export function createLocalService({ signal, resumeDirectory, browserOrigin } = 
       .replace('[db]', `[db]\nport = ${db}\nshadow_port = ${shadow}`)
       .replace('[inbucket]', `[inbucket]\nport = ${mail}`)
       .replace('[studio]\nenabled = true', '[studio]\nenabled = false')
-    config += `\n[edge_runtime]\nenabled = true\ninspector_port = ${inspector}\n`
+    config += `
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[edge_runtime]
+enabled = true
+inspector_port = ${inspector}
+`
     fs.writeFileSync(path.join(directory, 'supabase/config.toml'), config)
     run.sourceSha = (await runCommand('git', ['rev-parse', 'HEAD'])).trim()
     run.sourceDirty = Boolean(
