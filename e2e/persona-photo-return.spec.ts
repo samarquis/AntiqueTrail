@@ -34,6 +34,13 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
     const photos = page.getByRole('link', { name: /See all 50 photos/i })
     await expect(photos).toBeVisible()
     await photos.click()
+    const expectedDetailsScroll = await page.evaluate(() => {
+      const saved = JSON.parse(
+        window.sessionStorage.getItem('antique-trail:store-return') ?? '{}',
+      ) as { scrollY?: number }
+      return saved.scrollY
+    })
+    expect(expectedDetailsScroll).toEqual(expect.any(Number))
     await expect(page).toHaveURL(/\/stores\/blue-finch-curios\/photos/)
 
     const tiles = page.getByRole('button', { name: /View photo \d+:/ })
@@ -57,6 +64,8 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
     await expect(scrolledTile).toBeFocused()
     await page.getByRole('link', { name: 'Back to Blue Finch Curios' }).click()
     await expect(page.getByRole('heading', { name: 'Blue Finch Curios' })).toBeVisible()
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(expectedDetailsScroll)
+    await expect(photos).toBeFocused()
     await page.getByRole('link', { name: 'Back to Browse' }).click()
     await expect(page).toHaveURL(
       /\/stores\?q=Blue&area=topeka-ks&reviewAs=anonymous&reviewState=success$/,
@@ -89,12 +98,6 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
   test.skip('records the unavailable one-image fixture seam', async () => {
     // The review harness does not expose the demo catalog's one-image store.
     // Do not claim this variant is covered until an owned fixture supplies it.
-  })
-
-  test.fixme('restores Store Details focus after leaving full photos (#337)', async ({ page }) => {
-    await page.goto(reviewUrl('/stores/blue-finch-curios/photos'))
-    await page.getByRole('link', { name: 'Back to Blue Finch Curios' }).click()
-    await expect(page.getByRole('heading', { name: 'Blue Finch Curios' })).toBeFocused()
   })
 
   test('recovers an interrupted private action without a cancelled write', async ({ page }) => {
