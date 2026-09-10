@@ -131,7 +131,9 @@ try {
   local.fixtureIdentity = crypto
     .createHash('sha256')
     .update(local.fixtureIdentity)
-    .update(fs.readFileSync(path.join(ROOT, 'scripts/configured-representative-hours-fixtures.sql')))
+    .update(
+      fs.readFileSync(path.join(ROOT, 'scripts/configured-representative-hours-fixtures.sql')),
+    )
     .digest('hex')
   for (const key of [
     'sourceSha',
