@@ -1136,8 +1136,11 @@ export function DetailsPage({
     requestAnimationFrame(() => {
       returnLink.focus({ preventScroll: true })
       // Some engines still scroll a newly mounted link when it receives focus.
-      // Restore the reading position last so focus and context both survive.
-      window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
+      // Restore on the following frame so the reading position is the final
+      // navigation operation in those engines.
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
+      })
     })
   }, [state.kind, state.store])
   if (state.kind === 'loading')
