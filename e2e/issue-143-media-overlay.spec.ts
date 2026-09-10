@@ -300,7 +300,7 @@ async function expectLightbox(page: Page, touch: boolean, capturePath?: string) 
       return document.activeElement === element
     }),
   ).toBe(false)
-  await expect(dialog.getByRole('status')).toHaveText('Photo 2 of 4')
+  await expect(dialog.getByRole('status')).toHaveText('Photo 2 of 50')
   const controls = [
     dialog.getByRole('button', { name: 'Close enlarged photo' }),
     dialog.getByRole('button', { name: 'Previous photo' }),
@@ -352,13 +352,13 @@ async function expectLightbox(page: Page, touch: boolean, capturePath?: string) 
   })
   expect(overlap).toBe(false)
   await controls[1].click()
-  await expect(dialog.getByRole('status')).toHaveText('Photo 1 of 4')
+  await expect(dialog.getByRole('status')).toHaveText('Photo 1 of 50')
   await controls[1].click()
-  await expect(dialog.getByRole('status')).toHaveText('Photo 4 of 4')
+  await expect(dialog.getByRole('status')).toHaveText('Photo 50 of 50')
   await controls[2].click()
   await controls[2].click()
   await controls[2].click()
-  await expect(dialog.getByRole('status')).toHaveText('Photo 3 of 4')
+  await expect(dialog.getByRole('status')).toHaveText('Photo 3 of 50')
   if (capturePath) await page.screenshot({ path: capturePath })
   await controls[0].click()
   await expect(tile).toBeFocused()
@@ -407,7 +407,7 @@ for (const viewport of viewports) {
                 { selector: '.store-photos__tile-unavailable', count: 3 },
               ]
             : [
-                { selector: '.store-photos__feature-caption', count: 1 },
+                { selector: '.store-photos__feature-caption', count: 2 },
                 { selector: '.store-photos__tile-overlay', count: 3 },
               ],
         )
@@ -459,7 +459,7 @@ for (const viewport of viewports) {
     await expectOpaqueSurfaces(
       page,
       [
-        { selector: '.store-photos__feature-caption', count: 1 },
+        { selector: '.store-photos__feature-caption', count: 2 },
         { selector: '.store-photos__tile-overlay', count: 3 },
       ],
       true,
@@ -595,11 +595,11 @@ test('Store Details consumes the shared forced-colors modal contract', async ({
     page,
     '.store-gallery__room-caption, .store-gallery__room > .media-overlay-position, .store-gallery__room .media-overlay-control',
   )
-  await expect(dialog.getByRole('status')).toHaveText('Photo 1 of 4')
+  await expect(dialog.getByRole('status')).toHaveText('Photo 1 of 50')
   await dialog.getByRole('button', { name: 'Previous photo' }).click()
-  await expect(dialog.getByRole('status')).toHaveText('Photo 4 of 4')
+  await expect(dialog.getByRole('status')).toHaveText('Photo 50 of 50')
   await dialog.getByRole('button', { name: 'Next photo' }).click()
-  await expect(dialog.getByRole('status')).toHaveText('Photo 1 of 4')
+  await expect(dialog.getByRole('status')).toHaveText('Photo 1 of 50')
   await page.keyboard.press('Escape')
   await expect(dialog).toBeHidden()
   await expect(opener).toBeFocused()
@@ -627,7 +627,7 @@ test('delayed decode, keyboard flow, and reduced motion preserve the solid contr
   const tile = page.locator('.store-photos__tile').first()
   await expect(tile.locator('.store-photos__tile-overlay')).toBeVisible()
   await expectOpaqueSurfaces(page, [
-    { selector: '.store-photos__feature-caption', count: 1 },
+    { selector: '.store-photos__feature-caption', count: 2 },
     { selector: '.store-photos__tile-overlay', count: 3 },
   ])
   expect(
@@ -669,7 +669,7 @@ test('WCAG text spacing and unbroken copy remain contained at 320px', async ({
     `,
   })
   await expectOpaqueSurfaces(page, [
-    { selector: '.store-photos__feature-caption', count: 1 },
+    { selector: '.store-photos__feature-caption', count: 2 },
     { selector: '.store-photos__tile-overlay', count: 3 },
   ])
   await expectUnobscured(page, '.store-photos__tile')

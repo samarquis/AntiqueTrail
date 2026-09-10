@@ -1,3 +1,4 @@
+import fixtureMedia from './fixtureMedia.json'
 import type {
   CatalogClient,
   CatalogFilters,
@@ -6,6 +7,12 @@ import type {
   CatalogMedia,
   CatalogStore,
 } from './types'
+
+const syntheticImageRoot = `${import.meta.env.BASE_URL}images/synthetic-stores/1280w`
+const syntheticFixtureRoot = `${import.meta.env.BASE_URL}images/synthetic-fixtures`
+const generatedRights = 'OpenAI-generated fictional image · Internal Alpha only'
+const evaluationFixtureLabel =
+  'Synthetic wall-evaluation fixture · Internal only · Generated template art, not a real store listing'
 
 const names = [
   'Blue Finch Curios',
@@ -21,9 +28,6 @@ const names = [
   'Union Station Vintage',
   'Willow & Wren',
 ]
-
-const syntheticImageRoot = `${import.meta.env.BASE_URL}images/synthetic-stores/1280w`
-const generatedRights = 'OpenAI-generated fictional image · Internal Alpha only'
 
 const coverAltText = [
   'Blue-painted brick storefront with antique lamps, ceramics, and small chests in the windows.',
@@ -54,6 +58,19 @@ const coverImageSlugs = [
   'union-station-vintage',
   'willow-and-wren',
 ]
+
+const fixtureGalleryBySlug = new Map<string, CatalogMedia[]>()
+for (const record of fixtureMedia.records) {
+  const gallery = fixtureGalleryBySlug.get(record.slug) ?? []
+  gallery.push({
+    src: `${syntheticFixtureRoot}/${record.slug}/${record.file}`,
+    alt: record.alt,
+    kind: 'gallery',
+    caption: record.caption,
+    rightsLabel: record.rightsLabel,
+  })
+  fixtureGalleryBySlug.set(record.slug, gallery)
+}
 
 const syntheticMedia: CatalogMedia[][] = names.map((name, index) => {
   const media: CatalogMedia[] = [
@@ -91,6 +108,9 @@ const syntheticMedia: CatalogMedia[][] = names.map((name, index) => {
       },
     )
   }
+
+  const slug = coverImageSlugs[index]
+  media.push(...(fixtureGalleryBySlug.get(slug) ?? []))
 
   return media
 })
@@ -140,6 +160,7 @@ export const syntheticStores: CatalogStore[] = names.map((name, index) => ({
       weekday === 1 ? [] : [{ opensAt: '10:00', closesAt: weekday > 5 ? '16:00' : '18:00' }],
   })),
   media: syntheticMedia[index],
+  fixtureProfile: { label: evaluationFixtureLabel },
   ...(index === 0
     ? {
         phone: '+1-785-555-0101',

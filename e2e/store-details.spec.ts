@@ -120,7 +120,7 @@ test.describe('Store Details decision-screen contract', () => {
     await page.goto('/stores/blue-finch-curios')
     const gallery = page.locator('.store-gallery')
     const choices = page.getByRole('group', { name: 'Choose a store photo' }).getByRole('button')
-    await expect(choices).toHaveCount(4)
+    await expect(choices).toHaveCount(50)
     await expect.poll(() => blockedRequests).toBeGreaterThan(0)
 
     const failedChoice = choices.nth(1)

@@ -22,13 +22,25 @@ describe('Synthetic Store image fixtures', () => {
     expect(covers.every((cover) => cover && existsSync(resolve(`public${cover.src}`)))).toBe(true)
   })
 
+  it('makes every Synthetic Store carry the separately authorized evaluation wall size', () => {
+    for (const store of syntheticStores) {
+      expect(store.media).toHaveLength(50)
+      expect(store.media.every((item) => item.alt.length >= 40)).toBe(true)
+      expect(new Set(store.media.map((item) => item.alt)).size).toBe(store.media.length)
+      expect(new Set(store.media.map((item) => item.src)).size).toBe(store.media.length)
+      expect(store.fixtureProfile).toEqual({
+        label: expect.stringContaining('Internal only'),
+      })
+    }
+  })
+
   it('gives the primary review store distinct cover and gallery photography', () => {
     const blueFinch = syntheticStores.find((store) => store.slug === 'blue-finch-curios')
 
-    expect(blueFinch?.media).toHaveLength(4)
-    expect(blueFinch?.media.filter((media) => media.kind === 'gallery')).toHaveLength(3)
-    expect(new Set(blueFinch?.media.map((media) => media.src)).size).toBe(4)
-    expect(new Set(blueFinch?.media.map((media) => media.alt)).size).toBe(4)
+    expect(blueFinch?.media).toHaveLength(50)
+    expect(blueFinch?.media.filter((media) => media.kind === 'gallery')).toHaveLength(49)
+    expect(new Set(blueFinch?.media.map((media) => media.src)).size).toBe(50)
+    expect(new Set(blueFinch?.media.map((media) => media.alt)).size).toBe(50)
   })
 
   it('keeps a complete primary review fixture and a truthful sparse-data fixture', () => {
@@ -44,7 +56,6 @@ describe('Synthetic Store image fixtures', () => {
       accessibility: { status: 'verified' },
     })
     expect(blueFinch?.hoursExceptions).toHaveLength(1)
-    // Four updates keep the Store Details `See all` (updates > 3) path exercisable (DESIGN_SYSTEM.md:132).
     expect(blueFinch?.updates).toHaveLength(4)
     expect(blueFinch?.socialLinks).toHaveLength(2)
     expect(cedar?.phone).toBeUndefined()

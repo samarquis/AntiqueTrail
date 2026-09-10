@@ -2206,6 +2206,10 @@ main > article dt {
     padding: 1rem clamp(32px, 3vw, 64px);
   }
 
+  .store-detail__evaluation-note {
+    margin: 1rem clamp(32px, 3vw, 64px) 0;
+  }
+
   .store-detail__intro,
   .store-detail__panel,
   .store-detail__provenance {
@@ -2314,6 +2318,27 @@ main > article dt {
   color: var(--ink);
   background: var(--surface-warning);
   font-size: var(--type-size-label);
+}
+
+/* Evaluation-profile marker: visible on every surface that renders the
+   separately authorized fixture-only 50-photo wall so it is never mistaken
+   for a real or public listing. */
+.evaluation-note {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--gold);
+  color: var(--ink);
+  background: var(--surface-warning);
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
+}
+
+.store-detail__evaluation-note {
+  margin: 0.75rem 1rem 0;
+}
+
+.store-photos__evaluation-note {
+  margin: 0.75rem 0 0;
 }
 
 /* Store photo wall — the Archivist's Wall. The gallery is a matte wall
@@ -3048,7 +3073,11 @@ main > article dt {
 
 .store-photos__body {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  /* minmax(0, …) keeps the dense six-track grid from overflowing on sparse
+     runs: without it, implicit and min-content tracks can widen past the
+     container when a run carries large generated fixtures. */
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-columns: minmax(0, 1fr);
   gap: 0.85rem;
   grid-auto-flow: dense;
   align-items: stretch;
@@ -3090,6 +3119,7 @@ main > article dt {
 .store-photos__tile {
   position: relative;
   overflow: hidden;
+  min-width: 0;
   grid-column: span 2;
   aspect-ratio: 4 / 3;
   padding: 0;
@@ -3103,6 +3133,10 @@ main > article dt {
   grid-column: span 2;
   grid-row: span 2;
   aspect-ratio: 3 / 4;
+  /* A dense row holding a 16:9 wide tile makes the two spanned rows tall; the
+     aspect-ratio then tries to widen the tile beyond its two-column span, so
+     clamp it to the grid area it occupies. */
+  max-width: 100%;
 }
 
 .store-photos__tile--wide {
@@ -3263,7 +3297,7 @@ main > article dt {
   }
 
   .store-photos__body {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.6rem;
   }
 
