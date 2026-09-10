@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import { createLocalService, loopbackRequest } from '../scripts/configured-shopper-local.mjs'

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* global AbortController, console, fetch, process, setTimeout */
+/* global AbortController, console, fetch, process, setTimeout, URL */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -117,10 +117,13 @@ try {
       report.variants = Object.fromEntries(
         ['desktop', 'phone'].map((project) => {
           const checks = parsed.checks.filter((check) => check.project === project)
-          return [project, {
-            status: checks.length === 1 ? checks[0].status : 'unavailable',
-            executed: checks.length,
-          }]
+          return [
+            project,
+            {
+              status: checks.length === 1 ? checks[0].status : 'unavailable',
+              executed: checks.length,
+            },
+          ]
         }),
       )
       if (parsed.status !== 'passed') report.status = 'failed'
