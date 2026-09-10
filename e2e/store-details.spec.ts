@@ -192,6 +192,72 @@ test.describe('Store Details decision-screen contract', () => {
     await expectMinimumTargets(page)
   })
 
+  test('pins the Store sections navigation as the only top band on desktop', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.goto('/stores/blue-finch-curios')
+    const nav = page.getByRole('navigation', { name: 'Store sections' })
+    await expect(nav).toBeVisible()
+
+    await expect
+      .poll(() =>
+        page.locator('.site-header').evaluate((element) => getComputedStyle(element).position),
+      )
+      .toBe('static')
+    await expect
+      .poll(() => nav.evaluate((element) => getComputedStyle(element).position))
+      .toBe('sticky')
+
+    for (const [label, target] of [
+      ['Plan your visit', '#hours-heading'],
+      ['Source', '#source-heading'],
+      ['About', '#about-heading'],
+      ['Photos', '#gallery-heading'],
+    ] as const) {
+      await nav.getByRole('link', { name: label }).click()
+      await expect(page).toHaveURL(new RegExp(`${target.replace('#', '\\#')}$`))
+      const scrollMargin = await page
+        .locator(target)
+        .evaluate((heading) => getComputedStyle(heading).scrollMarginTop)
+      expect(Number.parseFloat(scrollMargin), `${target} offsets the pinned band`).toBeGreaterThan(
+        0,
+      )
+      await expect
+        .poll(() => nav.evaluate((element) => getComputedStyle(element).position))
+        .toBe('sticky')
+    }
+
+    await nav.getByRole('link', { name: 'Plan your visit' }).click()
+    const clearance = await page
+      .locator('#hours-heading')
+      .evaluate(
+        (heading, navHeight) => heading.getBoundingClientRect().top - navHeight + 1,
+        await nav.evaluate((element) => element.getBoundingClientRect().height),
+      )
+    expect(clearance, 'the pinned section lands below the navigation').toBeGreaterThanOrEqual(0)
+
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    const back = page.getByRole('link', { name: 'Back to Browse' })
+    await back.scrollIntoViewIfNeeded()
+    await expect(back).toBeInViewport()
+    await expect(back).toBeVisible()
+  })
+
+  test('keeps the Store sections navigation wrapped in narrow layouts', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/stores/blue-finch-curios')
+    const nav = page.getByRole('navigation', { name: 'Store sections' })
+    await expect(nav).toBeVisible()
+    await expect
+      .poll(() => nav.evaluate((element) => getComputedStyle(element).position))
+      .toBe('static')
+    const overflow = await page.evaluate(() => ({
+      body: document.body.scrollWidth - document.body.clientWidth,
+      document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    }))
+    expect(overflow.body).toBeLessThanOrEqual(1)
+    expect(overflow.document).toBeLessThanOrEqual(1)
+  })
+
   test('captures the ordered desktop, tablet, and mobile review views', async ({
     page,
   }, testInfo) => {
