@@ -247,6 +247,8 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
   test.setTimeout(240_000)
   for (let repetition = 0; repetition < 3; repetition++) {
     if (repetition) ownerToken = await login(page, 0, `/trips/${id}/plan`)
+    // Leaving sign-in is not proof that the private return route has finished.
+    await expect(page.getByLabel('Trip name', { exact: true })).toHaveValue(before.name)
     await page.goto('/account')
     await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible()
     // Hold the actual delete transaction after request success but before commit.
