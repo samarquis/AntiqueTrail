@@ -49,10 +49,16 @@ const weeklyClose = (store: string) =>
     .then((result: string) => result.trim())
 
 test.beforeEach(async () => {
-  // Each viewport project uses the same temporary service. Re-arm the scoped
-  // grant before every case so one project's revocation cannot poison the next.
+  // Each viewport project uses the same temporary service. Reset the disposable
+  // scope and fixture row before every case so one project cannot poison the next.
   await service.sql(
-    `update partner_private.store_partner_grants set state='active',revoked_at=null,version=version+1 where grant_id='${input.grantId}';`,
+    `
+      update partner_private.store_partner_grants
+      set state='active', revoked_at=null, version=version+1
+      where grant_id='${input.grantId}';
+      update app_public.store_weekly_hours set closes_at='18:00'
+      where store_id='${ownStore}' and iso_weekday=1 and interval_index=1;
+    `,
   )
 })
 
