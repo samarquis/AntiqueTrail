@@ -1130,30 +1130,12 @@ export function DetailsPage({
     const saved = readStoreReturn(state.store.id)
     const currentHref = `${window.location.pathname}${window.location.search}`
     if (!saved || saved.href !== currentHref) return
-    const returnHeading = document.querySelector<HTMLElement>('.store-detail h1')
-    if (!returnHeading) return
+    const returnLink = document.querySelector<HTMLElement>(`a[href$="/${saved.returnTarget}"]`)
+    if (!returnLink) return
     window.sessionStorage.removeItem(STORE_RETURN_KEY)
-    const root = document.documentElement
-    const previousOverflowAnchor = root.style.overflowAnchor
-    const previousScrollBehavior = root.style.scrollBehavior
-    root.style.overflowAnchor = 'none'
-    root.style.scrollBehavior = 'auto'
-    const restoreScroll = () =>
-      window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
     requestAnimationFrame(() => {
-      returnHeading.tabIndex = -1
-      returnHeading.focus({ preventScroll: true })
-      // Keep scroll anchoring off while images settle so restoring focus does
-      // not pull the shopper away from their saved reading position.
-      requestAnimationFrame(() => {
-        restoreScroll()
-        window.setTimeout(restoreScroll, 100)
-        window.setTimeout(restoreScroll, 500)
-        window.setTimeout(() => {
-          root.style.overflowAnchor = previousOverflowAnchor
-          root.style.scrollBehavior = previousScrollBehavior
-        }, 750)
-      })
+      window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
+      returnLink.focus({ preventScroll: true })
     })
   }, [state.kind, state.store])
   if (state.kind === 'loading')

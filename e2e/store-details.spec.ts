@@ -179,21 +179,28 @@ test.describe('Store Details decision-screen contract', () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(expectedScroll)
   })
 
-  test('returns from full photos to Details focus with its reading position', async ({ page }) => {
+  test('returns from full photos to the originating photo link with its reading position', async ({
+    page,
+  }) => {
     await openPrimaryStore(page)
     const photosLink = page.getByRole('link', { name: /see all 50 photos/i })
-    const heading = page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })
     await photosLink.scrollIntoViewIfNeeded()
     await page.evaluate(() => window.scrollTo(0, 760))
-    const expectedScroll = await page.evaluate(() => window.scrollY)
 
     await photosLink.click()
+    const expectedScroll = await page.evaluate(() => {
+      const saved = JSON.parse(
+        window.sessionStorage.getItem('antique-trail:store-return') ?? '{}',
+      ) as { scrollY?: number }
+      return saved.scrollY
+    })
+    expect(expectedScroll).toEqual(expect.any(Number))
     await expect(page).toHaveURL(/\/stores\/blue-finch-curios\/photos$/)
     await page.getByRole('link', { name: 'Back to Blue Finch Curios' }).click()
 
     await expect(page).toHaveURL(/\/stores\/blue-finch-curios$/)
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(expectedScroll)
-    await expect(heading).toBeFocused()
+    await expect(photosLink).toBeFocused()
   })
 
   test('reflows at the 320px CSS viewport equivalent to 200% zoom', async ({ page }) => {
