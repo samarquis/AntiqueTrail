@@ -72,8 +72,8 @@ async function provisionRepresentative(local) {
       values('${invitation}',decode(repeat('01',32),'hex'),decode(repeat('02',32),'hex'),'${representative.id}','consumed',statement_timestamp());
     insert into partner_private.pending_partner_identities(pending_identity_id,invitation_id,email_hmac,auth_user_id,state,verified_email_at,mfa_verified_at,bound_at)
       values('${pending}','${invitation}',decode(repeat('02',32),'hex'),'${representative.id}','bound',statement_timestamp(),statement_timestamp(),statement_timestamp());
-    insert into partner_private.provisional_partner_consents(provisional_consent_id,pending_identity_id,policy_version,typed_name,business_title,store_name,owner_email_hmac,authority_ack,voluntary_ack,permitted_data_ack,no_payment_endorsement_ack,withdrawal_ack,idempotency_key)
-      values('${provisional}','${pending}','synthetic-v3','Representative','Owner','Clockwork Cabinet',decode(repeat('03',32),'hex'),true,true,true,true,true,'issue322-${representative.id}');
+    insert into partner_private.provisional_partner_consents(provisional_consent_id,invitation_id,pending_identity_id,policy_version,typed_name,business_title,store_name,owner_email_hmac,authority_ack,voluntary_ack,permitted_data_ack,no_payment_endorsement_ack,withdrawal_ack,idempotency_key)
+      values('${provisional}','${invitation}','${pending}','synthetic-v3','Representative','Owner','Clockwork Cabinet',decode(repeat('03',32),'hex'),true,true,true,true,true,'issue322-${representative.id}');
     insert into partner_private.pilot_consent_receipts(consent_receipt_id,provisional_consent_id,pending_identity_id,invitation_id,auth_user_id,verified_email_hmac,policy_version,receipt_checksum)
       values('${receipt}','${provisional}','${pending}','${invitation}','${representative.id}',decode(repeat('02',32),'hex'),'synthetic-v3',decode(repeat('04',32),'hex'));
     insert into partner_private.store_partnerships(partnership_id,pending_identity_id,auth_user_id,store_id,consent_receipt_id,state,started_at)
