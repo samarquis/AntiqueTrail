@@ -398,7 +398,11 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
                   until approval; the immutable submission remains in the audit record.
                 </p>
               )}
-              <button type="button" disabled={isDeciding} onClick={() => void decide(pendingAction)}>
+              <button
+                type="button"
+                disabled={isDeciding}
+                onClick={() => void decide(pendingAction)}
+              >
                 {isDeciding
                   ? 'Applying decision…'
                   : `Confirm ${pendingAction === 'return' ? 'return for changes' : pendingAction}`}

@@ -92,8 +92,7 @@ export function createAdminClient(transport: AdminRpcTransport): AdminClient {
         if (isVersionConflict(result.error)) throw new AdminVersionConflictError()
         throw new Error(GENERIC_ADMIN_FAILURE)
       }
-      if (result.data === null || result.data === undefined)
-        throw new Error(GENERIC_ADMIN_FAILURE)
+      if (result.data === null || result.data === undefined) throw new Error(GENERIC_ADMIN_FAILURE)
       return result.data as T
     } catch (error) {
       if (error instanceof AdminVersionConflictError) throw error

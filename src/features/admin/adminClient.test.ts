@@ -151,8 +151,8 @@ describe('admin RPC client', () => {
       rpc: async () => ({ data: null, error: { message: 'review case version conflict' } }),
     })
 
-    await expect(client.decideCase('case-1', 'approve', 'verified', 3, 'case-1-v3')).rejects.toBeInstanceOf(
-      AdminVersionConflictError,
-    )
+    await expect(
+      client.decideCase('case-1', 'approve', 'verified', 3, 'case-1-v3'),
+    ).rejects.toBeInstanceOf(AdminVersionConflictError)
   })
 })
