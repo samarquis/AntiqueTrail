@@ -70,14 +70,32 @@ export interface AdminClient {
   ): Promise<AdminMergePlan>
 }
 
+/** A safe, action-recovery classification; server detail remains private. */
+export class AdminVersionConflictError extends Error {
+  constructor() {
+    super('Administrator review version conflict.')
+    this.name = 'AdminVersionConflictError'
+  }
+}
+
+function isVersionConflict(error: unknown) {
+  if (!error || typeof error !== 'object' || !('message' in error)) return false
+  const message = (error as { message?: unknown }).message
+  return typeof message === 'string' && /version conflict|stale/i.test(message)
+}
+
 export function createAdminClient(transport: AdminRpcTransport): AdminClient {
   async function call<T>(name: AdminRpcName, args?: Record<string, unknown>): Promise<T> {
     try {
       const result = await transport.rpc(name, args)
-      if (result.error || result.data === null || result.data === undefined)
+      if (result.error) {
+        if (isVersionConflict(result.error)) throw new AdminVersionConflictError()
         throw new Error(GENERIC_ADMIN_FAILURE)
+      }
+      if (result.data === null || result.data === undefined) throw new Error(GENERIC_ADMIN_FAILURE)
       return result.data as T
-    } catch {
+    } catch (error) {
+      if (error instanceof AdminVersionConflictError) throw error
       throw new Error(GENERIC_ADMIN_FAILURE)
     }
   }

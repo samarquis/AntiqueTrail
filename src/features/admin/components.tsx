@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import type { AdminSession } from './types'
 import { canUseAdminBoundary, GENERIC_ADMIN_FAILURE } from './boundary'
 import type { AdminClient } from './adminClient'
-import { unavailableAdminClient } from './adminClient'
+import { AdminVersionConflictError, unavailableAdminClient } from './adminClient'
 import { ViewAuditButton } from './audit'
 import type {
   AdminDecision,
@@ -44,6 +44,7 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
   const [selected, setSelected] = useState<AdminReviewCaseDetail | null>(null)
   const [reason, setReason] = useState('')
   const [pendingAction, setPendingAction] = useState<AdminDecision | null>(null)
+  const [isDeciding, setIsDeciding] = useState(false)
   const [resolvedCase, setResolvedCase] = useState<{
     id: string
     state: string
@@ -61,6 +62,8 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
   const [queueCategory, setQueueCategory] = useState<AdminReviewQueueCategory | null>(null)
   const [knownQueueCategories, setKnownQueueCategories] = useState<AdminReviewQueueCategory[]>([])
   const queueHeading = useRef<HTMLHeadingElement>(null)
+  const refreshCaseButton = useRef<HTMLButtonElement>(null)
+  const decisionInFlight = useRef(false)
   const clientRef = useRef(client)
   clientRef.current = client
 
@@ -108,6 +111,10 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
     setReturnFocusToQueue(false)
   }, [returnFocusToQueue])
 
+  useEffect(() => {
+    if (message.startsWith('This case changed')) refreshCaseButton.current?.focus()
+  }, [message])
+
   async function openCase(reviewCase: AdminReviewCaseSummary) {
     setMessage('')
     try {
@@ -118,7 +125,10 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
   }
 
   async function decide(action: AdminDecision) {
-    if (!selected || !reason.trim()) return
+    if (!selected || !reason.trim() || decisionInFlight.current) return
+    decisionInFlight.current = true
+    setIsDeciding(true)
+    setMessage('')
     try {
       const result = await client.decideCase(
         selected.id,
@@ -147,6 +157,24 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
       setQueueCategory(null)
       setMessage(`Case ${result.state}.`)
       setReturnFocusToQueue(true)
+    } catch (error) {
+      setPendingAction(null)
+      setMessage(
+        error instanceof AdminVersionConflictError
+          ? 'This case changed before your decision could be applied. Refresh the case, then review and reapply your decision.'
+          : GENERIC_ADMIN_FAILURE,
+      )
+    } finally {
+      decisionInFlight.current = false
+      setIsDeciding(false)
+    }
+  }
+
+  async function refreshSelectedCase() {
+    if (!selected || isDeciding) return
+    try {
+      setSelected(await client.getCase(selected.id))
+      setMessage('')
     } catch {
       setMessage(GENERIC_ADMIN_FAILURE)
     }
@@ -188,6 +216,11 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
         <p className="review-queue__message" role="status">
           {message}
         </p>
+      )}
+      {message.startsWith('This case changed') && selected && (
+        <button ref={refreshCaseButton} type="button" onClick={() => void refreshSelectedCase()}>
+          Refresh case
+        </button>
       )}
       {resolvedCase ? (
         <section className="review-queue__outcome" aria-label="Resolved case outcome">
@@ -343,6 +376,7 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
             <textarea
               value={reason}
               maxLength={1000}
+              disabled={isDeciding}
               onChange={(event) => setReason(event.target.value)}
             />
           </label>
@@ -364,10 +398,16 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
                   until approval; the immutable submission remains in the audit record.
                 </p>
               )}
-              <button type="button" onClick={() => void decide(pendingAction)}>
-                Confirm {pendingAction === 'return' ? 'return for changes' : pendingAction}
+              <button
+                type="button"
+                disabled={isDeciding}
+                onClick={() => void decide(pendingAction)}
+              >
+                {isDeciding
+                  ? 'Applying decision…'
+                  : `Confirm ${pendingAction === 'return' ? 'return for changes' : pendingAction}`}
               </button>{' '}
-              <button type="button" onClick={() => setPendingAction(null)}>
+              <button type="button" disabled={isDeciding} onClick={() => setPendingAction(null)}>
                 Cancel decision
               </button>
             </section>
