@@ -3,8 +3,12 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import { createLocalService, loopbackRequest } from '../scripts/configured-shopper-local.mjs'
 
-const input = JSON.parse(fs.readFileSync(process.env.CONFIGURED_ADMIN_SCOPE_INPUT!, 'utf8'))
-const service = createLocalService({ resumeDirectory: input.directory })
+const inputPath = process.env.CONFIGURED_ADMIN_SCOPE_INPUT
+const input: any = inputPath
+  ? JSON.parse(fs.readFileSync(inputPath, 'utf8'))
+  : { stores: { target: '', sibling: '' }, actors: { admin: {}, subject: {} } }
+const service = inputPath ? createLocalService({ resumeDirectory: input.directory }) : null
+test.skip(!inputPath, 'configured Administrator scope input is required')
 const target = input.stores.target as string
 const sibling = input.stores.sibling as string
 const base32 = (value: string) => {
@@ -38,7 +42,7 @@ const totp = (secret: string) => {
   ).padStart(6, '0')
 }
 const read = (store: string) =>
-  service
+  service!
     .sql(
       `select json_build_object('partner',g.state,'role',(select state from app_private.role_grants r where r.subject_user_id=g.auth_user_id and r.role='representative' and r.store_id=g.store_id order by granted_at desc limit 1),'actions',(select count(*) from admin_private.admin_scope_actions a where a.store_id=g.store_id),'audit',(select count(*) from app_private.privileged_audit_events e where e.action in ('admin_scope_revoke','admin_scope_regrant'))) from partner_private.store_partner_grants g where g.auth_user_id='${input.actors.subject.id}' and g.store_id='${store}' order by g.granted_at desc limit 1;`,
     )
