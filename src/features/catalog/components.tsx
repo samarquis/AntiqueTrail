@@ -1133,13 +1133,19 @@ export function DetailsPage({
     const returnLink = document.querySelector<HTMLElement>(`a[href$="/${saved.returnTarget}"]`)
     if (!returnLink) return
     window.sessionStorage.removeItem(STORE_RETURN_KEY)
+    const root = document.documentElement
+    const previousOverflowAnchor = root.style.overflowAnchor
+    root.style.overflowAnchor = 'none'
     requestAnimationFrame(() => {
       returnLink.focus({ preventScroll: true })
       // Some engines still scroll a newly mounted link when it receives focus.
-      // Restore on the following frame so the reading position is the final
-      // navigation operation in those engines.
+      // Keep scroll anchoring off while images settle so the focused link does
+      // not pull the shopper away from their saved reading position.
       requestAnimationFrame(() => {
         window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
+        window.setTimeout(() => {
+          root.style.overflowAnchor = previousOverflowAnchor
+        }, 1_000)
       })
     })
   }, [state.kind, state.store])
