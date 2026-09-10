@@ -145,10 +145,10 @@ async function captureGallery(browser, baseURL) {
       .waitFor({ state: 'visible' })
     const choices = page.locator('.store-gallery__choices button')
     await choices.nth(3).waitFor({ state: 'visible' })
-    await expectCount(choices, 4, 'Blue Finch gallery choices')
-    await loadAndVerifyImages(page.locator('.store-gallery img'), 5, 'Blue Finch gallery images')
+    await expectCount(choices, 50, 'Blue Finch gallery choices')
+    await loadAndVerifyImages(page.locator('.store-gallery img'), 51, 'Blue Finch gallery images')
 
-    for (let index = 0; index < 4; index += 1) {
+    for (let index = 0; index < 50; index += 1) {
       await choices.nth(index).click()
       const selected = choices.nth(index)
       if ((await selected.getAttribute('aria-pressed')) !== 'true') {

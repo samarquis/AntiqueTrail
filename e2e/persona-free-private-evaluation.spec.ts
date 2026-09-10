@@ -24,7 +24,7 @@ test.describe('issue 251 free private evaluation personas', () => {
     const galleryChoices = page
       .getByRole('group', { name: 'Choose a store photo' })
       .getByRole('button')
-    await expect(galleryChoices).toHaveCount(4)
+    await expect(galleryChoices).toHaveCount(50)
     await galleryChoices.nth(1).click()
     await expect(galleryChoices.nth(1)).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByRole('button', { name: /^Enlarge image:/ })).toBeVisible()

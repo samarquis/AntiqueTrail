@@ -1204,6 +1204,12 @@ export function DetailsPage({
             </CatalogLink>
           </p>
         )}
+        {store.fixtureProfile && store.media.length > 0 && (
+          <p className="evaluation-note store-detail__evaluation-note">
+            {store.fixtureProfile.label} · these {store.media.length} wall records are
+            evaluation-only and are not a public photo allowance.
+          </p>
+        )}
 
         <StoreSectionNav />
 

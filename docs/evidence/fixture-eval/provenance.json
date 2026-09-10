@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "seed": "antique-trail-synthetic-wall-evaluation-v1",
+  "generator": "scripts/generate-synthetic-wall-fixtures.mjs",
+  "designatedSlugs": [
+    "blue-finch-curios",
+    "cedar-and-brass",
+    "elm-street-finds",
+    "juniper-house",
+    "maple-lantern",
+    "north-star-relics",
+    "prairie-cabinet",
+    "redbud-market",
+    "sunflower-salvage",
+    "tallgrass-treasures",
+    "union-station-vintage",
+    "willow-and-wren"
+  ],
+  "recordsPerStoreTarget": 50,
+  "perStoreGalleryCount": {
+    "blue-finch-curios": 46,
+    "cedar-and-brass": 49,
+    "elm-street-finds": 49,
+    "juniper-house": 49,
+    "maple-lantern": 49,
+    "north-star-relics": 49,
+    "prairie-cabinet": 49,
+    "redbud-market": 49,
+    "sunflower-salvage": 49,
+    "tallgrass-treasures": 49,
+    "union-station-vintage": 49,
+    "willow-and-wren": 49
+  },
+  "totalGalleryRecords": 585,
+  "totalEvaluatedRecordsPerStoreIncludingCoverAndExtras": {
+    "blue-finch-curios": 50,
+    "cedar-and-brass": 50,
+    "elm-street-finds": 50,
+    "juniper-house": 50,
+    "maple-lantern": 50,
+    "north-star-relics": 50,
+    "prairie-cabinet": 50,
+    "redbud-market": 50,
+    "sunflower-salvage": 50,
+    "tallgrass-treasures": 50,
+    "union-station-vintage": 50,
+    "willow-and-wren": 50
+  },
+  "coverExtras": {
+    "blue-finch-curios": 3
+  },
+  "blueFinchExtraFiles": [
+    "blue-finch-curios-gallery-aisle.webp",
+    "blue-finch-curios-gallery-vignette.webp",
+    "blue-finch-curios-gallery-cabinet.webp"
+  ],
+  "coverFiles": {
+    "blue-finch-curios": "blue-finch-curios-cover.webp",
+    "cedar-and-brass": "cedar-and-brass-cover.webp",
+    "elm-street-finds": "elm-street-finds-cover.webp",
+    "juniper-house": "juniper-house-cover.webp",
+    "maple-lantern": "maple-lantern-cover.webp",
+    "north-star-relics": "north-star-relics-cover.webp",
+    "prairie-cabinet": "prairie-cabinet-cover.webp",
+    "redbud-market": "redbud-market-cover.webp",
+    "sunflower-salvage": "sunflower-salvage-cover.webp",
+    "tallgrass-treasures": "tallgrass-treasures-cover.webp",
+    "union-station-vintage": "union-station-vintage-cover.webp",
+    "willow-and-wren": "willow-and-wren-cover.webp"
+  },
+  "rightsLabel": "Synthetic wall-evaluation fixture image · Internal only · Generated from stored templates",
+  "fileInventoryDigest": "bcb37c784185e647bf8d4b0e5635ebbe52b0fea65d7dccf751e7d812a92adade",
+  "note": "Locally hosted deterministic SVG wall fixtures for the separately authorized issue #309 evaluation profile. Not a public tier; real media stays gated."
+}

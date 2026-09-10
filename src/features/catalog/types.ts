@@ -70,6 +70,7 @@ export interface CatalogStore {
   asOfUtc?: string | null
   hours: CatalogHoursDay[]
   media: CatalogMedia[]
+  fixtureProfile?: { label: string } | null
 }
 
 export interface CatalogFilters {

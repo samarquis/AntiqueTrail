@@ -329,6 +329,11 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
           <p className="store-photos__count">
             {media.length} {media.length === 1 ? 'photo' : 'photos'}
           </p>
+          {store.fixtureProfile && (
+            <p className="evaluation-note store-photos__evaluation-note">
+              {store.fixtureProfile.label}
+            </p>
+          )}
         </header>
 
         <section className="store-photos__body" aria-labelledby="store-photos-heading">

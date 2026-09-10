@@ -2206,6 +2206,10 @@ main > article dt {
     padding: 1rem clamp(32px, 3vw, 64px);
   }
 
+  .store-detail__evaluation-note {
+    margin: 1rem clamp(32px, 3vw, 64px) 0;
+  }
+
   .store-detail__intro,
   .store-detail__panel,
   .store-detail__provenance {
@@ -2314,6 +2318,27 @@ main > article dt {
   color: var(--ink);
   background: var(--surface-warning);
   font-size: var(--type-size-label);
+}
+
+/* Evaluation-profile marker: visible on every surface that renders the
+   separately authorized fixture-only 50-photo wall so it is never mistaken
+   for a real or public listing. */
+.evaluation-note {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--gold);
+  color: var(--ink);
+  background: var(--surface-warning);
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
+}
+
+.store-detail__evaluation-note {
+  margin: 0.75rem 1rem 0;
+}
+
+.store-photos__evaluation-note {
+  margin: 0.75rem 0 0;
 }
 
 /* Store photo wall — the Archivist's Wall. The gallery is a matte wall

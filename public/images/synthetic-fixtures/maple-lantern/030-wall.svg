@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="960" viewBox="0 0 1280 960">
+<rect x="0" y="0" width="1280" height="430" fill="#dbbb9d"/>
+<rect x="0" y="430" width="1280" height="218" fill="#c9a181"/>
+<rect x="0" y="424" width="1280" height="6" fill="#000000" opacity="0.08"/>
+<path d="M 575 648 L 575 328 Q 680 178 785 328 L 785 648 Z" fill="#2f3b45" opacity="0.5"/>
+<rect x="855" y="180" width="170" height="230" fill="#8a512f"/>
+<rect x="869" y="196" width="142" height="158" fill="#e3c67e"/>
+<rect x="881" y="252" width="110" height="46" fill="#8a512f"/>
+<rect x="0" y="648" width="1280" height="312" fill="#e0d2b3"/>
+<line x1="0" y1="848" x2="1280" y2="848" stroke="#000000" stroke-width="2" opacity="0.1"/>
+<line x1="0" y1="903" x2="1280" y2="903" stroke="#000000" stroke-width="2" opacity="0.08"/>
+<ellipse cx="332.9660144308582" cy="827.6339905317873" rx="260" ry="70" fill="#8a512f" opacity="0.55"/>
+<rect x="0" y="638" width="1280" height="14" fill="#4a4033"/>
+<rect x="0" y="652" width="1280" height="4" fill="#d8cfb8" opacity="0.55"/>
+<g transform="translate(70 0)"><rect x="10.9" y="-62.1" width="196.1" height="62.1" fill="#8a512f"/><rect x="30.5" y="-129.4" width="156.9" height="62.1" fill="#e3c67e"/><rect x="50.1" y="-196.7" width="117.6" height="62.1" fill="#8a512f"/><rect x="50.1" y="-207" width="117.6" height="15.5" fill="#241d16"/></g><ellipse cx="178.9" cy="644" rx="95.9" ry="15.3" fill="#000000" opacity="0.14"/>
+<g transform="translate(730.1 0) scale(-1 1)"><path d="M 38 0 L 15.2 -136.2 L 174.8 -136.2 L 152 0 Z" fill="#e3c67e"/><line x1="17.3" y1="-52.7" x2="172.7" y2="-52.7" stroke="#2f3b45" stroke-width="4"/><line x1="3.9" y1="-96.7" x2="186.1" y2="-96.7" stroke="#2f3b45" stroke-width="4"/><line x1="9.3" y1="-140.6" x2="180.7" y2="-140.6" stroke="#2f3b45" stroke-width="4"/><path d="M 57 -136.2 Q 95 -184.5 133 -136.2" fill="none" stroke="#2f3b45" stroke-width="11.4" stroke-linecap="round"/></g><ellipse cx="635" cy="644" rx="83.6" ry="13.3" fill="#000000" opacity="0.14"/>
+<g transform="translate(990 0)"><circle cx="95.1" cy="-100" r="53.2" fill="#8a512f"/><ellipse cx="95.1" cy="-100" rx="23.9" ry="55.9" fill="none" stroke="#8a512f" stroke-width="3"/><path d="M 41.9 -100 A 53.2 18.6 0 0 1 148.3 -100" fill="none" stroke="#8a512f" stroke-width="3"/><rect x="83.7" y="-100" width="22.8" height="92" fill="#8a512f"/><ellipse cx="95.1" cy="-8" rx="53.2" ry="10" fill="#8a512f"/></g><ellipse cx="1085.1" cy="644" rx="83.7" ry="13.3" fill="#000000" opacity="0.14"/>
+<text x="1260" y="938" font-family="sans-serif" font-size="22" text-anchor="end" fill="#4a4033" opacity="0.6">Synthetic evaluation fixture · 31 of 50</text>
+</svg>
