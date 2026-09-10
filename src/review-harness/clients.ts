@@ -2971,6 +2971,7 @@ export function createReviewHarnessClients(
     removalRequested: false,
   }))
   const promotion = createPromotionClient(async (name, args) => {
+    requireRole(scenario, ['Representative'], true)
     if (state !== 'success') throw new Error('Synthetic promotion unavailable')
     if (name === 'promotion_channels') return structuredClone(promotionPermissions)
     const permission = promotionPermissions.find((p) => p.channel === args.p_channel)
