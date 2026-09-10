@@ -332,6 +332,7 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const errorSummaryRef = useRef<HTMLParagraphElement | null>(null)
   useEffect(() => {
     let cancelled = false
     client
@@ -346,6 +347,9 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
       cancelled = true
     }
   }, [client])
+  useEffect(() => {
+    if (error && hours) errorSummaryRef.current?.focus()
+  }, [error, hours])
   if (error && !hours)
     return (
       <PortalCard title="Hours & holidays" description="Keep the public schedule current.">
@@ -385,7 +389,7 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
       description={`Publishes Immediately · Store timezone: ${currentHours.timeZone}`}
     >
       <PortalNav />
-      <form onSubmit={submit}>
+      <form aria-describedby={error ? 'hours-error' : undefined} onSubmit={submit}>
         <fieldset>
           <legend>Weekly hours</legend>
           {currentHours.weekly.map((day) => {
@@ -631,7 +635,11 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
             }
           />
         </fieldset>
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p ref={errorSummaryRef} id="hours-error" role="alert" tabIndex={-1}>
+            {error}
+          </p>
+        )}
         {status && <p role="status">{status}</p>}
         <button className="button" type="submit" disabled={pending}>
           {pending ? 'Saving…' : 'Save hours'}
