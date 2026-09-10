@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global process, console, AbortController, Buffer, URL, fetch, setTimeout */
 /* #323 local-only, redacted Administrator scope diagnostic. */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -223,7 +224,9 @@ try {
         ready = true
         break
       }
-    } catch {}
+    } catch {
+      // Readiness only; the eventual timeout makes the unavailable state explicit.
+    }
     await wait(500)
   }
   if (!ready) throw new Error('Configured Administrator preview unavailable')
