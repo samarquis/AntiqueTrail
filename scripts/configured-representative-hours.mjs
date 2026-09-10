@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* global process, console, fetch, URL, AbortController, setTimeout */
+/* global process, console, fetch, URL, AbortController, AbortSignal, Buffer, setTimeout */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -128,6 +128,11 @@ try {
   report.temporaryProject = service.run.directory
   const local = await service.start()
   const fixture = await provisionRepresentative(local)
+  local.fixtureIdentity = crypto
+    .createHash('sha256')
+    .update(local.fixtureIdentity)
+    .update(fs.readFileSync(path.join(ROOT, 'scripts/configured-representative-hours-fixtures.sql')))
+    .digest('hex')
   for (const key of [
     'sourceSha',
     'sourceDirty',

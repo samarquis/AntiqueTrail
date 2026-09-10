@@ -3,13 +3,20 @@ import test from 'node:test'
 import { representativeHoursReport } from './configured-representative-hours-report.mjs'
 
 const passing = JSON.stringify({
-  stats: { expected: 2, unexpected: 0, skipped: 0, flaky: 0 },
+  stats: { expected: 4, unexpected: 0, skipped: 0, flaky: 0 },
   errors: [],
   suites: [
     {
       specs: [
         {
-          title: 'case',
+          title: 'publish',
+          tests: [
+            { projectName: 'desktop', results: [{ status: 'passed' }] },
+            { projectName: 'phone', results: [{ status: 'passed' }] },
+          ],
+        },
+        {
+          title: 'revoke',
           tests: [
             { projectName: 'desktop', results: [{ status: 'passed' }] },
             { projectName: 'phone', results: [{ status: 'passed' }] },
@@ -22,7 +29,7 @@ const passing = JSON.stringify({
 
 test('representative hours report requires every configured browser case', () => {
   assert.equal(representativeHoursReport(passing).status, 'passed')
-  assert.equal(representativeHoursReport(passing, 3).status, 'failed')
+  assert.equal(representativeHoursReport(passing, 5).status, 'failed')
 })
 
 test('representative hours report rejects malformed and failed reports', () => {

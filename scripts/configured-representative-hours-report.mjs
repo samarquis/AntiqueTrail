@@ -1,4 +1,4 @@
-export function representativeHoursReport(text, expected = 2) {
+export function representativeHoursReport(text, expected = 4) {
   const result = JSON.parse(text)
   const stats = result?.stats
   if (!stats || !Array.isArray(result.suites) || !Array.isArray(result.errors))

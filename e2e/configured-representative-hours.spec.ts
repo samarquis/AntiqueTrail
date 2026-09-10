@@ -85,7 +85,11 @@ test('Representative publishes exact-store Monday hours through real Auth and MF
     await shopperPage.getByLabel('Password', { exact: true }).fill(input.users[1].password)
     await shopperPage.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(shopperPage).toHaveURL(/\/stores\/clockwork-cabinet$/)
-    await expect(shopperPage.getByText(/7:45 PM/)).toBeVisible()
+    await expect(
+      shopperPage.getByText(
+        process.env.CONFIGURED_REPRESENTATIVE_HOURS_WRONG_READBACK === '1' ? /6:45 PM/ : /7:45 PM/,
+      ),
+    ).toBeVisible()
   } finally {
     await shopper.close()
   }
