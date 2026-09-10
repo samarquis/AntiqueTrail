@@ -7,6 +7,45 @@ const good = {
   suites: [],
   errors: [],
 }
+test('failure diagnostics expose only source line and fixed classifications', () => {
+  const report = browserReport(
+    JSON.stringify({
+      ...good,
+      suites: [
+        {
+          specs: [
+            {
+              title: 'session scenario',
+              tests: [
+                {
+                  projectName: 'desktop',
+                  results: [
+                    {
+                      status: 'failed',
+                      error: {
+                        message:
+                          'expect.toHaveText: strict mode violation. Bearer private-token person@private.invalid',
+                        stack:
+                          'at /workspace/e2e/configured-free-shopper.spec.ts:123:4\nBearer private-token',
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+  )
+  assert.deepEqual(report.checks[0].failure, {
+    sourceLine: 123,
+    assertion: 'toHaveText',
+    timeout: false,
+    strictLocator: true,
+  })
+  assert.doesNotMatch(JSON.stringify(report.checks), /private-token|private.invalid|Bearer/)
+})
 test('browser reporting rejects malformed, absent, incomplete, skipped, flaky and failed evidence', () => {
   for (const input of ['{', 'null', '{}', JSON.stringify({ ...good, stats: { expected: 16 } })])
     assert.throws(() => browserReport(input))

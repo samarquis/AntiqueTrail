@@ -15,15 +15,23 @@ import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
 import { browserReport } from './configured-free-shopper-report.mjs'
 
 const output = createRunDirectory(path.join(ROOT, 'artifacts'))
+const sessionSignout = process.argv.includes('--session-signout')
 const mediaOnly = process.argv.includes('--media-only')
 const report = {
+  scope:
+    sessionSignout && mediaOnly
+      ? 'invalid'
+      : sessionSignout
+        ? 'session-signout'
+        : mediaOnly
+          ? 'seed-media-desktop-phone'
+          : 'connected-shopper',
   status: 'unavailable',
   sourceSha: '',
   cleanup: 'not-started',
   errors: [],
   evidenceClass: 'real-local-browser',
   ownerFeedback: 'not-collected',
-  scope: mediaOnly ? 'seed-media-desktop-phone' : 'connected-shopper',
 }
 const controller = new AbortController()
 const interrupt = () => controller.abort()
@@ -32,6 +40,7 @@ process.on('SIGTERM', interrupt)
 let service, server
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
+  if (sessionSignout && mediaOnly) throw new Error('Choose one configured acceptance scope')
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
     throw new Error('External endpoint selection is forbidden')
   const origin = `http://127.0.0.1:${await freePort()}`
@@ -141,9 +150,17 @@ try {
         'test',
         '--config',
         'e2e/configured-free-shopper-playwright.config.ts',
-        ...(mediaOnly
-          ? ['--grep', 'JIT trip entry, authenticated catalog, photo, save and two-store creation$']
-          : []),
+        ...(sessionSignout
+          ? [
+              '--grep',
+              '(sibling context, sign-out, and account switch deny private trip reads and writes|revoked session denies next UI mutation with feedback and unchanged backend)$',
+            ]
+          : mediaOnly
+            ? [
+                '--grep',
+                'JIT trip entry, authenticated catalog, photo, save and two-store creation$',
+              ]
+            : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
@@ -157,7 +174,10 @@ try {
     report.status = 'unavailable'
     report.errors.push('Missing Playwright report')
   } else {
-    const results = browserReport(fs.readFileSync(resultPath, 'utf8'), mediaOnly ? 2 : 18)
+    const results = browserReport(
+      fs.readFileSync(resultPath, 'utf8'),
+      sessionSignout ? 4 : mediaOnly ? 2 : 18,
+    )
     report.stats = results.stats
     report.checks = results.checks
     if (results.status !== 'passed') report.status = 'failed'

@@ -91,8 +91,10 @@ describe('PasswordReplacementPage', () => {
     await user.click(screen.getByRole('button', { name: 'Set new password' }))
     expect(screen.getByRole('button', { name: 'Updating password…' })).toBeDisabled()
     resolve?.({ kind: 'completed' })
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'Password updated. Sign in with your new password.',
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Password updated. Sign in with your new password.',
+      ),
     )
     await waitFor(() => expect(signOut).toHaveBeenCalledOnce())
     expect(screen.queryByLabelText('New password')).not.toBeInTheDocument()

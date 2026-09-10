@@ -127,13 +127,30 @@ export function createAuthProvider<
   refreshStorage: RefreshSessionStorage = new IndexedDbRefreshSessionStorage(),
 ): AuthProviderAdapter {
   const challenges = new Map<string, { factorId: string; session: ProviderSession }>()
-  const remember = async (session: Session) => {
-    await refreshStorage
-      .write({ userId: session.user.id, refreshToken: session.refresh_token })
+  let acceptingSessions = true
+  let providerUserId: string | undefined
+  let storageWork = Promise.resolve()
+  const remember = (session: Session) => {
+    if (!acceptingSessions) return Promise.resolve()
+    providerUserId = session.user.id
+    storageWork = storageWork
+      .then(() =>
+        refreshStorage.write({ userId: session.user.id, refreshToken: session.refresh_token }),
+      )
       .catch(() => undefined)
+    return storageWork
+  }
+  const clearMaterial = () => {
+    acceptingSessions = false
+    storageWork = storageWork.then(
+      () => refreshStorage.clear(),
+      () => refreshStorage.clear(),
+    )
+    return storageWork
   }
   return {
     async signIn(email, password) {
+      acceptingSessions = true
       const result = await supabase.auth.signInWithPassword({ email, password })
       if (result.error || !result.data.session) return { kind: 'error' }
       await remember(result.data.session)
@@ -195,6 +212,7 @@ export function createAuthProvider<
         : { kind: 'error' }
     },
     async verifyCallback(kind, tokenHash) {
+      acceptingSessions = true
       const result = await supabase.functions.invoke('account-registration-callback', {
         body: { kind, tokenHash },
       })
@@ -242,6 +260,7 @@ export function createAuthProvider<
       if (error) throw new Error('Provider redirect unavailable.')
     },
     async oauthCallback(code, oauthError) {
+      acceptingSessions = true
       if (!code || oauthError) return { kind: 'error' }
       const exchanged = await supabase.auth.exchangeCodeForSession(code)
       if (exchanged.error || !exchanged.data.session) return { kind: 'error' }
@@ -277,8 +296,9 @@ export function createAuthProvider<
     },
     onSessionChange(listener) {
       const subscription = supabase.auth.onAuthStateChange((event, session) => {
+        if (!acceptingSessions || (event === 'INITIAL_SESSION' && !session)) return
         if (!session || event === 'SIGNED_OUT') {
-          void refreshStorage.clear().catch(() => undefined)
+          void clearMaterial().catch(() => undefined)
           listener(null)
           return
         }
@@ -288,13 +308,20 @@ export function createAuthProvider<
       return () => subscription.data.subscription.unsubscribe()
     },
     async clearSessionMaterial() {
-      await refreshStorage.clear()
+      await clearMaterial()
     },
-    async signOut() {
+    async signOut(session) {
+      if (providerUserId && providerUserId !== session.userId) {
+        // Account-switch cleanup must not sign out the newly installed identity.
+        const result = await supabase.auth.admin.signOut(session.accessToken, 'local')
+        if (result.error) throw result.error
+        return
+      }
+      acceptingSessions = false
       try {
         await supabase.auth.signOut({ scope: 'local' })
       } finally {
-        await refreshStorage.clear().catch(() => undefined)
+        await clearMaterial()
       }
     },
   }
@@ -576,8 +603,10 @@ export async function configuredComposition(
     },
   )
   const sessionRegistry = createRpcSessionRegistry({
-    async invoke(command, payload) {
-      const result = await supabase.rpc(command, payload)
+    async invoke(command, payload, session) {
+      const result = await supabase
+        .rpc(command, payload)
+        .setHeader('Authorization', `Bearer ${session.accessToken}`)
       if (result.error) throw result.error
       return result.data
     },

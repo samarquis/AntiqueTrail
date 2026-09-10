@@ -46,6 +46,17 @@ export class IndexedDbRefreshSessionStorage implements RefreshSessionStorage {
     return (await this.database()).transaction(STORE_NAME, mode).objectStore(STORE_NAME)
   }
 
+  private commit(store: IDBObjectStore, mutate: () => void): Promise<void> {
+    return new Promise((resolve, reject) => {
+      store.transaction.oncomplete = () => resolve()
+      store.transaction.onabort = () =>
+        reject(store.transaction.error ?? new Error('IndexedDB transaction aborted.'))
+      store.transaction.onerror = () =>
+        reject(store.transaction.error ?? new Error('IndexedDB transaction failed.'))
+      mutate()
+    })
+  }
+
   async read(): Promise<RefreshSessionMaterial | null> {
     const value = await requestResult<RefreshSessionMaterial | undefined>(
       (await this.store('readonly')).get(RECORD_KEY),
@@ -57,11 +68,13 @@ export class IndexedDbRefreshSessionStorage implements RefreshSessionStorage {
 
   async write(material: RefreshSessionMaterial): Promise<void> {
     if (!material.userId || !material.refreshToken) throw new Error('Invalid refresh material.')
-    await requestResult((await this.store('readwrite')).put(material, RECORD_KEY))
+    const store = await this.store('readwrite')
+    await this.commit(store, () => store.put(material, RECORD_KEY))
   }
 
   async clear(): Promise<void> {
-    await requestResult((await this.store('readwrite')).delete(RECORD_KEY))
+    const store = await this.store('readwrite')
+    await this.commit(store, () => store.delete(RECORD_KEY))
   }
 }
 

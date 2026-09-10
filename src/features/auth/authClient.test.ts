@@ -4,6 +4,7 @@ import {
   InMemorySessionRegistry,
   createRpcSessionRegistry,
   toAuthSession,
+  type SessionRegistryTransport,
 } from './authClient'
 
 const providerSession = {
@@ -55,18 +56,20 @@ describe('in-memory auth boundary', () => {
     expect(await registry.isActive(session)).toBe(false)
   })
 
-  it('uses the server session registry without sending access tokens', async () => {
-    const invoke = vi.fn(async () => true)
+  it('binds registry operations to their session without putting credentials in RPC payloads', async () => {
+    const invoke = vi.fn<SessionRegistryTransport['invoke']>(async () => true)
     const registry = createRpcSessionRegistry({ invoke })
     const session = toAuthSession(providerSession)
     await registry.registerCurrentSession(session)
     await expect(registry.isActive(session)).resolves.toBe(true)
     await registry.revoke(session, 'user_sign_out')
     expect(invoke.mock.calls).toEqual([
-      ['register_current_session', { access_token_expires_at: session.expiresAt }],
-      ['current_session_is_active', {}],
-      ['revoke_current_session', { reason: 'user_sign_out' }],
+      ['register_current_session', { access_token_expires_at: session.expiresAt }, session],
+      ['current_session_is_active', {}, session],
+      ['revoke_current_session', { reason: 'user_sign_out' }, session],
     ])
-    expect(JSON.stringify(invoke.mock.calls)).not.toContain(session.accessToken)
+    expect(JSON.stringify(invoke.mock.calls.map((call) => call[1]))).not.toContain(
+      session.accessToken,
+    )
   })
 })

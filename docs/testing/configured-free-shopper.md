@@ -8,6 +8,15 @@ npx playwright install chromium
 npm run test:e2e:configured-shopper
 ```
 
+For issue #306's bounded session acceptance, run
+`npm run test:e2e:configured-shopper -- --session-signout`. The report explicitly records
+`scope: session-signout` and requires all four selected results: sign-out/account-switch
+and revoked-next-mutation at desktop and phone widths. Each sign-out scenario repeats
+three times with a real IndexedDB transaction blocking cleanup, immediate navigation
+and reload, durable-material absence, and stale-token private read/write denial. This
+scoped result does not pass the other shopper journeys; preserve full-suite failures.
+The `--session-signout` and `--media-only` scopes are mutually exclusive; selecting both fails before service startup.
+
 The command reuses #243's `createLocalService`: pinned local Supabase, a unique temporary
 project, unused loopback ports, current migrations/functions/seed, two real GoTrue users,
 and scoped cleanup. It builds the ordinary production application with the run's public

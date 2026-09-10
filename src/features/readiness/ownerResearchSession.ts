@@ -7,12 +7,16 @@ export function createOwnerResearchSession(supabase: {
   rpc(
     command: string,
     payload: Readonly<Record<string, unknown>>,
-  ): PromiseLike<{ data: unknown; error: unknown }>
+  ): {
+    setHeader(name: string, value: string): PromiseLike<{ data: unknown; error: unknown }>
+  }
 }) {
   let registeredToken: string | undefined
   const registry = createRpcSessionRegistry({
-    async invoke(command, payload) {
-      const result = await supabase.rpc(command, payload)
+    async invoke(command, payload, session) {
+      const result = await supabase
+        .rpc(command, payload)
+        .setHeader('Authorization', `Bearer ${session.accessToken}`)
       if (result.error) throw result.error
       return result.data
     },

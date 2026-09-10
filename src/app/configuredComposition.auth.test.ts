@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createAuthProvider } from './configuredComposition'
+import { toAuthSession } from '../features/auth/authClient'
 
 describe('configured authoritative account operations', () => {
   it('uses one server registration operation and never calls browser provider signup', async () => {
@@ -100,5 +101,94 @@ describe('configured authoritative account operations', () => {
       refresh_token: 'verified-refresh',
     })
     expect(signOut).not.toHaveBeenCalled()
+  })
+})
+
+describe('sign-out refresh races', () => {
+  it('revokes a replaced account without clearing the new provider session or refresh material', async () => {
+    let event!: (kind: string, session: unknown) => void
+    const clear = vi.fn(async () => undefined)
+    const write = vi.fn(async () => undefined)
+    const currentSignOut = vi.fn(async () => ({ error: null }))
+    const oldSignOut = vi.fn(async () => ({ error: null }))
+    const provider = createAuthProvider(
+      {
+        auth: {
+          signOut: currentSignOut,
+          admin: { signOut: oldSignOut },
+          onAuthStateChange: (listener: typeof event) => {
+            event = listener
+            return { data: { subscription: { unsubscribe: vi.fn() } } }
+          },
+        },
+      } as never,
+      { read: async () => null, write, clear },
+    )
+    const listener = vi.fn()
+    provider.onSessionChange!(listener)
+    const next = {
+      access_token: 'new-token',
+      refresh_token: 'new-refresh',
+      expires_at: 1900000000,
+      user: { id: 'new-user', app_metadata: {}, user_metadata: {} },
+    }
+    event('SIGNED_IN', next)
+    await provider.signOut(
+      toAuthSession({ userId: 'old-user', accessToken: 'old-token', expiresAt: 1900000000000 }),
+    )
+    expect(oldSignOut).toHaveBeenCalledWith('old-token', 'local')
+    expect(currentSignOut).not.toHaveBeenCalled()
+    expect(clear).not.toHaveBeenCalled()
+    event('TOKEN_REFRESHED', next)
+    await Promise.resolve()
+    expect(listener).toHaveBeenCalledTimes(2)
+    expect(write).toHaveBeenCalledWith({ userId: 'new-user', refreshToken: 'new-refresh' })
+  })
+
+  it('drains a pending refresh write and ignores late provider refresh events', async () => {
+    let event!: (kind: string, session: unknown) => void
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let material: unknown = null
+    const storage = {
+      read: vi.fn(async () => null),
+      write: vi.fn(async (next: unknown) => {
+        await pending
+        material = next
+      }),
+      clear: vi.fn(async () => {
+        material = null
+      }),
+    }
+    const provider = createAuthProvider(
+      {
+        auth: {
+          onAuthStateChange: (listener: typeof event) => {
+            event = listener
+            return { data: { subscription: { unsubscribe: vi.fn() } } }
+          },
+        },
+      } as never,
+      storage,
+    )
+    const listener = vi.fn()
+    provider.onSessionChange!(listener)
+    const refreshed = {
+      access_token: 'token',
+      refresh_token: 'refresh',
+      expires_at: 1900000000,
+      user: { id: 'user-1', app_metadata: {}, user_metadata: {} },
+    }
+    event('TOKEN_REFRESHED', refreshed)
+    await Promise.resolve()
+    const clearing = provider.clearSessionMaterial!()
+    event('TOKEN_REFRESHED', refreshed)
+    release()
+    await clearing
+    expect(material).toBeNull()
+    expect(storage.write).toHaveBeenCalledTimes(1)
+    expect(listener).toHaveBeenCalledTimes(1)
   })
 })

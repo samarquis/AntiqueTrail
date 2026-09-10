@@ -20,7 +20,7 @@ function SignOutProbe() {
   return (
     <>
       <span>{current ? 'signed-in' : 'signed-out'}</span>
-      <button type="button" onClick={() => void signOut()}>
+      <button type="button" onClick={() => void signOut().catch(() => undefined)}>
         Sign out
       </button>
     </>
@@ -82,6 +82,9 @@ describe('auth local sign-out cleanup', () => {
       signOut: vi.fn(async () => {
         events.push('provider')
       }),
+      clearSessionMaterial: vi.fn(async () => {
+        events.push('clear-refresh')
+      }),
     }
 
     render(
@@ -105,8 +108,137 @@ describe('auth local sign-out cleanup', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
 
     await waitFor(() => expect(screen.getByText('signed-out')).toBeInTheDocument())
-    expect(events).toEqual(['purge:user-1', 'revoke', 'provider'])
+    expect(events).toEqual(['clear-refresh', 'purge:user-1', 'revoke', 'provider'])
     expect(store.getSession()).toBeNull()
+  })
+
+  it('withholds signed-out acknowledgement until cleanup and revocation settle', async () => {
+    const store = new InMemoryAuthStore()
+    store.setSession(session)
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const logout = vi.fn(async () => undefined)
+    render(
+      <AuthProvider
+        authStore={store}
+        registry={{
+          registerCurrentSession: vi.fn(),
+          isActive: vi.fn(async () => true),
+          revoke: () => pending,
+        }}
+        provider={{ signIn: vi.fn(), sendRecovery: vi.fn(), verifyMfa: vi.fn(), signOut: logout }}
+      >
+        <SignOutProbe />
+      </AuthProvider>,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    expect(store.getSession()).toBeNull()
+    expect(screen.queryByText('signed-out')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Signing out')
+    await act(async () => release())
+    expect(screen.getByText('signed-out')).toBeInTheDocument()
+    expect(logout).toHaveBeenCalledWith(session)
+  })
+
+  it.each(['purge', 'revoke'])(
+    'retains provider authentication for retry when %s fails',
+    async (failure) => {
+      const store = new InMemoryAuthStore()
+      store.setSession(session)
+      const logout = vi.fn(async () => undefined)
+      const revoke = vi.fn(async () => {
+        if (failure === 'revoke') throw new Error('revocation unavailable')
+      })
+      render(
+        <AuthProvider
+          authStore={store}
+          onLocalSignOut={async () => {
+            if (failure === 'purge') throw new Error('purge failed')
+          }}
+          registry={{ registerCurrentSession: vi.fn(), isActive: vi.fn(async () => true), revoke }}
+          provider={{ signIn: vi.fn(), sendRecovery: vi.fn(), verifyMfa: vi.fn(), signOut: logout }}
+        >
+          <SignOutProbe />
+        </AuthProvider>,
+      )
+      await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Retry sign out' })).toBeInTheDocument(),
+      )
+      expect(logout).not.toHaveBeenCalled()
+      expect(revoke).toHaveBeenCalledWith(session, 'user_sign_out')
+      expect(store.getSession()).toBeNull()
+      expect(screen.queryByText('signed-out')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Retry sign out' })).toBeInTheDocument()
+    },
+  )
+
+  it('keeps failed durable cleanup behind a retry boundary', async () => {
+    const store = new InMemoryAuthStore()
+    store.setSession(session)
+    const clear = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('storage unavailable'))
+      .mockResolvedValue(undefined)
+    render(
+      <AuthProvider
+        authStore={store}
+        registry={{
+          registerCurrentSession: vi.fn(),
+          isActive: vi.fn(async () => true),
+          revoke: vi.fn(),
+        }}
+        provider={{
+          signIn: vi.fn(),
+          sendRecovery: vi.fn(),
+          verifyMfa: vi.fn(),
+          signOut: vi.fn(),
+          clearSessionMaterial: clear,
+        }}
+      >
+        <SignOutProbe />
+      </AuthProvider>,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    expect(screen.queryByText('signed-out')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Retry sign out' }))
+    await waitFor(() => expect(screen.getByText('signed-out')).toBeInTheDocument())
+    expect(clear).toHaveBeenCalledTimes(2)
+  })
+
+  it('can retry revocation with the provider credential after a transient error', async () => {
+    const store = new InMemoryAuthStore()
+    store.setSession(session)
+    let authenticated = true
+    let attempts = 0
+    const revoke = vi.fn(async () => {
+      if (!authenticated) throw new Error('anonymous denied')
+      if (++attempts === 1) throw new Error('network unavailable')
+    })
+    render(
+      <AuthProvider
+        authStore={store}
+        registry={{ registerCurrentSession: vi.fn(), isActive: vi.fn(async () => true), revoke }}
+        provider={{
+          signIn: vi.fn(),
+          sendRecovery: vi.fn(),
+          verifyMfa: vi.fn(),
+          signOut: async () => {
+            authenticated = false
+          },
+        }}
+      >
+        <SignOutProbe />
+      </AuthProvider>,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    expect(authenticated).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Retry sign out' }))
+    await waitFor(() => expect(screen.getByText('signed-out')).toBeInTheDocument())
+    expect(authenticated).toBe(false)
+    expect(attempts).toBe(2)
   })
 
   it('stays signed out and purges local data when provider sign-out fails', async () => {
