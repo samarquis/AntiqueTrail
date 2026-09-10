@@ -1138,17 +1138,21 @@ export function DetailsPage({
     const previousScrollBehavior = root.style.scrollBehavior
     root.style.overflowAnchor = 'none'
     root.style.scrollBehavior = 'auto'
+    const restoreScroll = () =>
+      window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
     requestAnimationFrame(() => {
       returnLink.focus({ preventScroll: true })
       // Some engines still scroll a newly mounted link when it receives focus.
       // Keep scroll anchoring off while images settle so the focused link does
       // not pull the shopper away from their saved reading position.
       requestAnimationFrame(() => {
-        window.scrollTo({ top: Math.max(0, saved.scrollY), behavior: 'auto' })
+        restoreScroll()
+        window.setTimeout(restoreScroll, 100)
+        window.setTimeout(restoreScroll, 500)
         window.setTimeout(() => {
           root.style.overflowAnchor = previousOverflowAnchor
           root.style.scrollBehavior = previousScrollBehavior
-        }, 1_000)
+        }, 750)
       })
     })
   }, [state.kind, state.store])
