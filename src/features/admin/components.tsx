@@ -607,6 +607,17 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
                   />
                 </label>
               )}
+              {scopePreview?.grantId === grant.grantId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScopePreview(null)
+                    setScopeReason('')
+                  }}
+                >
+                  Cancel scope change
+                </button>
+              )}
             </li>
           ))}
         </ul>
