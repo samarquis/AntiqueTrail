@@ -54,7 +54,8 @@ jobs:
             stats: report.stats && { expected: report.stats.expected,
               unexpected: report.stats.unexpected, skipped: report.stats.skipped,
               flaky: report.stats.flaky },
-            checks: report.checks?.map(({ name, project, status }) => ({ name, project, status })) }
+            checks: report.checks?.map(({ name, project, status, failure }) =>
+              ({ name, project, status, failure })) }
           fs.writeFileSync('artifacts/session-signout-receipt.json', JSON.stringify(receipt, null, 2))
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
             '```json\n' + JSON.stringify(receipt, null, 2) + '\n```\n')
