@@ -748,6 +748,7 @@ describe('scenario-aware review clients', () => {
     const trips = createReviewHarnessClients(scenario('shopper-b'), 'success').trips!
     await expect(trips.list()).resolves.toEqual([])
     await expect(trips.get('trip-a')).resolves.toBeNull()
+    await expect(trips.get('trip-creator-private')).resolves.toBeNull()
     await expect(trips.getCollaboration('trip-a')).rejects.toThrow(/collaboration unavailable/i)
     await expect(trips.acceptInvitation('review-trip-invite-expired-shopper-b')).rejects.toThrow(
       /unavailable or expired/i,
@@ -768,6 +769,7 @@ describe('scenario-aware review clients', () => {
     })
     await expect(trips.list()).resolves.toEqual([expect.objectContaining({ id: 'trip-a' })])
     await expect(trips.get('trip-a')).resolves.toMatchObject({ id: 'trip-a' })
+    await expect(trips.get('trip-creator-private')).resolves.toBeNull()
     const created = await trips.create({ name: 'B trip', localDate: '2026-08-10' })
     await expect(trips.list()).resolves.toEqual([
       expect.objectContaining({ id: 'trip-a' }),

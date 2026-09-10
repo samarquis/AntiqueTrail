@@ -938,6 +938,29 @@ const tripSeed: Trip = {
   ],
 }
 
+// This fixture is deliberately present only to exercise the recipient access
+// filter. It is never a permitted trip and its synthetic label must not render
+// for Shopper B before or after accepting trip-a.
+const creatorPrivateTripSeed: Trip = {
+  id: 'trip-creator-private',
+  name: 'Unrelated creator trip',
+  localDate: '2026-08-09',
+  state: 'draft',
+  version: 1,
+  stops: [
+    {
+      id: 'stop-creator-private',
+      kind: 'rest',
+      label: 'Creator private rating 5 — Walnut secretary',
+      position: 0,
+      priority: 'flexible',
+      plannedDwellMinutes: 30,
+      state: 'planned',
+      memoryStatus: 'not_applicable',
+    },
+  ],
+}
+
 const syntheticStoreCatalog: Record<
   string,
   { label: string; address: string; hours: NonNullable<TripStop['hours']> }
@@ -1059,6 +1082,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
     // A new recipient context starts with a pending invitation but no readable
     // trip. Acceptance below grants the one seeded trip in this context only.
     trips.set(tripSeed.id, structuredClone(tripSeed))
+    trips.set(creatorPrivateTripSeed.id, structuredClone(creatorPrivateTripSeed))
     collaborations.set(tripSeed.id, {
       tripId: tripSeed.id,
       currentUserId,

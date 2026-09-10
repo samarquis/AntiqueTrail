@@ -12,6 +12,11 @@ storage, server state, or cross-page sharing. The creator fixture is
 `reviewAs=shopper-b` fixture contains the pending, recipient-bound invitation
 but cannot list or read `trip-a` before accepting it.
 
+The recipient fixture also holds an intentionally inaccessible diagnostic
+`trip-creator-private` record. Its synthetic private-rating/note label is used
+only to prove the access filter: it must remain absent from Shopper B's list
+and accepted plan, while the one invited `trip-a` becomes readable.
+
 The only positive fixture URL is:
 
 ```text
