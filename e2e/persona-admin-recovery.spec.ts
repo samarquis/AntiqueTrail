@@ -12,7 +12,9 @@ async function openApproval(page: import('@playwright/test').Page) {
 }
 
 test.describe('Administrator recovery diagnostic (#326, local fixture only)', () => {
-  test('rejects a stale decision, retains its reason, and refreshes before reapplying', async ({ page }) => {
+  test('rejects a stale decision, retains its reason, and refreshes before reapplying', async ({
+    page,
+  }) => {
     await openApproval(page)
     await page.getByRole('button', { name: 'Confirm approve', exact: true }).click()
     await expect(page.getByRole('status')).toContainText('This case changed before your decision')
@@ -45,7 +47,9 @@ test.describe('Administrator recovery diagnostic (#326, local fixture only)', ()
     await expect(page.getByRole('status')).not.toContainText('could not be completed')
   })
 
-  test('reload during a pending decision reports no fabricated success and reconciles the fixture state', async ({ page }) => {
+  test('reload during a pending decision reports no fabricated success and reconciles the fixture state', async ({
+    page,
+  }) => {
     await page.goto(reviewUrl('interrupted'))
     await expect(page.getByRole('heading', { level: 1, name: 'Review queue' })).toBeVisible()
     await page.getByRole('button', { name: 'Review Blue Finch Curios' }).click()
