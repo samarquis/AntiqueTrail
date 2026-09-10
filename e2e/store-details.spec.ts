@@ -179,6 +179,30 @@ test.describe('Store Details decision-screen contract', () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(expectedScroll)
   })
 
+  test('returns from full photos to the originating photo link with its reading position', async ({
+    page,
+  }) => {
+    await openPrimaryStore(page)
+    const photosLink = page.getByRole('link', { name: /see all 50 photos/i })
+    await photosLink.scrollIntoViewIfNeeded()
+    await page.evaluate(() => window.scrollTo(0, 760))
+
+    await photosLink.click()
+    const expectedScroll = await page.evaluate(() => {
+      const saved = JSON.parse(
+        window.sessionStorage.getItem('antique-trail:store-return') ?? '{}',
+      ) as { scrollY?: number }
+      return saved.scrollY
+    })
+    expect(expectedScroll).toEqual(expect.any(Number))
+    await expect(page).toHaveURL(/\/stores\/blue-finch-curios\/photos$/)
+    await page.getByRole('link', { name: 'Back to Blue Finch Curios' }).click()
+
+    await expect(page).toHaveURL(/\/stores\/blue-finch-curios$/)
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(expectedScroll)
+    await expect(photosLink).toBeFocused()
+  })
+
   test('reflows at the 320px CSS viewport equivalent to 200% zoom', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 })
     await page.goto('/stores/blue-finch-curios')
