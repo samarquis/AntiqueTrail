@@ -29,4 +29,16 @@ test.describe('review fixture session boundary', () => {
       expect(errors).toEqual([])
     })
   }
+
+  test('a revoked shopper cannot read the separately composed commercial research fixture', async ({
+    page,
+  }) => {
+    await page.goto(
+      '/research/photo-tiers/17500000-0000-4000-8000-000000000003?reviewAs=shopper-a&reviewState=success&reviewSession=revoked',
+    )
+    await expect(
+      page.getByRole('heading', { name: 'Compare optional photo capacity' }),
+    ).toHaveCount(0)
+    await expect(page.getByText('No purchase was made')).toHaveCount(0)
+  })
 })
