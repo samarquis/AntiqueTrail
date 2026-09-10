@@ -49,7 +49,15 @@ async function auth(endpoint, key, token, route, body) {
     signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]),
   })
   const data = await response.json()
-  if (!response.ok) throw new Error(`Local Auth ${route} failed with ${response.status}`)
+  if (!response.ok) {
+    const code = String(data?.code ?? '')
+      .replace(/[^A-Za-z0-9_]/g, '')
+      .slice(0, 80)
+    const message = String(data?.message ?? '')
+      .replace(/[^A-Za-z0-9_ .-]/g, '')
+      .slice(0, 160)
+    throw new Error(`Local Auth ${route} failed with ${response.status} ${code} ${message}`)
+  }
   return data
 }
 async function provisionRepresentative(local) {
