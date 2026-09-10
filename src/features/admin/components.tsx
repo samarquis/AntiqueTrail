@@ -62,6 +62,7 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
   const [queueCategory, setQueueCategory] = useState<AdminReviewQueueCategory | null>(null)
   const [knownQueueCategories, setKnownQueueCategories] = useState<AdminReviewQueueCategory[]>([])
   const queueHeading = useRef<HTMLHeadingElement>(null)
+  const refreshCaseButton = useRef<HTMLButtonElement>(null)
   const decisionInFlight = useRef(false)
   const clientRef = useRef(client)
   clientRef.current = client
@@ -109,6 +110,10 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
     queueHeading.current?.focus()
     setReturnFocusToQueue(false)
   }, [returnFocusToQueue])
+
+  useEffect(() => {
+    if (message.startsWith('This case changed')) refreshCaseButton.current?.focus()
+  }, [message])
 
   async function openCase(reviewCase: AdminReviewCaseSummary) {
     setMessage('')
@@ -213,7 +218,7 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
         </p>
       )}
       {message.startsWith('This case changed') && selected && (
-        <button type="button" onClick={() => void refreshSelectedCase()}>
+        <button ref={refreshCaseButton} type="button" onClick={() => void refreshSelectedCase()}>
           Refresh case
         </button>
       )}

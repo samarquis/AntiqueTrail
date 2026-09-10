@@ -21,6 +21,7 @@ import {
   type TripIdea,
 } from '../features/candidates'
 import {
+  AdminVersionConflictError,
   GENERIC_ADMIN_FAILURE,
   unavailableAdminClient,
   type AdminCaseState,
@@ -2703,7 +2704,7 @@ function adminClient(
         if (decisionMode === 'stale' && !staleDecisionInjected) {
           staleDecisionInjected = true
           target.version += 1
-          throw new Error('Synthetic version conflict.')
+          throw new AdminVersionConflictError()
         }
         if (decisionMode === 'interrupted' && typeof window !== 'undefined') {
           window.sessionStorage.setItem(`admin-decision-${caseId}`, 'approved')
