@@ -6,6 +6,7 @@ export default defineConfig({
     'review-harness.spec.ts',
     'ui05-auth-shopper.spec.ts',
     'configured-free-shopper.spec.ts',
+    'configured-trip-partner.spec.ts',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
