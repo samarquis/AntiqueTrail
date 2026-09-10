@@ -47,12 +47,14 @@ const weeklyClose = (store: string) =>
       `select closes_at::text from app_public.store_weekly_hours where store_id='${store}' and iso_weekday=1 and interval_index=1;`,
     )
     .then((result: string) => result.trim())
-const catalogClose = (store: string) =>
-  service
-    .sql(
-      `select closes_at::text from app_public.store_weekly_hours where store_id='${store}' and iso_weekday=1 and interval_index=1;`,
-    )
-    .then((result: string) => result.trim())
+
+test.beforeEach(async () => {
+  // Each viewport project uses the same temporary service. Re-arm the scoped
+  // grant before every case so one project's revocation cannot poison the next.
+  await service.sql(
+    `update partner_private.store_partner_grants set state='active',revoked_at=null,version=version+1 where grant_id='${input.grantId}';`,
+  )
+})
 
 test('Representative publishes exact-store Monday hours through real Auth and MFA', async ({
   page,
@@ -68,11 +70,6 @@ test('Representative publishes exact-store Monday hours through real Auth and MF
   await page.getByRole('button', { name: 'Save hours', exact: true }).click()
   await expect(page.getByRole('status')).toHaveText('Hours saved and freshness updated.')
   await expect.poll(() => weeklyClose(ownStore)).toBe('19:45:00')
-  await expect
-    .poll(() => catalogClose(ownStore))
-    .toBe(
-      process.env.CONFIGURED_REPRESENTATIVE_HOURS_WRONG_READBACK === '1' ? '18:45:00' : '19:45:00',
-    )
   expect(await weeklyClose(siblingStore)).toBe(priorSibling)
   expect(priorOwn).not.toBe('19:45:00')
   await page.reload()

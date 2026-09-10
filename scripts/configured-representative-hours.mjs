@@ -127,6 +127,7 @@ try {
   service = createLocalService({ signal: controller.signal, browserOrigin: origin })
   report.temporaryProject = service.run.directory
   const local = await service.start()
+  report.status = 'running'
   const fixture = await provisionRepresentative(local)
   local.fixtureIdentity = crypto
     .createHash('sha256')
@@ -226,7 +227,7 @@ try {
     if (results.status !== 'passed') report.status = 'failed'
   }
 } catch (error) {
-  report.status = 'failed'
+  if (report.status !== 'unavailable') report.status = 'failed'
   report.errors.push(redact(error.message))
 } finally {
   await stopChild(server)
