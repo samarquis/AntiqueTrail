@@ -58,7 +58,9 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
     await page.getByRole('link', { name: 'Back to Blue Finch Curios' }).click()
     await expect(page.getByRole('heading', { name: 'Blue Finch Curios' })).toBeVisible()
     await page.getByRole('link', { name: 'Back to Browse' }).click()
-    await expect(page).toHaveURL(/\/stores\?q=Blue&area=topeka-ks$/)
+    await expect(page).toHaveURL(
+      /\/stores\?q=Blue&area=topeka-ks&reviewAs=anonymous&reviewState=success$/,
+    )
     await expect(store).toBeFocused()
   })
 
@@ -67,8 +69,9 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
     await expect(page.getByText('50 photos', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /View photo \d+:/ })).toHaveCount(48)
 
-    await page.route(/blue-finch-curios-gallery-aisle\.webp(?:\?.*)?$/u, (route) =>
-      route.abort('failed'),
+    await page.route(
+      /\/images\/(?:synthetic-stores|synthetic-fixtures)\/.*\.(?:svg|webp)(?:\?.*)?$/u,
+      (route) => route.abort('failed'),
     )
     await page.goto(reviewUrl('/stores/blue-finch-curios/photos'))
     await expect(page.getByRole('img', { name: 'Photo unavailable' }).first()).toBeVisible()
