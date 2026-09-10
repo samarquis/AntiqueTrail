@@ -5,6 +5,7 @@ import { createLocalService, loopbackRequest } from '../scripts/configured-shopp
 
 const input = JSON.parse(fs.readFileSync(process.env.CONFIGURED_TRIP_PARTNER_INPUT!, 'utf8'))
 const service = createLocalService({ resumeDirectory: input.directory })
+const STORE_A = '00000000-0000-4000-8000-000000001001'
 const uuid = (value: string) => {
   if (!/^[a-f0-9-]{36}$/i.test(value)) throw new Error('Invalid fixture UUID')
   return value
@@ -59,6 +60,9 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
 }) => {
   const tripId = await createTrip()
   const token = await issueReceipt(tripId)
+  await service.sql(
+    `insert into shopper_private.private_store_memories(user_id,store_id,note,version) values ('${uuid(input.users[0].id)}','${STORE_A}','Creator-only configured diagnostic memory',1);`,
+  )
   await login(page, 0, `/trips/${tripId}/invite`)
   await page.getByLabel('Partner verified email').fill(input.users[1].email)
   await page.getByRole('button', { name: 'Send invitation', exact: true }).click()
@@ -92,6 +96,7 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
       .poll(() => membership(tripId))
       .toBe(process.env.CONFIGURED_TRIP_PARTNER_WRONG_READBACK === '1' ? 2 : 1)
     await expect(rpc(1, 'get_trip', { trip_id: tripId })).resolves.toMatchObject({ id: tripId })
+    await expect(rpc(1, 'shopper_get_memory', { p_store_id: STORE_A })).resolves.toBeNull()
 
     const unrelated = await createTrip()
     await partnerPage.goto(`/trips/${unrelated}/plan`)

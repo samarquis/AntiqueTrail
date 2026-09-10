@@ -26,6 +26,13 @@ const report = {
   errors: [],
 }
 const controller = new AbortController()
+let interrupted = false
+const interrupt = () => {
+  interrupted = true
+  controller.abort()
+}
+process.on('SIGINT', interrupt)
+process.on('SIGTERM', interrupt)
 let service, server
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
@@ -126,7 +133,11 @@ try {
           ]
         }),
       )
-      if (parsed.status !== 'passed') report.status = 'failed'
+      if (
+        parsed.status !== 'passed' ||
+        !Object.values(report.variants).every((variant) => variant.status === 'passed')
+      )
+        report.status = 'failed'
     } catch (error) {
       report.status = 'unavailable'
       report.errors.push(redact(error.message))
@@ -146,6 +157,12 @@ try {
       report.errors.push(redact(error.message))
     }
   }
+  if (interrupted) {
+    report.status = 'unavailable'
+    report.errors.push('Run interrupted')
+  }
+  process.off('SIGINT', interrupt)
+  process.off('SIGTERM', interrupt)
   fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(redact(report), null, 2))
 }
 console.log(`${report.status}: ${output}`)
