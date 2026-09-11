@@ -7,6 +7,7 @@ export default defineConfig({
     ['json', { outputFile: process.env.CONFIGURED_TRIP_PARTNER_OUTPUT + '/playwright.json' }],
   ],
   use: { baseURL: process.env.CONFIGURED_TRIP_PARTNER_ORIGIN, trace: 'retain-on-failure' },
+  workers: 1,
   timeout: 60_000,
   projects: [
     { name: 'desktop', use: { viewport: { width: 1440, height: 1000 } } },

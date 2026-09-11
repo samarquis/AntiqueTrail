@@ -68,7 +68,7 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
   const tripId = await createTrip()
   const token = await issueReceipt(tripId)
   await service.sql(
-    `insert into shopper_private.private_store_memories(user_id,store_id,note,version) values ('${uuid(input.users[0].id)}','${STORE_A}','Creator-only configured diagnostic memory',1);`,
+    `insert into shopper_private.private_store_memories(user_id,store_id,note,version) values ('${uuid(input.users[0].id)}','${STORE_A}','Creator-only configured diagnostic memory',1) on conflict(user_id,store_id) do update set note=excluded.note,version=excluded.version;`,
   )
   await login(page, 0, `/trips/${tripId}/invite`)
   await page.getByLabel('Partner verified email').fill(input.users[1].email)
