@@ -1,7 +1,7 @@
 {
   "project": "Antique Trail",
-  "handoff_version": "3.0",
-  "generated_date": "2026-09-07",
+  "handoff_version": "3.1",
+  "generated_date": "2026-09-11",
   "files": [
     "README.md",
     "AGENTS.md",
@@ -55,9 +55,11 @@
     "docs/adr/0007-protected-internal-synthetic-review.md",
     "docs/adr/0008-governed-internal-synthetic-admission.md",
     "docs/specs/owner-onboarding.md",
-    "docs/specs/store-membership-spec.md"
+    "docs/specs/store-membership-spec.md",
+    "docs/specs/product-capabilities.md",
+    "docs/adr/0009-store-first-stage-applicability.md"
   ],
-  "purpose": "One product reading path with explicitly owned specialist requirements and separately classified history/evidence",
+  "purpose": "Store-first PRD with delegated capability detail, scoped specialist controls and separately classified historical evidence",
   "reading_order": [
     "PRD.md",
     "README.md",

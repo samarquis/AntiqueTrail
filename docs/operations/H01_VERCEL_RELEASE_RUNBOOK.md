@@ -1,5 +1,7 @@
 # H-01 Vercel prebuilt deployment runbook
 
+Stage applicability (2026-09-11): use [PRD stages](../../PRD.md#stage-dependencies), [security applicability](../../SECURITY_AND_TRUST.md#store-first-stage-applicability) and [ADR0009](../adr/0009-store-first-stage-applicability.md) for the bounded store/Gallery pilot. The full-program sequences and dated receipts below retain their original scope; they do not impose unrelated trip/community completion or authorize a new pilot. Applicable hosting, media, privacy, recovery, cost and approval checks remain. Gallery membership does not authorize the separate paid-hosting/media migration.
+
 Status: selected replacement path under ADR 0006; implementation and provider activation are **NO-GO** until the repository workflow and every live preflight below are verified.
 
 This runbook replaces `H01_PAGES_RELEASE_RUNBOOK.md` for new deployment work. It does not authorize a Vercel deployment, create a project, accept provider terms, approve spend, or pass H-01.

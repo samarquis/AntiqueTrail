@@ -1,5 +1,7 @@
 # ADR 0005 — Host free-first on Cloudflare Pages and Supabase
 
+2026-09-11 scope note: [ADR0009](0009-store-first-stage-applicability.md) supersedes only stage prerequisites for the bounded store/Gallery pilot. This decision retains its provider, eligibility, funding, security, recovery and original assessment-authority limits; no expired or task-specific receipt is renewed. A Gallery membership does not itself activate the funded hosting/media transition.
+
 - Status: Partially superseded by ADR 0006 on 2026-08-20. Its Cloudflare Pages/Access/Direct Upload frontend selection is retired. Supabase, recovery, startup cost, media-transition, and service-gate requirements remain accepted; H-01 and L-01 activation receipts are not accepted until their executable proofs pass.
 - Date: 2026-08-03 (transition plan recorded 2026-08-17)
 - Decision owner: Product Owner

@@ -2,13 +2,14 @@
 
 ## Start here
 
-Read the [PRD product overview](PRD.md#purpose-people-and-product-promise), [connected shopper experience](PRD.md#the-connected-shopper-experience), and [next Free private evaluation](PRD.md#next-milestone-free-private-experience-evaluation) for the whole intended product and current priority. For task work, read [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md), the [dated state index](PROJECT_STATE.md), and only the relevant capability and specialist headings.
+Read the [PRD product overview](PRD.md#purpose-people-and-product-promise), [connected shopper experience](PRD.md#the-connected-shopper-experience), and [next Free private evaluation](PRD.md#next-milestone-usable-internal-store-showcase) for the store showcase and current stage. Detailed capability rules live in the linked reference; do not read every later-stage contract for a small task. For task work, read [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md), the [dated state index](PROJECT_STATE.md), and only the relevant capability and specialist headings.
 
 ## Source precedence
 
 | Question | Current owner |
 | --- | --- |
-| Product purpose, behavior, capability outcomes, product-stage acceptance, deferred choices | [PRD.md](PRD.md) |
+| Product purpose, offered scope, stage acceptance and progression, deferred choices | [PRD.md](PRD.md) |
+| Detailed capability behavior | [Product capability reference](docs/specs/product-capabilities.md), delegated by PRD.md |
 | Detailed journeys, action transitions, interruption/error recovery, interaction/copy intent | [DESIGN.md](DESIGN.md) |
 | Exact visual tokens, responsive layout, reusable component/accessibility rules, routes and visual screen acceptance | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) |
 | Exact privacy, authorization, retention, recovery, abuse and security controls | [SECURITY_AND_TRUST.md](SECURITY_AND_TRUST.md) |
@@ -21,7 +22,7 @@ Read the [PRD product overview](PRD.md#purpose-people-and-product-promise), [con
 | Implementation/environment facts and evidence links | [PROJECT_STATE.md](PROJECT_STATE.md), dated and scope-bound |
 | Live issue/PR status | GitHub |
 
-The PRD is the product entry point, not permission to override specialist controls. Each rule has one current owner; other files link to that rule instead of independently restating it. If owners conflict, stop the affected work and reconcile through PLAN_GOVERNANCE.md. New product intent requires an authorized amendment; a ticket, prototype, historical decision, dated receipt, or existing implementation cannot silently change it.
+The PRD owns current scope and stage progression; product-capabilities.md owns delegated capability detail. The PRD does not waive specialist security controls for exposed functionality or retained data. Each rule has one current owner; other files link to that rule instead of independently restating it. If owners conflict, stop the affected work and reconcile through PLAN_GOVERNANCE.md. New product intent requires an authorized amendment; a ticket, prototype, historical decision, dated receipt, or existing implementation cannot silently change it.
 
 PRODUCT_DECISIONS.md preserves decision history and links to current rules; PLAN_CHANGELOG.md preserves authorization history. IMPLEMENTATION_PLAN.md is the old roadmap; PLAN_ACCEPTANCE.md is a linked map and historical review record; PRODUCT.md is a compatibility pointer. Operational runbooks own the concrete procedures delegated by security/architecture requirements; a signed receipt proves only its named action and scope. Research, older reviews, and the flow lab are evidence, not current requirements.
 

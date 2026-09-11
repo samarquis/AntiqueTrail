@@ -1,5 +1,7 @@
 # M-01 official-media provider runbook
 
+Stage applicability (2026-09-11): use [PRD stages](../../PRD.md#stage-dependencies), [security applicability](../../SECURITY_AND_TRUST.md#store-first-stage-applicability) and [ADR0009](../adr/0009-store-first-stage-applicability.md) for the bounded store/Gallery pilot. The full-program sequences and dated receipts below retain their original scope; they do not impose unrelated trip/community completion or authorize a new pilot. Applicable hosting, media, privacy, recovery, cost and approval checks remain. Gallery membership does not authorize the separate paid-hosting/media migration.
+
 Status: **UNACCEPTED / NO-GO**
 
 This runbook describes the executable provider-neutral boundary. It is not an

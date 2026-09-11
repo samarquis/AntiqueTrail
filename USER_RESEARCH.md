@@ -25,7 +25,7 @@ This revealed a key workflow:
 
 Reported historical context: Scott estimated about 45 minutes for his planning work after his wife spent at least one hour researching stores, copying names/addresses/hours, and sending them to him. Scott then transferred that material to AI for route planning and moved between the document and maps during the day. This is firsthand anecdotal context, not a controlled benchmark.
 
-The current controlled comparison protocol is owned by [PRD / Startup Learning MVP](PRD.md#startup-learning-mvp-slm-01). The anecdotal context above is evidence, not the measured baseline or acceptance result.
+The current controlled comparison protocol is owned by [PRD / Startup Learning MVP](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#startup-learning-mvp-slm-01). The anecdotal context above is evidence, not the measured baseline or acceptance result.
 
 ## Observed preference dimensions
 

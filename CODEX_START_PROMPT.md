@@ -1,6 +1,8 @@
 # Codex Start Prompt
 
-Read [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md), the [PRD overview](PRD.md#purpose-people-and-product-promise), [connected journey](PRD.md#the-connected-shopper-experience), and [next milestone](PRD.md#next-milestone-free-private-experience-evaluation). Use [PROJECT_STATE.md](PROJECT_STATE.md) for dated facts and [PLANNING_INDEX.md](PLANNING_INDEX.md) to locate the current specialist sources under [README source precedence](README.md#source-precedence).
+Read [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md), the [PRD overview](PRD.md#purpose-people-and-product-promise), [connected journey](PRD.md#the-connected-shopper-experience), and [next milestone](PRD.md#next-milestone-usable-internal-store-showcase). Use [PROJECT_STATE.md](PROJECT_STATE.md) for dated facts and [PLANNING_INDEX.md](PLANNING_INDEX.md) to locate the current specialist sources under [README source precedence](README.md#source-precedence).
+
+The current priority is the internal store showcase, then a controlled real-store pilot and paid Gallery pilot. Read only the selected capability in docs/specs/product-capabilities.md and its specialist boundaries. Trips/public reviews/geographic expansion and new Full Gallery sales are deferred; do not restart the prior all-ticket loop or make them prerequisites.
 
 For the selected task, refresh main and live GitHub state, then read the exact capability/specialist headings and affected code paths. Preserve unrelated work. Keep the existing five-section ticket trace, one independently closable outcome, and focused acceptance proof under PLAN_GOVERNANCE.md; include the affected transition within the connected journey.
 

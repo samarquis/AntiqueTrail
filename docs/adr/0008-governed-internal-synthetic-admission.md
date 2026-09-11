@@ -1,5 +1,7 @@
 # ADR 0008 — Governed internal synthetic assessment admission
 
+2026-09-11 scope note: [ADR0009](0009-store-first-stage-applicability.md) supersedes only stage prerequisites for the bounded store/Gallery pilot. This decision retains its provider, eligibility, funding, security, recovery and original assessment-authority limits; no expired or task-specific receipt is renewed. A Gallery membership does not itself activate the funded hosting/media transition.
+
 - Status: Accepted Product Owner decision; effective after this dedicated amendment merges
 - Date: 2026-09-06
 - Owner: Product Owner Scott Marquis

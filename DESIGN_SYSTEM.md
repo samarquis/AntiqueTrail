@@ -1,5 +1,7 @@
 # Antique Trail Design System and Screen Contract
 
+Stage applicability follows [PRD.md](PRD.md#stage-dependencies). The first showcase uses existing Browse, Store Details/gallery, optional Save/auth, invited Representative and Administrator screens. Trip/Go/review and other deferred routes below remain interaction references, not required showcase navigation or acceptance. Before a pilot, each exposed route must be accepted and each disabled command denied server-side. This amendment changes no color, typography, icon, width, spacing or accessibility token.
+
 Status: current normative design-system and screen contract, including the approved Daylight Archive/Midnight Archive palette, V3 identity, and critique-derived typography, composition, and media-overlay rules through 2026-08-30. Current implementation and backlog state live in `PROJECT_STATE.md`; this file does not authorize unrelated application or provider changes.
 
 `DESIGN.md` controls behavior and journey intent. This file controls exact visual tokens, recurring component states, responsive behavior, navigation, and screen-level acceptance. `docs/design/ICON_PLACEMENT_SPEC.md` controls the approved placement of the Antique Trail icon family. Product, security, or retention policy never comes from a prototype.
