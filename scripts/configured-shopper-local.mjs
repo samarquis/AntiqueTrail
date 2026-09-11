@@ -39,7 +39,11 @@ export function command(
       stderr += data
       if (stderr.length > 4_000_000) stderr = stderr.slice(-4_000_000)
     })
-    const timer = setTimeout(() => child.kill(), timeout)
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      child.kill()
+    }, timeout)
     child.on('error', (error) => {
       clearTimeout(timer)
       reject(error)
@@ -55,9 +59,8 @@ export function command(
         } catch {
           /* Only structured error output is included. */
         }
-        reject(
-          new Error(`${path.basename(file)} exited ${code}: ${summary} ${stderr.slice(-2000)}`),
-        )
+        const outcome = timedOut ? `timed out after ${timeout}ms` : `exited ${code}`
+        reject(new Error(`${path.basename(file)} ${outcome}: ${summary} ${stderr.slice(-2000)}`))
       }
     })
     child.stdin.on('error', () => {})
@@ -70,7 +73,37 @@ async function cliBinary(signal) {
   binaryPromise = resolveCliBinary(signal)
   return binaryPromise
 }
+function nativeCliBinary(modules) {
+  const manifest = path.join(modules, 'supabase/package.json')
+  const platform = { win32: 'windows', darwin: 'darwin', linux: 'linux' }[process.platform]
+  const binary = path.join(
+    modules,
+    `@supabase/cli-${platform}-${process.arch}/bin/supabase${process.platform === 'win32' ? '.exe' : ''}`,
+  )
+  if (!fs.existsSync(manifest) || !fs.existsSync(binary)) return
+  try {
+    if (JSON.parse(fs.readFileSync(manifest, 'utf8')).version === CLI_VERSION) return binary
+  } catch {
+    // A partial cache entry is not a supported CLI candidate; retain the npx fallback.
+  }
+}
+function cachedCliBinary() {
+  const cache =
+    process.env.npm_config_cache ??
+    (process.platform === 'win32' && process.env.LOCALAPPDATA
+      ? path.join(process.env.LOCALAPPDATA, 'npm-cache')
+      : undefined)
+  if (!cache) return
+  const npx = path.join(cache, '_npx')
+  if (!fs.existsSync(npx)) return
+  for (const entry of fs.readdirSync(npx).sort()) {
+    const binary = nativeCliBinary(path.join(npx, entry, 'node_modules'))
+    if (binary) return binary
+  }
+}
 async function resolveCliBinary(signal) {
+  const cached = cachedCliBinary()
+  if (cached) return cached
   const npx = path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npx-cli.js')
   const args = [
     '--yes',
@@ -85,21 +118,10 @@ async function resolveCliBinary(signal) {
     process.platform === 'win32' ? [npx, ...args] : args,
     { signal },
   )
-  const platform = { win32: 'windows', darwin: 'darwin', linux: 'linux' }[process.platform]
   for (const entry of search.trim().split(path.delimiter)) {
     if (path.basename(entry) !== '.bin') continue
-    const modules = path.dirname(entry)
-    const manifest = path.join(modules, 'supabase/package.json')
-    const binary = path.join(
-      modules,
-      `@supabase/cli-${platform}-${process.arch}/bin/supabase${process.platform === 'win32' ? '.exe' : ''}`,
-    )
-    if (
-      fs.existsSync(manifest) &&
-      JSON.parse(fs.readFileSync(manifest, 'utf8')).version === CLI_VERSION &&
-      fs.existsSync(binary)
-    )
-      return binary
+    const binary = nativeCliBinary(path.dirname(entry))
+    if (binary) return binary
   }
   throw new Error('Pinned Supabase native CLI is unavailable')
 }
@@ -321,7 +343,15 @@ export function createLocalService({ signal, resumeDirectory, browserOrigin } = 
       .replace('[db]', `[db]\nport = ${db}\nshadow_port = ${shadow}`)
       .replace('[inbucket]', `[inbucket]\nport = ${mail}`)
       .replace('[studio]\nenabled = true', '[studio]\nenabled = false')
-    config += `\n[edge_runtime]\nenabled = true\ninspector_port = ${inspector}\n`
+    config += `
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[edge_runtime]
+enabled = true
+inspector_port = ${inspector}
+`
     fs.writeFileSync(path.join(directory, 'supabase/config.toml'), config)
     run.sourceSha = (await runCommand('git', ['rev-parse', 'HEAD'])).trim()
     run.sourceDirty = Boolean(
@@ -358,7 +388,9 @@ export function createLocalService({ signal, resumeDirectory, browserOrigin } = 
         '--exclude',
         'studio,postgres-meta,realtime,imgproxy,logflare,vector,supavisor',
       ],
-      { env: proxy.env, signal },
+      // Initial image pulls plus this repository's migrations and seed can exceed the
+      // ordinary command deadline on a cold local Docker cache.
+      { env: proxy.env, signal, timeout: 1_200_000 },
     )
     await verifyContainers()
     const status = JSON.parse(await cli(['status', '--workdir', directory, '-o', 'json']))
