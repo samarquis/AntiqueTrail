@@ -1,0 +1,9 @@
+# Issue 327 browser diagnostic evidence
+
+This directory is the evidence surface for issue #327's fixture-only browser diagnostic. The runner is `playwright.issue-327.config.ts`; it owns loopback port 43217 and writes its final JSON result to `latest-results.json`.
+
+The diagnostic uses actual application links and clicks for Browse -> Details -> Photos -> lightbox -> Details -> Browse, rather than using a navigation call to simulate a return. It covers button and Escape closure, selected tile focus return, the approved 50-photo fixture, deterministic sparse/failed-image states, cancelled anonymous Save, 320px reflow as the 200% CSS-viewport proxy, both stored themes, reduced motion, target geometry, and screenshots after the page reaches an asserted ready state.
+
+It is browser/fixture evidence only. It does not claim a configured Auth/Edge/RPC path, assistive-technology session, or firsthand human accessibility acceptance; those remain separately visible gates (#324 and #325). The review harness exposes the approved 50-photo fixture, but not true zero- or one-image routes. Those dedicated cases are intentionally skipped and are not reported as passes. The full-gallery-to-Details focus-loss defect reproduced in CI run 34516804408 was repaired and closed by #337; this diagnostic now verifies the repaired return focus and captured at-click reading position.
+
+Current execution status (2026-09-10): the repository CI web job passed on PR #332 head `b0fcd268` (run 34543701561). This checkout's dependency tree remains incomplete for a separate focused local run, so the authoritative browser result is the hosted CI suite rather than a committed local JSON, screenshot, or trace.
