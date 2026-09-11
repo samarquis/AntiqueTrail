@@ -94,12 +94,9 @@ try {
   report.temporaryProject = service.run.directory
   const local = await service.start()
   const password = crypto.randomBytes(24).toString('base64url')
-  const actors = {
-    desktopAdmin: local.users[0],
-    subject: local.users[1],
-  }
+  const actors = {}
   report.phase = 'creating local Auth fixture identities'
-  for (const alias of ['phoneAdmin', 'sibling', 'shopper']) {
+  for (const alias of ['desktopAdmin', 'phoneAdmin', 'subject', 'sibling', 'shopper']) {
     const created = await authRequest(
       local.endpoint,
       '/auth/v1/signup',
