@@ -11,11 +11,10 @@ type ConfiguredInput = {
   directory: string
   endpoint: string
   anonKey: string
-  secret: string
   wrongReadback?: boolean
   stores: { target: string; sibling: string }
   actors: {
-    admin: { id: string; email: string; password: string }
+    admin: Record<string, { id: string; email: string; password: string; secret: string }>
     subject: { id: string; email: string; password: string }
     shopper: { id: string; email: string; password: string }
   }
@@ -27,10 +26,9 @@ const input: ConfiguredInput = inputPath
       directory: '',
       endpoint: '',
       anonKey: '',
-      secret: '',
       stores: { target: '', sibling: '' },
       actors: {
-        admin: { id: '', email: '', password: '' },
+        admin: { desktop: { id: '', email: '', password: '', secret: '' } },
         subject: { id: '', email: '', password: '' },
         shopper: { id: '', email: '', password: '' },
       },
@@ -88,7 +86,7 @@ const read = (store: string) =>
       'ON_ERROR_STOP=1',
     ],
     {
-      input: `select json_build_object('actions',(select count(*) from admin_private.admin_scope_actions a where a.subject_user_id='${input.actors.subject.id}' and a.store_id='${store}' and a.role='representative'),'audit',(select count(*) from app_private.privileged_audit_events e join partner_private.store_partner_grants g on g.grant_id=e.resource_id where e.action in ('admin_scope_revoke','admin_scope_regrant') and g.auth_user_id='${input.actors.subject.id}' and g.store_id='${store}'));`,
+      input: `select json_build_object('partnerState',(select g.state from partner_private.store_partner_grants g where g.auth_user_id='${input.actors.subject.id}' and g.store_id='${store}' and g.role='representative' order by g.granted_at desc, g.grant_id desc limit 1),'roleState',(select r.state from app_private.role_grants r where r.subject_user_id='${input.actors.subject.id}' and r.store_id='${store}' and r.role='representative' order by r.granted_at desc, r.grant_id desc limit 1),'actions',(select count(*) from admin_private.admin_scope_actions a where a.subject_user_id='${input.actors.subject.id}' and a.store_id='${store}' and a.role='representative'),'audit',(select count(*) from app_private.privileged_audit_events e join partner_private.store_partner_grants g on g.grant_id=e.resource_id where e.action in ('admin_scope_revoke','admin_scope_regrant') and g.auth_user_id='${input.actors.subject.id}' and g.store_id='${store}'));`,
     },
   ).then((text: string) => {
     const record = text
@@ -99,39 +97,39 @@ const read = (store: string) =>
       throw new Error(`Independent scope readback returned no record: ${text.trim() || 'empty'}`)
     return JSON.parse(record)
   })
-async function login(page: Page) {
+async function login(page: Page, projectName: string) {
+  const administrator = input.actors.admin[projectName]
+  if (!administrator) throw new Error(`No Administrator fixture for ${projectName}`)
   await page.goto('/auth/sign-in?returnTo=%2Fadmin%2Faccess')
-  await page.getByLabel('Email', { exact: true }).fill(input.actors.admin.email)
-  await page.getByLabel('Password', { exact: true }).fill(input.actors.admin.password)
+  await page.getByLabel('Email', { exact: true }).fill(administrator.email)
+  await page.getByLabel('Password', { exact: true }).fill(administrator.password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   const challenge = page.getByRole('heading', { name: 'Verify your sign-in' })
   const access = page.getByRole('heading', { name: 'Access & Safety' })
-  await expect(challenge.or(access)).toBeVisible()
-  if (await challenge.isVisible()) {
-    await page.getByLabel('Authentication code', { exact: true }).fill(totp(input.secret))
-    await page.getByRole('button', { name: 'Verify code', exact: true }).click()
-  }
+  await expect(challenge).toBeVisible()
+  await page.getByLabel('Authentication code', { exact: true }).fill(totp(administrator.secret))
+  await page.getByRole('button', { name: 'Verify code', exact: true }).click()
   await expect(access).toBeVisible()
 }
 function targetRow(page: Page) {
   return page
     .getByLabel('Store Representative scopes')
     .getByRole('listitem')
-    .filter({ hasText: 'Clockwork Cabinet' })
+    .filter({ hasText: 'Clockwork Scope Subject' })
 }
 function siblingRow(page: Page) {
   return page
     .getByLabel('Store Representative scopes')
     .getByRole('listitem')
-    .filter({ hasText: 'Prairie Patina' })
+    .filter({ hasText: 'Prairie Scope Subject' })
 }
 
 test('actual Auth MFA Administrator identity denies the unauthenticated boundary', async ({
   page,
-}) => {
+}, testInfo) => {
   await page.goto('/admin/access')
   await expect(page).not.toHaveURL(/\/admin\/access/)
-  await login(page)
+  await login(page, testInfo.project.name)
   await expect(targetRow(page)).toContainText('Store representative')
   await expect(targetRow(page)).toContainText('MFA verified')
   await expect(page.getByText(input.actors.shopper.email, { exact: false })).toHaveCount(0)
@@ -139,21 +137,28 @@ test('actual Auth MFA Administrator identity denies the unauthenticated boundary
 
 test('preview cancel then exact revoke and regrant retain sibling scope with audited independent readback', async ({
   page,
-}) => {
-  await login(page)
+}, testInfo) => {
+  await login(page, testInfo.project.name)
   const row = targetRow(page)
   const baseline = await read(target)
+  expect(baseline).toMatchObject({ partnerState: 'active', roleState: 'active' })
   await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).click()
   await expect(row.getByText(/Confirm exact scope: Clockwork Cabinet/)).toBeVisible()
   await row.getByLabel('Administrative reason').fill('scope_review')
   await row.getByRole('button', { name: 'Cancel scope change', exact: true }).click()
   expect(await read(target)).toMatchObject(baseline)
+  expect(await read(sibling)).toMatchObject({ partnerState: 'active', roleState: 'active' })
   await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).click()
   await row.getByLabel('Administrative reason').fill('scope_review')
   await row.getByRole('button', { name: /Confirm revoke Clockwork Cabinet scope/ }).click()
   await expect
     .poll(() => read(target))
-    .toMatchObject({ actions: baseline.actions + 1, audit: baseline.audit + 1 })
+    .toMatchObject({
+      partnerState: 'revoked',
+      roleState: 'revoked',
+      actions: baseline.actions + 1,
+      audit: baseline.audit + 1,
+    })
   await page.reload()
   const revoked = targetRow(page)
   await expect(revoked).toContainText('revoked')
@@ -164,21 +169,29 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
   await expect
     .poll(() => read(target))
     .toMatchObject({
+      partnerState: 'active',
+      roleState: 'active',
       actions: input.wrongReadback ? 99 : baseline.actions + 2,
       audit: baseline.audit + 2,
     })
   await expect(siblingRow(page)).toContainText('active')
+  const regranted = targetRow(page)
   await expect(
-    targetRow(page).getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }),
+    regranted.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }),
   ).toBeVisible()
+  await regranted.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).click()
+  await expect(regranted.getByText(/Confirm exact scope: Clockwork Cabinet/)).toBeVisible()
+  await regranted.getByRole('button', { name: 'Cancel scope change', exact: true }).click()
 })
 
 test('stale replay and missing assurance fail closed while focus and scoped record survive desktop and phone use', async ({
   page,
-}) => {
+}, testInfo) => {
+  const administrator = input.actors.admin[testInfo.project.name]
+  if (!administrator) throw new Error(`No Administrator fixture for ${testInfo.project.name}`)
   const aal1 = await loopbackRequest(input.endpoint, '/auth/v1/token?grant_type=password', {
     key: input.anonKey,
-    body: { email: input.actors.admin.email, password: input.actors.admin.password },
+    body: { email: administrator.email, password: administrator.password },
   })
   await expect(
     loopbackRequest(input.endpoint, '/rest/v1/rpc/admin_preview_store_scope_change', {
@@ -193,9 +206,10 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
       },
     }),
   ).rejects.toThrow(/401|403|admin_unavailable/)
-  await login(page)
+  await login(page, testInfo.project.name)
   const row = targetRow(page)
   const baseline = await read(target)
+  expect(baseline).toMatchObject({ partnerState: 'active', roleState: 'active' })
   await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).focus()
   await expect(
     row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }),
@@ -212,7 +226,12 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   const stale = browserRequest.postDataJSON()
   await expect
     .poll(() => read(target))
-    .toMatchObject({ actions: baseline.actions + 1, audit: baseline.audit + 1 })
+    .toMatchObject({
+      partnerState: 'revoked',
+      roleState: 'revoked',
+      actions: baseline.actions + 1,
+      audit: baseline.audit + 1,
+    })
   await expect(
     loopbackRequest(input.endpoint, '/rest/v1/rpc/admin_change_store_scope', {
       key: input.anonKey,
@@ -237,5 +256,10 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   await revoked.getByRole('button', { name: /Confirm regrant Clockwork Cabinet scope/ }).click()
   await expect
     .poll(() => read(target))
-    .toMatchObject({ actions: baseline.actions + 2, audit: baseline.audit + 2 })
+    .toMatchObject({
+      partnerState: 'active',
+      roleState: 'active',
+      actions: baseline.actions + 2,
+      audit: baseline.audit + 2,
+    })
 })

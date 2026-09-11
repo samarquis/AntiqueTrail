@@ -1,7 +1,7 @@
 -- #323: run-owned fictional Administrator scope subjects. Tokens are substituted only by the runner.
-insert into app_private.profiles(user_id,age_18_attested_at) values
-  ('__ADMIN__',statement_timestamp()),('__SUBJECT__',statement_timestamp()),('__SIBLING__',statement_timestamp()),('__SHOPPER__',statement_timestamp())
-on conflict (user_id) do update set age_18_attested_at=excluded.age_18_attested_at;
+insert into app_private.profiles(user_id,public_display_name,age_18_attested_at) values
+  ('__ADMIN__','Scope Administrator',statement_timestamp()),('__SUBJECT__','Clockwork Scope Subject',statement_timestamp()),('__SIBLING__','Prairie Scope Subject',statement_timestamp()),('__SHOPPER__','Scope Shopper',statement_timestamp())
+on conflict (user_id) do update set public_display_name=excluded.public_display_name,age_18_attested_at=excluded.age_18_attested_at;
 insert into app_private.role_grants(subject_user_id,role,state) values
   ('__ADMIN__','administrator','active'),('__SHOPPER__','shopper','active');
 insert into partner_private.partner_invitations(invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at)

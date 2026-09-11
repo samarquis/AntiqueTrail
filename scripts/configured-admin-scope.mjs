@@ -95,11 +95,11 @@ try {
   const local = await service.start()
   const password = crypto.randomBytes(24).toString('base64url')
   const actors = {
-    admin: local.users[0],
+    desktopAdmin: local.users[0],
     subject: local.users[1],
   }
   report.phase = 'creating local Auth fixture identities'
-  for (const alias of ['sibling', 'shopper']) {
+  for (const alias of ['phoneAdmin', 'sibling', 'shopper']) {
     const created = await authRequest(
       local.endpoint,
       '/auth/v1/signup',
@@ -117,40 +117,44 @@ try {
     }
   }
   await service.sql(
-    `update auth.users set raw_app_meta_data=jsonb_build_object('role','Administrator') where id='${actors.admin.id}'; update auth.users set raw_app_meta_data=jsonb_build_object('role','Representative') where id in ('${actors.subject.id}','${actors.sibling.id}'); update auth.users set raw_app_meta_data=jsonb_build_object('role','Shopper') where id='${actors.shopper.id}';`,
+    `update auth.users set raw_app_meta_data=jsonb_build_object('role','Administrator') where id in ('${actors.desktopAdmin.id}','${actors.phoneAdmin.id}'); update auth.users set raw_app_meta_data=jsonb_build_object('role','Representative') where id in ('${actors.subject.id}','${actors.sibling.id}'); update auth.users set raw_app_meta_data=jsonb_build_object('role','Shopper') where id='${actors.shopper.id}';`,
   )
   report.phase = 'establishing Administrator MFA assurance'
-  const adminPasswordSession = await service.request('/auth/v1/token?grant_type=password', {
-    key: local.anonKey,
-    body: { email: actors.admin.email, password: actors.admin.password },
-  })
-  report.phase = 'enrolling Administrator TOTP factor'
-  const enrolled = await authRequest(
-    local.endpoint,
-    '/auth/v1/factors',
-    local.anonKey,
-    adminPasswordSession.access_token,
-    { factor_type: 'totp', friendly_name: 'local-admin-scope' },
-  )
-  const secret = enrolled?.totp?.secret
-  if (typeof secret !== 'string' || !secret)
-    throw new Error('Local Auth MFA enrollment did not return a TOTP secret')
-  report.phase = 'challenging Administrator TOTP factor'
-  const challenge = await authRequest(
-    local.endpoint,
-    `/auth/v1/factors/${enrolled.id}/challenge`,
-    local.anonKey,
-    adminPasswordSession.access_token,
-    {},
-  )
-  report.phase = 'verifying Administrator TOTP factor'
-  await authRequest(
-    local.endpoint,
-    `/auth/v1/factors/${enrolled.id}/verify`,
-    local.anonKey,
-    adminPasswordSession.access_token,
-    { challenge_id: challenge.id, code: totp(secret) },
-  )
+  const enrollAdminMfa = async (actor, variant) => {
+    const passwordSession = await service.request('/auth/v1/token?grant_type=password', {
+      key: local.anonKey,
+      body: { email: actor.email, password: actor.password },
+    })
+    const enrolled = await authRequest(
+      local.endpoint,
+      '/auth/v1/factors',
+      local.anonKey,
+      passwordSession.access_token,
+      { factor_type: 'totp', friendly_name: `local-admin-scope-${variant}` },
+    )
+    const secret = enrolled?.totp?.secret
+    if (typeof secret !== 'string' || !secret)
+      throw new Error('Local Auth MFA enrollment did not return a TOTP secret')
+    const challenge = await authRequest(
+      local.endpoint,
+      `/auth/v1/factors/${enrolled.id}/challenge`,
+      local.anonKey,
+      passwordSession.access_token,
+      {},
+    )
+    await authRequest(
+      local.endpoint,
+      `/auth/v1/factors/${enrolled.id}/verify`,
+      local.anonKey,
+      passwordSession.access_token,
+      { challenge_id: challenge.id, code: totp(secret) },
+    )
+    return { ...actor, secret }
+  }
+  const admin = {
+    desktop: await enrollAdminMfa(actors.desktopAdmin, 'desktop'),
+    phone: await enrollAdminMfa(actors.phoneAdmin, 'phone'),
+  }
   const subjectPasswordSession = await service.request('/auth/v1/token?grant_type=password', {
     key: local.anonKey,
     body: { email: actors.subject.email, password: actors.subject.password },
@@ -204,13 +208,18 @@ try {
   )
   await service.sql(
     replaceFixture(fixture, {
-      ADMIN: actors.admin.id,
+      ADMIN: actors.desktopAdmin.id,
       SUBJECT: actors.subject.id,
       SIBLING: actors.sibling.id,
       SHOPPER: actors.shopper.id,
       ...ids,
     }),
   )
+  const fixtureAuthority = await service.sql(
+    `select (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and role='representative' and state='active'),(select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and role='representative' and state='active');`,
+  )
+  if (fixtureAuthority.trim() !== '1|1|1|1')
+    throw new Error(`Configured scope fixture authority is incomplete: ${fixtureAuthority.trim()}`)
   const fixtureIdentity = crypto
     .createHash('sha256')
     .update(local.fixtureIdentity)
@@ -226,8 +235,7 @@ try {
       output: output.directory,
       origin,
       wrongReadback: process.env.CONFIGURED_ADMIN_SCOPE_WRONG_READBACK === '1',
-      actors,
-      secret,
+      actors: { ...actors, admin },
       stores: {
         target: '00000000-0000-4000-8000-000000001001',
         sibling: '00000000-0000-4000-8000-000000001002',
