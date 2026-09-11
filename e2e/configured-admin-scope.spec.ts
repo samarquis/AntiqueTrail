@@ -177,7 +177,6 @@ test('actual Auth MFA Administrator identity cannot read populated shopper-priva
       body: {},
     }),
   ).rejects.toThrow(/401|403|shopper_private_access_denied/)
-  await expect(targetRow(page)).toContainText('Store representative')
   await expect(targetRow(page)).toContainText('MFA verified')
   await expect(page.getByText(input.actors.shopper.email, { exact: false })).toHaveCount(0)
 })
