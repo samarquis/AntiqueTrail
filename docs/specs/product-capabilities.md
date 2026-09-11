@@ -745,4 +745,3 @@ The product requires:
 ## Account scope requirements
 
 - **Account scope:** Regional Public MVP is United States only. Anonymous browsing has no age gate; account creation, public reviewing, Store Partner participation, and trip sharing require age 18 or older until legal review approves broader participation. Approved 2026-07-31.
-

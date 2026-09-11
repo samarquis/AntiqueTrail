@@ -1,4 +1,6 @@
-﻿# TDD Development Plan
+Historical development plan: sequencing and scope below are preserved as earlier planning, not current authority. [PRD.md](../../PRD.md) owns the store-first stages; [README](../../README.md#source-precedence) owns requirement delegation. No post-RG-01 or three-community prerequisite here governs the bounded Gallery pilot.
+
+# TDD Development Plan
 
 **Date**: 2026-08-23 · **Status**: historical ticket-cut plan. Coding later proceeded and several named tickets closed; use `PROJECT_STATE.md` and live GitHub state for current progress.
 **Inputs**: DEEP_SPEC_REVIEW.md (2026-08-16 browser review), REVIEW_VERDICTS.md, docs/specs/store-membership-spec.md (#87), PRODUCT_DECISIONS.md Â§Photo moderation criteria (#92) + Â§Photo-tier memberships, docs/research/gallery-photo-data-access.md (#95), docs/operations/G56_RELEASE_GATE_STATUS_LEDGER.md (#56)
