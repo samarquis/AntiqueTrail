@@ -206,6 +206,7 @@ try {
   await service.sql(
     replaceFixture(fixture, {
       ADMIN: actors.desktopAdmin.id,
+      PHONE_ADMIN: actors.phoneAdmin.id,
       SUBJECT: actors.subject.id,
       SIBLING: actors.sibling.id,
       SHOPPER: actors.shopper.id,
