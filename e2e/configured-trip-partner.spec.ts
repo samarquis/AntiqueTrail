@@ -35,6 +35,12 @@ async function createTrip() {
   return tripId
 }
 
+async function ensureInvitationKey() {
+  await service.sql(
+    "begin; set local role trip_email_key_manager; insert into trip_private.email_hmac_keys(environment,purpose,key_version,key_material,state) values ('shared_alpha','trip_invitation',1,extensions.gen_random_bytes(32),'active') on conflict (environment,purpose,key_version) do nothing; commit;",
+  )
+}
+
 async function issueReceipt(tripId: string) {
   const token = crypto.randomBytes(32).toString('base64url')
   const email = input.users[1].email.replace(/'/g, "''")
@@ -58,6 +64,7 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
   page,
   browser,
 }) => {
+  await ensureInvitationKey()
   const tripId = await createTrip()
   const token = await issueReceipt(tripId)
   await service.sql(
