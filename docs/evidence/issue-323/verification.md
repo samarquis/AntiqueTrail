@@ -27,3 +27,7 @@ The browser suite captures the authenticated Administrator bearer used for the s
 ## Post-repair run
 
 Candidate `2512d41c692178e3760820d1673124a4b805a519` confirmed local fixture emails and reached the browser suite. The authenticated Administrator shopper-private denial assertion failed because `shopper_list_saved` resolved `[]` instead of denying; this is preserved as an application-boundary finding. The sibling readback also initially failed because the test queried the target subject for both stores; candidate `8247a5d406a9ce8090977d1260f76f8d917c9be2` corrects that diagnostic-only query. A fresh run is required for this changed executable head; no pass is claimed.
+
+## Final focused run disposition
+
+Candidate `127d083a30199a9a7985992b12f5aea6aaee3568` reached the browser suite with healthy local services. The populated shopper browser positive control passed, and the authenticated Administrator shopper-private RPC was denied with `HTTP 403 42501 shopper_private_access_denied`. All three desktop scope, stale/replay, and assurance scenarios passed. Phone scenarios were blocked after the shared desktop project consumed the intentional 10-per-exact-target/hour privileged-operation budget; no rate-limit control was weakened. Fresh per-project service/target isolation is required before claiming complete desktop-and-phone acceptance.
