@@ -1,6 +1,6 @@
 # Issue #323 verification
 
-Candidate: `61d9a675c0daf7fe08723f8681c29f76a76c978e`
+Candidate at initial evidence capture: `61d9a675c0daf7fe08723f8681c29f76a76c978e`
 Base: `cf1f78dccceeb9bdb9832a755c32b5868200dd9a`
 Evidence class: real-local browser diagnostic (not hosted, provider, production, or human evidence).
 
@@ -23,3 +23,7 @@ The preserved local artifacts contain no published credentials or bearer traces.
 ## Scope-specific review note
 
 The browser suite captures the authenticated Administrator bearer used for the scope read and attempts `shopper_list_saved` with that token. The server denial is required, so a UI absence alone cannot satisfy the shopper-private criterion. The suite retains separate desktop and phone Administrator identities and does not alter the privileged rate limit.
+
+## Post-repair run
+
+Candidate `2512d41c692178e3760820d1673124a4b805a519` confirmed local fixture emails and reached the browser suite. The authenticated Administrator shopper-private denial assertion failed because `shopper_list_saved` resolved `[]` instead of denying; this is preserved as an application-boundary finding. The sibling readback also initially failed because the test queried the target subject for both stores; candidate `8247a5d406a9ce8090977d1260f76f8d917c9be2` corrects that diagnostic-only query. A fresh run is required for this changed executable head; no pass is claimed.
