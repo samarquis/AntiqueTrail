@@ -130,14 +130,18 @@ async function login(page: Page, projectName: string) {
   await expect(challenge).toBeVisible()
   const code = page.getByLabel('Authentication code', { exact: true })
   const verify = page.getByRole('button', { name: 'Verify code', exact: true })
-  for (const stepOffset of [0, 1, -1]) {
-    await code.fill(totp(administrator.secret, stepOffset))
+  for (const attempt of [0, 1]) {
+    if (attempt === 1) {
+      const remaining = 30_000 - (Date.now() % 30_000)
+      await page.waitForTimeout(remaining + 250)
+    }
+    await code.fill(totp(administrator.secret))
     await verify.click()
     try {
       await expect(access).toBeVisible({ timeout: 3000 })
       return
     } catch (error) {
-      if (stepOffset === -1 || !(await challenge.isVisible())) throw error
+      if (attempt === 1 || !(await challenge.isVisible())) throw error
     }
   }
 }
