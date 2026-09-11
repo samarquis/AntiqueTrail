@@ -37,6 +37,27 @@ const service = inputPath ? createLocalService({ resumeDirectory: input.director
 test.skip(!inputPath, 'configured Administrator scope input is required')
 const target = input.stores.target as string
 const sibling = input.stores.sibling as string
+function scopeFor(projectName: string) {
+  if (projectName === 'phone')
+    return {
+      target: sibling,
+      sibling: target,
+      targetSubjectId: input.actors.sibling.id,
+      siblingSubjectId: input.actors.subject.id,
+      targetStoreName: 'Prairie Patina',
+      targetSubjectName: 'Prairie Scope Subject',
+      siblingSubjectName: 'Clockwork Scope Subject',
+    }
+  return {
+    target,
+    sibling,
+    targetSubjectId: input.actors.subject.id,
+    siblingSubjectId: input.actors.sibling.id,
+    targetStoreName: 'Clockwork Cabinet',
+    targetSubjectName: 'Clockwork Scope Subject',
+    siblingSubjectName: 'Prairie Scope Subject',
+  }
+}
 const base32 = (value: string) => {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
   let bits = 0,
@@ -67,7 +88,7 @@ const totp = (secret: string) => {
       1_000_000,
   ).padStart(6, '0')
 }
-const read = (store: string, subjectId = input.actors.subject.id) =>
+const read = (store: string, subjectId: string) =>
   command(
     'docker',
     [
@@ -134,22 +155,23 @@ async function shopperSavedCount() {
     },
   ).then((text: string) => Number.parseInt(text.trim(), 10))
 }
-function targetRow(page: Page) {
+function targetRow(page: Page, scope: ReturnType<typeof scopeFor>) {
   return page
     .getByLabel('Store Representative scopes')
     .getByRole('listitem')
-    .filter({ hasText: 'Clockwork Scope Subject' })
+    .filter({ hasText: scope.targetSubjectName })
 }
-function siblingRow(page: Page) {
+function siblingRow(page: Page, scope: ReturnType<typeof scopeFor>) {
   return page
     .getByLabel('Store Representative scopes')
     .getByRole('listitem')
-    .filter({ hasText: 'Prairie Scope Subject' })
+    .filter({ hasText: scope.siblingSubjectName })
 }
 
 test('actual Auth MFA Administrator identity cannot read populated shopper-private data', async ({
   page,
 }, testInfo) => {
+  const scope = scopeFor(testInfo.project.name)
   await page.goto('/admin/access')
   await expect(page).not.toHaveURL(/\/admin\/access/)
   await login(page, testInfo.project.name)
@@ -177,31 +199,32 @@ test('actual Auth MFA Administrator identity cannot read populated shopper-priva
       body: {},
     }),
   ).rejects.toThrow(/401|403|shopper_private_access_denied/)
-  await expect(targetRow(page)).toContainText('MFA verified')
+  await expect(targetRow(page, scope)).toContainText('MFA verified')
   await expect(page.getByText(input.actors.shopper.email, { exact: false })).toHaveCount(0)
 })
 
 test('preview cancel then exact revoke and regrant retain sibling scope with audited independent readback', async ({
   page,
 }, testInfo) => {
+  const scope = scopeFor(testInfo.project.name)
   await login(page, testInfo.project.name)
-  const row = targetRow(page)
-  const baseline = await read(target)
+  const row = targetRow(page, scope)
+  const baseline = await read(scope.target, scope.targetSubjectId)
   expect(baseline).toMatchObject({ partnerState: 'active', roleState: 'active' })
-  await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).click()
-  await expect(row.getByText(/Confirm exact scope: Clockwork Cabinet/)).toBeVisible()
+  await row.getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` }).click()
+  await expect(row.getByText(`Confirm exact scope: ${scope.targetStoreName}`)).toBeVisible()
   await row.getByLabel('Administrative reason').fill('scope_review')
   await row.getByRole('button', { name: 'Cancel scope change', exact: true }).click()
-  expect(await read(target)).toMatchObject(baseline)
-  expect(await read(sibling, input.actors.sibling.id)).toMatchObject({
+  expect(await read(scope.target, scope.targetSubjectId)).toMatchObject(baseline)
+  expect(await read(scope.sibling, scope.siblingSubjectId)).toMatchObject({
     partnerState: 'active',
     roleState: 'active',
   })
-  await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).click()
+  await row.getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` }).click()
   await row.getByLabel('Administrative reason').fill('scope_review')
-  await row.getByRole('button', { name: /Confirm revoke Clockwork Cabinet scope/ }).click()
+  await row.getByRole('button', { name: `Confirm revoke ${scope.targetStoreName} scope` }).click()
   await expect
-    .poll(() => read(target))
+    .poll(() => read(scope.target, scope.targetSubjectId))
     .toMatchObject({
       partnerState: 'revoked',
       roleState: 'revoked',
@@ -209,33 +232,40 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
       audit: baseline.audit + 1,
     })
   await page.reload()
-  const revoked = targetRow(page)
+  const revoked = targetRow(page, scope)
   await expect(revoked).toContainText('revoked')
-  await expect(siblingRow(page)).toContainText('active')
-  await revoked.getByRole('button', { name: /Preview regrant Clockwork Cabinet scope/ }).click()
+  await expect(siblingRow(page, scope)).toContainText('active')
+  await revoked
+    .getByRole('button', { name: `Preview regrant ${scope.targetStoreName} scope` })
+    .click()
   await revoked.getByLabel('Administrative reason').fill('scope_reapproved')
-  await revoked.getByRole('button', { name: /Confirm regrant Clockwork Cabinet scope/ }).click()
+  await revoked
+    .getByRole('button', { name: `Confirm regrant ${scope.targetStoreName} scope` })
+    .click()
   await expect
-    .poll(() => read(target))
+    .poll(() => read(scope.target, scope.targetSubjectId))
     .toMatchObject({
       partnerState: 'active',
       roleState: 'active',
       actions: input.wrongReadback ? 99 : baseline.actions + 2,
       audit: baseline.audit + 2,
     })
-  await expect(siblingRow(page)).toContainText('active')
-  const regranted = targetRow(page)
+  await expect(siblingRow(page, scope)).toContainText('active')
+  const regranted = targetRow(page, scope)
   await expect(
-    regranted.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }),
+    regranted.getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` }),
   ).toBeVisible()
-  await regranted.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).click()
-  await expect(regranted.getByText(/Confirm exact scope: Clockwork Cabinet/)).toBeVisible()
+  await regranted
+    .getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` })
+    .click()
+  await expect(regranted.getByText(`Confirm exact scope: ${scope.targetStoreName}`)).toBeVisible()
   await regranted.getByRole('button', { name: 'Cancel scope change', exact: true }).click()
 })
 
 test('stale replay and missing assurance fail closed while focus and scoped record survive desktop and phone use', async ({
   page,
 }, testInfo) => {
+  const scope = scopeFor(testInfo.project.name)
   const administrator = input.actors.admin[testInfo.project.name]
   if (!administrator) throw new Error(`No Administrator fixture for ${testInfo.project.name}`)
   const aal1 = await loopbackRequest(input.endpoint, '/auth/v1/token?grant_type=password', {
@@ -249,32 +279,34 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
       schema: 'app_public',
       body: {
         p_operation: 'revoke',
-        p_subject_user_id: input.actors.subject.id,
-        p_store_id: target,
+        p_subject_user_id: scope.targetSubjectId,
+        p_store_id: scope.target,
         p_expected_version: 1,
       },
     }),
   ).rejects.toThrow(/401|403|admin_unavailable/)
   await login(page, testInfo.project.name)
-  const row = targetRow(page)
-  const baseline = await read(target)
+  const row = targetRow(page, scope)
+  const baseline = await read(scope.target, scope.targetSubjectId)
   expect(baseline).toMatchObject({ partnerState: 'active', roleState: 'active' })
-  await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).focus()
+  await row.getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` }).focus()
   await expect(
-    row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }),
+    row.getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` }),
   ).toBeFocused()
-  await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).press('Enter')
+  await row
+    .getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` })
+    .press('Enter')
   await row.getByLabel('Administrative reason').fill('stale_control')
   const request = page.waitForRequest((candidate) =>
     candidate.url().includes('/rest/v1/rpc/admin_change_store_scope'),
   )
-  await row.getByRole('button', { name: /Confirm revoke Clockwork Cabinet scope/ }).click()
+  await row.getByRole('button', { name: `Confirm revoke ${scope.targetStoreName} scope` }).click()
   const browserRequest = await request
   const token = browserRequest.headers().authorization?.replace(/^Bearer\s+/i, '')
   if (!token) throw new Error('Browser mutation did not use an actual bearer session')
   const stale = browserRequest.postDataJSON()
   await expect
-    .poll(() => read(target))
+    .poll(() => read(scope.target, scope.targetSubjectId))
     .toMatchObject({
       partnerState: 'revoked',
       roleState: 'revoked',
@@ -296,15 +328,19 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
       body: {},
     }),
   ).rejects.toThrow(/401|403|admin_unavailable/)
-  await expect(siblingRow(page)).toContainText('active')
+  await expect(siblingRow(page, scope)).toContainText('active')
   await page.reload()
-  await expect(targetRow(page)).toContainText('Clockwork Cabinet')
-  const revoked = targetRow(page)
-  await revoked.getByRole('button', { name: /Preview regrant Clockwork Cabinet scope/ }).click()
+  await expect(targetRow(page, scope)).toContainText(scope.targetStoreName)
+  const revoked = targetRow(page, scope)
+  await revoked
+    .getByRole('button', { name: `Preview regrant ${scope.targetStoreName} scope` })
+    .click()
   await revoked.getByLabel('Administrative reason').fill('stale_restore')
-  await revoked.getByRole('button', { name: /Confirm regrant Clockwork Cabinet scope/ }).click()
+  await revoked
+    .getByRole('button', { name: `Confirm regrant ${scope.targetStoreName} scope` })
+    .click()
   await expect
-    .poll(() => read(target))
+    .poll(() => read(scope.target, scope.targetSubjectId))
     .toMatchObject({
       partnerState: 'active',
       roleState: 'active',
