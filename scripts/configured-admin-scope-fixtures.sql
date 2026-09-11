@@ -1,6 +1,7 @@
 -- #323: run-owned fictional Administrator scope subjects. Tokens are substituted only by the runner.
 insert into app_private.profiles(user_id,age_18_attested_at) values
-  ('__ADMIN__',statement_timestamp()),('__SUBJECT__',statement_timestamp()),('__SIBLING__',statement_timestamp()),('__SHOPPER__',statement_timestamp());
+  ('__ADMIN__',statement_timestamp()),('__SUBJECT__',statement_timestamp()),('__SIBLING__',statement_timestamp()),('__SHOPPER__',statement_timestamp())
+on conflict (user_id) do update set age_18_attested_at=excluded.age_18_attested_at;
 insert into app_private.role_grants(subject_user_id,role,state) values
   ('__ADMIN__','administrator','active'),('__SHOPPER__','shopper','active');
 insert into partner_private.partner_invitations(invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at)
@@ -31,13 +32,16 @@ insert into app_private.role_grants(subject_user_id,role,store_id,state,granted_
 values
   ('__SUBJECT__','representative','00000000-0000-4000-8000-000000001001','active','__ADMIN__'),
   ('__SIBLING__','representative','00000000-0000-4000-8000-000000001002','active','__ADMIN__');
-insert into partner_private.listing_claims(claim_id,claimant_id,store_id,state,approved_at,approved_by)
+insert into partner_private.listing_claims(claim_id,claimant_id,store_id,relationship,authority_statement)
 values
-  ('__CLAIM_A__','__SUBJECT__','00000000-0000-4000-8000-000000001001','approved',statement_timestamp(),'__ADMIN__'),
-  ('__CLAIM_B__','__SIBLING__','00000000-0000-4000-8000-000000001002','approved',statement_timestamp(),'__ADMIN__');
-insert into partner_private.claim_authority_signals(claim_id,channel_class,signal_type,status,verified_by,verified_at)
+  ('__CLAIM_A__','__SUBJECT__','00000000-0000-4000-8000-000000001001','store owner','I am authorized to represent this store.'),
+  ('__CLAIM_B__','__SIBLING__','00000000-0000-4000-8000-000000001002','store owner','I am authorized to represent this store.');
+insert into partner_private.claim_authority_signals(claim_id,channel_class,signal_type,status,verified_by,verified_at,evidence_ref_hmac,authority_object_hmac,verification_event_id)
 values
-  ('__CLAIM_A__','published_business_contact','domain_response','verified','__ADMIN__',statement_timestamp()),
-  ('__CLAIM_A__','callback','callback','verified','__ADMIN__',statement_timestamp()),
-  ('__CLAIM_B__','published_business_contact','domain_response','verified','__ADMIN__',statement_timestamp()),
-  ('__CLAIM_B__','callback','callback','verified','__ADMIN__',statement_timestamp());
+  ('__CLAIM_A__','published_business_contact','domain_response','verified','__ADMIN__',statement_timestamp(),decode(repeat('11',32),'hex'),decode(repeat('12',32),'hex'),'__CLAIM_A__'),
+  ('__CLAIM_A__','callback','callback','verified','__ADMIN__',statement_timestamp(),decode(repeat('13',32),'hex'),decode(repeat('14',32),'hex'),'__PENDING_A__'),
+  ('__CLAIM_B__','published_business_contact','domain_response','verified','__ADMIN__',statement_timestamp(),decode(repeat('15',32),'hex'),decode(repeat('16',32),'hex'),'__CLAIM_B__'),
+  ('__CLAIM_B__','callback','callback','verified','__ADMIN__',statement_timestamp(),decode(repeat('17',32),'hex'),decode(repeat('18',32),'hex'),'__PENDING_B__');
+update partner_private.listing_claims set state='submitted',submitted_at=statement_timestamp() where claim_id in ('__CLAIM_A__','__CLAIM_B__');
+update partner_private.listing_claims set state='verification_pending' where claim_id in ('__CLAIM_A__','__CLAIM_B__');
+update partner_private.listing_claims set state='approved',assigned_admin_id='__ADMIN__',approved_by='__ADMIN__',approved_at=statement_timestamp() where claim_id in ('__CLAIM_A__','__CLAIM_B__');

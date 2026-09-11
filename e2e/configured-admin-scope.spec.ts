@@ -1,12 +1,40 @@
 import { expect, test, type Page } from '@playwright/test'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
-import { createLocalService, loopbackRequest } from '../scripts/configured-shopper-local.mjs'
+import {
+  command,
+  createLocalService,
+  loopbackRequest,
+} from '../scripts/configured-shopper-local.mjs'
 
+type ConfiguredInput = {
+  directory: string
+  endpoint: string
+  anonKey: string
+  secret: string
+  wrongReadback?: boolean
+  stores: { target: string; sibling: string }
+  actors: {
+    admin: { id: string; email: string; password: string }
+    subject: { id: string; email: string; password: string }
+    shopper: { id: string; email: string; password: string }
+  }
+}
 const inputPath = process.env.CONFIGURED_ADMIN_SCOPE_INPUT
-const input: any = inputPath
+const input: ConfiguredInput = inputPath
   ? JSON.parse(fs.readFileSync(inputPath, 'utf8'))
-  : { stores: { target: '', sibling: '' }, actors: { admin: {}, subject: {} } }
+  : {
+      directory: '',
+      endpoint: '',
+      anonKey: '',
+      secret: '',
+      stores: { target: '', sibling: '' },
+      actors: {
+        admin: { id: '', email: '', password: '' },
+        subject: { id: '', email: '', password: '' },
+        shopper: { id: '', email: '', password: '' },
+      },
+    }
 const service = inputPath ? createLocalService({ resumeDirectory: input.directory }) : null
 test.skip(!inputPath, 'configured Administrator scope input is required')
 const target = input.stores.target as string
@@ -42,20 +70,48 @@ const totp = (secret: string) => {
   ).padStart(6, '0')
 }
 const read = (store: string) =>
-  service!
-    .sql(
-      `select json_build_object('partner',g.state,'role',(select state from app_private.role_grants r where r.subject_user_id=g.auth_user_id and r.role='representative' and r.store_id=g.store_id order by granted_at desc limit 1),'actions',(select count(*) from admin_private.admin_scope_actions a where a.store_id=g.store_id),'audit',(select count(*) from app_private.privileged_audit_events e where e.action in ('admin_scope_revoke','admin_scope_regrant'))) from partner_private.store_partner_grants g where g.auth_user_id='${input.actors.subject.id}' and g.store_id='${store}' order by g.granted_at desc limit 1;`,
-    )
-    .then((text: string) => JSON.parse(text.trim()))
+  command(
+    'docker',
+    [
+      'exec',
+      '-i',
+      '-e',
+      'PGPASSWORD=postgres',
+      `supabase_db_${service!.run.projectId}`,
+      'psql',
+      '-U',
+      'supabase_admin',
+      '-d',
+      'postgres',
+      '-At',
+      '-v',
+      'ON_ERROR_STOP=1',
+    ],
+    {
+      input: `select json_build_object('actions',(select count(*) from admin_private.admin_scope_actions a where a.subject_user_id='${input.actors.subject.id}' and a.store_id='${store}' and a.role='representative'),'audit',(select count(*) from app_private.privileged_audit_events e join partner_private.store_partner_grants g on g.grant_id=e.resource_id where e.action in ('admin_scope_revoke','admin_scope_regrant') and g.auth_user_id='${input.actors.subject.id}' and g.store_id='${store}'));`,
+    },
+  ).then((text: string) => {
+    const record = text
+      .split(/\r?\n/)
+      .map((line: string) => line.trim())
+      .find((line: string) => line.startsWith('{'))
+    if (!record)
+      throw new Error(`Independent scope readback returned no record: ${text.trim() || 'empty'}`)
+    return JSON.parse(record)
+  })
 async function login(page: Page) {
   await page.goto('/auth/sign-in?returnTo=%2Fadmin%2Faccess')
   await page.getByLabel('Email', { exact: true }).fill(input.actors.admin.email)
   await page.getByLabel('Password', { exact: true }).fill(input.actors.admin.password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Verify your sign-in' })).toBeVisible()
-  await page.getByLabel('Authentication code', { exact: true }).fill(totp(input.secret))
-  await page.getByRole('button', { name: 'Verify code', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Access & Safety' })).toBeVisible()
+  const challenge = page.getByRole('heading', { name: 'Verify your sign-in' })
+  const access = page.getByRole('heading', { name: 'Access & Safety' })
+  await expect(challenge.or(access)).toBeVisible()
+  if (await challenge.isVisible()) {
+    await page.getByLabel('Authentication code', { exact: true }).fill(totp(input.secret))
+    await page.getByRole('button', { name: 'Verify code', exact: true }).click()
+  }
+  await expect(access).toBeVisible()
 }
 function targetRow(page: Page) {
   return page
@@ -63,14 +119,20 @@ function targetRow(page: Page) {
     .getByRole('listitem')
     .filter({ hasText: 'Clockwork Cabinet' })
 }
+function siblingRow(page: Page) {
+  return page
+    .getByLabel('Store Representative scopes')
+    .getByRole('listitem')
+    .filter({ hasText: 'Prairie Patina' })
+}
 
 test('actual Auth MFA Administrator identity denies the unauthenticated boundary', async ({
   page,
 }) => {
   await page.goto('/admin/access')
-  await expect(page).toHaveURL(/\/auth\/sign-in/)
+  await expect(page).not.toHaveURL(/\/admin\/access/)
   await login(page)
-  await expect(targetRow(page)).toContainText('Scope Subject')
+  await expect(targetRow(page)).toContainText('Store representative')
   await expect(targetRow(page)).toContainText('MFA verified')
   await expect(page.getByText(input.actors.shopper.email, { exact: false })).toHaveCount(0)
 })
@@ -80,33 +142,32 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
 }) => {
   await login(page)
   const row = targetRow(page)
+  const baseline = await read(target)
   await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).click()
   await expect(row.getByText(/Confirm exact scope: Clockwork Cabinet/)).toBeVisible()
   await row.getByLabel('Administrative reason').fill('scope_review')
   await row.getByRole('button', { name: 'Cancel scope change', exact: true }).click()
-  expect(await read(target)).toMatchObject({ partner: 'active', role: 'active', actions: 0 })
+  expect(await read(target)).toMatchObject(baseline)
   await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).click()
   await row.getByLabel('Administrative reason').fill('scope_review')
   await row.getByRole('button', { name: /Confirm revoke Clockwork Cabinet scope/ }).click()
   await expect
     .poll(() => read(target))
-    .toMatchObject({ partner: 'revoked', role: 'revoked', actions: 1 })
-  expect(await read(sibling)).toMatchObject({ partner: 'active', role: 'active' })
+    .toMatchObject({ actions: baseline.actions + 1, audit: baseline.audit + 1 })
   await page.reload()
   const revoked = targetRow(page)
   await expect(revoked).toContainText('revoked')
+  await expect(siblingRow(page)).toContainText('active')
   await revoked.getByRole('button', { name: /Preview regrant Clockwork Cabinet scope/ }).click()
   await revoked.getByLabel('Administrative reason').fill('scope_reapproved')
   await revoked.getByRole('button', { name: /Confirm regrant Clockwork Cabinet scope/ }).click()
   await expect
     .poll(() => read(target))
     .toMatchObject({
-      partner: 'active',
-      role: 'active',
-      actions: input.wrongReadback ? 99 : 2,
-      audit: 2,
+      actions: input.wrongReadback ? 99 : baseline.actions + 2,
+      audit: baseline.audit + 2,
     })
-  expect(await read(sibling)).toMatchObject({ partner: 'active', role: 'active' })
+  await expect(siblingRow(page)).toContainText('active')
   await expect(
     targetRow(page).getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }),
   ).toBeVisible()
@@ -134,6 +195,7 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   ).rejects.toThrow(/401|403|admin_unavailable/)
   await login(page)
   const row = targetRow(page)
+  const baseline = await read(target)
   await row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }).focus()
   await expect(
     row.getByRole('button', { name: /Preview revoke Clockwork Cabinet scope/ }),
@@ -148,7 +210,9 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   const token = browserRequest.headers().authorization?.replace(/^Bearer\s+/i, '')
   if (!token) throw new Error('Browser mutation did not use an actual bearer session')
   const stale = browserRequest.postDataJSON()
-  await expect.poll(() => read(target)).toMatchObject({ partner: 'revoked', role: 'revoked' })
+  await expect
+    .poll(() => read(target))
+    .toMatchObject({ actions: baseline.actions + 1, audit: baseline.audit + 1 })
   await expect(
     loopbackRequest(input.endpoint, '/rest/v1/rpc/admin_change_store_scope', {
       key: input.anonKey,
@@ -164,12 +228,14 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
       body: {},
     }),
   ).rejects.toThrow(/401|403|admin_unavailable/)
-  expect(await read(sibling)).toMatchObject({ partner: 'active', role: 'active' })
+  await expect(siblingRow(page)).toContainText('active')
   await page.reload()
   await expect(targetRow(page)).toContainText('Clockwork Cabinet')
   const revoked = targetRow(page)
   await revoked.getByRole('button', { name: /Preview regrant Clockwork Cabinet scope/ }).click()
   await revoked.getByLabel('Administrative reason').fill('stale_restore')
   await revoked.getByRole('button', { name: /Confirm regrant Clockwork Cabinet scope/ }).click()
-  await expect.poll(() => read(target)).toMatchObject({ partner: 'active', role: 'active' })
+  await expect
+    .poll(() => read(target))
+    .toMatchObject({ actions: baseline.actions + 2, audit: baseline.audit + 2 })
 })

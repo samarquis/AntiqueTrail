@@ -57,14 +57,26 @@ async function authRequest(endpoint, route, key, token, body) {
   const url = new URL(endpoint)
   if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1')
     throw new Error('Only loopback Auth is allowed')
-  const response = await fetch(`${url.origin}${route}`, {
-    method: 'POST',
-    headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  const data = await response.json()
-  if (!response.ok) throw new Error(`Local Auth ${response.status}`)
-  return data
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetch(`${url.origin}${route}`, {
+        method: 'POST',
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(`Local Auth ${response.status}`)
+      return data
+    } catch (error) {
+      if (attempt === 2 || !(error instanceof TypeError)) throw error
+      await wait(500)
+    }
+  }
+  throw new Error('Local Auth request retry exhausted')
 }
 function replaceFixture(sql, values) {
   return Object.entries(values).reduce(
@@ -77,6 +89,7 @@ try {
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
     throw new Error('External endpoint selection is forbidden')
   const origin = `http://127.0.0.1:${await freePort()}`
+  report.phase = 'starting local service'
   service = createLocalService({ signal: controller.signal, browserOrigin: origin })
   report.temporaryProject = service.run.directory
   const local = await service.start()
@@ -85,6 +98,7 @@ try {
     admin: local.users[0],
     subject: local.users[1],
   }
+  report.phase = 'creating local Auth fixture identities'
   for (const alias of ['sibling', 'shopper']) {
     const created = await authRequest(
       local.endpoint,
@@ -93,9 +107,11 @@ try {
       local.anonKey,
       { email: `${alias}-${service.run.id}@probe.invalid`, password },
     )
-    if (!created?.user?.id) throw new Error('Local Auth fixture identity creation failed')
+    const userId = created?.user?.id ?? created?.id
+    if (!/^[a-f0-9-]{36}$/.test(userId ?? ''))
+      throw new Error('Local Auth fixture identity creation failed')
     actors[alias] = {
-      id: created.user.id,
+      id: userId,
       email: `${alias}-${service.run.id}@probe.invalid`,
       password,
     }
@@ -103,10 +119,12 @@ try {
   await service.sql(
     `update auth.users set raw_app_meta_data=jsonb_build_object('role','Administrator') where id='${actors.admin.id}'; update auth.users set raw_app_meta_data=jsonb_build_object('role','Representative') where id in ('${actors.subject.id}','${actors.sibling.id}'); update auth.users set raw_app_meta_data=jsonb_build_object('role','Shopper') where id='${actors.shopper.id}';`,
   )
+  report.phase = 'establishing Administrator MFA assurance'
   const adminPasswordSession = await service.request('/auth/v1/token?grant_type=password', {
     key: local.anonKey,
-    body: { email: actors.admin.email, password },
+    body: { email: actors.admin.email, password: actors.admin.password },
   })
+  report.phase = 'enrolling Administrator TOTP factor'
   const enrolled = await authRequest(
     local.endpoint,
     '/auth/v1/factors',
@@ -117,6 +135,7 @@ try {
   const secret = enrolled?.totp?.secret
   if (typeof secret !== 'string' || !secret)
     throw new Error('Local Auth MFA enrollment did not return a TOTP secret')
+  report.phase = 'challenging Administrator TOTP factor'
   const challenge = await authRequest(
     local.endpoint,
     `/auth/v1/factors/${enrolled.id}/challenge`,
@@ -124,6 +143,7 @@ try {
     adminPasswordSession.access_token,
     {},
   )
+  report.phase = 'verifying Administrator TOTP factor'
   await authRequest(
     local.endpoint,
     `/auth/v1/factors/${enrolled.id}/verify`,
@@ -131,6 +151,35 @@ try {
     adminPasswordSession.access_token,
     { challenge_id: challenge.id, code: totp(secret) },
   )
+  const subjectPasswordSession = await service.request('/auth/v1/token?grant_type=password', {
+    key: local.anonKey,
+    body: { email: actors.subject.email, password: actors.subject.password },
+  })
+  const subjectFactor = await authRequest(
+    local.endpoint,
+    '/auth/v1/factors',
+    local.anonKey,
+    subjectPasswordSession.access_token,
+    { factor_type: 'totp', friendly_name: 'local-scope-subject' },
+  )
+  const subjectSecret = subjectFactor?.totp?.secret
+  if (typeof subjectSecret !== 'string' || !subjectSecret)
+    throw new Error('Local Auth subject MFA enrollment did not return a TOTP secret')
+  const subjectChallenge = await authRequest(
+    local.endpoint,
+    `/auth/v1/factors/${subjectFactor.id}/challenge`,
+    local.anonKey,
+    subjectPasswordSession.access_token,
+    {},
+  )
+  await authRequest(
+    local.endpoint,
+    `/auth/v1/factors/${subjectFactor.id}/verify`,
+    local.anonKey,
+    subjectPasswordSession.access_token,
+    { challenge_id: subjectChallenge.id, code: totp(subjectSecret) },
+  )
+  report.phase = 'installing distinct-store fixture authority'
   const ids = Object.fromEntries(
     [
       'INVITE_A',
@@ -168,6 +217,7 @@ try {
     .update(fixture)
     .digest('hex')
   Object.assign(report, local, { fixtureIdentity, browserOrigin: origin, endpoint: local.endpoint })
+  report.phase = 'building configured browser application'
   const secretFile = path.join(local.directory, 'admin-scope-input.json')
   fs.writeFileSync(
     secretFile,
@@ -231,6 +281,7 @@ try {
     await wait(500)
   }
   if (!ready) throw new Error('Configured Administrator preview unavailable')
+  report.phase = 'running configured browser checks'
   try {
     await command(
       process.execPath,
@@ -243,6 +294,7 @@ try {
       { env, timeout: 900_000, signal: controller.signal },
     )
     report.status = 'passed'
+    report.phase = 'validating configured browser report'
   } catch (error) {
     report.status = 'failed'
     report.errors.push(redact(error.message))
