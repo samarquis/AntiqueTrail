@@ -24,6 +24,7 @@ async function login(page: Page, actor: number, target: string) {
   await page.getByLabel('Password', { exact: true }).fill(input.users[actor].password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page).not.toHaveURL(/\/auth\/sign-in/)
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
 }
 
 async function createTrip() {
