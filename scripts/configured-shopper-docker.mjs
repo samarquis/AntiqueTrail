@@ -1,4 +1,4 @@
-/* global Buffer, process */
+/* global Buffer, process, setTimeout, clearTimeout */
 import http from 'node:http'
 import net from 'node:net'
 import path from 'node:path'
