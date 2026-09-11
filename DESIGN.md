@@ -1,5 +1,7 @@
 # Antique Trail Design and Interaction Requirements
 
+Stage applicability: [PRD stage dependencies](PRD.md#stage-dependencies) determines which journeys are in the store showcase, controlled pilot and paid Gallery pilot. Retained trip/review/Go interactions below are deferred contracts; their acceptance is required only if separately selected for exposure. Current-path security, accessibility and existing data obligations are unchanged.
+
 Status: current normative interaction baseline, incorporating the 2026-08-03 hardening and 2026-08-18 visual-identity decisions. Stable critique-derived rules are promoted into `DESIGN_SYSTEM.md`; dated implementation evidence does not silently redefine this contract. Current implementation and backlog state live in `PROJECT_STATE.md`. D31 full Audit History UI and export policy remain unresolved; two-year append-only privileged-audit retention is approved.
 
 This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines exact visual tokens, responsive rules, recurring component states, navigation, and screen-level acceptance; `docs/design/ICON_PLACEMENT_SPEC.md` defines the approved use of the icon family. `PRD.md` defines product requirements, `PRODUCT_DECISIONS.md` preserves decision history, `SECURITY_AND_TRUST.md` defines trust boundaries, and `PRD.md` defines current stage prerequisites and `PACKAGE_CONTRACTS.md` defines engineering mechanics. When a visual prototype conflicts with these documents, these documents win.
@@ -8,7 +10,7 @@ Detailed invited-owner interaction and consent/resume screens are delegated to [
 
 ## Product promise and audience
 
-> Antique Trail makes a fun day of antique shopping easy to see, easy to plan, and easy to trust.
+> Help shoppers explore antique stores through trustworthy details and photographs, and help store representatives maintain a useful showcase.
 
 Design first for shoppers roughly 50–80+ without creating a separate age mode. The first proven workflow has one person researching and creating a trip and another person navigating it. The product must also work for an individual shopper.
 
@@ -143,9 +145,9 @@ Store Details shows `Is this your store? Claim this listing` only for active, un
 
 ### For Store Owners (`/for-stores`)
 
-This is a targeted acquisition page, not Browse home and not a privileged signup surface. One calm proof story shows how a real approved listing appears in Browse, opens to Details, is added to a Trip, becomes a planned stop, and hands off to external navigation. It then explains owner-controlled information, eligibility/service area, `Claim an existing listing` versus `Add a new store`, the review/approval sequence, the complete Free service, support/trust boundaries, and exact paid plan facts only after paid activation. Every screenshot/testimonial is real and consented or visibly labeled synthetic.
+This is a targeted acquisition page, not Browse home and not a privileged signup surface. One calm proof story shows an approved listing in Browse, its store details and photographs, practical contact/visit information, and the return to Browse. It then explains owner-controlled information, eligibility/service area, `Claim an existing listing` versus `Add a new store`, the review/approval sequence, the complete Free service, support/trust boundaries, and exact paid plan facts only after paid activation. Every screenshot/testimonial is real and consented or visibly labeled synthetic.
 
-The hero uses `Help antique shoppers find your store—and make it part of the trip.`, primary `Add or claim my store`, and secondary `See what shoppers experience`. The primary action first searches for the store to prevent duplicate applications, then branches to exact claim or add-store intake. Before Package 10A the route is absent outside Synthetic tests; Package 10A is private and `noindex`; signed Package 10B enables the public Free/intake state; paid cards/prices appear only after paid activation while selection remains authenticated at `/store-portal/plans`. Flag-off/rollback disables paid action with a reason without stranding existing billing access.
+The membership spec owns [exact acquisition copy and actions](docs/specs/store-membership-spec.md#public-acquisition-and-qr-contract). Use its store-first hero and shopper proof; the invited variant follows the actual approved invitation. When public claim/add intake is separately enabled, its primary action searches for the store before branching to exact claim or add-store intake. Public distribution requires its own approved exposure; a private invited pilot does not enable public intake. Paid cards/prices appear only within the separately activated exposure while selection remains authenticated at `/store-portal/plans`. Flag-off/rollback disables paid action with a reason without stranding existing billing access.
 
 The page never uses `most popular`, countdown, scarcity, invented adoption/ROI/traffic/sales claims, unconsented logos/testimonials, blanket `verified owner`, or an external review-time promise. It says `Keep key store details current`, names directly managed fields, and explains that sensitive facts/photos are reviewed. Approval creates Free and publication without payment; later payment buys photo capacity only and cannot buy publication, placement, rating, verification, moderation outcome, or shopper data. Operator identity, service area, source/freshness meaning, what happens next, monitored support/security contact, privacy, terms, and status links appear before the final CTA. One store per Representative and one Representative per store are disclosed; multi-location applicants receive a supported-contact explanation rather than a misleading bulk path.
 
@@ -323,6 +325,8 @@ Token consumption/provisional consent/pending identity is an application transac
 
 ### Paid-tier changes
 
+The initial paid pilot offers only Free-to-Gallery. Full Gallery sales and new paid-to-paid changes are deferred. The remaining interactions apply only to separately enabled future changes or necessary servicing of verified incumbent obligations; do not hide an existing cancellation/refund obligation. Membership and Package 13 own the exact offer and activation boundary.
+
 At the activated authenticated `/store-portal/plans` surface, initial Free-to-paid purchase retains hosted Checkout. An eligible Gallery-to-Full-Gallery upgrade shows current and target tier and repeats the authoritative paid disclosures before fresh consent, then modifies the existing subscription under Package 13. Pending or compensating state must not claim a completed upgrade: retain the valid current entitlement, explain the pending change or charge reconciliation, and offer the existing support/status path. Stale terms require fresh consent; retry must resume/reconcile the same change without a duplicate charge. In servicing-only, new upgrade actions deny while existing-customer cancellation and reconciliation remain available. Show a scheduled downgrade as a pending target and effective cycle boundary while retaining the current entitlement. When a schedule prevents Stripe portal cancellation, provide an authenticated cancellation confirmation in Antique Trail showing the paid-through boundary and the scheduled change it supersedes; successful submission remains pending until provider confirmation. Opening billing or dismissing that confirmation leaves the scheduled downgrade intact. Existing responsive, accessibility, focus, and error-recovery rules apply.
 
 ### Publishing labels and hours
@@ -446,7 +450,7 @@ Package 10A privately previews `/stores?area=topeka-ks`, `/for-stores`, canonica
 
 ## Implementation acceptance journeys
 
-Before external testing, prove at minimum:
+For the store-first showcase and controlled pilot, prove the selected shopper/store/admin paths below (1–3 and 6–8), with real versus fixture evidence distinguished. Items 4–5 and 9 are retained deferred-feature acceptance, required only if those capabilities are explicitly exposed; they are not prerequisites to the store showcase. The owner sees a safe bounded candidate before unrelated whole-product work is complete.
 
 1. Anonymous Browse and Details work without location or sign-in.
 2. Just-in-time sign-in returns to and completes the original private action.

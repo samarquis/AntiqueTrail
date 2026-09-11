@@ -1,5 +1,7 @@
 # ADR 0006 — Deploy the static PWA on Vercel with Supabase
 
+2026-09-11 scope note: [ADR0009](0009-store-first-stage-applicability.md) supersedes only stage prerequisites for the bounded store/Gallery pilot. This decision retains its provider, eligibility, funding, security, recovery and original assessment-authority limits; no expired or task-specific receipt is renewed. A Gallery membership does not itself activate the funded hosting/media transition.
+
 - Status: Accepted deployment-provider decision; no Vercel environment or release is accepted until H-01 passes
 - Date: 2026-08-20
 - Decision owner: Product Owner

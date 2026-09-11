@@ -1,12 +1,16 @@
 # Antique Trail Current Project State
 
-Documentation baseline: the 2026-09-07 consolidated PRD system, based on `63a47ac499c0b52e6af7c0601e5b627c26fa08f0`, becomes current when this amendment merges to main. After reviewing the local draft, the owner directed `yes do that only update and publish the new prd and it new system`. This authorizes adoption of the documentation system, not application implementation or external activation.
+## Store-first amendment — 2026-09-11
 
-The next intended milestone is the PRD's Free private experience evaluation. The [dated review follow-up](docs/research/product-reset-2026-09-06/OWNER_DECISION_WORKSHEET.md#what-the-review-means) reported real trip/privacy/session/hours/saved-state failures and incomplete coverage; these are dated findings requiring current-path confirmation, not a fresh whole-product score. Its separate assessment backend was torn down according to the dated review receipt; a replacement hosted test requires its own scoped authority, and the older beta's health has not been rechecked here. Public and paid readiness remain unproved.
+The Product Owner directed `update plan to the proposed store-first PRD`. On merge of #346, the current intended sequence is the internal store showcase, controlled real-store pilot, then paid Gallery pilot. Free/Gallery is the initial offer; trip/regional/community work and new Full Gallery sales are deferred. PRD.md and linked specialist sources own requirements.
 
-The operational baseline below was recorded on 2026-09-03 against `ab8cee725a7f33b0db2a4f6186657db372ec4af9`, with later dated plan-intent additions. Treat those implementation and staged-off statements as historical until refreshed against current source and specific evidence; this consolidation does not claim a new implementation audit. Live issues/PRs remain on GitHub.
+Dated source review against main f182871d9de0d5db2a30ad0de9ac8dc72467648b found existing catalog/gallery, Supabase auth, Portal/admin, acquisition and staged Stripe Checkout/portal/webhook/servicing code. #177/#178/#179 were closed, so older statements below that their amendments were wholly unimplemented are historical. This is not new provider or end-to-end acceptance. Existing runtime predicates may still encode the prior stage/offer; separately reviewed conforming changes and real activation receipts are required before a new pilot can use them. No capability is enabled by the amendment.
 
-This file is the current-state index. It reports what is implemented, what is merely specified or scaffolded, what is blocked, and where current work is tracked. It does not replace the product, design, security, package, or ADR contracts in `README.md`.
+The review and preserved work are recorded in docs/research/scope-review-2026-09-11/. GitHub owns current issues and PRs. No new browser, real-provider, hosted-product or human acceptance is claimed; public and paid activation remain unproved. The default showcase is local/synthetic, and earlier hosted assessment authority is not renewed.
+
+## Historical implementation and decision baseline
+
+The dated sections below are retained history, not current stage prerequisites or a current provider audit. Current stage requirements live only in PRD.md; ADR0009 scopes prior package sequencing.
 
 ## State vocabulary
 

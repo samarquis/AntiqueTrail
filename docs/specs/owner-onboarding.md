@@ -1,5 +1,7 @@
 # Owner Onboarding Spec — Simple 70-Year-Old-Friendly Store Partner Journey
 
+Stage applicability: this existing invited flow is the initial store-pilot path under [PRD.md](../../PRD.md#the-store-and-administrator-experience). Its account/consent/MFA/authority/approval/interruption protections remain. Historical full-public cohort and Package 10B references below are not prerequisites to the internal showcase or bounded invited pilot; public self-service acquisition needs separate exposure approval.
+
 Status: approved specialist interaction baseline for invited-owner onboarding. Resolves wayfinder
 map #61. Reconciled against PRD.md, DESIGN.md, DESIGN_SYSTEM.md, PACKAGE_CONTRACTS.md
 Package 6, ADR 0002, ADR 0003, and [PRD human usability acceptance](../../PRD.md#human-usability-acceptance).
@@ -14,7 +16,7 @@ The journey is the invited Store Partner onboarding flow, rebuilt so a 70-year-o
 non-computer person can complete it **alone**: QR scan → consent → account/MFA →
 store draft → approval wait → activation → first Portal login.
 
-This document remains the unpaid invitation/pilot variant. After Package 10B,
+This document remains the unpaid invitation/pilot variant. After separately approved public acquisition exposure,
 public `/for-stores` claim/add-store applicants enter without invitation privilege,
 search for the store first, and then reuse the readable draft, interruption/resume,
 MFA, authority-review, approval, and activation protections here. The public variant
@@ -225,6 +227,8 @@ Checklist progress server-persisted and audited. Photo item per §8. All copy in
 plain language; one primary action per screen.
 
 ## 10. Acceptance criteria (older-adult cohort)
+
+The numerical cohort below is the retained full-public acceptance protocol. Initial showcase/pilot observations use the stage-specific protocol in PRD.md and the membership spec; do not make this full-public cohort a prerequisite to internal owner feedback. All selected-path accessibility and safety requirements still apply.
 
 Cohort ([PRD human usability acceptance](../../PRD.md#human-usability-acceptance)): ≥8 participants 55+, ≥3 at 70+, ≥2
 with low-vision/motor/assistive-tech adaptations; own device.

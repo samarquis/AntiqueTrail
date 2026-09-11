@@ -52,7 +52,7 @@ Exit criteria:
 
 ## Phase 1 — Public directory foundation
 
-Current requirements: [Directory capability acceptance](PRD.md#public-store-directory). Original roadmap text follows as history.
+Current requirements: [Directory capability acceptance](docs/specs/product-capabilities.md#public-store-directory). Original roadmap text follows as history.
 
 Features:
 
@@ -104,7 +104,7 @@ Exit criteria:
 
 ## Cross-phase Internal Alpha gate
 
-Current requirements: [Complete Internal Alpha and external-readiness acceptance](PRD.md#internal-alpha). Original roadmap text follows as history.
+Current requirements: [Complete Internal Alpha and external-readiness acceptance](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). Original roadmap text follows as history.
 
 Assemble the Phase 1, Phase 2A, and Phase 3 synthetic slices and test this gate before Phase 2B public reviews, real-store import, or owner outreach.
 
@@ -299,7 +299,7 @@ Store Partner Pilot Support:
 
 ## Phase 2A — Store claims, Store Portal, and administration before external testing
 
-Current requirements: [Store and administrator capability acceptance](PRD.md#business-accounts). Original roadmap text follows as history.
+Current requirements: [Store and administrator capability acceptance](docs/specs/product-capabilities.md#business-accounts). Original roadmap text follows as history.
 
 Entry conditions:
 
@@ -334,7 +334,7 @@ Exit criteria:
 
 ## Phase 2B — Public reviews and moderation after Internal Alpha
 
-Current requirements: [Public-review capability acceptance](PRD.md#review-requirements). Original roadmap text follows as history.
+Current requirements: [Public-review capability acceptance](docs/specs/product-capabilities.md#review-requirements). Original roadmap text follows as history.
 
 Entry conditions:
 
@@ -366,7 +366,7 @@ Exit criteria:
 
 ## Phase 3 — Trip planner
 
-Current requirements: [Trip capability acceptance](PRD.md#todays-trip-requirements). Original roadmap text follows as history.
+Current requirements: [Trip capability acceptance](docs/specs/product-capabilities.md#todays-trip-requirements). Original roadmap text follows as history.
 
 Features:
 
@@ -403,7 +403,7 @@ Exit criteria:
 
 ## Phase 4 — Personal finds and households
 
-Current requirements: [Deferred finds and household capability acceptance](PRD.md#deferred-phase-4--find-capture-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
+Current requirements: [Deferred finds and household capability acceptance](docs/specs/product-capabilities.md#deferred-phase-4--find-capture-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
 
 Features:
 
@@ -427,7 +427,7 @@ Security:
 
 ## Phase 5 — Personalization
 
-Current requirements: [Deferred personalization capability acceptance](PRD.md#deferred-phase-5--onboarding-and-taste-profile-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
+Current requirements: [Deferred personalization capability acceptance](docs/specs/product-capabilities.md#deferred-phase-5--onboarding-and-taste-profile-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
 
 Features:
 
@@ -448,7 +448,7 @@ Rules:
 
 ## Phase 6 — Regional launch
 
-Current requirements: [Regional launch and expansion acceptance](PRD.md#regional-launch-strategy). Original roadmap text follows as history.
+Current requirements: [Regional launch and expansion acceptance](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-launch-strategy). Original roadmap text follows as history.
 
 Phase 6 is a capability grouping implemented only through Packages 10A–10B after every earlier package/gate, not another feature bundle. Phases 4–5 remain deferred.
 
