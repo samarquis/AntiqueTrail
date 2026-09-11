@@ -98,8 +98,18 @@ export async function serveDockerProxy(run, upstream) {
     remote.on('close', () => client.destroy())
   })
   await new Promise((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(socket, resolve)
+    const timer = setTimeout(() => {
+      server.close()
+      reject(new Error('Run-owned Docker proxy listener did not become ready'))
+    }, 10_000)
+    server.once('error', (error) => {
+      clearTimeout(timer)
+      reject(error)
+    })
+    server.listen(socket, () => {
+      clearTimeout(timer)
+      resolve()
+    })
   })
   if (process.platform !== 'win32') fs.chmodSync(socket, 0o600)
   return {
