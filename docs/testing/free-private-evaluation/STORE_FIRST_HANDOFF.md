@@ -15,9 +15,10 @@ From the repository root:
 
 ```text
 npm ci
-$env:VITE_REVIEW_HARNESS_ENABLED = 'true'
-npm run dev:review -- --host 127.0.0.1 --port 4173
+npm run dev -- --host 127.0.0.1 --port 4173
 ```
+
+Use development mode without `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY`; the source maps this no-provider development case to the local in-memory review harness. Do not use `npm run dev:review` with the checked-in `.env.review` for this walkthrough: that file intentionally supplies synthetic Supabase values and selects the configured transport, which requires a running local backend. If provider variables are present in the shell, clear them for this local-only rehearsal (`$env:VITE_SUPABASE_URL = ''; $env:VITE_SUPABASE_ANON_KEY = ''`).
 
 Open `http://127.0.0.1:4173/review?reviewAs=anonymous&reviewState=success` first. The review landing page is the role entry point. Use its links, or these directly addressable local entries:
 
@@ -98,6 +99,6 @@ This disposition applies only to the local showcase evaluation. It is not a rele
 
 ## Evidence and follow-up ownership
 
-The existing local runner/report remains the source for fixture-browser assertions. The owner supplies the firsthand observations and decision for #324. Accessibility worksheet work is separate in #345; this handoff links it but does not close or replace it. The prior packet at [README.md](README.md) and its scenarios remain intact for historical/other evaluation coverage; they are not rewritten here.
+The focused rehearsal evidence for this handoff used development mode on `http://127.0.0.1:42200` with no provider variables and source `17b4236e35d42b7eb82af0f2dc0e38b03618b4d4`: shopper Browse → Details → 50 photos → lightbox → return; Representative `Blue Finch Curios` managed-field publish; Administrator `Review queue` → `Case approved.` The result is `fixture_browser` evidence only. The existing local runner/report remains the source for fixture-browser assertions. The owner supplies the firsthand observations and decision for #324. Accessibility worksheet work is separate in #345; this handoff links it but does not close or replace it. The prior packet at [README.md](README.md) and its scenarios remain intact for historical/other evaluation coverage; they are not rewritten here.
 
 Known unavailable evidence for this handoff: physical-phone access unless the owner has one, real Supabase/Auth/RLS/RPC behavior, provider behavior, deployment/hosting, real stores/participants, and public or paid activation. No unavailable item is a pass.
