@@ -67,12 +67,27 @@ and recovery behavior even when the row otherwise passes.
 | HAT-01 | `http://127.0.0.1:43225/stores?reviewAs=anonymous&reviewState=success`; open **Blue Finch Curios**, then use browser Back | Reading order and the route-change announcement/focus: does the new page begin at a useful H1/main landmark, and does return preserve understandable context? | |
 | HAT-02 | `/stores/blue-finch-curios?reviewAs=anonymous&reviewState=success`; select a gallery image, activate **Enlarge image**, then **Close enlarged image** or Escape | Spoken/visible photo identity, dialog entry, dialog reading order, and focus returning to the same opener. Note whether image alternative text conveys useful fictional image content. | |
 | HAT-03 | On the same detail page choose **Sign in to save store**, deliberately submit the sign-in form empty or invalid, then choose **Cancel and return without saving** | Error-summary/field reading order, error association, cancellation consequence, no accidental save, and return focus/context. | |
-| HAT-04 | `/stores/blue-finch-curios/memory?reviewAs=shopper-a&reviewState=success`; choose **Delete memory**, first choose **Keep memory**, then repeat **Yes, delete memory** and **Undo memory deletion** | Confirmation consequence, safe-action-first perception, focus return, deletion and Undo announcement, and whether the restored note/context is understandable. | |
-| HAT-05 | `/saved?reviewAs=shopper-a&reviewState=success`; after page readiness, enable the device/browser offline control; attempt Save or a private change, then restore connectivity | Offline feedback, retained private content, disabled/paused action, and recovery feedback. This is local synthetic behavior; do not claim durable backend offline proof. | |
-| HAT-06 | `/trips/trip-a/plan?reviewAs=shopper-a&reviewState=success`; choose **Save a change offline**, then **Replay queued changes**, then **Keep Saved Version** | Conflict feedback reading order, clear consequence of resolution, and whether recovery leaves the next action understandable. | |
-| HAT-07 | `/trips/trip-a/go?reviewAs=shopper-a&reviewState=success`; wait for H1 **Go**, then **Start trip**, **Skip**, **Undo skip**, **Arrived**, **Done**; complete the second stop to the summary | On the actual phone/device, operation and recovery of Navigator controls; accidental actions, consequences, status changes, and whether **Closed** or the equivalent displayed state is understandable. Do not open external navigation apps as evidence. | |
-| HAT-08 | Representative: `/store-portal/changes?reviewAs=representative&reviewState=success`; submit a fictional address-change request. Administrator: `/admin/access?reviewAs=administrator&reviewState=success`; preview revoke, record the consequence, then either complete **Confirm revoke Blue Finch Curios scope** or leave it unconfirmed and record the cancel/Back route | Phone operation of one representative and one administrator confirmation/cancel path using fictional data. Record which branch was used, any accidental action, and whether consequences/next recovery action were clear. | |
-| HAT-09 | Repeat HAT-02, HAT-04, HAT-07, and HAT-08 at 200% browser zoom or the actual device's equivalent text-size setting | No required control is obscured, clipped, unreachable, or ambiguous. Record viewport/device size and exact zoom/text-size. | |
+| HAT-04 | Representative: `/store-portal/changes?reviewAs=representative&reviewState=success`; submit a fictional address-change request. Administrator: `/admin/access?reviewAs=administrator&reviewState=success`; preview revoke, record the consequence, then either complete **Confirm revoke Blue Finch Curios scope** or leave it unconfirmed and record the cancel/Back route | Phone operation of one representative and one administrator confirmation/cancel path using fictional data. Record which branch was used, any accidental action, and whether consequences/next recovery action were clear. | |
+| HAT-05 | Repeat HAT-02 and HAT-04 at 200% browser zoom or the actual device's equivalent text-size setting, including any relevant motor or low-vision adaptation | No required control is obscured, clipped, unreachable, or ambiguous. Record viewport/device size and exact zoom/text-size. | |
+
+## Deferred historical coverage
+
+The following rows were retained from the earlier worksheet as historical
+findings and future preparation. They are not current #325 acceptance tasks
+under the adopted store-first internal-showcase scope, and their absence of a
+result must not block this documentation packet:
+
+| Historical area | Preserved routes/actions | Current disposition |
+| --- | --- | --- |
+| Private memory | `/stores/blue-finch-curios/memory?reviewAs=shopper-a&reviewState=success`; Delete, Keep, Undo | Deferred private visit-history feature |
+| Offline save | `/saved?reviewAs=shopper-a&reviewState=success`; offline Save/private change and reconnect | Deferred offline feature |
+| Trip conflict | `/trips/trip-a/plan?reviewAs=shopper-a&reviewState=success`; queue/replay/resolve | Deferred trip planning feature |
+| Navigator | `/trips/trip-a/go?reviewAs=shopper-a&reviewState=success`; Start, Skip/Undo, Arrived, Done | Deferred Go/offline navigation feature |
+
+Do not record synthetic persona output as human evidence for these historical
+areas. If a later approved scope selects one, copy its exact route and actions
+into a refreshed candidate-bound worksheet and obtain the required firsthand
+observations then.
 
 ## Failure and retest record
 
@@ -115,7 +130,7 @@ controls are available before the operator begins. They do not prove spoken
 announcements, physical touch, low-vision perception, or human recovery.
 
 ```powershell
-npx playwright test e2e/store-details.spec.ts e2e/ui05-auth-shopper.spec.ts e2e/ui07-trip-flows.spec.ts e2e/ui08-partner-portal.spec.ts e2e/ui09-admin-moderation.spec.ts --config playwright.review.config.ts
+npx playwright test e2e/store-details.spec.ts e2e/ui05-auth-shopper.spec.ts e2e/ui08-partner-portal.spec.ts e2e/ui09-admin-moderation.spec.ts --config playwright.review.config.ts
 ```
 
 The runner owns its own review server on port 4174. Do not run it against the
