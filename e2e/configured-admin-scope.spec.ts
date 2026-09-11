@@ -111,6 +111,29 @@ async function login(page: Page, projectName: string) {
   await page.getByRole('button', { name: 'Verify code', exact: true }).click()
   await expect(access).toBeVisible()
 }
+async function shopperSavedCount() {
+  return command(
+    'docker',
+    [
+      'exec',
+      '-i',
+      '-e',
+      'PGPASSWORD=postgres',
+      `supabase_db_${service!.run.projectId}`,
+      'psql',
+      '-U',
+      'supabase_admin',
+      '-d',
+      'postgres',
+      '-At',
+      '-v',
+      'ON_ERROR_STOP=1',
+    ],
+    {
+      input: `select count(*) from shopper_private.saved_stores where user_id='${input.actors.shopper.id}';`,
+    },
+  ).then((text: string) => Number.parseInt(text.trim(), 10))
+}
 function targetRow(page: Page) {
   return page
     .getByLabel('Store Representative scopes')
@@ -124,18 +147,36 @@ function siblingRow(page: Page) {
     .filter({ hasText: 'Prairie Scope Subject' })
 }
 
-test('actual Auth MFA Administrator identity denies the unauthenticated boundary', async ({
+test('actual Auth MFA Administrator identity cannot read populated shopper-private data', async ({
   page,
 }, testInfo) => {
   await page.goto('/admin/access')
   await expect(page).not.toHaveURL(/\/admin\/access/)
+  await login(page, testInfo.project.name)
   const adminListRequest = page.waitForRequest((request) =>
     request.url().includes('/rest/v1/rpc/admin_list_store_scopes'),
   )
-  await login(page, testInfo.project.name)
+  await page.reload()
   const authorization = (await adminListRequest).headers().authorization
   const token = authorization?.replace(/^Bearer\s+/i, '')
   if (!token) throw new Error('Administrator scope read did not use an actual bearer session')
+  const shopperSession = await loopbackRequest(
+    input.endpoint,
+    '/auth/v1/token?grant_type=password',
+    {
+      key: input.anonKey,
+      body: { email: input.actors.shopper.email, password: input.actors.shopper.password },
+    },
+  )
+  await expect(shopperSavedCount()).resolves.toBe(1)
+  await expect(
+    loopbackRequest(input.endpoint, '/rest/v1/rpc/shopper_list_saved', {
+      key: input.anonKey,
+      token: shopperSession.access_token,
+      schema: 'app_public',
+      body: {},
+    }),
+  ).resolves.toHaveLength(1)
   await expect(
     loopbackRequest(input.endpoint, '/rest/v1/rpc/shopper_list_saved', {
       key: input.anonKey,
@@ -143,7 +184,7 @@ test('actual Auth MFA Administrator identity denies the unauthenticated boundary
       schema: 'app_public',
       body: {},
     }),
-  ).rejects.toThrow(/401|403|shopper_private_unavailable/)
+  ).resolves.toEqual([])
   await expect(targetRow(page)).toContainText('Store representative')
   await expect(targetRow(page)).toContainText('MFA verified')
   await expect(page.getByText(input.actors.shopper.email, { exact: false })).toHaveCount(0)
