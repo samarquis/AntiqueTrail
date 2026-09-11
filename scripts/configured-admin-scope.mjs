@@ -117,7 +117,7 @@ try {
     }
   }
   await service.sql(
-    `update auth.users set raw_app_meta_data=jsonb_build_object('role','Administrator') where id in ('${actors.desktopAdmin.id}','${actors.phoneAdmin.id}'); update auth.users set raw_app_meta_data=jsonb_build_object('role','Representative') where id in ('${actors.subject.id}','${actors.sibling.id}'); update auth.users set raw_app_meta_data=jsonb_build_object('role','Shopper') where id='${actors.shopper.id}';`,
+    `update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Administrator') where id in ('${actors.desktopAdmin.id}','${actors.phoneAdmin.id}'); update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Representative') where id in ('${actors.subject.id}','${actors.sibling.id}'); update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Shopper') where id='${actors.shopper.id}';`,
   )
   report.phase = 'establishing Administrator MFA assurance'
   const enrollAdminMfa = async (actor, variant) => {
