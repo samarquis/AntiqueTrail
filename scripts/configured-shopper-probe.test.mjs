@@ -251,6 +251,27 @@ test(
   },
 )
 
+test('Docker proxy listener errors promptly and releases the socket for reuse', async (t) => {
+  const { serveDockerProxy } = await import('./configured-shopper-docker.mjs')
+  const root = output(t),
+    id = `probe-${process.pid}-${Date.now()}`
+  const upstreamSocket =
+    process.platform === 'win32' ? `\\\\.\\pipe\\${id}-upstream` : path.join(root, 'upstream.sock')
+  const first = await serveDockerProxy({ projectId: id, directory: root }, upstreamSocket)
+  const started = Date.now()
+  try {
+    await assert.rejects(
+      () => serveDockerProxy({ projectId: id, directory: root }, upstreamSocket),
+      /EADDRINUSE/,
+    )
+    assert.ok(Date.now() - started < 5_000)
+  } finally {
+    await first.close()
+  }
+  const replacement = await serveDockerProxy({ projectId: id, directory: root }, upstreamSocket)
+  await replacement.close()
+})
+
 test('setup cancellation aborts the actual subprocess before cleanup', async (t) => {
   const { command } = await import('./configured-shopper-local.mjs')
   const { setTimeout } = await import('node:timers')
