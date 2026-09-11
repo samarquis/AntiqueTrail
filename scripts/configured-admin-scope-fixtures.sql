@@ -4,6 +4,11 @@ insert into app_private.profiles(user_id,public_display_name,age_18_attested_at)
 on conflict (user_id) do update set public_display_name=excluded.public_display_name,age_18_attested_at=excluded.age_18_attested_at;
 insert into app_private.role_grants(subject_user_id,role,state) values
   ('__ADMIN__','administrator','active'),('__PHONE_ADMIN__','administrator','active'),('__SHOPPER__','shopper','active');
+-- Session admission requires some shopper role, while the scope privacy gate requires
+-- an unscoped shopper role. Keep these Administrator admission grants store-scoped.
+insert into app_private.role_grants(subject_user_id,role,store_id,state,granted_by) values
+  ('__ADMIN__','shopper','00000000-0000-4000-8000-000000001001','active','__ADMIN__'),
+  ('__PHONE_ADMIN__','shopper','00000000-0000-4000-8000-000000001002','active','__PHONE_ADMIN__');
 insert into shopper_private.saved_stores(user_id,store_id)
 values ('__SHOPPER__','00000000-0000-4000-8000-000000001001');
 insert into partner_private.partner_invitations(invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at)
