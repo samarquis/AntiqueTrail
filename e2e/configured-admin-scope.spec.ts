@@ -75,9 +75,9 @@ const base32 = (value: string) => {
   }
   return Buffer.from(bytes)
 }
-const totp = (secret: string) => {
+const totp = (secret: string, stepOffset = 0) => {
   const counter = Buffer.alloc(8)
-  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)))
+  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000) + stepOffset))
   const digest = crypto.createHmac('sha1', base32(secret)).update(counter).digest()
   const offset = digest[digest.length - 1] & 15
   return String(
@@ -128,9 +128,18 @@ async function login(page: Page, projectName: string) {
   const challenge = page.getByRole('heading', { name: 'Verify your sign-in' })
   const access = page.getByRole('heading', { name: 'Access & Safety' })
   await expect(challenge).toBeVisible()
-  await page.getByLabel('Authentication code', { exact: true }).fill(totp(administrator.secret))
-  await page.getByRole('button', { name: 'Verify code', exact: true }).click()
-  await expect(access).toBeVisible()
+  const code = page.getByLabel('Authentication code', { exact: true })
+  const verify = page.getByRole('button', { name: 'Verify code', exact: true })
+  for (const stepOffset of [0, 1, -1]) {
+    await code.fill(totp(administrator.secret, stepOffset))
+    await verify.click()
+    try {
+      await expect(access).toBeVisible({ timeout: 3000 })
+      return
+    } catch (error) {
+      if (stepOffset === -1 || !(await challenge.isVisible())) throw error
+    }
+  }
 }
 async function shopperSavedCount() {
   return command(
