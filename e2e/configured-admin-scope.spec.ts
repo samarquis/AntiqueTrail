@@ -129,7 +129,21 @@ test('actual Auth MFA Administrator identity denies the unauthenticated boundary
 }, testInfo) => {
   await page.goto('/admin/access')
   await expect(page).not.toHaveURL(/\/admin\/access/)
+  const adminListRequest = page.waitForRequest((request) =>
+    request.url().includes('/rest/v1/rpc/admin_list_store_scopes'),
+  )
   await login(page, testInfo.project.name)
+  const authorization = (await adminListRequest).headers().authorization
+  const token = authorization?.replace(/^Bearer\s+/i, '')
+  if (!token) throw new Error('Administrator scope read did not use an actual bearer session')
+  await expect(
+    loopbackRequest(input.endpoint, '/rest/v1/rpc/shopper_list_saved', {
+      key: input.anonKey,
+      token,
+      schema: 'app_public',
+      body: {},
+    }),
+  ).rejects.toThrow(/401|403|shopper_private_unavailable/)
   await expect(targetRow(page)).toContainText('Store representative')
   await expect(targetRow(page)).toContainText('MFA verified')
   await expect(page.getByText(input.actors.shopper.email, { exact: false })).toHaveCount(0)
