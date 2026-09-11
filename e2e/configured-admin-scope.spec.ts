@@ -160,23 +160,15 @@ test('actual Auth MFA Administrator identity cannot read populated shopper-priva
   const authorization = (await adminListRequest).headers().authorization
   const token = authorization?.replace(/^Bearer\s+/i, '')
   if (!token) throw new Error('Administrator scope read did not use an actual bearer session')
-  const shopperSession = await loopbackRequest(
-    input.endpoint,
-    '/auth/v1/token?grant_type=password',
-    {
-      key: input.anonKey,
-      body: { email: input.actors.shopper.email, password: input.actors.shopper.password },
-    },
-  )
   await expect(shopperSavedCount()).resolves.toBe(1)
-  await expect(
-    loopbackRequest(input.endpoint, '/rest/v1/rpc/shopper_list_saved', {
-      key: input.anonKey,
-      token: shopperSession.access_token,
-      schema: 'app_public',
-      body: {},
-    }),
-  ).resolves.toHaveLength(1)
+  const shopperPage = await page.context().newPage()
+  await shopperPage.goto('/auth/sign-in?returnTo=%2Fsaved')
+  await shopperPage.getByLabel('Email', { exact: true }).fill(input.actors.shopper.email)
+  await shopperPage.getByLabel('Password', { exact: true }).fill(input.actors.shopper.password)
+  await shopperPage.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(shopperPage).toHaveURL(/\/saved$/)
+  await expect(shopperPage.getByText('Clockwork Cabinet', { exact: false })).toBeVisible()
+  await shopperPage.close()
   await expect(
     loopbackRequest(input.endpoint, '/rest/v1/rpc/shopper_list_saved', {
       key: input.anonKey,
@@ -184,7 +176,7 @@ test('actual Auth MFA Administrator identity cannot read populated shopper-priva
       schema: 'app_public',
       body: {},
     }),
-  ).resolves.toEqual([])
+  ).rejects.toThrow(/401|403|shopper_private_access_denied/)
   await expect(targetRow(page)).toContainText('Store representative')
   await expect(targetRow(page)).toContainText('MFA verified')
   await expect(page.getByText(input.actors.shopper.email, { exact: false })).toHaveCount(0)
