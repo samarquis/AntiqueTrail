@@ -121,6 +121,24 @@ const read = (store: string, subjectId: string) =>
 async function login(page: Page, projectName: string) {
   const administrator = input.actors.admin[projectName]
   if (!administrator) throw new Error(`No Administrator fixture for ${projectName}`)
+  const mfaDiagnostics: Array<Record<string, unknown>> = []
+  page.on('response', async (response) => {
+    const url = new URL(response.url())
+    if (!url.pathname.match(/\/auth\/v1\/factors\/[^/]+\/(challenge|verify)$/)) return
+    const record: Record<string, unknown> = {
+      path: url.pathname.replace(/[0-9a-f-]{36}/, ':factor'),
+      status: response.status(),
+      at: new Date().toISOString(),
+    }
+    try {
+      const body = await response.json()
+      if (body && typeof body === 'object') {
+        if ('error_code' in body) record.error_code = body.error_code
+        if ('msg' in body) record.msg = body.msg
+      }
+    } catch {}
+    mfaDiagnostics.push(record)
+  })
   await page.goto('/auth/sign-in?returnTo=%2Fadmin%2Faccess')
   await page.getByLabel('Email', { exact: true }).fill(administrator.email)
   await page.getByLabel('Password', { exact: true }).fill(administrator.password)
@@ -139,9 +157,19 @@ async function login(page: Page, projectName: string) {
     await verify.click()
     try {
       await expect(access).toBeVisible({ timeout: 3000 })
+      await fs.promises.writeFile(
+        `${input.output}/mfa-${projectName}.json`,
+        JSON.stringify(mfaDiagnostics, null, 2),
+      )
       return
     } catch (error) {
-      if (attempt === 1 || !(await challenge.isVisible())) throw error
+      if (attempt === 1 || !(await challenge.isVisible())) {
+        await fs.promises.writeFile(
+          `${input.output}/mfa-${projectName}.json`,
+          JSON.stringify(mfaDiagnostics, null, 2),
+        )
+        throw error
+      }
     }
   }
 }

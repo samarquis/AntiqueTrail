@@ -296,6 +296,9 @@ try {
         'test',
         '--config',
         'e2e/configured-admin-scope-playwright.config.ts',
+        ...(process.env.CONFIGURED_ADMIN_SCOPE_GREP
+          ? ['--grep', process.env.CONFIGURED_ADMIN_SCOPE_GREP]
+          : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
