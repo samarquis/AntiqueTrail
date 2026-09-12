@@ -4,7 +4,13 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createLocalService } from './configured-shopper-local.mjs'
-import { redact } from './configured-shopper-probe.mjs'
+import {
+  classifyRpcError,
+  diagnosticPassed,
+  failureStatus,
+  safeReportJson,
+  statusAfterCleanup,
+} from './diagnose-trip-invitation-acceptance-report.mjs'
 
 const reportRoot = path.resolve(process.cwd(), 'artifacts', 'configured-shopper-issue342')
 fs.mkdirSync(reportRoot, { recursive: true })
@@ -13,6 +19,7 @@ const report = {
   schemaVersion: 1,
   evidenceClass: 'real-local-auth-rpc',
   status: 'unavailable',
+  phase: 'startup',
   cleanup: 'not-started',
   checks: {},
   errors: [],
@@ -28,14 +35,6 @@ const uuid = (value) => {
   return value
 }
 const sqlText = (value) => String(value).replaceAll("'", "''")
-
-function classifiedError(error) {
-  const message = String(error?.message ?? error)
-  const match = message.match(/HTTP (\d{3}) ([A-Za-z0-9_]+)(?: ([A-Za-z0-9_ .]+))?/)
-  return match
-    ? { outcome: 'denied', status: Number(match[1]), code: match[2], message: match[3]?.trim() }
-    : { outcome: 'transport-error', message: redact(message).slice(0, 240) }
-}
 
 async function snapshot(service, tripId, recipientId) {
   const raw = await service.sql(`
@@ -65,9 +64,11 @@ async function snapshot(service, tripId, recipientId) {
 }
 
 let service
+const secrets = []
 try {
   service = createLocalService({ signal: controller.signal })
   const local = await service.start()
+  report.phase = 'setup'
   Object.assign(report, {
     sourceSha: local.sourceSha,
     sourceDirty: local.sourceDirty,
@@ -105,6 +106,7 @@ try {
   const recipient = local.users[1]
   const tripId = crypto.randomUUID()
   const token = crypto.randomBytes(32).toString('base64url')
+  secrets.push(token, creator.email, recipient.email)
   await service.sql(`
     insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date)
       values ('${tripId}','${uuid(creator.id)}','00000000-0000-4000-8000-000000000001','Issue 342 diagnosis','2026-10-10');
@@ -142,12 +144,13 @@ try {
     verified_email: recipient.email,
   })
   report.before = await snapshot(service, tripId, recipient.id)
+  report.phase = 'acceptance'
 
   try {
     await rpc(creator, 'accept_trip_invitation', { fragment_token: token })
     report.checks.wrongRecipient = { outcome: 'unexpected-pass' }
   } catch (error) {
-    report.checks.wrongRecipient = classifiedError(error)
+    report.checks.wrongRecipient = classifyRpcError(error)
   }
   report.afterControl = await snapshot(service, tripId, recipient.id)
 
@@ -155,35 +158,30 @@ try {
     await rpc(recipient, 'accept_trip_invitation', { fragment_token: token })
     report.checks.intendedRecipient = { outcome: 'accepted' }
   } catch (error) {
-    report.checks.intendedRecipient = classifiedError(error)
+    report.checks.intendedRecipient = classifyRpcError(error)
   }
   report.afterAcceptance = await snapshot(service, tripId, recipient.id)
 
-  const controlDenied = report.checks.wrongRecipient.outcome === 'denied'
-  const controlPreserved =
-    report.afterControl.invitationState === 'pending' && report.afterControl.membershipCount === 0
-  const intendedAccepted =
-    report.checks.intendedRecipient.outcome === 'accepted' &&
-    report.afterAcceptance.invitationState === 'accepted' &&
-    report.afterAcceptance.acceptedRecipientMatches === true &&
-    report.afterAcceptance.membershipCount === 1
-  report.status = controlDenied && controlPreserved && intendedAccepted ? 'passed' : 'failed'
-} catch (error) {
-  report.status = 'failed'
-  report.errors.push(redact(String(error?.message ?? error)).slice(0, 500))
+  report.phase = 'verification'
+  report.status = diagnosticPassed(report) ? 'passed' : 'failed'
+} catch {
+  report.failedPhase = report.phase
+  report.status = failureStatus(report.phase)
+  report.errors.push({ phase: report.phase, reason: 'unclassified' })
 } finally {
   if (service) {
     try {
       report.cleanup = await service.cleanup()
-    } catch (error) {
+    } catch {
       report.cleanup = 'failed'
-      report.status = 'failed'
-      report.errors.push(redact(String(error?.message ?? error)).slice(0, 500))
+      report.errors.push({ phase: 'cleanup', reason: 'cleanup-failed' })
     }
   }
+  report.status = statusAfterCleanup(report.status, report.cleanup)
+  report.phase = 'complete'
   process.off('SIGINT', interrupt)
   process.off('SIGTERM', interrupt)
-  fs.writeFileSync(path.join(reportRoot, 'report.json'), JSON.stringify(redact(report), null, 2))
+  fs.writeFileSync(path.join(reportRoot, 'report.json'), safeReportJson(report, secrets))
 }
 
 console.log(`${report.status}: ${reportRoot}`)
