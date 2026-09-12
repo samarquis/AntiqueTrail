@@ -534,25 +534,30 @@ describe('trustworthy Store Details contract', () => {
     })
 
     const article = document.querySelector('.store-detail__article')
-    const gallery = document.querySelector('.store-gallery')
+    const cover = document.querySelector('.store-gallery--cover')
+    const collection = document.querySelector('.store-gallery--collection')
     const actions = screen.getByRole('navigation', { name: 'Store visit actions' })
     const about = screen.getByRole('region', { name: 'About this store' })
     expect(article).not.toBeNull()
-    expect(gallery).not.toBeNull()
+    expect(cover).not.toBeNull()
+    expect(collection).not.toBeNull()
     expect(
       article &&
-        gallery &&
-        article.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_CONTAINED_BY,
+        collection &&
+        article.compareDocumentPosition(collection) & Node.DOCUMENT_POSITION_CONTAINED_BY,
     ).toBe(Node.DOCUMENT_POSITION_CONTAINED_BY)
+    expect(actions.compareDocumentPosition(cover as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(cover && cover.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(nav.compareDocumentPosition(collection as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
     expect(
-      actions.compareDocumentPosition(gallery as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+      about.compareDocumentPosition(collection as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(nav.compareDocumentPosition(gallery as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    )
-    expect(about.compareDocumentPosition(gallery as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    )
     expect(screen.getByLabelText("Today's opening information")).toBeVisible()
   })
 

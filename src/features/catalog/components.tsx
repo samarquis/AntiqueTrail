@@ -789,7 +789,13 @@ function sameMapBounds(left: CatalogMapBounds, right: CatalogMapBounds) {
   )
 }
 
-function StoreGallery({ store }: { store: CatalogStore }) {
+function StoreGallery({
+  store,
+  afterCover,
+}: {
+  store: CatalogStore
+  afterCover?: React.ReactNode
+}) {
   const media = store.media
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [failed, setFailed] = useState<Set<number>>(() => new Set())
@@ -866,82 +872,90 @@ function StoreGallery({ store }: { store: CatalogStore }) {
   )
 
   return (
-    <section className="store-gallery" aria-labelledby="gallery-heading">
+    <>
       <div ref={background} className="store-gallery__background">
-        <h2 id="gallery-heading" className="sr-only">
-          Store photos
-        </h2>
-        {selectedFailed ? (
-          <div
-            className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__missing`}
-            role="img"
-            aria-label="Store image unavailable"
-          >
-            <strong aria-hidden="true">{store.name.slice(0, 1)}</strong>
-            <span>Photo unavailable</span>
-          </div>
-        ) : (
-          <figure className="store-gallery__hero">
-            <button
-              ref={enlargeButton}
-              type="button"
-              className="store-gallery__enlarge"
-              aria-label={`Enlarge image: ${selected.alt}`}
-              onClick={() => setEnlarged(true)}
+        <section className="store-gallery store-gallery--cover" aria-labelledby="gallery-heading">
+          <h2 id="gallery-heading" className="sr-only">
+            Store photos
+          </h2>
+          {selectedFailed ? (
+            <div
+              className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__missing`}
+              role="img"
+              aria-label="Store image unavailable"
             >
-              <img
-                src={selected.src}
-                {...responsiveCatalogImage(
-                  selected.src,
-                  '(max-width: 800px) 100vw, calc(100vw - clamp(64px, 6vw, 128px))',
-                )}
-                alt={selected.alt}
-                onError={() => markFailed(selectedIndex)}
-              />
-            </button>
-            <MediaCaption media={selected} className="store-gallery__plate" />
-          </figure>
-        )}
-        {media.length > 1 && (
-          <div className="store-gallery__wall" role="group" aria-label="Choose a store photo">
-            {media.map((item, index) => (
+              <strong aria-hidden="true">{store.name.slice(0, 1)}</strong>
+              <span>Photo unavailable</span>
+            </div>
+          ) : (
+            <figure className="store-gallery__hero">
               <button
-                ref={(element) => {
-                  choiceButtons.current[index] = element
-                }}
-                key={`${item.src}-${index}`}
+                ref={enlargeButton}
                 type="button"
-                className="store-gallery__print"
-                aria-label={`Show image ${index + 1}: ${item.alt}`}
-                aria-pressed={selectedIndex === index}
-                onClick={() => setSelectedIndex(index)}
+                className="store-gallery__enlarge"
+                aria-label={`Enlarge image: ${selected.alt}`}
+                onClick={() => setEnlarged(true)}
               >
-                {failed.has(index) ? (
-                  <span
-                    className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__print-unavailable`}
-                  >
-                    Unavailable
-                  </span>
-                ) : (
-                  <>
-                    <img
-                      src={item.src}
-                      {...responsiveCatalogImage(
-                        item.src,
-                        '(min-width: 1024px) 32vw, (min-width: 801px) 220px, 33vw',
-                      )}
-                      alt=""
-                      loading={index > 2 ? 'lazy' : undefined}
-                      width="480"
-                      height="360"
-                      onError={() => markFailed(index)}
-                    />
-                    <span className="store-gallery__print-plate">No. {index + 1}</span>
-                  </>
-                )}
+                <img
+                  src={selected.src}
+                  {...responsiveCatalogImage(
+                    selected.src,
+                    '(max-width: 800px) 100vw, calc(100vw - clamp(64px, 6vw, 128px))',
+                  )}
+                  alt={selected.alt}
+                  onError={() => markFailed(selectedIndex)}
+                />
               </button>
-            ))}
-          </div>
+              <MediaCaption media={selected} className="store-gallery__plate" />
+            </figure>
+          )}
+        </section>
+        {afterCover}
+        {media.length > 1 && (
+          <section
+            className="store-gallery store-gallery--collection"
+            aria-label="Store photo collection"
+          >
+            <div className="store-gallery__wall" role="group" aria-label="Choose a store photo">
+              {media.map((item, index) => (
+                <button
+                  ref={(element) => {
+                    choiceButtons.current[index] = element
+                  }}
+                  key={`${item.src}-${index}`}
+                  type="button"
+                  className="store-gallery__print"
+                  aria-label={`Show image ${index + 1}: ${item.alt}`}
+                  aria-pressed={selectedIndex === index}
+                  onClick={() => setSelectedIndex(index)}
+                >
+                  {failed.has(index) ? (
+                    <span
+                      className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__print-unavailable`}
+                    >
+                      Unavailable
+                    </span>
+                  ) : (
+                    <>
+                      <img
+                        src={item.src}
+                        {...responsiveCatalogImage(
+                          item.src,
+                          '(min-width: 1024px) 32vw, (min-width: 801px) 220px, 33vw',
+                        )}
+                        alt=""
+                        loading={index > 2 ? 'lazy' : undefined}
+                        width="480"
+                        height="360"
+                        onError={() => markFailed(index)}
+                      />
+                      <span className="store-gallery__print-plate">No. {index + 1}</span>
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+          </section>
         )}
       </div>
       {enlarged && selected && !selectedFailed && (
@@ -1020,7 +1034,7 @@ function StoreGallery({ store }: { store: CatalogStore }) {
           <MediaPosition index={selectedIndex} count={media.length} />
         </div>
       )}
-    </section>
+    </>
   )
 }
 
@@ -1248,24 +1262,28 @@ export function DetailsPage({
           {renderPrivateActions?.(store)}
         </nav>
 
-        <StoreSectionNav />
-
-        <section className="store-detail__intro" aria-labelledby="about-heading">
-          <p className="eyebrow">What you’ll find</p>
-          <h2 id="about-heading">About this store</h2>
-          <p>{store.description || 'A store description has not been supplied.'}</p>
-          {store.categories.length ? (
-            <ul className="catalog-card__categories" aria-label="Store categories">
-              {store.categories.map((category) => (
-                <li key={category.slug}>{category.label}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="honesty-note">Store categories are unavailable.</p>
-          )}
-        </section>
-
-        <StoreGallery store={store} />
+        <StoreGallery
+          store={store}
+          afterCover={
+            <>
+              <StoreSectionNav />
+              <section className="store-detail__intro" aria-labelledby="about-heading">
+                <p className="eyebrow">What you’ll find</p>
+                <h2 id="about-heading">About this store</h2>
+                <p>{store.description || 'A store description has not been supplied.'}</p>
+                {store.categories.length ? (
+                  <ul className="catalog-card__categories" aria-label="Store categories">
+                    {store.categories.map((category) => (
+                      <li key={category.slug}>{category.label}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="honesty-note">Store categories are unavailable.</p>
+                )}
+              </section>
+            </>
+          }
+        />
         {store.media.length > 0 && (
           <p className="store-detail__gallery-link">
             <CatalogLink

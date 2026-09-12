@@ -92,10 +92,26 @@ test.describe('Store Details decision-screen contract', () => {
       'href',
       '#hours-heading',
     )
+    expect(
+      await actions.evaluate((element) => {
+        const cover = document.querySelector('.store-gallery--cover')
+        return Boolean(
+          cover && element.compareDocumentPosition(cover) & Node.DOCUMENT_POSITION_FOLLOWING,
+        )
+      }),
+    ).toBe(true)
+    expect(
+      await sections.evaluate((element) => {
+        const cover = document.querySelector('.store-gallery--cover')
+        return Boolean(
+          cover && cover.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING,
+        )
+      }),
+    ).toBe(true)
     for (const locator of [opening, actions, sections, about]) {
       expect(
         await locator.evaluate((element) => {
-          const wall = document.querySelector('.store-gallery')
+          const wall = document.querySelector('.store-gallery--collection')
           return Boolean(
             wall && element.compareDocumentPosition(wall) & Node.DOCUMENT_POSITION_FOLLOWING,
           )
