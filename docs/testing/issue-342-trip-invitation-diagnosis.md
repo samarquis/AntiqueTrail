@@ -1,7 +1,9 @@
 # Issue #342 trip invitation acceptance diagnosis
 
-Date: 2026-09-12  
-Pull request: [#364](https://github.com/samarquis/AntiqueTrail/pull/364)  
+Date: 2026-09-12
+
+Pull request: [#364](https://github.com/samarquis/AntiqueTrail/pull/364)
+
 Frozen diagnostic source: `d9a31cf6cef6f5be4b84b6ded626880ac72fa273`
 
 ## Reproduction
