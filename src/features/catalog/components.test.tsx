@@ -597,6 +597,12 @@ describe('trustworthy Store Details contract', () => {
     await user.click(ninth)
     expect(ninth).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('img', { name: /synthetic store photo 9/i })).toBeVisible()
+    const previews = document.querySelectorAll<HTMLImageElement>('.store-gallery__print img')
+    expect(previews).toHaveLength(9)
+    expect(previews[0]).not.toHaveAttribute('loading')
+    expect(previews[3]).toHaveAttribute('loading', 'lazy')
+    expect(previews[3]).toHaveAttribute('width', '480')
+    expect(previews[3]).toHaveAttribute('height', '360')
   })
 
   it('reveals Add to Trip only after its backing package is enabled', async () => {

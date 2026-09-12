@@ -895,7 +895,10 @@ function StoreGallery({ store }: { store: CatalogStore }) {
             >
               <img
                 src={selected.src}
-                {...responsiveCatalogImage(selected.src, '(max-width: 800px) 100vw, 720px')}
+                {...responsiveCatalogImage(
+                  selected.src,
+                  '(max-width: 800px) 100vw, calc(100vw - clamp(64px, 6vw, 128px))',
+                )}
                 alt={selected.alt}
                 onError={() => markFailed(selectedIndex)}
               />
@@ -927,8 +930,14 @@ function StoreGallery({ store }: { store: CatalogStore }) {
                   <>
                     <img
                       src={item.src}
-                      {...responsiveCatalogImage(item.src, '220px')}
+                      {...responsiveCatalogImage(
+                        item.src,
+                        '(min-width: 1024px) 32vw, (min-width: 801px) 220px, 33vw',
+                      )}
                       alt=""
+                      loading={index > 2 ? 'lazy' : undefined}
+                      width="480"
+                      height="360"
                       onError={() => markFailed(index)}
                     />
                     <span className="store-gallery__print-plate">No. {index + 1}</span>

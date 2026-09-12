@@ -244,6 +244,7 @@ test.describe('Store Details decision-screen contract', () => {
         const header = document.querySelector<HTMLElement>('.store-detail__header')
         const gallery = document.querySelector<HTMLElement>('.store-gallery')
         const actions = document.querySelector<HTMLElement>('.store-detail__actions')
+        const title = document.querySelector<HTMLElement>('.store-detail__header h1')
         return {
           bodyOverflow: document.body.scrollWidth - document.body.clientWidth,
           documentOverflow:
@@ -261,6 +262,7 @@ test.describe('Store Details decision-screen contract', () => {
           actionsPadding: actions
             ? Number.parseFloat(getComputedStyle(actions).paddingInlineStart)
             : 0,
+          titleMaxWidth: title ? getComputedStyle(title).maxWidth : '',
         }
       })
       expect(geometry.bodyOverflow, `${width}px body overflow`).toBeLessThanOrEqual(1)
@@ -275,6 +277,7 @@ test.describe('Store Details decision-screen contract', () => {
         expect(geometry.headerPadding).toBeCloseTo(expectedGutter, 0)
         expect(geometry.galleryPadding).toBeCloseTo(expectedGutter, 0)
         expect(geometry.actionsPadding).toBeCloseTo(expectedGutter, 0)
+        expect(geometry.titleMaxWidth).toBe('none')
       } else {
         expect(geometry.articleWidth).toBeLessThanOrEqual(720)
       }
@@ -346,6 +349,21 @@ test.describe('Store Details decision-screen contract', () => {
     }))
     expect(overflow.body).toBeLessThanOrEqual(1)
     expect(overflow.document).toBeLessThanOrEqual(1)
+  })
+
+  test('keeps section navigation immediate when reduced motion is requested', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/stores/cedar-brass')
+    const nav = page.getByRole('navigation', { name: 'Store sections' })
+    await expect(nav).toBeVisible()
+    const motion = await nav.evaluate((element) => ({
+      scrollBehavior: getComputedStyle(document.documentElement).scrollBehavior,
+      transitionSeconds: Number.parseFloat(getComputedStyle(element).transitionDuration),
+      animationSeconds: Number.parseFloat(getComputedStyle(element).animationDuration),
+    }))
+    expect(motion.scrollBehavior).toBe('auto')
+    expect(motion.transitionSeconds).toBeLessThanOrEqual(0.000_01)
+    expect(motion.animationSeconds).toBeLessThanOrEqual(0.000_01)
   })
 
   test('captures the ordered desktop, tablet, and mobile review views', async ({

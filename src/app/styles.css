@@ -2184,6 +2184,10 @@ main > article dt {
     padding-bottom: clamp(64px, 5.56vw, 96px);
   }
 
+  main.store-detail .store-detail__header h1 {
+    max-width: none;
+  }
+
   main.store-detail .store-gallery {
     padding: clamp(32px, 3vw, 64px);
     padding-block: clamp(64px, 5.56vw, 96px);
