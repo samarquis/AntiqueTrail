@@ -10,6 +10,10 @@ import { fileURLToPath } from 'node:url'
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const CLI_VERSION = '2.115.0'
+export function localServiceExclusions(disableStorage = false) {
+  if (typeof disableStorage !== 'boolean') throw new Error('Invalid local service options')
+  return `studio,postgres-meta,realtime,imgproxy,logflare,vector,supavisor${disableStorage ? ',storage-api' : ''}`
+}
 export async function stopChild(child) {
   if (!child || child.exitCode !== null || child.signalCode !== null) return
   const closed = new Promise((resolve) => child.once('close', resolve))
@@ -214,9 +218,15 @@ export function validateOwner(run) {
     throw new Error('Project identity mismatch')
   return root
 }
-export function createLocalService({ signal, resumeDirectory, browserOrigin } = {}) {
+export function createLocalService({
+  signal,
+  resumeDirectory,
+  browserOrigin,
+  disableStorage = false,
+} = {}) {
   if (browserOrigin && !/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(browserOrigin))
     throw new Error('Browser origin must use literal loopback')
+  const exclusions = localServiceExclusions(disableStorage)
   let run
   if (resumeDirectory) {
     const directory = path.resolve(resumeDirectory)
@@ -357,15 +367,7 @@ export function createLocalService({ signal, resumeDirectory, browserOrigin } = 
     ])
     networkCreated = true
     await cli(
-      [
-        'start',
-        '--workdir',
-        directory,
-        '--network-id',
-        projectId,
-        '--exclude',
-        'studio,postgres-meta,realtime,imgproxy,logflare,vector,supavisor',
-      ],
+      ['start', '--workdir', directory, '--network-id', projectId, '--exclude', exclusions],
       { env: proxy.env, signal, timeout: 1_200_000 },
     )
     await verifyContainers()

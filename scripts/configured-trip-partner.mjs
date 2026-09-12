@@ -37,7 +37,11 @@ let service, server
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
   const origin = `http://127.0.0.1:${await freePort()}`
-  service = createLocalService({ signal: controller.signal, browserOrigin: origin })
+  service = createLocalService({
+    signal: controller.signal,
+    browserOrigin: origin,
+    disableStorage: true,
+  })
   report.temporaryProject = service.run.directory
   const local = await service.start()
   Object.assign(
