@@ -6,6 +6,12 @@ Status: historical decision record with links to current requirement owners. Ori
 
 ## Confirmed decisions
 
+### Vintage Day Out name and marketing direction — 2026-09-12
+
+Authorization: `update plan`. Exact Product Owner instruction: `lets lock in on Vintage Day Out. I love the way that sounds. I like some of the marketing idea as well. Lock this in our plan`. This is an explicit instruction to amend the plan for the selected name and the immediately discussed marketing direction; the owner did not type the literal words `update plan`.
+
+The current name, preferred-domain status and migration boundary are owned by [PRD Brand and positioning](PRD.md#brand-and-positioning); the hook, supporting copy and truthful stage applicability are owned by [DESIGN Brand messaging](DESIGN.md#brand-messaging). The owner chose this direction after preliminary research disclosed existing similar uses. Selection is not a trademark/domain ownership claim, public activation, homepage redesign, trip-stage change or application rename. Preserve the store-first sequence and existing visual identity. Prior working-name decisions below remain history and are superseded only on name selection by the linked current rule.
+
 ### Minimal invitation ACL repair — 2026-09-12
 
 Authorization: `update plan`. The assistant proposed `update plan to include #365’s minimal invitation ACL repair`; the Product Owner responded `yes go ahead`, approving that exact amendment and no broader trip work.

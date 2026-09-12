@@ -16,6 +16,14 @@ Design first for shoppers roughly 50–80+ without creating a separate age mode.
 
 Use the [selected visual direction](DESIGN_SYSTEM.md#selected-visual-direction), exact [visual tokens](DESIGN_SYSTEM.md#visual-tokens), and [product anti-references](DESIGN_SYSTEM.md#product-anti-references); approved icon placement remains in docs/design/ICON_PLACEMENT_SPEC.md.
 
+## Brand messaging
+
+The selected name and migration boundary are owned by [PRD Brand and positioning](PRD.md#brand-and-positioning). Use **Vintage Day Out** for the intended product brand and **Your kind of shops. Your kind of day.** as its selected marketing hook.
+
+The approved current-stage supporting line is **Discover antique and vintage shops for your next day out.** It describes browsing and visiting without implying in-app trip planning. When trip building is separately approved for exposure and accepted, the selected supporting line is **Discover antique and vintage stores. Turn your favorites into a day trip.** The companion campaign line **Choose a few shops. We'll help you make a day of it.** is reserved for that same trip-enabled stage. Do not place either trip-stage line on the showcase or pilot as a claim of available functionality.
+
+The positioning emphasizes choosing interesting shops, enjoying an outing and, at a later approved stage, building a usable day. It does not claim exclusive market novelty, automated personalization, live location filtering, route optimization, public reviews or any unavailable capability. This records messaging intent only: no new hero section, navigation label, action flow, palette, typography, logo or screen layout is specified, and no public campaign is activated.
+
 ## Store-showcase presentation
 
 This section owns the presentation behavior for the internal store showcase and its shopper browsing surfaces when later expressly admitted to a controlled store pilot. It takes precedence over the retained trip-oriented navigation and Browse action lists only for those selected stages. It does not authorize new route exposure, delete retained features, or weaken server-side permissions.

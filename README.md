@@ -1,4 +1,6 @@
-# Antique Trail
+# Vintage Day Out
+
+The selected product name and pending migration are defined in [PRD Brand and positioning](PRD.md#brand-and-positioning). Antique Trail/AntiqueTrail remain legacy documentation and technical identifiers until the separately scoped rename; this documentation amendment does not rename the application or repository.
 
 ## Start here
 
