@@ -1,13 +1,13 @@
 # ADR 0009 — Store-first stage applicability
 
-- Status: Accepted by the Product Owner's 2026-09-11 directive; effective on reviewed merge of #346. No implementation or activation receipt.
+- Status: Accepted by the Product Owner's 2026-09-11 directive; effective on reviewed merge of #346, with the bounded local trip-work exception authorized on 2026-09-12 and effective only when PR #360 merges. No implementation or activation receipt.
 - Authorization: `update plan to the proposed store-first PRD`.
 - Scope: internal store showcase, controlled real-store pilot and paid Gallery pilot described in [PRD.md](../../PRD.md).
 - Supersedes: earlier product/package prerequisite sequencing only for these bounded stages, including ADR0006's blanket Packages 1–10B prerequisite. Provider topology, eligibility, funding, security and recovery controls remain. ADR0007/0008's particular assessment authority is neither extended nor renewed.
 
 ## Decision
 
-The current product is a store showcase with optional paid photo capacity. Trips, route planning, Navigator/Go/offline, public reviews, regional release, RG-01 and three community expansions are not prerequisites to the internal showcase or controlled store/Gallery pilot. Those prior programs are retained history/deferred options, not the current delivery queue. The first offer is Free/Gallery; new Full Gallery sales and new paid-to-paid features are deferred. Existing code, data and provider obligations remain protected.
+The current product is a store showcase with optional paid photo capacity. Trips, route planning, Navigator/Go/offline, public reviews, regional release, RG-01 and three community expansions are not prerequisites to the internal showcase or controlled store/Gallery pilot. Those prior programs are retained history/deferred options, not the current delivery queue. The narrow exception in [PRD deferred implementation boundary](../../PRD.md#deferred-implementation-boundary) admits only repository-controlled local invitation diagnosis, accepted-partner removal repairs and joined verification for #321/#342/#343/#344; it neither exposes trips nor reactivates the former program. The first offer is Free/Gallery; new Full Gallery sales and new paid-to-paid features are deferred. Existing code, data and provider obligations remain protected.
 
 The PRD owns stage progression. [Security applicability](../../SECURITY_AND_TRUST.md#store-first-stage-applicability) owns necessary controls for the selected exposure. [Pilot activation](../../PACKAGE_CONTRACTS.md#store-first-pilot-activation-contract) binds the candidate, data, accounts/stores, explicit capability allowlist, authentic current approvals/evidence, expiry/stop and rollback. It cannot grant a capability not named and accepted. Public discovery, public registration/intake, promotion and live billing never follow automatically from a showcase or a controlled pilot.
 
@@ -22,6 +22,8 @@ The default showcase is local/synthetic. A hosted review needs fresh applicable 
 ## Implementation and acceptance consequences
 
 This amendment changes requirements only. Existing runtime predicates remain fail-closed until separately admitted/reviewed implementation supports the selected pilot scope. Do not fabricate Regional/RG-01/community receipts to satisfy old code. Any necessary gate adaptation is a separate small ticket with direct allow/deny and rollback proof.
+
+The bounded trip exception uses only fictional, run-owned local identities and fixtures through actual local Auth/Edge/RPC transport. It must preserve verified-recipient binding, one-trip isolation, creator-only accepted-partner removal, author-private data, offline/device authority revocation and next-request denial. It grants no shared hosting, external account or participant, real data, email delivery, provider operation, spending, deployment, showcase/pilot inclusion or production capability. Work outside #321/#342/#343/#344 remains deferred.
 
 Acceptance must distinguish internal fixture use, actual local services, hosted CI, real provider operations and firsthand observations. A safe scoped owner demonstration need not wait for unrelated deferred features. A privacy, authorization, data-loss or payment defect cannot pass its selected path. Disabled routes require direct-server denial; retained private data and subscriber obligations keep their lifecycle/servicing protections.
 
