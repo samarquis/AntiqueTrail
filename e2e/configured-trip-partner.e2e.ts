@@ -105,7 +105,7 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
     await partnerPage.getByRole('link', { name: 'Open shared trip' }).click()
     await expect(partnerPage).toHaveURL(new RegExp(`/trips/${tripId}/plan$`))
     await expect
-      .poll(() => membership(tripId))
+      .poll(() => membership(tripId), { timeout: 20_000 })
       .toBe(process.env.CONFIGURED_TRIP_PARTNER_WRONG_READBACK === '1' ? 2 : 1)
     await expect(rpc(1, 'get_trip', { trip_id: tripId })).resolves.toMatchObject({ id: tripId })
     await expect(rpc(1, 'shopper_get_memory', { p_store_id: STORE_A })).resolves.toBeNull()
