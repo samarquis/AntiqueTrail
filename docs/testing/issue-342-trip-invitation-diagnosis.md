@@ -20,16 +20,16 @@ intended recipient; reads invitation and membership state independently; and rem
 only its owned fixtures.
 
 The frozen candidate was also exercised against an already-running disposable local
-Supabase service under an explicit cross-ticket service lease. This avoided changing
-or stopping the service while retaining the candidate's committed classification,
-redaction, and state checks. The service checkout was at
+Supabase service under an explicit cross-ticket service lease. This avoided restarting,
+reconfiguring, or stopping the service while retaining the candidate's committed
+classification, redaction, and state checks. The service checkout was at
 `c2381eef9c16b8b8646b7937d3351224220d5195` and dirty with unrelated issue #343 work,
 so this evidence is not a claim about merged service code. The captured identities
 were:
 
 - Supabase CLI: `2.115.0`
 - schema identity: `883e1aa8d6a99b12e3d5de975fee861ec1c551a1c319e62053760799f15afe73`
-- acceptance-function identity: `33be891e87f03acb03eb5c0be37538b69aea73d610064542c053eb1d4df2bfe1`
+- Edge Function source identity: `33be891e87f03acb03eb5c0be37538b69aea73d610064542c053eb1d4df2bfe1`
 
 No token or recipient address is retained in this report.
 
