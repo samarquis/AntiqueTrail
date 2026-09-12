@@ -26,7 +26,7 @@ An applicant is an account state, not a separate login system. Roles never grant
 2. Return to useful browsing context. Missing information, failed media and sparse galleries stay understandable.
 3. Optionally save a store. Just-in-time sign-in preserves the interrupted action and context; cancellation writes nothing.
 
-Trip building, partner handoff, route optimization, Go/offline navigation, public reviews and private visit history are deferred from this milestone. Their existing code and findings remain recoverable; they are not showcase prerequisites. See [deferred implementation boundary](#deferred-implementation-boundary).
+Trip building, partner handoff, route optimization, Go/offline navigation, public reviews and private visit history remain deferred from this milestone and from every showcase or pilot exposure. One bounded repository exception permits the local invitation diagnosis, accepted-partner removal repairs and joined verification named by #321/#342/#343/#344. That work preserves the retained trip contract without adding trip navigation, participants, provider activity or production capability, and it is not a showcase prerequisite. See [deferred implementation boundary](#deferred-implementation-boundary).
 
 ## The store and administrator experience
 
@@ -106,6 +106,8 @@ Before public exposure, test the exposed shopper capabilities with at least eigh
 ## Deferred implementation boundary
 
 Preserve code and findings for trips/partner sharing, route planning, Go/offline navigation, Candidate Share, public reviews, private visit histories, community expansion, Full Gallery sales, featured placement, personalization, households, collections and Android packaging. These are later options, not promises to build now. The previous SLM-01/Regional program and its dated decisions are historical planning profiles for this reset, not the current queue. Reconsider them only after pilot evidence and a scoped decision.
+
+The only current trip exception is repository-controlled local work for #321/#342/#343/#344: diagnose verified-recipient invitation acceptance, implement creator-authorized removal of an accepted partner at the server and existing client boundaries, and prove the joined invitation-to-next-request revocation path. #342 and #343 may proceed independently; #343 precedes #344; #321 consumes their joined evidence. The exception does not select trips for the store showcase or any pilot, does not authorize other trip features, and grants no hosted use, external participant, real data, email delivery, provider call, spending, deployment or production exposure.
 
 Never erase incumbent obligations or weaken access controls because a capability is deferred. The pilot inventory must show each deferred path disabled, safely isolated or independently accepted for the expressly authorized exposure. Hiding links alone is insufficient. No empty scaffolding or speculative future tickets.
 
