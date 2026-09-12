@@ -68,10 +68,8 @@ test.describe('Store Details decision-screen contract', () => {
     const navigationHref = await navigate.getAttribute('href')
     expect(navigationHref).toMatch(/^https:\/\/www\.google\.com\/maps\/search\//)
     expect(decodeURIComponent(navigationHref ?? '')).toContain('100 Synthetic Avenue')
-    await expect(page.getByRole('link', { name: 'Add to Trip', exact: true })).toHaveAttribute(
-      'href',
-      /\/trips\/new\?addStoreId=/,
-    )
+    await expect(page.getByRole('link', { name: /add to trip|private memory/i })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: /suggest a correction/i })).toBeVisible()
     await expectMinimumTargets(page)
   })
 

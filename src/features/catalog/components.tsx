@@ -318,6 +318,14 @@ export function CatalogCard({
     .toLocaleUpperCase()
   const detailsHref = catalogAppHref(`/stores/${encodeURIComponent(store.slug)}`)
   const rememberDetailReturn = () => rememberBrowseReturn(store.id)
+  const normalizedArea = store.area.label
+    .toLocaleLowerCase()
+    .replace(/\s+area$/u, '')
+    .trim()
+  const location =
+    normalizedArea === store.town.toLocaleLowerCase().trim()
+      ? `${store.town}, ${store.state}`
+      : `${store.area.label} · ${store.town}, ${store.state}`
   return (
     <article
       id={mapCardId(store.id)}
@@ -346,10 +354,7 @@ export function CatalogCard({
             {store.name}
           </CatalogLink>
         </h2>
-        <p className="catalog-card__area">{store.area.label}</p>
-        <p>
-          {store.town}, {store.state}
-        </p>
+        <p className="catalog-card__area">{location}</p>
         <ul className="catalog-card__categories" aria-label="Store categories">
           {store.categories.map((category) => (
             <li key={category.slug}>{category.label}</li>
@@ -363,26 +368,26 @@ export function CatalogCard({
           </span>
         </p>
         <p className="catalog-card__freshness">{freshnessLabel(store)}</p>
-        <CatalogLink
-          className="button catalog-card__details"
-          to={detailsHref}
-          onClick={rememberDetailReturn}
-        >
-          View {store.name} details
-        </CatalogLink>
-        {onShowOnMap && (
-          <button type="button" onClick={onShowOnMap}>
-            Show {store.name} on map
-          </button>
-        )}
-        <section className="catalog-card__actions" aria-label={`Visit options for ${store.name}`}>
+        <section className="catalog-card__actions" aria-label={`Store actions for ${store.name}`}>
           <CatalogLink
-            className="button button--secondary catalog-card__add-to-trip"
-            to={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
+            className="button catalog-card__details"
+            to={detailsHref}
+            onClick={rememberDetailReturn}
+            aria-label={`View store: ${store.name}`}
           >
-            Add to Trip
+            View store
           </CatalogLink>
           {privateActions && <div className="catalog-card__private-actions">{privateActions}</div>}
+          {onShowOnMap && (
+            <button
+              className="button button--secondary"
+              type="button"
+              onClick={onShowOnMap}
+              aria-label={`Show on map: ${store.name}`}
+            >
+              Show on map
+            </button>
+          )}
         </section>
       </div>
     </article>
@@ -693,20 +698,11 @@ export function BrowsePage({
                                 <CatalogLink
                                   to={catalogAppHref(`/stores/${point.slug}`)}
                                   onClick={() => rememberBrowseReturn(point.storeId)}
+                                  aria-label={`View store: ${point.name}`}
                                 >
-                                  View store details
+                                  View store
                                 </CatalogLink>
                                 {renderPrivateActions?.(point.store)}
-                                <CatalogLink
-                                  to={catalogAppHref(
-                                    `/trips/new?addStoreId=${encodeURIComponent(point.storeId)}`,
-                                  )}
-                                >
-                                  Add to Trip
-                                </CatalogLink>
-                                {map.navigationHref && (
-                                  <a href={map.navigationHref(point)}>Navigate</a>
-                                )}
                               </>
                             )
                           })()}

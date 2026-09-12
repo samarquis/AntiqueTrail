@@ -50,7 +50,7 @@ describe('catalog private-action integration seam', () => {
       />,
     )
     const actionRegion = await screen.findByRole('region', {
-      name: `Visit options for ${syntheticStores[0].name}`,
+      name: `Store actions for ${syntheticStores[0].name}`,
     })
     expect(actionRegion).toContainElement(
       screen.getByRole('button', { name: `Save ${syntheticStores[0].name}` }),
@@ -58,10 +58,10 @@ describe('catalog private-action integration seam', () => {
     const actions = Array.from(actionRegion.querySelectorAll('a, button')).map((action) =>
       action.textContent?.trim(),
     )
-    expect(actions).toEqual(['Add to Trip', `Save ${syntheticStores[0].name}`])
+    expect(actions).toEqual(['View store', `Save ${syntheticStores[0].name}`])
     expect(actionRegion.querySelector('a')).toHaveAttribute(
       'href',
-      `/trips/new?addStoreId=${encodeURIComponent(syntheticStores[0].id)}`,
+      `/stores/${syntheticStores[0].slug}`,
     )
   })
 
@@ -74,7 +74,7 @@ describe('catalog private-action integration seam', () => {
       `/AntiqueTrail/stores/${syntheticStores[0].slug}`,
     )
     expect(
-      screen.getByRole('link', { name: `View ${syntheticStores[0].name} details` }),
+      screen.getByRole('link', { name: `View store: ${syntheticStores[0].name}` }),
     ).toHaveAttribute('href', `/AntiqueTrail/stores/${syntheticStores[0].slug}`)
   })
 
@@ -82,7 +82,7 @@ describe('catalog private-action integration seam', () => {
     render(<BrowsePage client={client()} />)
 
     const details = await screen.findByRole('link', {
-      name: `View ${syntheticStores[0].name} details`,
+      name: `View store: ${syntheticStores[0].name}`,
     })
     expect(details).toHaveClass('button', 'catalog-card__details')
     expect(details).toHaveAttribute('href', `/stores/${syntheticStores[0].slug}`)
@@ -90,10 +90,7 @@ describe('catalog private-action integration seam', () => {
       'href',
       `/stores/${syntheticStores[0].slug}`,
     )
-    expect(screen.getByRole('link', { name: 'Add to Trip' })).toHaveAttribute(
-      'href',
-      `/trips/new?addStoreId=${encodeURIComponent(syntheticStores[0].id)}`,
-    )
+    expect(screen.queryByRole('link', { name: /add to trip/i })).not.toBeInTheDocument()
   })
 
   it('defaults to Package 1 filters and exposes a labeled filter panel contract', async () => {
@@ -325,19 +322,15 @@ describe('catalog private-action integration seam', () => {
     expect(screen.getByRole('complementary', { name: /map marker preview/i })).toHaveTextContent(
       syntheticStores[0].name,
     )
-    expect(screen.getByRole('link', { name: /view store details/i })).toHaveAttribute(
-      'href',
-      `/stores/${syntheticStores[0].slug}`,
-    )
-    expect(screen.getByRole('complementary', { name: /map marker preview/i })).toHaveTextContent(
+    const preview = screen.getByRole('complementary', { name: /map marker preview/i })
+    expect(
+      within(preview).getByRole('link', { name: `View store: ${syntheticStores[0].name}` }),
+    ).toHaveAttribute('href', `/stores/${syntheticStores[0].slug}`)
+    expect(preview).toHaveTextContent(
       /4.5 from 8 ratings.*open now.*antique mall.*2.4 miles.*claimed listing.*saved.*not visited/i,
     )
-    const preview = screen.getByRole('complementary', { name: /map marker preview/i })
-    expect(within(preview).getByRole('link', { name: /add to trip/i })).toHaveAttribute(
-      'href',
-      `/trips/new?addStoreId=${syntheticStores[0].id}`,
-    )
-    expect(screen.getAllByRole('link', { name: /add to trip/i }).length).toBeGreaterThanOrEqual(2)
+    expect(within(preview).queryByRole('link', { name: /add to trip/i })).not.toBeInTheDocument()
+    expect(within(preview).queryByRole('link', { name: /navigate/i })).not.toBeInTheDocument()
   })
 
   it('replaces the accessible result list only after Search this map area', async () => {

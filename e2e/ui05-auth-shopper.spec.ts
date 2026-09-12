@@ -210,7 +210,7 @@ test.describe('UI-05 authentication and private-shopper acceptance', () => {
     await expect(page.getByText('Store saved after sign-in.')).toHaveCount(0)
 
     await page.goto(reviewUrl('/stores/blue-finch-curios', 'anonymous'))
-    await page.getByRole('link', { name: 'Sign in to save store' }).click()
+    await page.getByRole('link', { name: /save blue finch curios.*requires sign-in/i }).click()
     await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
     await expect(page.getByRole('heading', { name: 'Blue Finch Curios' })).toBeFocused()
     await expect
