@@ -121,7 +121,9 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
   await expect(enlarge).toBeFocused()
   await expect.poll(saved).toBe(process.env.CONFIGURED_SHOPPER_WRONG_READBACK === '1' ? 2 : 1)
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Remove saved store', exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Remove saved store Clockwork Cabinet', exact: true }),
+  ).toBeVisible()
   await expect(photo).toBeVisible()
   await expect
     .poll(() => photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
