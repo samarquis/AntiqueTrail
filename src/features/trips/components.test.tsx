@@ -45,6 +45,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     updateSchedule: vi.fn(async () => trip),
     bindNavigatorDevice: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -65,6 +66,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     purgeOffline: vi.fn(async () => ({ state: 'purged' as const, pendingCount: 0 })),
     getCollaboration: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -73,6 +75,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     })),
     invitePartner: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -82,6 +85,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     })),
     revokeInvitation: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -90,6 +94,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     })),
     acceptInvitation: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'partner-b',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -99,6 +104,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     })),
     assignNavigator: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -691,6 +697,7 @@ describe('manual trips', () => {
     const removeStop = vi.fn(async () => ({ ...planned, stops: [] }))
     const bindNavigatorDevice = vi.fn(async () => ({
       tripId: planned.id,
+      tripVersion: planned.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -893,6 +900,7 @@ describe('manual trips', () => {
                   markArrived,
                   getCollaboration: vi.fn(async () => ({
                     tripId: trip.id,
+                    tripVersion: trip.version,
                     currentUserId: 'partner-b',
                     participants: [
                       {
@@ -951,6 +959,7 @@ describe('manual trips', () => {
                   saveVisitMemory,
                   getCollaboration: vi.fn(async () => ({
                     tripId: trip.id,
+                    tripVersion: trip.version,
                     currentUserId: 'partner-b',
                     participants: [
                       {
@@ -1380,6 +1389,7 @@ describe('manual trips', () => {
     const user = userEvent.setup()
     const collaboration = {
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -1420,9 +1430,210 @@ describe('manual trips', () => {
     expect(await screen.findByText(/trip partner is navigator/i)).toBeInTheDocument()
   })
 
+  it('lets only the creator confirm accepted-partner removal and reports Navigator recovery', async () => {
+    const user = userEvent.setup()
+    const collaboration = {
+      tripId: trip.id,
+      tripVersion: 4,
+      currentUserId: 'creator-a',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+        {
+          userId: 'partner-b',
+          displayName: 'Trip partner',
+          role: 'partner' as const,
+          membershipVersion: 7,
+        },
+      ],
+      navigatorUserId: 'partner-b',
+    }
+    const applied = {
+      ...collaboration,
+      tripVersion: 5,
+      participants: collaboration.participants.slice(0, 1),
+      navigatorUserId: undefined,
+    }
+    const removePartner = vi.fn(async () => ({
+      state: 'applied' as const,
+      collaboration: applied,
+    }))
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/invite']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/invite"
+            element={
+              <InviteTripPartnerPage
+                client={client({
+                  getCollaboration: vi.fn(async () => collaboration),
+                  removePartner,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const trigger = await screen.findByRole('button', { name: 'Remove partner' })
+    expect(trigger).toHaveClass('button--danger')
+    await user.click(trigger)
+    expect(screen.getByText(/ends their access to this trip immediately/i)).toBeInTheDocument()
+    const keepPartner = screen.getByRole('button', { name: 'Keep Trip partner' })
+    expect(keepPartner).toHaveFocus()
+    await user.click(keepPartner)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Remove partner' })).toHaveFocus(),
+    )
+    expect(removePartner).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Remove partner' }))
+    await user.click(screen.getByRole('button', { name: 'Yes, remove Trip partner' }))
+    expect(removePartner).toHaveBeenCalledWith('trip-1', 'partner-b', 7, 4, expect.any(String))
+    expect(screen.queryByText(/Trip partner — partner/)).not.toBeInTheDocument()
+    const status = await screen.findByRole('status', { name: '' })
+    expect(status).toHaveTextContent('Trip partner was removed. Trip paused — assign a Navigator.')
+    await waitFor(() => expect(status).toHaveFocus())
+  })
+
+  it('does not expose accepted-partner removal to the partner', async () => {
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/invite']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/invite"
+            element={
+              <InviteTripPartnerPage
+                client={client({
+                  getCollaboration: vi.fn(async () => ({
+                    tripId: trip.id,
+                    tripVersion: 4,
+                    currentUserId: 'partner-b',
+                    participants: [
+                      {
+                        userId: 'creator-a',
+                        displayName: 'Trip creator',
+                        role: 'creator' as const,
+                      },
+                      {
+                        userId: 'partner-b',
+                        displayName: 'Trip partner',
+                        role: 'partner' as const,
+                        membershipVersion: 7,
+                      },
+                    ],
+                    navigatorUserId: 'creator-a',
+                  })),
+                  removePartner: vi.fn(),
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText(/Trip partner — partner/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Remove partner' })).not.toBeInTheDocument()
+  })
+
+  it('keeps authoritative collaboration after a denied removal and allows a fresh attempt', async () => {
+    const user = userEvent.setup()
+    const collaboration = {
+      tripId: trip.id,
+      tripVersion: 4,
+      currentUserId: 'creator-a',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+        {
+          userId: 'partner-b',
+          displayName: 'Trip partner',
+          role: 'partner' as const,
+          membershipVersion: 7,
+        },
+      ],
+      navigatorUserId: 'creator-a',
+    }
+    const getCollaboration = vi.fn(async () => collaboration)
+    const removePartner = vi.fn(async () => {
+      throw new Error('permission denied')
+    })
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/invite']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/invite"
+            element={<InviteTripPartnerPage client={client({ getCollaboration, removePartner })} />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Remove partner' }))
+    await user.click(screen.getByRole('button', { name: 'Yes, remove Trip partner' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/please try again/i)
+    expect(screen.getByText(/Trip partner — partner/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove partner' })).toHaveFocus()
+    expect(getCollaboration).toHaveBeenCalledTimes(2)
+  })
+
+  it('refreshes authoritative collaboration after a version conflict', async () => {
+    const user = userEvent.setup()
+    const collaboration = {
+      tripId: trip.id,
+      tripVersion: 4,
+      currentUserId: 'creator-a',
+      participants: [
+        { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
+        {
+          userId: 'partner-b',
+          displayName: 'Trip partner',
+          role: 'partner' as const,
+          membershipVersion: 7,
+        },
+      ],
+      navigatorUserId: 'creator-a',
+    }
+    const latest = { ...collaboration, tripVersion: 5 }
+    const getCollaboration = vi
+      .fn()
+      .mockResolvedValueOnce(collaboration)
+      .mockResolvedValueOnce(latest)
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/invite']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/invite"
+            element={
+              <InviteTripPartnerPage
+                client={client({
+                  getCollaboration,
+                  removePartner: vi.fn(async () => ({
+                    state: 'conflict' as const,
+                    latest: { tripVersion: 5 },
+                  })),
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Remove partner' }))
+    expect(screen.getByRole('button', { name: 'Keep Trip partner' })).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: 'Yes, remove Trip partner' }))
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      /trip changed.*review the latest participants/i,
+    )
+    expect(screen.getByRole('button', { name: 'Remove partner' })).toBeInTheDocument()
+    expect(getCollaboration).toHaveBeenCalledTimes(2)
+  })
+
   it('accepts a fragment invitation into only the returned trip', async () => {
     const acceptInvitation = vi.fn(async () => ({
       tripId: 'trip-1',
+      tripVersion: 1,
       currentUserId: 'partner-b',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },

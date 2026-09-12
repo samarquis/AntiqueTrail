@@ -15,6 +15,7 @@ import type {
   Trip,
   TripClient,
   TripCollaboration,
+  TripParticipant,
 } from './types'
 import type { TripOfflineGrantSource, TripOfflineRuntime } from './tripRuntime'
 
@@ -1631,7 +1632,19 @@ export function InviteTripPartnerPage({ client = unavailableTripClient }: { clie
   const [collaboration, setCollaboration] = useState<TripCollaboration | null>(null)
   const [email, setEmail] = useState('')
   const [notice, setNotice] = useState('')
+  const [removalNotice, setRemovalNotice] = useState('')
   const [error, setError] = useState(false)
+  const [pendingRemoval, setPendingRemoval] = useState<{
+    partner: TripParticipant
+    expectedVersion: number
+    idempotencyKey: string
+    wasNavigator: boolean
+  } | null>(null)
+  const [removingPartnerId, setRemovingPartnerId] = useState<string | null>(null)
+  const removalTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const keepPartnerRef = useRef<HTMLButtonElement | null>(null)
+  const removalStatusRef = useRef<HTMLParagraphElement | null>(null)
+  const restoreRemovalFocus = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -1647,6 +1660,21 @@ export function InviteTripPartnerPage({ client = unavailableTripClient }: { clie
       cancelled = true
     }
   }, [client, tripId])
+
+  useEffect(() => {
+    if (removalNotice) removalStatusRef.current?.focus()
+  }, [removalNotice])
+
+  useEffect(() => {
+    if (pendingRemoval) keepPartnerRef.current?.focus()
+  }, [pendingRemoval])
+
+  useEffect(() => {
+    if (!pendingRemoval && restoreRemovalFocus.current) {
+      restoreRemovalFocus.current = false
+      removalTriggerRef.current?.focus()
+    }
+  }, [pendingRemoval])
 
   async function invite(event: FormEvent) {
     event.preventDefault()
@@ -1673,6 +1701,101 @@ export function InviteTripPartnerPage({ client = unavailableTripClient }: { clie
       setError(true)
     }
   }
+
+  function beginPartnerRemoval(partner: TripParticipant) {
+    if (!collaboration || partner.membershipVersion == null) return
+    setError(false)
+    setRemovalNotice('')
+    setPendingRemoval({
+      partner,
+      expectedVersion: collaboration.tripVersion,
+      idempotencyKey: crypto.randomUUID(),
+      wasNavigator: collaboration.navigatorUserId === partner.userId,
+    })
+  }
+
+  function finishPartnerRemoval(
+    next: TripCollaboration,
+    partnerName: string,
+    wasNavigator: boolean,
+  ) {
+    setCollaboration(next)
+    setPendingRemoval(null)
+    setError(false)
+    setRemovalNotice(
+      wasNavigator
+        ? `${partnerName} was removed. Trip paused — assign a Navigator.`
+        : `${partnerName} was removed from this trip.`,
+    )
+  }
+
+  async function confirmPartnerRemoval() {
+    const removePartner = client.removePartner
+    if (!pendingRemoval || !removePartner) return
+    setRemovingPartnerId(pendingRemoval.partner.userId)
+    setError(false)
+    setRemovalNotice('')
+    try {
+      const result = await removePartner(
+        tripId,
+        pendingRemoval.partner.userId,
+        pendingRemoval.partner.membershipVersion!,
+        pendingRemoval.expectedVersion,
+        pendingRemoval.idempotencyKey,
+      )
+      if (result.state === 'applied') {
+        finishPartnerRemoval(
+          result.collaboration,
+          pendingRemoval.partner.displayName,
+          pendingRemoval.wasNavigator,
+        )
+        return
+      }
+      const latest = await client.getCollaboration(tripId)
+      setCollaboration(latest)
+      setPendingRemoval(null)
+      setRemovalNotice('This trip changed. Review the latest participants before trying again.')
+    } catch {
+      try {
+        const latest = await client.getCollaboration(tripId)
+        const partnerStillActive = latest.participants.some(
+          (participant) => participant.userId === pendingRemoval.partner.userId,
+        )
+        if (!partnerStillActive) {
+          finishPartnerRemoval(
+            latest,
+            pendingRemoval.partner.displayName,
+            pendingRemoval.wasNavigator,
+          )
+          return
+        }
+        setCollaboration(latest)
+      } catch {
+        // Keep the last authoritative collaboration visible when reconciliation is unavailable.
+      }
+      restoreRemovalFocus.current = true
+      setPendingRemoval(null)
+      setError(true)
+    } finally {
+      setRemovingPartnerId(null)
+    }
+  }
+
+  function cancelPartnerRemoval() {
+    restoreRemovalFocus.current = true
+    setPendingRemoval(null)
+  }
+
+  const currentParticipant = collaboration?.participants.find(
+    (participant) => participant.userId === collaboration.currentUserId,
+  )
+  const acceptedPartner = collaboration?.participants.find(
+    (participant) => participant.role === 'partner',
+  )
+  const canRemovePartner =
+    currentParticipant?.role === 'creator' &&
+    acceptedPartner?.membershipVersion != null &&
+    client.removePartner != null
 
   return (
     <TripCard
@@ -1736,7 +1859,50 @@ export function InviteTripPartnerPage({ client = unavailableTripClient }: { clie
               </li>
             ))}
           </ul>
+          {canRemovePartner &&
+            acceptedPartner &&
+            (pendingRemoval?.partner.userId === acceptedPartner.userId ? (
+              <section aria-label={`Remove ${acceptedPartner.displayName} from trip`}>
+                <p>
+                  Removing {acceptedPartner.displayName} ends their access to this trip immediately.
+                  If they are Navigator, the trip pauses until another Navigator is assigned.
+                </p>
+                <button
+                  ref={keepPartnerRef}
+                  className="button button--secondary"
+                  type="button"
+                  disabled={removingPartnerId !== null}
+                  onClick={cancelPartnerRemoval}
+                >
+                  Keep {acceptedPartner.displayName}
+                </button>
+                <button
+                  className="button button--danger"
+                  type="button"
+                  disabled={removingPartnerId !== null}
+                  onClick={() => void confirmPartnerRemoval()}
+                >
+                  {removingPartnerId === acceptedPartner.userId
+                    ? 'Removing…'
+                    : `Yes, remove ${acceptedPartner.displayName}`}
+                </button>
+              </section>
+            ) : (
+              <button
+                ref={removalTriggerRef}
+                className="button button--danger"
+                type="button"
+                onClick={() => beginPartnerRemoval(acceptedPartner)}
+              >
+                Remove partner
+              </button>
+            ))}
           {notice && <p role="status">{notice}</p>}
+          {removalNotice && (
+            <p ref={removalStatusRef} role="status" tabIndex={-1}>
+              {removalNotice}
+            </p>
+          )}
           <p>
             The non-Navigator can read progress but cannot control Go. Private ratings and notes are
             never shared.

@@ -68,6 +68,8 @@ export interface TripParticipant {
   userId: string
   displayName: string
   role: TripParticipantRole
+  /** Server membership generation used to reject stale partner-removal commands. */
+  membershipVersion?: number
 }
 
 export interface TripInvitation {
@@ -79,11 +81,17 @@ export interface TripInvitation {
 /** The server returns collaboration state for exactly one authorized trip. */
 export interface TripCollaboration {
   tripId: string
+  /** Authoritative shared-draft version for optimistic mutations. */
+  tripVersion: number
   currentUserId: string
   participants: TripParticipant[]
   navigatorUserId?: string
   invitation?: TripInvitation
 }
+
+export type TripPartnerRemovalResult =
+  | { state: 'applied'; collaboration: TripCollaboration }
+  | { state: 'conflict'; latest: { tripVersion: number } }
 
 export interface TripMutationEnvelope {
   tripId: string
@@ -207,6 +215,13 @@ export interface TripClient {
   invitePartner(tripId: string, verifiedEmail: string): Promise<TripCollaboration>
   revokeInvitation(tripId: string, invitationId: string): Promise<TripCollaboration>
   acceptInvitation(fragmentToken: string): Promise<TripCollaboration>
+  removePartner?(
+    tripId: string,
+    partnerUserId: string,
+    membershipVersion: number,
+    expectedVersion: number,
+    idempotencyKey: string,
+  ): Promise<TripPartnerRemovalResult>
   assignNavigator(tripId: string, participantUserId: string): Promise<TripCollaboration>
   leaveTrip(tripId: string): Promise<void>
   saveCheckMyDayChoice?(

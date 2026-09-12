@@ -63,16 +63,61 @@ test.describe('Store Details decision-screen contract', () => {
     ).toBeVisible()
     await expect(page.getByRole('link', { name: /instagram.*new window/i })).toBeVisible()
 
-    const navigate = page.getByRole('link', { name: /navigate in maps.*opens in a new window/i })
-    await expect(navigate).toHaveAttribute('target', '_blank')
-    const navigationHref = await navigate.getAttribute('href')
-    expect(navigationHref).toMatch(/^https:\/\/www\.google\.com\/maps\/search\//)
-    expect(decodeURIComponent(navigationHref ?? '')).toContain('100 Synthetic Avenue')
-    await expect(page.getByRole('link', { name: 'Add to Trip', exact: true })).toHaveAttribute(
-      'href',
-      /\/trips\/new\?addStoreId=/,
-    )
+    await expect(
+      page.getByText(/directions are unavailable for this fictional address/i),
+    ).toBeVisible()
+    await expect(page.getByRole('link', { name: /navigate in maps/i })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: /add to trip|private memory/i })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: /suggest a correction/i })).toBeVisible()
     await expectMinimumTargets(page)
+  })
+
+  test('keeps opening state, actions, Photos, and Hours & location before the photo wall', async ({
+    page,
+  }) => {
+    await page.goto('/stores/blue-finch-curios', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible({
+      timeout: 30_000,
+    })
+    const opening = page.getByLabel("Today's opening information")
+    const actions = page.getByRole('navigation', { name: 'Store visit actions' })
+    const sections = page.getByRole('navigation', { name: 'Store sections' })
+    const about = page.getByRole('region', { name: 'About this store' })
+    await expect(opening).toBeVisible()
+    await expect(sections.getByRole('link', { name: 'Photos' })).toHaveAttribute(
+      'href',
+      '#gallery-heading',
+    )
+    await expect(sections.getByRole('link', { name: 'Hours & location' })).toHaveAttribute(
+      'href',
+      '#hours-heading',
+    )
+    expect(
+      await actions.evaluate((element) => {
+        const cover = document.querySelector('.store-gallery--cover')
+        return Boolean(
+          cover && element.compareDocumentPosition(cover) & Node.DOCUMENT_POSITION_FOLLOWING,
+        )
+      }),
+    ).toBe(true)
+    expect(
+      await sections.evaluate((element) => {
+        const cover = document.querySelector('.store-gallery--cover')
+        return Boolean(
+          cover && cover.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING,
+        )
+      }),
+    ).toBe(true)
+    for (const locator of [opening, actions, sections, about]) {
+      expect(
+        await locator.evaluate((element) => {
+          const wall = document.querySelector('.store-gallery--collection')
+          return Boolean(
+            wall && element.compareDocumentPosition(wall) & Node.DOCUMENT_POSITION_FOLLOWING,
+          )
+        }),
+      ).toBe(true)
+    }
   })
 
   test('supports gallery selection, enlargement, focus containment, and focus return', async ({
@@ -118,7 +163,10 @@ test.describe('Store Details decision-screen contract', () => {
     })
 
     await page.goto('/stores/blue-finch-curios')
-    const gallery = page.locator('.store-gallery')
+    await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible({
+      timeout: 30_000,
+    })
+    const gallery = page.locator('.store-gallery__background')
     const choices = page.getByRole('group', { name: 'Choose a store photo' }).getByRole('button')
     await expect(choices).toHaveCount(50)
     await expect.poll(() => blockedRequests).toBeGreaterThan(0)
@@ -139,7 +187,7 @@ test.describe('Store Details decision-screen contract', () => {
     page,
   }) => {
     await page.goto('/stores/blue-finch-curios')
-    const gallery = page.locator('.store-gallery')
+    const gallery = page.locator('.store-gallery__background')
     const enlarge = page.getByRole('button', { name: /^Enlarge image:/ })
     await enlarge.click()
 
@@ -203,17 +251,65 @@ test.describe('Store Details decision-screen contract', () => {
     await expect(photosLink).toBeFocused()
   })
 
-  test('reflows at the 320px CSS viewport equivalent to 200% zoom', async ({ page }) => {
-    await page.setViewportSize({ width: 320, height: 800 })
-    await page.goto('/stores/blue-finch-curios')
-    await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible()
-    const overflow = await page.evaluate(() => ({
-      body: document.body.scrollWidth - document.body.clientWidth,
-      document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    }))
-    expect(overflow.body).toBeLessThanOrEqual(1)
-    expect(overflow.document).toBeLessThanOrEqual(1)
-    await expectMinimumTargets(page)
+  test('reflows without clipping at narrow, intermediate, and desktop widths', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 1000 })
+    await page.goto('/stores/blue-finch-curios', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible({
+      timeout: 30_000,
+    })
+    for (const width of [320, 390, 800, 900, 1024, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 1000 })
+      const geometry = await page.evaluate(() => {
+        const article = document.querySelector<HTMLElement>('.store-detail__article')
+        const main = document.querySelector<HTMLElement>('main.store-detail')
+        const header = document.querySelector<HTMLElement>('.store-detail__header')
+        const gallery = document.querySelector<HTMLElement>('.store-gallery')
+        const actions = document.querySelector<HTMLElement>('.store-detail__actions')
+        const title = document.querySelector<HTMLElement>('.store-detail__header h1')
+        const visitGrid = document.querySelector<HTMLElement>('.store-detail__visit-grid')
+        const hoursTable = document.querySelector<HTMLElement>('.store-hours')
+        return {
+          bodyOverflow: document.body.scrollWidth - document.body.clientWidth,
+          documentOverflow:
+            document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          articleWidth: article?.getBoundingClientRect().width ?? 0,
+          mainWidth: main?.getBoundingClientRect().width ?? 0,
+          articleBorder: article ? getComputedStyle(article).borderTopWidth : '',
+          articleRadius: article ? getComputedStyle(article).borderRadius : '',
+          headerPadding: header
+            ? Number.parseFloat(getComputedStyle(header).paddingInlineStart)
+            : 0,
+          galleryPadding: gallery
+            ? Number.parseFloat(getComputedStyle(gallery).paddingInlineStart)
+            : 0,
+          actionsPadding: actions
+            ? Number.parseFloat(getComputedStyle(actions).paddingInlineStart)
+            : 0,
+          titleMaxWidth: title ? getComputedStyle(title).maxWidth : '',
+          visitGridColumns: visitGrid ? getComputedStyle(visitGrid).gridTemplateColumns : '',
+          hoursTableMaxWidth: hoursTable ? getComputedStyle(hoursTable).maxWidth : '',
+        }
+      })
+      expect(geometry.bodyOverflow, `${width}px body overflow`).toBeLessThanOrEqual(1)
+      expect(geometry.documentOverflow, `${width}px document overflow`).toBeLessThanOrEqual(1)
+      if (width >= 1024) {
+        expect(geometry.articleWidth, `${width}px article fills main`).toBeGreaterThanOrEqual(
+          geometry.mainWidth - 1,
+        )
+        expect(geometry.articleBorder).toBe('0px')
+        expect(geometry.articleRadius).toBe('0px')
+        const expectedGutter = Math.min(64, Math.max(32, width * 0.03))
+        expect(geometry.headerPadding).toBeCloseTo(expectedGutter, 0)
+        expect(geometry.galleryPadding).toBeCloseTo(expectedGutter, 0)
+        expect(geometry.actionsPadding).toBeCloseTo(expectedGutter, 0)
+        expect(geometry.titleMaxWidth).toBe('none')
+        expect(geometry.visitGridColumns.split(' ')).toHaveLength(2)
+        expect(geometry.hoursTableMaxWidth).toBe('576px')
+      } else {
+        expect(geometry.articleWidth).toBeLessThanOrEqual(720)
+      }
+      await expectMinimumTargets(page)
+    }
   })
 
   test('pins the Store sections navigation as the only top band on desktop', async ({ page }) => {
@@ -232,7 +328,7 @@ test.describe('Store Details decision-screen contract', () => {
       .toBe('sticky')
 
     for (const [label, target] of [
-      ['Plan your visit', '#hours-heading'],
+      ['Hours & location', '#hours-heading'],
       ['Source', '#source-heading'],
       ['About', '#about-heading'],
       ['Photos', '#gallery-heading'],
@@ -250,7 +346,7 @@ test.describe('Store Details decision-screen contract', () => {
         .toBe('sticky')
     }
 
-    await nav.getByRole('link', { name: 'Plan your visit' }).click()
+    await nav.getByRole('link', { name: 'Hours & location' }).click()
     const clearance = await page
       .locator('#hours-heading')
       .evaluate(
@@ -280,6 +376,21 @@ test.describe('Store Details decision-screen contract', () => {
     }))
     expect(overflow.body).toBeLessThanOrEqual(1)
     expect(overflow.document).toBeLessThanOrEqual(1)
+  })
+
+  test('keeps section navigation immediate when reduced motion is requested', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/stores/cedar-brass')
+    const nav = page.getByRole('navigation', { name: 'Store sections' })
+    await expect(nav).toBeVisible()
+    const motion = await nav.evaluate((element) => ({
+      scrollBehavior: getComputedStyle(document.documentElement).scrollBehavior,
+      transitionSeconds: Number.parseFloat(getComputedStyle(element).transitionDuration),
+      animationSeconds: Number.parseFloat(getComputedStyle(element).animationDuration),
+    }))
+    expect(motion.scrollBehavior).toBe('auto')
+    expect(motion.transitionSeconds).toBeLessThanOrEqual(0.000_01)
+    expect(motion.animationSeconds).toBeLessThanOrEqual(0.000_01)
   })
 
   test('captures the ordered desktop, tablet, and mobile review views', async ({

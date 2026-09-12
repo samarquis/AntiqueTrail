@@ -14,7 +14,7 @@ test('Free page retains Browse as front door and hands an exact claim through si
   await open(page)
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow')
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toHaveText(
-    /Browse.*My Trip.*More/,
+    /Browse.*Saved stores.*More/,
   )
   await page.getByRole('button', { name: 'Add or claim my store' }).first().click()
   await expect(page.getByRole('heading', { name: 'Find your store first' })).toBeFocused()

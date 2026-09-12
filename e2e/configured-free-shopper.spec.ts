@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import { createLocalService, loopbackRequest } from '../scripts/configured-shopper-local.mjs'
@@ -54,10 +55,76 @@ async function fixture() {
   )
   return id
 }
+
+async function acceptedPartnerFixture() {
+  const id = crypto.randomUUID()
+  const partner = uuid(input.users[1].id)
+  await service.sql(
+    `insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date) values ('${id}','${owner}','00000000-0000-4000-8000-000000000001','Partner removal trip','2026-10-10'); insert into trip_private.trip_participants(trip_id,user_id,participant_role) values ('${id}','${owner}','creator'),('${id}','${partner}','partner'); insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version) values ('${id}','${partner}',extensions.digest(convert_to('partner-device','utf8'),'sha256'),1); update trip_private.trips set navigator_user_id='${partner}',navigator_device_hash=extensions.digest(convert_to('partner-device','utf8'),'sha256') where trip_id='${id}';`,
+  )
+  return id
+}
 test.beforeEach(async () => {
   await service.sql(
     `delete from shopper_private.saved_stores where user_id in ('${owner}','${uuid(input.users[1].id)}');`,
   )
+})
+
+test('creator removes an accepted partner through configured transport', async ({
+  page,
+  browser,
+}) => {
+  const id = await acceptedPartnerFixture()
+  const partnerId = uuid(input.users[1].id)
+  const activeMembership = () =>
+    service
+      .sql(
+        `select count(*) from trip_private.trip_participants where trip_id='${uuid(id)}' and user_id='${partnerId}' and state='active';`,
+      )
+      .then((value: string) => Number(value.trim()))
+
+  await login(page, 0, `/trips/${id}/invite`)
+  const remove = page.getByRole('button', { name: 'Remove partner', exact: true })
+  await expect(remove).toBeVisible()
+  await remove.focus()
+  await page.keyboard.press('Enter')
+  const keepPartner = page.getByRole('button', { name: 'Keep Trip partner', exact: true })
+  await expect(keepPartner).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(remove).toBeFocused()
+  expect(await activeMembership()).toBe(1)
+
+  await page.keyboard.press('Enter')
+  await expect(keepPartner).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(
+    page.getByRole('button', { name: 'Yes, remove Trip partner', exact: true }),
+  ).toBeFocused()
+  await page.keyboard.press('Enter')
+  const status = page.getByRole('status').filter({ hasText: 'Trip partner was removed' })
+  await expect(status).toContainText('Trip paused — assign a Navigator.')
+  await expect(status).toBeFocused()
+  await expect.poll(activeMembership).toBe(0)
+  await expect(page.getByText('Trip partner — partner')).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(
+    (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations,
+  ).toEqual([])
+
+  const partnerContext = await browser.newContext({ baseURL: input.origin })
+  try {
+    const partnerPage = await partnerContext.newPage()
+    const partnerToken = await login(partnerPage, 1, '/trips')
+    await partnerPage.goto(`/trips/${id}/plan`)
+    await expect(
+      partnerPage.getByRole('heading', { name: 'Trip unavailable', exact: true }),
+    ).toBeVisible()
+    await expect(rpc(partnerToken, 'get_trip', { trip_id: id })).rejects.toThrow(
+      /401|403|authorization_lost|not_allowed/,
+    )
+  } finally {
+    await partnerContext.close()
+  }
 })
 
 test('anonymous discovery, permitted photo and JIT save context return', async ({ page }) => {
@@ -71,7 +138,7 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
   expect(
     await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
   ).toBe(true)
-  await page.getByRole('link', { name: 'Sign in to save store', exact: true }).click()
+  await page.getByRole('link', { name: /save clockwork cabinet.*requires sign-in/i }).click()
   await expect(page).toHaveURL(/\/auth\/sign-in/)
   expect(await saved()).toBe(0)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
@@ -100,7 +167,7 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
   expect(
     await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
   ).toBe(true)
-  await page.getByRole('button', { name: 'Save store', exact: true }).click()
+  await page.getByRole('button', { name: 'Save store Clockwork Cabinet', exact: true }).click()
   const choices = page.getByRole('group', { name: 'Choose a store photo' }).getByRole('button')
   await expect(choices).toHaveCount(2)
   await choices.nth(1).click()
@@ -121,7 +188,9 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
   await expect(enlarge).toBeFocused()
   await expect.poll(saved).toBe(process.env.CONFIGURED_SHOPPER_WRONG_READBACK === '1' ? 2 : 1)
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Remove saved store', exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Remove saved store Clockwork Cabinet', exact: true }),
+  ).toBeVisible()
   await expect(photo).toBeVisible()
   await expect
     .poll(() => photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
@@ -133,8 +202,7 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
     .toBe(true)
   await page.goto('/saved')
   await expect(page.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toBeVisible()
-  await page.goto('/stores/clockwork-cabinet')
-  await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+  await page.goto(`/trips/new?addStoreId=${A}`)
   const name = `Browser journey ${crypto.randomUUID().slice(0, 8)}`
   await page.getByLabel('Trip name', { exact: true }).fill(name)
   await page.getByLabel('Date', { exact: true }).fill('2026-10-10')
@@ -142,8 +210,7 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
   await page.getByRole('link', { name: 'View Trip', exact: true }).click()
   const id = uuid(page.url().split('/trips/')[1].split('/')[0])
   expect((await read(id)).stops.map((s: { store: string }) => s.store)).toEqual([A])
-  await page.goto('/stores/prairie-patina')
-  await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+  await page.goto(`/trips/new?addStoreId=${B}`)
   await page.getByRole('button', { name: `Add to ${name}`, exact: true }).click()
   await page.getByRole('link', { name: 'View Trip', exact: true }).click()
   await page.reload()

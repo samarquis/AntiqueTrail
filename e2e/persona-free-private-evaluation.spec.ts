@@ -12,7 +12,9 @@ test.describe('issue 251 free private evaluation personas', () => {
     await page.goto(reviewUrl('/stores?q=Blue&area=topeka-ks', 'shopper-a'))
     await expect(page.locator('a.catalog-card__details')).toBeVisible()
     const saveAction = page.locator('[aria-label="Private save action"]')
-    const saveButton = saveAction.getByRole('button', { name: /^(Save store|Remove saved store)$/ })
+    const saveButton = saveAction.getByRole('button', {
+      name: /^(Save store|Remove saved store) Blue Finch Curios$/,
+    })
     await expect(saveButton).toBeVisible()
     if ((await saveButton.innerText()) === 'Save store') {
       await saveButton.click()
@@ -29,7 +31,9 @@ test.describe('issue 251 free private evaluation personas', () => {
     await expect(galleryChoices.nth(1)).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByRole('button', { name: /^Enlarge image:/ })).toBeVisible()
 
-    await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+    await page.goto(
+      reviewUrl('/trips/new?addStoreId=00000000-0000-4000-8000-000000000001', 'shopper-a'),
+    )
     await expect(page).toHaveURL(/\/trips\/new\?addStoreId=/)
     await page.getByLabel('Trip name').fill('Saturday archive walk')
     await page.getByLabel('Date').fill('2026-09-12')
@@ -61,7 +65,9 @@ test.describe('issue 251 free private evaluation personas', () => {
 
     const cancellationPage = await context.newPage()
     await cancellationPage.goto(reviewUrl('/stores/blue-finch-curios', 'anonymous'))
-    await cancellationPage.getByRole('link', { name: 'Sign in to save store' }).click()
+    await cancellationPage
+      .getByRole('link', { name: /save blue finch curios.*requires sign-in/i })
+      .click()
     await cancellationPage.getByRole('link', { name: 'Cancel and return without saving' }).click()
     await expect(cancellationPage.getByRole('heading', { name: 'Blue Finch Curios' })).toBeFocused()
     await expect(

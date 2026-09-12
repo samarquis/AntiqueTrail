@@ -17,15 +17,18 @@ import { browserReport } from './configured-free-shopper-report.mjs'
 const output = createRunDirectory(path.join(ROOT, 'artifacts'))
 const sessionSignout = process.argv.includes('--session-signout')
 const mediaOnly = process.argv.includes('--media-only')
+const partnerRemoval = process.argv.includes('--partner-removal')
 const report = {
   scope:
-    sessionSignout && mediaOnly
+    [sessionSignout, mediaOnly, partnerRemoval].filter(Boolean).length > 1
       ? 'invalid'
       : sessionSignout
         ? 'session-signout'
         : mediaOnly
           ? 'seed-media-desktop-phone'
-          : 'connected-shopper',
+          : partnerRemoval
+            ? 'accepted-partner-removal'
+            : 'connected-shopper',
   status: 'unavailable',
   sourceSha: '',
   cleanup: 'not-started',
@@ -40,7 +43,8 @@ process.on('SIGTERM', interrupt)
 let service, server
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
-  if (sessionSignout && mediaOnly) throw new Error('Choose one configured acceptance scope')
+  if ([sessionSignout, mediaOnly, partnerRemoval].filter(Boolean).length > 1)
+    throw new Error('Choose one configured acceptance scope')
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
     throw new Error('External endpoint selection is forbidden')
   const origin = `http://127.0.0.1:${await freePort()}`
@@ -160,7 +164,9 @@ try {
                 '--grep',
                 'JIT trip entry, authenticated catalog, photo, save and two-store creation$',
               ]
-            : []),
+            : partnerRemoval
+              ? ['--grep', 'creator removes an accepted partner through configured transport$']
+              : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
@@ -176,7 +182,7 @@ try {
   } else {
     const results = browserReport(
       fs.readFileSync(resultPath, 'utf8'),
-      sessionSignout ? 4 : mediaOnly ? 2 : 18,
+      sessionSignout ? 4 : mediaOnly || partnerRemoval ? 2 : 20,
     )
     report.stats = results.stats
     report.checks = results.checks

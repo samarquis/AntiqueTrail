@@ -93,6 +93,7 @@ import {
   type StopState,
   type TripClient,
   type TripCollaboration,
+  type TripPartnerRemovalResult,
   type TripStop,
 } from '../features/trips'
 import type {
@@ -1133,6 +1134,10 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
   const offlineQueues = new Map<string, OfflineQueueSnapshot>()
   const checkMyDay = new Map<string, CheckMyDayServerResult>()
   const invitationTokens = new Map(tripInvitationFixtures)
+  const partnerRemovalAttempts = new Map<
+    string,
+    { fingerprint: string; result: TripPartnerRemovalResult }
+  >()
   const offlinePending = new Map<string, QueuedOfflineAction[]>()
   const visitMemories = new Map<
     string,
@@ -1146,6 +1151,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
     trips.set(tripSeed.id, structuredClone(tripSeed))
     collaborations.set(tripSeed.id, {
       tripId: tripSeed.id,
+      tripVersion: tripSeed.version,
       currentUserId,
       participants: [{ userId: currentUserId, displayName: currentDisplayName, role: 'creator' }],
       navigatorUserId: currentUserId,
@@ -1158,6 +1164,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
     trips.set(creatorPrivateTripSeed.id, structuredClone(creatorPrivateTripSeed))
     collaborations.set(tripSeed.id, {
       tripId: tripSeed.id,
+      tripVersion: tripSeed.version,
       currentUserId,
       participants: [{ userId: 'review-shopper-a', displayName: 'Avery', role: 'creator' }],
       navigatorUserId: 'review-shopper-a',
@@ -1188,6 +1195,8 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
 
   function persistTrip(trip: Trip): Trip {
     trips.set(trip.id, trip)
+    const collaboration = collaborations.get(trip.id)
+    if (collaboration) collaborations.set(trip.id, { ...collaboration, tripVersion: trip.version })
     return structuredClone(trip)
   }
 
@@ -1242,6 +1251,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
     trips.set(trip.id, trip)
     collaborations.set(trip.id, {
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId,
       participants: [{ userId: currentUserId, displayName: currentDisplayName, role: 'creator' }],
     })
@@ -1714,6 +1724,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
       allowed()
       return fixture(state, requireCollaboration(tripId), {
         tripId,
+        tripVersion: 1,
         currentUserId,
         participants: [],
       })
@@ -1761,12 +1772,56 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
         ...collaboration,
         participants: [
           ...collaboration.participants,
-          { userId: currentUserId, displayName: currentDisplayName, role: 'partner' },
+          {
+            userId: currentUserId,
+            displayName: currentDisplayName,
+            role: 'partner',
+            membershipVersion: 1,
+          },
         ],
         invitation: collaboration.invitation
           ? { ...collaboration.invitation, state: 'accepted' }
           : undefined,
       })
+    },
+    async removePartner(tripId, partnerUserId, membershipVersion, expectedVersion, idempotencyKey) {
+      allowed()
+      await fixture(state, true, true)
+      const fingerprint = [tripId, partnerUserId, membershipVersion, expectedVersion].join(':')
+      const replay = partnerRemovalAttempts.get(idempotencyKey)
+      if (replay) {
+        if (replay.fingerprint !== fingerprint) throw new Error(GENERIC_TRIP_ERROR)
+        return structuredClone(replay.result)
+      }
+      const collaboration = requireCollaboration(tripId)
+      const current = collaboration.participants.find(
+        (participant) => participant.userId === currentUserId,
+      )
+      if (current?.role !== 'creator') throw new Error(GENERIC_TRIP_ERROR)
+      if (collaboration.tripVersion !== expectedVersion) {
+        const result = {
+          state: 'conflict' as const,
+          latest: { tripVersion: collaboration.tripVersion },
+        }
+        partnerRemovalAttempts.set(idempotencyKey, { fingerprint, result })
+        return structuredClone(result)
+      }
+      const partner = collaboration.participants.find(
+        (participant) => participant.userId === partnerUserId && participant.role === 'partner',
+      )
+      if (partner?.membershipVersion !== membershipVersion) throw new Error(GENERIC_TRIP_ERROR)
+      const trip = persistTrip(bumpVersion(findTrip(tripId)))
+      const next = persistCollaboration({
+        ...collaboration,
+        tripVersion: trip.version,
+        participants: collaboration.participants.filter(
+          (participant) => participant.userId !== partnerUserId,
+        ),
+        ...(collaboration.navigatorUserId === partnerUserId ? { navigatorUserId: undefined } : {}),
+      })
+      const result = { state: 'applied' as const, collaboration: next }
+      partnerRemovalAttempts.set(idempotencyKey, { fingerprint, result })
+      return structuredClone(result)
     },
     async assignNavigator(tripId, participantUserId) {
       allowed()
@@ -1774,7 +1829,12 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
       const collaboration = requireCollaboration(tripId)
       if (!collaboration.participants.some((candidate) => candidate.userId === participantUserId))
         throw new Error('Synthetic participant unavailable.')
-      return persistCollaboration({ ...collaboration, navigatorUserId: participantUserId })
+      const trip = persistTrip(bumpVersion(findTrip(tripId)))
+      return persistCollaboration({
+        ...collaboration,
+        tripVersion: trip.version,
+        navigatorUserId: participantUserId,
+      })
     },
     async leaveTrip(tripId) {
       allowed()

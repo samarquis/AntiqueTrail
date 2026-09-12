@@ -50,7 +50,7 @@ describe('catalog private-action integration seam', () => {
       />,
     )
     const actionRegion = await screen.findByRole('region', {
-      name: `Visit options for ${syntheticStores[0].name}`,
+      name: `Store actions for ${syntheticStores[0].name}`,
     })
     expect(actionRegion).toContainElement(
       screen.getByRole('button', { name: `Save ${syntheticStores[0].name}` }),
@@ -58,10 +58,10 @@ describe('catalog private-action integration seam', () => {
     const actions = Array.from(actionRegion.querySelectorAll('a, button')).map((action) =>
       action.textContent?.trim(),
     )
-    expect(actions).toEqual(['Add to Trip', `Save ${syntheticStores[0].name}`])
+    expect(actions).toEqual(['View store', `Save ${syntheticStores[0].name}`])
     expect(actionRegion.querySelector('a')).toHaveAttribute(
       'href',
-      `/trips/new?addStoreId=${encodeURIComponent(syntheticStores[0].id)}`,
+      `/stores/${syntheticStores[0].slug}`,
     )
   })
 
@@ -74,7 +74,7 @@ describe('catalog private-action integration seam', () => {
       `/AntiqueTrail/stores/${syntheticStores[0].slug}`,
     )
     expect(
-      screen.getByRole('link', { name: `View ${syntheticStores[0].name} details` }),
+      screen.getByRole('link', { name: `View store: ${syntheticStores[0].name}` }),
     ).toHaveAttribute('href', `/AntiqueTrail/stores/${syntheticStores[0].slug}`)
   })
 
@@ -82,7 +82,7 @@ describe('catalog private-action integration seam', () => {
     render(<BrowsePage client={client()} />)
 
     const details = await screen.findByRole('link', {
-      name: `View ${syntheticStores[0].name} details`,
+      name: `View store: ${syntheticStores[0].name}`,
     })
     expect(details).toHaveClass('button', 'catalog-card__details')
     expect(details).toHaveAttribute('href', `/stores/${syntheticStores[0].slug}`)
@@ -90,10 +90,7 @@ describe('catalog private-action integration seam', () => {
       'href',
       `/stores/${syntheticStores[0].slug}`,
     )
-    expect(screen.getByRole('link', { name: 'Add to Trip' })).toHaveAttribute(
-      'href',
-      `/trips/new?addStoreId=${encodeURIComponent(syntheticStores[0].id)}`,
-    )
+    expect(screen.queryByRole('link', { name: /add to trip/i })).not.toBeInTheDocument()
   })
 
   it('defaults to Package 1 filters and exposes a labeled filter panel contract', async () => {
@@ -188,12 +185,13 @@ describe('catalog private-action integration seam', () => {
     )
   })
 
-  it('keeps Browse list-first and makes the R-01-blocked map a no-call fallback', async () => {
+  it('omits the unexposed map and makes the R-01-blocked seam a no-call fallback', async () => {
     const catalog = client()
     render(<BrowsePage client={catalog} />)
     expect(await screen.findByRole('heading', { name: syntheticStores[0].name })).toBeVisible()
 
-    expect(screen.getByRole('status')).toHaveTextContent(/not available.*list.*available/i)
+    expect(screen.queryByRole('heading', { name: /store map/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/map and travel-time suggestions/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /show map/i })).not.toBeInTheDocument()
     expect(catalog.map).not.toHaveBeenCalled()
     expect(screen.getByRole('heading', { name: syntheticStores[0].name })).toBeVisible()
@@ -325,19 +323,15 @@ describe('catalog private-action integration seam', () => {
     expect(screen.getByRole('complementary', { name: /map marker preview/i })).toHaveTextContent(
       syntheticStores[0].name,
     )
-    expect(screen.getByRole('link', { name: /view store details/i })).toHaveAttribute(
-      'href',
-      `/stores/${syntheticStores[0].slug}`,
-    )
-    expect(screen.getByRole('complementary', { name: /map marker preview/i })).toHaveTextContent(
+    const preview = screen.getByRole('complementary', { name: /map marker preview/i })
+    expect(
+      within(preview).getByRole('link', { name: `View store: ${syntheticStores[0].name}` }),
+    ).toHaveAttribute('href', `/stores/${syntheticStores[0].slug}`)
+    expect(preview).toHaveTextContent(
       /4.5 from 8 ratings.*open now.*antique mall.*2.4 miles.*claimed listing.*saved.*not visited/i,
     )
-    const preview = screen.getByRole('complementary', { name: /map marker preview/i })
-    expect(within(preview).getByRole('link', { name: /add to trip/i })).toHaveAttribute(
-      'href',
-      `/trips/new?addStoreId=${syntheticStores[0].id}`,
-    )
-    expect(screen.getAllByRole('link', { name: /add to trip/i }).length).toBeGreaterThanOrEqual(2)
+    expect(within(preview).queryByRole('link', { name: /add to trip/i })).not.toBeInTheDocument()
+    expect(within(preview).queryByRole('link', { name: /navigate/i })).not.toBeInTheDocument()
   })
 
   it('replaces the accessible result list only after Search this map area', async () => {
@@ -478,7 +472,8 @@ describe('trustworthy Store Details contract', () => {
   })
 
   it('puts visit-critical, provenance, accessibility, updates, and external links in order', async () => {
-    render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
+    const navigableStore = { ...detailedStore, address: '12 Main Street' }
+    render(<DetailsPage client={detailsClient(navigableStore)} slug={navigableStore.slug} />)
 
     expect(await screen.findByRole('heading', { level: 1, name: detailedStore.name })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Hours' })).toBeVisible()
@@ -491,7 +486,9 @@ describe('trustworthy Store Details contract', () => {
 
     const navigate = screen.getByRole('link', { name: /navigate in maps/i })
     expect(navigate).toHaveAttribute('target', '_blank')
-    expect(decodeURIComponent(navigate.getAttribute('href') ?? '')).toContain(detailedStore.address)
+    expect(decodeURIComponent(navigate.getAttribute('href') ?? '')).toContain(
+      navigableStore.address,
+    )
     expect(screen.getByRole('link', { name: /visit official website/i })).toHaveAttribute(
       'rel',
       'noreferrer',
@@ -499,7 +496,7 @@ describe('trustworthy Store Details contract', () => {
     expect(screen.getByRole('link', { name: /instagram/i })).toHaveAttribute('target', '_blank')
   })
 
-  it('offers in-page Store sections navigation to each following section', async () => {
+  it('puts visit essentials and section links before the extended gallery', async () => {
     render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
 
     await screen.findByRole('heading', { level: 1, name: detailedStore.name })
@@ -510,7 +507,7 @@ describe('trustworthy Store Details contract', () => {
     expect(links.map((link) => link.textContent)).toEqual([
       'About',
       'Photos',
-      'Plan your visit',
+      'Hours & location',
       'Source',
     ])
     expect(within(nav).getByRole('link', { name: 'About' })).toHaveAttribute(
@@ -521,7 +518,7 @@ describe('trustworthy Store Details contract', () => {
       'href',
       '#gallery-heading',
     )
-    expect(within(nav).getByRole('link', { name: 'Plan your visit' })).toHaveAttribute(
+    expect(within(nav).getByRole('link', { name: 'Hours & location' })).toHaveAttribute(
       'href',
       '#hours-heading',
     )
@@ -536,6 +533,33 @@ describe('trustworthy Store Details contract', () => {
     ids.forEach((id) => {
       expect(headings.some((heading) => heading.id === id)).toBe(true)
     })
+
+    const article = document.querySelector('.store-detail__article')
+    const cover = document.querySelector('.store-gallery--cover')
+    const collection = document.querySelector('.store-gallery--collection')
+    const actions = screen.getByRole('navigation', { name: 'Store visit actions' })
+    const about = screen.getByRole('region', { name: 'About this store' })
+    expect(article).not.toBeNull()
+    expect(cover).not.toBeNull()
+    expect(collection).not.toBeNull()
+    expect(
+      article &&
+        collection &&
+        article.compareDocumentPosition(collection) & Node.DOCUMENT_POSITION_CONTAINED_BY,
+    ).toBe(Node.DOCUMENT_POSITION_CONTAINED_BY)
+    expect(actions.compareDocumentPosition(cover as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(cover && cover.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(nav.compareDocumentPosition(collection as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(
+      about.compareDocumentPosition(collection as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(screen.getByLabelText("Today's opening information")).toBeVisible()
   })
 
   it('provides a keyboard-operable gallery with failure and enlargement behavior', async () => {
@@ -594,6 +618,12 @@ describe('trustworthy Store Details contract', () => {
     await user.click(ninth)
     expect(ninth).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('img', { name: /synthetic store photo 9/i })).toBeVisible()
+    const previews = document.querySelectorAll<HTMLImageElement>('.store-gallery__print img')
+    expect(previews).toHaveLength(9)
+    expect(previews[0]).not.toHaveAttribute('loading')
+    expect(previews[3]).toHaveAttribute('loading', 'lazy')
+    expect(previews[3]).toHaveAttribute('width', '480')
+    expect(previews[3]).toHaveAttribute('height', '360')
   })
 
   it('reveals Add to Trip only after its backing package is enabled', async () => {

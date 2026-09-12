@@ -125,7 +125,7 @@ async function expectPopulatedCatalogContract(page: Page) {
       const details = read('.catalog-card__details')
       const semanticNodes = [
         ...element.querySelectorAll<HTMLElement>(
-          'h2, .catalog-card__area, .catalog-card__body > p:not([class]), .catalog-card__categories li, .catalog-card__hours, .catalog-card__freshness, .catalog-card__details, .catalog-card__actions',
+          'h2, .catalog-card__area, .catalog-card__body > p:not([class]), .catalog-card__categories li, .catalog-card__hours, .catalog-card__freshness, .catalog-card__actions',
         ),
       ].map(readNode)
       const overlaps = semanticNodes.flatMap((left, leftIndex) =>
@@ -162,7 +162,7 @@ async function expectPopulatedCatalogContract(page: Page) {
     expect(card.area.size).toBeGreaterThanOrEqual(14)
     expect(card.categories.length).toBeGreaterThan(0)
     expect(card.categories.every((category) => category.size >= 14)).toBe(true)
-    expect(card.descriptions).toHaveLength(2)
+    expect(card.descriptions).toHaveLength(1)
     expect(card.descriptions.every((description) => description.size >= 14)).toBe(true)
     expect(card.freshness.size).toBeGreaterThanOrEqual(14)
     expect(card.hours.size).toBeGreaterThanOrEqual(14)
@@ -187,17 +187,17 @@ async function expectPopulatedCatalogContract(page: Page) {
     }
     expect(card.overlaps).toEqual([])
     expect(card.title.bottom).toBeLessThanOrEqual(card.area.top)
-    expect(card.area.bottom).toBeLessThanOrEqual(card.descriptions[0].top)
-    expect(card.descriptions[0].bottom).toBeLessThanOrEqual(
+    expect(card.area.bottom).toBeLessThanOrEqual(
       Math.min(...card.categories.map((item) => item.top)),
     )
     expect(Math.max(...card.categories.map((item) => item.bottom))).toBeLessThanOrEqual(
-      card.descriptions[1].top,
+      card.descriptions[0].top,
     )
-    expect(card.descriptions[1].bottom).toBeLessThanOrEqual(card.hours.top)
+    expect(card.descriptions[0].bottom).toBeLessThanOrEqual(card.hours.top)
     expect(card.hours.bottom).toBeLessThanOrEqual(card.freshness.top)
     expect(card.freshness.bottom).toBeLessThanOrEqual(card.details.top)
-    expect(card.details.bottom).toBeLessThanOrEqual(card.actions.top)
+    expect(card.details.top).toBeGreaterThanOrEqual(card.actions.top)
+    expect(card.details.bottom).toBeLessThanOrEqual(card.actions.bottom)
   }
 
   expect(new Set(metrics.flatMap((card) => card.categories.map((item) => item.text)))).toEqual(
