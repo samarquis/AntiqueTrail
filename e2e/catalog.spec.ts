@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 
 const EXPECTED_SHOPPER_NAV = [
   { name: 'Browse', path: '/stores' },
-  { name: 'My Trip', path: '/trips' },
+  { name: 'Saved stores Requires sign-in', path: '/saved' },
   { name: 'More', path: '/more' },
 ] as const
 
@@ -87,17 +87,12 @@ test.describe('Synthetic catalog design contract', () => {
       await expect(link).toBeVisible()
       await expectExactPath(link, destination.path)
     }
-    await expect(nav.getByText('Saved', { exact: true })).toHaveCount(0)
-    await expect(nav.getByText('New since', { exact: true })).toHaveCount(0)
+    await expect(nav.getByText('My Trip', { exact: true })).toHaveCount(0)
 
     await nav.getByRole('link', { name: 'More', exact: true }).click()
     await expect(page.getByRole('heading', { level: 1, name: 'More' })).toBeFocused()
 
     const moreDestinations = [
-      ['Saved Stores', '/saved', true],
-      ['Add a Place from a Link', '/capture', true],
-      ['Shared with Me', '/shares', true],
-      ['Trip Ideas', '/trip-ideas', true],
       ['Account & Privacy', '/account/privacy', true],
       ['Install', '/install', false],
       ['Help', '/help', false],
@@ -113,12 +108,12 @@ test.describe('Synthetic catalog design contract', () => {
       }
     }
 
-    await nav.getByRole('link', { name: 'My Trip', exact: true }).click()
-    const tripEntryHeading = page.getByRole('heading', { level: 1 })
-    await expect(tripEntryHeading).toBeVisible()
-    await expect(tripEntryHeading).toBeFocused()
+    await nav.getByRole('link', { name: /saved stores.*requires sign-in/i }).click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeFocused()
+    await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=%2Fsaved/)
 
-    await nav.getByRole('link', { name: 'Browse', exact: true }).click()
+    await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
+    await expect(page).toHaveURL(/\/stores$/)
     const browseHeading = page.getByRole('heading', { level: 1, name: 'Browse stores' })
     await expect(browseHeading).toBeFocused()
   })
@@ -311,7 +306,7 @@ test.describe('Synthetic catalog design contract', () => {
     await expect(card).toContainText(/Photo coming soon/i)
     await expect(card.getByRole('link', { name: 'Blue Finch Curios', exact: true })).toBeVisible()
     await expect(
-      card.getByRole('link', { name: 'View Blue Finch Curios details', exact: true }),
+      card.getByRole('link', { name: 'View store: Blue Finch Curios', exact: true }),
     ).toHaveAttribute('href', '/stores/blue-finch-curios')
     await expect(card.locator('.catalog-card__hours')).toContainText(
       /Open|Closed|Hours unavailable/,
@@ -362,11 +357,11 @@ test.describe('Synthetic catalog design contract', () => {
   })
 })
 
-test('store cards offer Add to Trip with a deep link', async ({ page }) => {
+test('store cards keep trip and memory actions out of the showcase hierarchy', async ({ page }) => {
   await page.goto('/stores')
-  const add = page.locator('.catalog-card__add-to-trip').first()
-  await expect(add).toHaveText('Add to Trip')
-  await expect(add).toHaveAttribute('href', /\/trips\/new\?addStoreId=/)
+  const card = page.locator('.catalog-card').first()
+  await expect(card.getByRole('link', { name: /add to trip|private memory/i })).toHaveCount(0)
+  await expect(card.getByRole('link', { name: /suggest a correction/i })).toHaveCount(0)
 })
 
 test('catalog detail destination is explicit, primary, and keyboard-operable', async ({ page }) => {
@@ -381,19 +376,20 @@ test('catalog detail destination is explicit, primary, and keyboard-operable', a
 
     const card = page.locator('.catalog-card').first()
     const title = card.getByRole('link', { name: 'Blue Finch Curios', exact: true })
-    const details = card.getByRole('link', { name: 'View Blue Finch Curios details', exact: true })
-    const actions = card.getByRole('region', { name: 'Visit options for Blue Finch Curios' })
-    const addToTrip = actions.getByRole('link', { name: 'Add to Trip', exact: true })
-    const signIn = actions.getByRole('link', { name: 'Sign in to save store', exact: true })
+    const details = card.getByRole('link', { name: 'View store: Blue Finch Curios', exact: true })
+    const actions = card.getByRole('region', { name: 'Store actions for Blue Finch Curios' })
+    const signIn = actions.getByRole('link', {
+      name: 'Save Blue Finch Curios (requires sign-in)',
+      exact: true,
+    })
 
     await expect(title).toHaveAttribute('href', '/stores/blue-finch-curios')
     await expect(details).toBeVisible()
     await expect(details).toHaveClass(/\bbutton\b/)
     await expect(details).toHaveClass(/\bcatalog-card__details\b/)
     await expectExactPath(details, '/stores/blue-finch-curios')
-    await expect(addToTrip).toHaveAttribute('href', /\/trips\/new\?addStoreId=/)
-    await expect(addToTrip).toHaveClass(/\bbutton--secondary\b/)
     await expect(signIn).toBeVisible()
+    await expect(signIn).toHaveClass(/\bbutton--secondary\b/)
 
     const geometry = await details.evaluate((detailsNode) => {
       const detailsRect = detailsNode.getBoundingClientRect()
@@ -404,16 +400,17 @@ test('catalog detail destination is explicit, primary, and keyboard-operable', a
       return {
         height: detailsRect.height,
         width: detailsRect.width,
-        beforeActions: !actionsRect || detailsRect.bottom <= actionsRect.top,
+        insideActions:
+          Boolean(actionsRect) &&
+          detailsRect.top >= actionsRect!.top &&
+          detailsRect.bottom <= actionsRect!.bottom,
       }
     })
     expect(geometry.height).toBeGreaterThanOrEqual(48)
     expect(geometry.width).toBeGreaterThanOrEqual(48)
-    expect(geometry.beforeActions).toBe(true)
+    expect(geometry.insideActions).toBe(true)
 
     await details.focus()
-    await page.keyboard.press('Tab')
-    await expect(addToTrip).toBeFocused()
     await page.keyboard.press('Tab')
     await expect(signIn).toBeFocused()
     await details.focus()
@@ -437,7 +434,7 @@ test('catalog detail destination is explicit, primary, and keyboard-operable', a
       else delete element.dataset.theme
     }, appearance.theme)
     const card = page.locator('.catalog-card').first()
-    const details = card.getByRole('link', { name: 'View Blue Finch Curios details', exact: true })
+    const details = card.getByRole('link', { name: 'View store: Blue Finch Curios', exact: true })
     await expect(details).toBeVisible()
     await details.focus()
     await expect(details).toBeFocused()
@@ -449,7 +446,7 @@ test('catalog detail destination is explicit, primary, and keyboard-operable', a
   }
 })
 
-test('catalog action area keeps visit planning first across anonymous and shopper states', async ({
+test('catalog action area keeps View store primary and Save secondary across account states', async ({
   page,
 }) => {
   for (const viewport of [
@@ -461,20 +458,24 @@ test('catalog action area keeps visit planning first across anonymous and shoppe
     await page.setViewportSize(viewport)
     await page.goto('/stores?reviewAs=anonymous&reviewState=success')
     const anonymousCard = page.locator('.catalog-card').first()
-    const anonymousActions = anonymousCard.getByRole('region', { name: /visit options for/i })
+    const anonymousActions = anonymousCard.getByRole('region', { name: /store actions for/i })
     const anonymousLinks = anonymousActions.getByRole('link')
     await expect(anonymousActions).toBeVisible()
     await expect(anonymousActions).toHaveCSS('border-top-style', 'solid')
     await expect(anonymousActions).toHaveCSS('border-top-width', '1px')
-    await expect(anonymousLinks.nth(0)).toHaveAccessibleName('Add to Trip')
-    await expect(anonymousLinks.nth(0)).toHaveAttribute('href', /\/trips\/new\?addStoreId=/)
+    await expect(anonymousLinks.nth(0)).toHaveAccessibleName('View store: Blue Finch Curios')
+    await expect(anonymousLinks.nth(0)).toHaveAttribute('href', '/stores/blue-finch-curios')
     await expect(
-      anonymousActions.getByRole('link', { name: 'Sign in to save store' }),
+      anonymousActions.getByRole('link', {
+        name: 'Save Blue Finch Curios (requires sign-in)',
+      }),
     ).toBeVisible()
     await anonymousLinks.nth(0).focus()
     await page.keyboard.press('Tab')
     await expect(
-      anonymousActions.getByRole('link', { name: 'Sign in to save store' }),
+      anonymousActions.getByRole('link', {
+        name: 'Save Blue Finch Curios (requires sign-in)',
+      }),
     ).toBeFocused()
     await expectMinimumTargets(page)
 
@@ -487,11 +488,42 @@ test('catalog action area keeps visit planning first across anonymous and shoppe
     const shopperActions = page
       .locator('.catalog-card')
       .first()
-      .getByRole('region', { name: /visit options for/i })
+      .getByRole('region', { name: /store actions for/i })
     const shopperControls = shopperActions.locator('a, button')
     await expect(shopperActions).toBeVisible()
-    await expect(shopperControls.nth(0)).toHaveAccessibleName('Add to Trip')
-    await expect(shopperActions.getByRole('button', { name: 'Remove saved store' })).toBeVisible()
+    await expect(shopperControls.nth(0)).toHaveAccessibleName('View store: Blue Finch Curios')
+    await expect(
+      shopperActions.getByRole('button', { name: /remove saved store blue finch curios/i }),
+    ).toBeVisible()
+  }
+})
+
+test('showcase navigation exposes only Browse, Saved stores, and More', async ({ page }) => {
+  for (const viewport of [
+    { width: 1440, height: 1000 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/stores?reviewAs=anonymous&reviewState=success')
+    const primary = page.getByRole('navigation', { name: 'Primary navigation' })
+    await expect(primary.getByRole('link')).toHaveCount(3)
+    await expect(primary.getByRole('link', { name: 'Browse', exact: true })).toBeVisible()
+    await expect(
+      primary.getByRole('link', { name: /saved stores.*requires sign-in/i }),
+    ).toHaveAttribute('href', '/saved')
+    await expect(primary.getByRole('link', { name: 'More', exact: true })).toBeVisible()
+    await expect(primary.getByRole('link', { name: /trip/i })).toHaveCount(0)
+
+    await primary.getByRole('link', { name: 'More', exact: true }).click()
+    const more = page.getByRole('navigation', { name: 'More destinations' })
+    await expect(
+      more.getByRole('link', { name: /account & privacy.*requires sign-in/i }),
+    ).toBeVisible()
+    await expect(more.getByRole('link', { name: 'Install', exact: true })).toBeVisible()
+    await expect(more.getByRole('link', { name: 'Help', exact: true })).toBeVisible()
+    await expect(
+      more.getByRole('link', { name: /trip|private history|shared with me/i }),
+    ).toHaveCount(0)
   }
 })
 

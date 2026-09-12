@@ -157,13 +157,17 @@ function StoreRecordCard({
 
 export function SaveStoreAction({
   storeId,
+  storeName,
   initialSaved,
   dangerWhenSaved = false,
+  secondary = false,
   client = unavailableShopperClient,
 }: {
   storeId: string
+  storeName?: string
   initialSaved?: boolean
   dangerWhenSaved?: boolean
+  secondary?: boolean
   client?: ShopperPrivateClient
 }) {
   const online = useOnlineStatus()
@@ -210,13 +214,35 @@ export function SaveStoreAction({
 
   const dangerousRemove =
     dangerWhenSaved && saved === true && state !== 'saved' && state !== 'saving'
+  const actionLabel =
+    saved === null
+      ? 'Checking saved state…'
+      : state === 'saving'
+        ? 'Saving…'
+        : !online
+          ? 'Save unavailable offline'
+          : state === 'removed'
+            ? 'Undo removal'
+            : saved
+              ? state === 'saved'
+                ? 'Undo save'
+                : 'Remove saved store'
+              : 'Save store'
   return (
     <section aria-label="Private save action">
       {!online && <OfflineNotice />}
       <button
-        className={dangerousRemove ? 'button button--danger' : 'button'}
+        className={
+          dangerousRemove
+            ? 'button button--danger'
+            : secondary
+              ? 'button button--secondary'
+              : 'button'
+        }
         type="button"
-        aria-label={saved === null ? 'Save store' : undefined}
+        aria-label={
+          storeName ? `${actionLabel} ${storeName}` : saved === null ? 'Save store' : undefined
+        }
         disabled={state === 'saving' || saved === null || !online}
         onClick={toggle}
       >
@@ -228,19 +254,7 @@ export function SaveStoreAction({
           width="20"
           height="20"
         />
-        {saved === null
-          ? 'Checking saved state…'
-          : state === 'saving'
-            ? 'Saving…'
-            : !online
-              ? 'Save unavailable offline'
-              : state === 'removed'
-                ? 'Undo removal'
-                : saved
-                  ? state === 'saved'
-                    ? 'Undo save'
-                    : 'Remove saved store'
-                  : 'Save store'}
+        {actionLabel}
       </button>
       {state === 'saved' && <p role="status">Store saved. Undo is available.</p>}
       {state === 'save-undone' && <p role="status">Save undone.</p>}
@@ -333,11 +347,15 @@ function rememberJitSaveIntent(storeId: string, returnTo: string) {
 /** Public-catalog action group that safely resumes a Save after JIT sign-in/MFA. */
 export function CatalogPrivateActions({
   storeId,
+  storeName,
   slug,
+  context = 'details',
   client = unavailableShopperClient,
 }: {
   storeId: string
+  storeName?: string
   slug: string
+  context?: 'browse' | 'details'
   client?: ShopperPrivateClient
 }) {
   const { session } = useAuth()
@@ -402,39 +420,39 @@ export function CatalogPrivateActions({
     }
   }, [client, returnTo, session, storeId])
 
-  const memoryPath = `/stores/${encodeURIComponent(slug)}/memory`
   const correctionPath = `/stores/${encodeURIComponent(slug)}/correction`
   if (!session)
     return (
-      <nav aria-label="Private store actions">
+      <div className={`catalog-private-actions catalog-private-actions--${context}`}>
         <Link
+          className="button button--secondary"
           to={`/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`}
           onClick={() => rememberJitSaveIntent(storeId, returnTo)}
+          aria-label={storeName ? `Save ${storeName} (requires sign-in)` : undefined}
         >
-          Sign in to save store
-        </Link>{' '}
-        <Link to={`/auth/sign-in?returnTo=${encodeURIComponent(memoryPath)}`}>
-          Sign in for private memory
-        </Link>{' '}
-        <Link to={correctionPath}>Suggest a correction</Link>
-      </nav>
+          Save<span className="sr-only"> · Requires sign-in</span>
+        </Link>
+        {context === 'details' && <Link to={correctionPath}>Suggest a correction</Link>}
+      </div>
     )
 
   return (
-    <section aria-label="Private store actions">
+    <section
+      className={`catalog-private-actions catalog-private-actions--${context}`}
+      aria-label="Private store actions"
+    >
       <SaveStoreAction
         key={resumedSaved ? 'resumed-saved' : 'ordinary-save'}
         storeId={storeId}
+        storeName={storeName}
         initialSaved={resumedSaved}
+        secondary
         client={client}
       />
       {resumeState === 'saving' && <p role="status">Finishing your saved-store action…</p>}
       {resumeState === 'saved' && <p role="status">Store saved after sign-in.</p>}
       {resumeState === 'error' && <GenericError />}
-      <p>
-        <Link to={memoryPath}>Private memory</Link> ·{' '}
-        <Link to={correctionPath}>Suggest a correction</Link>
-      </p>
+      {context === 'details' && <Link to={correctionPath}>Suggest a correction</Link>}
     </section>
   )
 }
@@ -498,20 +516,6 @@ export function SavedPage({
               timestamp={store.savedAt}
               sourceLabel="Your private saved-store record"
             >
-              <Link
-                className="button"
-                to={`/trips/new?addStoreId=${encodeURIComponent(store.storeId)}&returnTo=${encodeURIComponent('/saved')}`}
-              >
-                <img
-                  className="button__icon"
-                  src="/icons/shopping-trip.svg"
-                  alt=""
-                  aria-hidden="true"
-                  width="20"
-                  height="20"
-                />
-                Add to Trip
-              </Link>{' '}
               <SaveStoreAction
                 storeId={store.storeId}
                 initialSaved
