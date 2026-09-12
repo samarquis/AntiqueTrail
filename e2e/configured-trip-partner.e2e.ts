@@ -29,7 +29,6 @@ async function login(page: Page, actor: number, target: string) {
   expect((await response).ok()).toBe(true)
   await expect(page).not.toHaveURL(/\/auth\/sign-in/)
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
-  await page.reload()
   if (target === '/trips') {
     await expect(page.getByRole('heading', { name: 'My trips' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'New trip' })).toBeVisible()
