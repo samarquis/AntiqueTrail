@@ -1,8 +1,10 @@
 import { InMemoryAuthStore, InMemorySessionRegistry, type AuthSession } from '../features/auth'
 import {
+  REVIEW_ADMIN_DECISION_MODES,
   REVIEW_SCENARIO_IDS,
   REVIEW_STATE_IDS,
   type ReviewHarnessRuntime,
+  type ReviewAdminDecisionMode,
   type ReviewScenario,
   type ReviewScenarioId,
   type ReviewSessionState,
@@ -222,6 +224,11 @@ export async function createReviewHarness(
     'success',
   )
   const mediaReviewEnabled = url.searchParams.get('reviewMedia') === 'resubmit'
+  const adminDecisionMode = oneOf<ReviewAdminDecisionMode>(
+    url.searchParams.get('reviewAdminDecision'),
+    REVIEW_ADMIN_DECISION_MODES,
+    'ordinary',
+  )
   const sessionState = oneOf<ReviewSessionState>(
     url.searchParams.get('reviewSession'),
     ['active', 'expired', 'revoked'],
@@ -240,6 +247,7 @@ export async function createReviewHarness(
     active: true,
     scenario,
     state,
+    adminDecisionMode,
     mediaReviewEnabled,
     sessionState,
     scenarios: reviewScenarios,

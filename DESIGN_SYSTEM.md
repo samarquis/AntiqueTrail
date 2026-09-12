@@ -1,5 +1,7 @@
 # Antique Trail Design System and Screen Contract
 
+Stage applicability follows [PRD.md](PRD.md#stage-dependencies). The first showcase uses existing Browse, Store Details/gallery, optional Save/auth, invited Representative and Administrator screens. Trip/Go/review and other deferred routes below remain interaction references, not required showcase navigation or acceptance. Before a pilot, each exposed route must be accepted and each disabled command denied server-side. This amendment changes no color, typography, icon, width, spacing or accessibility token.
+
 Status: current normative design-system and screen contract, including the approved Daylight Archive/Midnight Archive palette, V3 identity, and critique-derived typography, composition, and media-overlay rules through 2026-08-30. Current implementation and backlog state live in `PROJECT_STATE.md`; this file does not authorize unrelated application or provider changes.
 
 `DESIGN.md` controls behavior and journey intent. This file controls exact visual tokens, recurring component states, responsive behavior, navigation, and screen-level acceptance. `docs/design/ICON_PLACEMENT_SPEC.md` controls the approved placement of the Antique Trail icon family. Product, security, or retention policy never comes from a prototype.
@@ -112,7 +114,7 @@ Production self-hosts licensed WOFF2 subsets for Newsreader and Atkinson Hyperle
 | Primary button | Text label; optional leading icon; one dominant action per section | default, hover, focus, pressed, disabled with reason, loading without width shift, error recovery |
 | Secondary/destructive button | Explicit label; destructive intent never icon-only | default, hover, focus, pressed, disabled, destructive confirmation |
 | Search/filter | Search field, labeled submit/clear, filter chips, result count/status | idle, focused, active filter, loading, zero match, request error, cleared |
-| Store card | Image/placeholder, name, area, category, hours/open text, freshness/provenance, Save/Add/View actions as allowed | default, keyboard focus within, saved, new, stale/warning, image failure, action pending |
+| Store card | Image/placeholder, name, area, category, hours/open text, freshness/provenance; current-stage actions follow [Store-showcase presentation](DESIGN.md#store-showcase-presentation); retained Save/Add/View actions only as allowed | default, keyboard focus within, saved, new, stale/warning, image failure, action pending |
 | Status badge | Plain-language state plus non-color indicator | success/current, warning/stale, danger/closed/denied, pending/review |
 | Form field | Visible label, optional help, input, associated error | untouched, focus, valid, invalid, disabled with explanation, server error with value retained |
 | Dialog | H2 title, focused first meaningful control, body, cancel, explicit action | open, validation error, submitting, success/close; return focus to opener |
@@ -151,6 +153,17 @@ Every new component must document anatomy, states, semantics, keyboard behavior,
 
 **Dialog focus trap and inert background**: When a dialog is open, background content must be made inert using the `inert` attribute on a container wrapping non-dialog content, or an equivalent programmatic focus-trap mechanism. `aria-modal="true"` alone is insufficient — NVDA and some mobile screen readers still reach background content without `inert`. On close, remove `inert` before returning focus to the element that triggered the dialog. Keyboard Tab while a dialog is open must not reach background content.
 
+### Store-showcase presentation acceptance
+
+These checks apply to the behavior owned by [DESIGN.md — Store-showcase presentation](DESIGN.md#store-showcase-presentation), using the existing token and responsive contracts.
+
+The showcase card's primary `View store` action is the selected-stage exception to the general secondary-navigation rule above; other navigation and utility actions retain their existing hierarchy.
+
+- At default text scale, after fixture results settle, the first result's photograph (or fallback) and store name are visible without scrolling at 1440 × 1000 and 390 × 844 CSS pixels in the normal showcase shell. Preserve core text sizing, 48px interaction targets and loading/error clarity; do not meet this by shrinking content or hiding required warnings. Review harness controls remain compact and distinguishable from product chrome. At 200% zoom or with unusually long content, accessible reflow takes precedence over this first-view geometry target.
+- Cards retain the existing allowed desktop columns, readable phone layout and one named action region. `View store` has primary emphasis; Save has secondary emphasis. All store destinations remain independent, keyboard operable and unambiguous.
+- The store's opening state/warning and Photos/Hours & location links precede its extended photo collection in DOM and focus order. Keyboard activation reaches a visible target that is not covered by navigation. This is checked for ordinary Free photos and the separately labeled 50-photo fixture.
+- At 1024/1440/1920px, Store Details follows Full-width Store Details with no enclosing 720/1100px article cap. At narrow/intermediate widths and 200% zoom, preserve the existing reflow, local copy/table bounds and operable controls. Validate light/dark, reduced motion, failed/sparse media and Browse → Details → Photos → Details → Browse return state.
+
 ## Responsive layout contract
 
 | Effective CSS viewport | Layout |
@@ -180,6 +193,8 @@ Use the shared opaque media caption, attribution, position, and control surfaces
 Before application acceptance, verify the complete Browse → Details → Photos → Details → Save/Add to Trip transitions at 1024, 1440, and 1920px and the reflow at 320, 390, 800, and an intermediate 900px viewport, plus 200% zoom. Include zero/one/many/failed images, long names/text, missing details, hours/exception/freshness states, empty updates, unavailable contacts, and accessibility verification states. Check both current themes, reduced motion, keyboard/focus/section jumps, non-obscuring sticky controls, dialog containment and focus return, and existing interrupted-action authentication. These are targeted implementation checks, not replacements for the product's full browser/device or human acceptance matrix. A local synthetic concept cannot establish production, backend, provider, or human usability evidence.
 
 ## Production navigation and routes
+
+The current showcase follows [Store-showcase presentation](DESIGN.md#store-showcase-presentation): `Browse | Saved stores | More`, with `/saved` as the labeled Saved stores destination. Retained trip/capture/share/history routes in the table below are conditional contracts, not selected-stage exposure authority. More and icon placement follow the same stage rule; hiding a link never substitutes for the server-boundary pilot inventory under PRD.md.
 
 The prototype role switcher exists only for testing. Production users authenticate into separate accounts/sessions; role availability is server-derived and never changed by a client-only switch.
 
@@ -240,6 +255,8 @@ Stage action rule: Package 1 Browse/Details hides Save, Add to Trip, private rat
 
 ### Shopper navigation and staged Browse filters
 
+For the showcase, [Store-showcase presentation](DESIGN.md#store-showcase-presentation) takes precedence over the retained trip-oriented shell/actions below; [presentation acceptance](#store-showcase-presentation-acceptance) owns opening-view geometry. Search, area/category selection, warnings and accessible reflow remain required.
+
 The only shopper bottom navigation is `Browse | My Trip | More`. No required destination is gesture-only or icon-only. Browser Back preserves server query/filter state; route change focuses H1. An active-trip banner never covers focused content at 200% zoom.
 
 Search and filters execute server-side and always preserve a readable list. Package 1 provides only name/town/category search and manual area over its bounded 12-store fixture. Package 3 adds Saved and Visited. Package 5B adds approximate selected-area-centroid distance and synchronized secondary map. Package 10A adds Open Today, Open Now, freshness, release-scale indexing, and revision-bound pagination only when regional size or measurements require them; Browse never requests device location and labels distance `From [area] center`. Mobile provides Search plus labeled Filters opening full-width 48px controls with Apply/Clear; removable chips are a summary, never the only path. `Open Now` excludes incomplete/overdue hours. Zero/error preserves filters and offers Clear/Retry. Map failure leaves list/filter state intact.
@@ -262,7 +279,7 @@ Public claim/add-store applicants enter from `/for-stores` after Package 10B, se
 
 ### Store-owner acquisition page contract
 
-At 320px and 200% text/zoom, `/for-stores` is a single reading column with one primary action per decision point. Its order is hero → shopper-value proof journey → directly managed versus reviewed owner controls → eligibility and claim/add explanation → Free-by-approval process → activated paid-upgrade comparison → trust/support → FAQ/terms consequences → repeated CTA. Tier comparison never depends on horizontal scrolling, color, a hidden tooltip, `most popular`, or scarcity. Essential price, tax, renewal, refund, downgrade, failed-payment, deletion, and Full Gallery limit text is at least 16px and remains adjacent to the paid action; an authenticated fresh-consent screen repeats the authoritative terms.
+At 320px and 200% text/zoom, `/for-stores` is a single reading column with one primary action per decision point. Its order is hero → shopper-value proof journey → directly managed versus reviewed owner controls → eligibility and claim/add explanation → Free-by-approval process → activated paid-upgrade comparison → trust/support → FAQ/terms consequences → repeated CTA. Tier comparison never depends on horizontal scrolling, color, a hidden tooltip, `most popular`, or scarcity. Essential price, tax, renewal, refund, downgrade, failed-payment and deletion text for the actual offered target or verified incumbent obligation (including Full Gallery limits only when applicable) is at least 16px and remains adjacent to the paid action; an authenticated fresh-consent screen repeats the authoritative terms.
 
 The three public/protected QR destinations have distinct visible labels and test fixtures: `Shop antique stores` → area Browse, `Add your store` → `/for-stores`, and approved secure invitation → fragment-token join route. Public cards include a plain HTTPS fallback and optional aggregate-only `src`; no token-bearing route loads page assets or analytics before fragment exchange/scrub. The owner page shows real operator/service-area/support/security/privacy/terms/status information and labels source freshness accurately; it never turns a dated fact check into blanket owner verification.
 

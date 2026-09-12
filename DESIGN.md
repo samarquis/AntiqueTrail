@@ -1,5 +1,7 @@
 # Antique Trail Design and Interaction Requirements
 
+Stage applicability: [PRD stage dependencies](PRD.md#stage-dependencies) determines which journeys are in the store showcase, controlled pilot and paid Gallery pilot. Retained trip/review/Go interactions below are deferred contracts; their acceptance is required only if separately selected for exposure. Current-path security, accessibility and existing data obligations are unchanged.
+
 Status: current normative interaction baseline, incorporating the 2026-08-03 hardening and 2026-08-18 visual-identity decisions. Stable critique-derived rules are promoted into `DESIGN_SYSTEM.md`; dated implementation evidence does not silently redefine this contract. Current implementation and backlog state live in `PROJECT_STATE.md`. D31 full Audit History UI and export policy remain unresolved; two-year append-only privileged-audit retention is approved.
 
 This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines exact visual tokens, responsive rules, recurring component states, navigation, and screen-level acceptance; `docs/design/ICON_PLACEMENT_SPEC.md` defines the approved use of the icon family. `PRD.md` defines product requirements, `PRODUCT_DECISIONS.md` preserves decision history, `SECURITY_AND_TRUST.md` defines trust boundaries, and `PRD.md` defines current stage prerequisites and `PACKAGE_CONTRACTS.md` defines engineering mechanics. When a visual prototype conflicts with these documents, these documents win.
@@ -8,11 +10,25 @@ Detailed invited-owner interaction and consent/resume screens are delegated to [
 
 ## Product promise and audience
 
-> Antique Trail makes a fun day of antique shopping easy to see, easy to plan, and easy to trust.
+> Help shoppers explore antique stores through trustworthy details and photographs, and help store representatives maintain a useful showcase.
 
-Design first for shoppers roughly 50–80+ without creating a separate age mode. The first proven workflow has one person researching and creating a trip and another person navigating it. The product must also work for an individual shopper.
+Design first for shoppers roughly 50–80+ without creating a separate age mode. The current shopper journey is the [store showcase](#store-showcase-presentation). The retained two-person trip workflow applies only when independently selected for exposure. The product must also work for an individual shopper.
 
 Use the [selected visual direction](DESIGN_SYSTEM.md#selected-visual-direction), exact [visual tokens](DESIGN_SYSTEM.md#visual-tokens), and [product anti-references](DESIGN_SYSTEM.md#product-anti-references); approved icon placement remains in docs/design/ICON_PLACEMENT_SPEC.md.
+
+## Store-showcase presentation
+
+This section owns the presentation behavior for the internal store showcase and its shopper browsing surfaces when later expressly admitted to a controlled store pilot. It takes precedence over the retained trip-oriented navigation and Browse action lists only for those selected stages. It does not authorize new route exposure, delete retained features, or weaken server-side permissions.
+
+**Browse arrival.** Open directly to useful store results. Keep the page title, manual search and area/category controls concise. A map capability that is not exposed in this stage has no empty panel or “not available yet” announcement ahead of the results. If a separately permitted map is exposed and then fails, retain its truthful failure status beside that control while leaving the list usable. Preserve loading/error/empty states and meaningful freshness warnings.
+
+**Store discovery.** Give each card a photograph or truthful fallback, store name, one concise location line, relevant categories, a store-specific summary when supplied, today's opening information and required freshness/provenance. Consolidate identical area and town text without dropping distinct useful geography. `View store` is the dominant card action, with an accessible name identifying the exact store. The store name may link to the same destination. Keep Save visibly secondary and retain its just-in-time authentication, pending/error and saved-state behavior. Put correction reporting on Store Details rather than on every Browse card. Do not show trip/private-memory/share/Go actions in the showcase navigation or cards. Use `Browse | Saved stores | More` for the showcase; More retains appropriate Account, Help, Install and authorized role-entry links. Saved stores signals the sign-in requirement before activation for anonymous shoppers. Retained trip navigation remains a deferred-stage contract.
+
+**Store arrival and visit essentials.** Keep Back to Browse with query, area/category choices and return position. Before the extended photo collection, show store identity, a concise summary when supplied, current opening state and relevant warning, available Save/contact/directions actions, and accessible links to Photos and Hours & location. These links work without traversing thumbnails. Full hours, exceptions, contact details and accessibility status remain in the visit section. Missing contact/hours stay truthful; do not invent details or enable navigation for a fictional address. Required source and photo-rights information remains in its proper context.
+
+**Desktop composition.** Apply the existing Full-width Store Details contract; no new width system or palette is introduced. Broader photographs and related visit components share the available desktop canvas, while prose and tables retain readable local widths. The existing ordered gallery, ordinary scrolling, permitted image counts, full-photo destination, enlargement and return behavior remain intact. The optional 50-photo fixture is a stress profile, not a public entitlement or proof that fewer photographs would be better.
+
+**Useful evaluation content.** Reuse the existing twelve fictional stores and permitted image library. Replace repeated generic summary/description copy with short, distinct, explicitly fictional descriptions of the kinds of merchandise and experience represented by the available assets. Preserve synthetic identification and provenance separately from the descriptive copy. Present existing storefront, interior and merchandise photographs where actually available; do not duplicate a photograph as invented variety, claim unsupported inventory/accessibility/verification, or fill missing imagery with fabricated facts. Label template artwork honestly and retain sparse/missing examples. No new library, new generator/framework, real-store data, media entitlement or hosted resource is authorized.
 
 ## Global interaction rules
 
@@ -28,7 +44,7 @@ Use the [selected visual direction](DESIGN_SYSTEM.md#selected-visual-direction),
 - Every form preserves safe input after field/server/auth failure, focuses a linked error summary, works at 320px and 200% zoom, and provides reduced-motion/forced-color/keyboard/NVDA/VoiceOver behavior.
 - Decorative directional or symbolic characters used in links and buttons (e.g., `←`, `→`, `↗`, `✓`, `●`, `✕`) must be wrapped in `aria-hidden="true"`. The accessible label of every control must be complete without the symbol. Place `aria-hidden` on the exact character or wrapping span, not on the containing link or button.
 - Dark theme (`prefers-color-scheme: dark`) support is mandatory. Dark-mode token definitions in `DESIGN_SYSTEM.md` are not complete until activated in the application stylesheet and verified against all approved contrast pairs. Dark mode is an acceptance check at every package boundary, not a post-launch enhancement.
-- Stable shopper navigation is `Browse | My Trip | More`. `Browse` opens `/stores`; `My Trip` opens the active trip or `/trips`; `More` opens Saved Stores, Add a Place from a Link, Shared with Me, Trip Ideas, Account & Privacy, Install, and Help. Go is never a permanent tab. During an active trip, show a non-obscuring `Resume Go`/`View Trip Progress` banner. Server-derived Store Portal/Admin links may appear in More but never authorize. More menu items that require authentication (Saved Stores, Private History, Add a Place from a Link, Shared with Me, Trip Ideas, Account & Privacy) must signal their auth requirement to unauthenticated users before they tap, using a lock icon with `aria-label="Requires sign-in"` or a parenthetical label; the JIT auth pattern still applies on tap.
+- For the current showcase, use [Store-showcase presentation](#store-showcase-presentation). Retained trip-stage shopper navigation is `Browse | My Trip | More`. `Browse` opens `/stores`; `My Trip` opens the active trip or `/trips`; `More` opens Saved Stores, Add a Place from a Link, Shared with Me, Trip Ideas, Account & Privacy, Install, and Help. Go is never a permanent tab. During an active trip, show a non-obscuring `Resume Go`/`View Trip Progress` banner. Server-derived Store Portal/Admin links may appear in More but never authorize. More menu items that require authentication (Saved Stores, Private History, Add a Place from a Link, Shared with Me, Trip Ideas, Account & Privacy) must signal their auth requirement to unauthenticated users before they tap, using a lock icon with `aria-label="Requires sign-in"` or a parenthetical label; the JIT auth pattern still applies on tap.
 
 ## Roles and test identities
 
@@ -56,6 +72,8 @@ The role switcher in `docs/design/antique-trail-flow-lab.html` is a prototype te
 6. Successful authentication completes the original action and returns to the same context. Cancel or failure preserves context and performs no private write.
 
 ### Browse Stores
+
+[Store-showcase presentation](#store-showcase-presentation) owns the current-stage action hierarchy; trip actions below apply only when independently selected for exposure.
 
 - Use a readable list as the default; map is secondary.
 - Search by store name, town/area, and category.
@@ -88,6 +106,8 @@ If the registration quarantine latch is `draining|blocked`, `/auth/register`, on
 Each authentication slice must provide exact field constraints and error copy in its bounded execution contract before implementation.
 
 ## Store Details
+
+[Store-showcase presentation](#store-showcase-presentation) owns current-stage actions and early access to visit essentials. The retained trip/private-history actions below are stage-conditional, not showcase requirements.
 
 Store Details shows:
 
@@ -129,6 +149,8 @@ Motion is decorative only: all content stays readable without hover, no drag-onl
 
 ### Fixture-only 50-photo evaluation profile
 
+For useful descriptions and honest reuse of the existing image library, follow [Store-showcase presentation](#store-showcase-presentation). This profile tests long-gallery behavior and does not replace the ordinary Free/sparse listing evaluation.
+
 This profile is the separately authorized snapshot for issue #309's evaluation only; it is not a public tier, does not change Free/Gallery/Full Gallery capacity, and never unguards real media.
 
 - **Designated store set:** all 12 deterministic Synthetic Stores (Blue Finch Curios, Cedar & Brass, Elm Street Finds, Juniper House, Maple Lantern, North Star Relics, Prairie Cabinet, Redbud Market, Sunflower Salvage, Tallgrass Treasures, Union Station Vintage, Willow & Wren).
@@ -143,9 +165,9 @@ Store Details shows `Is this your store? Claim this listing` only for active, un
 
 ### For Store Owners (`/for-stores`)
 
-This is a targeted acquisition page, not Browse home and not a privileged signup surface. One calm proof story shows how a real approved listing appears in Browse, opens to Details, is added to a Trip, becomes a planned stop, and hands off to external navigation. It then explains owner-controlled information, eligibility/service area, `Claim an existing listing` versus `Add a new store`, the review/approval sequence, the complete Free service, support/trust boundaries, and exact paid plan facts only after paid activation. Every screenshot/testimonial is real and consented or visibly labeled synthetic.
+This is a targeted acquisition page, not Browse home and not a privileged signup surface. One calm proof story shows an approved listing in Browse, its store details and photographs, practical contact/visit information, and the return to Browse. It then explains owner-controlled information, eligibility/service area, `Claim an existing listing` versus `Add a new store`, the review/approval sequence, the complete Free service, support/trust boundaries, and exact paid plan facts only after paid activation. Every screenshot/testimonial is real and consented or visibly labeled synthetic.
 
-The hero uses `Help antique shoppers find your store—and make it part of the trip.`, primary `Add or claim my store`, and secondary `See what shoppers experience`. The primary action first searches for the store to prevent duplicate applications, then branches to exact claim or add-store intake. Before Package 10A the route is absent outside Synthetic tests; Package 10A is private and `noindex`; signed Package 10B enables the public Free/intake state; paid cards/prices appear only after paid activation while selection remains authenticated at `/store-portal/plans`. Flag-off/rollback disables paid action with a reason without stranding existing billing access.
+The membership spec owns [exact acquisition copy and actions](docs/specs/store-membership-spec.md#public-acquisition-and-qr-contract). Use its store-first hero and shopper proof; the invited variant follows the actual approved invitation. When public claim/add intake is separately enabled, its primary action searches for the store before branching to exact claim or add-store intake. Public distribution requires its own approved exposure; a private invited pilot does not enable public intake. Paid cards/prices appear only within the separately activated exposure while selection remains authenticated at `/store-portal/plans`. Flag-off/rollback disables paid action with a reason without stranding existing billing access.
 
 The page never uses `most popular`, countdown, scarcity, invented adoption/ROI/traffic/sales claims, unconsented logos/testimonials, blanket `verified owner`, or an external review-time promise. It says `Keep key store details current`, names directly managed fields, and explains that sensitive facts/photos are reviewed. Approval creates Free and publication without payment; later payment buys photo capacity only and cannot buy publication, placement, rating, verification, moderation outcome, or shopper data. Operator identity, service area, source/freshness meaning, what happens next, monitored support/security contact, privacy, terms, and status links appear before the final CTA. One store per Representative and one Representative per store are disclosed; multi-location applicants receive a supported-contact explanation rather than a misleading bulk path.
 
@@ -323,6 +345,8 @@ Token consumption/provisional consent/pending identity is an application transac
 
 ### Paid-tier changes
 
+The initial paid pilot offers only Free-to-Gallery. Full Gallery sales and new paid-to-paid changes are deferred. The remaining interactions apply only to separately enabled future changes or necessary servicing of verified incumbent obligations; do not hide an existing cancellation/refund obligation. Membership and Package 13 own the exact offer and activation boundary.
+
 At the activated authenticated `/store-portal/plans` surface, initial Free-to-paid purchase retains hosted Checkout. An eligible Gallery-to-Full-Gallery upgrade shows current and target tier and repeats the authoritative paid disclosures before fresh consent, then modifies the existing subscription under Package 13. Pending or compensating state must not claim a completed upgrade: retain the valid current entitlement, explain the pending change or charge reconciliation, and offer the existing support/status path. Stale terms require fresh consent; retry must resume/reconcile the same change without a duplicate charge. In servicing-only, new upgrade actions deny while existing-customer cancellation and reconciliation remain available. Show a scheduled downgrade as a pending target and effective cycle boundary while retaining the current entitlement. When a schedule prevents Stripe portal cancellation, provide an authenticated cancellation confirmation in Antique Trail showing the paid-through boundary and the scheduled change it supersedes; successful submission remains pending until provider confirmation. Opening billing or dismissing that confirmation leaves the scheduled downgrade intact. Existing responsive, accessibility, focus, and error-recovery rules apply.
 
 ### Publishing labels and hours
@@ -446,7 +470,7 @@ Package 10A privately previews `/stores?area=topeka-ks`, `/for-stores`, canonica
 
 ## Implementation acceptance journeys
 
-Before external testing, prove at minimum:
+For the store-first showcase and controlled pilot, prove the selected shopper/store/admin paths below (1–3 and 6–8), with real versus fixture evidence distinguished. Items 4–5 and 9 are retained deferred-feature acceptance, required only if those capabilities are explicitly exposed; they are not prerequisites to the store showcase. The owner sees a safe bounded candidate before unrelated whole-product work is complete.
 
 1. Anonymous Browse and Details work without location or sign-in.
 2. Just-in-time sign-in returns to and completes the original private action.

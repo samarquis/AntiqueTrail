@@ -19,7 +19,8 @@ It is a brand mark, not a tap target and not the Browse navigation icon. The wor
 | Destination | Icon | Label | Rule |
 |---|---|---|---|
 | Browse | `antique-store.svg` | `Browse` | May reuse the storefront at 22 px in compact navigation. The label remains visible. |
-| My Trip | `trail-map.svg` | `My Trip` | The continuing journey cue. Use whether the user has a draft, active, or completed trip history. |
+| Saved stores (showcase) | `saved-store.svg` | `Saved stores` | Current-stage navigation under [Store-showcase presentation](../../DESIGN.md#store-showcase-presentation); retains a visible sign-in requirement for anonymous shoppers. |
+| My Trip (selected trip stages only) | `trail-map.svg` | `My Trip` | The continuing journey cue. Use whether the user has a draft, active, or completed trip history. |
 | More | none from this set | `More` | Use a simple three-line menu icon from the system icon library, not a semantically unrelated Antique Trail illustration. |
 
 Do not put all ten icons in navigation. The rest are contextual wayfinding aids.
@@ -31,7 +32,7 @@ Do not put all ten icons in navigation. The rest are contextual wayfinding aids.
 | `antique-store.svg` | Discover physical antique stores | Browse navigation; empty Browse state when no stores match a search | Header branding, paid/sponsored-store marking, generic commerce, or map pins |
 | `trail-map.svg` | The planned route between stores | My Trip navigation; Trip page header; Plan/Review Hours page header; empty trip state | The `Navigate` action, which hands off to an external map |
 | `treasure-find.svg` | Newly surfaced merchandise or a noteworthy store update | `New Finds` store-update type; `New Since Your Last Visit` section illustration; Browse empty state after a successful trip | A generic search icon, user achievements, or ratings |
-| `saved-store.svg` | A private saved place | `Saved Stores` item in More; Saved Stores page header; post-save confirmation next to `Saved` | The heart/favorite action alone; retain the word `Save` or `Saved` |
+| `saved-store.svg` | A private saved place | `Saved stores` showcase navigation item (or retained trip-stage More item); Saved Stores page header; post-save confirmation next to `Saved` | The heart/favorite action alone; retain the word `Save` or `Saved` |
 | `store-hours.svg` | Hours have been reviewed | Store Details `Hours` section; `Review Hours` page header; hours warning/changed-hours callout with text | A current-open/closed state without its plain-language status |
 | `shopping-trip.svg` | Start or build a shopping outing | `Start a New Trip` option in the Add to Trip chooser; empty Trip page; first-stop setup | My Trip navigation, trip sharing, or external navigation |
 | `navigate.svg` | Leave Antique Trail for the current driving leg | `Navigate` on Store Details; `Open Maps`/current-leg handoff in Go mode; return-from-maps recovery cue | Planning, route optimization, a permanent bottom-nav item, or device-location permission |
@@ -44,9 +45,9 @@ Do not put all ten icons in navigation. The rest are contextual wayfinding aids.
 ### 1. Browse
 
 - Header uses `app-icon.svg` beside the wordmark.
-- Bottom navigation uses storefront + `Browse`, map + `My Trip`, and a standard menu + `More`.
+- Showcase bottom navigation uses storefront + `Browse`, saved-store + `Saved stores`, and a standard menu + `More`, under [Store-showcase presentation](../../DESIGN.md#store-showcase-presentation). The retained trip-stage variant uses map + `My Trip` instead of Saved stores. Labels and anonymous sign-in cues remain visible.
 - A store card should lead with real store media, name, town, category, hours, and text actions. Do **not** decorate every card with an icon.
-- `store-details.svg` may precede a secondary `Details` link only on wide cards; on mobile, the card itself opens details.
+- The showcase uses the primary, visibly labeled `View store` action from [Store-showcase presentation](../../DESIGN.md#store-showcase-presentation), with independently focusable Save; never cover its controls with a full-card link. For separately selected later stages, `store-details.svg` may precede a secondary Details link on wide cards. Do not add decorative icons to every showcase card.
 - `treasure-find.svg` appears only for a named `New Finds` or `New Since Your Last Visit` section.
 
 ### 2. Store Details

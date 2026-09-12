@@ -29,7 +29,7 @@ of the app asserted. It confirms:
 | 9 | Go journey: Start trip, Google Maps + Waze handoff links, skip/undo skip, arrived/done, private memory saved, auto-complete to summary | ✓ |
 | 10 | Summary: "completed", "Visited: 2 · Skipped: 0 · Appeared closed: 0 · Duration: 2 hr", memory statuses, Plan Again → "Avery's antique day (copy)" | ✓ |
 | 11 | Check My Day: suggested order from reviewed hours only; Use Suggested Order persists without error | ✓ |
-| 12 | Partner invitation: creator/Navigator row, pending invitation block, Revoke invitation; acceptance fails closed (generic trip alert) pending harness prerequisite 2 — see Known limitations | ✓ (honest fail-closed) |
+| 12 | Partner invitation: creator/Navigator row, pending invitation block, Revoke invitation; Shopper B accepts the bound synthetic invitation and opens the canonical shared-trip plan | ✓ |
 | 13 | Honest states: loading, empty, error, blocked, permission-denied render honestly on `/trips`, plan, and Go | ✓ |
 | 14 | Cross-account: shopper-b plan/Go stay loading-only; never the other account's trip or stop rows | ✓ |
 | 15 | Cross-role: representative and administrator get the generic trip alert, never trip data | ✓ |
@@ -40,16 +40,9 @@ of the app asserted. It confirms:
 
 ## Known limitations
 
-- **Row 12 positive acceptance is not yet evidenced.** The harness seeds the
-  trip-a collaboration only for `shopper-a`; a `shopper-b` page load has no
-  collaboration record, so `acceptInvitation('review-trip-invite-shopper-b')`
-  rejects with the generic trip alert. The failure is deliberate and documented
-  by the "keeps shopper-b trips isolated while allowing self-created trips"
-  unit test in `src/review-harness/clients.test.ts`. The e2e asserts the honest
-  fail-closed row: the generic alert, with no cross-account trip content.
-  Landing the SPEC's harness prerequisite 2 (seeding shopper-b's collaboration)
-  unlocks the positive "You joined this one trip as Trip Partner." journey; the
-  isolation unit test must be updated then.
+- **Row 12 is synthetic fixture evidence only.** The recipient collaboration
+  is page-local review-harness data; it does not establish real account, email,
+  Auth, Edge/RPC, database authorization, or production-sharing behavior.
 
 ## Screenshots
 

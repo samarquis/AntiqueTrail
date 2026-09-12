@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createAdminClient } from './adminClient'
+import { AdminVersionConflictError, createAdminClient } from './adminClient'
 import { GENERIC_ADMIN_FAILURE } from './boundary'
 
 describe('admin RPC client', () => {
@@ -144,5 +144,15 @@ describe('admin RPC client', () => {
       rpc: async () => ({ data: null, error: { message: 'secret database detail' } }),
     })
     await expect(denied.listCases()).rejects.toThrow(GENERIC_ADMIN_FAILURE)
+  })
+
+  it('preserves only a version-conflict classification for safe review recovery', async () => {
+    const client = createAdminClient({
+      rpc: async () => ({ data: null, error: { message: 'review case version conflict' } }),
+    })
+
+    await expect(
+      client.decideCase('case-1', 'approve', 'verified', 3, 'case-1-v3'),
+    ).rejects.toBeInstanceOf(AdminVersionConflictError)
   })
 })

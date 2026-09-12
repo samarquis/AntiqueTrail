@@ -39,13 +39,21 @@ export function command(
       stderr += data
       if (stderr.length > 4_000_000) stderr = stderr.slice(-4_000_000)
     })
-    const timer = setTimeout(() => child.kill(), timeout)
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      child.kill()
+    }, timeout)
     child.on('error', (error) => {
       clearTimeout(timer)
       reject(error)
     })
     child.on('close', (code) => {
       clearTimeout(timer)
+      if (timedOut) {
+        reject(new Error(`${path.basename(file)} timed out after ${timeout}ms`))
+        return
+      }
       if (code === 0) resolve(stdout)
       else {
         let summary = ''
@@ -358,10 +366,12 @@ export function createLocalService({ signal, resumeDirectory, browserOrigin } = 
         '--exclude',
         'studio,postgres-meta,realtime,imgproxy,logflare,vector,supavisor',
       ],
-      { env: proxy.env, signal },
+      { env: proxy.env, signal, timeout: 1_200_000 },
     )
     await verifyContainers()
-    const status = JSON.parse(await cli(['status', '--workdir', directory, '-o', 'json']))
+    const status = JSON.parse(
+      await cli(['status', '--workdir', directory, '-o', 'json'], { signal, timeout: 300_000 }),
+    )
     run.anonKey = status.ANON_KEY
     if (!run.anonKey || !status.SERVICE_ROLE_KEY || !status.JWT_SECRET)
       throw new Error('Local service credentials unavailable')

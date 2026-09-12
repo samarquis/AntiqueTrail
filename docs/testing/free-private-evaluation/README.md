@@ -1,5 +1,7 @@
 # Free private evaluation packet
 
+For the current store-first showcase setup and blank owner notes, use the [Store-first local showcase handoff](STORE_FIRST_HANDOFF.md). This supplements this original packet without rewriting its scenarios or reports.
+
 This packet implements the repository-controlled preparation for issue #251. It is a
 local, synthetic evaluation of the current review harness, not a hosted test and not
 owner, provider, server-authorization, cohort, release, or paid-activation evidence.
