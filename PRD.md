@@ -1,4 +1,4 @@
-# Antique Trail product requirements
+# Vintage Day Out product requirements
 
 Status: store-first product direction authorized 2026-09-11 by the Product Owner: **`update plan to the proposed store-first PRD`**. Effective on reviewed merge of #346. This amendment changes intended scope and stage requirements; it performs no application implementation, deployment, outreach or billing activation.
 
@@ -7,6 +7,16 @@ Status: store-first product direction authorized 2026-09-11 by the Product Owner
 Help antique stores present their shop and interesting merchandise through trustworthy information and photographs. Shoppers explore without an account. Approved store representatives maintain their listing and may later buy a larger photo gallery. The immediate test is whether this showcase is useful to the owner, shoppers and participating stores.
 
 Retain React/TypeScript/Vite, Supabase Auth/PostgreSQL, Stripe, and the approved visual identity. Use one account system with server-enforced permissions. Do not rebuild authentication, payment collection or the gallery without evidence of a specific defect. Design remains mobile-first and age-inclusive; the owner evaluates computer first, then phone.
+
+## Brand and positioning
+
+**Vintage Day Out** is the selected product name, approved by the Product Owner on 2026-09-12. It replaces Antique Trail as the intended brand; name selection is settled rather than a working-name shortlist. The brand connects antique and vintage store discovery with the enjoyment of an outing. The longer-term direction is helping shoppers turn chosen stores into a day trip, subject to the existing stage decisions. Exact messaging and its stage limits are owned by [Brand messaging](DESIGN.md#brand-messaging).
+
+This is a plan-only brand decision. Keep the current store showcase and pilot sequence, approved visual identity, and active work intact. It does not authorize a homepage redesign, device-location browsing, profile location, trip exposure or implementation, application-wide rename, deployment, promotion, domain purchase, or spending.
+
+`vintagedayout.com` is the preferred domain to pursue, not an owned or secured domain. The 2026-09-12 preliminary registry lookup found no registration record; registrar availability and acquisition remain unverified. Existing use includes the outing-suggestion extension [Vintage Day Out Picker](https://chromewebstore.google.com/detail/vintage-day-out-picker/ihmmbeknfbhlhcjfnoinnogpoioaidnb) and the event wording [Vintage Day Out](https://www.helenrollason.org.uk/shop/events/marvellous-vintage-2026/). The owner selected the name after reviewing these findings. Selection claims neither exclusive rights nor trademark clearance; applicable B-01 brand/domain evidence remains required for its named public exposure.
+
+Before implementing the rename, inventory every reference across rendered screens, PWA/install metadata, titles/sharing/accessibility text, images/logos, emails, print/QR materials, documents, fixtures/tests, code/configuration, domains/URLs, and external settings. Give each reference a migration action and verification result, checking rendered output as well as text. Record explicit dispositions for immutable history, third-party references and changes that could break data, links, authentication or integrations. Existing Antique Trail/AntiqueTrail identifiers and historical document titles refer to this same product during the pending migration; do not mass-replace repository, package, database or provider identifiers. A separate scoped implementation owns that migration and its proof.
 
 ## People and permissions
 
@@ -117,7 +127,7 @@ Continue when the owner can use the showcase, permitted owners can maintain usef
 
 ## Decisions still needed
 
-The actual pilot participants/exposure/hosting, Gallery price and commercial terms, applicable provider and operational evidence, public brand/domain and any funded infrastructure require their named decisions. No prices, new spending, real outreach or live services are authorized here.
+The actual pilot participants/exposure/hosting, Gallery price and commercial terms, applicable provider and operational evidence, brand clearance/domain acquisition and any funded infrastructure require their named decisions or evidence. The product name is selected under [Brand and positioning](#brand-and-positioning); selection does not complete public brand/domain readiness. No prices, new spending, real outreach or live services are authorized here.
 
 ## How to use the detailed plan
 

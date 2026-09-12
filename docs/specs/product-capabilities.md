@@ -10,11 +10,7 @@ The legacy Pilot/Regional subsection names below describe compatibility behavior
 
 ## Working title
 
-**Antique Trail**
-
-Keep Antique Trail as the temporary working name through the private evaluation. The final brand name has not been selected.
-
-When a final name is approved, inventory and account for every reference: rendered screens, PWA/install metadata, titles/sharing/accessibility text, images/logos, emails, print/QR materials, documents, fixtures/tests, code/configuration, domains/URLs, and external settings. Give every reference a migration action and verification result, checking rendered output as well as text. Present an explicit disposition for immutable history, third-party references, and changes that could break data, links, authentication, or integrations; do not silently omit them or promise completeness without that inventory. No rename or domain purchase is authorized by this milestone.
+This legacy heading is retained for inbound links. The selected name, domain/clearance status and full rename-inventory requirement are now owned by [PRD Brand and positioning](../../PRD.md#brand-and-positioning); exact messaging is owned by [DESIGN Brand messaging](../../DESIGN.md#brand-messaging). Antique Trail references elsewhere in this capability contract identify the same product pending the separately scoped implementation migration.
 
 ## Product type
 

@@ -1,5 +1,9 @@
 # Antique Trail Current Project State
 
+## Brand selection — 2026-09-12
+
+The Product Owner selected Vintage Day Out and directed that it be locked into the plan. The current intent is owned by [PRD Brand and positioning](PRD.md#brand-and-positioning) and [DESIGN Brand messaging](DESIGN.md#brand-messaging), effective through this amendment's reviewed merge. This is documentation evidence only; the application rename, domain acquisition, trademark clearance and public brand/domain receipt are not completed. Current store-first stages and active work remain unchanged.
+
 ## Bounded local trip exception — 2026-09-12
 
 The Product Owner directed `update plan` for the proposed bounded exception covering repository-controlled local invitation diagnosis, accepted-partner removal repairs and joined verification for #321/#342/#343/#344, then approved the exact proposal `update plan to include #365’s minimal invitation ACL repair` with `yes go ahead`. After the dedicated #365 amendment merges, #365 may implement only the least-privilege verifier-to-helper grant following #342's diagnosis; #343 precedes #344, and #321 consumes the repaired invitation and integrated removal evidence. Trips remain excluded from the showcase, pilots and production exposure; no provider, spending, deployment, real-data or external-participant authority is added. GitHub owns live readiness and completion state.
