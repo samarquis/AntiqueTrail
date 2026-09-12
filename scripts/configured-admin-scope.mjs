@@ -13,6 +13,7 @@ import {
   stopChild,
 } from './configured-shopper-local.mjs'
 import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
+import { configuredAdminScopeReport } from './configured-admin-scope-report.mjs'
 
 const output = createRunDirectory(path.join(ROOT, 'artifacts'))
 const report = {
@@ -342,16 +343,10 @@ try {
     report.errors.push('Missing Playwright report')
   } else {
     const parsed = JSON.parse(fs.readFileSync(resultPath, 'utf8'))
-    const specs = parsed.suites.flatMap((suite) => suite.specs ?? [])
-    report.stats = parsed.stats
-    report.checks = specs.flatMap((spec) =>
-      spec.tests.map((test) => ({
-        title: `${test.projectName ?? 'unknown'}: ${spec.title}`,
-        status: test.results.at(-1)?.status === 'passed' ? 'passed' : 'failed',
-      })),
-    )
-    if (report.checks.length !== 6 || report.checks.some((check) => check.status !== 'passed'))
-      report.status = 'failed'
+    const result = configuredAdminScopeReport(parsed)
+    report.stats = result.stats
+    report.checks = result.checks
+    if (result.status !== 'passed') report.status = 'failed'
   }
 } catch (error) {
   report.status = 'failed'
