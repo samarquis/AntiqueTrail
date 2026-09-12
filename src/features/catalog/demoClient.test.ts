@@ -6,6 +6,20 @@ import { describe, expect, it } from 'vitest'
 import { syntheticStores } from './demoClient'
 
 describe('Synthetic Store image fixtures', () => {
+  it('gives all twelve stores distinct shopper-facing copy while keeping fixture identity separate', () => {
+    expect(syntheticStores).toHaveLength(12)
+    expect(new Set(syntheticStores.map((store) => store.summary)).size).toBe(12)
+    expect(new Set(syntheticStores.map((store) => store.description)).size).toBe(12)
+
+    for (const store of syntheticStores) {
+      expect(store.summary?.length).toBeGreaterThanOrEqual(60)
+      expect(store.description?.length).toBeGreaterThanOrEqual(100)
+      expect(store.summary).not.toMatch(/fictional|synthetic|fixture/iu)
+      expect(store.description).not.toMatch(/fictional|synthetic|fixture/iu)
+      expect(store.fixtureProfile?.label).toMatch(/synthetic.+internal only/iu)
+    }
+  })
+
   it('gives every store one unique, locally hosted generated cover', () => {
     const covers = syntheticStores.map((store) =>
       store.media.find((media) => media.kind === 'cover'),
@@ -18,6 +32,8 @@ describe('Synthetic Store image fixtures', () => {
       true,
     )
     expect(covers.every((cover) => (cover?.alt.length ?? 0) >= 40)).toBe(true)
+    expect(covers.every((cover) => (cover?.caption?.length ?? 0) >= 60)).toBe(true)
+    expect(new Set(covers.map((cover) => cover?.caption)).size).toBe(12)
     expect(covers.every((cover) => cover?.rightsLabel?.includes('OpenAI-generated'))).toBe(true)
     expect(covers.every((cover) => cover && existsSync(resolve(`public${cover.src}`)))).toBe(true)
   })
