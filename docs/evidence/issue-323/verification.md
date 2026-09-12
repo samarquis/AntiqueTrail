@@ -58,4 +58,14 @@ The integrated acceptance checkout combined the exact PR #333 source head `655df
 
 Negative-control run `90a94301-a56e-4b1c-84de-637a694ce0a2` deliberately corrupted the independent readback. It failed at the intended exact readback assertion (`actions` expected 99, received 2); the other two desktop scenarios passed, while the phone project was skipped by its configured desktop dependency after that expected desktop failure. Runner exit was nonzero as required and cleanup was `removed`. This is positive evidence that the readback assertion detects corruption, not a product failure or an all-green acceptance run.
 
-These are real-local automated checks, not human/store-showcase observations, hosted production evidence, or activation evidence. The #323 branch is preserved; its PR remains open pending the current-candidate hosted checks and fresh exact-head independent review. No production activation is authorized or claimed.
+These are real-local automated checks, not human/store-showcase observations, hosted production evidence, or activation evidence. No production activation is authorized or claimed.
+
+## Exact candidate `f8b9d5e14b67cefb7b4aad8c4492895d99fb36e8`
+
+Based on `main` `2388c53ed3ec75f7e680fb77e7dc77f172a08bb6`, real-local run `0a8bc2ff-d7cf-4ada-a643-e1c10cd92dc7` passed all six desktop/phone cases with zero skips, unexpected results, or flakes. Both real local Auth MFA challenge/verify pairs returned HTTP 200 and run-owned cleanup was `removed` (`sourceDirty: false`).
+
+Negative control `3670e5ad-45ed-4fa1-8e30-2c96378f3058` deliberately supplied the wrong independent readback and exited nonzero at the intended assertion (`actions` expected 99, received 2). The two other desktop cases passed; all three phone cases were reported as `skipped` due to their configured desktop dependency; cleanup was `removed` (`sourceDirty: false`). This is a successful negative control, not a product-suite pass.
+
+The report mapper now preserves each Playwright result status (`passed`, `failed`, `timedOut`, or `skipped`) and still requires six passes with zero skips, unexpected results, or flakes for acceptance. Its added regression tests are included in the 143 passing release tests; lint passes with 13 existing warnings and formatting passes.
+
+All hosted checks on candidate `f8b9d5e1` passed: web, database, configured-seed-media, session-signout, and plan-governance. The first plan-governance run after editing the PR body failed because its declaration did not contain the exact required phrase; the PR body was corrected to “Conforming work; no plan change,” and the rerun passed. Independent exact-head review found no code or privacy issue; its only requested change was reconciliation of this evidence note. The following evidence-only commit therefore needs its own current-check confirmation and focused review. Human/store-showcase observations and production activation remain outside this evidence class.
