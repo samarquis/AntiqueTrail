@@ -84,6 +84,7 @@ describe('private shopper screens', () => {
     expect(savedCard.getByText(/check current hours/i)).toBeVisible()
     expect(savedCard.getByText(/your private saved-store record/i)).toBeVisible()
     expect(screen.getByText(/listing freshness.*store details/i)).toBeVisible()
+    expect(savedCard.queryByRole('link', { name: /add to trip/i })).not.toBeInTheDocument()
   })
 
   it('removes a saved store and can undo the removal', async () => {
@@ -129,20 +130,20 @@ describe('private shopper screens', () => {
     render(
       <MemoryRouter initialEntries={['/stores/oak?from=trail']}>
         <AuthProvider>
-          <CatalogPrivateActions storeId="store-1" slug="oak" client={client()} />
+          <CatalogPrivateActions
+            storeId="store-1"
+            storeName="Oak Antiques"
+            slug="oak"
+            context="browse"
+            client={client()}
+          />
         </AuthProvider>
       </MemoryRouter>,
     )
-    const signIn = screen.getByRole('link', { name: /sign in to save store/i })
+    const signIn = screen.getByRole('link', { name: /save oak antiques.*requires sign-in/i })
     expect(signIn).toHaveAttribute('href', '/auth/sign-in?returnTo=%2Fstores%2Foak%3Ffrom%3Dtrail')
-    expect(screen.getByRole('link', { name: /sign in for private memory/i })).toHaveAttribute(
-      'href',
-      '/auth/sign-in?returnTo=%2Fstores%2Foak%2Fmemory',
-    )
-    expect(screen.getByRole('link', { name: /suggest a correction/i })).toHaveAttribute(
-      'href',
-      '/stores/oak/correction',
-    )
+    expect(screen.queryByRole('link', { name: /private memory/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /suggest a correction/i })).not.toBeInTheDocument()
     await user.click(signIn)
     expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toContain(
       '"storeId":"store-1"',
@@ -190,10 +191,11 @@ describe('private shopper screens', () => {
     expect(setSave).toHaveBeenCalledTimes(1)
     expect(setSave).toHaveBeenCalledWith('store-1', true)
     expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toBeNull()
-    expect(screen.getByRole('link', { name: /private memory/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /suggest a correction/i })).toHaveAttribute(
       'href',
-      '/stores/oak/memory',
+      '/stores/oak/correction',
     )
+    expect(screen.queryByRole('link', { name: /private memory/i })).not.toBeInTheDocument()
   })
 
   it('consumes an exact pending Save when sign-in is cancelled and never replays it later', async () => {

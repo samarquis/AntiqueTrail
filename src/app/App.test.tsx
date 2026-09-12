@@ -32,7 +32,7 @@ describe('app shell', () => {
       '#main-content',
     )
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toHaveTextContent(
-      'BrowseMy TripMore',
+      'BrowseSaved stores Requires sign-inMore',
     )
     expect(screen.getByRole('heading', { name: /browse stores/i })).toHaveFocus()
   })
@@ -49,19 +49,41 @@ describe('app shell', () => {
 
     expect(screen.getByRole('heading', { name: 'More' })).toHaveFocus()
     expect(screen.getByRole('navigation', { name: /more destinations/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /saved stores/i })).toHaveAttribute('href', '/saved')
-    expect(screen.getByRole('link', { name: /new since your last visit/i })).toHaveAttribute(
-      'href',
-      '/new-since',
-    )
-    expect(screen.getByRole('link', { name: /private history/i })).toHaveAttribute(
-      'href',
-      '/account/history',
-    )
     expect(screen.getByRole('link', { name: /account & privacy/i })).toHaveAttribute(
       'href',
       '/account/privacy',
     )
+    expect(screen.getByRole('link', { name: /install/i })).toHaveAttribute('href', '/install')
+    expect(screen.getByRole('link', { name: /help/i })).toHaveAttribute('href', '/help')
+    expect(
+      screen.queryByRole('link', { name: /trip|private history|shared with me/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows only the authorized role entry in a representative More menu', async () => {
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'representative-1',
+      accessToken: 'memory-only-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Representative',
+      mfaRequired: true,
+      mfaEnrolled: true,
+      mfaVerified: true,
+    })
+    render(
+      <MemoryRouter initialEntries={['/more']}>
+        <App runtime={{ authStore }} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('link', { name: 'Store Portal' })).toHaveAttribute(
+      'href',
+      '/store-portal',
+    )
+    expect(
+      screen.queryByRole('link', { name: /account & privacy|trip|private history/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('focuses the final private destination after lifecycle hydration', async () => {
@@ -120,11 +142,33 @@ describe('app shell', () => {
         <App />
       </MemoryRouter>,
     )
-    expect(await screen.findAllByRole('link', { name: /sign in to save store/i })).not.toHaveLength(
-      0,
+    expect(
+      await screen.findAllByRole('link', { name: /save .*requires sign-in/i }),
+    ).not.toHaveLength(0)
+    expect(
+      screen.queryByRole('link', { name: /private memory|suggest a correction/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /add to trip/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps correction reporting on Store Details without deferred private actions', async () => {
+    render(
+      <MemoryRouter initialEntries={['/stores/blue-finch-curios']}>
+        <App />
+      </MemoryRouter>,
     )
-    expect(screen.getAllByRole('link', { name: /sign in for private memory/i })).not.toHaveLength(0)
-    expect(screen.getAllByRole('link', { name: /suggest a correction/i })).not.toHaveLength(0)
+
+    expect(await screen.findByRole('heading', { name: /blue finch curios/i })).toBeVisible()
+    expect(screen.getByRole('link', { name: /suggest a correction/i })).toHaveAttribute(
+      'href',
+      '/stores/blue-finch-curios/correction',
+    )
+    expect(
+      screen.getByRole('link', { name: /save blue finch curios.*requires sign-in/i }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('link', { name: /private memory|add to trip/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('composes an injected accessible map without replacing the browse list', async () => {

@@ -67,10 +67,8 @@ test.describe('Store Details decision-screen contract', () => {
       page.getByText(/directions are unavailable for this fictional address/i),
     ).toBeVisible()
     await expect(page.getByRole('link', { name: /navigate in maps/i })).toHaveCount(0)
-    await expect(page.getByRole('link', { name: 'Add to Trip', exact: true })).toHaveAttribute(
-      'href',
-      /\/trips\/new\?addStoreId=/,
-    )
+    await expect(page.getByRole('link', { name: /add to trip|private memory/i })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: /suggest a correction/i })).toBeVisible()
     await expectMinimumTargets(page)
   })
 

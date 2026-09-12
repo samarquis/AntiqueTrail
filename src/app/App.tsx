@@ -216,11 +216,10 @@ function AppShell({
   reviewHarnessUi?: ReviewHarnessUi
 }) {
   const location = useLocation()
-  const { lifecycleReady } = useAuth()
+  const { lifecycleReady, session } = useAuth()
   const contentRef = useRef<HTMLDivElement>(null)
   const moreIsCurrent = [
     '/more',
-    '/saved',
     '/new-since',
     '/capture',
     '/shares',
@@ -306,16 +305,17 @@ function AppShell({
                 />
                 Browse
               </NavLink>
-              <NavLink to="/trips">
+              <NavLink to="/saved">
                 <img
                   className="nav-icon"
-                  src="/icons/trail-map.svg"
+                  src="/icons/saved-store.svg"
                   alt=""
                   aria-hidden="true"
                   width="20"
                   height="20"
                 />
-                My Trip
+                Saved stores
+                {!session && <MoreMenuLock />}
               </NavLink>
             </>
           )}
@@ -440,18 +440,15 @@ function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) 
   }, [ownConsentClient, session, signedIn])
   const destinations: Array<{ to: string; label: string; requiresSignIn: boolean; icon?: string }> =
     [
-      { to: '/saved', label: 'Saved Stores', requiresSignIn: true, icon: '/icons/saved-store.svg' },
-      { to: '/new-since', label: 'New Since Your Last Visit', requiresSignIn: true },
-      {
-        to: '/account/history',
-        label: 'Private History',
-        requiresSignIn: true,
-        icon: '/icons/private-notes.svg',
-      },
-      { to: '/capture', label: 'Add a Place from a Link', requiresSignIn: true },
-      { to: '/shares', label: 'Shared with Me', requiresSignIn: true },
-      { to: '/trip-ideas', label: 'Trip Ideas', requiresSignIn: true },
-      { to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true },
+      ...(!session || session.role === 'Shopper'
+        ? [{ to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true }]
+        : []),
+      ...(session?.role === 'Representative'
+        ? [{ to: '/store-portal', label: 'Store Portal', requiresSignIn: false }]
+        : []),
+      ...(session?.role === 'Administrator'
+        ? [{ to: '/admin', label: 'Administrator workspace', requiresSignIn: false }]
+        : []),
       ...(rg01Available
         ? [
             {
@@ -469,7 +466,7 @@ function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) 
       <header>
         <p className="eyebrow">Your Antique Trail</p>
         <h1>More</h1>
-        <p>Find your saved places, shared ideas, account settings, and help.</p>
+        <p>Find account settings, installation help, and support.</p>
       </header>
       <nav className="more-menu" aria-label="More destinations">
         {destinations.map((destination) => (
@@ -619,7 +616,13 @@ function StoreBrowser({
       initialSearch={location.search}
       renderPrivateActions={(store) =>
         shopperProjection ? (
-          <CatalogPrivateActions storeId={store.id} slug={store.slug} client={shopperClient} />
+          <CatalogPrivateActions
+            storeId={store.id}
+            storeName={store.name}
+            slug={store.slug}
+            context="browse"
+            client={shopperClient}
+          />
         ) : (
           <p>
             Public directory view. Sign out and use a separate shopper account for private actions.
@@ -645,9 +648,16 @@ function StoreDetails({
     <CatalogDetailsPage
       client={client}
       slug={slug}
+      stage="package-3"
       renderPrivateActions={(store) =>
         shopperProjection ? (
-          <CatalogPrivateActions storeId={store.id} slug={store.slug} client={shopperClient} />
+          <CatalogPrivateActions
+            storeId={store.id}
+            storeName={store.name}
+            slug={store.slug}
+            context="details"
+            client={shopperClient}
+          />
         ) : (
           <p>
             Public directory view. Sign out and use a separate shopper account for private actions.

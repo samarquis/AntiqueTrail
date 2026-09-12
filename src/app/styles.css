@@ -1655,7 +1655,7 @@ textarea[aria-invalid='true'] {
 
 .catalog-card__details {
   align-self: flex-start;
-  margin-top: 0.75rem;
+  margin-top: 0;
 }
 
 .catalog-card__actions {
@@ -1669,18 +1669,24 @@ textarea[aria-invalid='true'] {
   border-top: 1px solid var(--line);
 }
 
-.catalog-card__actions .catalog-card__add-to-trip {
-  justify-self: start;
-  margin-top: 0;
-}
-
 .catalog-card__private-actions {
   min-width: 0;
 }
 
-.catalog-card__private-actions :is(nav, section) {
+.catalog-card__private-actions :is(.catalog-private-actions, section) {
   padding-top: 0;
   border-top: 0;
+}
+
+.catalog-private-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.6rem 0.8rem;
+}
+
+.catalog-private-actions > :is(p, section) {
+  margin: 0;
 }
 
 .catalog-card nav {
