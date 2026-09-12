@@ -6,6 +6,12 @@ Status: historical decision record with links to current requirement owners. Ori
 
 ## Confirmed decisions
 
+### Minimal invitation ACL repair — 2026-09-12
+
+Authorization: `update plan`. The assistant proposed `update plan to include #365’s minimal invitation ACL repair`; the Product Owner responded `yes go ahead`, approving that exact amendment and no broader trip work.
+
+Current requirements are owned by [PRD deferred implementation boundary](PRD.md#deferred-implementation-boundary), [capability stage applicability](docs/specs/product-capabilities.md#stage-applicability) and [ADR0009 implementation and acceptance consequences](docs/adr/0009-store-first-stage-applicability.md#implementation-and-acceptance-consequences). #365 may add only a forward-only, least-privilege server-to-server function grant needed by the existing verified-recipient acceptance path, with focused allow/deny, replay and one-trip state-isolation proof. Direct private-helper execution remains denied to `public`, `anon`, `authenticated` and unrelated service roles. No trip exposure, new invitation behavior, provider operation, deployment, real data, production activation or #324 scope is authorized.
+
 ### Bounded local trip invitation and revocation work — 2026-09-12
 
 Authorization: `update plan`. The Product Owner approved the immediately proposed bounded exception: complete repository-controlled local trip invitation diagnosis, accepted-partner removal repairs and joined verification for #321/#342/#343/#344 while trips remain excluded from showcase and production exposure.
