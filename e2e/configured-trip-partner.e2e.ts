@@ -29,6 +29,13 @@ async function login(page: Page, actor: number, target: string) {
   expect((await response).ok()).toBe(true)
   await expect(page).not.toHaveURL(/\/auth\/sign-in/)
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
+  await page.reload()
+  if (target === '/trips') {
+    await expect(page.getByRole('heading', { name: 'My trips' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'New trip' })).toBeVisible()
+  } else {
+    await expect(page.getByRole('heading', { name: 'Trip Partner and Navigator' })).toBeVisible()
+  }
 }
 
 async function createTrip() {
@@ -84,7 +91,11 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
   try {
     const wrongPage = await wrong.newPage()
     await login(wrongPage, 0, '/trips')
+    const wrongAcceptance = wrongPage.waitForResponse((response) =>
+      response.url().includes('/rest/v1/rpc/accept_trip_invitation'),
+    )
     await wrongPage.goto(`/trip-invitations#token=${token}`)
+    expect((await wrongAcceptance).status()).toBeGreaterThanOrEqual(400)
     await expect(wrongPage.getByRole('alert')).toContainText(
       "We couldn't update this trip. Please try again.",
     )
@@ -98,7 +109,11 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
   try {
     const partnerPage = await partner.newPage()
     await login(partnerPage, 1, '/trips')
+    const intendedAcceptance = partnerPage.waitForResponse((response) =>
+      response.url().includes('/rest/v1/rpc/accept_trip_invitation'),
+    )
     await partnerPage.goto(`/trip-invitations#token=${token}`)
+    expect((await intendedAcceptance).status()).toBe(200)
     await expect(
       partnerPage.getByRole('heading', { name: 'Trip invitation accepted' }),
     ).toBeVisible({ timeout: 20_000 })
