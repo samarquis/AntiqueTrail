@@ -6,6 +6,12 @@ Status: historical decision record with links to current requirement owners. Ori
 
 ## Confirmed decisions
 
+### Bounded local trip invitation and revocation work — 2026-09-12
+
+Authorization: `update plan`. The Product Owner approved the immediately proposed bounded exception: complete repository-controlled local trip invitation diagnosis, accepted-partner removal repairs and joined verification for #321/#342/#343/#344 while trips remain excluded from showcase and production exposure.
+
+Current requirements are owned by [PRD deferred implementation boundary](PRD.md#deferred-implementation-boundary), [capability stage applicability](docs/specs/product-capabilities.md#stage-applicability) and [ADR0009](docs/adr/0009-store-first-stage-applicability.md). Preserve verified-recipient, one-trip, private-data, offline/device revocation and next-request denial controls. The exception grants no broad trip expansion, hosted use, external participant, real data, email delivery, provider action, spending, deployment, pilot inclusion or production activation. #342 and #343 may proceed independently; #343 precedes #344; #321 owns joined evidence.
+
 ### Store-first product and bounded pilot stages — 2026-09-11
 
 Exact authorization: `update plan to the proposed store-first PRD`. The owner chose larger galleries first and featured placement later. The approved scope makes the next milestone a usable internal store showcase, followed by a controlled real-store pilot and a paid Gallery pilot. Free/Gallery is the initial offer; trip completion, public reviews, regional release, RG-01, three-community expansion and new Full Gallery sales are not prerequisites. Preserve existing stack/visual identity, code/data, exact-store authority, privacy, provider/operating controls and incumbent billing obligations.

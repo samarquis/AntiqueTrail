@@ -1,5 +1,9 @@
 # Antique Trail Current Project State
 
+## Bounded local trip exception — 2026-09-12
+
+The Product Owner directed `update plan` for the proposed bounded exception covering repository-controlled local invitation diagnosis, accepted-partner removal repairs and joined verification for #321/#342/#343/#344. On reviewed merge of PR #360, #342 and #343 may proceed independently, #343 precedes #344, and #321 consumes their joined evidence. Trips remain excluded from the showcase, pilots and production exposure; no provider, spending, deployment, real-data or external-participant authority is added. GitHub owns live readiness and completion state.
+
 ## Store-first amendment — 2026-09-11
 
 The Product Owner directed `update plan to the proposed store-first PRD`. On merge of #346, the current intended sequence is the internal store showcase, controlled real-store pilot, then paid Gallery pilot. Free/Gallery is the initial offer; trip/regional/community work and new Full Gallery sales are deferred. PRD.md and linked specialist sources own requirements.
