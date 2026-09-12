@@ -112,7 +112,8 @@ test.describe('Synthetic catalog design contract', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeFocused()
     await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=%2Fsaved/)
 
-    await nav.getByRole('link', { name: 'Browse', exact: true }).click()
+    await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
+    await expect(page).toHaveURL(/\/stores$/)
     const browseHeading = page.getByRole('heading', { level: 1, name: 'Browse stores' })
     await expect(browseHeading).toBeFocused()
   })

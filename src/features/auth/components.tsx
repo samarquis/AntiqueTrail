@@ -768,7 +768,12 @@ export function safeCancelTarget(value: string): string {
   const safe = safeReturnTo(value)
   const storeMatch = safe.match(/^\/stores\/([^/]+)\/(?:memory|correction|claim)(?:\/|$)/u)
   if (storeMatch) return `/stores/${storeMatch[1]}`
-  if (safe.startsWith('/trips/') || safe.startsWith('/account/') || safe.startsWith('/auth/'))
+  if (
+    safe === '/saved' ||
+    safe.startsWith('/trips/') ||
+    safe.startsWith('/account/') ||
+    safe.startsWith('/auth/')
+  )
     return '/stores'
   return safe
 }
