@@ -1,6 +1,10 @@
 -- Admin-only accounts need ordinary registered sessions for the privileged UI.
 -- Keep shopper-private authorization separate: those RPCs still require shopper role.
-alter function app_public.register_current_session(bigint) owner to postgres;
+grant create on schema app_public to identity_service;
+do $wrap$
+begin
+  perform set_config('role','identity_service',true);
+  execute $fn$
 create or replace function app_public.register_current_session(access_token_expires_at bigint)
 returns boolean language plpgsql security definer set search_path='' as $body$
 declare
@@ -43,3 +47,8 @@ begin
 end
 $body$;
 alter function app_public.register_current_session(bigint) owner to identity_service;
+  $fn$;
+  perform set_config('role','none',true);
+end;
+$wrap$;
+revoke create on schema app_public from identity_service;
