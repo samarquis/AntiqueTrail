@@ -185,12 +185,13 @@ describe('catalog private-action integration seam', () => {
     )
   })
 
-  it('keeps Browse list-first and makes the R-01-blocked map a no-call fallback', async () => {
+  it('omits the unexposed map and makes the R-01-blocked seam a no-call fallback', async () => {
     const catalog = client()
     render(<BrowsePage client={catalog} />)
     expect(await screen.findByRole('heading', { name: syntheticStores[0].name })).toBeVisible()
 
-    expect(screen.getByRole('status')).toHaveTextContent(/not available.*list.*available/i)
+    expect(screen.queryByRole('heading', { name: /store map/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/map and travel-time suggestions/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /show map/i })).not.toBeInTheDocument()
     expect(catalog.map).not.toHaveBeenCalled()
     expect(screen.getByRole('heading', { name: syntheticStores[0].name })).toBeVisible()

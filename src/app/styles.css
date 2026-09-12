@@ -1318,6 +1318,48 @@ textarea[aria-invalid='true'] {
   margin-bottom: 1.5rem;
 }
 
+.catalog-browser {
+  padding-top: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.catalog-browser > header {
+  padding-bottom: 1.25rem;
+}
+
+.catalog-browser > header::after {
+  margin-top: 0.75rem;
+}
+
+.catalog-browser > header > p:last-child {
+  margin-top: 0.5rem;
+}
+
+.catalog-browser .catalog-filter-region,
+.catalog-browser .catalog-filters {
+  margin-bottom: 0.75rem;
+}
+
+@media (min-width: 1025px) {
+  .catalog-browser .catalog-filters {
+    grid-template-columns: repeat(16, minmax(0, 1fr));
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .catalog-browser .catalog-field--search {
+    grid-column: span 6;
+  }
+
+  .catalog-browser .catalog-field:not(.catalog-field--search) {
+    grid-column: span 3;
+  }
+
+  .catalog-browser .catalog-filters__actions {
+    grid-column: span 4;
+    flex-wrap: nowrap;
+  }
+}
+
 .catalog-filters__trigger {
   display: none;
 }
@@ -1399,6 +1441,10 @@ textarea[aria-invalid='true'] {
   background: linear-gradient(105deg, rgb(220 237 229 / 92%), rgb(255 252 246 / 94%)), var(--card);
 }
 
+.catalog-map-panel[hidden] {
+  display: none;
+}
+
 .catalog-map-panel::before {
   position: absolute;
   width: 10rem;
@@ -1444,6 +1490,11 @@ textarea[aria-invalid='true'] {
   margin-bottom: 1.25rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--line);
+}
+
+.catalog-browser .catalog-results-heading {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
 }
 
 .catalog-results-heading h2 {
@@ -1999,6 +2050,29 @@ main > article dt {
 }
 
 @media (max-width: 540px) {
+  .catalog-browser.catalog-browser {
+    padding-top: 1.5rem;
+  }
+
+  .catalog-browser .catalog-results-heading {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: end;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.35rem;
+  }
+
+  .catalog-browser > header .eyebrow,
+  .catalog-browser > header > p:last-child,
+  .catalog-browser > header::after {
+    display: none;
+  }
+
+  .catalog-browser .catalog-results-heading > p {
+    text-align: left;
+  }
+
   .brand-mark {
     width: 26px;
     height: 26px;
@@ -2022,6 +2096,10 @@ main > article dt {
 
   .catalog-search-control {
     grid-template-columns: 1fr;
+  }
+
+  .catalog-browser .catalog-search-control {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .more-menu {
@@ -2058,6 +2136,12 @@ main > article dt {
   .catalog-card__placeholder {
     height: 11rem;
     min-height: 11rem;
+  }
+
+  .catalog-browser .catalog-card > img,
+  .catalog-browser .catalog-card__placeholder {
+    height: 8rem;
+    min-height: 8rem;
   }
 
   .catalog-card__placeholder {
