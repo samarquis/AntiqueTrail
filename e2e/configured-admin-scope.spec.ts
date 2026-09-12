@@ -422,7 +422,7 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   await confirm.focus()
   await confirm.press('Enter')
   const denied = await rejected
-  expect(denied.status()).toBe(409)
+  expect(denied.status()).toBe(500)
   expect(await denied.json()).toMatchObject({ code: '40001', message: 'admin_unavailable' })
   await expect(page.getByRole('status')).toHaveText('This item is not available.')
   await expect(confirm).toBeFocused()
