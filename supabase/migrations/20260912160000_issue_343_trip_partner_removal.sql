@@ -42,6 +42,7 @@ begin
       v_partner uuid;
       v_current_version bigint;
       v_trip_version bigint;
+      v_trip_state text;
       v_prior jsonb;
       v_result jsonb;
     begin
@@ -61,16 +62,17 @@ begin
         raise exception 'authorization_lost';
       end if;
 
+      select t.version,t.state into v_trip_version,v_trip_state
+      from trip_private.trips t
+      where t.trip_id=v_trip
+      for update;
+      if v_trip_version is null then raise exception 'authorization_lost'; end if;
+
       select r.result_metadata into v_prior
       from trip_private.trip_mutation_receipts r
       where r.trip_id=v_trip and r.idempotency_key=remove_trip_partner.idempotency_key;
       if found then return v_prior; end if;
-
-      select t.version into v_trip_version
-      from trip_private.trips t
-      where t.trip_id=v_trip and t.state in ('draft','ready','active')
-      for update;
-      if v_trip_version is null then raise exception 'authorization_lost'; end if;
+      if v_trip_state not in ('draft','ready','active') then raise exception 'authorization_lost'; end if;
       if v_trip_version<>expected_version then
         v_result:=jsonb_build_object(
           'state','conflict',
@@ -129,6 +131,35 @@ begin
         v_trip,remove_trip_partner.idempotency_key,remove_trip_partner.expected_version,
         'applied',v_trip_version+1,v_result);
       return v_result;
+    end;
+    $$
+  $function$;
+
+  execute $function$
+    create or replace function app_public.assign_navigator(trip_id text,participant_id text)
+    returns jsonb language plpgsql security definer set search_path='' as $$
+    declare v_trip uuid; v_participant uuid; v_device bytea;
+    begin
+      begin v_trip:=trip_id::uuid; v_participant:=participant_id::uuid;
+      exception when others then raise exception 'navigator_assignment_invalid'; end;
+      if not trip_private.trip_owner_can_access(v_trip) then raise exception 'authorization_lost'; end if;
+
+      perform 1 from trip_private.trips t where t.trip_id=v_trip for update;
+      if not found then raise exception 'authorization_lost'; end if;
+      select b.device_hash into v_device
+      from trip_private.trip_device_bindings b
+      join trip_private.trip_participants p
+        on p.trip_id=b.trip_id and p.user_id=b.user_id
+       and p.participant_role in ('creator','partner') and p.state='active'
+      where b.trip_id=v_trip and b.user_id=v_participant and b.state='active'
+      order by b.bound_at desc limit 1;
+      if v_device is null then raise exception 'navigator_device_required'; end if;
+
+      update trip_private.trips
+      set navigator_user_id=v_participant,navigator_device_hash=v_device,
+          version=version+1,updated_at=statement_timestamp()
+      where trip_private.trips.trip_id=v_trip;
+      return trip_private.collaboration_json(v_trip);
     end;
     $$
   $function$;

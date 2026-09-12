@@ -14,6 +14,15 @@ select ok(
 select ok(
   not has_table_privilege('authenticated','trip_private.trip_participants','UPDATE'),
   'the browser cannot bypass the command with a direct membership update');
+select ok(
+  position('for update' in pg_get_functiondef('app_public.remove_trip_partner(text,text,bigint,bigint,text)'::regprocedure))
+    < position('trip_mutation_receipts' in pg_get_functiondef('app_public.remove_trip_partner(text,text,bigint,bigint,text)'::regprocedure)),
+  'trip serialization precedes receipt lookup for concurrent same-key replay');
+select ok(
+  position('for update' in pg_get_functiondef('app_public.assign_navigator(text,text)'::regprocedure))
+    < position('trip_device_bindings' in pg_get_functiondef('app_public.assign_navigator(text,text)'::regprocedure))
+  and position('trip_participants' in pg_get_functiondef('app_public.assign_navigator(text,text)'::regprocedure))>0,
+  'Navigator assignment revalidates active membership and device authority after the trip lock');
 
 insert into auth.users(id,email,email_confirmed_at) values
   ('34300000-0000-4000-8000-000000000001','creator-343@example.invalid',statement_timestamp()),
