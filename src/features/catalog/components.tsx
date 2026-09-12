@@ -98,7 +98,7 @@ interface StoreReturnState {
 export function CatalogFiltersForm({
   filters,
   onChange,
-  stage = 'package-1',
+  stage = 'package-5a',
 }: {
   filters: CatalogFilters
   onChange: (filters: CatalogFilters) => void
