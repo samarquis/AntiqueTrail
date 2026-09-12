@@ -183,3 +183,9 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Evidence: source baseline `c3f74b4abce81376fabce62cf46f060e34051b6d`; the owner's instruction above; 2026-09-12 preliminary research found no vintagedayout.com registry record but disclosed Vintage Day Out Picker and vintage-event uses. These findings do not establish registrar purchase availability, exclusivity or trademark clearance.
 - Consequences: settle the product name, select the hook and stage-appropriate messaging, preserve the full rename inventory and keep domain/clearance evidence distinct from brand choice. Preserve store-first stages, active work, visual identity and all existing public/provider/security gates. No application-wide rename, homepage redesign, geolocation, new trip work/exposure, deployment, external promotion, domain purchase or spending is authorized.
 - Affected work: the dedicated brand-plan amendment owns documentation, independent review, applicable checks and merge only. Rename implementation and applicable brand/domain activation evidence require separate scoped work; existing issues, including owner-only #324 and bounded invitation work, retain their scope.
+
+### Review reconciliation for the Vintage Day Out amendment
+
+- Authorization directive: `update plan`; same exact owner instruction and name/messaging scope as the entry above.
+- Independent review of candidate `09cf690c02d5464f2d204ef7161b7dd4a2b71d72` found that SECURITY_AND_TRUST.md — B-01 final public brand and domain gate still made name selection conditional on the receipt.
+- Changed source: SECURITY_AND_TRUST.md now links the PRD's selected-name owner and distinguishes that decision from the pending application/public identity migration and signed receipt. All existing domain ownership, configuration, security tests and release requirements are preserved. No gate is passed or waived.
