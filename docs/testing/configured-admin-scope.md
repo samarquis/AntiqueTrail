@@ -17,7 +17,13 @@ credentials, refresh material, bearer tokens, and the temporary input file remai
 The runner fails nonzero for unavailable setup, malformed/missing results, any failed case, an
 incorrect independent readback, or failed cleanup. It never targets an externally supplied URL.
 For the negative control, the stale request uses a consumed/mismatched server preview and a new
-idempotency key; server denial is required. This is real-local browser evidence only. It does not
+idempotency key: a competing authenticated RPC consumes the browser's preview, then the original
+browser confirmation must receive a real stale-version rejection. The suite checks the visible error,
+confirmation focus, retained reason and scoped record, and unchanged independent mutation/audit counts.
+The missing-MFA control first registers its actual AAL1 session, checks that it is active with fresh
+password assurance, and requests the current scope version. The same preview input must then succeed
+through the MFA-authenticated browser, so an inactive session or stale version cannot explain denial.
+This is real-local browser evidence only. It does not
 establish a hosted, provider, human, production, launch, or paid-activation gate.
 
 Set `CONFIGURED_ADMIN_SCOPE_WRONG_READBACK=1` for the negative readback control. The suite then

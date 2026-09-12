@@ -11,11 +11,13 @@ type ConfiguredInput = {
   directory: string
   endpoint: string
   anonKey: string
+  output: string
   wrongReadback?: boolean
   stores: { target: string; sibling: string }
   actors: {
     admin: Record<string, { id: string; email: string; password: string; secret: string }>
     subject: { id: string; email: string; password: string }
+    sibling: { id: string; email: string; password: string }
     shopper: { id: string; email: string; password: string }
   }
 }
@@ -26,10 +28,12 @@ const input: ConfiguredInput = inputPath
       directory: '',
       endpoint: '',
       anonKey: '',
+      output: '',
       stores: { target: '', sibling: '' },
       actors: {
         admin: { desktop: { id: '', email: '', password: '', secret: '' } },
         subject: { id: '', email: '', password: '' },
+        sibling: { id: '', email: '', password: '' },
         shopper: { id: '', email: '', password: '' },
       },
     }
@@ -312,24 +316,55 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   const scope = scopeFor(testInfo.project.name)
   const administrator = input.actors.admin[testInfo.project.name]
   if (!administrator) throw new Error(`No Administrator fixture for ${testInfo.project.name}`)
+  const listed = page.waitForResponse((response) =>
+    response.url().includes('/rest/v1/rpc/admin_list_store_scopes'),
+  )
+  await login(page, testInfo.project.name)
+  const scopes = await (await listed).json()
+  const current = scopes.find(
+    (grant: { subjectUserId: string; storeId: string }) =>
+      grant.subjectUserId === scope.targetSubjectId && grant.storeId === scope.target,
+  )
+  expect(current).toMatchObject({ state: 'active' })
+  expect(current.version).toBeGreaterThan(0)
+  const previewInput = {
+    p_operation: 'revoke',
+    p_subject_user_id: scope.targetSubjectId,
+    p_store_id: scope.target,
+    p_expected_version: current.version,
+  }
   const aal1 = await loopbackRequest(input.endpoint, '/auth/v1/token?grant_type=password', {
     key: input.anonKey,
     body: { email: administrator.email, password: administrator.password },
   })
+  const claims = JSON.parse(Buffer.from(aal1.access_token.split('.')[1], 'base64url').toString())
+  expect(claims.aal).toBe('aal1')
+  expect(claims.sub).toBe(administrator.id)
+  expect(
+    claims.amr.some(
+      (proof: { method: string; timestamp: number }) =>
+        proof.method === 'password' && proof.timestamp > Date.now() / 1000 - 600,
+    ),
+  ).toBe(true)
+  const aal1Request = { key: input.anonKey, token: aal1.access_token, schema: 'app_public' }
+  await expect(
+    loopbackRequest(input.endpoint, '/rest/v1/rpc/register_current_session', {
+      ...aal1Request,
+      body: { access_token_expires_at: claims.exp * 1000 },
+    }),
+  ).resolves.toBe(true)
+  await expect(
+    loopbackRequest(input.endpoint, '/rest/v1/rpc/current_session_is_active', {
+      ...aal1Request,
+      body: {},
+    }),
+  ).resolves.toBe(true)
   await expect(
     loopbackRequest(input.endpoint, '/rest/v1/rpc/admin_preview_store_scope_change', {
-      key: input.anonKey,
-      token: aal1.access_token,
-      schema: 'app_public',
-      body: {
-        p_operation: 'revoke',
-        p_subject_user_id: scope.targetSubjectId,
-        p_store_id: scope.target,
-        p_expected_version: 1,
-      },
+      ...aal1Request,
+      body: previewInput,
     }),
-  ).rejects.toThrow(/401|403|admin_unavailable/)
-  await login(page, testInfo.project.name)
+  ).rejects.toThrow(/^HTTP 403 42501 admin_unavailable$/)
   const row = targetRow(page, scope)
   const baseline = await read(scope.target, scope.targetSubjectId)
   expect(baseline).toMatchObject({ partnerState: 'active', roleState: 'active' })
@@ -337,18 +372,39 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   await expect(
     row.getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` }),
   ).toBeFocused()
+  const previewResponse = page.waitForResponse((response) =>
+    response.url().includes('/rest/v1/rpc/admin_preview_store_scope_change'),
+  )
   await row
     .getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` })
     .press('Enter')
+  const response = await previewResponse
+  expect(response.status()).toBe(200)
+  expect(response.request().postDataJSON()).toEqual(previewInput)
+  const preview = await response.json()
+  expect(preview).toMatchObject({
+    subjectUserId: scope.targetSubjectId,
+    storeId: scope.target,
+    grantVersion: current.version,
+  })
+  const token = response
+    .request()
+    .headers()
+    .authorization?.replace(/^Bearer\s+/i, '')
+  if (!token) throw new Error('Browser preview did not use an actual bearer session')
   await row.getByLabel('Administrative reason').fill('stale_control')
-  const request = page.waitForRequest((candidate) =>
-    candidate.url().includes('/rest/v1/rpc/admin_change_store_scope'),
-  )
-  await row.getByRole('button', { name: `Confirm revoke ${scope.targetStoreName} scope` }).click()
-  const browserRequest = await request
-  const token = browserRequest.headers().authorization?.replace(/^Bearer\s+/i, '')
-  if (!token) throw new Error('Browser mutation did not use an actual bearer session')
-  const stale = browserRequest.postDataJSON()
+  // A competing normal RPC consumes the preview; the original browser confirmation is now stale.
+  await loopbackRequest(input.endpoint, '/rest/v1/rpc/admin_change_store_scope', {
+    key: input.anonKey,
+    token,
+    schema: 'app_public',
+    body: {
+      ...previewInput,
+      p_reason_code: 'stale_control',
+      p_idempotency_key: `competing-${crypto.randomUUID()}`,
+      p_preview_id: preview.previewId,
+    },
+  })
   await expect
     .poll(() => read(scope.target, scope.targetSubjectId))
     .toMatchObject({
@@ -357,14 +413,28 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
       actions: baseline.actions + 1,
       audit: baseline.audit + 1,
     })
-  await expect(
-    loopbackRequest(input.endpoint, '/rest/v1/rpc/admin_change_store_scope', {
-      key: input.anonKey,
-      token,
-      schema: 'app_public',
-      body: { ...stale, p_idempotency_key: `stale-${crypto.randomUUID()}` },
-    }),
-  ).rejects.toThrow(/401|403|400|admin_unavailable/)
+  const rejected = page.waitForResponse((candidate) =>
+    candidate.url().includes('/rest/v1/rpc/admin_change_store_scope'),
+  )
+  const confirm = row.getByRole('button', {
+    name: `Confirm revoke ${scope.targetStoreName} scope`,
+  })
+  await confirm.focus()
+  await confirm.press('Enter')
+  const denied = await rejected
+  expect(denied.status()).toBe(409)
+  expect(await denied.json()).toMatchObject({ code: '40001', message: 'admin_unavailable' })
+  await expect(page.getByRole('status')).toHaveText('This item is not available.')
+  await expect(confirm).toBeFocused()
+  await expect(row).toContainText(`Confirm exact scope: ${scope.targetStoreName}`)
+  await expect(row.getByLabel('Administrative reason')).toHaveValue('stale_control')
+  await expect(page).toHaveURL(/\/admin\/access$/)
+  expect(await read(scope.target, scope.targetSubjectId)).toMatchObject({
+    partnerState: 'revoked',
+    roleState: 'revoked',
+    actions: baseline.actions + 1,
+    audit: baseline.audit + 1,
+  })
   await expect(
     loopbackRequest(input.endpoint, '/rest/v1/rpc/admin_list_store_scopes', {
       key: input.anonKey,
