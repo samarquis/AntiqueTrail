@@ -586,3 +586,9 @@ For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-
 ## Governed internal synthetic admission
 
 [ADR 0008](docs/adr/0008-governed-internal-synthetic-admission.md) extends only the ADR0007 owner-only assessment with a genuine, short-lived internal authorization for allowlisted synthetic identities and owned fixtures on the named isolated backend. Its server validation, role/scope/assurance controls, expiry, revocation and teardown are mandatory. Existing release receipts and public/shared/paid activation gates retain their meaning; no invented release evidence, real delivery, external participants or spending is authorized. The coordinated amendment must merge before dependent implementation.
+
+## Store-showcase presentation — 2026-09-11
+
+The Product Owner confirmed the prepared proposal with “update everything” after requesting that the five design findings be written to the plan and GitHub tickets, and after being asked to confirm the scoped plan update. [DESIGN.md — Store-showcase presentation](DESIGN.md#store-showcase-presentation) owns behavior and stage precedence; [DESIGN_SYSTEM.md — Store-showcase presentation acceptance](DESIGN_SYSTEM.md#store-showcase-presentation-acceptance) owns reproducible geometry and accessibility checks. The PRD retains scope/stage ownership.
+
+Prioritize early store results, a clear store destination with secondary Save, early visit information, and distinct descriptions using the existing synthetic assets. Retain identity and the already-approved full-width Store Details contract. The Dribbble mockups do not become specifications. #353 owns the amendment; verify #312’s existing accepted outcome against current main before reopening it. Existing #324/#325 retain human judgments. No application implementation, new media library, release, provider, spending or hosted activation is approved here.

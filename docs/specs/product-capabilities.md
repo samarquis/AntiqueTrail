@@ -359,6 +359,8 @@ Arrival is manual. Go stays quiet and one-stop-at-a-time. `Done Here` offers an 
 
 ## Store Browser requirements
 
+Current-stage scope comes from [PRD.md](../../PRD.md#stage-dependencies). For store-showcase presentation and permitted shopper actions, follow [DESIGN.md — Store-showcase presentation](../../DESIGN.md#store-showcase-presentation). Retained trip/private-memory actions below apply only when independently selected for exposure.
+
 Browse Stores is the default shopper entry point.
 
 - Show approved-area results immediately without sign-in or location permission.
@@ -373,6 +375,8 @@ Browse Stores is the default shopper entry point.
 - Anonymous users may Browse, open Store Details, and Navigate. Save, Add to Trip, personal rating, and private note trigger just-in-time authentication, preserve the intended action, and return to it after success. Cancellation or failure creates no write.
 
 ## Store details requirements
+
+Current-stage scope comes from [PRD.md](../../PRD.md#stage-dependencies). For store-showcase presentation and permitted shopper actions, follow [DESIGN.md — Store-showcase presentation](../../DESIGN.md#store-showcase-presentation). Retained trip/private-memory actions below apply only when independently selected for exposure.
 
 Each store profile must support:
 
