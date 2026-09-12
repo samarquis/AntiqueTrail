@@ -2,7 +2,7 @@
 
 ## Bounded local trip exception — 2026-09-12
 
-The Product Owner directed `update plan` for the proposed bounded exception covering repository-controlled local invitation diagnosis, accepted-partner removal repairs and joined verification for #321/#342/#343/#344. On reviewed merge of #359's amendment, #342 and #343 may proceed independently, #343 precedes #344, and #321 consumes their joined evidence. Trips remain excluded from the showcase, pilots and production exposure; no provider, spending, deployment, real-data or external-participant authority is added. GitHub owns live readiness and completion state.
+The Product Owner directed `update plan` for the proposed bounded exception covering repository-controlled local invitation diagnosis, accepted-partner removal repairs and joined verification for #321/#342/#343/#344. On reviewed merge of PR #360, #342 and #343 may proceed independently, #343 precedes #344, and #321 consumes their joined evidence. Trips remain excluded from the showcase, pilots and production exposure; no provider, spending, deployment, real-data or external-participant authority is added. GitHub owns live readiness and completion state.
 
 ## Store-first amendment — 2026-09-11
 

@@ -1,6 +1,6 @@
 # ADR 0009 — Store-first stage applicability
 
-- Status: Accepted by the Product Owner's 2026-09-11 directive; effective on reviewed merge of #346, with the bounded local trip-work exception authorized on 2026-09-12 and effective only when the #359 amendment merges. No implementation or activation receipt.
+- Status: Accepted by the Product Owner's 2026-09-11 directive; effective on reviewed merge of #346, with the bounded local trip-work exception authorized on 2026-09-12 and effective only when PR #360 merges. No implementation or activation receipt.
 - Authorization: `update plan to the proposed store-first PRD`.
 - Scope: internal store showcase, controlled real-store pilot and paid Gallery pilot described in [PRD.md](../../PRD.md).
 - Supersedes: earlier product/package prerequisite sequencing only for these bounded stages, including ADR0006's blanket Packages 1–10B prerequisite. Provider topology, eligibility, funding, security and recovery controls remain. ADR0007/0008's particular assessment authority is neither extended nor renewed.
