@@ -40,32 +40,38 @@ function client(overrides: Partial<TripClient>): TripClient {
     updateSchedule: vi.fn(async () => trip),
     bindNavigatorDevice: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'user-1',
       participants: [],
     })),
     transferNavigatorDevice: vi.fn(async () => trip),
     getCollaboration: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'user-1',
       participants: [],
     })),
     invitePartner: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'user-1',
       participants: [],
     })),
     revokeInvitation: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'user-1',
       participants: [],
     })),
     acceptInvitation: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'user-1',
       participants: [],
     })),
     assignNavigator: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'user-1',
       participants: [],
     })),
