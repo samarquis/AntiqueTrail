@@ -46,6 +46,8 @@ Do not offer Full Gallery or new custom paid-to-paid changes in the initial pilo
 
 Use an exact recorded build, existing clearly labeled fictional stores and permitted synthetic imagery. The owner attempts Browse → store → photos/details → return, followed by one representative edit and one Administrator approval demonstration, on computer then phone. Existing favorites may be evaluated separately. The goal is a usable, understandable showcase and concrete feedback, not completion of every implemented feature.
 
+Present the showcase through the stage-specific composition and action hierarchy in [Store-showcase presentation](DESIGN.md#store-showcase-presentation). Evaluate whether shoppers can discover a distinctive store, reach its photographs and practical visit details, and return to browsing. Preserve the approved identity; appearance changes are bounded to these named presentation improvements.
+
 ### Evaluation scope and evidence
 
 Reuse existing local fixtures and evaluation packets; do not generate a new content library or testing framework without a demonstrated gap. The existing fixture-only 50-photo profile remains an optional, clearly labeled internal evaluation profile under [DESIGN.md](DESIGN.md#fixture-only-50-photo-evaluation-profile), never the Free entitlement. Use realistic synthetic data without real logos, names, reviews or implied affiliation.
