@@ -78,7 +78,7 @@ The two-project free topology is serial: project A is staging/Private Beta; proj
 
 | Gate | Required before | Planning selection and proof |
 |---|---|---|
-| H-01 Hosting | Any shared environment | This ADR plus dated limits, region, access-boundary, export, quota, and restore receipt |
+| H-01 Hosting | Any shared environment except the exact ADR0010 public test | This ADR plus dated limits, region, access-boundary, export, quota, and restore receipt; the named test instead requires [ADR0010's complete substitute acceptance](0010-free-public-test-publication.md#substitute-hosting-and-recovery-acceptance), not an H-01 pass |
 | E-01 Transactional email | First real verification, recovery, invitation, or status email | Resend Free custom SMTP candidate; owned domain, SPF/DKIM/DMARC, rate/failure/privacy tests, essential mail only |
 | R-01 Routing | Package 5B | Provider ADR; minimized coordinates, attribution, quota, fixtures, timeout/fallback. Package 5A remains provider-free |
 | M-01 Official media | Any real image upload | Selected fail-closed scan/re-encode/metadata-removal workflow. Until then real uploads and Package 6 external use remain disabled |
@@ -124,6 +124,8 @@ Frontend rollback redeploys the last accepted Direct Upload artifact directory w
 Before each stage promotion, prove export to standard PostgreSQL logical data plus a complete Storage object manifest and objects. Provider cancellation, quota suspension, regional outage, and replacement are tested as stop/fallback scenarios. Provider convenience is never the only copy of a release receipt.
 
 ## Consequences
+
+For the exact fictional public test only, [ADR0010](0010-free-public-test-publication.md#substitute-hosting-and-recovery-acceptance) supersedes the service-gate H-01 prerequisite and the preceding statement that remote shared activation is prohibited until every H-01 field passes. Its complete substitute hosting/recovery acceptance must pass before that test activates, including a verified recovery set and isolated restore of preserved beta data. It replaces the hosting stage/signature and outer access mechanism, not E-01 real-email proof or other capability gates. This exception is not an H-01 receipt and does not authorize wider public launch.
 
 - Startup development and synthetic evidence can remain free.
 - Controlled Private Beta may remain free only while recovery, security, media, email, staffing, and quota evidence passes.

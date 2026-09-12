@@ -8,7 +8,7 @@ Document classification for the store-first system adopted through the 2026-09-1
 - [Product capability reference](docs/specs/product-capabilities.md): detailed current and deferred behavior delegated by the PRD. Stage profiles in old decisions/roadmaps are historical, not a competing queue.
 - [DESIGN.md](DESIGN.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [SECURITY_AND_TRUST.md](SECURITY_AND_TRUST.md), [PACKAGE_CONTRACTS.md](PACKAGE_CONTRACTS.md): linked specialist detail; Package 1 technical requirements now live with the other capability contracts.
 - [Store membership](docs/specs/store-membership-spec.md), [invited-owner onboarding](docs/specs/owner-onboarding.md), and approved [design references](docs/design/README.md): detail for explicitly delegated boundaries.
-- [Accepted ADRs](docs/adr/): architecture constraints; ADR0009 narrowly scopes the store-first stages; ADR0007/0008 retain only their original assessment scope and provide no replacement test authority.
+- [Accepted ADRs](docs/adr/): architecture constraints; ADR0009 narrowly scopes the store-first stages; [ADR0010](docs/adr/0010-free-public-test-publication.md) owns the named free public-test provider exception. ADR0007/0008 retain only their original assessment scope and provide no replacement test authority.
 - [Operational runbooks](docs/operations/): executable procedures and named gate criteria under the applicable security/architecture contract; inspect each artifact's date, scope, and status.
 
 ## Navigation and workflow
