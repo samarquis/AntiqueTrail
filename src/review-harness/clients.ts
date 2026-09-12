@@ -1146,6 +1146,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
     trips.set(tripSeed.id, structuredClone(tripSeed))
     collaborations.set(tripSeed.id, {
       tripId: tripSeed.id,
+      tripVersion: tripSeed.version,
       currentUserId,
       participants: [{ userId: currentUserId, displayName: currentDisplayName, role: 'creator' }],
       navigatorUserId: currentUserId,
@@ -1158,6 +1159,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
     trips.set(creatorPrivateTripSeed.id, structuredClone(creatorPrivateTripSeed))
     collaborations.set(tripSeed.id, {
       tripId: tripSeed.id,
+      tripVersion: tripSeed.version,
       currentUserId,
       participants: [{ userId: 'review-shopper-a', displayName: 'Avery', role: 'creator' }],
       navigatorUserId: 'review-shopper-a',
@@ -1188,6 +1190,9 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
 
   function persistTrip(trip: Trip): Trip {
     trips.set(trip.id, trip)
+    const collaboration = collaborations.get(trip.id)
+    if (collaboration)
+      collaborations.set(trip.id, { ...collaboration, tripVersion: trip.version })
     return structuredClone(trip)
   }
 
@@ -1242,6 +1247,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
     trips.set(trip.id, trip)
     collaborations.set(trip.id, {
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId,
       participants: [{ userId: currentUserId, displayName: currentDisplayName, role: 'creator' }],
     })
@@ -1714,6 +1720,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
       allowed()
       return fixture(state, requireCollaboration(tripId), {
         tripId,
+        tripVersion: 1,
         currentUserId,
         participants: [],
       })
@@ -1774,7 +1781,12 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
       const collaboration = requireCollaboration(tripId)
       if (!collaboration.participants.some((candidate) => candidate.userId === participantUserId))
         throw new Error('Synthetic participant unavailable.')
-      return persistCollaboration({ ...collaboration, navigatorUserId: participantUserId })
+      const trip = persistTrip(bumpVersion(findTrip(tripId)))
+      return persistCollaboration({
+        ...collaboration,
+        tripVersion: trip.version,
+        navigatorUserId: participantUserId,
+      })
     },
     async leaveTrip(tripId) {
       allowed()

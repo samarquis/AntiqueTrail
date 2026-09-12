@@ -13,8 +13,11 @@ const trip: Trip = {
 }
 const collaboration: TripCollaboration = {
   tripId: trip.id,
+  tripVersion: 11,
   currentUserId: 'creator-a',
-  participants: [{ userId: 'creator-a', displayName: 'Trip creator', role: 'creator' }],
+  participants: [
+    { userId: 'creator-a', displayName: 'Trip creator', role: 'creator', membershipVersion: 3 },
+  ],
   navigatorUserId: 'creator-a',
 }
 const queue: OfflineQueueSnapshot = { state: 'queued', pendingCount: 1 }
@@ -184,6 +187,37 @@ describe('implicit-actor TripClient transport', () => {
       ['leave_trip', { trip_id: 'trip-1' }],
     ])
     for (const [, payload] of wire.invoke.mock.calls) expect(payload).not.toHaveProperty('actor_id')
+  })
+
+  it('sends optimistic partner-removal authority and parses applied or conflict results', async () => {
+    const appliedWire = transport({ state: 'applied', collaboration })
+    await expect(
+      createTripApi(appliedWire).removePartner?.(
+        'trip-1',
+        'partner-b',
+        7,
+        11,
+        'remove-partner-1',
+      ),
+    ).resolves.toEqual({ state: 'applied', collaboration })
+    expect(appliedWire.invoke).toHaveBeenCalledWith('remove_trip_partner', {
+      trip_id: 'trip-1',
+      partner_id: 'partner-b',
+      membership_version: 7,
+      expected_version: 11,
+      idempotency_key: 'remove-partner-1',
+    })
+
+    const conflictWire = transport({ state: 'conflict', latest: { tripVersion: 12 } })
+    await expect(
+      createTripApi(conflictWire).removePartner?.(
+        'trip-1',
+        'partner-b',
+        7,
+        11,
+        'remove-partner-2',
+      ),
+    ).resolves.toEqual({ state: 'conflict', latest: { tripVersion: 12 } })
   })
 
   it('uses the authoritative Check My Day request and suggestion commands', async () => {

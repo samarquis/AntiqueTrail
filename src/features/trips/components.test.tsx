@@ -45,6 +45,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     updateSchedule: vi.fn(async () => trip),
     bindNavigatorDevice: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -65,6 +66,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     purgeOffline: vi.fn(async () => ({ state: 'purged' as const, pendingCount: 0 })),
     getCollaboration: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -73,6 +75,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     })),
     invitePartner: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -82,6 +85,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     })),
     revokeInvitation: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -90,6 +94,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     })),
     acceptInvitation: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'partner-b',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -99,6 +104,7 @@ function client(overrides: Partial<TripClient> = {}): TripClient {
     })),
     assignNavigator: vi.fn(async () => ({
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -691,6 +697,7 @@ describe('manual trips', () => {
     const removeStop = vi.fn(async () => ({ ...planned, stops: [] }))
     const bindNavigatorDevice = vi.fn(async () => ({
       tripId: planned.id,
+      tripVersion: planned.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -893,6 +900,7 @@ describe('manual trips', () => {
                   markArrived,
                   getCollaboration: vi.fn(async () => ({
                     tripId: trip.id,
+                    tripVersion: trip.version,
                     currentUserId: 'partner-b',
                     participants: [
                       {
@@ -951,6 +959,7 @@ describe('manual trips', () => {
                   saveVisitMemory,
                   getCollaboration: vi.fn(async () => ({
                     tripId: trip.id,
+                    tripVersion: trip.version,
                     currentUserId: 'partner-b',
                     participants: [
                       {
@@ -1380,6 +1389,7 @@ describe('manual trips', () => {
     const user = userEvent.setup()
     const collaboration = {
       tripId: trip.id,
+      tripVersion: trip.version,
       currentUserId: 'creator-a',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },
@@ -1423,6 +1433,7 @@ describe('manual trips', () => {
   it('accepts a fragment invitation into only the returned trip', async () => {
     const acceptInvitation = vi.fn(async () => ({
       tripId: 'trip-1',
+      tripVersion: 1,
       currentUserId: 'partner-b',
       participants: [
         { userId: 'creator-a', displayName: 'Trip creator', role: 'creator' as const },

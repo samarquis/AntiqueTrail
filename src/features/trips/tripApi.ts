@@ -13,6 +13,7 @@ import type {
   TripParticipant,
   TripStop,
   TripMutationReplayResult,
+  TripPartnerRemovalResult,
   TripRenameResult,
   CheckMyDayServerResult,
 } from './types'
@@ -55,6 +56,7 @@ export type TripApiCommand =
   | 'invite_trip_partner'
   | 'revoke_trip_invitation'
   | 'accept_trip_invitation'
+  | 'remove_trip_partner'
   | 'assign_navigator'
   | 'leave_trip'
   | 'save_check_my_day_choice'
@@ -225,6 +227,8 @@ function parseParticipant(value: unknown): TripParticipant {
     userId: string(source.userId, 128),
     displayName: string(source.displayName, 160),
     role: enumValue<TripParticipant['role']>(source.role, new Set(['creator', 'partner'])),
+    membershipVersion:
+      source.membershipVersion == null ? undefined : integer(source.membershipVersion, 1),
   }
 }
 
@@ -264,11 +268,22 @@ function parseCollaboration(value: unknown): TripCollaboration {
     throw genericFailure()
   return {
     tripId: string(source.tripId, 128),
+    tripVersion: integer(source.tripVersion, 1),
     currentUserId,
     participants,
     navigatorUserId,
     invitation: source.invitation == null ? undefined : parseInvitation(source.invitation),
   }
+}
+
+function parsePartnerRemovalResult(value: unknown): TripPartnerRemovalResult {
+  const source = record(value)
+  if (source.state === 'conflict') {
+    const latest = record(source.latest)
+    return { state: 'conflict', latest: { tripVersion: integer(latest.tripVersion, 1) } }
+  }
+  if (source.state !== 'applied') throw genericFailure()
+  return { state: 'applied', collaboration: parseCollaboration(source.collaboration) }
 }
 
 function parseQueue(value: unknown): OfflineQueueSnapshot {
@@ -746,6 +761,19 @@ export function createTripApi(
         'accept_trip_invitation',
         () => ({ fragment_token: boundedToken(fragmentToken) }),
         parseCollaboration,
+      )
+    },
+    removePartner(tripId, partnerUserId, membershipVersion, expectedVersion, idempotencyKey) {
+      return execute(
+        'remove_trip_partner',
+        () => ({
+          trip_id: boundedId(tripId),
+          partner_id: boundedId(partnerUserId),
+          membership_version: integer(membershipVersion, 1),
+          expected_version: integer(expectedVersion, 1),
+          idempotency_key: boundedId(idempotencyKey),
+        }),
+        parsePartnerRemovalResult,
       )
     },
     assignNavigator(tripId, participantUserId) {
