@@ -121,7 +121,45 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
       }),
     ).resolves.toBeDefined()
     await page.reload()
-    await expect(page.getByRole('button', { name: 'Remove partner', exact: true })).toBeVisible()
+    const removePartner = page.getByRole('button', { name: 'Remove partner', exact: true })
+    await expect(removePartner).toBeVisible()
+
+    await removePartner.click()
+    await page.getByRole('button', { name: 'Keep Trip partner', exact: true }).click()
+    await expect(removePartner).toBeFocused()
+    await expect.poll(() => membership(tripId)).toBe(1)
+
+    await removePartner.click()
+    await expect(
+      rpc(1, 'rename_trip', {
+        trip_id: tripId,
+        new_name: 'Partner concurrent write',
+        expected_version: 2,
+        idempotency_key: crypto.randomUUID(),
+      }),
+    ).resolves.toBeDefined()
+    await page.getByRole('button', { name: 'Yes, remove Trip partner', exact: true }).click()
+    await expect(
+      page.getByText('This trip changed. Review the latest participants before trying again.'),
+    ).toBeVisible()
+    await expect.poll(() => membership(tripId)).toBe(1)
+
+    await page.getByRole('button', { name: 'Remove partner', exact: true }).click()
+    await page.getByRole('button', { name: 'Yes, remove Trip partner', exact: true }).click()
+    await expect(page.getByText('Trip partner was removed from this trip.')).toBeVisible()
+    await expect.poll(() => membership(tripId)).toBe(0)
+
+    await expect(rpc(1, 'get_trip', { trip_id: tripId })).rejects.toThrow(/authorization_lost/)
+    await expect(
+      rpc(1, 'rename_trip', {
+        trip_id: tripId,
+        new_name: 'Removed partner write',
+        expected_version: 4,
+        idempotency_key: crypto.randomUUID(),
+      }),
+    ).rejects.toThrow(/not_allowed/)
+    await partnerPage.goto(`/trips/${tripId}/plan`)
+    await expect(partnerPage.getByRole('heading', { name: 'Trip unavailable' })).toBeVisible()
   } finally {
     await partner.close()
   }
