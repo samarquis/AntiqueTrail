@@ -1479,7 +1479,9 @@ describe('manual trips', () => {
     expect(trigger).toHaveClass('button--danger')
     await user.click(trigger)
     expect(screen.getByText(/ends their access to this trip immediately/i)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Keep Trip partner' }))
+    const keepPartner = screen.getByRole('button', { name: 'Keep Trip partner' })
+    expect(keepPartner).toHaveFocus()
+    await user.click(keepPartner)
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Remove partner' })).toHaveFocus(),
     )
@@ -1571,7 +1573,7 @@ describe('manual trips', () => {
     await user.click(screen.getByRole('button', { name: 'Yes, remove Trip partner' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/please try again/i)
     expect(screen.getByText(/Trip partner — partner/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Remove partner' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove partner' })).toHaveFocus()
     expect(getCollaboration).toHaveBeenCalledTimes(2)
   })
 
@@ -1619,6 +1621,7 @@ describe('manual trips', () => {
     )
 
     await user.click(await screen.findByRole('button', { name: 'Remove partner' }))
+    expect(screen.getByRole('button', { name: 'Keep Trip partner' })).toHaveFocus()
     await user.click(screen.getByRole('button', { name: 'Yes, remove Trip partner' }))
     expect(await screen.findByRole('status')).toHaveTextContent(
       /trip changed.*review the latest participants/i,

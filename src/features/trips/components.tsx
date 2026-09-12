@@ -1642,6 +1642,7 @@ export function InviteTripPartnerPage({ client = unavailableTripClient }: { clie
   } | null>(null)
   const [removingPartnerId, setRemovingPartnerId] = useState<string | null>(null)
   const removalTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const keepPartnerRef = useRef<HTMLButtonElement | null>(null)
   const removalStatusRef = useRef<HTMLParagraphElement | null>(null)
   const restoreRemovalFocus = useRef(false)
 
@@ -1663,6 +1664,10 @@ export function InviteTripPartnerPage({ client = unavailableTripClient }: { clie
   useEffect(() => {
     if (removalNotice) removalStatusRef.current?.focus()
   }, [removalNotice])
+
+  useEffect(() => {
+    if (pendingRemoval) keepPartnerRef.current?.focus()
+  }, [pendingRemoval])
 
   useEffect(() => {
     if (!pendingRemoval && restoreRemovalFocus.current) {
@@ -1768,6 +1773,7 @@ export function InviteTripPartnerPage({ client = unavailableTripClient }: { clie
       } catch {
         // Keep the last authoritative collaboration visible when reconciliation is unavailable.
       }
+      restoreRemovalFocus.current = true
       setPendingRemoval(null)
       setError(true)
     } finally {
@@ -1862,6 +1868,7 @@ export function InviteTripPartnerPage({ client = unavailableTripClient }: { clie
                   If they are Navigator, the trip pauses until another Navigator is assigned.
                 </p>
                 <button
+                  ref={keepPartnerRef}
                   className="button button--secondary"
                   type="button"
                   disabled={removingPartnerId !== null}

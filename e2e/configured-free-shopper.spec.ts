@@ -60,7 +60,7 @@ async function acceptedPartnerFixture() {
   const id = crypto.randomUUID()
   const partner = uuid(input.users[1].id)
   await service.sql(
-    `insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date,navigator_user_id,navigator_device_hash) values ('${id}','${owner}','00000000-0000-4000-8000-000000000001','Partner removal trip','2026-10-10','${partner}',extensions.digest(convert_to('partner-device','utf8'),'sha256')); insert into trip_private.trip_participants(trip_id,user_id,participant_role) values ('${id}','${owner}','creator'),('${id}','${partner}','partner');`,
+    `insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date) values ('${id}','${owner}','00000000-0000-4000-8000-000000000001','Partner removal trip','2026-10-10'); insert into trip_private.trip_participants(trip_id,user_id,participant_role) values ('${id}','${owner}','creator'),('${id}','${partner}','partner'); insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version) values ('${id}','${partner}',extensions.digest(convert_to('partner-device','utf8'),'sha256'),1); update trip_private.trips set navigator_user_id='${partner}',navigator_device_hash=extensions.digest(convert_to('partner-device','utf8'),'sha256') where trip_id='${id}';`,
   )
   return id
 }
@@ -88,12 +88,19 @@ test('creator removes an accepted partner through configured transport', async (
   await expect(remove).toBeVisible()
   await remove.focus()
   await page.keyboard.press('Enter')
-  await page.getByRole('button', { name: 'Keep Trip partner', exact: true }).click()
+  const keepPartner = page.getByRole('button', { name: 'Keep Trip partner', exact: true })
+  await expect(keepPartner).toBeFocused()
+  await page.keyboard.press('Enter')
   await expect(remove).toBeFocused()
   expect(await activeMembership()).toBe(1)
 
   await page.keyboard.press('Enter')
-  await page.getByRole('button', { name: 'Yes, remove Trip partner', exact: true }).press('Enter')
+  await expect(keepPartner).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(
+    page.getByRole('button', { name: 'Yes, remove Trip partner', exact: true }),
+  ).toBeFocused()
+  await page.keyboard.press('Enter')
   const status = page.getByRole('status').filter({ hasText: 'Trip partner was removed' })
   await expect(status).toContainText('Trip paused — assign a Navigator.')
   await expect(status).toBeFocused()
