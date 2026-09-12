@@ -2,7 +2,9 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: '.',
-  testMatch: 'configured-trip-partner.spec.ts',
+  // The dedicated suffix keeps this real-backend diagnostic out of the shared
+  // fixture suite without changing the repository Playwright configuration.
+  testMatch: 'configured-trip-partner.e2e.ts',
   reporter: [
     ['json', { outputFile: process.env.CONFIGURED_TRIP_PARTNER_OUTPUT + '/playwright.json' }],
   ],
