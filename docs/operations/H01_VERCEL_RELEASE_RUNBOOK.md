@@ -81,3 +81,7 @@ Rollback reassigns the last accepted Production deployment without rebuilding an
 ## Separate internal review context
 
 [ADR 0007](../adr/0007-protected-internal-synthetic-review.md) defines an owner-only local-prebuilt review path with its own receipt. That path does not invoke this H-01 workflow, supply fictional signers, or satisfy any H-01 acceptance. This runbook remains mandatory for its release scope.
+
+## Separate public test publication
+
+The owner-authorized fictional public test follows [ADR0010's substitute hosting and recovery acceptance](../adr/0010-free-public-test-publication.md#substitute-hosting-and-recovery-acceptance) and the [public-test execution contract](../../PACKAGE_CONTRACTS.md#public-test-execution-contract). Those complete controls replace the H-01 prerequisite and this runbook's protected publication mechanism only for the named test; a verified encrypted recovery set and isolated restore of preserved beta data are mandatory before activation. Its stable public domain and scoped prebuilt upload are explicit exceptions, not H-01 passes. Do not run this protected-release workflow with fabricated signer/receipt values or apply its every-host denial rule to the expressly public test domain. Other stages retain this runbook.

@@ -57,7 +57,9 @@
     "docs/specs/owner-onboarding.md",
     "docs/specs/store-membership-spec.md",
     "docs/specs/product-capabilities.md",
-    "docs/adr/0009-store-first-stage-applicability.md"
+    "docs/adr/0009-store-first-stage-applicability.md",
+    "docs/adr/0010-free-public-test-publication.md",
+    "docs/research/public-test-2026-09-12/PREFLIGHT.md"
   ],
   "purpose": "Store-first PRD with delegated capability detail, scoped specialist controls and separately classified historical evidence",
   "reading_order": [

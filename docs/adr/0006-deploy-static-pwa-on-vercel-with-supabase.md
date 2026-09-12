@@ -2,7 +2,7 @@
 
 2026-09-11 scope note: [ADR0009](0009-store-first-stage-applicability.md) supersedes only stage prerequisites for the bounded store/Gallery pilot. This decision retains its provider, eligibility, funding, security, recovery and original assessment-authority limits; no expired or task-specific receipt is renewed. A Gallery membership does not itself activate the funded hosting/media transition.
 
-- Status: Accepted deployment-provider decision; no Vercel environment or release is accepted until H-01 passes
+- Status: Accepted deployment-provider decision; no Vercel environment or release is accepted until H-01 passes, except the exact public test accepted under [ADR0010's substitute hosting and recovery controls](0010-free-public-test-publication.md#substitute-hosting-and-recovery-acceptance)
 - Date: 2026-08-20
 - Decision owner: Product Owner
 - Applies to: Shared Synthetic Alpha through Regional Public MVP
@@ -90,7 +90,7 @@ No value belongs in documentation, source, workflow output, or evidence. Cloudfl
 - The H-01 receipt operation becomes `vercel-prebuilt-deploy`; provider evidence names Vercel deployment IDs/URLs and Deployment Protection results.
 - Existing Cloudflare evidence remains historical NO-GO evidence and must not be rewritten as Vercel proof.
 - The GitHub connection, installed Vercel plugin, successful CI, or a Vercel build by itself does not pass H-01.
-- No site is public under this decision. Shared activation still requires every H-01 recovery, cost, signer, quota, access, rollback, and Supabase proof; public release still requires Packages 1–10B and every dependent gate.
+- No site is public under this decision alone. [ADR0010](0010-free-public-test-publication.md#substitute-hosting-and-recovery-acceptance) separately permits only its named fictional public test after its substitute acceptance passes; it does not pass H-01. All other shared activation still requires every H-01 recovery, cost, signer, quota, access, rollback, and Supabase proof; wider public release still requires Packages 1–10B and every dependent gate.
 
 ## Rejected alternatives
 
@@ -103,3 +103,7 @@ No value belongs in documentation, source, workflow output, or evidence. Cloudfl
 ## Scoped successor
 
 [ADR 0007](0007-protected-internal-synthetic-review.md) supersedes this ADR only for its owner-only protected internal synthetic review context; this ADR remains controlling for every release stage and provider boundary outside that exception.
+
+## Bounded public test successor
+
+[ADR0010](0010-free-public-test-publication.md) supersedes the protected-edge and CI-only upload requirements solely for its named free public fictional test. Its exact Vercel/Supabase targets, data preservation, account scope, evidence, expiry and rollback govern that exception. All other provider/release stages retain this ADR and their gates.
