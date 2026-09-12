@@ -63,16 +63,43 @@ test.describe('Store Details decision-screen contract', () => {
     ).toBeVisible()
     await expect(page.getByRole('link', { name: /instagram.*new window/i })).toBeVisible()
 
-    const navigate = page.getByRole('link', { name: /navigate in maps.*opens in a new window/i })
-    await expect(navigate).toHaveAttribute('target', '_blank')
-    const navigationHref = await navigate.getAttribute('href')
-    expect(navigationHref).toMatch(/^https:\/\/www\.google\.com\/maps\/search\//)
-    expect(decodeURIComponent(navigationHref ?? '')).toContain('100 Synthetic Avenue')
-    await expect(page.getByRole('link', { name: 'Add to Trip', exact: true })).toHaveAttribute(
-      'href',
-      /\/trips\/new\?addStoreId=/,
-    )
+    await expect(
+      page.getByText(/directions are unavailable for this fictional address/i),
+    ).toBeVisible()
+    await expect(page.getByRole('link', { name: /navigate in maps/i })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Add to Trip', exact: true })).toHaveCount(0)
     await expectMinimumTargets(page)
+  })
+
+  test('keeps opening state, actions, Photos, and Hours & location before the photo wall', async ({
+    page,
+  }) => {
+    await page.goto('/stores/blue-finch-curios', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible({
+      timeout: 30_000,
+    })
+    const opening = page.getByLabel("Today's opening information")
+    const actions = page.getByRole('navigation', { name: 'Store visit actions' })
+    const sections = page.getByRole('navigation', { name: 'Store sections' })
+    await expect(opening).toBeVisible()
+    await expect(sections.getByRole('link', { name: 'Photos' })).toHaveAttribute(
+      'href',
+      '#gallery-heading',
+    )
+    await expect(sections.getByRole('link', { name: 'Hours & location' })).toHaveAttribute(
+      'href',
+      '#hours-heading',
+    )
+    for (const locator of [opening, actions, sections]) {
+      expect(
+        await locator.evaluate((element) => {
+          const wall = document.querySelector('.store-gallery')
+          return Boolean(
+            wall && element.compareDocumentPosition(wall) & Node.DOCUMENT_POSITION_FOLLOWING,
+          )
+        }),
+      ).toBe(true)
+    }
   })
 
   test('supports gallery selection, enlargement, focus containment, and focus return', async ({
@@ -203,17 +230,56 @@ test.describe('Store Details decision-screen contract', () => {
     await expect(photosLink).toBeFocused()
   })
 
-  test('reflows at the 320px CSS viewport equivalent to 200% zoom', async ({ page }) => {
-    await page.setViewportSize({ width: 320, height: 800 })
-    await page.goto('/stores/blue-finch-curios')
-    await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible()
-    const overflow = await page.evaluate(() => ({
-      body: document.body.scrollWidth - document.body.clientWidth,
-      document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    }))
-    expect(overflow.body).toBeLessThanOrEqual(1)
-    expect(overflow.document).toBeLessThanOrEqual(1)
-    await expectMinimumTargets(page)
+  test('reflows without clipping at narrow, intermediate, and desktop widths', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 1000 })
+    await page.goto('/stores/blue-finch-curios', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible({
+      timeout: 30_000,
+    })
+    for (const width of [320, 390, 800, 900, 1024, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 1000 })
+      const geometry = await page.evaluate(() => {
+        const article = document.querySelector<HTMLElement>('.store-detail__article')
+        const main = document.querySelector<HTMLElement>('main.store-detail')
+        const header = document.querySelector<HTMLElement>('.store-detail__header')
+        const gallery = document.querySelector<HTMLElement>('.store-gallery')
+        const actions = document.querySelector<HTMLElement>('.store-detail__actions')
+        return {
+          bodyOverflow: document.body.scrollWidth - document.body.clientWidth,
+          documentOverflow:
+            document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          articleWidth: article?.getBoundingClientRect().width ?? 0,
+          mainWidth: main?.getBoundingClientRect().width ?? 0,
+          articleBorder: article ? getComputedStyle(article).borderTopWidth : '',
+          articleRadius: article ? getComputedStyle(article).borderRadius : '',
+          headerPadding: header
+            ? Number.parseFloat(getComputedStyle(header).paddingInlineStart)
+            : 0,
+          galleryPadding: gallery
+            ? Number.parseFloat(getComputedStyle(gallery).paddingInlineStart)
+            : 0,
+          actionsPadding: actions
+            ? Number.parseFloat(getComputedStyle(actions).paddingInlineStart)
+            : 0,
+        }
+      })
+      expect(geometry.bodyOverflow, `${width}px body overflow`).toBeLessThanOrEqual(1)
+      expect(geometry.documentOverflow, `${width}px document overflow`).toBeLessThanOrEqual(1)
+      if (width >= 1024) {
+        expect(geometry.articleWidth, `${width}px article fills main`).toBeGreaterThanOrEqual(
+          geometry.mainWidth - 1,
+        )
+        expect(geometry.articleBorder).toBe('0px')
+        expect(geometry.articleRadius).toBe('0px')
+        const expectedGutter = Math.min(64, Math.max(32, width * 0.03))
+        expect(geometry.headerPadding).toBeCloseTo(expectedGutter, 0)
+        expect(geometry.galleryPadding).toBeCloseTo(expectedGutter, 0)
+        expect(geometry.actionsPadding).toBeCloseTo(expectedGutter, 0)
+      } else {
+        expect(geometry.articleWidth).toBeLessThanOrEqual(720)
+      }
+      await expectMinimumTargets(page)
+    }
   })
 
   test('pins the Store sections navigation as the only top band on desktop', async ({ page }) => {
@@ -232,7 +298,7 @@ test.describe('Store Details decision-screen contract', () => {
       .toBe('sticky')
 
     for (const [label, target] of [
-      ['Plan your visit', '#hours-heading'],
+      ['Hours & location', '#hours-heading'],
       ['Source', '#source-heading'],
       ['About', '#about-heading'],
       ['Photos', '#gallery-heading'],
@@ -250,7 +316,7 @@ test.describe('Store Details decision-screen contract', () => {
         .toBe('sticky')
     }
 
-    await nav.getByRole('link', { name: 'Plan your visit' }).click()
+    await nav.getByRole('link', { name: 'Hours & location' }).click()
     const clearance = await page
       .locator('#hours-heading')
       .evaluate(

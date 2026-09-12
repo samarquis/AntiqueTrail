@@ -2165,59 +2165,79 @@ main > article dt {
     padding: 0 0 6rem;
   }
 
+  .store-detail > .store-detail__article {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
   .store-detail__back {
     padding: 1rem clamp(32px, 3vw, 64px);
   }
 
-  .store-detail__header {
+  main.store-detail .store-detail__header {
     padding: clamp(32px, 3vw, 64px);
     padding-bottom: clamp(64px, 5.56vw, 96px);
   }
 
-  .store-gallery {
+  main.store-detail .store-gallery {
     padding: clamp(32px, 3vw, 64px);
     padding-block: clamp(64px, 5.56vw, 96px);
   }
 
-  .store-gallery__enlarge,
-  .store-gallery__enlarge img {
+  .store-detail .store-gallery__enlarge,
+  .store-detail .store-gallery__enlarge img {
     min-height: 0;
   }
 
-  .store-gallery__enlarge {
+  .store-detail .store-gallery__enlarge {
     aspect-ratio: 2.2 / 1;
   }
 
-  .store-gallery__wall {
-    grid-template-columns: repeat(3, 1fr);
+  .store-detail .store-gallery__wall {
+    grid-template-columns: 1.35fr 1fr 1fr;
     gap: 16px;
   }
 
-  .store-gallery__wall > :first-child {
-    grid-column: 1;
+  .store-detail .store-gallery__wall > :nth-child(3n + 1) {
     aspect-ratio: 1.35 / 1;
   }
 
-  .store-gallery__wall > :nth-child(n + 2) {
+  .store-detail .store-gallery__wall > :not(:nth-child(3n + 1)) {
     aspect-ratio: 1 / 1;
   }
 
-  .store-detail__gallery-link {
+  main.store-detail .store-detail__gallery-link {
     padding: 1rem clamp(32px, 3vw, 64px);
   }
 
-  .store-detail__evaluation-note {
+  main.store-detail .store-detail__evaluation-note {
     margin: 1rem clamp(32px, 3vw, 64px) 0;
   }
 
-  .store-detail__intro,
-  .store-detail__panel,
-  .store-detail__provenance {
+  main.store-detail :is(.store-detail__intro, .store-detail__panel, .store-detail__provenance) {
     padding: clamp(32px, 3vw, 64px);
     padding-block: clamp(64px, 5.56vw, 96px);
   }
 
-  .store-detail__actions {
+  .store-detail__visit-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(40px, 4vw, 64px);
+    padding-inline: clamp(32px, 3vw, 64px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .store-detail__visit-grid > .store-detail__panel {
+    padding-inline: 0;
+    border-bottom: 0;
+  }
+
+  main.store-detail .store-detail__actions {
     padding: clamp(32px, 3vw, 64px);
   }
 
@@ -2273,6 +2293,18 @@ main > article dt {
   gap: 0.75rem;
   align-items: center;
   margin-top: 1.25rem;
+}
+
+.store-detail__arrival-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 1.25rem;
+}
+
+.store-detail__arrival-status > p {
+  margin-block: 0;
 }
 
 .status-badge {
@@ -2591,6 +2623,12 @@ main > article dt {
   border-bottom: 1px solid var(--line);
 }
 
+.store-detail__intro > p:not(.eyebrow),
+.store-detail__panel > p:not(.eyebrow),
+.store-detail__provenance > p:not(.eyebrow) {
+  max-width: 65ch;
+}
+
 .store-detail__intro > h2,
 .store-detail__panel > h2,
 .store-detail__provenance > h2 {
@@ -2642,6 +2680,7 @@ main > article dt {
 .store-detail .store-hours,
 .store-detail__provenance dl {
   grid-template-columns: minmax(7rem, 1fr) 1.4fr;
+  max-width: 36rem;
 }
 
 .store-detail__exceptions {
@@ -2753,6 +2792,7 @@ main > article dt {
 
 @media (max-width: 420px) {
   .store-detail__section-heading,
+  .store-detail__arrival-status,
   .store-detail__trust {
     align-items: stretch;
     flex-direction: column;

@@ -1024,7 +1024,7 @@ function StoreSectionNav() {
     <nav className="store-detail__section-nav" aria-label="Store sections">
       <a href="#about-heading">About</a>
       <a href="#gallery-heading">Photos</a>
-      <a href="#hours-heading">Plan your visit</a>
+      <a href="#hours-heading">Hours &amp; location</a>
       <a href="#source-heading">Source</a>
     </nav>
   )
@@ -1049,12 +1049,6 @@ function StoreHours({ store }: { store: CatalogStore }) {
             Hours
           </h2>
         </div>
-        <p className={`status-badge status-badge--${today.openState}`}>
-          <span aria-hidden="true">
-            {today.openState === 'open' ? '✓' : today.openState === 'closed' ? '●' : '?'}
-          </span>{' '}
-          {today.openStateLabel}
-        </p>
       </div>
       <p className="store-detail__today">
         <strong>{today.dayLabel}</strong> · {today.hoursLabel}
@@ -1097,7 +1091,7 @@ export function DetailsPage({
   client,
   slug,
   renderPrivateActions,
-  stage = 'package-5a',
+  stage = 'package-1',
 }: {
   client: CatalogClient
   slug: string
@@ -1167,6 +1161,8 @@ export function DetailsPage({
   const provenanceDate = formatCatalogDate(store.provenance?.updatedAt)
   const hasContact = Boolean(store.website || store.phone || store.email)
   const canAddToTrip = detailsStageRank[stage] >= detailsStageRank['package-5a']
+  const today = todayHoursSummary(store)
+  const hasNavigableAddress = !/\bsynthetic\b/i.test(store.address)
   return (
     <main className="store-detail">
       <CatalogLink className="store-detail__back" to={catalogAppHref(backHref)}>
@@ -1179,6 +1175,17 @@ export function DetailsPage({
           <p className="store-detail__address">
             {store.address}, {store.town}, {store.state}
           </p>
+          <div className="store-detail__arrival-status" aria-label="Today's opening information">
+            <p className={`status-badge status-badge--${today.openState}`}>
+              <span aria-hidden="true">
+                {today.openState === 'open' ? '✓' : today.openState === 'closed' ? '●' : '?'}
+              </span>{' '}
+              {today.openStateLabel}
+            </p>
+            <p>
+              <strong>{today.dayLabel}</strong> · {today.hoursLabel}
+            </p>
+          </div>
           <div className="store-detail__trust" aria-label="Listing status">
             <p className={`status-badge status-badge--${store.freshness?.status ?? 'unknown'}`}>
               <span aria-hidden="true">{store.freshness?.status === 'current' ? '✓' : 'i'}</span>{' '}
@@ -1195,59 +1202,28 @@ export function DetailsPage({
           </div>
         </header>
 
-        <StoreGallery store={store} />
-        {store.media.length > 0 && (
-          <p className="store-detail__gallery-link">
-            <CatalogLink
-              to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/photos`)}
-              onClick={() => rememberStoreReturn(store.id, 'photos')}
-            >
-              See all {store.media.length} {store.media.length === 1 ? 'photo' : 'photos'}
-            </CatalogLink>
-          </p>
-        )}
-        {store.fixtureProfile && store.media.length > 0 && (
-          <p className="evaluation-note store-detail__evaluation-note">
-            {store.fixtureProfile.label} · these {store.media.length} wall records are
-            evaluation-only and are not a public photo allowance.
-          </p>
-        )}
-
-        <StoreSectionNav />
-
-        <section className="store-detail__intro" aria-labelledby="about-heading">
-          <p className="eyebrow">What you’ll find</p>
-          <h2 id="about-heading">About this store</h2>
-          <p>{store.description || 'A store description has not been supplied.'}</p>
-          {store.categories.length ? (
-            <ul className="catalog-card__categories" aria-label="Store categories">
-              {store.categories.map((category) => (
-                <li key={category.slug}>{category.label}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="honesty-note">Store categories are unavailable.</p>
-          )}
-        </section>
-
         <nav className="store-detail__actions" aria-label="Store visit actions">
-          <a
-            className="button"
-            href={externalNavigationHref(store)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <img
-              className="button__icon"
-              src="/icons/navigate.svg"
-              alt=""
-              aria-hidden="true"
-              width="20"
-              height="20"
-            />
-            Navigate in Maps <span aria-hidden="true">↗</span>
-            <span className="sr-only"> (opens in a new window)</span>
-          </a>
+          {hasNavigableAddress ? (
+            <a
+              className="button"
+              href={externalNavigationHref(store)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <img
+                className="button__icon"
+                src="/icons/navigate.svg"
+                alt=""
+                aria-hidden="true"
+                width="20"
+                height="20"
+              />
+              Navigate in Maps <span aria-hidden="true">↗</span>
+              <span className="sr-only"> (opens in a new window)</span>
+            </a>
+          ) : (
+            <p className="honesty-note">Directions are unavailable for this fictional address.</p>
+          )}
           {canAddToTrip && (
             <CatalogLink
               className="button button--secondary"
@@ -1267,39 +1243,76 @@ export function DetailsPage({
           {renderPrivateActions?.(store)}
         </nav>
 
-        <StoreHours store={store} />
+        <StoreSectionNav />
 
-        <section className="store-detail__panel" aria-labelledby="contact-heading">
-          <p className="eyebrow">Confirm your visit</p>
-          <h2 id="contact-heading">Contact &amp; location</h2>
-          <address>
-            {store.address}, {store.town}, {store.state}
-          </address>
-          {hasContact ? (
-            <ul className="store-detail__link-list">
-              {store.phone && (
-                <li>
-                  <a href={`tel:${store.phone}`}>Call {store.phone}</a>
-                </li>
-              )}
-              {store.email && (
-                <li>
-                  <a href={`mailto:${store.email}`}>Email the store</a>
-                </li>
-              )}
-              {store.website && (
-                <li>
-                  <a href={store.website} target="_blank" rel="noreferrer">
-                    Visit official website <span aria-hidden="true">↗</span>
-                    <span className="sr-only"> (opens in a new window)</span>
-                  </a>
-                </li>
-              )}
+        <StoreGallery store={store} />
+        {store.media.length > 0 && (
+          <p className="store-detail__gallery-link">
+            <CatalogLink
+              to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/photos`)}
+              onClick={() => rememberStoreReturn(store.id, 'photos')}
+            >
+              See all {store.media.length} {store.media.length === 1 ? 'photo' : 'photos'}
+            </CatalogLink>
+          </p>
+        )}
+        {store.fixtureProfile && store.media.length > 0 && (
+          <p className="evaluation-note store-detail__evaluation-note">
+            {store.fixtureProfile.label} · these {store.media.length} wall records are
+            evaluation-only and are not a public photo allowance.
+          </p>
+        )}
+
+        <section className="store-detail__intro" aria-labelledby="about-heading">
+          <p className="eyebrow">What you’ll find</p>
+          <h2 id="about-heading">About this store</h2>
+          <p>{store.description || 'A store description has not been supplied.'}</p>
+          {store.categories.length ? (
+            <ul className="catalog-card__categories" aria-label="Store categories">
+              {store.categories.map((category) => (
+                <li key={category.slug}>{category.label}</li>
+              ))}
             </ul>
           ) : (
-            <p className="honesty-note">Contact details have not been supplied.</p>
+            <p className="honesty-note">Store categories are unavailable.</p>
           )}
         </section>
+
+        <div className="store-detail__visit-grid">
+          <StoreHours store={store} />
+
+          <section className="store-detail__panel" aria-labelledby="contact-heading">
+            <p className="eyebrow">Confirm your visit</p>
+            <h2 id="contact-heading">Contact &amp; location</h2>
+            <address>
+              {store.address}, {store.town}, {store.state}
+            </address>
+            {hasContact ? (
+              <ul className="store-detail__link-list">
+                {store.phone && (
+                  <li>
+                    <a href={`tel:${store.phone}`}>Call {store.phone}</a>
+                  </li>
+                )}
+                {store.email && (
+                  <li>
+                    <a href={`mailto:${store.email}`}>Email the store</a>
+                  </li>
+                )}
+                {store.website && (
+                  <li>
+                    <a href={store.website} target="_blank" rel="noreferrer">
+                      Visit official website <span aria-hidden="true">↗</span>
+                      <span className="sr-only"> (opens in a new window)</span>
+                    </a>
+                  </li>
+                )}
+              </ul>
+            ) : (
+              <p className="honesty-note">Contact details have not been supplied.</p>
+            )}
+          </section>
+        </div>
 
         <section className="store-detail__panel" aria-labelledby="accessibility-heading">
           <p className="eyebrow">Know before you go</p>

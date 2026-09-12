@@ -460,7 +460,8 @@ describe('trustworthy Store Details contract', () => {
   })
 
   it('puts visit-critical, provenance, accessibility, updates, and external links in order', async () => {
-    render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
+    const navigableStore = { ...detailedStore, address: '12 Main Street' }
+    render(<DetailsPage client={detailsClient(navigableStore)} slug={navigableStore.slug} />)
 
     expect(await screen.findByRole('heading', { level: 1, name: detailedStore.name })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Hours' })).toBeVisible()
@@ -473,7 +474,9 @@ describe('trustworthy Store Details contract', () => {
 
     const navigate = screen.getByRole('link', { name: /navigate in maps/i })
     expect(navigate).toHaveAttribute('target', '_blank')
-    expect(decodeURIComponent(navigate.getAttribute('href') ?? '')).toContain(detailedStore.address)
+    expect(decodeURIComponent(navigate.getAttribute('href') ?? '')).toContain(
+      navigableStore.address,
+    )
     expect(screen.getByRole('link', { name: /visit official website/i })).toHaveAttribute(
       'rel',
       'noreferrer',
@@ -481,7 +484,7 @@ describe('trustworthy Store Details contract', () => {
     expect(screen.getByRole('link', { name: /instagram/i })).toHaveAttribute('target', '_blank')
   })
 
-  it('offers in-page Store sections navigation to each following section', async () => {
+  it('puts visit essentials and section links before the extended gallery', async () => {
     render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
 
     await screen.findByRole('heading', { level: 1, name: detailedStore.name })
@@ -492,7 +495,7 @@ describe('trustworthy Store Details contract', () => {
     expect(links.map((link) => link.textContent)).toEqual([
       'About',
       'Photos',
-      'Plan your visit',
+      'Hours & location',
       'Source',
     ])
     expect(within(nav).getByRole('link', { name: 'About' })).toHaveAttribute(
@@ -503,7 +506,7 @@ describe('trustworthy Store Details contract', () => {
       'href',
       '#gallery-heading',
     )
-    expect(within(nav).getByRole('link', { name: 'Plan your visit' })).toHaveAttribute(
+    expect(within(nav).getByRole('link', { name: 'Hours & location' })).toHaveAttribute(
       'href',
       '#hours-heading',
     )
@@ -518,6 +521,24 @@ describe('trustworthy Store Details contract', () => {
     ids.forEach((id) => {
       expect(headings.some((heading) => heading.id === id)).toBe(true)
     })
+
+    const article = document.querySelector('.store-detail__article')
+    const gallery = document.querySelector('.store-gallery')
+    const actions = screen.getByRole('navigation', { name: 'Store visit actions' })
+    expect(article).not.toBeNull()
+    expect(gallery).not.toBeNull()
+    expect(
+      article &&
+        gallery &&
+        article.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_CONTAINED_BY,
+    ).toBe(Node.DOCUMENT_POSITION_CONTAINED_BY)
+    expect(
+      actions.compareDocumentPosition(gallery as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(nav.compareDocumentPosition(gallery as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(screen.getByLabelText("Today's opening information")).toBeVisible()
   })
 
   it('provides a keyboard-operable gallery with failure and enlargement behavior', async () => {
