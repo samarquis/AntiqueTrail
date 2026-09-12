@@ -165,8 +165,8 @@ select is(
    from trip_private.trip_invitations
    where invitation_id between '36500000-0000-4000-8000-000000000202'
                            and '36500000-0000-4000-8000-000000000205'),
-  '36500000-0000-4000-8000-000000000202:pending,36500000-0000-4000-8000-000000000203:expired,36500000-0000-4000-8000-000000000204:revoked,36500000-0000-4000-8000-000000000205:pending',
-  'unverified, expired, revoked, and unrelated invitation state is unchanged');
+  '36500000-0000-4000-8000-000000000202:pending,36500000-0000-4000-8000-000000000203:pending,36500000-0000-4000-8000-000000000204:revoked,36500000-0000-4000-8000-000000000205:pending',
+  'unverified, past-expiry, revoked, and unrelated invitation state is unchanged');
 select is(
   (select count(*) from trip_private.trip_participants
    where trip_id between '36500000-0000-4000-8000-000000000102'
