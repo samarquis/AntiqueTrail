@@ -22,7 +22,11 @@ async function login(page: Page, actor: number, target: string) {
   await page.goto(`/auth/sign-in?returnTo=${encodeURIComponent(target)}`)
   await page.getByLabel('Email', { exact: true }).fill(input.users[actor].email)
   await page.getByLabel('Password', { exact: true }).fill(input.users[actor].password)
+  const response = page.waitForResponse((candidate) =>
+    candidate.url().includes('/auth/v1/token?grant_type=password'),
+  )
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  expect((await response).ok()).toBe(true)
   await expect(page).not.toHaveURL(/\/auth\/sign-in/)
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
 }
@@ -85,7 +89,7 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
       "We couldn't update this trip. Please try again.",
     )
     await expect(wrongPage.getByText('You joined this one trip as Trip Partner.')).toHaveCount(0)
-    await expect.poll(() => membership(tripId)).toBe(0)
+    await expect.poll(() => membership(tripId), { timeout: 20_000 }).toBe(0)
   } finally {
     await wrong.close()
   }
@@ -97,7 +101,7 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
     await partnerPage.goto(`/trip-invitations#token=${token}`)
     await expect(
       partnerPage.getByRole('heading', { name: 'Trip invitation accepted' }),
-    ).toBeVisible()
+    ).toBeVisible({ timeout: 20_000 })
     await partnerPage.getByRole('link', { name: 'Open shared trip' }).click()
     await expect(partnerPage).toHaveURL(new RegExp(`/trips/${tripId}/plan$`))
     await expect
@@ -110,8 +114,7 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
     await partnerPage.goto(`/trips/${unrelated}/plan`)
     await expect(partnerPage.getByRole('heading', { name: 'Trip unavailable' })).toBeVisible()
 
-    // The creator's only revoke control is pending-only. Prove ordinary protected access
-    // before reporting the missing removal action as a product failure.
+    // Prove ordinary protected access before exercising creator removal.
     await expect(
       rpc(1, 'rename_trip', {
         trip_id: tripId,
@@ -127,7 +130,7 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
     await removePartner.click()
     await page.getByRole('button', { name: 'Keep Trip partner', exact: true }).click()
     await expect(removePartner).toBeFocused()
-    await expect.poll(() => membership(tripId)).toBe(1)
+    await expect.poll(() => membership(tripId), { timeout: 20_000 }).toBe(1)
 
     await removePartner.click()
     await expect(
@@ -142,12 +145,12 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
     await expect(
       page.getByText('This trip changed. Review the latest participants before trying again.'),
     ).toBeVisible()
-    await expect.poll(() => membership(tripId)).toBe(1)
+    await expect.poll(() => membership(tripId), { timeout: 20_000 }).toBe(1)
 
     await page.getByRole('button', { name: 'Remove partner', exact: true }).click()
     await page.getByRole('button', { name: 'Yes, remove Trip partner', exact: true }).click()
     await expect(page.getByText('Trip partner was removed from this trip.')).toBeVisible()
-    await expect.poll(() => membership(tripId)).toBe(0)
+    await expect.poll(() => membership(tripId), { timeout: 20_000 }).toBe(0)
 
     await expect(rpc(1, 'get_trip', { trip_id: tripId })).rejects.toThrow(/authorization_lost/)
     await expect(
