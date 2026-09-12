@@ -37,3 +37,7 @@ Completing the entire former trip/regional program before testing store value wo
 - [PRD stage dependencies](../../PRD.md#stage-dependencies).
 - [Membership mechanics](../specs/store-membership-spec.md).
 - [Plan governance](../../PLAN_GOVERNANCE.md#authorized-plan-change-process).
+
+## Bounded public test successor
+
+[ADR0010](0010-free-public-test-publication.md) and [PRD public test](../../PRD.md#public-test-publication) add the separately approved free public test to the local showcase. They do not renew ADR0007/0008, open a real-store/Gallery pilot, expose deferred trips or waive the controls for historical beta data.

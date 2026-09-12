@@ -22,6 +22,16 @@ This is a plan contract, not an existing implementation or a passed gate. Curren
 
 Human testing for a bounded pilot uses the owner-approved participants and accessibility needs for the exposed paths. The eight-person public-release cohort remains a public-exposure obligation, with deferred tasks excluded only while the corresponding capabilities are server-disabled. No agent supplies human observations. No safety/privacy/authorization/data-loss failure may be counted as accepted.
 
+## Public test boundary
+
+The [PRD public test](PRD.md#public-test-publication) and [ADR0010](docs/adr/0010-free-public-test-publication.md) create one bounded exception to the protected hosted-review row and wider public-release sequencing above. Public means anonymous access to explicitly inventoried fictional catalog data, not access to historical beta accounts, private activity or privileged services. `noindex` may discourage discovery but is not an access control. Preserve fictional labeling, permitted media provenance, rate limits, safe errors and absence of sensitive build output. No real-store acquisition, marketing, payments or deferred-feature activation follows.
+
+Use existing Supabase Auth and application session/authorization boundaries. Keep verified-email requirements, recent authentication/MFA for privileged operations, server-derived identity, exact account/store ownership, revocation and private-data isolation. The owner and his wife are the initially authorized human testers; keep exact admitted Auth IDs/addresses in protected operator records, not source or URLs. Ordinary public visitors can browse without joining that account allowlist. A real verification email may be delivered only through a configured approved provider to an authorized tester; absent delivery/configuration remains unavailable. Never mark a human's email verified merely to make a test pass, or use synthetic/admin fixture grants as their authority.
+
+The [execution contract](PACKAGE_CONTRACTS.md#public-test-execution-contract) must deny unlisted, expired, stopped, wrong-origin/target and wrong-capability test access at the server. Production bundles exclude fixture auth/admin impersonation. Existing unexposed server capabilities remain closed; hide-and-link checks alone are insufficient. Public frontend access does not relax RLS, private table grants, session registration, role checks or service-token scope. Any necessary bounded admission adaptation is reviewed/tested separately; no forged old release/assessment evidence is allowed.
+
+Before changing beta, retain a recoverable inventory/backup appropriate to affected existing database/Auth/Storage/configuration and review migration data effects. Preserve current records and their lifecycle obligations. Limit logs/evidence to content-free IDs, versions, digests and outcomes. Keep passwords, provider tokens, auth callback material, addresses and private rows out of source, build artifacts and public receipts. Verify signed-out public routes and real test-account allow/deny behavior separately; these checks are not commercial, professional-security or human-usability acceptance.
+
 ## Security objectives
 
 - Prevent unauthorized access to private user data

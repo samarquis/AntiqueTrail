@@ -103,3 +103,7 @@ No value belongs in documentation, source, workflow output, or evidence. Cloudfl
 ## Scoped successor
 
 [ADR 0007](0007-protected-internal-synthetic-review.md) supersedes this ADR only for its owner-only protected internal synthetic review context; this ADR remains controlling for every release stage and provider boundary outside that exception.
+
+## Bounded public test successor
+
+[ADR0010](0010-free-public-test-publication.md) supersedes the protected-edge and CI-only upload requirements solely for its named free public fictional test. Its exact Vercel/Supabase targets, data preservation, account scope, evidence, expiry and rollback govern that exception. All other provider/release stages retain this ADR and their gates.

@@ -64,7 +64,13 @@ Do not withhold a safe, bounded internal candidate until unrelated trip work or 
 
 ### Assessment environment boundary
 
-The default showcase is local and synthetic. This amendment grants no new shared-hosting, provider, real-data or external-participant authority. ADR0007/0008 retain their original limited task/backend/expiry scope; old receipts are not renewed. Any hosted review requires valid current, appropriately scoped authorization and protection. See [ADR0009](docs/adr/0009-store-first-stage-applicability.md).
+The default showcase is local and synthetic. The separately authorized [public test](#public-test-publication) is the only new hosted exception. ADR0007/0008 retain their original limited task/backend/expiry scope; old receipts are not renewed. Other hosted reviews require valid current, appropriately scoped authorization and protection. See [ADR0009](docs/adr/0009-store-first-stage-applicability.md) and the scoped [ADR0010](docs/adr/0010-free-public-test-publication.md).
+
+### Public test publication
+
+Prioritize one stable public test link on existing free hosting. Opening it needs no hosting-provider account or access approval. Anonymous visitors may browse the approved fictional catalog, photographs, hours and details; the owner and his wife may use ordinary Antique Trail accounts for the accepted private saved-store path. Account entry retains existing email/password and verified-email/session protections. Registration never grants representative or Administrator authority. Tester-specific admission is server-controlled; this is not unrestricted enrollment, real-store intake, billing or deferred trip exposure.
+
+Use the existing Vercel project and preserved `antique-trail-beta` Supabase target under [ADR0010](docs/adr/0010-free-public-test-publication.md). Publish final reviewed source through one repeatable operation, retain the share address and prove root/direct-route/refresh behavior in a signed-out browser. Actual accounts require hosted Auth/session/private-action evidence; the local harness or an account form cannot supply it. Record duration, stop owner, exposed capabilities and limits. No spending, real-store marketing, search-indexing campaign, external cohort or commercial release is authorized. Existing representative/Administrator demonstrations remain available only after their unchanged assurance, exact-scope, audit and applicable evidence pass; public access to a frontend grants no such authority.
 
 ## Following milestone: small real-store pilot
 
@@ -85,6 +91,7 @@ Regional launch, RG-01 and three community expansions are removed as prerequisit
 | Stage | Necessary predecessor/evidence | Does not require |
 | --- | --- | --- |
 | Local internal showcase | Reproducible synthetic candidate and selected-path checks | New hosting, real participants, trips, routing or billing |
+| Bounded public test | ADR0010's exact free frontend/preserved backend, reviewed source/config/migrations, signed-out/account evidence, expiry and stop | Hosting-provider accounts for visitors; regional release, real-store marketing, paid services or deferred trips |
 | Controlled real-store pilot | Owner scope decision; selected-path and applicable real-data/security/operations evidence | Full regional program, public reviews, geographic expansion |
 | Paid Gallery pilot | Approved offer; permitted owner evidence; authorized test-provider and entitlement/servicing proof; explicit live activation | RG-01, three communities, Full Gallery sales, custom paid-to-paid features |
 | Public discovery/acquisition or wider release | Separate approved exposure and relevant public security/legal/accessibility/operations evidence | Automatic activation from completing any previous row |
@@ -93,7 +100,7 @@ Each gate owns only its named evidence. An external gate blocks the relevant act
 
 ## Provider and external-action prerequisites
 
-Supabase and Stripe remain selected; Vercel/Supabase topology and provider eligibility/funding controls remain under ADR0005/0006 as narrowly scoped by ADR0009. Relevant H-01 hosting/recovery, L-01 shared privileged audit, E-01 real email, M-01 real media, S-01 legal/trust and HC-01 human support obligations are not waived. R-01 is unnecessary when routing is unexposed. Public B-01/SEC-01/HC-02 duties apply before their named public exposure. Missing applicable evidence is unavailable, never implicitly passed.
+Supabase and Stripe remain selected; Vercel/Supabase topology and provider eligibility/funding controls remain under ADR0005/0006 as narrowly scoped by ADR0009 and the named public-test ADR0010. Relevant H-01 hosting/recovery, L-01 shared privileged audit, E-01 real email, M-01 real media, S-01 legal/trust and HC-01 human support obligations retain their original exposure scope. The fictional public test uses its explicit security/execution contract, never fictitious passes for those stages. R-01 is unnecessary when routing is unexposed. Public B-01/SEC-01/HC-02 duties apply before their named wider public exposure. Missing applicable evidence is unavailable, never implicitly passed.
 
 An accepted plan is not provider configuration, legal consent, participant recruitment, permission to spend, deployment or billing activation. Existing default-off controls remain until conforming implementation and real approval. Local, synthetic, hosted-CI, provider, production and human evidence remain distinct.
 
@@ -101,7 +108,7 @@ An accepted plan is not provider configuration, legal consent, participant recru
 
 The owner provides actual computer-then-phone showcase observations. The controlled pilot's owner-approved protocol names participants and accessibility needs appropriate to its selected paths; no simulated person supplies their evidence. Existing eight-person public/cohort procedures apply to the later public exposure and its exposed capabilities, not as a prerequisite to showing the internal candidate. Preserve actual keyboard, screen-reader, touch, zoom and error-recovery checks for selected paths; do not call a screenshot human accessibility proof.
 
-Before public exposure, test the exposed shopper capabilities with at least eight participants aged 55+, including at least three aged 70+ and at least two with relevant low-vision, motor or assistive-technology adaptations. At least 90% of required tasks must complete unaided, with no more than one average noncritical error per participant and zero safety, privacy or authorization failures. Fix and retest repeated critical failures. This is the current owner of those public shopper thresholds; the separate public owner-acquisition protocol remains in the membership spec. Neither cohort is an internal showcase or bounded invited-pilot prerequisite.
+Before wider public exposure beyond the named fictional public test, test the exposed shopper capabilities with at least eight participants aged 55+, including at least three aged 70+ and at least two with relevant low-vision, motor or assistive-technology adaptations. At least 90% of required tasks must complete unaided, with no more than one average noncritical error per participant and zero safety, privacy or authorization failures. Fix and retest repeated critical failures. This is the current owner of those public shopper thresholds; the separate public owner-acquisition protocol remains in the membership spec. Neither cohort is an internal showcase, named fictional public-test or bounded invited-pilot prerequisite; none of those tests supplies a public human-usability pass.
 
 ## Deferred implementation boundary
 
