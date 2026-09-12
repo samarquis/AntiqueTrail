@@ -561,22 +561,21 @@ export function BrowsePage({
       window.history.replaceState({}, '', `/stores${query ? `?${query}` : ''}`)
   }
   return (
-    <main>
+    <main className="catalog-browser">
       <header>
         <p className="eyebrow">Antique Trail</p>
         <h1>Browse stores</h1>
         <p>Find antique and vintage stores with practical, current details.</p>
       </header>
       <CatalogFiltersForm filters={filters} onChange={updateFilters} stage={filterStage} />
-      <section aria-labelledby="browse-map-heading" className="catalog-map-panel">
+      <section
+        aria-labelledby="browse-map-heading"
+        className="catalog-map-panel"
+        hidden={mapCapability !== 'available'}
+      >
         <h2 id="browse-map-heading">Store map</h2>
         <p>The store list remains the primary discovery view.</p>
-        {mapCapability !== 'available' ? (
-          <p role="status">
-            Map and travel-time suggestions are not available yet. Your store list and filters
-            remain available.
-          </p>
-        ) : (
+        {mapCapability !== 'available' ? null : (
           <>
             <button
               type="button"

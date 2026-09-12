@@ -291,6 +291,48 @@ test.describe('Synthetic catalog design contract', () => {
     }
   })
 
+  test('opens on a useful first store without an unexposed map placeholder', async ({ page }) => {
+    for (const appearance of ['light', 'dark'] as const) {
+      for (const viewport of [
+        { width: 1440, height: 1000 },
+        { width: 390, height: 844 },
+      ]) {
+        await page.setViewportSize(viewport)
+        await page.emulateMedia({ colorScheme: appearance })
+        await page.goto('/stores')
+        await page.locator('html').evaluate((element, theme) => {
+          if (theme === 'dark') element.dataset.theme = theme
+          else delete element.dataset.theme
+        }, appearance)
+
+        await expect(page.getByRole('heading', { name: 'Store map' })).toHaveCount(0)
+        await expect(page.getByText(/map and travel-time suggestions/i)).toHaveCount(0)
+        await expect(page.getByText('Fictional listings for safe product review')).toBeVisible()
+
+        const firstCard = page.locator('.catalog-card').first()
+        const firstImage = firstCard.getByRole('img')
+        const firstName = firstCard.getByRole('link', { name: 'Blue Finch Curios', exact: true })
+        await expect(firstImage).toBeVisible()
+        await expect(firstName).toBeVisible()
+
+        const geometry = await firstCard.evaluate((card, viewportHeight) => {
+          const image = card.querySelector<HTMLElement>(
+            '.catalog-card__image, .catalog-card__placeholder',
+          )
+          const name = card.querySelector<HTMLElement>('h2 a')
+          if (!image || !name) throw new Error('First store image/fallback and name must render')
+          return {
+            imageBottom: image.getBoundingClientRect().bottom,
+            nameBottom: name.getBoundingClientRect().bottom,
+            viewportHeight,
+          }
+        }, viewport.height)
+        expect(geometry.imageBottom).toBeLessThanOrEqual(geometry.viewportHeight)
+        expect(geometry.nameBottom).toBeLessThanOrEqual(geometry.viewportHeight)
+      }
+    }
+  })
+
   test('keeps a listing usable when its cover request is blocked', async ({ page }) => {
     let blockedRequests = 0
     await page.route(/blue-finch-curios-cover\.webp(?:\?.*)?$/u, async (route) => {
@@ -330,11 +372,8 @@ test.describe('Synthetic catalog design contract', () => {
       page.getByRole('heading', { level: 2, name: '12 stores to explore' }),
     ).toBeVisible()
 
-    await expect(
-      page
-        .getByRole('status')
-        .filter({ hasText: 'Map and travel-time suggestions are not available yet' }),
-    ).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Store map' })).toHaveCount(0)
+    await expect(page.getByText(/map and travel-time suggestions/i)).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Show map' })).toHaveCount(0)
 
     await page.goto('/stores/not-a-real-store')
