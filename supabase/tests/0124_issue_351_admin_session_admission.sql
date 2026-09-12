@@ -15,7 +15,10 @@ set local role identity_service;
 insert into app_private.profiles(user_id,verified_email_snapshot,age_18_attested_at) values
   ('35100000-0000-4000-8000-000000000001','admin-only@issue-351.invalid',statement_timestamp()),
   ('35100000-0000-4000-8000-000000000002','representative-only@issue-351.invalid',statement_timestamp()),
-  ('35100000-0000-4000-8000-000000000003','shopper-positive@issue-351.invalid',statement_timestamp());
+  ('35100000-0000-4000-8000-000000000003','shopper-positive@issue-351.invalid',statement_timestamp())
+on conflict(user_id) do update set
+  verified_email_snapshot=excluded.verified_email_snapshot,
+  age_18_attested_at=excluded.age_18_attested_at;
 insert into app_private.role_grants(subject_user_id,role,store_id,state) values
   ('35100000-0000-4000-8000-000000000001','administrator',null,'active'),
   ('35100000-0000-4000-8000-000000000002','representative','00000000-0000-4000-8000-000000001001','active'),
