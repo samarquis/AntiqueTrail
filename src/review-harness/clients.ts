@@ -1191,8 +1191,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
   function persistTrip(trip: Trip): Trip {
     trips.set(trip.id, trip)
     const collaboration = collaborations.get(trip.id)
-    if (collaboration)
-      collaborations.set(trip.id, { ...collaboration, tripVersion: trip.version })
+    if (collaboration) collaborations.set(trip.id, { ...collaboration, tripVersion: trip.version })
     return structuredClone(trip)
   }
 

@@ -192,13 +192,7 @@ describe('implicit-actor TripClient transport', () => {
   it('sends optimistic partner-removal authority and parses applied or conflict results', async () => {
     const appliedWire = transport({ state: 'applied', collaboration })
     await expect(
-      createTripApi(appliedWire).removePartner?.(
-        'trip-1',
-        'partner-b',
-        7,
-        11,
-        'remove-partner-1',
-      ),
+      createTripApi(appliedWire).removePartner?.('trip-1', 'partner-b', 7, 11, 'remove-partner-1'),
     ).resolves.toEqual({ state: 'applied', collaboration })
     expect(appliedWire.invoke).toHaveBeenCalledWith('remove_trip_partner', {
       trip_id: 'trip-1',
@@ -210,13 +204,7 @@ describe('implicit-actor TripClient transport', () => {
 
     const conflictWire = transport({ state: 'conflict', latest: { tripVersion: 12 } })
     await expect(
-      createTripApi(conflictWire).removePartner?.(
-        'trip-1',
-        'partner-b',
-        7,
-        11,
-        'remove-partner-2',
-      ),
+      createTripApi(conflictWire).removePartner?.('trip-1', 'partner-b', 7, 11, 'remove-partner-2'),
     ).resolves.toEqual({ state: 'conflict', latest: { tripVersion: 12 } })
   })
 
