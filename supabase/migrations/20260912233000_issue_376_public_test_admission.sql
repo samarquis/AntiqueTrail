@@ -2,6 +2,59 @@
 create schema public_test_private;
 revoke all on schema public_test_private from public,anon,authenticated,service_role;
 
+-- The existing account export RPC expires old jobs before reserving a new one.
+-- Its dedicated definer already has the matching RLS policy but lacked UPDATE.
+grant update on app_private.account_export_jobs to identity_service;
+
+-- Preserve the established cancellation-only row shape and remove an ambiguous
+-- local/column name. Fresh provider privacy reauthentication is unchanged.
+grant identity_service to postgres;
+grant create on schema app_public to identity_service;
+set local role identity_service;
+create or replace function app_public.request_account_deletion()
+returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare actor uuid:=app_public.request_user_id(); deletion app_private.account_deletion_requests%rowtype;
+begin
+ if actor is null or not app_private.current_session_has_privacy_reauth() then
+  raise exception using errcode='42501',message='privacy_reauthentication_required';
+ end if;
+ perform 1 from app_private.profiles where user_id=actor and status='active' for update;
+ if not found then raise exception using errcode='55000',message='account_lifecycle_unavailable';end if;
+ select * into deletion from app_private.account_deletion_requests where user_id=actor and state='scheduled' for update;
+ if not found then insert into app_private.account_deletion_requests(user_id,due_at)
+  values(actor,statement_timestamp()+interval '7 days') returning * into deletion;end if;
+ update app_private.role_grants set state='revoked',revoked_by=actor,revoked_at=statement_timestamp(),
+  revocation_reason='account_deletion_requested',version=version+1 where subject_user_id=actor and state='active';
+ update app_private.active_sessions set state='cancellation_only',revoked_at=null,
+  revocation_reason='account_deletion_requested',version=version+1 where user_id=actor and state='active';
+ update app_private.profiles set status='deletion_scheduled',deletion_due_at=deletion.due_at,
+  version=version+1,updated_at=statement_timestamp() where user_id=actor;
+ return jsonb_build_object('state','deletion_scheduled','deletionDueAt',deletion.due_at);
+end $$;
+create or replace function app_public.cancel_account_deletion()
+returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare actor uuid:=app_public.request_user_id(); v_session_id uuid:=app_private.claim_session_id(); deletion app_private.account_deletion_requests%rowtype;
+begin
+ if actor is null or not app_private.current_session_is_cancellation_only() then
+  raise exception using errcode='42501',message='account_lifecycle_denied';
+ end if;
+ select * into deletion from app_private.account_deletion_requests where user_id=actor and state='scheduled' for update;
+ if not found or deletion.due_at<=statement_timestamp() then raise exception using errcode='55000',message='account_deletion_complete';end if;
+ update app_private.account_deletion_requests set state='cancelled',cancelled_at=statement_timestamp(),version=version+1
+  where deletion_request_id=deletion.deletion_request_id;
+ update app_private.profiles set status='active',deletion_due_at=null,version=version+1,updated_at=statement_timestamp() where user_id=actor;
+ insert into app_private.role_grants(subject_user_id,role,granted_by) select actor,'shopper',actor
+  where not exists(select 1 from app_private.role_grants where subject_user_id=actor and role='shopper' and state='active');
+ update app_private.active_sessions set state='revoked',revoked_at=coalesce(revoked_at,statement_timestamp()),
+  revocation_reason='deletion_cancelled_other_session',version=version+1
+  where user_id=actor and state='cancellation_only' and active_sessions.session_id<>v_session_id;
+ update app_private.active_sessions set state='active',revoked_at=null,revocation_reason=null,version=version+1
+  where user_id=actor and active_sessions.session_id=v_session_id and state='cancellation_only';
+ return jsonb_build_object('state','active');
+end $$;
+reset role;
+revoke create on schema app_public from identity_service;
+
 create table public_test_private.runtime (
  id smallint primary key check(id=1),
  backend_ref text not null check(backend_ref='uaupykgpegbseboklubv'),
@@ -24,7 +77,7 @@ create table public_test_private.bindings (
  operator_ref text not null check(length(operator_ref) between 1 and 100),
  stop_owner text not null check(length(stop_owner) between 1 and 100),
  capabilities text[] not null check(array['catalog','registration','saved']::text[] @> capabilities),
- store_ids uuid[] not null check(cardinality(store_ids) between 1 and 12),
+ store_ids uuid[] not null check(cardinality(store_ids)=12),
  prepared_at timestamptz not null default statement_timestamp(),
  starts_at timestamptz not null,
  expires_at timestamptz not null,
@@ -85,7 +138,7 @@ begin
  select array_agg(value::uuid order by value) into v_stores from jsonb_array_elements_text(p_spec->'storeIds');
  select array_agg(value order by value) into v_caps from jsonb_array_elements_text(p_spec->'capabilities');
  v_testers:=p_spec->'testers';
- if v_stores is null or cardinality(v_stores) not between 1 and 12
+ if v_stores is null or cardinality(v_stores)<>12
    or (select count(distinct value) from unnest(v_stores) value)<>cardinality(v_stores)
    or exists(select 1 from unnest(v_stores) value where not exists(select 1 from app_public.stores s where s.id=value and s.synthetic and s.audience='synthetic' and s.publication_state='active'))
    or v_caps is null or cardinality(v_caps)=0 or not array['catalog','registration','saved']::text[] @> v_caps
@@ -254,14 +307,16 @@ returns boolean language sql stable security definer set search_path='' as $$
    select 1 from public_test_private.runtime r where r.id=1 and r.exact_origin=
     coalesce(nullif(current_setting('request.headers',true),''),'{}')::jsonb->>'origin'
   ) and (
-   ltrim(coalesce(current_setting('request.path',true),''),'/') in (
-    'rpc/revoke_current_session','rpc/account_lifecycle_status','rpc/request_account_export',
-    'rpc/get_account_export_status','rpc/request_account_deletion','rpc/cancel_account_deletion')
+   (exists(select 1 from public_test_private.testers where auth_user_id=p_user_id
+      and admitted_at is not null and admission_id is not null)
+    and ltrim(coalesce(current_setting('request.path',true),''),'/') in (
+     'rpc/register_current_session','rpc/current_session_is_active','rpc/revoke_current_session',
+     'rpc/account_lifecycle_status','rpc/request_account_export','rpc/get_account_export_status',
+     'rpc/issue_account_export_download','rpc/request_account_deletion','rpc/cancel_account_deletion'))
    or (exists(select 1 from public_test_private.testers t
       where t.auth_user_id=p_user_id and t.binding_id=public_test_private.active_binding('saved')
        and t.admission_id is not null and t.admitted_at is not null)
     and ltrim(coalesce(current_setting('request.path',true),''),'/') in (
-      'rpc/register_current_session','rpc/current_session_is_active',
       'rpc/shopper_list_saved','rpc/shopper_save_state','rpc/shopper_set_save'))
   ) end;
 $$;

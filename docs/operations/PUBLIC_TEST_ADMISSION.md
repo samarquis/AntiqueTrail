@@ -43,8 +43,8 @@ activation. Never schedule renewal.
 
 Deploy reviewed `public-catalog`, `account-registration` and
 `account-registration-callback` functions and their required reconciliation
-functions to that exact backend. The catalog and callback Edge functions select
-this scope with server-only `PUBLIC_TEST_MODE=true`. The catalog needs the
+functions to that exact backend. The catalog, registration and callback Edge
+functions enforce this target with server-only `PUBLIC_TEST_MODE=true`. The catalog needs the
 existing constrained `PUBLIC_CATALOG_GATEWAY_JWT`, rate salt and
 `PUBLIC_APP_ORIGIN`; no service-role credential is exposed to a browser.
 Registration also requires the exact approved application/Supabase/mail
@@ -64,11 +64,20 @@ outside this scope. Saved stores are limited to the inventoried catalog.
 
 Call `public_test_private.revoke(binding_id, current_runtime_version)` to close
 catalog admission, invalidate registration configuration and revoke the named
-test sessions. Clock expiry denies catalog, session/save admission and new
+test sessions. Clock expiry denies catalog, save admission and new
 provider operations without relying on a browser flag. Necessary account
-lifecycle access remains available under its original authorization. Preserve
+lifecycle access remains available under its original authorization: a previously
+admitted identity may establish a fresh provider session for account export or
+deletion, including unchanged privacy reauthentication. That session cannot
+resume saved-store or omitted test operations. Preserve
 historical users and data; callback denial never deletes an already admitted
 human account. Pending provider work remains subject to reconciliation/cleanup.
+
+The real lifecycle regression also required three narrow repairs: the existing
+export definer gains its missing UPDATE permission on its job table; deletion
+keeps the established null revocation timestamp for cancellation-only sessions;
+and cancellation uses an unambiguous local session identifier. No browser table
+mutation, role ownership or privacy-reauthentication requirement changes.
 
 Withdraw the frontend test using the ADR0010 retained maintenance artifact and
 verify the stable alias. Record exact deployed source/function/config/schema
