@@ -180,6 +180,34 @@ try {
     subjectPasswordSession.access_token,
     { challenge_id: subjectChallenge.id, code: totp(subjectSecret) },
   )
+  const siblingPasswordSession = await service.request('/auth/v1/token?grant_type=password', {
+    key: local.anonKey,
+    body: { email: actors.sibling.email, password: actors.sibling.password },
+  })
+  const siblingFactor = await authRequest(
+    local.endpoint,
+    '/auth/v1/factors',
+    local.anonKey,
+    siblingPasswordSession.access_token,
+    { factor_type: 'totp', friendly_name: 'local-scope-sibling' },
+  )
+  const siblingSecret = siblingFactor?.totp?.secret
+  if (typeof siblingSecret !== 'string' || !siblingSecret)
+    throw new Error('Local Auth sibling MFA enrollment did not return a TOTP secret')
+  const siblingChallenge = await authRequest(
+    local.endpoint,
+    `/auth/v1/factors/${siblingFactor.id}/challenge`,
+    local.anonKey,
+    siblingPasswordSession.access_token,
+    {},
+  )
+  await authRequest(
+    local.endpoint,
+    `/auth/v1/factors/${siblingFactor.id}/verify`,
+    local.anonKey,
+    siblingPasswordSession.access_token,
+    { challenge_id: siblingChallenge.id, code: totp(siblingSecret) },
+  )
   report.phase = 'installing distinct-store fixture authority'
   const ids = Object.fromEntries(
     [
