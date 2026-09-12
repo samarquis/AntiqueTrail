@@ -25,6 +25,7 @@
     "test:e2e": "playwright test",
     "test:e2e:review": "playwright test --config playwright.review.config.ts",
     "test:e2e:configured-shopper": "node scripts/configured-free-shopper.mjs",
+    "test:e2e:configured-partner-removal": "node scripts/configured-free-shopper.mjs --partner-removal",
     "test:e2e:configured-admin-scope": "node scripts/configured-admin-scope.mjs",
     "verify:seed-media": "npm run build && node scripts/verify-seed-media.mjs --built-root dist",
     "security:contract": "node scripts/security-contract.mjs",
