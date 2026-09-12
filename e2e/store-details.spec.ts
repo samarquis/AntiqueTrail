@@ -84,6 +84,7 @@ test.describe('Store Details decision-screen contract', () => {
     const opening = page.getByLabel("Today's opening information")
     const actions = page.getByRole('navigation', { name: 'Store visit actions' })
     const sections = page.getByRole('navigation', { name: 'Store sections' })
+    const about = page.getByRole('region', { name: 'About this store' })
     await expect(opening).toBeVisible()
     await expect(sections.getByRole('link', { name: 'Photos' })).toHaveAttribute(
       'href',
@@ -93,7 +94,7 @@ test.describe('Store Details decision-screen contract', () => {
       'href',
       '#hours-heading',
     )
-    for (const locator of [opening, actions, sections]) {
+    for (const locator of [opening, actions, sections, about]) {
       expect(
         await locator.evaluate((element) => {
           const wall = document.querySelector('.store-gallery')
@@ -248,6 +249,8 @@ test.describe('Store Details decision-screen contract', () => {
         const gallery = document.querySelector<HTMLElement>('.store-gallery')
         const actions = document.querySelector<HTMLElement>('.store-detail__actions')
         const title = document.querySelector<HTMLElement>('.store-detail__header h1')
+        const visitGrid = document.querySelector<HTMLElement>('.store-detail__visit-grid')
+        const hoursTable = document.querySelector<HTMLElement>('.store-hours')
         return {
           bodyOverflow: document.body.scrollWidth - document.body.clientWidth,
           documentOverflow:
@@ -266,6 +269,8 @@ test.describe('Store Details decision-screen contract', () => {
             ? Number.parseFloat(getComputedStyle(actions).paddingInlineStart)
             : 0,
           titleMaxWidth: title ? getComputedStyle(title).maxWidth : '',
+          visitGridColumns: visitGrid ? getComputedStyle(visitGrid).gridTemplateColumns : '',
+          hoursTableMaxWidth: hoursTable ? getComputedStyle(hoursTable).maxWidth : '',
         }
       })
       expect(geometry.bodyOverflow, `${width}px body overflow`).toBeLessThanOrEqual(1)
@@ -281,6 +286,8 @@ test.describe('Store Details decision-screen contract', () => {
         expect(geometry.galleryPadding).toBeCloseTo(expectedGutter, 0)
         expect(geometry.actionsPadding).toBeCloseTo(expectedGutter, 0)
         expect(geometry.titleMaxWidth).toBe('none')
+        expect(geometry.visitGridColumns.split(' ')).toHaveLength(2)
+        expect(geometry.hoursTableMaxWidth).toBe('576px')
       } else {
         expect(geometry.articleWidth).toBeLessThanOrEqual(720)
       }

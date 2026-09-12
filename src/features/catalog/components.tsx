@@ -1254,6 +1254,21 @@ export function DetailsPage({
 
         <StoreSectionNav />
 
+        <section className="store-detail__intro" aria-labelledby="about-heading">
+          <p className="eyebrow">What you’ll find</p>
+          <h2 id="about-heading">About this store</h2>
+          <p>{store.description || 'A store description has not been supplied.'}</p>
+          {store.categories.length ? (
+            <ul className="catalog-card__categories" aria-label="Store categories">
+              {store.categories.map((category) => (
+                <li key={category.slug}>{category.label}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="honesty-note">Store categories are unavailable.</p>
+          )}
+        </section>
+
         <StoreGallery store={store} />
         {store.media.length > 0 && (
           <p className="store-detail__gallery-link">
@@ -1271,21 +1286,6 @@ export function DetailsPage({
             evaluation-only and are not a public photo allowance.
           </p>
         )}
-
-        <section className="store-detail__intro" aria-labelledby="about-heading">
-          <p className="eyebrow">What you’ll find</p>
-          <h2 id="about-heading">About this store</h2>
-          <p>{store.description || 'A store description has not been supplied.'}</p>
-          {store.categories.length ? (
-            <ul className="catalog-card__categories" aria-label="Store categories">
-              {store.categories.map((category) => (
-                <li key={category.slug}>{category.label}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="honesty-note">Store categories are unavailable.</p>
-          )}
-        </section>
 
         <div className="store-detail__visit-grid">
           <StoreHours store={store} />

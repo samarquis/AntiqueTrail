@@ -525,6 +525,7 @@ describe('trustworthy Store Details contract', () => {
     const article = document.querySelector('.store-detail__article')
     const gallery = document.querySelector('.store-gallery')
     const actions = screen.getByRole('navigation', { name: 'Store visit actions' })
+    const about = screen.getByRole('region', { name: 'About this store' })
     expect(article).not.toBeNull()
     expect(gallery).not.toBeNull()
     expect(
@@ -536,6 +537,9 @@ describe('trustworthy Store Details contract', () => {
       actions.compareDocumentPosition(gallery as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(nav.compareDocumentPosition(gallery as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(about.compareDocumentPosition(gallery as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
     expect(screen.getByLabelText("Today's opening information")).toBeVisible()
