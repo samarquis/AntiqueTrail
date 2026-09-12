@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import { createLocalService, loopbackRequest } from '../scripts/configured-shopper-local.mjs'
@@ -54,10 +55,69 @@ async function fixture() {
   )
   return id
 }
+
+async function acceptedPartnerFixture() {
+  const id = crypto.randomUUID()
+  const partner = uuid(input.users[1].id)
+  await service.sql(
+    `insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date,navigator_user_id,navigator_device_hash) values ('${id}','${owner}','00000000-0000-4000-8000-000000000001','Partner removal trip','2026-10-10','${partner}',extensions.digest(convert_to('partner-device','utf8'),'sha256')); insert into trip_private.trip_participants(trip_id,user_id,participant_role) values ('${id}','${owner}','creator'),('${id}','${partner}','partner');`,
+  )
+  return id
+}
 test.beforeEach(async () => {
   await service.sql(
     `delete from shopper_private.saved_stores where user_id in ('${owner}','${uuid(input.users[1].id)}');`,
   )
+})
+
+test('creator removes an accepted partner through configured transport', async ({
+  page,
+  browser,
+}) => {
+  const id = await acceptedPartnerFixture()
+  const partnerId = uuid(input.users[1].id)
+  const activeMembership = () =>
+    service
+      .sql(
+        `select count(*) from trip_private.trip_participants where trip_id='${uuid(id)}' and user_id='${partnerId}' and state='active';`,
+      )
+      .then((value: string) => Number(value.trim()))
+
+  await login(page, 0, `/trips/${id}/invite`)
+  const remove = page.getByRole('button', { name: 'Remove partner', exact: true })
+  await expect(remove).toBeVisible()
+  await remove.focus()
+  await page.keyboard.press('Enter')
+  await page.getByRole('button', { name: 'Keep Trip partner', exact: true }).click()
+  await expect(remove).toBeFocused()
+  expect(await activeMembership()).toBe(1)
+
+  await page.keyboard.press('Enter')
+  await page.getByRole('button', { name: 'Yes, remove Trip partner', exact: true }).press('Enter')
+  const status = page.getByRole('status').filter({ hasText: 'Trip partner was removed' })
+  await expect(status).toContainText('Trip paused — assign a Navigator.')
+  await expect(status).toBeFocused()
+  await expect.poll(activeMembership).toBe(0)
+  await expect(page.getByText('Trip partner — partner')).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(
+    (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations,
+  ).toEqual([])
+
+  const partnerContext = await browser.newContext({ baseURL: input.origin })
+  try {
+    const partnerPage = await partnerContext.newPage()
+    const partnerToken = await login(partnerPage, 1, '/trips')
+    await partnerPage.goto(`/trips/${id}/plan`)
+    await expect(
+      partnerPage.getByRole('heading', { name: 'Trip unavailable', exact: true }),
+    ).toBeVisible()
+    await expect(rpc(partnerToken, 'get_trip', { trip_id: id })).rejects.toThrow(
+      /401|403|authorization_lost|not_allowed/,
+    )
+  } finally {
+    await partnerContext.close()
+  }
 })
 
 test('anonymous discovery, permitted photo and JIT save context return', async ({ page }) => {
