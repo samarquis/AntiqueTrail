@@ -136,7 +136,9 @@ async function login(page: Page, projectName: string) {
         if ('error_code' in body) record.error_code = body.error_code
         if ('msg' in body) record.msg = body.msg
       }
-    } catch {}
+    } catch {
+      record.body_unavailable = true
+    }
     mfaDiagnostics.push(record)
   })
   await page.goto('/auth/sign-in?returnTo=%2Fadmin%2Faccess')
