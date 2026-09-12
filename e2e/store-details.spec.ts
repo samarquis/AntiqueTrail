@@ -163,7 +163,10 @@ test.describe('Store Details decision-screen contract', () => {
     })
 
     await page.goto('/stores/blue-finch-curios')
-    const gallery = page.locator('.store-gallery')
+    await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible({
+      timeout: 30_000,
+    })
+    const gallery = page.locator('.store-gallery__background')
     const choices = page.getByRole('group', { name: 'Choose a store photo' }).getByRole('button')
     await expect(choices).toHaveCount(50)
     await expect.poll(() => blockedRequests).toBeGreaterThan(0)
@@ -184,7 +187,7 @@ test.describe('Store Details decision-screen contract', () => {
     page,
   }) => {
     await page.goto('/stores/blue-finch-curios')
-    const gallery = page.locator('.store-gallery')
+    const gallery = page.locator('.store-gallery__background')
     const enlarge = page.getByRole('button', { name: /^Enlarge image:/ })
     await enlarge.click()
 
