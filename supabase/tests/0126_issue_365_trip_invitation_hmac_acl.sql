@@ -136,7 +136,7 @@ select throws_ok(
   'P0001','not_allowed','revoked invitation remains denied');
 
 select is(
-  (app_public.accept_trip_invitation(repeat('a',32))->'trip'->>'tripId'),
+  (app_public.accept_trip_invitation(repeat('a',32))->>'tripId'),
   '36500000-0000-4000-8000-000000000101',
   'the verified intended recipient accepts the existing invitation');
 select throws_ok(
