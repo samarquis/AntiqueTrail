@@ -93,7 +93,7 @@ select fixture.invitation_id,fixture.trip_id,
 from (values
   ('36500000-0000-4000-8000-000000000201'::uuid,'36500000-0000-4000-8000-000000000101'::uuid,repeat('a',32),'recipient-365@example.invalid',statement_timestamp()+interval '1 day','pending','issue365-valid'),
   ('36500000-0000-4000-8000-000000000202'::uuid,'36500000-0000-4000-8000-000000000102'::uuid,repeat('b',32),'unverified-365@example.invalid',statement_timestamp()+interval '1 day','pending','issue365-unverified'),
-  ('36500000-0000-4000-8000-000000000203'::uuid,'36500000-0000-4000-8000-000000000103'::uuid,repeat('c',32),'recipient-365@example.invalid',statement_timestamp()-interval '1 minute','expired','issue365-expired'),
+  ('36500000-0000-4000-8000-000000000203'::uuid,'36500000-0000-4000-8000-000000000103'::uuid,repeat('c',32),'recipient-365@example.invalid',statement_timestamp()-interval '1 minute','pending','issue365-expired'),
   ('36500000-0000-4000-8000-000000000204'::uuid,'36500000-0000-4000-8000-000000000104'::uuid,repeat('d',32),'recipient-365@example.invalid',statement_timestamp()+interval '1 day','revoked','issue365-revoked'),
   ('36500000-0000-4000-8000-000000000205'::uuid,'36500000-0000-4000-8000-000000000105'::uuid,repeat('e',32),'recipient-365@example.invalid',statement_timestamp()+interval '1 day','pending','issue365-unrelated')
 ) fixture(invitation_id,trip_id,token,recipient_email,expires_at,state,idempotency_key)
