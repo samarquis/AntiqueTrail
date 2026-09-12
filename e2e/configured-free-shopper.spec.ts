@@ -71,7 +71,7 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
   expect(
     await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
   ).toBe(true)
-  await page.getByRole('link', { name: 'Sign in to save store', exact: true }).click()
+  await page.getByRole('link', { name: /save clockwork cabinet.*requires sign-in/i }).click()
   await expect(page).toHaveURL(/\/auth\/sign-in/)
   expect(await saved()).toBe(0)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
@@ -100,7 +100,7 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
   expect(
     await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
   ).toBe(true)
-  await page.getByRole('button', { name: 'Save store', exact: true }).click()
+  await page.getByRole('button', { name: 'Save store Clockwork Cabinet', exact: true }).click()
   const choices = page.getByRole('group', { name: 'Choose a store photo' }).getByRole('button')
   await expect(choices).toHaveCount(2)
   await choices.nth(1).click()
@@ -121,7 +121,9 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
   await expect(enlarge).toBeFocused()
   await expect.poll(saved).toBe(process.env.CONFIGURED_SHOPPER_WRONG_READBACK === '1' ? 2 : 1)
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Remove saved store', exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Remove saved store Clockwork Cabinet', exact: true }),
+  ).toBeVisible()
   await expect(photo).toBeVisible()
   await expect
     .poll(() => photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
@@ -133,8 +135,7 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
     .toBe(true)
   await page.goto('/saved')
   await expect(page.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toBeVisible()
-  await page.goto('/stores/clockwork-cabinet')
-  await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+  await page.goto(`/trips/new?addStoreId=${A}`)
   const name = `Browser journey ${crypto.randomUUID().slice(0, 8)}`
   await page.getByLabel('Trip name', { exact: true }).fill(name)
   await page.getByLabel('Date', { exact: true }).fill('2026-10-10')
@@ -142,8 +143,7 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
   await page.getByRole('link', { name: 'View Trip', exact: true }).click()
   const id = uuid(page.url().split('/trips/')[1].split('/')[0])
   expect((await read(id)).stops.map((s: { store: string }) => s.store)).toEqual([A])
-  await page.goto('/stores/prairie-patina')
-  await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+  await page.goto(`/trips/new?addStoreId=${B}`)
   await page.getByRole('button', { name: `Add to ${name}`, exact: true }).click()
   await page.getByRole('link', { name: 'View Trip', exact: true }).click()
   await page.reload()

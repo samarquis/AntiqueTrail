@@ -82,14 +82,17 @@ test.describe('UI-06 candidate capture, shares, and trip ideas', () => {
     await page.getByRole('button', { name: 'Accept', exact: true }).click()
     await expect(page.getByText(/Weekend estate-sale lead · received · accepted/)).toBeVisible()
 
-    await page.locator('a[href="/more"]').first().click()
-    await expect(page).toHaveURL(/\/more/)
-    await page.getByRole('link', { name: 'Shared with Me' }).click()
+    // Deferred private routes remain directly reviewable without advertising them in More.
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/shares')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
     await expect(page).toHaveURL(/\/shares/)
     await expect(page.getByText(/Weekend estate-sale lead — received · accepted/)).toBeVisible()
-    await page.locator('a[href="/more"]').first().click()
-    await expect(page).toHaveURL(/\/more/)
-    await page.getByRole('link', { name: 'Trip Ideas' }).click()
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/trip-ideas')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
     await expect(page).toHaveURL(/\/trip-ideas/)
     await expect(page.getByRole('heading', { level: 1, name: 'Trip ideas' })).toBeFocused()
     await expect(page.getByText(/Weekend estate-sale lead/)).toBeVisible()

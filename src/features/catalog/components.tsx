@@ -318,6 +318,14 @@ export function CatalogCard({
     .toLocaleUpperCase()
   const detailsHref = catalogAppHref(`/stores/${encodeURIComponent(store.slug)}`)
   const rememberDetailReturn = () => rememberBrowseReturn(store.id)
+  const normalizedArea = store.area.label
+    .toLocaleLowerCase()
+    .replace(/\s+area$/u, '')
+    .trim()
+  const location =
+    normalizedArea === store.town.toLocaleLowerCase().trim()
+      ? `${store.town}, ${store.state}`
+      : `${store.area.label} · ${store.town}, ${store.state}`
   return (
     <article
       id={mapCardId(store.id)}
@@ -346,10 +354,7 @@ export function CatalogCard({
             {store.name}
           </CatalogLink>
         </h2>
-        <p className="catalog-card__area">{store.area.label}</p>
-        <p>
-          {store.town}, {store.state}
-        </p>
+        <p className="catalog-card__area">{location}</p>
         <ul className="catalog-card__categories" aria-label="Store categories">
           {store.categories.map((category) => (
             <li key={category.slug}>{category.label}</li>
@@ -363,26 +368,26 @@ export function CatalogCard({
           </span>
         </p>
         <p className="catalog-card__freshness">{freshnessLabel(store)}</p>
-        <CatalogLink
-          className="button catalog-card__details"
-          to={detailsHref}
-          onClick={rememberDetailReturn}
-        >
-          View {store.name} details
-        </CatalogLink>
-        {onShowOnMap && (
-          <button type="button" onClick={onShowOnMap}>
-            Show {store.name} on map
-          </button>
-        )}
-        <section className="catalog-card__actions" aria-label={`Visit options for ${store.name}`}>
+        <section className="catalog-card__actions" aria-label={`Store actions for ${store.name}`}>
           <CatalogLink
-            className="button button--secondary catalog-card__add-to-trip"
-            to={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
+            className="button catalog-card__details"
+            to={detailsHref}
+            onClick={rememberDetailReturn}
+            aria-label={`View store: ${store.name}`}
           >
-            Add to Trip
+            View store
           </CatalogLink>
           {privateActions && <div className="catalog-card__private-actions">{privateActions}</div>}
+          {onShowOnMap && (
+            <button
+              className="button button--secondary"
+              type="button"
+              onClick={onShowOnMap}
+              aria-label={`Show on map: ${store.name}`}
+            >
+              Show on map
+            </button>
+          )}
         </section>
       </div>
     </article>
@@ -556,22 +561,21 @@ export function BrowsePage({
       window.history.replaceState({}, '', `/stores${query ? `?${query}` : ''}`)
   }
   return (
-    <main>
+    <main className="catalog-browser">
       <header>
         <p className="eyebrow">Antique Trail</p>
         <h1>Browse stores</h1>
         <p>Find antique and vintage stores with practical, current details.</p>
       </header>
       <CatalogFiltersForm filters={filters} onChange={updateFilters} stage={filterStage} />
-      <section aria-labelledby="browse-map-heading" className="catalog-map-panel">
+      <section
+        aria-labelledby="browse-map-heading"
+        className="catalog-map-panel"
+        hidden={mapCapability !== 'available'}
+      >
         <h2 id="browse-map-heading">Store map</h2>
         <p>The store list remains the primary discovery view.</p>
-        {mapCapability !== 'available' ? (
-          <p role="status">
-            Map and travel-time suggestions are not available yet. Your store list and filters
-            remain available.
-          </p>
-        ) : (
+        {mapCapability !== 'available' ? null : (
           <>
             <button
               type="button"
@@ -693,20 +697,11 @@ export function BrowsePage({
                                 <CatalogLink
                                   to={catalogAppHref(`/stores/${point.slug}`)}
                                   onClick={() => rememberBrowseReturn(point.storeId)}
+                                  aria-label={`View store: ${point.name}`}
                                 >
-                                  View store details
+                                  View store
                                 </CatalogLink>
                                 {renderPrivateActions?.(point.store)}
-                                <CatalogLink
-                                  to={catalogAppHref(
-                                    `/trips/new?addStoreId=${encodeURIComponent(point.storeId)}`,
-                                  )}
-                                >
-                                  Add to Trip
-                                </CatalogLink>
-                                {map.navigationHref && (
-                                  <a href={map.navigationHref(point)}>Navigate</a>
-                                )}
                               </>
                             )
                           })()}
@@ -793,7 +788,13 @@ function sameMapBounds(left: CatalogMapBounds, right: CatalogMapBounds) {
   )
 }
 
-function StoreGallery({ store }: { store: CatalogStore }) {
+function StoreGallery({
+  store,
+  afterCover,
+}: {
+  store: CatalogStore
+  afterCover?: React.ReactNode
+}) {
   const media = store.media
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [failed, setFailed] = useState<Set<number>>(() => new Set())
@@ -870,73 +871,90 @@ function StoreGallery({ store }: { store: CatalogStore }) {
   )
 
   return (
-    <section className="store-gallery" aria-labelledby="gallery-heading">
+    <>
       <div ref={background} className="store-gallery__background">
-        <h2 id="gallery-heading" className="sr-only">
-          Store photos
-        </h2>
-        {selectedFailed ? (
-          <div
-            className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__missing`}
-            role="img"
-            aria-label="Store image unavailable"
-          >
-            <strong aria-hidden="true">{store.name.slice(0, 1)}</strong>
-            <span>Photo unavailable</span>
-          </div>
-        ) : (
-          <figure className="store-gallery__hero">
-            <button
-              ref={enlargeButton}
-              type="button"
-              className="store-gallery__enlarge"
-              aria-label={`Enlarge image: ${selected.alt}`}
-              onClick={() => setEnlarged(true)}
+        <section className="store-gallery store-gallery--cover" aria-labelledby="gallery-heading">
+          <h2 id="gallery-heading" className="sr-only">
+            Store photos
+          </h2>
+          {selectedFailed ? (
+            <div
+              className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__missing`}
+              role="img"
+              aria-label="Store image unavailable"
             >
-              <img
-                src={selected.src}
-                {...responsiveCatalogImage(selected.src, '(max-width: 800px) 100vw, 720px')}
-                alt={selected.alt}
-                onError={() => markFailed(selectedIndex)}
-              />
-            </button>
-            <MediaCaption media={selected} className="store-gallery__plate" />
-          </figure>
-        )}
-        {media.length > 1 && (
-          <div className="store-gallery__wall" role="group" aria-label="Choose a store photo">
-            {media.map((item, index) => (
+              <strong aria-hidden="true">{store.name.slice(0, 1)}</strong>
+              <span>Photo unavailable</span>
+            </div>
+          ) : (
+            <figure className="store-gallery__hero">
               <button
-                ref={(element) => {
-                  choiceButtons.current[index] = element
-                }}
-                key={`${item.src}-${index}`}
+                ref={enlargeButton}
                 type="button"
-                className="store-gallery__print"
-                aria-label={`Show image ${index + 1}: ${item.alt}`}
-                aria-pressed={selectedIndex === index}
-                onClick={() => setSelectedIndex(index)}
+                className="store-gallery__enlarge"
+                aria-label={`Enlarge image: ${selected.alt}`}
+                onClick={() => setEnlarged(true)}
               >
-                {failed.has(index) ? (
-                  <span
-                    className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__print-unavailable`}
-                  >
-                    Unavailable
-                  </span>
-                ) : (
-                  <>
-                    <img
-                      src={item.src}
-                      {...responsiveCatalogImage(item.src, '220px')}
-                      alt=""
-                      onError={() => markFailed(index)}
-                    />
-                    <span className="store-gallery__print-plate">No. {index + 1}</span>
-                  </>
-                )}
+                <img
+                  src={selected.src}
+                  {...responsiveCatalogImage(
+                    selected.src,
+                    '(max-width: 800px) 100vw, calc(100vw - clamp(64px, 6vw, 128px))',
+                  )}
+                  alt={selected.alt}
+                  onError={() => markFailed(selectedIndex)}
+                />
               </button>
-            ))}
-          </div>
+              <MediaCaption media={selected} className="store-gallery__plate" />
+            </figure>
+          )}
+        </section>
+        {afterCover}
+        {media.length > 1 && (
+          <section
+            className="store-gallery store-gallery--collection"
+            aria-label="Store photo collection"
+          >
+            <div className="store-gallery__wall" role="group" aria-label="Choose a store photo">
+              {media.map((item, index) => (
+                <button
+                  ref={(element) => {
+                    choiceButtons.current[index] = element
+                  }}
+                  key={`${item.src}-${index}`}
+                  type="button"
+                  className="store-gallery__print"
+                  aria-label={`Show image ${index + 1}: ${item.alt}`}
+                  aria-pressed={selectedIndex === index}
+                  onClick={() => setSelectedIndex(index)}
+                >
+                  {failed.has(index) ? (
+                    <span
+                      className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__print-unavailable`}
+                    >
+                      Unavailable
+                    </span>
+                  ) : (
+                    <>
+                      <img
+                        src={item.src}
+                        {...responsiveCatalogImage(
+                          item.src,
+                          '(min-width: 1024px) 32vw, (min-width: 801px) 220px, 33vw',
+                        )}
+                        alt=""
+                        loading={index > 2 ? 'lazy' : undefined}
+                        width="480"
+                        height="360"
+                        onError={() => markFailed(index)}
+                      />
+                      <span className="store-gallery__print-plate">No. {index + 1}</span>
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+          </section>
         )}
       </div>
       {enlarged && selected && !selectedFailed && (
@@ -1015,7 +1033,7 @@ function StoreGallery({ store }: { store: CatalogStore }) {
           <MediaPosition index={selectedIndex} count={media.length} />
         </div>
       )}
-    </section>
+    </>
   )
 }
 
@@ -1024,7 +1042,7 @@ function StoreSectionNav() {
     <nav className="store-detail__section-nav" aria-label="Store sections">
       <a href="#about-heading">About</a>
       <a href="#gallery-heading">Photos</a>
-      <a href="#hours-heading">Plan your visit</a>
+      <a href="#hours-heading">Hours &amp; location</a>
       <a href="#source-heading">Source</a>
     </nav>
   )
@@ -1049,12 +1067,6 @@ function StoreHours({ store }: { store: CatalogStore }) {
             Hours
           </h2>
         </div>
-        <p className={`status-badge status-badge--${today.openState}`}>
-          <span aria-hidden="true">
-            {today.openState === 'open' ? '✓' : today.openState === 'closed' ? '●' : '?'}
-          </span>{' '}
-          {today.openStateLabel}
-        </p>
       </div>
       <p className="store-detail__today">
         <strong>{today.dayLabel}</strong> · {today.hoursLabel}
@@ -1167,6 +1179,8 @@ export function DetailsPage({
   const provenanceDate = formatCatalogDate(store.provenance?.updatedAt)
   const hasContact = Boolean(store.website || store.phone || store.email)
   const canAddToTrip = detailsStageRank[stage] >= detailsStageRank['package-5a']
+  const today = todayHoursSummary(store)
+  const hasNavigableAddress = !/\bsynthetic\b/i.test(store.address)
   return (
     <main className="store-detail">
       <CatalogLink className="store-detail__back" to={catalogAppHref(backHref)}>
@@ -1179,6 +1193,17 @@ export function DetailsPage({
           <p className="store-detail__address">
             {store.address}, {store.town}, {store.state}
           </p>
+          <div className="store-detail__arrival-status" aria-label="Today's opening information">
+            <p className={`status-badge status-badge--${today.openState}`}>
+              <span aria-hidden="true">
+                {today.openState === 'open' ? '✓' : today.openState === 'closed' ? '●' : '?'}
+              </span>{' '}
+              {today.openStateLabel}
+            </p>
+            <p>
+              <strong>{today.dayLabel}</strong> · {today.hoursLabel}
+            </p>
+          </div>
           <div className="store-detail__trust" aria-label="Listing status">
             <p className={`status-badge status-badge--${store.freshness?.status ?? 'unknown'}`}>
               <span aria-hidden="true">{store.freshness?.status === 'current' ? '✓' : 'i'}</span>{' '}
@@ -1195,59 +1220,28 @@ export function DetailsPage({
           </div>
         </header>
 
-        <StoreGallery store={store} />
-        {store.media.length > 0 && (
-          <p className="store-detail__gallery-link">
-            <CatalogLink
-              to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/photos`)}
-              onClick={() => rememberStoreReturn(store.id, 'photos')}
-            >
-              See all {store.media.length} {store.media.length === 1 ? 'photo' : 'photos'}
-            </CatalogLink>
-          </p>
-        )}
-        {store.fixtureProfile && store.media.length > 0 && (
-          <p className="evaluation-note store-detail__evaluation-note">
-            {store.fixtureProfile.label} · these {store.media.length} wall records are
-            evaluation-only and are not a public photo allowance.
-          </p>
-        )}
-
-        <StoreSectionNav />
-
-        <section className="store-detail__intro" aria-labelledby="about-heading">
-          <p className="eyebrow">What you’ll find</p>
-          <h2 id="about-heading">About this store</h2>
-          <p>{store.description || 'A store description has not been supplied.'}</p>
-          {store.categories.length ? (
-            <ul className="catalog-card__categories" aria-label="Store categories">
-              {store.categories.map((category) => (
-                <li key={category.slug}>{category.label}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="honesty-note">Store categories are unavailable.</p>
-          )}
-        </section>
-
         <nav className="store-detail__actions" aria-label="Store visit actions">
-          <a
-            className="button"
-            href={externalNavigationHref(store)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <img
-              className="button__icon"
-              src="/icons/navigate.svg"
-              alt=""
-              aria-hidden="true"
-              width="20"
-              height="20"
-            />
-            Navigate in Maps <span aria-hidden="true">↗</span>
-            <span className="sr-only"> (opens in a new window)</span>
-          </a>
+          {hasNavigableAddress ? (
+            <a
+              className="button"
+              href={externalNavigationHref(store)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <img
+                className="button__icon"
+                src="/icons/navigate.svg"
+                alt=""
+                aria-hidden="true"
+                width="20"
+                height="20"
+              />
+              Navigate in Maps <span aria-hidden="true">↗</span>
+              <span className="sr-only"> (opens in a new window)</span>
+            </a>
+          ) : (
+            <p className="honesty-note">Directions are unavailable for this fictional address.</p>
+          )}
           {canAddToTrip && (
             <CatalogLink
               className="button button--secondary"
@@ -1267,39 +1261,80 @@ export function DetailsPage({
           {renderPrivateActions?.(store)}
         </nav>
 
-        <StoreHours store={store} />
+        <StoreGallery
+          store={store}
+          afterCover={
+            <>
+              <StoreSectionNav />
+              <section className="store-detail__intro" aria-labelledby="about-heading">
+                <p className="eyebrow">What you’ll find</p>
+                <h2 id="about-heading">About this store</h2>
+                <p>{store.description || 'A store description has not been supplied.'}</p>
+                {store.categories.length ? (
+                  <ul className="catalog-card__categories" aria-label="Store categories">
+                    {store.categories.map((category) => (
+                      <li key={category.slug}>{category.label}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="honesty-note">Store categories are unavailable.</p>
+                )}
+              </section>
+            </>
+          }
+        />
+        {store.media.length > 0 && (
+          <p className="store-detail__gallery-link">
+            <CatalogLink
+              to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/photos`)}
+              onClick={() => rememberStoreReturn(store.id, 'photos')}
+            >
+              See all {store.media.length} {store.media.length === 1 ? 'photo' : 'photos'}
+            </CatalogLink>
+          </p>
+        )}
+        {store.fixtureProfile && store.media.length > 0 && (
+          <p className="evaluation-note store-detail__evaluation-note">
+            {store.fixtureProfile.label} · these {store.media.length} wall records are
+            evaluation-only and are not a public photo allowance.
+          </p>
+        )}
 
-        <section className="store-detail__panel" aria-labelledby="contact-heading">
-          <p className="eyebrow">Confirm your visit</p>
-          <h2 id="contact-heading">Contact &amp; location</h2>
-          <address>
-            {store.address}, {store.town}, {store.state}
-          </address>
-          {hasContact ? (
-            <ul className="store-detail__link-list">
-              {store.phone && (
-                <li>
-                  <a href={`tel:${store.phone}`}>Call {store.phone}</a>
-                </li>
-              )}
-              {store.email && (
-                <li>
-                  <a href={`mailto:${store.email}`}>Email the store</a>
-                </li>
-              )}
-              {store.website && (
-                <li>
-                  <a href={store.website} target="_blank" rel="noreferrer">
-                    Visit official website <span aria-hidden="true">↗</span>
-                    <span className="sr-only"> (opens in a new window)</span>
-                  </a>
-                </li>
-              )}
-            </ul>
-          ) : (
-            <p className="honesty-note">Contact details have not been supplied.</p>
-          )}
-        </section>
+        <div className="store-detail__visit-grid">
+          <StoreHours store={store} />
+
+          <section className="store-detail__panel" aria-labelledby="contact-heading">
+            <p className="eyebrow">Confirm your visit</p>
+            <h2 id="contact-heading">Contact &amp; location</h2>
+            <address>
+              {store.address}, {store.town}, {store.state}
+            </address>
+            {hasContact ? (
+              <ul className="store-detail__link-list">
+                {store.phone && (
+                  <li>
+                    <a href={`tel:${store.phone}`}>Call {store.phone}</a>
+                  </li>
+                )}
+                {store.email && (
+                  <li>
+                    <a href={`mailto:${store.email}`}>Email the store</a>
+                  </li>
+                )}
+                {store.website && (
+                  <li>
+                    <a href={store.website} target="_blank" rel="noreferrer">
+                      Visit official website <span aria-hidden="true">↗</span>
+                      <span className="sr-only"> (opens in a new window)</span>
+                    </a>
+                  </li>
+                )}
+              </ul>
+            ) : (
+              <p className="honesty-note">Contact details have not been supplied.</p>
+            )}
+          </section>
+        </div>
 
         <section className="store-detail__panel" aria-labelledby="accessibility-heading">
           <p className="eyebrow">Know before you go</p>

@@ -102,7 +102,7 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
 
   test('recovers an interrupted private action without a cancelled write', async ({ page }) => {
     await page.goto(reviewUrl('/stores/blue-finch-curios'))
-    await page.getByRole('link', { name: 'Sign in to save store' }).click()
+    await page.getByRole('link', { name: /save blue finch curios.*requires sign-in/i }).click()
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeFocused()
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page.getByRole('alert')).toContainText(/enter your email and password/i)

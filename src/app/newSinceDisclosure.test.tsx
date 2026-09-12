@@ -4,10 +4,10 @@ import { MemoryRouter } from 'react-router-dom'
 import { InMemoryAuthStore } from '../features/auth'
 import App from './App'
 
-describe('New Since More-menu disclosure', () => {
+describe('showcase More-menu disclosure', () => {
   afterEach(cleanup)
 
-  it('discloses sign-in before a signed-out shopper opens the private destination', () => {
+  it('keeps deferred New Since hidden and discloses sign-in for the permitted account destination', () => {
     render(
       <MemoryRouter initialEntries={['/more']}>
         <App />
@@ -15,14 +15,17 @@ describe('New Since More-menu disclosure', () => {
     )
 
     expect(
-      screen.getByRole('link', { name: /new since your last visit.*requires sign-in/i }),
-    ).toHaveAttribute('href', '/new-since')
+      screen.queryByRole('link', { name: /new since your last visit/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /account & privacy.*requires sign-in/i }),
+    ).toHaveAttribute('href', '/account/privacy')
     expect(screen.getByRole('link', { name: /^install$/i })).not.toHaveAccessibleName(
       /requires sign-in/i,
     )
   })
 
-  it('does not add the disclosure for an authenticated shopper', () => {
+  it('keeps deferred New Since hidden without adding a sign-in disclosure for a shopper account', () => {
     const authStore = new InMemoryAuthStore()
     authStore.setSession({
       userId: 'shopper-a',
@@ -39,9 +42,12 @@ describe('New Since More-menu disclosure', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('link', { name: /^new since your last visit$/i })).toHaveAttribute(
+    expect(
+      screen.queryByRole('link', { name: /new since your last visit/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^account & privacy$/i })).toHaveAttribute(
       'href',
-      '/new-since',
+      '/account/privacy',
     )
   })
 })
