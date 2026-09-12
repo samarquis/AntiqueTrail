@@ -59,6 +59,96 @@ const coverImageSlugs = [
   'willow-and-wren',
 ]
 
+const storeCopy = [
+  {
+    summary: 'Lamp-lit rooms pair blue-and-white ceramics with small chests and walnut furniture.',
+    description:
+      'An antique-mall-style collection of ceramic lighting, brass accents, glassware, small chests, and walnut furniture arranged in room-like displays.',
+    coverCaption:
+      'Blue-painted brick storefront with lamps, ceramics, and small chests displayed in the windows.',
+  },
+  {
+    summary: 'Warm wood furniture and brass candlesticks shape a compact vintage storefront.',
+    description:
+      'A vintage-focused setting built around a walnut cabinet, brass candlesticks, and the warm cedar-and-brick character shown in the storefront image.',
+    coverCaption:
+      'Cedar-clad storefront with a walnut cabinet and brass candlesticks in the display window.',
+  },
+  {
+    summary: 'Pottery and framed art fill a light storefront shaded by a broad elm tree.',
+    description:
+      'An antique-mall-style mix of pottery and framed art presented in a cream-brick storefront with a leafy, neighborhood-shop feel.',
+    coverCaption:
+      'Cream brick storefront beneath an elm tree, with pottery and framed art in the windows.',
+  },
+  {
+    summary: 'Porch displays give this green bungalow-style vintage shop a relaxed garden setting.',
+    description:
+      'A vintage browsing setting arranged around a deep green craftsman storefront, porch displays, and native flowers rather than a conventional retail facade.',
+    coverCaption:
+      'Deep green craftsman storefront with porch displays and native flowers along the walk.',
+  },
+  {
+    summary: 'A glowing lantern leads into a stone corner display of antique furniture.',
+    description:
+      'An antique-mall-style furniture display framed by stone walls, maple-red trim, and the warm light of a prominent entry lantern.',
+    coverCaption:
+      'Stone corner storefront with red trim, a glowing entry lantern, and antique furniture on display.',
+  },
+  {
+    summary:
+      'Travel trunks, maps, and wooden chairs give this vintage storefront an explorer theme.',
+    description:
+      'A vintage collection centered on travel trunks, maps, and wooden seating, presented behind a cream masonry facade with navy trim.',
+    coverCaption:
+      'Cream masonry storefront with navy trim and window displays of trunks, maps, and wooden chairs.',
+  },
+  {
+    summary: 'Oak cabinets and woven rugs anchor broad windows inspired by prairie interiors.',
+    description:
+      'An antique-mall-style furniture setting where oak cabinetry and woven rugs are the main visual themes behind wide buff-brick storefront windows.',
+    coverCaption:
+      'Buff brick storefront with broad windows displaying oak cabinets and woven rugs.',
+  },
+  {
+    summary: 'Colorful quilts brighten a rose-red vintage storefront beneath a flowering redbud.',
+    description:
+      'A vintage textile setting focused on quilts, with a rose-red brick facade and blooming redbud giving the storefront its distinct identity.',
+    coverCaption:
+      'Rose-red brick storefront beneath a blooming redbud tree, with quilts filling the windows.',
+  },
+  {
+    summary: 'Salvaged furniture meets bright sunflower planters in an industrial-style setting.',
+    description:
+      'An antique-mall-style assortment of salvaged furniture presented against white industrial brick, a mustard-colored door, and sunflower planters.',
+    coverCaption:
+      'White industrial-brick storefront with a mustard door, sunflower planters, and salvaged furniture.',
+  },
+  {
+    summary:
+      'Pottery and quilts sit behind tall grasses in a warm, understated vintage storefront.',
+    description:
+      'A vintage mix of pottery and quilts displayed in a tan-brick setting framed by native-grass planters and soft natural textures.',
+    coverCaption:
+      'Tan brick storefront framed by tall grasses, with pottery and quilts in the display windows.',
+  },
+  {
+    summary:
+      'Railway arches frame travel trunks, clocks, and vintage chairs in a reused station setting.',
+    description:
+      'An antique-mall-style collection of travel trunks, clocks, and vintage chairs presented beneath brick railway arches and teal doors.',
+    coverCaption:
+      'Reused railway storefront with brick arches, teal doors, trunks, clocks, and vintage chairs.',
+  },
+  {
+    summary: 'Baskets, botanical art, and chairs create a gentle vintage display beside the creek.',
+    description:
+      'A vintage collection of woven baskets, botanical art, and seating shown in a willow-green storefront with a quiet creekside setting.',
+    coverCaption:
+      'Willow-green creekside storefront displaying baskets, botanical art, and chairs.',
+  },
+]
+
 const fixtureGalleryBySlug = new Map<string, CatalogMedia[]>()
 for (const record of fixtureMedia.records) {
   const gallery = fixtureGalleryBySlug.get(record.slug) ?? []
@@ -78,7 +168,7 @@ const syntheticMedia: CatalogMedia[][] = names.map((name, index) => {
       src: `${syntheticImageRoot}/${coverImageSlugs[index]}-cover.webp`,
       alt: coverAltText[index],
       kind: 'cover',
-      caption: `Fictional storefront created for the ${name} Synthetic Store fixture.`,
+      caption: storeCopy[index].coverCaption,
       rightsLabel: generatedRights,
     },
   ]
@@ -130,8 +220,8 @@ export const syntheticStores: CatalogStore[] = names.map((name, index) => ({
   categories: [
     { slug: index % 2 ? 'vintage' : 'antique-mall', label: index % 2 ? 'Vintage' : 'Antique mall' },
   ],
-  summary: 'A fictional Synthetic Store for local browsing and testing.',
-  description: 'This fictional listing is part of the Antique Trail Synthetic Store catalog.',
+  summary: storeCopy[index].summary,
+  description: storeCopy[index].description,
   timeZone: 'America/Chicago',
   freshness:
     index === 0

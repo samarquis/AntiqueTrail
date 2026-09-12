@@ -447,6 +447,24 @@ describe('trustworthy Store Details contract', () => {
     }
   }
 
+  it('keeps distinct fixture copy and truthful media metadata in an ordinary sparse profile', async () => {
+    const cedar = syntheticStores[1]
+    const ordinarySparse = {
+      ...cedar,
+      media: cedar.media.slice(0, 1),
+      fixtureProfile: null,
+    }
+
+    render(<DetailsPage client={detailsClient(ordinarySparse)} slug={ordinarySparse.slug} />)
+
+    await screen.findByRole('heading', { level: 1, name: ordinarySparse.name })
+    expect(screen.getByText(ordinarySparse.description!, { exact: true })).toBeVisible()
+    expect(screen.getByRole('img', { name: ordinarySparse.media[0].alt })).toBeVisible()
+    expect(screen.getByText(ordinarySparse.media[0].caption!, { exact: true })).toBeVisible()
+    expect(screen.getByText(ordinarySparse.media[0].rightsLabel!, { exact: true })).toBeVisible()
+    expect(screen.queryByText(/wall-evaluation fixture/iu)).not.toBeInTheDocument()
+  })
+
   afterEach(() => {
     cleanup()
     window.sessionStorage.clear()
