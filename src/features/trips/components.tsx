@@ -1920,15 +1920,20 @@ export function AcceptTripInvitationPage({
   client?: TripClient
 }) {
   const location = useLocation()
-  const navigate = useNavigate()
   const [token] = useState(() => new URLSearchParams(location.hash.slice(1)).get('token') ?? '')
+  const [fragmentScrubbed, setFragmentScrubbed] = useState(() => !location.hash)
   const acceptance = useRef<Promise<TripCollaboration> | null>(null)
   const [collaboration, setCollaboration] = useState<TripCollaboration | null>(null)
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    if (location.hash) {
-      navigate('/trip-invitations', { replace: true })
+    if (!fragmentScrubbed) {
+      window.history.replaceState(
+        window.history.state,
+        '',
+        `${window.location.pathname}${window.location.search}`,
+      )
+      setFragmentScrubbed(true)
       return
     }
     if (!token) {
@@ -1947,7 +1952,7 @@ export function AcceptTripInvitationPage({
     return () => {
       cancelled = true
     }
-  }, [client, location.hash, navigate, token])
+  }, [client, fragmentScrubbed, token])
 
   return (
     <TripCard

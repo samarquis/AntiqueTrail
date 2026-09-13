@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StrictMode, type ReactNode } from 'react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../auth'
 import {
@@ -121,7 +121,10 @@ function renderPage(page: ReactNode) {
 }
 
 describe('manual trips', () => {
-  afterEach(() => cleanup())
+  afterEach(() => {
+    cleanup()
+    window.history.replaceState({}, '', '/')
+  })
   it('normalizes bounded trip names and rejects empty names', () => {
     expect(normalizeTripName('  Oak\nDay  ')).toBe('Oak Day')
     expect(normalizeTripName('\u0000')).toBe('')
@@ -1631,6 +1634,11 @@ describe('manual trips', () => {
   })
 
   it('accepts a fragment invitation into only the returned trip', async () => {
+    window.history.replaceState(
+      { source: 'mail' },
+      '',
+      '/trip-invitations?source=mail#token=opaque-secret',
+    )
     const acceptInvitation = vi.fn(async () => ({
       tripId: 'trip-1',
       tripVersion: 1,
@@ -1643,14 +1651,14 @@ describe('manual trips', () => {
     }))
     render(
       <StrictMode>
-        <MemoryRouter initialEntries={['/trip-invitations#token=opaque-secret']}>
+        <BrowserRouter>
           <Routes>
             <Route
               path="/trip-invitations"
               element={<AcceptTripInvitationPage client={client({ acceptInvitation })} />}
             />
           </Routes>
-        </MemoryRouter>
+        </BrowserRouter>
       </StrictMode>,
     )
     expect(
@@ -1658,9 +1666,34 @@ describe('manual trips', () => {
     ).toBeInTheDocument()
     expect(acceptInvitation).toHaveBeenCalledWith('opaque-secret')
     expect(acceptInvitation).toHaveBeenCalledTimes(1)
+    expect(window.location.hash).toBe('')
+    expect(window.location.pathname + window.location.search).toBe('/trip-invitations?source=mail')
+    expect(window.history.state).toMatchObject({ source: 'mail', idx: 0 })
     expect(screen.getByRole('link', { name: /open shared trip/i })).toHaveAttribute(
       'href',
       '/trips/trip-1/plan',
     )
+  })
+
+  it('fails closed when a trip invitation has no fragment token', async () => {
+    window.history.replaceState({}, '', '/trip-invitations')
+    const acceptInvitation = vi.fn(async () => {
+      throw new Error('unexpected invitation acceptance')
+    })
+    render(
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/trip-invitations"
+            element={<AcceptTripInvitationPage client={client({ acceptInvitation })} />}
+          />
+        </Routes>
+      </BrowserRouter>,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "We couldn't update this trip. Please try again.",
+    )
+    expect(acceptInvitation).not.toHaveBeenCalled()
   })
 })
