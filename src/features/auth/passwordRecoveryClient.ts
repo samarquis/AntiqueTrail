@@ -7,9 +7,19 @@ export const PASSWORD_RECOVERY_LENGTH_ERROR = 'Use 12 through 128 characters.'
 export const PASSWORD_RECOVERY_MISMATCH_ERROR = 'Passwords do not match.'
 
 let pendingRecoveryToken: string | null = null
+let pendingRecoveryGeneration = 0
 
 export function stageRecoveryToken(tokenHash: string): void {
+  pendingRecoveryGeneration += 1
   pendingRecoveryToken = tokenHash
+}
+
+/** Cleanup owns only the token generation present when the page effect attached. */
+export function captureStagedRecoveryCleanup(): () => void {
+  const generation = pendingRecoveryGeneration
+  return () => {
+    if (generation === pendingRecoveryGeneration) clearStagedRecoveryToken()
+  }
 }
 
 export function hasStagedRecoveryToken(): boolean {

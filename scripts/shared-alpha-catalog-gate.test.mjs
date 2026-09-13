@@ -2,7 +2,10 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const edge = await readFile('supabase/functions/public-catalog/index.ts', 'utf8')
+const edge = [
+  await readFile('supabase/functions/public-catalog/index.ts', 'utf8'),
+  await readFile('supabase/functions/_shared/public-catalog.ts', 'utf8'),
+].join('\n')
 const migration = await readFile(
   'supabase/migrations/20260823110000_shared_alpha_catalog_gateway.sql',
   'utf8',
