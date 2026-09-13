@@ -295,17 +295,31 @@ export function createAuthProvider<
       }
     },
     onSessionChange(listener) {
+      const pendingNotifications = new Set<ReturnType<typeof setTimeout>>()
+      const notify = (session: ProviderSession | null) => {
+        const task = setTimeout(() => {
+          pendingNotifications.delete(task)
+          listener(session)
+        }, 0)
+        pendingNotifications.add(task)
+      }
       const subscription = supabase.auth.onAuthStateChange((event, session) => {
         if (!acceptingSessions || (event === 'INITIAL_SESSION' && !session)) return
         if (!session || event === 'SIGNED_OUT') {
           void clearMaterial().catch(() => undefined)
-          listener(null)
+          notify(null)
           return
         }
         void remember(session).catch(() => undefined)
-        listener(providerSession(session))
+        // Supabase holds its auth lock while invoking this callback. Application
+        // listeners can issue authenticated RPCs, so notify only after it returns.
+        notify(providerSession(session))
       })
-      return () => subscription.data.subscription.unsubscribe()
+      return () => {
+        for (const task of pendingNotifications) clearTimeout(task)
+        pendingNotifications.clear()
+        subscription.data.subscription.unsubscribe()
+      }
     },
     async clearSessionMaterial() {
       await clearMaterial()

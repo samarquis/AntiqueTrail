@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { createAuthProvider } from './configuredComposition'
 import { toAuthSession } from '../features/auth/authClient'
 
+const settleNotification = () => new Promise((resolve) => setTimeout(resolve, 0))
+
 describe('configured authoritative account operations', () => {
   it('uses one server registration operation and never calls browser provider signup', async () => {
     const invoke = vi.fn(async () => ({
@@ -133,6 +135,7 @@ describe('sign-out refresh races', () => {
       user: { id: 'new-user', app_metadata: {}, user_metadata: {} },
     }
     event('SIGNED_IN', next)
+    await settleNotification()
     await provider.signOut(
       toAuthSession({ userId: 'old-user', accessToken: 'old-token', expiresAt: 1900000000000 }),
     )
@@ -140,7 +143,7 @@ describe('sign-out refresh races', () => {
     expect(currentSignOut).not.toHaveBeenCalled()
     expect(clear).not.toHaveBeenCalled()
     event('TOKEN_REFRESHED', next)
-    await Promise.resolve()
+    await settleNotification()
     expect(listener).toHaveBeenCalledTimes(2)
     expect(write).toHaveBeenCalledWith({ userId: 'new-user', refreshToken: 'new-refresh' })
   })
@@ -182,7 +185,7 @@ describe('sign-out refresh races', () => {
       user: { id: 'user-1', app_metadata: {}, user_metadata: {} },
     }
     event('TOKEN_REFRESHED', refreshed)
-    await Promise.resolve()
+    await settleNotification()
     const clearing = provider.clearSessionMaterial!()
     event('TOKEN_REFRESHED', refreshed)
     release()
@@ -190,5 +193,37 @@ describe('sign-out refresh races', () => {
     expect(material).toBeNull()
     expect(storage.write).toHaveBeenCalledTimes(1)
     expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('notifies application listeners only after the provider callback releases control', async () => {
+    let event!: (kind: string, session: unknown) => void
+    let insideProviderCallback = false
+    const provider = createAuthProvider(
+      {
+        auth: {
+          onAuthStateChange: (listener: typeof event) => {
+            event = (kind, session) => {
+              insideProviderCallback = true
+              listener(kind, session)
+              insideProviderCallback = false
+            }
+            return { data: { subscription: { unsubscribe: vi.fn() } } }
+          },
+        },
+      } as never,
+      { read: async () => null, write: async () => undefined, clear: async () => undefined },
+    )
+    const listener = vi.fn(() => expect(insideProviderCallback).toBe(false))
+    provider.onSessionChange!(listener)
+
+    event('TOKEN_REFRESHED', {
+      access_token: 'token',
+      refresh_token: 'refresh',
+      expires_at: 1900000000,
+      user: { id: 'user-1', app_metadata: {}, user_metadata: {} },
+    })
+    expect(listener).not.toHaveBeenCalled()
+    await settleNotification()
+    expect(listener).toHaveBeenCalledOnce()
   })
 })
