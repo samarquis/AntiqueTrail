@@ -223,7 +223,9 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
 
 export function RecoveryPage({ provider }: { provider: AuthProviderAdapter }) {
   const location = useLocation()
-  const returnTo = safeReturnTo(new URLSearchParams(location.search).get('returnTo'))
+  const returnTo = isCatalogOnlyPublicTest()
+    ? '/account'
+    : safeReturnTo(new URLSearchParams(location.search).get('returnTo'))
   if (hasStagedRecoveryToken()) {
     return <PasswordReplacementPage provider={provider} returnTo={returnTo} />
   }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Link } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import {
-  clearStagedRecoveryToken,
+  captureStagedRecoveryCleanup,
   isValidRecoveryPassword,
   PASSWORD_RECOVERY_ERROR,
   PASSWORD_RECOVERY_LENGTH_ERROR,
@@ -31,7 +31,18 @@ export function PasswordReplacementPage({
   const sessionRef = useRef(session)
   const errorRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => clearStagedRecoveryToken, [])
+  const cleanupEpoch = useRef(0)
+  useEffect(() => {
+    const epoch = ++cleanupEpoch.current
+    const clearOwnedToken = captureStagedRecoveryCleanup()
+    return () => {
+      // StrictMode immediately reattaches the effect. A genuine unmount has no
+      // successor epoch; its cleanup must not erase a newer callback's token.
+      queueMicrotask(() => {
+        if (cleanupEpoch.current === epoch) clearOwnedToken()
+      })
+    }
+  }, [])
   useEffect(() => {
     sessionRef.current = session
   }, [session])
