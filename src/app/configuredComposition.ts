@@ -43,7 +43,9 @@ import {
   type TripInstallationIdentity,
   type SignedOfflineGrant,
   type Trip,
+  type TripApiCommand,
   type TripOfflineGrantSource,
+  type TripTransport,
 } from '../features/trips'
 import {
   IndexedDbRefreshSessionStorage,
@@ -116,6 +118,29 @@ function providerSession(session: Session): ProviderSession {
   }
 }
 
+export function createConfiguredTripTransport(
+  rpc: (
+    command: TripApiCommand,
+    payload: Readonly<Record<string, unknown>>,
+  ) => {
+    setHeader(
+      name: string,
+      value: string,
+    ): PromiseLike<{ data: unknown; error: { message: string } | null }>
+  },
+  accessToken: () => string | null,
+): TripTransport {
+  return {
+    async invoke(command: TripApiCommand, payload: Readonly<Record<string, unknown>>) {
+      const token = accessToken()
+      if (!token) throw new Error('Authenticated trip session unavailable.')
+      const result = await rpc(command, payload).setHeader('Authorization', `Bearer ${token}`)
+      if (result.error) throw result.error
+      return result.data
+    },
+  }
+}
+
 export function createAuthProvider<
   T extends {
     auth: ReturnType<typeof createClient>['auth']
@@ -125,6 +150,7 @@ export function createAuthProvider<
 >(
   supabase: T,
   refreshStorage: RefreshSessionStorage = new IndexedDbRefreshSessionStorage(),
+  onAccessTokenChange?: (accessToken: string | null) => void,
 ): AuthProviderAdapter {
   const challenges = new Map<string, { factorId: string; session: ProviderSession }>()
   let acceptingSessions = true
@@ -133,6 +159,7 @@ export function createAuthProvider<
   const remember = (session: Session) => {
     if (!acceptingSessions) return Promise.resolve()
     providerUserId = session.user.id
+    onAccessTokenChange?.(session.access_token)
     storageWork = storageWork
       .then(() =>
         refreshStorage.write({ userId: session.user.id, refreshToken: session.refresh_token }),
@@ -142,6 +169,7 @@ export function createAuthProvider<
   }
   const clearMaterial = () => {
     acceptingSessions = false
+    onAccessTokenChange?.(null)
     storageWork = storageWork.then(
       () => refreshStorage.clear(),
       () => refreshStorage.clear(),
@@ -295,17 +323,31 @@ export function createAuthProvider<
       }
     },
     onSessionChange(listener) {
+      const pendingNotifications = new Set<ReturnType<typeof setTimeout>>()
+      const notify = (session: ProviderSession | null) => {
+        const task = setTimeout(() => {
+          pendingNotifications.delete(task)
+          listener(session)
+        }, 0)
+        pendingNotifications.add(task)
+      }
       const subscription = supabase.auth.onAuthStateChange((event, session) => {
         if (!acceptingSessions || (event === 'INITIAL_SESSION' && !session)) return
         if (!session || event === 'SIGNED_OUT') {
           void clearMaterial().catch(() => undefined)
-          listener(null)
+          notify(null)
           return
         }
         void remember(session).catch(() => undefined)
-        listener(providerSession(session))
+        // Supabase holds its auth lock while invoking this callback. Application
+        // listeners can issue authenticated RPCs, so notify only after it returns.
+        notify(providerSession(session))
       })
-      return () => subscription.data.subscription.unsubscribe()
+      return () => {
+        for (const task of pendingNotifications) clearTimeout(task)
+        pendingNotifications.clear()
+        subscription.data.subscription.unsubscribe()
+      }
     },
     async clearSessionMaterial() {
       await clearMaterial()
@@ -490,6 +532,10 @@ export async function configuredComposition(
       flowType: 'pkce',
     },
   })
+  let configuredAccessToken: string | null = null
+  const authProvider = createAuthProvider(supabase, undefined, (accessToken) => {
+    configuredAccessToken = accessToken
+  })
   if (
     typeof window !== 'undefined' &&
     ['/reviewer/setup', '/reviewer/credentials', '/reviewer/recover'].includes(
@@ -597,34 +643,34 @@ export async function configuredComposition(
     if (result.error) throw result.error
     return result.data
   }
-  const trips = createTripApi(
-    {
-      async invoke(command, payload) {
-        if (goActions.has(command)) return executeVerifiedGoCommand(command, payload)
-        if (command === 'start_trip')
-          return consumeSignedTripGrant(
-            'start_trip_with_offline_grant',
-            String(payload.trip_id),
-            offline.runtime.installId,
-            offline.runtime.deviceKeyId,
-          )
-        if (command === 'transfer_navigator_device')
-          return consumeSignedTripGrant(
-            command,
-            String(payload.trip_id),
-            offline.runtime.installId,
-            offline.runtime.deviceKeyId,
-          )
-        const result = await supabase.rpc(command, payload)
-        if (result.error) throw result.error
-        return result.data
-      },
-    },
-    {
-      installId: offline.runtime.installId,
-      deviceKeyId: offline.runtime.deviceKeyId,
-    },
+  const rpcTripTransport = createConfiguredTripTransport(
+    (command, payload) => supabase.rpc(command, payload),
+    () => configuredAccessToken,
   )
+  const configuredTripTransport: TripTransport = {
+    async invoke(command, payload) {
+      if (goActions.has(command)) return executeVerifiedGoCommand(command, payload)
+      if (command === 'start_trip')
+        return consumeSignedTripGrant(
+          'start_trip_with_offline_grant',
+          String(payload.trip_id),
+          offline.runtime.installId,
+          offline.runtime.deviceKeyId,
+        )
+      if (command === 'transfer_navigator_device')
+        return consumeSignedTripGrant(
+          command,
+          String(payload.trip_id),
+          offline.runtime.installId,
+          offline.runtime.deviceKeyId,
+        )
+      return rpcTripTransport.invoke(command, payload)
+    },
+  }
+  const trips = createTripApi(configuredTripTransport, {
+    installId: offline.runtime.installId,
+    deviceKeyId: offline.runtime.deviceKeyId,
+  })
   const sessionRegistry = createRpcSessionRegistry({
     async invoke(command, payload, session) {
       const result = await supabase
@@ -891,7 +937,7 @@ export async function configuredComposition(
       }),
     },
     runtime: {
-      authProvider: createAuthProvider(supabase),
+      authProvider,
       sessionRegistry,
       tripOffline: offline.runtime,
       ...(commercialResearch ? { commercialResearch } : {}),

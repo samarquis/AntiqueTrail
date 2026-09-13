@@ -1,8 +1,34 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createAuthProvider } from './configuredComposition'
+import { createAuthProvider, createConfiguredTripTransport } from './configuredComposition'
 import { toAuthSession } from '../features/auth/authClient'
 
+const settleNotification = () => new Promise((resolve) => setTimeout(resolve, 0))
+
 describe('configured authoritative account operations', () => {
+  it('bypasses the SDK token lock for trips and denies requests after token clearing', async () => {
+    let accessToken: string | null = 'access-one'
+    const setHeader = vi.fn(async () => ({ data: { state: 'ok' }, error: null }))
+    const lockedSdkRequest = {
+      setHeader,
+      then: () => new Promise<never>(() => undefined),
+    }
+    const rpc = vi.fn(() => lockedSdkRequest)
+    const transport = createConfiguredTripTransport(rpc, () => accessToken)
+
+    await expect(transport.invoke('list_trips', {})).resolves.toEqual({ state: 'ok' })
+    expect(setHeader).toHaveBeenLastCalledWith('Authorization', 'Bearer access-one')
+
+    accessToken = 'access-two'
+    await expect(transport.invoke('list_trips', {})).resolves.toEqual({ state: 'ok' })
+    expect(setHeader).toHaveBeenLastCalledWith('Authorization', 'Bearer access-two')
+
+    accessToken = null
+    await expect(transport.invoke('list_trips', {})).rejects.toThrow(
+      'Authenticated trip session unavailable.',
+    )
+    expect(rpc).toHaveBeenCalledTimes(2)
+  })
+
   it('uses one server registration operation and never calls browser provider signup', async () => {
     const invoke = vi.fn(async () => ({
       data: { state: 'pending_verification' },
@@ -105,6 +131,37 @@ describe('configured authoritative account operations', () => {
 })
 
 describe('sign-out refresh races', () => {
+  it('publishes remembered and cleared access tokens for authenticated transports', async () => {
+    const tokens: Array<string | null> = []
+    const session = {
+      access_token: 'current-access',
+      refresh_token: 'current-refresh',
+      expires_at: 1900000000,
+      user: { id: 'user-1', app_metadata: {}, user_metadata: {} },
+    }
+    const provider = createAuthProvider(
+      {
+        auth: {
+          signInWithPassword: vi.fn(async () => ({ data: { session }, error: null })),
+          mfa: {
+            getAuthenticatorAssuranceLevel: vi.fn(async () => ({
+              data: { currentLevel: 'aal1', nextLevel: 'aal1' },
+              error: null,
+            })),
+          },
+        },
+      } as never,
+      { read: async () => null, write: async () => undefined, clear: async () => undefined },
+      (token) => tokens.push(token),
+    )
+
+    await expect(provider.signIn('shopper@example.test', 'password')).resolves.toMatchObject({
+      kind: 'authenticated',
+    })
+    await provider.clearSessionMaterial!()
+    expect(tokens).toEqual(['current-access', null])
+  })
+
   it('revokes a replaced account without clearing the new provider session or refresh material', async () => {
     let event!: (kind: string, session: unknown) => void
     const clear = vi.fn(async () => undefined)
@@ -133,6 +190,7 @@ describe('sign-out refresh races', () => {
       user: { id: 'new-user', app_metadata: {}, user_metadata: {} },
     }
     event('SIGNED_IN', next)
+    await settleNotification()
     await provider.signOut(
       toAuthSession({ userId: 'old-user', accessToken: 'old-token', expiresAt: 1900000000000 }),
     )
@@ -140,7 +198,7 @@ describe('sign-out refresh races', () => {
     expect(currentSignOut).not.toHaveBeenCalled()
     expect(clear).not.toHaveBeenCalled()
     event('TOKEN_REFRESHED', next)
-    await Promise.resolve()
+    await settleNotification()
     expect(listener).toHaveBeenCalledTimes(2)
     expect(write).toHaveBeenCalledWith({ userId: 'new-user', refreshToken: 'new-refresh' })
   })
@@ -182,7 +240,7 @@ describe('sign-out refresh races', () => {
       user: { id: 'user-1', app_metadata: {}, user_metadata: {} },
     }
     event('TOKEN_REFRESHED', refreshed)
-    await Promise.resolve()
+    await settleNotification()
     const clearing = provider.clearSessionMaterial!()
     event('TOKEN_REFRESHED', refreshed)
     release()
@@ -190,5 +248,37 @@ describe('sign-out refresh races', () => {
     expect(material).toBeNull()
     expect(storage.write).toHaveBeenCalledTimes(1)
     expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('notifies application listeners only after the provider callback releases control', async () => {
+    let event!: (kind: string, session: unknown) => void
+    let insideProviderCallback = false
+    const provider = createAuthProvider(
+      {
+        auth: {
+          onAuthStateChange: (listener: typeof event) => {
+            event = (kind, session) => {
+              insideProviderCallback = true
+              listener(kind, session)
+              insideProviderCallback = false
+            }
+            return { data: { subscription: { unsubscribe: vi.fn() } } }
+          },
+        },
+      } as never,
+      { read: async () => null, write: async () => undefined, clear: async () => undefined },
+    )
+    const listener = vi.fn(() => expect(insideProviderCallback).toBe(false))
+    provider.onSessionChange!(listener)
+
+    event('TOKEN_REFRESHED', {
+      access_token: 'token',
+      refresh_token: 'refresh',
+      expires_at: 1900000000,
+      user: { id: 'user-1', app_metadata: {}, user_metadata: {} },
+    })
+    expect(listener).not.toHaveBeenCalled()
+    await settleNotification()
+    expect(listener).toHaveBeenCalledOnce()
   })
 })

@@ -12,7 +12,12 @@ import {
   runChecks,
   runProbe,
 } from './configured-shopper-probe.mjs'
-import { loopbackRequest, createLocalService, validateOwner } from './configured-shopper-local.mjs'
+import {
+  loopbackRequest,
+  createLocalService,
+  localServiceExclusions,
+  validateOwner,
+} from './configured-shopper-local.mjs'
 import { bindLoopback } from './configured-shopper-docker.mjs'
 import { createExecutor } from './configured-shopper-executor.mjs'
 
@@ -173,6 +178,11 @@ test('Docker container creation binds all published ports and rejects foreign ow
     '127.0.0.1',
   )
   assert.throws(() => bindLoopback(body, 'another'), /Foreign/)
+})
+test('storage exclusion is opt-in for configured local services', () => {
+  assert.doesNotMatch(localServiceExclusions(), /storage-api/)
+  assert.match(localServiceExclusions(true), /,storage-api$/)
+  assert.throws(() => localServiceExclusions('true'), /Invalid local service options/)
 })
 test('cleanup refuses modified markers and project configuration', async () => {
   const service = createLocalService(),
