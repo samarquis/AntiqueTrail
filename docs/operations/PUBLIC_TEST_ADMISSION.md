@@ -17,8 +17,9 @@ including after stop or expiry.
 
 Use the preserved beta project `uaupykgpegbseboklubv` and the stable origin
 `https://antique-trail.vercel.app`. Complete the final-source recovery rehearsal,
-independent review, hosting acceptance and actual mail-provider acceptance before
-activation. Do not interpret syntactically valid digests as evidence that those
+independent review and hosting acceptance before activation. Actual mail-provider
+acceptance is also required before exposing registration or enrolling testers;
+the catalog-only milestone leaves both closed. Do not interpret syntactically valid digests as evidence that those
 checks passed.
 
 Keep the operator specification private. It contains `backendRef`, `origin`,
@@ -40,6 +41,16 @@ retries and revoked bindings fail. Expiry cannot exceed thirty days from first
 activation. Never schedule renewal.
 
 ## Runtime configuration
+
+For the first catalog-only milestone, build with
+`VITE_PUBLIC_TEST_CATALOG_ONLY=true`, prepare only the `catalog` capability and
+leave `testers` empty. Registration remains closed. The display flag reuses the
+existing **Account setup paused** state for sign-in, registration, private entry
+and catalog save controls; it cannot grant backend access. Record the literal
+build setting in the accepted configuration/artifact binding. Turn it off only
+when actual account/provider acceptance and the next reviewed binding are ready.
+Do not use this display restriction as a stop mechanism after human accounts
+have been admitted: their authorized lifecycle entry must remain available.
 
 Deploy reviewed `public-catalog`, `account-registration` and
 `account-registration-callback` functions and their required reconciliation

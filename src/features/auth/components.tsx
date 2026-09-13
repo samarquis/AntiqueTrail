@@ -12,6 +12,20 @@ import type { AuthCallback } from './authBoundary'
 import { hasStagedRecoveryToken, stageRecoveryToken } from './passwordRecoveryClient'
 import { PasswordReplacementPage } from './PasswordReplacementPage'
 import type { AuthProviderAdapter, OAuthProviderId, ProviderCallbackResult } from './types'
+import { isCatalogOnlyPublicTest } from './publicTestMode'
+
+function AccountSetupPaused() {
+  return (
+    <AuthCard
+      title="Account setup paused"
+      description="We couldn't finish this account setup. For your security, this attempt can't continue."
+    >
+      <Link className="button" to="/stores">
+        Back to store list
+      </Link>
+    </AuthCard>
+  )
+}
 
 function AuthCard({
   children,
@@ -109,6 +123,7 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
     }
   }
 
+  if (isCatalogOnlyPublicTest()) return <AccountSetupPaused />
   return (
     <AuthCard title="Sign in" description="Use your verified email and password to continue.">
       {returnTo !== '/stores' && (
@@ -302,17 +317,7 @@ export function RegisterPage({ provider }: { provider: AuthProviderAdapter }) {
     }
   }
 
-  if (blocked)
-    return (
-      <AuthCard
-        title="Account setup paused"
-        description="We couldn't finish this account setup. For your security, this attempt can't continue."
-      >
-        <Link className="button" to="/stores">
-          Back to store list
-        </Link>
-      </AuthCard>
-    )
+  if (blocked || isCatalogOnlyPublicTest()) return <AccountSetupPaused />
 
   return (
     <AuthCard
@@ -604,6 +609,7 @@ export function RequireSession({
 }) {
   const location = useLocation()
   const { session, signOut, lifecycleReady } = useAuth()
+  if (isCatalogOnlyPublicTest()) return <AccountSetupPaused />
   if (!session)
     return (
       <Navigate
