@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { isCatalogOnlyPublicTest } from '../auth/publicTestMode'
 import { GENERIC_SHOPPER_ERROR, unavailableShopperClient } from './shopperClient'
 import type {
   CatalogAreaChoice,
@@ -366,6 +367,7 @@ export function CatalogPrivateActions({
   const returnTo = `${location.pathname}${location.search}`
 
   useEffect(() => {
+    if (isCatalogOnlyPublicTest()) return
     setResumedSaved(undefined)
     setResumeState('idle')
     const intent = readJitSaveIntent()
@@ -421,6 +423,12 @@ export function CatalogPrivateActions({
   }, [client, returnTo, session, storeId])
 
   const correctionPath = `/stores/${encodeURIComponent(slug)}/correction`
+  if (isCatalogOnlyPublicTest())
+    return (
+      <p className={`catalog-private-actions catalog-private-actions--${context}`}>
+        Account setup paused
+      </p>
+    )
   if (!session)
     return (
       <div className={`catalog-private-actions catalog-private-actions--${context}`}>
