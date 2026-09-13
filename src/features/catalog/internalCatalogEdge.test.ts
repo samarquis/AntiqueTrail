@@ -1,8 +1,10 @@
+// @vitest-environment node
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { webcrypto } from 'node:crypto'
 import ts from 'typescript'
 import { expect, it, vi } from 'vitest'
+import { createPublicCatalogHandler } from '../../../supabase/functions/_shared/public-catalog'
 
 it('forwards only the configured allowed origin and provider-verified actor to the gateway', async () => {
   let handler:
@@ -33,7 +35,8 @@ it('forwards only the configured allowed origin and provider-verified actor to t
       TextEncoder,
       crypto: webcrypto,
       atob,
-      require: () => ({ createClient }),
+      require: (name: string) =>
+        name === '../_shared/public-catalog.ts' ? { createPublicCatalogHandler } : { createClient },
       Deno: {
         env: { get: (name: string) => values[name] },
         serve: (callback: typeof handler) => {

@@ -18,12 +18,33 @@ const approvedMailEndpoint = Deno.env.get('REGISTRATION_APPROVED_MAIL_ENDPOINT')
 const approvedSupabaseOrigin = Deno.env.get('REGISTRATION_APPROVED_SUPABASE_ORIGIN')
 const localMode = Deno.env.get('REGISTRATION_LOCAL_MODE') === 'true'
 const timeoutMs = Number(Deno.env.get('REGISTRATION_PROVIDER_TIMEOUT_MS') ?? 10_000)
+const publicTest = Deno.env.get('PUBLIC_TEST_MODE') === 'true'
 
 Deno.serve(async (request) => {
   const origin = request.headers.get('origin')
   const allowedOrigin = origin && appOrigin && origin === appOrigin ? origin : null
   if (request.method === 'OPTIONS')
     return new Response(null, { status: allowedOrigin ? 204 : 403, headers: cors(allowedOrigin) })
+  if (request.method !== 'POST' || !allowedOrigin)
+    return Response.json(
+      { state: 'blocked' },
+      {
+        status: 403,
+        headers: { ...cors(allowedOrigin), 'Cache-Control': 'no-store' },
+      },
+    )
+  if (
+    publicTest &&
+    (url !== 'https://uaupykgpegbseboklubv.supabase.co' ||
+      appOrigin !== 'https://antique-trail.vercel.app')
+  )
+    return Response.json(
+      { state: 'error' },
+      {
+        status: 503,
+        headers: { ...cors(allowedOrigin), 'Cache-Control': 'no-store' },
+      },
+    )
   let endpoints: { appOrigin: string; mailEndpoint: string; supabaseOrigin: string } | null = null
   try {
     if (

@@ -10,6 +10,7 @@ const url = Deno.env.get('SUPABASE_URL')
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const appOrigin = Deno.env.get('APP_ORIGIN')
+const publicTest = Deno.env.get('PUBLIC_TEST_MODE') === 'true'
 
 Deno.serve(async (request) => {
   const origin = request.headers.get('origin')
@@ -18,6 +19,13 @@ Deno.serve(async (request) => {
     return new Response(null, { status: allowedOrigin ? 204 : 403, headers: cors(allowedOrigin) })
   let payload: Record<string, unknown> = { state: 'error' }
   try {
+    if (request.method !== 'POST' || !allowedOrigin) throw new Error('unavailable')
+    if (
+      publicTest &&
+      (url !== 'https://uaupykgpegbseboklubv.supabase.co' ||
+        appOrigin !== 'https://antique-trail.vercel.app')
+    )
+      throw new Error('unavailable')
     const body = (await request.json()) as { kind?: unknown; tokenHash?: unknown }
     if (!url || !anonKey || !serviceKey || typeof body.tokenHash !== 'string')
       throw new Error('unavailable')
@@ -41,6 +49,21 @@ Deno.serve(async (request) => {
     if (result.error || !result.data.session || !result.data.user) throw new Error('unavailable')
     if (body.kind === 'verify') {
       const admin = createClient(url, serviceKey, { db: { schema: 'app_public' } })
+      if (publicTest) {
+        const completion = await admin.rpc('complete_public_test_registration_callback', {
+          p_provider_user_id: result.data.user.id,
+        })
+        // The database resolves the exact reserved receipt and verified email.
+        // Expiry does not delete a previously admitted human account. Pending
+        // provider work remains owned by the existing reconciliation protocol.
+        payload =
+          completion.error || completion.data !== true
+            ? { state: 'blocked' }
+            : { state: 'authenticated', session: result.data.session }
+        return Response.json(payload, {
+          headers: { ...cors(allowedOrigin), 'Cache-Control': 'no-store' },
+        })
+      }
       const enqueueCleanup = async (admissionId: string | null) => {
         const queued = await admin.rpc('enqueue_account_registration_cleanup', {
           p_admission_id: admissionId,
