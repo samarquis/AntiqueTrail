@@ -1,6 +1,6 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { ReactNode } from 'react'
+import { StrictMode, type ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../auth'
@@ -1642,19 +1642,22 @@ describe('manual trips', () => {
       navigatorUserId: 'creator-a',
     }))
     render(
-      <MemoryRouter initialEntries={['/trip-invitations#token=opaque-secret']}>
-        <Routes>
-          <Route
-            path="/trip-invitations"
-            element={<AcceptTripInvitationPage client={client({ acceptInvitation })} />}
-          />
-        </Routes>
-      </MemoryRouter>,
+      <StrictMode>
+        <MemoryRouter initialEntries={['/trip-invitations#token=opaque-secret']}>
+          <Routes>
+            <Route
+              path="/trip-invitations"
+              element={<AcceptTripInvitationPage client={client({ acceptInvitation })} />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </StrictMode>,
     )
     expect(
       await screen.findByRole('heading', { name: /trip invitation accepted/i }),
     ).toBeInTheDocument()
     expect(acceptInvitation).toHaveBeenCalledWith('opaque-secret')
+    expect(acceptInvitation).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('link', { name: /open shared trip/i })).toHaveAttribute(
       'href',
       '/trips/trip-1/plan',
