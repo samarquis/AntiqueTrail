@@ -90,8 +90,9 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
   try {
     const wrongPage = await wrong.newPage()
     await login(wrongPage, 0, '/trips')
-    const wrongAcceptance = wrongPage.waitForResponse((response) =>
-      response.url().includes('/rest/v1/rpc/accept_trip_invitation'),
+    const wrongAcceptance = wrongPage.waitForResponse(
+      (response) => response.url().includes('/rest/v1/rpc/accept_trip_invitation'),
+      { timeout: 20_000 },
     )
     await wrongPage.goto(`/trip-invitations#token=${token}`)
     expect((await wrongAcceptance).status()).toBeGreaterThanOrEqual(400)
@@ -108,8 +109,9 @@ test('creator invitation, matching recipient acceptance, one-trip isolation, and
   try {
     const partnerPage = await partner.newPage()
     await login(partnerPage, 1, '/trips')
-    const intendedAcceptance = partnerPage.waitForResponse((response) =>
-      response.url().includes('/rest/v1/rpc/accept_trip_invitation'),
+    const intendedAcceptance = partnerPage.waitForResponse(
+      (response) => response.url().includes('/rest/v1/rpc/accept_trip_invitation'),
+      { timeout: 20_000 },
     )
     await partnerPage.goto(`/trip-invitations#token=${token}`)
     expect((await intendedAcceptance).status()).toBe(200)
