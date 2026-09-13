@@ -667,13 +667,10 @@ export async function configuredComposition(
       return rpcTripTransport.invoke(command, payload)
     },
   }
-  const trips = createTripApi(
-    configuredTripTransport,
-    {
-      installId: offline.runtime.installId,
-      deviceKeyId: offline.runtime.deviceKeyId,
-    },
-  )
+  const trips = createTripApi(configuredTripTransport, {
+    installId: offline.runtime.installId,
+    deviceKeyId: offline.runtime.deviceKeyId,
+  })
   const sessionRegistry = createRpcSessionRegistry({
     async invoke(command, payload, session) {
       const result = await supabase
