@@ -14,7 +14,13 @@ import {
   toAuthSession,
   unavailableAuthProvider,
 } from './authClient'
-import type { AuthProviderAdapter, AuthSession, AuthStore, SessionRegistryClient } from './types'
+import type {
+  AuthProviderAdapter,
+  AuthSession,
+  AuthStore,
+  ProviderSession,
+  SessionRegistryClient,
+} from './types'
 import type { AccountLifecycleClient } from './lifecycle'
 
 interface AuthContextValue {
@@ -57,6 +63,10 @@ export function AuthProvider({
   const signingOutSession = useRef<AuthSession | null>(null)
   const signOutGeneration = useRef(0)
   const [providerReady, setProviderReady] = useState(() => !provider.restoreSession)
+  const restorationRef = useRef<{
+    provider: AuthProviderAdapter
+    promise: Promise<ProviderSession | null>
+  } | null>(null)
   const [lifecycleReady, setLifecycleReady] = useState(
     () => !lifecycle || !resolvedStore.getSession(),
   )
@@ -79,7 +89,10 @@ export function AuthProvider({
     }
     let cancelled = false
     setProviderReady(false)
-    restore()
+    if (restorationRef.current?.provider !== provider) {
+      restorationRef.current = { provider, promise: restore() }
+    }
+    restorationRef.current.promise
       .then(async (restored) => {
         if (cancelled || !restored) return
         const next = toAuthSession(restored)
