@@ -12,9 +12,10 @@ import type { AuthCallback } from './authBoundary'
 import { hasStagedRecoveryToken, stageRecoveryToken } from './passwordRecoveryClient'
 import { PasswordReplacementPage } from './PasswordReplacementPage'
 import type { AuthProviderAdapter, OAuthProviderId, ProviderCallbackResult } from './types'
-import { isCatalogOnlyPublicTest } from './publicTestMode'
+import { isCatalogOnlyPublicTest, isPublicTestLifecyclePath } from './publicTestMode'
 
 function AccountSetupPaused() {
+  const { session, signOut } = useAuth()
   return (
     <AuthCard
       title="Account setup paused"
@@ -23,6 +24,16 @@ function AccountSetupPaused() {
       <Link className="button" to="/stores">
         Back to store list
       </Link>
+      {isCatalogOnlyPublicTest() && (
+        <p>
+          <Link to="/auth/sign-in?returnTo=%2Faccount">Recover your account</Link>
+        </p>
+      )}
+      {isCatalogOnlyPublicTest() && session && (
+        <button type="button" onClick={() => void signOut()}>
+          Sign out
+        </button>
+      )}
     </AuthCard>
   )
 }
@@ -123,10 +134,11 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
     }
   }
 
-  if (isCatalogOnlyPublicTest()) return <AccountSetupPaused />
+  if (isCatalogOnlyPublicTest() && !isPublicTestLifecyclePath(returnTo))
+    return <AccountSetupPaused />
   return (
     <AuthCard title="Sign in" description="Use your verified email and password to continue.">
-      {returnTo !== '/stores' && (
+      {returnTo !== '/stores' && !isCatalogOnlyPublicTest() && (
         <aside role="status">
           After sign-in, you’ll return to {describeReturnTarget(returnTo)}. Review and confirm the
           private action there before it is saved.
@@ -164,7 +176,7 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
           {pending ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
-      {provider.signInWithProvider && (
+      {!isCatalogOnlyPublicTest() && provider.signInWithProvider && (
         <section aria-label="Sign in with a linked account">
           <p>Or sign in with:</p>
           {(['google', 'facebook'] as const).map((providerId) => (
@@ -188,15 +200,20 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
           Forgot your password?
         </Link>
       </p>
-      <p>
-        <Link
-          to={`/auth/register${returnTo !== '/stores' ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`}
-        >
-          Create account
-        </Link>
-      </p>
+      {!isCatalogOnlyPublicTest() && (
+        <p>
+          <Link
+            to={`/auth/register${returnTo !== '/stores' ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`}
+          >
+            Create account
+          </Link>
+        </p>
+      )}
       {returnTo !== '/stores' && (
-        <Link to={safeCancelTarget(returnTo)} onClick={clearPendingPrivateAction}>
+        <Link
+          to={isCatalogOnlyPublicTest() ? '/stores' : safeCancelTarget(returnTo)}
+          onClick={clearPendingPrivateAction}
+        >
           Cancel and return without saving
         </Link>
       )}
@@ -609,7 +626,8 @@ export function RequireSession({
 }) {
   const location = useLocation()
   const { session, signOut, lifecycleReady } = useAuth()
-  if (isCatalogOnlyPublicTest()) return <AccountSetupPaused />
+  if (isCatalogOnlyPublicTest() && !isPublicTestLifecyclePath(location.pathname))
+    return <AccountSetupPaused />
   if (!session)
     return (
       <Navigate
@@ -625,6 +643,11 @@ export function RequireSession({
         description="Private account content stays hidden while current account status is confirmed."
       >
         <p role="status">Checking account status…</p>
+        {isCatalogOnlyPublicTest() && (
+          <button type="button" onClick={() => void signOut()}>
+            Sign out
+          </button>
+        )}
       </AuthCard>
     )
   if (session.expiresAt <= Date.now())
@@ -665,12 +688,18 @@ export function RequireSession({
 
 export function ExpiredSessionPage({ returnTo = '/stores' }: { returnTo?: string }) {
   const safeTarget = safeReturnTo(returnTo)
+  const { session, signOut } = useAuth()
   return (
     <AuthCard
       title="Your session ended"
       description="For your security, private account content is hidden until you sign in again."
     >
       <p role="alert">Your session expired or was revoked. No private change was saved.</p>
+      {isCatalogOnlyPublicTest() && session && (
+        <button type="button" onClick={() => void signOut()}>
+          Sign out
+        </button>
+      )}
       <Link className="button" to={`/auth/sign-in?returnTo=${encodeURIComponent(safeTarget)}`}>
         Sign in again
       </Link>

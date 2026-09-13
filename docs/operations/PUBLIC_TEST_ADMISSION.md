@@ -45,8 +45,12 @@ activation. Never schedule renewal.
 For the first catalog-only milestone, build with
 `VITE_PUBLIC_TEST_CATALOG_ONLY=true`, prepare only the `catalog` capability and
 leave `testers` empty. Registration remains closed. The display flag reuses the
-existing **Account setup paused** state for sign-in, registration, private entry
-and catalog save controls; it cannot grant backend access. Record the literal
+existing **Account setup paused** state for new account entry, registration,
+non-lifecycle private entry and catalog save controls; it cannot grant backend access.
+Previously admitted users retain provider sign-in with an exact lifecycle return
+path, account status, privacy/export/download/deletion/cancellation and local
+sign-out. Existing hydration, expiry, role and cancellation-only checks still
+apply; the display flag never admits an identity or reopens saves or trips. Record the literal
 build setting in the accepted configuration/artifact binding. Turn it off only
 when actual account/provider acceptance and the next reviewed binding are ready.
 Do not use this display restriction as a stop mechanism after human accounts
