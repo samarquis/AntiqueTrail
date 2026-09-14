@@ -74,13 +74,12 @@ Stores claim their listing and manage it:
 
 ## Current status
 
-Working in beta. The public test exposes browsing only. Trip planning, Go mode, offline-cached trips, trip-partner sharing, and map view are built; partner sharing, offline, and the map are gated off for the catalog-only public test. Plan to move to paid hosting and purchase domain after beta.
+Working in beta. The public test exposes browsing only. Trip planning, Go mode, offline-cached trips, trip-partner sharing, map view, and reviews with moderation are built; partner sharing, offline, the map, and reviews are gated off for the catalog-only public test. Plan to move to paid hosting and purchase domain after beta.
 
 ## Future considerations (not built yet)
 
 - More store attributes and categories
 - Store owner responses to reviews
-- Public reviews with moderation
 
 ## Non-goals
 
