@@ -1,214 +1,90 @@
 # Antique Trail Design and Interaction Requirements
 
-Stage applicability: [PRD stage dependencies](PRD.md#stage-dependencies) determines which journeys are in the store showcase, controlled pilot and paid Gallery pilot. Retained trip/review/Go interactions below are deferred contracts; their acceptance is required only if separately selected for exposure. Current-path security, accessibility and existing data obligations are unchanged.
+## Product promise
 
-Status: current normative interaction baseline, incorporating the 2026-08-03 hardening and 2026-08-18 visual-identity decisions. Stable critique-derived rules are promoted into `DESIGN_SYSTEM.md`; dated implementation evidence does not silently redefine this contract. Current implementation and backlog state live in `PROJECT_STATE.md`. D31 full Audit History UI and export policy remain unresolved; two-year append-only privileged-audit retention is approved.
+> Antique Trail makes a fun day of antique shopping easy to see, easy to plan, and easy to trust.
 
-This document is the canonical interaction contract. `DESIGN_SYSTEM.md` defines exact visual tokens, responsive rules, recurring component states, navigation, and screen-level acceptance; `docs/design/ICON_PLACEMENT_SPEC.md` defines the approved use of the icon family. `PRD.md` defines product requirements, `PRODUCT_DECISIONS.md` preserves decision history, `SECURITY_AND_TRUST.md` defines trust boundaries, and `PRD.md` defines current stage prerequisites and `PACKAGE_CONTRACTS.md` defines engineering mechanics. When a visual prototype conflicts with these documents, these documents win.
-
-Detailed invited-owner interaction and consent/resume screens are delegated to [owner onboarding](docs/specs/owner-onboarding.md); exact public acquisition and commercial mechanics are delegated to [store membership](docs/specs/store-membership-spec.md). These named boundaries must agree with the parent PRD and security controls; ambiguity stops affected work.
-
-## Product promise and audience
-
-> Help shoppers explore antique stores through trustworthy details and photographs, and help store representatives maintain a useful showcase.
-
-Design first for shoppers roughly 50–80+ without creating a separate age mode. The current shopper journey is the [store showcase](#store-showcase-presentation). The retained two-person trip workflow applies only when independently selected for exposure. The product must also work for an individual shopper.
-
-Use the [selected visual direction](DESIGN_SYSTEM.md#selected-visual-direction), exact [visual tokens](DESIGN_SYSTEM.md#visual-tokens), and [product anti-references](DESIGN_SYSTEM.md#product-anti-references); approved icon placement remains in docs/design/ICON_PLACEMENT_SPEC.md.
-
-## Store-showcase presentation
-
-This section owns the presentation behavior for the internal store showcase and its shopper browsing surfaces when later expressly admitted to a controlled store pilot. It takes precedence over the retained trip-oriented navigation and Browse action lists only for those selected stages. It does not authorize new route exposure, delete retained features, or weaken server-side permissions.
-
-**Browse arrival.** Open directly to useful store results. Keep the page title, manual search and area/category controls concise. A map capability that is not exposed in this stage has no empty panel or “not available yet” announcement ahead of the results. If a separately permitted map is exposed and then fails, retain its truthful failure status beside that control while leaving the list usable. Preserve loading/error/empty states and meaningful freshness warnings.
-
-**Store discovery.** Give each card a photograph or truthful fallback, store name, one concise location line, relevant categories, a store-specific summary when supplied, today's opening information and required freshness/provenance. Consolidate identical area and town text without dropping distinct useful geography. `View store` is the dominant card action, with an accessible name identifying the exact store. The store name may link to the same destination. Keep Save visibly secondary and retain its just-in-time authentication, pending/error and saved-state behavior. Put correction reporting on Store Details rather than on every Browse card. Do not show trip/private-memory/share/Go actions in the showcase navigation or cards. Use `Browse | Saved stores | More` for the showcase; More retains appropriate Account, Help, Install and authorized role-entry links. Saved stores signals the sign-in requirement before activation for anonymous shoppers. Retained trip navigation remains a deferred-stage contract.
-
-**Store arrival and visit essentials.** Keep Back to Browse with query, area/category choices and return position. Before the extended photo collection, show store identity, a concise summary when supplied, current opening state and relevant warning, available Save/contact/directions actions, and accessible links to Photos and Hours & location. These links work without traversing thumbnails. Full hours, exceptions, contact details and accessibility status remain in the visit section. Missing contact/hours stay truthful; do not invent details or enable navigation for a fictional address. Required source and photo-rights information remains in its proper context.
-
-**Desktop composition.** Apply the existing Full-width Store Details contract; no new width system or palette is introduced. Broader photographs and related visit components share the available desktop canvas, while prose and tables retain readable local widths. The existing ordered gallery, ordinary scrolling, permitted image counts, full-photo destination, enlargement and return behavior remain intact. The optional 50-photo fixture is a stress profile, not a public entitlement or proof that fewer photographs would be better.
-
-**Useful evaluation content.** Reuse the existing twelve fictional stores and permitted image library. Replace repeated generic summary/description copy with short, distinct, explicitly fictional descriptions of the kinds of merchandise and experience represented by the available assets. Preserve synthetic identification and provenance separately from the descriptive copy. Present existing storefront, interior and merchandise photographs where actually available; do not duplicate a photograph as invented variety, claim unsupported inventory/accessibility/verification, or fill missing imagery with fabricated facts. Label template artwork honestly and retain sparse/missing examples. No new library, new generator/framework, real-store data, media entitlement or hosted resource is authorized.
+Design first for shoppers roughly 50-80 while remaining usable by all ages. Mobile-first, desktop compatible.
 
 ## Global interaction rules
 
-- Use the exact Age-inclusive usability baseline in `DESIGN_SYSTEM.md`.
-- Keep one obvious primary action per screen and preserve entered data after errors.
-- Explain disabled actions and identify the missing requirement.
-- Pair status color with an icon and plain text.
+- One obvious primary action per screen; preserve entered data after errors.
+- Explain disabled actions and name the missing requirement.
+- Pair status color with an icon and plain text. Never communicate status with color alone.
 - Provide keyboard, screen-reader, and non-drag paths for every core action.
-- Use explicit confirmation for irreversible or high-risk actions. Prefer Undo for reversible routine actions.
-- Never show shopper-private ratings, notes, other trips, or profile data to a Store Representative or Administrator.
-- Label Internal Alpha as synthetic-only and keep real stores, owners, vendors, and public entities out until External Testing Readiness passes.
-- Core trust information—freshness, provenance, hours, warnings, privacy/publishing consequences, and error recovery—is at least 16px. No required action exists only in a horizontally scrolling chip row, icon, drag gesture, toast, timed auto-advance, or color.
-- Every form preserves safe input after field/server/auth failure, focuses a linked error summary, works at 320px and 200% zoom, and provides reduced-motion/forced-color/keyboard/NVDA/VoiceOver behavior.
-- Decorative directional or symbolic characters used in links and buttons (e.g., `←`, `→`, `↗`, `✓`, `●`, `✕`) must be wrapped in `aria-hidden="true"`. The accessible label of every control must be complete without the symbol. Place `aria-hidden` on the exact character or wrapping span, not on the containing link or button.
-- Dark theme (`prefers-color-scheme: dark`) support is mandatory. Dark-mode token definitions in `DESIGN_SYSTEM.md` are not complete until activated in the application stylesheet and verified against all approved contrast pairs. Dark mode is an acceptance check at every package boundary, not a post-launch enhancement.
-- For the current showcase, use [Store-showcase presentation](#store-showcase-presentation). Retained trip-stage shopper navigation is `Browse | My Trip | More`. `Browse` opens `/stores`; `My Trip` opens the active trip or `/trips`; `More` opens Saved Stores, Add a Place from a Link, Shared with Me, Trip Ideas, Account & Privacy, Install, and Help. Go is never a permanent tab. During an active trip, show a non-obscuring `Resume Go`/`View Trip Progress` banner. Server-derived Store Portal/Admin links may appear in More but never authorize. More menu items that require authentication (Saved Stores, Private History, Add a Place from a Link, Shared with Me, Trip Ideas, Account & Privacy) must signal their auth requirement to unauthenticated users before they tap, using a lock icon with `aria-label="Requires sign-in"` or a parenthetical label; the JIT auth pattern still applies on tap.
+- Use explicit confirmation for irreversible actions. Prefer Undo for reversible ones.
+- Core trust information (freshness, hours, warnings, privacy consequences) is at least 16px.
+- Every form works at 320px width and 200% zoom.
+- Never expose shopper-private ratings, notes, or trips to a Store Representative or Administrator.
+- Stable navigation is `Browse | My Trip | More`. Go mode is never a permanent tab.
 
-## Roles and test identities
+## Roles
 
-- `Shopper`: browses public listings anonymously and authenticates for private writes.
-- `Trip Creator`: authenticated shopper who owns one trip and may invite one Trip Partner.
-- `Trip Partner`: one authenticated shopper bound to one shared trip.
-- `Navigator`: the one participant authorized to control Go mode for that trip.
-- `Store Representative`: verified, MFA-protected role scoped to one store.
-- `Administrator`: separate MFA-protected operational role with no default shopper-private access.
-- `Vendor Contributor`: deferred. If later activated after pilot proof, it is store/booth-scoped and draft-only.
+- **Shopper**: browses anonymously, authenticates for private writes.
+- **Store Representative**: verified, MFA-protected, scoped to one store.
+- **Administrator**: separate MFA-protected operational role; no default access to shopper-private data.
 
-Every Internal Alpha role uses a separate account and session. Test User A and Test User B may perform identical actions without sharing ownership or visibility.
+Every role uses a separate account and session in testing.
 
-The role switcher in `docs/design/antique-trail-flow-lab.html` is a prototype testing control only. Production roles are server-derived and tested through separate accounts and sessions.
-
-## Shopper entry, browsing, and authentication
+## Shopper entry, browsing, authentication
 
 ### First arrival
 
-1. Open directly to Browse Stores in the approved area and show results immediately.
-2. Do not require area setup, sign-in, or device-location permission.
-3. Provide a prominent manual area selector. Browse never requests device location; precise location remains limited to a user-requested route.
-4. Anonymous shoppers may Browse, open Store Details, and open an external navigation handoff.
-5. `Save`, `Add to Trip`, personal rating, and private note use just-in-time authentication.
-6. Successful authentication completes the original action and returns to the same context. Cancel or failure preserves context and performs no private write.
+1. Open directly to Browse Stores in the approved area; show results immediately.
+2. No area setup, sign-in, or device-location permission required.
+3. Provide a prominent manual area selector. Browse never requests device location.
+4. `Save`, `Add to Trip`, personal rating, and private note use just-in-time authentication.
+5. Successful authentication completes the original action and returns to context. Cancel or failure writes nothing.
 
 ### Browse Stores
 
-[Store-showcase presentation](#store-showcase-presentation) owns the current-stage action hierarchy; trip actions below apply only when independently selected for exposure.
+- Readable list is the default; map is secondary.
+- Search by store name, town, and category.
+- Each card: cover image or neutral placeholder, store name, town or distance, category summary, today's hours/open state, freshness, `Save`, `Add to Trip`.
+- Do not require map-only browsing or location permission.
 
-- Use a readable list as the default; map is secondary.
-- Search by store name, town/area, and category.
-- Show cover image or neutral placeholder, store name, town or distance when available, category summary, today's hours/open state, freshness, `Save`, and `Add to Trip`.
-- Keep provenance, stale/missing information, and schedule risk understandable without requiring Store Details.
-- Do not use map-only browsing or location permission as a prerequisite.
+### Authentication flow
 
-### New Since Your Last Visit
-
-- For authenticated roles, compare a coarse per-account catalog-last-seen timestamp with approved listings visible to that role and release stage.
-- Shopper Browse places `New Since Your Last Visit` prominently and shows no more than three cards plus `View All New`.
-- Store Representative and Administrator homes place it below role-critical work.
-- Use the manually selected Browse area, never precise/background location.
-- Keep viewed or dismissed entries under `Recently Added` for 30 days.
-- Treat a second location as a separate listing. Show `New location` only when the relationship is verified.
-- This is in-app catalog freshness, not push/email notification, a notification center, behavioral profiling, or personalization.
-
-### Authentication screen flow
-
-1. Private action records a safe return target and opens sign-in without performing the write.
-2. Sign-in, registration, email verification, MFA enrollment/challenge, recent-auth, recovery, rate-limit, and revoked-session states use generic account-enumeration-resistant errors.
-3. Successful authentication returns to the original context and asks the user to confirm the original private action when required.
-4. Cancel/failure returns without the private write and preserves safe entered data.
-5. Administrator and Store Representative routes require MFA; privileged mutations may add recent-auth confirmation.
-6. Access token stays in memory; refresh-session persistence uses only the dedicated IndexedDB adapter. Logout/account switch clears it. Next-request session/grant revocation routes to generic signed-out/access-lost recovery without displaying cached private content.
-7. Cancellation-only account state exposes only deletion cancellation, recovery, and sign-out. No visual route or stale service worker may reach another private action.
-
-If the registration quarantine latch is `draining|blocked`, `/auth/register`, only an admission-bound signup-verification `/auth/callback` with UI type `verify`, `/partner/verify`, and any readiness registration step render one terminal state after fragment scrubbing/provider-token exchange: H1 `Account setup paused`; body `We couldn't finish this account setup. For your security, this attempt can't continue.` A callback with UI type `recovery` is existing-account password recovery, does not consult the registration latch, and follows the ordinary recovery flow. The paused-state primary action `Back to store list` goes to `/stores`, clears the interrupted return target, and cannot reopen authentication. Receipt-only partner/readiness variants add `Contact the person who invited you for a new invitation after account setup reopens.` Public mode adds the approved S-01 `Contact Antique Trail` channel. There is no Retry, registration resend, or reuse-old-link action. Purge email, password, receipt/token, and other registration fields from browser memory; retain no draft. Focus the H1, announce the state once, keep it readable at 320px/200%, and expose no incident, account-existence, provider, subject, or timing detail.
-
-Each authentication slice must provide exact field constraints and error copy in its bounded execution contract before implementation.
+1. Private action records a safe return target and opens sign-in without writing.
+2. Successful sign-in returns to the original context and completes the action.
+3. Cancel/failure returns without the write and preserves entered data.
+4. Administrator and Representative routes require MFA.
+5. Access token stays in memory; refresh session uses IndexedDB only. Logout clears it.
 
 ## Store Details
 
-[Store-showcase presentation](#store-showcase-presentation) owns current-stage actions and early access to visit essentials. The retained trip/private-history actions below are stage-conditional, not showcase requirements.
-
 Store Details shows:
 
-- Approved cover plus every approved gallery image allowed by the current tier (Free up to five; Gallery up to fifteen; Full Gallery no plan-count cap under published non-count limits), with meaningful alternative text.
-- Description, address/map, hours and exceptions, contact, accessibility information when verified, provenance, freshness, and correction reporting.
-- `Save`, `Add to Trip`, and `Navigate`.
-- Latest three Store Updates and a chronological `See All` view.
-- `Follow this store` for verified partner listings with official Facebook, Instagram, YouTube, Pinterest, and TikTok profile links.
-- Shopper-private visit history, personal rating, and notes only for the signed-in owner.
-
-Official social links open externally. Do not embed feeds, authenticate to social platforms, scrape/synchronize content, or import social tracking.
-
-### Store Details scroll sequence
-
-Store Details uses a sequence of broad sections on desktop, with the geometry, breakpoints, and component states owned by [Full-width Store Details](DESIGN_SYSTEM.md#full-width-store-details). The same content and reading order reflow on phones. This changes composition and action placement, not the shopper capabilities, visual identity, or photo entitlement.
-
-1. **Arrive.** Preserve `Back to Browse` with the prior query, filters, selected store, and scroll context. Introduce the store name, area, concise description when supplied, and current hours/freshness information. Put the available visit actions here before the approved cover photograph. `Add to Trip` is the dominant completion action when that capability is available; `Save`, the link to hours/location, and navigation utilities remain secondary. Earlier stages retain only their permitted actions.
-2. **Explore.** Follow the cover with local links to About, Photos, Plan your visit, and Source, then an About section with description and categories. A separate photo section presents all approved gallery images allowed by the current tier in finite ordered groups of large image components, with their existing captions, attribution, unavailable states, and enlargement. The cover is not duplicated merely to fill this section. `See all photos` continues to open the dedicated [Store photo gallery page](#store-photo-gallery-page), preserving the selected store and return-to-details context; it is not replaced with a modal or endless feed.
-3. **Plan the visit.** Group full hours, exceptions, and applicable freshness warnings with contact/location, `Navigate`, official contact links, and verified or explicitly unverified/unavailable accessibility information. Pair the hours and contact components on desktop. The introduction's hours/location link reaches this section directly, so a large gallery never becomes a prerequisite to finding practical details. Repeat the same available primary visit action in this section.
-4. **Understand the listing.** Show the latest three Store Updates and their existing `See All` path, eligible official social links, provenance and verification dates, correction/claim paths, and shopper-private visit information only in their existing permitted states. Freshness or safety information needed for an earlier decision also stays beside that decision; the Source section is not its only location. Missing optional material gets a compact truthful state rather than an oversized empty section.
-5. **Continue.** End with the same available `Add to Trip` and `Save` actions so the long scroll leads back into the connected shopper journey. Repeated controls share pending, saved, completion, and error state; they must not create duplicate writes. Use the existing labels and action flows rather than introducing new marketing copy or a second trip-creation flow.
-
-The local section links use ordinary page scrolling and remain accessible without animation. They do not capture wheel/touch scrolling, auto-advance, require horizontal dragging, or hide later sections until an interaction occurs. Photo enlargement retains the existing keyboard, dialog-containment, close, and focus-return behavior. `Save` and `Add to Trip` retain the [shopper entry and authentication](#shopper-entry-browsing-and-authentication) continuation: preserve the chosen store and intended action through sign-in, complete only the permitted action after success, return to context, and write nothing after cancellation.
-
-This composition does not replace the separate gallery-page direction below, change permitted photo counts, expand the synthetic fixture scope, or authorize application implementation or external activation by itself.
-
-### Store photo gallery page
-
-Store Details links `See all photos` to a full store photo gallery page. The locked direction comes from the August 2026 gallery prototype (`/prototype/store-gallery`, variant D "B × C Fusion"):
-
-- Serif editorial header: store name, town, photo count.
-- Asymmetric editorial grid with varied tile sizes; tiles fade and rise into place as they enter the viewport.
-- One or two full-bleed feature moments between grid sections: near-viewport-height image with gentle scroll parallax, dark gradient overlay, large serif caption (opening storefront first; later features alternate caption side).
-- Thin reading-progress bar fixed at top.
-- Hover or focus on a tile shows caption plus `View Photo`; every tile is a real button reachable by keyboard.
-- Click opens a lightbox (large image plus caption); `Escape` closes it.
-
-Motion is decorative only: all content stays readable without hover, no drag-only or time-pressured interaction, and reduced-motion users get the same information without parallax or reveal animation. The prototype route remains as visual reference until this page is implemented for real; then remove the throwaway route and variants. Before paid activation every store is Free (cover+5 gallery); after activation Store Details renders all approved images allowed by the current tier without changing gallery interaction.
-
-### Fixture-only 50-photo evaluation profile
-
-For useful descriptions and honest reuse of the existing image library, follow [Store-showcase presentation](#store-showcase-presentation). This profile tests long-gallery behavior and does not replace the ordinary Free/sparse listing evaluation.
-
-This profile is the separately authorized snapshot for issue #309's evaluation only; it is not a public tier, does not change Free/Gallery/Full Gallery capacity, and never unguards real media.
-
-- **Designated store set:** all 12 deterministic Synthetic Stores (Blue Finch Curios, Cedar & Brass, Elm Street Finds, Juniper House, Maple Lantern, North Star Relics, Prairie Cabinet, Redbud Market, Sunflower Salvage, Tallgrass Treasures, Union Station Vintage, Willow & Wren).
-- **Approximate photo count:** approximately 50 distinct, locally hosted, generated fictional media records per designated store, each with meaningful alternative text, an internal-only label, and recorded provenance. The count is an evaluation fixture, not an entitlement claim.
-- **Non-confusability safeguard:** the profile renders only through the existing [Store photo gallery page](#store-photo-gallery-page) and [Store Details](DESIGN_SYSTEM.md#full-width-store-details) interactions; it must be visibly labeled as a synthetic evaluation fixture and never be mistaken for a real or public listing. The existing Free cover+5 gallery, sparse/empty-media, missing-image, keyboard/lightbox, reduced-motion, and return-to-details behaviors remain unchanged and apply on top of the fixture. Real stores, real media, public release, and paid/provider activation stay outside the profile and require their own gates.
+- Cover photo and gallery images (capacity varies by store tier)
+- Description, address/map, hours and exceptions, contact, provenance, freshness
+- `Save`, `Add to Trip`, `Navigate`
+- Latest three Store Updates and `See All`
+- Official social links (open externally; never scrape, embed, or track)
+- Public review display after public review is enabled
+- Shopper-private personal rating and notes only for the signed-in owner
 
 ### Claim this listing
 
-Store Details shows `Is this your store? Claim this listing` only for active, unclaimed, claimable listings after Package 10B enables public claims. Anyone may open the explanation; submission requires verified email and MFA. `/stores/:slug/claim` identifies the exact store and explains that a claim publishes nothing and grants no Portal access. The claimant confirms identity/relationship, two approved independent authority signals, consent, and exact store before `Submit Claim`. Each signal shows `Not started`, `Submitted`, `Changes requested`, or `Accepted`; competing claimant/internal fraud evidence stays hidden.
-
-`/claims` and `/claims/:claimId` expose only claimant-owned `Draft`, `Submitted`, `Verification in progress`, `Changes requested`, `Conflict review`, `Approved`, `Rejected`, `Withdrawn`, or `Revoked`. Changes Requested names only the correctable requirement. Conflict/Rejected use a reason-neutral explanation and support path. Preserve safe fields across validation, authentication, and service failure. Approval routes to Store Portal only after the server atomically creates the exact-store grant; wrong account/hidden store/unauthorized access uses one generic unavailable state. No claim-document upload exists in Regional Public MVP.
-
-### For Store Owners (`/for-stores`)
-
-This is a targeted acquisition page, not Browse home and not a privileged signup surface. One calm proof story shows an approved listing in Browse, its store details and photographs, practical contact/visit information, and the return to Browse. It then explains owner-controlled information, eligibility/service area, `Claim an existing listing` versus `Add a new store`, the review/approval sequence, the complete Free service, support/trust boundaries, and exact paid plan facts only after paid activation. Every screenshot/testimonial is real and consented or visibly labeled synthetic.
-
-The membership spec owns [exact acquisition copy and actions](docs/specs/store-membership-spec.md#public-acquisition-and-qr-contract). Use its store-first hero and shopper proof; the invited variant follows the actual approved invitation. When public claim/add intake is separately enabled, its primary action searches for the store before branching to exact claim or add-store intake. Public distribution requires its own approved exposure; a private invited pilot does not enable public intake. Paid cards/prices appear only within the separately activated exposure while selection remains authenticated at `/store-portal/plans`. Flag-off/rollback disables paid action with a reason without stranding existing billing access.
-
-The page never uses `most popular`, countdown, scarcity, invented adoption/ROI/traffic/sales claims, unconsented logos/testimonials, blanket `verified owner`, or an external review-time promise. It says `Keep key store details current`, names directly managed fields, and explains that sensitive facts/photos are reviewed. Approval creates Free and publication without payment; later payment buys photo capacity only and cannot buy publication, placement, rating, verification, moderation outcome, or shopper data. Operator identity, service area, source/freshness meaning, what happens next, monitored support/security contact, privacy, terms, and status links appear before the final CTA. One store per Representative and one Representative per store are disclosed; multi-location applicants receive a supported-contact explanation rather than a misleading bulk path.
+Store Details shows `Is this your store? Claim this listing` for unclaimed listings. Submission requires verified email and MFA. A claim publishes nothing and grants no Portal access until Administrator approval.
 
 ### Report a correction
 
-Anyone may open `/stores/:slug/correction`, enter type, description, and optional validated public source URL. `Submit Report` requires just-in-time verified-account authentication. Preserve the safe draft and exact store through authentication; cancellation/failure writes nothing. Success opens `/corrections/:correctionId` with claimant-owned `Submitted`, `In Review`, `Resolved`, or `Closed`. It never exposes assignee, internal notes, other reporters, or abuse signals. Anonymous report writes are denied.
-
-### Candidate capture, sharing, and Trip Ideas
-
-`/capture` accepts a PWA share-target POST or pasted HTTP/HTTPS URL, shows the original host plus optional private note, and never places the URL in a route query, log, or analytics. `Review Link` moves through `Checking the link` to `Suggestions ready`, `Some information could not be read`, or `This source must be entered manually`. Label every extracted field `Unverified suggestion from [host] · checked [time]`. A blocked/private/unsupported source retains the original link/note and opens manual fields. The shopper reviews/edits before `Save as Trip Idea`.
-
-`Send to Someone` accepts one existing-account email and optional note. Every result says `If this email belongs to an eligible Antique Trail account, the idea will appear there.` `/shares` separates Shared with me/Sent; recipient detail offers Accept, Dismiss, Block, and Report. Accept creates an independent recipient-owned Trip Idea and opens Review Idea. `/trip-ideas` provides Edit, Add to Trip, Delete, and source details; the sender never sees recipient edits.
-
-### Install Antique Trail
-
-Installation is optional and never interrupts first-arrival Browse. `/install` remains available from More. After the first completed private action or later return, a nonmodal card may offer `Install`, `Not now`, and `Why install?`; Not now suppresses proactive prompting for 30 days on that installation. Android/desktop invokes the browser prompt only after Install. iOS and unsupported/failed states show numbered browser-specific instructions. Installed state suppresses prompts. Never prompt during consent, MFA, deletion, another destructive action, or Go; Partner activation links to `/install` without any invitation/role token.
-
-## Public reviews — Regional Public MVP only
-
-The review entry is absent—not disabled—until the server stage capability is enabled at Regional Public release. Eligible signed-in shoppers enter from Store Details or a completed visit summary. The screen first shows `Share an honest visit`, the selected store, the no-location-proof statement, conflict disclosure choices, and either the recorded `Done Here` month or a required `I visited this store` attestation.
-
-Composer order is: visible 1–5 rating buttons with text equivalents, optional review text, public display-name preview, visit month/year preview, conflict disclosure, rules link, and `Preview Review`. Preserve content on validation/server error. Preview shows the exact public card and `Back to Edit` / `Publish Review`; publication may end in `Published` or `Pending Review`. Never imply a pending review affected the aggregate.
-
-The user's review card offers `Edit`, `Delete`, `Report a problem`, and status. Delete names the store and says: `Your review disappears from public view and the store average immediately. You can undo for 60 seconds. After that, the review cannot be restored.` Confirmation has Cancel and `Delete Review`; no typed phrase. Show a persistent inline result plus polite live announcement and keyboard/screen-reader-operable `Undo Delete` for 60 seconds—not a toast/countdown. Reopening during the window shows the same own pending state. Undo restores only if still eligible/not held or removed; then purge text within 24 hours. A removed/rejected state shows the rule-based reason and `Appeal` while eligible. Appeal shows the original decision, deadline, one text/evidence submission, different-reviewer rule, and terminal `Restored` or `Upheld`; it never exposes reporter identity or internal fraud signals.
-
-Store Representatives see the same public review and a scoped `Report` action. They never see shopper email, exact visit time, trip, note, location, account history, reporter identity, or internal moderation evidence and cannot reply in MVP. Ratings use a normal arithmetic average plus count. Connected/disclosed reviews show `Connection disclosed — not included in average`.
+Anyone may open the correction form and draft it; submission requires just-in-time verified-account authentication. Cancel/failure writes nothing. The submitter sees only the status of their own report.
 
 ## Add to Trip and new-trip setup
 
 `Add to Trip` always opens an explicit chooser:
 
 1. Show editable existing trips and `Start a New Trip`.
-2. Retain the selected store through authentication and new-trip setup.
+2. Retain the selected store through authentication and setup.
 3. After addition, name the destination trip and offer `View Trip` and `Undo`.
 
 `Start a New Trip`:
 
 - Generates an editable area-based name.
-- Requires and visibly shows the shopping date.
+- Requires and visually shows the shopping date.
 - Retains the first selected store.
-- Defers start location, departure time, optional return destination, and per-stop duration to Plan.
+- Defers start location, time, return destination, and stop durations to Plan.
 
 ## Plan mode
 
@@ -216,282 +92,190 @@ Store Representatives see the same public review and a scoped `Report` action. T
 
 - Show the dated trip and planned stops immediately.
 - Allow store addition and accessible reordering before route setup.
-- Package 5A requires date and stop durations for `Review Hours`; it does not require a route start. Start location and departure time are required before Package 5B `Check My Day` or `Start Trip`.
-- Keep return destination optional.
-- Starting location is private per trip. Accept manual address/place entry or an explicit `Use My Current Location` action.
-- Request device location only after that action. Do not create a saved Home field, background tracking, analytics coordinates, or location logs.
+- Starting location is private per trip. Accept manual entry or an explicit `Use My Current Location` action.
+- Request device location only after that action. No saved Home field, background tracking, or location logs.
 
 ### Stop duration
 
 - Every stop has a visible editable expected browsing duration.
-- Use a verified store estimate when available; otherwise default to 60 minutes.
-- Offer large 30, 45, 60, and 90 minute choices plus Custom.
+- Default 60 minutes; presets 30/45/60/90 plus Custom.
 - Label schedule results as estimates, not guarantees.
 
-### Package 5A Review Hours and Package 5B Check My Day
+### Review Hours and Check My Day
 
-Package 5A shows `Review Hours`. It checks the shopper's current manual order against known store-day hours/freshness only, states `Travel time is not included`, and never claims arrival, finish, feasibility, drive time, or suggested order. Accessible `Move Up`/`Move Down` remains the reorder method. Starting with unresolved warnings requires one explicit acknowledgement.
+`Review Hours` checks the current manual order against known store-day hours and freshness. It states `Travel time is not included`. Accessible `Move Up`/`Move Down` is the reorder method. Starting with unresolved warnings requires one explicit acknowledgement.
 
-After R-01 and the server capability are enabled, Package 5B replaces it with `Check My Day`. It uses provider travel-time data, displays estimated arrival/departure/finish, explains warnings, and may suggest an order. Require separate `Use Suggested Order` and `Keep My Order`; never auto-apply or claim best/optimized. Provider failure preserves inputs/current order and falls back to Package 5A without stale provider results.
+After travel-time data is available, `Check My Day` replaces it: estimated arrival/departure/finish, explained warnings, and a suggested order. Require separate `Use Suggested Order` and `Keep My Order`; never auto-apply or claim an optimized route.
 
-Warnings appear once in a review summary and beside each affected stop:
+Warnings shown beside each affected stop:
 
-- Amber: schedule risk, stale information, or closing soon.
+- Amber: schedule risk, stale information, closing soon.
 - Red: closed today or likely arrival after closing.
 - Gray: missing or unverified information.
-- Corrective actions: `Move Earlier`, `Shorten Visit`, `Remove`, and `Keep Anyway`.
-- Unresolved warnings remain visible. `Start Trip` allows continuation after one explicit confirmation.
+- Corrective actions: `Move Earlier`, `Shorten Visit`, `Remove`, `Keep Anyway`.
+- `Start Trip` allows continuation after one explicit confirmation.
 
 ### Trip readiness
 
-Use a final card inside Plan, not another wizard. Show date, departure time, stop count, first stop, unresolved warning count, optional return destination, and estimated finish when calculable. `Start Trip` opens Go mode at Stop 1.
-
-## Shared-trip handoff
-
-- A Trip Creator may invite one authenticated Trip Partner to one trip.
-- Both participants may edit the draft plan.
-- Each online edit is versioned. If the partner changed the plan first, preserve the user's attempted action, show the latest affected fields/order, and offer `Reapply My Change` or `Keep Latest`; never silently overwrite or merge stop order.
-- Either participant may be assigned Navigator before start.
-- Only the assigned Navigator controls Go mode; the partner sees read-only progress.
-- The shared plan and progress never include either shopper's private ratings or notes.
-- No participant gains access to other trips, private history, or a household object.
-
-Invitation requirements:
-
-- Creator enters the intended partner email.
-- Invitation is single-use and expires after seven days.
-- Delivery uses the device share sheet or an in-person QR.
-- Acceptance requires authentication with the matching verified email and disclosure of the shared trip data.
-- Creator may cancel a pending invitation or remove an accepted partner. The accepted partner has a visible `Leave Trip` action with one consequence confirmation; access ends immediately, and if that partner is Navigator the remaining creator sees `Trip paused — assign a Navigator`.
-- Expired, cancelled, and consumed tokens grant nothing and cannot be reused.
-- Removing the active Navigator pauses Go mode until another Navigator is assigned.
-
-Candidate Share and shared-trip invitation are separate capabilities. Candidate Share transfers one outside lead into a recipient-owned Trip Idea; a shared-trip invitation grants the named partner access to one trip plan/progress only. A pending Candidate Share expires after 30 days. Revoke, dismiss, or expiry immediately closes it and triggers deletion of its unaccepted payload from primary database and Storage within 24 hours.
-
-For Candidate Share, the sender enters the recipient's verified account email and receives the same generic confirmation whether the address is matched, unmatched, unverified, or blocked. Only the matched account receives the in-app payload; an unregistered address receives no invitation. The recipient actions are `Accept`, `Dismiss`, `Block`, and `Report`. The sender sees only `Pending`, `Accepted`, or `Closed`; `Closed` never explains account state, dismissal, block, report, revocation, or expiry.
+Use a final card inside Plan. Show date, departure time, stop count, first stop, unresolved warning count, and estimated finish when calculable. `Start Trip` opens Go mode at Stop 1.
 
 ## Go mode
 
 ### Starting and navigation
 
-- Start at Stop 1 with large `Navigate`, `Skip Stop`, and `Change Order` controls.
-- Keep current warnings available.
-- `Navigate` opens the selected external map application for the current leg; Antique Trail stays recoverable on return.
-- Navigation never launches automatically.
+- Start at Stop 1 with large `Navigate`, `Skip Stop`, `Change Order` controls.
+- `Navigate` opens the selected external map app for the current leg. Navigation never launches automatically.
 
 ### Arrival and active visit
 
-- A large `I Have Arrived` action records confirmation time only.
-- Do not use geofencing, continuous tracking, or stored arrival coordinates.
-- The active-visit screen stays quiet: stop position, store, arrival time, and planned-until time without a countdown or automatic completion.
-- Secondary actions open Store Details and `Add Private Note`.
+- A large `I Have Arrived` action records confirmation time only. No geofencing or tracking.
+- The active-visit screen stays quiet: stop position, store, arrival time, planned-until time.
 - A large `Done Here` records completion time, updates remaining estimates, and opens the private visit review.
 
 ### Private visit review
 
-- Optional and private to the individual account.
-- Large one-to-five overall-feel choice with labeled endpoints.
-- `No`, `Maybe`, or `Yes` return choice.
-- One private note shared with notes entered during the visit.
-- `Save and Next Stop` continues; `Skip for Now` continues and permits later completion.
-- Never publish, aggregate, or expose these values to a store or trip partner.
+- Optional and private to the account.
+- Large 1-5 overall-feel choice, a `No`/`Maybe`/`Yes` return choice, and one private note.
+- Never publish or expose these values to a store or trip partner.
 
-### Skip, finish, and history
+### Skip, finish, history
 
-- `Skip Stop` advances immediately without a reason or confirmation.
-- Show named Undo, retain the skipped stop in history, allow restore, and recalculate remaining estimates/warnings.
-- `Store Appears Closed` is available for Planned/Arrived stops. It immediately records private `observed_closed`, advances/recalculates like Skip, and says `You marked this store as appearing closed at [time]. This is private trip history. It does not change the public listing.` Offer operable Undo; when online, separately offer authenticated `Report incorrect hours`. Summary says `Appeared closed`, never `Permanently closed`.
-- Next-stop card shows store, drive estimate, estimated arrival, closing time, warnings, `Navigate`, and remaining stops.
+- `Skip Stop` advances immediately, offers named Undo, and keeps the skipped stop in history.
+- `Store Appears Closed` records private `observed_closed`, advances like Skip, and states the public listing was not changed.
 - Finishing or skipping the last stop opens Trip Summary automatically.
-- `End Trip Early` requires one confirmation when unvisited stops remain.
-- Summary shows visited/skipped counts, trip duration, every store, private-review status, and missing reviews.
-- Completed route history is read-only. Private ratings/notes remain editable.
-- `Plan This Trip Again` creates a new draft and never alters history.
+- `End Trip Early` requires one confirmation when stops remain.
+- Completed route history is read-only. Private ratings and notes remain editable.
+- `Plan This Trip Again` creates a new draft; it never alters history.
 
 ### Offline behavior
 
-- `Start Trip` saves only the assigned Navigator's minimum snapshot and pending mutations in encrypted, account/install-bound IndexedDB using a non-extractable device-local key.
-- Authenticated trip data never enters the public service-worker cache.
+- The active-trip snapshot and pending mutations are stored in encrypted IndexedDB bound to the authenticated account and local install.
 - Reopening the PWA prioritizes `Resume Trip`.
-- Offline Go supports arrival, completion, skip, private rating, and private note.
-- Mark offline changes `Local only · Pending sync` until server acknowledgement.
-- Draft planning changes require service. A disconnected Trip Partner sees last-updated state.
-- Go is bound to one active Navigator device. Moving Go to another device requires authenticated online confirmation; later old-device mutations are rejected.
-- Replay authorized offline actions exactly once in their local order. Server authorization, active device/Navigator assignment, and trip state always win.
-- Show a plain sync explanation for rejected stale actions. If the same private rating or note changed elsewhere, show both and require `Keep This Phone's Version` or `Keep Saved Version`; never silently overwrite.
-- Purge after completed-trip sync, account switch, logout, or known authorization loss. If logout would discard pending changes, explain the loss and require confirmation.
-- On reconnect after offline revocation, recheck authorization and purge before sync or refreshed private display. Already decrypted offline data cannot be remotely recalled.
-- Offline display/mutation expires 36 hours after Start Trip. Cold restart decrypts only for the matching locally stored account/device grant; otherwise show only that an offline trip exists. Clear plaintext after 15 minutes backgrounded. At 36 hours lock pending sync; same account may reauthorize online within seven days, after which the next app execution purges ciphertext/key. Clock rollback over five minutes locks until online verification.
-- Navigation passes the saved address to the external map app; that provider's offline routing is outside Antique Trail control.
+- Offline Go supports arrival, completion, skip, private rating, and private note, shown as `Local only · Pending sync`.
+- Draft planning changes require service.
+- Server authorization, Navigator/device assignment, and trip state always win over offline state.
+
+## Shared trip (partner)
+
+- A Trip Creator may invite one authenticated Trip Partner to one trip. Both may edit the draft.
+- Either participant may be Navigator; only the assigned Navigator controls Go.
+- Other participant sees read-only progress.
+- Shared plan never includes either shopper's private ratings or notes.
+- Invitation is single-use, bound to the recipient's verified email, and expires after seven days.
+- Creator may cancel or remove; the accepted partner may leave. Removing an active Navigator pauses Go until reassignment.
 
 ## Store Representative portal
 
-### Phone-first invitation and onboarding
+### Home
 
-Canonical flow: `/partner/join#token` → scrubbed `/partner/join` → `/partner/verify` → `/partner/draft` → unnumbered `/partner/status` review wait → approval status/email → normal sign-in with verified email and MFA → `/partner/activate` for tasks 4–5 → `/store-portal`. Exchange the fragment once and remove it before any third-party request. Invalid/expired/revoked/consumed/wrong-context tokens show `Invitation unavailable` and `Ask for a new invitation`; they reveal no state.
-
-Use one task per screen at 320px without horizontal scroll. The five participant-controlled tasks are: 1 Review invitation and consent (voluntary, unpaid, invitation-only, grants nothing; plain policy; separate acknowledgements; typed name/title/store/owner-controlled email); 2 Create/verify account, MFA, and recovery codes; 3 Complete and preview the Store Draft; 4 after approval, review the exact approved listing and permissions; 5 finish activation, install help, and checklist. Between 3 and 4, Status is an unnumbered Submitted/Changes Requested/Approved/Rejected/Withdrawn wait screen because the owner cannot advance authority review. Show `Step n of 5` only on numbered tasks, never auto-advance, and preserve safe fields on Back/failure.
-
-Task 3 (draft) is a one-field-per-screen sub-flow for a 70-year-old-friendly journey (`docs/specs/owner-onboarding.md`): task progress stays `Step 3 of 5`, field-level progress shows only as a plain `Question n of 9` indicator, never a second `Step n of 5` or a percentage bar. Mandated field order: Welcome, store name, description, address, phone, website (optional), regular hours, holiday hours, category tags, review-and-submit with exact preview. Photo is never a draft step. Hours entry uses the full hours editor presented progressively (one day per screen, Open/Closed first, `Copy to Other Days`, optional `Add a second time range`, 14-day preview only on the final review screen). Category tags: single best-fit radio choice first, optional `Add more` checkbox expander. Interruption/resume reassurance (`You can stop and come back — your answers are saved.`) appears on every task intro and typed screen.
-
-Token consumption/provisional consent/pending identity is an application transaction; Supabase Auth signup/verification is separate. Interruption resumes the same unprivileged pending identity. Duplicate submit/reload creates one identity/receipt. Changes Requested returns to exact fields. Approval email is status-only and contains no bearer; Store Portal remains absent until verified email, MFA, authority approval, and exact grant all pass.
-
-### Store Representative Home
-
-- Lead with scoped store name, public-listing state, hours verification date, urgent/stale-hours attention, `Update Hours`, and `Preview Public Listing`.
-- Secondary areas: Store Information, Photos, Store Updates, Pending Changes, and Access & Help.
-- Use the real shopper layout for preview and distinguish live values from pending changes.
-- Exclude traffic analytics, advertising, shopper ratings, shopper-private data, and marketing tools from MVP.
-
-### Paid-tier changes
-
-The initial paid pilot offers only Free-to-Gallery. Full Gallery sales and new paid-to-paid changes are deferred. The remaining interactions apply only to separately enabled future changes or necessary servicing of verified incumbent obligations; do not hide an existing cancellation/refund obligation. Membership and Package 13 own the exact offer and activation boundary.
-
-At the activated authenticated `/store-portal/plans` surface, initial Free-to-paid purchase retains hosted Checkout. An eligible Gallery-to-Full-Gallery upgrade shows current and target tier and repeats the authoritative paid disclosures before fresh consent, then modifies the existing subscription under Package 13. Pending or compensating state must not claim a completed upgrade: retain the valid current entitlement, explain the pending change or charge reconciliation, and offer the existing support/status path. Stale terms require fresh consent; retry must resume/reconcile the same change without a duplicate charge. In servicing-only, new upgrade actions deny while existing-customer cancellation and reconciliation remain available. Show a scheduled downgrade as a pending target and effective cycle boundary while retaining the current entitlement. When a schedule prevents Stripe portal cancellation, provide an authenticated cancellation confirmation in Antique Trail showing the paid-through boundary and the scheduled change it supersedes; successful submission remains pending until provider confirmation. Opening billing or dismissing that confirmation leaves the scheduled downgrade intact. Existing responsive, accessibility, focus, and error-recovery rules apply.
+- Lead with scoped store name, public-listing state, hours verification date, `Update Hours`, `Preview Public Listing`.
+- Secondary areas: Store Information, Photos, Store Updates, Pending Changes, Access & Help.
+- Exclude traffic analytics, advertising, shopper ratings, shopper-private data, and marketing tools.
 
 ### Publishing labels and hours
 
 - Label every edit `Publishes Immediately` or `Requires Administrator Review` before submission.
-- Direct fields: regular/holiday hours, phone, website, official description, temporary closure, and validated official social-profile links.
-- Controlled fields: name, address/coordinates, ownership, permanent closure, categories, and Official Store Profile Photos.
-- Controlled changes expose Pending, Changes Requested, Approved, and Rejected states while current approved values remain live.
-- Hours editor supports Open/Closed per weekday, one normal range plus optional second range, and `Copy to Other Days`.
-- Date-specific hours replace the weekly schedule for that date. Temporary closure requires start and end dates.
-- Show store timezone derived from the approved address.
-- Preview 14 shopper days before immediate publication. Success updates listing freshness and offers Undo.
-- Active trips refresh warnings on next sync; completed history never changes.
+- Direct fields: hours, phone, website, description, temporary closure, social profile links.
+- Controlled fields: name, address, ownership, permanent closure, categories, profile photos.
+- Controlled changes use Pending / Changes Requested / Approved / Rejected states while current approved values stay live.
+- Hours editor: Open/Closed per weekday, one range plus optional second range, `Copy to Other Days`, dated exceptions, 14-day preview, Undo.
 
 ### Store Updates
 
 - Types: New Finds, Sale, Announcement, Store News.
-- Composer: type, headline, details, optional vendor/booth label, optional official source link, optional one image, and shopper preview.
 - Text-only updates publish immediately.
 - An image-bearing update stays unpublished until Administrator image approval.
-- When an approved image update is revised, its current approved version remains visible during review.
-- Sale requires an end date and auto-archives. Announcement may have an end date. New Finds and Store News archive manually.
-- Archive removes public display but preserves audit history. Restore is allowed; permanent self-service deletion is not.
-- A Store Representative may publish on a vendor's behalf and label the vendor/booth.
-- Internal Alpha uses synthetic updates. Do not scrape or synchronize Facebook, embed tracking, add comments/likes/followers, or implement structured Events.
+- Sale requires an end date and auto-archives.
+- One image per update; no social feed scraping or embedding.
 
-### Images and social links
+### Images
 
-- Store profile: current-tier capacity (Free cover+5 gallery; Gallery cover+15 gallery; Full Gallery cover+no plan-count cap under published non-count limits). Store Update: no more than one image.
+- Free tier: 1 cover + 5 gallery photos. Gallery tier: 1 cover + 15 gallery. Full Gallery: unlimited under published non-count limits.
 - Require local preview/crop, plain alternative text, and explicit rights confirmation.
 - Prohibit copied website images, social screenshots, and shopper photos.
-- Keep uploads private while validating, re-encoding, stripping metadata, and reviewing.
-- Every profile-image add, replacement, reorder, cover change, or removal requires Administrator approval. Current approved images remain live until replacements are approved.
-- Support one verified official business-profile link per Facebook, Instagram, YouTube, Pinterest, and TikTok. Validate domains, reject shortened URLs, preview, publish directly, audit, and offer Undo.
+- Keep uploads private during validation, re-encoding, metadata stripping, and review.
+- Every profile-image change requires Administrator approval; current approved images stay live until replacements are approved.
 
-### Pilot support
+### Social links
+
+- One validated official business-profile link per platform: Facebook, Instagram, YouTube, Pinterest, TikTok.
+- Validate domains, reject shortened URLs, show final destination, publish directly, offer Undo.
+
+### Support
 
 - `Access & Help` contains `Get Help` and `My Requests`.
-- Categories: bug, confusing workflow, store-data correction, feature idea, security/privacy concern.
-- Disclose attached allowlisted diagnostics.
-- Permit one optional owner-previewed, removable, sanitized screenshot; no arbitrary attachments.
 - States: Submitted, In Review, Waiting on You, Resolved, Reopened.
-- Show authenticated replies and full resolution history. Owner may confirm resolution or reopen.
-- Email remains status-only. Security/privacy tickets alert Administrators urgently.
-- Sign-in fallback email reveals no pilot data until identity verification.
+- Show authenticated replies and full resolution history.
 
-## Account and privacy controls
+## Store membership and billing
 
-`Account & Privacy` is reachable from the signed-in profile menu without entering a privileged role. It lists account email/verification state, `Export My Data`, supported private-history deletion controls, blocked senders, and `Delete My Account`. Destructive actions never share a row or visual style with routine navigation.
-
-### Export My Data
-
-1. Explain the ZIP contents and exclusions before request; show no presigned URL until password authentication within ten minutes plus already-enrolled MFA succeeds. Never require a shopper to enroll MFA to exercise export; use the tested factor-recovery fallback when needed.
-2. `Create Export` enters `Preparing`. Duplicate requests return the existing active job rather than creating another.
-3. Ready state shows generated time, expiry, file size, checksum, and `Download ZIP`. The private archive expires after seven days; each download URL expires after 15 minutes and may be regenerated while the archive remains available.
-4. Failure shows a plain reason-neutral error, preserves the request status, moves focus to the alert, and offers `Try Again` or support. Expired shows `Create New Export`.
-
-### Delete My Account
-
-1. Preview affected categories, immediate session/grant revocation, review hiding/aggregate removal, the seven-day cancellation window, day-8 primary deletion, backup aging, and exclusions retained only by law/security policy.
-2. Require password authentication within ten minutes plus MFA only when the shopper already enrolled it, using the tested recovery fallback when an enrolled factor is unavailable; privacy rights never require new MFA enrollment. Then require one unchecked acknowledgment and a single red `Schedule Account Deletion` action. Do not require memorized text or place the action beside Cancel.
-3. Success signs out normal access and shows the exact deletion date plus `Cancel Account Deletion`. Reauthentication during seven days enters cancellation-only mode; it cannot read ordinary account content. The preview states that privileged Administrator/Representative grants will not be restored automatically.
-4. Cancellation confirms the request ended and restores ordinary account/private-data access. Any privileged grant requires the normal audited regrant/reverification path, and any review that became ineligible or moderated remains unavailable. After day 8, the route shows deletion complete and support cannot promise restoration.
-5. Validation/service failure preserves context, does not schedule deletion, moves focus to the error summary, and offers Retry/Back. Browser Back never schedules, cancels, or completes deletion.
+- Free tier: claim listing, manage hours/info, 5 photos per month, text updates, social links.
+- Paid tier ($30/month): unlimited photo uploads via Stripe Checkout.
+- Payment never publishes a listing or grants Administrator authority.
+- Shop through Stripe-hosted Checkout and the Stripe customer portal; never collect or store card details in-app.
 
 ## Administrator experience
 
-### Administrator Home
+### Home
 
-- Persistently label role and environment, for example `Administrator Test Account` and `Internal Alpha · Synthetic Stores Only`.
+- Persistently label role and environment (e.g. `Internal Alpha · Synthetic Stores Only`).
 - Show urgent security/privacy work first.
-- Use one `Needs Review` worklist grouped into Partner Onboarding, Store Changes, Images, and Support.
-- Queue items show store, submitter, request type, status, and submitted age; order urgent first, then oldest pending.
+- One `Needs Review` worklist grouped into Partner Onboarding, Store Changes, Images, Support.
 - Include `Access & Safety` for representative grants/revocations and audit activity.
-- Exclude shopper-private records, traffic, ratings, trip details, and marketing metrics.
+- Exclude shopper-private records, traffic, ratings, and trip details.
 
 ### Review workspace
 
 - Open one readable type-aware workspace from a queue item.
-- Fixed context: request type, store, submitter, status, submitted time/age, current live state.
-- Store change: Current vs Requested plus shopper preview.
-- Image: rights confirmation, alt text, processing results, shopper preview.
-- Partner onboarding: consent/verification state and exact final Pilot Store Draft; Administrator cannot edit owner fields.
-- Support: authenticated thread, disclosed diagnostics, sanitized screenshot when present, type-specific actions.
+- Request type, store, submitter, status, submitted time, current live state.
 - Actions depend on type. `Request Changes` and `Reject` require a plain reason. Approval shows the exact effect before confirmation.
-- Audit every transition with actor, time, before/after or approved snapshot, reason/comment, and result.
-- No bulk approval, direct submitted-field editing, automatic queue advance, or shopper-private data.
-- Completion offers `Back to Queue` and `Review Next`.
+- No bulk approval, direct submitted-field editing, or automatic advance.
+- Audit every transition: actor, time, before/after, reason, result.
 
-### Public-review moderation and appeal
+### Review moderation (post-MVP)
 
-This workspace and its routes are absent until the public-review stage capability is enabled. The launch Administrator opens one case from a reason-coded moderation queue. Case detail shows only public review/store context, reported rule, minimum necessary report evidence, current aggregate effect, prior transitions, and appeal status; unrelated shopper history, trips, notes, location, reporter identity, and internal fraud signals remain hidden unless separately authorized for a documented abuse investigation.
-
-- Available routine transitions are `Hold`, `Remove`, `Restore`, and `Dismiss Report`. Every action requires recent authentication, a selected rule/reason, a plain explanation to the author, and a preview of the aggregate effect before confirmation.
-- Hold and Remove hide the review and exclude it from aggregate immediately. Restore republishes only if eligibility still passes and recomputes aggregate. Dismiss Report changes no review visibility.
-- Failed mutation retains the case and typed reason, moves focus to an error summary, and never advances automatically. Success shows exact new state, author-notice status, aggregate result, and `Back to Queue` / `Review Next`.
-- Appeal intake shows deadline, appellant type, challenged rule, and new evidence. The original moderator is ineligible to decide. A different Administrator uses the same minimized case view when available.
-- With one Administrator, a qualified independent reviewer receives a single-case, 24-hour, MFA-protected view containing only the approved minimized packet. `Restore` or `Uphold` plus a plain reason is terminal, expires the capability, and applies through the trusted service; the Administrator cannot edit that decision.
-- Store Representative appeal/report views never disclose reporter identity, shopper email, trip/location/note/account history, or internal fraud signals.
+Moderation of public reviews is applied only after public reviews are enabled. Cases show public review/store context, reported rule, minimum evidence, and current aggregate effect. Transitions: `Hold`, `Remove`, `Restore`, `Dismiss Report`. An appeal goes to a different Administrator or an independent qualified reviewer.
 
 ### Access & Safety
 
 - Separate pending invitations from active Store Representative grants.
-- Active grant shows representative identity, verified-email state, MFA state, exact store scope, grant status/date, and recent privileged activity without shopper activity.
-- Actions: `View Audit`, `Revoke Access`, controlled `Regrant Access`, `Revoke Invitation`, and create a new invitation through approved onboarding.
-- Revoke requires Administrator MFA, recent authentication, plain reason, and exact consequence preview.
-- Revoke removes only the selected store scope and denies the next server-authorized write, including from an already-open session. It does not delete account, audit history, approved store data, or unrelated shopper data.
-- Private Beta withdrawal also hides the Pilot Store Record from the active pilot while preserving record/history for recovery and audit.
-- Regrant requires still-valid verified email, MFA, authority verification, exact scope preview, and recent Administrator authentication. It never restores broader access.
-- Audit every attempt. Exclude bulk access changes, multi-store Representative scopes, self-service role changes, and history deletion.
+- Active grant shows identity, verified-email and MFA state, exact store scope, grant dates, recent privileged activity.
+- `Revoke Access` requires MFA, recent authentication, a plain reason, and an exact consequence preview.
+- Regrant requires verified email, MFA, authority verification, and exact scope preview. Never restores broader access.
+- Audit every attempt.
 
-### Audit History status
+## Account and privacy controls
 
-D31 is not approved. The system still requires append-only privileged audit records retained for two years and Administrator access necessary for D30 `View Audit`, but the proposed full searchable Audit History timeline and export policy remain unresolved and must not be treated as approved UI scope.
+`Account & Privacy` lists account email/verification state, `Export My Data`, privacy controls, and `Delete My Account`. Destructive actions never share a row or style with routine navigation.
 
-## Readiness and public-promotion interactions
+### Export My Data
 
-`/readiness/join#token` follows the same fragment exchange/scrub/no-third-party rules as every invitation. The matching verified-email adult sees the current test privacy notice, 30-day grant, audience restriction, withdrawal, and `Join Readiness Test`; wrong/expired/revoked states use one generic unavailable screen. `/readiness/status` shows only the current person's consent/grant/run status and withdrawal. `/admin/readiness` is operational and case-scoped; it never shows private trip content, precise location, accessibility details beyond approved scheduling bands, or one invitee to another.
+1. Explain ZIP contents and exclusions before request.
+2. Require recent password authentication before issuing a download URL.
+3. Downloads expire after 15 minutes; archives after seven days.
+4. Failure shows a plain reason-neutral error.
 
-Package 10A privately previews `/stores?area=topeka-ks`, `/for-stores`, canonical Store Details Share, shopper flyer/QR, owner card/QR, consent, social preview, sitemap/robots transition, and failure/removal behavior. Package 10B alone publishes/distributes. Shopper QR opens the area Browse route; owner-acquisition QR opens `/for-stores`; secure invitations alone use fragment-token routes. Public Share sends only the canonical Store URL. A withdrawn flyer/card/logo/social consent immediately marks the artifact `Do not distribute`, blocks reprint/future post, and gives operations a removal-confirmation task. Broken/substituted QR, unavailable area, stale/hidden store, quota stop, and promotion pause each have plain recovery copy and never redirect between public acquisition and privileged invitation routes.
+### Delete My Account
+
+1. Preview affected categories and the seven-day cancellation window.
+2. Require recent password authentication plus MFA when already enrolled, and one acknowledgment.
+3. Success signs out and shows the deletion date plus `Cancel Account Deletion`.
+4. Cancellation restores access; privileged grants require normal regrant.
+5. Day-8 primary deletion runs; support cannot promise restoration after that.
 
 ## Implementation acceptance journeys
 
-For the store-first showcase and controlled pilot, prove the selected shopper/store/admin paths below (1–3 and 6–8), with real versus fixture evidence distinguished. Items 4–5 and 9 are retained deferred-feature acceptance, required only if those capabilities are explicitly exposed; they are not prerequisites to the store showcase. The owner sees a safe bounded candidate before unrelated whole-product work is complete.
+Before external testing, prove at minimum:
 
 1. Anonymous Browse and Details work without location or sign-in.
 2. Just-in-time sign-in returns to and completes the original private action.
-3. User A and User B cannot read or change each other's unrelated private records.
-4. Creator and one verified Trip Partner share only one trip; only Navigator controls Go.
-5. Plan warnings, explicit order choice, readiness, Go transitions, private review, summary, and offline resume work without data loss.
-6. Store Representative direct/controlled fields, hours, updates, images, social links, and support obey their labels and scopes.
-7. Administrator review and access revocation work from separate MFA sessions and never expose shopper-private data.
-8. All forbidden actions fail server-side and all privileged attempts create audit records.
-9. Public-review routes are absent through Private Beta; at Regional release, eligibility, compose/preview, pending/published, edit/delete, report, moderation, and one appeal preserve privacy and update the arithmetic aggregate transactionally.
+3. User A and User B cannot read or change each other's private records.
+4. Trip planning warnings, explicit order choice, Go transitions, private review, and summary work without data loss.
+5. Store Representative direct/controlled fields, hours, updates, images, social links, and support obey their labels and scopes.
+6. Administrator review and access revocation work from separate MFA sessions and never expose shopper-private data.
+7. Forbidden actions fail server-side; privileged attempts create audit records.
+8. Public-review routes are absent through beta; at release, eligibility, compose, moderation, and appeal preserve privacy and update the aggregate transactionally.
 
 ## Product brand personality
 
 Trustworthy, practical, welcoming.
-
-## Product design principles
-
-1. **Browse Stores is home.** Use readable list-first discovery, with Store Details, Save, and Add to Trip close at hand; the map is optional.
-2. **Show why information is trustworthy.** Keep source, verification date, freshness, hours state, and uncertainty visible where decisions are made.
-3. **Make only supportable claims.** Use truthful hours checks until routing data supports arrival-time and feasibility claims.
-4. **Keep private boundaries understandable.** Require recipient authentication, share only the chosen candidate or trip, and keep each shopper's ideas, edits, notes, and ratings separate.
-5. **Capture without pretending to verify.** Preserve original URL and source state; label extracted facts as suggestions until reviewed; keep blocked sources usable through manual fallback.
-6. **Design for the trip, not the roadmap.** Prioritize one-handed link capture, idea review, planning, navigation handoff, stop status, and private memory; omit deferred features from the first slice.
-7. **Make the day feel inviting.** Use approved store imagery, a clear ordered trail, stop count, and calm readiness summary while keeping hours warnings prominent and truthful.

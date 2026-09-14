@@ -293,7 +293,7 @@ function renderMarkdown({ args, git, github, sinceDescription }) {
   lines.push('## Source of truth')
   lines.push('')
   lines.push(
-    'Read `CODEX_START_PROMPT.md` for current authority and stop conditions, `PRD.md` for product requirements, `DESIGN.md`/`DESIGN_SYSTEM.md` for interaction and visual rules, and `PACKAGE_CONTRACTS.md` for package delivery order. If two controlling sources conflict, stop and reconcile the documents.',
+    'Read `PRD.md` for product requirements, `DESIGN.md`/`DESIGN_SYSTEM.md` for interaction and visual rules, and `PACKAGE_CONTRACTS.md` for package delivery order. If two sources conflict, stop and reconcile the documents.',
   )
   lines.push('')
   return lines.join('\n')

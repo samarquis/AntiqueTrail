@@ -1,133 +1,91 @@
-# Antique Trail product requirements
+# Product Requirements Document
 
-Status: store-first product direction authorized 2026-09-11 by the Product Owner: **`update plan to the proposed store-first PRD`**. Effective on reviewed merge of #346. This amendment changes intended scope and stage requirements; it performs no application implementation, deployment, outreach or billing activation.
+## Purpose
 
-## Purpose, people, and product promise
+Antique Trail makes a fun day of antique shopping easy to see, easy to plan, and easy to trust. It brings store discovery, trip planning, and personal shopping memory into one connected experience.
 
-Help antique stores present their shop and interesting merchandise through trustworthy information and photographs. Shoppers explore without an account. Approved store representatives maintain their listing and may later buy a larger photo gallery. The immediate test is whether this showcase is useful to the owner, shoppers and participating stores.
+## What it is
 
-Retain React/TypeScript/Vite, Supabase Auth/PostgreSQL, Stripe, and the approved visual identity. Use one account system with server-enforced permissions. Do not rebuild authentication, payment collection or the gallery without evidence of a specific defect. Design remains mobile-first and age-inclusive; the owner evaluates computer first, then phone.
+A public Progressive Web App, mobile-first, desktop and tablet compatible. Users browse antique shops, plan day trips, visit stores, and leave reviews. Store owners can claim their listing and manage their profile.
 
-## People and permissions
+## Core users
 
-| Person or state | Permitted experience | Boundary |
-| --- | --- | --- |
-| Anonymous visitor | Browse/search; details, approved photos, hours and official links | No sign-in or location permission needed to browse. |
-| Registered shopper | Sign-in and optional private saved stores | Own private data only; registration grants no store authority. |
-| Store applicant | Own invitation/application and draft | No representative grant or publication before independent approval. |
-| Store representative | Permitted details, hours, photos and membership of the approved exact store | Existing verified-email, MFA, recent-auth where required, admission and server-side scope controls remain. |
-| Administrator | Approve listings/claims/photos, handle corrections/support and manage exact-store authority | Separate privileged session, no self-approval or default shopper-private access. |
+**Shoppers** — browse stores, save favorites, plan trips, leave reviews.
 
-An applicant is an account state, not a separate login system. Roles never grant unrelated-store access. Privileged revocation, auditing, privacy, content rights and moderation remain mandatory under [SECURITY_AND_TRUST.md](SECURITY_AND_TRUST.md).
+**Store Owners** — claim a listing, manage photos and hours, post updates.
 
-## The connected shopper experience
+## Core features
 
-1. Browse/search without signing in. Open a store, see permitted photographs, truthful details, full hours and official contact/directions links.
-2. Return to useful browsing context. Missing information, failed media and sparse galleries stay understandable.
-3. Optionally save a store. Just-in-time sign-in preserves the interrupted action and context; cancellation writes nothing.
+### 1. Browse stores
 
-Trip building, partner handoff, route optimization, Go/offline navigation, public reviews and private visit history remain deferred from this milestone and from every showcase or pilot exposure. One bounded repository exception permits the local invitation diagnosis, minimal invitation ACL repair, accepted-partner removal repairs and joined verification named by #321/#342/#343/#344/#365. That work preserves the retained trip contract without adding trip navigation, participants, provider activity or production capability, and it is not a showcase prerequisite. See [deferred implementation boundary](#deferred-implementation-boundary).
+- List-first browsing with search by name, town, and category
+- Each store shows: cover image, name, town, category summary, hours, open/closed state
+- Store details page: photos, hours, description, contact, social links, reviews
+- No sign-in required to browse
 
-## The store and administrator experience
+### 2. Save and trip planning
 
-Start with the existing invited-store onboarding variant: consent → verified account/MFA → own draft → independent authority/listing approval → exact scope and Free → first Portal use. The representative updates permitted facts and submits photos; the interface distinguishes direct publication from reviewed fields/media. The administrator approves permitted content, which then appears on the listing.
+- Save stores to favorites
+- Create a trip: name, date, area
+- Add stores to a trip, arrange order
+- Set expected browsing time per stop
+- Review hours before going
 
-Public self-service claim/add intake is a later, separately approved pilot extension if invitation-assisted onboarding suffices initially. Neither an application nor payment grants publication or Administrator authority. Detailed behavior lives in [business accounts](docs/specs/product-capabilities.md#business-accounts), [owner onboarding](docs/specs/owner-onboarding.md) and [membership](docs/specs/store-membership-spec.md).
+### 3. Go mode
 
-## First offer
+- Start a trip, navigate to current stop
+- Hand off to Google Maps or Waze for directions
+- Mark arrived, mark done, move to next stop
+- End trip early if needed
 
-Free retains cover plus five approved gallery photographs, without a subscription charge. Initially offer only paid Gallery: cover plus fifteen approved gallery photographs. The owner selected larger galleries first; featured placement is deferred. Payment buys capacity, never ranking, reviews, verification, moderation outcomes or shopper data. Prices are unset until the separate commercial decision.
+### 4. Reviews and ratings
 
-Use Stripe-hosted Checkout, supported customer-portal management and verified webhooks. The server binds the exact store/customer/subscription, approved price and consent; only verified events apply paid entitlements. Failed or cancelled Checkout preserves Free. Retain cancellation, failed-payment, refund, photo-limit and reconciliation behavior in the [membership spec](docs/specs/store-membership-spec.md).
+- Rate stores 1-5 stars
+- Write text reviews
+- See public rating on store pages
+- Personal ratings and notes visible only to the author
 
-Do not offer Full Gallery or new custom paid-to-paid changes in the initial pilot. Preserve existing code and servicing duties for any verified incumbent obligation; inspect actual provider state before a later migration or disabling servicing. A Gallery membership does not authorize a hosting upgrade, R2 migration, new storage-retention rule or spending.
+### 5. Store portal
 
-## Next milestone: usable internal store showcase
+Stores claim their listing and manage it:
 
-Use an exact recorded build, existing clearly labeled fictional stores and permitted synthetic imagery. The owner attempts Browse → store → photos/details → return, followed by one representative edit and one Administrator approval demonstration, on computer then phone. Existing favorites may be evaluated separately. The goal is a usable, understandable showcase and concrete feedback, not completion of every implemented feature.
+**Free tier:**
+- Claim listing (name, address, hours, phone, website)
+- Upload up to 5 photos per month
+- Post text updates (sales, announcements)
+- Link social media (Facebook, Instagram, etc.)
 
-Present the showcase through the stage-specific composition and action hierarchy in [Store-showcase presentation](DESIGN.md#store-showcase-presentation). Evaluate whether shoppers can discover a distinctive store, reach its photographs and practical visit details, and return to browsing. Preserve the approved identity; appearance changes are bounded to these named presentation improvements.
+**Paid tier ($30/month):**
+- Unlimited photo uploads
+- Photos appear on the store's photo wall
 
-### Evaluation scope and evidence
+### 6. User accounts
 
-Reuse existing local fixtures and evaluation packets; do not generate a new content library or testing framework without a demonstrated gap. The existing fixture-only 50-photo profile remains an optional, clearly labeled internal evaluation profile under [DESIGN.md](DESIGN.md#fixture-only-50-photo-evaluation-profile), never the Free entitlement. Use realistic synthetic data without real logos, names, reviews or implied affiliation.
+- Create account to save favorites and access filtered stores
+- Account-based preferences for nearby stores
+- Just-in-time sign-in: browse without account, sign in when saving
 
-Record exact candidate/fixture, routes, setup, each observed transition, errors and limitations. Identify fixture-backed actions versus actual local Auth/Edge/RPC behavior. Simulated personas are hypotheses, not recruited humans or proof of demand. No screenshot or fixture pass establishes backend, deployed or provider acceptance.
+## Tech stack
 
-### Evaluation acceptance and disposition
+- React + TypeScript + Vite PWA
+- Supabase (PostgreSQL, Auth, Storage)
+- Stripe for paid memberships
+- Hosted on Vercel (hobby tier during testing)
 
-1. The named build and routes start reproducibly and the selected shopper/representative/admin transitions have scoped browser evidence. A broken selected-path transition is recorded and fixed or explicitly excluded from the demonstrated claim.
-2. The owner attempts the computer-then-phone journey and records actual usefulness, clarity, appearance, ease, problems and a reasoned continue/revise/stop decision.
-3. The handoff supplies the command or verified permitted URL, access/setup steps, source identity, fixture/service distinctions and known limitations.
+## Current status
 
-Do not withhold a safe, bounded internal candidate until unrelated trip work or a whole-product persona score is complete. Selected-path privacy/authorization/data-loss failures block that unsafe path. Repository preparation and firsthand observations close in separate issues.
+Working in beta. The public test exposes browsing only. Trip planning, Go mode, offline-cached trips, trip-partner sharing, and map view are built; partner sharing, offline, and the map are gated off for the catalog-only public test. Plan to move to paid hosting and purchase domain after beta.
 
-### Assessment environment boundary
+## Future considerations (not built yet)
 
-The default showcase is local and synthetic. The separately authorized [public test](#public-test-publication) is the only new hosted exception. ADR0007/0008 retain their original limited task/backend/expiry scope; old receipts are not renewed. Other hosted reviews require valid current, appropriately scoped authorization and protection. See [ADR0009](docs/adr/0009-store-first-stage-applicability.md) and the scoped [ADR0010](docs/adr/0010-free-public-test-publication.md).
+- More store attributes and categories
+- Store owner responses to reviews
+- Public reviews with moderation
 
-### Public test publication
+## Non-goals
 
-Prioritize one stable public test link on existing free hosting. Opening it needs no hosting-provider account or access approval. Anonymous visitors may browse the approved fictional catalog, photographs, hours and details; the owner and his wife may use ordinary Antique Trail accounts for the accepted private saved-store path. Account entry retains existing email/password and verified-email/session protections. Registration never grants representative or Administrator authority. Tester-specific admission is server-controlled; this is not unrestricted enrollment, real-store intake, billing or deferred trip exposure.
-
-Use the existing Vercel project and preserved `antique-trail-beta` Supabase target under [ADR0010](docs/adr/0010-free-public-test-publication.md). Publish final reviewed source through one repeatable operation, retain the share address and prove root/direct-route/refresh behavior in a signed-out browser. Actual accounts require hosted Auth/session/private-action evidence; the local harness or an account form cannot supply it. Record duration, stop owner, exposed capabilities and limits. No spending, real-store marketing, search-indexing campaign, external cohort or commercial release is authorized. Existing representative/Administrator demonstrations remain available only after their unchanged assurance, exact-scope, audit and applicable evidence pass; public access to a frontend grants no such authority.
-
-## Following milestone: small real-store pilot
-
-The owner selects the bounded participants, store set, exposure, duration and stop/support owners in an explicit pilot decision. Use invited onboarding first. Before real use, satisfy the applicable hosting/account/email, consent/content-rights/media, exact-store authorization, auditing, backup/recovery, support, security and accessibility evidence in [store-first stage applicability](SECURITY_AND_TRUST.md#store-first-stage-applicability). Existing provider/funding controls still apply.
-
-The pilot receipt binds a reviewed route/capability inventory, candidate/config/schema, permitted participants/data and passing applicable evidence. Unapproved routes and commands must deny at the server boundary, not merely disappear from navigation. Existing closed server predicates stay closed until a separately reviewed implementation supports this stage; do not forge old regional receipts. Public indexing/discovery, self-service acquisition and promotion require their own exposure decision and public controls.
-
-No trip benchmark, complete regional package chain, public-review system, RG-01 or community expansion is a prerequisite to this bounded pilot. This does not waive controls for functionality actually exposed or retained data.
-
-## Following milestone: paid Gallery pilot
-
-Require an approved exact Gallery offer and terms, permitted owner feedback, authorized Stripe test-mode purchase/portal/cancellation/failed-payment/webhook evidence, entitlement isolation, refund/support/recovery handling, verified incumbent obligations and explicit live activation approval. Bind these to the exact pilot scope, candidate, immutable commercial configuration and current applicable provider/security/CI evidence through [Package 13](PACKAGE_CONTRACTS.md#package-13--photo-tier-memberships-moderation-and-staged-off-billing).
-
-Regional launch, RG-01 and three community expansions are removed as prerequisites to this bounded first offer. Full Gallery acceptance and new paid-to-paid changes are not first-offer requirements. Applicable existing-servicing obligations remain. Private commercial research, authorized provider testing, public price display and live charging are distinct states; research or this amendment alone permits no Stripe call or charge.
-
-## Stage dependencies
-
-| Stage | Necessary predecessor/evidence | Does not require |
-| --- | --- | --- |
-| Local internal showcase | Reproducible synthetic candidate and selected-path checks | New hosting, real participants, trips, routing or billing |
-| Bounded public test | ADR0010's exact free frontend/preserved backend, reviewed source/config/migrations, signed-out/account evidence, expiry and stop | Hosting-provider accounts for visitors; regional release, real-store marketing, paid services or deferred trips |
-| Controlled real-store pilot | Owner scope decision; selected-path and applicable real-data/security/operations evidence | Full regional program, public reviews, geographic expansion |
-| Paid Gallery pilot | Approved offer; permitted owner evidence; authorized test-provider and entitlement/servicing proof; explicit live activation | RG-01, three communities, Full Gallery sales, custom paid-to-paid features |
-| Public discovery/acquisition or wider release | Separate approved exposure and relevant public security/legal/accessibility/operations evidence | Automatic activation from completing any previous row |
-
-Each gate owns only its named evidence. An external gate blocks the relevant activation, not safe repository work. One independently closable code outcome per ticket, usually two or three observable criteria; real shared-file/service seams determine parallelism. Preserve active reviewed PRs rather than splitting completed code for ticket-count targets. [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md) continues to control amendments, review and closure.
-
-## Provider and external-action prerequisites
-
-Supabase and Stripe remain selected; Vercel/Supabase topology and provider eligibility/funding controls remain under ADR0005/0006 as narrowly scoped by ADR0009 and the named public-test ADR0010. For that exact fictional test, [ADR0010's substitute hosting and recovery acceptance](docs/adr/0010-free-public-test-publication.md#substitute-hosting-and-recovery-acceptance) replaces the H-01 prerequisite, public-site prohibition and outer login/protected-CI mechanism; it preserves tested recovery of historical beta data and never constitutes an H-01 pass. Other hosting stages retain H-01. L-01 shared privileged audit, E-01 real email, M-01 real media, S-01 legal/trust and HC-01 human support obligations retain their original exposure scope. R-01 is unnecessary when routing is unexposed. Public B-01/SEC-01/HC-02 duties apply before their named wider public exposure. Missing applicable evidence is unavailable, never implicitly passed.
-
-An accepted plan is not provider configuration, legal consent, participant recruitment, permission to spend, deployment or billing activation. Existing default-off controls remain until conforming implementation and real approval. Local, synthetic, hosted-CI, provider, production and human evidence remain distinct.
-
-## Human usability acceptance
-
-The owner provides actual computer-then-phone showcase observations. The controlled pilot's owner-approved protocol names participants and accessibility needs appropriate to its selected paths; no simulated person supplies their evidence. Existing eight-person public/cohort procedures apply to the later public exposure and its exposed capabilities, not as a prerequisite to showing the internal candidate. Preserve actual keyboard, screen-reader, touch, zoom and error-recovery checks for selected paths; do not call a screenshot human accessibility proof.
-
-Before wider public exposure beyond the named fictional public test, test the exposed shopper capabilities with at least eight participants aged 55+, including at least three aged 70+ and at least two with relevant low-vision, motor or assistive-technology adaptations. At least 90% of required tasks must complete unaided, with no more than one average noncritical error per participant and zero safety, privacy or authorization failures. Fix and retest repeated critical failures. This is the current owner of those public shopper thresholds; the separate public owner-acquisition protocol remains in the membership spec. Neither cohort is an internal showcase, named fictional public-test or bounded invited-pilot prerequisite; none of those tests supplies a public human-usability pass.
-
-## Deferred implementation boundary
-
-Preserve code and findings for trips/partner sharing, route planning, Go/offline navigation, Candidate Share, public reviews, private visit histories, community expansion, Full Gallery sales, featured placement, personalization, households, collections and Android packaging. These are later options, not promises to build now. The previous SLM-01/Regional program and its dated decisions are historical planning profiles for this reset, not the current queue. Reconsider them only after pilot evidence and a scoped decision.
-
-The only current trip exception is repository-controlled local work for #321/#342/#343/#344/#365: diagnose verified-recipient invitation acceptance, repair only the least-privilege server-to-server ACL needed by the existing acceptance path, implement creator-authorized removal of an accepted partner at the server and existing client boundaries, and prove the joined invitation-to-next-request revocation path. #365 follows #342's diagnosis; #342 and #343 may otherwise proceed independently; #343 precedes #344; #321 consumes the repaired invitation and integrated removal evidence. The ACL repair must not grant `public`, `anon`, `authenticated` or unrelated service roles direct execution of the private email-HMAC helper. The exception does not select trips for the store showcase or any pilot, does not authorize other trip features, and grants no hosted use, external participant, real data, email delivery, provider call, spending, deployment or production exposure.
-
-Never erase incumbent obligations or weaken access controls because a capability is deferred. The pilot inventory must show each deferred path disabled, safely isolated or independently accepted for the expressly authorized exposure. Hiding links alone is insufficient. No empty scaffolding or speculative future tickets.
-
-## Evidence that decides further investment
-
-Continue when the owner can use the showcase, permitted owners can maintain useful listings and feedback supports testing the priced Gallery offer. Revise if the path is confusing or the offer lacks value. Stop expansion for core-path privacy, data-loss or payment-correctness failures, or absent owner value. Record the reasons and next bounded investment; do not add features merely to postpone feedback.
-
-## Decisions still needed
-
-The actual pilot participants/exposure/hosting, Gallery price and commercial terms, applicable provider and operational evidence, public brand/domain and any funded infrastructure require their named decisions. No prices, new spending, real outreach or live services are authorized here.
-
-## How to use the detailed plan
-
-[Product capability reference](docs/specs/product-capabilities.md) owns detailed current/deferred capability semantics, including Store Browser/details, business accounts and retained trip rules. [DESIGN.md](DESIGN.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [SECURITY_AND_TRUST.md](SECURITY_AND_TRUST.md), [PACKAGE_CONTRACTS.md](PACKAGE_CONTRACTS.md), membership, onboarding and accepted ADRs retain the exact ownership boundaries in [README.md](README.md#source-precedence). This PRD alone owns current scope and stage progression. Historical evidence cannot activate a stage.
-
-The former full PRD remains recoverable at [f182871d](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md). The approved proposal and review are in [the September 11 review](docs/research/scope-review-2026-09-11/REVIEW.md). Live issue/PR status stays in GitHub.
+- Marketplace transactions
+- Turn-by-turn navigation
+- AI antique identification
+- Social network features
+- Background location tracking
