@@ -40,7 +40,7 @@ const TEXT_EXTENSIONS = new Set([
 // source. Immutable migrations and the 0077 compatibility boundary stay
 // excluded because their legacy text is the tested conversion contract; the
 // StorePhotosPage exception is a documented photo-tile layout Set, not tier
-// vocabulary (gates/issue-174.md G1/G8).
+// vocabulary.
 const LIVE_SOURCE_PREFIXES = ['src/', 'supabase/functions/', 'e2e/']
 const TIER_VOCABULARY_FILE_EXCEPTIONS = new Set(['src/features/catalog/StorePhotosPage.tsx'])
 const RETIRED_TIER_VOCABULARY = /featured|unlimited/iu

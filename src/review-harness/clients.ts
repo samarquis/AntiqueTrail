@@ -817,7 +817,7 @@ function candidateClient(scenario: ReviewScenario, state: ReviewStateId): Candid
   }
 
   // Mirror the production boundary: a pending share whose expiry has passed is
-  // unreadable and unclaimable immediately (PRODUCT_DECISIONS.md 103 / PRD 375).
+  // unreadable and unclaimable immediately.
   const fixedNow = Date.parse(FIXED_NOW)
   const isClaimable = (share: CandidateShareView) =>
     share.state === 'pending' && share.expiresAt > fixedNow

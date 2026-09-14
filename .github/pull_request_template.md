@@ -1,19 +1,12 @@
-## Ticket
+## What
 
-Closes #
+One or two sentences on what this PR changes and why.
 
-## Outcome
+## Issue
 
-State how the diff resolves the ticket's problem and outcome.
+Closes # (ticket number, if any)
 
-## Plan
+## Verification
 
-Cite the controlling file and heading. State `Conforming work; no plan change` or identify the authorized amendment.
-
-## Evidence
-
-Map each acceptance criterion to its test or artifact and list applicable local and hosted checks.
-
-## Plan change authorization
-
-State `Not a plan change`. For an authorized amendment, record `update plan` and append `PLAN_CHANGELOG.md`.
+- What local checks were run (`npm run check`, targeted tests).
+- Any manual or hosted verification performed.
