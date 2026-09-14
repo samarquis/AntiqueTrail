@@ -30,7 +30,7 @@ Current requirements: [Deferred implementation boundary](PRD.md#deferred-impleme
 
 ## Independent-builder acceptance
 
-Current requirements: [Plan and implementation verification](PLAN_GOVERNANCE.md#plan-and-implementation-verification).
+Current requirements: [Change and closure receipts](PLAN_CHANGELOG.md).
 
 ## Independent review receipt — 2026-08-03
 

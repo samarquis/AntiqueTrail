@@ -106,3 +106,11 @@ Before public release:
 - Browser inspection finds no token in localStorage, Cache Storage, URLs, or logs.
 
 A missing required environment is `UNAVAILABLE`, not `PASS`.
+
+## Public test boundary
+
+The authorized free public test (ADR 0010) admits anonymous catalog browsing of twelve fictional stores and scoped saved-store actions. Registration stays closed until account/provider acceptance is complete. Trips, corrections, maps, and privileged operations are outside that scope. The display flag (`VITE_PUBLIC_TEST_CATALOG_ONLY`) is not a stop mechanism; previously admitted accounts retain lifecycle access under their original authorization. See [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).
+
+## Store-first stage applicability
+
+Browse, details/photos, optional saves, and exact-store representative publishing support the internal showcase and the controlled invited pilot. Trips, public reviews, Candidate Share, visit memory, personalization, collections, and Android packaging are deferred. The sole current exception is the repository-controlled local invitation diagnosis and minimal ACL repair for #321/#342/#343/#344/#365. Security and data-lifecycle obligations apply to retained data and every reachable path.

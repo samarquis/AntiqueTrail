@@ -4,7 +4,7 @@ Stage applicability: this existing invited flow is the initial store-pilot path 
 
 Status: approved specialist interaction baseline for invited-owner onboarding. Resolves wayfinder
 map #61. Reconciled against PRD.md, DESIGN.md, DESIGN_SYSTEM.md, PACKAGE_CONTRACTS.md
-Package 6, ADR 0002, ADR 0003, and [PRD human usability acceptance](../../PRD.md#human-usability-acceptance).
+Package 6, [ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding), [ADR 0003](../../PRODUCT_DECISIONS.md#pilot-store-draft-review-and-approval), and [PRD human usability acceptance](../../PRD.md#human-usability-acceptance).
 
 Controlling-doc precedence applies (README.md source-precedence table). Where this
 spec states invited-owner interaction/copy, PRD.md and DESIGN.md explicitly delegate that detail here (see "Contract
@@ -73,7 +73,7 @@ One primary action: `Get started`. Secondary: plain "What is this?" expander wit
 two sentences (who we are, what the pilot is, that participation is voluntary and
 unpaid). No timer, no urgency.
 
-### Consent acknowledgements (substance immutable — PRD/ADR 0002)
+### Consent acknowledgements (substance immutable — PRD/[ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding))
 
 Each of the five required acknowledgements keeps its **exact legal statement**
 as the checkbox label, unchanged. Under each label add one plain-language
@@ -93,7 +93,7 @@ One field per screen (name, title, store, owner-controlled email). Plain labels:
 `Your name`, `Your title or job`, `Store name`, `Your email`. Email hint:
 `We'll send a verification link to this email. Use an email you can check —
 this is how you'll sign in.` The email is normalized and owner-controlled;
-never helper-created (decided; ADR 0002).
+never helper-created (decided; [ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding)).
 
 ## 3. Task 2 — Create/verify account & MFA (`/partner/verify`)
 
@@ -109,7 +109,7 @@ flow with generic enumeration-resistant errors (DESIGN_SYSTEM.md). This spec add
   ever lose your phone or email access, these codes are how you get back in.`
   Require a plain confirm step ("I saved my codes") before continuing.
 - Reassurance on every step: `Your progress is saved. You can stop and come
-  back.` Interrupted signup stays resumable and unprivileged (ADR 0002).
+  back.` Interrupted signup stays resumable and unprivileged ([ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding)).
 
 ## 4. Task 3 — Submit store draft (`/partner/draft`): one field per screen
 
@@ -141,7 +141,7 @@ Photo does **not** appear here (deferred to post-approval, §8).
 
 ## 5. Interruption/resume rules (all five tasks)
 
-The owner WILL be interrupted. Mandated design (Ticket 65 resolution; ADR 0002
+The owner WILL be interrupted. Mandated design (Ticket 65 resolution; [ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding)
 resume semantics; DESIGN_SYSTEM route-contract safe-draft preservation):
 
 1. **Every task intro and every typed screen** shows the persistent reassurance
@@ -150,11 +150,11 @@ resume semantics; DESIGN_SYSTEM route-contract safe-draft preservation):
    sessionStorage on each advance. The invitation token is consumed only by the
    final atomic provisional-consent transaction, so a pre-submit interruption
    leaves the token unconsumed. If the 30-minute token expires during a long
-   pause, the generic terminal failure shows with the ADR 0002 recovery path
+   pause, the generic terminal failure shows with the [ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding) recovery path
    (Administrator repeats verification, revokes stale child, issues a new
    invitation) — **the spec does not amend the expiry**; it designs around it.
    Post-submit interruption resumes the same unprivileged pending identity
-   (unbound records expire after 30 days per ADR 0002).
+   (unbound records expire after 30 days per [ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding)).
 3. **Task 2**: interrupted signup remains resumable and unprivileged; successfully admitted Antique Trail accounts awaiting partner binding remain
    ordinary shoppers. A provider-only orphan has no Antique Trail profile,
    registered session, or private-data access and follows Package 2 cleanup.
@@ -263,8 +263,8 @@ amend DESIGN.md and DESIGN_SYSTEM.md minimally (done as part of this ticket):
 - DESIGN_SYSTEM.md: partner onboarding progress section gains the
   field-level-progress rule (never a second `Step n of 5`) and the activation
   photo checklist item.
-- No ADR change: ADR 0002 (QR/resume/expiry) and ADR 0003 (owner-controlled
-  draft) stand as written.
+- No ADR change: the archived [ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding) (QR/resume/expiry) and [ADR 0003](../../PRODUCT_DECISIONS.md#pilot-store-draft-review-and-approval) (owner-controlled
+  draft) remain preserved in the decision receipts above.
 
 ## 12. Out of scope
 

@@ -4,7 +4,7 @@ Engineering mechanics for the current build scope. Product behavior lives in `PR
 
 ## Shared execution rules
 
-Every package uses the single React/TypeScript/Vite PWA and Supabase/PostgreSQL boundary in ADR 0004.
+Every package uses the single React/TypeScript/Vite PWA and Supabase/PostgreSQL boundary retained in ADR 0009.
 
 - **Identifiers and records:** UUID primary keys generated server-side; UTC `timestamptz`; immutable `created_at`; server-maintained `updated_at`; mutable aggregates carry positive `version`.
 - **Authorization:** base tables have RLS and no `anon` direct grants unless a package explicitly allows an RPC. Clients cannot choose owner, role, scope, or stage fields. Server commands recheck authenticated identity, active grants, resource scope, and current version.
@@ -92,3 +92,11 @@ Queued review and Access & Safety.
 **Capability flag:** `photo_tiers_enabled` remains false with prices unset until activation is authorized.
 
 **Schema:** subscription mirror rows keyed to the store's membership; entitlement applied on verified webhook events only.
+
+## Public test execution contract
+
+The authorized free public test (ADR 0010) uses a pinned prebuilt artifact from an isolated clean checkout. The stable entry is `https://antique-trail.vercel.app/`. Anonymous visitors browse the synthetic catalog; admitted accounts save stores within the inventoried catalog. All RLS, auth, and RPC gates remain enforced. The substitute hosting/recovery acceptance receipt replaces H-01 for this test only and is not an H-01 pass. Registration stays closed until account/provider acceptance is complete. See [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).
+
+## Store-first pilot activation contract
+
+A controlled invited pilot binds the exact candidate, permitted data, accounts/stores, explicit capability allowlist, authentic current approvals/evidence, expiry/stop and rollback. Approval creates Free; billing stays staged off until signed Gallery/commercial/provider activation evidence passes. Public discovery, public registration/intake, promotion, and live billing never follow automatically from a showcase or a controlled pilot.
