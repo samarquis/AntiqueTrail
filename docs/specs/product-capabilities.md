@@ -33,15 +33,15 @@ Private saves, trips, personal ratings, notes, and accepted Trip Ideas remain th
 
 ## Operational retention
 
-Operational records have defined deletion deadlines and must not become a second store of shopper-private content. Exact controls: [Operational retention](../../SECURITY_AND_TRUST.md#operational-retention).
+Operational records have defined deletion deadlines and must not become a second store of shopper-private content. Exact controls: [Operational retention](../../SECURITY_AND_TRUST.md#retention-and-recovery).
 
 ## Recovery objectives
 
-Every stage must prove its required recovery of both database and Storage; a provider promise or database-only restore does not establish recovery. Exact controls: [Recovery objectives](../../SECURITY_AND_TRUST.md#backups).
+Every stage must prove its required recovery of both database and Storage; a provider promise or database-only restore does not establish recovery. Exact controls: [Recovery objectives](../../SECURITY_AND_TRUST.md#retention-and-recovery).
 
 ## Break-glass emergency access
 
-Emergency private-data access remains disabled where the stage or independent-review requirements prohibit it and is never routine support. Exact controls: [Break-glass emergency access](../../SECURITY_AND_TRUST.md#break-glass-emergency-access).
+Emergency private-data access remains disabled where the stage or independent-review requirements prohibit it and is never routine support. Exact controls: [Break-glass emergency access](../../SECURITY_AND_TRUST.md#authorization).
 
 ## Rating model
 
@@ -297,7 +297,7 @@ Package 5A checks the current manual order against known store-day hours and fre
 - Return destination
 - Whether a store can reasonably be reached before closing
 
-The exact deterministic scoring, limits, start/return treatment, tie-breaks, waiting, and exhaustive permutation contract live in [Package 5B](../../PACKAGE_CONTRACTS.md#package-5b-â-secondary-browse-map-and-check-my-day). The interface offers explicit use/keep choices and never automatically applies an order or claims real-world optimality.
+The exact deterministic scoring, limits, start/return treatment, tie-breaks, waiting, and exhaustive permutation contract live in [Package 4 — Trip planning](../../PACKAGE_CONTRACTS.md#package-4--trip-planning). The interface offers explicit use/keep choices and never automatically applies an order or claims real-world optimality.
 
 ### Output
 
@@ -359,7 +359,7 @@ Arrival is manual. Go stays quiet and one-stop-at-a-time. `Done Here` offers an 
 
 ## Store Browser requirements
 
-Current-stage scope comes from [PRD.md](../../PRD.md#stage-dependencies). For store-showcase presentation and permitted shopper actions, follow [DESIGN.md — Store-showcase presentation](../../DESIGN.md#store-showcase-presentation). Retained trip/private-memory actions below apply only when independently selected for exposure.
+Current-stage scope comes from [PRD.md](../../PRD.md#stage-dependencies). For store-showcase presentation and permitted shopper actions, follow [DESIGN.md — Browse Stores](../../DESIGN.md#browse-stores). Retained trip/private-memory actions below apply only when independently selected for exposure.
 
 Browse Stores is the default shopper entry point.
 
@@ -376,7 +376,7 @@ Browse Stores is the default shopper entry point.
 
 ## Store details requirements
 
-Current-stage scope comes from [PRD.md](../../PRD.md#stage-dependencies). For store-showcase presentation and permitted shopper actions, follow [DESIGN.md — Store-showcase presentation](../../DESIGN.md#store-showcase-presentation). Retained trip/private-memory actions below apply only when independently selected for exposure.
+Current-stage scope comes from [PRD.md](../../PRD.md#stage-dependencies). For store-showcase presentation and permitted shopper actions, follow [DESIGN.md — Browse Stores](../../DESIGN.md#browse-stores). Retained trip/private-memory actions below apply only when independently selected for exposure.
 
 Each store profile must support:
 

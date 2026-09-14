@@ -36,7 +36,7 @@ Completing the entire former trip/regional program before testing store value wo
 - [Approved proposal and findings](../research/scope-review-2026-09-11/REVIEW.md).
 - [PRD stage dependencies](../../PRD.md#stage-dependencies).
 - [Membership mechanics](../specs/store-membership-spec.md).
-- [Plan governance](../../PLAN_GOVERNANCE.md#authorized-plan-change-process).
+- [Amendment and closure receipts](../../PLAN_CHANGELOG.md).
 
 ## Bounded public test successor
 

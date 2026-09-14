@@ -55,3 +55,19 @@ npx supabase@2.115.0 db reset
 |---|---|
 | [docs/design/ICON_PLACEMENT_SPEC.md](docs/design/ICON_PLACEMENT_SPEC.md) | Icon usage rules |
 | [docs/design/PALETTE_PROPOSAL.md](docs/design/PALETTE_PROPOSAL.md) | Color palette rationale |
+
+## Source precedence
+
+| Document | Owns |
+|---|---|
+| [PRD.md](PRD.md) | Product outcomes, offered scope, stages |
+| [docs/specs/product-capabilities.md](docs/specs/product-capabilities.md) | Detailed capability behavior |
+| [DESIGN.md](DESIGN.md) | Interaction rules and routes |
+| [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Visual style and accessibility values |
+| [SECURITY_AND_TRUST.md](SECURITY_AND_TRUST.md) | Privacy, security, authorization |
+| [PACKAGE_CONTRACTS.md](PACKAGE_CONTRACTS.md) | Database schema, commands, engineering contracts |
+| [PROJECT_STATE.md](PROJECT_STATE.md) | Dated implementation facts |
+| [docs/adr/](docs/adr/) | Architecture constraints |
+| [docs/operations/](docs/operations/) | Deployment and operational runbooks |
+| [PLAN_CHANGELOG.md](PLAN_CHANGELOG.md) | Append-only amendment history |
+| [PRODUCT_DECISIONS.md](PRODUCT_DECISIONS.md) | Preserved decision reasons |

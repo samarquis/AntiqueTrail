@@ -328,7 +328,7 @@ Each row identifies a source passage and its current owner. "Existing current ow
 | `PLAN_ACCEPTANCE.md` / Release dependency chain | [PRD.md / Stage dependencies](../../../PRD.md#stage-dependencies) | Moved |
 | `PLAN_ACCEPTANCE.md` / Provider and external-decision boundary | [PRD.md / Provider and external-action prerequisites](../../../PRD.md#provider-and-external-action-prerequisites) | Moved |
 | `PLAN_ACCEPTANCE.md` / Intentional exclusions | [PRD.md / Deferred implementation boundary](../../../PRD.md#deferred-implementation-boundary) | Moved |
-| `PLAN_ACCEPTANCE.md` / Independent-builder acceptance | [PLAN_GOVERNANCE.md / Plan and implementation verification](../../../PLAN_GOVERNANCE.md#plan-and-implementation-verification) | Moved |
+| `PLAN_ACCEPTANCE.md` / Independent-builder acceptance | [PLAN_CHANGELOG.md / Change and closure receipts](../../../PLAN_CHANGELOG.md) | Moved |
 | `PRODUCT.md` / Brand Personality | [DESIGN.md / Product brand personality](../../../DESIGN.md#product-brand-personality) | Moved |
 | `PRODUCT.md` / Anti-references | [DESIGN_SYSTEM.md / Product anti-references](../../../DESIGN_SYSTEM.md#product-anti-references) | Moved |
 | `PRODUCT.md` / Design Principles | [DESIGN.md / Product design principles](../../../DESIGN.md#product-design-principles) | Moved |
