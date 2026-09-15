@@ -15,8 +15,9 @@ The read-only inspection of `uaupykgpegbseboklubv` compared source at `e1cd89262
 | 20260822300000 | `release_executor` lacks `app_public` USAGE | Restore only that expected schema privilege |
 | 20260822900000 | Remote history is a compatibility comment; the old four-argument correction RPC remains and the rate table is absent | Create the current rate contract and retire the obsolete overload without deleting correction reports |
 | 20260823150000 | Remote history drops a diagnostic function; source at this version corrects navigator parameter ambiguity | Keep the actual history; supply the missing navigator body in the new bridge |
+| 20260914000000 | Remote-only forward data fix aligning the ten synthetic stores' `store_media` cover `asset_path` with the reviewed webp covers in `seed.sql` (applied to the beta on 2026-09-14, absent from every prior repo commit) | Adopted verbatim as `supabase/migrations/20260914000000_public_test_align_media_asset_paths.sql` so local history equals remote; idempotent data-only alignment, harmless on fresh installs |
 
-Remote-only `20260823140000` created the diagnostic which the next remote migration removed. It is absent in the current backend. Never replay it, reconstruct a fabricated marker, rename its history or claim the source's colliding navigator migration ran. The other three shared-content differences are comment punctuation/statement serialization; preserve those originals too.
+Remote-only `20260823140000` created the diagnostic which the next remote migration removed. It is absent in the current backend. Never replay it, reconstruct a fabricated marker, rename its history or claim the source's colliding navigator migration ran. The other three shared-content differences are comment punctuation/statement serialization; preserve those originals too. `20260914000000` is recorded here in the custody log as the live remote-only divergence observed during the public test backend reconciliation; keep its exact-byte SQL from `supabase_migrations.schema_migrations` in the same private recovery custody as the rest of the fetched history.
 
 ## Required ordering
 
