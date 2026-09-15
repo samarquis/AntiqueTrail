@@ -3,7 +3,8 @@
 Conforming implementation of [ADR0010](../adr/0010-free-public-test-publication.md),
 [public-test security](../../SECURITY_AND_TRUST.md#public-test-boundary), and
 [the execution contract](../../PACKAGE_CONTRACTS.md#public-test-execution-contract).
-This document is not an acceptance receipt or activation authority.
+This document is not an acceptance receipt or activation authority. First-time
+operators walk the ordered phases in [PUBLIC_TEST_OPERATOR_RUNBOOK.md](./PUBLIC_TEST_OPERATOR_RUNBOOK.md).
 
 The migration installs an inactive operator registry in `public_test_private`.
 Only the database operator can prepare, activate or revoke it; application
