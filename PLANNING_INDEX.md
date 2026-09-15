@@ -1,6 +1,6 @@
 # Antique Trail Planning and Evidence Index
 
-Document classification for the store-first system adopted through the 2026-09-11 amendment. [README source precedence](README.md#source-precedence) owns the responsibility table; [PLAN_GOVERNANCE.md](PLAN_GOVERNANCE.md) owns change and closure rules.
+Document classification for the store-first system adopted through the 2026-09-11 amendment. [README source precedence](README.md#source-precedence) owns the responsibility table; [PLAN_CHANGELOG.md](PLAN_CHANGELOG.md) records change and closure history; the store-first amendment (2026-09-11) and its bounded successors govern current scope.
 
 ## Current requirements
 
@@ -14,8 +14,8 @@ Document classification for the store-first system adopted through the 2026-09-1
 ## Navigation and workflow
 
 - README.md, CODEX_START_PROMPT.md, repository agent guides: entry instructions and links, not extra product policies.
-- PLAN_GOVERNANCE.md: amendment, admission, review, verification, and closure requirements.
-- OPEN_TICKET_TODO.md and docs/agents/issue-tracker.md: applying that workflow; no live backlog copies.
+- PLAN_CHANGELOG.md: append-only amendment history and closure receipts.
+- Repository issue/PR templates and the append-only changelog: the ticket-to-closure workflow; no live backlog copies. The former `OPEN_TICKET_TODO.md` and `docs/agents/issue-tracker.md` are archived history.
 - PLAN_ACCEPTANCE.md: linked capability navigation and historical acceptance receipts.
 - PRODUCT.md: compatibility link to the PRD.
 - manifest.json: handoff file inventory and reading order, not the PWA manifest.
@@ -26,9 +26,9 @@ Document classification for the store-first system adopted through the 2026-09-1
 - PRODUCT_DECISIONS.md: preserved decisions and reasons, linked to current requirements; PLAN_CHANGELOG.md: append-only amendment history.
 - IMPLEMENTATION_PLAN.md: historical phase/package roadmap, with links to migrated requirements.
 - PHASE_0_REVIEW.md, DEEP_SPEC_REVIEW.md, ROLE_BASED_SITE_REVIEW.md, REVIEW_VERDICTS.md: dated reviews, not current whole-product acceptance.
-- PLAN.md, PLAN_TICKET_SEQUENCE.md, GATES.md, OPENCODE_TICKET_REVIEW_TODO.md: historical execution/scope-specific handoff material; refresh exact source and live state before reuse.
-- docs/operations/G56_RELEASE_GATE_STATUS_LEDGER.md: historical row states and pointers to named gate procedures; issue #56's closure does not waive surviving requirements.
-- USER_RESEARCH.md, COMPETITIVE_LANDSCAPE.md, CONTEXT.md, SEED_STORE_NOTES.md, docs/research/, docs/testing/, docs/evidence/, and gates/: discovery, synthetic notes, or dated evidence at their stated scope.
+- Removed corpus files (PLAN.md, PLAN_TICKET_SEQUENCE.md, GATES.md, OPENCODE_TICKET_REVIEW_TODO.md, PLAN_GOVERNANCE.md, CONTEXT.md, AGENTS.md, ADRs 0001–0004, gates/, docs/agents/, and obsolete research documents): archived by the 2026-09-14 corpus slimming; do not recreate as live authority.
+- Issue #56 closure and its former `docs/operations/G56_RELEASE_GATE_STATUS_LEDGER.md` (archived): historical row states; surviving gate procedures live in [DEPLOYMENT_READINESS_CHECKLIST.md](docs/operations/DEPLOYMENT_READINESS_CHECKLIST.md) and the release runbooks, and issue #56's closure does not waive surviving requirements.
+- USER_RESEARCH.md, COMPETITIVE_LANDSCAPE.md, SEED_STORE_NOTES.md, docs/research/, docs/testing/, and docs/evidence/: discovery, synthetic notes, or dated evidence at their stated scope.
 - docs/design/antique-trail-flow-lab.html: archival concept evidence, not product implementation or acceptance.
 
 Untracked local artifacts do not become published authority by appearing in a checkout. Promote intended changes only through the authorized amendment; preserve original findings and label supersession instead of rewriting old evidence as current fact.
