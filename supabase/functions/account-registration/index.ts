@@ -129,12 +129,20 @@ Deno.serve(async (request) => {
         return response.status >= 400 && response.status < 500
           ? { outcome: 'confirmed_not_generated' }
           : { outcome: 'unknown' }
-      const generated = (await response.json()) as {
+const generated = (await response.json()) as {
         properties?: { hashed_token?: unknown }
         user?: { id?: unknown }
+        hashed_token?: unknown
+        id?: unknown
       }
-      const hashedToken = generated.properties?.hashed_token
-      const providerUserId = generated.user?.id
+      const hashedToken =
+        typeof generated.properties?.hashed_token === 'string'
+          ? generated.properties.hashed_token
+          : typeof generated.hashed_token === 'string'
+            ? generated.hashed_token
+            : undefined
+      const providerUserId =
+        typeof generated.user?.id === 'string' ? generated.user.id : generated.id
       if (typeof hashedToken !== 'string' || typeof providerUserId !== 'string')
         return { outcome: 'unknown' }
       // The provider action_link is deliberately discarded. Only the approved app callback is delivered.
