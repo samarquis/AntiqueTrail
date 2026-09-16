@@ -58,6 +58,8 @@ const VERCEL_AUTH_ROUTES = [
   '/auth/verify/:path*',
   '/auth/recovery/:path*',
 ]
+const VERCEL_ASSETS_SOURCE = '^/assets(?:/(.*))$'
+const VERCEL_ASSETS_CACHE = 'public, max-age=31536000, immutable'
 
 function assertPagesAuthHeaders(headersText) {
   for (const route of AUTH_ROUTES) {
@@ -112,8 +114,15 @@ function assertVercelAuthHeaders(config) {
       ?.toLowerCase()
       .split(',')
       .map((value) => value.trim())
+    // Reviewed immutable rule for hashed /assets build output (subresource
+    // content-addressed, so no other headers are needed or permitted here).
+    const isAssetsRule =
+      route.src === VERCEL_ASSETS_SOURCE &&
+      headers.get('cache-control') === VERCEL_ASSETS_CACHE &&
+      headers.size === 1
     if (
       (cache !== undefined &&
+        !isAssetsRule &&
         (directives.length !== 2 ||
           !directives.includes('private') ||
           !directives.includes('no-store'))) ||
