@@ -215,6 +215,11 @@ function vercelOutputConfig() {
         headers: { 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'private, no-store' },
         continue: true,
       },
+      {
+        src: '^/assets(?:/(.*))$',
+        headers: { 'Cache-Control': 'public, max-age=31536000, immutable' },
+        continue: true,
+      },
       { handle: 'filesystem' },
       { src: '^(?:/(.*))$', dest: '/index.html', check: true },
       { handle: 'error' },
@@ -411,6 +416,20 @@ for (const [name, change, error] of [
     /weakens private/,
   ],
   [
+    'weakened immutable assets cache',
+    (config) => {
+      config.routes[5].headers['Cache-Control'] = 'public, max-age=60'
+    },
+    /weakens private/,
+  ],
+  [
+    'assets cache with extra headers',
+    (config) => {
+      config.routes[5].headers['Referrer-Policy'] = 'no-referrer'
+    },
+    /weakens private/,
+  ],
+  [
     'referrer override',
     (config) => {
       config.routes[0].headers['Referrer-Policy'] = 'origin'
@@ -432,28 +451,28 @@ for (const [name, change, error] of [
   [
     'missing filesystem handler',
     (config) => {
-      config.routes.splice(5, 1)
+      config.routes.splice(6, 1)
     },
     /filesystem-first/,
   ],
   [
     'missing SPA rewrite',
     (config) => {
-      config.routes.splice(6, 1)
+      config.routes.splice(7, 1)
     },
     /SPA fallback required/,
   ],
   [
     'external SPA rewrite',
     (config) => {
-      config.routes[6].dest = 'https://example.test/'
+      config.routes[7].dest = 'https://example.test/'
     },
     /SPA fallback required/,
   ],
   [
     'conditional SPA rewrite',
     (config) => {
-      config.routes[6].has = [{ type: 'header', key: 'x-preview' }]
+      config.routes[7].has = [{ type: 'header', key: 'x-preview' }]
     },
     /SPA fallback required/,
   ],
