@@ -106,7 +106,13 @@ URL Configuration and Providers):
    users to sign up" (direct provider signup) **OFF**. Human accounts are never
    auto-confirmed; registration flows through the reviewed admin
    `generate_link` path and callback.
-4. Confirm the settings were applied and record the configuration digest (see
+4. Data API exposure of `app_public` is set as the `authenticator` PostgREST
+   role setting (`pgrst.db_schemas = 'public, app_public'`, migration
+   `20260917211626_expose_app_public_data_api`). Do not manage it from the
+   dashboard while the override is in place; edit the migration/role setting
+   and `NOTIFY pgrst` instead. Reset to dashboard-managed with
+   `alter role authenticator reset pgrst.db_schemas`.
+5. Confirm the settings were applied and record the configuration digest (see
    Phase 6).
 
 ## Phase 3 — Mail provider (registration milestone)
