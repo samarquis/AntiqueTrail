@@ -484,6 +484,7 @@ p {
   z-index: 20;
   top: 0;
   display: flex;
+  flex-wrap: wrap;
   min-height: 5rem;
   align-items: center;
   justify-content: space-between;
@@ -520,6 +521,9 @@ p {
 
 .site-header nav {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
   align-items: center;
   gap: 0.3rem;
   padding: 0.25rem;
@@ -1938,7 +1942,7 @@ main > article dt {
     left: 50%;
     width: min(100%, 45rem);
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
     gap: 0;
     padding: 0.45rem max(0.5rem, env(safe-area-inset-right))
       calc(0.45rem + env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));

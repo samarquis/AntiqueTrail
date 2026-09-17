@@ -6,13 +6,15 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 export default tseslint.config(
   {
     ignores: [
-      'dist',
-      'dist-*',
+      'dist/**',
+      'dist-*/**',
       'coverage',
       'playwright-report',
       'artifacts/configured-shopper-*',
       'node_modules',
       '.github/skills',
+      '.worktrees/**',
+      '.cursor/**',
       'supabase/.temp',
     ],
   },

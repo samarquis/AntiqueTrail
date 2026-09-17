@@ -320,25 +320,40 @@ function AppShell({
             </>
           )}
           {!adminNav && (
-            <Link to="/more" aria-current={moreIsCurrent ? 'page' : undefined}>
-              <svg
-                className="nav-icon"
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path
-                  d="M4 6h16M4 12h16M4 18h16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-              More
-            </Link>
+            <>
+              <Link to="/more" aria-current={moreIsCurrent ? 'page' : undefined}>
+                <svg
+                  className="nav-icon"
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M4 6h16M4 12h16M4 18h16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                More
+              </Link>
+              <Link to="/auth/register" aria-label="Create new account" className="nav-link">
+                <svg
+                  className="nav-icon"
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M13 2L3 14h9l-1 8 9-5z" />
+                </svg>
+                Create account
+              </Link>
+            </>
           )}
         </nav>
         <ThemeToggle />
