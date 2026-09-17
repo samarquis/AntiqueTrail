@@ -484,6 +484,7 @@ p {
   z-index: 20;
   top: 0;
   display: flex;
+  flex-wrap: wrap;
   min-height: 5rem;
   align-items: center;
   justify-content: space-between;
@@ -520,6 +521,7 @@ p {
 
 .site-header nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.3rem;
   padding: 0.25rem;

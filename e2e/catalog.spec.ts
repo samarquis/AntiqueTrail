@@ -537,7 +537,9 @@ test('catalog action area keeps View store primary and Save secondary across acc
   }
 })
 
-test('showcase navigation exposes only Browse, Saved stores, and More', async ({ page }) => {
+test('showcase navigation exposes Browse, Saved stores, More, and Create account', async ({
+  page,
+}) => {
   for (const viewport of [
     { width: 1440, height: 1000 },
     { width: 390, height: 844 },
@@ -545,12 +547,16 @@ test('showcase navigation exposes only Browse, Saved stores, and More', async ({
     await page.setViewportSize(viewport)
     await page.goto('/stores?reviewAs=anonymous&reviewState=success')
     const primary = page.getByRole('navigation', { name: 'Primary navigation' })
-    await expect(primary.getByRole('link')).toHaveCount(3)
+    await expect(primary.getByRole('link')).toHaveCount(4)
     await expect(primary.getByRole('link', { name: 'Browse', exact: true })).toBeVisible()
     await expect(
       primary.getByRole('link', { name: /saved stores.*requires sign-in/i }),
     ).toHaveAttribute('href', '/saved')
     await expect(primary.getByRole('link', { name: 'More', exact: true })).toBeVisible()
+    await expect(primary.getByRole('link', { name: 'Create new account' })).toHaveAttribute(
+      'href',
+      '/auth/register',
+    )
     await expect(primary.getByRole('link', { name: /trip/i })).toHaveCount(0)
 
     await primary.getByRole('link', { name: 'More', exact: true }).click()
