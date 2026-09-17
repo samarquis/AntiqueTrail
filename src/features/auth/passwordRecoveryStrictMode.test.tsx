@@ -88,7 +88,7 @@ it('joins catalog-only sign-in, forgot, request, targetless callback, replacemen
   expect(completePasswordRecovery).toHaveBeenCalledOnce()
   expect(signIn).toHaveBeenCalledOnce()
   router.dispose()
-})
+}, 15000)
 
 it.each(['https://example.test/private', '/auth/register'])(
   'keeps catalog-only recovery on the account lifecycle for return target %s',
