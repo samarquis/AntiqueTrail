@@ -517,7 +517,16 @@ describe('trustworthy Store Details contract', () => {
     expect(hero).toHaveAttribute('aria-label', expect.stringMatching(/photos coming soon/i))
   })
 
-  it('puts visit essentials and section links before the extended gallery', async () => {
+  it('keeps the detail-page gallery secondary to the store story', async () => {
+    render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
+
+    await screen.findByRole('heading', { level: 1, name: detailedStore.name })
+    expect(document.querySelector('.store-gallery--collection')).toHaveClass(
+      'store-gallery--compact',
+    )
+  })
+
+  it('puts the full gallery immediately after the cover so additional photos are discoverable', async () => {
     render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
 
     await screen.findByRole('heading', { level: 1, name: detailedStore.name })
@@ -574,12 +583,16 @@ describe('trustworthy Store Details contract', () => {
     expect(cover && cover.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
-    expect(nav.compareDocumentPosition(collection as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
+    expect(
+      (cover as Node).compareDocumentPosition(collection as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(nav.compareDocumentPosition(collection as Node) & Node.DOCUMENT_POSITION_PRECEDING).toBe(
+      Node.DOCUMENT_POSITION_PRECEDING,
     )
     expect(
-      about.compareDocumentPosition(collection as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+      about.compareDocumentPosition(collection as Node) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBe(Node.DOCUMENT_POSITION_PRECEDING)
     expect(screen.getByLabelText("Today's opening information")).toBeVisible()
   })
 

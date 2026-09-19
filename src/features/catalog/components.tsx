@@ -909,10 +909,9 @@ function StoreGallery({
             </figure>
           )}
         </section>
-        {afterCover}
         {media.length > 1 && (
           <section
-            className="store-gallery store-gallery--collection"
+            className="store-gallery store-gallery--collection store-gallery--compact"
             aria-label="Store photo collection"
           >
             <div className="store-gallery__wall" role="group" aria-label="Choose a store photo">
@@ -956,6 +955,7 @@ function StoreGallery({
             </div>
           </section>
         )}
+        {afterCover}
       </div>
       {enlarged && selected && !selectedFailed && (
         <div

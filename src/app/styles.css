@@ -3814,15 +3814,15 @@ main > article dt {
   }
 
   main.store-detail .store-detail__header {
-    padding-block: clamp(2rem, 3.5vw, 4rem);
+    padding-block: clamp(2rem, 3vw, 3rem);
   }
 
   main.store-detail :is(.store-detail__intro, .store-detail__panel, .store-detail__provenance) {
-    padding-block: clamp(2rem, 3.5vw, 4rem);
+    padding-block: clamp(2rem, 3vw, 3rem);
   }
 
   main.store-detail .store-gallery {
-    padding-block: clamp(2rem, 3.5vw, 4rem);
+    padding-block: clamp(2rem, 3vw, 3rem);
   }
 
   main.store-detail .store-detail__section-nav {
@@ -3847,5 +3847,32 @@ main > article dt {
     aspect-ratio: 5 / 2;
     min-height: 4rem;
     background: color-mix(in srgb, var(--mint) 55%, var(--card));
+  }
+
+  main.store-detail .store-gallery--compact {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    width: 100%;
+    padding: 1.25rem clamp(32px, 4vw, 64px) 1.5rem;
+    border-top: 1px solid var(--line);
+    background: var(--paper);
+  }
+
+  main.store-detail .store-gallery--compact .store-gallery__wall {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.75rem;
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+
+  main.store-detail .store-gallery--compact .store-gallery__print,
+  main.store-detail .store-gallery--compact .store-gallery__wall > :nth-child(3n + 1),
+  main.store-detail .store-gallery--compact .store-gallery__wall > :not(:nth-child(3n + 1)) {
+    aspect-ratio: 4 / 3;
+  }
+
+  main.store-detail .store-gallery--compact .store-gallery__print-plate {
+    padding: 0.25rem 0.4rem;
+    font-size: var(--type-size-caption);
   }
 }
