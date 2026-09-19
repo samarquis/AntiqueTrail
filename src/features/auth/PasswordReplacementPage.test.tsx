@@ -40,10 +40,8 @@ describe('PasswordReplacementPage', () => {
         </AuthProvider>
       </MemoryRouter>,
     )
-    await user.type(screen.getByLabelText('New password'), 'short')
-    await user.type(screen.getByLabelText('Confirm new password'), 'short')
     await user.click(screen.getByRole('button', { name: 'Set new password' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('Use 12 through 128 characters.')
+    expect(screen.getByRole('alert')).toHaveTextContent('Use 1 through 8 characters.')
     expect(completePasswordRecovery).not.toHaveBeenCalled()
   })
 

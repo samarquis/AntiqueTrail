@@ -1,9 +1,9 @@
-export const PASSWORD_RECOVERY_MIN_LENGTH = 12
-export const PASSWORD_RECOVERY_MAX_LENGTH = 128
+export const PASSWORD_RECOVERY_MIN_LENGTH = 1
+export const PASSWORD_RECOVERY_MAX_LENGTH = 8
 export const PASSWORD_RECOVERY_ERROR =
   "We couldn't update your password. Try again or request a new recovery link."
 export const PASSWORD_RECOVERY_SUCCESS = 'Password updated. Sign in with your new password.'
-export const PASSWORD_RECOVERY_LENGTH_ERROR = 'Use 12 through 128 characters.'
+export const PASSWORD_RECOVERY_LENGTH_ERROR = 'Use 1 through 8 characters.'
 export const PASSWORD_RECOVERY_MISMATCH_ERROR = 'Passwords do not match.'
 
 let pendingRecoveryToken: string | null = null
