@@ -3341,7 +3341,7 @@ main > article dt {
   }
 
   main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__enlarge {
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 16 / 10;
   }
 
   main.store-detail > .store-detail__article > .store-detail__hero .store-detail__section-nav {
@@ -3365,12 +3365,12 @@ main > article dt {
   main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__missing {
     min-height: 0;
     height: auto;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 16 / 10;
   }
 
   main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__enlarge img {
     height: auto;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 16 / 10;
     object-fit: cover;
   }
 
@@ -3385,6 +3385,26 @@ main > article dt {
 
   main.store-photos .store-photos__body {
     gap: 0.65rem;
+  }
+}
+
+@media (max-width: 799px) {
+  main.store-detail .store-detail__section-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  main.store-detail .store-detail__section-nav a {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  main.store-detail
+    .store-detail__article
+    :is(#about-heading, #gallery-heading, #hours-heading, #source-heading) {
+    scroll-margin-top: 1rem;
   }
 }
 
