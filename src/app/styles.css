@@ -3441,7 +3441,7 @@ main > article dt {
 }
 
 .store-photos__header {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .store-photos__back {
@@ -3477,8 +3477,9 @@ main > article dt {
   position: relative;
   overflow: hidden;
   grid-column: 1 / -1;
-  min-height: min(48vh, 30rem);
-  margin: 3rem 0 0;
+  min-height: 0;
+  aspect-ratio: 16 / 10;
+  margin: 1.25rem 0 0;
   padding: 0;
   background: var(--ink);
 }
@@ -3493,15 +3494,13 @@ main > article dt {
   gap: 0.85rem;
   grid-auto-flow: dense;
   align-items: stretch;
-  margin-top: 3rem;
+  margin-top: 1.5rem;
 }
 
 .store-photos__feature img {
   width: 100%;
-  height: 112%;
+  height: 100%;
   object-fit: cover;
-  translate: 0 var(--store-photos-drift, 0%);
-  will-change: translate;
 }
 
 .store-photos__feature-caption {
