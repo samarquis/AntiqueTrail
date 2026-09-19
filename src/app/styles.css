@@ -3237,17 +3237,20 @@ main > article dt {
   main.store-detail > .store-detail__article {
     display: grid;
     grid-template-columns: minmax(18rem, 0.82fr) minmax(0, 1.18fr);
-    align-items: stretch;
+    align-items: start;
   }
 
   main.store-detail > .store-detail__article > .store-detail__header {
     grid-column: 1;
     grid-row: 1;
+    align-self: start;
+    padding-block: clamp(2rem, 3vw, 3.5rem);
   }
 
   main.store-detail > .store-detail__article > .store-detail__actions {
     grid-column: 1;
     grid-row: 2;
+    align-self: start;
     align-content: start;
   }
 
