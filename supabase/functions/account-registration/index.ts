@@ -15,7 +15,7 @@ const emailHmacSecret = Deno.env.get('REGISTRATION_EMAIL_HMAC_SECRET')
 const approvedSupabaseOrigin = Deno.env.get('REGISTRATION_APPROVED_SUPABASE_ORIGIN')
 const localMode = Deno.env.get('REGISTRATION_LOCAL_MODE') === 'true'
 const timeoutMs = Number(Deno.env.get('REGISTRATION_PROVIDER_TIMEOUT_MS') ?? 10_000)
-const publicTest = Deno.env.get('PUBLIC_TEST_MODE') === 'true' // hosted built-in email path
+const publicTest = Deno.env.get('PUBLIC_TEST_MODE') === 'true' // hosted built-in email path; redeploy picks current secrets
 
 Deno.serve(async (request) => {
   const origin = request.headers.get('origin')
