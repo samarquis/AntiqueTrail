@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 
 interface Store {
   id: string
@@ -6,6 +6,7 @@ interface Store {
   category: string
   town: string
   distance: number
+  cover: string
 }
 
 interface TripStop {
@@ -13,9 +14,13 @@ interface TripStop {
   estimatedDuration: number // minutes
 }
 
-export function TripBuilder({ stores, onAddStore }) {
+interface TripBuilderProps {
+  stores: Store[]
+  onAddStore: (store: Store) => void
+}
+
+export function TripBuilder({ stores }: TripBuilderProps) {
   const [tripStops, setTripStops] = useState<TripStop[]>([])
-  const [selected, setSelected] = useState<Store | null>(null)
 
   const addToTrip = (store: Store) => {
     const newStop: TripStop = {
@@ -27,13 +32,12 @@ export function TripBuilder({ stores, onAddStore }) {
       if (prev.some(s => s.store.id === store.id)) return prev
       return [...prev, newStop]
     })
-    setSelected(null)
   }
 
   const removeStop = (storeId: string) =>
     setTripStops(prev => prev.filter(s => s.store.id !== storeId))
 
-  const tripSummary = tripStops.map((s, i) => (
+  const tripSummary = tripStops.map((s) => (
     <div
       key={s.store.id}
       style={{
@@ -131,12 +135,7 @@ export function TripBuilder({ stores, onAddStore }) {
                 cursor: 'pointer',
                 transition: 'background 0.2s',
               }}
-              onMouseOver={() => setSelected(s)}
-              onMouseOut={() => setSelected(null)}
             >
-              {selected && selected.id === s.id
-                ? { /* highlighted state */}
-                : null}
               <img
                 src={s.cover}
                 alt={s.name}

@@ -19,7 +19,7 @@ join (values
   ('sunroom-salvage','sunflower-salvage'),
   ('tin-roof-trove','tallgrass-treasures')
 ) as m(slug, fixture_slug) on m.slug = s.slug
-cross join generate_series(1, 3) as g(photo)
+cross join generate_series(1, 5) as g(photo)
 where not exists (
   select 1
   from app_public.store_media existing

@@ -89,7 +89,7 @@ join (values
   ('sunroom-salvage','sunflower-salvage'),
   ('tin-roof-trove','tallgrass-treasures')
 ) as m(slug,fixture_slug) on m.slug = s.slug
-cross join generate_series(1, 3) as g(photo);
+cross join generate_series(1, 5) as g(photo);
 
 -- willow-warehouse and velvet-veranda intentionally have no media so the
 -- configured catalog retains explicit neutral-placeholder coverage.

@@ -1,5 +1,3 @@
-import React, { useState } from 'react'
-
 interface Store {
   id: string
   name: string
@@ -10,33 +8,12 @@ interface Store {
   cover: string
 }
 
-export function MapFirstGrid({ stores, onAdd }) {
-  const [mapCenter, setMapCenter] = useState({ lat: 42.36, lng: -71.06 })
-  const [visible, setVisible] = useState<'grid' | 'map'>('grid')
+interface MapFirstGridProps {
+  stores: Store[]
+  onAdd: (store: Store) => void
+}
 
-  const handleSwitch = () => setVisible(v => v === 'grid' ? 'map' : 'grid')
-
-  if (visible === 'map') {
-    return (
-      <div style={{ height: '400px', borderRadius: '8px', overflow: 'hidden' }}>
-        <div
-          style={{
-            height: '400px',
-            background: '#f8fafc',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px',
-            color: '#64748b',
-          }}>
-          🗺️ Map view (Google Maps area)
-          <br />
-          <small>Store pins by location/type</small>
-        </div>
-      </div>
-    )
-  }
-
+export function MapFirstGrid({ stores, onAdd }: MapFirstGridProps) {
   const filtered = stores.filter(s => s.distance <= 20)
 
   return (
@@ -61,7 +38,7 @@ export function MapFirstGrid({ stores, onAdd }) {
           <div style={{ marginTop: '8px' }}>
             <strong>{s.name}</strong>
             <span style={{ fontSize: '12px', color: '#64748b' }}>{s.category} • {s.town}</span>
-            <span style={{ fontSize: '12px', color: '#64748b' }}, marginTop: '4px'}>📍 {s.distance} mi • {s.hours}</span>
+            <span style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>📍 {s.distance} mi • {s.hours}</span>
           </div>
           <button
             onClick={() => onAdd(s)}

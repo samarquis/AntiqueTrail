@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 
 interface Store {
   id: string
@@ -11,7 +11,12 @@ interface Store {
   rating?: number
 }
 
-export function CategoryGrid({ stores, onAdd }) {
+interface CategoryGridProps {
+  stores: Store[]
+  onAdd: (store: Store) => void
+}
+
+export function CategoryGrid({ stores, onAdd }: CategoryGridProps) {
   const [filter, setFilter] = useState<'all' | 'furniture' | 'tools' | 'books' | 'decor'>('all')
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 12
