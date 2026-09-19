@@ -734,7 +734,7 @@ describe('store photos page contract', () => {
     window.sessionStorage.clear()
   })
 
-  it('renders the editorial header, both features, and every tile from store data', async () => {
+  it('renders one lead image and every remaining photo in the inventory grid', async () => {
     render(<StorePhotosPage client={photosClient()} slug={galleryStore.slug} />)
 
     expect(await screen.findByRole('heading', { level: 1, name: galleryStore.name })).toBeVisible()
@@ -744,7 +744,7 @@ describe('store photos page contract', () => {
       `/stores/${galleryStore.slug}`,
     )
     const tiles = screen.getAllByRole('button', { name: /view photo \d/i })
-    expect(tiles).toHaveLength(4)
+    expect(tiles).toHaveLength(5)
     expect(screen.getByRole('button', { name: /view photo 2:/i })).toBeVisible()
     expect(screen.getByRole('img', { name: /storefront at dusk/i })).toBeVisible()
     expect(document.querySelector('.store-photos__feature-caption')).toHaveTextContent(

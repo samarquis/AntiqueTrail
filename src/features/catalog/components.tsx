@@ -561,7 +561,7 @@ export function BrowsePage({
       window.history.replaceState({}, '', `/stores${query ? `?${query}` : ''}`)
   }
   return (
-    <main className="catalog-browser">
+    <main className="catalog-browser store-browse">
       <header>
         <p className="eyebrow">Antique Trail</p>
         <h1>Browse stores</h1>
