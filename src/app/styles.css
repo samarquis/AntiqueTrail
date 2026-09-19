@@ -3389,6 +3389,22 @@ main > article dt {
 }
 
 @media (max-width: 799px) {
+  main.store-detail .store-gallery__enlarge {
+    min-height: 0;
+    height: auto;
+    aspect-ratio: 4 / 3;
+  }
+
+  main.store-detail .store-gallery__enlarge img {
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
+  main.store-detail {
+    scroll-padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+  }
+
   main.store-detail .store-detail__section-nav {
     flex-wrap: nowrap;
     overflow-x: auto;
