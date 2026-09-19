@@ -1323,15 +1323,16 @@ textarea[aria-invalid='true'] {
 }
 
 .catalog-browser {
-  padding-top: clamp(1.5rem, 3vw, 2.5rem);
+  /* Browse is a task surface: keep the first search action in the viewport. */
+  padding-top: clamp(0.75rem, 2vw, 1.25rem);
 }
 
 .catalog-browser > header {
-  padding-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
 }
 
 .catalog-browser > header::after {
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
 }
 
 .catalog-browser > header > p:last-child {
