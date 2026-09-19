@@ -292,6 +292,18 @@ export function createAuthProvider<
       if (!code || oauthError) return { kind: 'error' }
       const exchanged = await supabase.auth.exchangeCodeForSession(code)
       if (exchanged.error || !exchanged.data.session) return { kind: 'error' }
+      const admissionId = exchanged.data.session.user.user_metadata?.antique_trail_admission_id
+      if (typeof admissionId === 'string') {
+        const callback = await supabase.functions.invoke('account-registration-callback', {
+          body: { kind: 'verify', providerUserId: exchanged.data.session.user.id },
+        })
+        if (callback.error || callback.data?.state !== 'verified' && callback.data?.state !== 'authenticated') {
+          await supabase.auth.signOut({ scope: 'local' })
+          return { kind: 'blocked' }
+        }
+        await remember(exchanged.data.session)
+        return { kind: 'authenticated', session: providerSession(exchanged.data.session) }
+      }
       // The admission RPC is declared in SQL, not generated types; assert its wire shape here.
       const admission = (await supabase.rpc('oauth_admission_check')) as {
         data: { state?: string } | null
