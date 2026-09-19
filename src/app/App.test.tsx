@@ -19,6 +19,21 @@ import {
 
 describe('app shell', () => {
   afterEach(cleanup)
+  it('exposes signed-out sign-in and account creation entry points', () => {
+    render(
+      <MemoryRouter initialEntries={['/stores']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: /^sign in$/i })).toHaveAttribute(
+      'href',
+      '/auth/sign-in',
+    )
+    expect(screen.getByRole('link', { name: /create new account/i })).toHaveAttribute(
+      'href',
+      '/auth/register',
+    )
+  })
   it('renders the browse route with a skip-free accessible heading', () => {
     render(
       <MemoryRouter initialEntries={['/stores']}>

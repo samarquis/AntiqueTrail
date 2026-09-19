@@ -26,8 +26,8 @@ Deno.serve(async (request) => {
         appOrigin !== 'https://antique-trail.vercel.app')
     )
       throw new Error('unavailable')
-    const body = (await request.json()) as { kind?: unknown; tokenHash?: unknown }
-    if (!url || !anonKey || !serviceKey || typeof body.tokenHash !== 'string')
+    const body = (await request.json()) as { kind?: unknown; tokenHash?: unknown; providerUserId?: unknown }
+    if (!url || !anonKey || !serviceKey || (typeof body.tokenHash !== 'string' && typeof body.providerUserId !== 'string'))
       throw new Error('unavailable')
     validateRegistrationEndpoints({
       appOrigin: appOrigin ?? '',
@@ -42,11 +42,11 @@ Deno.serve(async (request) => {
     const verifier = createClient(url, anonKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     })
-    const result = await verifier.auth.verifyOtp({
-      token_hash: body.tokenHash,
-      type: body.kind === 'verify' ? 'email' : 'recovery',
-    })
-    if (result.error || !result.data.session || !result.data.user) throw new Error('unavailable')
+    const result = typeof body.tokenHash === 'string'
+      ? await verifier.auth.verifyOtp({ token_hash: body.tokenHash, type: body.kind === 'verify' ? 'email' : 'recovery' })
+      : { data: { session: null, user: (await verifier.auth.getUser()).data.user }, error: null }
+    if (result.error || !result.data.user || (typeof body.tokenHash === 'string' && !result.data.session)) throw new Error('unavailable')
+    if (typeof body.providerUserId === 'string' && result.data.user.id !== body.providerUserId) throw new Error('unavailable')
     if (body.kind === 'verify') {
       const admin = createClient(url, serviceKey, { db: { schema: 'app_public' } })
       if (publicTest) {
@@ -56,10 +56,9 @@ Deno.serve(async (request) => {
         // The database resolves the exact reserved receipt and verified email.
         // Expiry does not delete a previously admitted human account. Pending
         // provider work remains owned by the existing reconciliation protocol.
-        payload =
-          completion.error || completion.data !== true
-            ? { state: 'blocked' }
-            : { state: 'authenticated', session: result.data.session }
+        payload = completion.error || completion.data !== true
+          ? { state: 'blocked' }
+          : result.data.session ? { state: 'authenticated', session: result.data.session } : { state: 'verified' }
         return Response.json(payload, {
           headers: { ...cors(allowedOrigin), 'Cache-Control': 'no-store' },
         })
@@ -106,7 +105,7 @@ Deno.serve(async (request) => {
         if (completion.error || completion.data !== true) {
           await enqueueCleanup(admissionId)
           payload = { state: 'blocked' }
-        } else payload = { state: 'authenticated', session: result.data.session }
+        } else payload = result.data.session ? { state: 'authenticated', session: result.data.session } : { state: 'verified' }
       }
     } else payload = { state: 'authenticated', session: result.data.session }
   } catch {

@@ -1,0 +1,28 @@
+projectURL:https://uaupykgpegbseboklubv.supabase.co
+sereteKey:[REDACTED]
+
+Supabase
+----------------------------------------------------
+Published Key: [REDACTED]
+Secret Key: [REDACTED]
+JWT KEYS:
+Current Key: [REDACTED]
+
+Data API: https://uaupykgpegbseboklubv.supabase.co/rest/v1/
+
+Project Name: antique-trail-beta
+Project ID: uaupykgpegbseboklubv
+Project Region: us-east-2
+
+
+----------------------------------------------------------
+vercel
+----------------------------------------------------------
+VITE_SUPABASE_ANON_KEY = sb_publishable_GfPL5lnfOHBdHaVq4djGFw_30fHhRRA
+VITE_SUPABASE_URL = https://uaupykgpegbseboklubv.supabase.co
+VITE_PARTNER_SYNTHETIC_ENABLED = false
+VITE_PARTNER_MEDIA_PROVIDER_ENABLED = false
+VITE_PARTNER_EMAIL_PROVIDER_ENABLED = false
+VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK = {"kty":"EC","crv":"P-256","x":"replace-with-public-key-x","y":"replace-with-public-key-y"}
+VITE_TRIP_OFFLINE_GRANT_KEY_ID = 
+

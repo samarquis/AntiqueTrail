@@ -340,6 +340,9 @@ function AppShell({
                 </svg>
                 More
               </Link>
+              <Link to="/auth/sign-in" className="nav-link">
+                Sign in
+              </Link>
               <Link to="/auth/register" aria-label="Create new account" className="nav-link">
                 <svg
                   className="nav-icon"

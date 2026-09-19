@@ -10,7 +10,7 @@ const request = () =>
     method: 'POST',
     body: JSON.stringify({
       email: 'shopper@example.test',
-      password: 'long-safe-password',
+      password: 'Trail1!',
       ageAttested: true,
       requestId,
     }),

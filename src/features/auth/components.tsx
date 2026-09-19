@@ -14,6 +14,9 @@ import { PasswordReplacementPage } from './PasswordReplacementPage'
 import type { AuthProviderAdapter, OAuthProviderId, ProviderCallbackResult } from './types'
 import { isCatalogOnlyPublicTest, isPublicTestLifecyclePath } from './publicTestMode'
 
+export const PASSWORD_MIN_LENGTH = 1
+export const PASSWORD_MAX_LENGTH = 8
+
 function AccountSetupPaused() {
   const { session, signOut } = useAuth()
   return (
@@ -300,8 +303,12 @@ export function RegisterPage({ provider }: { provider: AuthProviderAdapter }) {
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (!/^\S+@\S+\.\S+$/u.test(email.trim()) || password.length < 12 || password.length > 128) {
-      setError('Enter a valid email and a password from 12 through 128 characters.')
+    if (
+      !/^\S+@\S+\.\S+$/u.test(email.trim()) ||
+      password.length < PASSWORD_MIN_LENGTH ||
+      password.length > PASSWORD_MAX_LENGTH
+    ) {
+      setError('Enter a valid email and a password from 1 through 8 characters.')
       return
     }
     if (!ageAttested) {
@@ -361,8 +368,8 @@ export function RegisterPage({ provider }: { provider: AuthProviderAdapter }) {
           id="register-password"
           type="password"
           autoComplete="new-password"
-          minLength={12}
-          maxLength={128}
+          minLength={PASSWORD_MIN_LENGTH}
+          maxLength={PASSWORD_MAX_LENGTH}
           value={password}
           onChange={(event) => {
             changeAttempt()
@@ -370,7 +377,7 @@ export function RegisterPage({ provider }: { provider: AuthProviderAdapter }) {
           }}
           required
         />
-        <p id="password-requirements">Use 12 through 128 characters.</p>
+        <p id="password-requirements">Use 1 through 8 characters.</p>
         <label>
           <input
             type="checkbox"

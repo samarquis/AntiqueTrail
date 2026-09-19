@@ -68,5 +68,28 @@ join (values
  ('tin-roof-trove','/images/synthetic-stores/1280w/tallgrass-treasures-cover.webp')
 ) as m(slug,asset_path) on m.slug=s.slug;
 
+-- Give configured stores a small deterministic gallery so Store Details and
+-- the public photo wall exercise the same media path as the local demo catalog.
+insert into app_public.store_media (store_id,asset_path,kind,alt_text,display_order)
+select s.id,
+       '/images/synthetic-fixtures/' || m.fixture_slug || '/' || lpad(g.photo::text, 3, '0') || '-wall.svg',
+       'gallery',
+       'Synthetic interior photo ' || g.photo || ' for ' || s.name,
+       g.photo
+from app_public.stores s
+join (values
+  ('clockwork-cabinet','blue-finch-curios'),
+  ('prairie-patina','prairie-cabinet'),
+  ('juniper-junction','juniper-house'),
+  ('foundry-and-fable','cedar-and-brass'),
+  ('meadow-motif','maple-lantern'),
+  ('northstar-nook','north-star-relics'),
+  ('paper-moon-market','redbud-market'),
+  ('rail-and-ribbon','union-station-vintage'),
+  ('sunroom-salvage','sunflower-salvage'),
+  ('tin-roof-trove','tallgrass-treasures')
+) as m(slug,fixture_slug) on m.slug = s.slug
+cross join generate_series(1, 5) as g(photo);
+
 -- willow-warehouse and velvet-veranda intentionally have no media so the
 -- configured catalog retains explicit neutral-placeholder coverage.

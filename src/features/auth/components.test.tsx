@@ -4,7 +4,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { StrictMode, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthContext'
-import { GENERIC_MFA_ERROR, GENERIC_RECOVERY_MESSAGE, InMemoryAuthStore } from './authClient'
+import {
+  GENERIC_MFA_ERROR,
+  GENERIC_RECOVERY_MESSAGE,
+  InMemoryAuthStore,
+  unavailableAuthProvider,
+} from './authClient'
 import {
   AccountPage,
   AuthCallbackPage,
@@ -20,6 +25,28 @@ import {
 import type { AuthProviderAdapter, AuthSession, AuthStore } from './types'
 import { preflightAuthCallback } from './callbackPreflight'
 import { clearStagedRecoveryToken } from './passwordRecoveryClient'
+
+it('rejects registration passwords longer than 8 characters', async () => {
+  const user = userEvent.setup()
+  const register = vi.fn(async () => ({ kind: 'pending_verification' as const }))
+  render(
+    <MemoryRouter initialEntries={['/auth/register']}>
+      <Routes>
+        <Route
+          path="/auth/register"
+          element={<RegisterPage provider={{ ...unavailableAuthProvider, register }} />}
+        />
+      </Routes>
+    </MemoryRouter>,
+  )
+  await user.type(screen.getByLabelText('Email'), 'person@example.com')
+  const password = screen.getByLabelText('Password')
+  expect(password).toHaveAttribute('maxLength', '8')
+  await user.type(password, '123456789')
+  await user.click(screen.getByRole('checkbox'))
+  await user.click(screen.getByRole('button', { name: /create account/i }))
+  expect(register).toHaveBeenCalledWith(expect.objectContaining({ password: '12345678' }))
+})
 
 function renderAuth(element: ReactNode, provider: AuthProviderAdapter) {
   return render(

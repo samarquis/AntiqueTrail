@@ -496,7 +496,36 @@ describe('trustworthy Store Details contract', () => {
     expect(screen.getByRole('link', { name: /instagram/i })).toHaveAttribute('target', '_blank')
   })
 
-  it('puts visit essentials and section links before the extended gallery', async () => {
+  it('keeps the store identity and cover image in one decision-first hero', async () => {
+    const navigableStore = { ...detailedStore, address: '12 Main Street' }
+    render(<DetailsPage client={detailsClient(navigableStore)} slug={navigableStore.slug} />)
+
+    const heading = await screen.findByRole('heading', { level: 1, name: detailedStore.name })
+    const hero = heading.closest('.store-detail__hero')
+    expect(hero).toBeInTheDocument()
+    expect(hero).toContainElement(screen.getByRole('img', { name: detailedStore.media[0].alt }))
+    expect(hero).toContainElement(screen.getByRole('link', { name: /navigate in maps/i }))
+  })
+
+  it('uses a compact designed fallback in the hero when photos are unavailable', async () => {
+    const noPhotos = { ...detailedStore, media: [] }
+    render(<DetailsPage client={detailsClient(noPhotos)} slug={noPhotos.slug} />)
+
+    const heading = await screen.findByRole('heading', { level: 1, name: noPhotos.name })
+    const hero = heading.closest('.store-detail__hero')
+    expect(hero).toHaveTextContent(/photos coming soon/i)
+    expect(hero).toHaveAttribute('aria-label', expect.stringMatching(/photos coming soon/i))
+  })
+
+  it('keeps the detail page focused on the store story', async () => {
+    render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
+
+    await screen.findByRole('heading', { level: 1, name: detailedStore.name })
+    expect(document.querySelector('.store-gallery--collection')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /see all 2 photos/i })).toBeVisible()
+  })
+
+  it('puts the full gallery immediately after the cover so additional photos are discoverable', async () => {
     render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
 
     await screen.findByRole('heading', { level: 1, name: detailedStore.name })
@@ -538,67 +567,51 @@ describe('trustworthy Store Details contract', () => {
     const cover = document.querySelector('.store-gallery--cover')
     const collection = document.querySelector('.store-gallery--collection')
     const actions = screen.getByRole('navigation', { name: 'Store visit actions' })
-    const about = screen.getByRole('region', { name: 'About this store' })
     expect(article).not.toBeNull()
     expect(cover).not.toBeNull()
-    expect(collection).not.toBeNull()
-    expect(
-      article &&
-        collection &&
-        article.compareDocumentPosition(collection) & Node.DOCUMENT_POSITION_CONTAINED_BY,
-    ).toBe(Node.DOCUMENT_POSITION_CONTAINED_BY)
+    expect(collection).toBeNull()
     expect(actions.compareDocumentPosition(cover as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
     expect(cover && cover.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
-    expect(nav.compareDocumentPosition(collection as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    )
-    expect(
-      about.compareDocumentPosition(collection as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(screen.getByLabelText("Today's opening information")).toBeVisible()
   })
 
-  it('provides a keyboard-operable gallery with failure and enlargement behavior', async () => {
+  it('provides a keyboard-operable cover lightbox with failure behavior', async () => {
     const user = userEvent.setup()
     render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
     await screen.findByRole('heading', { level: 1, name: detailedStore.name })
 
-    const second = screen.getByRole('button', { name: /show image 2: oak cabinets/i })
-    await user.click(second)
-    expect(second).toHaveAttribute('aria-pressed', 'true')
-    const selectedImage = screen.getByRole('img', { name: /oak cabinets inside/i })
-    expect(selectedImage).toBeVisible()
-    expect(selectedImage).toHaveAttribute('srcset', expect.stringContaining('/480w/'))
-
-    const enlarge = screen.getByRole('button', { name: /enlarge image: oak cabinets/i })
+    const enlarge = screen.getByRole('button', {
+      name: /enlarge image: blue finch curios storefront/i,
+    })
     await user.click(enlarge)
     const dialog = screen.getByRole('dialog')
     expect(dialog).toBeVisible()
     expect(document.querySelector<HTMLElement>('.store-gallery__background')?.inert).toBe(true)
     expect(screen.getByRole('button', { name: /close enlarged image/i })).toHaveFocus()
-    expect(within(dialog).getByRole('status')).toHaveTextContent('Photo 2 of 2')
-    const enlargedImage = within(dialog).getByRole('img', { name: /oak cabinets inside/i })
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Photo 1 of 2')
+    const enlargedImage = within(dialog).getByRole('img', {
+      name: /blue finch curios storefront/i,
+    })
     expect(enlargedImage).toHaveAttribute('srcset', expect.stringContaining('/480w/'))
     expect(enlargedImage).toHaveAttribute('srcset', expect.stringContaining('/800w/'))
     expect(enlargedImage).toHaveAttribute('srcset', expect.stringContaining('/1280w/'))
     expect(enlargedImage).toHaveAttribute('sizes', '(max-width: 800px) calc(100vw - 2rem), 1120px')
     fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    await waitFor(() => expect(enlarge).toHaveFocus())
     expect(document.querySelector<HTMLElement>('.store-gallery__background')?.inert).toBe(false)
 
     await user.click(enlarge)
     const reopenedDialog = screen.getByRole('dialog')
-    fireEvent.error(within(reopenedDialog).getByRole('img', { name: /oak cabinets inside/i }))
+    fireEvent.error(
+      within(reopenedDialog).getByRole('img', { name: /blue finch curios storefront/i }),
+    )
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    const missingImage = screen.getByRole('img', { name: /store image unavailable/i })
-    expect(missingImage).toHaveTextContent(/photo unavailable/i)
-    await waitFor(() => expect(second).toHaveFocus())
-    expect(second).toHaveTextContent(/unavailable/i)
+    const missingImage = screen.getByRole('img', { name: /photos coming soon/i })
+    expect(missingImage).toHaveTextContent(/photos coming soon/i)
   })
 
   it('makes every photo reachable when a store has more than six', async () => {
@@ -610,20 +623,11 @@ describe('trustworthy Store Details contract', () => {
         kind: 'gallery' as const,
       })),
     }
-    const user = userEvent.setup()
     render(<DetailsPage client={detailsClient(manyPhotos)} slug={manyPhotos.slug} />)
     await screen.findByRole('heading', { level: 1, name: manyPhotos.name })
 
-    const ninth = screen.getByRole('button', { name: /show image 9: synthetic store photo 9/i })
-    await user.click(ninth)
-    expect(ninth).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('img', { name: /synthetic store photo 9/i })).toBeVisible()
-    const previews = document.querySelectorAll<HTMLImageElement>('.store-gallery__print img')
-    expect(previews).toHaveLength(9)
-    expect(previews[0]).not.toHaveAttribute('loading')
-    expect(previews[3]).toHaveAttribute('loading', 'lazy')
-    expect(previews[3]).toHaveAttribute('width', '480')
-    expect(previews[3]).toHaveAttribute('height', '360')
+    expect(screen.queryByRole('button', { name: /show image 9:/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /see all 9 photos/i })).toBeVisible()
   })
 
   it('reveals Add to Trip only after its backing package is enabled', async () => {
@@ -734,7 +738,7 @@ describe('store photos page contract', () => {
     window.sessionStorage.clear()
   })
 
-  it('renders the editorial header, both features, and every tile from store data', async () => {
+  it('renders one lead image and every remaining photo in the inventory grid', async () => {
     render(<StorePhotosPage client={photosClient()} slug={galleryStore.slug} />)
 
     expect(await screen.findByRole('heading', { level: 1, name: galleryStore.name })).toBeVisible()
@@ -744,7 +748,7 @@ describe('store photos page contract', () => {
       `/stores/${galleryStore.slug}`,
     )
     const tiles = screen.getAllByRole('button', { name: /view photo \d/i })
-    expect(tiles).toHaveLength(4)
+    expect(tiles).toHaveLength(5)
     expect(screen.getByRole('button', { name: /view photo 2:/i })).toBeVisible()
     expect(screen.getByRole('img', { name: /storefront at dusk/i })).toBeVisible()
     expect(document.querySelector('.store-photos__feature-caption')).toHaveTextContent(
