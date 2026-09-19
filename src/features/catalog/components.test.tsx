@@ -496,6 +496,27 @@ describe('trustworthy Store Details contract', () => {
     expect(screen.getByRole('link', { name: /instagram/i })).toHaveAttribute('target', '_blank')
   })
 
+  it('keeps the store identity and cover image in one decision-first hero', async () => {
+    const navigableStore = { ...detailedStore, address: '12 Main Street' }
+    render(<DetailsPage client={detailsClient(navigableStore)} slug={navigableStore.slug} />)
+
+    const heading = await screen.findByRole('heading', { level: 1, name: detailedStore.name })
+    const hero = heading.closest('.store-detail__hero')
+    expect(hero).toBeInTheDocument()
+    expect(hero).toContainElement(screen.getByRole('img', { name: detailedStore.media[0].alt }))
+    expect(hero).toContainElement(screen.getByRole('link', { name: /navigate in maps/i }))
+  })
+
+  it('uses a compact designed fallback in the hero when photos are unavailable', async () => {
+    const noPhotos = { ...detailedStore, media: [] }
+    render(<DetailsPage client={detailsClient(noPhotos)} slug={noPhotos.slug} />)
+
+    const heading = await screen.findByRole('heading', { level: 1, name: noPhotos.name })
+    const hero = heading.closest('.store-detail__hero')
+    expect(hero).toHaveTextContent(/photos coming soon/i)
+    expect(hero).toHaveAttribute('aria-label', expect.stringMatching(/photos coming soon/i))
+  })
+
   it('puts visit essentials and section links before the extended gallery', async () => {
     render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
 
@@ -595,8 +616,8 @@ describe('trustworthy Store Details contract', () => {
     const reopenedDialog = screen.getByRole('dialog')
     fireEvent.error(within(reopenedDialog).getByRole('img', { name: /oak cabinets inside/i }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    const missingImage = screen.getByRole('img', { name: /store image unavailable/i })
-    expect(missingImage).toHaveTextContent(/photo unavailable/i)
+    const missingImage = screen.getByRole('img', { name: /photos coming soon/i })
+    expect(missingImage).toHaveTextContent(/photos coming soon/i)
     await waitFor(() => expect(second).toHaveFocus())
     expect(second).toHaveTextContent(/unavailable/i)
   })

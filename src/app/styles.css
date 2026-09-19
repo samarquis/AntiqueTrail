@@ -3234,29 +3234,34 @@ main > article dt {
   /* First viewport composition: identity and actions beside the store image,
      so the page starts with a purposeful destination rather than a stack of
      empty horizontal bands. */
-  main.store-detail > .store-detail__article {
+  main.store-detail > .store-detail__article > .store-detail__hero {
     display: grid;
     grid-template-columns: minmax(18rem, 0.82fr) minmax(0, 1.18fr);
     align-items: start;
   }
 
-  main.store-detail > .store-detail__article > .store-detail__header {
+  main.store-detail > .store-detail__article > .store-detail__hero > .store-detail__header {
     grid-column: 1;
     grid-row: 1;
     align-self: start;
     padding-block: clamp(2rem, 3vw, 3.5rem);
   }
 
-  main.store-detail > .store-detail__article > .store-detail__actions {
+  main.store-detail > .store-detail__article > .store-detail__hero > .store-detail__actions {
     grid-column: 1;
-    grid-row: 2;
-    align-self: start;
+    grid-row: 1;
+    align-self: end;
     align-content: start;
+    padding-bottom: clamp(2rem, 3vw, 3.5rem);
   }
 
-  main.store-detail > .store-detail__article > .store-gallery {
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__background {
+    display: contents;
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero > .store-gallery {
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1;
     display: flex;
     min-width: 0;
     flex-direction: column;
@@ -3265,19 +3270,30 @@ main > article dt {
     border-left: 1px solid var(--line);
   }
 
-  main.store-detail > .store-detail__article > .store-gallery .store-gallery__enlarge {
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__enlarge {
     aspect-ratio: 4 / 3;
   }
 
-  main.store-detail > .store-detail__article > .store-detail__section-nav {
+  main.store-detail > .store-detail__article > .store-detail__hero .store-detail__section-nav {
     grid-column: 1 / -1;
     grid-row: 3;
   }
 
-  main.store-detail > .store-detail__article > .store-detail__intro,
-  main.store-detail > .store-detail__article > .store-detail__visit-grid,
+  main.store-detail > .store-detail__article > .store-detail__hero .store-detail__intro,
+  main.store-detail > .store-detail__article > .store-detail__hero .store-detail__visit-grid,
   main.store-detail > .store-detail__article > .store-detail__provenance {
     grid-column: 1 / -1;
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery--cover {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-width: 0;
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__enlarge,
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__missing {
+    min-height: 26rem;
   }
 
   main.store-photos {

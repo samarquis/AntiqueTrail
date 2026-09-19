@@ -881,10 +881,10 @@ function StoreGallery({
             <div
               className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__missing`}
               role="img"
-              aria-label="Store image unavailable"
+              aria-label="Photos coming soon"
             >
               <strong aria-hidden="true">{store.name.slice(0, 1)}</strong>
-              <span>Photo unavailable</span>
+              <span>Photos coming soon</span>
             </div>
           ) : (
             <figure className="store-gallery__hero">
@@ -1187,102 +1187,107 @@ export function DetailsPage({
         <span aria-hidden="true">←</span> Back to Browse
       </CatalogLink>
       <article className="store-detail__article">
-        <header className="store-detail__header">
-          <p className="eyebrow">{store.area.label} trail stop</p>
-          <h1>{store.name}</h1>
-          <p className="store-detail__address">
-            {store.address}, {store.town}, {store.state}
-          </p>
-          <div className="store-detail__arrival-status" aria-label="Today's opening information">
-            <p className={`status-badge status-badge--${today.openState}`}>
-              <span aria-hidden="true">
-                {today.openState === 'open' ? '✓' : today.openState === 'closed' ? '●' : '?'}
-              </span>{' '}
-              {today.openStateLabel}
+        <div
+          className="store-detail__hero"
+          aria-label={store.media.length ? undefined : 'Photos coming soon'}
+        >
+          <header className="store-detail__header">
+            <p className="eyebrow">{store.area.label} trail stop</p>
+            <h1>{store.name}</h1>
+            <p className="store-detail__address">
+              {store.address}, {store.town}, {store.state}
             </p>
-            <p>
-              <strong>{today.dayLabel}</strong> · {today.hoursLabel}
-            </p>
-          </div>
-          <div className="store-detail__trust" aria-label="Listing status">
-            <p className={`status-badge status-badge--${store.freshness?.status ?? 'unknown'}`}>
-              <span aria-hidden="true">{store.freshness?.status === 'current' ? '✓' : 'i'}</span>{' '}
-              {freshnessLabel(store)}
-            </p>
-            {store.freshness?.status === 'stale' && (
-              <p className="honesty-note">
-                This listing may be out of date. Confirm before travel.
+            <div className="store-detail__arrival-status" aria-label="Today's opening information">
+              <p className={`status-badge status-badge--${today.openState}`}>
+                <span aria-hidden="true">
+                  {today.openState === 'open' ? '✓' : today.openState === 'closed' ? '●' : '?'}
+                </span>{' '}
+                {today.openStateLabel}
               </p>
-            )}
-            {!store.freshness && (
-              <p className="honesty-note">Freshness information is unavailable.</p>
-            )}
-          </div>
-        </header>
+              <p>
+                <strong>{today.dayLabel}</strong> · {today.hoursLabel}
+              </p>
+            </div>
+            <div className="store-detail__trust" aria-label="Listing status">
+              <p className={`status-badge status-badge--${store.freshness?.status ?? 'unknown'}`}>
+                <span aria-hidden="true">{store.freshness?.status === 'current' ? '✓' : 'i'}</span>{' '}
+                {freshnessLabel(store)}
+              </p>
+              {store.freshness?.status === 'stale' && (
+                <p className="honesty-note">
+                  This listing may be out of date. Confirm before travel.
+                </p>
+              )}
+              {!store.freshness && (
+                <p className="honesty-note">Freshness information is unavailable.</p>
+              )}
+            </div>
+          </header>
 
-        <nav className="store-detail__actions" aria-label="Store visit actions">
-          {hasNavigableAddress ? (
-            <a
-              className="button"
-              href={externalNavigationHref(store)}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <img
-                className="button__icon"
-                src="/icons/navigate.svg"
-                alt=""
-                aria-hidden="true"
-                width="20"
-                height="20"
-              />
-              Navigate in Maps <span aria-hidden="true">↗</span>
-              <span className="sr-only"> (opens in a new window)</span>
-            </a>
-          ) : (
-            <p className="honesty-note">Directions are unavailable for this fictional address.</p>
-          )}
-          {canAddToTrip && (
-            <CatalogLink
-              className="button button--secondary"
-              to={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
-            >
-              <img
-                className="button__icon"
-                src="/icons/shopping-trip.svg"
-                alt=""
-                aria-hidden="true"
-                width="20"
-                height="20"
-              />
-              Add to Trip
-            </CatalogLink>
-          )}
-          {renderPrivateActions?.(store)}
-        </nav>
+          <nav className="store-detail__actions" aria-label="Store visit actions">
+            {hasNavigableAddress ? (
+              <a
+                className="button"
+                href={externalNavigationHref(store)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <img
+                  className="button__icon"
+                  src="/icons/navigate.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width="20"
+                  height="20"
+                />
+                Navigate in Maps <span aria-hidden="true">↗</span>
+                <span className="sr-only"> (opens in a new window)</span>
+              </a>
+            ) : (
+              <p className="honesty-note">Directions are unavailable for this fictional address.</p>
+            )}
+            {canAddToTrip && (
+              <CatalogLink
+                className="button button--secondary"
+                to={catalogAppHref(`/trips/new?addStoreId=${encodeURIComponent(store.id)}`)}
+              >
+                <img
+                  className="button__icon"
+                  src="/icons/shopping-trip.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width="20"
+                  height="20"
+                />
+                Add to Trip
+              </CatalogLink>
+            )}
+            {renderPrivateActions?.(store)}
+          </nav>
 
-        <StoreGallery
-          store={store}
-          afterCover={
-            <>
-              <StoreSectionNav />
-              <section className="store-detail__intro" aria-labelledby="about-heading">
-                <p className="eyebrow">What you’ll find</p>
-                <h2 id="about-heading">About this store</h2>
-                <p>{store.description || 'A store description has not been supplied.'}</p>
-                {store.categories.length ? (
-                  <ul className="catalog-card__categories" aria-label="Store categories">
-                    {store.categories.map((category) => (
-                      <li key={category.slug}>{category.label}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="honesty-note">Store categories are unavailable.</p>
-                )}
-              </section>
-            </>
-          }
-        />
+          <StoreGallery
+            store={store}
+            afterCover={
+              <>
+                <StoreSectionNav />
+                <section className="store-detail__intro" aria-labelledby="about-heading">
+                  <p className="eyebrow">What you’ll find</p>
+                  <h2 id="about-heading">About this store</h2>
+                  <p>{store.description || 'A store description has not been supplied.'}</p>
+                  {store.categories.length ? (
+                    <ul className="catalog-card__categories" aria-label="Store categories">
+                      {store.categories.map((category) => (
+                        <li key={category.slug}>{category.label}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="honesty-note">Store categories are unavailable.</p>
+                  )}
+                </section>
+              </>
+            }
+          />
+        </div>
         {store.media.length > 0 && (
           <p className="store-detail__gallery-link">
             <CatalogLink
