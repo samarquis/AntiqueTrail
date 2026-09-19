@@ -791,9 +791,11 @@ function sameMapBounds(left: CatalogMapBounds, right: CatalogMapBounds) {
 function StoreGallery({
   store,
   afterCover,
+  showCollection = true,
 }: {
   store: CatalogStore
   afterCover?: React.ReactNode
+  showCollection?: boolean
 }) {
   const media = store.media
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -909,7 +911,7 @@ function StoreGallery({
             </figure>
           )}
         </section>
-        {media.length > 1 && (
+        {showCollection && media.length > 1 && (
           <section
             className="store-gallery store-gallery--collection store-gallery--compact"
             aria-label="Store photo collection"
@@ -1267,6 +1269,7 @@ export function DetailsPage({
 
           <StoreGallery
             store={store}
+            showCollection={false}
             afterCover={
               <>
                 <StoreSectionNav />

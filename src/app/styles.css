@@ -3236,15 +3236,15 @@ main > article dt {
      empty horizontal bands. */
   main.store-detail > .store-detail__article > .store-detail__hero {
     display: grid;
-    grid-template-columns: minmax(18rem, 0.82fr) minmax(0, 1.18fr);
-    align-items: start;
+    grid-template-columns: minmax(20rem, 0.7fr) minmax(0, 1.3fr);
+    align-items: stretch;
   }
 
   main.store-detail > .store-detail__article > .store-detail__hero > .store-detail__header {
     grid-column: 1;
     grid-row: 1;
     align-self: start;
-    padding-block: clamp(2rem, 3vw, 3.5rem);
+    padding-block: clamp(1.5rem, 2.5vw, 2.5rem);
   }
 
   main.store-detail > .store-detail__article > .store-detail__hero > .store-detail__actions {
@@ -3252,7 +3252,7 @@ main > article dt {
     grid-row: 1;
     align-self: end;
     align-content: start;
-    padding-bottom: clamp(2rem, 3vw, 3.5rem);
+    padding-bottom: clamp(1.5rem, 2.5vw, 2.5rem);
   }
 
   main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__background {
@@ -3268,6 +3268,7 @@ main > article dt {
     justify-content: center;
     border-block: 0;
     border-left: 1px solid var(--line);
+    padding: clamp(1.5rem, 2.5vw, 2.5rem);
   }
 
   main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__enlarge {
@@ -3293,7 +3294,9 @@ main > article dt {
 
   main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__enlarge,
   main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__missing {
-    min-height: 26rem;
+    min-height: 0;
+    height: auto;
+    aspect-ratio: 4 / 3;
   }
 
   main.store-photos {
@@ -3814,15 +3817,15 @@ main > article dt {
   }
 
   main.store-detail .store-detail__header {
-    padding-block: clamp(2rem, 3vw, 3rem);
+    padding-block: clamp(1.5rem, 2.5vw, 2.5rem);
   }
 
   main.store-detail :is(.store-detail__intro, .store-detail__panel, .store-detail__provenance) {
-    padding-block: clamp(2rem, 3vw, 3rem);
+    padding-block: clamp(1.75rem, 2.5vw, 2.5rem);
   }
 
   main.store-detail .store-gallery {
-    padding-block: clamp(2rem, 3vw, 3rem);
+    padding-block: clamp(1.5rem, 2.5vw, 2.5rem);
   }
 
   main.store-detail .store-detail__section-nav {
