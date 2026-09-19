@@ -2353,6 +2353,75 @@ main > article dt {
   }
 }
 
+/* Store detail cohesion: group information by the visitor's decision, not by
+   the implementation's component boundaries. */
+.store-detail__intro,
+.store-detail__planning,
+.store-detail__trust-group {
+  border-bottom: 1px solid var(--line);
+}
+
+.store-detail__planning > .store-detail__panel {
+  border-bottom: 0;
+}
+
+.store-detail__trust-group {
+  display: grid;
+}
+
+.store-detail__trust-group > .store-detail__provenance {
+  border-bottom: 0;
+}
+
+@media (min-width: 1024px) {
+  main.store-detail .store-detail__section-nav {
+    padding-inline: clamp(32px, 3vw, 64px);
+    background: var(--card);
+  }
+
+  main.store-detail .store-detail__intro,
+  main.store-detail .store-detail__planning,
+  main.store-detail .store-detail__trust-group {
+    padding-inline: clamp(32px, 8vw, 160px);
+  }
+
+  main.store-detail .store-detail__intro {
+    padding-block: clamp(2.5rem, 4vw, 4rem);
+  }
+
+  main.store-detail .store-detail__planning {
+    padding-block: 0;
+  }
+
+  main.store-detail .store-detail__planning > .store-detail__visit-grid {
+    padding-inline: 0;
+  }
+
+  main.store-detail .store-detail__planning > .store-detail__panel {
+    padding-inline: 0;
+    padding-block: clamp(1.75rem, 3vw, 3rem);
+  }
+
+  main.store-detail .store-detail__trust-group {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.7fr);
+    align-items: start;
+    column-gap: clamp(2rem, 6vw, 7rem);
+    padding-block: clamp(2.5rem, 4vw, 4rem);
+  }
+
+  main.store-detail .store-detail__trust-group > .store-detail__panel,
+  main.store-detail .store-detail__trust-group > .store-detail__provenance {
+    padding: 0;
+    border-bottom: 0;
+    background: transparent;
+  }
+
+  main.store-detail .store-detail__gallery-link,
+  main.store-detail .store-detail__evaluation-note {
+    padding-inline: clamp(32px, 8vw, 160px);
+  }
+}
+
 .store-detail > .store-detail__article {
   margin-top: 0;
   padding: 0;

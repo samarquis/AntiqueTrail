@@ -1267,30 +1267,23 @@ export function DetailsPage({
             {renderPrivateActions?.(store)}
           </nav>
 
-          <StoreGallery
-            store={store}
-            showCollection={false}
-            afterCover={
-              <>
-                <StoreSectionNav />
-                <section className="store-detail__intro" aria-labelledby="about-heading">
-                  <p className="eyebrow">What you’ll find</p>
-                  <h2 id="about-heading">About this store</h2>
-                  <p>{store.description || 'A store description has not been supplied.'}</p>
-                  {store.categories.length ? (
-                    <ul className="catalog-card__categories" aria-label="Store categories">
-                      {store.categories.map((category) => (
-                        <li key={category.slug}>{category.label}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="honesty-note">Store categories are unavailable.</p>
-                  )}
-                </section>
-              </>
-            }
-          />
+          <StoreGallery store={store} showCollection={false} />
         </div>
+        <StoreSectionNav />
+        <section className="store-detail__intro" aria-labelledby="about-heading">
+          <p className="eyebrow">What you’ll find</p>
+          <h2 id="about-heading">About this store</h2>
+          <p>{store.description || 'A store description has not been supplied.'}</p>
+          {store.categories.length ? (
+            <ul className="catalog-card__categories" aria-label="Store categories">
+              {store.categories.map((category) => (
+                <li key={category.slug}>{category.label}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="honesty-note">Store categories are unavailable.</p>
+          )}
+        </section>
         {store.media.length > 0 && (
           <p className="store-detail__gallery-link">
             <CatalogLink
@@ -1308,145 +1301,150 @@ export function DetailsPage({
           </p>
         )}
 
-        <div className="store-detail__visit-grid">
-          <StoreHours store={store} />
+        <section className="store-detail__planning" aria-label="Plan your visit">
+          <div className="store-detail__visit-grid">
+            <StoreHours store={store} />
 
-          <section className="store-detail__panel" aria-labelledby="contact-heading">
-            <p className="eyebrow">Confirm your visit</p>
-            <h2 id="contact-heading">Contact &amp; location</h2>
-            <address>
-              {store.address}, {store.town}, {store.state}
-            </address>
-            {hasContact ? (
+            <section className="store-detail__panel" aria-labelledby="contact-heading">
+              <p className="eyebrow">Confirm your visit</p>
+              <h2 id="contact-heading">Contact &amp; location</h2>
+              <address>
+                {store.address}, {store.town}, {store.state}
+              </address>
+              {hasContact ? (
+                <ul className="store-detail__link-list">
+                  {store.phone && (
+                    <li>
+                      <a href={`tel:${store.phone}`}>Call {store.phone}</a>
+                    </li>
+                  )}
+                  {store.email && (
+                    <li>
+                      <a href={`mailto:${store.email}`}>Email the store</a>
+                    </li>
+                  )}
+                  {store.website && (
+                    <li>
+                      <a href={store.website} target="_blank" rel="noreferrer">
+                        Visit official website <span aria-hidden="true">↗</span>
+                        <span className="sr-only"> (opens in a new window)</span>
+                      </a>
+                    </li>
+                  )}
+                </ul>
+              ) : (
+                <p className="honesty-note">Contact details have not been supplied.</p>
+              )}
+            </section>
+          </div>
+
+          <section className="store-detail__panel" aria-labelledby="accessibility-heading">
+            <p className="eyebrow">Know before you go</p>
+            <h2 id="accessibility-heading">Accessibility</h2>
+            {store.accessibility?.status === 'verified' && store.accessibility.details.length ? (
+              <>
+                <ul>
+                  {store.accessibility.details.map((detail) => (
+                    <li key={detail}>{detail}</li>
+                  ))}
+                </ul>
+                <p className="store-detail__source">
+                  Verified accessibility information
+                  {formatCatalogDate(store.accessibility.verifiedAt)
+                    ? ` on ${formatCatalogDate(store.accessibility.verifiedAt)}`
+                    : ''}
+                  .
+                </p>
+              </>
+            ) : store.accessibility?.status === 'unverified' &&
+              store.accessibility.details.length ? (
+              <>
+                <ul>
+                  {store.accessibility.details.map((detail) => (
+                    <li key={detail}>{detail}</li>
+                  ))}
+                </ul>
+                <p className="honesty-note">
+                  These details have not yet been verified. Contact the store to confirm.
+                </p>
+              </>
+            ) : (
+              <p className="honesty-note">
+                Accessibility information is unavailable. Contact the store before visiting if you
+                need an accommodation.
+              </p>
+            )}
+          </section>
+        </section>
+
+        <section className="store-detail__trust-group" aria-label="Listing trust information">
+          <section className="store-detail__panel" aria-labelledby="updates-heading">
+            <p className="eyebrow">From the store</p>
+            <h2 id="updates-heading">Latest updates</h2>
+            {store.updates?.length ? (
+              <>
+                <ol className="store-updates">
+                  {store.updates.slice(0, 3).map((update) => (
+                    <li key={update.id}>
+                      <article>
+                        <h3>{update.title}</h3>
+                        <p>{update.body}</p>
+                        <time dateTime={update.publishedAt}>
+                          {formatCatalogDate(update.publishedAt) ?? 'Date unavailable'}
+                        </time>
+                        {update.href && <a href={update.href}>Read full update</a>}
+                      </article>
+                    </li>
+                  ))}
+                </ol>
+                {store.updates.length > 3 && (
+                  <CatalogLink
+                    to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/updates`)}
+                    onClick={() => rememberStoreReturn(store.id, 'updates')}
+                  >
+                    See all store updates
+                  </CatalogLink>
+                )}
+              </>
+            ) : (
+              <p className="honesty-note">This store has not published any updates.</p>
+            )}
+          </section>
+
+          {store.socialLinks?.length ? (
+            <section className="store-detail__panel" aria-labelledby="social-heading">
+              <p className="eyebrow">Official profiles</p>
+              <h2 id="social-heading">Follow this store</h2>
+              <p>These links open the store’s official profile on an external service.</p>
               <ul className="store-detail__link-list">
-                {store.phone && (
-                  <li>
-                    <a href={`tel:${store.phone}`}>Call {store.phone}</a>
-                  </li>
-                )}
-                {store.email && (
-                  <li>
-                    <a href={`mailto:${store.email}`}>Email the store</a>
-                  </li>
-                )}
-                {store.website && (
-                  <li>
-                    <a href={store.website} target="_blank" rel="noreferrer">
-                      Visit official website <span aria-hidden="true">↗</span>
+                {store.socialLinks.map((social) => (
+                  <li key={`${social.platform}-${social.href}`}>
+                    <a href={social.href} target="_blank" rel="noreferrer">
+                      {social.platform} <span aria-hidden="true">↗</span>
                       <span className="sr-only"> (opens in a new window)</span>
                     </a>
                   </li>
-                )}
+                ))}
               </ul>
-            ) : (
-              <p className="honesty-note">Contact details have not been supplied.</p>
-            )}
-          </section>
-        </div>
+            </section>
+          ) : null}
 
-        <section className="store-detail__panel" aria-labelledby="accessibility-heading">
-          <p className="eyebrow">Know before you go</p>
-          <h2 id="accessibility-heading">Accessibility</h2>
-          {store.accessibility?.status === 'verified' && store.accessibility.details.length ? (
-            <>
-              <ul>
-                {store.accessibility.details.map((detail) => (
-                  <li key={detail}>{detail}</li>
-                ))}
-              </ul>
-              <p className="store-detail__source">
-                Verified accessibility information
-                {formatCatalogDate(store.accessibility.verifiedAt)
-                  ? ` on ${formatCatalogDate(store.accessibility.verifiedAt)}`
-                  : ''}
-                .
-              </p>
-            </>
-          ) : store.accessibility?.status === 'unverified' && store.accessibility.details.length ? (
-            <>
-              <ul>
-                {store.accessibility.details.map((detail) => (
-                  <li key={detail}>{detail}</li>
-                ))}
-              </ul>
-              <p className="honesty-note">
-                These details have not yet been verified. Contact the store to confirm.
-              </p>
-            </>
-          ) : (
-            <p className="honesty-note">
-              Accessibility information is unavailable. Contact the store before visiting if you
-              need an accommodation.
+          <section className="store-detail__provenance" aria-labelledby="source-heading">
+            <p className="eyebrow">Why you can trust this listing</p>
+            <h2 id="source-heading">Source &amp; freshness</h2>
+            <dl>
+              <dt>Listing source</dt>
+              <dd>{store.provenance?.sourceLabel || 'Source information unavailable'}</dd>
+              <dt>Source updated</dt>
+              <dd>{provenanceDate || 'Update date unavailable'}</dd>
+              <dt>Details verified</dt>
+              <dd>{verifiedDate || 'Verification date unavailable'}</dd>
+            </dl>
+            {store.provenance?.note && <p>{store.provenance.note}</p>}
+            <p className="store-detail__source">
+              Photo rights are shown with each image when supplied.
             </p>
-          )}
-        </section>
-
-        <section className="store-detail__panel" aria-labelledby="updates-heading">
-          <p className="eyebrow">From the store</p>
-          <h2 id="updates-heading">Latest updates</h2>
-          {store.updates?.length ? (
-            <>
-              <ol className="store-updates">
-                {store.updates.slice(0, 3).map((update) => (
-                  <li key={update.id}>
-                    <article>
-                      <h3>{update.title}</h3>
-                      <p>{update.body}</p>
-                      <time dateTime={update.publishedAt}>
-                        {formatCatalogDate(update.publishedAt) ?? 'Date unavailable'}
-                      </time>
-                      {update.href && <a href={update.href}>Read full update</a>}
-                    </article>
-                  </li>
-                ))}
-              </ol>
-              {store.updates.length > 3 && (
-                <CatalogLink
-                  to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/updates`)}
-                  onClick={() => rememberStoreReturn(store.id, 'updates')}
-                >
-                  See all store updates
-                </CatalogLink>
-              )}
-            </>
-          ) : (
-            <p className="honesty-note">This store has not published any updates.</p>
-          )}
-        </section>
-
-        {store.socialLinks?.length ? (
-          <section className="store-detail__panel" aria-labelledby="social-heading">
-            <p className="eyebrow">Official profiles</p>
-            <h2 id="social-heading">Follow this store</h2>
-            <p>These links open the store’s official profile on an external service.</p>
-            <ul className="store-detail__link-list">
-              {store.socialLinks.map((social) => (
-                <li key={`${social.platform}-${social.href}`}>
-                  <a href={social.href} target="_blank" rel="noreferrer">
-                    {social.platform} <span aria-hidden="true">↗</span>
-                    <span className="sr-only"> (opens in a new window)</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
           </section>
-        ) : null}
-
-        <section className="store-detail__provenance" aria-labelledby="source-heading">
-          <p className="eyebrow">Why you can trust this listing</p>
-          <h2 id="source-heading">Source &amp; freshness</h2>
-          <dl>
-            <dt>Listing source</dt>
-            <dd>{store.provenance?.sourceLabel || 'Source information unavailable'}</dd>
-            <dt>Source updated</dt>
-            <dd>{provenanceDate || 'Update date unavailable'}</dd>
-            <dt>Details verified</dt>
-            <dd>{verifiedDate || 'Verification date unavailable'}</dd>
-          </dl>
-          {store.provenance?.note && <p>{store.provenance.note}</p>}
-          <p className="store-detail__source">
-            Photo rights are shown with each image when supplied.
-          </p>
         </section>
       </article>
     </main>
