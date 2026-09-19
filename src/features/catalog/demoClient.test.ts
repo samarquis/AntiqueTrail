@@ -38,12 +38,19 @@ describe('Synthetic Store image fixtures', () => {
     expect(covers.every((cover) => cover && existsSync(resolve(`public${cover.src}`)))).toBe(true)
   })
 
-  it('makes every Synthetic Store carry 1-50 photos in the evaluation wall', () => {
+  it('gives every Synthetic Store a varied wall with at least two gallery photos', () => {
+    const galleryCounts = syntheticStores.map(
+      (store) => store.media.filter((item) => item.kind === 'gallery').length,
+    )
+
+    expect(new Set(galleryCounts).size).toBeGreaterThan(1)
     for (const store of syntheticStores) {
-      // Each store has 1 cover + 0-50 gallery photos = 1-51 total, but cover is separate kind
-      // media array includes cover + gallery photos, expect 1-50 gallery photos + 1 cover = 1-51 total
-      // But the test checks total media length - expect between 2 and 51 (cover + at least 1 gallery, max 50 gallery + cover)
-      expect(store.media.length).toBeGreaterThanOrEqual(2)
+      const gallery = store.media.filter((item) => item.kind === 'gallery')
+
+      expect(gallery.length).toBeGreaterThanOrEqual(2)
+      expect(gallery.length).toBeLessThanOrEqual(50)
+      expect(gallery.every((item) => existsSync(resolve(`public${item.src}`)))).toBe(true)
+      expect(store.media.length).toBe(gallery.length + 1)
       expect(store.media.length).toBeLessThanOrEqual(51)
       expect(store.media.every((item) => item.alt.length >= 40)).toBe(true)
       expect(new Set(store.media.map((item) => item.alt)).size).toBe(store.media.length)

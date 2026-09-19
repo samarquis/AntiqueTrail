@@ -13,6 +13,7 @@ const syntheticFixtureRoot = `${import.meta.env.BASE_URL}images/synthetic-fixtur
 const generatedRights = 'OpenAI-generated fictional image · Internal Alpha only'
 const evaluationFixtureLabel =
   'Synthetic wall-evaluation fixture · Internal only · Generated template art, not a real store listing'
+const galleryPhotoCounts = [2, 3, 5, 8, 12, 17, 23, 29, 34, 40, 46, 50]
 
 const names = [
   'Blue Finch Curios',
@@ -173,18 +174,17 @@ const syntheticMedia: CatalogMedia[][] = names.map((name, index) => {
     },
   ]
 
-  // Random number of gallery photos from 1 to 50 per store
-  const galleryPhotoCount = Math.floor(Math.random() * 50) + 1 // 1-50
+  // Stable varied counts keep every store useful for wall-layout review.
+  const galleryPhotoCount = galleryPhotoCounts[index]
 
   const fixtureImages = fixtureGalleryBySlug.get(coverImageSlugs[index]) ?? []
-  for (let i = 0; i < galleryPhotoCount; i++) {
-    const fixtureRecord = fixtureImages[i % fixtureImages.length]
+  for (const fixtureRecord of fixtureImages.slice(0, galleryPhotoCount)) {
     media.push({
-      src: `${syntheticImageRoot}/${coverImageSlugs[index]}-gallery-${i}.webp`,
-      alt: fixtureRecord ? fixtureRecord.alt : `Store gallery photo ${i + 1}`,
+      src: fixtureRecord.src,
+      alt: fixtureRecord.alt,
       kind: 'gallery',
-      caption: fixtureRecord ? fixtureRecord.caption : `Store gallery photo ${i + 1}`,
-      rightsLabel: generatedRights,
+      caption: fixtureRecord.caption,
+      rightsLabel: fixtureRecord.rightsLabel,
     })
   }
 
