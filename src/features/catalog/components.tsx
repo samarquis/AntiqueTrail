@@ -1056,7 +1056,6 @@ function StoreHours({ store }: { store: CatalogStore }) {
     <section className="store-detail__panel" aria-labelledby="hours-heading">
       <div className="store-detail__section-heading">
         <div>
-          <p className="eyebrow">Plan your stop</p>
           <h2 id="hours-heading" className="store-detail__heading-with-icon">
             <img
               src="/icons/store-hours.svg"
@@ -1271,7 +1270,6 @@ export function DetailsPage({
         </div>
         <StoreSectionNav />
         <section className="store-detail__intro" aria-labelledby="about-heading">
-          <p className="eyebrow">What you’ll find</p>
           <h2 id="about-heading">About this store</h2>
           <p>{store.description || 'A store description has not been supplied.'}</p>
           {store.categories.length ? (
@@ -1306,7 +1304,6 @@ export function DetailsPage({
             <StoreHours store={store} />
 
             <section className="store-detail__panel" aria-labelledby="contact-heading">
-              <p className="eyebrow">Confirm your visit</p>
               <h2 id="contact-heading">Contact &amp; location</h2>
               <address>
                 {store.address}, {store.town}, {store.state}
@@ -1339,7 +1336,6 @@ export function DetailsPage({
           </div>
 
           <section className="store-detail__panel" aria-labelledby="accessibility-heading">
-            <p className="eyebrow">Know before you go</p>
             <h2 id="accessibility-heading">Accessibility</h2>
             {store.accessibility?.status === 'verified' && store.accessibility.details.length ? (
               <>
@@ -1379,7 +1375,6 @@ export function DetailsPage({
 
         <section className="store-detail__trust-group" aria-label="Listing trust information">
           <section className="store-detail__panel" aria-labelledby="updates-heading">
-            <p className="eyebrow">From the store</p>
             <h2 id="updates-heading">Latest updates</h2>
             {store.updates?.length ? (
               <>
@@ -1413,7 +1408,6 @@ export function DetailsPage({
 
           {store.socialLinks?.length ? (
             <section className="store-detail__panel" aria-labelledby="social-heading">
-              <p className="eyebrow">Official profiles</p>
               <h2 id="social-heading">Follow this store</h2>
               <p>These links open the store’s official profile on an external service.</p>
               <ul className="store-detail__link-list">
@@ -1430,7 +1424,6 @@ export function DetailsPage({
           ) : null}
 
           <section className="store-detail__provenance" aria-labelledby="source-heading">
-            <p className="eyebrow">Why you can trust this listing</p>
             <h2 id="source-heading">Source &amp; freshness</h2>
             <dl>
               <dt>Listing source</dt>
