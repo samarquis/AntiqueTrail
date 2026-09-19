@@ -3368,6 +3368,12 @@ main > article dt {
     aspect-ratio: 4 / 3;
   }
 
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__enlarge img {
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
   main.store-photos {
     padding-block: 1rem 3rem;
   }
