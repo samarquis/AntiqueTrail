@@ -18,6 +18,7 @@ function setup(overrides: Record<string, string> = {}) {
   const fetch = vi.fn()
   const values: Record<string, string> = {
     SUPABASE_URL: 'https://uaupykgpegbseboklubv.supabase.co',
+    SUPABASE_ANON_KEY: 'fixture-anon-key',
     SUPABASE_SERVICE_ROLE_KEY: 'fixture-service',
     APP_ORIGIN: origin,
     REGISTRATION_APPROVED_APP_ORIGIN: origin,
@@ -58,7 +59,11 @@ function setup(overrides: Record<string, string> = {}) {
   )
   return { handler: (request: Request) => handler(request), rpc, createClient, fetch }
 }
-function request(requestOrigin: string | null, method = 'POST') {
+function request(
+  requestOrigin: string | null,
+  method = 'POST',
+  overrides: Record<string, unknown> = {},
+) {
   return new Request('https://uaupykgpegbseboklubv.supabase.co/functions/v1/account-registration', {
     method,
     headers: requestOrigin ? { Origin: requestOrigin } : {},
@@ -66,14 +71,52 @@ function request(requestOrigin: string | null, method = 'POST') {
       ? {
           body: JSON.stringify({
             email: 'tester@example.test',
-            password: 'fixture-long-password',
+            password: 'A1a1a1a1',
             ageAttested: true,
             requestId: '37600000-0000-4000-8000-000000000001',
+            ...overrides,
           }),
         }
       : {}),
   })
 }
+
+it('uses the registration HMAC secret at the admission reservation boundary', async () => {
+  const { handler, rpc } = setup()
+  await handler(request(origin))
+
+  const reservation = rpc.mock.calls.find(([name]) => name === 'begin_account_registration')
+  expect(reservation?.[1]).toEqual(
+    expect.objectContaining({
+      p_email_hmac: '\\xff6f6bb530a5522364d3a5da4e2bf2f581fd292a9fa1f1b8bcf26325498ee785',
+    }),
+  )
+})
+it('fails closed when the public Auth key is not configured', async () => {
+  const { handler, createClient, rpc, fetch } = setup({ SUPABASE_ANON_KEY: '' })
+
+  const response = await handler(request(origin))
+
+  expect(response.status).toBe(503)
+  expect(await response.json()).toEqual({ state: 'error' })
+  expect(createClient).not.toHaveBeenCalled()
+  expect(rpc).not.toHaveBeenCalled()
+  expect(fetch).not.toHaveBeenCalled()
+})
+it.each([
+  ['invalid age attestation', { ageAttested: false }],
+  ['invalid email', { email: 'not-an-email' }],
+  ['nine-character password', { password: 'A1a1a1a1a' }],
+])('rejects %s before reservation/provider work', async (_label, overrides) => {
+  const { handler, rpc, fetch } = setup()
+
+  const response = await handler(request(origin, 'POST', overrides))
+
+  expect(response.status).toBe(202)
+  expect(await response.json()).toEqual({ state: 'blocked' })
+  expect(rpc).not.toHaveBeenCalled()
+  expect(fetch).not.toHaveBeenCalled()
+})
 it.each([null, 'https://evil.example'])(
   'rejects %s origin before any reservation/provider/mail work',
   async (badOrigin) => {
@@ -106,7 +149,7 @@ it('allows the exact origin to reach the existing registration reservation proto
   expect(fetch).not.toHaveBeenCalled()
 })
 
-it('confirms a registration generated from the raw generate_link response shape', async () => {
+it('confirms a registration generated from the built-in signup response shape', async () => {
   const { handler, rpc, fetch } = setup()
   rpc.mockImplementation(async (name: string) => {
     switch (name) {
@@ -135,29 +178,30 @@ it('confirms a registration generated from the raw generate_link response shape'
   const providerUserId = 'fbdf5a53-161e-4460-98ad-0e39408d8689'
   fetch.mockImplementation(async (input: string | URL) => {
     const url = String(input)
-    if (url.endsWith('/auth/v1/admin/generate_link'))
+    if (url.endsWith('/auth/v1/signup'))
       return new Response(
         JSON.stringify({
-          id: providerUserId,
-          action_link:
-            'https://uaupykgpegbseboklubv.supabase.co/auth/v1/verify?token=abc&type=signup',
-          email_otp: '123456',
-          hashed_token: 'abc123',
-          redirect_to: origin,
-          verification_type: 'signup',
+          user: { id: providerUserId },
+          session: null,
         }),
         { status: 200 },
       )
-    if (url.endsWith('/send'))
-      return new Response(JSON.stringify({ delivered: true }), { status: 200 })
     return new Response('unexpected', { status: 500 })
   })
   const response = await handler(request(origin))
   expect(response.status).toBe(202)
   expect(await response.json()).toEqual({ state: 'pending_verification' })
   expect(fetch).toHaveBeenCalledWith(
-    'https://uaupykgpegbseboklubv.supabase.co/auth/v1/admin/generate_link',
-    expect.objectContaining({ method: 'POST' }),
+    'https://uaupykgpegbseboklubv.supabase.co/auth/v1/signup',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        email: 'tester@example.test',
+        password: 'A1a1a1a1',
+        data: { antique_trail_admission_id: 'admission-1' },
+        redirect_to: `${origin}/auth/callback`,
+      }),
+    }),
   )
   expect(rpc).toHaveBeenCalledWith(
     'settle_account_registration_generate',

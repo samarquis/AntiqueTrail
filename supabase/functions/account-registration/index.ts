@@ -9,6 +9,7 @@ declare const Deno: {
 
 const url = Deno.env.get('SUPABASE_URL')
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+const anonKey = Deno.env.get('SUPABASE_ANON_KEY')?.trim() ?? ''
 const appOrigin = Deno.env.get('APP_ORIGIN')
 const approvedAppOrigin = Deno.env.get('REGISTRATION_APPROVED_APP_ORIGIN')
 const emailHmacSecret = Deno.env.get('REGISTRATION_EMAIL_HMAC_SECRET')?.trim() ?? 'unused'
@@ -63,8 +64,9 @@ Deno.serve(async (request) => {
     endpoints = null
   }
   const configured = Boolean(
-    url &&
+      url &&
       serviceKey &&
+      anonKey &&
       appOrigin &&
       emailHmacSecret &&
       emailHmacSecret.length >= 32 &&
@@ -106,7 +108,7 @@ Deno.serve(async (request) => {
           method: 'POST',
           signal,
           headers: {
-            apikey: Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+            apikey: anonKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -193,10 +195,19 @@ function cors(origin: string | null): Record<string, string> {
   }
 }
 async function hmac(email: string, secret: string): Promise<string> {
-  void secret
-  const value = new Uint8Array(await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(email.normalize('NFKC').trim().toLocaleLowerCase('en-US')),
-  ))
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const value = new Uint8Array(
+    await crypto.subtle.sign(
+      'HMAC',
+      key,
+      new TextEncoder().encode(email.normalize('NFKC').trim().toLocaleLowerCase('en-US')),
+    ),
+  )
   return `\\x${[...value].map((item) => item.toString(16).padStart(2, '0')).join('')}`
 }
