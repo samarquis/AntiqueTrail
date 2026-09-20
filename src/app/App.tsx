@@ -229,6 +229,8 @@ function AppShell({
     '/help',
   ].some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))
   const adminNav = location.pathname.startsWith('/admin')
+  const ownerNav = session?.role === 'Representative' && !adminNav
+  const shopperNav = session?.role === 'Shopper' && !adminNav
 
   useEffect(() => {
     const content = contentRef.current
@@ -278,7 +280,11 @@ function AppShell({
         Skip to main content
       </a>
       <header className="site-header">
-        <Link className="brand" to="/stores" aria-label="Antique Trail home">
+        <Link
+          className="brand"
+          to={ownerNav ? '/store-portal' : '/stores'}
+          aria-label={ownerNav ? 'Antique Trail store workspace home' : 'Antique Trail home'}
+        >
           <img
             className="brand-mark"
             src="/app-icon.svg"
@@ -292,6 +298,22 @@ function AppShell({
         <nav aria-label="Primary navigation">
           {adminNav ? (
             <AdminPrimaryNavigation />
+          ) : ownerNav ? (
+            <>
+              <NavLink to="/store-portal">
+                <img
+                  className="nav-icon"
+                  src="/icons/antique-store.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width="20"
+                  height="20"
+                />
+                My Store
+              </NavLink>
+              <NavLink to="/store-portal/changes">Changes</NavLink>
+              <NavLink to="/store-portal/support">Help</NavLink>
+            </>
           ) : (
             <>
               <NavLink to="/stores">
@@ -319,8 +341,9 @@ function AppShell({
               </NavLink>
             </>
           )}
-          {!adminNav && (
+          {!adminNav && !ownerNav && (
             <>
+              {shopperNav && <NavLink to="/trips">My Trip</NavLink>}
               <Link to="/more" aria-current={moreIsCurrent ? 'page' : undefined}>
                 <svg
                   className="nav-icon"
@@ -340,27 +363,44 @@ function AppShell({
                 </svg>
                 More
               </Link>
-              <Link to="/auth/sign-in" className="nav-link">
-                Sign in
-              </Link>
-              <Link to="/auth/register" aria-label="Create new account" className="nav-link">
-                <svg
-                  className="nav-icon"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  height="20"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path d="M13 2L3 14h9l-1 8 9-5z" />
-                </svg>
-                Create account
-              </Link>
+              {!shopperNav && (
+                <>
+                  <Link to="/auth/sign-in" className="nav-link">
+                    Sign in
+                  </Link>
+                  <Link to="/auth/register" aria-label="Create new account" className="nav-link">
+                    <svg
+                      className="nav-icon"
+                      viewBox="0 0 24 24"
+                      width="20"
+                      height="20"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M13 2L3 14h9l-1 8 9-5z" />
+                    </svg>
+                    Create account
+                  </Link>
+                </>
+              )}
             </>
           )}
         </nav>
         <ThemeToggle />
       </header>
+      {ownerNav && (
+        <aside className="role-context-banner" aria-label="Store workspace">
+          <strong>Store workspace</strong>
+          <span>Manage the public listing for your verified store.</span>
+          <Link to="/store-portal/preview">Preview public listing</Link>
+        </aside>
+      )}
+      {adminNav && (
+        <aside className="role-context-banner role-context-banner--admin" aria-label="Administrator environment">
+          <strong>Internal Alpha</strong>
+          <span>Administrator workspace · Synthetic stores only · Shopper-private data excluded</span>
+        </aside>
+      )}
       {import.meta.env.VITE_PUBLIC_DEMO === 'true' && (
         <aside className="review-harness-banner" aria-label="Concept demo notice">
           <strong>Concept demo</strong>

@@ -12,6 +12,7 @@ import {
   NewTripPage,
   PlanPage,
   SummaryPage,
+  TripsPage,
 } from './components'
 import { normalizeTripName } from './tripClient'
 import type { Trip, TripClient } from './types'
@@ -26,6 +27,22 @@ const trip: Trip = {
   version: 1,
   stops: [],
 }
+
+describe('trip continuity home', () => {
+  it('puts the next unfinished trip ahead of the generic trip list', async () => {
+    render(
+      <MemoryRouter initialEntries={['/trips']}>
+        <TripsPage client={client()} />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: /resume your trip/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /resume antique day/i })).toHaveAttribute(
+      'href',
+      '/trips/trip-1/plan',
+    )
+  })
+})
 function client(overrides: Partial<TripClient> = {}): TripClient {
   return {
     list: vi.fn(async () => [trip]),
@@ -559,6 +576,7 @@ describe('manual trips', () => {
     await user.click(screen.getByLabelText(/i understand these hours warnings/i))
     await user.click(screen.getByRole('button', { name: /acknowledge warnings/i }))
     expect(reviewHours).toHaveBeenNthCalledWith(2, 'trip-1', true)
+    expect(await screen.findByRole('status')).toHaveTextContent(/hours warnings acknowledged/i)
   })
   it('adds an ordered stop and keeps review hours travel-time neutral', async () => {
     const user = userEvent.setup()

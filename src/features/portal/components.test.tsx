@@ -187,6 +187,26 @@ describe('provider-neutral Store Portal boundary', () => {
     )
   })
 
+  it('renders the server-normalized hours after a successful save', async () => {
+    const saved = hours()
+    saved.weekly[0].intervals[0].closesAt = '18:30'
+    const saveHours = vi.fn(async () => saved)
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <PortalHoursPage client={client({ saveHours })} />
+      </MemoryRouter>,
+    )
+
+    const close = (await screen.findAllByLabelText('First closing'))[0]
+    await user.clear(close)
+    await user.type(close, '18:00')
+    await user.click(screen.getByRole('button', { name: 'Save hours' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent(/hours saved/i)
+    expect(close).toHaveValue('18:30')
+  })
+
   it('rejects shorteners and unrelated social hosts while normalizing official links', () => {
     expect(
       validateOfficialLink('facebook', 'https://www.facebook.com/oak?utm_source=test'),

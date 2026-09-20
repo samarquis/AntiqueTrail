@@ -1370,6 +1370,68 @@ textarea[aria-invalid='true'] {
   }
 }
 
+.role-context-banner {
+  display: flex;
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: 0.7rem 1.25rem;
+  align-items: center;
+  gap: 0.8rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--surface-warning);
+  font-size: var(--type-size-supporting);
+}
+
+.trip-resume-card {
+  display: grid;
+  gap: 0.35rem;
+  margin: 1.25rem 0;
+  padding: 1.25rem;
+  border: 1px solid var(--gold);
+  border-radius: 16px;
+  background: var(--surface-warning);
+}
+
+.trip-resume-card p {
+  margin: 0;
+}
+
+.trip-resume-card .button {
+  justify-self: start;
+  margin-top: 0.5rem;
+}
+
+.role-context-banner strong {
+  font-weight: var(--type-weight-strong);
+}
+
+.role-context-banner span {
+  color: var(--muted);
+}
+
+.role-context-banner--admin {
+  border-color: var(--rust);
+  background: var(--surface-status-danger);
+}
+
+.role-context-banner a {
+  margin-left: auto;
+  color: var(--teal-dark);
+  font-weight: var(--type-weight-strong);
+}
+
+@media (max-width: 42rem) {
+  .role-context-banner {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .role-context-banner a {
+    margin-left: 0;
+  }
+}
+
 .catalog-filters__trigger {
   display: none;
 }

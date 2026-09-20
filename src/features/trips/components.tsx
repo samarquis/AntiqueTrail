@@ -93,6 +93,24 @@ export function TripsPage({ client = unavailableTripClient }: { client?: TripCli
         <p role="status">Loading…</p>
       ) : (
         <>
+          {(() => {
+            const resumableTrip = trips.find(
+              (trip) => trip.state !== 'completed' && trip.state !== 'cancelled',
+            )
+            return resumableTrip ? (
+              <section className="trip-resume-card" aria-labelledby="trip-resume-heading">
+                <p className="eyebrow">Continue where you left off</p>
+                <h2 id="trip-resume-heading">Resume your trip</h2>
+                <p>
+                  {resumableTrip.name} · {resumableTrip.localDate} · {resumableTrip.stops.length}{' '}
+                  {resumableTrip.stops.length === 1 ? 'stop' : 'stops'}
+                </p>
+                <Link className="button" to={`/trips/${resumableTrip.id}/plan`}>
+                  Resume {resumableTrip.name}
+                </Link>
+              </section>
+            ) : null
+          })()}
           <Link className="button" to="/trips/new">
             <img
               className="button__icon"
@@ -472,6 +490,7 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
   const [departureTime, setDepartureTime] = useState('')
   const [startLabel, setStartLabel] = useState('')
   const [hoursAcknowledged, setHoursAcknowledged] = useState(false)
+  const [hoursReviewStatus, setHoursReviewStatus] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState<Trip['stops'][number] | null>(null)
   const [removingStopId, setRemovingStopId] = useState<string | null>(null)
   const [removalStatus, setRemovalStatus] = useState('')
@@ -551,6 +570,9 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     await runAction('review hours', async () => {
       setTrip(await client.reviewHours(trip.id, acknowledgeWarnings))
       setHoursAcknowledged(false)
+      setHoursReviewStatus(
+        acknowledgeWarnings ? 'Hours warnings acknowledged.' : 'Hours reviewed.',
+      )
     })
   }
   async function saveStart(event: FormEvent) {
@@ -1015,6 +1037,7 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
         >
           Review Hours
         </button>
+        {hoursReviewStatus && <p role="status">{hoursReviewStatus}</p>}
         {trip.hoursReview?.hasUnresolvedWarnings && !trip.hoursReview.acknowledged && (
           <fieldset>
             <legend>Hours warnings</legend>
