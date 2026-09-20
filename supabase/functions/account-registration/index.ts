@@ -145,7 +145,7 @@ const generated = (await response.json()) as {
         p_provider_user_id: input.providerUserId ?? null,
       })
     },
-    async deliver(input) {
+    async deliver() {
       return 'confirmed_delivered'
     },
     async settleDelivery(input) {
@@ -173,7 +173,7 @@ const generated = (await response.json()) as {
           state: result.state === 'reconciliation_required' ? 'reconciliation_required' : 'blocked',
         }
       }
-      const outcome: 'confirmed_delivered' = 'confirmed_delivered'
+      const outcome = 'confirmed_delivered' as const
       return rpc('reconcile_account_registration_delivery', {
         p_operation_id: input.operationId,
         p_admission_id: input.admissionId,
