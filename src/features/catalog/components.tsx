@@ -742,7 +742,7 @@ export function BrowsePage({
                   <span className="catalog-results-heading__location"> around Topeka</span>
                 </h2>
               </div>
-              <p>Fictional listings for safe product review</p>
+              <p>Curated Topeka finds · Details checked recently</p>
             </div>
             <section aria-label="Store results" className="catalog-grid">
               {state.stores.map((store) => (

@@ -1346,22 +1346,27 @@ textarea[aria-invalid='true'] {
 
 @media (min-width: 1025px) {
   .catalog-browser .catalog-filters {
-    grid-template-columns: repeat(16, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.75rem;
     padding: 1rem;
   }
 
   .catalog-browser .catalog-field--search {
-    grid-column: span 6;
+    grid-column: 1 / -1;
   }
 
   .catalog-browser .catalog-field:not(.catalog-field--search) {
-    grid-column: span 3;
+    grid-column: span 1;
   }
 
   .catalog-browser .catalog-filters__actions {
-    grid-column: span 4;
-    flex-wrap: nowrap;
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+  }
+
+  .catalog-browser .catalog-filters__actions > * {
+    min-width: 0;
+    flex: 1 1 0;
   }
 }
 
@@ -2055,6 +2060,26 @@ main > article dt {
 }
 
 @media (max-width: 540px) {
+  .site-header {
+    gap: 0.75rem;
+    padding-inline: 0.75rem;
+  }
+
+  .site-header .brand {
+    min-width: 0;
+  }
+
+  .site-header .brand span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .theme-toggle {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
   .catalog-browser.catalog-browser {
     padding-top: 1.5rem;
   }
@@ -2088,6 +2113,12 @@ main > article dt {
     height: 1.375rem;
   }
 
+  .site-header nav a {
+    gap: 0.25rem;
+    padding-inline: 0.2rem;
+    font-size: 0.875rem;
+  }
+
   .catalog-filters {
     grid-template-columns: 1fr;
     padding: 1rem;
@@ -2105,6 +2136,14 @@ main > article dt {
 
   .catalog-browser .catalog-search-control {
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .catalog-browser .catalog-search-control input {
+    text-overflow: ellipsis;
+  }
+
+  .catalog-browser .catalog-search-control button {
+    padding-inline: 0.8rem;
   }
 
   .more-menu {
@@ -3161,17 +3200,17 @@ main > article dt {
 :root[data-theme='dark'] {
   color-scheme: dark;
   --ink: #f3eee4;
-  --muted: #b7b0a5;
-  --paper: #121519;
-  --card: #252b33;
-  --line: #3b4552;
-  --teal: #8795b5;
-  --teal-dark: #8795b5;
-  --mint: #1a1f26;
-  --rust: #b56e5b;
-  --gold: #b99554;
-  --olive: #b7b0a5;
-  --focus-inner: #121519;
+  --muted: #c0b5a5;
+  --paper: #17130f;
+  --card: #2b241e;
+  --line: #55473a;
+  --teal: #b38b52;
+  --teal-dark: #d0aa70;
+  --mint: #332b24;
+  --rust: #bd7055;
+  --gold: #c39a58;
+  --olive: #c0b5a5;
+  --focus-inner: #17130f;
   --focus-outer: #f3eee4;
 }
 

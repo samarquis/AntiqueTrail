@@ -372,7 +372,7 @@ function AppShell({
         {children}
       </div>
       <footer className="site-footer">
-        Synthetic catalog · Built for curious local explorers · <Link to="/status">Status</Link>
+        Preview catalog · Built for curious local explorers · <Link to="/status">Status</Link>
       </footer>
     </div>
   )
