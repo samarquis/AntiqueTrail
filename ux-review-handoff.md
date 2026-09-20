@@ -40,12 +40,14 @@ Passed:
 - Prettier check on changed files
 - `git diff --check`
 - Impeccable detector on changed UI targets — `[]`
+- `npx vercel --prod --yes` — production deployment `Ready`; canonical alias `https://antique-trail.vercel.app`
+- Production `/stores` browser check — rendered 12 stores, store actions, and discoverable `Sign in` / `Create account` links
 
 Not a clean full-suite gate:
 
 - `npm test` reproduced 15 existing failures in public registration, password recovery, theme-token contracts, and catalog/router tests. The long-running full command was interrupted after those failures were observed; no changed auth test file failed in the targeted run.
-- The local review server returned HTTP 200, but the in-app browser rendered a blank route, so live visual/interaction acceptance is **unverified**. Do not treat this handoff as production or deployment proof.
+- The local review server still returns HTTP 200 but renders a blank route in the in-app browser. Production browser verification passed for `/stores`; deeper route-by-route acceptance was not run.
 
 ## Remaining gate
 
-Run a real rendered light/dark contrast audit, then repair the local review route/runtime before calling the UX work fully browser-verified. Re-run the full suite after the unrelated baseline failures are repaired or explicitly waived.
+Run a real rendered light/dark contrast audit and repair the local review route/runtime. Re-run the full suite after the unrelated baseline failures are repaired or explicitly waived.
