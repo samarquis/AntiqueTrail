@@ -18,6 +18,7 @@ function setup(overrides: Record<string, string> = {}) {
   const fetch = vi.fn()
   const values: Record<string, string> = {
     SUPABASE_URL: 'https://uaupykgpegbseboklubv.supabase.co',
+    SUPABASE_ANON_KEY: 'fixture-anon-key',
     SUPABASE_SERVICE_ROLE_KEY: 'fixture-service',
     APP_ORIGIN: origin,
     REGISTRATION_APPROVED_APP_ORIGIN: origin,
@@ -119,7 +120,7 @@ it('allows the exact origin to reach the existing registration reservation proto
   expect(fetch).not.toHaveBeenCalled()
 })
 
-it('confirms a registration generated from the raw generate_link response shape', async () => {
+it('confirms a registration generated from the built-in signup response shape', async () => {
   const { handler, rpc, fetch } = setup()
   rpc.mockImplementation(async (name: string) => {
     switch (name) {
@@ -148,29 +149,32 @@ it('confirms a registration generated from the raw generate_link response shape'
   const providerUserId = 'fbdf5a53-161e-4460-98ad-0e39408d8689'
   fetch.mockImplementation(async (input: string | URL) => {
     const url = String(input)
-    if (url.endsWith('/auth/v1/admin/generate_link'))
+    if (new URL(url).pathname === '/auth/v1/signup')
       return new Response(
         JSON.stringify({
-          id: providerUserId,
-          action_link:
-            'https://uaupykgpegbseboklubv.supabase.co/auth/v1/verify?token=abc&type=signup',
-          email_otp: '123456',
-          hashed_token: 'abc123',
-          redirect_to: origin,
-          verification_type: 'signup',
+          user: { id: providerUserId },
+          session: null,
         }),
         { status: 200 },
       )
-    if (url.endsWith('/send'))
-      return new Response(JSON.stringify({ delivered: true }), { status: 200 })
     return new Response('unexpected', { status: 500 })
   })
   const response = await handler(request(origin))
   expect(response.status).toBe(202)
   expect(await response.json()).toEqual({ state: 'pending_verification' })
+  expect(String(fetch.mock.calls[0]?.[0])).toBe(
+    'https://uaupykgpegbseboklubv.supabase.co/auth/v1/signup?redirect_to=https%3A%2F%2Fantique-trail.vercel.app%2Fauth%2Fcallback',
+  )
   expect(fetch).toHaveBeenCalledWith(
-    'https://uaupykgpegbseboklubv.supabase.co/auth/v1/admin/generate_link',
-    expect.objectContaining({ method: 'POST' }),
+    expect.any(URL),
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        email: 'tester@example.test',
+        password: 'fixture-long-password',
+        data: { antique_trail_admission_id: 'admission-1' },
+      }),
+    }),
   )
   expect(rpc).toHaveBeenCalledWith(
     'settle_account_registration_generate',

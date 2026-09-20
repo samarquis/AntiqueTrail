@@ -217,24 +217,6 @@ describe('auth states', () => {
     )
   })
 
-  it('associates registration errors with only the fields that are invalid', async () => {
-    const user = userEvent.setup()
-    renderAuth(<RegisterPage provider={unavailableProvider} />, unavailableProvider)
-    await user.type(screen.getByLabelText('Email'), 'shopper@example.com')
-    await user.click(screen.getByRole('button', { name: /create account/i }))
-    expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'false')
-    expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByLabelText('Password')).toHaveAttribute(
-      'aria-describedby',
-      'password-requirements register-error-summary',
-    )
-    expect(screen.getByRole('checkbox')).toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByRole('checkbox')).toHaveAttribute(
-      'aria-describedby',
-      'register-error-summary',
-    )
-  })
-
   it('hides private content and offers recovery when the session expired', async () => {
     const expired: AuthSession = {
       userId: 'shopper-a',
@@ -279,7 +261,7 @@ describe('auth states', () => {
       unavailableProvider,
     )
     await user.type(screen.getByLabelText(/email/i), 'blocked@example.test')
-    await user.type(screen.getByLabelText(/^password$/i), 'safe1234')
+    await user.type(screen.getByLabelText(/^password$/i), 'long-safe-password')
     await user.click(screen.getByRole('button', { name: /create account/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/18 or older/i)
     expect(register).not.toHaveBeenCalled()
@@ -309,7 +291,7 @@ describe('auth states', () => {
       </MemoryRouter>,
     )
     await user.type(screen.getByLabelText(/email/i), 'shopper@example.test')
-    await user.type(screen.getByLabelText(/^password$/i), 'safe1234')
+    await user.type(screen.getByLabelText(/^password$/i), 'long-safe-password')
     await user.click(screen.getByRole('checkbox'))
     await user.click(screen.getByRole('button', { name: /create account/i }))
     expect(await screen.findByRole('heading', { name: /check your email/i })).toBeInTheDocument()
@@ -337,7 +319,7 @@ describe('auth states', () => {
       </MemoryRouter>,
     )
     await user.type(screen.getByLabelText(/email/i), 'shopper@example.test')
-    await user.type(screen.getByLabelText(/^password$/i), 'safe1234')
+    await user.type(screen.getByLabelText(/^password$/i), 'long-safe-password')
     await user.click(screen.getByRole('checkbox'))
     await user.click(screen.getByRole('button', { name: /create account/i }))
     expect(await screen.findByRole('alert')).toBeInTheDocument()

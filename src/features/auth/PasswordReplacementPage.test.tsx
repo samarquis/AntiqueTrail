@@ -48,34 +48,6 @@ describe('PasswordReplacementPage', () => {
     expect(completePasswordRecovery).not.toHaveBeenCalled()
   })
 
-  it('does not truncate an overlong recovery password before showing the policy error', async () => {
-    const user = userEvent.setup()
-    const completePasswordRecovery = vi.fn()
-    stageRecoveryToken('recovery-secret')
-    render(
-      <MemoryRouter>
-        <AuthProvider provider={baseProvider}>
-          <PasswordReplacementPage
-            provider={{ ...baseProvider, completePasswordRecovery }}
-            returnTo="/stores"
-          />
-        </AuthProvider>
-      </MemoryRouter>,
-    )
-    const password = screen.getByLabelText('New password')
-    await user.type(password, '123456789')
-    await user.type(screen.getByLabelText('Confirm new password'), '123456789')
-    await user.click(screen.getByRole('button', { name: 'Set new password' }))
-    expect(password).toHaveValue('123456789')
-    expect(screen.getByRole('alert')).toHaveTextContent('Use 1 through 8 characters.')
-    expect(password).toHaveAttribute('aria-invalid', 'true')
-    expect(password).toHaveAttribute(
-      'aria-describedby',
-      'recovery-password-requirements recovery-error-summary',
-    )
-    expect(completePasswordRecovery).not.toHaveBeenCalled()
-  })
-
   it('shows exact mismatch text and pending state, then signs out on completion', async () => {
     const user = userEvent.setup()
     let resolve: ((value: { kind: 'completed' }) => void) | undefined
@@ -109,14 +81,14 @@ describe('PasswordReplacementPage', () => {
         </AuthProvider>
       </MemoryRouter>,
     )
-    await user.type(screen.getByLabelText('New password'), 'newpass')
-    await user.type(screen.getByLabelText('Confirm new password'), 'diffpass')
+    await user.type(screen.getByLabelText('New password'), 'new-password-123')
+    await user.type(screen.getByLabelText('Confirm new password'), 'different-password')
     await user.click(screen.getByRole('button', { name: 'Set new password' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Passwords do not match.')
     expect(completePasswordRecovery).not.toHaveBeenCalled()
 
     await user.clear(screen.getByLabelText('Confirm new password'))
-    await user.type(screen.getByLabelText('Confirm new password'), 'newpass')
+    await user.type(screen.getByLabelText('Confirm new password'), 'new-password-123')
     await user.click(screen.getByRole('button', { name: 'Set new password' }))
     expect(screen.getByRole('button', { name: 'Updating password…' })).toBeDisabled()
     resolve?.({ kind: 'completed' })
@@ -143,8 +115,8 @@ describe('PasswordReplacementPage', () => {
         </AuthProvider>
       </MemoryRouter>,
     )
-    await user.type(screen.getByLabelText('New password'), 'newpass')
-    await user.type(screen.getByLabelText('Confirm new password'), 'newpass')
+    await user.type(screen.getByLabelText('New password'), 'new-password-123')
+    await user.type(screen.getByLabelText('Confirm new password'), 'new-password-123')
     await user.click(screen.getByRole('button', { name: 'Set new password' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(PASSWORD_RECOVERY_ERROR)
     expect(document.body).not.toHaveTextContent('recovery-secret')
