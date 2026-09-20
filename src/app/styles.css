@@ -2417,7 +2417,7 @@ main > article dt {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    min-height: clamp(32rem, 50vw, 48rem);
+    min-height: clamp(24rem, 38vw, 36rem);
     padding: clamp(2rem, 5vw, 6rem);
     background: linear-gradient(
       145deg,
@@ -2447,7 +2447,7 @@ main > article dt {
     grid-column: 2;
     grid-row: 1 / span 2;
     display: flex;
-    min-height: clamp(32rem, 50vw, 48rem);
+    min-height: clamp(24rem, 38vw, 36rem);
     flex-direction: column;
     justify-content: center;
     padding: clamp(1rem, 2vw, 2rem);
@@ -2554,7 +2554,7 @@ main > article dt {
 
   main.store-detail .store-gallery {
     padding: clamp(32px, 3vw, 64px);
-    padding-block: clamp(64px, 5.56vw, 96px);
+    padding-block: clamp(40px, 4vw, 64px);
   }
 
   .store-detail .store-gallery__enlarge,
@@ -2589,7 +2589,7 @@ main > article dt {
 
   main.store-detail :is(.store-detail__intro, .store-detail__panel, .store-detail__provenance) {
     padding: clamp(32px, 3vw, 64px);
-    padding-block: clamp(64px, 5.56vw, 96px);
+    padding-block: clamp(40px, 4vw, 64px);
   }
 
   .store-detail__visit-grid {
@@ -2730,6 +2730,12 @@ main > article dt {
   gap: 0.75rem;
   align-items: center;
   margin-top: 1.25rem;
+}
+
+.store-detail__verified {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-size-label);
 }
 
 .store-detail__arrival-status {
@@ -3057,6 +3063,12 @@ main > article dt {
 .store-detail__intro,
 .store-detail__panel,
 .store-detail__provenance {
+  border-bottom: 1px solid var(--line);
+}
+
+.store-detail__gallery-link {
+  margin-block: 0;
+  padding-block: 1rem;
   border-bottom: 1px solid var(--line);
 }
 

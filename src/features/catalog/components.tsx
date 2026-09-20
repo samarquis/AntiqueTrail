@@ -1127,8 +1127,7 @@ export function DetailsPage({
   }>({ kind: 'loading' })
   const load = useCallback(() => {
     setState({ kind: 'loading' })
-    client
-      .details(slug)
+    client.details(slug)
       .then((store) => setState(store ? { kind: 'success', store } : { kind: 'not-found' }))
       .catch((error: unknown) =>
         setState({
@@ -1141,6 +1140,14 @@ export function DetailsPage({
   useEffect(() => {
     load()
   }, [load])
+  useEffect(() => {
+    if (state.kind !== 'loading') return
+    const timeoutId = window.setTimeout(
+      () => setState({ kind: 'error', message: 'The store took too long to load.' }),
+      8000,
+    )
+    return () => window.clearTimeout(timeoutId)
+  }, [state.kind])
   useEffect(() => {
     if (state.kind !== 'success' || !state.store || typeof window === 'undefined') return
     const saved = readStoreReturn(state.store.id)
@@ -1208,15 +1215,18 @@ export function DetailsPage({
                 </span>{' '}
                 {today.openStateLabel}
               </p>
-              <p>
-                <strong>{today.dayLabel}</strong> · {today.hoursLabel}
-              </p>
+              {today.openState !== 'closed' && (
+                <p>
+                  <strong>{today.dayLabel}</strong> · {today.hoursLabel}
+                </p>
+              )}
             </div>
             <div className="store-detail__trust" aria-label="Listing status">
               <p className={`status-badge status-badge--${store.freshness?.status ?? 'unknown'}`}>
                 <span aria-hidden="true">{store.freshness?.status === 'current' ? '✓' : 'i'}</span>{' '}
                 {freshnessLabel(store)}
               </p>
+              {verifiedDate && <p className="store-detail__verified">Verified {verifiedDate}</p>}
               {store.freshness?.status === 'stale' && (
                 <p className="honesty-note">
                   This listing may be out of date. Confirm before travel.
