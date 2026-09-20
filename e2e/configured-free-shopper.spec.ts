@@ -169,7 +169,7 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
   ).toBe(true)
   await page.getByRole('button', { name: 'Save store Clockwork Cabinet', exact: true }).click()
   const choices = page.getByRole('group', { name: 'Choose a store photo' }).getByRole('button')
-  await expect(choices).toHaveCount(2)
+  await expect(choices).toHaveCount(6)
   await choices.nth(1).click()
   const gallery = page
     .getByRole('img', {

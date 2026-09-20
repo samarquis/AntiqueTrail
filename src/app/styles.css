@@ -621,9 +621,9 @@ html[data-pointer-input='true'] h1[tabindex='-1']:focus {
 }
 
 main {
-  width: min(calc(100% - 2rem), 68.75rem);
+  width: min(calc(100% - 2rem), 56.25rem);
   margin: 0 auto;
-  padding: clamp(2.5rem, 7vw, 5.5rem) 0 6rem;
+  padding: clamp(1.5rem, 4vw, 3.5rem) 0 3.5rem;
 }
 
 main > header {
@@ -1323,15 +1323,16 @@ textarea[aria-invalid='true'] {
 }
 
 .catalog-browser {
-  padding-top: clamp(1.5rem, 3vw, 2.5rem);
+  /* Browse is a task surface: keep the first search action in the viewport. */
+  padding-top: clamp(0.75rem, 2vw, 1.25rem);
 }
 
 .catalog-browser > header {
-  padding-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
 }
 
 .catalog-browser > header::after {
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
 }
 
 .catalog-browser > header > p:last-child {
@@ -1345,22 +1346,89 @@ textarea[aria-invalid='true'] {
 
 @media (min-width: 1025px) {
   .catalog-browser .catalog-filters {
-    grid-template-columns: repeat(16, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.75rem;
     padding: 1rem;
   }
 
   .catalog-browser .catalog-field--search {
-    grid-column: span 6;
+    grid-column: 1 / -1;
   }
 
   .catalog-browser .catalog-field:not(.catalog-field--search) {
-    grid-column: span 3;
+    grid-column: span 1;
   }
 
   .catalog-browser .catalog-filters__actions {
-    grid-column: span 4;
-    flex-wrap: nowrap;
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+  }
+
+  .catalog-browser .catalog-filters__actions > * {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+}
+
+.role-context-banner {
+  display: flex;
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: 0.7rem 1.25rem;
+  align-items: center;
+  gap: 0.8rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--surface-warning);
+  font-size: var(--type-size-supporting);
+}
+
+.trip-resume-card {
+  display: grid;
+  gap: 0.35rem;
+  margin: 1.25rem 0;
+  padding: 1.25rem;
+  border: 1px solid var(--gold);
+  border-radius: 16px;
+  background: var(--surface-warning);
+}
+
+.trip-resume-card p {
+  margin: 0;
+}
+
+.trip-resume-card .button {
+  justify-self: start;
+  margin-top: 0.5rem;
+}
+
+.role-context-banner strong {
+  font-weight: var(--type-weight-strong);
+}
+
+.role-context-banner span {
+  color: var(--muted);
+}
+
+.role-context-banner--admin {
+  border-color: var(--rust);
+  background: var(--surface-status-danger);
+}
+
+.role-context-banner a {
+  margin-left: auto;
+  color: var(--teal-dark);
+  font-weight: var(--type-weight-strong);
+}
+
+@media (max-width: 42rem) {
+  .role-context-banner {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .role-context-banner a {
+    margin-left: 0;
   }
 }
 
@@ -2054,6 +2122,26 @@ main > article dt {
 }
 
 @media (max-width: 540px) {
+  .site-header {
+    gap: 0.75rem;
+    padding-inline: 0.75rem;
+  }
+
+  .site-header .brand {
+    min-width: 0;
+  }
+
+  .site-header .brand span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .theme-toggle {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
   .catalog-browser.catalog-browser {
     padding-top: 1.5rem;
   }
@@ -2087,6 +2175,12 @@ main > article dt {
     height: 1.375rem;
   }
 
+  .site-header nav a {
+    gap: 0.25rem;
+    padding-inline: 0.2rem;
+    font-size: 0.875rem;
+  }
+
   .catalog-filters {
     grid-template-columns: 1fr;
     padding: 1rem;
@@ -2104,6 +2198,14 @@ main > article dt {
 
   .catalog-browser .catalog-search-control {
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .catalog-browser .catalog-search-control input {
+    text-overflow: ellipsis;
+  }
+
+  .catalog-browser .catalog-search-control button {
+    padding-inline: 0.8rem;
   }
 
   .more-menu {
@@ -2205,6 +2307,174 @@ main > article dt {
   }
 }
 
+/* Browse editorial pass: make the directory feel like a destination, not a dashboard. */
+.store-browse {
+  width: min(100% - 2rem, 86rem);
+  margin-inline: auto;
+}
+
+.browse-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(20rem, 0.9fr);
+  gap: clamp(1.5rem, 4vw, 4rem);
+  align-items: end;
+  margin-bottom: clamp(2.5rem, 6vw, 5rem);
+  padding: clamp(1rem, 3vw, 2rem) 0 clamp(1.5rem, 4vw, 2.5rem);
+  border-bottom: 1px solid var(--line);
+}
+
+.browse-intro h1 {
+  max-width: 12ch;
+  margin-bottom: 0.8rem;
+  font-size: clamp(2.75rem, 6vw, 5rem);
+  letter-spacing: -0.035em;
+}
+
+.browse-intro header > p:last-child {
+  max-width: 42rem;
+  color: var(--muted);
+  font-size: clamp(1.05rem, 1.7vw, 1.25rem);
+}
+
+.browse-intro .catalog-filter-region,
+.browse-intro .catalog-filters {
+  margin-bottom: 0;
+}
+
+.catalog-results-heading__location {
+  color: var(--rust);
+}
+
+.store-browse .catalog-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1rem, 2vw, 1.75rem);
+}
+
+.store-browse .catalog-card {
+  border-radius: 16px;
+}
+
+.store-browse .catalog-card > img,
+.store-browse .catalog-card__placeholder {
+  aspect-ratio: 4 / 3;
+}
+
+.store-browse .catalog-card__body {
+  padding: clamp(1rem, 2vw, 1.35rem);
+}
+
+.store-browse .catalog-card h2 {
+  font-size: clamp(1.45rem, 2vw, 1.8rem);
+}
+
+@media (max-width: 900px) {
+  .browse-intro {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .store-browse .catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 540px) {
+  .store-browse {
+    width: min(100% - 1.25rem, 42rem);
+  }
+
+  .browse-intro {
+    margin-bottom: 2rem;
+    padding-top: 0.5rem;
+  }
+
+  .browse-intro h1 {
+    max-width: 10ch;
+    font-size: clamp(2.5rem, 12vw, 3.5rem);
+  }
+
+  .store-browse .catalog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .store-browse .catalog-card > img,
+  .store-browse .catalog-card__placeholder {
+    aspect-ratio: 16 / 10;
+  }
+}
+
+/* Store detail editorial composition: identity and action share the first
+   viewport with the storefront image, then practical planning follows. */
+@media (min-width: 1024px) {
+  main.store-detail .store-detail__hero {
+    display: grid;
+    grid-template-columns: minmax(20rem, 0.72fr) minmax(0, 1.28fr);
+    align-items: stretch;
+    background: var(--card);
+  }
+
+  main.store-detail .store-detail__header {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: clamp(24rem, 38vw, 36rem);
+    padding: clamp(2rem, 5vw, 6rem);
+    background: linear-gradient(
+      145deg,
+      var(--card),
+      color-mix(in srgb, var(--rust) 10%, var(--card)) 72%,
+      color-mix(in srgb, var(--gold) 12%, var(--card))
+    );
+  }
+
+  main.store-detail .store-detail__header h1 {
+    max-width: 8ch;
+    font-size: clamp(3rem, 5.5vw, 6rem);
+  }
+
+  main.store-detail .store-detail__actions {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: start;
+    gap: 0.75rem;
+    padding: 0 clamp(2rem, 5vw, 6rem) clamp(2rem, 4vw, 4rem);
+    background: color-mix(in srgb, var(--rust) 10%, var(--card));
+  }
+
+  main.store-detail .store-gallery__background {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    display: flex;
+    min-height: clamp(24rem, 38vw, 36rem);
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(1rem, 2vw, 2rem);
+    background: var(--media-overlay-surface);
+  }
+
+  main.store-detail .store-gallery--cover {
+    padding: 0;
+    border: 0;
+  }
+
+  main.store-detail .store-gallery__hero {
+    margin: 0;
+  }
+
+  main.store-detail .store-gallery__enlarge,
+  main.store-detail .store-gallery__enlarge img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    max-height: calc(50vw - 4rem);
+  }
+
+  main.store-detail .store-gallery__enlarge {
+    border-radius: 12px;
+  }
+}
+
 /* Store Details — readable decision flow, never a dense desktop dashboard. */
 .store-detail {
   max-width: 45rem;
@@ -2284,7 +2554,7 @@ main > article dt {
 
   main.store-detail .store-gallery {
     padding: clamp(32px, 3vw, 64px);
-    padding-block: clamp(64px, 5.56vw, 96px);
+    padding-block: clamp(40px, 4vw, 64px);
   }
 
   .store-detail .store-gallery__enlarge,
@@ -2319,7 +2589,7 @@ main > article dt {
 
   main.store-detail :is(.store-detail__intro, .store-detail__panel, .store-detail__provenance) {
     padding: clamp(32px, 3vw, 64px);
-    padding-block: clamp(64px, 5.56vw, 96px);
+    padding-block: clamp(40px, 4vw, 64px);
   }
 
   .store-detail__visit-grid {
@@ -2349,6 +2619,75 @@ main > article dt {
 
   .store-detail__article :is(#about-heading, #gallery-heading, #hours-heading, #source-heading) {
     scroll-margin-top: 5rem;
+  }
+}
+
+/* Store detail cohesion: group information by the visitor's decision, not by
+   the implementation's component boundaries. */
+.store-detail__intro,
+.store-detail__planning,
+.store-detail__trust-group {
+  border-bottom: 1px solid var(--line);
+}
+
+.store-detail__planning > .store-detail__panel {
+  border-bottom: 0;
+}
+
+.store-detail__trust-group {
+  display: grid;
+}
+
+.store-detail__trust-group > .store-detail__provenance {
+  border-bottom: 0;
+}
+
+@media (min-width: 1024px) {
+  main.store-detail .store-detail__section-nav {
+    padding-inline: clamp(32px, 3vw, 64px);
+    background: var(--card);
+  }
+
+  main.store-detail .store-detail__intro,
+  main.store-detail .store-detail__planning,
+  main.store-detail .store-detail__trust-group {
+    padding-inline: clamp(32px, 8vw, 160px);
+  }
+
+  main.store-detail .store-detail__intro {
+    padding-block: clamp(2.5rem, 4vw, 4rem);
+  }
+
+  main.store-detail .store-detail__planning {
+    padding-block: 0;
+  }
+
+  main.store-detail .store-detail__planning > .store-detail__visit-grid {
+    padding-inline: 0;
+  }
+
+  main.store-detail .store-detail__planning > .store-detail__panel {
+    padding-inline: 0;
+    padding-block: clamp(1.75rem, 3vw, 3rem);
+  }
+
+  main.store-detail .store-detail__trust-group {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.7fr);
+    align-items: start;
+    column-gap: clamp(2rem, 6vw, 7rem);
+    padding-block: clamp(2.5rem, 4vw, 4rem);
+  }
+
+  main.store-detail .store-detail__trust-group > .store-detail__panel,
+  main.store-detail .store-detail__trust-group > .store-detail__provenance {
+    padding: 0;
+    border-bottom: 0;
+    background: transparent;
+  }
+
+  main.store-detail .store-detail__gallery-link,
+  main.store-detail .store-detail__evaluation-note {
+    padding-inline: clamp(32px, 8vw, 160px);
   }
 }
 
@@ -2391,6 +2730,12 @@ main > article dt {
   gap: 0.75rem;
   align-items: center;
   margin-top: 1.25rem;
+}
+
+.store-detail__verified {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-size-label);
 }
 
 .store-detail__arrival-status {
@@ -2721,6 +3066,12 @@ main > article dt {
   border-bottom: 1px solid var(--line);
 }
 
+.store-detail__gallery-link {
+  margin-block: 0;
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
 .store-detail__intro > p:not(.eyebrow),
 .store-detail__panel > p:not(.eyebrow),
 .store-detail__provenance > p:not(.eyebrow) {
@@ -2923,17 +3274,17 @@ main > article dt {
 :root[data-theme='dark'] {
   color-scheme: dark;
   --ink: #f3eee4;
-  --muted: #b7b0a5;
-  --paper: #121519;
-  --card: #252b33;
-  --line: #3b4552;
-  --teal: #8795b5;
-  --teal-dark: #8795b5;
-  --mint: #1a1f26;
-  --rust: #b56e5b;
-  --gold: #b99554;
-  --olive: #b7b0a5;
-  --focus-inner: #121519;
+  --muted: #c0b5a5;
+  --paper: #17130f;
+  --card: #2b241e;
+  --line: #55473a;
+  --teal: #b38b52;
+  --teal-dark: #d0aa70;
+  --mint: #332b24;
+  --rust: #bd7055;
+  --gold: #c39a58;
+  --olive: #c0b5a5;
+  --focus-inner: #17130f;
   --focus-outer: #f3eee4;
 }
 
@@ -3142,12 +3493,216 @@ main > article dt {
   }
 }
 
-/* Store photo gallery page (/stores/:slug/photos) — DESIGN.md locked variant D */
+/* Store photo gallery page (/stores/:slug/photos) — inventory-first gallery */
 .store-photos {
   position: relative;
-  max-width: 72rem;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
   padding: 1.5rem 1rem 4rem;
+}
+
+/* Store surfaces use the viewport as the canvas. Keep copy readable while
+   letting search, cards, and photography carry the available width. */
+@media (min-width: 1024px) {
+  main.store-browse {
+    width: 100%;
+    max-width: none;
+    padding-inline: clamp(32px, 4vw, 80px);
+  }
+
+  main.store-browse > header,
+  main.store-browse > .catalog-filter-region,
+  main.store-browse > .catalog-results-heading,
+  main.store-browse > .catalog-state {
+    max-width: 96rem;
+    margin-inline: auto;
+  }
+
+  main.store-browse .catalog-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-width: 96rem;
+    margin-inline: auto;
+  }
+
+  main.store-photos {
+    padding-inline: clamp(32px, 4vw, 80px);
+  }
+
+  .store-photos__header,
+  .store-photos__body {
+    max-width: 96rem;
+    margin-inline: auto;
+  }
+}
+
+@media (min-width: 800px) and (max-width: 1199px) {
+  main.store-browse {
+    width: 100%;
+    max-width: none;
+    padding-inline: clamp(24px, 4vw, 48px);
+  }
+
+  main.store-browse > header,
+  main.store-browse > .catalog-filter-region,
+  main.store-browse > .catalog-results-heading,
+  main.store-browse > .catalog-state,
+  main.store-browse .catalog-grid {
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+
+  main.store-browse .catalog-filters {
+    grid-template-columns: minmax(0, 1.8fr) repeat(2, minmax(8rem, 1fr)) auto;
+    align-items: end;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  main.store-browse .catalog-field,
+  main.store-browse .catalog-field--search,
+  main.store-browse .catalog-filters__actions {
+    grid-column: auto;
+  }
+
+  main.store-browse .catalog-filters__actions {
+    flex-wrap: nowrap;
+  }
+
+  main.store-browse .catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  main.store-browse .catalog-card > img,
+  main.store-browse .catalog-card__placeholder {
+    aspect-ratio: 5 / 3;
+  }
+}
+
+@media (min-width: 800px) {
+  /* First viewport composition: identity and actions beside the store image,
+     so the page starts with a purposeful destination rather than a stack of
+     empty horizontal bands. */
+  main.store-detail > .store-detail__article > .store-detail__hero {
+    display: grid;
+    grid-template-columns: minmax(20rem, 0.7fr) minmax(0, 1.3fr);
+    align-items: stretch;
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero > .store-detail__header {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+    padding-block: clamp(1.5rem, 2.5vw, 2.5rem);
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero > .store-detail__actions {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: end;
+    align-content: start;
+    padding-bottom: clamp(1.5rem, 2.5vw, 2.5rem);
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__background {
+    display: contents;
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero > .store-gallery {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    border-block: 0;
+    border-left: 1px solid var(--line);
+    padding: clamp(1.5rem, 2.5vw, 2.5rem);
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__enlarge {
+    aspect-ratio: 16 / 10;
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero .store-detail__section-nav {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero .store-detail__intro,
+  main.store-detail > .store-detail__article > .store-detail__hero .store-detail__visit-grid,
+  main.store-detail > .store-detail__article > .store-detail__provenance {
+    grid-column: 1 / -1;
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery--cover {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-width: 0;
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__enlarge,
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__missing {
+    min-height: 0;
+    height: auto;
+    aspect-ratio: 16 / 10;
+  }
+
+  main.store-detail > .store-detail__article > .store-detail__hero .store-gallery__enlarge img {
+    height: auto;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+  }
+
+  main.store-photos {
+    padding-block: 1rem 3rem;
+  }
+
+  main.store-photos .store-photos__feature {
+    min-height: min(52vh, 34rem);
+    margin-top: 2rem;
+  }
+
+  main.store-photos .store-photos__body {
+    gap: 0.65rem;
+  }
+}
+
+@media (max-width: 799px) {
+  main.store-detail .store-gallery__enlarge {
+    min-height: 0;
+    height: auto;
+    aspect-ratio: 4 / 3;
+  }
+
+  main.store-detail .store-gallery__enlarge img {
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
+  main.store-detail {
+    scroll-padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+  }
+
+  main.store-detail .store-detail__section-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  main.store-detail .store-detail__section-nav a {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  main.store-detail
+    .store-detail__article
+    :is(#about-heading, #gallery-heading, #hours-heading, #source-heading) {
+    scroll-margin-top: 1rem;
+  }
 }
 
 .store-photos__progress {
@@ -3167,7 +3722,7 @@ main > article dt {
 }
 
 .store-photos__header {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .store-photos__back {
@@ -3203,8 +3758,9 @@ main > article dt {
   position: relative;
   overflow: hidden;
   grid-column: 1 / -1;
-  min-height: min(78vh, 42rem);
-  margin: 3rem -1rem 0;
+  min-height: 0;
+  aspect-ratio: 16 / 10;
+  margin: 1.25rem 0 0;
   padding: 0;
   background: var(--ink);
 }
@@ -3214,20 +3770,18 @@ main > article dt {
   /* minmax(0, …) keeps the dense six-track grid from overflowing on sparse
      runs: without it, implicit and min-content tracks can widen past the
      container when a run carries large generated fixtures. */
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-auto-columns: minmax(0, 1fr);
   gap: 0.85rem;
   grid-auto-flow: dense;
   align-items: stretch;
-  margin-top: 3rem;
+  margin-top: 1.5rem;
 }
 
 .store-photos__feature img {
   width: 100%;
-  height: 112%;
+  height: 100%;
   object-fit: cover;
-  translate: 0 var(--store-photos-drift, 0%);
-  will-change: translate;
 }
 
 .store-photos__feature-caption {
@@ -3258,7 +3812,7 @@ main > article dt {
   position: relative;
   overflow: hidden;
   min-width: 0;
-  grid-column: span 2;
+  grid-column: span 1;
   aspect-ratio: 4 / 3;
   padding: 0;
   border: none;
@@ -3268,18 +3822,14 @@ main > article dt {
 }
 
 .store-photos__tile--tall {
-  grid-column: span 2;
-  grid-row: span 2;
-  aspect-ratio: 3 / 4;
-  /* A dense row holding a 16:9 wide tile makes the two spanned rows tall; the
-     aspect-ratio then tries to widen the tile beyond its two-column span, so
-     clamp it to the grid area it occupies. */
-  max-width: 100%;
+  grid-column: span 1;
+  grid-row: auto;
+  aspect-ratio: 4 / 3;
 }
 
 .store-photos__tile--wide {
-  grid-column: span 4;
-  aspect-ratio: 16 / 9;
+  grid-column: span 2;
+  aspect-ratio: 4 / 3;
 }
 
 .store-photos__tile img {
@@ -3441,7 +3991,7 @@ main > article dt {
 
   .store-photos__tile,
   .store-photos__tile--tall {
-    grid-column: span 2;
+    grid-column: span 1;
     grid-row: auto;
     aspect-ratio: 4 / 3;
   }
@@ -3636,4 +4186,87 @@ main > article dt {
 .promotion-page button {
   max-width: 100%;
   overflow-wrap: anywhere;
+}
+
+/* Desktop store rhythm: spend width on content, not empty gutters. */
+@media (min-width: 1024px) {
+  main.store-browse {
+    padding-top: clamp(2rem, 3vw, 3rem);
+    padding-bottom: 4rem;
+  }
+
+  main.store-browse > header {
+    padding-bottom: clamp(1.5rem, 2.5vw, 2.5rem);
+  }
+
+  main.store-browse .catalog-filter-region {
+    margin-bottom: 1.5rem;
+  }
+
+  main.store-browse .catalog-results-heading {
+    margin-bottom: 1.25rem;
+  }
+
+  main.store-detail .store-detail__header {
+    padding-block: clamp(1.5rem, 2.5vw, 2.5rem);
+  }
+
+  main.store-detail :is(.store-detail__intro, .store-detail__panel, .store-detail__provenance) {
+    padding-block: clamp(1.75rem, 2.5vw, 2.5rem);
+  }
+
+  main.store-detail .store-gallery {
+    padding-block: clamp(1.5rem, 2.5vw, 2.5rem);
+  }
+
+  main.store-detail .store-detail__section-nav {
+    padding-block: 0.75rem;
+  }
+
+  main.store-photos .store-photos__header {
+    margin-bottom: 1rem;
+  }
+
+  main.store-photos .store-photos__body {
+    margin-top: 1.5rem;
+  }
+
+  /* Unavailable media should communicate its state without reserving the
+     same visual weight as a real photograph. */
+  main.store-detail .store-gallery__print:has(.store-gallery__print-unavailable) {
+    align-self: start;
+  }
+
+  main.store-detail .store-gallery__print-unavailable {
+    aspect-ratio: 5 / 2;
+    min-height: 4rem;
+    background: color-mix(in srgb, var(--mint) 55%, var(--card));
+  }
+
+  main.store-detail .store-gallery--compact {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    width: 100%;
+    padding: 1.25rem clamp(32px, 4vw, 64px) 1.5rem;
+    border-top: 1px solid var(--line);
+    background: var(--paper);
+  }
+
+  main.store-detail .store-gallery--compact .store-gallery__wall {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.75rem;
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+
+  main.store-detail .store-gallery--compact .store-gallery__print,
+  main.store-detail .store-gallery--compact .store-gallery__wall > :nth-child(3n + 1),
+  main.store-detail .store-gallery--compact .store-gallery__wall > :not(:nth-child(3n + 1)) {
+    aspect-ratio: 4 / 3;
+  }
+
+  main.store-detail .store-gallery--compact .store-gallery__print-plate {
+    padding: 0.25rem 0.4rem;
+    font-size: var(--type-size-caption);
+  }
 }

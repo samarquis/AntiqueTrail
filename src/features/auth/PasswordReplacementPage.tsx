@@ -134,7 +134,7 @@ export function PasswordReplacementPage({
           aria-describedby="recovery-password-requirements"
           required
         />
-        <p id="recovery-password-requirements">Use 12 through 128 characters.</p>
+        <p id="recovery-password-requirements">Use 1 through 8 characters.</p>
         <label htmlFor="recovery-confirm-password">Confirm new password</label>
         <input
           id="recovery-confirm-password"

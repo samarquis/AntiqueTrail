@@ -18,7 +18,7 @@ type PhotoSlot =
 /**
  * Production store photo gallery (`/stores/:slug/photos`), locked to DESIGN.md
  * "Store photo gallery page" variant D: editorial header, asymmetric grid,
- * up to two full-bleed parallax features, reading-progress bar, lightbox.
+ * one lead image, inventory-first photo grid, reading-progress bar, lightbox.
  */
 export function StorePhotosPage({ client, slug }: { client: CatalogClient; slug: string }) {
   const [state, setState] = useState<
@@ -69,17 +69,12 @@ export function StorePhotosPage({ client, slug }: { client: CatalogClient; slug:
   return <StorePhotosView store={state.store} />
 }
 
-/** Cover leads as the first feature; a second joins mid-page from five photos up. */
+/** Keep one lead image, then expose every remaining photo in the same scan path. */
 function buildLayout(count: number): PhotoSlot[] {
   if (count < 1) return []
-  const featured = new Set<number>([0])
   const slots: PhotoSlot[] = [{ kind: 'feature', index: 0, side: 'right' }]
-  if (count >= 5) {
-    featured.add(Math.ceil(count / 2))
-    slots.push({ kind: 'feature', index: Math.ceil(count / 2), side: 'left' })
-  }
   for (let index = 0; index < count; index += 1) {
-    if (!featured.has(index)) slots.push({ kind: 'tile', index })
+    if (index !== 0) slots.push({ kind: 'tile', index })
   }
   return slots
 }
@@ -412,9 +407,10 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
                   <>
                     <img
                       src={item.src}
-                      {...responsiveCatalogImage(item.src, '(max-width: 800px) 60vw, 30vw')}
-                      alt=""
-                      onError={() => markFailed(slot.index)}
+                        {...responsiveCatalogImage(item.src, '(max-width: 800px) 60vw, 30vw')}
+                        alt=""
+                        loading="lazy"
+                        onError={() => markFailed(slot.index)}
                     />
                     <MediaTileOverlay media={item} className="store-photos__tile-overlay" />
                   </>

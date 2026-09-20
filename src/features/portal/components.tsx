@@ -375,7 +375,10 @@ export function PortalHoursPage({ client = unavailablePortalClient }: { client?:
     setError(null)
     client
       .saveHours(currentHours)
-      .then(() => setStatus('Hours saved and freshness updated.'))
+      .then((savedHours) => {
+        setHours(savedHours)
+        setStatus('Hours saved and freshness updated.')
+      })
       .catch(() => setError(GENERIC_PORTAL_ERROR))
       .finally(() => setPending(false))
   }

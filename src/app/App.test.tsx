@@ -19,6 +19,21 @@ import {
 
 describe('app shell', () => {
   afterEach(cleanup)
+  it('exposes signed-out sign-in and account creation entry points', () => {
+    render(
+      <MemoryRouter initialEntries={['/stores']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: /^sign in$/i })).toHaveAttribute(
+      'href',
+      '/auth/sign-in',
+    )
+    expect(screen.getByRole('link', { name: /create new account/i })).toHaveAttribute(
+      'href',
+      '/auth/register',
+    )
+  })
   it('renders the browse route with a skip-free accessible heading', () => {
     render(
       <MemoryRouter initialEntries={['/stores']}>
@@ -84,6 +99,57 @@ describe('app shell', () => {
     expect(
       screen.queryByRole('link', { name: /account & privacy|trip|private history/i }),
     ).not.toBeInTheDocument()
+  })
+
+  it('gives a representative a dedicated store workspace shell', () => {
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'representative-1',
+      accessToken: 'memory-only-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Representative',
+      mfaRequired: true,
+      mfaEnrolled: true,
+      mfaVerified: true,
+    })
+    render(
+      <MemoryRouter initialEntries={['/store-portal']}>
+        <App runtime={{ authStore }} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('complementary', { name: /store workspace/i })).toHaveTextContent(
+      /store workspace/i,
+    )
+    expect(screen.getByRole('navigation', { name: /primary navigation/i })).toHaveTextContent(
+      'My Store',
+    )
+    expect(screen.getByRole('link', { name: /preview public listing/i })).toHaveAttribute(
+      'href',
+      '/store-portal/preview',
+    )
+  })
+
+  it('gives a signed-in shopper a continuity-first navigation shell', async () => {
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'shopper-1',
+      accessToken: 'memory-only-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaEnrolled: false,
+      mfaVerified: false,
+    })
+    render(
+      <MemoryRouter initialEntries={['/stores']}>
+        <App runtime={{ authStore }} />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('link', { name: /^my trip$/i })).toHaveAttribute('href', '/trips')
+    expect(screen.queryByRole('link', { name: /^sign in$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /create new account/i })).not.toBeInTheDocument()
   })
 
   it('focuses the final private destination after lifecycle hydration', async () => {
@@ -224,6 +290,9 @@ describe('app shell', () => {
     )
 
     const navigation = screen.getByRole('navigation', { name: /primary navigation/i })
+    expect(screen.getByRole('complementary', { name: /administrator environment/i })).toHaveTextContent(
+      /internal alpha.*synthetic stores only/i,
+    )
     expect(navigation).toHaveTextContent('ReviewAccessMore')
     expect(screen.getByRole('link', { name: 'Review' })).toHaveAttribute('href', '/admin')
     expect(screen.getByRole('link', { name: 'Access' })).toHaveAttribute('href', '/admin/access')
