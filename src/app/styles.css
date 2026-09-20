@@ -211,25 +211,25 @@ button:disabled,
 }
 
 .auth-provider-button--google {
-  border-color: #747775;
-  color: #1f1f1f;
-  background: #fff;
+  border-color: var(--control-border);
+  color: var(--ink);
+  background: var(--card);
 }
 
 .auth-provider-button--google:hover {
-  color: #1f1f1f;
-  background: #f2f2f2;
+  color: var(--ink);
+  background: var(--surface-status-neutral);
 }
 
 .auth-provider-button--facebook {
-  border-color: #1877f2;
-  color: #fff;
-  background: #1877f2;
+  border-color: var(--teal-dark);
+  color: var(--paper);
+  background: var(--teal);
 }
 
 .auth-provider-button--facebook:hover {
-  color: #fff;
-  background: #166fe5;
+  color: var(--paper);
+  background: var(--teal-dark);
 }
 
 .auth-provider-button__mark {
@@ -2270,8 +2270,8 @@ main > article dt {
     min-height: 3.75rem;
     flex-direction: column;
     gap: 0.1rem;
-    font-size: 0.8125rem;
-    line-height: 1.05;
+    font-size: var(--type-size-caption);
+    line-height: var(--type-leading-compact);
     text-align: center;
     overflow-wrap: normal;
   }
