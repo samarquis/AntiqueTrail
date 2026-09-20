@@ -25,6 +25,8 @@ jobs:
       VITE_PARTNER_EMAIL_PROVIDER_ENABLED: ${{ vars.VITE_PARTNER_EMAIL_PROVIDER_ENABLED }}
       VITE_PARTNER_MEDIA_PROVIDER_ENABLED: ${{ vars.VITE_PARTNER_MEDIA_PROVIDER_ENABLED }}
       VITE_PARTNER_SYNTHETIC_ENABLED: ${{ vars.VITE_PARTNER_SYNTHETIC_ENABLED }}
+      VITE_AUTH_PROVIDER_GOOGLE_ENABLED: ${{ vars.VITE_AUTH_PROVIDER_GOOGLE_ENABLED }}
+      VITE_AUTH_PROVIDER_FACEBOOK_ENABLED: ${{ vars.VITE_AUTH_PROVIDER_FACEBOOK_ENABLED }}
     steps:
       - name: Validate browser-visible release configuration
         shell: node {0}
@@ -38,6 +40,8 @@ jobs:
             'VITE_PARTNER_EMAIL_PROVIDER_ENABLED',
             'VITE_PARTNER_MEDIA_PROVIDER_ENABLED',
             'VITE_PARTNER_SYNTHETIC_ENABLED',
+            'VITE_AUTH_PROVIDER_GOOGLE_ENABLED',
+            'VITE_AUTH_PROVIDER_FACEBOOK_ENABLED',
           ]
           const config = Object.fromEntries(
             required.map((name) => {
@@ -109,6 +113,8 @@ jobs:
             'VITE_PARTNER_EMAIL_PROVIDER_ENABLED',
             'VITE_PARTNER_MEDIA_PROVIDER_ENABLED',
             'VITE_PARTNER_SYNTHETIC_ENABLED',
+            'VITE_AUTH_PROVIDER_GOOGLE_ENABLED',
+            'VITE_AUTH_PROVIDER_FACEBOOK_ENABLED',
           ]) {
             if (!['true', 'false'].includes(config[name])) throw new Error(`${name} must be true or false`)
           }

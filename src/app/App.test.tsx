@@ -706,6 +706,7 @@ describe('app shell', () => {
         <App
           runtime={{
             authProvider: {
+              oauthProviders: { google: false, facebook: false },
               signIn,
               sendRecovery: vi.fn(),
               verifyMfa: vi.fn(),

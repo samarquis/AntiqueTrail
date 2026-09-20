@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { StrictMode, type ReactNode } from 'react'
@@ -57,6 +57,7 @@ function renderAuth(element: ReactNode, provider: AuthProviderAdapter) {
 }
 
 const unavailableProvider: AuthProviderAdapter = {
+  oauthProviders: { google: false, facebook: false },
   signIn: vi.fn(async () => ({ kind: 'error' as const })),
   sendRecovery: vi.fn(async () => undefined),
   verifyMfa: vi.fn(async () => null),
@@ -510,22 +511,61 @@ describe('auth states', () => {
     expect(screen.getByRole('link', { name: /start sign-in again/i })).toBeInTheDocument()
   })
 
-  it('offers social sign-in only when the adapter supports it', async () => {
-    const withoutSocial = renderAuth(
-      <SignInPage provider={unavailableProvider} />,
-      unavailableProvider,
-    )
-    expect(screen.queryByRole('button', { name: /continue with google/i })).not.toBeInTheDocument()
-    withoutSocial.unmount()
+  it('offers only explicitly available social providers', async () => {
+    const signInWithProvider = vi.fn(async () => undefined)
+    const provider = {
+      ...unavailableProvider,
+      oauthProviders: { google: true, facebook: false },
+      signInWithProvider,
+    }
+    renderAuth(<SignInPage provider={provider} />, provider)
+    const googleButton = screen.getByRole('button', { name: /continue with google/i })
+    expect(googleButton).toBeInTheDocument()
+    expect(googleButton).toHaveClass('auth-provider-button--google')
+    expect(googleButton.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.queryByRole('button', { name: /continue with facebook/i })).not.toBeInTheDocument()
 
     const user = userEvent.setup()
-    const signInWithProvider = vi.fn(async () => undefined)
-    renderAuth(<SignInPage provider={{ ...unavailableProvider, signInWithProvider }} />, {
+    await user.click(screen.getByRole('button', { name: /continue with google/i }))
+    expect(signInWithProvider).toHaveBeenCalledWith('google', '/stores')
+  })
+
+  it('shows a visible pending state while a provider handoff is unresolved', async () => {
+    let resolveHandoff!: () => void
+    const signInWithProvider = vi.fn(
+      () => new Promise<void>((resolve) => (resolveHandoff = resolve)),
+    )
+    const provider = {
       ...unavailableProvider,
+      oauthProviders: { google: true, facebook: false },
       signInWithProvider,
+    }
+    renderAuth(<SignInPage provider={provider} />, provider)
+    const user = userEvent.setup()
+    const button = screen.getByRole('button', { name: /continue with google/i })
+    await user.click(button)
+    expect(await screen.findByRole('status')).toHaveTextContent(/connecting to google/i)
+    expect(button).toBeDisabled()
+    resolveHandoff()
+    await waitFor(() => expect(button).not.toBeDisabled())
+  })
+
+  it('focuses an actionable provider error and leaves retry available', async () => {
+    const signInWithProvider = vi.fn(async () => {
+      throw new Error('provider unavailable')
     })
-    await user.click(screen.getByRole('button', { name: /continue with facebook/i }))
-    expect(signInWithProvider).toHaveBeenCalledWith('facebook', '/stores')
+    const provider = {
+      ...unavailableProvider,
+      oauthProviders: { google: true, facebook: false },
+      signInWithProvider,
+    }
+    renderAuth(<SignInPage provider={provider} />, provider)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /continue with google/i }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveFocus()
+    expect(alert).toHaveTextContent(/google sign-in.*try again/i)
+    expect(screen.getByRole('button', { name: /continue with google/i })).not.toBeDisabled()
   })
 
   it('gates cancellation-only and role-mismatched private content', () => {

@@ -85,6 +85,44 @@ function describeReturnTarget(returnTo: string) {
   return returnTo === '/stores' ? 'the store list' : 'the action you were working on'
 }
 
+const OAUTH_PROVIDER_IDS = ['google', 'facebook'] as const
+
+function providerLabel(providerId: OAuthProviderId) {
+  return providerId === 'google' ? 'Google' : 'Facebook'
+}
+
+function OAuthProviderMark({ providerId }: { providerId: OAuthProviderId }) {
+  if (providerId === 'google')
+    return (
+      <svg className="auth-provider-button__mark" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          fill="#4285F4"
+          d="M21.35 12.27c0-.79-.07-1.55-.23-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42Z"
+        />
+        <path
+          fill="#34A853"
+          d="M12 21.5c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.7-1.72-5.47-4.03H3.28v2.53A9.74 9.74 0 0 0 12 21.5Z"
+        />
+        <path
+          fill="#FBBC05"
+          d="M6.53 13.58A5.86 5.86 0 0 1 6.22 12c0-.55.1-1.08.31-1.58V7.89H3.28A9.5 9.5 0 0 0 2.25 12c0 1.48.35 2.88 1.03 4.11l3.25-2.53Z"
+        />
+        <path
+          fill="#EA4335"
+          d="M12 6.39c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.83 3.48 14.63 2.5 12 2.5a9.74 9.74 0 0 0-8.72 5.39l3.25 2.53C7.3 8.11 9.46 6.39 12 6.39Z"
+        />
+      </svg>
+    )
+  return (
+    <svg className="auth-provider-button__mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.04 1.79-4.72 4.56-4.72 1.32 0 2.7.24 2.7.24v2.98h-1.52c-1.5 0-1.97.94-1.97 1.9v2.26h3.35l-.54 3.49H13.9V24C19.61 23.1 24 18.1 24 12.07Z"
+      />
+    </svg>
+  )
+}
+
 export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -95,15 +133,18 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
   const [pending, setPending] = useState(false)
   const [socialPending, setSocialPending] = useState<OAuthProviderId | null>(null)
   const returnTo = safeReturnTo(new URLSearchParams(location.search).get('returnTo'))
+  const availableProviders = provider.signInWithProvider
+    ? OAUTH_PROVIDER_IDS.filter((providerId) => provider.oauthProviders[providerId])
+    : []
 
   async function continueWith(providerId: OAuthProviderId) {
-    if (!provider.signInWithProvider) return
+    if (!provider.signInWithProvider || !provider.oauthProviders[providerId]) return
     setSocialPending(providerId)
     setError(null)
     try {
       await provider.signInWithProvider(providerId, returnTo)
     } catch {
-      setError(GENERIC_SIGN_IN_ERROR)
+      setError(`We couldn't start ${providerLabel(providerId)} sign-in. Try again.`)
     } finally {
       setSocialPending(null)
     }
@@ -179,20 +220,27 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
           {pending ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
-      {!isCatalogOnlyPublicTest() && provider.signInWithProvider && (
-        <section aria-label="Sign in with a linked account">
+      {!isCatalogOnlyPublicTest() && availableProviders.length > 0 && (
+        <section className="auth-provider-buttons" aria-label="Sign in with a linked account">
           <p>Or sign in with:</p>
-          {(['google', 'facebook'] as const).map((providerId) => (
+          {socialPending && (
+            <p className="auth-provider-status" role="status" aria-live="polite">
+              Connecting to {providerLabel(socialPending)}…
+            </p>
+          )}
+          {availableProviders.map((providerId) => (
             <p key={providerId}>
               <button
-                className="button"
+                className={`auth-provider-button auth-provider-button--${providerId}`}
                 type="button"
                 disabled={pending || socialPending !== null}
+                aria-label={`Continue with ${providerLabel(providerId)}`}
                 onClick={() => void continueWith(providerId)}
               >
+                <OAuthProviderMark providerId={providerId} />
                 {socialPending === providerId
-                  ? 'Continuing…'
-                  : `Continue with ${providerId === 'google' ? 'Google' : 'Facebook'}`}
+                  ? `Connecting to ${providerLabel(providerId)}…`
+                  : `Continue with ${providerLabel(providerId)}`}
               </button>
             </p>
           ))}

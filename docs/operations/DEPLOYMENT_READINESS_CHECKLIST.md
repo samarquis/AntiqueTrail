@@ -57,6 +57,8 @@ receipts. Record only secret identifiers, custodian, version, and rotation date.
 - `VITE_PARTNER_EMAIL_PROVIDER_ENABLED`
 - `VITE_PARTNER_MEDIA_PROVIDER_ENABLED`
 - `VITE_PARTNER_SYNTHETIC_ENABLED`
+- `VITE_AUTH_PROVIDER_GOOGLE_ENABLED`
+- `VITE_AUTH_PROVIDER_FACEBOOK_ENABLED`
 
 ### Vercel deployment values
 

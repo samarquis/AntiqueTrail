@@ -65,7 +65,11 @@ export type PasswordRecoveryResult = { kind: 'completed' } | { kind: 'error' }
 
 export type OAuthProviderId = 'google' | 'facebook'
 
+export type OAuthProviderAvailability = Readonly<Record<OAuthProviderId, boolean>>
+
 export interface AuthProviderAdapter {
+  /** Explicit deployment contract. A provider is never advertised by method existence alone. */
+  oauthProviders: OAuthProviderAvailability
   signIn(email: string, password: string): Promise<ProviderSignInResult>
   sendRecovery(email: string): Promise<void>
   verifyMfa(challengeId: string, code: string): Promise<ProviderSession | null>

@@ -56,6 +56,7 @@ import {
   createRpcSessionRegistry,
   type AccountRole,
   type AuthProviderAdapter,
+  type OAuthProviderAvailability,
   type PasswordRecoveryRequest,
   type ProviderSession,
 } from '../features/auth'
@@ -118,6 +119,13 @@ function providerSession(session: Session): ProviderSession {
   }
 }
 
+function configuredOAuthProviders(): OAuthProviderAvailability {
+  return {
+    google: import.meta.env.VITE_AUTH_PROVIDER_GOOGLE_ENABLED === 'true',
+    facebook: import.meta.env.VITE_AUTH_PROVIDER_FACEBOOK_ENABLED === 'true',
+  }
+}
+
 export function createConfiguredTripTransport(
   rpc: (
     command: TripApiCommand,
@@ -151,6 +159,7 @@ export function createAuthProvider<
   supabase: T,
   refreshStorage: RefreshSessionStorage = new IndexedDbRefreshSessionStorage(),
   onAccessTokenChange?: (accessToken: string | null) => void,
+  oauthProviders: OAuthProviderAvailability = configuredOAuthProviders(),
 ): AuthProviderAdapter {
   const challenges = new Map<string, { factorId: string; session: ProviderSession }>()
   let acceptingSessions = true
@@ -177,6 +186,7 @@ export function createAuthProvider<
     return storageWork
   }
   return {
+    oauthProviders,
     async signIn(email, password) {
       acceptingSessions = true
       const result = await supabase.auth.signInWithPassword({ email, password })
@@ -279,6 +289,7 @@ export function createAuthProvider<
       return { kind: 'completed' }
     },
     async signInWithProvider(providerId, returnTo) {
+      if (!oauthProviders[providerId]) throw new Error('Provider sign-in unavailable.')
       const target = new URL('/auth/callback', window.location.origin)
       if (returnTo && returnTo !== '/stores') target.searchParams.set('returnTo', returnTo)
       const { error } = await supabase.auth.signInWithOAuth({

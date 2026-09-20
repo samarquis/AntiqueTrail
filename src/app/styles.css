@@ -193,6 +193,56 @@ button:disabled,
   background: var(--teal-dark);
 }
 
+.auth-provider-buttons {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.auth-provider-button {
+  width: 100%;
+  min-height: 3rem;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.auth-provider-button:hover {
+  translate: none;
+  box-shadow: 0 0 0 2px var(--focus-outer);
+}
+
+.auth-provider-button--google {
+  border-color: #747775;
+  color: #1f1f1f;
+  background: #fff;
+}
+
+.auth-provider-button--google:hover {
+  color: #1f1f1f;
+  background: #f2f2f2;
+}
+
+.auth-provider-button--facebook {
+  border-color: #1877f2;
+  color: #fff;
+  background: #1877f2;
+}
+
+.auth-provider-button--facebook:hover {
+  color: #fff;
+  background: #166fe5;
+}
+
+.auth-provider-button__mark {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 1.25rem;
+}
+
+.auth-provider-status {
+  margin: 0;
+  color: var(--muted);
+}
+
 .portal-media-history {
   display: grid;
   gap: 1rem;

@@ -39,6 +39,7 @@ Configure `shared-alpha` with required reviewers, prevent self-review, protected
 | Vars | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Browser-visible Supabase URL and publishable/legacy anon key; never secret/service-role |
 | Vars | `VITE_TRIP_OFFLINE_GRANT_KEY_ID`, `VITE_TRIP_OFFLINE_GRANT_PUBLIC_JWK` | Browser-visible public verification material only |
 | Vars | `VITE_PARTNER_EMAIL_PROVIDER_ENABLED`, `VITE_PARTNER_MEDIA_PROVIDER_ENABLED`, `VITE_PARTNER_SYNTHETIC_ENABLED` | Exact lowercase `true` or `false` stage inputs |
+| Vars | `VITE_AUTH_PROVIDER_GOOGLE_ENABLED`, `VITE_AUTH_PROVIDER_FACEBOOK_ENABLED` | Exact lowercase `true` or `false`; set `true` only after the matching Supabase provider, provider-console credentials, and redirect readback pass |
 
 Retire `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `CLOUDFLARE_PAGES_*` after the replacement workflow passes and the abandoned-project record is retained. Do not delete them merely because this document changed.
 

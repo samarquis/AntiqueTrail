@@ -438,6 +438,8 @@ test('Pages artifact workflow fails closed on unsafe browser-visible configurati
     'VITE_PARTNER_EMAIL_PROVIDER_ENABLED',
     'VITE_PARTNER_MEDIA_PROVIDER_ENABLED',
     'VITE_PARTNER_SYNTHETIC_ENABLED',
+    'VITE_AUTH_PROVIDER_GOOGLE_ENABLED',
+    'VITE_AUTH_PROVIDER_FACEBOOK_ENABLED',
   ]
 
   assert.match(workflow, /environment:\s+name: shared-alpha/u)
@@ -469,6 +471,8 @@ test('Pages artifact workflow fails closed on unsafe browser-visible configurati
     VITE_PARTNER_EMAIL_PROVIDER_ENABLED: 'true',
     VITE_PARTNER_MEDIA_PROVIDER_ENABLED: 'false',
     VITE_PARTNER_SYNTHETIC_ENABLED: 'true',
+    VITE_AUTH_PROVIDER_GOOGLE_ENABLED: 'false',
+    VITE_AUTH_PROVIDER_FACEBOOK_ENABLED: 'false',
   }
   const runPreflight = (overrides = {}) =>
     spawnSync(process.execPath, ['--eval', preflightScript], {
@@ -592,6 +596,8 @@ test('Vercel release workflow fails closed on unsafe browser-visible configurati
     'VITE_PARTNER_EMAIL_PROVIDER_ENABLED',
     'VITE_PARTNER_MEDIA_PROVIDER_ENABLED',
     'VITE_PARTNER_SYNTHETIC_ENABLED',
+    'VITE_AUTH_PROVIDER_GOOGLE_ENABLED',
+    'VITE_AUTH_PROVIDER_FACEBOOK_ENABLED',
   ]
 
   assert.match(workflow, /environment:\s+name: shared-alpha/u)
@@ -625,6 +631,8 @@ test('Vercel release workflow fails closed on unsafe browser-visible configurati
     VITE_PARTNER_EMAIL_PROVIDER_ENABLED: 'true',
     VITE_PARTNER_MEDIA_PROVIDER_ENABLED: 'false',
     VITE_PARTNER_SYNTHETIC_ENABLED: 'true',
+    VITE_AUTH_PROVIDER_GOOGLE_ENABLED: 'false',
+    VITE_AUTH_PROVIDER_FACEBOOK_ENABLED: 'false',
   }
   const runPreflight = (overrides = {}) =>
     spawnSync(process.execPath, ['--eval', preflightScript], {
