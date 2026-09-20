@@ -42,6 +42,7 @@ function renderPage(page: ReactNode) {
 }
 
 const authenticatedProvider: AuthProviderAdapter = {
+  oauthProviders: { google: false, facebook: false },
   signIn: vi.fn(async () => ({
     kind: 'authenticated' as const,
     session: {
@@ -209,7 +210,13 @@ describe('account lifecycle screens', () => {
     renderSecure(<ExportPage client={client({ requestExport })} provider={authenticatedProvider} />)
     expect(screen.queryByRole('button', { name: /request export/i })).not.toBeInTheDocument()
     await user.type(screen.getByLabelText(/email/i), 'owner@example.com')
-    await user.type(screen.getByLabelText(/^password$/i), 'private-password')
+    const password = screen.getByLabelText(/^password$/i)
+    expect(password).toHaveAttribute('aria-invalid', 'false')
+    expect(password).toHaveAttribute('autocomplete', 'current-password')
+    await user.click(screen.getByRole('button', { name: /show password/i }))
+    expect(password).toHaveAttribute('type', 'text')
+    expect(password).toHaveFocus()
+    await user.type(password, 'private-password')
     await user.click(screen.getByRole('button', { name: /confirm password/i }))
     const requestButton = await screen.findByRole('button', { name: /request export/i })
     expect(requestButton).toHaveFocus()
@@ -269,7 +276,7 @@ describe('account lifecycle screens', () => {
     await user.click(screen.getByRole('button', { name: /back to password/i }))
     expect(screen.getByRole('button', { name: /confirm password/i })).toHaveFocus()
     await user.click(screen.getByRole('button', { name: /confirm password/i }))
-    expect(screen.getAllByText(/recovery code/i)).toHaveLength(2)
+    expect(screen.getAllByText(/recovery code/i)).toHaveLength(3)
     await user.type(screen.getByLabelText(/authentication or recovery code/i), '12345678')
     await user.click(screen.getByRole('button', { name: /verify and continue/i }))
     expect(await screen.findByText(/what deletion affects/i)).toBeInTheDocument()

@@ -99,7 +99,12 @@ const socialSupabase = {
 }
 
 function socialAdapter() {
-  return createAuthProvider(socialSupabase as unknown as Parameters<typeof createAuthProvider>[0])
+  return createAuthProvider(
+    socialSupabase as unknown as Parameters<typeof createAuthProvider>[0],
+    undefined,
+    undefined,
+    { google: true, facebook: true },
+  )
 }
 
 function providerSessionFixture() {
@@ -110,7 +115,7 @@ function providerSessionFixture() {
       id: 'oauth-user-1',
       email: 'shopper@example.test',
       email_confirmed_at: '2026-08-01T00:00:00Z',
-      app_metadata: { role: 'Shopper' },
+      app_metadata: { role: 'Shopper', provider: 'google' },
       factors: [],
     },
   }
@@ -118,6 +123,20 @@ function providerSessionFixture() {
 
 describe('social sign-in provider adapter', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it('does not call Supabase when a provider is explicitly unavailable', async () => {
+    const adapter = createAuthProvider(
+      socialSupabase as unknown as Parameters<typeof createAuthProvider>[0],
+      undefined,
+      undefined,
+      { google: false, facebook: true },
+    )
+
+    await expect(adapter.signInWithProvider!('google')).rejects.toThrow(
+      'Provider sign-in unavailable.',
+    )
+    expect(socialSupabase.auth.signInWithOAuth).not.toHaveBeenCalled()
+  })
 
   it('starts the provider redirect at the callback route and preserves a custom returnTo', async () => {
     socialSupabase.auth.signInWithOAuth.mockResolvedValue({ data: {}, error: null })
@@ -154,6 +173,7 @@ describe('social sign-in provider adapter', () => {
     expect(result.session.userId).toBe('oauth-user-1')
     expect(result.session.email).toBe('shopper@example.test')
     expect(result.session.role).toBe('Shopper')
+    expect((result.session as unknown as { provider?: string }).provider).toBe('google')
     expect(result.session.mfaRequired ?? false).toBe(false)
     expect(socialSupabase.auth.signOut).not.toHaveBeenCalled()
   })

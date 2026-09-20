@@ -24,6 +24,8 @@ jobs:
       VITE_PARTNER_EMAIL_PROVIDER_ENABLED: ${{ vars.VITE_PARTNER_EMAIL_PROVIDER_ENABLED }}
       VITE_PARTNER_MEDIA_PROVIDER_ENABLED: ${{ vars.VITE_PARTNER_MEDIA_PROVIDER_ENABLED }}
       VITE_PARTNER_SYNTHETIC_ENABLED: ${{ vars.VITE_PARTNER_SYNTHETIC_ENABLED }}
+      VITE_AUTH_PROVIDER_GOOGLE_ENABLED: ${{ vars.VITE_AUTH_PROVIDER_GOOGLE_ENABLED }}
+      VITE_AUTH_PROVIDER_FACEBOOK_ENABLED: ${{ vars.VITE_AUTH_PROVIDER_FACEBOOK_ENABLED }}
       VERCEL_CLI_VERSION: ${{ vars.VERCEL_CLI_VERSION }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
@@ -41,6 +43,8 @@ jobs:
             'VITE_PARTNER_EMAIL_PROVIDER_ENABLED',
             'VITE_PARTNER_MEDIA_PROVIDER_ENABLED',
             'VITE_PARTNER_SYNTHETIC_ENABLED',
+            'VITE_AUTH_PROVIDER_GOOGLE_ENABLED',
+            'VITE_AUTH_PROVIDER_FACEBOOK_ENABLED',
           ]
           const config = Object.fromEntries(
             required.map((name) => {
@@ -112,6 +116,8 @@ jobs:
             'VITE_PARTNER_EMAIL_PROVIDER_ENABLED',
             'VITE_PARTNER_MEDIA_PROVIDER_ENABLED',
             'VITE_PARTNER_SYNTHETIC_ENABLED',
+            'VITE_AUTH_PROVIDER_GOOGLE_ENABLED',
+            'VITE_AUTH_PROVIDER_FACEBOOK_ENABLED',
           ]) {
             if (!['true', 'false'].includes(config[name])) throw new Error(`${name} must be true or false`)
           }

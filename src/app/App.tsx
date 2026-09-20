@@ -17,7 +17,16 @@ import {
 } from '../features/partners/ownerIntakeAvailability'
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { RecordAuditPage, AdminAuditRoutes } from '../features/admin/audit'
-import { Link, Navigate, NavLink, Outlet, Route, useLocation, useParams } from 'react-router-dom'
+import {
+  Link,
+  Navigate,
+  NavLink,
+  Outlet,
+  Route,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom'
 import {
   CatalogBrowserPage,
   CatalogDetailsPage,
@@ -877,17 +886,36 @@ function TripAccountLifecycle({ runtime }: { runtime: TripOfflineRuntime }) {
 
 function TripAwareAccountPage({ runtime }: { runtime: TripOfflineRuntime }) {
   const { session, signOut } = useAuth()
+  const navigate = useNavigate()
   const [unsyncedCount, setUnsyncedCount] = useState(0)
+  const [switchingAccount, setSwitchingAccount] = useState(false)
   const [error, setError] = useState(false)
 
-  async function requestSignOut() {
+  async function completeSignOut(switchAccount: boolean) {
+    try {
+      await signOut()
+      if (switchAccount)
+        navigate('/auth/sign-in?returnTo=%2Faccount&switchAccount=1', {
+          replace: true,
+          state: { switchAccountSignOut: true },
+        })
+    } catch {
+      setError(true)
+    } finally {
+      setSwitchingAccount(false)
+    }
+  }
+
+  async function requestSignOut(switchAccount = false) {
     if (!session) return
+    setSwitchingAccount(switchAccount)
     try {
       const status = await runtime.prepareSignOut(session.userId)
       if (status.requiresConfirmation) setUnsyncedCount(status.pendingCount)
-      else await signOut()
+      else await completeSignOut(switchAccount)
     } catch {
       setError(true)
+      setSwitchingAccount(false)
     }
   }
 
@@ -896,31 +924,72 @@ function TripAwareAccountPage({ runtime }: { runtime: TripOfflineRuntime }) {
       <section className="page-card" aria-labelledby="account-heading">
         <h1 id="account-heading">Your account</h1>
         <p>Signed in as a private {session?.role} account.</p>
+        <dl>
+          <dt>Account type</dt>
+          <dd>{session?.role}</dd>
+          <dt>Email</dt>
+          <dd>
+            {session?.email ?? 'Email unavailable in this session'} ·{' '}
+            {session?.emailVerified ? 'Verified' : 'Verification required'}
+          </dd>
+          <dt>Multi-factor authentication</dt>
+          <dd>{session?.mfaEnrolled ? 'Enrolled' : 'Not enrolled'}</dd>
+          {session?.provider && (
+            <>
+              <dt>Signed in with</dt>
+              <dd>
+                {session.provider === 'email'
+                  ? 'Email'
+                  : session.provider === 'google'
+                    ? 'Google'
+                    : 'Facebook'}
+              </dd>
+            </>
+          )}
+        </dl>
         {unsyncedCount > 0 && (
           <div role="alert">
             <p>
               {unsyncedCount} offline change{unsyncedCount === 1 ? '' : 's'} will be permanently
-              lost if you sign out.
+              lost if you {switchingAccount ? 'switch accounts' : 'sign out'}.
             </p>
-            <button className="button" type="button" onClick={() => void signOut()}>
-              Sign out and discard offline changes
+            <button
+              className="button"
+              type="button"
+              onClick={() => void completeSignOut(switchingAccount)}
+            >
+              {switchingAccount
+                ? 'Switch account and discard offline changes'
+                : 'Sign out and discard offline changes'}
             </button>
-            <button type="button" onClick={() => setUnsyncedCount(0)}>
+            <button
+              type="button"
+              onClick={() => {
+                setUnsyncedCount(0)
+                setSwitchingAccount(false)
+              }}
+            >
               Keep working
             </button>
           </div>
         )}
         {error && <p role="alert">We couldn&apos;t safely prepare sign-out. Please try again.</p>}
         {unsyncedCount === 0 && (
-          <button className="button" type="button" onClick={() => void requestSignOut()}>
-            Sign out
-          </button>
+          <>
+            <button className="button" type="button" onClick={() => void requestSignOut()}>
+              Sign out
+            </button>
+            <button type="button" onClick={() => void requestSignOut(true)}>
+              Use a different account
+            </button>
+          </>
         )}
         <nav className="account-menu" aria-label="Account controls">
           <Link to="/account/privacy">Privacy choices</Link>
           <Link to="/account/export">Export my data</Link>
           <Link to="/account/delete">Delete my account</Link>
           {session?.role === 'Shopper' && <Link to="/account/history">Private history</Link>}
+          <Link to="/account/privacy/blocked-senders">Blocked senders</Link>
         </nav>
       </section>
     </main>

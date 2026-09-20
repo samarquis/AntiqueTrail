@@ -76,6 +76,7 @@ describe('auth local sign-out cleanup', () => {
     store.setSession(session)
     const events: string[] = []
     const provider: AuthProviderAdapter = {
+      oauthProviders: { google: false, facebook: false },
       signIn: vi.fn(async () => ({ kind: 'error' as const })),
       sendRecovery: vi.fn(async () => undefined),
       verifyMfa: vi.fn(async () => null),
@@ -128,7 +129,13 @@ describe('auth local sign-out cleanup', () => {
           isActive: vi.fn(async () => true),
           revoke: () => pending,
         }}
-        provider={{ signIn: vi.fn(), sendRecovery: vi.fn(), verifyMfa: vi.fn(), signOut: logout }}
+        provider={{
+          oauthProviders: { google: false, facebook: false },
+          signIn: vi.fn(),
+          sendRecovery: vi.fn(),
+          verifyMfa: vi.fn(),
+          signOut: logout,
+        }}
       >
         <SignOutProbe />
       </AuthProvider>,
@@ -158,7 +165,13 @@ describe('auth local sign-out cleanup', () => {
             if (failure === 'purge') throw new Error('purge failed')
           }}
           registry={{ registerCurrentSession: vi.fn(), isActive: vi.fn(async () => true), revoke }}
-          provider={{ signIn: vi.fn(), sendRecovery: vi.fn(), verifyMfa: vi.fn(), signOut: logout }}
+          provider={{
+            oauthProviders: { google: false, facebook: false },
+            signIn: vi.fn(),
+            sendRecovery: vi.fn(),
+            verifyMfa: vi.fn(),
+            signOut: logout,
+          }}
         >
           <SignOutProbe />
         </AuthProvider>,
@@ -191,6 +204,7 @@ describe('auth local sign-out cleanup', () => {
           revoke: vi.fn(),
         }}
         provider={{
+          oauthProviders: { google: false, facebook: false },
           signIn: vi.fn(),
           sendRecovery: vi.fn(),
           verifyMfa: vi.fn(),
@@ -222,6 +236,7 @@ describe('auth local sign-out cleanup', () => {
         authStore={store}
         registry={{ registerCurrentSession: vi.fn(), isActive: vi.fn(async () => true), revoke }}
         provider={{
+          oauthProviders: { google: false, facebook: false },
           signIn: vi.fn(),
           sendRecovery: vi.fn(),
           verifyMfa: vi.fn(),
@@ -251,6 +266,7 @@ describe('auth local sign-out cleanup', () => {
         authStore={store}
         registry={{ registerCurrentSession: vi.fn(), isActive: vi.fn(), revoke }}
         provider={{
+          oauthProviders: { google: false, facebook: false },
           signIn: vi.fn(async () => ({ kind: 'error' as const })),
           sendRecovery: vi.fn(),
           verifyMfa: vi.fn(async () => null),
@@ -309,6 +325,7 @@ describe('auth local sign-out cleanup', () => {
           }),
         }}
         provider={{
+          oauthProviders: { google: false, facebook: false },
           signIn: vi.fn(async () => ({ kind: 'error' as const })),
           sendRecovery: vi.fn(),
           verifyMfa: vi.fn(async () => null),

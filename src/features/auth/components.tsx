@@ -11,6 +11,7 @@ import { exchangePreflightAuthCallback, takePreflightAuthCallback } from './call
 import type { AuthCallback } from './authBoundary'
 import { hasStagedRecoveryToken, stageRecoveryToken } from './passwordRecoveryClient'
 import { PasswordReplacementPage } from './PasswordReplacementPage'
+import { PasswordInput } from './PasswordInput'
 import type { AuthProviderAdapter, OAuthProviderId, ProviderCallbackResult } from './types'
 import { isCatalogOnlyPublicTest, isPublicTestLifecyclePath } from './publicTestMode'
 
@@ -54,8 +55,8 @@ function AuthCard({
     if (focusOnMount) headingRef.current?.focus()
   }, [focusOnMount])
   return (
-    <main>
-      <section className="page-card" aria-labelledby="auth-heading">
+    <main className="auth-page">
+      <section className="page-card auth-card" aria-labelledby="auth-heading">
         <p className="eyebrow">Antique Trail account</p>
         <h1 id="auth-heading" ref={headingRef} tabIndex={focusOnMount ? -1 : undefined}>
           {title}
@@ -67,11 +68,17 @@ function AuthCard({
   )
 }
 
-function AuthErrorSummary({ message }: { message: string }) {
+function AuthErrorSummary({
+  message,
+  id = 'auth-error-summary',
+}: {
+  message: string
+  id?: string
+}) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => ref.current?.focus(), [message])
   return (
-    <div className="error-summary" ref={ref} role="alert" tabIndex={-1}>
+    <div id={id} className="error-summary" ref={ref} role="alert" tabIndex={-1}>
       <h2>There is a problem</h2>
       <p>{message}</p>
     </div>
@@ -80,6 +87,44 @@ function AuthErrorSummary({ message }: { message: string }) {
 
 function describeReturnTarget(returnTo: string) {
   return returnTo === '/stores' ? 'the store list' : 'the action you were working on'
+}
+
+const OAUTH_PROVIDER_IDS = ['google', 'facebook'] as const
+
+function providerLabel(providerId: OAuthProviderId) {
+  return providerId === 'google' ? 'Google' : 'Facebook'
+}
+
+function OAuthProviderMark({ providerId }: { providerId: OAuthProviderId }) {
+  if (providerId === 'google')
+    return (
+      <svg className="auth-provider-button__mark" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          fill="#4285F4"
+          d="M21.35 12.27c0-.79-.07-1.55-.23-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42Z"
+        />
+        <path
+          fill="#34A853"
+          d="M12 21.5c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.7-1.72-5.47-4.03H3.28v2.53A9.74 9.74 0 0 0 12 21.5Z"
+        />
+        <path
+          fill="#FBBC05"
+          d="M6.53 13.58A5.86 5.86 0 0 1 6.22 12c0-.55.1-1.08.31-1.58V7.89H3.28A9.5 9.5 0 0 0 2.25 12c0 1.48.35 2.88 1.03 4.11l3.25-2.53Z"
+        />
+        <path
+          fill="#EA4335"
+          d="M12 6.39c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.83 3.48 14.63 2.5 12 2.5a9.74 9.74 0 0 0-8.72 5.39l3.25 2.53C7.3 8.11 9.46 6.39 12 6.39Z"
+        />
+      </svg>
+    )
+  return (
+    <svg className="auth-provider-button__mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.04 1.79-4.72 4.56-4.72 1.32 0 2.7.24 2.7.24v2.98h-1.52c-1.5 0-1.97.94-1.97 1.9v2.26h3.35l-.54 3.49H13.9V24C19.61 23.1 24 18.1 24 12.07Z"
+      />
+    </svg>
+  )
 }
 
 export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
@@ -91,16 +136,22 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [socialPending, setSocialPending] = useState<OAuthProviderId | null>(null)
-  const returnTo = safeReturnTo(new URLSearchParams(location.search).get('returnTo'))
+  const params = new URLSearchParams(location.search)
+  const returnTo = safeReturnTo(params.get('returnTo'))
+  const switchingAccount = params.get('switchAccount') === '1'
+  const availableProviders = provider.signInWithProvider
+    ? OAUTH_PROVIDER_IDS.filter((providerId) => provider.oauthProviders[providerId])
+    : []
+  const secureSignOutObserved = location.state?.switchAccountSignOut === true
 
   async function continueWith(providerId: OAuthProviderId) {
-    if (!provider.signInWithProvider) return
+    if (!provider.signInWithProvider || !provider.oauthProviders[providerId]) return
     setSocialPending(providerId)
     setError(null)
     try {
       await provider.signInWithProvider(providerId, returnTo)
     } catch {
-      setError(GENERIC_SIGN_IN_ERROR)
+      setError(`We couldn't start ${providerLabel(providerId)} sign-in. Try again.`)
     } finally {
       setSocialPending(null)
     }
@@ -137,7 +188,19 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
   if (isCatalogOnlyPublicTest() && !isPublicTestLifecyclePath(returnTo))
     return <AccountSetupPaused />
   return (
-    <AuthCard title="Sign in" description="Use your verified email and password to continue.">
+    <AuthCard
+      title={switchingAccount ? 'Use a different account' : 'Sign in'}
+      description={
+        switchingAccount
+          ? secureSignOutObserved
+            ? 'The previous account is signed out securely. Sign in with the account you want to use.'
+            : 'Sign in with the account you want to use.'
+          : 'Use your verified email and password to continue.'
+      }
+    >
+      {switchingAccount && secureSignOutObserved && (
+        <p role="status">Signed out securely. No private data remains visible.</p>
+      )}
       {returnTo !== '/stores' && !isCatalogOnlyPublicTest() && (
         <aside role="status">
           After sign-in, you’ll return to {describeReturnTarget(returnTo)}. Review and confirm the
@@ -156,40 +219,42 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
           aria-describedby={error ? 'auth-error-summary' : undefined}
           required
         />
-        <label htmlFor="auth-password">Password</label>
-        <input
+        <PasswordInput
           id="auth-password"
-          type="password"
+          label="Password"
           autoComplete="current-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? 'auth-error-summary' : undefined}
+          ariaInvalid={Boolean(error)}
+          describedBy={error ? 'auth-error-summary' : undefined}
           required
         />
-        {error && (
-          <div id="auth-error-summary">
-            <AuthErrorSummary message={error} />
-          </div>
-        )}
+        {error && <AuthErrorSummary message={error} />}
         <button className="button" type="submit" disabled={pending || socialPending !== null}>
           {pending ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
-      {!isCatalogOnlyPublicTest() && provider.signInWithProvider && (
-        <section aria-label="Sign in with a linked account">
+      {!isCatalogOnlyPublicTest() && availableProviders.length > 0 && (
+        <section className="auth-provider-buttons" aria-label="Sign in with a linked account">
           <p>Or sign in with:</p>
-          {(['google', 'facebook'] as const).map((providerId) => (
+          {socialPending && (
+            <p className="auth-provider-status" role="status" aria-live="polite">
+              Connecting to {providerLabel(socialPending)}…
+            </p>
+          )}
+          {availableProviders.map((providerId) => (
             <p key={providerId}>
               <button
-                className="button"
+                className={`auth-provider-button auth-provider-button--${providerId}`}
                 type="button"
                 disabled={pending || socialPending !== null}
+                aria-label={`Continue with ${providerLabel(providerId)}`}
                 onClick={() => void continueWith(providerId)}
               >
+                <OAuthProviderMark providerId={providerId} />
                 {socialPending === providerId
-                  ? 'Continuing…'
-                  : `Continue with ${providerId === 'google' ? 'Google' : 'Facebook'}`}
+                  ? `Connecting to ${providerLabel(providerId)}…`
+                  : `Continue with ${providerLabel(providerId)}`}
               </button>
             </p>
           ))}
@@ -229,10 +294,16 @@ export function RecoveryPage({ provider }: { provider: AuthProviderAdapter }) {
   if (hasStagedRecoveryToken()) {
     return <PasswordReplacementPage provider={provider} returnTo={returnTo} />
   }
-  return <RecoveryRequestPage provider={provider} />
+  return <RecoveryRequestPage provider={provider} returnTo={returnTo} />
 }
 
-function RecoveryRequestPage({ provider }: { provider: AuthProviderAdapter }) {
+function RecoveryRequestPage({
+  provider,
+  returnTo,
+}: {
+  provider: AuthProviderAdapter
+  returnTo: string
+}) {
   const location = useLocation()
   const initialEmail = new URLSearchParams(location.search).get('email') ?? ''
   const [email, setEmail] = useState(initialEmail)
@@ -271,14 +342,23 @@ function RecoveryRequestPage({ provider }: { provider: AuthProviderAdapter }) {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             aria-invalid={Boolean(validationError)}
+            aria-describedby={validationError ? 'recovery-error-summary' : undefined}
             required
           />
-          {validationError && <AuthErrorSummary message={validationError} />}
+          {validationError && (
+            <AuthErrorSummary id="recovery-error-summary" message={validationError} />
+          )}
           <button className="button" type="submit" disabled={pending}>
             {pending ? 'Sending…' : 'Send recovery email'}
           </button>
         </form>
       )}
+      <p>
+        <Link to={`/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`}>Back to sign in</Link>
+      </p>
+      <p>
+        <Link to="/stores">Back to browsing</Link>
+      </p>
     </AuthCard>
   )
 }
@@ -520,6 +600,9 @@ export function AuthCallbackPage({
           <p>
             If you believe this is a mistake, <Link to="/help">contact Antique Trail support</Link>.
           </p>
+          <p>
+            <Link to="/auth/sign-in?switchAccount=1">Use a different account</Link>
+          </p>
         </>
       ) : state === 'blocked' ? (
         <>
@@ -602,12 +685,14 @@ export function MfaPage({ provider }: { provider: AuthProviderAdapter }) {
             maxLength={32}
             value={code}
             onChange={(event) => setCode(event.target.value)}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'mfa-code-help mfa-error-summary' : 'mfa-code-help'}
             required
           />
-          <p>
+          <p id="mfa-code-help">
             Use a six-digit authenticator code. If that factor is unavailable, use a recovery code.
           </p>
-          {error && <AuthErrorSummary message={error} />}
+          {error && <AuthErrorSummary id="mfa-error-summary" message={error} />}
           <button className="button" type="submit" disabled={pending}>
             {pending ? 'Checking…' : 'Verify code'}
           </button>
@@ -715,87 +800,6 @@ export function ExpiredSessionPage({ returnTo = '/stores' }: { returnTo?: string
   )
 }
 
-export function AccountPage() {
-  const { session, signOut } = useAuth()
-  const [pending, setPending] = useState(false)
-  const [signedOut, setSignedOut] = useState(false)
-  async function submitSignOut() {
-    setPending(true)
-    try {
-      await signOut()
-    } finally {
-      // Local purge is authoritative even if remote provider acknowledgement is unavailable.
-      setSignedOut(true)
-      setPending(false)
-    }
-  }
-  return (
-    <AuthCard
-      title="Your account"
-      description="Review your account access, private history, and privacy choices."
-    >
-      {signedOut ? (
-        <>
-          <p role="status">You are signed out on this device. Private account content is hidden.</p>
-          <Link className="button" to="/stores">
-            Return to the store list
-          </Link>
-        </>
-      ) : (
-        <>
-          <dl>
-            <dt>Account type</dt>
-            <dd>{session?.role ?? 'Shopper'}</dd>
-            <dt>Email status</dt>
-            <dd>
-              {session?.email ?? 'Email unavailable in this session'} ·{' '}
-              {session?.emailVerified ? 'Verified' : 'Verification required'}
-            </dd>
-            <dt>Multi-factor authentication</dt>
-            <dd>{session?.mfaEnrolled ? 'Enrolled' : 'Not enrolled'}</dd>
-          </dl>
-          <nav aria-label="Account controls">
-            <ul>
-              <li>
-                <Link to="/account/privacy">Account &amp; Privacy</Link>
-              </li>
-              <li>
-                <Link to="/account/export">Export My Data</Link>
-              </li>
-              <li>
-                <Link to="/account/history">Private history controls</Link>
-              </li>
-              <li>
-                <Link to="/account/privacy/blocked-senders">Blocked senders</Link>
-              </li>
-            </ul>
-          </nav>
-          <section aria-labelledby="sign-out-heading">
-            <h2 id="sign-out-heading">Sign out</h2>
-            <p>Signing out clears private account data held by this device.</p>
-            <button
-              className="button"
-              type="button"
-              disabled={pending}
-              onClick={() => void submitSignOut()}
-            >
-              {pending ? 'Signing out…' : 'Sign out'}
-            </button>
-          </section>
-          <section aria-labelledby="delete-heading">
-            <h2 id="delete-heading">Delete My Account</h2>
-            <p>Review the effects and seven-day cancellation period before scheduling deletion.</p>
-            <Link to="/account/delete">Review account deletion</Link>
-          </section>
-        </>
-      )}
-    </AuthCard>
-  )
-}
-
-/** Kept for existing route imports while the account screen graduates from its placeholder. */
-export const AccountPlaceholder = AccountPage
-
 function clearPendingPrivateAction() {
   if (typeof window !== 'undefined')
     window.sessionStorage.removeItem('antique-trail:jit-private-action:v1')
@@ -808,6 +812,7 @@ export function safeCancelTarget(value: string): string {
   if (
     safe === '/saved' ||
     safe.startsWith('/trips/') ||
+    safe === '/account' ||
     safe.startsWith('/account/') ||
     safe.startsWith('/auth/')
   )

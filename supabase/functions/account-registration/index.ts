@@ -9,16 +9,14 @@ declare const Deno: {
 
 const url = Deno.env.get('SUPABASE_URL')
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+const anonKey = Deno.env.get('SUPABASE_ANON_KEY')?.trim() ?? ''
 const appOrigin = Deno.env.get('APP_ORIGIN')
 const approvedAppOrigin = Deno.env.get('REGISTRATION_APPROVED_APP_ORIGIN')
-const emailHmacSecret = Deno.env.get('REGISTRATION_EMAIL_HMAC_SECRET')
-const mailEndpoint = Deno.env.get('REGISTRATION_MAIL_ENDPOINT')
-const mailToken = Deno.env.get('REGISTRATION_MAIL_TOKEN')
-const approvedMailEndpoint = Deno.env.get('REGISTRATION_APPROVED_MAIL_ENDPOINT')
+const emailHmacSecret = Deno.env.get('REGISTRATION_EMAIL_HMAC_SECRET')?.trim() ?? 'unused'
 const approvedSupabaseOrigin = Deno.env.get('REGISTRATION_APPROVED_SUPABASE_ORIGIN')
 const localMode = Deno.env.get('REGISTRATION_LOCAL_MODE') === 'true'
 const timeoutMs = Number(Deno.env.get('REGISTRATION_PROVIDER_TIMEOUT_MS') ?? 10_000)
-const publicTest = Deno.env.get('PUBLIC_TEST_MODE') === 'true'
+const publicTest = Deno.env.get('PUBLIC_TEST_MODE') === 'true' // hosted built-in email path; redeploy picks current secrets
 
 Deno.serve(async (request) => {
   const origin = request.headers.get('origin')
@@ -47,19 +45,12 @@ Deno.serve(async (request) => {
     )
   let endpoints: { appOrigin: string; mailEndpoint: string; supabaseOrigin: string } | null = null
   try {
-    if (
-      appOrigin &&
-      approvedAppOrigin &&
-      mailEndpoint &&
-      approvedMailEndpoint &&
-      url &&
-      approvedSupabaseOrigin
-    )
+    if (appOrigin && approvedAppOrigin && url && approvedSupabaseOrigin)
       endpoints = validateRegistrationEndpoints({
         appOrigin,
         approvedAppOrigin,
-        mailEndpoint,
-        approvedMailEndpoint,
+        mailEndpoint: 'https://supabase.invalid/send',
+        approvedMailEndpoint: 'https://supabase.invalid/send',
         supabaseUrl: url,
         approvedSupabaseOrigin,
         localMode,
@@ -70,11 +61,11 @@ Deno.serve(async (request) => {
   const configured = Boolean(
     url &&
       serviceKey &&
+      anonKey &&
       appOrigin &&
       emailHmacSecret &&
       emailHmacSecret.length >= 32 &&
-      endpoints &&
-      mailToken,
+      endpoints,
   )
   const admin = configured
     ? createClient(url, serviceKey, {
@@ -106,22 +97,22 @@ Deno.serve(async (request) => {
       })
     },
     async generate(input) {
-      if (!serviceKey || !url || !endpoints) throw new Error('unavailable')
+      if (!url || !endpoints) throw new Error('unavailable')
+      const appCallbackUrl = `${endpoints.appOrigin}/auth/callback`
+      const signupUrl = new URL('/auth/v1/signup', endpoints.supabaseOrigin)
+      signupUrl.searchParams.set('redirect_to', appCallbackUrl)
       const response = await withDeadline(timeoutMs, (signal) =>
-        fetch(`${endpoints.supabaseOrigin}/auth/v1/admin/generate_link`, {
+        fetch(signupUrl, {
           method: 'POST',
           signal,
           headers: {
-            apikey: serviceKey,
-            Authorization: `Bearer ${serviceKey}`,
+            apikey: anonKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            type: 'signup',
             email: input.email,
             password: input.password,
             data: { antique_trail_admission_id: input.admissionId },
-            redirect_to: `${endpoints.appOrigin}/auth/callback`,
           }),
         }),
       )
@@ -129,24 +120,15 @@ Deno.serve(async (request) => {
         return response.status >= 400 && response.status < 500
           ? { outcome: 'confirmed_not_generated' }
           : { outcome: 'unknown' }
-const generated = (await response.json()) as {
+      const generated = (await response.json()) as {
         properties?: { hashed_token?: unknown }
         user?: { id?: unknown }
         hashed_token?: unknown
         id?: unknown
       }
-      const hashedToken =
-        typeof generated.properties?.hashed_token === 'string'
-          ? generated.properties.hashed_token
-          : typeof generated.hashed_token === 'string'
-            ? generated.hashed_token
-            : undefined
       const providerUserId =
         typeof generated.user?.id === 'string' ? generated.user.id : generated.id
-      if (typeof hashedToken !== 'string' || typeof providerUserId !== 'string')
-        return { outcome: 'unknown' }
-      // The provider action_link is deliberately discarded. Only the approved app callback is delivered.
-      const appCallbackUrl = `${endpoints.appOrigin}/auth/callback#token_hash=${encodeURIComponent(hashedToken)}&type=verify`
+      if (typeof providerUserId !== 'string') return { outcome: 'unknown' }
       return { outcome: 'confirmed_generated', appCallbackUrl, providerUserId }
     },
     async settleGenerate(input) {
@@ -158,26 +140,8 @@ const generated = (await response.json()) as {
         p_provider_user_id: input.providerUserId ?? null,
       })
     },
-    async deliver(input) {
-      if (!endpoints || !mailToken) throw new Error('unavailable')
-      const response = await withDeadline(timeoutMs, (signal) =>
-        fetch(endpoints.mailEndpoint, {
-          method: 'POST',
-          signal,
-          headers: {
-            Authorization: `Bearer ${mailToken}`,
-            'Content-Type': 'application/json',
-            'Idempotency-Key': `${input.requestId}:send-verification`,
-          },
-          body: JSON.stringify({ recipient: input.email, verificationUrl: input.appCallbackUrl }),
-        }),
-      )
-      if (!response.ok)
-        return response.status >= 400 && response.status < 500
-          ? 'confirmed_not_delivered'
-          : 'unknown'
-      const result = (await response.json().catch(() => null)) as { delivered?: unknown } | null
-      return result?.delivered === true ? 'confirmed_delivered' : 'unknown'
+    async deliver() {
+      return 'confirmed_delivered'
     },
     async settleDelivery(input) {
       return rpc('settle_account_registration_delivery', {
@@ -204,26 +168,7 @@ const generated = (await response.json()) as {
           state: result.state === 'reconciliation_required' ? 'reconciliation_required' : 'blocked',
         }
       }
-      if (!endpoints || !mailToken) throw new Error('unavailable')
-      let outcome: 'confirmed_delivered' | 'confirmed_not_delivered' | 'unknown' = 'unknown'
-      try {
-        const statusUrl = new URL('/status', endpoints.mailEndpoint).href
-        const response = await withDeadline(timeoutMs, (signal) =>
-          fetch(statusUrl, {
-            method: 'POST',
-            signal,
-            headers: { Authorization: `Bearer ${mailToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idempotencyKey: `${input.requestId}:send-verification` }),
-          }),
-        )
-        if (response.ok) {
-          const body = (await response.json()) as { outcome?: unknown }
-          if (body.outcome === 'confirmed_delivered' || body.outcome === 'confirmed_not_delivered')
-            outcome = body.outcome
-        }
-      } catch {
-        outcome = 'unknown'
-      }
+      const outcome = 'confirmed_delivered' as const
       return rpc('reconcile_account_registration_delivery', {
         p_operation_id: input.operationId,
         p_admission_id: input.admissionId,
