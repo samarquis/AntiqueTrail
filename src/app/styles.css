@@ -774,6 +774,17 @@ main > article {
   gap: 0.8rem;
 }
 
+.password-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.password-input input {
+  min-width: 0;
+}
+
 .trip-plan-section {
   margin-top: 2rem;
   padding-top: 1.5rem;

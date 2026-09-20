@@ -41,11 +41,17 @@ it('rejects registration passwords longer than 8 characters', async () => {
   )
   await user.type(screen.getByLabelText('Email'), 'person@example.com')
   const password = screen.getByLabelText('Password')
-  expect(password).toHaveAttribute('maxLength', '8')
   await user.type(password, '123456789')
   await user.click(screen.getByRole('checkbox'))
   await user.click(screen.getByRole('button', { name: /create account/i }))
-  expect(register).toHaveBeenCalledWith(expect.objectContaining({ password: '12345678' }))
+  expect(password).toHaveValue('123456789')
+  expect(password).toHaveAttribute('aria-invalid', 'true')
+  expect(password).toHaveAttribute(
+    'aria-describedby',
+    expect.stringContaining('register-error-summary'),
+  )
+  expect(screen.getByRole('alert')).toHaveTextContent(/1 through 8 characters/i)
+  expect(register).not.toHaveBeenCalled()
 })
 
 function renderAuth(element: ReactNode, provider: AuthProviderAdapter) {
@@ -127,6 +133,23 @@ describe('auth states', () => {
     expect(screen.getByLabelText(/password/i)).toHaveAttribute('autocomplete', 'current-password')
   })
 
+  it('toggles password visibility with an accessible, focus-preserving control', async () => {
+    const user = userEvent.setup()
+    renderAuth(<SignInPage provider={unavailableProvider} />, unavailableProvider)
+    const password = screen.getByLabelText('Password')
+    await user.type(password, 'secret')
+    await user.click(screen.getByRole('button', { name: 'Show password' }))
+    expect(password).toHaveAttribute('type', 'text')
+    expect(password).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Hide password' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await user.click(screen.getByRole('button', { name: 'Hide password' }))
+    expect(password).toHaveAttribute('type', 'password')
+    expect(password).toHaveFocus()
+  })
+
   it('preserves just-in-time return context and performs no write before sign-in', () => {
     render(
       <MemoryRouter initialEntries={['/auth/sign-in?returnTo=%2Fstores%2Foak%2Fmemory']}>
@@ -179,7 +202,48 @@ describe('auth states', () => {
     expect(screen.getByLabelText(/email/i)).toHaveValue('not-an-email')
     await user.click(screen.getByRole('button', { name: /send recovery/i }))
     expect(await screen.findByRole('alert')).toHaveFocus()
+    expect(screen.getByLabelText(/email/i)).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText(/email/i)).toHaveAttribute(
+      'aria-describedby',
+      'recovery-error-summary',
+    )
     expect(unavailableProvider.sendRecovery).not.toHaveBeenCalled()
+  })
+
+  it('keeps recovery navigation inside the app and preserves a safe return target', () => {
+    render(
+      <MemoryRouter initialEntries={['/auth/recovery?returnTo=%2Faccount']}>
+        <AuthProvider provider={unavailableProvider}>
+          <RecoveryPage provider={unavailableProvider} />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: /back to sign in/i })).toHaveAttribute(
+      'href',
+      '/auth/sign-in?returnTo=%2Faccount',
+    )
+    expect(screen.getByRole('link', { name: /back to browsing/i })).toHaveAttribute(
+      'href',
+      '/stores',
+    )
+  })
+
+  it('associates registration errors with only the fields that are invalid', async () => {
+    const user = userEvent.setup()
+    renderAuth(<RegisterPage provider={unavailableProvider} />, unavailableProvider)
+    await user.type(screen.getByLabelText('Email'), 'shopper@example.com')
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+    expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Password')).toHaveAttribute(
+      'aria-describedby',
+      'password-requirements register-error-summary',
+    )
+    expect(screen.getByRole('checkbox')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('checkbox')).toHaveAttribute(
+      'aria-describedby',
+      'register-error-summary',
+    )
   })
 
   it('hides private content and offers recovery when the session expired', async () => {
@@ -237,7 +301,7 @@ describe('auth states', () => {
       unavailableProvider,
     )
     await user.type(screen.getByLabelText(/email/i), 'blocked@example.test')
-    await user.type(screen.getByLabelText(/^password$/i), 'long-safe-password')
+    await user.type(screen.getByLabelText(/^password$/i), 'safe1234')
     await user.click(screen.getByRole('button', { name: /create account/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/18 or older/i)
     expect(register).not.toHaveBeenCalled()
@@ -267,7 +331,7 @@ describe('auth states', () => {
       </MemoryRouter>,
     )
     await user.type(screen.getByLabelText(/email/i), 'shopper@example.test')
-    await user.type(screen.getByLabelText(/^password$/i), 'long-safe-password')
+    await user.type(screen.getByLabelText(/^password$/i), 'safe1234')
     await user.click(screen.getByRole('checkbox'))
     await user.click(screen.getByRole('button', { name: /create account/i }))
     expect(await screen.findByRole('heading', { name: /check your email/i })).toBeInTheDocument()
@@ -295,7 +359,7 @@ describe('auth states', () => {
       </MemoryRouter>,
     )
     await user.type(screen.getByLabelText(/email/i), 'shopper@example.test')
-    await user.type(screen.getByLabelText(/^password$/i), 'long-safe-password')
+    await user.type(screen.getByLabelText(/^password$/i), 'safe1234')
     await user.click(screen.getByRole('checkbox'))
     await user.click(screen.getByRole('button', { name: /create account/i }))
     expect(await screen.findByRole('alert')).toBeInTheDocument()
