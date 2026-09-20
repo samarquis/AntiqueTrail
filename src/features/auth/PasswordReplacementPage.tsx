@@ -192,8 +192,8 @@ function AuthCardReplacement({
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => headingRef.current?.focus(), [])
   return (
-    <main>
-      <section className="page-card" aria-labelledby="recovery-heading">
+    <main className="auth-page">
+      <section className="page-card auth-card" aria-labelledby="recovery-heading">
         <p className="eyebrow">Antique Trail account</p>
         <h1 id="recovery-heading" ref={headingRef} tabIndex={-1}>
           {title}

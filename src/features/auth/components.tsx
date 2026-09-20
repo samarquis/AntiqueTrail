@@ -55,8 +55,8 @@ function AuthCard({
     if (focusOnMount) headingRef.current?.focus()
   }, [focusOnMount])
   return (
-    <main>
-      <section className="page-card" aria-labelledby="auth-heading">
+    <main className="auth-page">
+      <section className="page-card auth-card" aria-labelledby="auth-heading">
         <p className="eyebrow">Antique Trail account</p>
         <h1 id="auth-heading" ref={headingRef} tabIndex={focusOnMount ? -1 : undefined}>
           {title}
