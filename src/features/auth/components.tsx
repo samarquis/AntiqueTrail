@@ -166,7 +166,6 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
           aria-describedby={error ? 'auth-error-summary' : undefined}
           required
         />
-        <label htmlFor="auth-password">Password</label>
         <PasswordInput
           id="auth-password"
           label="Password"
