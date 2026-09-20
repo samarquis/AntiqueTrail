@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from './AuthContext'
+import { PasswordInput } from './PasswordInput'
 import {
   captureStagedRecoveryCleanup,
   isValidRecoveryPassword,
   PASSWORD_RECOVERY_ERROR,
   PASSWORD_RECOVERY_LENGTH_ERROR,
-  PASSWORD_RECOVERY_MAX_LENGTH,
   PASSWORD_RECOVERY_MISMATCH_ERROR,
   PASSWORD_RECOVERY_MIN_LENGTH,
   PASSWORD_RECOVERY_SUCCESS,
@@ -118,10 +118,9 @@ export function PasswordReplacementPage({
       description="Choose a new password for your Antique Trail account."
     >
       <form onSubmit={submit} noValidate>
-        <label htmlFor="recovery-new-password">New password</label>
-        <input
+        <PasswordInput
           id="recovery-new-password"
-          type="password"
+          label="New password"
           autoComplete="new-password"
           minLength={PASSWORD_RECOVERY_MIN_LENGTH}
           maxLength={PASSWORD_RECOVERY_MAX_LENGTH}
@@ -130,15 +129,15 @@ export function PasswordReplacementPage({
             setPassword(event.target.value)
             setError(null)
           }}
-          aria-invalid={Boolean(error)}
-          aria-describedby="recovery-password-requirements"
+          ariaInvalid={Boolean(error)}
+          describedBy={error ? 'recovery-error-summary' : undefined}
+          helpText="Use 12 through 128 characters."
+          helpId="recovery-password-requirements"
           required
         />
-        <p id="recovery-password-requirements">Use 12 through 128 characters.</p>
-        <label htmlFor="recovery-confirm-password">Confirm new password</label>
-        <input
+        <PasswordInput
           id="recovery-confirm-password"
-          type="password"
+          label="Confirm new password"
           autoComplete="new-password"
           minLength={PASSWORD_RECOVERY_MIN_LENGTH}
           maxLength={PASSWORD_RECOVERY_MAX_LENGTH}
@@ -147,8 +146,10 @@ export function PasswordReplacementPage({
             setConfirmation(event.target.value)
             setError(null)
           }}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? 'recovery-error-summary' : undefined}
+          ariaInvalid={Boolean(error)}
+          describedBy={error ? 'recovery-error-summary' : undefined}
+          helpText="Re-enter the same password."
+          helpId="recovery-confirm-password-help"
           required
         />
         {error && (

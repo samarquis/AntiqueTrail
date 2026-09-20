@@ -11,6 +11,7 @@ import { exchangePreflightAuthCallback, takePreflightAuthCallback } from './call
 import type { AuthCallback } from './authBoundary'
 import { hasStagedRecoveryToken, stageRecoveryToken } from './passwordRecoveryClient'
 import { PasswordReplacementPage } from './PasswordReplacementPage'
+import { PasswordInput } from './PasswordInput'
 import type { AuthProviderAdapter, OAuthProviderId, ProviderCallbackResult } from './types'
 import { isCatalogOnlyPublicTest, isPublicTestLifecyclePath } from './publicTestMode'
 
@@ -67,11 +68,17 @@ function AuthCard({
   )
 }
 
-function AuthErrorSummary({ message }: { message: string }) {
+function AuthErrorSummary({
+  message,
+  id = 'auth-error-summary',
+}: {
+  message: string
+  id?: string
+}) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => ref.current?.focus(), [message])
   return (
-    <div className="error-summary" ref={ref} role="alert" tabIndex={-1}>
+    <div id={id} className="error-summary" ref={ref} role="alert" tabIndex={-1}>
       <h2>There is a problem</h2>
       <p>{message}</p>
     </div>
@@ -210,21 +217,17 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
           required
         />
         <label htmlFor="auth-password">Password</label>
-        <input
+        <PasswordInput
           id="auth-password"
-          type="password"
+          label="Password"
           autoComplete="current-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? 'auth-error-summary' : undefined}
+          ariaInvalid={Boolean(error)}
+          describedBy={error ? 'auth-error-summary' : undefined}
           required
         />
-        {error && (
-          <div id="auth-error-summary">
-            <AuthErrorSummary message={error} />
-          </div>
-        )}
+        {error && <AuthErrorSummary message={error} />}
         <button className="button" type="submit" disabled={pending || socialPending !== null}>
           {pending ? 'Signing in…' : 'Sign in'}
         </button>
@@ -289,10 +292,16 @@ export function RecoveryPage({ provider }: { provider: AuthProviderAdapter }) {
   if (hasStagedRecoveryToken()) {
     return <PasswordReplacementPage provider={provider} returnTo={returnTo} />
   }
-  return <RecoveryRequestPage provider={provider} />
+  return <RecoveryRequestPage provider={provider} returnTo={returnTo} />
 }
 
-function RecoveryRequestPage({ provider }: { provider: AuthProviderAdapter }) {
+function RecoveryRequestPage({
+  provider,
+  returnTo,
+}: {
+  provider: AuthProviderAdapter
+  returnTo: string
+}) {
   const location = useLocation()
   const initialEmail = new URLSearchParams(location.search).get('email') ?? ''
   const [email, setEmail] = useState(initialEmail)
@@ -331,14 +340,23 @@ function RecoveryRequestPage({ provider }: { provider: AuthProviderAdapter }) {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             aria-invalid={Boolean(validationError)}
+            aria-describedby={validationError ? 'recovery-error-summary' : undefined}
             required
           />
-          {validationError && <AuthErrorSummary message={validationError} />}
+          {validationError && (
+            <AuthErrorSummary id="recovery-error-summary" message={validationError} />
+          )}
           <button className="button" type="submit" disabled={pending}>
             {pending ? 'Sending…' : 'Send recovery email'}
           </button>
         </form>
       )}
+      <p>
+        <Link to={`/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`}>Back to sign in</Link>
+      </p>
+      <p>
+        <Link to="/stores">Back to browsing</Link>
+      </p>
     </AuthCard>
   )
 }
@@ -665,12 +683,14 @@ export function MfaPage({ provider }: { provider: AuthProviderAdapter }) {
             maxLength={32}
             value={code}
             onChange={(event) => setCode(event.target.value)}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'mfa-code-help mfa-error-summary' : 'mfa-code-help'}
             required
           />
-          <p>
+          <p id="mfa-code-help">
             Use a six-digit authenticator code. If that factor is unavailable, use a recovery code.
           </p>
-          {error && <AuthErrorSummary message={error} />}
+          {error && <AuthErrorSummary id="mfa-error-summary" message={error} />}
           <button className="button" type="submit" disabled={pending}>
             {pending ? 'Checking…' : 'Verify code'}
           </button>
@@ -790,6 +810,7 @@ export function safeCancelTarget(value: string): string {
   if (
     safe === '/saved' ||
     safe.startsWith('/trips/') ||
+    safe === '/account' ||
     safe.startsWith('/account/') ||
     safe.startsWith('/auth/')
   )
