@@ -93,6 +93,7 @@ export function toAuthSession(
     userId: provider.userId,
     ...(provider.email ? { email: provider.email } : {}),
     ...(provider.emailVerified !== undefined ? { emailVerified: provider.emailVerified } : {}),
+    ...(provider.provider ? { provider: provider.provider } : {}),
     accessToken: provider.accessToken,
     expiresAt: provider.expiresAt,
     role: provider.role ?? defaults?.role ?? 'Shopper',

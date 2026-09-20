@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthContext'
 import { GENERIC_MFA_ERROR, GENERIC_RECOVERY_MESSAGE, InMemoryAuthStore } from './authClient'
 import {
-  AccountPage,
   AuthCallbackPage,
   MfaPage,
   mfaNavigationState,
@@ -189,17 +188,6 @@ describe('auth states', () => {
     expect(screen.queryByText(/private payload/i)).not.toBeInTheDocument()
     expect(await screen.findByText(/signed out safely/i)).toBeInTheDocument()
     expect(document.body).not.toHaveTextContent('never-render-this')
-  })
-
-  it('separates routine account controls from deletion and confirms local sign-out', async () => {
-    const user = userEvent.setup()
-    renderAuth(<AccountPage />, unavailableProvider)
-    expect(screen.getByRole('navigation', { name: /account controls/i })).toHaveTextContent(
-      /export my data/i,
-    )
-    expect(screen.getByRole('heading', { name: /delete my account/i })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /^sign out$/i }))
-    expect(await screen.findByRole('status')).toHaveTextContent(/signed out on this device/i)
   })
 
   it('requires adult attestation and clears secrets when registration is blocked', async () => {
@@ -451,6 +439,10 @@ describe('auth states', () => {
     expect(await screen.findByRole('heading', { name: 'Sign-in unavailable' })).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent(/isn't linked to an invited/i)
     expect(screen.getByRole('link', { name: /back to stores/i })).toHaveAttribute('href', '/stores')
+    expect(screen.getByRole('link', { name: /use a different account/i })).toHaveAttribute(
+      'href',
+      '/auth/sign-in?switchAccount=1',
+    )
     expect(screen.getByRole('link', { name: /contact antique trail support/i })).toHaveAttribute(
       'href',
       '/help',

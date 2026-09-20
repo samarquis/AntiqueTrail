@@ -690,6 +690,83 @@ describe('app shell', () => {
     expect(offline.purgeAccount).toHaveBeenCalledWith('shopper-a', 'confirmed_logout')
   })
 
+  it('shows the canonical account identity and routes deliberate account switching', async () => {
+    const user = userEvent.setup()
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'shopper-a',
+      email: 'shopper-a@example.test',
+      emailVerified: true,
+      provider: 'google',
+      accessToken: 'memory-only',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaVerified: true,
+      mfaEnrolled: true,
+    })
+    const offline: TripOfflineRuntime = {
+      installId: 'test-install',
+      deviceKeyId: 'test-device-key',
+      start: vi.fn(),
+      recover: vi.fn(async () => ({ state: 'absent' as const })),
+      prepareSignOut: vi.fn(async () => ({ requiresConfirmation: false, pendingCount: 0 })),
+      purgeAccount: vi.fn(async () => undefined),
+    }
+    render(
+      <MemoryRouter initialEntries={['/account']}>
+        <App runtime={{ authStore, tripOffline: offline }} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText(/shopper-a@example\.test/)).toBeInTheDocument()
+    expect(screen.getByText(/multi-factor authentication/i)).toBeInTheDocument()
+    expect(screen.getByText('Google')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /use a different account/i }))
+
+    expect(offline.prepareSignOut).toHaveBeenCalledWith('shopper-a')
+    expect(
+      await screen.findByRole('heading', { name: /use a different account/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Signed out securely. No private data remains visible.'),
+    ).toBeInTheDocument()
+    expect(offline.purgeAccount).toHaveBeenCalledWith('shopper-a', 'confirmed_logout')
+  })
+
+  it('keeps the current account and offline work when switching is cancelled', async () => {
+    const user = userEvent.setup()
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'shopper-a',
+      email: 'shopper-a@example.test',
+      accessToken: 'memory-only',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaVerified: true,
+    })
+    const offline: TripOfflineRuntime = {
+      installId: 'test-install',
+      deviceKeyId: 'test-device-key',
+      start: vi.fn(),
+      recover: vi.fn(async () => ({ state: 'absent' as const })),
+      prepareSignOut: vi.fn(async () => ({ requiresConfirmation: true, pendingCount: 2 })),
+      purgeAccount: vi.fn(async () => undefined),
+    }
+    render(
+      <MemoryRouter initialEntries={['/account']}>
+        <App runtime={{ authStore, tripOffline: offline }} />
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /use a different account/i }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/2 offline changes/i)
+    await user.click(screen.getByRole('button', { name: /keep working/i }))
+    expect(screen.getByText(/shopper-a@example\.test/)).toBeInTheDocument()
+    expect(offline.purgeAccount).not.toHaveBeenCalled()
+  })
+
   it('exposes Check My Day as a provider-blocked authenticated route until R-01', () => {
     const authStore = new InMemoryAuthStore()
     authStore.setSession({

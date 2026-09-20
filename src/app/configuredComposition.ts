@@ -55,6 +55,7 @@ import {
   createAccountLifecycleClient,
   createRpcSessionRegistry,
   type AccountRole,
+  type AuthProviderName,
   type AuthProviderAdapter,
   type PasswordRecoveryRequest,
   type ProviderSession,
@@ -110,12 +111,19 @@ function providerSession(session: Session): ProviderSession {
     userId: session.user.id,
     ...(session.user.email ? { email: session.user.email } : {}),
     emailVerified: Boolean(session.user.email_confirmed_at),
+    ...(authProviderName(session.user.app_metadata?.provider)
+      ? { provider: authProviderName(session.user.app_metadata?.provider) }
+      : {}),
     accessToken: session.access_token,
     expiresAt: (session.expires_at ?? Math.floor(Date.now() / 1_000) + 300) * 1_000,
     role: role(session.user.app_metadata.role),
     mfaEnrolled,
     ...authenticationMetadata(session.access_token),
   }
+}
+
+function authProviderName(value: unknown): AuthProviderName | undefined {
+  return value === 'email' || value === 'google' || value === 'facebook' ? value : undefined
 }
 
 export function createConfiguredTripTransport(
