@@ -45,12 +45,7 @@ Deno.serve(async (request) => {
     )
   let endpoints: { appOrigin: string; mailEndpoint: string; supabaseOrigin: string } | null = null
   try {
-    if (
-      appOrigin &&
-      approvedAppOrigin &&
-      url &&
-      approvedSupabaseOrigin
-    )
+    if (appOrigin && approvedAppOrigin && url && approvedSupabaseOrigin)
       endpoints = validateRegistrationEndpoints({
         appOrigin,
         approvedAppOrigin,
@@ -64,7 +59,7 @@ Deno.serve(async (request) => {
     endpoints = null
   }
   const configured = Boolean(
-      url &&
+    url &&
       serviceKey &&
       anonKey &&
       appOrigin &&
@@ -125,7 +120,7 @@ Deno.serve(async (request) => {
         return response.status >= 400 && response.status < 500
           ? { outcome: 'confirmed_not_generated' }
           : { outcome: 'unknown' }
-const generated = (await response.json()) as {
+      const generated = (await response.json()) as {
         properties?: { hashed_token?: unknown }
         user?: { id?: unknown }
         hashed_token?: unknown
@@ -133,8 +128,7 @@ const generated = (await response.json()) as {
       }
       const providerUserId =
         typeof generated.user?.id === 'string' ? generated.user.id : generated.id
-      if (typeof providerUserId !== 'string')
-        return { outcome: 'unknown' }
+      if (typeof providerUserId !== 'string') return { outcome: 'unknown' }
       return { outcome: 'confirmed_generated', appCallbackUrl, providerUserId }
     },
     async settleGenerate(input) {

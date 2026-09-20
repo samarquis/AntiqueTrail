@@ -550,7 +550,9 @@ describe('auth states', () => {
     expect(googleButton).toBeInTheDocument()
     expect(googleButton).toHaveClass('auth-provider-button--google')
     expect(googleButton.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
-    expect(screen.queryByRole('button', { name: /continue with facebook/i })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /continue with facebook/i }),
+    ).not.toBeInTheDocument()
 
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /continue with google/i }))
