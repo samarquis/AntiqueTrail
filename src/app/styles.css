@@ -2206,6 +2206,174 @@ main > article dt {
   }
 }
 
+/* Browse editorial pass: make the directory feel like a destination, not a dashboard. */
+.store-browse {
+  width: min(100% - 2rem, 86rem);
+  margin-inline: auto;
+}
+
+.browse-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(20rem, 0.9fr);
+  gap: clamp(1.5rem, 4vw, 4rem);
+  align-items: end;
+  margin-bottom: clamp(2.5rem, 6vw, 5rem);
+  padding: clamp(1rem, 3vw, 2rem) 0 clamp(1.5rem, 4vw, 2.5rem);
+  border-bottom: 1px solid var(--line);
+}
+
+.browse-intro h1 {
+  max-width: 12ch;
+  margin-bottom: 0.8rem;
+  font-size: clamp(2.75rem, 6vw, 5rem);
+  letter-spacing: -0.035em;
+}
+
+.browse-intro header > p:last-child {
+  max-width: 42rem;
+  color: var(--muted);
+  font-size: clamp(1.05rem, 1.7vw, 1.25rem);
+}
+
+.browse-intro .catalog-filter-region,
+.browse-intro .catalog-filters {
+  margin-bottom: 0;
+}
+
+.catalog-results-heading__location {
+  color: var(--rust);
+}
+
+.store-browse .catalog-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1rem, 2vw, 1.75rem);
+}
+
+.store-browse .catalog-card {
+  border-radius: 16px;
+}
+
+.store-browse .catalog-card > img,
+.store-browse .catalog-card__placeholder {
+  aspect-ratio: 4 / 3;
+}
+
+.store-browse .catalog-card__body {
+  padding: clamp(1rem, 2vw, 1.35rem);
+}
+
+.store-browse .catalog-card h2 {
+  font-size: clamp(1.45rem, 2vw, 1.8rem);
+}
+
+@media (max-width: 900px) {
+  .browse-intro {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .store-browse .catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 540px) {
+  .store-browse {
+    width: min(100% - 1.25rem, 42rem);
+  }
+
+  .browse-intro {
+    margin-bottom: 2rem;
+    padding-top: 0.5rem;
+  }
+
+  .browse-intro h1 {
+    max-width: 10ch;
+    font-size: clamp(2.5rem, 12vw, 3.5rem);
+  }
+
+  .store-browse .catalog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .store-browse .catalog-card > img,
+  .store-browse .catalog-card__placeholder {
+    aspect-ratio: 16 / 10;
+  }
+}
+
+/* Store detail editorial composition: identity and action share the first
+   viewport with the storefront image, then practical planning follows. */
+@media (min-width: 1024px) {
+  main.store-detail .store-detail__hero {
+    display: grid;
+    grid-template-columns: minmax(20rem, 0.72fr) minmax(0, 1.28fr);
+    align-items: stretch;
+    background: var(--card);
+  }
+
+  main.store-detail .store-detail__header {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: clamp(32rem, 50vw, 48rem);
+    padding: clamp(2rem, 5vw, 6rem);
+    background: linear-gradient(
+      145deg,
+      var(--card),
+      color-mix(in srgb, var(--rust) 10%, var(--card)) 72%,
+      color-mix(in srgb, var(--gold) 12%, var(--card))
+    );
+  }
+
+  main.store-detail .store-detail__header h1 {
+    max-width: 8ch;
+    font-size: clamp(3rem, 5.5vw, 6rem);
+  }
+
+  main.store-detail .store-detail__actions {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: start;
+    gap: 0.75rem;
+    padding: 0 clamp(2rem, 5vw, 6rem) clamp(2rem, 4vw, 4rem);
+    background: color-mix(in srgb, var(--rust) 10%, var(--card));
+  }
+
+  main.store-detail .store-gallery__background {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    display: flex;
+    min-height: clamp(32rem, 50vw, 48rem);
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(1rem, 2vw, 2rem);
+    background: var(--media-overlay-surface);
+  }
+
+  main.store-detail .store-gallery--cover {
+    padding: 0;
+    border: 0;
+  }
+
+  main.store-detail .store-gallery__hero {
+    margin: 0;
+  }
+
+  main.store-detail .store-gallery__enlarge,
+  main.store-detail .store-gallery__enlarge img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    max-height: calc(50vw - 4rem);
+  }
+
+  main.store-detail .store-gallery__enlarge {
+    border-radius: 12px;
+  }
+}
+
 /* Store Details — readable decision flow, never a dense desktop dashboard. */
 .store-detail {
   max-width: 45rem;

@@ -562,12 +562,14 @@ export function BrowsePage({
   }
   return (
     <main className="catalog-browser store-browse">
-      <header>
-        <p className="eyebrow">Antique Trail</p>
-        <h1>Browse stores</h1>
-        <p>Find antique and vintage stores with practical, current details.</p>
-      </header>
-      <CatalogFiltersForm filters={filters} onChange={updateFilters} stage={filterStage} />
+      <section className="browse-intro" aria-label="Browse the local trail">
+        <header>
+          <p className="eyebrow">Antique Trail · Topeka</p>
+          <h1>Browse stores — find your next Saturday stop.</h1>
+          <p>Browse antique, vintage, and curious local shops with practical, current details.</p>
+        </header>
+        <CatalogFiltersForm filters={filters} onChange={updateFilters} stage={filterStage} />
+      </section>
       <section
         aria-labelledby="browse-map-heading"
         className="catalog-map-panel"
@@ -737,6 +739,7 @@ export function BrowsePage({
                 <p className="eyebrow">Local directory</p>
                 <h2>
                   {state.stores.length} {state.stores.length === 1 ? 'store' : 'stores'} to explore
+                  <span className="catalog-results-heading__location"> around Topeka</span>
                 </h2>
               </div>
               <p>Fictional listings for safe product review</p>
