@@ -70,6 +70,14 @@ describe('Synthetic Store image fixtures', () => {
     expect(new Set(blueFinch?.media.map((media) => media.alt)).size).toBe(blueFinch?.media.length)
   })
 
+  it('keeps the primary review wall at 50 media items with valid local assets', () => {
+    const blueFinch = syntheticStores.find((store) => store.slug === 'blue-finch-curios')
+
+    expect(blueFinch?.media).toHaveLength(50)
+    expect(blueFinch?.media.filter((media) => media.kind === 'gallery')).toHaveLength(49)
+    expect(blueFinch?.media.every((media) => existsSync(resolve(`public${media.src}`)))).toBe(true)
+  })
+
   it('keeps a complete primary review fixture and a truthful sparse-data fixture', () => {
     const blueFinch = syntheticStores.find((store) => store.slug === 'blue-finch-curios')
     const cedar = syntheticStores.find((store) => store.slug === 'cedar-and-brass')
