@@ -162,10 +162,35 @@ for (const record of fixtureMedia.records) {
   fixtureGalleryBySlug.set(record.slug, gallery)
 }
 
+const blueFinchExtraMedia: CatalogMedia[] = [
+  {
+    src: `${syntheticImageRoot}/blue-finch-curios-gallery-aisle.webp`,
+    alt: 'Narrow brick-walled shop aisle lined with blue shelves, ceramic lamps, and walnut furniture.',
+    kind: 'gallery',
+    caption: 'The fictional Blue Finch Curios main aisle.',
+    rightsLabel: generatedRights,
+  },
+  {
+    src: `${syntheticImageRoot}/blue-finch-curios-gallery-vignette.webp`,
+    alt: 'Blue-and-white ceramic lamp with brass candlesticks on a carved walnut table.',
+    kind: 'gallery',
+    caption: 'A fictional ceramics and lighting vignette.',
+    rightsLabel: generatedRights,
+  },
+  {
+    src: `${syntheticImageRoot}/blue-finch-curios-gallery-cabinet.webp`,
+    alt: 'Oak glass-front cabinet, blue upholstered chair, and glassware against a brick wall.',
+    kind: 'gallery',
+    caption: 'A fictional cabinet and reading-chair display.',
+    rightsLabel: generatedRights,
+  },
+]
+
 const syntheticMedia: CatalogMedia[][] = names.map((name, index) => {
+  const slug = coverImageSlugs[index]
   const media: CatalogMedia[] = [
     {
-      src: `${syntheticImageRoot}/${coverImageSlugs[index]}-cover.webp`,
+      src: `${syntheticImageRoot}/${slug}-cover.webp`,
       alt: coverAltText[index],
       kind: 'cover',
       caption: storeCopy[index].coverCaption,
@@ -173,20 +198,15 @@ const syntheticMedia: CatalogMedia[][] = names.map((name, index) => {
     },
   ]
 
-  // Random number of gallery photos from 1 to 50 per store
-  const galleryPhotoCount = Math.floor(Math.random() * 50) + 1 // 1-50
-
-  const fixtureImages = fixtureGalleryBySlug.get(coverImageSlugs[index]) ?? []
-  for (let i = 0; i < galleryPhotoCount; i++) {
-    const fixtureRecord = fixtureImages[i % fixtureImages.length]
-    media.push({
-      src: `${syntheticImageRoot}/${coverImageSlugs[index]}-gallery-${i}.webp`,
-      alt: fixtureRecord ? fixtureRecord.alt : `Store gallery photo ${i + 1}`,
-      kind: 'gallery',
-      caption: fixtureRecord ? fixtureRecord.caption : `Store gallery photo ${i + 1}`,
-      rightsLabel: generatedRights,
-    })
+  const fixtureImages = fixtureGalleryBySlug.get(slug) ?? []
+  if (slug === 'blue-finch-curios') {
+    media.push(...blueFinchExtraMedia, ...fixtureImages)
+    return media
   }
+
+  // Keep ordinary fixture walls varied while never pointing at an absent asset.
+  const galleryPhotoCount = Math.min(Math.floor(Math.random() * 50) + 1, fixtureImages.length)
+  media.push(...fixtureImages.slice(0, galleryPhotoCount))
 
   return media
 })
