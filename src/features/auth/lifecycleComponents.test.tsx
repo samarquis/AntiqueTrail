@@ -42,6 +42,7 @@ function renderPage(page: ReactNode) {
 }
 
 const authenticatedProvider: AuthProviderAdapter = {
+  oauthProviders: { google: false, facebook: false },
   signIn: vi.fn(async () => ({
     kind: 'authenticated' as const,
     session: {

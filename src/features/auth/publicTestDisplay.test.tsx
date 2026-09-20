@@ -17,6 +17,7 @@ afterEach(() => {
 })
 function provider(): AuthProviderAdapter {
   return {
+    oauthProviders: { google: false, facebook: false },
     signIn: vi.fn(async () => ({ kind: 'error' as const })),
     register: vi.fn(async () => ({ kind: 'error' as const })),
     signOut: vi.fn(async () => undefined),

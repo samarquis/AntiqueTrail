@@ -284,6 +284,7 @@ function reviewProviderSession(email: string): ProviderSession {
 export function createReviewHarnessAuthProvider(state: ReviewStateId): AuthProviderAdapter {
   let mfaSession: ProviderSession | null = null
   return {
+    oauthProviders: { google: false, facebook: false },
     async signIn(email) {
       if (state !== 'success') return { kind: 'error' }
       const session = reviewProviderSession(email)
@@ -320,10 +321,6 @@ export function createReviewHarnessAuthProvider(state: ReviewStateId): AuthProvi
       return kind === 'recovery'
         ? { kind: 'verified' }
         : { kind: 'authenticated', session: reviewProviderSession(email) }
-    },
-    // No-op: the synthetic harness cannot navigate off-page to a real provider.
-    async signInWithProvider() {
-      return undefined
     },
     async oauthCallback(code, oauthError) {
       if (oauthError || !code || state !== 'success') return { kind: 'error' }

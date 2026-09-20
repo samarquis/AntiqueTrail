@@ -108,6 +108,7 @@ export function toAuthSession(
 }
 
 export const unavailableAuthProvider: AuthProviderAdapter = {
+  oauthProviders: { google: false, facebook: false },
   async signIn() {
     return { kind: 'error' }
   },
