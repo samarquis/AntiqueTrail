@@ -115,6 +115,22 @@ describe('auth states', () => {
     expect(unavailableProvider.signIn).not.toHaveBeenCalled()
   })
 
+  it('does not claim the previous account was securely signed out from a direct switch URL', () => {
+    render(
+      <MemoryRouter initialEntries={['/auth/sign-in?switchAccount=1']}>
+        <AuthProvider provider={unavailableProvider}>
+          <SignInPage provider={unavailableProvider} />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Use a different account' })).toBeInTheDocument()
+    expect(
+      screen.queryByText('Signed out securely. No private data remains visible.'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText('Sign in with the account you want to use.')).toBeInTheDocument()
+  })
+
   it('focuses a linked error summary and preserves safe sign-in input', async () => {
     const user = userEvent.setup()
     renderAuth(<SignInPage provider={unavailableProvider} />, unavailableProvider)

@@ -895,7 +895,10 @@ function TripAwareAccountPage({ runtime }: { runtime: TripOfflineRuntime }) {
     try {
       await signOut()
       if (switchAccount)
-        navigate('/auth/sign-in?returnTo=%2Faccount&switchAccount=1', { replace: true })
+        navigate('/auth/sign-in?returnTo=%2Faccount&switchAccount=1', {
+          replace: true,
+          state: { switchAccountSignOut: true },
+        })
     } catch {
       setError(true)
     } finally {

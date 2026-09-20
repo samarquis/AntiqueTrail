@@ -94,6 +94,7 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
   const params = new URLSearchParams(location.search)
   const returnTo = safeReturnTo(params.get('returnTo'))
   const switchingAccount = params.get('switchAccount') === '1'
+  const secureSignOutObserved = location.state?.switchAccountSignOut === true
 
   async function continueWith(providerId: OAuthProviderId) {
     if (!provider.signInWithProvider) return
@@ -143,11 +144,13 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
       title={switchingAccount ? 'Use a different account' : 'Sign in'}
       description={
         switchingAccount
-          ? 'The previous account is signed out securely. Sign in with the account you want to use.'
+          ? secureSignOutObserved
+            ? 'The previous account is signed out securely. Sign in with the account you want to use.'
+            : 'Sign in with the account you want to use.'
           : 'Use your verified email and password to continue.'
       }
     >
-      {switchingAccount && (
+      {switchingAccount && secureSignOutObserved && (
         <p role="status">Signed out securely. No private data remains visible.</p>
       )}
       {returnTo !== '/stores' && !isCatalogOnlyPublicTest() && (
