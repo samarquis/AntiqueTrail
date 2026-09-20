@@ -91,7 +91,9 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [socialPending, setSocialPending] = useState<OAuthProviderId | null>(null)
-  const returnTo = safeReturnTo(new URLSearchParams(location.search).get('returnTo'))
+  const params = new URLSearchParams(location.search)
+  const returnTo = safeReturnTo(params.get('returnTo'))
+  const switchingAccount = params.get('switchAccount') === '1'
 
   async function continueWith(providerId: OAuthProviderId) {
     if (!provider.signInWithProvider) return
@@ -137,7 +139,17 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
   if (isCatalogOnlyPublicTest() && !isPublicTestLifecyclePath(returnTo))
     return <AccountSetupPaused />
   return (
-    <AuthCard title="Sign in" description="Use your verified email and password to continue.">
+    <AuthCard
+      title={switchingAccount ? 'Use a different account' : 'Sign in'}
+      description={
+        switchingAccount
+          ? 'The previous account is signed out securely. Sign in with the account you want to use.'
+          : 'Use your verified email and password to continue.'
+      }
+    >
+      {switchingAccount && (
+        <p role="status">Signed out securely. No private data remains visible.</p>
+      )}
       {returnTo !== '/stores' && !isCatalogOnlyPublicTest() && (
         <aside role="status">
           After sign-in, you’ll return to {describeReturnTarget(returnTo)}. Review and confirm the
@@ -520,6 +532,9 @@ export function AuthCallbackPage({
           <p>
             If you believe this is a mistake, <Link to="/help">contact Antique Trail support</Link>.
           </p>
+          <p>
+            <Link to="/auth/sign-in?switchAccount=1">Use a different account</Link>
+          </p>
         </>
       ) : state === 'blocked' ? (
         <>
@@ -714,87 +729,6 @@ export function ExpiredSessionPage({ returnTo = '/stores' }: { returnTo?: string
     </AuthCard>
   )
 }
-
-export function AccountPage() {
-  const { session, signOut } = useAuth()
-  const [pending, setPending] = useState(false)
-  const [signedOut, setSignedOut] = useState(false)
-  async function submitSignOut() {
-    setPending(true)
-    try {
-      await signOut()
-    } finally {
-      // Local purge is authoritative even if remote provider acknowledgement is unavailable.
-      setSignedOut(true)
-      setPending(false)
-    }
-  }
-  return (
-    <AuthCard
-      title="Your account"
-      description="Review your account access, private history, and privacy choices."
-    >
-      {signedOut ? (
-        <>
-          <p role="status">You are signed out on this device. Private account content is hidden.</p>
-          <Link className="button" to="/stores">
-            Return to the store list
-          </Link>
-        </>
-      ) : (
-        <>
-          <dl>
-            <dt>Account type</dt>
-            <dd>{session?.role ?? 'Shopper'}</dd>
-            <dt>Email status</dt>
-            <dd>
-              {session?.email ?? 'Email unavailable in this session'} ·{' '}
-              {session?.emailVerified ? 'Verified' : 'Verification required'}
-            </dd>
-            <dt>Multi-factor authentication</dt>
-            <dd>{session?.mfaEnrolled ? 'Enrolled' : 'Not enrolled'}</dd>
-          </dl>
-          <nav aria-label="Account controls">
-            <ul>
-              <li>
-                <Link to="/account/privacy">Account &amp; Privacy</Link>
-              </li>
-              <li>
-                <Link to="/account/export">Export My Data</Link>
-              </li>
-              <li>
-                <Link to="/account/history">Private history controls</Link>
-              </li>
-              <li>
-                <Link to="/account/privacy/blocked-senders">Blocked senders</Link>
-              </li>
-            </ul>
-          </nav>
-          <section aria-labelledby="sign-out-heading">
-            <h2 id="sign-out-heading">Sign out</h2>
-            <p>Signing out clears private account data held by this device.</p>
-            <button
-              className="button"
-              type="button"
-              disabled={pending}
-              onClick={() => void submitSignOut()}
-            >
-              {pending ? 'Signing out…' : 'Sign out'}
-            </button>
-          </section>
-          <section aria-labelledby="delete-heading">
-            <h2 id="delete-heading">Delete My Account</h2>
-            <p>Review the effects and seven-day cancellation period before scheduling deletion.</p>
-            <Link to="/account/delete">Review account deletion</Link>
-          </section>
-        </>
-      )}
-    </AuthCard>
-  )
-}
-
-/** Kept for existing route imports while the account screen graduates from its placeholder. */
-export const AccountPlaceholder = AccountPage
 
 function clearPendingPrivateAction() {
   if (typeof window !== 'undefined')
