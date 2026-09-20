@@ -100,6 +100,12 @@ describe('auth states', () => {
     expect(screen.getByLabelText(/password/i)).toHaveAttribute('autocomplete', 'current-password')
   })
 
+  it('renders one accessible password label on sign-in', () => {
+    renderAuth(<SignInPage provider={unavailableProvider} />, unavailableProvider)
+    expect(screen.getAllByLabelText('Password')).toHaveLength(1)
+    expect(screen.getAllByText('Password', { selector: 'label' })).toHaveLength(1)
+  })
+
   it('toggles password visibility with an accessible, focus-preserving control', async () => {
     const user = userEvent.setup()
     renderAuth(<SignInPage provider={unavailableProvider} />, unavailableProvider)
