@@ -21,16 +21,23 @@ export function CategoryGrid({ stores, onAdd }: CategoryGridProps) {
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 12
 
-  const filtered = filter !== 'all'
-    ? stores.filter(s => s.category.toLowerCase().includes(filter))
-    : stores
+  const filtered =
+    filter !== 'all' ? stores.filter((s) => s.category.toLowerCase().includes(filter)) : stores
 
   const pageStores = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
 
   return (
     <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '8px',
+          marginBottom: '8px',
+          maxWidth: '100%',
+        }}
+      >
         <button
           onClick={() => setFilter('all')}
           style={{
@@ -41,7 +48,10 @@ export function CategoryGrid({ stores, onAdd }: CategoryGridProps) {
             borderRadius: '4px',
             fontSize: '12px',
             cursor: 'pointer',
-          }}>
+            minWidth: '48px',
+            minHeight: '48px',
+          }}
+        >
           All
         </button>
         <button
@@ -54,7 +64,10 @@ export function CategoryGrid({ stores, onAdd }: CategoryGridProps) {
             borderRadius: '4px',
             fontSize: '12px',
             cursor: 'pointer',
-          }}>
+            minWidth: '48px',
+            minHeight: '48px',
+          }}
+        >
           Furniture
         </button>
         <button
@@ -67,7 +80,10 @@ export function CategoryGrid({ stores, onAdd }: CategoryGridProps) {
             borderRadius: '4px',
             fontSize: '12px',
             cursor: 'pointer',
-          }}>
+            minWidth: '48px',
+            minHeight: '48px',
+          }}
+        >
           Tools
         </button>
         <button
@@ -80,7 +96,10 @@ export function CategoryGrid({ stores, onAdd }: CategoryGridProps) {
             borderRadius: '4px',
             fontSize: '12px',
             cursor: 'pointer',
-          }}>
+            minWidth: '48px',
+            minHeight: '48px',
+          }}
+        >
           Books
         </button>
         <button
@@ -93,13 +112,23 @@ export function CategoryGrid({ stores, onAdd }: CategoryGridProps) {
             borderRadius: '4px',
             fontSize: '12px',
             cursor: 'pointer',
-          }}>
+            minWidth: '48px',
+            minHeight: '48px',
+          }}
+        >
           Decor
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
-        {pageStores.map(s => (
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+          gap: '8px',
+          maxWidth: '100%',
+        }}
+      >
+        {pageStores.map((s) => (
           <div
             key={s.id}
             style={{
@@ -111,15 +140,30 @@ export function CategoryGrid({ stores, onAdd }: CategoryGridProps) {
               flexDirection: 'column',
               justifyContent: 'space-between',
               height: '180px',
-            }}>
-            <img
-              src={s.cover}
-              alt={s.name}
-              style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '4px', marginBottom: '6px' }}
-            />
+              maxWidth: '100%',
+            }}
+          >
+            <div style={{ width: '100%', maxWidth: '100%', height: '100px', overflow: 'hidden' }}>
+              <img
+                src={s.cover}
+                alt={s.name}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  maxWidth: '100%',
+                  objectFit: 'cover',
+                  borderRadius: '4px',
+                  marginBottom: '6px',
+                }}
+              />
+            </div>
             <strong style={{ fontSize: '13px', marginBottom: '4px' }}>{s.name}</strong>
-            <span style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>{s.category}</span>
-            <span style={{ fontSize: '11px', color: '#64748b' }}>{s.town} • {s.distance} mi</span>
+            <span style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>
+              {s.category}
+            </span>
+            <span style={{ fontSize: '11px', color: '#64748b' }}>
+              {s.town} • {s.distance} mi
+            </span>
             <span style={{ fontSize: '11px', color: '#64748b' }}>{s.hours}</span>
             {s.rating !== undefined && (
               <span style={{ fontSize: '11px', color: '#f97316', marginTop: '4px' }}>
@@ -138,22 +182,58 @@ export function CategoryGrid({ stores, onAdd }: CategoryGridProps) {
                 fontSize: '10px',
                 alignSelf: 'flex-start',
                 cursor: 'pointer',
-              }}>
+                minWidth: '48px',
+                minHeight: '48px',
+              }}
+            >
               Add
             </button>
           </div>
         ))}
+        {pageStores.length === 0 && (
+          <p
+            role="status"
+            style={{ gridColumn: '1 / -1', margin: 0, padding: '12px', color: '#64748b' }}
+          >
+            No stores match this category.
+          </p>
+        )}
       </div>
 
       {totalPages > 1 && (
         <div style={{ marginTop: '8px', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
-          Page {page} of {totalPages} {'·'.repeat(20)} Load more: {' '}
+          Page {page} of {totalPages} {'·'.repeat(20)} Load more:{' '}
           {page < totalPages && (
-            <button onClick={() => setPage(page + 1)} style={{ fontSize: '11px', background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer' }}>
+            <button
+              aria-label="Next page"
+              onClick={() => setPage(page + 1)}
+              style={{
+                minWidth: '48px',
+                minHeight: '48px',
+                fontSize: '11px',
+                background: 'transparent',
+                border: 'none',
+                color: '#3b82f6',
+                cursor: 'pointer',
+              }}
+            >
               Next
             </button>
-          )}{' '}{page > 1 && (
-            <button onClick={() => setPage(page - 1)} style={{ fontSize: '11px', background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer' }}>
+          )}{' '}
+          {page > 1 && (
+            <button
+              aria-label="Previous page"
+              onClick={() => setPage(page - 1)}
+              style={{
+                minWidth: '48px',
+                minHeight: '48px',
+                fontSize: '11px',
+                background: 'transparent',
+                border: 'none',
+                color: '#3b82f6',
+                cursor: 'pointer',
+              }}
+            >
               Prev
             </button>
           )}

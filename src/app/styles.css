@@ -593,6 +593,11 @@ p {
   background: var(--mint);
 }
 
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .theme-toggle[aria-pressed='true'] {
   color: var(--card);
   background: var(--teal-dark);
@@ -1368,6 +1373,11 @@ textarea[aria-invalid='true'] {
     min-width: 0;
     flex: 1 1 0;
   }
+}
+
+.field-error {
+  margin: 0.25rem 0 0;
+  color: var(--rust);
 }
 
 .role-context-banner {

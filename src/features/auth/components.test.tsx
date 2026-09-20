@@ -125,6 +125,20 @@ describe('auth states', () => {
     renderAuth(<SignInPage provider={unavailableProvider} />, unavailableProvider)
     expect(screen.getByRole('heading', { name: /sign in/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/password/i)).toHaveAttribute('autocomplete', 'current-password')
+    expect(screen.getByRole('button', { name: /^sign in$/i })).toBeDisabled()
+  })
+
+  it('gives inline registration feedback and enables submit after required fields are valid', async () => {
+    const user = userEvent.setup()
+    renderAuth(<RegisterPage provider={unavailableProvider} />, unavailableProvider)
+    const submit = screen.getByRole('button', { name: /create account/i })
+    await user.type(screen.getByLabelText(/email/i), 'not-an-email')
+    expect(screen.getByRole('alert')).toHaveTextContent(/name@example.com/i)
+    expect(submit).toBeDisabled()
+    await user.clear(screen.getByLabelText(/email/i))
+    await user.type(screen.getByLabelText(/email/i), 'shopper@example.test')
+    await user.type(screen.getByLabelText(/^password$/i), 'secret')
+    expect(submit).toBeEnabled()
   })
 
   it('preserves just-in-time return context and performs no write before sign-in', () => {
@@ -168,7 +182,6 @@ describe('auth states', () => {
   })
 
   it('prefills recovery safely and validates malformed email before the provider call', async () => {
-    const user = userEvent.setup()
     render(
       <MemoryRouter initialEntries={['/auth/recovery?email=not-an-email']}>
         <AuthProvider provider={unavailableProvider}>
@@ -177,8 +190,8 @@ describe('auth states', () => {
       </MemoryRouter>,
     )
     expect(screen.getByLabelText(/email/i)).toHaveValue('not-an-email')
-    await user.click(screen.getByRole('button', { name: /send recovery/i }))
-    expect(await screen.findByRole('alert')).toHaveFocus()
+    expect(screen.getByRole('alert')).toHaveTextContent(/name@example.com/i)
+    expect(screen.getByRole('button', { name: /send recovery/i })).toBeDisabled()
     expect(unavailableProvider.sendRecovery).not.toHaveBeenCalled()
   })
 

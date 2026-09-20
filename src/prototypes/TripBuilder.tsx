@@ -27,15 +27,15 @@ export function TripBuilder({ stores }: TripBuilderProps) {
       store,
       estimatedDuration: 60,
     }
-    setTripStops(prev => {
+    setTripStops((prev) => {
       // Check if store already in trip
-      if (prev.some(s => s.store.id === store.id)) return prev
+      if (prev.some((s) => s.store.id === store.id)) return prev
       return [...prev, newStop]
     })
   }
 
   const removeStop = (storeId: string) =>
-    setTripStops(prev => prev.filter(s => s.store.id !== storeId))
+    setTripStops((prev) => prev.filter((s) => s.store.id !== storeId))
 
   const tripSummary = tripStops.map((s) => (
     <div
@@ -49,27 +49,43 @@ export function TripBuilder({ stores }: TripBuilderProps) {
         borderRadius: '4px',
         marginBottom: '4px',
         fontSize: '12px',
-      }}>
-      <span>{s.store.name} ({s.store.town})</span>
+      }}
+    >
+      <span>
+        {s.store.name} ({s.store.town})
+      </span>
       <span>{s.estimatedDuration} min</span>
       <button
         onClick={() => removeStop(s.store.id)}
         style={{
           marginLeft: '8px',
-          padding: '2px 6px',
+          padding: '8px 12px',
           background: 'transparent',
           border: 'none',
           color: '#e53e3e',
           fontSize: '11px',
           cursor: 'pointer',
-        }}>
+          minWidth: '48px',
+          minHeight: '48px',
+        }}
+        aria-label="Remove stop"
+      >
         ✕
       </button>
     </div>
   ))
 
   return (
-    <div style={{ display: 'flex', height: '320px', width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
+    <div
+      style={{
+        display: 'flex',
+        height: '320px',
+        width: '100%',
+        maxWidth: '100%',
+        borderRadius: '8px',
+        overflow: 'hidden',
+      }}
+    >
       {/* Left: Trip plan panel */}
       <div
         style={{
@@ -77,7 +93,8 @@ export function TripBuilder({ stores }: TripBuilderProps) {
           borderRight: '1px solid #e2e8f0',
           overflowY: 'auto',
           background: '#f8fafc',
-        }}>
+        }}
+      >
         <strong style={{ fontSize: '13px', padding: '8px 12px' }}>📋 My Day Trip</strong>
         <div style={{ padding: '0 12px' }}>
           {tripStops.length === 0 && (
@@ -99,7 +116,9 @@ export function TripBuilder({ stores }: TripBuilderProps) {
                   borderRadius: '4px',
                   fontSize: '13px',
                   cursor: 'pointer',
-                }}>
+                  minHeight: '48px',
+                }}
+              >
                 Start Trip →
               </button>
             </div>
@@ -118,12 +137,18 @@ export function TripBuilder({ stores }: TripBuilderProps) {
             alignItems: 'center',
             fontSize: '12px',
             color: '#64748b',
-          }}>
-            <span>Add stores</span>
-            <span>→</span>
-          </div>
+          }}
+        >
+          <span>Add stores</span>
+          <span>→</span>
+        </div>
         <div style={{ padding: '0 12px' }}>
-          {stores.map(s => (
+          {stores.length === 0 && (
+            <p role="status" style={{ padding: '8px 0', color: '#64748b' }}>
+              No stores available.
+            </p>
+          )}
+          {stores.map((s) => (
             <div
               key={s.id}
               style={{
@@ -136,14 +161,25 @@ export function TripBuilder({ stores }: TripBuilderProps) {
                 transition: 'background 0.2s',
               }}
             >
-              <img
-                src={s.cover}
-                alt={s.name}
-                style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', marginBottom: '6px' }}
-              />
+              <div style={{ width: '60px', maxWidth: '100%', height: '60px', overflow: 'hidden' }}>
+                <img
+                  src={s.cover}
+                  alt={s.name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    maxWidth: '100%',
+                    objectFit: 'cover',
+                    borderRadius: '4px',
+                    marginBottom: '6px',
+                  }}
+                />
+              </div>
               <strong style={{ fontSize: '13px', marginBottom: '4px' }}>{s.name}</strong>
               <span style={{ fontSize: '11px', color: '#64748b' }}>{s.category}</span>
-              <span style={{ fontSize: '11px', color: '#64748b' }}>{s.town} • {s.distance} mi</span>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>
+                {s.town} • {s.distance} mi
+              </span>
               <button
                 onClick={() => addToTrip(s)}
                 style={{
@@ -155,7 +191,10 @@ export function TripBuilder({ stores }: TripBuilderProps) {
                   borderRadius: '4px',
                   fontSize: '10px',
                   alignSelf: 'flex-start',
-                }}>
+                  minWidth: '48px',
+                  minHeight: '48px',
+                }}
+              >
                 Add
               </button>
             </div>

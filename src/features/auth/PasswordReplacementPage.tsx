@@ -99,7 +99,7 @@ export function PasswordReplacementPage({
   if (completed)
     return (
       <AuthCardReplacement title="Password updated" description="Your recovery is complete.">
-        <p role="status" aria-live="polite">
+        <p role="status" aria-live="assertive">
           {PASSWORD_RECOVERY_SUCCESS}
         </p>
         <Link

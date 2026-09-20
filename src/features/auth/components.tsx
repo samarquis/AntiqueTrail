@@ -17,6 +17,10 @@ import { isCatalogOnlyPublicTest, isPublicTestLifecyclePath } from './publicTest
 export const PASSWORD_MIN_LENGTH = 1
 export const PASSWORD_MAX_LENGTH = 8
 
+function isValidEmail(value: string) {
+  return /^\S+@\S+\.\S+$/u.test(value.trim())
+}
+
 function AccountSetupPaused() {
   const { session, signOut } = useAuth()
   return (
@@ -95,6 +99,9 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
   const [pending, setPending] = useState(false)
   const [socialPending, setSocialPending] = useState<OAuthProviderId | null>(null)
   const returnTo = safeReturnTo(new URLSearchParams(location.search).get('returnTo'))
+  const emailValid = isValidEmail(email)
+  const formValid = emailValid && Boolean(password)
+  const emailNeedsCorrection = email.length > 0 && !emailValid
 
   async function continueWith(providerId: OAuthProviderId) {
     if (!provider.signInWithProvider) return
@@ -155,10 +162,17 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
           autoComplete="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? 'auth-error-summary' : undefined}
+          aria-invalid={Boolean(error) || emailNeedsCorrection}
+          aria-describedby={
+            error ? 'auth-error-summary' : emailNeedsCorrection ? 'auth-email-error' : undefined
+          }
           required
         />
+        {emailNeedsCorrection && !error && (
+          <p id="auth-email-error" className="field-error" role="alert">
+            Enter an email address in the format name@example.com.
+          </p>
+        )}
         <label htmlFor="auth-password">Password</label>
         <input
           id="auth-password"
@@ -175,7 +189,11 @@ export function SignInPage({ provider }: { provider: AuthProviderAdapter }) {
             <AuthErrorSummary message={error} />
           </div>
         )}
-        <button className="button" type="submit" disabled={pending || socialPending !== null}>
+        <button
+          className="button"
+          type="submit"
+          disabled={pending || socialPending !== null || !formValid}
+        >
           {pending ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
@@ -242,9 +260,10 @@ function RecoveryRequestPage({ provider }: { provider: AuthProviderAdapter }) {
   const [sent, setSent] = useState(false)
   const [pending, setPending] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
+  const emailValid = isValidEmail(email)
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (!/^\S+@\S+\.\S+$/u.test(email.trim())) {
+    if (!isValidEmail(email)) {
       setValidationError('Enter an email address in the format name@example.com.')
       return
     }
@@ -272,12 +291,25 @@ function RecoveryRequestPage({ provider }: { provider: AuthProviderAdapter }) {
             type="email"
             autoComplete="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => {
+              setEmail(event.target.value)
+              setValidationError(null)
+            }}
             aria-invalid={Boolean(validationError)}
+            aria-describedby={validationError ? 'recovery-email-error' : undefined}
             required
           />
-          {validationError && <AuthErrorSummary message={validationError} />}
-          <button className="button" type="submit" disabled={pending}>
+          {!emailValid && email.length > 0 && !validationError && (
+            <p id="recovery-email-error" className="field-error" role="alert">
+              Enter an email address in the format name@example.com.
+            </p>
+          )}
+          {validationError && (
+            <div id="recovery-email-error">
+              <AuthErrorSummary message={validationError} />
+            </div>
+          )}
+          <button className="button" type="submit" disabled={pending || !emailValid}>
             {pending ? 'Sending…' : 'Send recovery email'}
           </button>
         </form>
@@ -300,11 +332,15 @@ export function RegisterPage({ provider }: { provider: AuthProviderAdapter }) {
   const changeAttempt = () => {
     requestIdRef.current = null
   }
+  const emailValid = isValidEmail(email)
+  const passwordValid =
+    password.length >= PASSWORD_MIN_LENGTH && password.length <= PASSWORD_MAX_LENGTH
+  const formValid = emailValid && passwordValid
 
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (
-      !/^\S+@\S+\.\S+$/u.test(email.trim()) ||
+      !isValidEmail(email) ||
       password.length < PASSWORD_MIN_LENGTH ||
       password.length > PASSWORD_MAX_LENGTH
     ) {
@@ -361,8 +397,15 @@ export function RegisterPage({ provider }: { provider: AuthProviderAdapter }) {
             changeAttempt()
             setEmail(event.target.value)
           }}
+          aria-invalid={email.length > 0 && !emailValid}
+          aria-describedby={email.length > 0 && !emailValid ? 'register-email-error' : undefined}
           required
         />
+        {email.length > 0 && !emailValid && (
+          <p id="register-email-error" className="field-error" role="alert">
+            Enter an email address in the format name@example.com.
+          </p>
+        )}
         <label htmlFor="register-password">Password</label>
         <input
           id="register-password"
@@ -375,9 +418,20 @@ export function RegisterPage({ provider }: { provider: AuthProviderAdapter }) {
             changeAttempt()
             setPassword(event.target.value)
           }}
+          aria-invalid={password.length > 0 && !passwordValid}
+          aria-describedby={
+            password.length > 0 && !passwordValid
+              ? 'register-password-error'
+              : 'password-requirements'
+          }
           required
         />
         <p id="password-requirements">Use 1 through 8 characters.</p>
+        {password.length > 0 && !passwordValid && (
+          <p id="register-password-error" className="field-error" role="alert">
+            Password must be 1 through 8 characters.
+          </p>
+        )}
         <label>
           <input
             type="checkbox"
@@ -390,7 +444,7 @@ export function RegisterPage({ provider }: { provider: AuthProviderAdapter }) {
           I confirm that I am 18 or older.
         </label>
         {error && <AuthErrorSummary message={error} />}
-        <button className="button" type="submit" disabled={pending}>
+        <button className="button" type="submit" disabled={pending || !formValid}>
           {pending ? 'Creating account…' : 'Create account'}
         </button>
       </form>
