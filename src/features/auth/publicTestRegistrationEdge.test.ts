@@ -74,6 +74,19 @@ function request(requestOrigin: string | null, method = 'POST') {
       : {}),
   })
 }
+
+it('uses the registration HMAC secret at the admission reservation boundary', async () => {
+  const { handler, rpc } = setup()
+  await handler(request(origin))
+
+  const reservation = rpc.mock.calls.find(([name]) => name === 'begin_account_registration')
+  expect(reservation?.[1]).toEqual(
+    expect.objectContaining({
+      p_email_hmac: '\\xff6f6bb530a5522364d3a5da4e2bf2f581fd292a9fa1f1b8bcf26325498ee785',
+    }),
+  )
+})
+
 it.each([null, 'https://evil.example'])(
   'rejects %s origin before any reservation/provider/mail work',
   async (badOrigin) => {
