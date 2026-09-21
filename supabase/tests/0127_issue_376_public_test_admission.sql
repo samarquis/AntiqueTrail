@@ -122,6 +122,10 @@ update app_private.registration_quarantine_latch set state='open' where id=1;
 select is(app_public.complete_public_test_registration_callback('37600000-0000-4000-8000-000000000003'),true,'provider UUID plus verified intended email and exact receipt admits tester');
 select is((select count(*) from app_private.role_grants where subject_user_id='37600000-0000-4000-8000-000000000003' and state='active' and role='shopper'),1::bigint,'callback grants only one ordinary shopper role');
 select is(public_test_private.actor_allowed('37600000-0000-4000-8000-000000000003'),true,'admitted tester may use the saved RPC');
+update app_private.role_grants set state='revoked',revoked_at=statement_timestamp()
+where subject_user_id='37600000-0000-4000-8000-000000000003' and role='shopper' and state='active';
+select is(app_public.complete_account_registration_callback('37600000-0000-4000-8000-000000000005','37600000-0000-4000-8000-000000000003'),true,'production callback remains idempotently authoritative');
+select is((select count(*) from app_private.role_grants where subject_user_id='37600000-0000-4000-8000-000000000003' and state='active' and role='shopper'),1::bigint,'production callback restores exactly one ordinary shopper role');
 insert into auth.sessions(id,user_id,created_at,updated_at) values('37600000-0000-4000-8000-000000000007','37600000-0000-4000-8000-000000000003',statement_timestamp(),statement_timestamp());
 select set_config('request.jwt.claims','{"sub":"37600000-0000-4000-8000-000000000003","role":"authenticated","session_id":"37600000-0000-4000-8000-000000000007"}',true);
 select set_config('request.path','/rpc/register_current_session',true);

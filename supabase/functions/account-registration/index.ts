@@ -106,14 +106,13 @@ Deno.serve(async (request) => {
           method: 'POST',
           signal,
           headers: {
-            apikey: Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+            apikey: Deno.env.get('REGISTRATION_SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? '',
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             email: input.email,
             password: input.password,
             data: { antique_trail_admission_id: input.admissionId },
-            redirect_to: `${endpoints.appOrigin}/auth/callback`,
           }),
         }),
       )
@@ -122,9 +121,7 @@ Deno.serve(async (request) => {
           ? { outcome: 'confirmed_not_generated' }
           : { outcome: 'unknown' }
 const generated = (await response.json()) as {
-        properties?: { hashed_token?: unknown }
         user?: { id?: unknown }
-        hashed_token?: unknown
         id?: unknown
       }
       const providerUserId =
@@ -143,7 +140,7 @@ const generated = (await response.json()) as {
         p_provider_user_id: input.providerUserId ?? null,
       })
     },
-    async deliver(input) {
+    async deliver() {
       return 'confirmed_delivered'
     },
     async settleDelivery(input) {
@@ -171,7 +168,7 @@ const generated = (await response.json()) as {
           state: result.state === 'reconciliation_required' ? 'reconciliation_required' : 'blocked',
         }
       }
-      const outcome: 'confirmed_delivered' = 'confirmed_delivered'
+      const outcome = 'confirmed_delivered' as const
       return rpc('reconcile_account_registration_delivery', {
         p_operation_id: input.operationId,
         p_admission_id: input.admissionId,

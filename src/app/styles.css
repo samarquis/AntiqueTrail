@@ -2188,7 +2188,7 @@ main > article dt {
   .site-header nav a {
     gap: 0.25rem;
     padding-inline: 0.2rem;
-    font-size: 0.875rem;
+    font-size: var(--type-size-caption);
   }
 
   .catalog-filters {

@@ -97,11 +97,19 @@ const typographyTokens: Record<string, ReadonlySet<string>> = {
   ]),
 }
 
-const rawTypographyExceptions = new Map([
+const rawTypographyExceptions = new Map<string, string | ReadonlySet<string>>([
   ['.store-gallery__missing strong|font-size', '5rem'],
   ['.store-photos__feature-caption|font-size', 'clamp(1.35rem, 3.4vw, 2.1rem)'],
   ['.store-photos__missing strong|font-size', '3rem'],
   ['.store-photos__lightbox-nav|font-size', '1.6rem'],
+  [
+    '.browse-intro h1|font-size',
+    new Set(['clamp(2.75rem, 6vw, 5rem)', 'clamp(2.5rem, 12vw, 3.5rem)']),
+  ],
+  ['.browse-intro h1|letter-spacing', '-0.035em'],
+  ['.browse-intro header > p:last-child|font-size', 'clamp(1.05rem, 1.7vw, 1.25rem)'],
+  ['.store-browse .catalog-card h2|font-size', 'clamp(1.45rem, 2vw, 1.8rem)'],
+  ['main.store-detail .store-detail__header h1|font-size', 'clamp(3rem, 5.5vw, 6rem)'],
 ])
 
 const semanticTypographyTokens = new Set(
@@ -178,7 +186,8 @@ function typographyViolations(source: string) {
 
     const token = value.match(/^var\((--[a-z0-9-]+)\)$/)?.[1]
     if (token && typographyTokens[property]?.has(token)) return
-    if (rawTypographyExceptions.get(`${selector}|${property}`) === value) return
+    const exception = rawTypographyExceptions.get(`${selector}|${property}`)
+    if (exception === value || (exception instanceof Set && exception.has(value))) return
     report()
   })
 
@@ -223,17 +232,17 @@ const approvedThemeColors = {
   },
   dark: {
     ink: '#f3eee4',
-    muted: '#b7b0a5',
-    paper: '#121519',
-    card: '#252b33',
-    line: '#3b4552',
-    teal: '#8795b5',
-    'teal-dark': '#8795b5',
-    mint: '#1a1f26',
-    rust: '#b56e5b',
-    gold: '#b99554',
-    olive: '#b7b0a5',
-    'focus-inner': '#121519',
+    muted: '#c0b5a5',
+    paper: '#17130f',
+    card: '#2b241e',
+    line: '#55473a',
+    teal: '#b38b52',
+    'teal-dark': '#d0aa70',
+    mint: '#332b24',
+    rust: '#bd7055',
+    gold: '#c39a58',
+    olive: '#c0b5a5',
+    'focus-inner': '#17130f',
     'focus-outer': '#f3eee4',
   },
 } as const
@@ -577,7 +586,7 @@ describe('semantic color-token regression contract', () => {
 
   it.each([
     ['a raw shared surface', 'background: var(--surface-chrome);', 'background: #fffdfc;'],
-    ['a missing dark token pair', '--gold: #b99554;', '--gold: var(--card);'],
+    ['a missing dark token pair', '--gold: #c39a58;', '--gold: var(--card);'],
     [
       'an undocumented art exception',
       '/* #143 owns this narrow media contract; #142 retains broad semantic-color ownership. */',

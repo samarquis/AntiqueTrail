@@ -66,7 +66,7 @@ function request(requestOrigin: string | null, method = 'POST') {
       ? {
           body: JSON.stringify({
             email: 'tester@example.test',
-            password: 'fixture-long-password',
+            password: 'pass1234',
             ageAttested: true,
             requestId: '37600000-0000-4000-8000-000000000001',
           }),
@@ -106,7 +106,7 @@ it('allows the exact origin to reach the existing registration reservation proto
   expect(fetch).not.toHaveBeenCalled()
 })
 
-it('confirms a registration generated from the raw generate_link response shape', async () => {
+it('confirms a registration generated from the provider signup response shape', async () => {
   const { handler, rpc, fetch } = setup()
   rpc.mockImplementation(async (name: string) => {
     switch (name) {
@@ -135,28 +135,20 @@ it('confirms a registration generated from the raw generate_link response shape'
   const providerUserId = 'fbdf5a53-161e-4460-98ad-0e39408d8689'
   fetch.mockImplementation(async (input: string | URL) => {
     const url = String(input)
-    if (url.endsWith('/auth/v1/admin/generate_link'))
+    if (url.endsWith('/auth/v1/signup'))
       return new Response(
         JSON.stringify({
-          id: providerUserId,
-          action_link:
-            'https://uaupykgpegbseboklubv.supabase.co/auth/v1/verify?token=abc&type=signup',
-          email_otp: '123456',
-          hashed_token: 'abc123',
-          redirect_to: origin,
-          verification_type: 'signup',
+          user: { id: providerUserId },
         }),
         { status: 200 },
       )
-    if (url.endsWith('/send'))
-      return new Response(JSON.stringify({ delivered: true }), { status: 200 })
     return new Response('unexpected', { status: 500 })
   })
   const response = await handler(request(origin))
   expect(response.status).toBe(202)
   expect(await response.json()).toEqual({ state: 'pending_verification' })
   expect(fetch).toHaveBeenCalledWith(
-    'https://uaupykgpegbseboklubv.supabase.co/auth/v1/admin/generate_link',
+    'https://uaupykgpegbseboklubv.supabase.co/auth/v1/signup',
     expect.objectContaining({ method: 'POST' }),
   )
   expect(rpc).toHaveBeenCalledWith(

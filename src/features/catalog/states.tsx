@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { CatalogLink, catalogAppHref } from './shared'
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
@@ -9,9 +9,9 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
         <button type="button" onClick={onRetry}>
           Retry loading stores
         </button>
-        <Link className="button button--secondary" to="/help">
+        <CatalogLink className="button button--secondary" to={catalogAppHref('/help')}>
           Get help
-        </Link>
+        </CatalogLink>
       </div>
     </section>
   )
