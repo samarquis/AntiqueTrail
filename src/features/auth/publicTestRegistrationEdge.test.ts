@@ -149,7 +149,12 @@ it('confirms a registration generated from the provider signup response shape', 
   expect(await response.json()).toEqual({ state: 'pending_verification' })
   expect(fetch).toHaveBeenCalledWith(
     'https://uaupykgpegbseboklubv.supabase.co/auth/v1/signup',
-    expect.objectContaining({ method: 'POST' }),
+    expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining(
+        '"redirect_to":"https://antique-trail.vercel.app/auth/callback"',
+      ),
+    }),
   )
   expect(rpc).toHaveBeenCalledWith(
     'settle_account_registration_generate',

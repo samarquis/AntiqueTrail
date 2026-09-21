@@ -113,6 +113,7 @@ Deno.serve(async (request) => {
             email: input.email,
             password: input.password,
             data: { antique_trail_admission_id: input.admissionId },
+            redirect_to: `${endpoints.appOrigin}/auth/callback`,
           }),
         }),
       )
