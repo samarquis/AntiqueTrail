@@ -96,7 +96,7 @@ describe('catalog private-action integration seam', () => {
   it('frames Browse as a local destination before the directory results', async () => {
     render(<BrowsePage client={client()} />)
 
-    expect(await screen.findByRole('heading', { name: /find your next saturday stop/i })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: /discover local antiques/i })).toBeVisible()
     expect(screen.getByText(/around topeka/i)).toBeVisible()
     expect(screen.getByRole('region', { name: /browse the local trail/i })).toBeVisible()
   })
@@ -248,7 +248,7 @@ describe('catalog private-action integration seam', () => {
       12,
     )
     expect(
-      within(screen.getByRole('main')).getByRole('heading', { name: /browse stores/i }),
+      within(screen.getByRole('main')).getByRole('heading', { name: /discover local antiques/i }),
     ).toBeVisible()
   })
 
