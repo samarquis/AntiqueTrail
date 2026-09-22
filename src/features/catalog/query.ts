@@ -132,12 +132,43 @@ export function displayDayLabel(weekday: number): string {
 }
 
 export function freshnessLabel(store: CatalogStore): string {
-  if (store.freshness?.label) return store.freshness.label
-  if (store.freshness?.daysOld != null) {
-    if (store.freshness.daysOld <= 0) return 'Verified today'
-    if (store.freshness.daysOld === 1) return 'Verified yesterday'
-    return `Verified ${store.freshness.daysOld} days ago`
+  const freshness = store.freshness
+  if (!freshness) return 'Freshness unavailable'
+
+  let daysOld = freshness.daysOld
+  if (freshness.verifiedAt) {
+    const verifiedAt = new Date(freshness.verifiedAt)
+    const reference = store.asOfUtc ? new Date(store.asOfUtc) : new Date()
+    if (!Number.isNaN(verifiedAt.getTime()) && !Number.isNaN(reference.getTime())) {
+      const verifiedDay = Date.UTC(
+        verifiedAt.getUTCFullYear(),
+        verifiedAt.getUTCMonth(),
+        verifiedAt.getUTCDate(),
+      )
+      const referenceDay = Date.UTC(
+        reference.getUTCFullYear(),
+        reference.getUTCMonth(),
+        reference.getUTCDate(),
+      )
+      daysOld = Math.floor((referenceDay - verifiedDay) / 86_400_000)
+    }
   }
+
+  if (daysOld != null && Number.isFinite(daysOld) && daysOld >= 0) {
+    const age = Math.floor(daysOld)
+    if (age > 30 || freshness.status === 'stale') {
+      const verifiedDate = formatCatalogDate(freshness.verifiedAt)
+      return verifiedDate
+        ? `Verification overdue · Verified ${verifiedDate}`
+        : 'Verification overdue'
+    }
+    if (age === 0) return 'Verified today'
+    if (age === 1) return 'Verified yesterday'
+    return `Verified ${age} days ago`
+  }
+
+  if (freshness.status === 'stale' || freshness.label === 'Verification overdue')
+    return 'Verification overdue'
   return 'Freshness unavailable'
 }
 

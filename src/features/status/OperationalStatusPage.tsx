@@ -30,9 +30,10 @@ export function OperationalStatusPage({ config }: { config: OperationalStatusCon
       <section className="page-card" aria-labelledby="operational-status-heading">
         <h1 id="operational-status-heading">Service status</h1>
         <p role="status">
-          Operational contacts are not published until the S-01 monitoring and response gate is
-          fully configured.
+          Live service updates and support contacts are not published on this page right now.
         </p>
+        <p>For account access, store listing, or browsing help, visit the Help page.</p>
+        <a href="/help">Help</a>
       </section>
     )
 

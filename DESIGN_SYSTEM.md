@@ -37,6 +37,8 @@ Approved contrast pairs: ink/paper `13.53:1`; muted/paper `5.16:1`; white/slate-
 
 Never communicate status with color alone. Pair each status color with plain text and, when space permits, an icon.
 
+Catalog verification is “recent” for at most 30 calendar days from the recorded verification date. After 30 days, show “Verification overdue” and the actual verification date when available. If no valid verification date or age is available, show “Freshness unavailable”; never trust a generic “Verified recently” label over an older date.
+
 **Semantic color reservation**: `rust`/clay is reserved exclusively for destructive actions, danger states, and important-new status. Use `olive`/slate for eyebrow and section-label context, `muted` for secondary text. `gold`/brass is reserved for warning and freshness-attention states. Dark-mode tokens activate under `:root[data-theme='dark']`, set before first paint from the saved switcher choice or the system `prefers-color-scheme: dark`. Dark mode is a mandatory acceptance check at every package boundary.
 
 ### Icon and app identity

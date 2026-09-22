@@ -327,18 +327,20 @@ function AppShell({
                 />
                 Browse
               </NavLink>
-              <NavLink to="/saved">
-                <img
-                  className="nav-icon"
-                  src="/icons/saved-store.svg"
-                  alt=""
-                  aria-hidden="true"
-                  width="20"
-                  height="20"
-                />
-                Saved stores
-                {!session && <MoreMenuLock />}
-              </NavLink>
+              {!shopperNav && (
+                <NavLink to="/saved" aria-label="Saved stores">
+                  <img
+                    className="nav-icon"
+                    src="/icons/saved-store.svg"
+                    alt=""
+                    aria-hidden="true"
+                    width="20"
+                    height="20"
+                  />
+                  <span>Saved</span>
+                  {!session && <MoreMenuLock />}
+                </NavLink>
+              )}
             </>
           )}
           {!adminNav && !ownerNav && (
@@ -363,26 +365,6 @@ function AppShell({
                 </svg>
                 More
               </Link>
-              {!shopperNav && (
-                <>
-                  <Link to="/auth/sign-in" className="nav-link">
-                    Sign in
-                  </Link>
-                  <Link to="/auth/register" aria-label="Create new account" className="nav-link">
-                    <svg
-                      className="nav-icon"
-                      viewBox="0 0 24 24"
-                      width="20"
-                      height="20"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <path d="M13 2L3 14h9l-1 8 9-5z" />
-                    </svg>
-                    Create account
-                  </Link>
-                </>
-              )}
             </>
           )}
         </nav>
@@ -499,7 +481,11 @@ function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) 
   const destinations: Array<{ to: string; label: string; requiresSignIn: boolean; icon?: string }> =
     [
       ...(!session || session.role === 'Shopper'
-        ? [{ to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true }]
+        ? [
+            { to: '/trips', label: 'My Trip', requiresSignIn: true },
+            { to: '/saved', label: 'Saved stores', requiresSignIn: true },
+            { to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true },
+          ]
         : []),
       ...(session?.role === 'Representative'
         ? [{ to: '/store-portal', label: 'Store Portal', requiresSignIn: false }]
@@ -526,6 +512,20 @@ function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) 
         <h1>More</h1>
         <p>Find account settings, installation help, and support.</p>
       </header>
+      {!signedIn && (
+        <section className="more-account-links" aria-labelledby="more-account-heading">
+          <h2 id="more-account-heading">Your account</h2>
+          <p>Sign in or create an account to save stores and plan a trip.</p>
+          <div>
+            <Link className="button" to="/auth/sign-in">
+              Sign in
+            </Link>
+            <Link className="button button--secondary" to="/auth/register">
+              Create account
+            </Link>
+          </div>
+        </section>
+      )}
       <nav className="more-menu" aria-label="More destinations">
         {destinations.map((destination) => (
           <Link key={destination.to} to={destination.to}>
@@ -583,20 +583,6 @@ function PortalRouteGuard({ client }: { client: PortalClient }) {
       </main>
     )
   return checked.allowed ? <Outlet /> : <PortalAccessDeniedPage />
-}
-
-function InformationPage({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <main>
-      <section className="page-card">
-        <h1>{title}</h1>
-        <p>{children}</p>
-        <Link className="button" to="/more">
-          Back to More
-        </Link>
-      </section>
-    </main>
-  )
 }
 
 function useCatalogClient(override?: CatalogClient) {
@@ -1256,14 +1242,7 @@ export default function App({
             }
           />
           <Route path="/install" element={<InstallPage />} />
-          <Route
-            path="/help"
-            element={
-              <InformationPage title="Help">
-                Help and support contacts will appear here when operational support is configured.
-              </InformationPage>
-            }
-          />
+          <Route path="/help" element={<PublicHelpPage />} />
           <Route
             path="/stores"
             element={
@@ -1717,5 +1696,37 @@ export default function App({
         </AdminAuditRoutes>
       </AppShell>
     </AuthProvider>
+  )
+}
+
+function PublicHelpPage() {
+  return (
+    <main>
+      <article aria-labelledby="help-heading">
+        <header>
+          <p className="eyebrow">Antique Trail</p>
+          <h1 id="help-heading">Help</h1>
+          <p>
+            Support contacts and a support request form are not published on this site right now.
+          </p>
+        </header>
+        <section aria-labelledby="help-listing-heading">
+          <h2 id="help-listing-heading">Store listing information</h2>
+          <p>
+            Open the store page and choose Suggest a correction. You will be asked to sign in to
+            submit it.
+          </p>
+          <Link to="/stores">Browse stores</Link>
+        </section>
+        <section aria-labelledby="help-account-heading">
+          <h2 id="help-account-heading">Account access</h2>
+          <p>Sign in to your account or use password recovery if you cannot sign in.</p>
+          <p>
+            <Link to="/auth/sign-in">Sign in</Link> ·{' '}
+            <Link to="/auth/recovery">Recover account access</Link>
+          </p>
+        </section>
+      </article>
+    </main>
   )
 }

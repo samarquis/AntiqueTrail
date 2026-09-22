@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -19,17 +19,19 @@ import {
 
 describe('app shell', () => {
   afterEach(cleanup)
-  it('exposes signed-out sign-in and account creation entry points', () => {
+  it('exposes signed-out sign-in and account creation from More', async () => {
+    const user = userEvent.setup()
     render(
       <MemoryRouter initialEntries={['/stores']}>
         <App />
       </MemoryRouter>,
     )
+    await user.click(screen.getByRole('link', { name: 'More' }))
     expect(screen.getByRole('link', { name: /^sign in$/i })).toHaveAttribute(
       'href',
       '/auth/sign-in',
     )
-    expect(screen.getByRole('link', { name: /create new account/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /create account/i })).toHaveAttribute(
       'href',
       '/auth/register',
     )
@@ -47,7 +49,7 @@ describe('app shell', () => {
       '#main-content',
     )
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toHaveTextContent(
-      'BrowseSaved stores Requires sign-inMore',
+      'BrowseSaved Requires sign-inMore',
     )
     expect(screen.getByRole('heading', { name: /browse stores/i })).toHaveFocus()
   })
@@ -64,15 +66,44 @@ describe('app shell', () => {
 
     expect(screen.getByRole('heading', { name: 'More' })).toHaveFocus()
     expect(screen.getByRole('navigation', { name: /more destinations/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^sign in$/i })).toHaveAttribute(
+      'href',
+      '/auth/sign-in',
+    )
+    expect(screen.getByRole('link', { name: /create account/i })).toHaveAttribute(
+      'href',
+      '/auth/register',
+    )
     expect(screen.getByRole('link', { name: /account & privacy/i })).toHaveAttribute(
       'href',
       '/account/privacy',
     )
     expect(screen.getByRole('link', { name: /install/i })).toHaveAttribute('href', '/install')
     expect(screen.getByRole('link', { name: /help/i })).toHaveAttribute('href', '/help')
+    const destinations = within(screen.getByRole('navigation', { name: /more destinations/i }))
+    expect(destinations.getByRole('link', { name: /my trip/i })).toHaveAttribute('href', '/trips')
+    expect(destinations.getByRole('link', { name: /saved stores/i })).toHaveAttribute(
+      'href',
+      '/saved',
+    )
+  })
+
+  it('provides public help steps without inventing a support contact', () => {
+    render(
+      <MemoryRouter initialEntries={['/help']}>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Help' })).toBeInTheDocument()
     expect(
-      screen.queryByRole('link', { name: /trip|private history|shared with me/i }),
-    ).not.toBeInTheDocument()
+      screen.getByText(/support contacts and a support request form are not published/i),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Browse stores' })).toHaveAttribute('href', '/stores')
+    expect(screen.getByRole('link', { name: 'Recover account access' })).toHaveAttribute(
+      'href',
+      '/auth/recovery',
+    )
   })
 
   it('shows only the authorized role entry in a representative More menu', async () => {

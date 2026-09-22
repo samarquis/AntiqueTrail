@@ -96,8 +96,8 @@ describe('catalog private-action integration seam', () => {
   it('frames Browse as a local destination before the directory results', async () => {
     render(<BrowsePage client={client()} />)
 
-    expect(await screen.findByRole('heading', { name: /find your next saturday stop/i })).toBeVisible()
-    expect(screen.getByText(/around topeka/i)).toBeVisible()
+    expect(await screen.findByRole('heading', { name: /browse stores nearby/i })).toBeVisible()
+    expect(screen.getByText(/in topeka/i)).toBeVisible()
     expect(screen.getByRole('region', { name: /browse the local trail/i })).toBeVisible()
   })
 

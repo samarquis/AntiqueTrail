@@ -561,12 +561,12 @@ export function BrowsePage({
       window.history.replaceState({}, '', `/stores${query ? `?${query}` : ''}`)
   }
   return (
-    <main className="catalog-browser store-browse">
-      <section className="browse-intro" aria-label="Browse the local trail">
+    <main className="catalog-browser catalog-browser--review store-browse">
+      <section className="browse-intro browse-editorial-hero" aria-label="Browse the local trail">
         <header>
           <p className="eyebrow">Antique Trail · Topeka</p>
-          <h1>Browse stores — find your next Saturday stop.</h1>
-          <p>Browse antique, vintage, and curious local shops with practical, current details.</p>
+          <h1>Browse stores nearby.</h1>
+          <p>Find nearby stores, plan a stop, and check the details before you go.</p>
         </header>
         <CatalogFiltersForm filters={filters} onChange={updateFilters} stage={filterStage} />
       </section>
@@ -738,11 +738,10 @@ export function BrowsePage({
               <div>
                 <p className="eyebrow">Local directory</p>
                 <h2>
-                  {state.stores.length} {state.stores.length === 1 ? 'store' : 'stores'} to explore
-                  <span className="catalog-results-heading__location"> around Topeka</span>
+                  {state.stores.length} {state.stores.length === 1 ? 'store' : 'stores'} in Topeka
                 </h2>
               </div>
-              <p>Curated Topeka finds · Details checked recently</p>
+              <p>Curated Topeka finds · Listing pages show verification dates.</p>
             </div>
             <section aria-label="Store results" className="catalog-grid">
               {state.stores.map((store) => (

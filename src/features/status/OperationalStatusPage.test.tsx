@@ -8,7 +8,9 @@ describe('OperationalStatusPage', () => {
   it('fails closed until every operational contact is configured', () => {
     render(<OperationalStatusPage config={{ supportUrl: 'https://support.example.test' }} />)
     expect(screen.getByRole('status')).toHaveTextContent('not published')
-    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help')
+    expect(screen.queryByText(/S-01|gate/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Contact support' })).not.toBeInTheDocument()
   })
 
   it('publishes the bounded contact paths and commitment when complete', () => {
@@ -53,6 +55,10 @@ describe('OperationalStatusPage', () => {
       />,
     )
     expect(screen.getByRole('status')).toBeInTheDocument()
-    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', {
+        name: /current service status|contact support|security concern/i,
+      }),
+    ).not.toBeInTheDocument()
   })
 })

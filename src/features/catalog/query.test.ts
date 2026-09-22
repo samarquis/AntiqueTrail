@@ -4,6 +4,7 @@ import {
   externalNavigationHref,
   formatCatalogDate,
   formatHours,
+  freshnessLabel,
   normalizeQueryParams,
   todayHoursSummary,
   upcomingHoursExceptions,
@@ -38,6 +39,36 @@ describe('catalog query normalization', () => {
     expect(canonicalQueryString(filters)).toBe(
       '?openNow=1&visited=unvisited&saved=1&claimed=1&distance=25&state=KS',
     )
+  })
+})
+
+describe('listing freshness', () => {
+  it('reports verification older than 30 days as overdue with its date', () => {
+    expect(
+      freshnessLabel({
+        ...syntheticStores[0],
+        asOfUtc: '2026-09-22T12:00:00Z',
+        freshness: {
+          label: 'Verified recently',
+          status: 'current',
+          verifiedAt: '2026-07-15T00:00:00Z',
+        },
+      }),
+    ).toBe('Verification overdue · Verified July 15, 2026')
+  })
+
+  it('uses a dated verification label while it is within the 30-day window', () => {
+    expect(
+      freshnessLabel({
+        ...syntheticStores[0],
+        asOfUtc: '2026-09-22T12:00:00Z',
+        freshness: {
+          label: 'Verified recently',
+          status: 'current',
+          verifiedAt: '2026-09-01T00:00:00Z',
+        },
+      }),
+    ).toBe('Verified 21 days ago')
   })
 })
 

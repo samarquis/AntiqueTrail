@@ -2188,7 +2188,7 @@ main > article dt {
   .site-header nav a {
     gap: 0.25rem;
     padding-inline: 0.2rem;
-    font-size: var(--type-size-caption);
+    font-size: var(--type-size-label);
   }
 
   .catalog-filters {
@@ -2269,6 +2269,93 @@ main > article dt {
     width: 3.7rem;
     height: 3.7rem;
   }
+}
+
+/* Keep the public Browse route search-first at small and large widths. */
+.catalog-browser--review .browse-editorial-hero {
+  height: auto;
+  min-height: 0;
+  padding-block: 1rem 1.25rem;
+}
+
+.catalog-browser--review .browse-editorial-hero h1 {
+  max-width: 13ch;
+  margin-bottom: 0.5rem;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  line-height: 1.05;
+}
+
+.catalog-browser--review .browse-editorial-hero header > p:last-child {
+  max-width: 36rem;
+  margin-bottom: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 800px) {
+  .catalog-browser--review .browse-editorial-hero {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding-block: 0.25rem 1rem;
+  }
+
+  .catalog-browser--review .browse-editorial-hero h1 {
+    max-width: none;
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
+  }
+}
+
+.more-account-links {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--card);
+}
+
+.more-account-links h2,
+.more-account-links p {
+  margin: 0;
+}
+
+.more-account-links h2 {
+  font-size: var(--type-size-heading-3);
+}
+
+.more-account-links > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+@media (max-width: 420px) {
+  .more-account-links > div > a {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Catalog controls and cards keep their dark-theme text on approved surfaces. */
+:root[data-theme='dark'] .catalog-browser .catalog-filters button,
+:root[data-theme='dark'] .catalog-browser--review .catalog-filters button {
+  border-color: var(--teal);
+  color: var(--ink);
+  background: var(--card);
+}
+
+:root[data-theme='dark'] .catalog-browser .catalog-filters button:disabled,
+:root[data-theme='dark'] .catalog-browser--review .catalog-filters button:disabled {
+  color: var(--control-disabled-text);
+  background: var(--control-disabled-bg);
+}
+
+:root[data-theme='dark'] .catalog-browser .catalog-card,
+:root[data-theme='dark'] .catalog-browser--review .catalog-card {
+  color: var(--ink);
+  background: var(--card);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2410,6 +2497,26 @@ main > article dt {
   .store-browse .catalog-card > img,
   .store-browse .catalog-card__placeholder {
     aspect-ratio: 16 / 10;
+  }
+
+  .store-browse > .catalog-results-heading {
+    align-items: start;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .store-browse > .catalog-results-heading h2 {
+    margin: 0;
+    font-size: clamp(1.25rem, 6vw, 1.5rem);
+    line-height: 1.15;
+  }
+
+  .store-browse > .catalog-results-heading > p {
+    max-width: 12rem;
+    font-size: 0.875rem;
+    line-height: 1.3;
+    text-align: right;
   }
 }
 
@@ -3284,17 +3391,17 @@ main > article dt {
 :root[data-theme='dark'] {
   color-scheme: dark;
   --ink: #f3eee4;
-  --muted: #c0b5a5;
-  --paper: #17130f;
-  --card: #2b241e;
-  --line: #55473a;
-  --teal: #b38b52;
-  --teal-dark: #d0aa70;
-  --mint: #332b24;
-  --rust: #bd7055;
-  --gold: #c39a58;
-  --olive: #c0b5a5;
-  --focus-inner: #17130f;
+  --muted: #b7b0a5;
+  --paper: #121519;
+  --card: #252b33;
+  --line: #3b4552;
+  --teal: #8795b5;
+  --teal-dark: #a8b4d0;
+  --mint: #202832;
+  --rust: #d18469;
+  --gold: #d0aa70;
+  --olive: #b7b0a5;
+  --focus-inner: #121519;
   --focus-outer: #f3eee4;
 }
 

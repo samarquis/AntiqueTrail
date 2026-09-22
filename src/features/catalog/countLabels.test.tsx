@@ -16,8 +16,8 @@ describe('catalog count labels', () => {
 
   it.each([
     [[], 'No stores are available yet.'],
-    [[syntheticStores[0]], '1 store to explore'],
-    [[syntheticStores[0], syntheticStores[1]], '2 stores to explore'],
+    [[syntheticStores[0]], '1 store in Topeka'],
+    [[syntheticStores[0], syntheticStores[1]], '2 stores in Topeka'],
   ])('uses the correct store wording for %s result(s)', async (stores, expected) => {
     render(<BrowsePage client={catalogClient(stores)} />)
     expect(await screen.findByText(expected)).toBeVisible()
