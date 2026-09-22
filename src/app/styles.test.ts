@@ -232,17 +232,17 @@ const approvedThemeColors = {
   },
   dark: {
     ink: '#f3eee4',
-    muted: '#c0b5a5',
-    paper: '#17130f',
-    card: '#2b241e',
-    line: '#55473a',
-    teal: '#b38b52',
-    'teal-dark': '#d0aa70',
-    mint: '#332b24',
-    rust: '#bd7055',
-    gold: '#c39a58',
-    olive: '#c0b5a5',
-    'focus-inner': '#17130f',
+    muted: '#b7b0a5',
+    paper: '#121519',
+    card: '#252b33',
+    line: '#3b4552',
+    teal: '#8795b5',
+    'teal-dark': '#aebbd0',
+    mint: '#1a1f26',
+    rust: '#b56e5b',
+    gold: '#b99554',
+    olive: '#b7b0a5',
+    'focus-inner': '#121519',
     'focus-outer': '#f3eee4',
   },
 } as const
@@ -586,7 +586,7 @@ describe('semantic color-token regression contract', () => {
 
   it.each([
     ['a raw shared surface', 'background: var(--surface-chrome);', 'background: #fffdfc;'],
-    ['a missing dark token pair', '--gold: #c39a58;', '--gold: var(--card);'],
+    ['a missing dark token pair', '--gold: #b99554;', '--gold: var(--card);'],
     [
       'an undocumented art exception',
       '/* #143 owns this narrow media contract; #142 retains broad semantic-color ownership. */',

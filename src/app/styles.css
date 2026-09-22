@@ -3284,17 +3284,17 @@ main > article dt {
 :root[data-theme='dark'] {
   color-scheme: dark;
   --ink: #f3eee4;
-  --muted: #c0b5a5;
-  --paper: #17130f;
-  --card: #2b241e;
-  --line: #55473a;
-  --teal: #b38b52;
-  --teal-dark: #d0aa70;
-  --mint: #332b24;
-  --rust: #bd7055;
-  --gold: #c39a58;
-  --olive: #c0b5a5;
-  --focus-inner: #17130f;
+  --muted: #b7b0a5;
+  --paper: #121519;
+  --card: #252b33;
+  --line: #3b4552;
+  --teal: #8795b5;
+  --teal-dark: #aebbd0;
+  --mint: #1a1f26;
+  --rust: #b56e5b;
+  --gold: #b99554;
+  --olive: #b7b0a5;
+  --focus-inner: #121519;
   --focus-outer: #f3eee4;
 }
 
