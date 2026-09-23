@@ -43,7 +43,20 @@ function setup(user: {
     },
     error: null,
   }))
-  const createClient = vi.fn(() => ({ auth: { verifyOtp }, rpc }))
+  const getUser = vi.fn(async (token?: string) => ({
+    data: {
+      user:
+        token === 'fixture-user-jwt'
+          ? {
+              id: providerUserId,
+              app_metadata: user.app_metadata ?? {},
+              user_metadata: user.user_metadata ?? {},
+            }
+          : null,
+    },
+    error: null as Error | null,
+  }))
+  const createClient = vi.fn(() => ({ auth: { verifyOtp, getUser }, rpc }))
   const values: Record<string, string> = {
     SUPABASE_URL: 'https://uaupykgpegbseboklubv.supabase.co',
     SUPABASE_ANON_KEY: 'fixture-anon',
@@ -77,8 +90,51 @@ function setup(user: {
       },
     },
   )
-  return { handler: (request: Request) => handler(request), rpc, verifyOtp }
+  return { handler: (request: Request) => handler(request), rpc, verifyOtp, getUser }
 }
+
+it('verifies the caller JWT before completing a PKCE signup callback', async () => {
+  const { handler, rpc, getUser } = setup({
+    user_metadata: { antique_trail_admission_id: admissionId },
+  })
+  const response = await handler(pkceRequest('fixture-user-jwt'))
+  expect(response.status).toBe(200)
+  expect(await response.json()).toEqual({ state: 'verified' })
+  expect(getUser).toHaveBeenCalledExactlyOnceWith('fixture-user-jwt')
+  expect(rpc).toHaveBeenCalledWith('complete_account_registration_callback', {
+    p_admission_id: admissionId,
+    p_provider_user_id: providerUserId,
+  })
+})
+
+it('rejects a PKCE signup callback without a caller JWT', async () => {
+  const { handler, rpc, getUser } = setup({
+    user_metadata: { antique_trail_admission_id: admissionId },
+  })
+  const response = await handler(pkceRequest(null))
+  expect(response.status).toBe(503)
+  expect(getUser).not.toHaveBeenCalled()
+  expect(rpc).not.toHaveBeenCalled()
+})
+
+it('does not complete a PKCE signup when user verification reports an error', async () => {
+  const { handler, rpc, getUser } = setup({
+    user_metadata: { antique_trail_admission_id: admissionId },
+  })
+  getUser.mockResolvedValueOnce({
+    data: {
+      user: {
+        id: providerUserId,
+        app_metadata: {},
+        user_metadata: { antique_trail_admission_id: admissionId },
+      },
+    },
+    error: new Error('verification unavailable'),
+  })
+  const response = await handler(pkceRequest('fixture-user-jwt'))
+  expect(response.status).toBe(503)
+  expect(rpc).not.toHaveBeenCalled()
+})
 
 function request() {
   return new Request(
@@ -87,6 +143,17 @@ function request() {
       method: 'POST',
       headers: { Origin: origin, 'Content-Type': 'application/json' },
       body: JSON.stringify({ kind: 'verify', tokenHash: 'tk_hashed' }),
+    },
+  )
+}
+
+function pkceRequest(token: string | null) {
+  return new Request(
+    'https://uaupykgpegbseboklubv.supabase.co/functions/v1/account-registration-callback',
+    {
+      method: 'POST',
+      headers: { Origin: origin, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ kind: 'verify', providerUserId }),
     },
   )
 }
@@ -115,13 +182,10 @@ it('still completes when the admission id sits in app_metadata', async () => {
   })
 })
 
-it('blocks and enqueues cleanup when no admission metadata is readable', async () => {
+it('blocks without targeting an established account when admission metadata is missing', async () => {
   const { handler, rpc } = setup({})
   const response = await handler(request())
   expect(await response.json()).toEqual({ state: 'blocked' })
-  expect(rpc).toHaveBeenCalledWith('enqueue_account_registration_cleanup', {
-    p_admission_id: null,
-    p_provider_user_id: providerUserId,
-  })
+  expect(rpc).not.toHaveBeenCalledWith('enqueue_account_registration_cleanup', expect.anything())
   expect(rpc).not.toHaveBeenCalledWith('complete_account_registration_callback', expect.anything())
 })

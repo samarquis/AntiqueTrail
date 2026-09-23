@@ -14,6 +14,10 @@ const providerSession = {
 }
 
 describe('in-memory auth boundary', () => {
+  it('assigns no administrator authority when the provider omits a role', () => {
+    expect(toAuthSession(providerSession).role).toBe('Shopper')
+  })
+
   it('keeps access tokens out of browser storage and clears on sign out', () => {
     const store = new InMemoryAuthStore()
     store.setSession(toAuthSession(providerSession))

@@ -116,6 +116,7 @@ function providerSessionFixture() {
       email: 'shopper@example.test',
       email_confirmed_at: '2026-08-01T00:00:00Z',
       app_metadata: { role: 'Shopper', provider: 'google' },
+      user_metadata: { full_name: 'Avery Shopper' },
       factors: [],
     },
   }
@@ -172,6 +173,7 @@ describe('social sign-in provider adapter', () => {
     if (result.kind !== 'authenticated') throw new Error('expected authenticated')
     expect(result.session.userId).toBe('oauth-user-1')
     expect(result.session.email).toBe('shopper@example.test')
+    expect(result.session.displayName).toBe('Avery Shopper')
     expect(result.session.role).toBe('Shopper')
     expect((result.session as unknown as { provider?: string }).provider).toBe('google')
     expect(result.session.mfaRequired ?? false).toBe(false)

@@ -213,6 +213,11 @@ import {
   type BillingClient,
 } from '../features/billing'
 import type { ReviewHarnessRuntime } from '../review-harness/types'
+import {
+  UserSettingsPage,
+  unavailableAccountSettingsClient,
+  type AccountSettingsClient,
+} from '../features/account'
 
 const ReviewMockupPage = import.meta.env.DEV
   ? lazy(() =>
@@ -256,6 +261,9 @@ function AppShell({
     '/help',
   ].some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))
   const adminNav = location.pathname.startsWith('/admin')
+  const greetingName = session
+    ? session.displayName?.trim() || session.email?.split('@', 1)[0] || session.role
+    : null
 
   useEffect(() => {
     const content = contentRef.current
@@ -316,6 +324,11 @@ function AppShell({
           />
           <span>Antique Trail</span>
         </Link>
+        {greetingName && (
+          <p className="site-header__welcome" aria-label={`Signed in as ${greetingName}`}>
+            Welcome, {greetingName}
+          </p>
+        )}
         <nav aria-label="Primary navigation">
           {adminNav ? (
             <AdminPrimaryNavigation />
@@ -469,6 +482,7 @@ function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) 
   }, [ownConsentClient, session, signedIn])
   const destinations: Array<{ to: string; label: string; requiresSignIn: boolean; icon?: string }> =
     [
+      ...(session ? [{ to: '/account/settings', label: 'User settings', requiresSignIn: false }] : []),
       ...(!session || session.role === 'Shopper'
         ? [{ to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true }]
         : []),
@@ -1018,6 +1032,8 @@ function TripAwareAccountPage({ runtime }: { runtime: TripOfflineRuntime }) {
           </>
         )}
         <nav className="account-menu" aria-label="Account controls">
+          <Link to="/account/settings">User settings</Link>
+          {session?.role === 'Shopper' && <Link to="/saved">Saved stores</Link>}
           <Link to="/account/privacy">Privacy choices</Link>
           <Link to="/account/export">Export my data</Link>
           <Link to="/account/delete">Delete my account</Link>
@@ -1093,6 +1109,7 @@ export interface AppClients {
   map?: CatalogMapAdapter
   candidate?: CandidateClient
   shopper?: ShopperPrivateClient
+  accountSettings?: AccountSettingsClient
   trips?: TripClient
   partner?: PartnerClient
   partnerAdmin?: PartnerAdminClient
@@ -1162,6 +1179,7 @@ export default function App({
   ].includes(location.pathname)
   const candidateClient = clients.candidate ?? unavailableCandidateClient
   const shopperClient = clients.shopper ?? unavailableShopperClient
+  const accountSettingsClient = clients.accountSettings ?? unavailableAccountSettingsClient
   const tripClient = clients.trips ?? unavailableTripClient
   const partnerClient = clients.partner ?? unavailablePartnerClient
   const partnerAdminClient = clients.partnerAdmin ?? unavailablePartnerAdminClient
@@ -1400,6 +1418,14 @@ export default function App({
             element={
               <RequireSession>
                 <TripAwareAccountPage runtime={tripOffline} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/account/settings"
+            element={
+              <RequireSession>
+                <UserSettingsPage client={accountSettingsClient} provider={authProvider} />
               </RequireSession>
             }
           />
