@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path=public,extensions;
-select plan(67);
+select plan(69);
 
 -- Invoke the real lifecycle RPCs with a fresh provider-shaped password AMR.
 -- The archive metadata below is an isolated worker fixture, not Storage proof.
@@ -153,7 +153,7 @@ select set_config('request.headers','{"origin":"https://antique-trail.vercel.app
 update public_test_private.bindings set expires_at=statement_timestamp()-interval '1 second' where binding_id=(select id from public_test_receipt);
 select is(public_test_private.active_binding('catalog'),null::uuid,'clock expiry closes catalog without a frontend flag');
 select is(public_test_private.actor_allowed('37600000-0000-4000-8000-000000000003'),false,'clock expiry closes saved operations');
-select is(app_public.begin_account_registration_operation('37600000-0000-4000-8000-000000000006','37600000-0000-4000-8000-000000000005','37600000-0000-4000-8000-000000000004','generate_link')->>'state','blocked','expired scope cannot start provider work');
+select is(app_public.begin_account_registration_operation('37600000-0000-4000-8000-000000000006','37600000-0000-4000-8000-000000000005','37600000-0000-4000-8000-000000000004','generate_link')->>'state','calling','public signup provider work survives catalog scope expiry');
 select * from pg_temp.check_lifecycle('expired','37600000-0000-4000-8000-000000000008');
 update public_test_private.bindings set expires_at=statement_timestamp()+interval '1 day' where binding_id=(select id from public_test_receipt);
 select is((select public_test_private.revoke(id,2) from public_test_receipt),3::bigint,'operator stop revokes the binding');
