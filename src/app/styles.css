@@ -532,6 +532,17 @@ p {
   background: var(--surface-chrome-subtle);
 }
 
+.site-header__welcome {
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .site-header nav a {
   min-height: 3rem;
   display: inline-flex;
@@ -1062,6 +1073,21 @@ main > article {
   min-height: 48px;
   padding: 0.75rem 1rem;
   width: fit-content;
+}
+
+.account-settings form {
+  margin-top: 1.5rem;
+}
+
+.account-settings .form-help {
+  margin: -0.35rem 0 0.5rem;
+  color: var(--muted);
+  font-size: var(--type-size-supporting);
+  line-height: var(--type-leading-body);
+}
+
+.account-settings textarea {
+  min-height: 6rem;
 }
 
 .trip-nav {
@@ -2011,6 +2037,11 @@ main > article dt {
     padding: 0.75rem 1rem;
     /* backdrop-filter creates a containing block that traps fixed descendants. */
     backdrop-filter: none;
+  }
+
+  .site-header__welcome {
+    flex-basis: 100%;
+    order: 3;
   }
 
   .site-header nav {

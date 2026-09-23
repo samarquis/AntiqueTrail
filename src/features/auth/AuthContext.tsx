@@ -28,6 +28,7 @@ interface AuthContextValue {
   lifecycleReady: boolean
   signIn(session: AuthSession): Promise<void>
   signOut(): Promise<void>
+  updateDisplayName(displayName: string | null): void
   enterCancellationOnly(deletionDueAt?: string): void
   restoreActiveAccount(): void
 }
@@ -315,6 +316,14 @@ export function AuthProvider({
           return
         }
         replaceSession(null)
+      },
+      updateDisplayName(displayName) {
+        const current = resolvedStore.getSession()
+        if (!current) return
+        replaceSession({
+          ...current,
+          ...(displayName ? { displayName } : { displayName: undefined }),
+        })
       },
       enterCancellationOnly(deletionDueAt) {
         const current = resolvedStore.getSession()

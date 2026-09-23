@@ -12,7 +12,7 @@ export interface RegistrationCleanupDependencies {
   begin(
     cleanupTicketId: string,
     providerUserId: string,
-  ): Promise<{ state: 'calling' | 'reconciliation_required' }>
+  ): Promise<{ state: 'calling' | 'reconciliation_required' | 'blocked' }>
   deleteExact(
     providerUserId: string,
   ): Promise<'confirmed_deleted' | 'confirmed_not_deleted' | 'unknown'>
@@ -32,6 +32,7 @@ export async function runRegistrationCleanup(
   let needsReconciliation = claim.state === 'reconciliation_required'
   if (!needsReconciliation) {
     const begun = await dependencies.begin(claim.cleanupTicketId, claim.providerUserId)
+    if (begun.state === 'blocked') return 'blocked'
     needsReconciliation = begun.state === 'reconciliation_required'
     if (!needsReconciliation) {
       let outcome: 'confirmed_deleted' | 'confirmed_not_deleted' | 'unknown' = 'unknown'

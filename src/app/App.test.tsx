@@ -75,6 +75,49 @@ describe('app shell', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('links signed-in shoppers to private account settings', () => {
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'shopper-settings',
+      accessToken: 'memory-only-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaEnrolled: false,
+      mfaVerified: false,
+    })
+    render(
+      <MemoryRouter initialEntries={['/more']}>
+        <App runtime={{ authStore }} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'User settings' })).toHaveAttribute(
+      'href',
+      '/account/settings',
+    )
+  })
+
+  it('greets a signed-in shopper by display name', () => {
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'shopper-1',
+      displayName: 'Avery',
+      email: 'avery@example.test',
+      accessToken: 'memory-only-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaEnrolled: false,
+      mfaVerified: false,
+    })
+    render(
+      <MemoryRouter initialEntries={['/stores']}>
+        <App runtime={{ authStore }} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('Welcome, Avery')).toBeInTheDocument()
+  })
+
   it('shows only the authorized role entry in a representative More menu', async () => {
     const authStore = new InMemoryAuthStore()
     authStore.setSession({

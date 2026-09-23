@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
-import { webcrypto } from 'node:crypto'
+import { createHash, createHmac, webcrypto } from 'node:crypto'
 import ts from 'typescript'
 import { expect, it, vi } from 'vitest'
 import { handleAccountRegistration } from '../../../supabase/functions/_shared/account-registration'
@@ -13,7 +13,12 @@ import {
 const origin = 'https://antique-trail.vercel.app'
 function setup(overrides: Record<string, string> = {}) {
   let handler: (request: Request) => Promise<Response>
-  const rpc = vi.fn().mockResolvedValue({ data: { state: 'blocked' }, error: null })
+  const rpc = vi.fn(
+    async (name: string): Promise<{ data: unknown; error: Error | null }> => ({
+      data: name === 'account_registration_fingerprint_mode' ? 'current' : { state: 'blocked' },
+      error: null,
+    }),
+  )
   const createClient = vi.fn(() => ({ rpc }))
   const fetch = vi.fn()
   const values: Record<string, string> = {
@@ -96,13 +101,46 @@ it('rejects another configured backend in public-test mode', async () => {
   expect(rpc).not.toHaveBeenCalled()
   expect(fetch).not.toHaveBeenCalled()
 })
-it('allows the exact origin to reach the existing registration reservation protocol', async () => {
+it('allows the exact origin to reach the registration reservation protocol', async () => {
   const { handler, rpc, fetch } = setup()
   await handler(request(origin))
-  expect(rpc).toHaveBeenCalledExactlyOnceWith(
+  expect(rpc).toHaveBeenCalledWith(
     'begin_account_registration',
     expect.objectContaining({ p_age_18_attestation: true }),
   )
+  expect(fetch).not.toHaveBeenCalled()
+})
+
+it('keys the registration email fingerprint with the configured secret', async () => {
+  const { handler, rpc } = setup()
+  await handler(request(origin))
+  expect(rpc).toHaveBeenCalledWith(
+    'begin_account_registration',
+    expect.objectContaining({
+      p_email_hmac: `\\x${createHmac('sha256', 'fixture-only-secret-at-least-32-characters').update('tester@example.test').digest('hex')}`,
+    }),
+  )
+})
+
+it('resumes a matching legacy reservation using its original fingerprint', async () => {
+  const { handler, rpc } = setup()
+  rpc.mockResolvedValueOnce({ data: 'legacy', error: null })
+  rpc.mockResolvedValueOnce({ data: { state: 'pending_verification' }, error: null })
+  const response = await handler(request(origin))
+  expect(response.status).toBe(202)
+  expect(await response.json()).toEqual({ state: 'pending_verification' })
+  expect(rpc).toHaveBeenNthCalledWith(2, 'begin_account_registration', {
+    p_email_hmac: `\\x${createHash('sha256').update('tester@example.test').digest('hex')}`,
+    p_age_18_attestation: true,
+    p_idempotency_key: expect.any(String),
+  })
+})
+
+it('blocks a duplicate legacy account before opening a keyed reservation', async () => {
+  const { handler, rpc, fetch } = setup()
+  rpc.mockResolvedValueOnce({ data: 'blocked', error: null })
+  expect(await (await handler(request(origin))).json()).toEqual({ state: 'blocked' })
+  expect(rpc).not.toHaveBeenCalledWith('begin_account_registration', expect.anything())
   expect(fetch).not.toHaveBeenCalled()
 })
 
@@ -110,6 +148,8 @@ it('confirms a registration generated from the provider signup response shape', 
   const { handler, rpc, fetch } = setup()
   rpc.mockImplementation(async (name: string) => {
     switch (name) {
+      case 'account_registration_fingerprint_mode':
+        return { data: 'current', error: null }
       case 'begin_account_registration':
         return {
           data: {
