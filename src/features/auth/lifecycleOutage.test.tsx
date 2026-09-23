@@ -31,5 +31,5 @@ it('keeps private content locked and session material intact through a prolonged
   expect(screen.getByText('private-locked')).toBeInTheDocument()
   expect(store.getSession()?.userId).toBe('user-1')
   expect(clearSessionMaterial).not.toHaveBeenCalled()
-  expect(getStatus).toHaveBeenCalledTimes(6)
+  expect(getStatus).toHaveBeenCalledTimes(7)
 })
