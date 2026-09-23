@@ -190,7 +190,10 @@ describe('app shell', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByRole('link', { name: /^my trip$/i })).toHaveAttribute('href', '/trips')
+    expect(await screen.findByRole('link', { name: /^my trip$/i })).toHaveAttribute(
+      'href',
+      '/trips',
+    )
     expect(screen.queryByRole('link', { name: /^sign in$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /create new account/i })).not.toBeInTheDocument()
   })
@@ -333,9 +336,9 @@ describe('app shell', () => {
     )
 
     const navigation = screen.getByRole('navigation', { name: /primary navigation/i })
-    expect(screen.getByRole('complementary', { name: /administrator environment/i })).toHaveTextContent(
-      /internal alpha.*synthetic stores only/i,
-    )
+    expect(
+      screen.getByRole('complementary', { name: /administrator environment/i }),
+    ).toHaveTextContent(/internal alpha.*synthetic stores only/i)
     expect(navigation).toHaveTextContent('ReviewAccessMore')
     expect(screen.getByRole('link', { name: 'Review' })).toHaveAttribute('href', '/admin')
     expect(screen.getByRole('link', { name: 'Access' })).toHaveAttribute('href', '/admin/access')

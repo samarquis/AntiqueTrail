@@ -407,10 +407,10 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
                   <>
                     <img
                       src={item.src}
-                        {...responsiveCatalogImage(item.src, '(max-width: 800px) 60vw, 30vw')}
-                        alt=""
-                        loading="lazy"
-                        onError={() => markFailed(slot.index)}
+                      {...responsiveCatalogImage(item.src, '(max-width: 800px) 60vw, 30vw')}
+                      alt=""
+                      loading="lazy"
+                      onError={() => markFailed(slot.index)}
                     />
                     <MediaTileOverlay media={item} className="store-photos__tile-overlay" />
                   </>

@@ -573,7 +573,9 @@ export function BrowsePage({
           <header>
             <p className="eyebrow">A field guide to curious places</p>
             <h1>Discover local antiques.</h1>
-            <p>Make a day of the shops, stories, and one-of-a-kind finds waiting around the corner.</p>
+            <p>
+              Make a day of the shops, stories, and one-of-a-kind finds waiting around the corner.
+            </p>
           </header>
           <div className="browse-editorial-hero__filters">
             <CatalogFiltersForm filters={filters} onChange={updateFilters} stage={filterStage} />
@@ -1138,7 +1140,8 @@ export function DetailsPage({
   }>({ kind: 'loading' })
   const load = useCallback(() => {
     setState({ kind: 'loading' })
-    client.details(slug)
+    client
+      .details(slug)
       .then((store) => setState(store ? { kind: 'success', store } : { kind: 'not-found' }))
       .catch((error: unknown) =>
         setState({

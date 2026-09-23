@@ -4507,7 +4507,9 @@ main.catalog-browser--review .catalog-card {
   color: var(--media-overlay-text);
   background: var(--ink);
   box-shadow: var(--shadow-card);
-  transition: translate 220ms ease, box-shadow 220ms ease;
+  transition:
+    translate 220ms ease,
+    box-shadow 220ms ease;
 }
 
 main.catalog-browser--review .catalog-card:hover {

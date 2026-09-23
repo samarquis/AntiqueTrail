@@ -409,9 +409,14 @@ function AppShell({
         </aside>
       )}
       {adminNav && (
-        <aside className="role-context-banner role-context-banner--admin" aria-label="Administrator environment">
+        <aside
+          className="role-context-banner role-context-banner--admin"
+          aria-label="Administrator environment"
+        >
           <strong>Internal Alpha</strong>
-          <span>Administrator workspace · Synthetic stores only · Shopper-private data excluded</span>
+          <span>
+            Administrator workspace · Synthetic stores only · Shopper-private data excluded
+          </span>
         </aside>
       )}
       {import.meta.env.VITE_PUBLIC_DEMO === 'true' && (
@@ -511,7 +516,9 @@ function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) 
   }, [ownConsentClient, session, signedIn])
   const destinations: Array<{ to: string; label: string; requiresSignIn: boolean; icon?: string }> =
     [
-      ...(session ? [{ to: '/account/settings', label: 'User settings', requiresSignIn: false }] : []),
+      ...(session
+        ? [{ to: '/account/settings', label: 'User settings', requiresSignIn: false }]
+        : []),
       ...(!session || session.role === 'Shopper'
         ? [{ to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true }]
         : []),

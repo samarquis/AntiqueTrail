@@ -320,7 +320,10 @@ export function createAuthProvider<
         const callback = await supabase.functions.invoke('account-registration-callback', {
           body: { kind: 'verify', providerUserId: exchanged.data.session.user.id },
         })
-        if (callback.error || callback.data?.state !== 'verified' && callback.data?.state !== 'authenticated') {
+        if (
+          callback.error ||
+          (callback.data?.state !== 'verified' && callback.data?.state !== 'authenticated')
+        ) {
           await supabase.auth.signOut({ scope: 'local' })
           return { kind: 'blocked' }
         }
