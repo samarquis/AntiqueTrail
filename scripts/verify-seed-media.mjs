@@ -9,7 +9,17 @@ import { fileURLToPath } from 'node:url'
 const SEED_MEDIA_PATH = /'((?:\/)[^']*)'/g
 
 export function seededMediaPaths(seedSql) {
-  return [...new Set([...seedSql.matchAll(SEED_MEDIA_PATH)].map((match) => match[1]))]
+  return [
+    ...new Set(
+      [...seedSql.matchAll(SEED_MEDIA_PATH)]
+        .filter((match) => {
+          const before = seedSql.slice(0, match.index)
+          const after = seedSql.slice(match.index + match[0].length)
+          return !/\|\|\s*$/.test(before) && !/^\s*\|\|/.test(after)
+        })
+        .map((match) => match[1]),
+    ),
+  ]
 }
 
 export function verifySeedMedia(root, builtRoot) {

@@ -1,4 +1,7 @@
 begin;
+create extension if not exists pgtap with schema extensions;
+set search_path=public,extensions;
+select plan(1);
 insert into auth.users(id) values
   ('93000000-0000-4000-8000-000000000001'),
   ('93000000-0000-4000-8000-000000000002'),
@@ -177,4 +180,6 @@ begin
     raise exception 'admitted_tester_unknown_route_allowed';
   end if;
 end $test$;
+select pass('registration cleanup protects established accounts and preserves guarded retries');
+select * from finish();
 rollback;
