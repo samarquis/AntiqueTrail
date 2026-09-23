@@ -107,7 +107,7 @@ set local role authenticated;
 select throws_ok($$select app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint)$$,'42501','internal_request_denied','actual session bootstrap rejects unadmitted identity');
 reset role;
 select set_config('request.path','/rpc/shopper_set_save',true);
-select is(public_test_private.begin_registration(decode(repeat('0',64),'hex'),true,'37600000-0000-4000-8000-000000000004')->>'state','blocked','unlisted email cannot reserve Auth');
+select is(public_test_private.begin_registration(decode(repeat('0',64),'hex'),true,'37600000-0000-4000-8000-000000000099')->>'state','reserved','public signup can reserve outside tester allowlist');
 select is(public_test_private.complete_callback('37600000-0000-4000-8000-000000000005','37600000-0000-4000-8000-000000000003'),false,'verified email without authoritative receipt cannot grant shopper');
 -- Simulate only already recorded provider delivery in this rollback fixture;
 -- this is not real-email evidence or authority to activate a hosted receipt.
