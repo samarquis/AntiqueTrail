@@ -173,7 +173,7 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
   await expect(choices).toHaveCount(5)
   await choices.first().click()
   const gallery = page.getByRole('dialog').getByRole('img', {
-    name: 'Synthetic interior photo 1 for Clockwork Cabinet',
+    name: 'Synthetic antique cabinet scene for Clockwork Cabinet',
     exact: true,
   })
   await expect(gallery).toBeVisible()
