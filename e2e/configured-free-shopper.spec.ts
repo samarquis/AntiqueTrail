@@ -499,7 +499,33 @@ test('two local accounts keep settings private across save, fresh login, and rev
   )
   expect(resetCounts).toEqual({ profiles: 2, authMetadata: 2 })
 
-  await login(page, 0, '/account/settings')
+  const storeAccess = async () =>
+    JSON.parse(
+      (
+        await service.sql(
+          `select jsonb_build_object(
+             'roleGrants', coalesce((
+               select jsonb_agg(jsonb_build_object('userId',subject_user_id,'role',role,'storeId',store_id,'state',state) order by subject_user_id,role,store_id,state)
+               from app_private.role_grants where subject_user_id in ('${ownerId}','${siblingId}')
+             ),'[]'::jsonb),
+             'partnerGrants', coalesce((
+               select jsonb_agg(jsonb_build_object('userId',auth_user_id,'storeId',store_id,'state',state) order by auth_user_id,store_id,state)
+               from partner_private.store_partner_grants where auth_user_id in ('${ownerId}','${siblingId}')
+             ),'[]'::jsonb),
+             'partnerships', coalesce((
+               select jsonb_agg(jsonb_build_object('userId',auth_user_id,'storeId',store_id,'state',state) order by auth_user_id,store_id,state)
+               from partner_private.store_partnerships where auth_user_id in ('${ownerId}','${siblingId}')
+             ),'[]'::jsonb)
+           )::text;`,
+        )
+      ).trim(),
+    )
+
+  const storeAccessBefore = await storeAccess()
+  const ownerToken = await login(page, 0, '/account/settings')
+  await expect(rpc(ownerToken, 'portal_get_home', {})).rejects.toThrow(
+    /401|403|42501|portal_unavailable/,
+  )
   await expect(page.getByRole('heading', { name: 'User settings', exact: true })).toBeVisible()
   await page.getByLabel('Display name', { exact: true }).fill('Issue 420 Owner')
   await page
@@ -523,11 +549,18 @@ test('two local accounts keep settings private across save, fresh login, and rev
   } finally {
     await freshOwnerContext.close()
   }
+  expect(await storeAccess()).toEqual(storeAccessBefore)
+  await expect(rpc(ownerToken, 'portal_get_home', {})).rejects.toThrow(
+    /401|403|42501|portal_unavailable/,
+  )
 
   const siblingContext = await browser.newContext({ baseURL: input.origin })
   try {
     const siblingPage = await siblingContext.newPage()
     const siblingToken = await login(siblingPage, 1, '/account/settings')
+    await expect(rpc(siblingToken, 'portal_get_home', {})).rejects.toThrow(
+      /401|403|42501|portal_unavailable/,
+    )
     await expect(siblingPage.getByLabel('Display name', { exact: true })).toHaveValue(
       input.users[1].email.split('@')[0],
     )
@@ -582,6 +615,11 @@ test('two local accounts keep settings private across save, fresh login, and rev
     } finally {
       await freshSiblingContext.close()
     }
+
+    expect(await storeAccess()).toEqual(storeAccessBefore)
+    await expect(rpc(freshSiblingToken, 'portal_get_home', {})).rejects.toThrow(
+      /401|403|42501|portal_unavailable/,
+    )
 
     const roles = await service.sql(
       `select count(*) filter (where role='shopper')::text || ':' || count(*) filter (where role<>'shopper')::text from app_private.role_grants where subject_user_id in ('${ownerId}','${siblingId}') and state='active';`,
