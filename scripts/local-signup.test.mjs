@@ -101,8 +101,8 @@ test('assigns isolated API, database, mail, and callback ports to a local projec
     config,
     /additional_redirect_urls = \["http:\/\/127\.0\.0\.1:41008\/auth\/callback"\]/,
   )
-  assert.match(config, /\[local_smtp\][\s\S]*?port = 41004[\s\S]*?smtp_port = 41005/)
-  assert.doesNotMatch(config, /\[auth\.email\.smtp\]/)
+  assert.match(config, /\[inbucket\][\s\S]*?port = 41004[\s\S]*?smtp_port = 41005/)
+  assert.match(config, /\[auth\.email\.smtp\][\s\S]*?host = "inbucket"[\s\S]*?port = 1025/)
   assert.equal((config.match(/\[auth\.email\]/g) ?? []).length, 1)
   assert.match(config, /\[auth\.mfa\.totp\]/)
   assert.throws(

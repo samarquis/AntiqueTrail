@@ -42,13 +42,18 @@ export function localProjectConfig(source, ports, { signupJourney = false } = {}
     .replace('[db]', `[db]\nport = ${ports.db}\nshadow_port = ${ports.shadow}`)
     .replace(
       '[inbucket]',
-      `[local_smtp]\nenabled = true\nport = ${ports.mail}\nsmtp_port = ${ports.smtp}\npop3_port = ${ports.pop3}`,
+      `[inbucket]\nport = ${ports.mail}\nsmtp_port = ${ports.smtp}\npop3_port = ${ports.pop3}`,
     )
     .replace('[studio]\nenabled = true', '[studio]\nenabled = false')
     .replace(/^site_url = .*$/m, `site_url = "${ports.origin}"`)
     .replace(
       /^additional_redirect_urls = .*$/m,
       `additional_redirect_urls = ["${ports.origin}/auth/callback"]`,
+    )
+  if (signupJourney)
+    config = config.replace(
+      '[auth.mfa.totp]',
+      '[auth.email.smtp]\nhost = "inbucket"\nport = 1025\nuser = "local"\npass = "local"\nadmin_email = "admin@antiquetrail.invalid"\nsender_name = "AntiqueTrail Local"\n\n[auth.mfa.totp]',
     )
   return `${config}\n[edge_runtime]\nenabled = true\ninspector_port = ${ports.inspector}\n`
 }
