@@ -15,7 +15,16 @@ import {
   type OwnerIntakeAvailability,
   type OwnerIntakeAvailabilityClient,
 } from '../features/partners/ownerIntakeAvailability'
-import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from 'react'
 import { RecordAuditPage, AdminAuditRoutes } from '../features/admin/audit'
 import {
   Link,
@@ -205,6 +214,14 @@ import {
 } from '../features/billing'
 import type { ReviewHarnessRuntime } from '../review-harness/types'
 
+const ReviewMockupPage = import.meta.env.DEV
+  ? lazy(() =>
+      import('../features/reviewMockup/ReviewMockupPage').then((module) => ({
+        default: module.ReviewMockupPage,
+      })),
+    )
+  : null
+
 // The current provider-neutral shell has no privileged session source. Keep the
 // boundary explicitly unavailable until authenticated Admin wiring is approved.
 const unavailableAlphaAccount = null
@@ -225,6 +242,7 @@ function AppShell({
   reviewHarnessUi?: ReviewHarnessUi
 }) {
   const location = useLocation()
+  const prototypeRoute = import.meta.env.DEV && location.pathname === '/review-mockup'
   const { lifecycleReady, session } = useAuth()
   const contentRef = useRef<HTMLDivElement>(null)
   const moreIsCurrent = [
@@ -282,7 +300,7 @@ function AppShell({
   }, [])
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-shell-chrome={prototypeRoute ? 'hidden' : undefined}>
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
@@ -1226,6 +1244,16 @@ export default function App({
             <Route
               path="/review"
               element={<runtime.reviewHarnessUi.Page runtime={runtime.reviewHarness} />}
+            />
+          )}
+          {ReviewMockupPage && (
+            <Route
+              path="/review-mockup"
+              element={
+                <Suspense fallback={<p role="status">Loading review mockup…</p>}>
+                  <ReviewMockupPage />
+                </Suspense>
+              }
             />
           )}
           <Route
