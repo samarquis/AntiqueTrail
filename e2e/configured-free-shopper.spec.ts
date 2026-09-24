@@ -476,9 +476,28 @@ test('two local accounts keep settings private across save, fresh login, and rev
 }) => {
   const ownerId = uuid(input.users[0].id)
   const siblingId = uuid(input.users[1].id)
-  await service.sql(
-    `update app_private.profiles set public_display_name=null,private_location_address=null where user_id in ('${ownerId}','${siblingId}');`,
+  const resetCounts = JSON.parse(
+    (
+      await service.sql(
+        `with reset_profiles as (
+           update app_private.profiles
+           set public_display_name=null,private_location_address=null
+           where user_id in ('${ownerId}','${siblingId}')
+           returning user_id
+         ), reset_auth_metadata as (
+           update auth.users
+           set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) - 'display_name' - 'full_name' - 'name'
+           where id in ('${ownerId}','${siblingId}')
+           returning id
+         )
+         select json_build_object(
+           'profiles', (select count(*) from reset_profiles),
+           'authMetadata', (select count(*) from reset_auth_metadata)
+         )::text;`,
+      )
+    ).trim(),
   )
+  expect(resetCounts).toEqual({ profiles: 2, authMetadata: 2 })
 
   await login(page, 0, '/account/settings')
   await expect(page.getByRole('heading', { name: 'User settings', exact: true })).toBeVisible()
@@ -509,7 +528,9 @@ test('two local accounts keep settings private across save, fresh login, and rev
   try {
     const siblingPage = await siblingContext.newPage()
     const siblingToken = await login(siblingPage, 1, '/account/settings')
-    await expect(siblingPage.getByLabel('Display name', { exact: true })).toHaveValue('')
+    await expect(siblingPage.getByLabel('Display name', { exact: true })).toHaveValue(
+      input.users[1].email.split('@')[0],
+    )
     await expect(
       siblingPage.getByLabel('Starting address for location services', { exact: true }),
     ).toHaveValue('')
@@ -525,7 +546,7 @@ test('two local accounts keep settings private across save, fresh login, and rev
       }),
     ).rejects.toThrow(/404|PGRST202/)
     await expect(
-      service.request('/rest/v1/rpc/account_get_settings', {
+      loopbackRequest(input.endpoint, '/rest/v1/rpc/account_get_settings', {
         key: input.anonKey,
         schema: 'app_public',
         body: {},
