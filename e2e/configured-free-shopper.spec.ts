@@ -166,37 +166,37 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
     await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
   ).toBe(true)
   await page.getByRole('button', { name: 'Save store Clockwork Cabinet', exact: true }).click()
-  const choices = page.getByRole('group', { name: 'Choose a store photo' }).getByRole('button')
-  await expect(choices).toHaveCount(6)
-  await choices.nth(1).click()
-  const gallery = page
-    .getByRole('img', {
-      name: 'Synthetic antique cabinet scene for Clockwork Cabinet',
-      exact: true,
-    })
-    .first()
+  await expect.poll(saved).toBe(process.env.CONFIGURED_SHOPPER_WRONG_READBACK === '1' ? 2 : 1)
+  await page.getByRole('link', { name: 'See all 6 photos' }).click()
+  await expect(page).toHaveURL(/\/stores\/clockwork-cabinet\/photos$/)
+  const choices = page.getByRole('button', { name: /^View photo \d:/ })
+  await expect(choices).toHaveCount(5)
+  await choices.first().click()
+  const gallery = page.getByRole('dialog').getByRole('img', {
+    name: 'Synthetic interior photo 1 for Clockwork Cabinet',
+    exact: true,
+  })
   await expect(gallery).toBeVisible()
   expect(
     await gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
   ).toBe(true)
-  const enlarge = page.getByRole('button', { name: /Enlarge image:/ })
-  await enlarge.click()
-  await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(enlarge).toBeFocused()
-  await expect.poll(saved).toBe(process.env.CONFIGURED_SHOPPER_WRONG_READBACK === '1' ? 2 : 1)
+  await expect(choices.first()).toBeFocused()
   await page.reload()
+  await expect(choices).toHaveCount(5)
+  await choices.first().click()
+  await expect(gallery).toBeVisible()
+  await expect
+    .poll(() => gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
+    .toBe(true)
+  await page.keyboard.press('Escape')
+  await page.getByRole('link', { name: /Back to Clockwork Cabinet/ }).click()
   await expect(
     page.getByRole('button', { name: 'Remove saved store Clockwork Cabinet', exact: true }),
   ).toBeVisible()
   await expect(photo).toBeVisible()
   await expect
     .poll(() => photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
-    .toBe(true)
-  await choices.nth(1).click()
-  await expect(gallery).toBeVisible()
-  await expect
-    .poll(() => gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
     .toBe(true)
   await page.goto('/saved')
   await expect(page.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toBeVisible()
