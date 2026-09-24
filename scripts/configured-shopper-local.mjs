@@ -223,6 +223,7 @@ export function createLocalService({
   resumeDirectory,
   browserOrigin,
   disableStorage = false,
+  includeServiceRoleKey = false,
 } = {}) {
   if (browserOrigin && !/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(browserOrigin))
     throw new Error('Browser origin must use literal loopback')
@@ -377,7 +378,7 @@ export function createLocalService({
     run.anonKey = status.ANON_KEY
     if (!run.anonKey || !status.SERVICE_ROLE_KEY || !status.JWT_SECRET)
       throw new Error('Local service credentials unavailable')
-    run.serviceRoleKey = status.SERVICE_ROLE_KEY
+    if (includeServiceRoleKey) run.serviceRoleKey = status.SERVICE_ROLE_KEY
     // This is a server-only catalog service credential, never a shopper identity.
     const enc = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
     const unsigned = `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc({ role: 'public_catalog_gateway', iss: 'supabase', exp: Math.floor(Date.now() / 1000) + 3600 })}`

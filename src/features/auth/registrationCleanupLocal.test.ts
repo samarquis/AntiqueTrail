@@ -29,7 +29,7 @@ type RegistrationReservation =
 
 describeLocal('registration cleanup against an isolated local provider and database', () => {
   it('times out after provider creation, reconciles one identity, rejects callback during cleanup, and preserves admitted identities', async () => {
-    const local = createLocalService({ disableStorage: true })
+    const local = createLocalService({ disableStorage: true, includeServiceRoleKey: true })
     try {
       const run = await local.start()
       if (!run.anonKey || !run.serviceRoleKey || !run.endpoint)
@@ -383,7 +383,7 @@ describeLocal('registration cleanup against an isolated local provider and datab
         }),
       ).toBe(true)
       const enqueue = await rpc('enqueue_account_registration_cleanup', {
-        p_admission_id: admissionId,
+        p_admission_id: protectedAdmissionId,
         p_provider_user_id: protectedId,
       })
       expect(enqueue).toEqual({ state: 'blocked' })

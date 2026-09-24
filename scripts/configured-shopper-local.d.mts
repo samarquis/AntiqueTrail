@@ -34,4 +34,5 @@ export function createLocalService(options?: {
   resumeDirectory?: string
   browserOrigin?: string
   disableStorage?: boolean
+  includeServiceRoleKey?: boolean
 }): LocalService
