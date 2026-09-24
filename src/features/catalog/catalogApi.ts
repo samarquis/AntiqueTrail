@@ -207,10 +207,12 @@ function stringOrNull(value: unknown): string | null {
 function parseFreshness(value: unknown, verifiedAt: unknown) {
   if (value && typeof value === 'object') {
     const row = asRow(value)
+    const state = String(row.status ?? row.state ?? row.freshness_state ?? '')
     return {
       label: String(row.label ?? 'Freshness unavailable'),
       verifiedAt: stringOrNull(row.verified_at ?? row.verifiedAt),
       daysOld: typeof row.days_old === 'number' ? row.days_old : null,
+      status: catalogFreshnessStatus(state),
     }
   }
   const state = typeof value === 'string' ? value : undefined
@@ -221,10 +223,22 @@ function parseFreshness(value: unknown, verifiedAt: unknown) {
           : `Verified ${new Date(verifiedAt).toLocaleDateString()}`,
         verifiedAt,
         daysOld: null,
+        status: state ? catalogFreshnessStatus(state) : undefined,
       }
     : state
-      ? { label: freshnessStateLabel(state), verifiedAt: null, daysOld: null }
+      ? {
+          label: freshnessStateLabel(state),
+          verifiedAt: null,
+          daysOld: null,
+          status: catalogFreshnessStatus(state),
+        }
       : undefined
+}
+
+function catalogFreshnessStatus(state: string): 'current' | 'stale' | 'unknown' {
+  if (state === 'current') return 'current'
+  if (state === 'overdue' || state === 'stale') return 'stale'
+  return 'unknown'
 }
 
 function freshnessStateLabel(state: string) {

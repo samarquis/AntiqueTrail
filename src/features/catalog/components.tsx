@@ -1180,7 +1180,22 @@ export function DetailsPage({
   const hasContact = Boolean(store.website || store.phone || store.email)
   const canAddToTrip = detailsStageRank[stage] >= detailsStageRank['package-5a']
   const today = todayHoursSummary(store)
-  const hasNavigableAddress = !/\b(?:synthetic|fiction(?:al)?)\b/i.test(store.address)
+  const listingTrustText = [
+    store.address,
+    store.description,
+    store.provenance?.sourceLabel,
+    store.provenance?.note,
+    store.fixtureProfile?.label,
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const isFictionalListing =
+    Boolean(store.fixtureProfile) ||
+    /\b(?:synthetic|fiction(?:al)?|imaginary|imagined|make-believe|storybook)\b/i.test(
+      listingTrustText,
+    )
+  const hasNavigableAddress =
+    Boolean(store.address.trim()) && store.freshness?.status === 'current' && !isFictionalListing
   return (
     <main className="store-detail">
       <CatalogLink className="store-detail__back" to={catalogAppHref(backHref)}>
@@ -1240,7 +1255,11 @@ export function DetailsPage({
               <span className="sr-only"> (opens in a new window)</span>
             </a>
           ) : (
-            <p className="honesty-note">Directions are unavailable for this fictional address.</p>
+            <p className="honesty-note">
+              {isFictionalListing
+                ? 'Directions are unavailable for this fictional address.'
+                : 'Directions are unavailable until this address is verified.'}
+            </p>
           )}
           {canAddToTrip && (
             <CatalogLink
