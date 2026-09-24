@@ -7,6 +7,7 @@ export default defineConfig({
     'ui05-auth-shopper.spec.ts',
     'configured-free-shopper.spec.ts',
     'configured-representative-hours.spec.ts',
+    'local-signup.spec.ts',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
