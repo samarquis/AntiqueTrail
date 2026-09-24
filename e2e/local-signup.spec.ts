@@ -116,8 +116,10 @@ test('local signup verifies email, admits one Shopper, and saves privately once'
   if (!uuid.test(userId)) throw new Error('Callback returned malformed user identity')
   expect(callbackBody.state).toBe('authenticated')
   await expect(page).toHaveURL(/\/stores$/)
-  expect(await counts(userId, email)).toEqual({ users: 1, emailUsers: 1, grants: 1, saves: 0 })
   evidence.callback = 'passed'
+  evidence.stage = 'Shopper admission'
+  saveEvidence()
+  expect(await counts(userId, email)).toEqual({ users: 1, emailUsers: 1, grants: 1, saves: 0 })
   evidence.admission = 'passed'
   saveEvidence()
 
