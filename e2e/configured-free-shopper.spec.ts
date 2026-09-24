@@ -469,3 +469,119 @@ test('revoked session denies next UI mutation with feedback and unchanged backen
   ).toBeVisible()
   expect(await read(id)).toEqual(before)
 })
+
+test('two local accounts keep settings private across save, fresh login, and revocation', async ({
+  page,
+  browser,
+}) => {
+  const ownerId = uuid(input.users[0].id)
+  const siblingId = uuid(input.users[1].id)
+  await service.sql(
+    `update app_private.profiles set public_display_name=null,private_location_address=null where user_id in ('${ownerId}','${siblingId}');`,
+  )
+
+  await login(page, 0, '/account/settings')
+  await expect(page.getByRole('heading', { name: 'User settings', exact: true })).toBeVisible()
+  await page.getByLabel('Display name', { exact: true }).fill('Issue 420 Owner')
+  await page
+    .getByLabel('Starting address for location services', { exact: true })
+    .fill('420 Owner Private Address')
+  await page.getByRole('button', { name: 'Save settings', exact: true }).click()
+  await expect(page.getByRole('status')).toHaveText('Settings saved.')
+  await expect(page.getByLabel('Signed in as Issue 420 Owner')).toBeVisible()
+
+  const freshOwnerContext = await browser.newContext({ baseURL: input.origin })
+  try {
+    const freshOwnerPage = await freshOwnerContext.newPage()
+    await login(freshOwnerPage, 0, '/account/settings')
+    await expect(freshOwnerPage.getByLabel('Display name', { exact: true })).toHaveValue(
+      'Issue 420 Owner',
+    )
+    await expect(
+      freshOwnerPage.getByLabel('Starting address for location services', { exact: true }),
+    ).toHaveValue('420 Owner Private Address')
+    await expect(freshOwnerPage.getByLabel('Signed in as Issue 420 Owner')).toBeVisible()
+  } finally {
+    await freshOwnerContext.close()
+  }
+
+  const siblingContext = await browser.newContext({ baseURL: input.origin })
+  try {
+    const siblingPage = await siblingContext.newPage()
+    const siblingToken = await login(siblingPage, 1, '/account/settings')
+    await expect(siblingPage.getByLabel('Display name', { exact: true })).toHaveValue('')
+    await expect(
+      siblingPage.getByLabel('Starting address for location services', { exact: true }),
+    ).toHaveValue('')
+    await expect(rpc(siblingToken, 'account_get_settings', {})).resolves.toMatchObject({
+      displayName: null,
+      locationAddress: null,
+    })
+    await expect(
+      rpc(siblingToken, 'account_update_settings', {
+        p_display_name: 'Changed Owner',
+        p_location_address: 'Changed Owner Address',
+        p_user_id: ownerId,
+      }),
+    ).rejects.toThrow(/404|PGRST202/)
+    await expect(
+      service.request('/rest/v1/rpc/account_get_settings', {
+        key: input.anonKey,
+        schema: 'app_public',
+        body: {},
+      }),
+    ).rejects.toThrow(/401|403|404|42501|PGRST202/)
+
+    await siblingPage.getByLabel('Display name', { exact: true }).fill('Issue 420 Sibling')
+    await siblingPage
+      .getByLabel('Starting address for location services', { exact: true })
+      .fill('420 Sibling Private Address')
+    await siblingPage.getByRole('button', { name: 'Save settings', exact: true }).click()
+    await expect(siblingPage.getByRole('status')).toHaveText('Settings saved.')
+    await expect(siblingPage.getByLabel('Signed in as Issue 420 Sibling')).toBeVisible()
+    await siblingPage.reload()
+    await expect(siblingPage.getByLabel('Display name', { exact: true })).toHaveValue(
+      'Issue 420 Sibling',
+    )
+    await expect(
+      siblingPage.getByLabel('Starting address for location services', { exact: true }),
+    ).toHaveValue('420 Sibling Private Address')
+
+    const freshSiblingContext = await browser.newContext({ baseURL: input.origin })
+    let freshSiblingToken: string
+    try {
+      const freshSiblingPage = await freshSiblingContext.newPage()
+      freshSiblingToken = await login(freshSiblingPage, 1, '/account/settings')
+      await expect(freshSiblingPage.getByLabel('Display name', { exact: true })).toHaveValue(
+        'Issue 420 Sibling',
+      )
+      await expect(
+        freshSiblingPage.getByLabel('Starting address for location services', { exact: true }),
+      ).toHaveValue('420 Sibling Private Address')
+    } finally {
+      await freshSiblingContext.close()
+    }
+
+    const roles = await service.sql(
+      `select count(*) filter (where role='shopper')::text || ':' || count(*) filter (where role<>'shopper')::text from app_private.role_grants where subject_user_id in ('${ownerId}','${siblingId}') and state='active';`,
+    )
+    expect(roles.trim()).toBe('2:0')
+    const ownerAddress = await service.sql(
+      `select private_location_address from app_private.profiles where user_id='${ownerId}';`,
+    )
+    expect(ownerAddress.trim()).toBe('420 Owner Private Address')
+
+    await service.sql(
+      `update app_private.active_sessions set state='revoked',revoked_at=statement_timestamp(),revocation_reason='issue_420_test_revocation' where user_id='${siblingId}' and state='active';`,
+    )
+    await expect(rpc(freshSiblingToken, 'account_get_settings', {})).rejects.toThrow(
+      /401|403|42501|account_settings_access_denied/,
+    )
+    const unchanged = await service.sql(
+      `select private_location_address from app_private.profiles where user_id='${siblingId}';`,
+    )
+    expect(unchanged.trim()).toBe('420 Sibling Private Address')
+  } finally {
+    await siblingContext.close()
+  }
+})

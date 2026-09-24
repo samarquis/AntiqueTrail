@@ -410,6 +410,19 @@ export function createLocalService({
     )
     await sql(fs.readFileSync(path.join(ROOT, 'scripts/configured-shopper-fixtures.sql'), 'utf8'))
     run.users = []
+    let authReady = false
+    for (let attempt = 0; attempt < 30; attempt++) {
+      signal?.throwIfAborted()
+      try {
+        await request('/auth/v1/health', { key: run.anonKey, method: 'GET' })
+        authReady = true
+        break
+      } catch {
+        /* GoTrue may still be applying its local schema migrations. */
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+    if (!authReady) throw new Error('Local Auth did not become healthy')
     for (const alias of ['shopper-a', 'shopper-b']) {
       signal?.throwIfAborted()
       const email = `${alias}-${id}@probe.invalid`,
