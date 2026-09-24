@@ -24,7 +24,6 @@
 .review-mockup {
   --review-deep: #202833;
   --review-paper: #f6f4f0;
-  --review-brass: #b98b45;
   --review-blue: #4c628a;
   min-height: 100vh;
   overflow: hidden;
@@ -87,8 +86,8 @@
   align-items: center;
   gap: clamp(1rem, 3vw, 2.75rem);
   margin-inline: auto;
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
 }
 
 .review-mockup__header nav a {
@@ -122,7 +121,7 @@
   color: inherit;
   background: transparent;
   box-shadow: none;
-  font-size: 0.9rem;
+  font-size: var(--type-size-label);
   cursor: pointer;
   transition:
     background-color 160ms ease,
@@ -150,13 +149,6 @@
 .review-icon-button:active,
 .review-theme-toggle:active {
   translate: 0 1px;
-}
-
-.review-mockup main {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 0;
 }
 
 .review-hero {
@@ -199,12 +191,18 @@
 
 .review-kicker {
   margin: 0 0 1rem;
-  color: var(--review-brass);
+  color: var(--olive);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.13em;
   line-height: 1.2;
   text-transform: uppercase;
+}
+.review-hero .review-kicker {
+  color: var(--review-paper);
+}
+.review-trail-note .review-kicker {
+  color: inherit;
 }
 
 .review-hero h1 {
@@ -302,8 +300,8 @@
   display: block;
   margin-bottom: 0.45rem;
   color: var(--muted);
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
 }
 .review-search__input-wrap {
   display: flex;
@@ -336,7 +334,7 @@
   color: var(--teal-dark);
   background: transparent;
   box-shadow: none;
-  font-size: 0.9rem;
+  font-size: var(--type-size-label);
 }
 
 .review-reveal {
@@ -485,7 +483,7 @@
 }
 .review-store-card__hours {
   color: var(--ink);
-  font-size: 0.9rem;
+  font-size: var(--type-size-label);
 }
 .review-text-button {
   min-height: 3rem;
@@ -556,7 +554,6 @@
   letter-spacing: -0.08em;
 }
 .review-trail-note__mark small {
-  color: var(--review-brass);
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -646,7 +643,7 @@
 }
 .review-detail__facts span {
   color: var(--muted);
-  font-size: 0.83rem;
+  font-size: var(--type-size-label);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -830,7 +827,6 @@
   --mint: #3b506d;
   --review-deep: #202833;
   --review-paper: #f3eee4;
-  --review-brass: #c39a58;
 }
 
 :root[data-theme='dark'] .review-mockup__header {
