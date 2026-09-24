@@ -21,6 +21,36 @@ test('extracts only a run-owned GoTrue link returning to the local callback', ()
   )
 })
 
+test('extracts a GoTrue link followed by sentence punctuation', () => {
+  assert.equal(
+    confirmationUrl(
+      [
+        {
+          text: 'Confirm: http://127.0.0.1:54321/auth/v1/verify?token=one&type=signup&redirect_to=http%3A%2F%2F127.0.0.1%3A4173%2Fauth%2Fcallback.',
+        },
+      ],
+      'http://127.0.0.1:54321',
+      'http://127.0.0.1:4173',
+    ),
+    'http://127.0.0.1:54321/auth/v1/verify?token=one&type=signup&redirect_to=http%3A%2F%2F127.0.0.1%3A4173%2Fauth%2Fcallback',
+  )
+})
+
+test('extracts the token-hash callback link from the local confirmation template', () => {
+  assert.equal(
+    confirmationUrl(
+      [
+        {
+          html: '<a href="http://127.0.0.1:4173/auth/callback#token_hash=opaque&type=verify">Confirm</a>',
+        },
+      ],
+      'http://127.0.0.1:54321',
+      'http://127.0.0.1:4173',
+    ),
+    'http://127.0.0.1:4173/auth/callback#token_hash=opaque&type=verify',
+  )
+})
+
 test('builds registration settings only for loopback endpoints and a private HMAC key', () => {
   const env = registrationEnvironment({
     appOrigin: 'http://127.0.0.1:4173',
@@ -67,12 +97,39 @@ test('rejects confirmation links outside the configured local callback origin', 
   )
 })
 
-test('treats an absent Inbucket mailbox as empty while delivery is pending', async () => {
+test('reads Mailpit message details for the exact probe recipient', async () => {
+  const requested = []
+  const messages = await readMailbox({
+    endpoint: 'http://127.0.0.1:54324',
+    email: 'signup-probe@probe.invalid',
+    fetcher: async (url) => {
+      requested.push(String(url))
+      if (String(url).includes('/api/v1/messages?'))
+        return new Response(JSON.stringify({ messages: [{ ID: 'mail-1' }, { ID: 'mail-2' }] }))
+      const rightRecipient = String(url).endsWith('mail-1')
+      return new Response(
+        JSON.stringify({
+          To: [{ Address: rightRecipient ? 'signup-probe@probe.invalid' : 'other@probe.invalid' }],
+          Text: rightRecipient ? 'Confirm link' : 'unrelated',
+          HTML: '',
+          Subject: 'Confirm signup',
+        }),
+      )
+    },
+  })
+  assert.equal(messages.length, 1)
+  assert.equal(messages[0].text, 'Confirm link')
+  assert.match(requested[0], /\/api\/v1\/messages\?limit=50$/)
+  assert.ok(requested[1].endsWith('/api/v1/message/mail-1'))
+  assert.ok(requested[2].endsWith('/api/v1/message/mail-2'))
+})
+
+test('treats an empty Mailpit search as no delivered messages', async () => {
   assert.deepEqual(
     await readMailbox({
       endpoint: 'http://127.0.0.1:54324',
-      mailbox: 'signup-probe',
-      fetcher: async () => new Response('', { status: 404 }),
+      email: 'signup-probe@probe.invalid',
+      fetcher: async () => new Response(JSON.stringify({ messages: [] })),
     }),
     [],
   )
@@ -104,6 +161,10 @@ test('assigns isolated API, database, mail, and callback ports to a local projec
   assert.match(
     config,
     /\[local_smtp\][\s\S]*?enabled = true[\s\S]*?port = 41004[\s\S]*?smtp_port = 41005/,
+  )
+  assert.match(
+    config,
+    /\[auth\.email\.template\.confirmation\][\s\S]*?content_path = "\.\/supabase\/templates\/confirmation\.html"/,
   )
   assert.doesNotMatch(config, /\[auth\.email\.smtp\]/)
   assert.equal((config.match(/\[auth\.email\]/g) ?? []).length, 1)

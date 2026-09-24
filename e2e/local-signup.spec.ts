@@ -88,7 +88,7 @@ test('local signup verifies email, admits one Shopper, and saves privately once'
   saveEvidence()
   let messages: Awaited<ReturnType<typeof readMailbox>> = []
   for (let attempt = 0; attempt < 30; attempt++) {
-    messages = await readMailbox({ endpoint: input.mailEndpoint, mailbox })
+    messages = await readMailbox({ endpoint: input.mailEndpoint, email })
     if (messages.length) break
     await page.waitForTimeout(500)
   }
@@ -100,7 +100,7 @@ test('local signup verifies email, admits one Shopper, and saves privately once'
   })
   expect(retry.status()).toBe(202)
   expect((await retry.json()).state).toBe('pending_verification')
-  expect(await readMailbox({ endpoint: input.mailEndpoint, mailbox })).toHaveLength(1)
+  expect(await readMailbox({ endpoint: input.mailEndpoint, email })).toHaveLength(1)
   evidence.provider = 'passed'
   saveEvidence()
 
@@ -126,9 +126,22 @@ test('local signup verifies email, admits one Shopper, and saves privately once'
   await expect(page.getByRole('heading', { name: 'Verification unavailable' })).toBeVisible()
   expect(await counts(userId, email)).toEqual({ users: 1, emailUsers: 1, grants: 1, saves: 0 })
 
+  await service.sql(
+    "update app_private.account_registration_config set mode='receipt_only',stage_receipt_id='24300000-0000-4000-8000-000000000001',version=version+1 where id=1;",
+  )
+
   evidence.stage = 'private save'
   saveEvidence()
+  const catalog = page.waitForResponse((response) =>
+    response.url().endsWith('/functions/v1/public-catalog'),
+  )
   await page.goto('/stores/clockwork-cabinet')
+  const catalogResponse = await catalog
+  const catalogBody = await catalogResponse.json().catch(() => ({}))
+  if (!catalogResponse.ok() || catalogBody.error)
+    throw new Error(
+      `Catalog HTTP ${catalogResponse.status()} code=${String(catalogBody.error?.code ?? 'unknown')}`,
+    )
   await page.getByRole('button', { name: 'Save store Clockwork Cabinet', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Store saved.' })).toBeVisible()
   const session = callbackBody.session as { access_token: string }

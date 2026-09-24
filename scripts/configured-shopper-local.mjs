@@ -50,6 +50,14 @@ export function localProjectConfig(source, ports, { signupJourney = false } = {}
       /^additional_redirect_urls = .*$/m,
       `additional_redirect_urls = ["${ports.origin}/auth/callback"]`,
     )
+  if (signupJourney)
+    config += [
+      '',
+      '[auth.email.template.confirmation]',
+      'subject = "Confirm your Antique Trail account"',
+      'content_path = "./supabase/templates/confirmation.html"',
+      '',
+    ].join('\n')
   return `${config}\n[edge_runtime]\nenabled = true\ninspector_port = ${ports.inspector}\n`
 }
 export async function stopChild(child) {
@@ -364,6 +372,12 @@ export function createLocalService({
         recursive: true,
         filter: (file) => !['.env', '.temp'].includes(path.basename(file)),
       })
+    if (signupJourney)
+      fs.cpSync(
+        path.join(ROOT, 'supabase', 'templates'),
+        path.join(directory, 'supabase', 'templates'),
+        { recursive: true },
+      )
     fs.copyFileSync(path.join(ROOT, 'supabase/seed.sql'), path.join(directory, 'supabase/seed.sql'))
     run.origin = browserOrigin ?? 'http://127.0.0.1:4173'
     const ports = new Set()

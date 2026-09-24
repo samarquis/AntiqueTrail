@@ -1,4 +1,4 @@
-/* global URL, fetch, AbortSignal */
+/* global URL, URLSearchParams, fetch, AbortSignal */
 export function confirmationUrl(messages, authOrigin, appOrigin) {
   const auth = new URL(authOrigin)
   const app = new URL(appOrigin)
@@ -17,9 +17,18 @@ export function confirmationUrl(messages, authOrigin, appOrigin) {
       .filter((part) => typeof part === 'string')
       .join('\n')
       .replaceAll('&amp;', '&')
-    for (const candidate of content.match(/https?:\/\/[^\s"'<>]+/g) ?? []) {
+    for (const rawCandidate of content.match(/https?:\/\/[^\s"'<>]+/g) ?? []) {
+      const candidate = rawCandidate.replace(/[.,;!?]+$/, '')
       try {
         const link = new URL(candidate)
+        const callbackParams = new URLSearchParams(link.hash.slice(1))
+        if (
+          link.origin === app.origin &&
+          link.pathname === '/auth/callback' &&
+          callbackParams.get('type') === 'verify' &&
+          callbackParams.get('token_hash')
+        )
+          return link.href
         const destination = link.searchParams.get('redirect_to')
         if (
           link.origin === auth.origin &&
@@ -75,7 +84,7 @@ export function sanitizeJourneyError(error) {
     .slice(0, 1200)
 }
 
-export async function readMailbox({ endpoint, mailbox, fetcher = fetch, signal }) {
+export async function readMailbox({ endpoint, email, fetcher = fetch, signal }) {
   const base = new URL(endpoint)
   if (
     base.protocol !== 'http:' ||
@@ -83,35 +92,38 @@ export async function readMailbox({ endpoint, mailbox, fetcher = fetch, signal }
     base.pathname !== '/' ||
     base.search ||
     base.hash ||
-    !/^[a-z0-9-]{1,80}$/i.test(mailbox)
+    !/^[a-z0-9-]{1,80}@probe\.invalid$/i.test(email)
   )
     throw new Error('local mailbox endpoint unavailable')
-  const response = await fetcher(`${base.origin}/api/v1/mailbox/${mailbox}`, {
+  const requestOptions = {
     redirect: 'error',
     signal: signal
       ? AbortSignal.any([signal, AbortSignal.timeout(5000)])
       : AbortSignal.timeout(5000),
-  })
-  if (response.status === 404) return []
+  }
+  const query = new URLSearchParams({ limit: '50' })
+  const response = await fetcher(`${base.origin}/api/v1/messages?${query}`, requestOptions)
   if (!response.ok) throw new Error(`local mailbox HTTP ${response.status}`)
   const data = await response.json()
-  const summaries = Array.isArray(data) ? data : data.messages
+  const summaries = data.messages
   if (!Array.isArray(summaries)) throw new Error('local mailbox response unavailable')
-  return Promise.all(
+  const messages = await Promise.all(
     summaries.map(async (message) => {
-      if (typeof message.text === 'string' || typeof message.html === 'string') return message
-      if (typeof message.id !== 'string' || !message.id) return message
+      if (typeof message.ID !== 'string' || !message.ID) return null
       const detail = await fetcher(
-        `${base.origin}/api/v1/mailbox/${mailbox}/${encodeURIComponent(message.id)}`,
-        {
-          redirect: 'error',
-          signal: signal
-            ? AbortSignal.any([signal, AbortSignal.timeout(5000)])
-            : AbortSignal.timeout(5000),
-        },
+        `${base.origin}/api/v1/message/${encodeURIComponent(message.ID)}`,
+        requestOptions,
       )
       if (!detail.ok) throw new Error(`local message HTTP ${detail.status}`)
-      return detail.json()
+      const full = await detail.json()
+      const recipients = Array.isArray(full.To) ? full.To : []
+      if (!recipients.some((recipient) => recipient.Address?.toLowerCase() === email.toLowerCase()))
+        return null
+      return { text: full.Text, html: full.HTML, subject: full.Subject }
     }),
   )
+  const matching = messages.filter(Boolean)
+  if (!matching.length && summaries.length)
+    throw new Error('local mailbox messages do not match the probe recipient')
+  return matching
 }

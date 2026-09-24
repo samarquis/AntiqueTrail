@@ -107,8 +107,10 @@ Deno.serve(async (request) => {
     },
     async generate(input) {
       if (!url || !endpoints) throw new Error('unavailable')
+      const signupUrl = new URL('/auth/v1/signup', endpoints.supabaseOrigin)
+      signupUrl.searchParams.set('redirect_to', `${endpoints.appOrigin}/auth/callback`)
       const response = await withDeadline(timeoutMs, (signal) =>
-        fetch(`${endpoints.supabaseOrigin}/auth/v1/signup`, {
+        fetch(signupUrl, {
           method: 'POST',
           signal,
           headers: {
@@ -122,7 +124,6 @@ Deno.serve(async (request) => {
             email: input.email,
             password: input.password,
             data: { antique_trail_admission_id: input.admissionId },
-            redirect_to: `${endpoints.appOrigin}/auth/callback`,
           }),
         }),
       )
