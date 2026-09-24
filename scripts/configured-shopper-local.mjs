@@ -41,8 +41,8 @@ export function localProjectConfig(source, ports, { signupJourney = false } = {}
     .replace('[api]', `[api]\nport = ${ports.api}`)
     .replace('[db]', `[db]\nport = ${ports.db}\nshadow_port = ${ports.shadow}`)
     .replace(
-      '[inbucket]',
-      `[local_smtp]\nenabled = true\nport = ${ports.mail}\nsmtp_port = ${ports.smtp}\npop3_port = ${ports.pop3}`,
+      /^\[inbucket\]\n(?:^(?!\[).*(?:\n|$))*/m,
+      `[local_smtp]\nenabled = true\nport = ${ports.mail}\nsmtp_port = ${ports.smtp}\npop3_port = ${ports.pop3}\n`,
     )
     .replace('[studio]\nenabled = true', '[studio]\nenabled = false')
     .replace(/^site_url = .*$/m, `site_url = "${ports.origin}"`)
