@@ -272,7 +272,7 @@ export function ReviewMockupPage() {
               <h2>Places worth the detour.</h2>
             </div>
             <p>
-              {stores.length} featured shop{stores.length === 1 ? '' : 's'} · Topeka, Kansas
+              {stores.length} nearby shop{stores.length === 1 ? '' : 's'} · Topeka, Kansas
             </p>
           </div>
           <div className="review-store-grid">
@@ -316,7 +316,7 @@ export function ReviewMockupPage() {
           </div>
           {stores.length === 0 && (
             <p className="review-empty" role="status">
-              No featured shops match “{query}”. Try a different town or category.
+              No shops match “{query}”. Try a different town or category.
             </p>
           )}
         </Reveal>
