@@ -15,7 +15,7 @@ export interface LocalService {
   start(): Promise<LocalServiceRun>
   cleanup(): Promise<'removed'>
   sql(input: string): Promise<string>
-  request(
+  request<T = unknown>(
     route: string,
     options?: {
       key?: string
@@ -26,7 +26,7 @@ export interface LocalService {
       origin?: string
       signal?: AbortSignal
     },
-  ): Promise<any>
+  ): Promise<T>
 }
 
 export function createLocalService(options?: {

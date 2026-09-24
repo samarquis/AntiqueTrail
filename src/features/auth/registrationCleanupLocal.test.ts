@@ -8,7 +8,10 @@ import {
   handleAccountRegistration,
   type AccountRegistrationDependencies,
 } from '../../../supabase/functions/_shared/account-registration'
-import { runRegistrationCleanup } from '../../../supabase/functions/_shared/account-registration-cleanup'
+import {
+  runRegistrationCleanup,
+  type CleanupClaim,
+} from '../../../supabase/functions/_shared/account-registration-cleanup'
 import { withDeadline } from '../../../supabase/functions/_shared/registration-config'
 
 const runLocalProviderProof = process.env.RUN_LOCAL_REGISTRATION_CLEANUP === '1'
@@ -35,8 +38,8 @@ describeLocal('registration cleanup against an isolated local provider and datab
       const serviceRoleKey = run.serviceRoleKey
       const emailSecret = randomBytes(32).toString('hex')
       const origin = run.endpoint
-      const rpc = (name: string, args: Record<string, unknown> = {}) =>
-        local.request(`/rest/v1/rpc/${name}`, {
+      const rpc = <T = unknown>(name: string, args: Record<string, unknown> = {}) =>
+        local.request<T>(`/rest/v1/rpc/${name}`, {
           key: run.anonKey,
           token: serviceRoleKey,
           schema: 'app_public',
@@ -62,7 +65,7 @@ describeLocal('registration cleanup against an isolated local provider and datab
         admissionId: string,
         emailConfirmed: boolean,
       ) => {
-        const user = await local.request('/auth/v1/admin/users', {
+        const user = await local.request<{ id: string }>('/auth/v1/admin/users', {
           key: anonKey,
           token: serviceRoleKey,
           body: {
@@ -112,7 +115,7 @@ describeLocal('registration cleanup against an isolated local provider and datab
           admissionId: string,
           requestId: string,
           kind: 'generate_link' | 'send_verification',
-        ) =>
+        ): Promise<{ state: 'calling' | 'blocked' | 'reconciliation_required' }> =>
           rpc('begin_account_registration_operation', {
             p_operation_id: operationId,
             p_admission_id: admissionId,
@@ -156,7 +159,10 @@ describeLocal('registration cleanup against an isolated local provider and datab
           requestId: string
           outcome: string
           providerUserId?: string
-        }) =>
+        }): Promise<{
+          state: 'delivery_reserved' | 'blocked' | 'reconciliation_required'
+          deliveryOperationId?: string
+        }> =>
           rpc('settle_account_registration_generate', {
             p_operation_id: input.operationId,
             p_admission_id: input.admissionId,
@@ -170,7 +176,9 @@ describeLocal('registration cleanup against an isolated local provider and datab
           admissionId: string
           requestId: string
           outcome: string
-        }) =>
+        }): Promise<{
+          state: 'pending_verification' | 'blocked' | 'reconciliation_required'
+        }> =>
           rpc('settle_account_registration_delivery', {
             p_operation_id: input.operationId,
             p_admission_id: input.admissionId,
@@ -270,17 +278,20 @@ describeLocal('registration cleanup against an isolated local provider and datab
         expect(identityCount).toBe(1)
 
         const cleanup = await runRegistrationCleanup({
-          claim: () => rpc('claim_account_registration_cleanup'),
+          claim: () => rpc<CleanupClaim>('claim_account_registration_cleanup'),
           begin: (cleanupTicketId: string, providerUserId: string) =>
-            rpc('begin_account_registration_cleanup', {
-              p_cleanup_ticket_id: cleanupTicketId,
-              p_provider_user_id: providerUserId,
-            }),
+            rpc<{ state: 'calling' | 'reconciliation_required' | 'blocked' }>(
+              'begin_account_registration_cleanup',
+              {
+                p_cleanup_ticket_id: cleanupTicketId,
+                p_provider_user_id: providerUserId,
+              },
+            ),
           async deleteExact(exactProviderId: string) {
             expect(exactProviderId).toBe(providerId)
             const confirmed = await admin('PUT', exactProviderId, { email_confirm: true })
             expect(confirmed.status).toBe(200)
-            const callback = await rpc('complete_account_registration_callback', {
+            const callback = await rpc<boolean>('complete_account_registration_callback', {
               p_admission_id: admissionId,
               p_provider_user_id: exactProviderId,
             })
@@ -294,13 +305,13 @@ describeLocal('registration cleanup against an isolated local provider and datab
                 : ('unknown' as const)
           },
           settle: (cleanupTicketId: string, providerUserId: string, outcome: string) =>
-            rpc('settle_account_registration_cleanup', {
+            rpc<{ state: string }>('settle_account_registration_cleanup', {
               p_cleanup_ticket_id: cleanupTicketId,
               p_provider_user_id: providerUserId,
               p_outcome: outcome,
             }),
           reconcile: (cleanupTicketId: string, providerUserId: string) =>
-            rpc('reconcile_account_registration_cleanup', {
+            rpc<{ state: string }>('reconcile_account_registration_cleanup', {
               p_cleanup_ticket_id: cleanupTicketId,
               p_provider_user_id: providerUserId,
             }),
