@@ -1180,7 +1180,7 @@ export function DetailsPage({
   const hasContact = Boolean(store.website || store.phone || store.email)
   const canAddToTrip = detailsStageRank[stage] >= detailsStageRank['package-5a']
   const today = todayHoursSummary(store)
-  const hasNavigableAddress = !/\bsynthetic\b/i.test(store.address)
+  const hasNavigableAddress = !/\b(?:synthetic|fiction(?:al)?)\b/i.test(store.address)
   return (
     <main className="store-detail">
       <CatalogLink className="store-detail__back" to={catalogAppHref(backHref)}>

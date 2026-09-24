@@ -496,6 +496,28 @@ describe('trustworthy Store Details contract', () => {
     expect(screen.getByRole('link', { name: /instagram/i })).toHaveAttribute('target', '_blank')
   })
 
+  it('explains fictional addresses and never offers Maps for Fiction Lane', async () => {
+    const fictionalStore = { ...detailedStore, address: '101 Fiction Lane' }
+    render(<DetailsPage client={detailsClient(fictionalStore)} slug={fictionalStore.slug} />)
+
+    await screen.findByRole('heading', { level: 1, name: fictionalStore.name })
+    expect(screen.getByText(/directions are unavailable for this fictional address/i)).toBeVisible()
+    expect(screen.queryByRole('link', { name: /navigate in maps/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps trusted real-address navigation keyboard accessible', async () => {
+    const realStore = { ...detailedStore, address: '12 Main Street' }
+    render(<DetailsPage client={detailsClient(realStore)} slug={realStore.slug} />)
+
+    await screen.findByRole('heading', { level: 1, name: realStore.name })
+    const navigate = screen.getByRole('link', { name: /navigate in maps/i })
+    const user = userEvent.setup()
+    await user.tab()
+    await user.tab()
+    expect(navigate).toHaveFocus()
+    expect(decodeURIComponent(navigate.getAttribute('href') ?? '')).toContain(realStore.address)
+  })
+
   it('puts visit essentials and section links before the extended gallery', async () => {
     render(<DetailsPage client={detailsClient()} slug={detailedStore.slug} />)
 
