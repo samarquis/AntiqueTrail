@@ -48,8 +48,12 @@ Deno.serve(async (request) => {
       endpoints = validateRegistrationEndpoints({
         appOrigin,
         approvedAppOrigin,
-        mailEndpoint: 'https://supabase.invalid/send',
-        approvedMailEndpoint: 'https://supabase.invalid/send',
+        mailEndpoint: localMode
+          ? (Deno.env.get('REGISTRATION_MAIL_ENDPOINT') ?? '')
+          : 'https://supabase.invalid/send',
+        approvedMailEndpoint: localMode
+          ? (Deno.env.get('REGISTRATION_APPROVED_MAIL_ENDPOINT') ?? '')
+          : 'https://supabase.invalid/send',
         supabaseUrl: url,
         approvedSupabaseOrigin,
         localMode,
