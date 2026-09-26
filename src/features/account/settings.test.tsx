@@ -195,9 +195,12 @@ describe('createAccountSettingsClient', () => {
     const rpc = vi.fn(async (name: string) => {
       if (name === 'account_update_settings') saved = true
       return {
-        data: !saved
-          ? { displayName: 'Avery', locationAddress: null, version: 3 }
-          : { displayName: 'Avery', locationAddress: '123 Main Street', version: 4 },
+        data:
+          name === 'account_update_settings'
+            ? { state: 'saved', version: 4 }
+            : !saved
+              ? { displayName: 'Avery', locationAddress: null, version: 3 }
+              : { displayName: 'Avery', locationAddress: '123 Main Street', version: 4 },
         error: null,
       }
     })
@@ -251,10 +254,7 @@ describe('createAccountSettingsClient', () => {
             throw new Error('response lost after commit')
           }
           return {
-            data:
-              name === 'account_update_settings'
-                ? { displayName: 'Old Name', locationAddress: 'Old Address', version: 2 }
-                : current,
+            data: name === 'account_update_settings' ? { state: 'saved', version: 2 } : current,
             error: null,
           }
         },

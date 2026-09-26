@@ -25,7 +25,7 @@ export class AccountSettingsConflict extends Error {
   }
 }
 
-function parseSettings(value: unknown): UserSettings {
+function parseResult(value: unknown): Record<string, unknown> {
   const record = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
   if (record.state === 'conflict') {
     const latest = record.latest as Record<string, unknown> | undefined
@@ -34,6 +34,11 @@ function parseSettings(value: unknown): UserSettings {
   }
   if (!Number.isSafeInteger(record.version) || Number(record.version) <= 0)
     throw new Error(GENERIC_ACCOUNT_SETTINGS_ERROR)
+  return record
+}
+
+function parseSettings(value: unknown): UserSettings {
+  const record = parseResult(value)
   if (
     (record.displayName !== null && typeof record.displayName !== 'string') ||
     (record.locationAddress !== null && typeof record.locationAddress !== 'string')
@@ -50,23 +55,24 @@ export function createAccountSettingsClient(
   async function call(
     name: 'account_get_settings' | 'account_update_settings',
     args: Readonly<Record<string, unknown>>,
-  ): Promise<UserSettings> {
+  ): Promise<Record<string, unknown>> {
     const result = await transport.rpc(name, args)
     if (result.error) throw result.error
-    return parseSettings(result.data)
+    return parseResult(result.data)
   }
 
   return {
-    getSettings: () => call('account_get_settings', {}),
+    getSettings: async () => parseSettings(await call('account_get_settings', {})),
     async updateSettings(input) {
-      await call('account_update_settings', {
+      const result = await call('account_update_settings', {
         p_display_name: input.displayName,
         p_location_address: input.locationAddress,
         p_expected_version: input.version,
         p_idempotency_key: input.idempotencyKey,
       })
+      if (result.state !== 'saved') throw new Error(GENERIC_ACCOUNT_SETTINGS_ERROR)
       // A retry receipt can precede another tab's newer write. Display current values.
-      return call('account_get_settings', {})
+      return parseSettings(await call('account_get_settings', {}))
     },
   }
 }

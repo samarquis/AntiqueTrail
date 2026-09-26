@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path=public,extensions;
-select plan(23);
+select plan(25);
 
 select has_function('app_public','account_update_settings',array['text','text','bigint','text'],
   'settings writes require version and retry key');
@@ -29,23 +29,28 @@ insert into settings_proof values('before',app_public.account_get_settings());
 select ok((select (value->>'version')::bigint>0 from settings_proof where kind='before'), 'GET returns positive version');
 insert into settings_proof values('first',app_public.account_update_settings('First Name','First Address',
  (select (value->>'version')::bigint from settings_proof where kind='before'),'attempt-1'));
+insert into settings_proof values('first_settings',app_public.account_get_settings());
 select is((select (value->>'version')::bigint from settings_proof where kind='first'),
  (select (value->>'version')::bigint+1 from settings_proof where kind='before'),'write increments version once');
+select is((select value from settings_proof where kind='first'),
+ jsonb_build_object('state','saved','version',
+ (select (value->>'version')::bigint from settings_proof where kind='first')),
+ 'success contains only outcome and version, never settings payload');
 select is(app_public.account_update_settings('First Name','First Address',
  (select (value->>'version')::bigint from settings_proof where kind='before'),'attempt-1'),
  (select value from settings_proof where kind='first'),'exact replay returns original success');
-select is(app_public.account_get_settings(),(select value from settings_proof where kind='first'),
+select is(app_public.account_get_settings(),(select value from settings_proof where kind='first_settings'),
  'replay does not increment version');
 select is(app_public.account_update_settings('Stale Name','Stale Address',
  (select (value->>'version')::bigint from settings_proof where kind='before'),'attempt-stale'),
  jsonb_build_object('state','conflict','latest',jsonb_build_object('version',
  (select (value->>'version')::bigint from settings_proof where kind='first'))),
  'second tab stale version conflicts with current version');
-select is(app_public.account_update_settings('Changed Payload','First Address',
- (select (value->>'version')::bigint from settings_proof where kind='before'),'attempt-1') #>> '{latest,version}',
- (select value->>'version' from settings_proof where kind='first'),'key reuse conflicts with current version');
-select is(app_public.account_get_settings(),(select value from settings_proof where kind='first'),
- 'conflicts leave both values and version unchanged');
+select is(app_public.account_update_settings('Changed Payload','Changed Address',
+ (select (value->>'version')::bigint from settings_proof where kind='before'),'attempt-1'),
+ (select value from settings_proof where kind='first'),'same key returns prior success even with changed payload');
+select is(app_public.account_get_settings(),(select value from settings_proof where kind='first_settings'),
+ 'conflicts and changed-payload replay leave both values and version unchanged');
 select throws_ok($$select app_public.account_update_settings('Bad','Bad',0,'invalid-version')$$,
  '22023','validation_failed','nonpositive version rejected');
 select throws_ok($$select app_public.account_update_settings('Bad','Bad',1,repeat('x',129))$$,
@@ -54,10 +59,11 @@ select throws_ok($$select app_public.account_update_settings('Bad','Bad',1,null)
  '22023','validation_failed','missing key rejected');
 insert into settings_proof values('second',app_public.account_update_settings('Second Name',null,
  (select (value->>'version')::bigint from settings_proof where kind='first'),'attempt-2'));
+insert into settings_proof values('second_settings',app_public.account_get_settings());
 select is(app_public.account_update_settings('First Name','First Address',
  (select (value->>'version')::bigint from settings_proof where kind='before'),'attempt-1'),
  (select value from settings_proof where kind='first'),'replay remains original success after later write');
-select is(app_public.account_get_settings(),(select value from settings_proof where kind='second'),
+select is(app_public.account_get_settings(),(select value from settings_proof where kind='second_settings'),
  'old replay does not restore a cleared address');
 reset role;
 select ok(not has_table_privilege('authenticated','app_private.account_settings_receipts','SELECT'),
@@ -66,13 +72,17 @@ select ok((select relrowsecurity and relforcerowsecurity from pg_class where oid
  'receipt RLS is enabled and forced');
 select ok(not exists(select 1 from app_private.account_settings_receipts r where r::text like '%First Address%'),
  'receipts retain no historical address');
+select is((select array_agg(attname::text order by attname) from pg_attribute
+ where attrelid='app_private.account_settings_receipts'::regclass and attnum>0 and not attisdropped),
+ array['created_at','idempotency_key','result_version','user_id']::text[],
+ 'cleared account receipts contain only command identity and outcome, never payload-derived data');
 select is((select public_display_name from app_private.profiles where user_id='93100000-0000-4000-8000-000000000002'),
  'Sibling','owner writes leave sibling unchanged');
 select set_config('request.jwt.claims', '{"sub":"93100000-0000-4000-8000-000000000002","role":"authenticated","session_id":"93100000-0000-4000-8000-000000000004"}',true);
 set local role authenticated;
 select is(app_public.account_update_settings('Sibling New','Sibling New Address',
- (app_public.account_get_settings()->>'version')::bigint,'attempt-1')->>'displayName',
- 'Sibling New','same key is scoped to the authenticated owner');
+ (app_public.account_get_settings()->>'version')::bigint,'attempt-1')->>'state',
+ 'saved','same key is scoped to the authenticated owner');
 reset role;
 select is((select public_display_name from app_private.profiles where user_id='93100000-0000-4000-8000-000000000001'),
  'Second Name','sibling write leaves owner unchanged');

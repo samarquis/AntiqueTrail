@@ -67,16 +67,31 @@ unversioned last-write-wins updates, saving unknown blank defaults after a
 failed initial read, and a late save changing a subsequently signed-in
 account's greeting. Follow-up regressions reproduce each applicable seam.
 The forward migration `20260926211513_account_settings_concurrency.sql`
-adds owner-row locking, expected version, bounded account-scoped retry keys,
-and content-free digest/version receipts. Exact replay returns the prior
-success reconstructed from the verified request without restoring old
-values. Stale versions or mismatched key reuse return current-version
-conflicts without mutation. UI retries preserve the attempt key until
+adds owner-row locking, expected version, and bounded account-scoped retry
+keys. Further privacy review identified dictionary-testable address hashes
+in the original receipts; a regression reproduced retained hashes after
+clear. Forward migration `20260926220346_account_settings_private_receipts.sql`
+drops the digest entirely. Receipts retain only owner/key/result version/time.
+The owner-scoped key identifies the command: replay returns its original
+content-free success/version without applying the supplied payload, even
+when that payload differs. New stale writes return current-version conflicts.
+UI retries preserve the attempt key until
 success or authoritative reload; failed/partial reads block Save and offer
 retry. Every successful mutation/replay is followed by an authoritative read
 before updating fields or greeting, so historical success cannot restore a
 later-cleared address. Account-lifetime revision and user identity reject
 obsolete save completions while permitting same-account token refresh.
+
+Three client tests first failed against the content-free mutation response,
+then passed with strict success/version parsing and authoritative readback.
+pgTAP checks the exact receipt-column allowlist, content-free response,
+same-key changed-payload no-op, replay after clear, and deletion cascade.
+No receipt retains a raw field or payload-derived verifier.
+Privacy follow-up working-tree run
+`configured-shopper-c7355b87-668d-4d30-b166-fa271b59f306` passed both viewports
+with unchanged runtime source, zero failures/skips/flakes, and cleanup removed.
+Full-chain pgTAP 0129/0130/0131 passed, including all 25 concurrency/privacy
+assertions; 31 focused account/auth tests, build, lint, and formatting passed.
 
 Final precommit settings run `configured-shopper-42c83ca4-7264-42ed-ab7b-76e0d1632294`
 and media run `configured-shopper-84302009-8dfb-4475-b1f5-022679e1bda2` each

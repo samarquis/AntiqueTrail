@@ -63,7 +63,8 @@ select set_config('request.jwt.claims',jsonb_build_object(
   'session_id','92900000-0000-4000-8000-000000000005')::text,true);
 set local role authenticated;
 select is(app_public.account_get_settings()->>'locationAddress','123 Main Street','owner reads own private location');
-select is(app_public.account_update_settings('  Avery  ','  321 Oak  ',(app_public.account_get_settings()->>'version')::bigint,'owner-save')->>'displayName','Avery','update trims display name');
+do $$ begin perform app_public.account_update_settings('  Avery  ','  321 Oak  ',(app_public.account_get_settings()->>'version')::bigint,'owner-save'); end; $$;
+select is(app_public.account_get_settings()->>'displayName','Avery','update trims display name');
 select is(app_public.account_get_settings()->>'locationAddress','321 Oak','update trims private location');
 select throws_ok($$select app_public.account_update_settings('Avery',repeat('x',321),1,'too-long')$$,
   '22023','invalid_location_address','oversize private location is rejected');
@@ -81,7 +82,8 @@ select is(app_public.account_get_settings()->>'locationAddress','Other Private A
 select ok(app_public.account_get_settings()::text not like '%123 Main Street%','second user cannot read first user address');
 select throws_ok($$select app_public.account_update_settings('Avery','123 Main Street','92900000-0000-4000-8000-000000000001')$$,
   '42883',null,'direct RPC cannot target another user');
-select is(app_public.account_update_settings('  Devon  ','  456 Pine Road  ',(app_public.account_get_settings()->>'version')::bigint,'sibling-save')->>'locationAddress',
+do $$ begin perform app_public.account_update_settings('  Devon  ','  456 Pine Road  ',(app_public.account_get_settings()->>'version')::bigint,'sibling-save'); end; $$;
+select is(app_public.account_get_settings()->>'locationAddress',
   '456 Pine Road','second user updates own address');
 reset role;
 select is(
@@ -104,7 +106,7 @@ select is((select count(*)::integer from app_private.role_grants
   where subject_user_id='92900000-0000-4000-8000-000000000001' and role='shopper' and state='active'),
   1,'display name update leaves server-authorized shopper role unchanged');
 set local role authenticated;
-select is(app_public.account_update_settings('   ','   ',(app_public.account_get_settings()->>'version')::bigint,'owner-clear')->>'locationAddress',null,'cleared address returns null');
+select is(app_public.account_update_settings('   ','   ',(app_public.account_get_settings()->>'version')::bigint,'owner-clear')->>'state','saved','clear returns content-free success');
 select is(app_public.account_get_settings()->>'locationAddress',null,'cleared address stays null after fresh read');
 reset role;
 select ok(
