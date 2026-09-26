@@ -1,5 +1,6 @@
 /* global process, Buffer, URL, fetch, AbortSignal, setTimeout, clearTimeout */
 import { dockerLoopbackProxy } from './configured-shopper-docker.mjs'
+import { registrationEnvironment } from './local-signup-contract.mjs'
 import { spawn } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -13,6 +14,51 @@ export const CLI_VERSION = '2.115.0'
 export function localServiceExclusions(disableStorage = false) {
   if (typeof disableStorage !== 'boolean') throw new Error('Invalid local service options')
   return `studio,postgres-meta,realtime,imgproxy,logflare,vector,supavisor${disableStorage ? ',storage-api' : ''}`
+}
+export function localProjectConfig(source, ports, { signupJourney = false } = {}) {
+  const values = [
+    ports.api,
+    ports.db,
+    ports.shadow,
+    ports.mail,
+    ports.smtp,
+    ports.pop3,
+    ports.inspector,
+  ]
+  if (
+    typeof signupJourney !== 'boolean' ||
+    !/^probe-[a-f0-9]{24}$/.test(ports.projectId) ||
+    !/^http:\/\/127\.0\.0\.1:\d+$/.test(ports.origin) ||
+    values.some((port) => !Number.isInteger(port) || port < 1024 || port > 65535) ||
+    new Set(values).size !== values.length ||
+    values.includes(Number(new URL(ports.origin).port))
+  )
+    throw new Error('Invalid isolated local project ports')
+  let config = source
+    .replace(/\r\n/g, '\n')
+    .replace(/^project_id = .*$/m, `project_id = "${ports.projectId}"`)
+  config = config
+    .replace('[api]', `[api]\nport = ${ports.api}`)
+    .replace('[db]', `[db]\nport = ${ports.db}\nshadow_port = ${ports.shadow}`)
+    .replace(
+      /^\[inbucket\]\n(?:^(?!\[).*(?:\n|$))*/m,
+      `[local_smtp]\nenabled = true\nport = ${ports.mail}\nsmtp_port = ${ports.smtp}\npop3_port = ${ports.pop3}\n`,
+    )
+    .replace('[studio]\nenabled = true', '[studio]\nenabled = false')
+    .replace(/^site_url = .*$/m, `site_url = "${ports.origin}"`)
+    .replace(
+      /^additional_redirect_urls = .*$/m,
+      `additional_redirect_urls = ["${ports.origin}/auth/callback"]`,
+    )
+  if (signupJourney)
+    config += [
+      '',
+      '[auth.email.template.confirmation]',
+      'subject = "Confirm your Antique Trail account"',
+      'content_path = "./supabase/templates/confirmation.html"',
+      '',
+    ].join('\n')
+  return `${config}\n[edge_runtime]\nenabled = true\ninspector_port = ${ports.inspector}\n`
 }
 export async function stopChild(child) {
   if (!child || child.exitCode !== null || child.signalCode !== null) return
@@ -153,7 +199,7 @@ export async function loopbackRequest(
   )
     throw new Error('Only a literal loopback origin is allowed')
   if (
-    !/^\/(auth\/v1\/(admin\/users|token\?grant_type=password|health)|rest\/v1\/rpc\/[a-z_]+|functions\/v1\/public-catalog)$/.test(
+    !/^\/(auth\/v1\/(admin\/users|token\?grant_type=password|health)|rest\/v1\/rpc\/[a-z_]+|functions\/v1\/(public-catalog|account-registration))$/.test(
       route,
     )
   )
@@ -223,6 +269,8 @@ export function createLocalService({
   resumeDirectory,
   browserOrigin,
   disableStorage = false,
+  signupJourney = false,
+  createTestUsers = true,
   includeServiceRoleKey = false,
 } = {}) {
   if (browserOrigin && !/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(browserOrigin))
@@ -325,22 +373,36 @@ export function createLocalService({
         recursive: true,
         filter: (file) => !['.env', '.temp'].includes(path.basename(file)),
       })
+    if (signupJourney)
+      fs.cpSync(
+        path.join(ROOT, 'supabase', 'templates'),
+        path.join(directory, 'supabase', 'templates'),
+        { recursive: true },
+      )
     fs.copyFileSync(path.join(ROOT, 'supabase/seed.sql'), path.join(directory, 'supabase/seed.sql'))
-    const ports = new Set()
-    while (ports.size < 5) ports.add(await freePort())
-    const [api, db, shadow, mail, inspector] = [...ports]
-    run.endpoint = `http://127.0.0.1:${api}`
     run.origin = browserOrigin ?? 'http://127.0.0.1:4173'
-    let config = fs
-      .readFileSync(path.join(ROOT, 'supabase/config.toml'), 'utf8')
-      .replace(/\r\n/g, '\n')
-      .replace(/^project_id = .*$/m, `project_id = "${projectId}"`)
-    config = config
-      .replace('[api]', `[api]\nport = ${api}`)
-      .replace('[db]', `[db]\nport = ${db}\nshadow_port = ${shadow}`)
-      .replace('[inbucket]', `[inbucket]\nport = ${mail}`)
-      .replace('[studio]\nenabled = true', '[studio]\nenabled = false')
-    config += `\n[edge_runtime]\nenabled = true\ninspector_port = ${inspector}\n`
+    const ports = new Set()
+    const originPort = Number(new URL(run.origin).port)
+    while (ports.size < 7) {
+      const port = await freePort()
+      if (port !== originPort) ports.add(port)
+    }
+    const [api, db, shadow, mail, smtp, pop3, inspector] = [...ports]
+    run.endpoint = `http://127.0.0.1:${api}`
+    run.mailEndpoint = `http://127.0.0.1:${mail}`
+    const registrationSettings = signupJourney
+      ? registrationEnvironment({
+          appOrigin: run.origin,
+          supabaseOrigin: 'http://kong:8000',
+          mailOrigin: run.mailEndpoint,
+          secret: crypto.randomBytes(32).toString('hex'),
+        })
+      : ''
+    const config = localProjectConfig(
+      fs.readFileSync(path.join(ROOT, 'supabase/config.toml'), 'utf8'),
+      { projectId, api, db, shadow, mail, smtp, pop3, inspector, origin: run.origin },
+      { signupJourney },
+    )
     fs.writeFileSync(path.join(directory, 'supabase/config.toml'), config)
     run.sourceSha = (await runCommand('git', ['rev-parse', 'HEAD'])).trim()
     run.sourceDirty = Boolean(
@@ -367,6 +429,12 @@ export function createLocalService({
       projectId,
     ])
     networkCreated = true
+    if (signupJourney)
+      fs.writeFileSync(
+        path.join(directory, 'supabase/functions/.env'),
+        `PUBLIC_APP_ORIGIN=${run.origin}\n${registrationSettings}\n`,
+        { mode: 0o600 },
+      )
     await cli(
       ['start', '--workdir', directory, '--network-id', projectId, '--exclude', exclusions],
       { env: proxy.env, signal, timeout: 1_200_000 },
@@ -383,11 +451,15 @@ export function createLocalService({
     const enc = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
     const unsigned = `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc({ role: 'public_catalog_gateway', iss: 'supabase', exp: Math.floor(Date.now() / 1000) + 3600 })}`
     const gateway = `${unsigned}.${crypto.createHmac('sha256', status.JWT_SECRET).update(unsigned).digest('base64url')}`
-    fs.writeFileSync(
-      path.join(directory, 'supabase/functions/.env'),
-      `PUBLIC_CATALOG_GATEWAY_JWT=${gateway}\nPUBLIC_CATALOG_RATE_SALT=${crypto.randomBytes(32).toString('hex')}\nPUBLIC_APP_ORIGIN=${run.origin}\n`,
-      { mode: 0o600 },
-    )
+    const functionEnv = [
+      `PUBLIC_CATALOG_GATEWAY_JWT=${gateway}`,
+      `PUBLIC_CATALOG_RATE_SALT=${crypto.randomBytes(32).toString('hex')}`,
+      `PUBLIC_APP_ORIGIN=${run.origin}`,
+      ...(signupJourney ? [registrationSettings] : []),
+    ].join('\n')
+    fs.writeFileSync(path.join(directory, 'supabase/functions/.env'), `${functionEnv}\n`, {
+      mode: 0o600,
+    })
     // Match the CI test role and grants, confined to this uniquely owned database.
     const ci = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')
     const grantSql = ci.match(/create extension if not exists pgtap[\s\S]*?reset role;/)?.[0]
@@ -411,6 +483,10 @@ export function createLocalService({
       { input: grantSql },
     )
     await sql(fs.readFileSync(path.join(ROOT, 'scripts/configured-shopper-fixtures.sql'), 'utf8'))
+    if (signupJourney)
+      await sql(
+        "update app_private.account_registration_config set mode='public',stage_receipt_id=null,version=version+1 where id=1;",
+      )
     run.users = []
     let authReady = false
     for (let attempt = 0; attempt < 30; attempt++) {
@@ -425,7 +501,7 @@ export function createLocalService({
       await new Promise((resolve) => setTimeout(resolve, 1000))
     }
     if (!authReady) throw new Error('Local Auth did not become healthy')
-    for (const alias of ['shopper-a', 'shopper-b']) {
+    for (const alias of createTestUsers ? ['shopper-a', 'shopper-b'] : []) {
       signal?.throwIfAborted()
       const email = `${alias}-${id}@probe.invalid`,
         password = crypto.randomBytes(32).toString('base64url')
@@ -463,21 +539,37 @@ export function createLocalService({
       env: proxy.env,
     })
     serving.on('error', () => {})
-    for (let attempt = 0; attempt < 10; attempt++) {
+    let ready = false
+    for (let attempt = 0; attempt < 60; attempt++) {
       signal?.throwIfAborted()
       try {
-        const result = await request('/functions/v1/public-catalog', {
-          key: run.anonKey,
-          token: run.users[0].token,
-          origin: run.origin,
-          body: { operation: 'list', args: { p_q: null, p_category: null, p_area: null } },
-        })
-        if (Array.isArray(result.data)) break
+        if (run.users.length) {
+          const result = await request('/functions/v1/public-catalog', {
+            key: run.anonKey,
+            token: run.users[0].token,
+            origin: run.origin,
+            body: { operation: 'list', args: { p_q: null, p_category: null, p_area: null } },
+          })
+          if (Array.isArray(result.data)) break
+        } else {
+          const result = await request('/functions/v1/account-registration', {
+            key: run.anonKey,
+            token: run.anonKey,
+            origin: run.origin,
+            body: {},
+          })
+          if (result.state === 'blocked') {
+            ready = true
+            break
+          }
+        }
       } catch {
         /* Readiness only; actual commands record their own result. */
       }
       await new Promise((resolve) => setTimeout(resolve, 1000))
     }
+    if (!ready && !run.users.length)
+      throw new Error('Local registration function did not become ready')
     return run
   }
   async function cleanup() {

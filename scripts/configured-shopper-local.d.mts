@@ -35,4 +35,6 @@ export function createLocalService(options?: {
   browserOrigin?: string
   disableStorage?: boolean
   includeServiceRoleKey?: boolean
+  signupJourney?: boolean
+  createTestUsers?: boolean
 }): LocalService

@@ -175,7 +175,7 @@ it('confirms a registration generated from the provider signup response shape', 
   const providerUserId = 'fbdf5a53-161e-4460-98ad-0e39408d8689'
   fetch.mockImplementation(async (input: string | URL) => {
     const url = String(input)
-    if (url.endsWith('/auth/v1/signup'))
+    if (new URL(url).pathname.endsWith('/auth/v1/signup'))
       return new Response(
         JSON.stringify({
           user: { id: providerUserId },
@@ -187,15 +187,12 @@ it('confirms a registration generated from the provider signup response shape', 
   const response = await handler(request(origin))
   expect(response.status).toBe(202)
   expect(await response.json()).toEqual({ state: 'pending_verification' })
-  expect(fetch).toHaveBeenCalledWith(
-    'https://uaupykgpegbseboklubv.supabase.co/auth/v1/signup',
-    expect.objectContaining({
-      method: 'POST',
-      body: expect.stringContaining(
-        '"redirect_to":"https://antique-trail.vercel.app/auth/callback"',
-      ),
-    }),
+  const [signupUrl, signupOptions] = fetch.mock.calls[0]
+  expect(String(signupUrl)).toBe(
+    'https://uaupykgpegbseboklubv.supabase.co/auth/v1/signup?redirect_to=https%3A%2F%2Fantique-trail.vercel.app%2Fauth%2Fcallback',
   )
+  expect(signupOptions.method).toBe('POST')
+  expect(JSON.parse(signupOptions.body)).not.toHaveProperty('redirect_to')
   expect(rpc).toHaveBeenCalledWith(
     'settle_account_registration_generate',
     expect.objectContaining({

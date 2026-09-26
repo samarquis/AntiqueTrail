@@ -48,8 +48,12 @@ Deno.serve(async (request) => {
       endpoints = validateRegistrationEndpoints({
         appOrigin,
         approvedAppOrigin,
-        mailEndpoint: 'https://supabase.invalid/send',
-        approvedMailEndpoint: 'https://supabase.invalid/send',
+        mailEndpoint: localMode
+          ? (Deno.env.get('REGISTRATION_MAIL_ENDPOINT') ?? '')
+          : 'https://supabase.invalid/send',
+        approvedMailEndpoint: localMode
+          ? (Deno.env.get('REGISTRATION_APPROVED_MAIL_ENDPOINT') ?? '')
+          : 'https://supabase.invalid/send',
         supabaseUrl: url,
         approvedSupabaseOrigin,
         localMode,
@@ -103,8 +107,10 @@ Deno.serve(async (request) => {
     },
     async generate(input) {
       if (!url || !endpoints) throw new Error('unavailable')
+      const signupUrl = new URL('/auth/v1/signup', endpoints.supabaseOrigin)
+      signupUrl.searchParams.set('redirect_to', `${endpoints.appOrigin}/auth/callback`)
       const response = await withDeadline(timeoutMs, (signal) =>
-        fetch(`${endpoints.supabaseOrigin}/auth/v1/signup`, {
+        fetch(signupUrl, {
           method: 'POST',
           signal,
           headers: {
@@ -118,7 +124,6 @@ Deno.serve(async (request) => {
             email: input.email,
             password: input.password,
             data: { antique_trail_admission_id: input.admissionId },
-            redirect_to: `${endpoints.appOrigin}/auth/callback`,
           }),
         }),
       )

@@ -26,6 +26,7 @@
     "test:e2e": "playwright test",
     "test:e2e:review": "playwright test --config playwright.review.config.ts",
     "test:e2e:configured-shopper": "node scripts/configured-free-shopper.mjs",
+    "test:e2e:local-signup": "node scripts/local-signup.mjs",
     "test:e2e:account-settings-local": "node scripts/configured-free-shopper.mjs --account-settings",
     "test:e2e:configured-partner-removal": "node scripts/configured-free-shopper.mjs --partner-removal",
     "test:e2e:configured-admin-scope": "node scripts/configured-admin-scope.mjs",

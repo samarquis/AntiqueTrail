@@ -26,6 +26,7 @@ set-token.ps1
 
 # Real local browser diagnostics may contain disposable Auth credentials.
 artifacts/configured-shopper-*/
+artifacts/local-signup/
 artifacts/configured-shopper-issue342/
 artifacts/configured-trip-partner-*/
 .vercel
