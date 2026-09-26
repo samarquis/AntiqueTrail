@@ -78,6 +78,10 @@ export default defineConfig(({ mode }) => {
             'Private research artifact',
             'existing-store-a',
             'topeka-owner-10a',
+            'A field guide to curious places',
+            'review-store-card__rating',
+            'review-mockup.css',
+            '/review-mockup',
           ]
           for (const asset of Object.values(bundle)) {
             const source = asset.type === 'chunk' ? asset.code : String(asset.source)
