@@ -16,7 +16,9 @@ Design first for shoppers roughly 50-80 while remaining usable by all ages. Mobi
 - Core trust information (freshness, hours, warnings, privacy consequences) is at least 16px.
 - Every form works at 320px width and 200% zoom.
 - Never expose shopper-private ratings, notes, or trips to a Store Representative or Administrator.
-- Stable navigation is `Browse | My Trip | More`. Go mode is never a permanent tab.
+- Current bounded public-test navigation is `Browse | Saved stores | More` for anonymous and
+  authenticated shoppers. Selected later trip stages replace `Saved stores` with `My Trip`; they
+  never add a fourth destination. Go mode is never a permanent tab.
 
 ## Roles
 

@@ -367,19 +367,6 @@ function AppShell({
                 </svg>
                 More
               </Link>
-              <Link to="/auth/register" aria-label="Create new account" className="nav-link">
-                <svg
-                  className="nav-icon"
-                  viewBox="0 0 24 24"
-                  width="20"
-                  height="20"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path d="M13 2L3 14h9l-1 8 9-5z" />
-                </svg>
-                Create account
-              </Link>
             </>
           )}
         </nav>
@@ -484,6 +471,9 @@ function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) 
     [
       ...(!session || session.role === 'Shopper'
         ? [{ to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true }]
+        : []),
+      ...(!session
+        ? [{ to: '/auth/register', label: 'Create account', requiresSignIn: false }]
         : []),
       ...(session?.role === 'Representative'
         ? [{ to: '/store-portal', label: 'Store Portal', requiresSignIn: false }]
