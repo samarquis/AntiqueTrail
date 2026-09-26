@@ -11,7 +11,7 @@ select has_table('app_private','deletion_receipts','deletion receipts exist');
 select has_table('app_private','job_runs','job run ledger exists');
 select ok((select relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='app_private' and c.relname='account_admission_receipts'),'admissions FORCE RLS enabled');
 select ok((select relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='app_private' and c.relname='account_deletion_requests'),'deletions FORCE RLS enabled');
-select is((select mode from app_private.account_registration_config where id=1),'closed','registration is closed by default');
+select is((select mode from app_private.account_registration_config where id=1),'public','registration is public after guarded rollout');
 select is((select state from app_private.registration_quarantine_latch where id=1),'open','quarantine latch starts open');
 select ok(not exists (select 1 from information_schema.columns where table_schema='app_private' and column_name in ('raw_token','password','access_token','refresh_token')),'no bearer/password columns are persisted');
 

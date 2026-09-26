@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path=public,extensions;
-select plan(65);
+select plan(69);
 
 -- Invoke the real lifecycle RPCs with a fresh provider-shaped password AMR.
 -- The archive metadata below is an isolated worker fixture, not Storage proof.
@@ -107,7 +107,7 @@ set local role authenticated;
 select throws_ok($$select app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint)$$,'42501','internal_request_denied','actual session bootstrap rejects unadmitted identity');
 reset role;
 select set_config('request.path','/rpc/shopper_set_save',true);
-select is(public_test_private.begin_registration(decode(repeat('0',64),'hex'),true,'37600000-0000-4000-8000-000000000004')->>'state','blocked','unlisted email cannot reserve Auth');
+select is(public_test_private.begin_registration(decode(repeat('0',64),'hex'),true,'37600000-0000-4000-8000-000000000099')->>'state','reserved','public signup can reserve outside tester allowlist');
 select is(public_test_private.complete_callback('37600000-0000-4000-8000-000000000005','37600000-0000-4000-8000-000000000003'),false,'verified email without authoritative receipt cannot grant shopper');
 -- Simulate only already recorded provider delivery in this rollback fixture;
 -- this is not real-email evidence or authority to activate a hosted receipt.
@@ -119,8 +119,11 @@ values('37600000-0000-4000-8000-000000000005',decode(repeat('a',64),'hex'),'shop
 update public_test_private.testers set admission_id='37600000-0000-4000-8000-000000000005';
 update public_test_private.bindings set capabilities=array['catalog','saved','registration'] where binding_id=(select id from public_test_receipt);
 update app_private.registration_quarantine_latch set state='open' where id=1;
-select is(app_public.complete_public_test_registration_callback('37600000-0000-4000-8000-000000000003'),true,'provider UUID plus verified intended email and exact receipt admits tester');
-select is((select count(*) from app_private.role_grants where subject_user_id='37600000-0000-4000-8000-000000000003' and state='active' and role='shopper'),1::bigint,'callback grants only one ordinary shopper role');
+select is(app_public.complete_public_test_registration_callback('37600000-0000-4000-8000-000000000003'),true,'legacy callback completes exact verified receipt');
+select is((select count(*) from app_private.role_grants where subject_user_id='37600000-0000-4000-8000-000000000003' and state='active' and role='shopper'),0::bigint,'legacy callback alone grants no role');
+select is(app_public.complete_account_registration_callback('37600000-0000-4000-8000-000000000005','37600000-0000-4000-8000-000000000003'),true,'production callback grants verified shopper');
+select is((select count(*) from app_private.role_grants where subject_user_id='37600000-0000-4000-8000-000000000003' and state='active' and role='shopper'),1::bigint,'production callback grants one ordinary shopper role');
+update public_test_private.testers set admitted_at=statement_timestamp() where binding_id=(select id from public_test_receipt);
 select is(public_test_private.actor_allowed('37600000-0000-4000-8000-000000000003'),true,'admitted tester may use the saved RPC');
 update app_private.role_grants set state='revoked',revoked_at=statement_timestamp()
 where subject_user_id='37600000-0000-4000-8000-000000000003' and role='shopper' and state='active';
@@ -150,7 +153,7 @@ select set_config('request.headers','{"origin":"https://antique-trail.vercel.app
 update public_test_private.bindings set expires_at=statement_timestamp()-interval '1 second' where binding_id=(select id from public_test_receipt);
 select is(public_test_private.active_binding('catalog'),null::uuid,'clock expiry closes catalog without a frontend flag');
 select is(public_test_private.actor_allowed('37600000-0000-4000-8000-000000000003'),false,'clock expiry closes saved operations');
-select is(app_public.begin_account_registration_operation('37600000-0000-4000-8000-000000000006','37600000-0000-4000-8000-000000000005','37600000-0000-4000-8000-000000000004','generate_link')->>'state','blocked','expired scope cannot start provider work');
+select is(app_public.begin_account_registration_operation('37600000-0000-4000-8000-000000000006','37600000-0000-4000-8000-000000000005','37600000-0000-4000-8000-000000000004','generate_link')->>'state','calling','public signup provider work survives catalog scope expiry');
 select * from pg_temp.check_lifecycle('expired','37600000-0000-4000-8000-000000000008');
 update public_test_private.bindings set expires_at=statement_timestamp()+interval '1 day' where binding_id=(select id from public_test_receipt);
 select is((select public_test_private.revoke(id,2) from public_test_receipt),3::bigint,'operator stop revokes the binding');

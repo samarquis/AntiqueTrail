@@ -24,6 +24,7 @@ import { createBetaClient } from '../features/beta'
 import { createCommunityGateClient, createCommunityPreparationClient } from '../features/community'
 import { createBillingClient } from '../features/billing'
 import { createShopperClient } from '../features/shopper'
+import { createAccountSettingsClient } from '../features/account'
 import { createOwnConsentClient } from '../features/rg01'
 import { createCandidateProductionClient } from '../features/candidates'
 import {
@@ -75,6 +76,16 @@ function role(value: unknown): AccountRole {
   return value === 'Representative' || value === 'Administrator' ? value : 'Shopper'
 }
 
+function displayName(session: Session): string | undefined {
+  const metadata = session.user.user_metadata ?? {}
+  const candidate = [metadata.display_name, metadata.full_name, metadata.name]
+    .find((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    ?.trim()
+  if (candidate) return candidate.slice(0, 80)
+  const emailName = session.user.email?.split('@', 1)[0]?.trim()
+  return emailName || undefined
+}
+
 function authenticationMetadata(
   accessToken: string,
 ): Pick<ProviderSession, 'passwordAuthenticatedAt' | 'mfaVerifiedAt'> {
@@ -106,8 +117,10 @@ function providerSession(session: Session): ProviderSession {
     session.user.factors?.some(
       (factor) => factor.factor_type === 'totp' && factor.status === 'verified',
     ) ?? false
+  const name = displayName(session)
   return {
     userId: session.user.id,
+    ...(name ? { displayName: name } : {}),
     ...(session.user.email ? { email: session.user.email } : {}),
     emailVerified: Boolean(session.user.email_confirmed_at),
     accessToken: session.access_token,
@@ -287,6 +300,16 @@ export function createAuthProvider<
       })
       if (error) throw new Error('Provider redirect unavailable.')
     },
+    async updateDisplayName(displayName) {
+      const normalized = displayName?.trim() ?? ''
+      const result = await supabase.auth.updateUser({
+        data: {
+          display_name: normalized || null,
+          full_name: normalized || null,
+        },
+      })
+      if (result.error) throw result.error
+    },
     async oauthCallback(code, oauthError) {
       acceptingSessions = true
       if (!code || oauthError) return { kind: 'error' }
@@ -297,7 +320,10 @@ export function createAuthProvider<
         const callback = await supabase.functions.invoke('account-registration-callback', {
           body: { kind: 'verify', providerUserId: exchanged.data.session.user.id },
         })
-        if (callback.error || callback.data?.state !== 'verified' && callback.data?.state !== 'authenticated') {
+        if (
+          callback.error ||
+          (callback.data?.state !== 'verified' && callback.data?.state !== 'authenticated')
+        ) {
           await supabase.auth.signOut({ scope: 'local' })
           return { kind: 'blocked' }
         }
@@ -814,6 +840,12 @@ export async function configuredComposition(
         (name, body) => supabase.functions.invoke(name, { body }),
       ),
       shopper,
+      accountSettings: createAccountSettingsClient({
+        async rpc(name, args) {
+          const result = await supabase.rpc(name, args)
+          return { data: result.data, error: result.error }
+        },
+      }),
       reviews: createReviewClient({
         async rpc(name, args) {
           const result = await supabase.rpc(name, args)

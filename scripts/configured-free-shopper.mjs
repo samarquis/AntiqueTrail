@@ -18,9 +18,10 @@ const output = createRunDirectory(path.join(ROOT, 'artifacts'))
 const sessionSignout = process.argv.includes('--session-signout')
 const mediaOnly = process.argv.includes('--media-only')
 const partnerRemoval = process.argv.includes('--partner-removal')
+const accountSettings = process.argv.includes('--account-settings')
 const report = {
   scope:
-    [sessionSignout, mediaOnly, partnerRemoval].filter(Boolean).length > 1
+    [sessionSignout, mediaOnly, partnerRemoval, accountSettings].filter(Boolean).length > 1
       ? 'invalid'
       : sessionSignout
         ? 'session-signout'
@@ -28,8 +29,12 @@ const report = {
           ? 'seed-media-desktop-phone'
           : partnerRemoval
             ? 'accepted-partner-removal'
-            : 'connected-shopper',
+            : accountSettings
+              ? 'two-user-account-settings'
+              : 'connected-shopper',
   status: 'unavailable',
+  stage: 'preflight',
+  failedAt: undefined,
   sourceSha: '',
   cleanup: 'not-started',
   errors: [],
@@ -43,7 +48,7 @@ process.on('SIGTERM', interrupt)
 let service, server
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
-  if ([sessionSignout, mediaOnly, partnerRemoval].filter(Boolean).length > 1)
+  if ([sessionSignout, mediaOnly, partnerRemoval, accountSettings].filter(Boolean).length > 1)
     throw new Error('Choose one configured acceptance scope')
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
     throw new Error('External endpoint selection is forbidden')
@@ -51,7 +56,9 @@ try {
   service = createLocalService({ signal: controller.signal, browserOrigin: origin })
   report.temporaryProject = service.run.directory
   console.log(`Starting run-owned services. Evidence: ${output.directory}`)
+  report.stage = 'local-services'
   const local = await service.start()
+  report.stage = 'fixtures'
   const fixtureSql = fs.readFileSync(
     path.join(ROOT, 'scripts/configured-free-shopper-fixtures.sql'),
     'utf8',
@@ -91,6 +98,7 @@ try {
     report[key] = local[key]
   report.browserOrigin = origin
   const secretFile = path.join(local.directory, 'browser-input.json')
+  report.stage = 'build'
   fs.writeFileSync(secretFile, JSON.stringify({ ...local, output: output.directory }), {
     mode: 0o600,
     flag: 'wx',
@@ -129,6 +137,7 @@ try {
     { cwd: ROOT, env, windowsHide: true, stdio: 'ignore' },
   )
   server.on('error', () => {})
+  report.stage = 'preview'
   let ready = false
   for (let n = 0; n < 60; n++) {
     controller.signal.throwIfAborted()
@@ -144,6 +153,7 @@ try {
   }
   if (!ready) throw new Error('Configured preview unavailable')
   console.log(`Configured browser ready: ${origin}`)
+  report.stage = 'browser-tests'
   if (process.argv.includes('--inspect'))
     await new Promise((resolve) => setTimeout(resolve, 60_000))
   try {
@@ -166,13 +176,19 @@ try {
               ]
             : partnerRemoval
               ? ['--grep', 'creator removes an accepted partner through configured transport$']
-              : []),
+              : accountSettings
+                ? [
+                    '--grep',
+                    'two local accounts keep settings private across save, fresh login, and revocation$',
+                  ]
+                : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
     report.status = 'passed'
   } catch (error) {
     report.status = 'failed'
+    report.failedAt = report.stage
     report.errors.push(redact(error.message))
   }
   const resultPath = path.join(output.directory, 'playwright.json')
@@ -182,14 +198,18 @@ try {
   } else {
     const results = browserReport(
       fs.readFileSync(resultPath, 'utf8'),
-      sessionSignout ? 4 : mediaOnly || partnerRemoval ? 2 : 20,
+      sessionSignout ? 4 : mediaOnly || partnerRemoval || accountSettings ? 2 : 22,
     )
     report.stats = results.stats
     report.checks = results.checks
-    if (results.status !== 'passed') report.status = 'failed'
+    if (results.status !== 'passed') {
+      report.status = 'failed'
+      report.failedAt ??= report.stage
+    }
   }
 } catch (error) {
   report.status = 'failed'
+  report.failedAt = report.stage
   report.errors.push(redact(error.message))
 } finally {
   await stopChild(server)
@@ -205,6 +225,7 @@ try {
     } catch (error) {
       report.cleanup = 'failed'
       report.status = 'failed'
+      report.failedAt = 'cleanup-provider'
       report.errors.push(redact(error.message))
     }
   }

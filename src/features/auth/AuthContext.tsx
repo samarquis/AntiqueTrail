@@ -28,6 +28,7 @@ interface AuthContextValue {
   lifecycleReady: boolean
   signIn(session: AuthSession): Promise<void>
   signOut(): Promise<void>
+  updateDisplayName(displayName: string | null): void
   enterCancellationOnly(deletionDueAt?: string): void
   restoreActiveAccount(): void
 }
@@ -163,7 +164,8 @@ export function AuthProvider({
         const active = await resolvedRegistry.isActive(session)
         if (!cancelled && !active) loseSession(session, 'session_revoked')
       } catch {
-        if (!cancelled) loseSession(session, 'session_validation_failed')
+        // A transport failure cannot establish revocation. Keep the session
+        // material so the next validation can recover after connectivity returns.
       } finally {
         if (!cancelled) validationTimer = window.setTimeout(() => void validate(), 1_000)
       }
@@ -187,6 +189,7 @@ export function AuthProvider({
     setLifecycleReady(false)
     let cancelled = false
     let settled = false
+    let retryTimer = 0
     const timeout = window.setTimeout(() => {
       if (!cancelled) {
         settled = true
@@ -194,36 +197,40 @@ export function AuthProvider({
         loseSession(session, 'lifecycle_hydration_timeout')
       }
     }, lifecycleHydrationTimeoutMs)
-    lifecycle
-      .getStatus()
-      .then((snapshot) => {
-        if (cancelled) return
-        settled = true
-        window.clearTimeout(timeout)
-        if (snapshot.state === 'deleted') {
-          loseSession(session, 'account_deleted')
-          return
-        }
-        const deletionDueAt =
-          snapshot.state === 'deletion_scheduled' ? snapshot.deletionDueAt : undefined
-        if (session.accountState !== snapshot.state || session.deletionDueAt !== deletionDueAt) {
-          const next = { ...session, accountState: snapshot.state }
-          if (deletionDueAt) next.deletionDueAt = deletionDueAt
-          else delete next.deletionDueAt
-          replaceSession(next)
-        }
-        setLifecycleReady(true)
-      })
-      .catch(() => {
-        if (!cancelled) {
+    const readStatus = () =>
+      lifecycle
+        .getStatus()
+        .then((snapshot) => {
+          if (cancelled) return
           settled = true
           window.clearTimeout(timeout)
-          loseSession(session, 'lifecycle_hydration_failed')
-        }
-      })
+          if (snapshot.state === 'deleted') {
+            loseSession(session, 'account_deleted')
+            return
+          }
+          const deletionDueAt =
+            snapshot.state === 'deletion_scheduled' ? snapshot.deletionDueAt : undefined
+          if (session.accountState !== snapshot.state || session.deletionDueAt !== deletionDueAt) {
+            const next = { ...session, accountState: snapshot.state }
+            if (deletionDueAt) next.deletionDueAt = deletionDueAt
+            else delete next.deletionDueAt
+            replaceSession(next)
+          }
+          setLifecycleReady(true)
+        })
+        .catch(() => {
+          if (!cancelled) {
+            // A completed request with a transport error is different from a hung
+            // request. Keep private content locked and retry without losing identity.
+            window.clearTimeout(timeout)
+            retryTimer = window.setTimeout(readStatus, 1_000)
+          }
+        })
+    readStatus()
     return () => {
       cancelled = true
       window.clearTimeout(timeout)
+      window.clearTimeout(retryTimer)
       // StrictMode intentionally tears down the first effect before its promise settles.
       // Let the replacement effect start a fresh authoritative read.
       if (!settled && hydratedSessionRef.current === key) hydratedSessionRef.current = null
@@ -310,6 +317,14 @@ export function AuthProvider({
           return
         }
         replaceSession(null)
+      },
+      updateDisplayName(displayName) {
+        const current = resolvedStore.getSession()
+        if (!current) return
+        replaceSession({
+          ...current,
+          ...(displayName ? { displayName } : { displayName: undefined }),
+        })
       },
       enterCancellationOnly(deletionDueAt) {
         const current = resolvedStore.getSession()

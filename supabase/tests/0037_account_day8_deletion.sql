@@ -1,5 +1,5 @@
 begin;
-select plan(24);
+select plan(25);
 
 select has_table('app_private','account_lifecycle_operations_cases','exhausted lifecycle work opens an operations case');
 select has_function('app_public','claim_due_account_deletions',array['timestamptz','integer'],'day-8 deletion claim exists');
@@ -15,12 +15,13 @@ select ok(position('statement_timestamp()' in pg_get_functiondef('app_public.fai
 
 insert into auth.users(id) values
  ('37000000-0000-4000-8000-000000000001'),('37000000-0000-4000-8000-000000000002');
-insert into app_private.profiles(user_id,verified_email_snapshot,public_display_name,age_18_attested_at,last_authenticated_at,status,deletion_due_at)
-values('37000000-0000-4000-8000-000000000001','delete@example.test','DELETE-ME',statement_timestamp(),statement_timestamp(),'deletion_scheduled','2026-08-01T00:00:00Z'),
- ('37000000-0000-4000-8000-000000000002','sibling@example.test','KEEP-ME',statement_timestamp(),statement_timestamp(),'active',null)
+insert into app_private.profiles(user_id,verified_email_snapshot,public_display_name,private_location_address,age_18_attested_at,last_authenticated_at,status,deletion_due_at)
+values('37000000-0000-4000-8000-000000000001','delete@example.test','DELETE-ME','DELETE-PRIVATE-ADDRESS',statement_timestamp(),statement_timestamp(),'deletion_scheduled','2026-08-01T00:00:00Z'),
+ ('37000000-0000-4000-8000-000000000002','sibling@example.test','KEEP-ME',null,statement_timestamp(),statement_timestamp(),'active',null)
 on conflict (user_id) do update set
   verified_email_snapshot=excluded.verified_email_snapshot,
   public_display_name=excluded.public_display_name,
+  private_location_address=excluded.private_location_address,
   age_18_attested_at=excluded.age_18_attested_at,
   last_authenticated_at=excluded.last_authenticated_at,
   status=excluded.status,
@@ -54,6 +55,8 @@ select is((select count(*)::integer from shopper_private.private_store_memories 
 select is((select count(*)::integer from trip_private.trips where trip_id='37000000-0000-4000-8000-000000000010'),1,'shared sibling trip survives');
 select is((select count(*)::integer from trip_private.trip_participants where trip_id='37000000-0000-4000-8000-000000000010' and user_id='37000000-0000-4000-8000-000000000001'),0,'deleting participant linkage is purged');
 select is((select count(*)::integer from app_private.profiles where user_id='37000000-0000-4000-8000-000000000001'),0,'public display/profile is purged before provider deletion');
+select ok(not exists(select 1 from app_private.profiles where private_location_address='DELETE-PRIVATE-ADDRESS'),
+  'account deletion purges private starting address');
 select lives_ok($$select app_public.prepare_account_deletion('37000000-0000-4000-8000-000000000030',(select claim_token from claimed_deletion),'1999-01-01')$$,'prepare is idempotent');
 select lives_ok($$select app_public.complete_account_deletion('37000000-0000-4000-8000-000000000030',(select claim_token from claimed_deletion),'1999-01-01')$$,'provider-confirmed claim finalizes');
 select is((select state from app_private.account_deletion_requests where deletion_request_id='37000000-0000-4000-8000-000000000030'),'completed','request becomes completed');

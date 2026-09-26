@@ -57,7 +57,7 @@ jobs:
             stats: report.stats && Object.fromEntries(
               ['expected', 'unexpected', 'skipped', 'flaky'].map(key => [key, report.stats[key]])
             ),
-            checks: (report.checks ?? []).map(({ name, project, status }) => ({ name, project, status })),
+            checks: (report.checks ?? []).map(({ name, project, status, failure }) => ({ name, project, status, failure })),
           }
           fs.writeFileSync('artifacts/configured-seed-media-summary.json', JSON.stringify(summary, null, 2))
           NODE

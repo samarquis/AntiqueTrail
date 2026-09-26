@@ -75,6 +75,49 @@ describe('app shell', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('links signed-in shoppers to private account settings', () => {
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'shopper-settings',
+      accessToken: 'memory-only-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaEnrolled: false,
+      mfaVerified: false,
+    })
+    render(
+      <MemoryRouter initialEntries={['/more']}>
+        <App runtime={{ authStore }} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'User settings' })).toHaveAttribute(
+      'href',
+      '/account/settings',
+    )
+  })
+
+  it('greets a signed-in shopper by display name', () => {
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'shopper-1',
+      displayName: 'Avery',
+      email: 'avery@example.test',
+      accessToken: 'memory-only-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaEnrolled: false,
+      mfaVerified: false,
+    })
+    render(
+      <MemoryRouter initialEntries={['/stores']}>
+        <App runtime={{ authStore }} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('Welcome, Avery')).toBeInTheDocument()
+  })
+
   it('shows only the authorized role entry in a representative More menu', async () => {
     const authStore = new InMemoryAuthStore()
     authStore.setSession({
@@ -147,7 +190,10 @@ describe('app shell', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByRole('link', { name: /^my trip$/i })).toHaveAttribute('href', '/trips')
+    expect(await screen.findByRole('link', { name: /^my trip$/i })).toHaveAttribute(
+      'href',
+      '/trips',
+    )
     expect(screen.queryByRole('link', { name: /^sign in$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /create new account/i })).not.toBeInTheDocument()
   })
@@ -290,9 +336,9 @@ describe('app shell', () => {
     )
 
     const navigation = screen.getByRole('navigation', { name: /primary navigation/i })
-    expect(screen.getByRole('complementary', { name: /administrator environment/i })).toHaveTextContent(
-      /internal alpha.*synthetic stores only/i,
-    )
+    expect(
+      screen.getByRole('complementary', { name: /administrator environment/i }),
+    ).toHaveTextContent(/internal alpha.*synthetic stores only/i)
     expect(navigation).toHaveTextContent('ReviewAccessMore')
     expect(screen.getByRole('link', { name: 'Review' })).toHaveAttribute('href', '/admin')
     expect(screen.getByRole('link', { name: 'Access' })).toHaveAttribute('href', '/admin/access')

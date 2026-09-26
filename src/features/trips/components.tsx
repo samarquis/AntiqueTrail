@@ -570,9 +570,7 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     await runAction('review hours', async () => {
       setTrip(await client.reviewHours(trip.id, acknowledgeWarnings))
       setHoursAcknowledged(false)
-      setHoursReviewStatus(
-        acknowledgeWarnings ? 'Hours warnings acknowledged.' : 'Hours reviewed.',
-      )
+      setHoursReviewStatus(acknowledgeWarnings ? 'Hours warnings acknowledged.' : 'Hours reviewed.')
     })
   }
   async function saveStart(event: FormEvent) {

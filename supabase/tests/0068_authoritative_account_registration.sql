@@ -1,5 +1,5 @@
 begin;
-select plan(64);
+select plan(65);
 
 select has_function('app_public','begin_account_registration',array['bytea','boolean','text'],'registration reserve exists');
 select has_function('app_public','begin_account_registration_operation',array['uuid','uuid','text','text'],'provider begin exists');
@@ -15,9 +15,9 @@ select has_function('app_public','settle_account_registration_cleanup',array['uu
 select has_function('app_public','reconcile_account_registration_cleanup',array['uuid','uuid'],'cleanup reconcile exists without caller-supplied provider state');
 select has_function('app_public','resolve_registration_cleanup_operator_case',array['uuid','uuid','text'],'operator cleanup recovery exists');
 select has_table('app_private','registration_cleanup_tickets','provider cleanup queue exists independently of admissions');
-select ok(position('call_deadline' in pg_get_functiondef('app_public.settle_account_registration_generate(uuid,uuid,text,text,uuid)'::regprocedure))>0 and position('finality_due_at' in pg_get_functiondef('app_public.settle_account_registration_generate(uuid,uuid,text,text,uuid)'::regprocedure))>0,'generate settlement enforces call and finality deadlines');
+select ok(position('call_deadline' in pg_get_functiondef('app_public.settle_account_registration_generate_20260920241500(uuid,uuid,text,text,uuid)'::regprocedure))>0 and position('finality_due_at' in pg_get_functiondef('app_public.settle_account_registration_generate_20260920241500(uuid,uuid,text,text,uuid)'::regprocedure))>0,'generate settlement enforces call and finality deadlines');
 select ok(position('expected_latch_version' in pg_get_functiondef('app_public.settle_account_registration_delivery(uuid,uuid,text,text)'::regprocedure))>0 and position('expected_config_version' in pg_get_functiondef('app_public.settle_account_registration_delivery(uuid,uuid,text,text)'::regprocedure))>0 and position('expected_admission_version' in pg_get_functiondef('app_public.settle_account_registration_delivery(uuid,uuid,text,text)'::regprocedure))>0,'delivery settlement enforces expected versions');
-select ok(position('orphan_quarantined' in pg_get_functiondef('app_public.settle_account_registration_generate(uuid,uuid,text,text,uuid)'::regprocedure))>0,'late provider success is quarantined');
+select ok(position('orphan_quarantined' in pg_get_functiondef('app_public.settle_account_registration_generate_20260920241500(uuid,uuid,text,text,uuid)'::regprocedure))>0,'late provider success is quarantined');
 select ok(position('raw_user_meta_data' in pg_get_functiondef('app_public.registration_exact_provider_for_admission(uuid)'::regprocedure))>0 and position('listusers' in lower(pg_get_functiondef('app_public.registration_exact_provider_for_admission(uuid)'::regprocedure)))=0,'reconciliation uses exact database lookup and never listUsers');
 select ok(position('skip locked' in lower(pg_get_functiondef('app_public.claim_account_registration_cleanup()'::regprocedure)))>0,'cleanup claims are concurrency safe');
 select ok(position('completed_terminal_cleanup' in pg_get_functiondef('app_public.reconcile_account_registration_cleanup(uuid,uuid)'::regprocedure))>0,'confirmed provider absence reaches terminal cleanup');
@@ -85,10 +85,22 @@ select ok((select resolved_absent_at is not null from app_private.registration_q
 reset role;
 insert into auth.users(id) values('68000000-0000-4000-8000-000000000099');
 set local role service_role;
-create temporary table independent_cleanup_result as
-  select app_public.enqueue_account_registration_cleanup(null,'68000000-0000-4000-8000-000000000099')->'cleanupTicketId' ticket_id;
+select is(app_public.enqueue_account_registration_cleanup(null,'68000000-0000-4000-8000-000000000099')->>'state','blocked','missing admission cannot create provider cleanup ticket');
 reset role;
-select ok((select asserted_admission_id is null from app_private.registration_cleanup_tickets where cleanup_ticket_id=(ticket_id#>>'{}')::uuid),'missing admission still creates durable provider cleanup ticket') from independent_cleanup_result;
+insert into app_private.account_admission_receipts(
+  admission_id,token_hash,purpose,email_hmac,age_18_attested_at,idempotency_key,
+  provider_user_id,claim_expires_at,state,claimed_at
+) values (
+  '68000000-0000-4000-8000-000000000199',decode(repeat('99',32),'hex'),'shopper',
+  decode(repeat('98',32),'hex'),statement_timestamp(),'guarded-independent-cleanup',
+  '68000000-0000-4000-8000-000000000099',statement_timestamp()+interval '1 hour',
+  'verification_pending',statement_timestamp()
+);
+set local role service_role;
+create temporary table independent_cleanup_result as
+  select app_public.enqueue_account_registration_cleanup('68000000-0000-4000-8000-000000000199','68000000-0000-4000-8000-000000000099')->'cleanupTicketId' ticket_id;
+reset role;
+select ok((select asserted_admission_id='68000000-0000-4000-8000-000000000199' from app_private.registration_cleanup_tickets where cleanup_ticket_id=(ticket_id#>>'{}')::uuid),'guarded admission creates durable provider cleanup ticket') from independent_cleanup_result;
 set local role service_role;
 select is(app_public.begin_account_registration(decode(repeat('09',32),'hex'),true,'00000000-0000-4000-8000-000000000099')->>'state','blocked','any unresolved provider cleanup ticket closes registration latch');
 select is(app_public.begin_account_registration_cleanup((ticket_id#>>'{}')::uuid,'68000000-0000-4000-8000-000000000099')->>'state','calling','independent provider ticket begins') from independent_cleanup_result;

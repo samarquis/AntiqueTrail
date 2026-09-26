@@ -44,17 +44,16 @@ Deno.serve(async (request) => {
     )
   let endpoints: { appOrigin: string; mailEndpoint: string; supabaseOrigin: string } | null = null
   try {
-    if (
-      appOrigin &&
-      approvedAppOrigin &&
-      url &&
-      approvedSupabaseOrigin
-    )
+    if (appOrigin && approvedAppOrigin && url && approvedSupabaseOrigin)
       endpoints = validateRegistrationEndpoints({
         appOrigin,
         approvedAppOrigin,
-        mailEndpoint: 'https://supabase.invalid/send',
-        approvedMailEndpoint: 'https://supabase.invalid/send',
+        mailEndpoint: localMode
+          ? (Deno.env.get('REGISTRATION_MAIL_ENDPOINT') ?? '')
+          : 'https://supabase.invalid/send',
+        approvedMailEndpoint: localMode
+          ? (Deno.env.get('REGISTRATION_APPROVED_MAIL_ENDPOINT') ?? '')
+          : 'https://supabase.invalid/send',
         supabaseUrl: url,
         approvedSupabaseOrigin,
         localMode,
@@ -63,12 +62,7 @@ Deno.serve(async (request) => {
     endpoints = null
   }
   const configured = Boolean(
-    url &&
-      serviceKey &&
-      appOrigin &&
-      emailHmacSecret &&
-      emailHmacSecret.length >= 32 &&
-      endpoints,
+    url && serviceKey && appOrigin && emailHmacSecret && emailHmacSecret.length >= 32 && endpoints,
   )
   const admin = configured
     ? createClient(url, serviceKey, {
@@ -85,8 +79,20 @@ Deno.serve(async (request) => {
   const response = await handleAccountRegistration(request, {
     async reserve(input) {
       if (!configured) throw new Error('unavailable')
+      const keyed = await hmac(input.email, emailHmacSecret)
+      const legacy = await digest(input.email)
+      const mode = await rpc<'current' | 'legacy' | 'blocked'>(
+        'account_registration_fingerprint_mode',
+        {
+          p_idempotency_key: input.requestId,
+          p_keyed_email_hmac: keyed,
+          p_legacy_email_digest: legacy,
+        },
+      )
+      if (mode === 'blocked') return { state: 'blocked' }
+      if (mode !== 'current' && mode !== 'legacy') throw new Error('unavailable')
       return rpc('begin_account_registration', {
-        p_email_hmac: await hmac(input.email, emailHmacSecret),
+        p_email_hmac: mode === 'legacy' ? legacy : keyed,
         p_age_18_attestation: input.ageAttested,
         p_idempotency_key: input.requestId,
       })
@@ -101,19 +107,23 @@ Deno.serve(async (request) => {
     },
     async generate(input) {
       if (!url || !endpoints) throw new Error('unavailable')
+      const signupUrl = new URL('/auth/v1/signup', endpoints.supabaseOrigin)
+      signupUrl.searchParams.set('redirect_to', `${endpoints.appOrigin}/auth/callback`)
       const response = await withDeadline(timeoutMs, (signal) =>
-        fetch(`${endpoints.supabaseOrigin}/auth/v1/signup`, {
+        fetch(signupUrl, {
           method: 'POST',
           signal,
           headers: {
-            apikey: Deno.env.get('REGISTRATION_SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+            apikey:
+              Deno.env.get('REGISTRATION_SUPABASE_ANON_KEY') ??
+              Deno.env.get('SUPABASE_ANON_KEY') ??
+              '',
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             email: input.email,
             password: input.password,
             data: { antique_trail_admission_id: input.admissionId },
-            redirect_to: `${endpoints.appOrigin}/auth/callback`,
           }),
         }),
       )
@@ -121,14 +131,13 @@ Deno.serve(async (request) => {
         return response.status >= 400 && response.status < 500
           ? { outcome: 'confirmed_not_generated' }
           : { outcome: 'unknown' }
-const generated = (await response.json()) as {
+      const generated = (await response.json()) as {
         user?: { id?: unknown }
         id?: unknown
       }
       const providerUserId =
         typeof generated.user?.id === 'string' ? generated.user.id : generated.id
-      if (typeof providerUserId !== 'string')
-        return { outcome: 'unknown' }
+      if (typeof providerUserId !== 'string') return { outcome: 'unknown' }
       const appCallbackUrl = `${endpoints.appOrigin}/auth/callback`
       return { outcome: 'confirmed_generated', appCallbackUrl, providerUserId }
     },
@@ -191,10 +200,27 @@ function cors(origin: string | null): Record<string, string> {
   }
 }
 async function hmac(email: string, secret: string): Promise<string> {
-  void secret
-  const value = new Uint8Array(await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(email.normalize('NFKC').trim().toLocaleLowerCase('en-US')),
-  ))
-  return `\\x${[...value].map((item) => item.toString(16).padStart(2, '0')).join('')}`
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  return bytea(await crypto.subtle.sign('HMAC', key, encoder.encode(canonicalEmail(email))))
+}
+
+async function digest(email: string): Promise<string> {
+  return bytea(
+    await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalEmail(email))),
+  )
+}
+
+function canonicalEmail(email: string): string {
+  return email.normalize('NFKC').trim().toLocaleLowerCase('en-US')
+}
+
+function bytea(value: ArrayBuffer): string {
+  return `\\x${[...new Uint8Array(value)].map((item) => item.toString(16).padStart(2, '0')).join('')}`
 }
