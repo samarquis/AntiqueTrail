@@ -60,6 +60,26 @@ describe('app shell', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('provides actionable public help without inventing a support channel', () => {
+    render(
+      <MemoryRouter initialEntries={['/help']}>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Help' })).toHaveFocus()
+    expect(screen.getByRole('heading', { name: 'Correct store information' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Browse stores' })).toHaveAttribute('href', '/stores')
+    expect(screen.getByRole('heading', { name: 'Recover account access' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Start account recovery' })).toHaveAttribute(
+      'href',
+      '/auth/recovery',
+    )
+    expect(
+      screen.queryByText(/@|email us\b|response time|business days|contact support/i),
+    ).toBeNull()
+  })
+
   it('shows only the authorized role entry in a representative More menu', async () => {
     const authStore = new InMemoryAuthStore()
     authStore.setSession({
