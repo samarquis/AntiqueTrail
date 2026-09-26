@@ -18,9 +18,10 @@ const output = createRunDirectory(path.join(ROOT, 'artifacts'))
 const sessionSignout = process.argv.includes('--session-signout')
 const mediaOnly = process.argv.includes('--media-only')
 const partnerRemoval = process.argv.includes('--partner-removal')
+const accountSettings = process.argv.includes('--account-settings')
 const report = {
   scope:
-    [sessionSignout, mediaOnly, partnerRemoval].filter(Boolean).length > 1
+    [sessionSignout, mediaOnly, partnerRemoval, accountSettings].filter(Boolean).length > 1
       ? 'invalid'
       : sessionSignout
         ? 'session-signout'
@@ -28,7 +29,9 @@ const report = {
           ? 'seed-media-desktop-phone'
           : partnerRemoval
             ? 'accepted-partner-removal'
-            : 'connected-shopper',
+            : accountSettings
+              ? 'two-user-account-settings'
+              : 'connected-shopper',
   status: 'unavailable',
   stage: 'preflight',
   failedAt: undefined,
@@ -45,7 +48,7 @@ process.on('SIGTERM', interrupt)
 let service, server
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
-  if ([sessionSignout, mediaOnly, partnerRemoval].filter(Boolean).length > 1)
+  if ([sessionSignout, mediaOnly, partnerRemoval, accountSettings].filter(Boolean).length > 1)
     throw new Error('Choose one configured acceptance scope')
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
     throw new Error('External endpoint selection is forbidden')
@@ -173,7 +176,12 @@ try {
               ]
             : partnerRemoval
               ? ['--grep', 'creator removes an accepted partner through configured transport$']
-              : []),
+              : accountSettings
+                ? [
+                    '--grep',
+                    'two local accounts keep settings private across save, fresh login, and revocation$',
+                  ]
+                : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
@@ -190,7 +198,7 @@ try {
   } else {
     const results = browserReport(
       fs.readFileSync(resultPath, 'utf8'),
-      sessionSignout ? 4 : mediaOnly || partnerRemoval ? 2 : 20,
+      sessionSignout ? 4 : mediaOnly || partnerRemoval || accountSettings ? 2 : 22,
     )
     report.stats = results.stats
     report.checks = results.checks
