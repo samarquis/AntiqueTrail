@@ -30,9 +30,17 @@ export function OperationalStatusPage({ config }: { config: OperationalStatusCon
       <section className="page-card" aria-labelledby="operational-status-heading">
         <h1 id="operational-status-heading">Service status</h1>
         <p role="status">
-          Operational contacts are not published until the S-01 monitoring and response gate is
-          fully configured.
+          Browsing fictional store listings is available. Live service updates and support contacts
+          are not published on this page right now.
         </p>
+        <nav aria-label="Service status destinations">
+          <a className="button button--secondary" href="/help">
+            Help
+          </a>{' '}
+          <a className="button" href="/stores">
+            Browse stores
+          </a>
+        </nav>
       </section>
     )
 
@@ -58,6 +66,14 @@ export function OperationalStatusPage({ config }: { config: OperationalStatusCon
         </li>
       </ul>
       <p>Do not include passwords, payment details, or other sensitive personal information.</p>
+      <nav aria-label="Service status destinations">
+        <a className="button button--secondary" href="/help">
+          Help
+        </a>{' '}
+        <a className="button" href="/stores">
+          Browse stores
+        </a>
+      </nav>
     </section>
   )
 }
