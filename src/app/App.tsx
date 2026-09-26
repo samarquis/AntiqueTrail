@@ -482,7 +482,9 @@ function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) 
   }, [ownConsentClient, session, signedIn])
   const destinations: Array<{ to: string; label: string; requiresSignIn: boolean; icon?: string }> =
     [
-      ...(session ? [{ to: '/account/settings', label: 'User settings', requiresSignIn: false }] : []),
+      ...(session
+        ? [{ to: '/account/settings', label: 'User settings', requiresSignIn: false }]
+        : []),
       ...(!session || session.role === 'Shopper'
         ? [{ to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true }]
         : []),

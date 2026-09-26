@@ -14,10 +14,16 @@ const origin = 'https://antique-trail.vercel.app'
 function setup(overrides: Record<string, string> = {}) {
   let handler: (request: Request) => Promise<Response>
   const rpc = vi.fn(
-    async (name: string): Promise<{ data: unknown; error: Error | null }> => ({
-      data: name === 'account_registration_fingerprint_mode' ? 'current' : { state: 'blocked' },
-      error: null,
-    }),
+    async (
+      name: string,
+      _args?: Record<string, unknown>,
+    ): Promise<{ data: unknown; error: Error | null }> => {
+      void _args
+      return {
+        data: name === 'account_registration_fingerprint_mode' ? 'current' : { state: 'blocked' },
+        error: null,
+      }
+    },
   )
   const createClient = vi.fn(() => ({ rpc }))
   const fetch = vi.fn()

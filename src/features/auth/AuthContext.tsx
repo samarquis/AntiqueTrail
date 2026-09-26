@@ -197,34 +197,35 @@ export function AuthProvider({
         loseSession(session, 'lifecycle_hydration_timeout')
       }
     }, lifecycleHydrationTimeoutMs)
-    const readStatus = () => lifecycle
-      .getStatus()
-      .then((snapshot) => {
-        if (cancelled) return
-        settled = true
-        window.clearTimeout(timeout)
-        if (snapshot.state === 'deleted') {
-          loseSession(session, 'account_deleted')
-          return
-        }
-        const deletionDueAt =
-          snapshot.state === 'deletion_scheduled' ? snapshot.deletionDueAt : undefined
-        if (session.accountState !== snapshot.state || session.deletionDueAt !== deletionDueAt) {
-          const next = { ...session, accountState: snapshot.state }
-          if (deletionDueAt) next.deletionDueAt = deletionDueAt
-          else delete next.deletionDueAt
-          replaceSession(next)
-        }
-        setLifecycleReady(true)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          // A completed request with a transport error is different from a hung
-          // request. Keep private content locked and retry without losing identity.
+    const readStatus = () =>
+      lifecycle
+        .getStatus()
+        .then((snapshot) => {
+          if (cancelled) return
+          settled = true
           window.clearTimeout(timeout)
-          retryTimer = window.setTimeout(readStatus, 1_000)
-        }
-      })
+          if (snapshot.state === 'deleted') {
+            loseSession(session, 'account_deleted')
+            return
+          }
+          const deletionDueAt =
+            snapshot.state === 'deletion_scheduled' ? snapshot.deletionDueAt : undefined
+          if (session.accountState !== snapshot.state || session.deletionDueAt !== deletionDueAt) {
+            const next = { ...session, accountState: snapshot.state }
+            if (deletionDueAt) next.deletionDueAt = deletionDueAt
+            else delete next.deletionDueAt
+            replaceSession(next)
+          }
+          setLifecycleReady(true)
+        })
+        .catch(() => {
+          if (!cancelled) {
+            // A completed request with a transport error is different from a hung
+            // request. Keep private content locked and retry without losing identity.
+            window.clearTimeout(timeout)
+            retryTimer = window.setTimeout(readStatus, 1_000)
+          }
+        })
     readStatus()
     return () => {
       cancelled = true
