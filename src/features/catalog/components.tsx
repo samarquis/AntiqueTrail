@@ -15,7 +15,7 @@ import {
   formatCatalogDate,
   formatHours,
   formatHoursException,
-  freshnessLabel,
+  listingFreshness,
   normalizeQueryParams,
   queryParams,
   todayHoursSummary,
@@ -310,6 +310,7 @@ export function CatalogCard({
   const [imageFailed, setImageFailed] = useState(false)
   const cover = store.media.find((item) => item.kind === 'cover') ?? store.media[0]
   const hours = todayHoursSummary(store)
+  const freshness = listingFreshness(store)
   const initials = store.name
     .split(/\s+/u)
     .slice(0, 2)
@@ -367,7 +368,9 @@ export function CatalogCard({
             {hours.dayLabel}: {hours.hoursLabel}
           </span>
         </p>
-        <p className="catalog-card__freshness">{freshnessLabel(store)}</p>
+        <p className={`catalog-card__freshness catalog-card__freshness--${freshness.status}`}>
+          {freshness.label}
+        </p>
         <section className="catalog-card__actions" aria-label={`Store actions for ${store.name}`}>
           <CatalogLink
             className="button catalog-card__details"
@@ -1180,6 +1183,7 @@ export function DetailsPage({
   const hasContact = Boolean(store.website || store.phone || store.email)
   const canAddToTrip = detailsStageRank[stage] >= detailsStageRank['package-5a']
   const today = todayHoursSummary(store)
+  const freshness = listingFreshness(store)
   const listingTrustText = [
     store.address,
     store.description,
@@ -1195,7 +1199,7 @@ export function DetailsPage({
       listingTrustText,
     )
   const hasNavigableAddress =
-    Boolean(store.address.trim()) && store.freshness?.status === 'current' && !isFictionalListing
+    Boolean(store.address.trim()) && freshness.status === 'current' && !isFictionalListing
   return (
     <main className="store-detail">
       <CatalogLink className="store-detail__back" to={catalogAppHref(backHref)}>
@@ -1220,17 +1224,14 @@ export function DetailsPage({
             </p>
           </div>
           <div className="store-detail__trust" aria-label="Listing status">
-            <p className={`status-badge status-badge--${store.freshness?.status ?? 'unknown'}`}>
-              <span aria-hidden="true">{store.freshness?.status === 'current' ? '✓' : 'i'}</span>{' '}
-              {freshnessLabel(store)}
+            <p className={`status-badge status-badge--${freshness.status}`}>
+              <span aria-hidden="true">{freshness.status === 'current' ? '✓' : 'i'}</span>{' '}
+              {freshness.label}
             </p>
-            {store.freshness?.status === 'stale' && (
+            {freshness.status === 'stale' && (
               <p className="honesty-note">
                 This listing may be out of date. Confirm before travel.
               </p>
-            )}
-            {!store.freshness && (
-              <p className="honesty-note">Freshness information is unavailable.</p>
             )}
           </div>
         </header>

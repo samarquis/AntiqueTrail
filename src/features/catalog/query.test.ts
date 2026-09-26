@@ -4,6 +4,7 @@ import {
   externalNavigationHref,
   formatCatalogDate,
   formatHours,
+  listingFreshness,
   normalizeQueryParams,
   todayHoursSummary,
   upcomingHoursExceptions,
@@ -38,6 +39,49 @@ describe('catalog query normalization', () => {
     expect(canonicalQueryString(filters)).toBe(
       '?openNow=1&visited=unvisited&saved=1&claimed=1&distance=25&state=KS',
     )
+  })
+})
+
+describe('listing freshness', () => {
+  const storeAtAge = (
+    verifiedAt: string | null | undefined,
+    asOfUtc: string | null | undefined,
+  ) => ({
+    ...syntheticStores[0],
+    asOfUtc,
+    freshness: {
+      label: 'Verified recently',
+      status: 'current' as const,
+      verifiedAt,
+    },
+  })
+
+  it('keeps verification current through 30 calendar days and shows its date', () => {
+    expect(listingFreshness(storeAtAge('2026-08-23T23:59:59Z', '2026-09-22T00:00:00Z'))).toEqual({
+      status: 'current',
+      label: 'Verified 30 days ago · August 23, 2026',
+    })
+  })
+
+  it('marks verification overdue at 31 calendar days and shows its date', () => {
+    expect(listingFreshness(storeAtAge('2026-08-22T23:59:59Z', '2026-09-22T00:00:00Z'))).toEqual({
+      status: 'stale',
+      label: 'Verification overdue · Verified August 22, 2026',
+    })
+  })
+
+  it.each([
+    ['missing verification date', null, '2026-09-22T00:00:00Z'],
+    ['invalid verification date', 'not-a-date', '2026-09-22T00:00:00Z'],
+    ['impossible verification date', '2026-02-30T00:00:00Z', '2026-09-22T00:00:00Z'],
+    ['missing as-of date', '2026-09-01T00:00:00Z', null],
+    ['invalid as-of date', '2026-09-01T00:00:00Z', 'not-a-date'],
+    ['impossible as-of date', '2026-09-01T00:00:00Z', '2026-02-30T00:00:00Z'],
+  ])('uses an explicit unknown state for %s', (_case, verifiedAt, asOfUtc) => {
+    expect(listingFreshness(storeAtAge(verifiedAt, asOfUtc))).toEqual({
+      status: 'unknown',
+      label: 'Verification date unavailable',
+    })
   })
 })
 

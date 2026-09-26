@@ -441,6 +441,34 @@ describe('trustworthy Store Details contract', () => {
     ],
   }
 
+  it('shows the same derived overdue status and verification date on Browse and Details', async () => {
+    const olderStore = {
+      ...detailedStore,
+      asOfUtc: '2026-09-22T12:00:00Z',
+      freshness: {
+        label: 'Verified recently',
+        verifiedAt: '2026-07-15T00:00:00Z',
+        status: 'current' as const,
+      },
+    }
+    const catalog: CatalogClient = {
+      list: vi.fn(async () => ({ stores: [olderStore], asOfUtc: olderStore.asOfUtc })),
+      details: vi.fn(async () => olderStore),
+    }
+
+    const browse = render(<BrowsePage client={catalog} />)
+    const expected = 'Verification overdue · Verified July 15, 2026'
+    expect(await screen.findByText(expected)).toHaveClass(
+      'catalog-card__freshness',
+      'catalog-card__freshness--stale',
+    )
+
+    browse.unmount()
+    render(<DetailsPage client={catalog} slug={olderStore.slug} />)
+    expect(await screen.findByText(expected)).toHaveClass('status-badge--stale')
+    expect(screen.getByText(/this listing may be out of date/i)).toBeVisible()
+  })
+
   function detailsClient(store: CatalogStore = detailedStore): CatalogClient {
     return {
       list: vi.fn(async () => ({ stores: [store] })),
@@ -731,7 +759,7 @@ describe('trustworthy Store Details contract', () => {
     expect(screen.getByText(/accessibility information is unavailable/i)).toBeVisible()
     expect(screen.getByText(/has not published any updates/i)).toBeVisible()
     expect(screen.getByText(/source information unavailable/i)).toBeVisible()
-    expect(screen.getByText(/verification date unavailable/i)).toBeVisible()
+    expect(screen.getAllByText(/verification date unavailable/i)).toHaveLength(2)
   })
 
   it('restores the exact Browse query, scroll position, and originating store focus', async () => {

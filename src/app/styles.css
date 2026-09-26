@@ -1865,6 +1865,21 @@ textarea[aria-invalid='true'] {
   content: '';
 }
 
+.catalog-card__freshness--stale,
+.catalog-card__freshness--unknown {
+  color: var(--ink);
+}
+
+.catalog-card__freshness--stale::before {
+  background: var(--gold);
+  box-shadow: 0 0 0 3px var(--surface-warning);
+}
+
+.catalog-card__freshness--unknown::before {
+  background: var(--muted);
+  box-shadow: 0 0 0 3px var(--surface-status-neutral);
+}
+
 .catalog-card__details {
   align-self: flex-start;
   margin-top: 0;
