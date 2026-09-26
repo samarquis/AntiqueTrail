@@ -131,14 +131,57 @@ export function displayDayLabel(weekday: number): string {
   return days[weekday - 1] ?? 'Day'
 }
 
-export function freshnessLabel(store: CatalogStore): string {
-  if (store.freshness?.label) return store.freshness.label
-  if (store.freshness?.daysOld != null) {
-    if (store.freshness.daysOld <= 0) return 'Verified today'
-    if (store.freshness.daysOld === 1) return 'Verified yesterday'
-    return `Verified ${store.freshness.daysOld} days ago`
+export interface ListingFreshness {
+  status: 'current' | 'stale' | 'unknown'
+  label: string
+}
+
+function catalogInstant(value?: string | null): Date | null {
+  if (!value) return null
+  const calendar = value.match(/^(\d{4})-(\d{2})-(\d{2})(?=$|T|\s)/)
+  if (!calendar) return null
+  const year = Number(calendar[1])
+  const month = Number(calendar[2])
+  const day = Number(calendar[3])
+  if (month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate())
+    return null
+  const instant = new Date(value)
+  return Number.isNaN(instant.getTime()) ? null : instant
+}
+
+export function listingFreshness(store: CatalogStore): ListingFreshness {
+  const verifiedAt = catalogInstant(store.freshness?.verifiedAt)
+  const asOf = catalogInstant(store.asOfUtc)
+  if (!verifiedAt || !asOf) {
+    return { status: 'unknown', label: 'Verification date unavailable' }
   }
-  return 'Freshness unavailable'
+
+  const verifiedDay = Date.UTC(
+    verifiedAt.getUTCFullYear(),
+    verifiedAt.getUTCMonth(),
+    verifiedAt.getUTCDate(),
+  )
+  const asOfDay = Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate())
+  const daysOld = Math.floor((asOfDay - verifiedDay) / 86_400_000)
+  const verifiedDate = formatCatalogDate(store.freshness?.verifiedAt)
+  if (daysOld < 0 || !verifiedDate) {
+    return { status: 'unknown', label: 'Verification date unavailable' }
+  }
+  if (daysOld > 30) {
+    return { status: 'stale', label: `Verification overdue · Verified ${verifiedDate}` }
+  }
+
+  const ageLabel =
+    daysOld === 0
+      ? 'Verified today'
+      : daysOld === 1
+        ? 'Verified yesterday'
+        : `Verified ${daysOld} days ago`
+  return { status: 'current', label: `${ageLabel} · ${verifiedDate}` }
+}
+
+export function freshnessLabel(store: CatalogStore): string {
+  return listingFreshness(store).label
 }
 
 export interface TodayHoursSummary {
