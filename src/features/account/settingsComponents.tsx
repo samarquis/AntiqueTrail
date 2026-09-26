@@ -123,7 +123,7 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
           {!loading && settings.locationAddress && (
             <section aria-label="Saved address">
               <h2>Saved address</h2>
-              <p>{settings.locationAddress}</p>
+              <p className="account-settings__address">{settings.locationAddress}</p>
               <p id="account-location-help" className="form-help privacy-consequence">
                 Stored privately in your account. You can export it from Account overview or clear
                 it below. Address entry is unavailable during this public test.

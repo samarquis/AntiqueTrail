@@ -776,4 +776,34 @@ test('two local accounts keep settings private across save, fresh login, and rev
   } finally {
     await siblingContext.close()
   }
+
+  // Legacy values must remain readable and clearable on the narrowest supported screen.
+  const longAddress = 'A'.repeat(320)
+  await service.sql(
+    `update app_private.profiles set private_location_address='${longAddress}', version=version+1 where user_id='${ownerId}';`,
+  )
+  await page.setViewportSize({ width: 320, height: 844 })
+  await page.reload()
+  await expect(page.getByText(longAddress, { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
+  const clearAddress = page.getByRole('checkbox', { name: /clear saved address/i })
+  const clearTarget = await clearAddress.locator('..').boundingBox()
+  expect(clearTarget?.height).toBeGreaterThanOrEqual(48)
+  const saveSettings = page.getByRole('button', { name: 'Save settings', exact: true })
+  expect((await saveSettings.boundingBox())?.height).toBeGreaterThanOrEqual(48)
+  await page.getByLabel('Display name', { exact: true }).focus()
+  await page.keyboard.press('Tab')
+  await expect(clearAddress).toBeFocused()
+  await page.keyboard.press('Space')
+  await expect(clearAddress).toBeChecked()
+  await page.keyboard.press('Tab')
+  await expect(saveSettings).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('status')).toHaveText('Settings saved.')
+  await expect(page.getByRole('region', { name: 'Saved address', exact: true })).toHaveCount(0)
+  await expect(rpc(ownerToken, 'account_get_settings', {})).resolves.toMatchObject({
+    locationAddress: null,
+  })
 })
