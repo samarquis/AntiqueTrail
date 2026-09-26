@@ -559,16 +559,41 @@ function PortalRouteGuard({ client }: { client: PortalClient }) {
   return checked.allowed ? <Outlet /> : <PortalAccessDeniedPage />
 }
 
-function InformationPage({ title, children }: { title: string; children: ReactNode }) {
+function PublicHelpPage() {
   return (
     <main>
-      <section className="page-card">
-        <h1>{title}</h1>
-        <p>{children}</p>
-        <Link className="button" to="/more">
-          Back to More
-        </Link>
-      </section>
+      <article className="public-help" aria-labelledby="help-heading">
+        <header>
+          <p className="eyebrow">Self-service help</p>
+          <h1 id="help-heading">Help</h1>
+          <p>Use these public routes. No staffed support channel is published right now.</p>
+        </header>
+
+        <section aria-labelledby="help-correction-heading">
+          <h2 id="help-correction-heading">Correct store information</h2>
+          <ol>
+            <li>Browse stores and open the listing that needs an update.</li>
+            <li>Choose Suggest a correction and describe what should change.</li>
+            <li>
+              Sign in only when you are ready to submit. Your draft stays in this browser tab.
+            </li>
+          </ol>
+          <Link className="button" to="/stores">
+            Browse stores
+          </Link>
+        </section>
+
+        <section aria-labelledby="help-recovery-heading">
+          <h2 id="help-recovery-heading">Recover account access</h2>
+          <ol>
+            <li>Open account recovery and enter the email used for your account.</li>
+            <li>Follow the recovery instructions if an account exists for that email.</li>
+          </ol>
+          <Link className="button button--secondary" to="/auth/recovery">
+            Start account recovery
+          </Link>
+        </section>
+      </article>
     </main>
   )
 }
@@ -1300,14 +1325,7 @@ export default function App({
             }
           />
           <Route path="/install" element={<InstallPage />} />
-          <Route
-            path="/help"
-            element={
-              <InformationPage title="Help">
-                Help and support contacts will appear here when operational support is configured.
-              </InformationPage>
-            }
-          />
+          <Route path="/help" element={<PublicHelpPage />} />
           <Route
             path="/stores"
             element={
