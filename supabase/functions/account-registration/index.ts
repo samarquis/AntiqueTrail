@@ -133,9 +133,7 @@ Deno.serve(async (request) => {
           ? { outcome: 'confirmed_not_generated' }
           : { outcome: 'unknown' }
       const generated = (await response.json()) as {
-        properties?: { hashed_token?: unknown }
         user?: { id?: unknown }
-        hashed_token?: unknown
         id?: unknown
       }
       const providerUserId =

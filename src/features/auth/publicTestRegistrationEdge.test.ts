@@ -72,7 +72,7 @@ function request(requestOrigin: string | null, method = 'POST') {
       ? {
           body: JSON.stringify({
             email: 'tester@example.test',
-            password: 'fixture-long-password',
+            password: 'pass1234',
             ageAttested: true,
             requestId: '37600000-0000-4000-8000-000000000001',
           }),

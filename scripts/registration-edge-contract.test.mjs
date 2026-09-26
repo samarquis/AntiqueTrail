@@ -8,16 +8,17 @@ const source = await readFile(
   'utf8',
 )
 
-test('registration provider call is deadline bounded', () => {
+test('registration provider signup is deadline bounded', () => {
   assert.ok((source.match(/withDeadline\(timeoutMs/gu) ?? []).length >= 1)
   assert.match(source, /signal,\s*headers:/u)
   assert.doesNotMatch(source, /listUsers/iu)
+  assert.match(source, /\/auth\/v1\/signup/u)
 })
 
-test('provider action link is neither returned nor persisted', () => {
+test('provider action link and token are neither returned nor persisted', () => {
   assert.doesNotMatch(source, /\.action_link/iu)
-  assert.match(source, /hashed_token/iu)
-  assert.match(source, /appCallbackUrl/u)
+  assert.doesNotMatch(source, /hashed_token/iu)
+  assert.doesNotMatch(source, /\/auth\/callback#token_hash=/u)
 })
 
 test('signup sends the encoded callback in redirect_to query, not JSON body', () => {
