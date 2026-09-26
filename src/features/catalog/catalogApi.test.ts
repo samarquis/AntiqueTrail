@@ -48,6 +48,29 @@ describe('catalog RPC client', () => {
     expect(result.stores[0].timeZone).toBe('America/Chicago')
   })
 
+  it('maps current verification status for trusted Store Details navigation', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        id: '1',
+        slug: 'verified-store',
+        name: 'Verified Store',
+        freshness_state: 'current',
+        oldest_verified_at: '2026-08-03T12:00:00Z',
+        categories: [],
+        hours: [],
+        media: [],
+      },
+      error: null,
+    })
+
+    const store = await createCatalogClient({ rpc }).details('verified-store')
+
+    expect(store?.freshness).toMatchObject({
+      status: 'current',
+      verifiedAt: '2026-08-03T12:00:00Z',
+    })
+  })
+
   it('maps not-found details to null and does not leak row errors', async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: { code: 'NOT_FOUND' } })
     await expect(createCatalogClient({ rpc }).details('hidden-store')).resolves.toBeNull()

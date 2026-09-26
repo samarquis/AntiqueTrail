@@ -472,7 +472,13 @@ describe('trustworthy Store Details contract', () => {
   })
 
   it('puts visit-critical, provenance, accessibility, updates, and external links in order', async () => {
-    const navigableStore = { ...detailedStore, address: '12 Main Street' }
+    const navigableStore = {
+      ...detailedStore,
+      address: '12 Main Street',
+      description: 'A verified local antique shop.',
+      fixtureProfile: null,
+      provenance: { sourceLabel: 'Owner-confirmed profile', updatedAt: '2026-08-02T12:00:00Z' },
+    }
     render(<DetailsPage client={detailsClient(navigableStore)} slug={navigableStore.slug} />)
 
     expect(await screen.findByRole('heading', { level: 1, name: detailedStore.name })).toBeVisible()
@@ -481,7 +487,7 @@ describe('trustworthy Store Details contract', () => {
     expect(screen.getByText(/step-free front entrance/i)).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Latest updates' })).toBeVisible()
     expect(screen.getByRole('heading', { name: /new cabinet collection/i })).toBeVisible()
-    expect(screen.getByText(/synthetic store owner-approved profile/i)).toBeVisible()
+    expect(screen.getByText(/owner-confirmed profile/i)).toBeVisible()
     expect(screen.getByText('August 3, 2026')).toBeVisible()
 
     const navigate = screen.getByRole('link', { name: /navigate in maps/i })
@@ -494,6 +500,65 @@ describe('trustworthy Store Details contract', () => {
       'noreferrer',
     )
     expect(screen.getByRole('link', { name: /instagram/i })).toHaveAttribute('target', '_blank')
+  })
+
+  it('explains fictional addresses and never offers Maps for Fiction Lane', async () => {
+    const fictionalStore = { ...detailedStore, address: '101 Fiction Lane' }
+    render(<DetailsPage client={detailsClient(fictionalStore)} slug={fictionalStore.slug} />)
+
+    await screen.findByRole('heading', { level: 1, name: fictionalStore.name })
+    expect(screen.getByText(/directions are unavailable for this fictional address/i)).toBeVisible()
+    expect(screen.queryByRole('link', { name: /navigate in maps/i })).not.toBeInTheDocument()
+  })
+
+  it('never offers Maps for a synthetic fixture with a plausible address', async () => {
+    const syntheticStore = { ...syntheticStores[0], address: '12 Main Street' }
+    render(<DetailsPage client={detailsClient(syntheticStore)} slug={syntheticStore.slug} />)
+
+    await screen.findByRole('heading', { level: 1, name: syntheticStore.name })
+    expect(screen.getByText(/directions are unavailable for this fictional address/i)).toBeVisible()
+    expect(screen.queryByRole('link', { name: /navigate in maps/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps trusted real-address navigation keyboard accessible', async () => {
+    const realStore = {
+      ...detailedStore,
+      name: 'Verified Real Store',
+      slug: 'verified-real-store',
+      description: 'A verified local antique shop.',
+      address: '12 Main Street',
+      fixtureProfile: null,
+      provenance: { sourceLabel: 'Owner-confirmed address', updatedAt: '2026-08-02T12:00:00Z' },
+    }
+    render(<DetailsPage client={detailsClient(realStore)} slug={realStore.slug} />)
+
+    await screen.findByRole('heading', { level: 1, name: realStore.name })
+    const navigate = screen.getByRole('link', { name: /navigate in maps/i })
+    const user = userEvent.setup()
+    await user.tab()
+    await user.tab()
+    expect(navigate).toHaveFocus()
+    expect(decodeURIComponent(navigate.getAttribute('href') ?? '')).toContain(realStore.address)
+  })
+
+  it('withholds Maps for a real-looking address without current verification', async () => {
+    const unverifiedStore = {
+      ...detailedStore,
+      name: 'Unverified Store',
+      slug: 'unverified-store',
+      description: 'A local antique shop.',
+      address: '12 Main Street',
+      fixtureProfile: null,
+      freshness: { label: 'Freshness unavailable', status: 'unknown' as const },
+      provenance: { sourceLabel: 'Owner-confirmed address', updatedAt: '2026-08-02T12:00:00Z' },
+    }
+    render(<DetailsPage client={detailsClient(unverifiedStore)} slug={unverifiedStore.slug} />)
+
+    await screen.findByRole('heading', { level: 1, name: unverifiedStore.name })
+    expect(
+      screen.getByText(/directions are unavailable until this address is verified/i),
+    ).toBeVisible()
+    expect(screen.queryByRole('link', { name: /navigate in maps/i })).not.toBeInTheDocument()
   })
 
   it('puts visit essentials and section links before the extended gallery', async () => {
