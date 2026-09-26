@@ -16,6 +16,7 @@ Use this contract for repository work. Keep one source of truth per decision and
 - Primary checkout is an integration/recovery workspace when dirty. Exchange committed SHAs between chats; never copy unknown dirty files between worktrees.
 - Read-only requests authorize inspection and reporting only. Keep source, provider settings, hosted data, and deployment state unchanged.
 - Write observable acceptance criteria before implementation. Small, fully specified fixes may use user request or issue as contract.
+- Before assigning implementation, apply the READY gate in the engineering workflow. Use the small-task issue template; unresolved decisions or unavailable prerequisites remain BLOCKED, and parent issues are not implementation assignments.
 - Classify risk before editing. Auth, authorization, secrets, payments, migrations, untrusted input, network egress, destructive operations, and public contracts are high risk.
 - Use test-first work for behavior changes. Keep implementation to smallest root-cause-correct diff.
 - `DESIGN.md` and `DESIGN_SYSTEM.md` govern visible UI. `SECURITY_AND_TRUST.md` governs security and authorization. `PACKAGE_CONTRACTS.md` governs database/package contracts.

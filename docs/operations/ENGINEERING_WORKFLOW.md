@@ -16,6 +16,14 @@ Capture:
 
 Completion: scope, authority, baseline SHA, owner, and pre-existing changes are explicit.
 
+### Admit a small-model task
+
+Use the [small-task issue template](../../.github/ISSUE_TEMPLATE/small-task.md). READY means one observable outcome with resolved governing clauses, a pinned base/target, satisfied dependencies, exact owned files and interfaces, runnable acceptance commands, required negative cases, resource ownership, and a clear completion boundary. The planner verifies these before dispatch; the worker does not invent missing product or API decisions.
+
+Use SPECIFICATION for unresolved contracts, BLOCKED for missing decisions/environment/dependencies, and INTEGRATING for accepted work awaiting its existing integration owner. Keep broad parents as acceptance maps; create independent leaves only after their contracts are fixed. Preserve security, privacy, accessibility, and failure handling when reducing scope. Usually one runtime boundary and one to three implementation files plus direct tests fit a leaf; justify larger scope instead of enforcing an arbitrary line limit.
+
+Completion: a fresh worker can execute without reconstructing decisions from chat history. An unchanged baseline that already passes calls for missing regression proof only, not a speculative rewrite.
+
 ## 2. Coordinate concurrent chats
 
 Before editing, check `git worktree list --porcelain`, relevant local/remote branches, and live issue/PR ownership. One chat owns one ticket worktree. If another chat already owns overlapping work, coordinate through its committed SHA or wait for its handoff; do not open a second implementation lane against the same seam.
@@ -25,6 +33,8 @@ Keep integration deterministic:
 - use committed SHAs as handoff boundaries;
 - compare changed paths before combining branches;
 - integrate one reviewed candidate at a time;
+- give shared harness/package-script changes one writer and stable interfaces before dependent leaves start;
+- assign final sibling composition, required CI, and main closure to one integrator; distinguish a staging-branch merge from main completion;
 - rerun affected evidence after integration;
 - preserve unknown dirty files and untracked artifacts;
 - use `work-overseer` when the user requests multi-ticket coordination.
@@ -32,6 +42,8 @@ Keep integration deterministic:
 When external GitHub writes are authorized, record ownership on the issue or draft PR. Otherwise include ownership in local handoff output.
 
 Completion: current owner is known, file overlap is resolved, and integration order is explicit.
+
+For local provider, browser, or database runs, follow [LOCAL_PROOF_PREFLIGHT.md](LOCAL_PROOF_PREFLIGHT.md). Start with one leased heavy local test lane; permit more only after demonstrating isolated resources and adequate capacity. Independent source work may continue while that lane is occupied.
 
 ## 3. Isolate work
 
@@ -69,7 +81,7 @@ Run only applicable layers, but never merge them into one claim:
 2. Type, lint, formatting, release-contract, and build checks.
 3. Database migration replay and pgTAP when schema/RPC/RLS changes.
 4. Rendered desktop/mobile UI with accessibility and important states.
-5. Hosted disposable-account/provider lifecycle for auth or provider behavior.
+5. Hosted disposable-account/provider lifecycle only when the acceptance contract requires it and authorization/environment access exist. Local-only tickets retain a separate hosted gate rather than silently inheriting one.
 6. Canonical production route after authorized deployment.
 
 Use `npm run check` from a clean worktree for repository-wide web validation. Use `npm run verify:web` when full browser coverage is required. CI remains final clean-environment proof.
@@ -84,7 +96,7 @@ Commit candidate, record baseline SHA and candidate SHA, then compute a diff fin
 git diff --binary --full-index <baseline-sha>...<candidate-sha> | git hash-object --stdin
 ```
 
-Independent review checks repository standards and issue/spec separately. Any affected candidate change invalidates prior review and verification evidence.
+Independent review checks repository standards and issue/spec separately. Freeze source while acceptance runs execute. Any affected source, configuration, or fixture change invalidates its prior review and verification evidence. An unrelated main advance does not alone invalidate a result; assess overlap and obey actual branch protection. After conflict resolution or integration changes, rerun affected proof and all required checks on the candidate being merged.
 
 Verdicts:
 
