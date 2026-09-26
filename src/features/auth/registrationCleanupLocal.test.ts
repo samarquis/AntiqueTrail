@@ -231,10 +231,15 @@ describeLocal('registration cleanup against an isolated local provider and datab
       )
 
       const decoyEmail = `cleanup-decoy-${randomUUID()}@example.test`
-      const decoyId = await createProviderUser(decoyEmail, 'Passw0rd', randomUUID(), true)
+      const decoyId = await createProviderUser(
+        decoyEmail,
+        'Passw0rd-Local-Only',
+        randomUUID(),
+        true,
+      )
       const requestId = randomUUID()
       const email = `cleanup-timeout-${requestId}@example.test`
-      const password = 'Passw0rd'
+      const password = 'Passw0rd-Local-Only'
       const timeoutReservation = await reserve(email, requestId)
       if (timeoutReservation.state !== 'reserved')
         throw new Error('Timeout scenario reservation was not created')
@@ -254,8 +259,10 @@ describeLocal('registration cleanup against an isolated local provider and datab
           request(),
           registrationDependencies(proxy.origin, 150),
         )
-        expect(first.status).toBe(503)
-        expect(await first.json()).toEqual({ state: 'error' })
+        expect({ status: first.status, body: await first.json() }).toEqual({
+          status: 503,
+          body: { state: 'error' },
+        })
         providerId = await proxy.createdProviderId
         const existing = await admin('GET', providerId)
         expect(existing.status).toBe(200)
@@ -348,7 +355,7 @@ describeLocal('registration cleanup against an isolated local provider and datab
       ).toMatchObject({ state: 'calling' })
       const protectedId = await createProviderUser(
         protectedEmail,
-        'Passw0rd',
+        'Passw0rd-Local-Only',
         protectedAdmissionId,
         true,
       )
