@@ -204,7 +204,11 @@ async function expectPopulatedCatalogContract(page: Page) {
     new Set(['Antique mall', 'Vintage']),
   )
   expect(new Set(metrics.map((card) => card.freshness.text))).toEqual(
-    new Set(['Verified for Synthetic testing', 'Verification overdue']),
+    new Set([
+      'Verified 11 days ago · August 1, 2026',
+      'Verification overdue · Verified February 1, 2026',
+      'Verification date unavailable',
+    ]),
   )
   for (const field of ['area', 'hours'] as const)
     expect(metrics.every((card) => Boolean(card[field].text))).toBe(true)
