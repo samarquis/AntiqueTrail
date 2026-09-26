@@ -271,6 +271,7 @@ export function createLocalService({
   disableStorage = false,
   signupJourney = false,
   createTestUsers = true,
+  includeServiceRoleKey = false,
 } = {}) {
   if (browserOrigin && !/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(browserOrigin))
     throw new Error('Browser origin must use literal loopback')
@@ -445,6 +446,7 @@ export function createLocalService({
     run.anonKey = status.ANON_KEY
     if (!run.anonKey || !status.SERVICE_ROLE_KEY || !status.JWT_SECRET)
       throw new Error('Local service credentials unavailable')
+    if (includeServiceRoleKey) run.serviceRoleKey = status.SERVICE_ROLE_KEY
     // This is a server-only catalog service credential, never a shopper identity.
     const enc = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
     const unsigned = `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc({ role: 'public_catalog_gateway', iss: 'supabase', exp: Math.floor(Date.now() / 1000) + 3600 })}`
@@ -486,6 +488,19 @@ export function createLocalService({
         "update app_private.account_registration_config set mode='public',stage_receipt_id=null,version=version+1 where id=1;",
       )
     run.users = []
+    let authReady = false
+    for (let attempt = 0; attempt < 30; attempt++) {
+      signal?.throwIfAborted()
+      try {
+        await request('/auth/v1/health', { key: run.anonKey, method: 'GET' })
+        authReady = true
+        break
+      } catch {
+        /* GoTrue may still be applying its local schema migrations. */
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+    if (!authReady) throw new Error('Local Auth did not become healthy')
     for (const alias of createTestUsers ? ['shopper-a', 'shopper-b'] : []) {
       signal?.throwIfAborted()
       const email = `${alias}-${id}@probe.invalid`,
@@ -595,7 +610,15 @@ export function createLocalService({
           )
             throw new Error('Volume ownership mismatch')
         }
-        await cli(['stop', '--workdir', directory, '--project-id', projectId, '--no-backup'])
+        try {
+          await cli(['stop', '--workdir', directory, '--project-id', projectId, '--no-backup'])
+        } catch (error) {
+          if (!String(error).includes('LegacyStopContainerPruneError')) throw error
+          const ownedContainers = await verifyContainers(false)
+          if (ownedContainers.length)
+            await runCommand('docker', ['rm', '--force', ...ownedContainers.map((c) => c.Id)])
+          if (volumeIds.length) await runCommand('docker', ['volume', 'rm', ...volumeIds])
+        }
         if ((await verifyContainers(false)).length)
           throw new Error('Run containers remain after stop')
         if (
