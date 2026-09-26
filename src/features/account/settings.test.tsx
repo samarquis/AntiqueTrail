@@ -2,8 +2,18 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
-import { AuthProvider, InMemoryAuthStore, type AuthSession } from '../auth'
-import { createAccountSettingsClient, type AccountSettingsClient } from './settings'
+import {
+  AuthProvider,
+  InMemoryAuthStore,
+  type AuthProviderAdapter,
+  type AuthSession,
+} from '../auth'
+import {
+  createAccountSettingsClient,
+  GENERIC_ACCOUNT_SETTINGS_ERROR,
+  type AccountSettingsClient,
+  type UserSettings,
+} from './settings'
 import { UserSettingsPage } from './settingsComponents'
 
 const session: AuthSession = {
@@ -17,13 +27,13 @@ const session: AuthSession = {
   mfaVerified: true,
 }
 
-function renderPage(client: AccountSettingsClient) {
+function renderPage(client: AccountSettingsClient, provider?: AuthProviderAdapter) {
   const store = new InMemoryAuthStore()
   store.setSession({ ...session, expiresAt: Date.now() + 60_000 })
   return render(
     <MemoryRouter initialEntries={['/account/settings']}>
       <AuthProvider authStore={store}>
-        <UserSettingsPage client={client} />
+        <UserSettingsPage client={client} provider={provider} />
       </AuthProvider>
     </MemoryRouter>,
   )
@@ -46,7 +56,23 @@ describe('UserSettingsPage', () => {
     expect(await screen.findByDisplayValue('Avery Shopper')).toBeInTheDocument()
     expect(screen.getByDisplayValue('123 Main Street, Topeka, KS')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /saved stores/i })).toHaveAttribute('href', '/saved')
-    expect(screen.getByText(/stored privately/i)).toBeInTheDocument()
+    expect(screen.getByText(/stored privately/i)).toHaveClass('privacy-consequence')
+  })
+
+  it('explains why settings controls are disabled during the initial load', () => {
+    const client: AccountSettingsClient = {
+      getSettings: vi.fn(() => new Promise<UserSettings>(() => undefined)),
+      updateSettings: vi.fn(),
+    }
+
+    renderPage(client)
+
+    const loadingStatus = screen.getByRole('status', { name: /loading account settings/i })
+    expect(loadingStatus).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save settings/i })).toHaveAttribute(
+      'aria-describedby',
+      loadingStatus.id,
+    )
   })
 
   it('saves the edited name and starting address', async () => {
@@ -72,6 +98,32 @@ describe('UserSettingsPage', () => {
       locationAddress: '123 Main Street, Topeka, KS',
     })
     expect(await screen.findByRole('status')).toHaveTextContent(/saved/i)
+  })
+
+  it('does not persist settings when provider display-name synchronization fails', async () => {
+    const user = userEvent.setup()
+    const client: AccountSettingsClient = {
+      getSettings: vi.fn(async () => ({ displayName: 'Loaded Name', locationAddress: null })),
+      updateSettings: vi.fn(async (input) => input),
+    }
+    const provider: AuthProviderAdapter = {
+      oauthProviders: { google: false, facebook: false },
+      signIn: vi.fn(async () => ({ kind: 'error' as const })),
+      sendRecovery: vi.fn(async () => undefined),
+      verifyMfa: vi.fn(async () => null),
+      signOut: vi.fn(async () => undefined),
+      updateDisplayName: vi.fn(async () => {
+        throw new Error('provider unavailable')
+      }),
+    }
+
+    renderPage(client, provider)
+    await screen.findByDisplayValue('Loaded Name')
+    fireEvent.change(screen.getByLabelText(/display name/i), { target: { value: 'Avery' } })
+    await user.click(screen.getByRole('button', { name: /save settings/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC_ACCOUNT_SETTINGS_ERROR)
+    expect(client.updateSettings).not.toHaveBeenCalled()
   })
 })
 

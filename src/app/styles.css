@@ -1238,6 +1238,10 @@ main > article {
   line-height: var(--type-leading-body);
 }
 
+.account-settings .privacy-consequence {
+  font-size: var(--type-size-body);
+}
+
 .account-settings textarea {
   min-height: 6rem;
 }

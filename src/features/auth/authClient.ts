@@ -85,11 +85,11 @@ export function createRpcSessionRegistry(
 
 export function toAuthSession(
   provider: ProviderSession,
-  defaults?: { role?: AccountRole; mfaVerified?: boolean; targetRole?: AccountRole },
+  defaults?: { role?: AccountRole; mfaVerified?: boolean },
 ): AuthSession {
   const enrolled = provider.mfaEnrolled ?? provider.mfaRequired ?? false
   const verified = defaults?.mfaVerified ?? (enrolled ? Boolean(provider.mfaVerifiedAt) : true)
-  const role = defaults?.targetRole ?? provider.role ?? defaults?.role ?? 'Shopper'
+  const role = provider.role ?? defaults?.role ?? 'Shopper'
   return {
     userId: provider.userId,
     ...(provider.displayName ? { displayName: provider.displayName } : {}),

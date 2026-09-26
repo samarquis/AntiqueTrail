@@ -57,11 +57,21 @@ export function UserSettingsPage({
     setSaved(false)
     setError(null)
     try {
-      const next = await client.updateSettings({
+      const input = {
         displayName: settings.displayName?.trim() || null,
         locationAddress: settings.locationAddress?.trim() || null,
-      })
-      await provider?.updateDisplayName?.(next.displayName)
+      }
+      const displayNameChanged = input.displayName !== (session?.displayName ?? null)
+      if (displayNameChanged) await provider?.updateDisplayName?.(input.displayName)
+      let next: UserSettings
+      try {
+        next = await client.updateSettings(input)
+      } catch (cause) {
+        if (displayNameChanged) {
+          await provider?.updateDisplayName?.(session?.displayName ?? null).catch(() => undefined)
+        }
+        throw cause
+      }
       setSettings(next)
       updateDisplayName(next.displayName)
       setSaved(true)
@@ -81,6 +91,11 @@ export function UserSettingsPage({
           Keep your identity and trip preferences current. These settings stay private to your
           account.
         </p>
+        {loading && (
+          <p id="account-settings-loading" role="status" aria-label="Loading account settings">
+            Loading settings…
+          </p>
+        )}
         {error && <p role="alert">{error}</p>}
         <form onSubmit={(event) => void save(event)}>
           <label htmlFor="account-display-name">Display name</label>
@@ -112,12 +127,17 @@ export function UserSettingsPage({
             disabled={loading || saving}
             aria-describedby="account-location-help"
           />
-          <p id="account-location-help" className="form-help">
+          <p id="account-location-help" className="form-help privacy-consequence">
             Optional and stored privately. We use it only when you explicitly choose it as a
             starting point for trip planning; it is not shared with stores.
           </p>
 
-          <button className="button" type="submit" disabled={loading || saving}>
+          <button
+            className="button"
+            type="submit"
+            disabled={loading || saving}
+            aria-describedby={loading ? 'account-settings-loading' : undefined}
+          >
             {saving ? 'Saving…' : 'Save settings'}
           </button>
           {saved && <p role="status">Settings saved.</p>}
