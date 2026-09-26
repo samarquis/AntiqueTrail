@@ -1945,6 +1945,14 @@ main > article > header {
   border-bottom: 1px solid var(--line);
 }
 
+.public-help > section {
+  margin-top: 2rem;
+}
+
+.public-help li + li {
+  margin-top: 0.75rem;
+}
+
 main > article > img,
 main > article > [role='img'] {
   width: calc(100% + 2rem);
