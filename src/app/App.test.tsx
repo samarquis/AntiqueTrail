@@ -18,7 +18,10 @@ import {
 } from '../review-harness/clients'
 
 describe('app shell', () => {
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllEnvs()
+  })
   it('renders the browse route with a skip-free accessible heading', () => {
     render(
       <MemoryRouter initialEntries={['/stores']}>
@@ -37,6 +40,74 @@ describe('app shell', () => {
     expect(screen.getByRole('heading', { name: /browse stores/i })).toHaveFocus()
   })
 
+  it('keeps public-test shopper navigation to Browse, Saved stores, and More after sign-in', () => {
+    vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'shopper-1',
+      accessToken: 'memory-only-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaVerified: true,
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/stores']}>
+        <App runtime={{ authStore }} />
+      </MemoryRouter>,
+    )
+
+    const navigation = screen.getByRole('navigation', { name: /primary navigation/i })
+    expect(screen.getAllByRole('link', { name: /browse|saved stores|more/i })).toHaveLength(3)
+    expect(navigation).toHaveTextContent('BrowseSaved storesMore')
+    expect(screen.queryByRole('link', { name: /my trip/i })).not.toBeInTheDocument()
+    expect(navigation).not.toHaveTextContent(/create account/i)
+  })
+
+  it('blocks direct trip routes in the public test without removing local review fixtures', async () => {
+    vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'shopper-a',
+      accessToken: 'memory-only-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaVerified: true,
+    })
+    const publicView = render(
+      <MemoryRouter initialEntries={['/trips']}>
+        <App runtime={{ authStore }} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { name: 'Account setup paused' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'My trips' })).not.toBeInTheDocument()
+    publicView.unmount()
+
+    vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
+    const harness = await createReviewHarness({
+      dev: true,
+      mode: 'review',
+      enabled: 'true',
+      url: 'http://127.0.0.1:4173/trips?reviewAs=shopper-a&reviewState=success',
+    })
+    expect(harness).not.toBeNull()
+    render(
+      <MemoryRouter initialEntries={['/trips?reviewAs=shopper-a&reviewState=success']}>
+        <App
+          clients={createReviewHarnessClients(harness!.scenario, harness!.state)}
+          runtime={{
+            authStore: harness!.authStore,
+            sessionRegistry: harness!.sessionRegistry,
+            authProvider: createReviewHarnessAuthProvider(harness!.state),
+          }}
+        />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'My trips' })).toBeInTheDocument()
+  })
+
   it('opens the stable More menu and focuses its page heading', async () => {
     const user = userEvent.setup()
     render(
@@ -52,6 +123,10 @@ describe('app shell', () => {
     expect(screen.getByRole('link', { name: /account & privacy/i })).toHaveAttribute(
       'href',
       '/account/privacy',
+    )
+    expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute(
+      'href',
+      '/auth/register',
     )
     expect(screen.getByRole('link', { name: /install/i })).toHaveAttribute('href', '/install')
     expect(screen.getByRole('link', { name: /help/i })).toHaveAttribute('href', '/help')

@@ -51,8 +51,11 @@ non-lifecycle private entry and catalog save controls; it cannot grant backend a
 Previously admitted users retain provider sign-in with an exact lifecycle return
 path, account status, privacy/export/download/deletion/cancellation and local
 sign-out. Existing hydration, expiry, role and cancellation-only checks still
-apply; the display flag never admits an identity or reopens saves or trips. Record the literal
-build setting in the accepted configuration/artifact binding. Turn it off only
+apply; the display flag never admits an identity or reopens saves or trips. Anonymous and
+authenticated shells keep `Browse | Saved stores | More`; this stage never adds `My Trip`.
+Direct trip routes remain behind the same display restriction, while the compile-time local
+review harness remains available outside public-test builds. Record the literal build setting in
+the accepted configuration/artifact binding. Turn it off only
 when actual account/provider acceptance and the next reviewed binding are ready.
 Do not use this display restriction as a stop mechanism after human accounts
 have been admitted: their authorized lifecycle entry must remain available.
