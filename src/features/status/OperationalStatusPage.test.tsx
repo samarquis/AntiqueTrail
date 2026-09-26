@@ -5,10 +5,18 @@ import { OperationalStatusPage } from './OperationalStatusPage'
 afterEach(cleanup)
 
 describe('OperationalStatusPage', () => {
-  it('fails closed until every operational contact is configured', () => {
+  it('explains public availability without exposing internal release gates', () => {
     render(<OperationalStatusPage config={{ supportUrl: 'https://support.example.test' }} />)
-    expect(screen.getByRole('status')).toHaveTextContent('not published')
-    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Browsing fictional store listings is available',
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Live service updates and support contacts are not published',
+    )
+    expect(screen.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help')
+    expect(screen.getByRole('link', { name: 'Browse stores' })).toHaveAttribute('href', '/stores')
+    expect(screen.queryByText(/S-01|gate|monitoring/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Contact support' })).not.toBeInTheDocument()
   })
 
   it('publishes the bounded contact paths and commitment when complete', () => {
@@ -35,6 +43,8 @@ describe('OperationalStatusPage', () => {
       'href',
       'mailto:security@example.test',
     )
+    expect(screen.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help')
+    expect(screen.getByRole('link', { name: 'Browse stores' })).toHaveAttribute('href', '/stores')
   })
 
   it.each([
@@ -53,6 +63,12 @@ describe('OperationalStatusPage', () => {
       />,
     )
     expect(screen.getByRole('status')).toBeInTheDocument()
-    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help')
+    expect(screen.getByRole('link', { name: 'Browse stores' })).toHaveAttribute('href', '/stores')
+    expect(
+      screen.queryByRole('link', {
+        name: /current service status|contact support|security concern/i,
+      }),
+    ).not.toBeInTheDocument()
   })
 })

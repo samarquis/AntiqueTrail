@@ -272,14 +272,20 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
     expect(button!.y + button!.height).toBeLessThanOrEqual(heading!.y)
   })
 
-  test('operational status remains honestly not configured inside the app landmark', async ({
+  test('operational status explains public availability inside the app landmark', async ({
     page,
   }) => {
     await page.goto(reviewUrl('/status', 'administrator'))
     await expect(
       page.locator('main').getByRole('heading', { level: 1, name: 'Service status' }),
     ).toBeVisible()
-    await expect(page.getByRole('status')).toContainText('Operational contacts are not published')
+    await expect(page.getByRole('status')).toContainText(
+      'Browsing fictional store listings is available',
+    )
+    await expect(page.getByRole('status')).toContainText(
+      'Live service updates and support contacts are not published',
+    )
+    await expect(page.getByText(/S-01|release gate|monitoring/i)).toHaveCount(0)
   })
 
   test('loading, empty, error, blocked, and permission-denied states stay honest', async ({
