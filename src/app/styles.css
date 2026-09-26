@@ -3221,6 +3221,10 @@ main > article dt {
   background: var(--surface-chrome);
 }
 
+[data-theme='dark'] .catalog-filters button:disabled {
+  color: var(--control-disabled-text);
+}
+
 [data-theme='dark'] .catalog-check {
   background: var(--mint);
 }
