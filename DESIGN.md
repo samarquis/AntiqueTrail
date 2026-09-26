@@ -16,7 +16,9 @@ Design first for shoppers roughly 50-80 while remaining usable by all ages. Mobi
 - Core trust information (freshness, hours, warnings, privacy consequences) is at least 16px.
 - Every form works at 320px width and 200% zoom.
 - Never expose shopper-private ratings, notes, or trips to a Store Representative or Administrator.
-- Stable navigation is `Browse | My Trip | More`. Go mode is never a permanent tab.
+- Current bounded public-test navigation is `Browse | Saved stores | More` for anonymous and
+  authenticated shoppers. Selected later trip stages replace `Saved stores` with `My Trip`; they
+  never add a fourth destination. Go mode is never a permanent tab.
 
 ## Roles
 
@@ -92,8 +94,8 @@ Anyone may open the correction form and draft it; submission requires just-in-ti
 
 - Show the dated trip and planned stops immediately.
 - Allow store addition and accessible reordering before route setup.
-- Starting location is private per trip. Accept manual entry or an explicit `Use My Current Location` action.
-- Request device location only after that action. No saved Home field, background tracking, or location logs.
+- Starting location is private per trip. Accept manual entry or an explicit `Use My Current Location` action. Account settings may retain an optional private starting address; use it for a trip only after the shopper explicitly chooses it.
+- Request device location only after that action. Never infer or automatically apply a Home location. No background tracking or location logs.
 
 ### Stop duration
 

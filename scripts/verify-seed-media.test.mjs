@@ -37,6 +37,15 @@ test('finds maintained seed media paths', () => {
   ])
 })
 
+test('ignores SQL string fragments used to build gallery paths', () => {
+  assert.deepEqual(
+    seededMediaPaths(
+      "'/images/synthetic-stores/1280w/fixture.webp', '/images/synthetic-fixtures/' || slug || '/' || photo",
+    ),
+    ['/images/synthetic-stores/1280w/fixture.webp'],
+  )
+})
+
 test('accepts a seeded, built, provenance-tracked synthetic asset', () => {
   const { root, built, assetPath } = fixture()
   assert.deepEqual(verifySeedMedia(root, built), { paths: [assetPath], errors: [] })

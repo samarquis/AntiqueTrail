@@ -66,7 +66,8 @@ Private rows are readable and writable only by their owning account. Store Repre
 
 - Browse works without an account or device-location permission.
 - Device location is requested only after an explicit in-use action (routing).
-- No saved Home profile field, no background or continuous location, no raw movement history.
+- An optional account starting address is private to its authenticated owner and used for a trip only by explicit choice. Never infer or automatically apply a Home location; no background or continuous location or raw movement history.
+- Owner export includes the current starting address. Clearing it or deleting the account leaves no stale private address or address-derived retry data; stores cannot access it.
 - Precise coordinates never enter analytics, application logs, email, or support records.
 - Private saves, trips, ratings, and notes stay private until the approved account-lifecycle rules apply.
 - Public reviews publish only rating, allowed text, display name, visit month/year, edit marker, and conflict label. Never email, exact visit time, location, or trip.

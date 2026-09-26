@@ -22,12 +22,14 @@ import type {
   SessionRegistryClient,
 } from './types'
 import type { AccountLifecycleClient } from './lifecycle'
+import type { UserSettings } from '../account/settings'
 
 interface AuthContextValue {
   session: AuthSession | null
   lifecycleReady: boolean
   signIn(session: AuthSession): Promise<void>
   signOut(): Promise<void>
+  updateDisplayName(displayName: string | null): void
   enterCancellationOnly(deletionDueAt?: string): void
   restoreActiveAccount(): void
 }
@@ -40,6 +42,7 @@ export function AuthProvider({
   registry,
   provider = unavailableAuthProvider,
   lifecycle,
+  settings,
   lifecycleHydrationTimeoutMs = 5_000,
   onLocalSignOut,
 }: {
@@ -48,6 +51,7 @@ export function AuthProvider({
   registry?: SessionRegistryClient
   provider?: AuthProviderAdapter
   lifecycle?: AccountLifecycleClient
+  settings?: { getSettings(): Promise<Pick<UserSettings, 'displayName'>> }
   /** Test seam; production fails closed if authoritative status cannot resolve promptly. */
   lifecycleHydrationTimeoutMs?: number
   /** Purges account/install-bound local data (for example encrypted trip caches). */
@@ -62,6 +66,7 @@ export function AuthProvider({
   const [signOutFailed, setSignOutFailed] = useState(false)
   const signingOutSession = useRef<AuthSession | null>(null)
   const signOutGeneration = useRef(0)
+  const accountRevision = useRef(0)
   const [providerReady, setProviderReady] = useState(() => !provider.restoreSession)
   const restorationRef = useRef<{
     provider: AuthProviderAdapter
@@ -74,12 +79,51 @@ export function AuthProvider({
   const lostSessionRef = useRef<string | null>(null)
   const replaceSession = useCallback(
     (next: AuthSession | null) => {
+      if (resolvedStore.getSession()?.userId !== next?.userId) accountRevision.current += 1
       if (next) resolvedStore.setSession(next)
       else resolvedStore.clearSession()
       setSession(next)
     },
     [resolvedStore],
   )
+
+  const settingsUserId = session?.userId
+  const settingsToken = session?.accessToken
+  const displayNameRevision = useRef(0)
+  useEffect(() => {
+    if (!settings || !settingsUserId || !settingsToken || !providerReady || !lifecycleReady) return
+    let cancelled = false
+    const revision = displayNameRevision.current
+    const initial = resolvedStore.getSession()
+    if (initial) replaceSession({ ...initial, displayName: undefined })
+    void settings
+      .getSettings()
+      .then((saved) => {
+        const current = resolvedStore.getSession()
+        if (
+          cancelled ||
+          current?.userId !== settingsUserId ||
+          current.accessToken !== settingsToken
+        )
+          return
+        if (displayNameRevision.current !== revision) return
+        replaceSession({ ...current, displayName: saved.displayName ?? undefined })
+      })
+      .catch(() => {
+        // A settings outage must not revoke the authenticated session.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    settings,
+    settingsUserId,
+    settingsToken,
+    providerReady,
+    lifecycleReady,
+    resolvedStore,
+    replaceSession,
+  ])
 
   useEffect(() => {
     const restore = provider.restoreSession
@@ -163,7 +207,8 @@ export function AuthProvider({
         const active = await resolvedRegistry.isActive(session)
         if (!cancelled && !active) loseSession(session, 'session_revoked')
       } catch {
-        if (!cancelled) loseSession(session, 'session_validation_failed')
+        // A transport failure cannot establish revocation. Keep the session
+        // material so the next validation can recover after connectivity returns.
       } finally {
         if (!cancelled) validationTimer = window.setTimeout(() => void validate(), 1_000)
       }
@@ -187,6 +232,7 @@ export function AuthProvider({
     setLifecycleReady(false)
     let cancelled = false
     let settled = false
+    let retryTimer = 0
     const timeout = window.setTimeout(() => {
       if (!cancelled) {
         settled = true
@@ -194,42 +240,47 @@ export function AuthProvider({
         loseSession(session, 'lifecycle_hydration_timeout')
       }
     }, lifecycleHydrationTimeoutMs)
-    lifecycle
-      .getStatus()
-      .then((snapshot) => {
-        if (cancelled) return
-        settled = true
-        window.clearTimeout(timeout)
-        if (snapshot.state === 'deleted') {
-          loseSession(session, 'account_deleted')
-          return
-        }
-        const deletionDueAt =
-          snapshot.state === 'deletion_scheduled' ? snapshot.deletionDueAt : undefined
-        if (session.accountState !== snapshot.state || session.deletionDueAt !== deletionDueAt) {
-          const next = { ...session, accountState: snapshot.state }
-          if (deletionDueAt) next.deletionDueAt = deletionDueAt
-          else delete next.deletionDueAt
-          replaceSession(next)
-        }
-        setLifecycleReady(true)
-      })
-      .catch(() => {
-        if (!cancelled) {
+    const readStatus = () =>
+      lifecycle
+        .getStatus()
+        .then((snapshot) => {
+          if (cancelled) return
           settled = true
           window.clearTimeout(timeout)
-          loseSession(session, 'lifecycle_hydration_failed')
-        }
-      })
+          if (snapshot.state === 'deleted') {
+            loseSession(session, 'account_deleted')
+            return
+          }
+          const deletionDueAt =
+            snapshot.state === 'deletion_scheduled' ? snapshot.deletionDueAt : undefined
+          if (session.accountState !== snapshot.state || session.deletionDueAt !== deletionDueAt) {
+            const next = { ...session, accountState: snapshot.state }
+            if (deletionDueAt) next.deletionDueAt = deletionDueAt
+            else delete next.deletionDueAt
+            replaceSession(next)
+          }
+          setLifecycleReady(true)
+        })
+        .catch(() => {
+          if (!cancelled) {
+            // A completed request with a transport error is different from a hung
+            // request. Keep private content locked and retry without losing identity.
+            window.clearTimeout(timeout)
+            retryTimer = window.setTimeout(readStatus, 1_000)
+          }
+        })
+    readStatus()
     return () => {
       cancelled = true
       window.clearTimeout(timeout)
+      window.clearTimeout(retryTimer)
       // StrictMode intentionally tears down the first effect before its promise settles.
       // Let the replacement effect start a fresh authoritative read.
       if (!settled && hydratedSessionRef.current === key) hydratedSessionRef.current = null
     }
   }, [lifecycle, lifecycleHydrationTimeoutMs, loseSession, replaceSession, session])
 
+  const renderedAccountRevision = accountRevision.current
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -274,6 +325,7 @@ export function AuthProvider({
         const current = signingOutSession.current ?? resolvedStore.getSession()
         if (current) {
           signOutGeneration.current += 1
+          accountRevision.current += 1
           signingOutSession.current = current
           setSigningOut(true)
           setSignOutFailed(false)
@@ -311,6 +363,20 @@ export function AuthProvider({
         }
         replaceSession(null)
       },
+      updateDisplayName(displayName) {
+        const current = resolvedStore.getSession()
+        if (
+          !current ||
+          current.userId !== session?.userId ||
+          accountRevision.current !== renderedAccountRevision
+        )
+          return
+        displayNameRevision.current += 1
+        replaceSession({
+          ...current,
+          ...(displayName ? { displayName } : { displayName: undefined }),
+        })
+      },
       enterCancellationOnly(deletionDueAt) {
         const current = resolvedStore.getSession()
         if (!current) return
@@ -334,6 +400,7 @@ export function AuthProvider({
       session,
       lifecycle,
       lifecycleReady,
+      renderedAccountRevision,
     ],
   )
   const valueRef = useRef(value)

@@ -26,8 +26,17 @@ Deno.serve(async (request) => {
         appOrigin !== 'https://antique-trail.vercel.app')
     )
       throw new Error('unavailable')
-    const body = (await request.json()) as { kind?: unknown; tokenHash?: unknown }
-    if (!url || !anonKey || !serviceKey || typeof body.tokenHash !== 'string')
+    const body = (await request.json()) as {
+      kind?: unknown
+      tokenHash?: unknown
+      providerUserId?: unknown
+    }
+    if (
+      !url ||
+      !anonKey ||
+      !serviceKey ||
+      (typeof body.tokenHash !== 'string' && typeof body.providerUserId !== 'string')
+    )
       throw new Error('unavailable')
     validateRegistrationEndpoints({
       appOrigin: appOrigin ?? '',
@@ -42,11 +51,26 @@ Deno.serve(async (request) => {
     const verifier = createClient(url, anonKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     })
-    const result = await verifier.auth.verifyOtp({
-      token_hash: body.tokenHash,
-      type: body.kind === 'verify' ? 'email' : 'recovery',
-    })
-    if (result.error || !result.data.session || !result.data.user) throw new Error('unavailable')
+    const bearer = request.headers.get('authorization')?.match(/^Bearer ([^\s]+)$/i)?.[1]
+    if (typeof body.tokenHash !== 'string' && !bearer) throw new Error('unavailable')
+    let result
+    if (typeof body.tokenHash === 'string')
+      result = await verifier.auth.verifyOtp({
+        token_hash: body.tokenHash,
+        type: body.kind === 'verify' ? 'email' : 'recovery',
+      })
+    else {
+      const identity = await verifier.auth.getUser(bearer)
+      result = { data: { session: null, user: identity.data.user }, error: identity.error }
+    }
+    if (
+      result.error ||
+      !result.data.user ||
+      (typeof body.tokenHash === 'string' && !result.data.session)
+    )
+      throw new Error('unavailable')
+    if (typeof body.providerUserId === 'string' && result.data.user.id !== body.providerUserId)
+      throw new Error('unavailable')
     if (body.kind === 'verify') {
       const admin = createClient(url, serviceKey, { db: { schema: 'app_public' } })
       if (publicTest) {
@@ -59,12 +83,14 @@ Deno.serve(async (request) => {
         payload =
           completion.error || completion.data !== true
             ? { state: 'blocked' }
-            : { state: 'authenticated', session: result.data.session }
+            : result.data.session
+              ? { state: 'authenticated', session: result.data.session }
+              : { state: 'verified' }
         return Response.json(payload, {
           headers: { ...cors(allowedOrigin), 'Cache-Control': 'no-store' },
         })
       }
-      const enqueueCleanup = async (admissionId: string | null) => {
+      const enqueueCleanup = async (admissionId: string) => {
         const queued = await admin.rpc('enqueue_account_registration_cleanup', {
           p_admission_id: admissionId,
           p_provider_user_id: result.data.user!.id,
@@ -96,7 +122,6 @@ Deno.serve(async (request) => {
           ? admissionMetadata
           : null
       if (!admissionId) {
-        await enqueueCleanup(null)
         payload = { state: 'blocked' }
       } else {
         const completion = await admin.rpc('complete_account_registration_callback', {
@@ -106,7 +131,10 @@ Deno.serve(async (request) => {
         if (completion.error || completion.data !== true) {
           await enqueueCleanup(admissionId)
           payload = { state: 'blocked' }
-        } else payload = { state: 'authenticated', session: result.data.session }
+        } else
+          payload = result.data.session
+            ? { state: 'authenticated', session: result.data.session }
+            : { state: 'verified' }
       }
     } else payload = { state: 'authenticated', session: result.data.session }
   } catch {

@@ -39,6 +39,12 @@ describe('durable registration cleanup', () => {
     await expect(runRegistrationCleanup(d)).resolves.toBe('completed_terminal_cleanup')
     expect(d.deleteExact).not.toHaveBeenCalled()
   })
+  it('never deletes an account when the database blocks cleanup', async () => {
+    const d = deps({ begin: vi.fn(async () => ({ state: 'blocked' as const })) })
+    await expect(runRegistrationCleanup(d)).resolves.toBe('blocked')
+    expect(d.deleteExact).not.toHaveBeenCalled()
+    expect(d.settle).not.toHaveBeenCalled()
+  })
   it('schedules retry when provider remains present', async () => {
     await expect(
       runRegistrationCleanup(

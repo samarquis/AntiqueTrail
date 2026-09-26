@@ -45,11 +45,13 @@ export function validateRegistrationEndpoints(input: RegistrationEndpoints): {
   if (supabase.origin !== approvedSupabase.origin)
     throw new Error('supabase origin is not approved')
   if (input.localMode) {
+    const localFunctionGateway =
+      supabase.protocol === 'http:' && supabase.hostname === 'kong' && supabase.port === '8000'
     if (
       !localhost(app) ||
       !localhost(approvedApp) ||
       !localhost(mail) ||
-      !localhost(supabase) ||
+      (!localhost(supabase) && !localFunctionGateway) ||
       !['http:', 'https:'].includes(app.protocol) ||
       !['http:', 'https:'].includes(mail.protocol) ||
       !['http:', 'https:'].includes(supabase.protocol)

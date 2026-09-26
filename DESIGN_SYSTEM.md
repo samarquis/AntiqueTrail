@@ -95,7 +95,7 @@ Atkinson Hyperlegible has exactly two weights: Regular (`400`) and Bold (`700`).
 | Status badge | Plain-language state plus non-color indicator | success, warning/stale, danger/closed/denied, pending |
 | Form field | Visible label, optional help, input, associated error | untouched, focus, valid, invalid, disabled with explanation, server error with value retained |
 | Dialog | H2 title, focused first control, body, cancel, explicit action | open, validation error, submitting, success/close; return focus to opener |
-| Bottom navigation | Three destinations with text labels | default, current page, focus, unavailable with explanation |
+| Bottom navigation | Three stage-correct destinations with text labels: public test uses `Browse`, `Saved stores`, `More`; selected trip stages replace `Saved stores` with `My Trip` | default, current page, focus, unavailable with explanation |
 | Toast/live message | Short result in polite live region | success, neutral, error; never sole record of important state |
 | Stop list | Number, store, area, hours/state, provenance, explicit actions | ready, warning, removed with Undo, reorder controls, empty |
 | Review/queue item | Type, scope/store, age/status, next action | new, pending, changes requested, approved, denied, revoked |
