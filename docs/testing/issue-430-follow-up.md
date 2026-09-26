@@ -60,7 +60,7 @@ source; the PR carries the later committed-head CI and local proof.
 Focused account/auth/App tests, typecheck, changed-file formatting, and
 lint passed; repository lint retains 14 existing warnings and no errors.
 
-## Unresolved merge blocker
+## Resolved review findings
 
 Further exact-head review at `3718ea60` identified three #420 defects:
 unversioned last-write-wins updates, saving unknown blank defaults after a
@@ -112,13 +112,15 @@ readiness, frontend publication/reload, and verification before enabling
 settings writes, per PACKAGE_CONTRACTS.md:16. Source merge is not deployment
 authority. No hosted migration, publication, or provider change occurs here.
 
-Issue #420 explicitly requires a persistent private account starting
-address across save, fresh login, export, and deletion. DESIGN.md:97–98
-requires starting location to remain private per trip and prohibits a saved
-Home field. README.md assigns interaction rules to DESIGN.md. No established
-precedence makes the issue override that source. The owner must reconcile
-this conflict; this follow-up changes neither the address feature nor the
-plan. Passing engineering checks does not make this PR merge-ready.
+Issue #420's persistent private starting address initially conflicted with
+the no-saved-Home rules in DESIGN.md and SECURITY_AND_TRUST.md. After that
+blocker was reported, the owner directed: “do what you need to close this
+and merge the code to gh”. The bounded reconciliation is recorded in
+PLAN_CHANGELOG.md: both governing sources now permit the optional private
+account starting address, with explicit per-trip use, owner-only access,
+current-value export, and clearing/deletion privacy. Automatic Home
+inference, background tracking, and location logs remain prohibited.
+This resolves source alignment for merge; deployment remains separate.
 
 PR #409 remains open on `codex/account-backend-live-20260923` at
 `f42b087eeeb43bdde7235b795596dfd472a08e7f`, targeting

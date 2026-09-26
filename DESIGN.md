@@ -94,8 +94,8 @@ Anyone may open the correction form and draft it; submission requires just-in-ti
 
 - Show the dated trip and planned stops immediately.
 - Allow store addition and accessible reordering before route setup.
-- Starting location is private per trip. Accept manual entry or an explicit `Use My Current Location` action.
-- Request device location only after that action. No saved Home field, background tracking, or location logs.
+- Starting location is private per trip. Accept manual entry or an explicit `Use My Current Location` action. Account settings may retain an optional private starting address; use it for a trip only after the shopper explicitly chooses it.
+- Request device location only after that action. Never infer or automatically apply a Home location. No background tracking or location logs.
 
 ### Stop duration
 
