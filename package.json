@@ -21,6 +21,7 @@
     "format:write": "prettier --write \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"scripts/**/*.mjs\" \"*.{js,ts,json,html}\"",
     "test": "vitest run",
     "test:release": "node scripts/run-release-tests.mjs",
+    "test:registration-cleanup-local": "node scripts/run-registration-cleanup-local.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:review": "playwright test --config playwright.review.config.ts",

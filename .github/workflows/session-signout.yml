@@ -50,7 +50,8 @@ jobs:
           // Never publish raw errors, browser traces, tokens, or login material.
           const receipt = { environment: 'github-actions-disposable',
             sourceSha: report.sourceSha, sourceDirty: report.sourceDirty,
-            scope: report.scope, status: report.status, cleanup: report.cleanup,
+            scope: report.scope, status: report.status, stage: report.stage,
+            failedAt: report.failedAt, cleanup: report.cleanup,
             stats: report.stats && { expected: report.stats.expected,
               unexpected: report.stats.unexpected, skipped: report.stats.skipped,
               flaky: report.stats.flaky },

@@ -33,6 +33,8 @@ const report = {
               ? 'two-user-account-settings'
               : 'connected-shopper',
   status: 'unavailable',
+  stage: 'preflight',
+  failedAt: undefined,
   sourceSha: '',
   cleanup: 'not-started',
   errors: [],
@@ -54,7 +56,9 @@ try {
   service = createLocalService({ signal: controller.signal, browserOrigin: origin })
   report.temporaryProject = service.run.directory
   console.log(`Starting run-owned services. Evidence: ${output.directory}`)
+  report.stage = 'local-services'
   const local = await service.start()
+  report.stage = 'fixtures'
   const fixtureSql = fs.readFileSync(
     path.join(ROOT, 'scripts/configured-free-shopper-fixtures.sql'),
     'utf8',
@@ -94,6 +98,7 @@ try {
     report[key] = local[key]
   report.browserOrigin = origin
   const secretFile = path.join(local.directory, 'browser-input.json')
+  report.stage = 'build'
   fs.writeFileSync(secretFile, JSON.stringify({ ...local, output: output.directory }), {
     mode: 0o600,
     flag: 'wx',
@@ -132,6 +137,7 @@ try {
     { cwd: ROOT, env, windowsHide: true, stdio: 'ignore' },
   )
   server.on('error', () => {})
+  report.stage = 'preview'
   let ready = false
   for (let n = 0; n < 60; n++) {
     controller.signal.throwIfAborted()
@@ -147,6 +153,7 @@ try {
   }
   if (!ready) throw new Error('Configured preview unavailable')
   console.log(`Configured browser ready: ${origin}`)
+  report.stage = 'browser-tests'
   if (process.argv.includes('--inspect'))
     await new Promise((resolve) => setTimeout(resolve, 60_000))
   try {
@@ -181,6 +188,7 @@ try {
     report.status = 'passed'
   } catch (error) {
     report.status = 'failed'
+    report.failedAt = report.stage
     report.errors.push(redact(error.message))
   }
   const resultPath = path.join(output.directory, 'playwright.json')
@@ -194,10 +202,14 @@ try {
     )
     report.stats = results.stats
     report.checks = results.checks
-    if (results.status !== 'passed') report.status = 'failed'
+    if (results.status !== 'passed') {
+      report.status = 'failed'
+      report.failedAt ??= report.stage
+    }
   }
 } catch (error) {
   report.status = 'failed'
+  report.failedAt = report.stage
   report.errors.push(redact(error.message))
 } finally {
   await stopChild(server)
@@ -213,6 +225,7 @@ try {
     } catch (error) {
       report.cleanup = 'failed'
       report.status = 'failed'
+      report.failedAt = 'cleanup-provider'
       report.errors.push(redact(error.message))
     }
   }
