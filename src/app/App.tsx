@@ -1253,6 +1253,7 @@ export default function App({
       authStore={capabilityOnlyRoute ? undefined : runtime.authStore}
       registry={capabilityOnlyRoute ? undefined : runtime.sessionRegistry}
       lifecycle={capabilityOnlyRoute ? undefined : clients.lifecycle}
+      settings={capabilityOnlyRoute ? undefined : clients.accountSettings}
       onLocalSignOut={async (session) => {
         await tripOffline.prepareSignOut(session.userId)
         await tripOffline.purgeAccount(session.userId, 'confirmed_logout')
@@ -1427,7 +1428,7 @@ export default function App({
             path="/account/settings"
             element={
               <RequireSession>
-                <UserSettingsPage client={accountSettingsClient} provider={authProvider} />
+                <UserSettingsPage client={accountSettingsClient} />
               </RequireSession>
             }
           />

@@ -32,8 +32,8 @@ function renderPage(client: AccountSettingsClient, provider?: AuthProviderAdapte
   store.setSession({ ...session, expiresAt: Date.now() + 60_000 })
   return render(
     <MemoryRouter initialEntries={['/account/settings']}>
-      <AuthProvider authStore={store}>
-        <UserSettingsPage client={client} provider={provider} />
+      <AuthProvider authStore={store} provider={provider}>
+        <UserSettingsPage client={client} />
       </AuthProvider>
     </MemoryRouter>,
   )
@@ -100,11 +100,13 @@ describe('UserSettingsPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(/saved/i)
   })
 
-  it('does not persist settings when provider display-name synchronization fails', async () => {
+  it('does not change provider identity when the settings write fails', async () => {
     const user = userEvent.setup()
     const client: AccountSettingsClient = {
       getSettings: vi.fn(async () => ({ displayName: 'Loaded Name', locationAddress: null })),
-      updateSettings: vi.fn(async (input) => input),
+      updateSettings: vi.fn(async () => {
+        throw new Error('settings unavailable')
+      }),
     }
     const provider: AuthProviderAdapter = {
       oauthProviders: { google: false, facebook: false },
@@ -112,9 +114,10 @@ describe('UserSettingsPage', () => {
       sendRecovery: vi.fn(async () => undefined),
       verifyMfa: vi.fn(async () => null),
       signOut: vi.fn(async () => undefined),
-      updateDisplayName: vi.fn(async () => {
-        throw new Error('provider unavailable')
-      }),
+      updateDisplayName: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('rollback unavailable')),
     }
 
     renderPage(client, provider)
@@ -123,7 +126,8 @@ describe('UserSettingsPage', () => {
     await user.click(screen.getByRole('button', { name: /save settings/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC_ACCOUNT_SETTINGS_ERROR)
-    expect(client.updateSettings).not.toHaveBeenCalled()
+    expect(client.updateSettings).toHaveBeenCalled()
+    expect(provider.updateDisplayName).not.toHaveBeenCalled()
   })
 })
 

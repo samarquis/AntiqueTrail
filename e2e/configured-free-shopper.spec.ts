@@ -36,6 +36,26 @@ async function login(page: Page, actor = 0, target = '/stores') {
   await page.goto(`/auth/sign-in?returnTo=${encodeURIComponent(target)}`)
   return submitLogin(page, actor)
 }
+async function rejectsEmptySignIn(page: Page) {
+  const authRequests: string[] = []
+  const record = (request: import('@playwright/test').Request) => {
+    if (request.url().includes('/auth/v1/token')) authRequests.push(request.url())
+  }
+  page.on('request', record)
+  try {
+    await expect(page.getByLabel('Email', { exact: true })).toHaveValue('')
+    await expect(page.getByLabel('Password', { exact: true })).toHaveValue('')
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page.getByRole('alert')).toContainText(
+      'Enter your email and password to continue.',
+    )
+    await expect(page.getByRole('alert')).toBeFocused()
+    await expect(page).toHaveURL(/\/auth\/sign-in/)
+    expect(authRequests).toEqual([])
+  } finally {
+    page.off('request', record)
+  }
+}
 async function submitLogin(page: Page, actor = 0) {
   await page.getByLabel('Email', { exact: true }).fill(input.users[actor].email)
   await page.getByLabel('Password', { exact: true }).fill(input.users[actor].password)
@@ -141,7 +161,7 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
   await page.getByRole('link', { name: /save clockwork cabinet.*requires sign-in/i }).click()
   await expect(page).toHaveURL(/\/auth\/sign-in/)
   expect(await saved()).toBe(0)
-  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeDisabled()
+  await rejectsEmptySignIn(page)
   await submitLogin(page)
   await expect.poll(saved).toBe(1)
   await expect(page).toHaveURL(/\/stores\/clockwork-cabinet$/)
@@ -152,7 +172,7 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
 }) => {
   await page.goto(`/trips/new?addStoreId=${A}`)
   await expect(page).toHaveURL(/\/auth\/sign-in/)
-  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeDisabled()
+  await rejectsEmptySignIn(page)
   await submitLogin(page)
   await expect(page).toHaveURL(new RegExp(`/trips/new\\?addStoreId=${A}`))
   await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
@@ -527,6 +547,10 @@ test('two local accounts keep settings private across save, fresh login, and rev
     /401|403|42501|portal_unavailable/,
   )
   await expect(page.getByRole('heading', { name: 'User settings', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Display name', { exact: true })).toHaveValue('')
+  await expect(
+    page.getByLabel(`Signed in as ${input.users[0].email.split('@')[0]}`, { exact: true }),
+  ).toBeVisible()
   await page.getByLabel('Display name', { exact: true }).fill('Issue 420 Owner')
   await page
     .getByLabel('Starting address for location services', { exact: true })
@@ -534,6 +558,32 @@ test('two local accounts keep settings private across save, fresh login, and rev
   await page.getByRole('button', { name: 'Save settings', exact: true }).click()
   await expect(page.getByRole('status')).toHaveText('Settings saved.')
   await expect(page.getByLabel('Signed in as Issue 420 Owner')).toBeVisible()
+
+  // A failed settings write must not mutate a second, provider-owned name.
+  const providerWrites: string[] = []
+  const recordProviderWrite = (request: import('@playwright/test').Request) => {
+    if (request.method() === 'PUT' && request.url().includes('/auth/v1/user'))
+      providerWrites.push(request.url())
+  }
+  page.on('request', recordProviderWrite)
+  await page.route('**/rest/v1/rpc/account_update_settings', (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: '{"message":"unavailable"}',
+    }),
+  )
+  await page.getByLabel('Display name', { exact: true }).fill('Unsaved Owner Name')
+  await page.getByRole('button', { name: 'Save settings', exact: true }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByLabel('Signed in as Issue 420 Owner')).toBeVisible()
+  expect(providerWrites).toEqual([])
+  await expect(rpc(ownerToken, 'account_get_settings', {})).resolves.toMatchObject({
+    displayName: 'Issue 420 Owner',
+    locationAddress: '420 Owner Private Address',
+  })
+  await page.unroute('**/rest/v1/rpc/account_update_settings')
+  page.off('request', recordProviderWrite)
 
   const freshOwnerContext = await browser.newContext({ baseURL: input.origin })
   try {
@@ -561,9 +611,7 @@ test('two local accounts keep settings private across save, fresh login, and rev
     await expect(rpc(siblingToken, 'portal_get_home', {})).rejects.toThrow(
       /401|403|42501|portal_unavailable/,
     )
-    await expect(siblingPage.getByLabel('Display name', { exact: true })).toHaveValue(
-      input.users[1].email.split('@')[0],
-    )
+    await expect(siblingPage.getByLabel('Display name', { exact: true })).toHaveValue('')
     await expect(
       siblingPage.getByLabel('Starting address for location services', { exact: true }),
     ).toHaveValue('')
@@ -629,6 +677,22 @@ test('two local accounts keep settings private across save, fresh login, and rev
       `select private_location_address from app_private.profiles where user_id='${ownerId}';`,
     )
     expect(ownerAddress.trim()).toBe('420 Owner Private Address')
+
+    await siblingPage.goto('/account')
+    await siblingPage.getByRole('button', { name: 'Use a different account', exact: true }).click()
+    await expect(siblingPage).toHaveURL(/\/auth\/sign-in/)
+    await expect(siblingPage.getByLabel('Signed in as Issue 420 Sibling')).toHaveCount(0)
+    await submitLogin(siblingPage, 0)
+    await siblingPage.goto('/account/settings')
+    await expect(siblingPage.getByLabel('Display name', { exact: true })).toHaveValue(
+      'Issue 420 Owner',
+    )
+    await expect(
+      siblingPage.getByLabel('Starting address for location services', { exact: true }),
+    ).toHaveValue('420 Owner Private Address')
+    await expect(siblingPage.getByLabel('Signed in as Issue 420 Owner')).toBeVisible()
+    await expect(siblingPage.getByLabel('Signed in as Issue 420 Sibling')).toHaveCount(0)
+    expect(await storeAccess()).toEqual(storeAccessBefore)
 
     await service.sql(
       `update app_private.active_sessions set state='revoked',revoked_at=statement_timestamp(),revocation_reason='issue_420_test_revocation' where user_id='${siblingId}' and state='active';`,

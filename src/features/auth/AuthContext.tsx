@@ -22,6 +22,7 @@ import type {
   SessionRegistryClient,
 } from './types'
 import type { AccountLifecycleClient } from './lifecycle'
+import type { AccountSettingsClient } from '../account/settings'
 
 interface AuthContextValue {
   session: AuthSession | null
@@ -41,6 +42,7 @@ export function AuthProvider({
   registry,
   provider = unavailableAuthProvider,
   lifecycle,
+  settings,
   lifecycleHydrationTimeoutMs = 5_000,
   onLocalSignOut,
 }: {
@@ -49,6 +51,7 @@ export function AuthProvider({
   registry?: SessionRegistryClient
   provider?: AuthProviderAdapter
   lifecycle?: AccountLifecycleClient
+  settings?: Pick<AccountSettingsClient, 'getSettings'>
   /** Test seam; production fails closed if authoritative status cannot resolve promptly. */
   lifecycleHydrationTimeoutMs?: number
   /** Purges account/install-bound local data (for example encrypted trip caches). */
@@ -81,6 +84,44 @@ export function AuthProvider({
     },
     [resolvedStore],
   )
+
+  const settingsUserId = session?.userId
+  const settingsToken = session?.accessToken
+  const displayNameRevision = useRef(0)
+  useEffect(() => {
+    if (!settings || !settingsUserId || !settingsToken || !providerReady || !lifecycleReady) return
+    let cancelled = false
+    const revision = displayNameRevision.current
+    const initial = resolvedStore.getSession()
+    if (initial) replaceSession({ ...initial, displayName: undefined })
+    void settings
+      .getSettings()
+      .then((saved) => {
+        const current = resolvedStore.getSession()
+        if (
+          cancelled ||
+          current?.userId !== settingsUserId ||
+          current.accessToken !== settingsToken
+        )
+          return
+        if (displayNameRevision.current !== revision) return
+        replaceSession({ ...current, displayName: saved.displayName ?? undefined })
+      })
+      .catch(() => {
+        // A settings outage must not revoke the authenticated session.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    settings,
+    settingsUserId,
+    settingsToken,
+    providerReady,
+    lifecycleReady,
+    resolvedStore,
+    replaceSession,
+  ])
 
   useEffect(() => {
     const restore = provider.restoreSession
@@ -321,6 +362,7 @@ export function AuthProvider({
       updateDisplayName(displayName) {
         const current = resolvedStore.getSession()
         if (!current) return
+        displayNameRevision.current += 1
         replaceSession({
           ...current,
           ...(displayName ? { displayName } : { displayName: undefined }),

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth, type AuthProviderAdapter } from '../auth'
+import { useAuth } from '../auth'
 import {
   GENERIC_ACCOUNT_SETTINGS_ERROR,
   type AccountSettingsClient,
@@ -10,16 +10,10 @@ import {
 const MAX_DISPLAY_NAME_LENGTH = 80
 const MAX_LOCATION_ADDRESS_LENGTH = 320
 
-export function UserSettingsPage({
-  client,
-  provider,
-}: {
-  client: AccountSettingsClient
-  provider?: AuthProviderAdapter
-}) {
-  const { session, updateDisplayName } = useAuth()
+export function UserSettingsPage({ client }: { client: AccountSettingsClient }) {
+  const { updateDisplayName } = useAuth()
   const [settings, setSettings] = useState<UserSettings>({
-    displayName: session?.displayName ?? null,
+    displayName: null,
     locationAddress: null,
   })
   const [loading, setLoading] = useState(true)
@@ -34,7 +28,7 @@ export function UserSettingsPage({
       .then((next) => {
         if (!cancelled) {
           setSettings({
-            displayName: next.displayName ?? session?.displayName ?? null,
+            displayName: next.displayName,
             locationAddress: next.locationAddress,
           })
           setError(null)
@@ -49,7 +43,7 @@ export function UserSettingsPage({
     return () => {
       cancelled = true
     }
-  }, [client, session?.displayName])
+  }, [client])
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -61,17 +55,7 @@ export function UserSettingsPage({
         displayName: settings.displayName?.trim() || null,
         locationAddress: settings.locationAddress?.trim() || null,
       }
-      const displayNameChanged = input.displayName !== (session?.displayName ?? null)
-      if (displayNameChanged) await provider?.updateDisplayName?.(input.displayName)
-      let next: UserSettings
-      try {
-        next = await client.updateSettings(input)
-      } catch (cause) {
-        if (displayNameChanged) {
-          await provider?.updateDisplayName?.(session?.displayName ?? null).catch(() => undefined)
-        }
-        throw cause
-      }
+      const next = await client.updateSettings(input)
       setSettings(next)
       updateDisplayName(next.displayName)
       setSaved(true)
