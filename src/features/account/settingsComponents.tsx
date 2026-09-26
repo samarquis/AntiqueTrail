@@ -9,7 +9,6 @@ import {
 } from './settings'
 
 const MAX_DISPLAY_NAME_LENGTH = 80
-const MAX_LOCATION_ADDRESS_LENGTH = 320
 
 export function UserSettingsPage({ client }: { client: AccountSettingsClient }) {
   const { updateDisplayName } = useAuth()
@@ -24,6 +23,7 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [clearAddress, setClearAddress] = useState(false)
   const attempt = useRef<{ payload: string; key: string } | null>(null)
 
   useEffect(() => {
@@ -35,6 +35,7 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
       .then((next) => {
         if (!cancelled) {
           setSettings(next)
+          setClearAddress(false)
           attempt.current = null
           setError(null)
           setLoaded(true)
@@ -60,7 +61,7 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
     try {
       const input = {
         displayName: settings.displayName?.trim() || null,
-        locationAddress: settings.locationAddress?.trim() || null,
+        locationAddress: clearAddress ? null : settings.locationAddress,
         version: settings.version,
       }
       const payload = JSON.stringify(input)
@@ -69,6 +70,7 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
       const next = await client.updateSettings({ ...input, idempotencyKey: attempt.current.key })
       attempt.current = null
       setSettings(next)
+      setClearAddress(false)
       updateDisplayName(next.displayName)
       setSaved(true)
     } catch (cause) {
@@ -86,10 +88,7 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
       <section className="page-card account-settings" aria-labelledby="account-settings-heading">
         <p className="eyebrow">Your account</p>
         <h1 id="account-settings-heading">User settings</h1>
-        <p>
-          Keep your identity and trip preferences current. These settings stay private to your
-          account.
-        </p>
+        <p>Update your display name and manage your private account information.</p>
         {loading && (
           <p id="account-settings-loading" role="status" aria-label="Loading account settings">
             Loading settings…
@@ -121,24 +120,26 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
           />
           <p className="form-help">Shown in your greeting. It does not control account access.</p>
 
-          <label htmlFor="account-location-address">Starting address for location services</label>
-          <textarea
-            id="account-location-address"
-            name="locationAddress"
-            autoComplete="street-address"
-            maxLength={MAX_LOCATION_ADDRESS_LENGTH}
-            rows={3}
-            value={settings.locationAddress ?? ''}
-            onChange={(event) =>
-              setSettings((current) => ({ ...current, locationAddress: event.target.value }))
-            }
-            disabled={!loaded || loading || saving}
-            aria-describedby="account-location-help"
-          />
-          <p id="account-location-help" className="form-help privacy-consequence">
-            Optional and stored privately. We use it only when you explicitly choose it as a
-            starting point for trip planning; it is not shared with stores.
-          </p>
+          {!loading && settings.locationAddress && (
+            <section aria-label="Saved address">
+              <h2>Saved address</h2>
+              <p>{settings.locationAddress}</p>
+              <p id="account-location-help" className="form-help privacy-consequence">
+                Stored privately in your account. You can export it from Account overview or clear
+                it below. Address entry is unavailable during this public test.
+              </p>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={clearAddress}
+                  onChange={(event) => setClearAddress(event.target.checked)}
+                  disabled={!loaded || saving}
+                  aria-describedby="account-location-help"
+                />
+                Clear saved address when I save
+              </label>
+            </section>
+          )}
 
           <button
             className="button"
