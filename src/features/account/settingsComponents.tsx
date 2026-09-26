@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
 import {
   GENERIC_ACCOUNT_SETTINGS_ERROR,
+  AccountSettingsConflict,
   type AccountSettingsClient,
   type UserSettings,
 } from './settings'
@@ -15,23 +16,28 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
   const [settings, setSettings] = useState<UserSettings>({
     displayName: null,
     locationAddress: null,
+    version: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [loaded, setLoaded] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const attempt = useRef<{ payload: string; key: string } | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    setLoading(true)
+    setLoaded(false)
     void client
       .getSettings()
       .then((next) => {
         if (!cancelled) {
-          setSettings({
-            displayName: next.displayName,
-            locationAddress: next.locationAddress,
-          })
+          setSettings(next)
+          attempt.current = null
           setError(null)
+          setLoaded(true)
         }
       })
       .catch(() => {
@@ -43,10 +49,11 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
     return () => {
       cancelled = true
     }
-  }, [client])
+  }, [client, loadAttempt])
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!loaded || saving) return
     setSaving(true)
     setSaved(false)
     setError(null)
@@ -54,13 +61,21 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
       const input = {
         displayName: settings.displayName?.trim() || null,
         locationAddress: settings.locationAddress?.trim() || null,
+        version: settings.version,
       }
-      const next = await client.updateSettings(input)
+      const payload = JSON.stringify(input)
+      if (attempt.current?.payload !== payload)
+        attempt.current = { payload, key: crypto.randomUUID() }
+      const next = await client.updateSettings({ ...input, idempotencyKey: attempt.current.key })
+      attempt.current = null
       setSettings(next)
       updateDisplayName(next.displayName)
       setSaved(true)
-    } catch {
-      setError(GENERIC_ACCOUNT_SETTINGS_ERROR)
+    } catch (cause) {
+      if (cause instanceof AccountSettingsConflict) {
+        setLoaded(false)
+        setError(cause.message)
+      } else setError(GENERIC_ACCOUNT_SETTINGS_ERROR)
     } finally {
       setSaving(false)
     }
@@ -80,7 +95,16 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
             Loading settings…
           </p>
         )}
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p id="account-settings-error" role="alert">
+            {error}
+          </p>
+        )}
+        {!loaded && !loading && error && (
+          <button type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+            Retry loading settings
+          </button>
+        )}
         <form onSubmit={(event) => void save(event)}>
           <label htmlFor="account-display-name">Display name</label>
           <input
@@ -93,7 +117,7 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
             onChange={(event) =>
               setSettings((current) => ({ ...current, displayName: event.target.value }))
             }
-            disabled={loading || saving}
+            disabled={!loaded || loading || saving}
           />
           <p className="form-help">Shown in your greeting. It does not control account access.</p>
 
@@ -108,7 +132,7 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
             onChange={(event) =>
               setSettings((current) => ({ ...current, locationAddress: event.target.value }))
             }
-            disabled={loading || saving}
+            disabled={!loaded || loading || saving}
             aria-describedby="account-location-help"
           />
           <p id="account-location-help" className="form-help privacy-consequence">
@@ -119,8 +143,10 @@ export function UserSettingsPage({ client }: { client: AccountSettingsClient }) 
           <button
             className="button"
             type="submit"
-            disabled={loading || saving}
-            aria-describedby={loading ? 'account-settings-loading' : undefined}
+            disabled={!loaded || loading || saving}
+            aria-describedby={
+              loading ? 'account-settings-loading' : !loaded ? 'account-settings-error' : undefined
+            }
           >
             {saving ? 'Saving…' : 'Save settings'}
           </button>

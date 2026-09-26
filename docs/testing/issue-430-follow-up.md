@@ -62,6 +62,41 @@ lint passed; repository lint retains 14 existing warnings and no errors.
 
 ## Unresolved merge blocker
 
+Further exact-head review at `3718ea60` identified three #420 defects:
+unversioned last-write-wins updates, saving unknown blank defaults after a
+failed initial read, and a late save changing a subsequently signed-in
+account's greeting. Follow-up regressions reproduce each applicable seam.
+The forward migration `20260926211513_account_settings_concurrency.sql`
+adds owner-row locking, expected version, bounded account-scoped retry keys,
+and content-free digest/version receipts. Exact replay returns the prior
+success reconstructed from the verified request without restoring old
+values. Stale versions or mismatched key reuse return current-version
+conflicts without mutation. UI retries preserve the attempt key until
+success or authoritative reload; failed/partial reads block Save and offer
+retry. Every successful mutation/replay is followed by an authoritative read
+before updating fields or greeting, so historical success cannot restore a
+later-cleared address. Account-lifetime revision and user identity reject
+obsolete save completions while permitting same-account token refresh.
+
+Final precommit settings run `configured-shopper-42c83ca4-7264-42ed-ab7b-76e0d1632294`
+and media run `configured-shopper-84302009-8dfb-4475-b1f5-022679e1bda2` each
+passed desktop and phone, with two expected results, no failures/skips/flakes,
+and cleanup removed. Runtime source stayed unchanged throughout both runs.
+Settings additionally proves failed-load retry, stale-tab conflict, and a
+lost write response followed by another tab clearing the address before
+replay. Pending-save token refresh and cross-account completion guards have
+deterministic unit coverage, not browser evidence. Full migration-chain
+apply and pgTAP 0129/0130/0131 passed; replay checks cover both before and
+after a later write. Build, affected lint, and repository formatting passed.
+
+Release compatibility requires explicit migration/frontend sequencing:
+the migration drops the old two-argument writer, and the new frontend uses
+four arguments. Old clients must fail closed and reload; do not retain an
+unversioned bypass. A release plan must coordinate migration, schema-cache
+readiness, frontend publication/reload, and verification before enabling
+settings writes, per PACKAGE_CONTRACTS.md:16. Source merge is not deployment
+authority. No hosted migration, publication, or provider change occurs here.
+
 Issue #420 explicitly requires a persistent private account starting
 address across save, fresh login, export, and deletion. DESIGN.md:97–98
 requires starting location to remain private per trip and prohibits a saved

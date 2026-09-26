@@ -11,6 +11,7 @@ import {
 import {
   createAccountSettingsClient,
   GENERIC_ACCOUNT_SETTINGS_ERROR,
+  AccountSettingsConflict,
   type AccountSettingsClient,
   type UserSettings,
 } from './settings'
@@ -47,6 +48,7 @@ describe('UserSettingsPage', () => {
       getSettings: vi.fn(async () => ({
         displayName: 'Avery Shopper',
         locationAddress: '123 Main Street, Topeka, KS',
+        version: 1,
       })),
       updateSettings: vi.fn(),
     }
@@ -74,11 +76,35 @@ describe('UserSettingsPage', () => {
       loadingStatus.id,
     )
   })
+  it('keeps saving disabled after a failed read and retries before editing', async () => {
+    const user = userEvent.setup()
+    const client: AccountSettingsClient = {
+      getSettings: vi.fn().mockRejectedValueOnce(new Error('unavailable')).mockResolvedValue({
+        displayName: 'Saved Name',
+        locationAddress: 'Saved Address',
+        version: 1,
+      }),
+      updateSettings: vi.fn(),
+    }
+    renderPage(client)
+    await screen.findByRole('alert')
+    expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled()
+    fireEvent.submit(screen.getByRole('button', { name: 'Save settings' }).closest('form')!)
+    expect(client.updateSettings).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Retry loading settings' }))
+    await screen.findByDisplayValue('Saved Address')
+    expect(screen.getByLabelText('Display name')).toHaveValue('Saved Name')
+    expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled()
+  })
 
   it('saves the edited name and starting address', async () => {
     const user = userEvent.setup()
     const client: AccountSettingsClient = {
-      getSettings: vi.fn(async () => ({ displayName: 'Loaded Name', locationAddress: null })),
+      getSettings: vi.fn(async () => ({
+        displayName: 'Loaded Name',
+        locationAddress: null,
+        version: 1,
+      })),
       updateSettings: vi.fn(async (input) => input),
     }
 
@@ -96,6 +122,8 @@ describe('UserSettingsPage', () => {
     expect(client.updateSettings).toHaveBeenCalledWith({
       displayName: 'Avery',
       locationAddress: '123 Main Street, Topeka, KS',
+      version: 1,
+      idempotencyKey: expect.any(String),
     })
     expect(await screen.findByRole('status')).toHaveTextContent(/saved/i)
   })
@@ -103,7 +131,11 @@ describe('UserSettingsPage', () => {
   it('does not change provider identity when the settings write fails', async () => {
     const user = userEvent.setup()
     const client: AccountSettingsClient = {
-      getSettings: vi.fn(async () => ({ displayName: 'Loaded Name', locationAddress: null })),
+      getSettings: vi.fn(async () => ({
+        displayName: 'Loaded Name',
+        locationAddress: null,
+        version: 1,
+      })),
       updateSettings: vi.fn(async () => {
         throw new Error('settings unavailable')
       }),
@@ -129,30 +161,125 @@ describe('UserSettingsPage', () => {
     expect(client.updateSettings).toHaveBeenCalled()
     expect(provider.updateDisplayName).not.toHaveBeenCalled()
   })
+  it('reuses the attempt key after an ambiguous failure and requires reload on conflict', async () => {
+    const user = userEvent.setup()
+    const client: AccountSettingsClient = {
+      getSettings: vi.fn(async () => ({
+        displayName: 'Loaded Name',
+        locationAddress: 'Saved Address',
+        version: 3,
+      })),
+      updateSettings: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('response lost'))
+        .mockRejectedValueOnce(new AccountSettingsConflict(4)),
+    }
+    renderPage(client)
+    await screen.findByDisplayValue('Loaded Name')
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/changed.*reload/i)
+    const calls = vi.mocked(client.updateSettings).mock.calls
+    expect(calls[0][0].idempotencyKey).toMatch(/^[a-f0-9-]{36}$/)
+    expect(calls[1][0]).toEqual(calls[0][0])
+    expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Retry loading settings' })).toBeVisible()
+    expect(screen.getByLabelText(/starting address/i)).toHaveValue('Saved Address')
+  })
 })
 
 describe('createAccountSettingsClient', () => {
   it('uses the private account RPCs with the expected wire shape', async () => {
-    const rpc = vi.fn(async (name: string) => ({
-      data:
-        name === 'account_get_settings'
-          ? { displayName: 'Avery', locationAddress: null }
-          : { displayName: 'Avery', locationAddress: '123 Main Street' },
-      error: null,
-    }))
+    let saved = false
+    const rpc = vi.fn(async (name: string) => {
+      if (name === 'account_update_settings') saved = true
+      return {
+        data: !saved
+          ? { displayName: 'Avery', locationAddress: null, version: 3 }
+          : { displayName: 'Avery', locationAddress: '123 Main Street', version: 4 },
+        error: null,
+      }
+    })
     const client = createAccountSettingsClient({ rpc })
 
     await expect(client.getSettings()).resolves.toEqual({
       displayName: 'Avery',
       locationAddress: null,
+      version: 3,
     })
     await expect(
-      client.updateSettings({ displayName: 'Avery', locationAddress: '123 Main Street' }),
-    ).resolves.toEqual({ displayName: 'Avery', locationAddress: '123 Main Street' })
+      client.updateSettings({
+        displayName: 'Avery',
+        locationAddress: '123 Main Street',
+        version: 3,
+        idempotencyKey: 'attempt-1',
+      }),
+    ).resolves.toEqual({ displayName: 'Avery', locationAddress: '123 Main Street', version: 4 })
     expect(rpc).toHaveBeenNthCalledWith(1, 'account_get_settings', {})
     expect(rpc).toHaveBeenNthCalledWith(2, 'account_update_settings', {
       p_display_name: 'Avery',
       p_location_address: '123 Main Street',
+      p_expected_version: 3,
+      p_idempotency_key: 'attempt-1',
     })
+    expect(rpc).toHaveBeenNthCalledWith(3, 'account_get_settings', {})
+  })
+  it('rejects a read with no authoritative version', async () => {
+    const client = createAccountSettingsClient({
+      rpc: async () => ({ data: { displayName: 'Name', locationAddress: null }, error: null }),
+    })
+    await expect(client.getSettings()).rejects.toThrow(GENERIC_ACCOUNT_SETTINGS_ERROR)
+  })
+  it('rejects partial settings instead of treating an unknown address as cleared', async () => {
+    const client = createAccountSettingsClient({
+      rpc: async () => ({ data: { displayName: 'Name', version: 1 }, error: null }),
+    })
+    await expect(client.getSettings()).rejects.toThrow(GENERIC_ACCOUNT_SETTINGS_ERROR)
+  })
+  it.each([
+    { displayName: 'Old Name', locationAddress: 'Old Address', version: 2 },
+    { displayName: 'Current Name', locationAddress: null, version: 3 },
+  ])(
+    'reconciles a lost-response replay with current settings at version $version',
+    async (current) => {
+      let responseLost = true
+      const client = createAccountSettingsClient({
+        rpc: async (name) => {
+          if (name === 'account_update_settings' && responseLost) {
+            responseLost = false
+            throw new Error('response lost after commit')
+          }
+          return {
+            data:
+              name === 'account_update_settings'
+                ? { displayName: 'Old Name', locationAddress: 'Old Address', version: 2 }
+                : current,
+            error: null,
+          }
+        },
+      })
+      const attempt = {
+        displayName: 'Old Name',
+        locationAddress: 'Old Address',
+        version: 1,
+        idempotencyKey: 'replay',
+      }
+      await expect(client.updateSettings(attempt)).rejects.toThrow('response lost after commit')
+      await expect(client.updateSettings(attempt)).resolves.toEqual(current)
+    },
+  )
+  it('reports a stale-write conflict instead of parsing it as empty settings', async () => {
+    const client = createAccountSettingsClient({
+      rpc: async () => ({ data: { state: 'conflict', latest: { version: 4 } }, error: null }),
+    })
+    await expect(
+      client.updateSettings({
+        displayName: 'Name',
+        locationAddress: null,
+        version: 3,
+        idempotencyKey: 'attempt-1',
+      }),
+    ).rejects.toThrow(/changed.*reload/i)
   })
 })
