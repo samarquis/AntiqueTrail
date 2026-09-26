@@ -66,10 +66,155 @@ function LifecycleProbe() {
   )
 }
 
+function NameSaveProbe() {
+  const { updateDisplayName } = useAuth()
+  return (
+    <button type="button" onClick={() => updateDisplayName(null)}>
+      Clear saved name
+    </button>
+  )
+}
+
+function DelayedNameSave({ pending }: { pending: Promise<void> }) {
+  const { updateDisplayName } = useAuth()
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void pending.then(() => updateDisplayName('First Saved Name'))
+      }}
+    >
+      Save first name
+    </button>
+  )
+}
+
 describe('auth local sign-out cleanup', () => {
   afterEach(() => {
     cleanup()
     vi.useRealTimers()
+  })
+  it.each(['Saved Name', null])(
+    'hydrates the canonical settings name %s instead of stale provider metadata',
+    async (displayName) => {
+      const store = new InMemoryAuthStore()
+      store.setSession({ ...session, displayName: 'Unsaved Provider Name' })
+      const settings = { getSettings: vi.fn(async () => ({ displayName, locationAddress: null })) }
+      render(
+        <AuthProvider authStore={store} settings={settings}>
+          <SignOutProbe />
+        </AuthProvider>,
+      )
+      await waitFor(() => expect(store.getSession()?.displayName).toBe(displayName ?? undefined))
+      expect(store.getSession()?.role).toBe('Shopper')
+    },
+  )
+  it('ignores a late settings response after account switch', async () => {
+    const store = new InMemoryAuthStore()
+    store.setSession({ ...session, displayName: 'First Name' })
+    let resolveFirst!: (value: { displayName: string; locationAddress: null }) => void
+    const settings = {
+      getSettings: vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve
+            }),
+        )
+        .mockResolvedValue({ displayName: 'Second Saved Name', locationAddress: null }),
+    }
+    render(
+      <AuthProvider authStore={store} settings={settings}>
+        <SwitchProbe next={{ ...session, userId: 'user-2', accessToken: 'token-2' }} />
+      </AuthProvider>,
+    )
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Switch' }))
+    await waitFor(() => expect(store.getSession()?.displayName).toBe('Second Saved Name'))
+    await act(async () => resolveFirst({ displayName: 'First Saved Name', locationAddress: null }))
+    expect(store.getSession()?.userId).toBe('user-2')
+    expect(store.getSession()?.displayName).toBe('Second Saved Name')
+  })
+  it('does not use stale provider metadata when canonical settings are unavailable', async () => {
+    const store = new InMemoryAuthStore()
+    store.setSession({ ...session, displayName: 'Unsaved Provider Name' })
+    const settings = { getSettings: vi.fn().mockRejectedValue(new Error('unavailable')) }
+    render(
+      <AuthProvider authStore={store} settings={settings}>
+        <SignOutProbe />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(store.getSession()?.displayName).toBeUndefined())
+    expect(store.getSession()?.userId).toBe('user-1')
+    expect(screen.getByText('signed-in')).toBeInTheDocument()
+  })
+  it('does not overwrite a newly cleared name with a late hydration response', async () => {
+    const store = new InMemoryAuthStore()
+    store.setSession(session)
+    let resolveSettings!: (value: { displayName: string; locationAddress: null }) => void
+    const settings = {
+      getSettings: () =>
+        new Promise<{ displayName: string; locationAddress: null }>((resolve) => {
+          resolveSettings = resolve
+        }),
+    }
+    render(
+      <AuthProvider authStore={store} settings={settings}>
+        <NameSaveProbe />
+      </AuthProvider>,
+    )
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Clear saved name' }))
+    await act(async () => resolveSettings({ displayName: 'Old Saved Name', locationAddress: null }))
+    expect(store.getSession()?.displayName).toBeUndefined()
+  })
+  it('ignores an old account save completion after switching accounts', async () => {
+    const store = new InMemoryAuthStore()
+    store.setSession(session)
+    let resolveSave!: () => void
+    const pending = new Promise<void>((resolve) => {
+      resolveSave = resolve
+    })
+    render(
+      <AuthProvider authStore={store}>
+        <DelayedNameSave pending={pending} />
+        <SwitchProbe
+          next={{
+            ...session,
+            userId: 'user-2',
+            accessToken: 'token-2',
+            displayName: 'Second Name',
+          }}
+        />
+      </AuthProvider>,
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Save first name' }))
+    await user.click(screen.getByRole('button', { name: 'Switch' }))
+    await act(async () => resolveSave())
+    expect(store.getSession()?.userId).toBe('user-2')
+    expect(store.getSession()?.displayName).toBe('Second Name')
+  })
+  it('applies a pending save after a same-account token refresh', async () => {
+    const store = new InMemoryAuthStore()
+    store.setSession({ ...session, displayName: 'Old Name' })
+    let resolveSave!: () => void
+    const pending = new Promise<void>((resolve) => {
+      resolveSave = resolve
+    })
+    render(
+      <AuthProvider authStore={store}>
+        <DelayedNameSave pending={pending} />
+        <SwitchProbe
+          next={{ ...session, accessToken: 'refreshed-token', displayName: 'Old Name' }}
+        />
+      </AuthProvider>,
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Save first name' }))
+    await user.click(screen.getByRole('button', { name: 'Switch' }))
+    await act(async () => resolveSave())
+    expect(store.getSession()?.accessToken).toBe('refreshed-token')
+    expect(store.getSession()?.displayName).toBe('First Saved Name')
   })
   it('purges and revokes locally before provider sign-out', async () => {
     const store = new InMemoryAuthStore()

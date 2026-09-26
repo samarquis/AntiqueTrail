@@ -89,14 +89,16 @@ export function toAuthSession(
 ): AuthSession {
   const enrolled = provider.mfaEnrolled ?? provider.mfaRequired ?? false
   const verified = defaults?.mfaVerified ?? (enrolled ? Boolean(provider.mfaVerifiedAt) : true)
+  const role = provider.role ?? defaults?.role ?? 'Shopper'
   return {
     userId: provider.userId,
+    ...(provider.displayName ? { displayName: provider.displayName } : {}),
     ...(provider.email ? { email: provider.email } : {}),
     ...(provider.emailVerified !== undefined ? { emailVerified: provider.emailVerified } : {}),
     ...(provider.provider ? { provider: provider.provider } : {}),
     accessToken: provider.accessToken,
     expiresAt: provider.expiresAt,
-    role: provider.role ?? defaults?.role ?? 'Shopper',
+    role,
     mfaRequired: provider.mfaRequired ?? (enrolled && !verified),
     mfaVerified: verified,
     ...(provider.passwordAuthenticatedAt

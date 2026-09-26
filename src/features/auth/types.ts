@@ -4,6 +4,8 @@ export type AuthProviderName = 'email' | 'google' | 'facebook'
 export interface AuthSession {
   userId: string
   /** Display-only identity metadata supplied by the verified provider session. */
+  displayName?: string
+  /** Display-only email supplied by the verified provider session. */
   email?: string
   emailVerified?: boolean
   /** Provider name from Supabase app_metadata; never derived from user_metadata. */
@@ -23,6 +25,8 @@ export interface AuthSession {
 
 export interface ProviderSession {
   userId: string
+  /** Display-only identity metadata; never used for authorization. */
+  displayName?: string
   email?: string
   emailVerified?: boolean
   provider?: AuthProviderName
@@ -97,6 +101,8 @@ export interface AuthProviderAdapter {
    * provider cancellation). A non-admitted identity resolves to 'blocked'.
    */
   oauthCallback?(code: string | null, oauthError: string | null): Promise<ProviderCallbackResult>
+  /** Updates display-only provider metadata after the private profile succeeds. */
+  updateDisplayName?(displayName: string | null): Promise<void>
 }
 
 export interface SessionRegistryClient {

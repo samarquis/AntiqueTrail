@@ -1,0 +1,129 @@
+# PR #442 follow-up: media acceptance and canonical account names
+
+Scope: #430, #418, #419, #420 only. No deployment, hosted mutation, or new ticket.
+
+## Reproduced media failure
+
+On clean `5a05ed9e3be9bc5f413db11e60dfd4bbfc3054e9`, run:
+
+```sh
+node scripts/configured-free-shopper.mjs --media-only
+```
+
+Local run `configured-shopper-a8dfe0cf-55e5-4291-816d-70dc20c59a50`
+reproduced both CI failures: the assertion at the original
+`e2e/configured-free-shopper.spec.ts:155` expected an empty Sign in submit
+button to be disabled, but it was enabled. Both tests stopped before catalog
+or media assertions. The run recorded `sourceDirty=false`, two unexpected
+results, and `cleanup=removed`.
+
+The exact main base `e4adc310457688a4ecdf90e23b8c689a2f1e2e2a` has the
+same SignInPage behavior: submit stays enabled, empty credentials produce
+a focused validation error, and the provider is not called. This agrees
+with DESIGN_SYSTEM.md's validation-error contract. The replacement test
+asserts empty field values, zero auth-token requests, the explicit focused
+error, and remaining on sign-in. It retains the photo load, gallery,
+lightbox/focus, saved-store persistence, and two-store trip assertions.
+
+## Display-name authority
+
+Settings previously wrote provider metadata before the settings RPC. If
+that RPC and the compensating provider rollback failed, the next login
+could greet the user with a name that was never saved in account settings.
+
+Account settings now own the display name. Saving uses one settings RPC;
+session hydration reads that authority, including an explicitly cleared
+name. Provider metadata is not rewritten by settings saves. An unavailable
+settings read leaves the authenticated session intact without using stale
+provider-name metadata. Late responses cannot change a different account
+or overwrite a newer local settings save. No authorization role is derived
+from the display name.
+
+Regression tests first failed for the two provider writes, stale saved/null
+names, and stale metadata during an outage, then passed after the fix.
+The configured account journey additionally forces a settings RPC failure,
+asserts no provider-user writes, checks unchanged authoritative values,
+and verifies the saved name and address after a fresh login.
+
+Repeat the real-provider proof with:
+
+```sh
+node scripts/configured-free-shopper.mjs --account-settings
+```
+
+Precommit working-tree proof: media run
+`configured-shopper-0fccbfb6-362d-4837-af02-939589eaa172` and settings run
+`configured-shopper-7e1255f8-bd8d-4048-9332-9e99c721b91c` each passed desktop
+and phone with two expected results, no unexpected/skipped/flaky results,
+and run-owned cleanup removed. These receipts intentionally record dirty
+source; the PR carries the later committed-head CI and local proof.
+Focused account/auth/App tests, typecheck, changed-file formatting, and
+lint passed; repository lint retains 14 existing warnings and no errors.
+
+## Resolved review findings
+
+Further exact-head review at `3718ea60` identified three #420 defects:
+unversioned last-write-wins updates, saving unknown blank defaults after a
+failed initial read, and a late save changing a subsequently signed-in
+account's greeting. Follow-up regressions reproduce each applicable seam.
+The forward migration `20260926211513_account_settings_concurrency.sql`
+adds owner-row locking, expected version, and bounded account-scoped retry
+keys. Further privacy review identified dictionary-testable address hashes
+in the original receipts; a regression reproduced retained hashes after
+clear. Forward migration `20260926220346_account_settings_private_receipts.sql`
+drops the digest entirely. Receipts retain only owner/key/result version/time.
+The owner-scoped key identifies the command: replay returns its original
+content-free success/version without applying the supplied payload, even
+when that payload differs. New stale writes return current-version conflicts.
+UI retries preserve the attempt key until
+success or authoritative reload; failed/partial reads block Save and offer
+retry. Every successful mutation/replay is followed by an authoritative read
+before updating fields or greeting, so historical success cannot restore a
+later-cleared address. Account-lifetime revision and user identity reject
+obsolete save completions while permitting same-account token refresh.
+
+Three client tests first failed against the content-free mutation response,
+then passed with strict success/version parsing and authoritative readback.
+pgTAP checks the exact receipt-column allowlist, content-free response,
+same-key changed-payload no-op, replay after clear, and deletion cascade.
+No receipt retains a raw field or payload-derived verifier.
+Privacy follow-up working-tree run
+`configured-shopper-c7355b87-668d-4d30-b166-fa271b59f306` passed both viewports
+with unchanged runtime source, zero failures/skips/flakes, and cleanup removed.
+Full-chain pgTAP 0129/0130/0131 passed, including all 25 concurrency/privacy
+assertions; 31 focused account/auth tests, build, lint, and formatting passed.
+
+Final precommit settings run `configured-shopper-42c83ca4-7264-42ed-ab7b-76e0d1632294`
+and media run `configured-shopper-84302009-8dfb-4475-b1f5-022679e1bda2` each
+passed desktop and phone, with two expected results, no failures/skips/flakes,
+and cleanup removed. Runtime source stayed unchanged throughout both runs.
+Settings additionally proves failed-load retry, stale-tab conflict, and a
+lost write response followed by another tab clearing the address before
+replay. Pending-save token refresh and cross-account completion guards have
+deterministic unit coverage, not browser evidence. Full migration-chain
+apply and pgTAP 0129/0130/0131 passed; replay checks cover both before and
+after a later write. Build, affected lint, and repository formatting passed.
+
+Release compatibility requires explicit migration/frontend sequencing:
+the migration drops the old two-argument writer, and the new frontend uses
+four arguments. Old clients must fail closed and reload; do not retain an
+unversioned bypass. A release plan must coordinate migration, schema-cache
+readiness, frontend publication/reload, and verification before enabling
+settings writes, per PACKAGE_CONTRACTS.md:16. Source merge is not deployment
+authority. No hosted migration, publication, or provider change occurs here.
+
+Issue #420's persistent private starting address initially conflicted with
+the no-saved-Home rules in DESIGN.md and SECURITY_AND_TRUST.md. After that
+blocker was reported, the owner directed: “do what you need to close this
+and merge the code to gh”. The bounded reconciliation is recorded in
+PLAN_CHANGELOG.md: both governing sources now permit the optional private
+account starting address, with explicit per-trip use, owner-only access,
+current-value export, and clearing/deletion privacy. Automatic Home
+inference, background tracking, and location logs remain prohibited.
+This resolves source alignment for merge; deployment remains separate.
+
+PR #409 remains open on `codex/account-backend-live-20260923` at
+`f42b087eeeb43bdde7235b795596dfd472a08e7f`, targeting
+`codex/review-mockup-publish`. Its recorded deployed commit is
+`c62850ff2091b1013fe9e5bbe3c538db28e64fbe`; deployment was not reverified or
+changed here. PR #442 remains the account-only integration into main.
