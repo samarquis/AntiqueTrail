@@ -41,6 +41,8 @@ npx supabase@2.115.0 db reset
 | [SECURITY_AND_TRUST.md](SECURITY_AND_TRUST.md) | Auth, privacy, data safety |
 | [PACKAGE_CONTRACTS.md](PACKAGE_CONTRACTS.md) | Database schema and commands |
 | [PROJECT_STATE.md](PROJECT_STATE.md) | What's built, what's not |
+| [docs/operations/ENGINEERING_WORKFLOW.md](docs/operations/ENGINEERING_WORKFLOW.md) | Worktree, risk, verification, review, and closure workflow |
+| [docs/evidence/TEMPLATE.md](docs/evidence/TEMPLATE.md) | Exact-candidate acceptance evidence template |
 
 ### Specs
 
