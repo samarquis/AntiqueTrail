@@ -59,6 +59,10 @@ test('public-test navigation fits an actual 320px CSS viewport at 200% browser z
   browserName,
 }, testInfo) => {
   expect(browserName).toBe('chromium')
+  test.skip(
+    testInfo.project.name !== 'chromium',
+    'Issue-specific config owns one actual browser-zoom proof.',
+  )
   const extension = resolve('e2e/fixtures/issue-131-zoom')
   const context = await chromium.launchPersistentContext('', {
     channel: 'chromium',
