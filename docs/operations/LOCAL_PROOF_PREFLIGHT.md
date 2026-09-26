@@ -28,6 +28,6 @@ Keep the scenario verdict even if teardown fails. Verify removal of this run's c
 
 Receipt: source SHA/dirty state, fixture mode, stage, assertion counts/skips, evidence class, scenario result, cleanup result, and remaining owned resources. Mark cleanup `removed` only after checking absence. Release the lane after cleanup is verified or explicitly hand off retained resources to a named owner.
 
-## Current integration dependency
+## Account harness baseline
 
-The account harness repairs are carried by [PR #442](https://github.com/samarquis/AntiqueTrail/pull/442). Until its accepted content reaches the target base, do not assign new leaves as though main contains those commands. Preserve the existing integration owner and use its exact committed handoff. Hosted proof and publication retain their separate authorization and acceptance gates.
+The account harness repairs from [PR #442](https://github.com/samarquis/AntiqueTrail/pull/442) reached `main` in merge `a73e8c63`. New leaves must pin a current base containing that merge and verify the required commands there. Hosted proof and publication retain their separate authorization and acceptance gates.
