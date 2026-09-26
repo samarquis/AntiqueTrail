@@ -65,6 +65,26 @@ describe('registration provider configuration', () => {
         localMode: true,
       }),
     ).toBeTruthy())
+  it('permits only the fixed Docker API gateway for the local Edge runtime', () => {
+    const local = {
+      appOrigin: 'http://127.0.0.1:4173',
+      approvedAppOrigin: 'http://127.0.0.1:4173',
+      mailEndpoint: 'http://127.0.0.1:54324/send',
+      approvedMailEndpoint: 'http://127.0.0.1:54324/send',
+      supabaseUrl: 'http://kong:8000',
+      approvedSupabaseOrigin: 'http://kong:8000',
+      localMode: true,
+    }
+    expect(validateRegistrationEndpoints(local).supabaseOrigin).toBe('http://kong:8000')
+    for (const supabaseUrl of ['http://kong:8001', 'http://other:8000'])
+      expect(() =>
+        validateRegistrationEndpoints({
+          ...local,
+          supabaseUrl,
+          approvedSupabaseOrigin: supabaseUrl,
+        }),
+      ).toThrow()
+  })
   it.each([
     { mailEndpoint: 'https://evil.mail.example/send' },
     { mailEndpoint: 'https://mail.example:444/send' },

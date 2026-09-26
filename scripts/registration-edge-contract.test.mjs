@@ -15,6 +15,15 @@ test('registration provider signup is deadline bounded', () => {
   assert.match(source, /\/auth\/v1\/signup/u)
 })
 
+test('provider signup sends redirect_to as a query parameter, not JSON body data', () => {
+  assert.match(
+    source,
+    /signupUrl\.searchParams\.set\('redirect_to',\s*`\$\{endpoints\.appOrigin\}\/auth\/callback`\)/u,
+  )
+  assert.match(source, /fetch\(signupUrl,/u)
+  assert.doesNotMatch(source, /body:\s*JSON\.stringify\([\s\S]*?redirect_to:/u)
+})
+
 test('provider action link and token are neither returned nor persisted', () => {
   assert.doesNotMatch(source, /\.action_link/iu)
   assert.doesNotMatch(source, /hashed_token/iu)

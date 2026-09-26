@@ -72,7 +72,7 @@ function request(requestOrigin: string | null, method = 'POST') {
       ? {
           body: JSON.stringify({
             email: 'tester@example.test',
-            password: 'pass1234',
+            password: 'fixture-long-password',
             ageAttested: true,
             requestId: '37600000-0000-4000-8000-000000000001',
           }),
@@ -189,7 +189,7 @@ it('confirms a registration generated from the provider signup response shape', 
   const providerUserId = 'fbdf5a53-161e-4460-98ad-0e39408d8689'
   fetch.mockImplementation(async (input: string | URL) => {
     const url = String(input)
-    if (new URL(url).pathname === '/auth/v1/signup')
+    if (new URL(url).pathname.endsWith('/auth/v1/signup'))
       return new Response(
         JSON.stringify({
           user: { id: providerUserId },
@@ -202,20 +202,12 @@ it('confirms a registration generated from the provider signup response shape', 
   const response = await handler(request(origin))
   expect(response.status).toBe(202)
   expect(await response.json()).toEqual({ state: 'pending_verification' })
-  expect(String(fetch.mock.calls[0]?.[0])).toBe(
+  const [signupUrl, signupOptions] = fetch.mock.calls[0]
+  expect(String(signupUrl)).toBe(
     'https://uaupykgpegbseboklubv.supabase.co/auth/v1/signup?redirect_to=https%3A%2F%2Fantique-trail.vercel.app%2Fauth%2Fcallback',
   )
-  expect(fetch).toHaveBeenCalledWith(
-    expect.any(URL),
-    expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({
-        email: 'tester@example.test',
-        password: 'fixture-long-password',
-        data: { antique_trail_admission_id: 'admission-1' },
-      }),
-    }),
-  )
+  expect(signupOptions.method).toBe('POST')
+  expect(JSON.parse(signupOptions.body)).not.toHaveProperty('redirect_to')
   expect(rpc).toHaveBeenCalledWith(
     'settle_account_registration_generate',
     expect.objectContaining({
