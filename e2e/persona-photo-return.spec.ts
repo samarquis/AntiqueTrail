@@ -103,9 +103,24 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
     await page.goto(reviewUrl('/stores/blue-finch-curios'))
     await page.getByRole('link', { name: /save blue finch curios.*requires sign-in/i }).click()
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeFocused()
-    await expect(page.getByRole('button', { name: 'Sign in' })).toBeDisabled()
+
+    const signInUrl = new URL(page.url())
+    signInUrl.searchParams.set('reviewState', 'error')
+    await page.goto(signInUrl.toString())
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeFocused()
+    await page.getByLabel('Email').fill('shopper-a@local.invalid')
+    await page.getByLabel('Password').fill('synthetic-password')
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    const signInError = page.getByRole('alert').filter({
+      hasText: "We couldn't sign you in. Check your details and try again.",
+    })
+    await expect(signInError).toBeVisible()
     await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
+    await expect(page).toHaveURL(/\/stores\/blue-finch-curios(?:\?.*)?$/)
     await expect(page.getByRole('heading', { name: 'Blue Finch Curios' })).toBeFocused()
+    await expect(
+      page.getByRole('link', { name: /save blue finch curios.*requires sign-in/i }),
+    ).toBeVisible()
     await expect(
       page.evaluate(() => sessionStorage.getItem('antique-trail:jit-private-action:v1')),
     ).resolves.toBeNull()
