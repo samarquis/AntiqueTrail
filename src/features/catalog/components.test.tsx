@@ -97,7 +97,7 @@ describe('catalog private-action integration seam', () => {
     render(<BrowsePage client={client()} />)
 
     expect(await screen.findByRole('heading', { name: /discover local antiques/i })).toBeVisible()
-    expect(screen.getByText(/around topeka/i)).toBeVisible()
+    expect(await screen.findByText(/around topeka/i)).toBeVisible()
     expect(screen.getByRole('region', { name: /browse the local trail/i })).toBeVisible()
   })
 
@@ -618,8 +618,8 @@ describe('trustworthy Store Details contract', () => {
       within(reopenedDialog).getByRole('img', { name: /blue finch curios storefront/i }),
     )
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    const missingImage = screen.getByRole('img', { name: /photos coming soon/i })
-    expect(missingImage).toHaveTextContent(/photos coming soon/i)
+    const missingImage = screen.getByRole('img', { name: 'Photo unavailable' })
+    expect(missingImage).toHaveTextContent('Photo unavailable')
   })
 
   it('makes every photo reachable when a store has more than six', async () => {

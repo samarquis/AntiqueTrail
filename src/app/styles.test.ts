@@ -237,7 +237,7 @@ const approvedThemeColors = {
     card: '#252b33',
     line: '#3b4552',
     teal: '#8795b5',
-    'teal-dark': '#aebbd0',
+    'teal-dark': '#8795b5',
     mint: '#1a1f26',
     rust: '#b56e5b',
     gold: '#b99554',

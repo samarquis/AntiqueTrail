@@ -171,12 +171,16 @@ test.describe('UI-05 authentication and private-shopper acceptance', () => {
     page,
   }) => {
     await page.goto('/auth/register?returnTo=%2Fsaved&reviewAs=anonymous&reviewState=success')
-    await page.getByRole('button', { name: 'Create account' }).click()
-    await expect(page.getByRole('alert')).toContainText(/valid email.*12 through 128/i)
+    const createAccount = page.getByRole('button', { name: 'Create account' })
+    await expect(createAccount).toBeDisabled()
+    await expect(page.getByText('Use 1 through 8 characters.')).toBeVisible()
     await page.getByLabel('Email').fill('new-shopper@local.invalid')
-    await page.getByLabel('Password').fill('synthetic-password')
+    const password = page.getByLabel('Password')
+    await password.pressSequentially('123456789')
+    await expect(password).toHaveValue('12345678')
     await page.getByRole('checkbox', { name: /18 or older/i }).check()
-    await page.getByRole('button', { name: 'Create account' }).click()
+    await expect(createAccount).toBeEnabled()
+    await createAccount.click()
     await expect(page.getByRole('heading', { name: 'Check your email' })).toBeFocused()
     await expect(page.getByRole('status')).toContainText(/no private action has been saved/i)
 

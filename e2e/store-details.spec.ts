@@ -72,7 +72,7 @@ test.describe('Store Details decision-screen contract', () => {
     await expectMinimumTargets(page)
   })
 
-  test('keeps opening state, actions, Photos, and Hours & location before the photo wall', async ({
+  test('keeps opening state, actions, Photos, and Hours & location before the dedicated photo wall', async ({
     page,
   }) => {
     await page.goto('/stores/blue-finch-curios', { waitUntil: 'domcontentloaded' })
@@ -83,6 +83,8 @@ test.describe('Store Details decision-screen contract', () => {
     const actions = page.getByRole('navigation', { name: 'Store visit actions' })
     const sections = page.getByRole('navigation', { name: 'Store sections' })
     const about = page.getByRole('region', { name: 'About this store' })
+    const photoLinkRegion = page.locator('.store-detail__gallery-link')
+    const photosLink = photoLinkRegion.getByRole('link', { name: 'See all 3 photos', exact: true })
     await expect(opening).toBeVisible()
     await expect(sections.getByRole('link', { name: 'Photos' })).toHaveAttribute(
       'href',
@@ -92,6 +94,8 @@ test.describe('Store Details decision-screen contract', () => {
       'href',
       '#hours-heading',
     )
+    await expect(photosLink).toHaveAttribute('href', '/stores/blue-finch-curios/photos')
+    await expect(page.locator('.store-gallery--collection')).toHaveCount(0)
     expect(
       await actions.evaluate((element) => {
         const cover = document.querySelector('.store-gallery--cover')
@@ -111,36 +115,37 @@ test.describe('Store Details decision-screen contract', () => {
     for (const locator of [opening, actions, sections, about]) {
       expect(
         await locator.evaluate((element) => {
-          const wall = document.querySelector('.store-gallery--collection')
+          const link = document.querySelector('.store-detail__gallery-link')
           return Boolean(
-            wall && element.compareDocumentPosition(wall) & Node.DOCUMENT_POSITION_FOLLOWING,
+            link && element.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
           )
         }),
       ).toBe(true)
     }
+    expect(
+      await photoLinkRegion.evaluate((element) => {
+        const hours = document.querySelector('#hours-heading')
+        return Boolean(
+          hours && element.compareDocumentPosition(hours) & Node.DOCUMENT_POSITION_FOLLOWING,
+        )
+      }),
+    ).toBe(true)
   })
 
-  test('supports gallery selection, enlargement, focus containment, and focus return', async ({
+  test('supports cover enlargement, album navigation, focus containment, and focus return', async ({
     page,
   }) => {
     await openPrimaryStore(page)
-    const galleryChoices = page.getByRole('group', { name: 'Choose a store photo' })
-    await expect(galleryChoices).toBeVisible()
-    const choices = galleryChoices.getByRole('button')
-    expect(await choices.count()).toBeGreaterThan(1)
-
-    const second = choices.nth(1)
-    await second.focus()
-    await page.keyboard.press('Enter')
-    await expect(second).toHaveAttribute('aria-pressed', 'true')
-
     const enlarge = page.getByRole('button', { name: /^Enlarge image:/ })
+    await expect(enlarge).toBeVisible()
     await enlarge.focus()
     await page.keyboard.press('Enter')
     const dialog = page.getByRole('dialog')
+    const status = dialog.getByRole('status')
     const close = dialog.getByRole('button', { name: 'Close enlarged image' })
     const previous = dialog.getByRole('button', { name: 'Previous photo' })
     const next = dialog.getByRole('button', { name: 'Next photo' })
+    await expect(status).toHaveText('Photo 1 of 3')
     await expect(close).toBeFocused()
     await page.keyboard.press('Tab')
     await expect(previous).toBeFocused()
@@ -150,6 +155,10 @@ test.describe('Store Details decision-screen contract', () => {
     await expect(close).toBeFocused()
     await page.keyboard.press('Shift+Tab')
     await expect(next).toBeFocused()
+    await next.click()
+    await expect(status).toHaveText('Photo 2 of 3')
+    await previous.click()
+    await expect(status).toHaveText('Photo 1 of 3')
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
     await expect(enlarge).toBeFocused()
@@ -157,7 +166,7 @@ test.describe('Store Details decision-screen contract', () => {
 
   test('keeps the gallery usable when a selected image request is blocked', async ({ page }) => {
     let blockedRequests = 0
-    await page.route(/blue-finch-curios-gallery-aisle\.webp(?:\?.*)?$/u, async (route) => {
+    await page.route(/blue-finch-curios-cover\.webp(?:\?.*)?$/u, async (route) => {
       blockedRequests += 1
       await route.abort('failed')
     })
@@ -166,21 +175,15 @@ test.describe('Store Details decision-screen contract', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible({
       timeout: 30_000,
     })
-    const gallery = page.locator('.store-gallery__background')
-    const choices = page.getByRole('group', { name: 'Choose a store photo' }).getByRole('button')
-    await expect(choices).toHaveCount(50)
     await expect.poll(() => blockedRequests).toBeGreaterThan(0)
-
-    const failedChoice = choices.nth(1)
-    await failedChoice.click()
-    await expect(failedChoice).toHaveAttribute('aria-pressed', 'true')
-    await expect(gallery.getByRole('img', { name: 'Store image unavailable' })).toBeVisible()
+    const gallery = page.locator('.store-gallery__background')
+    await expect(gallery.getByRole('img', { name: 'Photo unavailable' })).toBeVisible()
     await expect(gallery).toContainText('Photo unavailable')
-    await expect(failedChoice).toContainText('Unavailable')
-
-    await choices.first().click()
-    await expect(choices.first()).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByRole('button', { name: /^Enlarge image:/ })).toBeVisible()
+    const photosLink = page.getByRole('link', { name: 'See all 3 photos', exact: true })
+    await expect(photosLink).toBeVisible()
+    await photosLink.click()
+    await expect(page).toHaveURL(/\/stores\/blue-finch-curios\/photos$/)
+    await expect(page.getByRole('button', { name: /View photo 2:/ })).toBeVisible()
   })
 
   test('recovers from an enlarged-image failure and returns focus inside the gallery', async ({
@@ -197,12 +200,12 @@ test.describe('Store Details decision-screen contract', () => {
     await enlargedImage.evaluate((image) => image.dispatchEvent(new Event('error')))
 
     await expect(dialog).toHaveCount(0)
-    await expect(gallery.getByRole('img', { name: 'Store image unavailable' })).toBeVisible()
+    const unavailable = gallery.getByRole('img', { name: 'Photo unavailable' })
+    await expect(unavailable).toBeVisible()
     await expect(gallery).toContainText('Photo unavailable')
+    await expect(unavailable).toBeFocused()
     await expect(gallery.locator(':focus')).toHaveCount(1)
-    await expect(gallery.getByRole('group', { name: 'Choose a store photo' })).toContainText(
-      'Unavailable',
-    )
+    await expect(page.getByRole('link', { name: 'See all 3 photos', exact: true })).toBeVisible()
   })
 
   test('returns to the exact Browse query, scroll position, and originating store', async ({
@@ -231,7 +234,7 @@ test.describe('Store Details decision-screen contract', () => {
     page,
   }) => {
     await openPrimaryStore(page)
-    const photosLink = page.getByRole('link', { name: /see all 50 photos/i })
+    const photosLink = page.getByRole('link', { name: 'See all 3 photos', exact: true })
     await photosLink.scrollIntoViewIfNeeded()
     await page.evaluate(() => window.scrollTo(0, 760))
 

@@ -1,43 +1,44 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth, type AuthProviderAdapter } from '../auth'
+import { useAuth } from '../auth'
 import {
   GENERIC_ACCOUNT_SETTINGS_ERROR,
+  AccountSettingsConflict,
   type AccountSettingsClient,
   type UserSettings,
 } from './settings'
 
 const MAX_DISPLAY_NAME_LENGTH = 80
-const MAX_LOCATION_ADDRESS_LENGTH = 320
 
-export function UserSettingsPage({
-  client,
-  provider,
-}: {
-  client: AccountSettingsClient
-  provider?: AuthProviderAdapter
-}) {
-  const { session, updateDisplayName } = useAuth()
+export function UserSettingsPage({ client }: { client: AccountSettingsClient }) {
+  const { updateDisplayName } = useAuth()
   const [settings, setSettings] = useState<UserSettings>({
-    displayName: session?.displayName ?? null,
+    displayName: null,
     locationAddress: null,
+    version: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [loaded, setLoaded] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [clearAddress, setClearAddress] = useState(false)
+  const attempt = useRef<{ payload: string; key: string } | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    setLoading(true)
+    setLoaded(false)
     void client
       .getSettings()
       .then((next) => {
         if (!cancelled) {
-          setSettings({
-            displayName: next.displayName ?? session?.displayName ?? null,
-            locationAddress: next.locationAddress,
-          })
+          setSettings(next)
+          setClearAddress(false)
+          attempt.current = null
           setError(null)
+          setLoaded(true)
         }
       })
       .catch(() => {
@@ -49,24 +50,34 @@ export function UserSettingsPage({
     return () => {
       cancelled = true
     }
-  }, [client, session?.displayName])
+  }, [client, loadAttempt])
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!loaded || saving) return
     setSaving(true)
     setSaved(false)
     setError(null)
     try {
-      const next = await client.updateSettings({
+      const input = {
         displayName: settings.displayName?.trim() || null,
-        locationAddress: settings.locationAddress?.trim() || null,
-      })
-      await provider?.updateDisplayName?.(next.displayName)
+        locationAddress: clearAddress ? null : settings.locationAddress,
+        version: settings.version,
+      }
+      const payload = JSON.stringify(input)
+      if (attempt.current?.payload !== payload)
+        attempt.current = { payload, key: crypto.randomUUID() }
+      const next = await client.updateSettings({ ...input, idempotencyKey: attempt.current.key })
+      attempt.current = null
       setSettings(next)
+      setClearAddress(false)
       updateDisplayName(next.displayName)
       setSaved(true)
-    } catch {
-      setError(GENERIC_ACCOUNT_SETTINGS_ERROR)
+    } catch (cause) {
+      if (cause instanceof AccountSettingsConflict) {
+        setLoaded(false)
+        setError(cause.message)
+      } else setError(GENERIC_ACCOUNT_SETTINGS_ERROR)
     } finally {
       setSaving(false)
     }
@@ -77,11 +88,22 @@ export function UserSettingsPage({
       <section className="page-card account-settings" aria-labelledby="account-settings-heading">
         <p className="eyebrow">Your account</p>
         <h1 id="account-settings-heading">User settings</h1>
-        <p>
-          Keep your identity and trip preferences current. These settings stay private to your
-          account.
-        </p>
-        {error && <p role="alert">{error}</p>}
+        <p>Update your display name and manage your private account information.</p>
+        {loading && (
+          <p id="account-settings-loading" role="status" aria-label="Loading account settings">
+            Loading settings…
+          </p>
+        )}
+        {error && (
+          <p id="account-settings-error" role="alert">
+            {error}
+          </p>
+        )}
+        {!loaded && !loading && error && (
+          <button type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+            Retry loading settings
+          </button>
+        )}
         <form onSubmit={(event) => void save(event)}>
           <label htmlFor="account-display-name">Display name</label>
           <input
@@ -94,30 +116,39 @@ export function UserSettingsPage({
             onChange={(event) =>
               setSettings((current) => ({ ...current, displayName: event.target.value }))
             }
-            disabled={loading || saving}
+            disabled={!loaded || loading || saving}
           />
           <p className="form-help">Shown in your greeting. It does not control account access.</p>
 
-          <label htmlFor="account-location-address">Starting address for location services</label>
-          <textarea
-            id="account-location-address"
-            name="locationAddress"
-            autoComplete="street-address"
-            maxLength={MAX_LOCATION_ADDRESS_LENGTH}
-            rows={3}
-            value={settings.locationAddress ?? ''}
-            onChange={(event) =>
-              setSettings((current) => ({ ...current, locationAddress: event.target.value }))
-            }
-            disabled={loading || saving}
-            aria-describedby="account-location-help"
-          />
-          <p id="account-location-help" className="form-help">
-            Optional and stored privately. We use it only when you explicitly choose it as a
-            starting point for trip planning; it is not shared with stores.
-          </p>
+          {!loading && settings.locationAddress && (
+            <section aria-label="Saved address">
+              <h2>Saved address</h2>
+              <p className="account-settings__address">{settings.locationAddress}</p>
+              <p id="account-location-help" className="form-help privacy-consequence">
+                Stored privately in your account. You can export it from Account overview or clear
+                it below. Address entry is unavailable during this public test.
+              </p>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={clearAddress}
+                  onChange={(event) => setClearAddress(event.target.checked)}
+                  disabled={!loaded || saving}
+                  aria-describedby="account-location-help"
+                />
+                Clear saved address when I save
+              </label>
+            </section>
+          )}
 
-          <button className="button" type="submit" disabled={loading || saving}>
+          <button
+            className="button"
+            type="submit"
+            disabled={!loaded || loading || saving}
+            aria-describedby={
+              loading ? 'account-settings-loading' : !loaded ? 'account-settings-error' : undefined
+            }
+          >
             {saving ? 'Saving…' : 'Save settings'}
           </button>
           {saved && <p role="status">Settings saved.</p>}

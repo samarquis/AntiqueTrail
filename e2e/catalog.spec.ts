@@ -40,41 +40,47 @@ async function expectMinimumTargets(page: Page) {
   expect(undersized, `Interactive targets smaller than 48 x 48 CSS pixels`).toEqual([])
 }
 
-async function expectLandscapeCatalogCover(page: Page, viewportWidth: number) {
+async function expectArtDirectedCatalogCovers(page: Page, viewportWidth: number) {
   await page.setViewportSize({
     width: viewportWidth,
     height: viewportWidth <= 540 ? 844 : 1000,
   })
   await page.goto('/stores')
 
-  const card = page.locator('.catalog-card').first()
-  const image = card.locator('.catalog-card__image')
-  await expect(card).toBeVisible()
-  await expect(image).toBeVisible()
-  await expect.poll(() => image.evaluate((node) => node.naturalWidth)).toBeGreaterThan(0)
+  const expectedRatios = viewportWidth <= 540 ? [1.6, 1.6, 1.6] : [0.8, 1.25, 4 / 3]
 
-  const geometry = await card.evaluate((cardNode) => {
-    const imageNode = cardNode.querySelector<HTMLImageElement>('.catalog-card__image')
-    if (!imageNode) throw new Error('Catalog cover image was not rendered')
-    const cardRect = cardNode.getBoundingClientRect()
-    const imageRect = imageNode.getBoundingClientRect()
-    return {
-      cardWidth: cardRect.width,
-      imageWidth: imageRect.width,
-      imageHeight: imageRect.height,
-      objectFit: getComputedStyle(imageNode).objectFit,
-    }
-  })
+  for (const [index, expectedRatio] of expectedRatios.entries()) {
+    const card = page.locator('.catalog-card').nth(index)
+    const image = card.locator('.catalog-card__image')
+    await expect(card).toBeVisible()
+    await expect(image).toBeVisible()
+    await expect.poll(() => image.evaluate((node) => node.naturalWidth)).toBeGreaterThan(0)
 
-  expect(geometry.objectFit).toBe('cover')
-  expect(geometry.imageWidth / geometry.imageHeight).toBeGreaterThanOrEqual(1.25)
-  expect(geometry.imageWidth / geometry.cardWidth).toBeGreaterThanOrEqual(0.9)
+    const geometry = await card.evaluate((cardNode) => {
+      const imageNode = cardNode.querySelector<HTMLImageElement>('.catalog-card__image')
+      if (!imageNode) throw new Error('Catalog cover image was not rendered')
+      const cardRect = cardNode.getBoundingClientRect()
+      const imageRect = imageNode.getBoundingClientRect()
+      return {
+        cardWidth: cardRect.width,
+        imageWidth: imageRect.width,
+        imageHeight: imageRect.height,
+        objectFit: getComputedStyle(imageNode).objectFit,
+      }
+    })
+
+    expect(geometry.objectFit).toBe('cover')
+    expect(geometry.imageWidth / geometry.imageHeight).toBeCloseTo(expectedRatio, 2)
+    expect(geometry.imageWidth / geometry.cardWidth).toBeGreaterThanOrEqual(0.9)
+  }
 }
 
 test.describe('Synthetic catalog design contract', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/stores')
-    await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Discover local antiques.', exact: true }),
+    ).toBeVisible()
     await expect(page.locator('.catalog-card').first()).toBeVisible()
   })
 
@@ -114,13 +120,19 @@ test.describe('Synthetic catalog design contract', () => {
 
     await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
     await expect(page).toHaveURL(/\/stores$/)
-    const browseHeading = page.getByRole('heading', { level: 1, name: 'Browse stores' })
+    const browseHeading = page.getByRole('heading', {
+      level: 1,
+      name: 'Discover local antiques.',
+      exact: true,
+    })
     await expect(browseHeading).toBeFocused()
   })
 
   test('provides a keyboard skip link to the single main landmark', async ({ page }) => {
     const skipLink = page.getByRole('link', { name: 'Skip to main content' })
-    await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeFocused()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Discover local antiques.', exact: true }),
+    ).toBeFocused()
     for (let step = 0; step < 12; step += 1) {
       await page.keyboard.press('Shift+Tab')
       if (await skipLink.evaluate((element) => element === document.activeElement)) break
@@ -283,11 +295,11 @@ test.describe('Synthetic catalog design contract', () => {
     }
   })
 
-  test('keeps Browse covers landscape and card-width at desktop, tablet, and phone sizes', async ({
+  test('keeps art-directed Browse covers sized to their cards across viewports', async ({
     page,
   }) => {
     for (const viewportWidth of [1440, 900, 390]) {
-      await expectLandscapeCatalogCover(page, viewportWidth)
+      await expectArtDirectedCatalogCovers(page, viewportWidth)
     }
   })
 
@@ -295,6 +307,7 @@ test.describe('Synthetic catalog design contract', () => {
     for (const appearance of ['light', 'dark'] as const) {
       for (const viewport of [
         { width: 1440, height: 1000 },
+        { width: 900, height: 1000 },
         { width: 390, height: 844 },
       ]) {
         await page.setViewportSize(viewport)
@@ -307,7 +320,9 @@ test.describe('Synthetic catalog design contract', () => {
 
         await expect(page.getByRole('heading', { name: 'Store map' })).toHaveCount(0)
         await expect(page.getByText(/map and travel-time suggestions/i)).toHaveCount(0)
-        await expect(page.getByText('Fictional listings for safe product review')).toBeVisible()
+        const reviewNotice = page.getByRole('complementary', { name: 'Local review harness' })
+        await expect(reviewNotice).toBeVisible()
+        await expect(reviewNotice).toContainText('Anonymous shopper')
 
         const firstCard = page.locator('.catalog-card').first()
         const firstImage = firstCard.getByRole('img')
@@ -315,20 +330,30 @@ test.describe('Synthetic catalog design contract', () => {
         await expect(firstImage).toBeVisible()
         await expect(firstName).toBeVisible()
 
-        const geometry = await firstCard.evaluate((card, viewportHeight) => {
+        const geometry = await firstCard.evaluate((card) => {
           const image = card.querySelector<HTMLElement>(
             '.catalog-card__image, .catalog-card__placeholder',
           )
           const name = card.querySelector<HTMLElement>('h2 a')
           if (!image || !name) throw new Error('First store image/fallback and name must render')
+          const imageBounds = image.getBoundingClientRect()
+          const nameBounds = name.getBoundingClientRect()
           return {
-            imageBottom: image.getBoundingClientRect().bottom,
-            nameBottom: name.getBoundingClientRect().bottom,
-            viewportHeight,
+            imageBottom: imageBounds.bottom + window.scrollY,
+            nameTop: nameBounds.top + window.scrollY,
+            nameBottom: nameBounds.bottom + window.scrollY,
+            cardBottom: card.getBoundingClientRect().bottom + window.scrollY,
           }
-        }, viewport.height)
-        expect(geometry.imageBottom).toBeLessThanOrEqual(geometry.viewportHeight)
-        expect(geometry.nameBottom).toBeLessThanOrEqual(geometry.viewportHeight)
+        })
+        expect(geometry.imageBottom).toBeLessThan(geometry.nameTop)
+        expect(geometry.nameBottom).toBeLessThanOrEqual(geometry.cardBottom)
+        expect(
+          geometry.imageBottom,
+          `First store image at ${viewport.width}px`,
+        ).toBeLessThanOrEqual(viewport.height)
+        expect(geometry.nameBottom, `First store name at ${viewport.width}px`).toBeLessThanOrEqual(
+          viewport.height,
+        )
       }
     }
   })
@@ -384,7 +409,9 @@ test.describe('Synthetic catalog design contract', () => {
   test('reflows at the 320px CSS viewport equivalent to 200% zoom', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 })
     await page.reload()
-    await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Discover local antiques.', exact: true }),
+    ).toBeVisible()
 
     const overflow = await page.evaluate(() => ({
       body: document.body.scrollWidth - document.body.clientWidth,
@@ -537,7 +564,7 @@ test('catalog action area keeps View store primary and Save secondary across acc
   }
 })
 
-test('showcase navigation exposes Browse, Saved stores, More, and Create account', async ({
+test('showcase navigation exposes shopper destinations and anonymous account links', async ({
   page,
 }) => {
   for (const viewport of [
@@ -547,12 +574,16 @@ test('showcase navigation exposes Browse, Saved stores, More, and Create account
     await page.setViewportSize(viewport)
     await page.goto('/stores?reviewAs=anonymous&reviewState=success')
     const primary = page.getByRole('navigation', { name: 'Primary navigation' })
-    await expect(primary.getByRole('link')).toHaveCount(4)
+    await expect(primary.getByRole('link')).toHaveCount(5)
     await expect(primary.getByRole('link', { name: 'Browse', exact: true })).toBeVisible()
     await expect(
       primary.getByRole('link', { name: /saved stores.*requires sign-in/i }),
     ).toHaveAttribute('href', '/saved')
     await expect(primary.getByRole('link', { name: 'More', exact: true })).toBeVisible()
+    await expect(primary.getByRole('link', { name: 'Sign in', exact: true })).toHaveAttribute(
+      'href',
+      '/auth/sign-in',
+    )
     await expect(primary.getByRole('link', { name: 'Create new account' })).toHaveAttribute(
       'href',
       '/auth/register',

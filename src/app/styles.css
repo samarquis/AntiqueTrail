@@ -790,6 +790,10 @@ main > article {
   gap: 0.8rem;
 }
 
+.account-settings__address {
+  overflow-wrap: anywhere;
+}
+
 .trip-plan-section {
   margin-top: 2rem;
   padding-top: 1.5rem;
@@ -1084,6 +1088,10 @@ main > article {
   color: var(--muted);
   font-size: var(--type-size-supporting);
   line-height: var(--type-leading-body);
+}
+
+.account-settings .privacy-consequence {
+  font-size: var(--type-size-body);
 }
 
 .account-settings textarea {
@@ -1452,6 +1460,9 @@ textarea[aria-invalid='true'] {
 }
 
 .role-context-banner a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
   margin-left: auto;
   color: var(--teal-dark);
   font-weight: var(--type-weight-strong);
@@ -2176,11 +2187,6 @@ main > article dt {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .theme-toggle {
-    width: 2.75rem;
-    height: 2.75rem;
   }
 
   .catalog-browser.catalog-browser {
@@ -3320,13 +3326,17 @@ main > article dt {
   --card: #252b33;
   --line: #3b4552;
   --teal: #8795b5;
-  --teal-dark: #aebbd0;
+  --teal-dark: #8795b5;
   --mint: #1a1f26;
   --rust: #b56e5b;
   --gold: #b99554;
   --olive: #b7b0a5;
   --focus-inner: #121519;
   --focus-outer: #f3eee4;
+}
+
+:root[data-theme='dark'] .role-context-banner a {
+  color: var(--ink);
 }
 
 /* Dark interactive surfaces: the accent tokens are text-grade, so filled
@@ -3811,7 +3821,7 @@ main > article dt {
   /* minmax(0, …) keeps the dense six-track grid from overflowing on sparse
      runs: without it, implicit and min-content tracks can widen past the
      container when a run carries large generated fixtures. */
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-auto-columns: minmax(0, 1fr);
   gap: 0.85rem;
   grid-auto-flow: dense;
@@ -4052,6 +4062,12 @@ main > article dt {
 
   .store-photos__feature img {
     translate: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .store-photos__feature {
+    aspect-ratio: 1 / 1;
   }
 }
 
@@ -4325,8 +4341,8 @@ main.catalog-browser--review {
 main.catalog-browser--review .browse-editorial-hero {
   position: relative;
   display: grid;
-  min-height: min(48rem, 88vh);
-  margin: 0 0 clamp(3rem, 7vw, 6rem);
+  min-height: min(17rem, 54vh);
+  margin: 0;
   padding: 0;
   overflow: hidden;
   isolation: isolate;
@@ -4365,10 +4381,10 @@ main.catalog-browser--review .browse-editorial-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.82fr);
   align-items: end;
-  gap: clamp(2rem, 7vw, 7rem);
+  gap: clamp(1rem, 4vw, 4rem);
   width: min(100% - 2rem, 90rem);
   margin: 0 auto;
-  padding: clamp(8rem, 20vh, 13rem) 0 clamp(4rem, 9vh, 6rem);
+  padding: 0;
 }
 
 .browse-editorial-hero header {
@@ -4459,6 +4475,7 @@ main.catalog-browser--review .browse-editorial-hero {
   position: absolute;
   right: clamp(1rem, 4vw, 4.5rem);
   bottom: 1.25rem;
+  pointer-events: none;
   margin: 0;
   color: color-mix(in srgb, var(--media-overlay-text) 72%, transparent);
   font-size: var(--type-size-caption);
@@ -4477,16 +4494,16 @@ main.catalog-browser--review .catalog-map-panel {
 }
 
 main.catalog-browser--review .catalog-results-heading {
-  margin-bottom: 2.5rem;
-  padding-bottom: 1.25rem;
+  margin-bottom: 0;
+  padding-bottom: 0.25rem;
   border-bottom-color: var(--line);
 }
 
 main.catalog-browser--review .catalog-results-heading h2 {
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: var(--type-size-heading-1);
-  line-height: var(--type-leading-display-tight);
+  font-size: var(--type-size-heading-2);
+  line-height: var(--type-leading-display);
   letter-spacing: var(--type-tracking-display);
 }
 
@@ -4496,7 +4513,7 @@ main.catalog-browser--review .catalog-results-heading > p {
 }
 
 main.catalog-browser--review .catalog-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: clamp(1rem, 2.5vw, 2.5rem);
 }
 
@@ -4557,13 +4574,13 @@ main.catalog-browser--review .catalog-card__hours strong {
 main.catalog-browser--review .catalog-card h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--type-size-heading-2);
-  line-height: var(--type-leading-display-tight);
+  font-size: var(--type-size-heading-3);
+  line-height: var(--type-leading-display-relaxed);
   letter-spacing: var(--type-tracking-display-subtle);
 }
 
 main.catalog-browser--review .catalog-card h2 a:hover {
-  color: var(--teal);
+  color: var(--teal-dark);
 }
 
 main.catalog-browser--review .catalog-card__area,
@@ -4578,7 +4595,7 @@ main.catalog-browser--review .catalog-card__body > p:not([class]) {
 }
 
 main.catalog-browser--review .catalog-card__categories li {
-  color: var(--ink);
+  color: var(--media-overlay-text);
   background: var(--teal);
 }
 
@@ -4636,8 +4653,8 @@ main.catalog-browser--review .catalog-card__details:hover {
 
 :root[data-theme='dark'] main.catalog-browser--review .catalog-card {
   border-color: var(--line);
-  color: var(--paper);
-  background: var(--media-overlay-text);
+  color: var(--ink);
+  background: var(--card);
   box-shadow: var(--shadow-card);
 }
 
@@ -4650,7 +4667,7 @@ main.catalog-browser--review .catalog-card__details:hover {
 :root[data-theme='dark'] main.catalog-browser--review .catalog-card h2 a,
 :root[data-theme='dark'] main.catalog-browser--review .catalog-card__hours,
 :root[data-theme='dark'] main.catalog-browser--review .catalog-card__hours strong {
-  color: var(--paper);
+  color: var(--ink);
 }
 
 :root[data-theme='dark'] main.catalog-browser--review .catalog-card h2 a:hover {
@@ -4664,8 +4681,8 @@ main.catalog-browser--review .catalog-card__details:hover {
 }
 
 :root[data-theme='dark'] main.catalog-browser--review .catalog-card__categories li {
-  color: var(--media-overlay-text);
-  background: var(--teal-dark);
+  color: var(--paper);
+  background: var(--teal);
 }
 
 :root[data-theme='dark'] main.catalog-browser--review .catalog-card__freshness::before {
@@ -4689,14 +4706,20 @@ main.catalog-browser--review .catalog-card__details:hover {
 }
 
 @media (max-width: 800px) {
+  main.catalog-browser--review .catalog-card > img,
+  main.catalog-browser--review .catalog-card__placeholder {
+    height: auto;
+    min-height: 0;
+  }
+
   main.catalog-browser--review .browse-editorial-hero {
-    min-height: 48rem;
+    min-height: 0;
   }
 
   .browse-editorial-hero__content {
     grid-template-columns: 1fr;
-    gap: 2rem;
-    padding-top: 11rem;
+    gap: 1rem;
+    padding: 1.5rem 0;
   }
 
   main.catalog-browser--review .catalog-grid {
@@ -4710,26 +4733,62 @@ main.catalog-browser--review .catalog-card__details:hover {
   }
 
   main.catalog-browser--review .browse-editorial-hero {
-    min-height: 52rem;
+    min-height: 0;
+    margin-bottom: 0;
   }
 
   .browse-editorial-hero__content {
     width: min(100% - 1.25rem, 42rem);
-    padding-top: 10rem;
+    gap: 0.25rem;
+    padding: 0.25rem 0;
+  }
+
+  .browse-editorial-hero .eyebrow {
+    margin-bottom: 0.5rem;
+  }
+
+  .browse-editorial-hero header > p:last-child {
+    margin-top: 0.5rem;
+    font-size: var(--type-size-supporting);
   }
 
   .browse-editorial-hero h1 {
-    max-width: 10ch;
+    max-width: 15ch;
     font-size: var(--type-size-heading-1);
   }
 
   .browse-editorial-hero__filters .catalog-filters {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .browse-editorial-hero__filters .catalog-search-control {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.35rem;
+  }
+
+  .browse-editorial-hero__filters .catalog-search-control .catalog-filters__trigger {
+    width: auto;
   }
 
   .browse-editorial-hero__filters .catalog-field--search,
   .browse-editorial-hero__filters .catalog-filters__actions {
-    grid-column: 1;
+    grid-column: 1 / -1;
+  }
+
+  .browse-editorial-hero__filters .catalog-field:not(.catalog-field--search) {
+    grid-column: span 1;
+    min-width: 0;
+  }
+
+  .browse-editorial-hero__filters .catalog-field {
+    gap: 0.25rem;
+  }
+
+  main.catalog-browser--review .catalog-results-heading .eyebrow,
+  main.catalog-browser--review .catalog-results-heading > p {
+    display: none;
   }
 
   main.catalog-browser--review .catalog-results-heading,

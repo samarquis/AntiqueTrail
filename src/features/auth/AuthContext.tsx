@@ -22,6 +22,7 @@ import type {
   SessionRegistryClient,
 } from './types'
 import type { AccountLifecycleClient } from './lifecycle'
+import type { UserSettings } from '../account/settings'
 
 interface AuthContextValue {
   session: AuthSession | null
@@ -41,6 +42,7 @@ export function AuthProvider({
   registry,
   provider = unavailableAuthProvider,
   lifecycle,
+  settings,
   lifecycleHydrationTimeoutMs = 5_000,
   onLocalSignOut,
 }: {
@@ -49,6 +51,7 @@ export function AuthProvider({
   registry?: SessionRegistryClient
   provider?: AuthProviderAdapter
   lifecycle?: AccountLifecycleClient
+  settings?: { getSettings(): Promise<Pick<UserSettings, 'displayName'>> }
   /** Test seam; production fails closed if authoritative status cannot resolve promptly. */
   lifecycleHydrationTimeoutMs?: number
   /** Purges account/install-bound local data (for example encrypted trip caches). */
@@ -63,6 +66,7 @@ export function AuthProvider({
   const [signOutFailed, setSignOutFailed] = useState(false)
   const signingOutSession = useRef<AuthSession | null>(null)
   const signOutGeneration = useRef(0)
+  const accountRevision = useRef(0)
   const [providerReady, setProviderReady] = useState(() => !provider.restoreSession)
   const restorationRef = useRef<{
     provider: AuthProviderAdapter
@@ -75,12 +79,51 @@ export function AuthProvider({
   const lostSessionRef = useRef<string | null>(null)
   const replaceSession = useCallback(
     (next: AuthSession | null) => {
+      if (resolvedStore.getSession()?.userId !== next?.userId) accountRevision.current += 1
       if (next) resolvedStore.setSession(next)
       else resolvedStore.clearSession()
       setSession(next)
     },
     [resolvedStore],
   )
+
+  const settingsUserId = session?.userId
+  const settingsToken = session?.accessToken
+  const displayNameRevision = useRef(0)
+  useEffect(() => {
+    if (!settings || !settingsUserId || !settingsToken || !providerReady || !lifecycleReady) return
+    let cancelled = false
+    const revision = displayNameRevision.current
+    const initial = resolvedStore.getSession()
+    if (initial) replaceSession({ ...initial, displayName: undefined })
+    void settings
+      .getSettings()
+      .then((saved) => {
+        const current = resolvedStore.getSession()
+        if (
+          cancelled ||
+          current?.userId !== settingsUserId ||
+          current.accessToken !== settingsToken
+        )
+          return
+        if (displayNameRevision.current !== revision) return
+        replaceSession({ ...current, displayName: saved.displayName ?? undefined })
+      })
+      .catch(() => {
+        // A settings outage must not revoke the authenticated session.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    settings,
+    settingsUserId,
+    settingsToken,
+    providerReady,
+    lifecycleReady,
+    resolvedStore,
+    replaceSession,
+  ])
 
   useEffect(() => {
     const restore = provider.restoreSession
@@ -237,6 +280,7 @@ export function AuthProvider({
     }
   }, [lifecycle, lifecycleHydrationTimeoutMs, loseSession, replaceSession, session])
 
+  const renderedAccountRevision = accountRevision.current
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -281,6 +325,7 @@ export function AuthProvider({
         const current = signingOutSession.current ?? resolvedStore.getSession()
         if (current) {
           signOutGeneration.current += 1
+          accountRevision.current += 1
           signingOutSession.current = current
           setSigningOut(true)
           setSignOutFailed(false)
@@ -320,7 +365,13 @@ export function AuthProvider({
       },
       updateDisplayName(displayName) {
         const current = resolvedStore.getSession()
-        if (!current) return
+        if (
+          !current ||
+          current.userId !== session?.userId ||
+          accountRevision.current !== renderedAccountRevision
+        )
+          return
+        displayNameRevision.current += 1
         replaceSession({
           ...current,
           ...(displayName ? { displayName } : { displayName: undefined }),
@@ -349,6 +400,7 @@ export function AuthProvider({
       session,
       lifecycle,
       lifecycleReady,
+      renderedAccountRevision,
     ],
   )
   const valueRef = useRef(value)
