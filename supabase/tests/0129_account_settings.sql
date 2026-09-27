@@ -4,7 +4,7 @@ set search_path=public,extensions;
 select plan(28);
 
 select has_function('app_public','account_get_settings',array[]::text[],'settings read RPC exists');
-select has_function('app_public','account_update_settings',array['text','text'],'settings update RPC exists');
+select has_function('app_public','account_update_settings',array['text','text','bigint','text'],'settings update RPC exists');
 select ok(not has_function_privilege('anon','app_public.account_get_settings()','EXECUTE'),'anonymous cannot read settings');
 select ok(not has_table_privilege('authenticated','app_private.profiles','SELECT'),'browser cannot read profiles directly');
 select ok(not has_table_privilege('authenticated','app_private.profiles','UPDATE'),'browser cannot update profiles directly');
@@ -12,7 +12,7 @@ select ok(to_regprocedure('app_public.account_update_settings(uuid,text,text)') 
   'settings RPC cannot select another account');
 set local role authenticated;
 select throws_ok($$select app_public.account_get_settings()$$,'42501','account_settings_access_denied','unregistered session cannot read settings');
-select throws_ok($$select app_public.account_update_settings('Other Name','Other Address')$$,'42501','account_settings_access_denied','unregistered session cannot update settings');
+select throws_ok($$select app_public.account_update_settings('Other Name','Other Address',1,'unauth')$$,'42501','account_settings_access_denied','unregistered session cannot update settings');
 reset role;
 
 insert into auth.users(id) values
@@ -63,9 +63,10 @@ select set_config('request.jwt.claims',jsonb_build_object(
   'session_id','92900000-0000-4000-8000-000000000005')::text,true);
 set local role authenticated;
 select is(app_public.account_get_settings()->>'locationAddress','123 Main Street','owner reads own private location');
-select is(app_public.account_update_settings('  Avery  ','  321 Oak  ')->>'displayName','Avery','update trims display name');
+do $$ begin perform app_public.account_update_settings('  Avery  ','  321 Oak  ',(app_public.account_get_settings()->>'version')::bigint,'owner-save'); end; $$;
+select is(app_public.account_get_settings()->>'displayName','Avery','update trims display name');
 select is(app_public.account_get_settings()->>'locationAddress','321 Oak','update trims private location');
-select throws_ok($$select app_public.account_update_settings('Avery',repeat('x',321))$$,
+select throws_ok($$select app_public.account_update_settings('Avery',repeat('x',321),1,'too-long')$$,
   '22023','invalid_location_address','oversize private location is rejected');
 reset role;
 select is((select private_location_address from app_private.profiles where user_id='92900000-0000-4000-8000-000000000004'),
@@ -81,7 +82,8 @@ select is(app_public.account_get_settings()->>'locationAddress','Other Private A
 select ok(app_public.account_get_settings()::text not like '%123 Main Street%','second user cannot read first user address');
 select throws_ok($$select app_public.account_update_settings('Avery','123 Main Street','92900000-0000-4000-8000-000000000001')$$,
   '42883',null,'direct RPC cannot target another user');
-select is(app_public.account_update_settings('  Devon  ','  456 Pine Road  ')->>'locationAddress',
+do $$ begin perform app_public.account_update_settings('  Devon  ','  456 Pine Road  ',(app_public.account_get_settings()->>'version')::bigint,'sibling-save'); end; $$;
+select is(app_public.account_get_settings()->>'locationAddress',
   '456 Pine Road','second user updates own address');
 reset role;
 select is(
@@ -104,7 +106,7 @@ select is((select count(*)::integer from app_private.role_grants
   where subject_user_id='92900000-0000-4000-8000-000000000001' and role='shopper' and state='active'),
   1,'display name update leaves server-authorized shopper role unchanged');
 set local role authenticated;
-select is(app_public.account_update_settings('   ','   ')->>'locationAddress',null,'cleared address returns null');
+select is(app_public.account_update_settings('   ','   ',(app_public.account_get_settings()->>'version')::bigint,'owner-clear')->>'state','saved','clear returns content-free success');
 select is(app_public.account_get_settings()->>'locationAddress',null,'cleared address stays null after fresh read');
 reset role;
 select ok(

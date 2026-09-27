@@ -39,6 +39,7 @@ it('keeps session material through one transient validation error and recovers o
       authStore={store}
       registry={{ registerCurrentSession: vi.fn(), isActive, revoke }}
       provider={{
+        oauthProviders: { google: false, facebook: false },
         signIn: vi.fn(),
         sendRecovery: vi.fn(),
         verifyMfa: vi.fn(),

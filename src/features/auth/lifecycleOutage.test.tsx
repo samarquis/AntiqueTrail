@@ -42,6 +42,7 @@ it('keeps private content locked and session material intact through a prolonged
         revoke: vi.fn(),
       }}
       provider={{
+        oauthProviders: { google: false, facebook: false },
         signIn: vi.fn(),
         sendRecovery: vi.fn(),
         verifyMfa: vi.fn(),

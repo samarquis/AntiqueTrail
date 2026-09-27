@@ -9,6 +9,7 @@ declare const Deno: {
 
 const url = Deno.env.get('SUPABASE_URL')
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+const anonKey = Deno.env.get('SUPABASE_ANON_KEY')?.trim() ?? ''
 const appOrigin = Deno.env.get('APP_ORIGIN')
 const approvedAppOrigin = Deno.env.get('REGISTRATION_APPROVED_APP_ORIGIN')
 const emailHmacSecret = Deno.env.get('REGISTRATION_EMAIL_HMAC_SECRET')?.trim() ?? 'unused'
@@ -62,7 +63,13 @@ Deno.serve(async (request) => {
     endpoints = null
   }
   const configured = Boolean(
-    url && serviceKey && appOrigin && emailHmacSecret && emailHmacSecret.length >= 32 && endpoints,
+    url &&
+      serviceKey &&
+      anonKey &&
+      appOrigin &&
+      emailHmacSecret &&
+      emailHmacSecret.length >= 32 &&
+      endpoints,
   )
   const admin = configured
     ? createClient(url, serviceKey, {
@@ -107,17 +114,15 @@ Deno.serve(async (request) => {
     },
     async generate(input) {
       if (!url || !endpoints) throw new Error('unavailable')
+      const appCallbackUrl = `${endpoints.appOrigin}/auth/callback`
       const signupUrl = new URL('/auth/v1/signup', endpoints.supabaseOrigin)
-      signupUrl.searchParams.set('redirect_to', `${endpoints.appOrigin}/auth/callback`)
+      signupUrl.searchParams.set('redirect_to', appCallbackUrl)
       const response = await withDeadline(timeoutMs, (signal) =>
         fetch(signupUrl, {
           method: 'POST',
           signal,
           headers: {
-            apikey:
-              Deno.env.get('REGISTRATION_SUPABASE_ANON_KEY') ??
-              Deno.env.get('SUPABASE_ANON_KEY') ??
-              '',
+            apikey: anonKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -138,7 +143,6 @@ Deno.serve(async (request) => {
       const providerUserId =
         typeof generated.user?.id === 'string' ? generated.user.id : generated.id
       if (typeof providerUserId !== 'string') return { outcome: 'unknown' }
-      const appCallbackUrl = `${endpoints.appOrigin}/auth/callback`
       return { outcome: 'confirmed_generated', appCallbackUrl, providerUserId }
     },
     async settleGenerate(input) {

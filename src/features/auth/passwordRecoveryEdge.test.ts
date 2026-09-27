@@ -41,7 +41,7 @@ function dependencies(overrides: Partial<PasswordRecoveryCompletionDependencies>
 
 const valid = {
   token_hash: 't'.repeat(32),
-  password: 'new-pass',
+  password: 'new-password-123',
   request_id: '00000000-0000-4000-8000-000000000001',
 }
 
@@ -49,7 +49,7 @@ describe('password recovery completion boundary', () => {
   it('validates before consuming a token', async () => {
     const boundary = dependencies()
     const response = await handlePasswordRecoveryCompletion(
-      request({ ...valid, password: 'too-long9' }),
+      request({ ...valid, password: 'short' }),
       boundary.dependencies,
     )
     expect(response.status).toBe(200)

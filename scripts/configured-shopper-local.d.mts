@@ -3,6 +3,7 @@ export interface LocalServiceRun {
   projectId: string
   directory: string
   endpoint?: string
+  mailEndpoint?: string
   origin?: string
   sourceSha?: string
   sourceDirty?: boolean

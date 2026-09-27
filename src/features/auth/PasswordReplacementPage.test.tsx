@@ -13,6 +13,7 @@ import {
 import type { AuthProviderAdapter } from './types'
 
 const baseProvider: AuthProviderAdapter = {
+  oauthProviders: { google: false, facebook: false },
   signIn: vi.fn(async () => ({ kind: 'error' as const })),
   sendRecovery: vi.fn(async () => undefined),
   verifyMfa: vi.fn(async () => null),
@@ -40,8 +41,10 @@ describe('PasswordReplacementPage', () => {
         </AuthProvider>
       </MemoryRouter>,
     )
+    await user.type(screen.getByLabelText('New password'), 'short')
+    await user.type(screen.getByLabelText('Confirm new password'), 'short')
     await user.click(screen.getByRole('button', { name: 'Set new password' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('Use 1 through 8 characters.')
+    expect(screen.getByRole('alert')).toHaveTextContent('Use 12 through 128 characters.')
     expect(completePasswordRecovery).not.toHaveBeenCalled()
   })
 
