@@ -56,7 +56,11 @@ describe('UserSettingsPage', () => {
     renderPage(client)
 
     expect(await screen.findByDisplayValue('Avery Shopper')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('123 Main Street, Topeka, KS')).toBeInTheDocument()
+    expect(screen.getByText('123 Main Street, Topeka, KS')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: /address/i })).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/trip preferences|trip planning|starting point/i),
+    ).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /saved stores/i })).toHaveAttribute('href', '/saved')
     expect(screen.getByText(/stored privately/i)).toHaveClass('privacy-consequence')
   })
@@ -92,17 +96,17 @@ describe('UserSettingsPage', () => {
     fireEvent.submit(screen.getByRole('button', { name: 'Save settings' }).closest('form')!)
     expect(client.updateSettings).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Retry loading settings' }))
-    await screen.findByDisplayValue('Saved Address')
+    await screen.findByText('Saved Address')
     expect(screen.getByLabelText('Display name')).toHaveValue('Saved Name')
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled()
   })
 
-  it('saves the edited name and starting address', async () => {
+  it('saves the edited name while preserving an existing private address', async () => {
     const user = userEvent.setup()
     const client: AccountSettingsClient = {
       getSettings: vi.fn(async () => ({
         displayName: 'Loaded Name',
-        locationAddress: null,
+        locationAddress: '123 Main Street, Topeka, KS',
         version: 1,
       })),
       updateSettings: vi.fn(async (input) => input),
@@ -114,9 +118,6 @@ describe('UserSettingsPage', () => {
       expect(screen.getByRole('button', { name: /save settings/i })).toBeEnabled(),
     )
     fireEvent.change(screen.getByLabelText(/display name/i), { target: { value: 'Avery' } })
-    fireEvent.change(screen.getByLabelText(/starting address/i), {
-      target: { value: '123 Main Street, Topeka, KS' },
-    })
     await user.click(screen.getByRole('button', { name: /save settings/i }))
 
     expect(client.updateSettings).toHaveBeenCalledWith({
@@ -185,7 +186,54 @@ describe('UserSettingsPage', () => {
     expect(calls[1][0]).toEqual(calls[0][0])
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Retry loading settings' })).toBeVisible()
-    expect(screen.getByLabelText(/starting address/i)).toHaveValue('Saved Address')
+    expect(screen.getByText('Saved Address')).toBeInTheDocument()
+  })
+
+  it('offers no address entry or clearing when no address is saved', async () => {
+    const client: AccountSettingsClient = {
+      getSettings: vi.fn(async () => ({ displayName: 'Avery', locationAddress: null, version: 1 })),
+      updateSettings: vi.fn(),
+    }
+    renderPage(client)
+    await screen.findByDisplayValue('Avery')
+    expect(screen.queryByRole('textbox', { name: /address/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /clear saved address/i })).not.toBeInTheDocument()
+  })
+
+  it('retains the saved address after a failed clear and clears it on a successful retry', async () => {
+    const user = userEvent.setup()
+    const client: AccountSettingsClient = {
+      getSettings: vi.fn(async () => ({
+        displayName: 'Avery',
+        locationAddress: 'Saved Address',
+        version: 2,
+      })),
+      updateSettings: vi.fn().mockRejectedValueOnce(new Error('unavailable')).mockResolvedValue({
+        displayName: 'Avery',
+        locationAddress: null,
+        version: 3,
+      }),
+    }
+    renderPage(client)
+    await screen.findByText('Saved Address')
+    await user.click(screen.getByRole('checkbox', { name: /clear saved address/i }))
+    expect(client.updateSettings).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+    await screen.findByRole('alert')
+    expect(screen.getByText('Saved Address')).toBeInTheDocument()
+    expect(client.updateSettings).toHaveBeenCalledWith({
+      displayName: 'Avery',
+      locationAddress: null,
+      version: 2,
+      idempotencyKey: expect.any(String),
+    })
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+    await screen.findByText('Settings saved.')
+    expect(screen.queryByText('Saved Address')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /clear saved address/i })).not.toBeInTheDocument()
+    expect(vi.mocked(client.updateSettings).mock.calls[1][0]).toEqual(
+      vi.mocked(client.updateSettings).mock.calls[0][0],
+    )
   })
 })
 

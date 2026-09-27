@@ -501,7 +501,7 @@ test('two local accounts keep settings private across save, fresh login, and rev
       await service.sql(
         `with reset_profiles as (
            update app_private.profiles
-           set public_display_name=null,private_location_address=null
+           set public_display_name=null,private_location_address=case when user_id='${ownerId}' then '420 Owner Private Address' else null end
            where user_id in ('${ownerId}','${siblingId}')
            returning user_id
          ), reset_auth_metadata as (
@@ -564,9 +564,8 @@ test('two local accounts keep settings private across save, fresh login, and rev
     page.getByLabel(`Signed in as ${input.users[0].email.split('@')[0]}`, { exact: true }),
   ).toBeVisible()
   await page.getByLabel('Display name', { exact: true }).fill('Issue 420 Owner')
-  await page
-    .getByLabel('Starting address for location services', { exact: true })
-    .fill('420 Owner Private Address')
+  await expect(page.getByRole('textbox', { name: /address/i })).toHaveCount(0)
+  await expect(page.getByText('420 Owner Private Address', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Save settings', exact: true }).click()
   await expect(page.getByRole('status')).toHaveText('Settings saved.')
   await expect(page.getByLabel('Signed in as Issue 420 Owner')).toBeVisible()
@@ -586,8 +585,10 @@ test('two local accounts keep settings private across save, fresh login, and rev
     }),
   )
   await page.getByLabel('Display name', { exact: true }).fill('Unsaved Owner Name')
+  await page.getByRole('checkbox', { name: /clear saved address/i }).check()
   await page.getByRole('button', { name: 'Save settings', exact: true }).click()
   await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByText('420 Owner Private Address', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Signed in as Issue 420 Owner')).toBeVisible()
   expect(providerWrites).toEqual([])
   await expect(rpc(ownerToken, 'account_get_settings', {})).resolves.toMatchObject({
@@ -595,6 +596,7 @@ test('two local accounts keep settings private across save, fresh login, and rev
     locationAddress: '420 Owner Private Address',
   })
   await page.unroute('**/rest/v1/rpc/account_update_settings')
+  await page.getByRole('checkbox', { name: /clear saved address/i }).uncheck()
   page.off('request', recordProviderWrite)
 
   const freshOwnerContext = await browser.newContext({ baseURL: input.origin })
@@ -605,8 +607,8 @@ test('two local accounts keep settings private across save, fresh login, and rev
       'Issue 420 Owner',
     )
     await expect(
-      freshOwnerPage.getByLabel('Starting address for location services', { exact: true }),
-    ).toHaveValue('420 Owner Private Address')
+      freshOwnerPage.getByText('420 Owner Private Address', { exact: true }),
+    ).toBeVisible()
     await expect(freshOwnerPage.getByLabel('Signed in as Issue 420 Owner')).toBeVisible()
     // Another tab advances the version without changing either value.
     await freshOwnerPage.getByRole('button', { name: 'Save settings', exact: true }).click()
@@ -629,41 +631,35 @@ test('two local accounts keep settings private across save, fresh login, and rev
       { times: 1 },
     )
     await page.getByLabel('Display name', { exact: true }).fill('Lost Response Name')
-    await page
-      .getByLabel('Starting address for location services', { exact: true })
-      .fill('Historical Address')
     await page.getByRole('button', { name: 'Save settings', exact: true }).click()
     await expect(page.getByRole('alert')).toBeVisible()
     await expect(rpc(ownerToken, 'account_get_settings', {})).resolves.toMatchObject({
       displayName: 'Lost Response Name',
-      locationAddress: 'Historical Address',
+      locationAddress: '420 Owner Private Address',
     })
     await freshOwnerPage.reload()
     await expect(freshOwnerPage.getByLabel('Display name', { exact: true })).toHaveValue(
       'Lost Response Name',
     )
     await freshOwnerPage.getByLabel('Display name', { exact: true }).fill('Issue 420 Owner')
-    await freshOwnerPage
-      .getByLabel('Starting address for location services', { exact: true })
-      .fill('')
+    await freshOwnerPage.getByRole('checkbox', { name: /clear saved address/i }).check()
     await freshOwnerPage.getByRole('button', { name: 'Save settings', exact: true }).click()
     await expect(freshOwnerPage.getByRole('status')).toHaveText('Settings saved.')
     await page.getByRole('button', { name: 'Save settings', exact: true }).click()
     await expect(page.getByRole('status')).toHaveText('Settings saved.')
     await expect(page.getByLabel('Display name', { exact: true })).toHaveValue('Issue 420 Owner')
-    await expect(
-      page.getByLabel('Starting address for location services', { exact: true }),
-    ).toHaveValue('')
+    await expect(page.getByRole('region', { name: 'Saved address', exact: true })).toHaveCount(0)
     await expect(page.getByLabel('Signed in as Issue 420 Owner')).toBeVisible()
     await expect(rpc(ownerToken, 'account_get_settings', {})).resolves.toMatchObject({
       displayName: 'Issue 420 Owner',
       locationAddress: null,
     })
-    await page
-      .getByLabel('Starting address for location services', { exact: true })
-      .fill('420 Owner Private Address')
-    await page.getByRole('button', { name: 'Save settings', exact: true }).click()
-    await expect(page.getByRole('status')).toHaveText('Settings saved.')
+    // Restore only the run-owned legacy fixture for the isolation assertions below.
+    await service.sql(
+      `update app_private.profiles set private_location_address='420 Owner Private Address', version=version+1 where user_id='${ownerId}';`,
+    )
+    await page.reload()
+    await expect(page.getByText('420 Owner Private Address', { exact: true })).toBeVisible()
   } finally {
     await freshOwnerContext.close()
   }
@@ -680,9 +676,10 @@ test('two local accounts keep settings private across save, fresh login, and rev
       /401|403|42501|portal_unavailable/,
     )
     await expect(siblingPage.getByLabel('Display name', { exact: true })).toHaveValue('')
+    await expect(siblingPage.getByRole('textbox', { name: /address/i })).toHaveCount(0)
     await expect(
-      siblingPage.getByLabel('Starting address for location services', { exact: true }),
-    ).toHaveValue('')
+      siblingPage.getByRole('region', { name: 'Saved address', exact: true }),
+    ).toHaveCount(0)
     await expect(rpc(siblingToken, 'account_get_settings', {})).resolves.toMatchObject({
       displayName: null,
       locationAddress: null,
@@ -704,10 +701,14 @@ test('two local accounts keep settings private across save, fresh login, and rev
       }),
     ).rejects.toThrow(/401|403|404|42501|PGRST202/)
 
+    await service.sql(
+      `update app_private.profiles set private_location_address='420 Sibling Private Address', version=version+1 where user_id='${siblingId}';`,
+    )
+    await siblingPage.reload()
+    await expect(
+      siblingPage.getByText('420 Sibling Private Address', { exact: true }),
+    ).toBeVisible()
     await siblingPage.getByLabel('Display name', { exact: true }).fill('Issue 420 Sibling')
-    await siblingPage
-      .getByLabel('Starting address for location services', { exact: true })
-      .fill('420 Sibling Private Address')
     await siblingPage.getByRole('button', { name: 'Save settings', exact: true }).click()
     await expect(siblingPage.getByRole('status')).toHaveText('Settings saved.')
     await expect(siblingPage.getByLabel('Signed in as Issue 420 Sibling')).toBeVisible()
@@ -716,8 +717,8 @@ test('two local accounts keep settings private across save, fresh login, and rev
       'Issue 420 Sibling',
     )
     await expect(
-      siblingPage.getByLabel('Starting address for location services', { exact: true }),
-    ).toHaveValue('420 Sibling Private Address')
+      siblingPage.getByText('420 Sibling Private Address', { exact: true }),
+    ).toBeVisible()
 
     const freshSiblingContext = await browser.newContext({ baseURL: input.origin })
     let freshSiblingToken: string
@@ -728,8 +729,8 @@ test('two local accounts keep settings private across save, fresh login, and rev
         'Issue 420 Sibling',
       )
       await expect(
-        freshSiblingPage.getByLabel('Starting address for location services', { exact: true }),
-      ).toHaveValue('420 Sibling Private Address')
+        freshSiblingPage.getByText('420 Sibling Private Address', { exact: true }),
+      ).toBeVisible()
     } finally {
       await freshSiblingContext.close()
     }
@@ -757,9 +758,7 @@ test('two local accounts keep settings private across save, fresh login, and rev
     await expect(siblingPage.getByLabel('Display name', { exact: true })).toHaveValue(
       'Issue 420 Owner',
     )
-    await expect(
-      siblingPage.getByLabel('Starting address for location services', { exact: true }),
-    ).toHaveValue('420 Owner Private Address')
+    await expect(siblingPage.getByText('420 Owner Private Address', { exact: true })).toBeVisible()
     await expect(siblingPage.getByLabel('Signed in as Issue 420 Owner')).toBeVisible()
     await expect(siblingPage.getByLabel('Signed in as Issue 420 Sibling')).toHaveCount(0)
     expect(await storeAccess()).toEqual(storeAccessBefore)
@@ -777,4 +776,34 @@ test('two local accounts keep settings private across save, fresh login, and rev
   } finally {
     await siblingContext.close()
   }
+
+  // Legacy values must remain readable and clearable on the narrowest supported screen.
+  const longAddress = 'A'.repeat(320)
+  await service.sql(
+    `update app_private.profiles set private_location_address='${longAddress}', version=version+1 where user_id='${ownerId}';`,
+  )
+  await page.setViewportSize({ width: 320, height: 844 })
+  await page.reload()
+  await expect(page.getByText(longAddress, { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
+  const clearAddress = page.getByRole('checkbox', { name: /clear saved address/i })
+  const clearTarget = await clearAddress.locator('..').boundingBox()
+  expect(clearTarget?.height).toBeGreaterThanOrEqual(48)
+  const saveSettings = page.getByRole('button', { name: 'Save settings', exact: true })
+  expect((await saveSettings.boundingBox())?.height).toBeGreaterThanOrEqual(48)
+  await page.getByLabel('Display name', { exact: true }).focus()
+  await page.keyboard.press('Tab')
+  await expect(clearAddress).toBeFocused()
+  await page.keyboard.press('Space')
+  await expect(clearAddress).toBeChecked()
+  await page.keyboard.press('Tab')
+  await expect(saveSettings).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('status')).toHaveText('Settings saved.')
+  await expect(page.getByRole('region', { name: 'Saved address', exact: true })).toHaveCount(0)
+  await expect(rpc(ownerToken, 'account_get_settings', {})).resolves.toMatchObject({
+    locationAddress: null,
+  })
 })
