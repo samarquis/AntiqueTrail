@@ -59,6 +59,9 @@ async function openSurface(
   await page.goto(path, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  if (path.startsWith('/saved?')) {
+    await expect(page.locator('.shopper-store-card__facts dt').first()).toBeVisible()
+  }
   await page.evaluate(() => document.fonts.ready)
 }
 
