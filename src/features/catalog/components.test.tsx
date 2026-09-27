@@ -97,7 +97,7 @@ describe('catalog private-action integration seam', () => {
     render(<BrowsePage client={client()} />)
 
     expect(await screen.findByRole('heading', { name: /discover local antiques/i })).toBeVisible()
-    expect(screen.getByText(/around topeka/i)).toBeVisible()
+    expect(await screen.findByText(/around topeka/i)).toBeVisible()
     expect(screen.getByRole('region', { name: /browse the local trail/i })).toBeVisible()
   })
 

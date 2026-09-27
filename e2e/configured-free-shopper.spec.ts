@@ -730,7 +730,7 @@ test('two local accounts keep settings private across save, fresh login, and rev
     expect(ownerAddress.trim()).toBe('420 Owner Private Address')
 
     await siblingPage.goto('/account')
-    await siblingPage.getByRole('button', { name: 'Use a different account', exact: true }).click()
+    await siblingPage.getByRole('button', { name: 'Sign out', exact: true }).click()
     await expect(siblingPage).toHaveURL(/\/auth\/sign-in/)
     await expect(siblingPage.getByLabel('Signed in as Issue 420 Sibling')).toHaveCount(0)
     await submitLogin(siblingPage, 0)
