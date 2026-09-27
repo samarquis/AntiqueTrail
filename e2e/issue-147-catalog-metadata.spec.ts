@@ -21,7 +21,9 @@ async function openCatalog(
   await page.addInitScript((value) => localStorage.setItem('at-theme', value), theme)
   await page.goto(path, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
-  await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Discover local antiques.', exact: true }),
+  ).toBeVisible()
   await page.evaluate(() => document.fonts.ready)
 }
 

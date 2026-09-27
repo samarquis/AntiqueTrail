@@ -1,14 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 
-// In review mode the anonymous catalog exposes blue-finch-curios; a fully
-// populated evaluation wall carries 50 media there.
-const baseSlug = 'blue-finch-curios'
+// The review catalog's Willow & Wren store carries the complete 50-photo wall.
+const baseSlug = 'willow-wren'
 const photosHref = `/stores/${baseSlug}/photos?reviewAs=anonymous&reviewState=success`
 const detailsHref = `/stores/${baseSlug}?reviewAs=anonymous&reviewState=success`
-// The wall has 1 cover + 49 evaluation media. Two become full-bleed features,
-// the remaining 48 render as tiles.
+// The wall has 1 cover + 49 evaluation media. One is the lead feature;
+// the remaining 49 render as tiles.
 const allMediaCount = 50
-const featureCount = 2
+const featureCount = 1
 const tileCount = allMediaCount - featureCount
 const columnCount: Record<string, number> = { chromium: 6, mobile: 2 }
 

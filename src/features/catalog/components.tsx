@@ -133,17 +133,17 @@ export function CatalogFiltersForm({
               placeholder="Name, town, or category"
             />
             <button type="submit">Search</button>
+            <button
+              className="catalog-filters__trigger"
+              type="button"
+              aria-expanded={panelOpen}
+              aria-controls="catalog-filter-panel"
+              onClick={() => setPanelOpen((open) => !open)}
+            >
+              Filters{hasFilters ? ' · Active' : ''}
+            </button>
           </div>
         </div>
-        <button
-          className="catalog-filters__trigger"
-          type="button"
-          aria-expanded={panelOpen}
-          aria-controls="catalog-filter-panel"
-          onClick={() => setPanelOpen((open) => !open)}
-        >
-          Filters{hasFilters ? ' · Active' : ''}
-        </button>
         <div
           id="catalog-filter-panel"
           className="catalog-filters__panel"
@@ -839,7 +839,8 @@ function StoreGallery({
           ? choiceButtons.current[selectedIndex]
           : enlargeButton.current
       returnFocus.current = null
-      target?.focus()
+      if (target && !target.disabled) target.focus()
+      else background.current?.querySelector<HTMLElement>('.store-gallery__missing')?.focus()
     }
   }, [enlarged, selectedIndex])
 
@@ -899,10 +900,11 @@ function StoreGallery({
             <div
               className={`${MEDIA_OVERLAY_SURFACE_CLASS} store-gallery__missing`}
               role="img"
-              aria-label="Photos coming soon"
+              aria-label={selected ? 'Photo unavailable' : 'Photos coming soon'}
+              tabIndex={-1}
             >
               <strong aria-hidden="true">{store.name.slice(0, 1)}</strong>
-              <span>Photos coming soon</span>
+              <span>{selected ? 'Photo unavailable' : 'Photos coming soon'}</span>
             </div>
           ) : (
             <figure className="store-gallery__hero">

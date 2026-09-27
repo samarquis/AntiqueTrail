@@ -64,10 +64,9 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
     const row = list.locator('li').filter({ hasText: "Avery's antique day" })
     await expect(row).toBeVisible()
     await expect(row).toContainText('2026-08-08')
-    await expect(page.getByRole('link', { name: "Avery's antique day" })).toHaveAttribute(
-      'href',
-      '/trips/trip-a/plan',
-    )
+    await expect(
+      row.getByRole('link', { name: "Avery's antique day", exact: true }),
+    ).toHaveAttribute('href', '/trips/trip-a/plan')
   })
 
   test('shopper-b sees the honest empty trip list', async ({ page }) => {
@@ -468,7 +467,7 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'My trips' })).toBeFocused()
 
     // Link-click navigation must move focus to the destination H1, not the link.
-    await page.getByRole('link', { name: "Avery's antique day" }).click()
+    await page.getByRole('link', { name: "Avery's antique day", exact: true }).click()
     await expect(page.getByRole('heading', { level: 1, name: "Avery's antique day" })).toBeFocused()
   })
 

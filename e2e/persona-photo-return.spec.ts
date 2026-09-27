@@ -31,7 +31,7 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
     const store = page.getByRole('link', { name: 'Blue Finch Curios', exact: true })
     await expect(store).toBeVisible()
     await store.click()
-    const photos = page.getByRole('link', { name: /See all 50 photos/i })
+    const photos = page.getByRole('link', { name: /See all 3 photos/i })
     await expect(photos).toBeVisible()
     await photos.click()
     const expectedDetailsScroll = await page.evaluate(() => {
@@ -44,11 +44,10 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
     await expect(page).toHaveURL(/\/stores\/blue-finch-curios\/photos/)
 
     const tiles = page.getByRole('button', { name: /View photo \d+:/ })
-    await expect(page.getByText('50 photos', { exact: true })).toBeVisible()
-    // The gallery's two feature images are intentionally not buttons; the
-    // remaining 48 images are the interactive scrolled-grid photo controls.
-    await expect(tiles).toHaveCount(48)
-    const scrolledTile = tiles.nth(20)
+    await expect(page.getByText('3 photos', { exact: true })).toBeVisible()
+    // The lead image is a feature; the two remaining photos are tile controls.
+    await expect(tiles).toHaveCount(2)
+    const scrolledTile = tiles.first()
     await scrolledTile.scrollIntoViewIfNeeded()
     await scrolledTile.click()
     const dialog = page.getByRole('dialog')
@@ -74,19 +73,19 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
   })
 
   test('keeps many and failed-image states named and returnable', async ({ page }) => {
-    await page.goto(reviewUrl('/stores/blue-finch-curios/photos'))
+    await page.goto(reviewUrl('/stores/willow-wren/photos'))
     await expect(page.getByText('50 photos', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: /View photo \d+:/ })).toHaveCount(48)
+    await expect(page.getByRole('button', { name: /View photo \d+:/ })).toHaveCount(49)
 
     await page.route(
       /\/images\/(?:synthetic-stores|synthetic-fixtures)\/.*\.(?:svg|webp)(?:\?.*)?$/u,
       (route) => route.abort('failed'),
     )
-    await page.goto(reviewUrl('/stores/blue-finch-curios/photos'))
+    await page.goto(reviewUrl('/stores/willow-wren/photos'))
     await expect(page.getByRole('img', { name: 'Photo unavailable' }).first()).toBeVisible()
     const unavailable = page.getByRole('button', { name: /unavailable/i }).first()
     await expect(unavailable).toBeDisabled()
-    await expect(page.getByRole('link', { name: 'Back to Blue Finch Curios' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Back to Willow & Wren' })).toBeVisible()
   })
 
   test.skip('records the unavailable zero-image fixture seam', async () => {
@@ -104,8 +103,7 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
     await page.goto(reviewUrl('/stores/blue-finch-curios'))
     await page.getByRole('link', { name: /save blue finch curios.*requires sign-in/i }).click()
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeFocused()
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page.getByRole('alert')).toContainText(/enter your email and password/i)
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeDisabled()
     await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
     await expect(page.getByRole('heading', { name: 'Blue Finch Curios' })).toBeFocused()
     await expect(

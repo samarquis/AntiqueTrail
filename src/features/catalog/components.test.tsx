@@ -618,8 +618,8 @@ describe('trustworthy Store Details contract', () => {
       within(reopenedDialog).getByRole('img', { name: /blue finch curios storefront/i }),
     )
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    const missingImage = screen.getByRole('img', { name: /photos coming soon/i })
-    expect(missingImage).toHaveTextContent(/photos coming soon/i)
+    const missingImage = screen.getByRole('img', { name: 'Photo unavailable' })
+    expect(missingImage).toHaveTextContent('Photo unavailable')
   })
 
   it('makes every photo reachable when a store has more than six', async () => {

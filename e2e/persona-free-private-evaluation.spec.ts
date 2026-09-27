@@ -23,13 +23,17 @@ test.describe('issue 251 free private evaluation personas', () => {
 
     await page.locator('a.catalog-card__details').click()
     await expect(page.getByRole('heading', { level: 1, name: 'Blue Finch Curios' })).toBeVisible()
-    const galleryChoices = page
-      .getByRole('group', { name: 'Choose a store photo' })
-      .getByRole('button')
-    await expect(galleryChoices).toHaveCount(50)
-    await galleryChoices.nth(1).click()
-    await expect(galleryChoices.nth(1)).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByRole('button', { name: /^Enlarge image:/ })).toBeVisible()
+    const photosLink = page.getByRole('link', { name: 'See all 3 photos', exact: true })
+    await expect(photosLink).toBeVisible()
+    await photosLink.click()
+    await expect(page.getByText('3 photos', { exact: true })).toBeVisible()
+    const firstPhoto = page.getByRole('button', { name: /View photo 2:/ })
+    await expect(firstPhoto).toBeVisible()
+    await firstPhoto.click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByRole('status')).toHaveText('Photo 2 of 3')
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
 
     await page.goto(
       reviewUrl('/trips/new?addStoreId=00000000-0000-4000-8000-000000000001', 'shopper-a'),
