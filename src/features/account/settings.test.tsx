@@ -142,7 +142,6 @@ describe('UserSettingsPage', () => {
       }),
     }
     const provider: AuthProviderAdapter = {
-      oauthProviders: { google: false, facebook: false },
       signIn: vi.fn(async () => ({ kind: 'error' as const })),
       sendRecovery: vi.fn(async () => undefined),
       verifyMfa: vi.fn(async () => null),

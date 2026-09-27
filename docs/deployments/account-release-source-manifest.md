@@ -2,7 +2,7 @@
 
 Production lineage: `c62850ff2091b1013fe9e5bbe3c538db28e64fbe`, extended by the reviewed account work through `f42b087eeeb43bdde7235b795596dfd472a08e7f` (PR #409). This release branch is intentionally separate from main because production contains Browse/gallery work absent from main.
 
-Selected account/auth source and direct tests come from `e3c42422090b66c684fbac4b27f6c1ce9638650c` (merged #442 plus #421). No unknown dirty checkout files are imported. The two App runtime hunks connect the authoritative settings client to AuthProvider and remove the obsolete provider prop from UserSettingsPage. CSS additions are restricted to saved-address wrapping and the imported password control.
+Selected account settings source and direct tests come from `e3c42422090b66c684fbac4b27f6c1ce9638650c` (merged #442 plus #421). No unknown dirty checkout files are imported. The two App runtime hunks connect the authoritative settings client to AuthProvider and remove the obsolete provider prop from UserSettingsPage. CSS additions are restricted to saved-address wrapping and readable privacy text.
 
 Preserved from production lineage: catalog implementations, public Browse/Details/Help/Status surfaces, navigation, gallery, media assets, seed data, and historical migration `20260919000000_configured_store_gallery.sql`. PR #408/#394 and public UI integration #423 remain separate.
 

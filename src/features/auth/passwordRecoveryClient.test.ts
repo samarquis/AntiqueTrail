@@ -24,10 +24,9 @@ describe('dedicated password recovery memory', () => {
   })
 
   it('enforces the registration password bounds without normalizing credentials', () => {
-    expect(isValidRecoveryPassword('x'.repeat(11))).toBe(false)
-    expect(isValidRecoveryPassword('x'.repeat(12))).toBe(true)
-    expect(isValidRecoveryPassword('x'.repeat(128))).toBe(true)
-    expect(isValidRecoveryPassword('x'.repeat(129))).toBe(false)
-    expect(isValidRecoveryPassword('  x'.repeat(4))).toBe(true)
+    expect(isValidRecoveryPassword('')).toBe(false)
+    expect(isValidRecoveryPassword('x'.repeat(8))).toBe(true)
+    expect(isValidRecoveryPassword('x'.repeat(9))).toBe(false)
+    expect(isValidRecoveryPassword('  x')).toBe(true)
   })
 })

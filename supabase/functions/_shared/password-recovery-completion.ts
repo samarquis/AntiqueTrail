@@ -1,5 +1,5 @@
-export const PASSWORD_RECOVERY_MIN_LENGTH = 12
-export const PASSWORD_RECOVERY_MAX_LENGTH = 128
+export const PASSWORD_RECOVERY_MIN_LENGTH = 1
+export const PASSWORD_RECOVERY_MAX_LENGTH = 8
 export const PASSWORD_RECOVERY_SUCCESS = 'completed'
 
 const REQUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu

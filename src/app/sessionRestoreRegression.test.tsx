@@ -19,7 +19,6 @@ afterEach(cleanup)
 describe('session restore regression', () => {
   it('does not expose children until a restored identity is registered', async () => {
     const provider = {
-      oauthProviders: { google: false, facebook: false },
       signIn: vi.fn(async () => ({ kind: 'error' as const })),
       sendRecovery: vi.fn(async () => undefined),
       verifyMfa: vi.fn(async () => null),
@@ -49,7 +48,6 @@ describe('session restore regression', () => {
       resolveRestore = resolve
     })
     const provider = {
-      oauthProviders: { google: false, facebook: false },
       signIn: vi.fn(async () => ({ kind: 'error' as const })),
       sendRecovery: vi.fn(async () => undefined),
       verifyMfa: vi.fn(async () => null),

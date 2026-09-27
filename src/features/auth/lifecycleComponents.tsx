@@ -4,7 +4,6 @@ import { GENERIC_MFA_ERROR, GENERIC_SIGN_IN_ERROR, toAuthSession } from './authC
 import { useAuth, useOptionalAuth } from './AuthContext'
 import { GENERIC_LIFECYCLE_ERROR, unavailableLifecycleClient } from './lifecycleClient'
 import type { AccountLifecycleClient, AccountLifecycleSnapshot, ExportJob } from './lifecycle'
-import { PasswordInput } from './PasswordInput'
 import type { AuthProviderAdapter } from './types'
 
 function LifecycleCard({
@@ -28,17 +27,11 @@ function LifecycleCard({
   )
 }
 
-function ErrorMessage({
-  message = GENERIC_LIFECYCLE_ERROR,
-  id = 'lifecycle-error-summary',
-}: {
-  message?: string
-  id?: string
-}) {
+function ErrorMessage({ message = GENERIC_LIFECYCLE_ERROR }: { message?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => ref.current?.focus(), [message])
   return (
-    <div id={id} className="error-summary" ref={ref} role="alert" tabIndex={-1}>
+    <div className="error-summary" ref={ref} role="alert" tabIndex={-1}>
       <h2>There is a problem</h2>
       <p>{message}</p>
     </div>
@@ -144,12 +137,9 @@ function PrivacyReauthentication({
           autoComplete="one-time-code"
           value={code}
           onChange={(event) => setCode(event.target.value)}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? 'privacy-mfa-help privacy-error-summary' : 'privacy-mfa-help'}
           required
         />
-        <p id="privacy-mfa-help">Use your enrolled authenticator or recovery code.</p>
-        {error && <ErrorMessage id="privacy-error-summary" message={error} />}
+        {error && <ErrorMessage message={error} />}
         <button type="submit" disabled={pending}>
           {pending ? 'Verifying…' : 'Verify and continue'}
         </button>
@@ -182,21 +172,18 @@ function PrivacyReauthentication({
         autoComplete="email"
         value={email}
         onChange={(event) => setEmail(event.target.value)}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? 'privacy-error-summary' : undefined}
         required
       />
-      <PasswordInput
+      <label htmlFor="privacy-password">Password</label>
+      <input
         id="privacy-password"
-        label="Password"
+        type="password"
         autoComplete="current-password"
         value={password}
         onChange={(event) => setPassword(event.target.value)}
-        ariaInvalid={Boolean(error)}
-        describedBy={error ? 'privacy-error-summary' : undefined}
         required
       />
-      {error && <ErrorMessage id="privacy-error-summary" message={error} />}
+      {error && <ErrorMessage message={error} />}
       <button ref={confirmPasswordRef} type="submit" disabled={pending}>
         {pending ? 'Confirming…' : 'Confirm password'}
       </button>

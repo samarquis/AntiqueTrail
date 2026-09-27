@@ -1,5 +1,4 @@
 export type AccountRole = 'Shopper' | 'Representative' | 'Administrator'
-export type AuthProviderName = 'email' | 'google' | 'facebook'
 
 export interface AuthSession {
   userId: string
@@ -8,8 +7,6 @@ export interface AuthSession {
   /** Display-only email supplied by the verified provider session. */
   email?: string
   emailVerified?: boolean
-  /** Provider name from Supabase app_metadata; never derived from user_metadata. */
-  provider?: AuthProviderName
   /** Access tokens are intentionally held only in the in-memory auth store. */
   accessToken: string
   expiresAt: number
@@ -29,7 +26,6 @@ export interface ProviderSession {
   displayName?: string
   email?: string
   emailVerified?: boolean
-  provider?: AuthProviderName
   accessToken: string
   expiresAt: number
   role?: AccountRole
@@ -73,11 +69,7 @@ export type PasswordRecoveryResult = { kind: 'completed' } | { kind: 'error' }
 
 export type OAuthProviderId = 'google' | 'facebook'
 
-export type OAuthProviderAvailability = Readonly<Record<OAuthProviderId, boolean>>
-
 export interface AuthProviderAdapter {
-  /** Explicit deployment contract. A provider is never advertised by method existence alone. */
-  oauthProviders: OAuthProviderAvailability
   signIn(email: string, password: string): Promise<ProviderSignInResult>
   sendRecovery(email: string): Promise<void>
   verifyMfa(challengeId: string, code: string): Promise<ProviderSession | null>

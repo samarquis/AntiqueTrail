@@ -56,9 +56,7 @@ import {
   createAccountLifecycleClient,
   createRpcSessionRegistry,
   type AccountRole,
-  type AuthProviderName,
   type AuthProviderAdapter,
-  type OAuthProviderAvailability,
   type PasswordRecoveryRequest,
   type ProviderSession,
 } from '../features/auth'
@@ -125,25 +123,11 @@ function providerSession(session: Session): ProviderSession {
     ...(name ? { displayName: name } : {}),
     ...(session.user.email ? { email: session.user.email } : {}),
     emailVerified: Boolean(session.user.email_confirmed_at),
-    ...(authProviderName(session.user.app_metadata?.provider)
-      ? { provider: authProviderName(session.user.app_metadata?.provider) }
-      : {}),
     accessToken: session.access_token,
     expiresAt: (session.expires_at ?? Math.floor(Date.now() / 1_000) + 300) * 1_000,
     role: role(session.user.app_metadata.role),
     mfaEnrolled,
     ...authenticationMetadata(session.access_token),
-  }
-}
-
-function authProviderName(value: unknown): AuthProviderName | undefined {
-  return value === 'email' || value === 'google' || value === 'facebook' ? value : undefined
-}
-
-function configuredOAuthProviders(): OAuthProviderAvailability {
-  return {
-    google: import.meta.env.VITE_AUTH_PROVIDER_GOOGLE_ENABLED === 'true',
-    facebook: import.meta.env.VITE_AUTH_PROVIDER_FACEBOOK_ENABLED === 'true',
   }
 }
 
@@ -180,7 +164,6 @@ export function createAuthProvider<
   supabase: T,
   refreshStorage: RefreshSessionStorage = new IndexedDbRefreshSessionStorage(),
   onAccessTokenChange?: (accessToken: string | null) => void,
-  oauthProviders: OAuthProviderAvailability = configuredOAuthProviders(),
 ): AuthProviderAdapter {
   const challenges = new Map<string, { factorId: string; session: ProviderSession }>()
   let acceptingSessions = true
@@ -207,7 +190,6 @@ export function createAuthProvider<
     return storageWork
   }
   return {
-    oauthProviders,
     async signIn(email, password) {
       acceptingSessions = true
       const result = await supabase.auth.signInWithPassword({ email, password })
@@ -310,7 +292,6 @@ export function createAuthProvider<
       return { kind: 'completed' }
     },
     async signInWithProvider(providerId, returnTo) {
-      if (!oauthProviders[providerId]) throw new Error('Provider sign-in unavailable.')
       const target = new URL('/auth/callback', window.location.origin)
       if (returnTo && returnTo !== '/stores') target.searchParams.set('returnTo', returnTo)
       const { error } = await supabase.auth.signInWithOAuth({
@@ -334,6 +315,21 @@ export function createAuthProvider<
       if (!code || oauthError) return { kind: 'error' }
       const exchanged = await supabase.auth.exchangeCodeForSession(code)
       if (exchanged.error || !exchanged.data.session) return { kind: 'error' }
+      const admissionId = exchanged.data.session.user.user_metadata?.antique_trail_admission_id
+      if (typeof admissionId === 'string') {
+        const callback = await supabase.functions.invoke('account-registration-callback', {
+          body: { kind: 'verify', providerUserId: exchanged.data.session.user.id },
+        })
+        if (
+          callback.error ||
+          (callback.data?.state !== 'verified' && callback.data?.state !== 'authenticated')
+        ) {
+          await supabase.auth.signOut({ scope: 'local' })
+          return { kind: 'blocked' }
+        }
+        await remember(exchanged.data.session)
+        return { kind: 'authenticated', session: providerSession(exchanged.data.session) }
+      }
       // The admission RPC is declared in SQL, not generated types; assert its wire shape here.
       const admission = (await supabase.rpc('oauth_admission_check')) as {
         data: { state?: string } | null

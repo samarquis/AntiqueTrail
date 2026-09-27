@@ -76,8 +76,8 @@ export async function handleAccountRegistration(
         body.ageAttested !== true ||
         !email.includes('@') ||
         email.length > 320 ||
-        password.length < 12 ||
-        password.length > 128 ||
+        password.length < 1 ||
+        password.length > 8 ||
         !REQUEST_ID.test(requestId)
       ) {
         state = 'blocked'

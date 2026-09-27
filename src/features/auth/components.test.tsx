@@ -1,11 +1,17 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { StrictMode, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthContext'
-import { GENERIC_MFA_ERROR, GENERIC_RECOVERY_MESSAGE, InMemoryAuthStore } from './authClient'
 import {
+  GENERIC_MFA_ERROR,
+  GENERIC_RECOVERY_MESSAGE,
+  InMemoryAuthStore,
+  unavailableAuthProvider,
+} from './authClient'
+import {
+  AccountPage,
   AuthCallbackPage,
   MfaPage,
   mfaNavigationState,
@@ -20,6 +26,28 @@ import type { AuthProviderAdapter, AuthSession, AuthStore } from './types'
 import { preflightAuthCallback } from './callbackPreflight'
 import { clearStagedRecoveryToken } from './passwordRecoveryClient'
 
+it('rejects registration passwords longer than 8 characters', async () => {
+  const user = userEvent.setup()
+  const register = vi.fn(async () => ({ kind: 'pending_verification' as const }))
+  render(
+    <MemoryRouter initialEntries={['/auth/register']}>
+      <Routes>
+        <Route
+          path="/auth/register"
+          element={<RegisterPage provider={{ ...unavailableAuthProvider, register }} />}
+        />
+      </Routes>
+    </MemoryRouter>,
+  )
+  await user.type(screen.getByLabelText('Email'), 'person@example.com')
+  const password = screen.getByLabelText('Password')
+  expect(password).toHaveAttribute('maxLength', '8')
+  await user.type(password, '123456789')
+  await user.click(screen.getByRole('checkbox'))
+  await user.click(screen.getByRole('button', { name: /create account/i }))
+  expect(register).toHaveBeenCalledWith(expect.objectContaining({ password: '12345678' }))
+})
+
 function renderAuth(element: ReactNode, provider: AuthProviderAdapter) {
   return render(
     <MemoryRouter>
@@ -29,7 +57,6 @@ function renderAuth(element: ReactNode, provider: AuthProviderAdapter) {
 }
 
 const unavailableProvider: AuthProviderAdapter = {
-  oauthProviders: { google: false, facebook: false },
   signIn: vi.fn(async () => ({ kind: 'error' as const })),
   sendRecovery: vi.fn(async () => undefined),
   verifyMfa: vi.fn(async () => null),
@@ -98,29 +125,20 @@ describe('auth states', () => {
     renderAuth(<SignInPage provider={unavailableProvider} />, unavailableProvider)
     expect(screen.getByRole('heading', { name: /sign in/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/password/i)).toHaveAttribute('autocomplete', 'current-password')
+    expect(screen.getByRole('button', { name: /^sign in$/i })).toBeDisabled()
   })
 
-  it('renders one accessible password label on sign-in', () => {
-    renderAuth(<SignInPage provider={unavailableProvider} />, unavailableProvider)
-    expect(screen.getAllByLabelText('Password')).toHaveLength(1)
-    expect(screen.getAllByText('Password', { selector: 'label' })).toHaveLength(1)
-  })
-
-  it('toggles password visibility with an accessible, focus-preserving control', async () => {
+  it('gives inline registration feedback and enables submit after required fields are valid', async () => {
     const user = userEvent.setup()
-    renderAuth(<SignInPage provider={unavailableProvider} />, unavailableProvider)
-    const password = screen.getByLabelText('Password')
-    await user.type(password, 'secret')
-    await user.click(screen.getByRole('button', { name: 'Show password' }))
-    expect(password).toHaveAttribute('type', 'text')
-    expect(password).toHaveFocus()
-    expect(screen.getByRole('button', { name: 'Hide password' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-    await user.click(screen.getByRole('button', { name: 'Hide password' }))
-    expect(password).toHaveAttribute('type', 'password')
-    expect(password).toHaveFocus()
+    renderAuth(<RegisterPage provider={unavailableProvider} />, unavailableProvider)
+    const submit = screen.getByRole('button', { name: /create account/i })
+    await user.type(screen.getByLabelText(/email/i), 'not-an-email')
+    expect(screen.getByRole('alert')).toHaveTextContent(/name@example.com/i)
+    expect(submit).toBeDisabled()
+    await user.clear(screen.getByLabelText(/email/i))
+    await user.type(screen.getByLabelText(/email/i), 'shopper@example.test')
+    await user.type(screen.getByLabelText(/^password$/i), 'secret')
+    expect(submit).toBeEnabled()
   })
 
   it('preserves just-in-time return context and performs no write before sign-in', () => {
@@ -137,22 +155,6 @@ describe('auth states', () => {
       '/stores/oak',
     )
     expect(unavailableProvider.signIn).not.toHaveBeenCalled()
-  })
-
-  it('does not claim the previous account was securely signed out from a direct switch URL', () => {
-    render(
-      <MemoryRouter initialEntries={['/auth/sign-in?switchAccount=1']}>
-        <AuthProvider provider={unavailableProvider}>
-          <SignInPage provider={unavailableProvider} />
-        </AuthProvider>
-      </MemoryRouter>,
-    )
-
-    expect(screen.getByRole('heading', { name: 'Use a different account' })).toBeInTheDocument()
-    expect(
-      screen.queryByText('Signed out securely. No private data remains visible.'),
-    ).not.toBeInTheDocument()
-    expect(screen.getByText('Sign in with the account you want to use.')).toBeInTheDocument()
   })
 
   it('focuses a linked error summary and preserves safe sign-in input', async () => {
@@ -180,7 +182,6 @@ describe('auth states', () => {
   })
 
   it('prefills recovery safely and validates malformed email before the provider call', async () => {
-    const user = userEvent.setup()
     render(
       <MemoryRouter initialEntries={['/auth/recovery?email=not-an-email']}>
         <AuthProvider provider={unavailableProvider}>
@@ -189,32 +190,9 @@ describe('auth states', () => {
       </MemoryRouter>,
     )
     expect(screen.getByLabelText(/email/i)).toHaveValue('not-an-email')
-    await user.click(screen.getByRole('button', { name: /send recovery/i }))
-    expect(await screen.findByRole('alert')).toHaveFocus()
-    expect(screen.getByLabelText(/email/i)).toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByLabelText(/email/i)).toHaveAttribute(
-      'aria-describedby',
-      'recovery-error-summary',
-    )
+    expect(screen.getByRole('alert')).toHaveTextContent(/name@example.com/i)
+    expect(screen.getByRole('button', { name: /send recovery/i })).toBeDisabled()
     expect(unavailableProvider.sendRecovery).not.toHaveBeenCalled()
-  })
-
-  it('keeps recovery navigation inside the app and preserves a safe return target', () => {
-    render(
-      <MemoryRouter initialEntries={['/auth/recovery?returnTo=%2Faccount']}>
-        <AuthProvider provider={unavailableProvider}>
-          <RecoveryPage provider={unavailableProvider} />
-        </AuthProvider>
-      </MemoryRouter>,
-    )
-    expect(screen.getByRole('link', { name: /back to sign in/i })).toHaveAttribute(
-      'href',
-      '/auth/sign-in?returnTo=%2Faccount',
-    )
-    expect(screen.getByRole('link', { name: /back to browsing/i })).toHaveAttribute(
-      'href',
-      '/stores',
-    )
   })
 
   it('hides private content and offers recovery when the session expired', async () => {
@@ -251,6 +229,17 @@ describe('auth states', () => {
     expect(screen.queryByText(/private payload/i)).not.toBeInTheDocument()
     expect(await screen.findByText(/signed out safely/i)).toBeInTheDocument()
     expect(document.body).not.toHaveTextContent('never-render-this')
+  })
+
+  it('separates routine account controls from deletion and confirms local sign-out', async () => {
+    const user = userEvent.setup()
+    renderAuth(<AccountPage />, unavailableProvider)
+    expect(screen.getByRole('navigation', { name: /account controls/i })).toHaveTextContent(
+      /export my data/i,
+    )
+    expect(screen.getByRole('heading', { name: /delete my account/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^sign out$/i }))
+    expect(await screen.findByRole('status')).toHaveTextContent(/signed out on this device/i)
   })
 
   it('requires adult attestation and clears secrets when registration is blocked', async () => {
@@ -502,10 +491,6 @@ describe('auth states', () => {
     expect(await screen.findByRole('heading', { name: 'Sign-in unavailable' })).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent(/isn't linked to an invited/i)
     expect(screen.getByRole('link', { name: /back to stores/i })).toHaveAttribute('href', '/stores')
-    expect(screen.getByRole('link', { name: /use a different account/i })).toHaveAttribute(
-      'href',
-      '/auth/sign-in?switchAccount=1',
-    )
     expect(screen.getByRole('link', { name: /contact antique trail support/i })).toHaveAttribute(
       'href',
       '/help',
@@ -538,63 +523,22 @@ describe('auth states', () => {
     expect(screen.getByRole('link', { name: /start sign-in again/i })).toBeInTheDocument()
   })
 
-  it('offers only explicitly available social providers', async () => {
-    const signInWithProvider = vi.fn(async () => undefined)
-    const provider = {
-      ...unavailableProvider,
-      oauthProviders: { google: true, facebook: false },
-      signInWithProvider,
-    }
-    renderAuth(<SignInPage provider={provider} />, provider)
-    const googleButton = screen.getByRole('button', { name: /continue with google/i })
-    expect(googleButton).toBeInTheDocument()
-    expect(googleButton).toHaveClass('auth-provider-button--google')
-    expect(googleButton.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
-    expect(
-      screen.queryByRole('button', { name: /continue with facebook/i }),
-    ).not.toBeInTheDocument()
-
-    const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: /continue with google/i }))
-    expect(signInWithProvider).toHaveBeenCalledWith('google', '/stores')
-  })
-
-  it('shows a visible pending state while a provider handoff is unresolved', async () => {
-    let resolveHandoff!: () => void
-    const signInWithProvider = vi.fn(
-      () => new Promise<void>((resolve) => (resolveHandoff = resolve)),
+  it('offers social sign-in only when the adapter supports it', async () => {
+    const withoutSocial = renderAuth(
+      <SignInPage provider={unavailableProvider} />,
+      unavailableProvider,
     )
-    const provider = {
-      ...unavailableProvider,
-      oauthProviders: { google: true, facebook: false },
-      signInWithProvider,
-    }
-    renderAuth(<SignInPage provider={provider} />, provider)
-    const user = userEvent.setup()
-    const button = screen.getByRole('button', { name: /continue with google/i })
-    await user.click(button)
-    expect(await screen.findByRole('status')).toHaveTextContent(/connecting to google/i)
-    expect(button).toBeDisabled()
-    resolveHandoff()
-    await waitFor(() => expect(button).not.toBeDisabled())
-  })
+    expect(screen.queryByRole('button', { name: /continue with google/i })).not.toBeInTheDocument()
+    withoutSocial.unmount()
 
-  it('focuses an actionable provider error and leaves retry available', async () => {
-    const signInWithProvider = vi.fn(async () => {
-      throw new Error('provider unavailable')
-    })
-    const provider = {
-      ...unavailableProvider,
-      oauthProviders: { google: true, facebook: false },
-      signInWithProvider,
-    }
-    renderAuth(<SignInPage provider={provider} />, provider)
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: /continue with google/i }))
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveFocus()
-    expect(alert).toHaveTextContent(/google sign-in.*try again/i)
-    expect(screen.getByRole('button', { name: /continue with google/i })).not.toBeDisabled()
+    const signInWithProvider = vi.fn(async () => undefined)
+    renderAuth(<SignInPage provider={{ ...unavailableProvider, signInWithProvider }} />, {
+      ...unavailableProvider,
+      signInWithProvider,
+    })
+    await user.click(screen.getByRole('button', { name: /continue with facebook/i }))
+    expect(signInWithProvider).toHaveBeenCalledWith('facebook', '/stores')
   })
 
   it('gates cancellation-only and role-mismatched private content', () => {

@@ -36,7 +36,7 @@ test('local signup verifies email, admits one Shopper, and saves privately once'
   const runToken = crypto.randomUUID().replaceAll('-', '')
   const mailbox = `signup-${runToken}`
   const email = `${mailbox}@probe.invalid`
-  const password = crypto.randomUUID()
+  const password = crypto.randomUUID().slice(0, 8)
   let signupPayload: Record<string, unknown> | null = null
   page.on('request', (request) => {
     if (request.url().endsWith('/functions/v1/account-registration')) {

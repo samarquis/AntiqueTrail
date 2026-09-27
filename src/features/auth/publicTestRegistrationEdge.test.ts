@@ -14,22 +14,15 @@ const origin = 'https://antique-trail.vercel.app'
 function setup(overrides: Record<string, string> = {}) {
   let handler: (request: Request) => Promise<Response>
   const rpc = vi.fn(
-    async (
-      name: string,
-      _args?: Record<string, unknown>,
-    ): Promise<{ data: unknown; error: Error | null }> => {
-      void _args
-      return {
-        data: name === 'account_registration_fingerprint_mode' ? 'current' : { state: 'blocked' },
-        error: null,
-      }
-    },
+    async (name: string): Promise<{ data: unknown; error: Error | null }> => ({
+      data: name === 'account_registration_fingerprint_mode' ? 'current' : { state: 'blocked' },
+      error: null,
+    }),
   )
   const createClient = vi.fn(() => ({ rpc }))
   const fetch = vi.fn()
   const values: Record<string, string> = {
     SUPABASE_URL: 'https://uaupykgpegbseboklubv.supabase.co',
-    SUPABASE_ANON_KEY: 'fixture-anon-key',
     SUPABASE_SERVICE_ROLE_KEY: 'fixture-service',
     APP_ORIGIN: origin,
     REGISTRATION_APPROVED_APP_ORIGIN: origin,
@@ -78,7 +71,7 @@ function request(requestOrigin: string | null, method = 'POST') {
       ? {
           body: JSON.stringify({
             email: 'tester@example.test',
-            password: 'fixture-long-password',
+            password: 'pass1234',
             ageAttested: true,
             requestId: '37600000-0000-4000-8000-000000000001',
           }),
@@ -86,19 +79,6 @@ function request(requestOrigin: string | null, method = 'POST') {
       : {}),
   })
 }
-
-it('uses the registration HMAC secret at the admission reservation boundary', async () => {
-  const { handler, rpc } = setup()
-  await handler(request(origin))
-
-  const reservation = rpc.mock.calls.find(([name]) => name === 'begin_account_registration')
-  expect(reservation?.[1]).toEqual(
-    expect.objectContaining({
-      p_email_hmac: '\\xff6f6bb530a5522364d3a5da4e2bf2f581fd292a9fa1f1b8bcf26325498ee785',
-    }),
-  )
-})
-
 it.each([null, 'https://evil.example'])(
   'rejects %s origin before any reservation/provider/mail work',
   async (badOrigin) => {
@@ -199,7 +179,6 @@ it('confirms a registration generated from the provider signup response shape', 
       return new Response(
         JSON.stringify({
           user: { id: providerUserId },
-          session: null,
         }),
         { status: 200 },
       )

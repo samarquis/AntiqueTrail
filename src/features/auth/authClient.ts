@@ -85,17 +85,16 @@ export function createRpcSessionRegistry(
 
 export function toAuthSession(
   provider: ProviderSession,
-  defaults?: { role?: AccountRole; mfaVerified?: boolean },
+  defaults?: { role?: AccountRole; mfaVerified?: boolean; targetRole?: AccountRole },
 ): AuthSession {
   const enrolled = provider.mfaEnrolled ?? provider.mfaRequired ?? false
   const verified = defaults?.mfaVerified ?? (enrolled ? Boolean(provider.mfaVerifiedAt) : true)
-  const role = provider.role ?? defaults?.role ?? 'Shopper'
+  const role = defaults?.targetRole ?? provider.role ?? defaults?.role ?? 'Shopper'
   return {
     userId: provider.userId,
     ...(provider.displayName ? { displayName: provider.displayName } : {}),
     ...(provider.email ? { email: provider.email } : {}),
     ...(provider.emailVerified !== undefined ? { emailVerified: provider.emailVerified } : {}),
-    ...(provider.provider ? { provider: provider.provider } : {}),
     accessToken: provider.accessToken,
     expiresAt: provider.expiresAt,
     role,
@@ -110,7 +109,6 @@ export function toAuthSession(
 }
 
 export const unavailableAuthProvider: AuthProviderAdapter = {
-  oauthProviders: { google: false, facebook: false },
   async signIn() {
     return { kind: 'error' }
   },

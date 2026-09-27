@@ -19,7 +19,6 @@ describe('provider refresh regression', () => {
   it('updates the in-memory snapshot without signing out', async () => {
     let notify: ((session: ProviderSession | null) => void) | undefined
     const provider = {
-      oauthProviders: { google: false, facebook: false },
       signIn: vi.fn(async () => ({ kind: 'error' as const })),
       sendRecovery: vi.fn(async () => undefined),
       verifyMfa: vi.fn(async () => null),

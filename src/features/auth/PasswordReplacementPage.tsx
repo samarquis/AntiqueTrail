@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from './AuthContext'
-import { PasswordInput } from './PasswordInput'
 import {
   captureStagedRecoveryCleanup,
   isValidRecoveryPassword,
@@ -100,7 +99,7 @@ export function PasswordReplacementPage({
   if (completed)
     return (
       <AuthCardReplacement title="Password updated" description="Your recovery is complete.">
-        <p role="status" aria-live="polite">
+        <p role="status" aria-live="assertive">
           {PASSWORD_RECOVERY_SUCCESS}
         </p>
         <Link
@@ -119,9 +118,10 @@ export function PasswordReplacementPage({
       description="Choose a new password for your Antique Trail account."
     >
       <form onSubmit={submit} noValidate>
-        <PasswordInput
+        <label htmlFor="recovery-new-password">New password</label>
+        <input
           id="recovery-new-password"
-          label="New password"
+          type="password"
           autoComplete="new-password"
           minLength={PASSWORD_RECOVERY_MIN_LENGTH}
           maxLength={PASSWORD_RECOVERY_MAX_LENGTH}
@@ -130,15 +130,15 @@ export function PasswordReplacementPage({
             setPassword(event.target.value)
             setError(null)
           }}
-          ariaInvalid={Boolean(error)}
-          describedBy={error ? 'recovery-error-summary' : undefined}
-          helpText="Use 12 through 128 characters."
-          helpId="recovery-password-requirements"
+          aria-invalid={Boolean(error)}
+          aria-describedby="recovery-password-requirements"
           required
         />
-        <PasswordInput
+        <p id="recovery-password-requirements">Use 1 through 8 characters.</p>
+        <label htmlFor="recovery-confirm-password">Confirm new password</label>
+        <input
           id="recovery-confirm-password"
-          label="Confirm new password"
+          type="password"
           autoComplete="new-password"
           minLength={PASSWORD_RECOVERY_MIN_LENGTH}
           maxLength={PASSWORD_RECOVERY_MAX_LENGTH}
@@ -147,10 +147,8 @@ export function PasswordReplacementPage({
             setConfirmation(event.target.value)
             setError(null)
           }}
-          ariaInvalid={Boolean(error)}
-          describedBy={error ? 'recovery-error-summary' : undefined}
-          helpText="Re-enter the same password."
-          helpId="recovery-confirm-password-help"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? 'recovery-error-summary' : undefined}
           required
         />
         {error && (
@@ -193,8 +191,8 @@ function AuthCardReplacement({
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => headingRef.current?.focus(), [])
   return (
-    <main className="auth-page">
-      <section className="page-card auth-card" aria-labelledby="recovery-heading">
+    <main>
+      <section className="page-card" aria-labelledby="recovery-heading">
         <p className="eyebrow">Antique Trail account</p>
         <h1 id="recovery-heading" ref={headingRef} tabIndex={-1}>
           {title}
