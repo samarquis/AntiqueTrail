@@ -121,6 +121,96 @@ function representativeCards(metrics: CardMetrics[]): CardMetrics[] {
   return [shortest, longest, third!]
 }
 
+async function applyTestOnlyImageRatios(page: Page, samples: CardMetrics[]) {
+  const dimensions = [
+    { width: 640, height: 360 },
+    { width: 640, height: 400 },
+    { width: 400, height: 300 },
+  ] as const
+  const varied: CardMetrics[] = []
+  const photoFixtures = new Map<number, Buffer>()
+
+  await page.route(
+    (url) => url.searchParams.has('issue416Ratio'),
+    async (route) => {
+      const index = Number(new URL(route.request().url()).searchParams.get('issue416Ratio'))
+      const photo = photoFixtures.get(index)
+      if (!photo) throw new Error(`missing test-only photo fixture: ${index}`)
+      await route.fulfill({ contentType: 'image/png', body: photo })
+    },
+  )
+
+  for (const [index, { id }] of samples.entries()) {
+    const size = dimensions[index]
+    if (!size) throw new Error('expected three representative cards')
+    const image = cardById(page, id).locator('.catalog-card__image')
+    await image.scrollIntoViewIfNeeded()
+    const source = await image.getAttribute('src')
+    if (!source) throw new Error(`missing cover source for store ${id}`)
+    const originalPhoto = new URL(source, page.url())
+    const photoData = await page.evaluate(
+      async ({ sourceUrl, imageSize }) => {
+        const photo = new Image()
+        photo.src = sourceUrl
+        await photo.decode()
+        const scale = Math.max(
+          imageSize.width / photo.naturalWidth,
+          imageSize.height / photo.naturalHeight,
+        )
+        const sourceWidth = imageSize.width / scale
+        const sourceHeight = imageSize.height / scale
+        const canvas = document.createElement('canvas')
+        canvas.width = imageSize.width
+        canvas.height = imageSize.height
+        const context = canvas.getContext('2d')
+        if (!context) throw new Error('2D canvas context unavailable')
+        context.imageSmoothingQuality = 'high'
+        context.drawImage(
+          photo,
+          (photo.naturalWidth - sourceWidth) / 2,
+          (photo.naturalHeight - sourceHeight) / 2,
+          sourceWidth,
+          sourceHeight,
+          0,
+          0,
+          imageSize.width,
+          imageSize.height,
+        )
+        return canvas.toDataURL('image/png')
+      },
+      { sourceUrl: originalPhoto.href, imageSize: size },
+    )
+    const encodedPhoto = photoData.split(',')[1]
+    if (!encodedPhoto) throw new Error(`could not encode test-only photo fixture for ${id}`)
+    photoFixtures.set(index, Buffer.from(encodedPhoto, 'base64'))
+
+    const testSource = new URL(originalPhoto)
+    testSource.searchParams.set('issue416Ratio', String(index))
+    await image.evaluate((element, imageSource) => {
+      const img = element as HTMLImageElement
+      img
+        .closest('picture')
+        ?.querySelectorAll('source')
+        .forEach((source) => source.remove())
+      img.removeAttribute('srcset')
+      img.removeAttribute('sizes')
+      img.loading = 'eager'
+      img.src = imageSource
+    }, testSource.href)
+    await expect
+      .poll(() =>
+        image.evaluate((element) => {
+          const img = element as HTMLImageElement
+          return img.complete && img.naturalWidth > 0 && img.naturalHeight > 0
+        }),
+      )
+      .toBe(true)
+    varied.push(await cardMetrics(cardById(page, id)))
+  }
+
+  return varied
+}
+
 function cardById(page: Page, id: string): Locator {
   return page.locator(`#catalog-map-store-${id}`)
 }
@@ -139,6 +229,12 @@ async function isInsideViewport(locator: Locator, height: number) {
   return box !== null && box.y >= 0 && box.y + box.height <= height
 }
 
+function saveBottomFromCardTop(metrics: CardMetrics) {
+  const save = metrics.actions.find(({ label }) => label.startsWith('Save '))
+  if (!save) throw new Error(`missing Save action for ${metrics.id}`)
+  return save.y - metrics.card.y + save.height
+}
+
 test('desktop Browse cards have consistent rows and keep facts and actions in view', async ({
   page,
 }, testInfo) => {
@@ -146,6 +242,53 @@ test('desktop Browse cards have consistent rows and keep facts and actions in vi
   await waitForBrowse(page)
   const metrics = await loadMetrics(page)
   const samples = representativeCards(metrics)
+
+  // Restore the main-branch spacing declarations for a controlled before/after measurement.
+  const baselineStyle = await page.addStyleTag({
+    content: `
+      .catalog-card__freshness { padding-top: 1rem !important; }
+      .catalog-card__actions { margin-top: 1rem !important; padding-top: 1rem !important; }
+    `,
+  })
+  const baselineLongCard = await cardMetrics(cardById(page, samples[1].id))
+  await baselineStyle.evaluate((style) => style.remove())
+  const candidateLongCard = await cardMetrics(cardById(page, samples[1].id))
+  const beforeAfter = {
+    viewport: { width: 1280, height: 800 },
+    baseline: {
+      card: baselineLongCard.card,
+      saveBottomFromCardTop: saveBottomFromCardTop(baselineLongCard),
+    },
+    candidate: {
+      card: candidateLongCard.card,
+      saveBottomFromCardTop: saveBottomFromCardTop(candidateLongCard),
+    },
+  }
+  expect(beforeAfter.baseline.saveBottomFromCardTop).toBeGreaterThan(800)
+  expect(beforeAfter.candidate.saveBottomFromCardTop).toBeLessThanOrEqual(800)
+  expect(baselineLongCard.card.height - candidateLongCard.card.height).toBeCloseTo(12, 1)
+  await testInfo.attach('desktop-density-before-after.json', {
+    body: Buffer.from(JSON.stringify(beforeAfter, null, 2)),
+    contentType: 'application/json',
+  })
+  console.log(`ISSUE-416 DESKTOP BEFORE/AFTER ${JSON.stringify(beforeAfter)}`)
+
+  // Keep real catalog photo pixels while cropping deterministic test-only aspect ratios.
+  const testOnlyRatioSamples = await applyTestOnlyImageRatios(page, samples)
+  const testOnlySourceRatios = testOnlyRatioSamples.map((item) => item.sourceImageRatio)
+  expect(testOnlySourceRatios.every((ratio) => ratio !== null)).toBe(true)
+  expect(
+    new Set(testOnlySourceRatios).size,
+    'test-only cover sources should have distinct aspect ratios',
+  ).toBe(3)
+
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+  await page.screenshot({ path: testInfo.outputPath('desktop-browse.png') })
+  await scrollCardToTop(cardById(page, samples[0].id))
+  await page.screenshot({ path: testInfo.outputPath('desktop-short-card.png') })
+  await scrollCardToTop(cardById(page, samples[1].id))
+  await page.screenshot({ path: testInfo.outputPath('desktop-long-card.png') })
+
   const rowMetrics = await page.locator('.catalog-card').evaluateAll((elements) =>
     elements.map((element) => {
       const rect = element.getBoundingClientRect()
@@ -162,14 +305,14 @@ test('desktop Browse cards have consistent rows and keep facts and actions in vi
     (heights) => Math.max(...heights) - Math.min(...heights),
   )
 
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
-  await page.screenshot({ path: testInfo.outputPath('desktop-browse.png') })
   await testInfo.attach('desktop-card-geometry.json', {
-    body: Buffer.from(JSON.stringify({ rowMetrics, rowHeightDifferences, samples }, null, 2)),
+    body: Buffer.from(
+      JSON.stringify({ rowMetrics, rowHeightDifferences, samples, testOnlyRatioSamples }, null, 2),
+    ),
     contentType: 'application/json',
   })
   console.log(
-    `ISSUE-416 DESKTOP GEOMETRY ${JSON.stringify({ rowMetrics, rowHeightDifferences, samples })}`,
+    `ISSUE-416 DESKTOP GEOMETRY ${JSON.stringify({ rowMetrics, rowHeightDifferences, samples, testOnlyRatioSamples })}`,
   )
 
   expect(new Set(samples.map((item) => item.summaryLength)).size).toBeGreaterThan(1)
@@ -180,12 +323,9 @@ test('desktop Browse cards have consistent rows and keep facts and actions in vi
     ).toBeLessThanOrEqual(1)
   }
 
-  for (const [index, { id }] of samples.entries()) {
+  for (const { id } of testOnlyRatioSamples) {
     const card = cardById(page, id)
     await scrollCardToTop(card)
-    if (index === 1) {
-      await page.screenshot({ path: testInfo.outputPath('desktop-long-card.png') })
-    }
     const save = card.locator('.catalog-card__private-actions').locator('a, button').first()
     for (const locator of [
       card.locator('h2'),
