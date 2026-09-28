@@ -65,6 +65,43 @@ describe('catalog private-action integration seam', () => {
     )
   })
 
+  it('keeps varied store facts and actions together on Browse cards', async () => {
+    const stores = [syntheticStores[0], syntheticStores[1], syntheticStores[11]].filter(
+      (store): store is CatalogStore => store !== undefined,
+    )
+    if (stores.length !== 3) throw new Error('Missing varied Browse fixture stores')
+    const catalog = client()
+    catalog.list = vi.fn(async () => ({ stores, generatedAt: '2026-08-04' }))
+    render(
+      <BrowsePage
+        client={catalog}
+        renderPrivateActions={(store) => <button type="button">Save {store.name}</button>}
+      />,
+    )
+
+    for (const store of stores) {
+      const category = store.categories[0]
+      if (!category) throw new Error(`Missing category fixture for ${store.name}`)
+      if (!store.summary) throw new Error(`Missing summary fixture for ${store.name}`)
+      const heading = await screen.findByRole('heading', { name: store.name })
+      const card = heading.closest('article')
+      expect(card).not.toBeNull()
+      const content = within(card!)
+
+      expect(content.getByText(`${store.town}, ${store.state}`)).toBeVisible()
+      expect(content.getByRole('list', { name: 'Store categories' })).toHaveTextContent(
+        category.label,
+      )
+      expect(content.getByText(store.summary)).toBeVisible()
+      expect(card?.querySelector('.catalog-card__hours')).toHaveTextContent(/\S/u)
+      expect(card?.querySelector('.catalog-card__freshness')).toHaveTextContent(/\S/u)
+      expect(content.getByRole('link', { name: `View store: ${store.name}` })).toBeVisible()
+      expect(content.getByRole('button', { name: `Save ${store.name}` })).toBeVisible()
+    }
+
+    expect(screen.getAllByRole('article')).toHaveLength(stores.length)
+  })
+
   it('keeps store links inside a configured deployment base path', async () => {
     vi.stubEnv('BASE_URL', '/AntiqueTrail/')
     render(<BrowsePage client={client()} />)
