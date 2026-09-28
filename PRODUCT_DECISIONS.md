@@ -6,6 +6,12 @@ Status: historical decision record with links to current requirement owners. Ori
 
 ## Confirmed decisions
 
+### Vintage Day Out name and marketing direction — 2026-09-12
+
+The Product Owner said: `lets lock in on Vintage Day Out. I love the way that sounds. I like some of the marketing idea as well. Lock this in our plan`. This is explicit direction for the selected name and immediately discussed marketing only; the owner did not type the literal words `update plan`. The plan amendment interprets that direction without expanding it.
+
+The selected name and full migration boundary are owned by [PRD Brand and positioning](PRD.md#brand-and-positioning); the hook and stage-true copy are owned by [DESIGN Brand messaging](DESIGN.md#brand-messaging). Preserve the store-first sequence and approved visual identity. Name selection does not mean runtime/repository rename, domain ownership, trademark clearance, public activation, or trip-stage approval. Earlier interim-name decisions remain historical and are superseded only as to selected-name authority.
+
 ### Minimal invitation ACL repair — 2026-09-12
 
 Authorization: `update plan`. The assistant proposed `update plan to include #365’s minimal invitation ACL repair`; the Product Owner responded `yes go ahead`, approving that exact amendment and no broader trip work.
@@ -572,7 +578,7 @@ Rules the Administrator applies when reviewing store-submitted photos. They alig
 
 ## Remaining deferred or provider-gated decisions
 
-1. Final product name and B-01 signed brand/domain consistency receipt
+1. B-01 signed public brand/domain consistency receipt and domain/clearance evidence; the selected product name is owned by [PRD Brand and positioning](PRD.md#brand-and-positioning)
 2. Exact Small-Community Expansion community choices
 3. Route provider for Package 5B; the exact suggestion algorithm is approved above and Package 5A remains provider-free/manual-order
 4. Paid photo-tier monetization after RG-01, three separately approved small-community runs/reviews, and the paid-value gate; until the new Product Decision and signed activation receipt, all billing, paid placement, data-sale, and ad products remain prohibited

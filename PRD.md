@@ -2,7 +2,17 @@
 
 ## Purpose, people, and product promise
 
-Antique Trail makes a fun day of antique shopping easy to see, easy to plan, and easy to trust. It brings store discovery, trip planning, and personal shopping memory into one connected experience.
+Vintage Day Out makes a fun day of antique shopping easy to see, easy to plan, and easy to trust. It brings store discovery, trip planning, and personal shopping memory into one connected experience.
+
+## Brand and positioning
+
+**Vintage Day Out** is the Product Owner’s selected product name. The name connects antique and vintage store discovery with the enjoyment of an outing; trip planning remains subject to its existing stage decisions. Exact marketing copy and stage limits are owned by [DESIGN Brand messaging](DESIGN.md#brand-messaging).
+
+**Preferred domain candidate:** `vintagedayout.com`. Verisign RDAP returned HTTP 404, with no registration record, on 2026-09-28 ([lookup](https://rdap.verisign.com/com/v1/domain/vintagedayout.com)). This does not establish registrar purchase availability, ownership rights, or trademark clearance. Earlier name research also disclosed the [Vintage Day Out Picker](https://chromewebstore.google.com/detail/vintage-day-out-picker/ihmmbeknfbhlhcjfnoinnogpoioaidnb) and [Vintage Day Out event use](https://www.helenrollason.org.uk/shop/events/marvellous-vintage-2026/); selection does not claim exclusivity or clearance.
+
+Before implementing a rename, inventory every reference across rendered screens, PWA/install metadata, titles/sharing/accessibility text, images/logos, emails, print/QR materials, documents, fixtures/tests, code/configuration, domains/URLs, and external settings. Give each reference a migration action and verification result, checking rendered output as well as source text. Record dispositions for immutable history, third-party references, and compatibility-sensitive values that could break data, links, authentication, or integrations. Do not mass-replace identifiers or claim completion until every item has a disposition and proof. A separate scoped implementation owns this migration and its proof.
+
+This is a plan-level name selection only. Keep the current store-first showcase and pilot sequence, approved visual identity, and active work intact. It authorizes no application-wide rename, homepage redesign, device-location browsing, trip exposure or implementation, deployment, public promotion, domain purchase, or spending.
 
 ## What it is
 
