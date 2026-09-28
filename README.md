@@ -1,4 +1,6 @@
-# Antique Trail
+# Vintage Day Out
+
+The selected product name and pending migration are defined in [PRD Brand and positioning](PRD.md#brand-and-positioning). Antique Trail/AntiqueTrail remain legacy application and technical identifiers until a separately scoped migration; this documentation amendment does not rename the application or repository.
 
 A PWA for antique shoppers to discover shops, plan day trips, and leave reviews.
 

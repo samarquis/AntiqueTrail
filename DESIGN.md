@@ -1,10 +1,18 @@
-# Antique Trail Design and Interaction Requirements
+# Vintage Day Out Design and Interaction Requirements
 
 ## Product promise
 
-> Antique Trail makes a fun day of antique shopping easy to see, easy to plan, and easy to trust.
+> Vintage Day Out makes a fun day of antique shopping easy to see, easy to plan, and easy to trust.
 
 Design first for shoppers roughly 50-80 while remaining usable by all ages. Mobile-first, desktop compatible.
+
+## Brand messaging
+
+The selected name and migration boundary are owned by [PRD Brand and positioning](PRD.md#brand-and-positioning). Use **Vintage Day Out** as the selected product name and **Your kind of shops. Your kind of day.** as its marketing hook.
+
+The current-stage supporting line is **Discover antique and vintage shops for your next day out.** It describes store discovery without claiming in-app trip planning. The trip-stage supporting line **Discover antique and vintage stores. Turn your favorites into a day trip.** and campaign line **Choose a few shops. We'll help you make a day of it.** remain reserved for a separately approved trip stage. Do not use either trip-stage line on the current showcase or pilot, or present it as available functionality.
+
+Messaging records intent only. It claims no market exclusivity, automated personalization, live location filtering, route optimization, public reviews, or other unavailable capability, and specifies no new hero, navigation, action flow, visual identity, screen layout, or public campaign.
 
 ## Global interaction rules
 

@@ -1,10 +1,14 @@
 # Current Project State
 
-Workflow metadata updated: 2026-09-26. This update did not revalidate every implementation claim below. This document records implementation facts, not live GitHub, provider, credential, deployment, or worktree state. Recheck named evidence and live systems before acting or claiming completion. Evidence applies only to its named SHA and environment.
+Workflow metadata updated: 2026-09-28. This update did not revalidate every implementation claim below. This document records implementation facts, not live GitHub, provider, credential, deployment, or worktree state. Recheck named evidence and live systems before acting or claiming completion. Evidence applies only to its named SHA and environment.
+
+## Brand selection — 2026-09-28
+
+The Product Owner selected Vintage Day Out in the scoped direction recorded in issue #370. PRD.md owns the selected name and migration boundary; DESIGN.md owns its stage-appropriate messaging. This plan selection does not rename the application, repository, package, or identity tokens, acquire a domain, clear the name, change a stage, or activate public branding. Those remain separate work and evidence gates.
 
 ## Summary
 
-Antique Trail is a working React/TypeScript/Vite PWA with a Supabase/PostgreSQL backend. It is in beta on Vercel hobby tier with Supabase. Public release is not authorized yet.
+The application and repository still use Antique Trail/AntiqueTrail identifiers pending a separate migration. Vintage Day Out is the selected plan-level product name. The application is a working React/TypeScript/Vite PWA with a Supabase/PostgreSQL backend, in beta on Vercel hobby tier with Supabase. Public release is not authorized yet.
 
 ## What is implemented
 
