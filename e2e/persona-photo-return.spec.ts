@@ -100,19 +100,62 @@ test.describe('issue 327 photo exploration return-context diagnostic', () => {
     // Do not claim this variant is covered until an owned fixture supplies it.
   })
 
-  test('recovers an interrupted private action without a cancelled write', async ({ page }) => {
-    await page.goto(reviewUrl('/stores/blue-finch-curios'))
-    await page.getByRole('link', { name: /save blue finch curios.*requires sign-in/i }).click()
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeFocused()
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page.getByRole('alert')).toContainText(/enter your email and password/i)
-    await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
-    await expect(page.getByRole('heading', { name: 'Blue Finch Curios' })).toBeFocused()
-    await expect(
-      page.evaluate(() => sessionStorage.getItem('antique-trail:jit-private-action:v1')),
-    ).resolves.toBeNull()
-    await expect(page.getByText('Store saved after sign-in.')).toHaveCount(0)
-  })
+  for (const width of [1280, 320]) {
+    test(`recovers a submitted sign-in failure without a cancelled write at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await page.addInitScript(() => {
+        sessionStorage.setItem('review-save-write-count', '0')
+        window.addEventListener('antique-trail:review-save-write', () => {
+          sessionStorage.setItem(
+            'review-save-write-count',
+            String(Number(sessionStorage.getItem('review-save-write-count')) + 1),
+          )
+        })
+      })
+      await page.goto(reviewUrl('/stores/blue-finch-curios'))
+      const save = page.getByRole('link', { name: /save blue finch curios.*requires sign-in/i })
+      await expect(save).toBeVisible()
+      await save.click()
+      await expect(page.getByRole('heading', { name: 'Sign in' })).toBeFocused()
+      const pending = await page.evaluate(() =>
+        sessionStorage.getItem('antique-trail:jit-private-action:v1'),
+      )
+      expect(pending).not.toBeNull()
+      expect(JSON.parse(pending!)).toMatchObject({
+        kind: 'save-store',
+        storeId: '00000000-0000-4000-8000-000000000001',
+        returnTo: '/stores/blue-finch-curios?reviewAs=anonymous&reviewState=success',
+      })
+      expect(new URL(page.url()).searchParams.get('returnTo')).toContain(
+        '/stores/blue-finch-curios',
+      )
+      await page.getByLabel('Email', { exact: true }).fill('recoverable-failure@local.invalid')
+      await page.getByLabel('Password', { exact: true }).fill('synthetic-password')
+      await page.getByRole('button', { name: 'Sign in' }).click()
+      await expect(page.getByRole('alert')).toContainText(
+        "We couldn't sign you in. Check your details and try again.",
+      )
+      await expect(page.getByRole('alert')).toBeFocused()
+      await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled()
+      expect(
+        await page.evaluate(() => sessionStorage.getItem('antique-trail:jit-private-action:v1')),
+      ).toBe(pending)
+      await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
+      await expect(page).toHaveURL(
+        /\/stores\/blue-finch-curios\?reviewAs=anonymous&reviewState=success$/,
+      )
+      await expect(page.getByRole('heading', { name: 'Blue Finch Curios' })).toBeFocused()
+      await expect(save).toBeVisible()
+      await expect(
+        page.evaluate(() => sessionStorage.getItem('antique-trail:jit-private-action:v1')),
+      ).resolves.toBeNull()
+      await expect(page.getByText('Store saved after sign-in.')).toHaveCount(0)
+      expect(await page.evaluate(() => sessionStorage.getItem('review-save-write-count'))).toBe('0')
+      await expectNoHorizontalOverflow(page)
+    })
+  }
 
   for (const theme of ['light', 'dark'] as const) {
     test(`${theme} theme, reduced motion, and 200% reflow keep photo controls usable`, async ({

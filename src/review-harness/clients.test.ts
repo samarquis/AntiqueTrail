@@ -519,6 +519,38 @@ describe('scenario-aware review clients', () => {
     ).resolves.toBe('pending')
   })
 
+  it('fails submitted synthetic credentials without disabling the public catalog or retry', async () => {
+    const provider = createReviewHarnessAuthProvider('success')
+    await expect(
+      provider.signIn('recoverable-failure@local.invalid', 'synthetic-password'),
+    ).resolves.toEqual({ kind: 'error' })
+    await expect(
+      provider.signIn('shopper-a@local.invalid', 'synthetic-password'),
+    ).resolves.toMatchObject({ kind: 'authenticated' })
+    await expect(createReviewHarnessCatalogClient('success').list({})).resolves.toMatchObject({
+      stores: expect.arrayContaining([expect.objectContaining({ name: 'Blue Finch Curios' })]),
+    })
+  })
+
+  it('emits a content-free receipt only when a synthetic save write succeeds', async () => {
+    let writes = 0
+    const recordWrite = () => {
+      writes += 1
+    }
+    window.addEventListener('antique-trail:review-save-write', recordWrite)
+    try {
+      const shopper = createReviewHarnessClients(scenario('shopper-a'), 'success').shopper!
+      await expect(shopper.setSave('wrong-store', true)).rejects.toThrow(/cross-account denial/i)
+      expect(writes).toBe(0)
+      await expect(shopper.setSave('00000000-0000-4000-8000-000000000001', false)).resolves.toEqual(
+        { saved: false },
+      )
+      expect(writes).toBe(1)
+    } finally {
+      window.removeEventListener('antique-trail:review-save-write', recordWrite)
+    }
+  })
+
   it('provides deterministic sign-in, MFA, recovery, and account lifecycle review fixtures', async () => {
     const provider = createReviewHarnessAuthProvider('success')
     await expect(
