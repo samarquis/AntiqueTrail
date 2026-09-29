@@ -52,7 +52,11 @@ export async function handleCorrectionSubmit(
       !body ||
       typeof body.storeId !== 'string' ||
       typeof body.type !== 'string' ||
-      typeof body.description !== 'string'
+      typeof body.description !== 'string' ||
+      typeof body.idempotencyKey !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+        body.idempotencyKey,
+      )
     )
       throw new Error('invalid input')
     const ipHmac = await sign(
@@ -61,6 +65,7 @@ export async function handleCorrectionSubmit(
     )
     const result = await gateway.submit({
       p_actor_user_id: actor.userId,
+      p_idempotency_key: body.idempotencyKey,
       p_session_id: actor.sessionId,
       p_store_id: body.storeId,
       p_type: body.type,

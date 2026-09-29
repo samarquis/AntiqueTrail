@@ -48,6 +48,7 @@ export interface NewSinceResult {
 }
 
 export interface CorrectionDraft {
+  idempotencyKey: string
   storeId: string
   type: 'identity' | 'contact' | 'hours' | 'categories' | 'other'
   description: string

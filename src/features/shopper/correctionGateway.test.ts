@@ -20,6 +20,7 @@ const actor = {
   sessionId: '37700000-0000-4000-8000-000000000002',
 }
 const body = {
+  idempotencyKey: '37700000-0000-4000-8000-000000000004',
   storeId: '37700000-0000-4000-8000-000000000003',
   type: 'other',
   description: 'Fixture correction',
@@ -64,6 +65,7 @@ describe('trusted correction Edge', () => {
     expect(transport.submit).toHaveBeenCalledWith(
       expect.objectContaining({
         p_actor_user_id: actor.userId,
+        p_idempotency_key: body.idempotencyKey,
         p_session_id: actor.sessionId,
         p_ip_hmac: expect.stringMatching(/^\\x[0-9a-f]{64}$/u),
       }),
@@ -71,6 +73,18 @@ describe('trusted correction Edge', () => {
     expect(JSON.stringify(vi.mocked(transport.submit).mock.calls)).not.toMatch(
       /forged|provider-token|192\.0\.2/u,
     )
+  })
+
+  it('rejects a missing idempotency key before using privileged transport', async () => {
+    const { handleCorrectionSubmit } = await loadHandler()
+    const transport = gateway()
+    const withoutIdempotencyKey = { ...body, idempotencyKey: undefined }
+
+    expect(
+      (await handleCorrectionSubmit(request(withoutIdempotencyKey), '192.0.2.14', transport))
+        .status,
+    ).toBe(503)
+    expect(transport.submit).not.toHaveBeenCalled()
   })
 
   it('keeps one IP aggregate across header spoofing and the same runtime network prefix', async () => {
