@@ -63,7 +63,8 @@ select is((select count(*)::integer from shopper_private.correction_rate_events
   'retry consumes one set of rate events');
 
 set local role identity_service;
-update app_private.role_grants set state='revoked'
+update app_private.role_grants
+set state='revoked', revoked_at=statement_timestamp()
 where subject_user_id='37800000-0000-4000-8000-000000000001' and role='shopper';
 reset role;
 set local role service_role;
