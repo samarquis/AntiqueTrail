@@ -1,38 +1,83 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
+type TypographySurface = {
+  path: string
+  ready: (page: Page) => Promise<void>
+}
+
 const surfaces = [
   {
     id: 'public-catalog',
     path: '/stores?reviewAs=anonymous&reviewState=success',
+    ready: (page: Page) =>
+      expect(
+        page.getByRole('region', { name: 'Store results' }).getByRole('heading').first(),
+      ).toBeVisible(),
     roles: { labels: true, cardFacts: false, statuses: true, adjacentHeadings: true },
   },
   {
     id: 'shopper-saved',
     path: '/saved?reviewAs=shopper-a&reviewState=success',
+    ready: (page: Page) =>
+      expect(
+        page
+          .getByRole('list', { name: 'Saved stores' })
+          .getByRole('term', { name: 'Saved', exact: true }),
+      ).toBeVisible(),
     roles: { labels: false, cardFacts: true, statuses: false, adjacentHeadings: false },
   },
   {
     id: 'shopper-trips',
     path: '/trips?reviewAs=shopper-a&reviewState=success',
+    ready: (page: Page) =>
+      expect(page.getByRole('list', { name: 'My trips' }).getByRole('link').first()).toBeVisible(),
     roles: { labels: false, cardFacts: false, statuses: false, adjacentHeadings: false },
   },
   {
     id: 'store-portal',
     path: '/store-portal?reviewAs=representative&reviewState=success',
+    ready: (page: Page) =>
+      expect(
+        page
+          .getByRole('region', { name: 'Store status' })
+          .getByRole('term', { name: 'Hours verification' }),
+      ).toBeVisible(),
     roles: { labels: false, cardFacts: true, statuses: false, adjacentHeadings: true },
   },
   {
     id: 'admin-queue',
     path: '/admin?reviewAs=administrator&reviewState=success',
+    ready: (page: Page) =>
+      expect(
+        page.getByRole('button', { name: 'Review Blue Finch Curios', exact: true }),
+      ).toBeVisible(),
     roles: { labels: false, cardFacts: false, statuses: false, adjacentHeadings: true },
   },
   {
     id: 'store-photos',
     path: '/stores/blue-finch-curios/photos?reviewAs=anonymous&reviewState=success',
+    ready: (page: Page) =>
+      expect(
+        page.getByRole('heading', { level: 1, name: 'Blue Finch Curios', exact: true }),
+      ).toBeVisible(),
     roles: { labels: false, cardFacts: false, statuses: false, adjacentHeadings: false },
   },
-] as const
+] as const satisfies readonly TypographySurface[]
+
+const adminAccessSurface: TypographySurface = {
+  path: '/admin/access?reviewAs=administrator&reviewState=success',
+  ready: (page) =>
+    expect(page.getByRole('list', { name: 'Store Representative scopes' })).toBeVisible(),
+}
+
+const storeDetailsSurface: TypographySurface = {
+  path: '/stores/blue-finch-curios?reviewAs=anonymous&reviewState=success',
+  ready: (page) =>
+    expect(
+      page.getByRole('heading', { level: 1, name: 'Blue Finch Curios', exact: true }),
+    ).toBeVisible(),
+}
 
 const requiredViewports = [
   { id: 'mobile-393', width: 393, height: 852 },
@@ -50,15 +95,16 @@ const themes = ['light', 'dark'] as const
 
 async function openSurface(
   page: Page,
-  path: string,
+  surface: TypographySurface,
   viewport: { width: number; height: number },
   theme: (typeof themes)[number],
 ) {
   await page.setViewportSize(viewport)
   await page.addInitScript((value) => localStorage.setItem('at-theme', value), theme)
-  await page.goto(path, { waitUntil: 'domcontentloaded' })
+  await page.goto(surface.path, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await surface.ready(page)
   await page.evaluate(() => document.fonts.ready)
 }
 
@@ -230,11 +276,25 @@ function expectSemanticRoles(
 }
 
 test.describe('issue 144 semantic typography rendered contract', () => {
+  test('saved-store loading heading does not authorize typography capture', async ({ page }) => {
+    await expect(
+      openSurface(
+        page,
+        { ...surfaces[1], path: '/saved?reviewAs=shopper-a&reviewState=loading' },
+        requiredViewports[1],
+        'light',
+      ),
+    ).rejects.toThrow(/Saved/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Saved stores' })).toBeVisible()
+    await expect(page.getByRole('status')).toHaveText('Loading…')
+    await expect(page.getByRole('term', { name: 'Saved', exact: true })).toHaveCount(0)
+  })
+
   test('equivalent roles resolve to the same computed values across audience routes', async ({
     page,
   }) => {
-    const readRole = async (path: string, selector: string) => {
-      await openSurface(page, path, requiredViewports[1], 'light')
+    const readRole = async (surface: TypographySurface, selector: string) => {
+      await openSurface(page, surface, requiredViewports[1], 'light')
       const values = await page.locator(selector).evaluateAll((elements) =>
         elements.map((element) => {
           const style = getComputedStyle(element)
@@ -246,35 +306,35 @@ test.describe('issue 144 semantic typography rendered contract', () => {
           }
         }),
       )
-      expect(values.length, `${path} must expose ${selector}`).toBeGreaterThan(0)
+      expect(values.length, `${surface.path} must expose ${selector}`).toBeGreaterThan(0)
       return values
     }
 
     const sectionHeadings = [
-      await readRole(surfaces[0].path, '.catalog-results-heading h2'),
-      await readRole(surfaces[3].path, 'main h2'),
-      await readRole(surfaces[4].path, 'main h2'),
+      await readRole(surfaces[0], '.catalog-results-heading h2'),
+      await readRole(surfaces[3], 'main h2'),
+      await readRole(surfaces[4], 'main h2'),
     ]
     expect(sectionHeadings.flat().every((role) => role.family.includes('Newsreader'))).toBe(true)
     expect(new Set(sectionHeadings.flat().map((role) => role.size))).toEqual(new Set(['29px']))
 
     const cardHeadings = [
-      await readRole(surfaces[0].path, '.catalog-card h2'),
-      await readRole(surfaces[1].path, '.shopper-store-card h2'),
+      await readRole(surfaces[0], '.catalog-card h2'),
+      await readRole(surfaces[1], '.shopper-store-card h2'),
     ]
     expect(new Set(cardHeadings.flat().map((role) => role.size))).toEqual(new Set(['23px']))
 
     const factLabels = [
-      await readRole(surfaces[1].path, '.shopper-store-card__facts dt'),
-      await readRole(surfaces[3].path, '.portal-status__facts dt'),
+      await readRole(surfaces[1], '.shopper-store-card__facts dt'),
+      await readRole(surfaces[3], '.portal-status__facts dt'),
     ]
     expect(new Set(factLabels.flat().map((role) => `${role.size}/${role.weight}`))).toEqual(
       new Set(['15px/700']),
     )
 
     const formLabels = [
-      await readRole(surfaces[0].path, 'label'),
-      await readRole('/admin/access?reviewAs=administrator&reviewState=success', 'label'),
+      await readRole(surfaces[0], 'label'),
+      await readRole(adminAccessSurface, 'label'),
     ]
     expect(new Set(formLabels.flat().map((role) => `${role.size}/${role.weight}`))).toEqual(
       new Set(['16px/700']),
@@ -282,16 +342,13 @@ test.describe('issue 144 semantic typography rendered contract', () => {
 
     const buttons = []
     for (const surface of surfaces.slice(0, 5)) {
-      buttons.push(await readRole(surface.path, 'button, .button'))
+      buttons.push(await readRole(surface, 'button, .button'))
     }
     expect(new Set(buttons.flat().map((role) => `${role.size}/${role.weight}`))).toEqual(
       new Set(['16px/700']),
     )
 
-    const statuses = await readRole(
-      '/stores/blue-finch-curios?reviewAs=anonymous&reviewState=success',
-      '.status-badge',
-    )
+    const statuses = await readRole(storeDetailsSurface, '.status-badge')
     expect(new Set(statuses.map((role) => `${role.size}/${role.weight}`))).toEqual(
       new Set(['16px/700']),
     )
@@ -301,7 +358,7 @@ test.describe('issue 144 semantic typography rendered contract', () => {
     for (const theme of themes) {
       for (const surface of surfaces) {
         test(`${surface.id} at ${viewport.id} in ${theme}`, async ({ page }) => {
-          await openSurface(page, surface.path, viewport, theme)
+          await openSurface(page, surface, viewport, theme)
           expectSemanticRoles(
             await typographyMetrics(page),
             `${surface.id} ${viewport.id} ${theme}`,
@@ -322,7 +379,7 @@ test.describe('issue 144 semantic typography rendered contract', () => {
   for (const viewport of additionalViewports) {
     for (const surface of surfaces) {
       test(`${surface.id} reflows at ${viewport.id}`, async ({ page }) => {
-        await openSurface(page, surface.path, viewport, 'light')
+        await openSurface(page, surface, viewport, 'light')
         expectSemanticRoles(
           await typographyMetrics(page),
           `${surface.id} ${viewport.id}`,
@@ -335,7 +392,7 @@ test.describe('issue 144 semantic typography rendered contract', () => {
   for (const surface of surfaces) {
     test(`${surface.id} retains roles in forced colors`, async ({ page }) => {
       await page.emulateMedia({ forcedColors: 'active' })
-      await openSurface(page, surface.path, requiredViewports[0], 'light')
+      await openSurface(page, surface, requiredViewports[0], 'light')
       await expect
         .poll(() => page.evaluate(() => matchMedia('(forced-colors: active)').matches))
         .toBe(true)
@@ -347,7 +404,7 @@ test.describe('issue 144 semantic typography rendered contract', () => {
     })
 
     test(`${surface.id} has no serious accessibility violation in dark theme`, async ({ page }) => {
-      await openSurface(page, surface.path, requiredViewports[0], 'dark')
+      await openSurface(page, surface, requiredViewports[0], 'dark')
       const results = await new AxeBuilder({ page }).analyze()
       expect(
         results.violations
