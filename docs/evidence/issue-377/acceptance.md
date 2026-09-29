@@ -6,8 +6,8 @@
 - Owner/chat: Codex issue-377 isolated worktree
 - Risk: high
 - Baseline SHA: `a1a32faef7783e59a9697843f457276db178afc5`
-- Candidate source/test SHA: `0df95e5d5e555d989930722d9d771e5f03ca922b`
-- Diff fingerprint: `2e1718e10f682d57114105031a3b082201ea03cc`
+- Candidate source/test SHA: `75e69c1dfc5580fcc755c8f0a24766a6df76da5d`
+- Diff fingerprint: `fd97cdb825fa34d30ba94a38cc421a742b9bc88f`
 - Worktree/branch: `C:\Users\samar\.codex\worktrees\55cc\AntiqueTrail`; `codex/issue-377-ip-rate-context`
 - Evidence captured at: `2026-09-29T16:17:08-05:00`
 
@@ -59,7 +59,7 @@ Pre-existing failures or unrelated work: `npm audit --audit-level=high` passes i
 - Standards verdict: PASS after behavioral limit and exact claim-restoration proof replaced weak source-text assertions
 - Spec verdict: PASS after explicit unregistered-session denial coverage was added
 - Final verdict: `WOWED`
-- Findings and disposition: Three P2 test-proof gaps fixed in `0df95e5d5e555d989930722d9d771e5f03ca922b`; no remaining actionable findings. Advisory-lock concurrency remains source-reviewed, not stress-tested locally.
+- Findings and disposition: Three P2 test-proof gaps fixed in `0df95e5d5e555d989930722d9d771e5f03ca922b`; triggered-profile fixture conflict fixed in `75e69c1dfc5580fcc755c8f0a24766a6df76da5d`; final source/test delta reviews passed. Advisory-lock concurrency remains source-reviewed, not stress-tested locally.
 
 ## Unverified
 
