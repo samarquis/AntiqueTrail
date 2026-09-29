@@ -281,6 +281,8 @@ function readCorrectionDraft(slug: string): CorrectionDraft | null {
     )
       return null
     return {
+      idempotencyKey:
+        typeof draft.idempotencyKey === 'string' ? draft.idempotencyKey : crypto.randomUUID(),
       storeId: draft.storeId,
       type: draft.type as CorrectionDraft['type'],
       description: draft.description,
@@ -989,6 +991,7 @@ export function CorrectionPage({
   const [draft, setDraft] = useState<CorrectionDraft>(
     () =>
       readCorrectionDraft(slug) ?? {
+        idempotencyKey: crypto.randomUUID(),
         storeId,
         type: 'hours',
         description: '',

@@ -88,6 +88,7 @@ export function createShopperClient(transport: ShopperRpcTransport): ShopperPriv
     },
     submitCorrection: (draft) =>
       callEdge('correction-submit', {
+        idempotencyKey: draft.idempotencyKey,
         storeId: draft.storeId,
         type: draft.type,
         description: draft.description,
