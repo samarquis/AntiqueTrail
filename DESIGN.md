@@ -23,7 +23,7 @@ Messaging records intent only. It claims no market exclusivity, automated person
 - Use explicit confirmation for irreversible actions. Prefer Undo for reversible ones.
 - Core trust information (freshness, hours, warnings, privacy consequences) is at least 16px.
 - Every form works at 320px width and 200% zoom.
-- Never expose shopper-private ratings, notes, or trips to a Store Representative or Administrator.
+- Never expose shopper-private ratings, notes, or trips to a Store Owner, Store Representative, or Administrator.
 - Current bounded public-test navigation is `Browse | Saved stores | More` for anonymous and
   authenticated shoppers. Selected later trip stages replace `Saved stores` with `My Trip`; they
   never add a fourth destination. Go mode is never a permanent tab.
@@ -173,6 +173,21 @@ Use a final card inside Plan. Show date, departure time, stop count, first stop,
 - Shared plan never includes either shopper's private ratings or notes.
 - Invitation is single-use, bound to the recipient's verified email, and expires after seven days.
 - Creator may cancel or remove; the accepted partner may leave. Removing an active Navigator pauses Go until reassignment.
+
+## Store Owner workspace
+
+The internal test experience exercises the full store-level Owner workflow using synthetic accounts and fixtures. It includes a multi-store workspace, claim status, team invitations and removal, listing edits, analytics, promotion tools, review responses, and read-only billing. Test promotions and review responses operate only on the isolated test data. The current public test remains catalog-only.
+
+- Store Owner sees only separately approved store scopes; a claim remains pending until a Site Admin verifies authority and confirms or corrects the store boundary.
+- Site Admin approves claims and alone grants or revokes the primary Store Owner claim, per store or across the Owner's stores.
+- A Store Owner can manage multiple eligible stores; multi-location businesses use the support path. A store may have multiple Co-Owners.
+- Store Owner can invite and remove team members for that store. Co-Owners may invite another Co-Owner. Full Store Access can invite Listing Editors only. Listing Editors retain current Representative-style editing.
+- Store Owner and Co-Owner can cancel any pending invitation; an inviter can cancel their own. Invitations activate only after acceptance, verified email, and MFA.
+- Full Store Access includes store analytics and promotion tools. Billing is visible but read-only to Store Owner, Co-Owner, and Full Store Access; Listing Editors do not see billing.
+- Site Admin retains review moderation. Owner replies cannot change ratings, rankings, moderation, or reveal shopper-private data. Sensitive facts and photos require Site Admin approval before publication.
+- Existing Store Representative grants and their permissions continue unchanged alongside Owner access.
+
+The complete authority and test/release boundary is owned by [Store Owner authority](docs/specs/store-owner-authority.md).
 
 ## Store Representative portal
 

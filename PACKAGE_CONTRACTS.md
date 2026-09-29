@@ -93,6 +93,10 @@ Queued review and Access & Safety.
 
 **Schema:** subscription mirror rows keyed to the store's membership; entitlement applied on verified webhook events only.
 
+## Store Owner authority and test workspace
+
+The internal test workspace must implement the authority matrix in [Store Owner authority](docs/specs/store-owner-authority.md): Site Admin approved exact-store claims; scoped Co-Owner and teammate invitations, acceptance, and removal; and Store Owner tools against isolated synthetic records. Server-side authorization is authoritative for every store read and mutation. Billing is a read-only status view. Test promotion and review-response flows cannot cause external publication, provider mutation, or spending. Exact schema, RPC, error, audit, and migration contracts are owned by the downstream implementation plans after this authority is frozen.
+
 ## Public test execution contract
 
 The authorized free public test (ADR 0010) uses a pinned prebuilt artifact from an isolated clean checkout. The stable entry is `https://antique-trail.vercel.app/`. Anonymous visitors browse the synthetic catalog; admitted accounts save stores within the inventoried catalog. All RLS, auth, and RPC gates remain enforced. The substitute hosting/recovery acceptance receipt replaces H-01 for this test only and is not an H-01 pass. Registration stays closed until account/provider acceptance is complete. See [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).

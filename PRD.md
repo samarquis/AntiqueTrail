@@ -89,7 +89,7 @@ Working in beta. The public test exposes browsing only. Trip planning, Go mode, 
 ## Future considerations (not built yet)
 
 - More store attributes and categories
-- Store owner responses to reviews
+- Public Store Owner responses to reviews outside the isolated synthetic test
 
 ## Non-goals
 
@@ -101,7 +101,7 @@ Working in beta. The public test exposes browsing only. Trip planning, Go mode, 
 
 ## Stage dependencies
 
-Browse, details/photos, optional saves, and exact-store representative publishing support the internal store showcase and the controlled invited pilot. Trips, public reviews (with moderation), Candidate Share, visit memory, personalization, collections, and Android packaging remain deferred. See [capability stage applicability](docs/specs/product-capabilities.md#stage-applicability) and [security stage applicability](SECURITY_AND_TRUST.md#store-first-stage-applicability).
+The internal store showcase and controlled invited pilot support browse, details/photos, optional saves, exact-store Representative publishing, and Administrator approval. The full Store Owner workspace is available in the current isolated internal test experience using synthetic accounts and store fixtures, so the complete claim, team, listing, analytics, promotion, review-response, and read-only billing journeys can be tested now. This does not change the public test's catalog-only boundary, admit real external Store Owner accounts, enable live payments or external promotion, or release public reviews. External use and side effects retain their separate release and provider gates. The exact authority matrix is in [Store Owner authority](docs/specs/store-owner-authority.md); see also [capability stage applicability](docs/specs/product-capabilities.md#stage-applicability) and [security stage applicability](SECURITY_AND_TRUST.md#store-first-stage-applicability).
 
 ## Deferred implementation boundary
 
