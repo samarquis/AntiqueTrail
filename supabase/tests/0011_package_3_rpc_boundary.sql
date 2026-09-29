@@ -106,8 +106,8 @@ select throws_ok(
 );
 select throws_ok(
   $$select app_public.shopper_submit_correction('00000000-0000-0000-0000-000000000000'::uuid,'other','x',decode(repeat('00',32),'hex'))$$,
-  '42501','shopper_private_access_denied',
-  'correction submission without an active shopper session fails closed'
+  '42501','permission denied for function shopper_submit_correction',
+  'browser roles cannot bypass the trusted correction Edge'
 );
 
 select * from finish();
