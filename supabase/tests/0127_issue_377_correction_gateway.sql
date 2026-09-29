@@ -27,7 +27,10 @@ insert into app_private.profiles(user_id,verified_email_snapshot,age_18_attested
 values
   ('37700000-0000-4000-8000-000000000001','shopper@example.test',statement_timestamp()),
   ('37700000-0000-4000-8000-000000000011','sibling@example.test',statement_timestamp()),
-  ('37700000-0000-4000-8000-000000000021','unentitled@example.test',statement_timestamp());
+  ('37700000-0000-4000-8000-000000000021','unentitled@example.test',statement_timestamp())
+on conflict (user_id) do update set
+  verified_email_snapshot=excluded.verified_email_snapshot,
+  age_18_attested_at=excluded.age_18_attested_at;
 insert into app_private.active_sessions(
   session_id,user_id,provider_created_at,session_epoch,state,access_token_expires_at
 ) values
