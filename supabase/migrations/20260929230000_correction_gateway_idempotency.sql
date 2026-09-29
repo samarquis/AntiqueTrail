@@ -2,7 +2,6 @@
 -- The legacy service-role-only overload remains until the new Edge is verified.
 grant identity_service to postgres;
 grant create on schema app_public to identity_service;
-set role identity_service;
 
 alter table shopper_private.store_correction_reports
   add column gateway_idempotency_digest bytea
@@ -12,6 +11,8 @@ alter table shopper_private.store_correction_reports
 create unique index correction_gateway_idempotency_idx
   on shopper_private.store_correction_reports(reporter_user_id,gateway_idempotency_digest)
   where gateway_idempotency_digest is not null;
+
+set role identity_service;
 
 create function app_public.correction_gateway_submit(
   p_actor_user_id uuid,p_session_id uuid,p_store_id uuid,p_type text,
