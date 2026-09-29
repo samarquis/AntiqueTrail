@@ -75,7 +75,7 @@ describe('trusted correction Edge', () => {
     )
   })
 
-  it('rejects a missing idempotency key before using privileged transport', async () => {
+  it('routes a missing idempotency key through the retained legacy overload', async () => {
     const { handleCorrectionSubmit } = await loadHandler()
     const transport = gateway()
     const withoutIdempotencyKey = { ...body, idempotencyKey: undefined }
@@ -83,6 +83,24 @@ describe('trusted correction Edge', () => {
     expect(
       (await handleCorrectionSubmit(request(withoutIdempotencyKey), '192.0.2.14', transport))
         .status,
+    ).toBe(200)
+    expect(transport.submit).toHaveBeenCalledWith(
+      expect.not.objectContaining({ p_idempotency_key: expect.anything() }),
+    )
+  })
+
+  it('rejects a malformed supplied idempotency key before using privileged transport', async () => {
+    const { handleCorrectionSubmit } = await loadHandler()
+    const transport = gateway()
+
+    expect(
+      (
+        await handleCorrectionSubmit(
+          request({ idempotencyKey: 'attacker-controlled' }),
+          '192.0.2.14',
+          transport,
+        )
+      ).status,
     ).toBe(503)
     expect(transport.submit).not.toHaveBeenCalled()
   })

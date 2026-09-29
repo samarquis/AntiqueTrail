@@ -15,5 +15,5 @@ test('retry-safe correction gateway lands before legacy Edge retirement', () => 
     migration,
     /(?:drop function|revoke all on function) app_public\.correction_gateway_submit\(uuid,uuid,uuid,text,text,bytea,text\)/i,
   )
-  assert.match(edge, /p_idempotency_key: body\.idempotencyKey/)
+  assert.match(edge, /args\.p_idempotency_key = body\.idempotencyKey/)
 })

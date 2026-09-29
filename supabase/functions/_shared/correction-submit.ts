@@ -53,19 +53,19 @@ export async function handleCorrectionSubmit(
       typeof body.storeId !== 'string' ||
       typeof body.type !== 'string' ||
       typeof body.description !== 'string' ||
-      typeof body.idempotencyKey !== 'string' ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
-        body.idempotencyKey,
-      )
+      (body.idempotencyKey !== undefined &&
+        (typeof body.idempotencyKey !== 'string' ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+            body.idempotencyKey,
+          )))
     )
       throw new Error('invalid input')
     const ipHmac = await sign(
       `correction-submit-ip:${coarseIpKey(platformAddress.trim())}`,
       gateway.hmacSecret,
     )
-    const result = await gateway.submit({
+    const args: Record<string, unknown> = {
       p_actor_user_id: actor.userId,
-      p_idempotency_key: body.idempotencyKey,
       p_session_id: actor.sessionId,
       p_store_id: body.storeId,
       p_type: body.type,
@@ -75,7 +75,9 @@ export async function handleCorrectionSubmit(
           ? body.publicSourceUrl
           : null,
       p_ip_hmac: `\\x${ipHmac}`,
-    })
+    }
+    if (typeof body.idempotencyKey === 'string') args.p_idempotency_key = body.idempotencyKey
+    const result = await gateway.submit(args)
     if (
       result.error?.code === '42900' ||
       result.error?.message?.includes('correction_rate_limited')
