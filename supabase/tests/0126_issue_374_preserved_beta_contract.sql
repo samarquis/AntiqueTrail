@@ -1,7 +1,7 @@
 -- Current behavior restored by the forward-only preserved-beta bridge.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(18);
 
 select ok(has_schema_privilege('review_automation','extensions','usage'),'review cryptographic helpers are reachable by their existing owner');
 select ok(has_schema_privilege('release_executor','app_public','usage'),'release executor can reach its existing boundary');
@@ -12,7 +12,10 @@ select has_function('app_public','shopper_submit_correction',array['uuid','text'
 select ok(to_regprocedure('app_public.shopper_submit_correction(uuid,text,text,text)') is null,'obsolete unrate-limited correction overload is absent');
 select ok(not has_table_privilege('authenticated','shopper_private.correction_rate_events','select,insert,update,delete'),'authenticated callers cannot read or alter rate history directly');
 select ok(not has_function_privilege('anon','app_public.shopper_submit_correction(uuid,text,text,bytea,text)','execute'),'anonymous callers cannot submit private corrections');
-select ok(has_function_privilege('authenticated','app_public.shopper_submit_correction(uuid,text,text,bytea,text)','execute'),'authenticated callers retain the guarded correction boundary');
+select ok(not has_function_privilege('authenticated','app_public.shopper_submit_correction(uuid,text,text,bytea,text)','execute'),'authenticated callers cannot choose an IP rate key through the core RPC');
+select ok(not has_function_privilege('authenticated','app_public.correction_gateway_submit(uuid,uuid,uuid,text,text,bytea,text)','execute'),'browser callers cannot impersonate the correction Edge');
+select ok(has_function_privilege('service_role','app_public.correction_gateway_submit(uuid,uuid,uuid,text,text,bytea,text)','execute'),'trusted Edge retains its explicit correction gateway');
+select throws_ok($$select app_public.correction_gateway_submit(null,null,'00000000-0000-0000-0000-000000000000','other','test',decode(repeat('00',32),'hex'))$$,'42501','correction_session_denied','service invocation without an actual registered actor/session is denied');
 select ok(to_regprocedure('app_public.probe_env()') is null,'historical diagnostic remains removed');
 
 -- Exercise the trigger with distinct record shapes. The old combined condition
