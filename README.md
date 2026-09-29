@@ -65,6 +65,7 @@ npx supabase@2.115.0 db reset
 | Document | Owns |
 |---|---|
 | [PRD.md](PRD.md) | Product outcomes, offered scope, stages |
+| [docs/specs/store-owner-authority.md](docs/specs/store-owner-authority.md) | Store Owner and team authority matrix |
 | [docs/specs/product-capabilities.md](docs/specs/product-capabilities.md) | Detailed capability behavior |
 | [DESIGN.md](DESIGN.md) | Interaction rules and routes |
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Visual style and accessibility values |

@@ -6,6 +6,12 @@ Status: historical decision record with links to current requirement owners. Ori
 
 ## Confirmed decisions
 
+### Store Owner workflow for internal testing — 2026-09-29
+
+The Product Owner chose to test the complete Store Owner workflow now rather than leave tools for a later stage, and chose to leave delegated team access in place when the last Co-Owner is removed so the Store Owner can remove those teammates. This updates the earlier proposed rule that Owners cannot remove active team members: the Store Owner may remove team access, while Site Admin alone approves claims and revokes the primary Store Owner claim.
+
+The current internal synthetic test includes claims, team roles and invitations, listing management, analytics, promotions, review responses, and read-only billing. This does not expand the public catalog-only test, permit real external Store Owners, live payments, or external promotion/review publication. The exact authority and environment boundary are owned by [Store Owner authority](docs/specs/store-owner-authority.md), [PRD stage dependencies](PRD.md#stage-dependencies), and [security applicability](SECURITY_AND_TRUST.md#store-first-stage-applicability). Existing Representative access remains unchanged.
+
 ### Vintage Day Out name and marketing direction — 2026-09-12
 
 The Product Owner said: `lets lock in on Vintage Day Out. I love the way that sounds. I like some of the marketing idea as well. Lock this in our plan`. This is explicit direction for the selected name and immediately discussed marketing only; the owner did not type the literal words `update plan`. The plan amendment interprets that direction without expanding it.

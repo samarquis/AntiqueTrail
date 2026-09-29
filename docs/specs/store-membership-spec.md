@@ -5,6 +5,8 @@
 
 This spec owns exact acquisition, photo-capacity, commercial-consent and servicing mechanics. The initial offer is Free/Gallery only. [PRD stages](../../PRD.md#stage-dependencies), [security applicability](../../SECURITY_AND_TRUST.md#store-first-stage-applicability) and [Package 13 activation](../../PACKAGE_CONTRACTS.md#store-first-pilot-activation-contract) control the bounded pilot. Approval creates Free; billing remains staged off until the signed Gallery pilot/commercial/provider activation evidence passes. Regional launch, RG-01 and three community expansions are not first-sale prerequisites. Payment buys photo capacity only, never placement, ratings, approval or shopper data. Prices remain unset pending an approved inactive offer and explicit activation.
 
+The internal Store Owner test shows billing to Store Owner, Co-Owner, and Full Store Access as read-only status; Listing Editors do not see it. No payment or subscription mutation is available in this test flow. This visibility rule does not activate pricing, Checkout, live billing, or paid promotion. See [Store Owner authority](store-owner-authority.md).
+
 ## Tier model
 
 | Tier | Approved photos | Billing |
