@@ -1514,15 +1514,15 @@ textarea[aria-invalid='true'] {
 }
 
 .catalog-browser {
-  padding-top: clamp(1.5rem, 3vw, 2.5rem);
+  padding-top: clamp(0.75rem, 2vw, 1.25rem);
 }
 
 .catalog-browser > header {
-  padding-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
 }
 
 .catalog-browser > header::after {
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
 }
 
 .catalog-browser > header > p:last-child {
@@ -1536,22 +1536,27 @@ textarea[aria-invalid='true'] {
 
 @media (min-width: 1025px) {
   .catalog-browser .catalog-filters {
-    grid-template-columns: repeat(16, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) max-content;
     gap: 0.75rem;
     padding: 1rem;
   }
 
   .catalog-browser .catalog-field--search {
-    grid-column: span 6;
+    grid-column: span 1;
   }
 
   .catalog-browser .catalog-field:not(.catalog-field--search) {
-    grid-column: span 3;
+    grid-column: span 1;
   }
 
   .catalog-browser .catalog-filters__actions {
-    grid-column: span 4;
+    grid-column: span 1;
     flex-wrap: nowrap;
+  }
+
+  .catalog-browser .catalog-filters__actions > * {
+    min-width: 0;
+    flex: 1 1 0;
   }
 }
 
@@ -2354,6 +2359,14 @@ main > article dt {
 
   .catalog-browser .catalog-search-control {
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .catalog-browser .catalog-search-control input {
+    text-overflow: ellipsis;
+  }
+
+  .catalog-browser .catalog-search-control button {
+    padding-inline: 0.75rem;
   }
 
   .more-menu {
@@ -3285,6 +3298,26 @@ main > article dt {
 
 [data-theme='dark'] .catalog-filters button:disabled {
   color: var(--control-disabled-text);
+}
+
+:root[data-theme='dark']
+  .catalog-browser
+  .catalog-filters
+  button:not(:disabled):not(:hover):not(:active):not(:focus-visible) {
+  border-color: var(--teal);
+  color: var(--ink);
+  background: var(--card);
+}
+
+:root[data-theme='dark'] .catalog-browser .catalog-filters button:disabled {
+  color: var(--control-disabled-text);
+  background: var(--control-disabled-bg);
+}
+
+:root[data-theme='dark'] .catalog-browser .catalog-filters button:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--focus-inner),
+    0 0 0 6px var(--focus-outer);
 }
 
 [data-theme='dark'] .catalog-check {
