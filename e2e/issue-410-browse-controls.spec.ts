@@ -127,6 +127,7 @@ for (const { theme, width } of cases) {
       page.getByRole('heading', { level: 2, name: 'Blue Finch Curios' }),
     ).not.toBeVisible()
 
+    await openFilters(page)
     await clearButton.click()
     await expect(page.locator('.catalog-card')).toHaveCount(12)
     await openFilters(page)
