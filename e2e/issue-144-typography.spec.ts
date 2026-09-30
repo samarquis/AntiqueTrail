@@ -23,7 +23,8 @@ const surfaces = [
       expect(
         page
           .getByRole('list', { name: 'Saved stores' })
-          .getByRole('term', { name: 'Saved', exact: true }),
+          .getByRole('term')
+          .filter({ hasText: /^Saved$/ }),
       ).toBeVisible(),
     roles: { labels: false, cardFacts: true, statuses: false, adjacentHeadings: false },
   },
@@ -41,7 +42,8 @@ const surfaces = [
       expect(
         page
           .getByRole('region', { name: 'Store status' })
-          .getByRole('term', { name: 'Hours verification' }),
+          .getByRole('term')
+          .filter({ hasText: /^Hours verification$/ }),
       ).toBeVisible(),
     roles: { labels: false, cardFacts: true, statuses: false, adjacentHeadings: true },
   },
@@ -287,7 +289,7 @@ test.describe('issue 144 semantic typography rendered contract', () => {
     ).rejects.toThrow(/Saved/)
     await expect(page.getByRole('heading', { level: 1, name: 'Saved stores' })).toBeVisible()
     await expect(page.getByRole('status')).toHaveText('Loading…')
-    await expect(page.getByRole('term', { name: 'Saved', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('term').filter({ hasText: /^Saved$/ })).toHaveCount(0)
   })
 
   test('equivalent roles resolve to the same computed values across audience routes', async ({
