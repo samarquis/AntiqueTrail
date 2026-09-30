@@ -3303,7 +3303,7 @@ main > article dt {
 :root[data-theme='dark']
   .catalog-browser
   .catalog-filters
-  button:not(:disabled):not(:hover):not(:active) {
+  button:not(:disabled):not(:hover):not(:active):not(:focus-visible) {
   border-color: var(--teal);
   color: var(--ink);
   background: var(--card);
@@ -3312,6 +3312,12 @@ main > article dt {
 :root[data-theme='dark'] .catalog-browser .catalog-filters button:disabled {
   color: var(--control-disabled-text);
   background: var(--control-disabled-bg);
+}
+
+:root[data-theme='dark'] .catalog-browser .catalog-filters button:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--focus-inner),
+    0 0 0 6px var(--focus-outer);
 }
 
 [data-theme='dark'] .catalog-check {

@@ -78,6 +78,22 @@ for (const { theme, width } of cases) {
       expect(colors.ratio, JSON.stringify(colors)).toBeGreaterThanOrEqual(4.5)
     }
 
+    if (theme === 'dark') {
+      await applyButton.focus()
+      await page.keyboard.press('Shift+Tab')
+      await page.keyboard.press('Tab')
+      await expect(applyButton).toBeFocused()
+      await expect
+        .poll(() => applyButton.evaluate((element) => getComputedStyle(element).boxShadow))
+        .toMatch(/rgb\(18, 21, 25\).*2px.*rgb\(243, 238, 228\).*6px/)
+      const focusStyle = await applyButton.evaluate((element) => ({
+        keyboardFocused: element.matches(':focus-visible'),
+        boxShadow: getComputedStyle(element).boxShadow,
+      }))
+      expect(focusStyle.keyboardFocused).toBe(true)
+      expect(focusStyle.boxShadow).toMatch(/rgb\(18, 21, 25\).*2px.*rgb\(243, 238, 228\).*6px/)
+    }
+
     const location = page.locator('.catalog-card__area').first()
     await expect(location).toBeVisible()
     const locationColors = await location.evaluate((element) => {
