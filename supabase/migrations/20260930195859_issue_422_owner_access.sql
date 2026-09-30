@@ -239,6 +239,7 @@ grant execute on function portal_private.require_owner_media_scope(uuid) to medi
 
 reset role;
 grant media_automation to postgres;
+grant usage,create on schema app_public to media_automation;
 set role media_automation;
 
 create or replace function app_public.media_reserve_upload(
@@ -310,6 +311,7 @@ end $$;
 
 reset role;
 revoke media_automation from postgres;
+revoke create on schema app_public from media_automation;
 revoke all on function portal_private.owner_stores() from public,anon,authenticated,service_role;
 revoke all on function app_public.owner_admin_approve_claim(uuid,uuid,bigint,text),
  app_public.owner_list_stores(),app_public.owner_select_store(uuid),app_public.owner_current_role() from public,anon,service_role;
