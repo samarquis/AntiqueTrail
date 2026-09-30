@@ -1536,13 +1536,13 @@ textarea[aria-invalid='true'] {
 
 @media (min-width: 1025px) {
   .catalog-browser .catalog-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) max-content;
     gap: 0.75rem;
     padding: 1rem;
   }
 
   .catalog-browser .catalog-field--search {
-    grid-column: 1 / -1;
+    grid-column: span 1;
   }
 
   .catalog-browser .catalog-field:not(.catalog-field--search) {
@@ -1550,8 +1550,8 @@ textarea[aria-invalid='true'] {
   }
 
   .catalog-browser .catalog-filters__actions {
-    grid-column: 1 / -1;
-    flex-wrap: wrap;
+    grid-column: span 1;
+    flex-wrap: nowrap;
   }
 
   .catalog-browser .catalog-filters__actions > * {
