@@ -7,8 +7,8 @@
 - Risk: standard, public visual styling
 - Baseline SHA: `29491d879451b77a17664a984e41a94d25f39f78`
 - Source candidate SHA: `a307d4306cdcdeaf01bb52072c5102c89713b454`
-- Source diff SHA-256: `506487CB54C38EA65F026A21DF6FD595F7DB4B26BEC998EFDB4D3AC3A9AA1AE9`
-- Worktree/branch: `C:\Users\samar\.codex\worktrees\0315\AntiqueTrail` / `codex/issue-423-browse-ui`
+- Source diff SHA-256: `506487CB54C38EA65F026A21DF6FD595F7DB4B26BEC998EFDB4D3AC3A9AA1AE9` (SHA-256 of raw stdout bytes from `git diff --binary origin/main...a307d4306cdcdeaf01bb52072c5102c89713b454 -- src/app/styles.css DESIGN_SYSTEM.md e2e/issue-410-browse-controls.spec.ts`; excludes other paths and does not use `--full-index`)
+- Branch: `codex/issue-423-browse-ui` (local checkout)
 - Evidence captured at: `2026-09-30T01:00:26Z`
 
 ## Scope
@@ -21,7 +21,7 @@ Overlapping work checked: PR #408 remains OPEN at `02d966f1b517af597bc1288c8e4e3
 
 ## PR #408/#394 full-scope disposition
 
-The immutable full-scope 423-A inventory is recorded at `C:\Obsidian\Scott_Obsidian\Projects\AntiqueTrail\Work Events\2026-09-28 0028 - 423-A immutable inventory.md` (current file SHA-256 `BD048C42FCE9C64E952D9562601B23D02E6E2FA05A370B1FE0C043D6D0D710D9`). The user approved only the narrow #410 styling plus #412 documentation selection in chat; this approval and implementation are recorded in the linked 423-B work event. The inventory compared both exact PR heads against then-current main `0cd5627008e0d29e9f45e811f78a48095dffb22f`; current main subsequently advanced via PR #455 to `29491d879451b77a17664a984e41a94d25f39f78`. PR #394 is an ancestor of #408 and contributes no commits absent from #408. The PR heads remain unchanged. The inventory's path buckets and reviewed dispositions are:
+The immutable full-scope 423-A inventory is retained in the private Project Reflection vault as “2026-09-28 0028 - 423-A immutable inventory” (SHA-256 `BD048C42FCE9C64E952D9562601B23D02E6E2FA05A370B1FE0C043D6D0D710D9`). The user approved only the narrow #410 styling plus #412 documentation selection in chat; this approval and implementation are recorded in the private 423-B work event. The inventory compared both exact PR heads against then-current main `0cd5627008e0d29e9f45e811f78a48095dffb22f`; current main subsequently advanced via PR #455 to `29491d879451b77a17664a984e41a94d25f39f78`. PR #394 is an ancestor of #408 and contributes no commits absent from #408. The PR heads remain unchanged. The inventory's path buckets and reviewed dispositions are:
 
 | PR scope                                                                                   | Disposition in this candidate                                                                                                                                |
 | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -64,25 +64,25 @@ This disposition covers the full relevant public, account, prototype, evidence, 
 
 ## Store Details screenshot side effects
 
-`e2e/store-details.spec.ts` rewrites the three tracked UI-02 screenshots when its Chromium capture test runs. The exact `a307d430` captures were preserved in local stash `stash@{0}` (`423-B generated UI-02 screenshots held out of candidate`) and verified as non-empty copies at:
+`e2e/store-details.spec.ts` rewrites the three tracked UI-02 screenshots when its Chromium capture test runs. The exact `a307d430` captures were preserved outside the candidate and verified as non-empty local copies; machine-specific artifact paths are omitted:
 
-| Capture | Separate copy                                                                                     | SHA-256                                                            |
-| ------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Desktop | `C:\Users\samar\AppData\Local\Temp\antiquetrail-423b-ui02-desktop-a307d430.png` (2,223,278 bytes) | `5B19237977EFB9504C05F6785A55CD3DAF4355F4FDDB463C10949EC6BCBAC9E5` |
-| Tablet  | `C:\Users\samar\AppData\Local\Temp\antiquetrail-423b-ui02-tablet-a307d430.png` (1,303,868 bytes)  | `87074145BA0A1DAF32CA42CF6E8E4AABCAB7386D18F54991A0F73B7B0102502C` |
-| Mobile  | `C:\Users\samar\AppData\Local\Temp\antiquetrail-423b-ui02-mobile-a307d430.png` (1,022,799 bytes)  | `0F608D59FE6E42CB3D5D676D17E7B0DC4E2672531B0B7D7936FA651C0038BEDA` |
+| Capture | Retained copy                      | SHA-256                                                            |
+| ------- | ---------------------------------- | ------------------------------------------------------------------ |
+| Desktop | Verified local copy; path withheld | `5B19237977EFB9504C05F6785A55CD3DAF4355F4FDDB463C10949EC6BCBAC9E5` |
+| Tablet  | Verified local copy; path withheld | `87074145BA0A1DAF32CA42CF6E8E4AABCAB7386D18F54991A0F73B7B0102502C` |
+| Mobile  | Verified local copy; path withheld | `0F608D59FE6E42CB3D5D676D17E7B0DC4E2672531B0B7D7936FA651C0038BEDA` |
 
 The captures show the current 50-item synthetic gallery and unloaded lower-page image tiles; the committed UI-02 baseline shows four photos and a different prior layout. No Store Details implementation changed in this candidate. The generated captures are outside the approved #423-B source delta, so the checked-in UI-02 evidence remains unchanged and no screenshot replacement is claimed.
 
 ## Independent review
 
 - Reviewer: separate Standards and Spec review agents
-- Final review status: PENDING fresh review of this exact source candidate and updated evidence
+- Prior exact-head reviews at `c50a4b79` passed scope and implementation review, and identified evidence wording, fingerprint-method clarity, and machine-specific paths for correction. Fresh Standards and Spec reviews are pending for the corrected evidence revision.
 - Earlier review: initial checks found a dark-hover cascade issue and off-scale `0.8rem` spacing; source was corrected to exclude hover/active/disabled/focus-visible states from the dark default rule and use `0.75rem` spacing. A later review found the dark focus ring suppression; fixed and covered by a red/green browser regression check.
 
 ## Remaining proof boundaries
 
-The local public-flow browser suite passes on `a307d430`. The UI-02 captures are excluded side effects; no screen-reader review was run. Required GitHub CI, PR review/creation, merge, hosted lifecycle, deployment, and canonical production route proof remain unperformed. Issue #423, PR #408, and PR #394 remain unchanged. Overall issue closure is BLOCKED until the evidence manifest is committed, fresh exact-candidate reviews finish, and required PR checks run under authorized publication.
+The local public-flow browser suite passes on `a307d430`. The UI-02 captures are excluded side effects; no screen-reader review was run. Required GitHub CI, PR review/creation, merge, hosted lifecycle, deployment, and canonical production route proof remain unperformed. Issue #423, PR #408, and PR #394 remain unchanged. The evidence manifest is committed. Overall issue closure remains BLOCKED until fresh exact-head reviews pass and required PR checks run under authorized publication.
 
 ## Invalidation
 
