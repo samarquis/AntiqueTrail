@@ -286,7 +286,8 @@ export function createReviewHarnessAuthProvider(state: ReviewStateId): AuthProvi
   return {
     oauthProviders: { google: false, facebook: false },
     async signIn(email) {
-      if (state !== 'success') return { kind: 'error' }
+      if (state !== 'success' || email.toLowerCase() === 'recoverable-failure@local.invalid')
+        return { kind: 'error' }
       const session = reviewProviderSession(email)
       if (session.mfaRequired) {
         mfaSession = session
@@ -647,6 +648,9 @@ function shopperClient(scenario: ReviewScenario, state: ReviewStateId): ShopperP
       await fixture(state, true, true)
       if (storeId !== store.storeId) throw new Error('Synthetic cross-account denial.')
       saved = nextSaved
+      // Content-free receipt for browser proof; review fixtures never write to a provider.
+      if (typeof window !== 'undefined')
+        window.dispatchEvent(new Event('antique-trail:review-save-write'))
       return { saved }
     },
     async getMemory(storeId) {
