@@ -77,12 +77,13 @@ The captures show the current 50-item synthetic gallery and unloaded lower-page 
 ## Independent review
 
 - Reviewer: separate Standards and Spec review agents
-- Prior exact-head reviews at `c50a4b79` passed scope and implementation review, and identified evidence wording, fingerprint-method clarity, and machine-specific paths for correction. Fresh Standards and Spec reviews are pending for the corrected evidence revision.
+- Prior exact-head reviews at `c50a4b79` passed scope and implementation review, and identified evidence wording, fingerprint-method clarity, and machine-specific paths for correction.
+- Standards and Spec reviews of corrected evidence revision `07330972719e6bdbc526e8f0fe2e519be683cd82` both PASS. They verified the scoped source changes, reproducible source diff fingerprint, full-scope dispositions, and absence of machine-specific paths.
 - Earlier review: initial checks found a dark-hover cascade issue and off-scale `0.8rem` spacing; source was corrected to exclude hover/active/disabled/focus-visible states from the dark default rule and use `0.75rem` spacing. A later review found the dark focus ring suppression; fixed and covered by a red/green browser regression check.
 
 ## Remaining proof boundaries
 
-The local public-flow browser suite passes on `a307d430`. The UI-02 captures are excluded side effects; no screen-reader review was run. Required GitHub CI, PR review/creation, merge, hosted lifecycle, deployment, and canonical production route proof remain unperformed. Issue #423, PR #408, and PR #394 remain unchanged. The evidence manifest is committed. Overall issue closure remains BLOCKED until fresh exact-head reviews pass and required PR checks run under authorized publication.
+The local public-flow browser suite passes on `a307d430`. The UI-02 captures are excluded side effects; no screen-reader review was run. Required GitHub CI, PR review/creation, merge, hosted lifecycle, deployment, and canonical production route proof remain unperformed. Issue #423, PR #408, and PR #394 remain unchanged. Overall issue closure remains BLOCKED pending an authorized PR and its required checks and review.
 
 ## Invalidation
 
