@@ -235,7 +235,7 @@ exception when insufficient_privilege then
 end $$;
 revoke all on function portal_private.require_owner_media_scope(uuid),portal_private.log_owner_access_denial(text,uuid)
  from public,anon,authenticated,service_role;
-grant execute on function portal_private.require_owner_media_scope(uuid) to media_automation;
+grant execute on function portal_private.require_owner_media_scope(uuid),portal_private.log_owner_access_denial(text,uuid) to media_automation;
 
 reset role;
 grant media_automation to postgres;
@@ -248,7 +248,10 @@ create or replace function app_public.media_reserve_upload(
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare actor uuid:=app_public.request_user_id(); existing media_private.media_uploads%rowtype; upload_id uuid:=extensions.gen_random_uuid(); daily_count integer; concurrent_count integer;
 begin
-  if actor is null or not app_private.current_session_is_active() then raise exception using errcode='42501',message='media_unavailable'; end if;
+  if actor is null or not app_private.current_session_is_active() then
+    perform portal_private.log_owner_access_denial('media_reserve_session',p_store_id);
+    raise exception using errcode='42501',message='media_unavailable';
+  end if;
   perform portal_private.require_owner_media_scope(p_store_id);
   select * into existing from media_private.media_uploads where actor_user_id=actor and idempotency_key=p_idempotency_key;
   if found then
@@ -285,7 +288,10 @@ create or replace function app_public.media_get_upload(p_upload_id uuid) returns
 language plpgsql stable security definer set search_path='' as $$
 declare actor uuid:=app_public.request_user_id(); u media_private.media_uploads%rowtype;
 begin
-  if actor is null or not app_private.current_session_is_active() then raise exception using errcode='42501',message='media_unavailable'; end if;
+  if actor is null or not app_private.current_session_is_active() then
+    perform portal_private.log_owner_access_denial('media_get_session',null);
+    raise exception using errcode='42501',message='media_unavailable';
+  end if;
   select * into u from media_private.media_uploads where upload_id=p_upload_id and
     (actor_user_id=actor or exists(select 1 from partner_private.store_partner_grants g where g.auth_user_id=actor and g.store_id=media_uploads.store_id and g.state='active'));
   if not found then raise exception using errcode='55000',message='media_unavailable'; end if;
@@ -297,7 +303,11 @@ create or replace function app_public.media_withdraw_upload(p_upload_id uuid,p_r
 language plpgsql volatile security definer set search_path='' as $$
 declare actor uuid:=app_public.request_user_id(); u media_private.media_uploads%rowtype;
 begin
-  if actor is null or not app_private.current_session_is_active() or p_reason not in ('rights_withdrawn','store_withdrawn','relationship_ended','author_removed') then raise exception using errcode='42501',message='media_unavailable'; end if;
+  if actor is null or not app_private.current_session_is_active() then
+    perform portal_private.log_owner_access_denial('media_withdraw_session',null);
+    raise exception using errcode='42501',message='media_unavailable';
+  end if;
+  if p_reason not in ('rights_withdrawn','store_withdrawn','relationship_ended','author_removed') then raise exception using errcode='42501',message='media_unavailable'; end if;
   select * into u from media_private.media_uploads where upload_id=p_upload_id and state not in ('purge_pending','purged') for update;
   if not found or not (u.actor_user_id=actor or exists(select 1 from partner_private.store_partner_grants g where g.auth_user_id=actor and g.store_id=u.store_id and g.state='active') or app_private.current_user_has_role('administrator'::app_private.app_role)) then raise exception using errcode='42501',message='media_unavailable'; end if;
   perform portal_private.require_owner_media_scope(u.store_id);

@@ -116,6 +116,9 @@ jobs:
         run: |
           docker logs supabase_db_antique-trail > artifacts/postgres-owner-audit.log 2>&1
           grep -F 'owner_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'portal_scope' | grep -F '00000000-0000-4000-8000-000000000009' >/dev/null
+          for operation in media_get_session media_reserve_session media_withdraw_session; do
+            grep -F 'owner_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F "$operation" >/dev/null
+          done
       - name: Upload database failure logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

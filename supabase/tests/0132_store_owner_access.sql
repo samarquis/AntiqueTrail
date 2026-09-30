@@ -163,6 +163,9 @@ update app_private.active_sessions set state='revoked',revoked_at=statement_time
 set local role authenticated;
 select throws_ok('select app_public.owner_list_stores()','42501','owner_access_unavailable','revoked session denies Owner reads');
 select throws_ok('select app_public.portal_get_home()','42501','portal_unavailable','revoked session denies direct Portal read');
+select throws_ok($$select app_public.media_get_upload('80000000-0000-4000-8000-000000000003')$$,'42501','media_unavailable','revoked session denies direct media actor read');
+select throws_ok($$select app_public.media_reserve_upload('00000000-0000-4000-8000-000000000009','gallery','Foreign rejected',(select idempotency_key from owner_upload422),true,'image/png',1000,640,480)$$,'42501','media_unavailable','revoked session denies direct media reservation replay');
+select throws_ok($$select app_public.media_withdraw_upload('80000000-0000-4000-8000-000000000003','author_removed')$$,'42501','media_unavailable','revoked session denies direct media withdrawal');
 reset role;
 update app_private.active_sessions set state='active',revoked_at=null where session_id='76000000-0000-4000-8000-000000000008';
 
