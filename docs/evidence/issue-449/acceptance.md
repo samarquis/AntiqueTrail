@@ -3,10 +3,10 @@
 ## Candidate and scope
 
 - Issue: https://github.com/samarquis/AntiqueTrail/issues/449
-- Owner: this issue's isolated Codex chat, worktree `eb50/AntiqueTrail`.
 - Branch: `codex/issue-449-photo-return`.
-- Baseline: `8de1567a787f897569c8d9da9f2976d37dd568c4`, verified clean before edits. The issue's admission comment explicitly refreshes its older pin.
-- Candidate: the commit containing this evidence; resolve with `git log -1 --format=%H -- docs/evidence/issue-449/acceptance.md`. Subsequent verification receipts belong in the PR and handoff at that exact SHA.
+- Admission baseline: `8de1567a787f897569c8d9da9f2976d37dd568c4`, verified clean before edits. The issue's admission comment explicitly refreshes its older pin.
+- Integration base: `825afce8091a61c286499fa179be18d055e79f51` (`main` at refresh).
+- Candidate SHA and exact-head verification receipts are recorded in PR #456 after checks complete.
 - Risk: standard, synthetic review harness and regression tests only.
 - Owned seams: `e2e/persona-photo-return.spec.ts`, `src/review-harness/clients.ts`, and its direct unit tests.
 - No runtime authentication, hosted provider, database, deployment, or production changes.
@@ -38,8 +38,21 @@
 - `L-20260927-02` (supported) applied: await the actual Save control and error/focus target before checking state. No layout capture is introduced.
 - `L-20260928-01` rejected as inapplicable: no retired validator or manual manifest replacement.
 - The exact refreshed base, retained unavailable seams, and separate local/CI/provider evidence boundaries remain explicit.
+- `L-20260930-01` (supported) applied: remove machine-specific worktree identity and define the source-only fingerprint method and path scope below.
 
-## Remaining gates at creation
+## Source fingerprint
+
+Reproduce from the candidate checkout:
+
+```powershell
+git diff --binary --full-index 825afce8091a61c286499fa179be18d055e79f51...HEAD -- e2e/persona-photo-return.spec.ts src/review-harness/clients.test.ts src/review-harness/clients.ts | git hash-object --stdin
+```
+
+This hashes raw Git diff bytes for exactly the three listed source paths, with binary-safe full-index diff output, using the repository's SHA-1 object format. Markdown evidence is excluded to avoid self-reference; other paths are outside this fingerprint's scope.
+
+Current source-only fingerprint: `68a6eb837b3358f287e8757c3f835cbc287d91b5`.
+
+## Gates recorded at creation
 
 Exact-head web CI and independent Standards/Spec review must be recorded against the frozen candidate in the PR/handoff. Local results above are pre-commit checks, not hosted proof. Hosted authentication and canonical production proof are excluded by the issue. No merge or issue closure is claimed.
 
