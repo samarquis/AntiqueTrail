@@ -5,7 +5,7 @@
 - Issue: https://github.com/samarquis/AntiqueTrail/issues/449
 - Branch: `codex/issue-449-photo-return`.
 - Admission baseline: `8de1567a787f897569c8d9da9f2976d37dd568c4`, verified clean before edits. The issue's admission comment explicitly refreshes its older pin.
-- Integration base: `825afce8091a61c286499fa179be18d055e79f51` (`main` at refresh).
+- Integration base: `30e9df6466165c59273d98df2eb5d1ff2e01b4a1` (`main` at final refresh).
 - Candidate SHA and exact-head verification receipts are recorded in PR #456 after checks complete.
 - Risk: standard, synthetic review harness and regression tests only.
 - Owned seams: `e2e/persona-photo-return.spec.ts`, `src/review-harness/clients.ts`, and its direct unit tests.
@@ -45,7 +45,7 @@
 Reproduce from the candidate checkout:
 
 ```powershell
-git diff --binary --full-index 825afce8091a61c286499fa179be18d055e79f51...HEAD -- e2e/persona-photo-return.spec.ts src/review-harness/clients.test.ts src/review-harness/clients.ts | git hash-object --stdin
+git diff --binary --full-index 30e9df6466165c59273d98df2eb5d1ff2e01b4a1...HEAD -- e2e/persona-photo-return.spec.ts src/review-harness/clients.test.ts src/review-harness/clients.ts | git hash-object --stdin
 ```
 
 This hashes raw Git diff bytes for exactly the three listed source paths, with binary-safe full-index diff output, using the repository's SHA-1 object format. Markdown evidence is excluded to avoid self-reference; other paths are outside this fingerprint's scope.
