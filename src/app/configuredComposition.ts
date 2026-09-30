@@ -730,7 +730,8 @@ export async function configuredComposition(
           .rpc('owner_current_role')
           .setHeader('Authorization', `Bearer ${session.accessToken}`)
         if (ownerRole.error) throw ownerRole.error
-        if (ownerRole.data === 'Store Owner') session.role = 'Store Owner'
+        if (ownerRole.data === 'Store Owner' && session.role !== 'Administrator')
+          session.role = 'Store Owner'
         else ownerStoreId = null
       }
       if (command === 'revoke_current_session') {

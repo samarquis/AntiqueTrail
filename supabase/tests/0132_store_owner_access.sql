@@ -183,6 +183,17 @@ select throws_ok($$select app_public.media_get_upload('80000000-0000-4000-8000-0
 select throws_ok($$select app_public.media_reserve_upload('00000000-0000-4000-8000-000000000009','gallery','Foreign rejected',(select idempotency_key from owner_upload422),true,'image/png',1000,640,480)$$,'42501','media_unavailable','revoked Owner cannot replay old media reservation');
 select throws_ok($$select app_public.media_withdraw_upload('80000000-0000-4000-8000-000000000003','author_removed')$$,'42501','media_unavailable','revoked Owner cannot mutate old upload as its actor');
 select throws_ok('select app_public.promotion_channels()','42501','portal_unavailable','revoked Owner promotion read denies without sibling fallback');
+reset role;
+insert into app_private.role_grants(subject_user_id,role) values('76000000-0000-4000-8000-000000000001','administrator');
+select set_config('request.headers','{}',true);
+set local role authenticated;
+select is(app_public.media_withdraw_upload('80000000-0000-4000-8000-000000000003','author_removed')->>'state','purge_pending','independent Administrator authority survives historical Owner revocation');
+reset role;
+update app_private.role_grants set state='revoked',revoked_at=statement_timestamp(),revoked_by='42200000-0000-4000-8000-000000000001',revocation_reason='administrator_revoked',version=version+1
+ where subject_user_id='76000000-0000-4000-8000-000000000001' and role='administrator' and state='active';
+select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
+set local role authenticated;
+
 
 reset role;
 select pg_temp.actor422('42200000-0000-4000-8000-000000000001','42200000-0000-4000-8000-000000000003');

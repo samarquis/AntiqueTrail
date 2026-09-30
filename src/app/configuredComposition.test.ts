@@ -316,6 +316,27 @@ describe('configured Trip grant composition', () => {
     await composition!.clients.promotion!.set(permissions[0], true)
     expect(headers).toHaveBeenLastCalledWith('x-owner-store-id', storeId)
   })
+  it('preserves Administrator authority when the same account also has an Owner grant', async () => {
+    vi.stubEnv('VITE_STORE_OWNER_INTERNAL_ENABLED', 'true')
+    const response = (data: unknown) => {
+      const result = Promise.resolve({ data, error: null })
+      return Object.assign(result, { setHeader: () => result })
+    }
+    harness.supabase.rpc
+      .mockReturnValueOnce(response(true))
+      .mockReturnValueOnce(response('Store Owner'))
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    const session: AuthSession = {
+      userId: 'admin-owner',
+      accessToken: 'fixture-token',
+      expiresAt: Date.now() + 60000,
+      role: 'Administrator',
+      mfaRequired: true,
+      mfaVerified: true,
+    }
+    await composition!.runtime.sessionRegistry!.registerCurrentSession(session)
+    expect(session.role).toBe('Administrator')
+  })
   it('keeps Owner role resolution and entry disabled in normal composition', async () => {
     vi.stubEnv('VITE_STORE_OWNER_INTERNAL_ENABLED', 'false')
     const result = Promise.resolve({ data: true, error: null })

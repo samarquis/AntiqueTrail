@@ -222,8 +222,9 @@ create function portal_private.require_owner_media_scope(p_store_id uuid) return
 language plpgsql stable security definer set search_path='' as $$
 begin
  if nullif(nullif(current_setting('request.headers',true),'')::jsonb->>'x-owner-store-id','') is not null
-  or exists(select 1 from app_private.role_grants where subject_user_id=app_public.request_user_id()
-   and role='store_owner' and store_id=p_store_id) then
+  or (not app_private.current_user_has_role('administrator'::app_private.app_role)
+   and exists(select 1 from app_private.role_grants where subject_user_id=app_public.request_user_id()
+    and role='store_owner' and store_id=p_store_id)) then
   if portal_private.require_portal_scope() is distinct from p_store_id then
    raise exception using errcode='42501',message='media_unavailable';
   end if;
@@ -237,6 +238,8 @@ revoke all on function portal_private.require_owner_media_scope(uuid),portal_pri
 grant execute on function portal_private.require_owner_media_scope(uuid) to media_automation;
 
 reset role;
+grant media_automation to postgres;
+set role media_automation;
 
 create or replace function app_public.media_reserve_upload(
   p_store_id uuid,p_kind text,p_alt_text text,p_idempotency_key uuid,p_rights_confirmed boolean,
@@ -305,6 +308,8 @@ begin
   return jsonb_build_object('state','purge_pending');
 end $$;
 
+reset role;
+revoke media_automation from postgres;
 revoke all on function portal_private.owner_stores() from public,anon,authenticated,service_role;
 revoke all on function app_public.owner_admin_approve_claim(uuid,uuid,bigint,text),
  app_public.owner_list_stores(),app_public.owner_select_store(uuid),app_public.owner_current_role() from public,anon,service_role;
