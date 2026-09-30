@@ -1,5 +1,7 @@
 import { PaidPurchasePage, type SalesClient } from '../features/billing/sales'
 import { PromotionPage, type PromotionClient } from '../features/portal/promotion'
+import { OwnerStoresPage } from '../features/owner/OwnerStoresPage'
+import { unavailableOwnerClient, type OwnerClient } from '../features/owner/ownerClient'
 import { PaidServicingPage, type ServicingClient } from '../features/billing/servicing'
 import { OwnerAcquisitionPage } from '../features/partners/ownerAcquisitionPage'
 import { StoreApplicationAdminPanel } from '../features/partners/storeApplicationAdminPanel'
@@ -493,6 +495,9 @@ function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) 
         : []),
       ...(session?.role === 'Representative'
         ? [{ to: '/store-portal', label: 'Store Portal', requiresSignIn: false }]
+        : []),
+      ...(session?.role === 'Store Owner'
+        ? [{ to: '/owner/stores', label: 'Your store workspace', requiresSignIn: false }]
         : []),
       ...(session?.role === 'Administrator'
         ? [{ to: '/admin', label: 'Administrator workspace', requiresSignIn: false }]
@@ -1127,6 +1132,7 @@ export interface AppClients {
   storeApplicationAdmin?: StoreApplicationAdminClient
   ownerIntakeAvailability?: OwnerIntakeAvailabilityClient
   portal?: PortalClient
+  owner?: OwnerClient
   billingServicing?: ServicingClient
   billingSales?: SalesClient
   readiness?: DurableReadinessClient
@@ -1647,6 +1653,14 @@ export default function App({
             }
           />
           <Route path="/partner/join" element={<PartnerJoinPage client={partnerClient} />} />
+          <Route
+            path="/owner/stores"
+            element={
+              <RequireSession>
+                <OwnerStoresPage client={clients.owner ?? unavailableOwnerClient} />
+              </RequireSession>
+            }
+          />
           <Route path="/partner/verify" element={<PartnerVerifyPage client={partnerClient} />} />
           <Route path="/partner/draft" element={<PartnerDraftPage client={partnerClient} />} />
           <Route path="/partner/status" element={<PartnerStatusPage client={partnerClient} />} />

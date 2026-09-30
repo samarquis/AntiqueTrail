@@ -40,6 +40,21 @@ const grant = {
 }
 
 describe('admin review and access boundary', () => {
+  it('denies Store Owner sessions even with fresh MFA', () => {
+    expect(
+      adminSessionFromAuth({
+        userId: 'owner',
+        accessToken: 'fixture',
+        expiresAt: Date.now() + 60000,
+        role: 'Store Owner',
+        mfaRequired: true,
+        mfaVerified: true,
+        passwordAuthenticatedAt: new Date().toISOString(),
+        mfaVerifiedAt: new Date().toISOString(),
+        mfaEnrolled: true,
+      }),
+    ).toBeNull()
+  })
   it('derives the guard from real auth metadata and fails closed when metadata is absent', () => {
     const now = Date.parse('2026-08-04T12:05:00Z')
     const session = {

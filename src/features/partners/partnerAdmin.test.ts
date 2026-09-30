@@ -2,6 +2,43 @@ import { describe, expect, it, vi } from 'vitest'
 import { createPartnerAdminClient } from './partnerAdmin'
 
 describe('partner administrator boundary', () => {
+  it('confirms the exact Owner store through the synthetic Owner approval RPC', async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({ role: 'Store Owner', storeId: 'store-1', claimId: 'claim-1' })
+      .mockResolvedValueOnce({ claimId: 'claim-1', state: 'approved' })
+    const client = createPartnerAdminClient({ rpc, ownerApprovalAvailable: true })
+    await client.decide({
+      operation: 'approve_owner',
+      claimId: 'claim-1',
+      confirmedStoreId: 'store-1',
+      expectedVersion: 3,
+      idempotencyKey: 'owner-approval',
+      reasonCode: 'owner_boundary_confirmed',
+    })
+    expect(rpc).toHaveBeenNthCalledWith(1, 'owner_admin_approve_claim', {
+      p_claim_id: 'claim-1',
+      p_store_id: 'store-1',
+      p_expected_version: 3,
+      p_idempotency_key: 'owner-approval',
+    })
+    expect(rpc).toHaveBeenNthCalledWith(2, 'partner_admin_claim_case', { p_claim_id: 'claim-1' })
+  })
+  it('does not offer Owner approval in the normal composition', async () => {
+    const rpc = vi.fn()
+    const client = createPartnerAdminClient({ rpc })
+    await expect(
+      client.decide({
+        operation: 'approve_owner',
+        claimId: 'claim-1',
+        confirmedStoreId: 'store-1',
+        expectedVersion: 3,
+        idempotencyKey: 'owner-approval',
+        reasonCode: 'owner_boundary_confirmed',
+      }),
+    ).rejects.toThrow()
+    expect(rpc).not.toHaveBeenCalled()
+  })
   it('uses one exact claim per read and never exposes a bulk operation', async () => {
     const rpc = vi.fn(async (command: string, payload: Readonly<Record<string, unknown>>) => {
       void command

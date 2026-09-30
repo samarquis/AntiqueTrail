@@ -16,7 +16,7 @@ export function adminSessionFromAuth(
   session: AuthSession | null,
   now = Date.now(),
 ): AdminSession | null {
-  if (!session) return null
+  if (!session || session.role === 'Store Owner') return null
   const recentAuthAt = Date.parse(session.passwordAuthenticatedAt ?? '')
   const mfaEnrolled = session.mfaEnrolled !== false
   const mfaVerifiedAt = Date.parse(session.mfaVerifiedAt ?? '')

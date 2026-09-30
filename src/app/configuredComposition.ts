@@ -1,6 +1,7 @@
 import { createSalesClient } from '../features/billing/sales'
 import { createServicingClient } from '../features/billing/servicing'
 import { createPromotionClient } from '../features/portal/promotion'
+import { createOwnerClient } from '../features/owner/ownerClient'
 import {
   createStoreApplicationClient,
   createStoreApplicationAdminClient,
@@ -713,12 +714,29 @@ export async function configuredComposition(
     installId: offline.runtime.installId,
     deviceKeyId: offline.runtime.deviceKeyId,
   })
+  const ownerEnabled = import.meta.env.VITE_STORE_OWNER_INTERNAL_ENABLED === 'true'
+  let ownerStoreId: string | null = null
+  let ownerScopeUserId: string | null = null
   const sessionRegistry = createRpcSessionRegistry({
     async invoke(command, payload, session) {
       const result = await supabase
         .rpc(command, payload)
         .setHeader('Authorization', `Bearer ${session.accessToken}`)
       if (result.error) throw result.error
+      if (ownerEnabled && command === 'register_current_session') {
+        if (ownerScopeUserId !== session.userId) ownerStoreId = null
+        ownerScopeUserId = session.userId
+        const ownerRole = await supabase
+          .rpc('owner_current_role')
+          .setHeader('Authorization', `Bearer ${session.accessToken}`)
+        if (ownerRole.error) throw ownerRole.error
+        if (ownerRole.data === 'Store Owner') session.role = 'Store Owner'
+        else ownerStoreId = null
+      }
+      if (command === 'revoke_current_session') {
+        ownerStoreId = null
+        ownerScopeUserId = null
+      }
       return result.data
     },
   })
@@ -787,7 +805,8 @@ export async function configuredComposition(
       syntheticEnabled: import.meta.env.VITE_PARTNER_SYNTHETIC_ENABLED === 'true',
     }),
   )
-  const partnerAdmin = createPartnerAdminClient({ rpc, edge })
+  const partnerAdmin = createPartnerAdminClient({ rpc, edge, ownerApprovalAvailable: ownerEnabled })
+  const ownerClient = ownerEnabled ? createOwnerClient(rpc) : undefined
   const billing = createBillingClient({
     async rpc(name, args) {
       const result = await supabase.rpc(name, args)
@@ -837,6 +856,17 @@ export async function configuredComposition(
       lifecycle,
       partner,
       partnerAdmin,
+      ...(ownerClient
+        ? {
+            owner: {
+              listStores: ownerClient.listStores,
+              async selectStore(storeId: string) {
+                await ownerClient.selectStore(storeId)
+                ownerStoreId = storeId
+              },
+            },
+          }
+        : {}),
       billing,
       billingServicing: createServicingClient((name, args) => supabase.rpc(name, args)),
       billingSales: createSalesClient(
@@ -907,7 +937,9 @@ export async function configuredComposition(
       portal: createPortalClient(
         {
           async rpc(name, args) {
-            const result = await supabase.rpc(name, args)
+            const result = await supabase
+              .rpc(name, args)
+              .setHeader('x-owner-store-id', ownerStoreId ?? '')
             return { data: result.data, error: result.error }
           },
         },
