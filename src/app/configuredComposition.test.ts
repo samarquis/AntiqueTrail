@@ -318,9 +318,15 @@ describe('configured Trip grant composition', () => {
   })
   it('preserves Administrator authority when the same account also has an Owner grant', async () => {
     vi.stubEnv('VITE_STORE_OWNER_INTERNAL_ENABLED', 'true')
+    const headers = vi.fn()
     const response = (data: unknown) => {
       const result = Promise.resolve({ data, error: null })
-      return Object.assign(result, { setHeader: () => result })
+      return Object.assign(result, {
+        setHeader: (name: string, value: string) => {
+          headers(name, value)
+          return result
+        },
+      })
     }
     harness.supabase.rpc
       .mockReturnValueOnce(response(true))
@@ -336,6 +342,26 @@ describe('configured Trip grant composition', () => {
     }
     await composition!.runtime.sessionRegistry!.registerCurrentSession(session)
     expect(session.role).toBe('Administrator')
+    const storeId = '00000000-0000-4000-8000-000000001001'
+    harness.supabase.rpc.mockReturnValueOnce(response({ storeId }))
+    await composition!.clients.owner!.selectStore(storeId)
+    harness.supabase.rpc
+      .mockReturnValueOnce(response(true))
+      .mockReturnValueOnce(response('Store Owner'))
+    await composition!.runtime.sessionRegistry!.registerCurrentSession(session)
+    harness.supabase.rpc.mockReturnValueOnce(
+      response(
+        ['flyer', 'owner_card', 'co_brand', 'social'].map((channel) => ({
+          channel,
+          consented: false,
+          version: 0,
+          removalRequested: false,
+        })),
+      ),
+    )
+    headers.mockClear()
+    await composition!.clients.promotion!.list()
+    expect(headers).toHaveBeenLastCalledWith('x-owner-store-id', storeId)
   })
   it('keeps Owner role resolution and entry disabled in normal composition', async () => {
     vi.stubEnv('VITE_STORE_OWNER_INTERNAL_ENABLED', 'false')
