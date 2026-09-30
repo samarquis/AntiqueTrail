@@ -2366,7 +2366,7 @@ main > article dt {
   }
 
   .catalog-browser .catalog-search-control button {
-    padding-inline: 0.8rem;
+    padding-inline: 0.75rem;
   }
 
   .more-menu {
@@ -3300,7 +3300,10 @@ main > article dt {
   color: var(--control-disabled-text);
 }
 
-:root[data-theme='dark'] .catalog-browser .catalog-filters button {
+:root[data-theme='dark']
+  .catalog-browser
+  .catalog-filters
+  button:not(:disabled):not(:hover):not(:active) {
   border-color: var(--teal);
   color: var(--ink);
   background: var(--card);
