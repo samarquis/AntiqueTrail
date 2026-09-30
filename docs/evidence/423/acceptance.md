@@ -7,7 +7,7 @@
 - Risk: standard, public visual styling
 - Baseline SHA: `29491d879451b77a17664a984e41a94d25f39f78`
 - Source candidate SHA: `a307d4306cdcdeaf01bb52072c5102c89713b454`
-- Source diff SHA-256: `506487CB54C38EA65F026A21DF6FD595F7DB4B26BEC998EFDB4D3AC3A9AA1AE9` (SHA-256 of raw stdout bytes from `git diff --binary origin/main...a307d4306cdcdeaf01bb52072c5102c89713b454 -- src/app/styles.css DESIGN_SYSTEM.md e2e/issue-410-browse-controls.spec.ts`; excludes other paths and does not use `--full-index`)
+- Source diff SHA-256: `506487CB54C38EA65F026A21DF6FD595F7DB4B26BEC998EFDB4D3AC3A9AA1AE9` (SHA-256 of raw stdout bytes from `git diff --binary 29491d879451b77a17664a984e41a94d25f39f78...a307d4306cdcdeaf01bb52072c5102c89713b454 -- src/app/styles.css DESIGN_SYSTEM.md e2e/issue-410-browse-controls.spec.ts`; excludes other paths and does not use `--full-index`)
 - Branch: `codex/issue-423-browse-ui` (local checkout)
 - Evidence captured at: `2026-09-30T01:00:26Z`
 
@@ -79,6 +79,7 @@ The captures show the current 50-item synthetic gallery and unloaded lower-page 
 - Reviewer: separate Standards and Spec review agents
 - Prior exact-head reviews at `c50a4b79` passed scope and implementation review, and identified evidence wording, fingerprint-method clarity, and machine-specific paths for correction.
 - Standards and Spec reviews of corrected evidence revision `07330972719e6bdbc526e8f0fe2e519be683cd82` both PASS. They verified the scoped source changes, reproducible source diff fingerprint, full-scope dispositions, and absence of machine-specific paths.
+- Both reviewers also returned PASS at exact evidence HEAD `3ca83fbd59ffa4690a8cca09ba36cf3abf9e2800`. This acceptance update pins the diff command to the immutable baseline so the fingerprint remains reproducible if `origin/main` advances.
 - Earlier review: initial checks found a dark-hover cascade issue and off-scale `0.8rem` spacing; source was corrected to exclude hover/active/disabled/focus-visible states from the dark default rule and use `0.75rem` spacing. A later review found the dark focus ring suppression; fixed and covered by a red/green browser regression check.
 
 ## Remaining proof boundaries
