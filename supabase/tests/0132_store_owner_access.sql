@@ -11,7 +11,7 @@ update app_public.stores set synthetic=true,audience='synthetic' where id in
  ('00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000009');
 update app_private.profiles set verified_email_snapshot='owner422@example.test' where user_id='76000000-0000-4000-8000-000000000001';
 update auth.users set email_confirmed_at=statement_timestamp() where id='76000000-0000-4000-8000-000000000001';
-update partner_private.partner_invitations set synthetic=true where invitation_id='76000000-0000-4000-8000-000000000002';
+update partner_private.partner_invitations set synthetic=true,issuance_idempotency_key='owner422-invitation',raw_returned_at=created_at,expires_at=created_at+interval '30 minutes' where invitation_id='76000000-0000-4000-8000-000000000002';
 insert into auth.users(id,email,email_confirmed_at) values
  ('42200000-0000-4000-8000-000000000001','admin422@example.test',statement_timestamp());
 insert into auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at) values
@@ -40,6 +40,36 @@ select pg_temp.actor422('42200000-0000-4000-8000-000000000001','42200000-0000-40
 create temporary table approval422(version bigint);
 insert into approval422 select version from partner_private.listing_claims where claim_id='42200000-0000-4000-8000-000000000004';
 grant select on approval422 to authenticated;
+-- Every failed approval is a real RPC transaction, with no surviving authority.
+update auth.users set email_confirmed_at=null where id='76000000-0000-4000-8000-000000000001';
+set local role authenticated;
+select throws_ok($$select app_public.owner_admin_approve_claim('42200000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000009',(select version from approval422),'owner422-denied')$$,'42501',null,'unconfirmed provider email cannot approve');
+reset role;
+update auth.users set email_confirmed_at=statement_timestamp() where id='76000000-0000-4000-8000-000000000001';
+update auth.mfa_factors set status='unverified' where user_id='76000000-0000-4000-8000-000000000001';
+set local role authenticated;
+select throws_ok($$select app_public.owner_admin_approve_claim('42200000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000009',(select version from approval422),'owner422-denied')$$,'42501',null,'unenrolled MFA cannot approve');
+reset role;
+update auth.mfa_factors set status='verified' where user_id='76000000-0000-4000-8000-000000000001';
+update app_public.stores set synthetic=false where id='00000000-0000-4000-8000-000000000009';
+set local role authenticated;
+select throws_ok($$select app_public.owner_admin_approve_claim('42200000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000009',(select version from approval422),'owner422-denied')$$,'42501',null,'real-store boundary cannot approve');
+reset role;
+update app_public.stores set synthetic=true where id='00000000-0000-4000-8000-000000000009';
+update app_private.environment_stage set stage='private_beta',version=version+1 where id=1;
+set local role authenticated;
+select throws_ok($$select app_public.owner_admin_approve_claim('42200000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000009',(select version from approval422),'owner422-denied')$$,'42501',null,'non-synthetic deployment cannot approve');
+reset role;
+update app_private.environment_stage set stage='synthetic_alpha',version=version+1 where id=1;
+create temporary table saved_signals422 as select * from partner_private.claim_authority_signals where claim_id='42200000-0000-4000-8000-000000000004';
+delete from partner_private.claim_authority_signals where claim_id='42200000-0000-4000-8000-000000000004';
+set local role authenticated;
+select throws_ok($$select app_public.owner_admin_approve_claim('42200000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000009',(select version from approval422),'owner422-denied')$$,'42501',null,'missing independent evidence cannot approve');
+reset role;
+insert into partner_private.claim_authority_signals select * from saved_signals422;
+select is((select count(*) from app_private.role_grants where role='store_owner'),0::bigint,'denied approvals mint no Owner role');
+select is((select count(*) from partner_private.owner_claim_approvals),0::bigint,'denied approvals leave no approval marker');
+select is((select count(*) from app_private.privileged_audit_events where action='owner_claim_approved'),0::bigint,'denied approvals leave no completed approval audit');
 set local role authenticated;
 select throws_ok($$select app_public.owner_admin_approve_claim('42200000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000001',(select version from approval422),'owner422-approve')$$,'42501','owner_access_unavailable','wrong confirmed store denies approval');
 select is(app_public.owner_admin_approve_claim('42200000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000009',(select version from approval422),'owner422-approve')->>'role','Store Owner','approved verified claim produces distinct Owner role');
@@ -49,6 +79,11 @@ reset role;
 select is((select count(*) from app_private.role_grants where role='store_owner' and state='active'),1::bigint,'replay mints one Owner grant');
 select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_claim_approved' and resource_id='42200000-0000-4000-8000-000000000004'),'approval is audited');
 
+-- An existing Owner-authored upload exercises replay and actor-read denial after revocation.
+update media_private.media_uploads set actor_user_id='76000000-0000-4000-8000-000000000001',actor_tombstone=null
+ where upload_id='80000000-0000-4000-8000-000000000003';
+create temporary table owner_upload422 as select idempotency_key from media_private.media_uploads where upload_id='80000000-0000-4000-8000-000000000003';
+grant select on owner_upload422 to authenticated;
 select pg_temp.actor422('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
 set local role authenticated;
 select is(jsonb_array_length(app_public.owner_list_stores()->'stores'),1,'Owner list exposes only approved Owner store');
@@ -56,6 +91,8 @@ select throws_ok($$select app_public.owner_select_store('00000000-0000-4000-8000
 select is(app_public.owner_select_store('00000000-0000-4000-8000-000000000009')->>'storeId','00000000-0000-4000-8000-000000000009','exact Owner selection succeeds');
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
 select is(app_public.portal_get_home()->'store'->>'id','00000000-0000-4000-8000-000000000009','existing Portal reads selected exact store');
+select is(app_public.media_get_upload('80000000-0000-4000-8000-000000000003')->>'storeId','00000000-0000-4000-8000-000000000009','media actor read rechecks exact Owner scope');
+select is(app_public.promotion_channel_command('social','consent',0,false)->>'allowed','true','promotion consent succeeds within selected Owner scope');
 select is(app_public.portal_save_managed_fields('{"description":"Owner-scoped synthetic edit","phone":"785-555-0422"}'::jsonb)->'store'->>'id',
  '00000000-0000-4000-8000-000000000009','Owner publishes existing managed fields to selected scope');
 select throws_ok('select * from app_private.role_grants','42501',null,'Owner cannot bulk-read grants');
@@ -64,6 +101,8 @@ select throws_ok($$select app_public.owner_admin_approve_claim('42200000-0000-40
 reset role;
 select is((select description from app_public.stores where id='00000000-0000-4000-8000-000000000009'),
  'Owner-scoped synthetic edit','selected store receives authorized mutation');
+select ok(exists(select 1 from promotion_private.channel_permissions where store_id='00000000-0000-4000-8000-000000000009' and channel='social' and consented),'promotion changes selected Owner store');
+select ok(not exists(select 1 from promotion_private.channel_permissions where store_id='00000000-0000-4000-8000-000000000001' and channel='social' and consented),'promotion leaves Representative sibling untouched');
 select isnt((select description from app_public.stores where id='00000000-0000-4000-8000-000000000001'),
  'Owner-scoped synthetic edit','sibling Representative store remains unchanged');
 set local role authenticated;
@@ -140,6 +179,11 @@ set local role authenticated;
 select is(jsonb_array_length(app_public.owner_list_stores()->'stores'),1,'revoked store disappears immediately; second store remains');
 select throws_ok('select app_public.portal_get_home()','42501','portal_unavailable','selected revoked store never falls back to Representative');
 select throws_ok($$select app_public.portal_save_managed_fields('{}'::jsonb)$$,'42501','portal_unavailable','revoked Owner direct mutation denies before payload handling');
+select throws_ok($$select app_public.media_get_upload('80000000-0000-4000-8000-000000000003')$$,'42501','media_unavailable','revoked Owner cannot read their old upload');
+select throws_ok($$select app_public.media_reserve_upload('00000000-0000-4000-8000-000000000009','gallery','Foreign rejected',(select idempotency_key from owner_upload422),true,'image/png',1000,640,480)$$,'42501','media_unavailable','revoked Owner cannot replay old media reservation');
+select throws_ok($$select app_public.media_withdraw_upload('80000000-0000-4000-8000-000000000003','author_removed')$$,'42501','media_unavailable','revoked Owner cannot mutate old upload as its actor');
+select throws_ok('select app_public.promotion_channels()','42501','portal_unavailable','revoked Owner promotion read denies without sibling fallback');
+
 reset role;
 select pg_temp.actor422('42200000-0000-4000-8000-000000000001','42200000-0000-4000-8000-000000000003');
 create temporary table revocation422_b(version bigint);

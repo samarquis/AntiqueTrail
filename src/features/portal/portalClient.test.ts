@@ -199,6 +199,7 @@ describe('production portal client', () => {
       apiKey: 'public-anon-key',
       getAccessToken: async () => 'user-access-token',
       fetcher,
+      getStoreScope: () => '11111111-1111-4111-8111-111111111111',
     })
     const file = new File([new Uint8Array(32)], 'store.png', { type: 'image/png' })
     await expect(
@@ -217,7 +218,11 @@ describe('production portal client', () => {
       cache: 'no-store',
       credentials: 'omit',
       redirect: 'error',
-      headers: { Authorization: 'Bearer user-access-token', apikey: 'public-anon-key' },
+      headers: {
+        Authorization: 'Bearer user-access-token',
+        apikey: 'public-anon-key',
+        'x-owner-store-id': '11111111-1111-4111-8111-111111111111',
+      },
     })
     expect(request?.body).toBeInstanceOf(FormData)
     expect((request?.body as FormData).get('image')).toBe(file)

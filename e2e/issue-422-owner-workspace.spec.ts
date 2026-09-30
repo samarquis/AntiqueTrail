@@ -18,6 +18,7 @@ test('approved Owner selects an exact store and enters existing Portal', async (
   await expect(page).toHaveURL(/\/store-portal/)
   await expect(page.getByRole('heading', { name: /Blue Finch Curios/ })).toBeVisible()
   await page.goto('/admin?reviewAs=store-owner&reviewState=success')
+  await expect(page).toHaveURL(/\/stores/)
   await expect(page.getByRole('heading', { name: /Administrator workspace/i })).toHaveCount(0)
 })
 

@@ -766,6 +766,16 @@ export async function configuredComposition(
     if (result.error) throw result.error
     return result.data as T
   }
+  const storeRpc = async <T>(
+    command: string,
+    payload: Readonly<Record<string, unknown>>,
+  ): Promise<T> => {
+    const result = await supabase
+      .rpc(command, payload)
+      .setHeader('x-owner-store-id', ownerStoreId ?? '')
+    if (result.error) throw result.error
+    return result.data as T
+  }
   const candidate = createCandidateProductionClient({ rpc, edge })
   const rg01 = createRG01Client(
     createRG01HttpTransport({
@@ -933,7 +943,7 @@ export async function configuredComposition(
         const result = await supabase.rpc(name)
         return { data: result.data, error: result.error }
       }),
-      promotion: createPromotionClient(rpc),
+      promotion: createPromotionClient(storeRpc),
       portal: createPortalClient(
         {
           async rpc(name, args) {
@@ -952,6 +962,7 @@ export async function configuredComposition(
         createPortalMediaHttpTransport({
           endpoint: `${url}/functions/v1/media-provider-command`,
           apiKey: anonKey,
+          getStoreScope: () => ownerStoreId,
           async getAccessToken() {
             const session = await supabase.auth.getSession()
             return session.data.session?.access_token ?? ''

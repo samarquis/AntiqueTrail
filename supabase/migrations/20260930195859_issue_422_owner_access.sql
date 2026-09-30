@@ -114,6 +114,13 @@ begin
  return jsonb_build_object('role','Store Owner','storeId',p_store_id,'claimId',p_claim_id);
 end $$;
 
+-- PostgreSQL server logs survive exception rollback. Emit only opaque IDs and fixed operation codes.
+create function portal_private.log_owner_access_denial(p_operation text,p_store_id uuid) returns void
+language plpgsql stable security definer set search_path='' as $$
+begin
+ raise log 'owner_access_denied %',jsonb_build_object('actorId',app_public.request_user_id(),'requestedStoreId',p_store_id,'operation',p_operation,'outcome','denied');
+end $$;
+
 -- One authoritative set, shared by list, selection, and every selected Portal request.
 create function portal_private.owner_stores()
 returns table(store_id uuid,store_name text) language plpgsql stable security definer set search_path='' as $$
@@ -148,6 +155,9 @@ begin
   into stores from portal_private.owner_stores() s;
  if stores is null then raise exception using errcode='42501',message='owner_access_unavailable'; end if;
  return jsonb_build_object('role','Store Owner','stores',stores);
+exception when insufficient_privilege then
+ perform portal_private.log_owner_access_denial('owner_list_stores',null);
+ raise;
 end $$;
 
 create function app_public.owner_current_role() returns text
@@ -165,6 +175,9 @@ begin
   raise exception using errcode='42501',message='owner_access_unavailable';
  end if;
  return jsonb_build_object('storeId',p_store_id);
+exception when insufficient_privilege then
+ perform portal_private.log_owner_access_denial('owner_select_store',p_store_id);
+ raise;
 end $$;
 
 create or replace function portal_private.require_portal_scope()
@@ -199,9 +212,99 @@ begin
     or (not s.synthetic and s.audience='public' and e.id=1 and e.stage='regional_public'));
  if not coalesce(has_exactly_one_scope,false) or target is null then raise exception using errcode='42501',message='portal_unavailable'; end if;
  return target;
+exception when insufficient_privilege then
+ perform portal_private.log_owner_access_denial('portal_scope',selected);
+ raise;
 end $$;
 
+-- Legacy media replay/actor reads must not outlive an Owner grant or ignore selected scope.
+create function portal_private.require_owner_media_scope(p_store_id uuid) returns void
+language plpgsql stable security definer set search_path='' as $$
+begin
+ if nullif(nullif(current_setting('request.headers',true),'')::jsonb->>'x-owner-store-id','') is not null
+  or exists(select 1 from app_private.role_grants where subject_user_id=app_public.request_user_id()
+   and role='store_owner' and store_id=p_store_id) then
+  if portal_private.require_portal_scope() is distinct from p_store_id then
+   raise exception using errcode='42501',message='media_unavailable';
+  end if;
+ end if;
+exception when insufficient_privilege then
+ perform portal_private.log_owner_access_denial('owner_media_scope',p_store_id);
+ raise exception using errcode='42501',message='media_unavailable';
+end $$;
+revoke all on function portal_private.require_owner_media_scope(uuid),portal_private.log_owner_access_denial(text,uuid)
+ from public,anon,authenticated,service_role;
+grant execute on function portal_private.require_owner_media_scope(uuid) to media_automation;
+
 reset role;
+
+create or replace function app_public.media_reserve_upload(
+  p_store_id uuid,p_kind text,p_alt_text text,p_idempotency_key uuid,p_rights_confirmed boolean,
+  p_source_mime text,p_source_bytes bigint,p_source_width integer,p_source_height integer
+) returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare actor uuid:=app_public.request_user_id(); existing media_private.media_uploads%rowtype; upload_id uuid:=extensions.gen_random_uuid(); daily_count integer; concurrent_count integer;
+begin
+  if actor is null or not app_private.current_session_is_active() then raise exception using errcode='42501',message='media_unavailable'; end if;
+  perform portal_private.require_owner_media_scope(p_store_id);
+  select * into existing from media_private.media_uploads where actor_user_id=actor and idempotency_key=p_idempotency_key;
+  if found then
+    if existing.store_id<>p_store_id or existing.kind<>p_kind or existing.alt_text<>p_alt_text or existing.source_mime<>p_source_mime or existing.source_bytes<>p_source_bytes or existing.source_width<>p_source_width or existing.source_height<>p_source_height then
+      raise exception using errcode='22023',message='media_unavailable';
+    end if;
+    return jsonb_build_object('uploadId',existing.upload_id,'originalObjectKey',existing.original_object_key,'derivativeObjectKey',existing.private_derivative_object_key);
+  end if;
+  if not media_private.capability_enabled() or not p_rights_confirmed
+    or p_kind not in ('cover','gallery') or p_alt_text<>btrim(p_alt_text) or char_length(p_alt_text) not between 1 and 240
+    or p_alt_text~'[[:cntrl:]]' or p_source_mime not in ('image/jpeg','image/png','image/webp')
+    or p_source_bytes not between 20 and 8388608 or p_source_width not between 1 and 8192 or p_source_height not between 1 and 8192
+    or p_source_width::bigint*p_source_height::bigint>40000000
+    or not exists(select 1 from partner_private.store_partner_grants g where g.auth_user_id=actor and g.store_id=p_store_id and g.state='active') then
+    perform media_private.append_audit('media_reservation',actor,p_store_id,null,'denied');
+    raise exception using errcode='42501',message='media_unavailable';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(p_store_id::text,0));
+  select count(*) into daily_count from media_private.media_uploads where store_id=p_store_id and created_at>=statement_timestamp()-interval '1 day';
+  select count(*) into concurrent_count from media_private.media_uploads where store_id=p_store_id and state in ('reserved','staged','awaiting_review','approved_pending_publish');
+  if daily_count>=20 or concurrent_count>=5 then
+    perform media_private.append_audit('media_reservation',actor,p_store_id,null,'blocked');
+    raise exception using errcode='54000',message='media_unavailable';
+  end if;
+  insert into media_private.media_uploads(upload_id,actor_user_id,store_id,kind,alt_text,rights_confirmed_at,idempotency_key,source_mime,source_bytes,source_width,source_height,original_object_key,private_derivative_object_key,purge_due_at)
+  values(upload_id,actor,p_store_id,p_kind,p_alt_text,statement_timestamp(),p_idempotency_key,p_source_mime,p_source_bytes,p_source_width,p_source_height,
+    'quarantine/'||upload_id::text||'/original','quarantine/'||upload_id::text||'/derivative.webp',statement_timestamp()+interval '24 hours');
+  insert into media_private.media_purge_jobs(upload_id,reason_code,due_at) values(upload_id,'abandoned',statement_timestamp()+interval '24 hours');
+  perform media_private.append_audit('media_reserved',actor,p_store_id,upload_id,'allowed');
+  return jsonb_build_object('uploadId',upload_id,'originalObjectKey','quarantine/'||upload_id::text||'/original','derivativeObjectKey','quarantine/'||upload_id::text||'/derivative.webp');
+end $$;
+
+create or replace function app_public.media_get_upload(p_upload_id uuid) returns jsonb
+language plpgsql stable security definer set search_path='' as $$
+declare actor uuid:=app_public.request_user_id(); u media_private.media_uploads%rowtype;
+begin
+  if actor is null or not app_private.current_session_is_active() then raise exception using errcode='42501',message='media_unavailable'; end if;
+  select * into u from media_private.media_uploads where upload_id=p_upload_id and
+    (actor_user_id=actor or exists(select 1 from partner_private.store_partner_grants g where g.auth_user_id=actor and g.store_id=media_uploads.store_id and g.state='active'));
+  if not found then raise exception using errcode='55000',message='media_unavailable'; end if;
+  perform portal_private.require_owner_media_scope(u.store_id);
+  return jsonb_build_object('uploadId',u.upload_id,'storeId',u.store_id,'kind',u.kind,'state',u.state,'version',u.version);
+end $$;
+
+create or replace function app_public.media_withdraw_upload(p_upload_id uuid,p_reason text) returns jsonb
+language plpgsql volatile security definer set search_path='' as $$
+declare actor uuid:=app_public.request_user_id(); u media_private.media_uploads%rowtype;
+begin
+  if actor is null or not app_private.current_session_is_active() or p_reason not in ('rights_withdrawn','store_withdrawn','relationship_ended','author_removed') then raise exception using errcode='42501',message='media_unavailable'; end if;
+  select * into u from media_private.media_uploads where upload_id=p_upload_id and state not in ('purge_pending','purged') for update;
+  if not found or not (u.actor_user_id=actor or exists(select 1 from partner_private.store_partner_grants g where g.auth_user_id=actor and g.store_id=u.store_id and g.state='active') or app_private.current_user_has_role('administrator'::app_private.app_role)) then raise exception using errcode='42501',message='media_unavailable'; end if;
+  perform portal_private.require_owner_media_scope(u.store_id);
+  if u.catalog_media_id is not null then delete from app_public.store_media where id=u.catalog_media_id; end if;
+  update media_private.media_uploads set state='purge_pending',purge_due_at=statement_timestamp()+interval '24 hours',catalog_media_id=null,updated_at=statement_timestamp(),version=version+1 where upload_id=u.upload_id returning * into u;
+  insert into media_private.media_purge_jobs(upload_id,reason_code,include_private,include_public,due_at)
+    values(u.upload_id,case p_reason when 'rights_withdrawn' then 'withdrawn' when 'store_withdrawn' then 'store_withdrawal' else 'relationship_end' end,true,u.public_derivative_object_key is not null,statement_timestamp()+interval '24 hours') on conflict do nothing;
+  perform media_private.append_audit('media_withdrawn',actor,u.store_id,u.upload_id,'allowed');
+  return jsonb_build_object('state','purge_pending');
+end $$;
+
 revoke all on function portal_private.owner_stores() from public,anon,authenticated,service_role;
 revoke all on function app_public.owner_admin_approve_claim(uuid,uuid,bigint,text),
  app_public.owner_list_stores(),app_public.owner_select_store(uuid),app_public.owner_current_role() from public,anon,service_role;

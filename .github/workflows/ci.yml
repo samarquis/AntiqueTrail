@@ -111,6 +111,11 @@ jobs:
             --dbname postgres \
             --ext .pg --ext .sql --recurse /tmp/tests \
             2>&1 | tee artifacts/supabase-pgtap.log
+      - name: Verify Owner denial audit survives transaction rollback
+        shell: bash
+        run: |
+          docker logs supabase_db_antique-trail > artifacts/postgres-owner-audit.log 2>&1
+          grep -F 'owner_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'portal_scope' | grep -F '00000000-0000-4000-8000-000000000009' >/dev/null
       - name: Upload database failure logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -298,6 +298,23 @@ describe('configured Trip grant composition', () => {
     await composition!.clients.owner!.selectStore(storeId)
     expect((await composition!.clients.portal!.getHome()).store.id).toBe(storeId)
     expect(headers).toHaveBeenLastCalledWith('x-owner-store-id', storeId)
+    harness.supabase.rpc.mockReturnValueOnce(
+      response(
+        ['flyer', 'owner_card', 'co_brand', 'social'].map((channel) => ({
+          channel,
+          consented: false,
+          version: 0,
+          removalRequested: false,
+        })),
+      ),
+    )
+    headers.mockClear()
+    const permissions = await composition!.clients.promotion!.list()
+    expect(headers).toHaveBeenLastCalledWith('x-owner-store-id', storeId)
+    harness.supabase.rpc.mockReturnValueOnce(response({ allowed: true }))
+    headers.mockClear()
+    await composition!.clients.promotion!.set(permissions[0], true)
+    expect(headers).toHaveBeenLastCalledWith('x-owner-store-id', storeId)
   })
   it('keeps Owner role resolution and entry disabled in normal composition', async () => {
     vi.stubEnv('VITE_STORE_OWNER_INTERNAL_ENABLED', 'false')

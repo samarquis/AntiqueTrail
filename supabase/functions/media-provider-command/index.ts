@@ -38,7 +38,7 @@ function cors(request: Request): Record<string, string> | undefined {
   if (!origin || !appOrigin || origin !== appOrigin) return
   return {
     'Access-Control-Allow-Headers':
-      'authorization, apikey, content-type, x-client-info, x-supabase-api-version',
+      'authorization, apikey, content-type, x-client-info, x-supabase-api-version, x-owner-store-id',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Origin': origin,
     'Cache-Control': 'private, no-store',
@@ -98,7 +98,12 @@ Deno.serve(async (request) => {
 
   const userClient = createClient(url, anonKey, {
     db: { schema: 'app_public' },
-    global: { headers: { Authorization: authorization } },
+    global: {
+      headers: {
+        Authorization: authorization,
+        'x-owner-store-id': request.headers.get('x-owner-store-id') ?? '',
+      },
+    },
     auth: { persistSession: false, autoRefreshToken: false },
   })
   const workerClient = createClient(url, workerJwt, {
