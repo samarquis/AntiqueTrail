@@ -9,7 +9,7 @@
 - Source candidate SHA: `c205f6356ba64a4f88473f50d2c205e34ecba513`
 - Source diff SHA-256: `79692DC3D99AC13C87B87EFFA751CC131B76935FF422F746BA7AF030023CA036` (SHA-256 of raw stdout bytes from `git diff --binary 29491d879451b77a17664a984e41a94d25f39f78...c205f6356ba64a4f88473f50d2c205e34ecba513 -- src/app/styles.css DESIGN_SYSTEM.md e2e/issue-410-browse-controls.spec.ts`; excludes other paths and does not use `--full-index`)
 - Branch: `codex/issue-423-browse-ui` (local checkout)
-- Evidence captured at: `2026-09-30T02:19:15Z`
+- Evidence captured at: `2026-09-30T02:36:58Z`
 
 ## Scope
 
@@ -61,7 +61,7 @@ This disposition covers the full relevant public, account, prototype, evidence, 
 | Store Details flow         | Prior Store Details browser proof; screenshot-capture test not rerun for this CSS-only Browse fix                                                                                                                          | PASS on prior source candidate; not rerun on `c205f635`             | `a307d430`; tracked UI-02 screenshot outputs were preserved and not overwritten.                                              |
 | Database/RLS/RPC           | None                                                                                                                                                                                                                      | Not applicable; no database changes                                | `c205f635`                                                                                                                   |
 | Hosted/provider lifecycle  | None                                                                                                                                                                                                                      | Not run; no hosted change authorized                               | Not applicable                                                                                                               |
-| Required GitHub CI         | PR #458 run `36658269184` on head `2d574f16da8769d9ca2a7642c82da4b242514f2f`                                                                                                                                                | PASS; database 3m16s; web 631 passed / 95 skipped in 12m7s; Preview skipped | Source `c205f635`; no hosted lifecycle was required                                                                          |
+| Required GitHub CI         | PR #458 run `36659477770` on head `7fadfe61e5f2a4a51eb6c2897341a2b0e9ac11ef`                                                                                                                                                | PASS; database 3m6s; web 631 passed / 95 skipped in 12m35s; Preview skipped | Source `c205f635`; no hosted lifecycle was required                                                                          |
 | Canonical production route | None                                                                                                                                                                                                                      | NOT RUN; no deployment authorized                                  | Not applicable                                                                                                               |
 
 ## Store Details screenshot side effects
@@ -78,13 +78,13 @@ The captures show the current 50-item synthetic gallery and unloaded lower-page 
 
 ## Independent review
 
-- Reviewer: separate Standards and Spec reviews; final exact-head receipts are recorded on PR #458 and in the private Project Reflection work event.
-- Earlier exact-head reviews passed at `07330972`, `3ca83fbd`, and `5ed141f1`; they are historical because the later source fix changed the candidate. The current review covers the updated source candidate and acceptance record.
+- Reviewer: separate Standards and Spec reviews; final exact-head receipts are recorded in the updated PR #458 description and private Project Reflection work event.
+- Earlier exact-head reviews passed at `07330972`, `3ca83fbd`, and `5ed141f1`; they are historical because the later source fix changed the candidate. Standards passed on `7fadfe61`; Spec requested only current PR/evidence metadata, now updated with run `36659477770`.
 - Earlier review found a dark-hover cascade issue, off-scale `0.8rem` spacing, and dark focus-ring suppression; those fixes are covered by the current source and Browse browser contract.
 
 ## Remaining proof boundaries
 
-The updated local Browse/Help/Status suite passes on `c205f635`. PR #458 CI run `36658269184` passed at head `2d574f16`; that head contains the exact source candidate and prior acceptance evidence. This evidence-only refresh will create a new PR head, so required checks and exact-head review must pass again before merge. The UI-02 captures are excluded side effects; no screen-reader review was run. Hosted lifecycle, deployment, and canonical production route proof remain unperformed. PR #408/#394 stay open at their inventoried heads.
+The updated local Browse/Help/Status suite passes on `c205f635`. PR #458 CI run `36659477770` passed at head `7fadfe61`; that head contains this exact source candidate and the refreshed evidence. This record refresh will create another PR head, so required checks and exact-head review must pass on it before merge. The UI-02 captures are excluded side effects; no screen-reader review was run. Hosted lifecycle, deployment, and canonical production route proof remain unperformed. PR #408/#394 stay open at their inventoried heads.
 
 ## Invalidation
 
