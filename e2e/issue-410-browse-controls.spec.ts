@@ -46,7 +46,9 @@ async function contrastRatio(locator: Locator) {
 
 async function openFilters(page: Page) {
   const trigger = page.getByRole('button', { name: /^filters(?: · active)?$/iu })
-  if (await trigger.isVisible()) await trigger.click()
+  if ((await trigger.isVisible()) && (await trigger.getAttribute('aria-expanded')) !== 'true') {
+    await trigger.click()
+  }
 }
 
 for (const { theme, width } of cases) {
@@ -76,6 +78,22 @@ for (const { theme, width } of cases) {
       const colors = await contrastRatio(control)
       expect(colors).toMatchObject(expected)
       expect(colors.ratio, JSON.stringify(colors)).toBeGreaterThanOrEqual(4.5)
+    }
+
+    if (theme === 'dark') {
+      await applyButton.focus()
+      await page.keyboard.press('Shift+Tab')
+      await page.keyboard.press('Tab')
+      await expect(applyButton).toBeFocused()
+      await expect
+        .poll(() => applyButton.evaluate((element) => getComputedStyle(element).boxShadow))
+        .toMatch(/rgb\(18, 21, 25\).*2px.*rgb\(243, 238, 228\).*6px/)
+      const focusStyle = await applyButton.evaluate((element) => ({
+        keyboardFocused: element.matches(':focus-visible'),
+        boxShadow: getComputedStyle(element).boxShadow,
+      }))
+      expect(focusStyle.keyboardFocused).toBe(true)
+      expect(focusStyle.boxShadow).toMatch(/rgb\(18, 21, 25\).*2px.*rgb\(243, 238, 228\).*6px/)
     }
 
     const location = page.locator('.catalog-card__area').first()
@@ -108,5 +126,15 @@ for (const { theme, width } of cases) {
     await expect(
       page.getByRole('heading', { level: 2, name: 'Blue Finch Curios' }),
     ).not.toBeVisible()
+
+    await openFilters(page)
+    await clearButton.click()
+    await expect(page.locator('.catalog-card')).toHaveCount(12)
+    await openFilters(page)
+    await page.getByLabel('Category').selectOption('vintage')
+    await applyButton.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('.catalog-card')).toHaveCount(6)
+    await expect(page.getByRole('heading', { level: 2, name: 'Cedar & Brass' })).toBeVisible()
   })
 }
