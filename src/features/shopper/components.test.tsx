@@ -537,6 +537,7 @@ describe('private shopper screens', () => {
     expect(submitCorrection).toHaveBeenCalledTimes(1)
     expect(submit).toBeDisabled()
     expect(submitCorrection).toHaveBeenCalledWith({
+      idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/u),
       storeId: 'store-1',
       type: 'hours',
       description: 'Correct the Sunday hours.',

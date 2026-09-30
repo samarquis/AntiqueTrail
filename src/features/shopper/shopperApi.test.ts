@@ -68,6 +68,7 @@ describe('shopper RPC boundary', () => {
 
     await expect(
       client.submitCorrection({
+        idempotencyKey: '37700000-0000-4000-8000-000000000004',
         storeId: 'store-1',
         type: 'hours',
         description: 'Hours are outdated',
@@ -76,6 +77,7 @@ describe('shopper RPC boundary', () => {
     ).resolves.toEqual({ id: 'report-1', state: 'submitted' })
 
     expect(edge).toHaveBeenCalledWith('correction-submit', {
+      idempotencyKey: '37700000-0000-4000-8000-000000000004',
       storeId: 'store-1',
       type: 'hours',
       description: 'Hours are outdated',

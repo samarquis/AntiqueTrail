@@ -605,6 +605,7 @@ describe('scenario-aware review clients', () => {
       note: 'Updated note',
     })
     const correction = await shopper.submitCorrection({
+      idempotencyKey: '37700000-0000-4000-8000-000000000004',
       storeId: blueFinchId,
       type: 'hours',
       description: 'Friday hours changed.',

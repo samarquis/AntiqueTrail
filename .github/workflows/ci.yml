@@ -106,7 +106,7 @@ jobs:
             --env PGUSER=antique_trail_test_runner --env PGPASSWORD=local-pgtap-only \
             --env PGDATABASE=postgres \
             --env "PGOPTIONS=-c search_path=public,extensions" \
-            public.ecr.aws/supabase/pg_prove:3.36 \
+            ghcr.io/supabase/pg_prove:3.36@sha256:eda7c5e68719e9c8287e78c017118407b48df904a51c935f5ab6098b8c0bc6bc \
             pg_prove --host 127.0.0.1 --port 5432 --username antique_trail_test_runner \
             --dbname postgres \
             --ext .pg --ext .sql --recurse /tmp/tests \
