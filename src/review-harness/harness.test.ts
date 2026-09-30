@@ -41,6 +41,7 @@ describe('local review harness', () => {
     ['shopper-a', 'Shopper'],
     ['shopper-b', 'Shopper'],
     ['representative', 'Representative'],
+    ['store-owner', 'Store Owner'],
     ['administrator', 'Administrator'],
   ] as const)('seeds an isolated %s session with %s authority', async (scenario, role) => {
     const harness = await createReviewHarness({

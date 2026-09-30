@@ -4,6 +4,7 @@ export type PartnerAdminOperation =
   | 'changes'
   | 'conflict'
   | 'approve'
+  | 'approve_owner'
   | 'reject'
   | 'revoke'
   | 'recheck'
@@ -23,6 +24,7 @@ export interface PartnerAdminCase {
 }
 
 export interface PartnerAdminTransport {
+  ownerApprovalAvailable?: boolean
   rpc(command: string, payload: Readonly<Record<string, unknown>>): Promise<unknown>
   edge?(command: string, payload: Readonly<Record<string, unknown>>): Promise<unknown>
 }
@@ -34,6 +36,7 @@ export interface SyntheticPartnerInvitation {
 }
 
 export interface PartnerAdminClient {
+  ownerApprovalAvailable?: boolean
   getCase(claimId: string): Promise<PartnerAdminCase>
   decide(input: {
     operation: PartnerAdminOperation
@@ -42,6 +45,7 @@ export interface PartnerAdminClient {
     idempotencyKey: string
     reasonCode: string
     transferFromClaimId?: string
+    confirmedStoreId?: string
   }): Promise<PartnerAdminCase>
   issueSyntheticInvitation(input: {
     email: string
@@ -59,19 +63,34 @@ export interface PartnerAdminClient {
 
 export function createPartnerAdminClient(transport: PartnerAdminTransport): PartnerAdminClient {
   return {
+    ownerApprovalAvailable: transport.ownerApprovalAvailable === true,
     getCase(claimId: string): Promise<PartnerAdminCase> {
       return transport.rpc('partner_admin_claim_case', {
         p_claim_id: claimId,
       }) as Promise<PartnerAdminCase>
     },
-    decide(input: {
+    async decide(input: {
       operation: PartnerAdminOperation
       claimId: string
       expectedVersion: number
       idempotencyKey: string
       reasonCode: string
       transferFromClaimId?: string
+      confirmedStoreId?: string
     }): Promise<PartnerAdminCase> {
+      if (input.operation === 'approve_owner') {
+        if (!transport.ownerApprovalAvailable || !input.confirmedStoreId)
+          throw new Error('partner_administration_unavailable')
+        await transport.rpc('owner_admin_approve_claim', {
+          p_claim_id: input.claimId,
+          p_store_id: input.confirmedStoreId,
+          p_expected_version: input.expectedVersion,
+          p_idempotency_key: input.idempotencyKey,
+        })
+        return transport.rpc('partner_admin_claim_case', {
+          p_claim_id: input.claimId,
+        }) as Promise<PartnerAdminCase>
+      }
       return transport.rpc('partner_admin_claim_command', {
         p_operation: input.operation,
         p_claim_id: input.claimId,

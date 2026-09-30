@@ -5,6 +5,7 @@ export const REVIEW_SCENARIO_IDS = [
   'shopper-a',
   'shopper-b',
   'representative',
+  'store-owner',
   'administrator',
 ] as const
 
@@ -36,7 +37,7 @@ export interface ReviewScenario {
   id: ReviewScenarioId
   label: string
   identity: string
-  role: 'Anonymous' | 'Shopper' | 'Representative' | 'Administrator'
+  role: 'Anonymous' | 'Shopper' | 'Representative' | 'Store Owner' | 'Administrator'
   fixtureSummary: string
   destinations: readonly ReviewDestination[]
   deniedDestinations: readonly ReviewDestination[]

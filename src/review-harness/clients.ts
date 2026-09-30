@@ -1945,8 +1945,13 @@ function portalClient(
   scenario: ReviewScenario,
   state: ReviewStateId,
   mediaReviewEnabled = false,
+  ownerScopeReady: () => boolean = () => true,
 ): PortalClient {
-  const allowed = () => requireRole(scenario, ['Representative'], true)
+  const allowed = () => {
+    requireRole(scenario, ['Representative', 'Store Owner'], true)
+    if (scenario.role === 'Store Owner' && !ownerScopeReady())
+      throw new Error('Store Portal access is unavailable for this account or session.')
+  }
   const home: PortalHomeSnapshot = {
     store: {
       id: 'store-blue-finch',
@@ -3025,6 +3030,7 @@ export function createReviewHarnessClients(
   session: ReviewFixtureSession = ACTIVE_REVIEW_FIXTURE_SESSION,
   adminDecisionMode: ReviewAdminDecisionMode = 'ordinary',
 ): AppClients {
+  let ownerStoreSelected = false
   const promotionPermissions = Object.keys(promotionLabels).map((channel) => ({
     channel,
     consented: false,
@@ -3067,6 +3073,19 @@ export function createReviewHarnessClients(
   return withReviewFixtureSessionGuard(
     {
       promotion,
+      owner: {
+        async listStores() {
+          requireRole(scenario, ['Store Owner'], true)
+          if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+          return [{ storeId: 'store-blue-finch', name: 'Blue Finch Curios' }]
+        },
+        async selectStore(storeId) {
+          requireRole(scenario, ['Store Owner'], true)
+          if (state !== 'success' || storeId !== 'store-blue-finch')
+            throw new Error('Store workspace access is unavailable.')
+          ownerStoreSelected = true
+        },
+      },
       ownConsent,
       ownerIntakeAvailability: createReviewOwnerIntakeAvailabilityClient(state),
       ...storeApplicationReviewClients(state),
@@ -3074,7 +3093,7 @@ export function createReviewHarnessClients(
       shopper: shopperClient(scenario, state),
       candidate: candidateClient(scenario, state),
       trips: tripClient(scenario, state),
-      portal: portalClient(scenario, state, mediaReviewEnabled),
+      portal: portalClient(scenario, state, mediaReviewEnabled, () => ownerStoreSelected),
       reviews: reviewClient(scenario, state),
       partner: partnerClient(scenario, state),
       partnerAdmin: partnerAdminClient(scenario, state),

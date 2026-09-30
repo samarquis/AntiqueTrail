@@ -74,6 +74,7 @@ export function createPortalMediaHttpTransport(options: {
   endpoint: string
   apiKey: string
   getAccessToken: () => Promise<string>
+  getStoreScope?: () => string | null
   fetcher?: typeof fetch
 }): PortalMediaTransport {
   const endpoint = new URL(options.endpoint)
@@ -89,6 +90,7 @@ export function createPortalMediaHttpTransport(options: {
     async upload(input) {
       const accessToken = await options.getAccessToken()
       if (!accessToken) throw new Error(GENERIC_PORTAL_ERROR)
+      const storeScope = options.getStoreScope?.()
       const body = new FormData()
       body.set('image', input.file)
       body.set('altText', input.altText)
@@ -103,7 +105,11 @@ export function createPortalMediaHttpTransport(options: {
       try {
         const response = await fetcher(endpoint, {
           method: 'POST',
-          headers: { Authorization: `Bearer ${accessToken}`, apikey: options.apiKey },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            apikey: options.apiKey,
+            ...(storeScope ? { 'x-owner-store-id': storeScope } : {}),
+          },
           body,
           cache: 'no-store',
           credentials: 'omit',

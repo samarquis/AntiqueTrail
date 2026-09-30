@@ -101,6 +101,7 @@ export function PartnerAdminPage({
           idempotencyKey: decisionKey.trim(),
           reasonCode: reasonCode.trim(),
           transferFromClaimId: operation === 'transfer' ? transferFromClaimId.trim() : undefined,
+          ...(operation === 'approve_owner' ? { confirmedStoreId: claim.exactStoreScope } : {}),
         }),
       )
       setConfirmDecision(false)
@@ -290,11 +291,17 @@ export function PartnerAdminPage({
                     {labelState(candidate)}
                   </option>
                 ))}
+                {client.ownerApprovalAvailable && claim.exactStoreScope && (
+                  <option value="approve_owner">
+                    Approve Store Owner for this exact synthetic store
+                  </option>
+                )}
               </select>
               <label htmlFor="partner-admin-reason">Reason code</label>
               <input
                 id="partner-admin-reason"
-                value={reasonCode}
+                value={operation === 'approve_owner' ? 'owner_boundary_confirmed' : reasonCode}
+                readOnly={operation === 'approve_owner'}
                 onChange={(event) => setReasonCode(event.target.value)}
                 pattern="[a-z][a-z0-9_]{1,63}"
                 required
@@ -323,8 +330,9 @@ export function PartnerAdminPage({
               </button>
               {confirmDecision && (
                 <p role="status">
-                  Confirm {labelState(operation)}: this changes the exact claim’s state and records
-                  the supplied reason.{' '}
+                  {operation === 'approve_owner'
+                    ? `Confirm Store Owner approval for exact store ${claim.exactStoreScope}. The audit records owner_boundary_confirmed.`
+                    : `Confirm ${labelState(operation)}: this changes the exact claim’s state and records the supplied reason.`}{' '}
                   <button type="button" onClick={() => setConfirmDecision(false)}>
                     Cancel decision
                   </button>

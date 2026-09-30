@@ -146,6 +146,24 @@ export const reviewScenarios: readonly ReviewScenario[] = [
     ],
   },
   {
+    id: 'store-owner',
+    label: 'Store Owner',
+    identity: 'Oakley · owner@local.invalid',
+    role: 'Store Owner',
+    fixtureSummary: 'Approved synthetic primary Owner of Blue Finch Curios.',
+    destinations: [
+      {
+        label: 'Your store workspace',
+        path: '/owner/stores',
+        purpose: 'Select an approved exact store',
+      },
+    ],
+    deniedDestinations: [
+      { label: 'Administrator', path: '/admin', purpose: 'Owner is not an Administrator' },
+      { label: 'Saved stores', path: '/saved', purpose: 'No shopper-private authority' },
+    ],
+  },
+  {
     id: 'administrator',
     label: 'Administrator',
     identity: 'Morgan · administrator@local.invalid',
@@ -187,8 +205,8 @@ function sessionFor(
     accessToken: `local-review-only:${scenario.id}`,
     expiresAt: sessionState === 'expired' ? now - 1 : now + 24 * 60 * 60 * 1_000,
     role: scenario.role,
-    mfaRequired: scenario.role === 'Administrator' || scenario.role === 'Representative',
-    mfaEnrolled: scenario.role === 'Administrator' || scenario.role === 'Representative',
+    mfaRequired: scenario.role !== 'Shopper',
+    mfaEnrolled: scenario.role !== 'Shopper',
     mfaVerified: true,
     passwordAuthenticatedAt: new Date(now).toISOString(),
     mfaVerifiedAt: new Date(now).toISOString(),

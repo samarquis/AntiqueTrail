@@ -1,4 +1,4 @@
-export type AccountRole = 'Shopper' | 'Representative' | 'Administrator'
+export type AccountRole = 'Shopper' | 'Representative' | 'Store Owner' | 'Administrator'
 export type AuthProviderName = 'email' | 'google' | 'facebook'
 
 export interface AuthSession {

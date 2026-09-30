@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AuthSession } from '../features/auth'
 
 const harness = vi.hoisted(() => {
   const events: string[] = []
@@ -43,7 +44,7 @@ const harness = vi.hoisted(() => {
         },
       ),
     },
-    rpc: vi.fn(async (name: string, payload: unknown) => {
+    rpc: vi.fn(async (name: string, payload: unknown): Promise<{ data: unknown; error: null }> => {
       events.push(`rpc:${name}`)
       void payload
       if (name === 'prepare_go_device_command') {
@@ -247,6 +248,139 @@ describe('configured Trip grant composition', () => {
   })
 
   afterEach(() => vi.unstubAllEnvs())
+
+  it('hydrates Owner role only from the server and binds every Portal request to the selected store', async () => {
+    vi.stubEnv('VITE_STORE_OWNER_INTERNAL_ENABLED', 'true')
+    const headers = vi.fn()
+    const response = (data: unknown) => {
+      const result = Promise.resolve({ data, error: null })
+      return Object.assign(result, {
+        setHeader(name: string, value: string) {
+          headers(name, value)
+          return result
+        },
+      })
+    }
+    const storeId = '00000000-0000-4000-8000-000000001001'
+    harness.supabase.rpc
+      .mockReturnValueOnce(response(true))
+      .mockReturnValueOnce(response('Store Owner'))
+      .mockReturnValueOnce(response({ storeId }))
+      .mockReturnValueOnce(
+        response({
+          store: {
+            id: storeId,
+            name: 'Clockwork Cabinet',
+            listingState: 'active',
+            timeZone: 'America/Chicago',
+          },
+          freshness: { state: 'unknown', label: 'Verification date unavailable' },
+          provenance: {
+            sourceLabel: 'Synthetic owner',
+            verifiedBy: 'Site Admin',
+            verifiedAt: '2026-09-30T12:00:00Z',
+            ownerConfirmed: true,
+          },
+          pendingChanges: [],
+        }),
+      )
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    const session: AuthSession = {
+      userId: 'synthetic-owner',
+      accessToken: 'fixture-token',
+      expiresAt: Date.now() + 60000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaVerified: true,
+    }
+    await composition!.runtime.sessionRegistry!.registerCurrentSession(session)
+    expect(session.role).toBe('Store Owner')
+    await composition!.clients.owner!.selectStore(storeId)
+    expect((await composition!.clients.portal!.getHome()).store.id).toBe(storeId)
+    expect(headers).toHaveBeenLastCalledWith('x-owner-store-id', storeId)
+    harness.supabase.rpc.mockReturnValueOnce(
+      response(
+        ['flyer', 'owner_card', 'co_brand', 'social'].map((channel) => ({
+          channel,
+          consented: false,
+          version: 0,
+          removalRequested: false,
+        })),
+      ),
+    )
+    headers.mockClear()
+    const permissions = await composition!.clients.promotion!.list()
+    expect(headers).toHaveBeenLastCalledWith('x-owner-store-id', storeId)
+    harness.supabase.rpc.mockReturnValueOnce(response({ allowed: true }))
+    headers.mockClear()
+    await composition!.clients.promotion!.set(permissions[0], true)
+    expect(headers).toHaveBeenLastCalledWith('x-owner-store-id', storeId)
+  })
+  it('preserves Administrator authority when the same account also has an Owner grant', async () => {
+    vi.stubEnv('VITE_STORE_OWNER_INTERNAL_ENABLED', 'true')
+    const headers = vi.fn()
+    const response = (data: unknown) => {
+      const result = Promise.resolve({ data, error: null })
+      return Object.assign(result, {
+        setHeader: (name: string, value: string) => {
+          headers(name, value)
+          return result
+        },
+      })
+    }
+    harness.supabase.rpc
+      .mockReturnValueOnce(response(true))
+      .mockReturnValueOnce(response('Store Owner'))
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    const session: AuthSession = {
+      userId: 'admin-owner',
+      accessToken: 'fixture-token',
+      expiresAt: Date.now() + 60000,
+      role: 'Administrator',
+      mfaRequired: true,
+      mfaVerified: true,
+    }
+    await composition!.runtime.sessionRegistry!.registerCurrentSession(session)
+    expect(session.role).toBe('Administrator')
+    const storeId = '00000000-0000-4000-8000-000000001001'
+    harness.supabase.rpc.mockReturnValueOnce(response({ storeId }))
+    await composition!.clients.owner!.selectStore(storeId)
+    harness.supabase.rpc
+      .mockReturnValueOnce(response(true))
+      .mockReturnValueOnce(response('Store Owner'))
+    await composition!.runtime.sessionRegistry!.registerCurrentSession(session)
+    harness.supabase.rpc.mockReturnValueOnce(
+      response(
+        ['flyer', 'owner_card', 'co_brand', 'social'].map((channel) => ({
+          channel,
+          consented: false,
+          version: 0,
+          removalRequested: false,
+        })),
+      ),
+    )
+    headers.mockClear()
+    await composition!.clients.promotion!.list()
+    expect(headers).toHaveBeenLastCalledWith('x-owner-store-id', storeId)
+  })
+  it('keeps Owner role resolution and entry disabled in normal composition', async () => {
+    vi.stubEnv('VITE_STORE_OWNER_INTERNAL_ENABLED', 'false')
+    const result = Promise.resolve({ data: true, error: null })
+    harness.supabase.rpc.mockReturnValueOnce(Object.assign(result, { setHeader: () => result }))
+    const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
+    expect(composition!.clients.owner).toBeUndefined()
+    const session: AuthSession = {
+      userId: 'shopper',
+      accessToken: 'fixture-token',
+      expiresAt: Date.now() + 60000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaVerified: true,
+    }
+    await composition!.runtime.sessionRegistry!.registerCurrentSession(session)
+    expect(session.role).toBe('Shopper')
+    expect(harness.supabase.rpc).toHaveBeenCalledTimes(1)
+  })
 
   it('preflights the signer before consumption and unwraps fallback and offline starts', async () => {
     const composition = await configuredComposition({ tripOfflineDatabase: tripDatabase })
