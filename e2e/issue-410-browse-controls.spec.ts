@@ -46,7 +46,9 @@ async function contrastRatio(locator: Locator) {
 
 async function openFilters(page: Page) {
   const trigger = page.getByRole('button', { name: /^filters(?: · active)?$/iu })
-  if (await trigger.isVisible()) await trigger.click()
+  if ((await trigger.isVisible()) && (await trigger.getAttribute('aria-expanded')) !== 'true') {
+    await trigger.click()
+  }
 }
 
 for (const { theme, width } of cases) {
@@ -124,5 +126,14 @@ for (const { theme, width } of cases) {
     await expect(
       page.getByRole('heading', { level: 2, name: 'Blue Finch Curios' }),
     ).not.toBeVisible()
+
+    await clearButton.click()
+    await expect(page.locator('.catalog-card')).toHaveCount(12)
+    await openFilters(page)
+    await page.getByLabel('Category').selectOption('vintage')
+    await applyButton.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('.catalog-card')).toHaveCount(6)
+    await expect(page.getByRole('heading', { level: 2, name: 'Cedar & Brass' })).toBeVisible()
   })
 }
