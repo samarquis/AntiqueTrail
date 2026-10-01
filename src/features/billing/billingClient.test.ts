@@ -6,6 +6,7 @@ import {
   BILLING_STAGE_DISABLED_MESSAGE,
   DISABLED_BILLING_CAPABILITY,
   GENERIC_BILLING_ERROR,
+  billingPortalAccess,
   billingRouteEnabled,
   createBillingClient,
   isBillingCapabilityEnabled,
@@ -205,5 +206,19 @@ describe('billing capability gating', () => {
       unavailableBillingClient.getCommercialResearchConfig('authorization-1'),
     ).rejects.toThrow(GENERIC_BILLING_ERROR)
     expect(BILLING_STAGE_DISABLED_MESSAGE).toMatch(/not available/)
+  })
+})
+
+describe('billing portal role gating', () => {
+  it.each([
+    ['Store Owner', 'owner'],
+    ['Co-Owner', 'owner'],
+    ['Full Store Access', 'owner'],
+    ['Representative', 'representative'],
+    ['Listing Editor', null],
+    ['Shopper', null],
+    [undefined, null],
+  ] as const)('maps %s to %s', (role, expected) => {
+    expect(billingPortalAccess(role)).toBe(expected)
   })
 })

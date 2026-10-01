@@ -8,6 +8,7 @@ import {
   OwnerBillingStatusPage,
   type OwnerBillingStatusClient,
 } from '../features/billing/ownerStatus'
+import { billingPortalAccess } from '../features/billing/billingClient'
 import { OwnerAcquisitionPage } from '../features/partners/ownerAcquisitionPage'
 import { StoreApplicationAdminPanel } from '../features/partners/storeApplicationAdminPanel'
 import { StoreApplicationPage } from '../features/partners/storeApplicationPage'
@@ -606,8 +607,10 @@ function StorePortalBillingRoute({
   plans?: boolean
 }) {
   const { session } = useAuth()
-  if (['Store Owner', 'Co-Owner', 'Full Store Access'].includes(String(session?.role)))
+  const access = billingPortalAccess(session?.role)
+  if (access === 'owner')
     return ownerClient ? <OwnerBillingStatusPage client={ownerClient} /> : <NotFound />
+  if (access !== 'representative') return <NotFound />
   if (plans && salesClient)
     return (
       <PaidPurchasePage

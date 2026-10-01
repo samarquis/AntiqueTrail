@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { useOptionalAuth } from '../auth/AuthContext'
+import { billingPortalAccess } from '../billing/billingClient'
 import {
   GENERIC_PORTAL_ERROR,
   MEDIA_GATE_MESSAGE,
@@ -79,6 +81,7 @@ function GenericPortalError() {
 }
 
 function PortalNav() {
+  const access = billingPortalAccess(useOptionalAuth()?.session?.role)
   return (
     <nav aria-label="Store Portal sections">
       <ul>
@@ -109,9 +112,11 @@ function PortalNav() {
         <li>
           <Link to="/store-portal/promotion">Promotion permissions</Link>
         </li>
-        <li>
-          <Link to="/store-portal/billing">Billing status</Link>
-        </li>
+        {access && (
+          <li>
+            <Link to="/store-portal/billing">Billing status</Link>
+          </li>
+        )}
       </ul>
     </nav>
   )

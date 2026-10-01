@@ -44,3 +44,33 @@ test('Owner billing status shows actual state without paid actions', async ({ pa
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   }
 })
+
+test('Owner billing status reports unavailable data without leaking partial state', async ({
+  page,
+}) => {
+  await openOwnerBillingStatus(page, 'unavailable')
+
+  await expect(page.getByRole('alert')).toContainText(
+    "We couldn't complete this billing action. Please try again.",
+  )
+  await expect(page.getByText('Free')).toHaveCount(0)
+  await expect(page.getByText('Gallery')).toHaveCount(0)
+  await expect(page.getByText('No paid subscription')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /upgrade|change|cancel|refund|payment/i })).toHaveCount(
+    0,
+  )
+})
+
+test('revoked Owner cannot load billing status or see billing details', async ({ page }) => {
+  await page.goto(
+    '/store-portal/billing?reviewAs=store-owner&reviewState=success&reviewSession=revoked&reviewBilling=off_prelaunch',
+  )
+  await expect(page.getByRole('heading', { name: 'Store Portal unavailable' })).toBeVisible()
+  await expect(page.getByRole('alert')).toContainText(
+    'Store Portal access is unavailable for this account or session.',
+  )
+  await expect(page.getByRole('heading', { name: 'Billing status' })).toHaveCount(0)
+  await expect(page.getByText('Free')).toHaveCount(0)
+  await expect(page.getByText('No paid subscription')).toHaveCount(0)
+})
