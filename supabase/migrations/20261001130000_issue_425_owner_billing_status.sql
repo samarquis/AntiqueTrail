@@ -14,12 +14,8 @@ begin
     raise exception using errcode='42501',message='billing_action_denied';
   end if;
   perform 1 from partner_private.store_partner_grants
-   where store_id=p_store_id and auth_user_id=actor and state='active' for share;
-  if not exists(select 1 from partner_private.store_partner_grants
-      where store_id=p_store_id and auth_user_id=actor and state='active' and role='representative')
-    or exists(select 1 from partner_private.store_partner_grants
-      where store_id=p_store_id and auth_user_id=actor and state='active'
-        and role in ('store_owner','co_owner','full_store_access','listing_editor')) then
+   where store_id=p_store_id and auth_user_id=actor and state='active' and role='representative' for share;
+  if not found then
     raise exception using errcode='42501',message='billing_action_denied';
   end if;
   return actor;

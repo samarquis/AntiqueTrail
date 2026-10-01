@@ -134,7 +134,7 @@ set local role billing_automation;
 select is(partner_private.assert_servicing_actor('00000000-0000-4000-8000-000000000001')::text,
  '76000000-0000-4000-8000-000000000001','existing Representative billing scope remains available');
 select throws_ok($$select partner_private.assert_servicing_actor('00000000-0000-4000-8000-000000000009')$$,
- '42501','billing_action_denied','Owner cannot use Representative servicing authority');
+ '42501','billing_action_denied','Owner-only account without a Representative grant cannot use billing servicing');
 reset role;
 set local role authenticated;
 select is(app_public.portal_get_home()->'store'->>'id','00000000-0000-4000-8000-000000000009','existing Portal reads selected exact store');
