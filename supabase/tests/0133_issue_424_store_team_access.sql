@@ -108,8 +108,8 @@ select is(app_public.owner_team_accept((select invitation_id from invite_ref424)
   (select (version+1)::text from invite_ref424),'stale acceptance returns the current invitation version');
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
 select is(app_public.portal_get_home()->'store'->>'id','00000000-0000-4000-8000-000000000009','accepted teammate opens only invited store');
-select throws_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','peer424@example.test','listing_editor','editor424-peer-invite')$$,
-  '42501','owner_team_unavailable','Listing Editor cannot invite teammates');
+select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','peer424@example.test','listing_editor','editor424-peer-invite')->>'state',
+  'denied','Listing Editor cannot invite teammates');
 select throws_ok($$select app_public.promotion_channels()$$,'42501','promotion_unavailable','Listing Editor cannot read promotion controls');
 select throws_ok($$select app_public.promotion_channel_command('social','consent',0,false)$$,'42501','promotion_unavailable','Listing Editor cannot change promotion permissions');
 reset role;
@@ -168,8 +168,8 @@ select is(app_public.owner_team_cancel('00000000-0000-4000-8000-000000000009',(s
   'stale cancellation returns the current invitation version');
 select is(app_public.owner_team_cancel('00000000-0000-4000-8000-000000000009',(select invitation_id from cancel_invite_ref424),
   (select version from cancel_invite_ref424),'co424-cancel')->>'state','cancelled','Co-Owner can cancel another inviter’s pending invitation');
-select lives_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','expired424@example.test','listing_editor','co424-expiring')$$,
-  'Co-Owner can create a short-lived pending invitation');
+select lives_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','expired424@example.test','co_owner','co424-expiring')$$,
+  'Co-Owner can create a short-lived Co-Owner invitation');
 reset role;
 select ok((select recipient_email_hmac is null from partner_private.store_team_invitations
   where idempotency_key='owner424-cancel-invite'),
