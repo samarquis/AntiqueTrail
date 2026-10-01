@@ -1,5 +1,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
-import { runRegistrationCleanup } from '../_shared/account-registration-cleanup.ts'
+import {
+  registrationCleanupErrorCode,
+  runRegistrationCleanup,
+} from '../_shared/account-registration-cleanup.ts'
 import { validateRegistrationEndpoints, withDeadline } from '../_shared/registration-config.ts'
 
 declare const Deno: {
@@ -14,14 +17,16 @@ Deno.serve(async (request) => {
   if (request.method !== 'POST') return new Response(null, { status: 405 })
   try {
     const schedulerSecret = Deno.env.get('REGISTRATION_CLEANUP_SCHEDULER_SECRET')
-    if (
-      !url ||
-      !serviceKey ||
-      !schedulerSecret ||
-      schedulerSecret.length < 32 ||
-      request.headers.get('x-antique-trail-scheduler') !== schedulerSecret
-    )
-      return Response.json({ state: 'unauthorized' }, { status: 401 })
+    if (!url || !serviceKey || !schedulerSecret || schedulerSecret.length < 32)
+      return Response.json(
+        { state: 'error', error: 'provider_unavailable' },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      )
+    if (request.headers.get('x-antique-trail-scheduler') !== schedulerSecret)
+      return Response.json(
+        { state: 'error', error: 'authentication_required' },
+        { status: 401, headers: { 'Cache-Control': 'no-store' } },
+      )
     const endpoint = validateRegistrationEndpoints({
       appOrigin: Deno.env.get('APP_ORIGIN') ?? '',
       approvedAppOrigin: Deno.env.get('REGISTRATION_APPROVED_APP_ORIGIN') ?? '',
@@ -86,10 +91,23 @@ Deno.serve(async (request) => {
       { state },
       { status: state === 'escalated' ? 409 : 200, headers: { 'Cache-Control': 'no-store' } },
     )
-  } catch {
+  } catch (error) {
+    const errorCode = registrationCleanupErrorCode(error)
+    const status =
+      errorCode === 'authentication_required'
+        ? 401
+        : errorCode === 'not_allowed'
+          ? 403
+          : errorCode === 'validation_failed'
+            ? 400
+            : errorCode === 'conflict'
+              ? 409
+              : errorCode === 'provider_unavailable'
+                ? 503
+                : 500
     return Response.json(
-      { state: 'error' },
-      { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      { state: 'error', error: errorCode },
+      { status, headers: { 'Cache-Control': 'no-store' } },
     )
   }
 })

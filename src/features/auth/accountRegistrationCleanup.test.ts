@@ -79,4 +79,26 @@ describe('durable registration cleanup', () => {
     await expect(runRegistrationCleanup(d)).resolves.toBe('empty')
     expect(d.deleteExact).not.toHaveBeenCalled()
   })
+  it('reports impossible worker states as internal_error', async () => {
+    await expect(
+      runRegistrationCleanup(deps({ settle: vi.fn(async () => ({ state: 'unexpected' })) })),
+    ).rejects.toThrow('internal_error')
+  })
+  it.each([
+    [new TypeError('fetch failed'), 'provider_unavailable'],
+    [new Error('registration_cleanup_unavailable'), 'provider_unavailable'],
+    [new Error('not_allowed'), 'not_allowed'],
+    [new Error('private database details'), 'internal_error'],
+    [new Error('conflict'), 'conflict'],
+  ])('maps worker dependency failure to %s', async (failure, code) => {
+    await expect(
+      runRegistrationCleanup(
+        deps({
+          claim: vi.fn(async () => {
+            throw failure
+          }),
+        }),
+      ),
+    ).rejects.toThrow(code)
+  })
 })

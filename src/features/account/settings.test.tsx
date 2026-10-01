@@ -101,6 +101,16 @@ describe('UserSettingsPage', () => {
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled()
   })
 
+  it('keeps canonical server errors out of shopper-facing copy', async () => {
+    const client = createAccountSettingsClient({
+      rpc: async () => ({ data: null, error: { message: 'not_allowed' } }),
+    })
+    renderPage(client)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(GENERIC_ACCOUNT_SETTINGS_ERROR)
+    expect(alert).not.toHaveTextContent('not_allowed')
+  })
+
   it('saves the edited name while preserving an existing private address', async () => {
     const user = userEvent.setup()
     const client: AccountSettingsClient = {
@@ -281,6 +291,18 @@ describe('createAccountSettingsClient', () => {
       rpc: async () => ({ data: { displayName: 'Name', locationAddress: null }, error: null }),
     })
     await expect(client.getSettings()).rejects.toThrow(GENERIC_ACCOUNT_SETTINGS_ERROR)
+  })
+  it.each([
+    'authentication_required',
+    'not_allowed',
+    'validation_failed',
+    'provider_unavailable',
+    'internal_error',
+  ])('preserves canonical RPC error %s for the generic UI boundary', async (code) => {
+    const client = createAccountSettingsClient({
+      rpc: async () => ({ data: null, error: { message: code } }),
+    })
+    await expect(client.getSettings()).rejects.toMatchObject({ message: code })
   })
   it('rejects partial settings instead of treating an unknown address as cleared', async () => {
     const client = createAccountSettingsClient({
