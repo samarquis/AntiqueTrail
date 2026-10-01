@@ -25,7 +25,10 @@ insert into app_private.profiles(user_id,verified_email_snapshot,public_display_
   ('42400000-0000-4000-8000-000000000001','admin424@example.test','Admin 424'),
   ('42400000-0000-4000-8000-000000000010','editor424@example.test','Editor 424'),
   ('42400000-0000-4000-8000-000000000020','full424@example.test','Full 424'),
-  ('42400000-0000-4000-8000-000000000030','co424@example.test','Co-Owner 424');
+  ('42400000-0000-4000-8000-000000000030','co424@example.test','Co-Owner 424')
+on conflict (user_id) do update set
+  verified_email_snapshot=excluded.verified_email_snapshot,
+  public_display_name=excluded.public_display_name;
 insert into auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at) values
   ('42400000-0000-4000-8000-000000000002','42400000-0000-4000-8000-000000000001','totp','verified',statement_timestamp(),statement_timestamp()),
   ('42400000-0000-4000-8000-000000000011','42400000-0000-4000-8000-000000000010','totp','verified',statement_timestamp(),statement_timestamp()),
