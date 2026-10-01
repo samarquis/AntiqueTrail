@@ -108,6 +108,12 @@ select ok(
   and position('full_store_access' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0
   and position('listing_editor' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))=0,
   'billing status uses exact Owner, Co-Owner, and Full Store Access scope but excludes Listing Editors');
+reset role;
+set local role anon;
+select throws_ok('select app_public.billing_get_owner_status()','42501',null,
+  'anonymous callers cannot execute Owner billing status');
+reset role;
+set local role authenticated;
 select ok(position('partner_private.assert_servicing_actor(p_store_id)' in pg_get_functiondef(
   'app_public.billing_record_paid_tier_consent(uuid,text,bigint,text,bigint,uuid)'::regprocedure))>0,
   'paid consent RPC enforces Representative-only authority');
