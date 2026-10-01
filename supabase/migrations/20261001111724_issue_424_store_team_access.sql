@@ -96,9 +96,19 @@ end $$;
 
 create function portal_private.log_owner_team_denial(p_operation text,p_store_id uuid) returns void
 language plpgsql volatile security definer set search_path='' as $$
+declare actor uuid:=app_public.request_user_id(); actor_role app_private.app_role;
 begin
+  select a.store_role into actor_role from portal_private.owner_access_roles() a
+    order by case a.store_role when 'store_owner' then 1 when 'co_owner' then 2 when 'full_store_access' then 3 else 4 end
+    limit 1;
+  insert into app_private.privileged_audit_events(
+    actor_user_id,actor_role,action,outcome,resource_kind,resource_id,reason_code,payload_hash,event_hash
+  ) values(actor,actor_role,'owner_team_access_denied','denied','store_team',p_store_id,
+    case when p_operation ~ '^[a-z][a-z0-9_]{1,63}$' then p_operation else 'team_denied' end,
+    extensions.digest(convert_to(coalesce(p_operation,'')||'|'||coalesce(p_store_id::text,''),'utf8'),'sha256'),
+    decode(repeat('00',32),'hex'));
   raise log 'owner_team_access_denied %',jsonb_build_object(
-    'actorId',app_public.request_user_id(),'requestedStoreId',p_store_id,
+    'actorId',actor,'requestedStoreId',p_store_id,
     'operation',p_operation,'outcome','denied');
 end $$;
 
@@ -131,7 +141,7 @@ begin
 end $$;
 
 create function portal_private.owner_team_actor_role(p_store_id uuid)
-returns app_private.app_role language plpgsql stable security definer set search_path='' as $$
+returns app_private.app_role language plpgsql volatile security definer set search_path='' as $$
 declare actor_role app_private.app_role;
 begin
   select a.store_role into actor_role from portal_private.owner_access_roles() a
@@ -140,7 +150,7 @@ begin
     limit 1;
   if actor_role is null or actor_role='listing_editor' then
     perform portal_private.log_owner_team_denial('team_manage',p_store_id);
-    raise exception using errcode='42501',message='owner_team_unavailable';
+    return null;
   end if;
   return actor_role;
 end $$;
@@ -188,10 +198,11 @@ exception when insufficient_privilege then
 end $$;
 
 create function app_public.owner_team_list(p_store_id uuid) returns jsonb
-language plpgsql stable security definer set search_path='' as $$
+language plpgsql volatile security definer set search_path='' as $$
 declare actor uuid:=app_public.request_user_id(); actor_role app_private.app_role; result jsonb;
 begin
   actor_role:=portal_private.owner_team_actor_role(p_store_id);
+  if actor_role is null then return jsonb_build_object('state','denied','error','not_allowed'); end if;
   select jsonb_build_object(
     'members',coalesce((
       select jsonb_agg(jsonb_build_object('accessId',g.grant_id,'role',g.role::text,
@@ -232,20 +243,22 @@ begin
     raise exception using errcode='22023',message='owner_team_input_invalid';
   end if;
   actor_role:=portal_private.owner_team_actor_role(p_store_id);
+  if actor_role is null then return jsonb_build_object('state','denied','error','not_allowed'); end if;
   if p_role not in ('co_owner','full_store_access','listing_editor') then
     perform portal_private.log_owner_team_denial('team_invite_role',p_store_id);
-    raise exception using errcode='42501',message='owner_team_unavailable';
+    return jsonb_build_object('state','denied','error','not_allowed');
   end if;
-  if not (actor_role in ('store_owner','co_owner') or (actor_role='full_store_access' and p_role='listing_editor')) then
-    perform portal_private.log_owner_team_denial('team_invite',p_store_id);
-    raise exception using errcode='42501',message='owner_team_unavailable';
+  if not (actor_role='store_owner' or (actor_role='co_owner' and p_role='co_owner')
+    or (actor_role='full_store_access' and p_role='listing_editor')) then
+    perform portal_private.log_owner_team_denial('team_invite_role',p_store_id);
+    return jsonb_build_object('state','denied','error','not_allowed');
   end if;
   wanted_role:=p_role::app_private.app_role;
   select h.value,h.key_version into recipient_hash,key_version
     from trip_private.email_hmac(normalized_email,'store_team_invitation','shared_alpha',null) h;
   if recipient_hash=trip_private.current_verified_email_hmac('store_team_invitation','shared_alpha',key_version) then
     perform portal_private.log_owner_team_denial('team_self_invite',p_store_id);
-    raise exception using errcode='42501',message='owner_team_unavailable';
+    return jsonb_build_object('state','denied','error','not_allowed');
   end if;
   input_hash:=extensions.digest(convert_to(p_store_id::text||'|'||p_role||'|'||encode(recipient_hash,'hex'),'utf8'),'sha256');
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('owner-team-key:'||p_idempotency_key,0));
@@ -293,12 +306,13 @@ begin
     raise exception using errcode='22023',message='owner_team_input_invalid';
   end if;
   actor_role:=portal_private.owner_team_actor_role(p_store_id);
+  if actor_role is null then return jsonb_build_object('state','denied','error','not_allowed'); end if;
   select * into invitation from partner_private.store_team_invitations i
     where i.invitation_id=p_invitation_id and i.store_id=p_store_id for update;
   if not found or not (actor_role in ('store_owner','co_owner') or
     (actor_role='full_store_access' and invitation.invited_by=actor)) then
     perform portal_private.log_owner_team_denial('team_cancel',p_store_id);
-    raise exception using errcode='42501',message='owner_team_unavailable';
+    return jsonb_build_object('state','denied','error','not_allowed');
   end if;
   input_hash:=extensions.digest(convert_to('cancel|'||p_store_id::text||'|'||p_invitation_id::text||'|'||p_expected_version::text,'utf8'),'sha256');
   select * into prior from partner_private.store_team_command_receipts r where r.idempotency_key=p_idempotency_key;
@@ -310,9 +324,10 @@ begin
     end if;
     return prior.result;
   end if;
-  if invitation.state<>'pending' or invitation.expires_at<=statement_timestamp() or invitation.version<>p_expected_version then
+  if invitation.state<>'pending' or invitation.expires_at<=statement_timestamp()
+    or invitation.version<>p_expected_version then
     perform portal_private.log_owner_team_denial('team_cancel_stale',p_store_id);
-    raise exception using errcode='22023',message='owner_team_stale_invitation';
+    return jsonb_build_object('state','conflict','version',invitation.version);
   end if;
   update partner_private.store_team_invitations set state='cancelled',cancelled_by=actor,
     cancelled_at=statement_timestamp(),version=version+1 where invitation_id=p_invitation_id returning * into invitation;
@@ -338,14 +353,15 @@ begin
     raise exception using errcode='22023',message='owner_team_input_invalid';
   end if;
   actor_role:=portal_private.owner_team_actor_role(p_store_id);
+  if actor_role is null then return jsonb_build_object('state','denied','error','not_allowed'); end if;
   if actor_role<>'store_owner' then
     perform portal_private.log_owner_team_denial('team_revoke_role',p_store_id);
-    raise exception using errcode='42501',message='owner_team_unavailable';
+    return jsonb_build_object('state','denied','error','not_allowed');
   end if;
   select * into access from app_private.role_grants g where g.grant_id=p_grant_id and g.store_id=p_store_id for update;
   if not found or access.subject_user_id=actor or access.role not in ('co_owner','full_store_access','listing_editor') then
     perform portal_private.log_owner_team_denial('team_revoke_scope',p_store_id);
-    raise exception using errcode='42501',message='owner_team_unavailable';
+    return jsonb_build_object('state','denied','error','not_allowed');
   end if;
   input_hash:=extensions.digest(convert_to('revoke|'||p_store_id::text||'|'||p_grant_id::text||'|'||p_expected_version::text,'utf8'),'sha256');
   select * into prior from partner_private.store_team_command_receipts r where r.idempotency_key=p_idempotency_key;
@@ -359,7 +375,7 @@ begin
   end if;
   if access.state<>'active' or access.version<>p_expected_version then
     perform portal_private.log_owner_team_denial('team_revoke_stale',p_store_id);
-    raise exception using errcode='22023',message='owner_team_stale_grant';
+    return jsonb_build_object('state','conflict','version',access.version);
   end if;
   update app_private.role_grants set state='revoked',revoked_by=actor,revoked_at=statement_timestamp(),
     revocation_reason='owner_removed',version=version+1 where grant_id=p_grant_id returning * into access;
@@ -376,7 +392,7 @@ exception when insufficient_privilege then
 end $$;
 
 create function app_public.owner_team_invitations() returns jsonb
-language plpgsql stable security definer set search_path='' as $$
+language plpgsql volatile security definer set search_path='' as $$
 declare actor uuid:=app_public.request_user_id(); result jsonb;
 begin
   if actor is null or not app_private.current_session_is_active() or not app_private.current_session_has_mfa()
@@ -437,13 +453,24 @@ begin
   end if;
   if invitation.state='accepted' and invitation.accepted_user_id=actor
     and exists(select 1 from app_private.role_grants g where g.grant_id=invitation.grant_id and g.state='active') then
-    return jsonb_build_object('storeId',invitation.store_id,'role',invitation.invited_role::text,'state','accepted');
-  end if;
-  if invitation.state<>'pending' or invitation.expires_at<=statement_timestamp() or invitation.version<>p_expected_version
-    or not exists(select 1 from app_public.stores s cross join app_private.environment_stage e
-      where s.id=invitation.store_id and s.synthetic and s.audience='synthetic' and e.id=1 and e.stage='synthetic_alpha') then
+    if invitation.version=p_expected_version+1 then
+      return jsonb_build_object('storeId',invitation.store_id,'role',invitation.invited_role::text,'state','accepted');
+    end if;
     perform portal_private.log_owner_team_denial('team_accept_stale',invitation.store_id);
-    raise exception using errcode='42501',message='owner_team_unavailable';
+    return jsonb_build_object('state','conflict','version',invitation.version);
+  end if;
+  if invitation.version<>p_expected_version then
+    perform portal_private.log_owner_team_denial('team_accept_stale',invitation.store_id);
+    return jsonb_build_object('state','conflict','version',invitation.version);
+  end if;
+  if invitation.state<>'pending' or invitation.expires_at<=statement_timestamp() then
+    perform portal_private.log_owner_team_denial('team_accept_stale',invitation.store_id);
+    return jsonb_build_object('state','conflict','version',invitation.version);
+  end if;
+  if not exists(select 1 from app_public.stores s cross join app_private.environment_stage e
+    where s.id=invitation.store_id and s.synthetic and s.audience='synthetic' and e.id=1 and e.stage='synthetic_alpha') then
+    perform portal_private.log_owner_team_denial('team_accept_scope',invitation.store_id);
+    return jsonb_build_object('state','denied','error','not_allowed');
   end if;
   insert into app_private.role_grants(subject_user_id,role,store_id,state,granted_by)
     values(actor,invitation.invited_role,invitation.store_id,'active',invitation.invited_by)

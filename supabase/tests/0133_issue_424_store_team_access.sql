@@ -69,12 +69,14 @@ reset role;
 select pg_temp.actor424('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
 set local role authenticated;
 select is(jsonb_array_length(app_public.owner_list_stores()->'stores'),1,'Owner sees exact approved store');
-select throws_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000001','editor424@example.test','listing_editor','owner424-cross-store')$$,
-  '42501','owner_team_unavailable','different store scope denies invitation');
-select throws_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','editor424@example.test','administrator','owner424-admin')$$,
-  '42501','owner_team_unavailable','Administrator role cannot be delegated');
-select throws_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','owner424@example.test','co_owner','owner424-self')$$,
-  '42501','owner_team_unavailable','Owner cannot invite their own account');
+select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000001','editor424@example.test','listing_editor','owner424-cross-store')->>'state',
+  'denied','different store scope denies invitation');
+select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','editor424@example.test','administrator','owner424-admin')->>'state',
+  'denied','Administrator role cannot be delegated');
+select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','owner424@example.test','co_owner','owner424-self')->>'state',
+  'denied','Owner cannot invite their own account');
+select is(app_public.owner_admin_team_list('00000000-0000-4000-8000-000000000009')->>'state',
+  'denied','Owner cannot use Site Admin team authority');
 create temporary table invited424 as
   select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009',' editor424@example.test ','listing_editor','owner424-invite') as result;
 select is((select result->>'state' from invited424),'pending','verified-email invitation remains pending until acceptance');
@@ -100,8 +102,10 @@ select app_public.owner_team_accept((select invitation_id from invite_ref424),(s
 select is((select result->>'role' from acceptance424),'listing_editor','acceptance creates only invited role');
 select is(app_public.owner_team_accept((select invitation_id from invite_ref424),(select version from invite_ref424),'editor424-accept'),
   (select result from acceptance424),'same acceptance idempotency key replays safely');
-select throws_ok($$select app_public.owner_team_accept((select invitation_id from invite_ref424),99,'editor424-wrong-version')$$,
-  '42501','owner_team_unavailable','accepted invite retry still requires the original expected version');
+select is(app_public.owner_team_accept((select invitation_id from invite_ref424),99,'editor424-wrong-version')->>'state',
+  'conflict','stale acceptance returns a package conflict');
+select is(app_public.owner_team_accept((select invitation_id from invite_ref424),99,'editor424-wrong-version')->>'version',
+  (select (version+1)::text from invite_ref424),'stale acceptance returns the current invitation version');
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
 select is(app_public.portal_get_home()->'store'->>'id','00000000-0000-4000-8000-000000000009','accepted teammate opens only invited store');
 select throws_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','peer424@example.test','listing_editor','editor424-peer-invite')$$,
@@ -152,6 +156,16 @@ select is(app_public.owner_team_accept((select invitation_id from co_invite_ref4
   'co_owner','verified Co-Owner acceptance creates the delegated role');
 select lives_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','peer424@example.test','co_owner','co424-peer-invite')$$,
   'Co-Owner can invite another Co-Owner');
+select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','co-full424@example.test','full_store_access','co424-full-denied')->>'state',
+  'denied','Co-Owner cannot invite Full Store Access');
+select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','co-editor424@example.test','listing_editor','co424-editor-denied')->>'state',
+  'denied','Co-Owner cannot invite Listing Editors');
+select is(app_public.owner_team_cancel('00000000-0000-4000-8000-000000000009',(select invitation_id from cancel_invite_ref424),
+  (select version from cancel_invite_ref424)+1,'co424-stale-cancel')->>'state','conflict',
+  'stale invitation cancellation returns a package conflict');
+select is(app_public.owner_team_cancel('00000000-0000-4000-8000-000000000009',(select invitation_id from cancel_invite_ref424),
+  (select version from cancel_invite_ref424)+1,'co424-stale-cancel')->>'version',(select version::text from cancel_invite_ref424),
+  'stale cancellation returns the current invitation version');
 select is(app_public.owner_team_cancel('00000000-0000-4000-8000-000000000009',(select invitation_id from cancel_invite_ref424),
   (select version from cancel_invite_ref424),'co424-cancel')->>'state','cancelled','Co-Owner can cancel another inviter’s pending invitation');
 select lives_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','expired424@example.test','listing_editor','co424-expiring')$$,
@@ -177,10 +191,10 @@ select pg_temp.actor424('42400000-0000-4000-8000-000000000020','42400000-0000-40
 set local role authenticated;
 select lives_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','full-editor424@example.test','listing_editor','full424-editor-invite')$$,
   'Full Store Access can invite Listing Editors');
-select throws_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','peer424@example.test','co_owner','full424-co-invite')$$,
-  '42501','owner_team_unavailable','Full Store Access cannot invite Co-Owners');
-select throws_ok($$select app_public.owner_team_cancel('00000000-0000-4000-8000-000000000009',(select invitation_id from peer_invite_ref424),
-  (select version from peer_invite_ref424),'full424-cancel-peer')$$,'42501','owner_team_unavailable','Full Store Access cannot cancel another inviter’s pending invitation');
+select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','peer424@example.test','co_owner','full424-co-invite')->>'state',
+  'denied','Full Store Access cannot invite Co-Owners');
+select is(app_public.owner_team_cancel('00000000-0000-4000-8000-000000000009',(select invitation_id from peer_invite_ref424),
+  (select version from peer_invite_ref424),'full424-cancel-peer')->>'state','denied','Full Store Access cannot cancel another inviter’s pending invitation');
 reset role;
 
 create temporary table grant_ref424 as
@@ -197,18 +211,21 @@ select pg_temp.actor424('76000000-0000-4000-8000-000000000001','76000000-0000-40
 set local role authenticated;
 select is(jsonb_array_length(app_public.owner_team_list('00000000-0000-4000-8000-000000000009')->'members'),4,
   'Owner sees active team role without recipient email');
-select throws_ok($$select app_public.owner_admin_team_list('00000000-0000-4000-8000-000000000009')$$,
-  '42501','partner_administrator_required','Owner cannot use Site Admin team authority');
-select throws_ok($$select app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from primary_owner_grant424),(select version from primary_owner_grant424),'owner424-self-revoke')$$,
-  '42501','owner_team_unavailable','Owner cannot revoke their own primary claim');
-select throws_ok($$select app_public.owner_team_revoke('00000000-0000-4000-8000-000000000001',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-cross-store-revoke')$$,
-  '42501','owner_team_unavailable','Owner cannot revoke a grant through another store scope');
+select is(app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
+  (select grant_id from primary_owner_grant424),(select version from primary_owner_grant424),'owner424-admin-revoke','Denied admin access')->>'state',
+  'denied','Owner cannot invoke Site Admin team revocation');
+select is(app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from primary_owner_grant424),(select version from primary_owner_grant424),'owner424-self-revoke')->>'state',
+  'denied','Owner cannot revoke their own primary claim');
+select is(app_public.owner_team_revoke('00000000-0000-4000-8000-000000000001',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-cross-store-revoke')->>'state',
+  'denied','Owner cannot revoke a grant through another store scope');
 select lives_ok($$select app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-revoke')$$,
   'Owner revokes exact-store teammate grant');
 select is(app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-revoke')->>'state',
   'revoked','revocation replay is idempotent');
-select throws_ok($$select app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-stale')$$,
-  '22023','owner_team_stale_grant','stale grant version cannot revoke again');
+select is(app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-stale')->>'state',
+  'conflict','stale grant version returns a package conflict');
+select is(app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-stale')->>'version',
+  (select (version+1)::text from grant_ref424),'stale revocation returns the current grant version');
 reset role;
 
 create temporary table admin_team_grant424 as
@@ -219,14 +236,21 @@ select pg_temp.actor424('42400000-0000-4000-8000-000000000001','42400000-0000-40
 set local role authenticated;
 select is(jsonb_array_length(app_public.owner_admin_team_list('00000000-0000-4000-8000-000000000009')->'members'),2,
   'Site Admin sees exact synthetic store team grants');
-select throws_ok($$select app_public.owner_admin_team_list('99999999-9999-4999-8999-999999999999')$$,
-  '42501','owner_team_unavailable','Site Admin team view requires an exact eligible store');
+select is(app_public.owner_admin_team_list('99999999-9999-4999-8999-999999999999')->>'state',
+  'denied','Site Admin team view requires an exact eligible store');
 select throws_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
   (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-empty-reason','   ')$$,
   '22023','owner_team_input_invalid','Site Admin team removal requires a plain reason');
-select lives_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
+select is(app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
+  (select grant_id from admin_team_grant424),(select version from admin_team_grant424)+1,'admin424-stale-revoke',
+  'Stale version')->>'state','conflict','stale Site Admin revocation returns a package conflict');
+select is(app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
+  (select grant_id from admin_team_grant424),(select version from admin_team_grant424)+1,'admin424-stale-revoke',
+  'Stale version')->>'version',(select version::text from admin_team_grant424),
+  'stale Site Admin revocation returns the current grant version');
+select is(app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
   (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-team-remove',
-  'Access removed after authorization mismatch')$$,
+  'Access removed after authorization mismatch')->>'state','revoked',
   'Site Admin can revoke one exact-store active team grant');
 select lives_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
   (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-team-remove',
@@ -236,20 +260,29 @@ select throws_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000
   (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-team-remove',
   'Different reason')$$,
   '22023','owner_team_idempotency_mismatch','Site Admin cannot replay a revocation key with another reason');
-select throws_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000001',
-  (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-cross-store-remove','Wrong store')$$,
-  '42501','owner_team_unavailable','Site Admin mutation cannot retarget another store’s grant');
-select throws_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
-  (select grant_id from primary_owner_grant424),(select version from primary_owner_grant424),'admin424-owner-remove','Primary owner')$$,
-  '42501','owner_team_unavailable','Site Admin team action cannot revoke the primary Owner claim');
+select is(app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000001',
+  (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-cross-store-remove','Wrong store')->>'state',
+  'denied','Site Admin mutation cannot retarget another store’s grant');
+select is(app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
+  (select grant_id from primary_owner_grant424),(select version from primary_owner_grant424),'admin424-owner-remove','Primary owner')->>'state',
+  'denied','Site Admin team action cannot revoke the primary Owner claim');
 reset role;
 
 select pg_temp.actor424('42400000-0000-4000-8000-000000000010','42400000-0000-4000-8000-000000000012');
 set local role authenticated;
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
 select throws_ok('select app_public.portal_get_home()','42501','portal_unavailable','revoked teammate is denied by direct Portal RPC');
-select throws_ok($$select app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from grant_ref424),(select version from grant_ref424),'editor424-self-revoke')$$,
-  '42501','owner_team_unavailable','Listing Editor cannot revoke team roles');
+select is(app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from grant_ref424),(select version from grant_ref424),'editor424-self-revoke')->>'state',
+  'denied','Listing Editor cannot revoke team roles');
+reset role;
+
+update app_private.active_sessions set state='revoked',revoked_at=statement_timestamp(),
+  revocation_reason='issue_424_test_revoked_owner',version=version+1
+where session_id='76000000-0000-4000-8000-000000000008' and state='active';
+select pg_temp.actor424('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
+set local role authenticated;
+select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','revoked-owner424@example.test','listing_editor','owner424-revoked-session')->>'state',
+  'denied','revoked Owner session cannot use the direct team invitation RPC');
 reset role;
 
 select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_invited' and resource_kind='team_invitation'),
@@ -260,6 +293,27 @@ select ok(exists(select 1 from app_private.privileged_audit_events where action=
   'cancellation is audited');
 select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_revoked' and resource_kind='team_access'),
   'owner and Site Admin team revocations are audited');
+select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_denied'
+  and outcome='denied' and reason_code='team_invite_role' and actor_user_id='76000000-0000-4000-8000-000000000001'
+  and resource_id='00000000-0000-4000-8000-000000000009'),
+  'Administrator role assignment denial is durably audited');
+select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_denied'
+  and outcome='denied' and reason_code='team_manage' and actor_user_id='76000000-0000-4000-8000-000000000001'
+  and resource_id='00000000-0000-4000-8000-000000000001'),
+  'cross-store denial is durably audited');
+select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_denied'
+  and outcome='denied' and reason_code='team_self_invite' and actor_user_id='76000000-0000-4000-8000-000000000001'),
+  'self-invitation denial is durably audited');
+select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_denied'
+  and outcome='denied' and reason_code='team_revoke_scope' and actor_user_id='76000000-0000-4000-8000-000000000001'),
+  'primary Owner self-revocation denial is durably audited');
+select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_denied'
+  and outcome='denied' and reason_code='admin_team_revoke' and actor_user_id='76000000-0000-4000-8000-000000000001'),
+  'Site Admin RPC denial is durably audited');
+select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_denied'
+  and outcome='denied' and reason_code='team_manage' and actor_user_id='76000000-0000-4000-8000-000000000001'
+  and resource_id='00000000-0000-4000-8000-000000000009'),
+  'revoked Owner session denial is durably audited');
 select ok(exists(select 1 from app_private.privileged_audit_events where actor_role='administrator'
   and action='owner_team_access_revoked' and reason_code='site_admin_removed'
   and reason_text='Access removed after authorization mismatch'),

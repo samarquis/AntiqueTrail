@@ -93,6 +93,11 @@ function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
+function throwIfConflict(result: Record<string, unknown>) {
+  if (result.state === 'conflict')
+    throw new Error(`Team access changed. Current version: ${version(result.version)}.`)
+}
+
 export function createOwnerClient(
   rpc: (command: string, payload: Readonly<Record<string, unknown>>) => Promise<unknown>,
 ): OwnerClient {
@@ -200,6 +205,7 @@ export function createOwnerClient(
           p_idempotency_key: idempotencyKey,
         }),
       )
+      throwIfConflict(result)
       if (result.state !== 'cancelled') throw new Error(OWNER_ACCESS_ERROR)
     },
     async revokeTeamMember(storeId, accessId, expectedVersion, idempotencyKey) {
@@ -219,6 +225,7 @@ export function createOwnerClient(
           p_idempotency_key: idempotencyKey,
         }),
       )
+      throwIfConflict(result)
       if (result.state !== 'revoked') throw new Error(OWNER_ACCESS_ERROR)
     },
     async listPendingInvitations() {
@@ -260,6 +267,7 @@ export function createOwnerClient(
           p_idempotency_key: idempotencyKey,
         }),
       )
+      throwIfConflict(result)
       if (typeof result.storeId !== 'string' || !uuid.test(result.storeId))
         throw new Error(OWNER_ACCESS_ERROR)
       return result.storeId

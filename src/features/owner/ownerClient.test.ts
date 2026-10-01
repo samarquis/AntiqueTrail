@@ -92,4 +92,27 @@ describe('approved Store Owner workspace contract', () => {
       ],
     ])
   })
+
+  it('surfaces the current version on stale invitation and team writes', async () => {
+    const client = createOwnerClient(vi.fn().mockResolvedValue({ state: 'conflict', version: 5 }))
+    await expect(
+      client.cancelTeamInvitation(
+        '00000000-0000-4000-8000-000000001001',
+        '00000000-0000-4000-8000-000000001002',
+        4,
+        'stale-cancel',
+      ),
+    ).rejects.toThrow('Current version: 5')
+    await expect(
+      client.revokeTeamMember(
+        '00000000-0000-4000-8000-000000001001',
+        '00000000-0000-4000-8000-000000001003',
+        4,
+        'stale-revoke',
+      ),
+    ).rejects.toThrow('Current version: 5')
+    await expect(
+      client.acceptInvitation('00000000-0000-4000-8000-000000001002', 4, 'stale-accept'),
+    ).rejects.toThrow('Current version: 5')
+  })
 })

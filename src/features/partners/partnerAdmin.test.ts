@@ -56,9 +56,12 @@ describe('partner administrator boundary', () => {
   it('lists and revokes exact-store team grants without returning recipient email', async () => {
     const storeId = '00000000-0000-4000-8000-000000000009'
     const grantId = '00000000-0000-4000-8000-000000000424'
-    const rpc = vi.fn().mockResolvedValueOnce({
-      members: [{ grantId, role: 'listing_editor', displayName: 'Jordan Editor', version: 2 }],
-    })
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({
+        members: [{ grantId, role: 'listing_editor', displayName: 'Jordan Editor', version: 2 }],
+      })
+      .mockResolvedValueOnce({ state: 'revoked', version: 3 })
     const client = createPartnerAdminClient({ rpc })
 
     expect(await client.listStoreTeam(storeId)).toEqual({
@@ -80,6 +83,20 @@ describe('partner administrator boundary', () => {
       p_idempotency_key: 'admin-team-remove-v2',
       p_reason: 'Access removed after authorization mismatch',
     })
+  })
+
+  it('surfaces the current version when Site Admin removal conflicts', async () => {
+    const rpc = vi.fn().mockResolvedValue({ state: 'conflict', version: 4 })
+    const client = createPartnerAdminClient({ rpc })
+    await expect(
+      client.revokeStoreTeamAccess({
+        storeId: '00000000-0000-4000-8000-000000000009',
+        grantId: '00000000-0000-4000-8000-000000000424',
+        expectedVersion: 3,
+        idempotencyKey: 'admin-team-remove-v3',
+        reason: 'Access removal approved',
+      }),
+    ).rejects.toThrow('Current version: 4')
   })
 
   it('rejects empty or control-character revocation reasons before the RPC', async () => {

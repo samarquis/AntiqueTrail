@@ -22,9 +22,17 @@ export function OwnerTeamPanel({ store, client }: { store: OwnerStore; client: O
   const [message, setMessage] = useState('')
   const [confirmingAccessId, setConfirmingAccessId] = useState<string | null>(null)
   const availableRoles: OwnerTeamInviteRole[] =
-    store.role === 'full_store_access'
-      ? ['listing_editor']
-      : ['co_owner', 'full_store_access', 'listing_editor']
+    store.role === 'store_owner'
+      ? ['co_owner', 'full_store_access', 'listing_editor']
+      : store.role === 'co_owner'
+        ? ['co_owner']
+        : ['listing_editor']
+  const inviteRole =
+    store.role === 'co_owner'
+      ? 'co_owner'
+      : store.role === 'full_store_access'
+        ? 'listing_editor'
+        : role
 
   async function refresh() {
     setBusy(true)
@@ -51,7 +59,7 @@ export function OwnerTeamPanel({ store, client }: { store: OwnerStore; client: O
     setError(false)
     setMessage('')
     try {
-      await client.inviteTeam(store.storeId, email, role, crypto.randomUUID())
+      await client.inviteTeam(store.storeId, email, inviteRole, crypto.randomUUID())
       setEmail('')
       setMessage('If that verified account exists, an invitation is ready to accept.')
       await refresh()
@@ -191,7 +199,7 @@ export function OwnerTeamPanel({ store, client }: { store: OwnerStore; client: O
             <label htmlFor={`team-role-${store.storeId}`}>Store role</label>
             <select
               id={`team-role-${store.storeId}`}
-              value={role}
+              value={inviteRole}
               onChange={(event) => setRole(event.target.value as OwnerTeamInviteRole)}
             >
               {availableRoles.map((nextRole) => (

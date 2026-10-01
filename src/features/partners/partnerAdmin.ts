@@ -137,13 +137,28 @@ export function createPartnerAdminClient(transport: PartnerAdminTransport): Part
         })
       )
         throw new Error('partner_administration_unavailable')
-      await transport.rpc('owner_admin_team_revoke', {
+      const result = await transport.rpc('owner_admin_team_revoke', {
         p_store_id: input.storeId,
         p_grant_id: input.grantId,
         p_expected_version: input.expectedVersion,
         p_idempotency_key: input.idempotencyKey,
         p_reason: reason,
       })
+      if (!result || typeof result !== 'object' || Array.isArray(result))
+        throw new Error('partner_administration_unavailable')
+      const response = result as Record<string, unknown>
+      if (
+        response.state === 'conflict' &&
+        Number.isSafeInteger(response.version) &&
+        Number(response.version) > 0
+      )
+        throw new Error(`Store team access changed. Current version: ${response.version}.`)
+      if (
+        response.state !== 'revoked' ||
+        !Number.isSafeInteger(response.version) ||
+        Number(response.version) < 1
+      )
+        throw new Error('partner_administration_unavailable')
     },
     async decide(input: {
       operation: PartnerAdminOperation
