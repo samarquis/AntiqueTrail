@@ -276,6 +276,20 @@ select is(app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(s
   'denied','Listing Editor cannot revoke team roles');
 reset role;
 
+update app_private.active_sessions set last_authenticated_at=statement_timestamp()-interval '11 minutes'
+where session_id='76000000-0000-4000-8000-000000000008' and state='active';
+select pg_temp.actor424('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
+set local role authenticated;
+select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','stale-owner424@example.test','listing_editor','owner424-stale-session')->>'state',
+  'denied','Owner session outside the recent-auth window cannot use the direct invitation RPC');
+select is((select count(*)::integer from partner_private.store_team_invitations where idempotency_key='owner424-stale-session'),0,
+  'stale-auth Owner denial does not create an invitation');
+select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_denied'
+  and outcome='denied' and reason_code='team_manage' and actor_user_id='76000000-0000-4000-8000-000000000001'
+  and resource_id='00000000-0000-4000-8000-000000000009'),
+  'stale-auth Owner denial is durably audited');
+reset role;
+
 update app_private.active_sessions set state='revoked',revoked_at=statement_timestamp(),
   revocation_reason='issue_424_test_revoked_owner',version=version+1
 where session_id='76000000-0000-4000-8000-000000000008' and state='active';
