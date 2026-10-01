@@ -1,6 +1,10 @@
 -- Normalize account-settings and registration-cleanup RPC errors without changing
 -- their owners, grants, retry receipts, locking, or externally visible success shapes.
 
+grant identity_service to postgres;
+grant create on schema app_public to identity_service;
+set role identity_service;
+
 create or replace function app_public.account_get_settings()
 returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare
@@ -73,6 +77,10 @@ begin
     values(actor,p_idempotency_key,profile_row.version);
   return jsonb_build_object('state','saved','version',profile_row.version);
 end; $$;
+
+reset role;
+revoke create on schema app_public from identity_service;
+revoke identity_service from postgres;
 
 create or replace function app_public.begin_account_registration_cleanup(
   p_cleanup_ticket_id uuid,p_provider_user_id uuid
