@@ -57,9 +57,9 @@ test('Owner billing status reports unavailable data without leaking partial stat
   await expect(page.getByText('Gallery')).toHaveCount(0)
   await expect(page.getByText('No paid subscription')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
-  await expect(page.getByRole('button', { name: /upgrade|change|cancel|refund|payment/i })).toHaveCount(
-    0,
-  )
+  await expect(
+    page.getByRole('button', { name: /upgrade|change|cancel|refund|payment/i }),
+  ).toHaveCount(0)
 })
 
 test('revoked Owner cannot load billing status or see billing details', async ({ page }) => {
