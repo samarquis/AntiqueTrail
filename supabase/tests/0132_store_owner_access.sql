@@ -114,7 +114,8 @@ select ok(position('partner_private.assert_servicing_actor(p_store_id)' in pg_ge
   'payment portal RPC enforces Representative-only authority');
 reset role;
 insert into partner_private.store_photo_tier_state(store_id,tier,source)
- values('00000000-0000-4000-8000-000000000009','gallery','subscription');
+ values('00000000-0000-4000-8000-000000000009','gallery','subscription')
+ on conflict (store_id) do update set tier='gallery',source='subscription';
 insert into partner_private.store_subscriptions(store_id,stripe_customer_id,stripe_subscription_id,state,current_period_end)
  values('00000000-0000-4000-8000-000000000009','cus_12345678','sub_12345678','active',statement_timestamp()+interval '30 days');
 set local role authenticated;
