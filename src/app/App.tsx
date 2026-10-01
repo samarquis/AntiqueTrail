@@ -1,6 +1,7 @@
 import { PaidPurchasePage, type SalesClient } from '../features/billing/sales'
 import { PromotionPage, type PromotionClient } from '../features/portal/promotion'
 import { OwnerStoresPage } from '../features/owner/OwnerStoresPage'
+import { OwnerTeamInvitationsPage } from '../features/owner/OwnerTeamInvitationsPage'
 import { unavailableOwnerClient, type OwnerClient } from '../features/owner/ownerClient'
 import { PaidServicingPage, type ServicingClient } from '../features/billing/servicing'
 import { OwnerAcquisitionPage } from '../features/partners/ownerAcquisitionPage'
@@ -462,7 +463,13 @@ function MoreMenuLock() {
   )
 }
 
-function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) {
+function MorePage({
+  ownConsentClient,
+  ownerAvailable,
+}: {
+  ownConsentClient: OwnConsentClient
+  ownerAvailable: boolean
+}) {
   const { session } = useAuth()
   const signedIn = Boolean(session)
   const [rg01Available, setRg01Available] = useState(false)
@@ -497,7 +504,10 @@ function MorePage({ ownConsentClient }: { ownConsentClient: OwnConsentClient }) 
         ? [{ to: '/store-portal', label: 'Store Portal', requiresSignIn: false }]
         : []),
       ...(session?.role === 'Store Owner'
-        ? [{ to: '/owner/stores', label: 'Your store workspace', requiresSignIn: false }]
+        ? [{ to: '/owner/stores', label: 'Store workspace', requiresSignIn: false }]
+        : []),
+      ...(session && ownerAvailable
+        ? [{ to: '/owner/invitations', label: 'Team invitations', requiresSignIn: false }]
         : []),
       ...(session?.role === 'Administrator'
         ? [{ to: '/admin', label: 'Administrator workspace', requiresSignIn: false }]
@@ -1333,7 +1343,15 @@ export default function App({
               />
             }
           />
-          <Route path="/more" element={<MorePage ownConsentClient={ownConsentClient} />} />
+          <Route
+            path="/more"
+            element={
+              <MorePage
+                ownConsentClient={ownConsentClient}
+                ownerAvailable={Boolean(clients.owner)}
+              />
+            }
+          />
           <Route
             path="/for-stores"
             element={
@@ -1658,6 +1676,14 @@ export default function App({
             element={
               <RequireSession>
                 <OwnerStoresPage client={clients.owner ?? unavailableOwnerClient} />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/owner/invitations"
+            element={
+              <RequireSession>
+                <OwnerTeamInvitationsPage client={clients.owner ?? unavailableOwnerClient} />
               </RequireSession>
             }
           />

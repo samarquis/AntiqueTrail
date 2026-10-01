@@ -93,6 +93,7 @@ Private rows are readable and writable only by their owning account. Store Repre
 - Session tokens: 15-minute access, 30-day rotating refresh expiry.
 - Operational records have defined deletion deadlines and never become a second store of shopper-private content.
 - Pending shares and unaccepted payloads delete from the primary database within 24 hours.
+- Team-invitation recipient HMACs exist only while invitations are pending, whose lifetime is at most 7 days; acceptance and cancellation scrub them immediately, and the lifecycle sweep expires due invitations and scrubs their HMACs.
 
 ## Required pre-launch testing
 

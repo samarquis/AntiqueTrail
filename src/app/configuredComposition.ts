@@ -870,7 +870,7 @@ export async function configuredComposition(
       ...(ownerClient
         ? {
             owner: {
-              listStores: ownerClient.listStores,
+              ...ownerClient,
               async selectStore(storeId: string) {
                 await ownerClient.selectStore(storeId)
                 ownerStoreId = storeId

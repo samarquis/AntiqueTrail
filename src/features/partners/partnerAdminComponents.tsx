@@ -5,8 +5,10 @@ import type {
   PartnerAdminCase,
   PartnerAdminClient,
   PartnerAdminOperation,
+  PartnerAdminTeamMember,
   SyntheticPartnerInvitation,
 } from './partnerAdmin'
+import { ownerTeamRoleLabel } from '../owner/ownerClient'
 
 const operations: PartnerAdminOperation[] = [
   'changes',
@@ -48,6 +50,23 @@ export function PartnerAdminPage({
     operation: 'verify' | 'reject'
   } | null>(null)
   const [signalOutcome, setSignalOutcome] = useState<string | null>(null)
+  const [teamMembers, setTeamMembers] = useState<PartnerAdminTeamMember[]>([])
+  const [teamPending, setTeamPending] = useState(false)
+  const [teamError, setTeamError] = useState(false)
+  const [confirmTeamGrantId, setConfirmTeamGrantId] = useState<string | null>(null)
+  const [teamRevokeReason, setTeamRevokeReason] = useState('')
+
+  async function refreshTeam(storeId: string) {
+    setTeamPending(true)
+    setTeamError(false)
+    try {
+      setTeamMembers((await client.listStoreTeam(storeId)).members)
+    } catch {
+      setTeamError(true)
+    } finally {
+      setTeamPending(false)
+    }
+  }
 
   async function issueInvitation(event: FormEvent) {
     event.preventDefault()
@@ -74,12 +93,41 @@ export function PartnerAdminPage({
     setPending(true)
     setError(false)
     setClaim(null)
+    setTeamMembers([])
+    setTeamError(false)
+    setConfirmTeamGrantId(null)
+    setTeamRevokeReason('')
     try {
-      setClaim(await client.getCase(claimId.trim()))
+      const next = await client.getCase(claimId.trim())
+      setClaim(next)
+      if (next.storeId) await refreshTeam(next.storeId)
     } catch {
       setError(true)
     } finally {
       setPending(false)
+    }
+  }
+
+  async function revokeTeamAccess(member: PartnerAdminTeamMember) {
+    const reason = teamRevokeReason.trim()
+    if (!claim?.storeId || !reason) return
+    setTeamPending(true)
+    setTeamError(false)
+    try {
+      await client.revokeStoreTeamAccess({
+        storeId: claim.storeId,
+        grantId: member.grantId,
+        expectedVersion: member.version,
+        idempotencyKey: crypto.randomUUID(),
+        reason,
+      })
+      setTeamMembers((await client.listStoreTeam(claim.storeId)).members)
+      setConfirmTeamGrantId(null)
+      setTeamRevokeReason('')
+    } catch {
+      setTeamError(true)
+    } finally {
+      setTeamPending(false)
     }
   }
 
@@ -203,6 +251,76 @@ export function PartnerAdminPage({
             <h3 id="partner-admin-case-heading">Claim case</h3>
             <p>{labelState(claim.state)}</p>
             {claim.exactStoreScope && <p>Exact store scope: {claim.exactStoreScope}.</p>}
+            {claim.storeId && (
+              <section aria-labelledby="partner-admin-team-heading">
+                <h4 id="partner-admin-team-heading">Store team access</h4>
+                {teamPending && <p role="status">Updating team access…</p>}
+                {teamError && (
+                  <p role="alert">Team access is unavailable. Refresh and try again.</p>
+                )}
+                {!teamPending && !teamError && teamMembers.length === 0 && (
+                  <p>No active team members.</p>
+                )}
+                <ul aria-label="Active store team members">
+                  {teamMembers.map((member) => (
+                    <li key={member.grantId}>
+                      <span>
+                        {member.displayName} — {ownerTeamRoleLabel[member.role]}
+                      </span>{' '}
+                      <button
+                        type="button"
+                        disabled={teamPending}
+                        onClick={() => {
+                          setTeamRevokeReason('')
+                          setConfirmTeamGrantId(member.grantId)
+                        }}
+                      >
+                        Remove team access for {member.displayName}
+                      </button>
+                      {confirmTeamGrantId === member.grantId && (
+                        <div role="group" aria-label="Confirm team access removal">
+                          <p>
+                            Site Admin removal ends {member.displayName}’s access immediately. This
+                            cannot be undone.
+                          </p>
+                          <label htmlFor="partner-admin-team-revoke-reason">
+                            Reason for removal
+                          </label>
+                          <textarea
+                            id="partner-admin-team-revoke-reason"
+                            value={teamRevokeReason}
+                            maxLength={240}
+                            required
+                            onChange={(event) => setTeamRevokeReason(event.target.value)}
+                          />
+                          <p>
+                            Keep this brief. Do not include personal or shopper details; the reason
+                            is retained in the administrator audit record.
+                          </p>
+                          <button
+                            type="button"
+                            disabled={teamPending || !teamRevokeReason.trim()}
+                            onClick={() => void revokeTeamAccess(member)}
+                          >
+                            Confirm remove {member.displayName}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={teamPending}
+                            onClick={() => {
+                              setConfirmTeamGrantId(null)
+                              setTeamRevokeReason('')
+                            }}
+                          >
+                            Keep access
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <p>Verified signals: {claim.verifiedSignals?.length ?? 0}.</p>
             {(claim.pendingSignals?.length ?? 0) > 0 && (
               <section aria-labelledby="pending-authority-signals-heading">
