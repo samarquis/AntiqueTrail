@@ -2,6 +2,8 @@
 -- discard recipient email HMACs as soon as an invitation is no longer pending.
 begin;
 
+grant identity_service to postgres;
+
 alter table app_private.privileged_audit_events
   add column reason_text text,
   add constraint audit_reason_text_safe check (
@@ -358,4 +360,5 @@ reset role;
 revoke create on schema app_public from review_automation;
 revoke review_automation from postgres;
 revoke create on schema app_public,partner_private,portal_private from identity_service;
+revoke identity_service from postgres;
 commit;
