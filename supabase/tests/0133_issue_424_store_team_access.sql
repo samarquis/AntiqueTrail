@@ -198,7 +198,7 @@ set local role authenticated;
 select is(jsonb_array_length(app_public.owner_team_list('00000000-0000-4000-8000-000000000009')->'members'),4,
   'Owner sees active team role without recipient email');
 select throws_ok($$select app_public.owner_admin_team_list('00000000-0000-4000-8000-000000000009')$$,
-  '42501','owner_team_unavailable','Owner cannot use Site Admin team authority');
+  '42501','partner_administrator_required','Owner cannot use Site Admin team authority');
 select throws_ok($$select app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from primary_owner_grant424),(select version from primary_owner_grant424),'owner424-self-revoke')$$,
   '42501','owner_team_unavailable','Owner cannot revoke their own primary claim');
 select throws_ok($$select app_public.owner_team_revoke('00000000-0000-4000-8000-000000000001',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-cross-store-revoke')$$,

@@ -510,8 +510,9 @@ create or replace function portal_private.require_owner_media_scope(p_store_id u
 language plpgsql stable security definer set search_path='' as $$
 begin
   if nullif(nullif(current_setting('request.headers',true),'')::jsonb->>'x-owner-store-id','') is not null
-    or exists(select 1 from app_private.role_grants g where g.subject_user_id=app_public.request_user_id()
-      and g.store_id=p_store_id and g.role in ('store_owner','co_owner','full_store_access','listing_editor')) then
+    or (not app_private.current_user_has_role('administrator'::app_private.app_role)
+      and exists(select 1 from app_private.role_grants g where g.subject_user_id=app_public.request_user_id()
+      and g.store_id=p_store_id and g.role in ('store_owner','co_owner','full_store_access','listing_editor'))) then
     if portal_private.require_portal_scope() is distinct from p_store_id then
       raise exception using errcode='42501',message='media_unavailable';
     end if;
