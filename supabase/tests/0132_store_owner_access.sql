@@ -90,6 +90,56 @@ select is(jsonb_array_length(app_public.owner_list_stores()->'stores'),1,'Owner 
 select throws_ok($$select app_public.owner_select_store('00000000-0000-4000-8000-000000000001')$$,'42501','owner_access_unavailable','Representative store is not an Owner scope');
 select is(app_public.owner_select_store('00000000-0000-4000-8000-000000000009')->>'storeId','00000000-0000-4000-8000-000000000009','exact Owner selection succeeds');
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
+select is(app_public.billing_get_owner_status()->>'tier','free','Owner sees the current Free plan');
+select is(app_public.billing_get_owner_status()->>'subscriptionState','none','Owner sees no paid subscription');
+select is(app_public.billing_get_owner_status()->>'paidThrough',null::text,'Free status has no paid-through date');
+select is(app_public.billing_get_owner_status()->>'salesOpen','false','sales-closed state is explicit');
+select is(app_public.billing_get_owner_status()->'availableActions','[]'::jsonb,'Owner billing exposes no actions');
+select is(jsonb_object_length(app_public.billing_get_owner_status()),5,'Owner response contains only the approved status fields');
+reset role;
+insert into release_private.regional_releases(release_id,region_key,artifact_digest,catalog_digest,prerequisite_receipt_digest,state)
+values('42500000-0000-4000-8000-000000000030','topeka-ks','sha256:'||repeat('a',64),'sha256:'||repeat('b',64),'sha256:'||repeat('c',64),'active');
+insert into release_private.release_capabilities(release_id,public_catalog,public_claims,public_reviews,public_registration,product_promotion,photo_tiers_enabled)
+values('42500000-0000-4000-8000-000000000030',true,true,true,true,true,true);
+set local role billing_automation;
+update partner_private.photo_tier_sales_control set state='sales_open' where singleton;
+reset role;
+select pg_temp.actor422('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
+set local role authenticated;
+select throws_ok($$select app_public.billing_record_paid_tier_consent('00000000-0000-4000-8000-000000000009','gallery',1,repeat('11',32),0,gen_random_uuid())$$,
+ '42501','billing_action_denied','Owner cannot record paid purchase consent directly');
+select throws_ok($$select app_public.billing_create_checkout_session('00000000-0000-4000-8000-000000000009','gallery',gen_random_uuid(),1,gen_random_uuid())$$,
+ '42501','billing_action_denied','Owner cannot reserve Checkout directly');
+select throws_ok($$select app_public.billing_create_portal_session('00000000-0000-4000-8000-000000000009')$$,
+ '42501','billing_action_denied','Owner cannot open a payment portal directly');
+reset role;
+set local role billing_automation;
+update partner_private.photo_tier_sales_control set state='servicing_only' where singleton;
+reset role;
+insert into partner_private.store_photo_tier_state(store_id,tier,source)
+ values('00000000-0000-4000-8000-000000000009','gallery','subscription');
+insert into partner_private.store_subscriptions(store_id,stripe_customer_id,stripe_subscription_id,state,current_period_end)
+ values('00000000-0000-4000-8000-000000000009','cus_12345678','sub_12345678','active',statement_timestamp()+interval '30 days');
+set local role authenticated;
+select is(app_public.billing_get_owner_status()->>'tier','gallery','Owner sees the current paid plan');
+select is(app_public.billing_get_owner_status()->>'subscriptionState','active','Owner sees an existing subscription state');
+select isnt(app_public.billing_get_owner_status()->>'paidThrough',null::text,'existing paid-through date is available');
+select is(app_public.billing_get_owner_status()->>'salesOpen','false','existing subscription remains visible while sales are closed');
+select is(app_public.billing_get_owner_status()->'availableActions','[]'::jsonb,'existing subscription still has no Owner billing actions');
+select pg_temp.actor422('42200000-0000-4000-8000-000000000001','42200000-0000-4000-8000-000000000003');
+select throws_ok('select app_public.billing_get_owner_status()','42501','billing_status_unavailable','another account cannot read the selected Owner store status');
+select pg_temp.actor422('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
+select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000001"}',true);
+select throws_ok('select app_public.billing_get_owner_status()','42501','billing_status_unavailable','Owner status cannot read the Representative store');
+select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
+reset role;
+set local role billing_automation;
+select is(partner_private.assert_servicing_actor('00000000-0000-4000-8000-000000000001')::text,
+ '76000000-0000-4000-8000-000000000001','existing Representative billing scope remains available');
+select throws_ok($$select partner_private.assert_servicing_actor('00000000-0000-4000-8000-000000000009')$$,
+ '42501','billing_action_denied','Owner cannot use Representative servicing authority');
+reset role;
+set local role authenticated;
 select is(app_public.portal_get_home()->'store'->>'id','00000000-0000-4000-8000-000000000009','existing Portal reads selected exact store');
 select is(app_public.media_get_upload('80000000-0000-4000-8000-000000000003')->>'storeId','00000000-0000-4000-8000-000000000009','media actor read rechecks exact Owner scope');
 select is(app_public.promotion_channel_command('social','consent',0,false)->>'allowed','true','promotion consent succeeds within selected Owner scope');
@@ -163,6 +213,7 @@ update app_private.active_sessions set state='revoked',revoked_at=statement_time
 set local role authenticated;
 select throws_ok('select app_public.owner_list_stores()','42501','owner_access_unavailable','revoked session denies Owner reads');
 select throws_ok('select app_public.portal_get_home()','42501','portal_unavailable','revoked session denies direct Portal read');
+select throws_ok('select app_public.billing_get_owner_status()','42501','billing_status_unavailable','revoked session denies direct billing status');
 select throws_ok($$select app_public.media_get_upload('80000000-0000-4000-8000-000000000003')$$,'42501','media_unavailable','revoked session denies direct media actor read');
 select throws_ok($$select app_public.media_reserve_upload('00000000-0000-4000-8000-000000000009','gallery','Foreign rejected',(select idempotency_key from owner_upload422),true,'image/png',1000,640,480)$$,'42501','media_unavailable','revoked session denies direct media reservation replay');
 select throws_ok($$select app_public.media_withdraw_upload('80000000-0000-4000-8000-000000000003','author_removed')$$,'42501','media_unavailable','revoked session denies direct media withdrawal');

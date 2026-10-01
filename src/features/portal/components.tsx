@@ -109,6 +109,9 @@ function PortalNav() {
         <li>
           <Link to="/store-portal/promotion">Promotion permissions</Link>
         </li>
+        <li>
+          <Link to="/store-portal/billing">Billing status</Link>
+        </li>
       </ul>
     </nav>
   )

@@ -4,6 +4,10 @@ import { OwnerStoresPage } from '../features/owner/OwnerStoresPage'
 import { OwnerTeamInvitationsPage } from '../features/owner/OwnerTeamInvitationsPage'
 import { unavailableOwnerClient, type OwnerClient } from '../features/owner/ownerClient'
 import { PaidServicingPage, type ServicingClient } from '../features/billing/servicing'
+import {
+  OwnerBillingStatusPage,
+  type OwnerBillingStatusClient,
+} from '../features/billing/ownerStatus'
 import { OwnerAcquisitionPage } from '../features/partners/ownerAcquisitionPage'
 import { StoreApplicationAdminPanel } from '../features/partners/storeApplicationAdminPanel'
 import { StoreApplicationPage } from '../features/partners/storeApplicationPage'
@@ -590,6 +594,40 @@ function PortalRouteGuard({ client }: { client: PortalClient }) {
   return checked.allowed ? <Outlet /> : <PortalAccessDeniedPage />
 }
 
+function StorePortalBillingRoute({
+  ownerClient,
+  servicingClient,
+  salesClient,
+  plans = false,
+}: {
+  ownerClient?: OwnerBillingStatusClient
+  servicingClient?: ServicingClient
+  salesClient?: SalesClient
+  plans?: boolean
+}) {
+  const { session } = useAuth()
+  if (['Store Owner', 'Co-Owner', 'Full Store Access'].includes(String(session?.role)))
+    return ownerClient ? <OwnerBillingStatusPage client={ownerClient} /> : <NotFound />
+  if (plans && salesClient)
+    return (
+      <PaidPurchasePage
+        client={salesClient}
+        servicing={
+          servicingClient ? (
+            <PaidServicingPage client={servicingClient} unavailable={<NotFound />} />
+          ) : (
+            <NotFound />
+          )
+        }
+      />
+    )
+  return servicingClient ? (
+    <PaidServicingPage client={servicingClient} unavailable={<NotFound />} />
+  ) : (
+    <NotFound />
+  )
+}
+
 function PublicHelpPage() {
   return (
     <main>
@@ -1143,6 +1181,7 @@ export interface AppClients {
   ownerIntakeAvailability?: OwnerIntakeAvailabilityClient
   portal?: PortalClient
   owner?: OwnerClient
+  ownerBillingStatus?: OwnerBillingStatusClient
   billingServicing?: ServicingClient
   billingSales?: SalesClient
   readiness?: DurableReadinessClient
@@ -1715,31 +1754,21 @@ export default function App({
                 <Route
                   path="/store-portal/billing"
                   element={
-                    <PaidServicingPage
-                      client={clients.billingServicing}
-                      unavailable={<NotFound />}
+                    <StorePortalBillingRoute
+                      ownerClient={clients.ownerBillingStatus}
+                      servicingClient={clients.billingServicing}
                     />
                   }
                 />
                 <Route
                   path="/store-portal/plans"
                   element={
-                    clients.billingSales ? (
-                      <PaidPurchasePage
-                        client={clients.billingSales}
-                        servicing={
-                          <PaidServicingPage
-                            client={clients.billingServicing}
-                            unavailable={<NotFound />}
-                          />
-                        }
-                      />
-                    ) : (
-                      <PaidServicingPage
-                        client={clients.billingServicing}
-                        unavailable={<NotFound />}
-                      />
-                    )
+                    <StorePortalBillingRoute
+                      ownerClient={clients.ownerBillingStatus}
+                      servicingClient={clients.billingServicing}
+                      salesClient={clients.billingSales}
+                      plans
+                    />
                   }
                 />
               </>

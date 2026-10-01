@@ -1,13 +1,16 @@
 import { syntheticPaidOffer } from './paidOffer'
 import type { SalesClient } from '../features/billing/sales'
 import type { ServicingClient } from '../features/billing/servicing'
+import type { OwnerBillingStatusClient } from '../features/billing/ownerStatus'
 
 /** Local review composition only; no RPC, provider calls, or activation changes. */
 export function billingServicingReviewClients(url: string): {
   billingServicing?: ServicingClient
   billingSales?: SalesClient
+  ownerBillingStatus?: OwnerBillingStatusClient
 } {
-  const mode = new URL(url, 'http://127.0.0.1').searchParams.get('reviewBilling')
+  const reviewUrl = new URL(url, 'http://127.0.0.1')
+  const mode = reviewUrl.searchParams.get('reviewBilling')
   if (mode !== 'sales_open' && mode !== 'servicing_only' && mode !== 'off_prelaunch') return {}
   let pending = false
   const context: Awaited<ReturnType<ServicingClient['getContext']>> = {
@@ -38,6 +41,22 @@ export function billingServicingReviewClients(url: string): {
     charges: [],
   }
   return {
+    ...(reviewUrl.searchParams.get('reviewAs') === 'store-owner'
+      ? {
+          ownerBillingStatus: {
+            async getStatus() {
+              const free = mode === 'off_prelaunch'
+              return {
+                tier: free ? 'free' : 'gallery',
+                subscriptionState: free ? 'none' : 'active',
+                paidThrough: free ? null : context.paidThrough,
+                salesOpen: mode === 'sales_open',
+                availableActions: [],
+              } as const
+            },
+          },
+        }
+      : {}),
     billingSales: {
       async getOffer() {
         return mode === 'sales_open' ? syntheticPaidOffer : null
