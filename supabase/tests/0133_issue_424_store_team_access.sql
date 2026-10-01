@@ -53,10 +53,10 @@ insert into partner_private.store_owner_intake_roots(applicant_id,active_kind,ac
 insert into trip_private.email_hmac_keys(environment,purpose,key_version,key_material,state)
   values('shared_alpha','store_team_invitation',1,decode(repeat('55',32),'hex'),'active');
 
-create function pg_temp.actor424(actor uuid,session_id uuid,assurance text default 'aal2') returns void
+create function pg_temp.actor424(actor uuid,session_id uuid,assurance text default 'aal2',auth_age interval default interval '0') returns void
 language plpgsql as $$ begin perform set_config('request.jwt.claims',jsonb_build_object('sub',actor,'session_id',session_id,'role','authenticated','aal',assurance,'amr',jsonb_build_array(
-  jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp())::bigint),
-  jsonb_build_object('method','totp','timestamp',extract(epoch from statement_timestamp())::bigint)))::text,true); end $$;
+  jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp()-auth_age)::bigint),
+  jsonb_build_object('method','totp','timestamp',extract(epoch from statement_timestamp()-auth_age)::bigint)))::text,true); end $$;
 
 select pg_temp.actor424('42400000-0000-4000-8000-000000000001','42400000-0000-4000-8000-000000000003');
 create temporary table approval424(version bigint);
@@ -278,7 +278,9 @@ reset role;
 
 update app_private.active_sessions set last_authenticated_at=statement_timestamp()-interval '11 minutes'
 where session_id='76000000-0000-4000-8000-000000000008' and state='active';
-select pg_temp.actor424('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
+create temporary table stale_auth_audit_baseline424 as
+select coalesce(max(sequence_no),0)::bigint as sequence_no from app_private.privileged_audit_events;
+select pg_temp.actor424('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008','aal2',interval '11 minutes');
 set local role authenticated;
 select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','stale-owner424@example.test','listing_editor','owner424-stale-session')->>'state',
   'denied','Owner session outside the recent-auth window cannot use the direct invitation RPC');
@@ -287,12 +289,15 @@ select is((select count(*)::integer from partner_private.store_team_invitations 
   'stale-auth Owner denial does not create an invitation');
 select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_denied'
   and outcome='denied' and reason_code='team_manage' and actor_user_id='76000000-0000-4000-8000-000000000001'
-  and resource_id='00000000-0000-4000-8000-000000000009'),
+  and resource_id='00000000-0000-4000-8000-000000000009'
+  and sequence_no>(select sequence_no from stale_auth_audit_baseline424)),
   'stale-auth Owner denial is durably audited');
 
 update app_private.active_sessions set state='revoked',revoked_at=statement_timestamp(),
   revocation_reason='issue_424_test_revoked_owner',version=version+1
 where session_id='76000000-0000-4000-8000-000000000008' and state='active';
+create temporary table revoked_auth_audit_baseline424 as
+select coalesce(max(sequence_no),0)::bigint as sequence_no from app_private.privileged_audit_events;
 select pg_temp.actor424('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
 set local role authenticated;
 select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','revoked-owner424@example.test','listing_editor','owner424-revoked-session')->>'state',
@@ -326,7 +331,8 @@ select ok(exists(select 1 from app_private.privileged_audit_events where action=
   'Site Admin RPC denial is durably audited');
 select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_denied'
   and outcome='denied' and reason_code='team_manage' and actor_user_id='76000000-0000-4000-8000-000000000001'
-  and resource_id='00000000-0000-4000-8000-000000000009'),
+  and resource_id='00000000-0000-4000-8000-000000000009'
+  and sequence_no>(select sequence_no from revoked_auth_audit_baseline424)),
   'revoked Owner session denial is durably audited');
 select ok(exists(select 1 from app_private.privileged_audit_events where actor_role='administrator'
   and action='owner_team_access_revoked' and reason_code='site_admin_removed'
