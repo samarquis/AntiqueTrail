@@ -633,7 +633,21 @@ export function createLocalService({
           ).trim()
         )
           throw new Error('Run volumes remain after stop')
-        if (networkId) await command('docker', ['network', 'rm', projectId])
+        if (networkId) {
+          await command('docker', ['network', 'rm', projectId])
+          if (
+            (
+              await command('docker', [
+                'network',
+                'ls',
+                '-q',
+                '--filter',
+                'name=^' + projectId + '$',
+              ])
+            ).trim()
+          )
+            throw new Error('Run network remains after stop')
+        }
       }
       cleaned = true
     } finally {
@@ -641,7 +655,13 @@ export function createLocalService({
       if (proxy) await proxy.close()
       const owned = validateOwner(run)
       fs.rmSync(path.join(owned, 'supabase/functions/.env'), { force: true })
-      if (cleaned) fs.rmSync(owned, { recursive: true })
+    }
+    if (cleaned) {
+      const owned = validateOwner(run)
+      cleaned = false
+      fs.rmSync(owned, { recursive: true })
+      if (fs.existsSync(owned)) throw new Error('Run directory remains after cleanup')
+      cleaned = true
     }
     return 'removed'
   }

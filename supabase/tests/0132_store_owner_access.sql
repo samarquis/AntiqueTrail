@@ -102,6 +102,7 @@ select is(app_public.billing_get_owner_status()->'availableActions','[]'::jsonb,
 select is((select count(*)::int from jsonb_object_keys(app_public.billing_get_owner_status())),5,'Owner response contains only the approved status fields');
 select ok(
   position('portal_private.owner_access_roles()' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0
+  and position('portal_private.log_owner_access_denial' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0
   and position('store_owner' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0
   and position('co_owner' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0
   and position('full_store_access' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0

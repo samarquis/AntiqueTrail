@@ -116,6 +116,7 @@ jobs:
         run: |
           docker logs supabase_db_antique-trail > artifacts/postgres-owner-audit.log 2>&1
           grep -F 'owner_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'portal_scope' | grep -F '00000000-0000-4000-8000-000000000009' >/dev/null
+          grep -F 'owner_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'billing_get_owner_status' | grep -F '00000000-0000-4000-8000-000000000001' >/dev/null
           grep -F 'owner_team_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'team_manage' | grep -F '00000000-0000-4000-8000-000000000001' >/dev/null
           grep -F 'owner_team_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'team_invite_role' >/dev/null
           grep -F 'owner_team_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'team_revoke_scope' >/dev/null

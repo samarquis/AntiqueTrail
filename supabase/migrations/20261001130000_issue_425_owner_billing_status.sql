@@ -2,6 +2,7 @@
 grant identity_service to postgres;
 set role identity_service;
 grant execute on function portal_private.owner_access_roles() to billing_automation;
+grant execute on function portal_private.log_owner_access_denial(text,uuid) to billing_automation;
 reset role;
 revoke identity_service from postgres;
 grant billing_automation to postgres;
@@ -163,6 +164,7 @@ begin
   return jsonb_build_object('tier',v_tier,'subscriptionState',v_state,'paidThrough',v_paid_through,
     'salesOpen',v_sales_open,'availableActions','[]'::jsonb);
 exception when insufficient_privilege then
+  perform portal_private.log_owner_access_denial('billing_get_owner_status',selected_store);
   raise exception using errcode='42501',message='billing_status_unavailable';
 end $$;
 

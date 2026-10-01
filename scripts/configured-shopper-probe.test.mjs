@@ -184,7 +184,7 @@ test('storage exclusion is opt-in for configured local services', () => {
   assert.match(localServiceExclusions(true), /,storage-api$/)
   assert.throws(() => localServiceExclusions('true'), /Invalid local service options/)
 })
-test('cleanup refuses modified markers and project configuration', async () => {
+test('cleanup refuses modified markers and verifies the owner directory is removed', async (t) => {
   const service = createLocalService(),
     { run } = service
 
@@ -210,7 +210,16 @@ test('cleanup refuses modified markers and project configuration', async () => {
     path.join(run.directory, 'supabase/config.toml'),
     `project_id = "${run.projectId}"\n`,
   )
+  const remove = fs.rmSync
+  const leaveDirectory = t.mock.method(fs, 'rmSync', (target, ...args) => {
+    if (target === run.directory) return
+    return remove(target, ...args)
+  })
+  await assert.rejects(() => service.cleanup(), /directory remains/)
+  assert.equal(fs.existsSync(run.directory), true)
+  leaveDirectory.mock.restore()
   assert.equal(await service.cleanup(), 'removed')
+  assert.equal(fs.existsSync(run.directory), false)
   assert.equal(await service.cleanup(), 'removed')
 })
 
