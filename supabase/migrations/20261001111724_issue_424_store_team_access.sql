@@ -112,7 +112,7 @@ begin
     or not app_private.privileged_anchor_is_current()
     or not app_private.provider_user_is_confirmed(actor)
     or not exists(select 1 from app_private.profiles p where p.user_id=actor and p.status='active' and p.verified_email_snapshot is not null) then
-    raise exception using errcode='42501',message='owner_access_unavailable';
+    return;
   end if;
   begin
     return query select s.store_id,s.store_name,'store_owner'::app_private.app_role from portal_private.owner_stores() s;
@@ -510,7 +510,6 @@ create or replace function portal_private.require_owner_media_scope(p_store_id u
 language plpgsql stable security definer set search_path='' as $$
 begin
   if nullif(nullif(current_setting('request.headers',true),'')::jsonb->>'x-owner-store-id','') is not null
-    or app_private.current_user_has_role('administrator'::app_private.app_role)
     or exists(select 1 from app_private.role_grants g where g.subject_user_id=app_public.request_user_id()
       and g.store_id=p_store_id and g.role in ('store_owner','co_owner','full_store_access','listing_editor')) then
     if portal_private.require_portal_scope() is distinct from p_store_id then

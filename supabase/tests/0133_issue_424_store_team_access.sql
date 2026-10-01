@@ -80,7 +80,7 @@ create temporary table invited424 as
 select is((select result->>'state' from invited424),'pending','verified-email invitation remains pending until acceptance');
 select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','editor424@example.test','listing_editor','owner424-invite'),
   (select result from invited424),'same idempotency key replays the invitation');
-select is((select count(*) from partner_private.store_team_invitations where store_id='00000000-0000-4000-8000-000000000009'),1::bigint,
+select is(jsonb_array_length(app_public.owner_team_list('00000000-0000-4000-8000-000000000009')->'invitations'),1,
   'replay creates one invitation');
 select ok(not exists(select 1 from information_schema.columns where table_schema='partner_private'
   and table_name='store_team_invitations' and column_name like '%email' and column_name not like '%hmac%'),
