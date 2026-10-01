@@ -6,6 +6,7 @@ reset role;
 revoke identity_service from postgres;
 grant billing_automation to postgres;
 grant usage,create on schema app_public to billing_automation;
+grant create on schema partner_private to billing_automation;
 grant usage on schema portal_private to billing_automation;
 set role billing_automation;
 
@@ -165,7 +166,7 @@ exception when insufficient_privilege then
 end $$;
 
 reset role;
-revoke create on schema app_public from billing_automation;
+revoke create on schema app_public,partner_private from billing_automation;
 revoke all on function app_public.billing_get_owner_status() from public,anon,authenticated,service_role;
 grant execute on function app_public.billing_get_owner_status() to authenticated;
 revoke billing_automation from postgres;
