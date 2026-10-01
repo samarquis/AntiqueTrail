@@ -1,7 +1,13 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path=public,extensions;
-select plan(25);
+select plan(29);
+
+select set_config('request.jwt.claims','',true);
+set local role authenticated;
+select throws_ok($$select app_public.account_get_settings()$$,'P0001','authentication_required',
+ 'settings read without authentication uses the canonical error');
+reset role;
 
 select has_function('app_public','account_update_settings',array['text','text','bigint','text'],
   'settings writes require version and retry key');
@@ -57,6 +63,12 @@ select throws_ok($$select app_public.account_update_settings('Bad','Bad',1,repea
  '22023','validation_failed','unbounded key rejected');
 select throws_ok($$select app_public.account_update_settings('Bad','Bad',1,null)$$,
  '22023','validation_failed','missing key rejected');
+select throws_ok($$select app_public.account_update_settings(repeat('x',81),null,
+ (app_public.account_get_settings()->>'version')::bigint,'invalid-name')$$,
+ '22023','validation_failed','invalid display name uses the canonical error');
+select throws_ok($$select app_public.account_update_settings('Valid',repeat('x',321),
+ (app_public.account_get_settings()->>'version')::bigint,'invalid-address')$$,
+ '22023','validation_failed','invalid private address uses the canonical error');
 insert into settings_proof values('second',app_public.account_update_settings('Second Name',null,
  (select (value->>'version')::bigint from settings_proof where kind='first'),'attempt-2'));
 insert into settings_proof values('second_settings',app_public.account_get_settings());
@@ -90,8 +102,13 @@ update app_private.active_sessions set state='revoked',revoked_at=now(),revocati
 where session_id='93100000-0000-4000-8000-000000000004';
 set local role authenticated;
 select throws_ok($$select app_public.account_update_settings('Sibling New','Sibling New Address',1,'attempt-1')$$,
- '42501','account_settings_access_denied','revoked sessions cannot replay receipts');
+ 'P0001','authentication_required','revoked sessions cannot replay receipts');
 reset role;
+select ok((select p.public_display_name='Sibling New'
+  and p.private_location_address='Sibling New Address' and p.version=2
+  and (select count(*)=1 from app_private.account_settings_receipts r where r.user_id=p.user_id)
+  from app_private.profiles p where p.user_id='93100000-0000-4000-8000-000000000002'),
+ 'revoked-session denial leaves profile and retry receipt unchanged');
 delete from app_private.profiles where user_id='93100000-0000-4000-8000-000000000002';
 select is((select count(*)::integer from app_private.account_settings_receipts where user_id='93100000-0000-4000-8000-000000000002'),
  0,'deletion removes owner receipts');

@@ -131,10 +131,45 @@ begin
   if pending_ticket is null then
     raise exception 'pending_account_cleanup_missing';
   end if;
+  begin
+    perform app_public.begin_account_registration_cleanup(
+      '93000000-0000-4000-8000-00000000000e','93000000-0000-4000-8000-000000000002');
+    raise exception 'missing_cleanup_ticket_did_not_fail';
+  exception when others then
+    if sqlerrm <> 'provider_unavailable' then raise; end if;
+  end;
+  begin
+    perform app_public.begin_account_registration_cleanup(
+      pending_ticket,'93000000-0000-4000-8000-000000000001');
+    raise exception 'cleanup_scope_denial_did_not_fail';
+  exception when others then
+    if sqlerrm <> 'not_allowed' then raise; end if;
+  end;
+  begin
+    perform app_public.settle_account_registration_cleanup(
+      pending_ticket,'93000000-0000-4000-8000-000000000002','invalid-outcome');
+    raise exception 'invalid_cleanup_outcome_did_not_fail';
+  exception when others then
+    if sqlerrm <> 'validation_failed' then raise; end if;
+  end;
+  begin
+    perform app_public.settle_account_registration_cleanup(
+      pending_ticket,'93000000-0000-4000-8000-000000000002','confirmed_deleted');
+    raise exception 'stale_cleanup_settlement_did_not_fail';
+  exception when others then
+    if sqlerrm <> 'conflict' then raise; end if;
+  end;
   if app_public.begin_account_registration_cleanup(
     pending_ticket,'93000000-0000-4000-8000-000000000002')->>'state' <> 'calling' then
     raise exception 'pending_account_cleanup_not_started';
   end if;
+  begin
+    perform app_public.reconcile_account_registration_cleanup(
+      pending_ticket,'93000000-0000-4000-8000-000000000002');
+    raise exception 'stale_cleanup_reconciliation_did_not_fail';
+  exception when others then
+    if sqlerrm <> 'conflict' then raise; end if;
+  end;
   if exists(select 1 from app_private.profiles
     where user_id='93000000-0000-4000-8000-000000000002') then
     raise exception 'pending_profile_blocks_provider_deletion';

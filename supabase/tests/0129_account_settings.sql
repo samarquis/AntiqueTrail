@@ -11,8 +11,8 @@ select ok(not has_table_privilege('authenticated','app_private.profiles','UPDATE
 select ok(to_regprocedure('app_public.account_update_settings(uuid,text,text)') is null,
   'settings RPC cannot select another account');
 set local role authenticated;
-select throws_ok($$select app_public.account_get_settings()$$,'42501','account_settings_access_denied','unregistered session cannot read settings');
-select throws_ok($$select app_public.account_update_settings('Other Name','Other Address',1,'unauth')$$,'42501','account_settings_access_denied','unregistered session cannot update settings');
+select throws_ok($$select app_public.account_get_settings()$$,'P0001','authentication_required','unregistered session cannot read settings');
+select throws_ok($$select app_public.account_update_settings('Other Name','Other Address',1,'unauth')$$,'P0001','authentication_required','unregistered session cannot update settings');
 reset role;
 
 insert into auth.users(id) values
@@ -67,7 +67,7 @@ do $$ begin perform app_public.account_update_settings('  Avery  ','  321 Oak  '
 select is(app_public.account_get_settings()->>'displayName','Avery','update trims display name');
 select is(app_public.account_get_settings()->>'locationAddress','321 Oak','update trims private location');
 select throws_ok($$select app_public.account_update_settings('Avery',repeat('x',321),1,'too-long')$$,
-  '22023','invalid_location_address','oversize private location is rejected');
+  '22023','validation_failed','oversize private location is rejected');
 reset role;
 select is((select private_location_address from app_private.profiles where user_id='92900000-0000-4000-8000-000000000004'),
   'Other Private Address','owner update cannot alter another profile');
@@ -116,7 +116,7 @@ select ok(
 update app_private.active_sessions set state='revoked',revoked_at=statement_timestamp(),
   revocation_reason='test' where session_id='92900000-0000-4000-8000-000000000005';
 set local role authenticated;
-select throws_ok($$select app_public.account_get_settings()$$,'42501','account_settings_access_denied',
+select throws_ok($$select app_public.account_get_settings()$$,'P0001','authentication_required',
   'revoked session loses settings access');
 reset role;
 
