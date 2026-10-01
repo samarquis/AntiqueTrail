@@ -207,10 +207,7 @@ begin
       set state='completed_absent',last_outcome='absent',updated_at=statement_timestamp()
       where cleanup_ticket_id=p_cleanup_ticket_id returning * into ticket;
     if not found then raise exception using errcode='P0001',message='internal_error'; end if;
-    update app_private.account_admission_receipts
-      set state='completed_terminal_cleanup',provider_user_id=null,
-        updated_at=statement_timestamp(),version=version+1
-      where provider_user_id=p_provider_user_id and state in ('cleanup_pending','orphan_quarantined');
+    perform app_private.terminalize_registration_admission(ticket.asserted_admission_id,p_provider_user_id);
     update app_private.registration_quarantine_subjects
       set resolved_absent_at=statement_timestamp() where provider_user_id=p_provider_user_id;
     return jsonb_build_object('state','completed_terminal_cleanup');

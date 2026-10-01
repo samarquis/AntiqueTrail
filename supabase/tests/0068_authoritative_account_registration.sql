@@ -155,19 +155,20 @@ select is((select delivery_state from app_private.account_admission_receipts whe
 
 set local role service_role;
 select throws_ok($$select app_public.resolve_registration_cleanup_operator_case('68000000-0000-4000-8000-000000000099','68000000-0000-4000-8000-000000000099','confirmed_absent')$$,
-  '22023','registration_cleanup_operator_resolution_unavailable','single-operator absence assertion cannot clear cleanup');
+  '22023','validation_failed','single-operator absence assertion cannot clear cleanup');
 select throws_ok($$select app_public.resolve_registration_cleanup_operator_case('68000000-0000-4000-8000-000000000099','68000000-0000-4000-8000-000000000099','one_signer')$$,
-  '22023','registration_cleanup_operator_resolution_unavailable','one-signer decision has no terminalization surface');
+  '22023','validation_failed','one-signer decision has no terminalization surface');
 select throws_ok($$select app_public.resolve_registration_cleanup_operator_case('68000000-0000-4000-8000-000000000099','68000000-0000-4000-8000-000000000099','same_signer')$$,
-  '22023','registration_cleanup_operator_resolution_unavailable','same-signer decision has no terminalization surface');
+  '22023','validation_failed','same-signer decision has no terminalization surface');
 select throws_ok($$select app_public.resolve_registration_cleanup_operator_case('68000000-0000-4000-8000-000000000099','68000000-0000-4000-8000-000000000099','replay')$$,
-  '22023','registration_cleanup_operator_resolution_unavailable','replayed decision has no terminalization surface');
+  '22023','validation_failed','replayed decision has no terminalization surface');
 select throws_ok($$select app_public.resolve_registration_cleanup_operator_case('68000000-0000-4000-8000-000000000099','68000000-0000-4000-8000-000000000099','still_present')$$,
-  '22023','registration_cleanup_operator_resolution_unavailable','still-present decision cannot clear cleanup');
-select throws_ok($$select app_public.resolve_registration_cleanup_operator_case('68000000-0000-4000-8000-000000000099','68000000-0000-4000-8000-000000000098','retry')$$,
-  '22023','registration_cleanup_operator_resolution_unavailable','provider UUID mismatch cannot mutate cleanup ticket');
+  '22023','validation_failed','still-present decision cannot clear cleanup');
+select throws_ok(format('select app_public.resolve_registration_cleanup_operator_case(%L::uuid,%L::uuid,%L)',
+  ticket_id#>>'{}','68000000-0000-4000-8000-000000000098','retry'),
+  'P0001','not_allowed','provider UUID mismatch cannot mutate cleanup ticket') from independent_cleanup_result;
 select throws_ok($$select app_public.resolve_registration_cleanup_operator_case('68000000-0000-4000-8000-000000000098','68000000-0000-4000-8000-000000000099','retry')$$,
-  '22023','registration_cleanup_operator_resolution_unavailable','cleanup ticket mismatch cannot mutate provider cleanup');
+  'P0001','conflict','cleanup ticket mismatch cannot mutate provider cleanup');
 reset role;
 select isnt((select state from app_private.registration_cleanup_tickets where provider_user_id='68000000-0000-4000-8000-000000000099'),'completed_absent','denied manual decisions leave cleanup unresolved');
 
