@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { OWNER_ACCESS_ERROR, ownerTeamRoleLabel, type OwnerClient } from './ownerClient'
+import { useOwnerStoreRole } from './OwnerStoreRoleContext'
 
 export function OwnerTeamInvitationsPage({ client }: { client: OwnerClient }) {
   const navigate = useNavigate()
+  const { setRole } = useOwnerStoreRole()
   const [invitations, setInvitations] = useState<Awaited<
     ReturnType<OwnerClient['listPendingInvitations']>
   > | null>(null)
@@ -25,12 +27,18 @@ export function OwnerTeamInvitationsPage({ client }: { client: OwnerClient }) {
     }
   }, [client])
 
-  async function accept(invitationId: string, version: number) {
+  async function accept(invitation: NonNullable<typeof invitations>[number]) {
     setBusy(true)
     setError(false)
+    setRole(null)
     try {
-      const storeId = await client.acceptInvitation(invitationId, version, crypto.randomUUID())
+      const storeId = await client.acceptInvitation(
+        invitation.invitationId,
+        invitation.version,
+        crypto.randomUUID(),
+      )
       await client.selectStore(storeId)
+      setRole(invitation.role)
       navigate('/store-portal')
     } catch {
       setError(true)
@@ -57,7 +65,7 @@ export function OwnerTeamInvitationsPage({ client }: { client: OwnerClient }) {
                   className="button"
                   type="button"
                   disabled={busy}
-                  onClick={() => void accept(invitation.invitationId, invitation.version)}
+                  onClick={() => void accept(invitation)}
                 >
                   Accept invitation to {invitation.storeName}
                 </button>

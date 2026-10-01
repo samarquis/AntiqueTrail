@@ -90,10 +90,14 @@ select is(jsonb_array_length(app_public.owner_list_stores()->'stores'),1,'Owner 
 select throws_ok($$select app_public.owner_select_store('00000000-0000-4000-8000-000000000001')$$,'42501','owner_access_unavailable','Representative store is not an Owner scope');
 select is(app_public.owner_select_store('00000000-0000-4000-8000-000000000009')->>'storeId','00000000-0000-4000-8000-000000000009','exact Owner selection succeeds');
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
+reset role;
+insert into partner_private.photo_tier_commercial_configs(version,state) values(425132,'draft');
+update partner_private.photo_tier_sales_control set state='sales_open',commercial_config_version=425132 where singleton;
+set local role authenticated;
 select is(app_public.billing_get_owner_status()->>'tier','free','Owner sees the current Free plan');
 select is(app_public.billing_get_owner_status()->>'subscriptionState','none','Owner sees no paid subscription');
 select is(app_public.billing_get_owner_status()->>'paidThrough',null::text,'Free status has no paid-through date');
-select is(app_public.billing_get_owner_status()->>'salesOpen','false','sales-closed state is explicit');
+select is(app_public.billing_get_owner_status()->>'salesOpen','false','sales-open flag without current activation remains closed');
 select is(app_public.billing_get_owner_status()->'availableActions','[]'::jsonb,'Owner billing exposes no actions');
 select is((select count(*)::int from jsonb_object_keys(app_public.billing_get_owner_status())),5,'Owner response contains only the approved status fields');
 select ok(

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { OwnerTeamPanel } from './OwnerTeamPanel'
+import { useOwnerStoreRole } from './OwnerStoreRoleContext'
 import {
   OWNER_ACCESS_ERROR,
   ownerTeamRoleLabel,
@@ -10,6 +11,7 @@ import {
 
 export function OwnerStoresPage({ client }: { client: OwnerClient }) {
   const navigate = useNavigate()
+  const { setRole } = useOwnerStoreRole()
   const [stores, setStores] = useState<OwnerStore[] | null>(null)
   const [pending, setPending] = useState(true)
   const [denied, setDenied] = useState(false)
@@ -39,12 +41,16 @@ export function OwnerStoresPage({ client }: { client: OwnerClient }) {
       requests.current++
     }
   }, [client, attempt])
-  async function select(storeId: string) {
+  async function select(storeId: string, role: OwnerStore['role']) {
     const request = ++generation.current
+    setRole(null)
     setPending(true)
     try {
       await client.selectStore(storeId)
-      if (request === generation.current) navigate('/store-portal')
+      if (request === generation.current) {
+        setRole(role)
+        navigate('/store-portal')
+      }
     } catch {
       if (request === generation.current) {
         setStores(null)
@@ -76,7 +82,7 @@ export function OwnerStoresPage({ client }: { client: OwnerClient }) {
                 <button
                   className="button"
                   disabled={pending}
-                  onClick={() => void select(store.storeId)}
+                  onClick={() => void select(store.storeId, store.role)}
                 >
                   Open {store.name}
                 </button>

@@ -157,7 +157,8 @@ begin
   select coalesce((select tier from partner_private.store_photo_tier_state where store_id=selected_store),'free'),
     coalesce((select state from partner_private.store_subscriptions where store_id=selected_store),'none'),
     (select current_period_end from partner_private.store_subscriptions where store_id=selected_store),
-    coalesce((select state='sales_open' from partner_private.photo_tier_sales_control where singleton),false)
+    coalesce((select state='sales_open' and partner_private.photo_tier_billing_enabled()
+      from partner_private.photo_tier_sales_control where singleton),false)
     into v_tier,v_state,v_paid_through,v_sales_open;
   return jsonb_build_object('tier',v_tier,'subscriptionState',v_state,'paidThrough',v_paid_through,
     'salesOpen',v_sales_open,'availableActions','[]'::jsonb);

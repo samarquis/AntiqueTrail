@@ -2,6 +2,7 @@ import { PaidPurchasePage, type SalesClient } from '../features/billing/sales'
 import { PromotionPage, type PromotionClient } from '../features/portal/promotion'
 import { OwnerStoresPage } from '../features/owner/OwnerStoresPage'
 import { OwnerTeamInvitationsPage } from '../features/owner/OwnerTeamInvitationsPage'
+import { OwnerStoreRoleProvider, useOwnerStoreRole } from '../features/owner/OwnerStoreRoleContext'
 import { unavailableOwnerClient, type OwnerClient } from '../features/owner/ownerClient'
 import { PaidServicingPage, type ServicingClient } from '../features/billing/servicing'
 import {
@@ -607,7 +608,7 @@ function StorePortalBillingRoute({
   plans?: boolean
 }) {
   const { session } = useAuth()
-  const access = billingPortalAccess(session?.role)
+  const access = billingPortalAccess(session?.role, useOwnerStoreRole().role)
   if (access === 'owner')
     return ownerClient ? <OwnerBillingStatusPage client={ownerClient} /> : <NotFound />
   if (access !== 'representative') return <NotFound />
@@ -1318,7 +1319,9 @@ export default function App({
       }}
     >
       <TripAccountLifecycle runtime={tripOffline} />
-      <AppShell
+      <OwnerStoreRoleProvider key={privacyEpoch}>
+        {/* prettier-ignore */}
+        <AppShell
         key={privacyEpoch}
         reviewHarness={runtime.reviewHarness}
         reviewHarnessUi={runtime.reviewHarnessUi}
@@ -1879,6 +1882,7 @@ export default function App({
           <Route path="*" element={<NotFound />} />
         </AdminAuditRoutes>
       </AppShell>
+      </OwnerStoreRoleProvider>
     </AuthProvider>
   )
 }

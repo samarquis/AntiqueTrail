@@ -108,6 +108,8 @@ select is(app_public.owner_team_accept((select invitation_id from invite_ref424)
   (select (version+1)::text from invite_ref424),'stale acceptance returns the current invitation version');
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
 select is(app_public.portal_get_home()->'store'->>'id','00000000-0000-4000-8000-000000000009','accepted teammate opens only invited store');
+select throws_ok('select app_public.billing_get_owner_status()','42501','billing_status_unavailable',
+  'Listing Editor cannot read billing status for the selected store');
 select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','peer424@example.test','listing_editor','editor424-peer-invite')->>'state',
   'denied','Listing Editor cannot invite teammates');
 select throws_ok($$select app_public.promotion_channels()$$,'42501','promotion_unavailable','Listing Editor cannot read promotion controls');
