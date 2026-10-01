@@ -95,7 +95,7 @@ select is(app_public.billing_get_owner_status()->>'subscriptionState','none','Ow
 select is(app_public.billing_get_owner_status()->>'paidThrough',null::text,'Free status has no paid-through date');
 select is(app_public.billing_get_owner_status()->>'salesOpen','false','sales-closed state is explicit');
 select is(app_public.billing_get_owner_status()->'availableActions','[]'::jsonb,'Owner billing exposes no actions');
-select is(jsonb_object_length(app_public.billing_get_owner_status()),5,'Owner response contains only the approved status fields');
+select is((select count(*)::int from jsonb_object_keys(app_public.billing_get_owner_status())),5,'Owner response contains only the approved status fields');
 select ok(
   position('portal_private.owner_access_roles()' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0
   and position('store_owner' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0
