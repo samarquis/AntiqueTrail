@@ -1,7 +1,8 @@
 -- #425: expose a minimal read-only billing snapshot to approved store roles.
 grant billing_automation to postgres;
 grant usage,create on schema app_public to billing_automation;
-grant execute on function portal_private.owner_stores() to billing_automation;
+grant usage on schema portal_private to billing_automation;
+grant execute on function portal_private.owner_access_roles() to billing_automation;
 set role billing_automation;
 
 create or replace function partner_private.assert_servicing_actor(p_store_id uuid) returns uuid
@@ -146,7 +147,8 @@ begin
     raise exception using errcode='42501',message='billing_status_unavailable';
   end;
   if selected_store is null or not exists(
-    select 1 from portal_private.owner_stores() where store_id=selected_store
+    select 1 from portal_private.owner_access_roles()
+    where store_id=selected_store and store_role in ('store_owner','co_owner','full_store_access')
   ) then
     raise exception using errcode='42501',message='billing_status_unavailable';
   end if;

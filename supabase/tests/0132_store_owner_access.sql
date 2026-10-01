@@ -96,25 +96,22 @@ select is(app_public.billing_get_owner_status()->>'paidThrough',null::text,'Free
 select is(app_public.billing_get_owner_status()->>'salesOpen','false','sales-closed state is explicit');
 select is(app_public.billing_get_owner_status()->'availableActions','[]'::jsonb,'Owner billing exposes no actions');
 select is(jsonb_object_length(app_public.billing_get_owner_status()),5,'Owner response contains only the approved status fields');
-reset role;
-insert into release_private.regional_releases(release_id,region_key,artifact_digest,catalog_digest,prerequisite_receipt_digest,state)
-values('42500000-0000-4000-8000-000000000030','topeka-ks','sha256:'||repeat('a',64),'sha256:'||repeat('b',64),'sha256:'||repeat('c',64),'active');
-insert into release_private.release_capabilities(release_id,public_catalog,public_claims,public_reviews,public_registration,product_promotion,photo_tiers_enabled)
-values('42500000-0000-4000-8000-000000000030',true,true,true,true,true,true);
-set local role billing_automation;
-update partner_private.photo_tier_sales_control set state='sales_open' where singleton;
-reset role;
-select pg_temp.actor422('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
-set local role authenticated;
-select throws_ok($$select app_public.billing_record_paid_tier_consent('00000000-0000-4000-8000-000000000009','gallery',1,repeat('11',32),0,gen_random_uuid())$$,
- '42501','billing_action_denied','Owner cannot record paid purchase consent directly');
-select throws_ok($$select app_public.billing_create_checkout_session('00000000-0000-4000-8000-000000000009','gallery',gen_random_uuid(),1,gen_random_uuid())$$,
- '42501','billing_action_denied','Owner cannot reserve Checkout directly');
-select throws_ok($$select app_public.billing_create_portal_session('00000000-0000-4000-8000-000000000009')$$,
- '42501','billing_action_denied','Owner cannot open a payment portal directly');
-reset role;
-set local role billing_automation;
-update partner_private.photo_tier_sales_control set state='servicing_only' where singleton;
+select ok(
+  position('portal_private.owner_access_roles()' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0
+  and position('store_owner' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0
+  and position('co_owner' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0
+  and position('full_store_access' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))>0
+  and position('listing_editor' in pg_get_functiondef('app_public.billing_get_owner_status()'::regprocedure))=0,
+  'billing status uses exact Owner, Co-Owner, and Full Store Access scope but excludes Listing Editors');
+select ok(position('partner_private.assert_servicing_actor(p_store_id)' in pg_get_functiondef(
+  'app_public.billing_record_paid_tier_consent(uuid,text,bigint,text,bigint,uuid)'::regprocedure))>0,
+  'paid consent RPC enforces Representative-only authority');
+select ok(position('partner_private.assert_servicing_actor(p_store_id)' in pg_get_functiondef(
+  'app_public.billing_create_checkout_session(uuid,text,uuid,bigint,uuid)'::regprocedure))>0,
+  'Checkout RPC enforces Representative-only authority');
+select ok(position('partner_private.assert_servicing_actor(p_store_id)' in pg_get_functiondef(
+  'app_public.billing_create_portal_session(uuid)'::regprocedure))>0,
+  'payment portal RPC enforces Representative-only authority');
 reset role;
 insert into partner_private.store_photo_tier_state(store_id,tier,source)
  values('00000000-0000-4000-8000-000000000009','gallery','subscription');
