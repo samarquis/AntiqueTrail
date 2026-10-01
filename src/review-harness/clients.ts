@@ -3077,13 +3077,45 @@ export function createReviewHarnessClients(
         async listStores() {
           requireRole(scenario, ['Store Owner'], true)
           if (state !== 'success') throw new Error('Store workspace access is unavailable.')
-          return [{ storeId: 'store-blue-finch', name: 'Blue Finch Curios' }]
+          return [
+            {
+              storeId: 'store-blue-finch',
+              name: 'Blue Finch Curios',
+              role: 'store_owner' as const,
+            },
+          ]
         },
         async selectStore(storeId) {
           requireRole(scenario, ['Store Owner'], true)
           if (state !== 'success' || storeId !== 'store-blue-finch')
             throw new Error('Store workspace access is unavailable.')
           ownerStoreSelected = true
+        },
+        async listTeam(storeId) {
+          requireRole(scenario, ['Store Owner'], true)
+          if (state !== 'success' || storeId !== 'store-blue-finch')
+            throw new Error('Store workspace access is unavailable.')
+          return { members: [], invitations: [] }
+        },
+        async inviteTeam() {
+          requireRole(scenario, ['Store Owner'], true)
+          if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+        },
+        async cancelTeamInvitation() {
+          requireRole(scenario, ['Store Owner'], true)
+          if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+        },
+        async revokeTeamMember() {
+          requireRole(scenario, ['Store Owner'], true)
+          if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+        },
+        async listPendingInvitations() {
+          return []
+        },
+        async acceptInvitation() {
+          requireRole(scenario, ['Store Owner'], true)
+          if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+          return 'store-blue-finch'
         },
       },
       ownConsent,

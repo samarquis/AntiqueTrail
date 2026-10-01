@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { OWNER_ACCESS_ERROR, type OwnerClient, type OwnerStore } from './ownerClient'
+import { OwnerTeamPanel } from './OwnerTeamPanel'
+import {
+  OWNER_ACCESS_ERROR,
+  ownerTeamRoleLabel,
+  type OwnerClient,
+  type OwnerStore,
+} from './ownerClient'
 
 export function OwnerStoresPage({ client }: { client: OwnerClient }) {
   const navigate = useNavigate()
@@ -51,9 +57,7 @@ export function OwnerStoresPage({ client }: { client: OwnerClient }) {
     <main>
       <section className="page-card" aria-labelledby="owner-stores-heading">
         <h1 id="owner-stores-heading">Your store workspace</h1>
-        <p>
-          Store Owner access covers only your approved stores. Choose the store you want to manage.
-        </p>
+        <p>Choose a store you can access. Each workspace role applies to one store.</p>
         {pending && <p role="status">Checking store access…</p>}
         {denied && (
           <>
@@ -68,6 +72,7 @@ export function OwnerStoresPage({ client }: { client: OwnerClient }) {
             {stores.map((store) => (
               <li key={store.storeId}>
                 <h2>{store.name}</h2>
+                <p>{ownerTeamRoleLabel[store.role]}</p>
                 <button
                   className="button"
                   disabled={pending}
@@ -75,6 +80,7 @@ export function OwnerStoresPage({ client }: { client: OwnerClient }) {
                 >
                   Open {store.name}
                 </button>
+                <OwnerTeamPanel store={store} client={client} />
               </li>
             ))}
           </ul>

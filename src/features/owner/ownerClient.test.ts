@@ -12,7 +12,11 @@ describe('approved Store Owner workspace contract', () => {
       .mockResolvedValueOnce({ storeId: '00000000-0000-4000-8000-000000001001' })
     const client = createOwnerClient(rpc)
     expect(await client.listStores()).toEqual([
-      { storeId: '00000000-0000-4000-8000-000000001001', name: 'Clockwork Cabinet' },
+      {
+        storeId: '00000000-0000-4000-8000-000000001001',
+        name: 'Clockwork Cabinet',
+        role: 'store_owner',
+      },
     ])
     await client.selectStore('00000000-0000-4000-8000-000000001001')
     expect(rpc).toHaveBeenLastCalledWith('owner_select_store', {
@@ -37,5 +41,55 @@ describe('approved Store Owner workspace contract', () => {
     await expect(client.selectStore('00000000-0000-4000-8000-000000001001')).rejects.toThrow(
       'Store workspace access is unavailable.',
     )
+  })
+
+  it('loads and mutates team access through exact-store RPCs', async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({ members: [], invitations: [] })
+      .mockResolvedValueOnce({ invitationId: '00000000-0000-4000-8000-000000001002' })
+      .mockResolvedValueOnce({ state: 'revoked' })
+    const client = createOwnerClient(rpc) as ReturnType<typeof createOwnerClient> & {
+      listTeam(storeId: string): Promise<unknown>
+      inviteTeam(
+        storeId: string,
+        email: string,
+        role: string,
+        idempotencyKey: string,
+      ): Promise<unknown>
+      revokeTeamMember(
+        storeId: string,
+        accessId: string,
+        expectedVersion: number,
+        idempotencyKey: string,
+      ): Promise<unknown>
+    }
+    const storeId = '00000000-0000-4000-8000-000000001001'
+    const accessId = '00000000-0000-4000-8000-000000001003'
+    const key = 'owner-team-test-1'
+    await client.listTeam(storeId)
+    await client.inviteTeam(storeId, ' editor@example.test ', 'listing_editor', key)
+    await client.revokeTeamMember(storeId, accessId, 3, key)
+    expect(rpc.mock.calls).toEqual([
+      ['owner_team_list', { p_store_id: storeId }],
+      [
+        'owner_team_invite',
+        {
+          p_store_id: storeId,
+          p_recipient_email: 'editor@example.test',
+          p_role: 'listing_editor',
+          p_idempotency_key: key,
+        },
+      ],
+      [
+        'owner_team_revoke',
+        {
+          p_store_id: storeId,
+          p_grant_id: accessId,
+          p_expected_version: 3,
+          p_idempotency_key: key,
+        },
+      ],
+    ])
   })
 })
