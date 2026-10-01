@@ -62,6 +62,16 @@ test('Owner billing status reports unavailable data without leaking partial stat
   ).toHaveCount(0)
 })
 
+test('Representative retains the existing paid servicing route', async ({ page }) => {
+  await page.goto(
+    '/store-portal/billing?reviewAs=representative&reviewState=success&reviewBilling=servicing_only',
+  )
+
+  await expect(page.getByRole('heading', { name: 'Photo membership' })).toBeVisible()
+  await expect(page.getByText(/Current plan: Gallery · Paid through/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cancel paid membership' })).toBeVisible()
+})
+
 test('revoked Owner cannot load billing status or see billing details', async ({ page }) => {
   await page.goto(
     '/store-portal/billing?reviewAs=store-owner&reviewState=success&reviewSession=revoked&reviewBilling=off_prelaunch',
