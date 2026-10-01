@@ -57,7 +57,17 @@ jobs:
             stats: report.stats && Object.fromEntries(
               ['expected', 'unexpected', 'skipped', 'flaky'].map(key => [key, report.stats[key]])
             ),
-            checks: (report.checks ?? []).map(({ name, project, status }) => ({ name, project, status })),
+            checks: (report.checks ?? []).map(({ name, project, status, failure }) => ({
+              name, project, status,
+              ...(status !== 'passed' && failure && typeof failure === 'object' && !Array.isArray(failure) && {
+                failure: {
+                  ...(Number.isSafeInteger(failure.sourceLine) && failure.sourceLine > 0 && { sourceLine: failure.sourceLine }),
+                  ...(['toHaveText', 'toHaveURL', 'toHaveCount', 'toBeVisible', 'toBe', 'toThrow', 'locator.click'].includes(failure.assertion) && { assertion: failure.assertion }),
+                  timeout: failure.timeout === true,
+                  strictLocator: failure.strictLocator === true,
+                },
+              }),
+            })),
           }
           fs.writeFileSync('artifacts/configured-seed-media-summary.json', JSON.stringify(summary, null, 2))
           NODE
