@@ -2,12 +2,13 @@ import { defineConfig } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const input = JSON.parse(
-  fs.readFileSync(process.env.CONFIGURED_REPRESENTATIVE_HOURS_INPUT!, 'utf8'),
-)
+const inputPath = process.env.CONFIGURED_OWNER_BILLING_INPUT
+if (!inputPath) throw new Error('CONFIGURED_OWNER_BILLING_INPUT is required')
+const input = JSON.parse(fs.readFileSync(inputPath, 'utf8'))
+
 export default defineConfig({
   testDir: '.',
-  testMatch: 'configured-representative-hours.spec.ts',
+  testMatch: 'configured-owner-billing-status.spec.ts',
   workers: 1,
   timeout: 120_000,
   expect: { timeout: 12_000 },
@@ -22,11 +23,5 @@ export default defineConfig({
     headless: true,
     actionTimeout: 15_000,
   },
-  projects: [
-    { name: 'desktop', use: { viewport: { width: 1440, height: 1000 } } },
-    {
-      name: 'phone',
-      use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
-    },
-  ],
+  projects: [{ name: 'chromium', use: { viewport: { width: 1440, height: 1000 } } }],
 })

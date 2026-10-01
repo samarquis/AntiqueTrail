@@ -1952,6 +1952,7 @@ function portalClient(
   state: ReviewStateId,
   mediaReviewEnabled = false,
   ownerScopeReady: () => boolean = () => true,
+  ownerStore: () => Pick<PortalHomeSnapshot['store'], 'id' | 'name'> | null = () => null,
 ): PortalClient {
   const allowed = () => {
     requireRole(scenario, ['Representative', 'Store Owner'], true)
@@ -2051,10 +2052,21 @@ function portalClient(
     ...unavailablePortalClient,
     async getHome() {
       allowed()
+      const selectedStore = ownerStore()
       return failureFixture(
         state,
-        { ...home, pendingChanges, managedFields: managedFieldsSnapshot() },
-        { ...home, pendingChanges: [], managedFields: managedFieldsSnapshot() },
+        {
+          ...home,
+          ...(selectedStore ? { store: { ...home.store, ...selectedStore } } : {}),
+          pendingChanges,
+          managedFields: managedFieldsSnapshot(),
+        },
+        {
+          ...home,
+          ...(selectedStore ? { store: { ...home.store, ...selectedStore } } : {}),
+          pendingChanges: [],
+          managedFields: managedFieldsSnapshot(),
+        },
         GENERIC_PORTAL_ERROR,
       )
     },
@@ -3062,6 +3074,7 @@ export function createReviewHarnessClients(
   adminDecisionMode: ReviewAdminDecisionMode = 'ordinary',
 ): AppClients {
   let ownerStoreSelected = false
+  let selectedOwnerStore: Pick<PortalHomeSnapshot['store'], 'id' | 'name'> | null = null
   let ownerTeamMembers: OwnerTeamMember[] = [
     {
       accessId: 'review-listing-editor',
@@ -3125,13 +3138,28 @@ export function createReviewHarnessClients(
               name: 'Blue Finch Curios',
               role: 'store_owner' as const,
             },
+            {
+              storeId: 'store-editor-view',
+              name: 'Editor Workspace',
+              role: 'listing_editor' as const,
+            },
+            {
+              // Simulates a stale sibling listing; selection remains server-denied.
+              storeId: 'store-sibling-denied',
+              name: 'Sibling Workspace',
+              role: 'store_owner' as const,
+            },
           ]
         },
         async selectStore(storeId) {
           requireRole(scenario, ['Store Owner'], true)
-          if (state !== 'success' || storeId !== 'store-blue-finch')
+          if (state !== 'success' || !['store-blue-finch', 'store-editor-view'].includes(storeId))
             throw new Error('Store workspace access is unavailable.')
           ownerStoreSelected = true
+          selectedOwnerStore =
+            storeId === 'store-blue-finch'
+              ? { id: storeId, name: 'Blue Finch Curios' }
+              : { id: storeId, name: 'Editor Workspace' }
         },
         async listTeam(storeId) {
           requireRole(scenario, ['Store Owner'], true)
@@ -3222,7 +3250,13 @@ export function createReviewHarnessClients(
       shopper: shopperClient(scenario, state),
       candidate: candidateClient(scenario, state),
       trips: tripClient(scenario, state),
-      portal: portalClient(scenario, state, mediaReviewEnabled, () => ownerStoreSelected),
+      portal: portalClient(
+        scenario,
+        state,
+        mediaReviewEnabled,
+        () => ownerStoreSelected,
+        () => selectedOwnerStore,
+      ),
       reviews: reviewClient(scenario, state),
       partner: partnerClient(scenario, state),
       partnerAdmin: partnerAdminClient(scenario, state),

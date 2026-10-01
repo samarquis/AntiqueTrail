@@ -6,6 +6,7 @@ import {
   BILLING_STAGE_DISABLED_MESSAGE,
   DISABLED_BILLING_CAPABILITY,
   GENERIC_BILLING_ERROR,
+  billingPortalAccess,
   billingRouteEnabled,
   createBillingClient,
   isBillingCapabilityEnabled,
@@ -206,4 +207,27 @@ describe('billing capability gating', () => {
     ).rejects.toThrow(GENERIC_BILLING_ERROR)
     expect(BILLING_STAGE_DISABLED_MESSAGE).toMatch(/not available/)
   })
+})
+
+describe('billing portal role gating', () => {
+  it.each([
+    ['store_owner', 'owner'],
+    ['co_owner', 'owner'],
+    ['full_store_access', 'owner'],
+    ['listing_editor', null],
+    [null, null],
+  ] as const)('maps selected store role %s to %s', (selectedStoreRole, expected) => {
+    expect(billingPortalAccess('Store Owner', selectedStoreRole)).toBe(expected)
+  })
+
+  it('keeps Representative servicing independent of selected Owner store', () => {
+    expect(billingPortalAccess('Representative')).toBe('representative')
+  })
+
+  it.each(['Shopper', 'Co-Owner', 'Full Store Access', undefined] as const)(
+    'denies %s session without the generic Owner session role',
+    (role) => {
+      expect(billingPortalAccess(role, 'store_owner')).toBeNull()
+    },
+  )
 })

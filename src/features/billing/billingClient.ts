@@ -256,3 +256,14 @@ export function isBillingCapabilityEnabled(capability: BillingCapability | null)
 export function billingRouteEnabled(capability: BillingCapability | null): boolean {
   return isBillingCapabilityEnabled(capability)
 }
+
+export function billingPortalAccess(
+  role: string | null | undefined,
+  selectedStoreRole?: string | null,
+): 'owner' | 'representative' | null {
+  if (role === 'Representative') return 'representative'
+  return role === 'Store Owner' &&
+    ['store_owner', 'co_owner', 'full_store_access'].includes(selectedStoreRole ?? '')
+    ? 'owner'
+    : null
+}

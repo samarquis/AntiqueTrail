@@ -116,6 +116,7 @@ jobs:
         run: |
           docker logs supabase_db_antique-trail > artifacts/postgres-owner-audit.log 2>&1
           grep -F 'owner_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'portal_scope' | grep -F '00000000-0000-4000-8000-000000000009' >/dev/null
+          grep -F 'owner_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'billing_get_owner_status' | grep -F '00000000-0000-4000-8000-000000000001' >/dev/null
           grep -F 'owner_team_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'team_manage' | grep -F '00000000-0000-4000-8000-000000000001' >/dev/null
           grep -F 'owner_team_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'team_invite_role' >/dev/null
           grep -F 'owner_team_access_denied' artifacts/postgres-owner-audit.log | grep -F '76000000-0000-4000-8000-000000000001' | grep -F 'team_revoke_scope' >/dev/null
@@ -129,3 +130,31 @@ jobs:
           name: database-failure-logs
           path: artifacts/
           if-no-files-found: error
+
+  configured-owner-billing:
+    needs: database
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Run configured Representative and Owner browser proofs
+        run: node scripts/configured-representative-hours.mjs
+      - name: Upload Owner billing evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: configured-owner-billing-evidence
+          path: |
+            artifacts/*/report.json
+            artifacts/*/playwright.json
+            artifacts/*/owner-billing/playwright.json
+          if-no-files-found: ignore

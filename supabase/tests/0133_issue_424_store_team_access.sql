@@ -108,6 +108,8 @@ select is(app_public.owner_team_accept((select invitation_id from invite_ref424)
   (select (version+1)::text from invite_ref424),'stale acceptance returns the current invitation version');
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
 select is(app_public.portal_get_home()->'store'->>'id','00000000-0000-4000-8000-000000000009','accepted teammate opens only invited store');
+select throws_ok('select app_public.billing_get_owner_status()','42501','billing_status_unavailable',
+  'Listing Editor cannot read billing status for the selected store');
 select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','peer424@example.test','listing_editor','editor424-peer-invite')->>'state',
   'denied','Listing Editor cannot invite teammates');
 select throws_ok($$select app_public.promotion_channels()$$,'42501','promotion_unavailable','Listing Editor cannot read promotion controls');
@@ -133,6 +135,8 @@ select is(jsonb_array_length(app_public.owner_team_invitations()->'invitations')
 select is(app_public.owner_team_accept((select invitation_id from full_invite_ref424),(select version from full_invite_ref424),'full424-accept')->>'role',
   'full_store_access','acceptance activates only the invited Full Store Access role');
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
+select is(app_public.billing_get_owner_status()->>'tier','free','Full Store Access can read exact-store billing status');
+select is(app_public.billing_get_owner_status()->'availableActions','[]'::jsonb,'Full Store Access receives no paid billing actions');
 select is(jsonb_array_length(app_public.promotion_channels()),4,'Full Store Access can read store promotion controls');
 select is(app_public.promotion_channel_command('social','consent',0,false)->>'allowed','true','Full Store Access can record store promotion consent');
 reset role;
@@ -154,6 +158,8 @@ select pg_temp.actor424('42400000-0000-4000-8000-000000000030','42400000-0000-40
 set local role authenticated;
 select is(app_public.owner_team_accept((select invitation_id from co_invite_ref424),(select version from co_invite_ref424),'co424-accept')->>'role',
   'co_owner','verified Co-Owner acceptance creates the delegated role');
+select is(app_public.billing_get_owner_status()->>'tier','free','Co-Owner can read exact-store billing status');
+select is(app_public.billing_get_owner_status()->'availableActions','[]'::jsonb,'Co-Owner receives no paid billing actions');
 select lives_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','peer424@example.test','co_owner','co424-peer-invite')$$,
   'Co-Owner can invite another Co-Owner');
 select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','co-full424@example.test','full_store_access','co424-full-denied')->>'state',

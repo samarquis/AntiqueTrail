@@ -1,5 +1,6 @@
 import { createSalesClient } from '../features/billing/sales'
 import { createServicingClient } from '../features/billing/servicing'
+import { createOwnerBillingStatusClient } from '../features/billing/ownerStatus'
 import { createPromotionClient } from '../features/portal/promotion'
 import { createOwnerClient } from '../features/owner/ownerClient'
 import {
@@ -876,6 +877,17 @@ export async function configuredComposition(
                 ownerStoreId = storeId
               },
             },
+          }
+        : {}),
+      ...(ownerEnabled
+        ? {
+            ownerBillingStatus: createOwnerBillingStatusClient(async (name, args) => {
+              try {
+                return { data: await storeRpc<unknown>(name, args), error: null }
+              } catch (error) {
+                return { data: null, error }
+              }
+            }),
           }
         : {}),
       billing,
