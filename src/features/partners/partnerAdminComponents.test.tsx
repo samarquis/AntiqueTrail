@@ -221,12 +221,18 @@ describe('Partner Administrator screen', () => {
 
     await user.click(screen.getByRole('button', { name: 'Remove team access for Jordan Editor' }))
     expect(boundary.revokeStoreTeamAccess).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Confirm remove Jordan Editor' })).toBeDisabled()
+    await user.type(
+      screen.getByLabelText(/reason for removal/i),
+      'Access removed after authorization mismatch',
+    )
     await user.click(screen.getByRole('button', { name: 'Confirm remove Jordan Editor' }))
     expect(boundary.revokeStoreTeamAccess).toHaveBeenCalledWith({
       storeId: '00000000-0000-4000-8000-000000000009',
       grantId: 'grant-editor',
       expectedVersion: 2,
       idempotencyKey: expect.any(String),
+      reason: 'Access removed after authorization mismatch',
     })
   })
 })

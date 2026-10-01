@@ -69,6 +69,7 @@ describe('partner administrator boundary', () => {
       grantId,
       expectedVersion: 2,
       idempotencyKey: 'admin-team-remove-v2',
+      reason: 'Access removed after authorization mismatch',
     })
 
     expect(rpc).toHaveBeenNthCalledWith(1, 'owner_admin_team_list', { p_store_id: storeId })
@@ -77,7 +78,25 @@ describe('partner administrator boundary', () => {
       p_grant_id: grantId,
       p_expected_version: 2,
       p_idempotency_key: 'admin-team-remove-v2',
+      p_reason: 'Access removed after authorization mismatch',
     })
+  })
+
+  it('rejects empty or control-character revocation reasons before the RPC', async () => {
+    const rpc = vi.fn()
+    const client = createPartnerAdminClient({ rpc })
+    const base = {
+      storeId: '00000000-0000-4000-8000-000000000009',
+      grantId: '00000000-0000-4000-8000-000000000424',
+      expectedVersion: 2,
+      idempotencyKey: 'admin-team-remove-v2',
+    }
+
+    await expect(client.revokeStoreTeamAccess({ ...base, reason: '   ' })).rejects.toThrow()
+    await expect(
+      client.revokeStoreTeamAccess({ ...base, reason: 'reason\nfor removal' }),
+    ).rejects.toThrow()
+    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('rejects malformed Site Admin team projections', async () => {

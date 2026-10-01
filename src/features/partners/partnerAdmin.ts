@@ -56,6 +56,7 @@ export interface PartnerAdminClient {
     grantId: string
     expectedVersion: number
     idempotencyKey: string
+    reason: string
   }): Promise<void>
   decide(input: {
     operation: PartnerAdminOperation
@@ -121,12 +122,19 @@ export function createPartnerAdminClient(transport: PartnerAdminTransport): Part
       }
     },
     async revokeStoreTeamAccess(input): Promise<void> {
+      const reason = input.reason.trim()
       if (
         !uuid.test(input.storeId) ||
         !uuid.test(input.grantId) ||
         !Number.isSafeInteger(input.expectedVersion) ||
         input.expectedVersion < 1 ||
-        !idempotencyKey.test(input.idempotencyKey)
+        !idempotencyKey.test(input.idempotencyKey) ||
+        !reason ||
+        [...reason].length > 240 ||
+        [...reason].some((character) => {
+          const code = character.codePointAt(0) ?? 0
+          return code <= 31 || (code >= 127 && code <= 159)
+        })
       )
         throw new Error('partner_administration_unavailable')
       await transport.rpc('owner_admin_team_revoke', {
@@ -134,6 +142,7 @@ export function createPartnerAdminClient(transport: PartnerAdminTransport): Part
         p_grant_id: input.grantId,
         p_expected_version: input.expectedVersion,
         p_idempotency_key: input.idempotencyKey,
+        p_reason: reason,
       })
     },
     async decide(input: {

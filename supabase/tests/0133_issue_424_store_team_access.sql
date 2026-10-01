@@ -218,14 +218,26 @@ select is(jsonb_array_length(app_public.owner_admin_team_list('00000000-0000-400
   'Site Admin sees exact synthetic store team grants');
 select throws_ok($$select app_public.owner_admin_team_list('99999999-9999-4999-8999-999999999999')$$,
   '42501','owner_team_unavailable','Site Admin team view requires an exact eligible store');
+select throws_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
+  (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-empty-reason','   ')$$,
+  '22023','owner_team_input_invalid','Site Admin team removal requires a plain reason');
 select lives_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
-  (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-team-remove')$$,
+  (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-team-remove',
+  'Access removed after authorization mismatch')$$,
   'Site Admin can revoke one exact-store active team grant');
+select lives_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
+  (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-team-remove',
+  'Access removed after authorization mismatch')$$,
+  'Site Admin can safely replay the same revocation reason');
+select throws_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
+  (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-team-remove',
+  'Different reason')$$,
+  '22023','owner_team_idempotency_mismatch','Site Admin cannot replay a revocation key with another reason');
 select throws_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000001',
-  (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-cross-store-remove')$$,
+  (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-cross-store-remove','Wrong store')$$,
   '42501','owner_team_unavailable','Site Admin mutation cannot retarget another store’s grant');
 select throws_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
-  (select grant_id from primary_owner_grant424),(select version from primary_owner_grant424),'admin424-owner-remove')$$,
+  (select grant_id from primary_owner_grant424),(select version from primary_owner_grant424),'admin424-owner-remove','Primary owner')$$,
   '42501','owner_team_unavailable','Site Admin team action cannot revoke the primary Owner claim');
 reset role;
 
@@ -246,7 +258,12 @@ select ok(exists(select 1 from app_private.privileged_audit_events where action=
 select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_revoked' and resource_kind='team_access'),
   'owner and Site Admin team revocations are audited');
 select ok(exists(select 1 from app_private.privileged_audit_events where actor_role='administrator'
-  and action='owner_team_access_revoked' and reason_code='site_admin_removed'),
+  and action='owner_team_access_revoked' and reason_code='site_admin_removed'
+  and reason_text='Access removed after authorization mismatch'),
   'Site Admin removal is audited with the administrator actor and reason');
+select is((select revocation_reason from app_private.role_grants
+  where grant_id=(select grant_id from admin_team_grant424)),
+  'Access removed after authorization mismatch',
+  'Site Admin removal retains the supplied reason on the revoked grant');
 select * from finish();
 rollback;

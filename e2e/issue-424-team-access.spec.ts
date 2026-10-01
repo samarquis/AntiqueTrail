@@ -55,6 +55,7 @@ test('Site Admin can remove synthetic team access through the review console', a
   await page.getByRole('button', { name: 'Remove team access for Jordan Editor' }).click()
   await expect(page.getByRole('group', { name: 'Confirm team access removal' })).toBeVisible()
   await expect(page.getByText('Jordan Editor — Listing Editor')).toBeVisible()
+  await page.getByLabel('Reason for removal').fill('Access removed after authorization mismatch')
   await page.getByRole('button', { name: 'Confirm remove Jordan Editor' }).click()
   await expect(page.getByText('Jordan Editor — Listing Editor')).toHaveCount(0)
 })

@@ -2,6 +2,32 @@
 -- discard recipient email HMACs as soon as an invitation is no longer pending.
 begin;
 
+alter table app_private.privileged_audit_events
+  add column reason_text text,
+  add constraint audit_reason_text_safe check (
+    reason_text is null or (char_length(btrim(reason_text)) between 1 and 240 and reason_text !~ '[[:cntrl:]]')
+  );
+create or replace function app_private.hash_privileged_audit_event()
+returns trigger language plpgsql set search_path = pg_catalog, app_private as $$
+declare last_hash bytea;
+begin
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('app_private.privileged_audit_events', 0));
+  select event_hash into last_hash from app_private.privileged_audit_events order by sequence_no desc limit 1;
+  new.previous_hash := last_hash;
+  new.event_hash := extensions.digest(
+    concat_ws('|', new.sequence_no::text, new.event_id::text, coalesce(new.actor_user_id::text,''),
+      coalesce(new.subject_user_id::text,''), coalesce(new.session_id::text,''),
+      coalesce(new.actor_role::text,''), new.action, new.outcome, new.resource_kind,
+      coalesce(new.resource_id::text,''), coalesce(new.reason_code,''),
+      coalesce(encode(new.payload_hash,'hex'),''), coalesce(encode(new.previous_hash,'hex'),''),
+      new.occurred_at::text, new.retention_until::text) ||
+      case when new.reason_text is null then '' else '|' || encode(
+        extensions.digest(convert_to(new.reason_text,'utf8'),'sha256'),'hex') end,
+    'sha256'
+  );
+  return new;
+end; $$;
+
 grant usage,create on schema app_public,partner_private,portal_private to identity_service;
 
 alter table partner_private.store_team_invitations
@@ -74,7 +100,10 @@ begin
     'version',c.version,'exactStoreScope',(select slug from app_public.stores where id=c.store_id),
     'verifiedSignals',(select coalesce(jsonb_agg(jsonb_build_object(
       'channelClass',channel_class,'signalType',signal_type) order by created_at),'[]')
-      from partner_private.claim_authority_signals where claim_id=c.claim_id and status='verified')
+      from partner_private.claim_authority_signals where claim_id=c.claim_id and status='verified'),
+    'pendingSignals',(select coalesce(jsonb_agg(jsonb_build_object(
+      'signalId',signal_id,'channelClass',channel_class,'signalType',signal_type) order by created_at),'[]')
+      from partner_private.claim_authority_signals where claim_id=c.claim_id and status='submitted')
   );
 end $$;
 alter function app_public.partner_admin_claim_case(uuid) owner to identity_service;
@@ -111,16 +140,19 @@ create function app_public.owner_admin_team_revoke(
   p_store_id uuid,
   p_grant_id uuid,
   p_expected_version bigint,
-  p_idempotency_key text
+  p_idempotency_key text,
+  p_reason text
 ) returns jsonb
 language plpgsql volatile security definer set search_path='' as $$
 declare actor uuid:=partner_private.require_claim_admin();
   access app_private.role_grants%rowtype;
   prior partner_private.store_team_command_receipts%rowtype;
-  input_hash bytea; result jsonb;
+  input_hash bytea; result jsonb; reason text;
 begin
+  reason:=btrim(p_reason);
   if p_store_id is null or p_grant_id is null or p_expected_version is null or p_expected_version<1
-    or p_idempotency_key is null or p_idempotency_key !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' then
+    or p_idempotency_key is null or p_idempotency_key !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
+    or reason is null or char_length(reason) not between 1 and 240 or p_reason ~ '[[:cntrl:]]' then
     raise exception using errcode='22023',message='owner_team_input_invalid';
   end if;
   if not exists(
@@ -135,7 +167,7 @@ begin
     pg_catalog.hashtextextended('owner-team-key:'||p_idempotency_key,0)
   );
   input_hash:=extensions.digest(convert_to(
-    'admin_revoke|'||p_store_id::text||'|'||p_grant_id::text||'|'||p_expected_version::text,'utf8'
+    'admin_revoke|'||p_store_id::text||'|'||p_grant_id::text||'|'||p_expected_version::text||'|'||reason,'utf8'
   ),'sha256');
   select * into prior from partner_private.store_team_command_receipts r
     where r.idempotency_key=p_idempotency_key;
@@ -160,16 +192,17 @@ begin
     raise exception using errcode='22023',message='owner_team_stale_grant';
   end if;
   update app_private.role_grants set state='revoked',revoked_by=actor,
-    revoked_at=statement_timestamp(),revocation_reason='site_admin_removed',version=version+1
+    revoked_at=statement_timestamp(),revocation_reason=reason,version=version+1
     where grant_id=p_grant_id returning * into access;
   result:=jsonb_build_object('state','revoked','version',access.version);
   insert into partner_private.store_team_command_receipts(
     idempotency_key,actor_user_id,operation,store_id,resource_id,expected_version,input_digest,result
   ) values(p_idempotency_key,actor,'admin_revoke',p_store_id,p_grant_id,p_expected_version,input_hash,result);
   insert into app_private.privileged_audit_events(
-    actor_user_id,subject_user_id,actor_role,action,outcome,resource_kind,resource_id,reason_code,payload_hash,event_hash
+    actor_user_id,subject_user_id,actor_role,action,outcome,resource_kind,resource_id,reason_code,
+    reason_text,payload_hash,event_hash
   ) values(actor,access.subject_user_id,'administrator','owner_team_access_revoked','revoked',
-    'team_access',p_grant_id,'site_admin_removed',
+    'team_access',p_grant_id,'site_admin_removed',reason,
     extensions.digest(convert_to(p_store_id::text,'utf8'),'sha256'),decode(repeat('00',32),'hex'));
   return result;
 exception when insufficient_privilege then
@@ -253,13 +286,13 @@ when insufficient_privilege then
 end $$;
 
 alter function app_public.owner_admin_team_list(uuid) owner to identity_service;
-alter function app_public.owner_admin_team_revoke(uuid,uuid,bigint,text) owner to identity_service;
+alter function app_public.owner_admin_team_revoke(uuid,uuid,bigint,text,text) owner to identity_service;
 alter function app_public.owner_team_accept(uuid,bigint,text) owner to identity_service;
 revoke all on function app_public.owner_admin_team_list(uuid),
-  app_public.owner_admin_team_revoke(uuid,uuid,bigint,text)
+  app_public.owner_admin_team_revoke(uuid,uuid,bigint,text,text)
   from public,anon,service_role;
 grant execute on function app_public.owner_admin_team_list(uuid),
-  app_public.owner_admin_team_revoke(uuid,uuid,bigint,text) to authenticated;
+  app_public.owner_admin_team_revoke(uuid,uuid,bigint,text,text) to authenticated;
 
 grant review_automation to postgres;
 grant create on schema app_public to review_automation;

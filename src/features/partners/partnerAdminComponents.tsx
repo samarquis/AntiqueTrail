@@ -54,6 +54,7 @@ export function PartnerAdminPage({
   const [teamPending, setTeamPending] = useState(false)
   const [teamError, setTeamError] = useState(false)
   const [confirmTeamGrantId, setConfirmTeamGrantId] = useState<string | null>(null)
+  const [teamRevokeReason, setTeamRevokeReason] = useState('')
 
   async function refreshTeam(storeId: string) {
     setTeamPending(true)
@@ -95,6 +96,7 @@ export function PartnerAdminPage({
     setTeamMembers([])
     setTeamError(false)
     setConfirmTeamGrantId(null)
+    setTeamRevokeReason('')
     try {
       const next = await client.getCase(claimId.trim())
       setClaim(next)
@@ -107,7 +109,8 @@ export function PartnerAdminPage({
   }
 
   async function revokeTeamAccess(member: PartnerAdminTeamMember) {
-    if (!claim?.storeId) return
+    const reason = teamRevokeReason.trim()
+    if (!claim?.storeId || !reason) return
     setTeamPending(true)
     setTeamError(false)
     try {
@@ -116,9 +119,11 @@ export function PartnerAdminPage({
         grantId: member.grantId,
         expectedVersion: member.version,
         idempotencyKey: crypto.randomUUID(),
+        reason,
       })
       setTeamMembers((await client.listStoreTeam(claim.storeId)).members)
       setConfirmTeamGrantId(null)
+      setTeamRevokeReason('')
     } catch {
       setTeamError(true)
     } finally {
@@ -265,7 +270,10 @@ export function PartnerAdminPage({
                       <button
                         type="button"
                         disabled={teamPending}
-                        onClick={() => setConfirmTeamGrantId(member.grantId)}
+                        onClick={() => {
+                          setTeamRevokeReason('')
+                          setConfirmTeamGrantId(member.grantId)
+                        }}
                       >
                         Remove team access for {member.displayName}
                       </button>
@@ -275,9 +283,23 @@ export function PartnerAdminPage({
                             Site Admin removal ends {member.displayName}’s access immediately. This
                             cannot be undone.
                           </p>
+                          <label htmlFor="partner-admin-team-revoke-reason">
+                            Reason for removal
+                          </label>
+                          <textarea
+                            id="partner-admin-team-revoke-reason"
+                            value={teamRevokeReason}
+                            maxLength={240}
+                            required
+                            onChange={(event) => setTeamRevokeReason(event.target.value)}
+                          />
+                          <p>
+                            Keep this brief. Do not include personal or shopper details; the reason
+                            is retained in the administrator audit record.
+                          </p>
                           <button
                             type="button"
-                            disabled={teamPending}
+                            disabled={teamPending || !teamRevokeReason.trim()}
                             onClick={() => void revokeTeamAccess(member)}
                           >
                             Confirm remove {member.displayName}
@@ -285,7 +307,10 @@ export function PartnerAdminPage({
                           <button
                             type="button"
                             disabled={teamPending}
-                            onClick={() => setConfirmTeamGrantId(null)}
+                            onClick={() => {
+                              setConfirmTeamGrantId(null)
+                              setTeamRevokeReason('')
+                            }}
                           >
                             Keep access
                           </button>
