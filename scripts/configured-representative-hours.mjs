@@ -17,15 +17,21 @@ import { representativeHoursReport } from './configured-representative-hours-rep
 const output = createRunDirectory(path.join(ROOT, 'artifacts'))
 const controller = new AbortController()
 const report = {
-  scope: 'representative-hours-publication-and-revocation',
+  scope: 'representative-hours-and-owner-exact-store-billing-status',
   status: 'unavailable',
   cleanup: 'not-started',
   errors: [],
   evidenceClass: 'real-local-browser',
 }
-let service, server
+let service, server, ownerSecretFile, interruptSignal
 const uuid = () => crypto.randomUUID()
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+for (const signal of ['SIGINT', 'SIGTERM'])
+  process.once(signal, () => {
+    interruptSignal = signal
+    controller.abort(new Error(signal))
+  })
+
 function totp(secret) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
   let bits = ''
@@ -76,8 +82,8 @@ async function provisionRepresentative(local) {
     .replaceAll('--STORE--', own)
   await service.sql(`
     update app_private.profiles set verified_email_snapshot='${representative.email}' where user_id='${representative.id}';
-    insert into partner_private.partner_invitations(invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at)
-      values('${invitation}',decode(repeat('01',32),'hex'),decode(repeat('02',32),'hex'),'${representative.id}','consumed',statement_timestamp());
+    insert into partner_private.partner_invitations(invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at,synthetic,issuance_idempotency_key,raw_returned_at)
+      values('${invitation}',decode(repeat('01',32),'hex'),decode(repeat('02',32),'hex'),'${representative.id}','consumed',statement_timestamp(),true,'issue322-${representative.id}',statement_timestamp());
     insert into partner_private.pending_partner_identities(pending_identity_id,invitation_id,email_hmac,auth_user_id,state,verified_email_at,mfa_verified_at,bound_at)
       values('${pending}','${invitation}',decode(repeat('02',32),'hex'),'${representative.id}','bound',statement_timestamp(),statement_timestamp(),statement_timestamp());
     insert into partner_private.provisional_partner_consents(provisional_consent_id,invitation_id,pending_identity_id,policy_version,typed_name,business_title,store_name,owner_email_hmac,authority_ack,voluntary_ack,permitted_data_ack,no_payment_endorsement_ack,withdrawal_ack,idempotency_key)
@@ -127,6 +133,61 @@ async function provisionRepresentative(local) {
     grantId: grant,
   }
 }
+async function provisionOwner(local, fixture) {
+  const ownerId = local.users[0].id
+  const storeId = uuid()
+  const claimId = uuid()
+  const storeSlug = `issue425-owner-${uuid().replaceAll('-', '').slice(0, 12)}`
+  const adminId = '42200000-0000-4000-8000-000000000001'
+  const adminSessionId = '42200000-0000-4000-8000-000000000003'
+  const authorityEventA = uuid()
+  const authorityEventB = uuid()
+  const idempotencyKey = `issue425-owner-${uuid().replaceAll('-', '')}`
+  await service.sql(`
+    begin;
+    update app_private.environment_stage set stage='synthetic_alpha',version=version+1 where id=1;
+    update app_private.audit_anchor_capability set deployment_environment='local',state='disabled' where id=1;
+    insert into app_public.stores(id,slug,name,town,state_code,address,area_id,summary,description,synthetic,audience)
+      values('${storeId}','${storeSlug}','Clockwork Cabinet','Topeka','KS','1 Synthetic Way',
+        '00000000-0000-4000-8000-000000000001','Issue 425 local proof','Synthetic Owner billing fixture',true,'synthetic');
+    insert into auth.users(id,email,email_confirmed_at)
+      values('${adminId}','admin422@example.test',statement_timestamp());
+    insert into auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at) values
+      ('42200000-0000-4000-8000-000000000002','${adminId}','totp','verified',statement_timestamp(),statement_timestamp());
+    insert into app_private.role_grants(subject_user_id,role) values('${adminId}','administrator');
+    insert into app_private.active_sessions(session_id,user_id,provider_created_at,session_epoch,last_authenticated_at,access_token_expires_at) values
+      ('${adminSessionId}','${adminId}',statement_timestamp(),1,statement_timestamp(),statement_timestamp()+interval '30 minutes');
+    insert into partner_private.listing_claims(claim_id,claimant_id,store_id,relationship,authority_statement)
+      values('${claimId}','${ownerId}','${storeId}','store owner','Synthetic authority documented by independent channels.');
+    insert into partner_private.claim_authority_signals(claim_id,channel_class,signal_type,status,verified_by,verified_at,evidence_ref_hmac,authority_object_hmac,verification_event_id) values
+      ('${claimId}','published_business_contact','domain_response','verified','${adminId}',statement_timestamp(),decode(repeat('41',32),'hex'),decode(repeat('42',32),'hex'),'${authorityEventA}'),
+      ('${claimId}','callback','callback','verified','${adminId}',statement_timestamp(),decode(repeat('43',32),'hex'),decode(repeat('44',32),'hex'),'${authorityEventB}');
+    update partner_private.listing_claims set state='submitted',submitted_at=statement_timestamp() where claim_id='${claimId}';
+    update partner_private.listing_claims set state='verification_pending' where claim_id='${claimId}';
+    insert into partner_private.store_owner_intake_roots(applicant_id,active_kind,active_id)
+      values('${ownerId}','claim','${claimId}');
+    create temporary table owner_billing_claim_version(version bigint);
+    grant select on owner_billing_claim_version to authenticated;
+    insert into owner_billing_claim_version select version from partner_private.listing_claims where claim_id='${claimId}';
+    select set_config('request.jwt.claims',jsonb_build_object('sub','${adminId}','session_id','${adminSessionId}',
+      'role','authenticated','aal','aal2','amr',jsonb_build_array(
+        jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp())::bigint),
+        jsonb_build_object('method','totp','timestamp',extract(epoch from statement_timestamp())::bigint)))::text,true);
+    set local role authenticated;
+    select app_public.owner_admin_approve_claim('${claimId}','${storeId}',
+      (select version from owner_billing_claim_version),'${idempotencyKey}');
+    reset role;
+    commit;
+  `)
+  return {
+    endpoint: local.endpoint,
+    anonKey: local.anonKey,
+    storeId,
+    siblingStoreId: fixture.stores.sibling,
+    owner: fixture.representative,
+  }
+}
+
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
@@ -170,6 +231,7 @@ try {
     VITE_SUPABASE_URL: local.endpoint,
     VITE_SUPABASE_ANON_KEY: local.anonKey,
     VITE_REVIEW_HARNESS: 'false',
+    VITE_STORE_OWNER_INTERNAL_ENABLED: 'true',
     GITHUB_PAGES: 'false',
     VITE_PARTNER_EMAIL_PROVIDER_ENABLED: 'false',
     VITE_PARTNER_MEDIA_PROVIDER_ENABLED: 'false',
@@ -234,6 +296,39 @@ try {
     report.checks = results.checks
     if (results.status !== 'passed') report.status = 'failed'
   }
+  if (report.status === 'passed') {
+    const ownerFixture = await provisionOwner(local, fixture)
+    const ownerOutput = path.join(output.directory, 'owner-billing')
+    fs.mkdirSync(ownerOutput, { recursive: true })
+    const ownerInput = { ...ownerFixture, origin, output: ownerOutput }
+    ownerSecretFile = path.join(local.directory, 'owner-billing-browser-input.json')
+    fs.writeFileSync(ownerSecretFile, JSON.stringify(ownerInput), { mode: 0o600, flag: 'wx' })
+    await command(
+      process.execPath,
+      [
+        'node_modules/@playwright/test/cli.js',
+        'test',
+        '--config',
+        'e2e/configured-owner-billing-status-playwright.config.ts',
+      ],
+      {
+        env: { ...env, CONFIGURED_OWNER_BILLING_INPUT: ownerSecretFile },
+        timeout: 900_000,
+        signal: controller.signal,
+      },
+    )
+    const ownerResultPath = path.join(ownerOutput, 'playwright.json')
+    if (!fs.existsSync(ownerResultPath))
+      throw new Error('Missing configured Owner Playwright report')
+    const ownerResults = JSON.parse(fs.readFileSync(ownerResultPath, 'utf8'))
+    report.ownerStats = ownerResults.stats
+    if (
+      ownerResults.stats?.expected !== 1 ||
+      ownerResults.stats?.unexpected ||
+      ownerResults.stats?.skipped
+    )
+      throw new Error('Configured Owner browser proof did not pass exactly one test')
+  }
 } catch (error) {
   if (report.status !== 'unavailable') report.status = 'failed'
   report.errors.push(redact(error.message))
@@ -244,6 +339,7 @@ try {
       fs.rmSync(path.join(service.run.directory, 'representative-hours-browser-input.json'), {
         force: true,
       })
+      if (ownerSecretFile) fs.rmSync(ownerSecretFile, { force: true })
     } catch (error) {
       report.status = 'failed'
       report.errors.push(redact(error.message))
@@ -251,8 +347,14 @@ try {
     try {
       report.cleanup = await service.cleanup()
     } catch (error) {
-      report.cleanup = 'failed'
+      report.cleanup = controller.signal.aborted ? 'preserved-for-owner-checked-cleanup' : 'failed'
       report.status = 'failed'
+      if (controller.signal.aborted) {
+        report.ownerMarker = path.join(service.run.directory, '.owner.json')
+        report.errors.push(
+          'Interrupted run preserves its isolated Supabase project and owner marker.',
+        )
+      }
       report.errors.push(redact(error.message))
     }
   }
@@ -262,4 +364,11 @@ try {
   )
 }
 console.log(`${report.status}: ${output.directory}`)
-process.exitCode = report.status === 'passed' ? 0 : 1
+process.exitCode =
+  interruptSignal === 'SIGINT'
+    ? 130
+    : interruptSignal === 'SIGTERM'
+      ? 143
+      : report.status === 'passed'
+        ? 0
+        : 1
