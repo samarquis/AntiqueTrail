@@ -20,6 +20,7 @@ export function OwnerTeamPanel({ store, client }: { store: OwnerStore; client: O
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
   const [message, setMessage] = useState('')
+  const [confirmingAccessId, setConfirmingAccessId] = useState<string | null>(null)
   const availableRoles: OwnerTeamInviteRole[] =
     store.role === 'full_store_access'
       ? ['listing_editor']
@@ -87,6 +88,7 @@ export function OwnerTeamPanel({ store, client }: { store: OwnerStore; client: O
         member.version,
         crypto.randomUUID(),
       )
+      setConfirmingAccessId(null)
       await refresh()
     } catch {
       setError(true)
@@ -118,14 +120,40 @@ export function OwnerTeamPanel({ store, client }: { store: OwnerStore; client: O
                     {member.displayName} — {ownerTeamRoleLabel[member.role]}
                   </span>
                   {member.canRevoke && (
-                    <button
-                      className="button"
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void revoke(member)}
-                    >
-                      Remove {member.displayName}
-                    </button>
+                    <>
+                      <button
+                        className="button"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setConfirmingAccessId(member.accessId)}
+                      >
+                        Remove {member.displayName}
+                      </button>
+                      {confirmingAccessId === member.accessId && (
+                        <div role="group" aria-label="Confirm team access removal">
+                          <p>
+                            Remove {member.displayName}’s access? They lose access immediately. This
+                            cannot be undone.
+                          </p>
+                          <button
+                            className="button"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void revoke(member)}
+                          >
+                            Confirm remove {member.displayName}
+                          </button>
+                          <button
+                            className="button"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setConfirmingAccessId(null)}
+                          >
+                            Keep access
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </li>
               ))}

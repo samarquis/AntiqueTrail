@@ -390,6 +390,8 @@ describe('app shell', () => {
   it('opens exact partner administration for an injected active MFA recent-auth session', () => {
     const partnerAdmin: PartnerAdminClient = {
       getCase: vi.fn(),
+      listStoreTeam: vi.fn(),
+      revokeStoreTeamAccess: vi.fn(),
       decide: vi.fn(),
       issueSyntheticInvitation: vi.fn(),
       verifySignal: vi.fn(),

@@ -9,6 +9,7 @@ function client(overrides: Partial<PartnerAdminClient> = {}): PartnerAdminClient
   return {
     getCase: vi.fn(async () => ({
       claimId: '11111111-1111-4111-8111-111111111111',
+      storeId: '00000000-0000-4000-8000-000000000009',
       state: 'verification_pending' as const,
       version: 3,
       exactStoreScope: 'synthetic-store',
@@ -42,6 +43,17 @@ function client(overrides: Partial<PartnerAdminClient> = {}): PartnerAdminClient
       ],
       pendingSignals: [],
     })),
+    listStoreTeam: vi.fn(async () => ({
+      members: [
+        {
+          grantId: 'grant-editor',
+          role: 'listing_editor' as const,
+          displayName: 'Jordan Editor',
+          version: 2,
+        },
+      ],
+    })),
+    revokeStoreTeamAccess: vi.fn(async () => undefined),
     ...overrides,
   }
 }
@@ -188,5 +200,33 @@ describe('Partner Administrator screen', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       /pending signal resolved and removed/i,
     )
+  })
+
+  it('lets Site Admin revoke exact-store team access after explicit confirmation', async () => {
+    const user = userEvent.setup()
+    const boundary = client()
+    render(
+      <MemoryRouter>
+        <PartnerAdminPage client={boundary} />
+      </MemoryRouter>,
+    )
+
+    await user.type(
+      screen.getByLabelText(/exact claim id/i),
+      '11111111-1111-4111-8111-111111111111',
+    )
+    await user.click(screen.getByRole('button', { name: /open exact claim/i }))
+    expect(await screen.findByText('Jordan Editor — Listing Editor')).toBeInTheDocument()
+    expect(boundary.listStoreTeam).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000009')
+
+    await user.click(screen.getByRole('button', { name: 'Remove team access for Jordan Editor' }))
+    expect(boundary.revokeStoreTeamAccess).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Confirm remove Jordan Editor' }))
+    expect(boundary.revokeStoreTeamAccess).toHaveBeenCalledWith({
+      storeId: '00000000-0000-4000-8000-000000000009',
+      grantId: 'grant-editor',
+      expectedVersion: 2,
+      idempotencyKey: expect.any(String),
+    })
   })
 })

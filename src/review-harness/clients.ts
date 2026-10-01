@@ -40,6 +40,7 @@ import {
   type PartnerAdminCase,
   type PartnerAdminClient,
   type PartnerAdminOperation,
+  type PartnerAdminTeamMember,
   type PartnerClaimState,
   type PartnerClaimStatus,
   type PartnerClient,
@@ -74,6 +75,11 @@ import {
   type ReviewClient,
 } from '../features/reviews'
 import type { ReadinessAdminClient, ReadinessAdminWorkspace } from '../features/readiness'
+import type {
+  OwnerTeamInvitation,
+  OwnerTeamMember,
+  OwnerTeamRole,
+} from '../features/owner/ownerClient'
 import type { RG01Client } from '../features/rg01'
 import {
   unavailableShopperClient,
@@ -2373,6 +2379,7 @@ function partnerAdminClient(scenario: ReviewScenario, state: ReviewStateId): Par
   const allowed = () => requireRole(scenario, ['Administrator'], true)
   let partnerCase: PartnerAdminCase = {
     claimId: 'claim-synthetic',
+    storeId: '00000000-0000-4000-8000-000000000009',
     state: 'verification_pending',
     version: 2,
     exactStoreScope: 'Blue Finch Curios',
@@ -2390,12 +2397,36 @@ function partnerAdminClient(scenario: ReviewScenario, state: ReviewStateId): Par
     token: 'synthetic-review-token-not-a-secret',
     expiresAt: '2026-08-12T12:00:00.000Z',
   }
+  let teamMembers: PartnerAdminTeamMember[] = [
+    {
+      grantId: '00000000-0000-4000-8000-000000000424',
+      role: 'listing_editor',
+      displayName: 'Jordan Editor',
+      version: 2,
+    },
+  ]
   return {
     ...unavailablePartnerAdminClient,
     async getCase(claimId: string) {
       allowed()
       if (claimId !== partnerCase.claimId) throw new Error('Synthetic exact-case denial.')
       return fixture(state, partnerCase, { ...partnerCase, pendingSignals: [] })
+    },
+    async listStoreTeam(storeId: string) {
+      allowed()
+      if (state !== 'success' || storeId !== partnerCase.storeId)
+        throw new Error('Synthetic exact-store denial.')
+      return { members: structuredClone(teamMembers) }
+    },
+    async revokeStoreTeamAccess(input) {
+      allowed()
+      return mutate(state, GENERIC_ADMIN_FAILURE, () => {
+        if (input.storeId !== partnerCase.storeId) throw new Error('Synthetic exact-store denial.')
+        const member = teamMembers.find((candidate) => candidate.grantId === input.grantId)
+        if (!member || member.version !== input.expectedVersion)
+          throw new Error('Synthetic stale team access.')
+        teamMembers = teamMembers.filter((candidate) => candidate.grantId !== input.grantId)
+      })
     },
     async issueSyntheticInvitation(input: { email: string; idempotencyKey: string }) {
       allowed()
@@ -3031,6 +3062,17 @@ export function createReviewHarnessClients(
   adminDecisionMode: ReviewAdminDecisionMode = 'ordinary',
 ): AppClients {
   let ownerStoreSelected = false
+  let ownerTeamMembers: OwnerTeamMember[] = [
+    {
+      accessId: 'review-listing-editor',
+      role: 'listing_editor',
+      displayName: 'Jordan Editor',
+      version: 1,
+      canRevoke: true,
+    },
+  ]
+  let ownerTeamInvitations: OwnerTeamInvitation[] = []
+  let ownerInvitationCount = 0
   const promotionPermissions = Object.keys(promotionLabels).map((channel) => ({
     channel,
     consented: false,
@@ -3095,26 +3137,81 @@ export function createReviewHarnessClients(
           requireRole(scenario, ['Store Owner'], true)
           if (state !== 'success' || storeId !== 'store-blue-finch')
             throw new Error('Store workspace access is unavailable.')
-          return { members: [], invitations: [] }
+          return {
+            members: structuredClone(ownerTeamMembers),
+            invitations: structuredClone(ownerTeamInvitations),
+          }
         },
-        async inviteTeam() {
+        async inviteTeam(storeId, _email, role: OwnerTeamRole, idempotencyKey) {
           requireRole(scenario, ['Store Owner'], true)
-          if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+          if (state !== 'success' || storeId !== 'store-blue-finch' || !idempotencyKey)
+            throw new Error('Store workspace access is unavailable.')
+          ownerInvitationCount++
+          ownerTeamInvitations = [
+            ...ownerTeamInvitations,
+            {
+              invitationId: `review-team-invitation-${ownerInvitationCount}`,
+              role,
+              version: 1,
+              canCancel: true,
+            },
+          ]
         },
-        async cancelTeamInvitation() {
+        async cancelTeamInvitation(storeId, invitationId, expectedVersion) {
           requireRole(scenario, ['Store Owner'], true)
-          if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+          if (state !== 'success' || storeId !== 'store-blue-finch')
+            throw new Error('Store workspace access is unavailable.')
+          const invitation = ownerTeamInvitations.find(
+            (candidate) => candidate.invitationId === invitationId,
+          )
+          if (!invitation || invitation.version !== expectedVersion)
+            throw new Error('Synthetic stale team invitation.')
+          ownerTeamInvitations = ownerTeamInvitations.filter(
+            (candidate) => candidate.invitationId !== invitationId,
+          )
         },
-        async revokeTeamMember() {
+        async revokeTeamMember(storeId, accessId, expectedVersion) {
           requireRole(scenario, ['Store Owner'], true)
-          if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+          if (state !== 'success' || storeId !== 'store-blue-finch')
+            throw new Error('Store workspace access is unavailable.')
+          const member = ownerTeamMembers.find((candidate) => candidate.accessId === accessId)
+          if (!member || !member.canRevoke || member.version !== expectedVersion)
+            throw new Error('Synthetic stale team access.')
+          ownerTeamMembers = ownerTeamMembers.filter((candidate) => candidate.accessId !== accessId)
         },
         async listPendingInvitations() {
-          return []
-        },
-        async acceptInvitation() {
           requireRole(scenario, ['Store Owner'], true)
           if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+          return ownerTeamInvitations.map((invitation) => ({
+            invitationId: invitation.invitationId,
+            storeId: 'store-blue-finch',
+            storeName: 'Blue Finch Curios',
+            inviterName: 'Oakley',
+            role: invitation.role,
+            version: invitation.version,
+          }))
+        },
+        async acceptInvitation(invitationId, expectedVersion) {
+          requireRole(scenario, ['Store Owner'], true)
+          if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+          const invitation = ownerTeamInvitations.find(
+            (candidate) => candidate.invitationId === invitationId,
+          )
+          if (!invitation || invitation.version !== expectedVersion)
+            throw new Error('Synthetic stale team invitation.')
+          ownerTeamInvitations = ownerTeamInvitations.filter(
+            (candidate) => candidate.invitationId !== invitationId,
+          )
+          ownerTeamMembers = [
+            ...ownerTeamMembers,
+            {
+              accessId: `review-team-grant-${invitationId}`,
+              role: invitation.role,
+              displayName: 'New teammate',
+              version: 1,
+              canRevoke: true,
+            },
+          ]
           return 'store-blue-finch'
         },
       },

@@ -97,6 +97,8 @@ select app_public.owner_team_accept((select invitation_id from invite_ref424),(s
 select is((select result->>'role' from acceptance424),'listing_editor','acceptance creates only invited role');
 select is(app_public.owner_team_accept((select invitation_id from invite_ref424),(select version from invite_ref424),'editor424-accept'),
   (select result from acceptance424),'same acceptance idempotency key replays safely');
+select throws_ok($$select app_public.owner_team_accept((select invitation_id from invite_ref424),99,'editor424-wrong-version')$$,
+  '42501','owner_team_unavailable','accepted invite retry still requires the original expected version');
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
 select is(app_public.portal_get_home()->'store'->>'id','00000000-0000-4000-8000-000000000009','accepted teammate opens only invited store');
 select throws_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','peer424@example.test','listing_editor','editor424-peer-invite')$$,
@@ -104,6 +106,9 @@ select throws_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-
 select throws_ok($$select app_public.promotion_channels()$$,'42501','promotion_unavailable','Listing Editor cannot read promotion controls');
 select throws_ok($$select app_public.promotion_channel_command('social','consent',0,false)$$,'42501','promotion_unavailable','Listing Editor cannot change promotion permissions');
 reset role;
+select ok((select recipient_email_hmac is null from partner_private.store_team_invitations
+  where invitation_id=(select invitation_id from invite_ref424)),
+  'accepted invitation immediately drops the recipient email HMAC');
 
 select pg_temp.actor424('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
 set local role authenticated;
@@ -146,7 +151,21 @@ select lives_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-0
   'Co-Owner can invite another Co-Owner');
 select is(app_public.owner_team_cancel('00000000-0000-4000-8000-000000000009',(select invitation_id from cancel_invite_ref424),
   (select version from cancel_invite_ref424),'co424-cancel')->>'state','cancelled','Co-Owner can cancel another inviter’s pending invitation');
+select lives_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','expired424@example.test','listing_editor','co424-expiring')$$,
+  'Co-Owner can create a short-lived pending invitation');
 reset role;
+select ok((select recipient_email_hmac is null from partner_private.store_team_invitations
+  where idempotency_key='owner424-cancel-invite'),
+  'cancelled invitation immediately drops the recipient email HMAC');
+update partner_private.store_team_invitations set expires_at=statement_timestamp()-interval '1 minute'
+  where idempotency_key='co424-expiring';
+set local role account_lifecycle_service;
+select is((app_public.run_due_review_lifecycle(statement_timestamp(),100)->>'teamInvitationsExpired')::integer,1,
+  'existing lifecycle worker expires due team invitations');
+reset role;
+select ok((select state='expired' and recipient_email_hmac is null from partner_private.store_team_invitations
+  where idempotency_key='co424-expiring'),
+  'expired invitation drops recipient email HMAC at lifecycle cleanup');
 
 create temporary table peer_invite_ref424 as
 select invitation_id,version from partner_private.store_team_invitations where idempotency_key='co424-peer-invite';
@@ -175,14 +194,39 @@ select pg_temp.actor424('76000000-0000-4000-8000-000000000001','76000000-0000-40
 set local role authenticated;
 select is(jsonb_array_length(app_public.owner_team_list('00000000-0000-4000-8000-000000000009')->'members'),4,
   'Owner sees active team role without recipient email');
+select throws_ok($$select app_public.owner_admin_team_list('00000000-0000-4000-8000-000000000009')$$,
+  '42501','owner_team_unavailable','Owner cannot use Site Admin team authority');
 select throws_ok($$select app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from primary_owner_grant424),(select version from primary_owner_grant424),'owner424-self-revoke')$$,
   '42501','owner_team_unavailable','Owner cannot revoke their own primary claim');
+select throws_ok($$select app_public.owner_team_revoke('00000000-0000-4000-8000-000000000001',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-cross-store-revoke')$$,
+  '42501','owner_team_unavailable','Owner cannot revoke a grant through another store scope');
 select lives_ok($$select app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-revoke')$$,
   'Owner revokes exact-store teammate grant');
 select is(app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-revoke')->>'state',
   'revoked','revocation replay is idempotent');
 select throws_ok($$select app_public.owner_team_revoke('00000000-0000-4000-8000-000000000009',(select grant_id from grant_ref424),(select version from grant_ref424),'owner424-stale')$$,
   '22023','owner_team_stale_grant','stale grant version cannot revoke again');
+reset role;
+
+create temporary table admin_team_grant424 as
+select g.grant_id,g.version from app_private.role_grants g
+where g.store_id='00000000-0000-4000-8000-000000000009' and g.role='full_store_access' and g.state='active';
+grant select on admin_team_grant424 to authenticated;
+select pg_temp.actor424('42400000-0000-4000-8000-000000000001','42400000-0000-4000-8000-000000000003');
+set local role authenticated;
+select is(jsonb_array_length(app_public.owner_admin_team_list('00000000-0000-4000-8000-000000000009')->'members'),2,
+  'Site Admin sees exact synthetic store team grants');
+select throws_ok($$select app_public.owner_admin_team_list('99999999-9999-4999-8999-999999999999')$$,
+  '42501','owner_team_unavailable','Site Admin team view requires an exact eligible store');
+select lives_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
+  (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-team-remove')$$,
+  'Site Admin can revoke one exact-store active team grant');
+select throws_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000001',
+  (select grant_id from admin_team_grant424),(select version from admin_team_grant424),'admin424-cross-store-remove')$$,
+  '42501','owner_team_unavailable','Site Admin mutation cannot retarget another store’s grant');
+select throws_ok($$select app_public.owner_admin_team_revoke('00000000-0000-4000-8000-000000000009',
+  (select grant_id from primary_owner_grant424),(select version from primary_owner_grant424),'admin424-owner-remove')$$,
+  '42501','owner_team_unavailable','Site Admin team action cannot revoke the primary Owner claim');
 reset role;
 
 select pg_temp.actor424('42400000-0000-4000-8000-000000000010','42400000-0000-4000-8000-000000000012');
@@ -200,6 +244,9 @@ select ok(exists(select 1 from app_private.privileged_audit_events where action=
 select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_invitation_cancelled' and resource_kind='team_invitation'),
   'cancellation is audited');
 select ok(exists(select 1 from app_private.privileged_audit_events where action='owner_team_access_revoked' and resource_kind='team_access'),
-  'revocation is audited');
+  'owner and Site Admin team revocations are audited');
+select ok(exists(select 1 from app_private.privileged_audit_events where actor_role='administrator'
+  and action='owner_team_access_revoked' and reason_code='site_admin_removed'),
+  'Site Admin removal is audited with the administrator actor and reason');
 select * from finish();
 rollback;
