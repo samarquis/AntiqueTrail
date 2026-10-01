@@ -6,60 +6,61 @@
 - Owner/chat: `samarquis` / Codex task
 - Risk: high (authorization, identity, and audit data)
 - Baseline SHA: `080a3163fc4eb65bbbf72143afad8c3e9c91b775`
-- Candidate source SHA: `992d46c4132b61eccbd12304689c1edbae005f9c`
-- Pull request: [#462](https://github.com/samarquis/AntiqueTrail/pull/462), open; code candidate is CI-green
+- Candidate SHA: `5d8549434b87159180103ffab558889a95b34362`
+- Diff fingerprint: `6ca480de862b1023c834d184bc0c35890b788a34`
+- Pull request: [#462](https://github.com/samarquis/AntiqueTrail/pull/462), open; required checks pass at candidate SHA
 - Worktree/branch: `C:\Users\samar\.codex\worktrees\9779\AntiqueTrail` / `codex/issue-424-team-access`
 - Evidence captured at: 2026-10-01
 
 ## Scope
 
-Changed outcome: Store Owners can invite, accept, list, and revoke exact-store team access using verified-email and MFA checks. Site Admin can remove an eligible synthetic-store team grant with a bounded reason recorded in the grant and audit chain.
+Changed outcome: Store Owners can invite, accept, list, and revoke exact-store team access using verified-email, MFA, and recent-auth checks. Site Admin can remove an eligible synthetic-store team grant with a bounded reason recorded in the grant and audit chain. Invitations expire through the lifecycle worker.
 
-Excluded scope: production deployment or provider mutation, billing, email delivery, site AI features, and Reticle/instrumentation. The candidate diff adds no AI integration or Reticle code.
+Excluded scope: production deployment or provider mutation, email delivery, billing, site AI features, and Reticle instrumentation. The candidate adds no AI feature, AI provider, or Reticle code.
 
-Ownership/dependencies: issue #424 is assigned to `samarquis`; PR #462 contains the candidate. Dependencies #422 and #429 are closed. No competing owner or PR was found.
+Overlapping branches/worktrees checked: issue #424 is assigned to `samarquis`; PR #462 owns this candidate. Dependencies #422 and #429 are closed. No competing owner or PR was found.
 
-Local database limitation: Docker Engine was unavailable, so local Supabase/pgTAP could not run. GitHub database CI passed at the exact candidate SHA.
+Pre-existing failures or unrelated work: local lint completed with 14 existing warnings. No unrelated changes are included in the final candidate.
 
 ## Acceptance
 
 | Criterion | Observable pass condition | Verification method | Result/evidence |
 | --------- | ------------------------- | ------------------- | --------------- |
-| Owner grants exact-store team access | Authorized Owner invites an eligible verified teammate; server binds access to the selected store. | Owner UI/client tests and pgTAP assertions. | Pass: client tests passed locally; exact-head database CI passed. |
-| Owner revokes access safely | Owner removal is version-bound, replay-aware, and immediately reflected in team state. | Unit, browser, and pgTAP coverage. | Pass: focused/browser tests and exact-head database CI passed. |
-| Forbidden authority is denied and audited | Cross-store, primary-Owner, stale, and unauthorized mutations fail server-side; Site Admin reason is retained. | SQL negative assertions and security review. | Pass: exact-head pgTAP and source security review passed. |
-| Browser/database paths are covered | Add, revoke, denial, and error paths have observable checks. | Chromium E2E, configured media/session checks, and pgTAP. | Pass: GitHub web, database, configured-media, and session-sign-out checks all passed at `992d46c4`. |
+| Owner grants exact-store team access | Authorized Owner invites an eligible verified teammate; server binds the grant to the selected store and team state updates. | Owner client tests, browser suite, and pgTAP assertions. | Pass: GitHub web CI and database CI passed at `5d854943`. |
+| Owner revokes access safely | Revocation is version-bound and replay-aware; stale-auth and revoked sessions cannot change team access. | pgTAP direct-RPC checks for stale signed AMR claims, revoked session, and stale versions. | Pass: exact-head database CI; stale-auth denial created no invitation and its audit assertion identified the new event. |
+| Forbidden authority is denied and audited | Cross-store, Administrator delegation, self-invitation, primary-Owner removal, and unauthorized role changes fail server-side; Site Admin reason is retained. | Negative pgTAP assertions and source security review. | Pass: exact-head database CI and 0-finding source review. |
+| Browser/database paths are covered | Invite, accept, list, revoke, denial, and error paths have observable checks. | Full Chromium E2E suite, configured media/session workflows, and pgTAP. | Pass: 645 browser tests and 3,632 database tests passed; media and session workflows passed at `5d854943`. |
 
 ## Verification
 
 | Layer | Command or flow | Result | Applies to SHA/environment |
 | --- | --- | --- | --- |
-| Focused UI tests | `npx vitest run src/features/partners/partnerAdmin.test.ts src/features/partners/partnerAdminComponents.test.tsx` | 16 passed | `5268459b…`, local; UI source unchanged through candidate |
-| Local type/lint/format/build | `npm run typecheck`; `npm run lint`; `npm run format`; `npm run build` | Pass; lint has 14 existing warnings | `5268459b…`, local |
-| Final-head contract | `npm run security:contract`; `git diff --check` | Pass | `992d46c4…`, local |
-| GitHub web CI | [Run 36888540919](https://github.com/samarquis/AntiqueTrail/actions/runs/36888540919) | Pass: static checks, unit tests, build, browser tests | `992d46c4…` |
-| GitHub database CI | [Run 36888540919](https://github.com/samarquis/AntiqueTrail/actions/runs/36888540919) | Pass: migrations, reset, pgTAP contracts, audit rollback checks | `992d46c4…` |
-| Configured media | [Run 36888540913, attempt 2](https://github.com/samarquis/AntiqueTrail/actions/runs/36888540913) | Pass: configured desktop and phone media | `992d46c4…` |
-| Configured session sign-out | [Run 36888540892](https://github.com/samarquis/AntiqueTrail/actions/runs/36888540892) | Pass: disposable-session acceptance | `992d46c4…` |
-| Local browser | `npx playwright test e2e/issue-424-team-access.spec.ts --project=chromium` | 2 passed | `5268459b…`, local Chromium |
-| Local database/RLS/RPC | `npx supabase test db` | Not run: Docker unavailable; connection refused at `127.0.0.1:54322` | Local database unavailable |
+| Focused UI tests | Focused Vitest suite for partner admin/team UI | 23 passed | `7a8f5f3c…`, local; UI source unchanged at final candidate |
+| Local type/lint/format/build | `npm run typecheck`; `npm run lint`; `npm run format`; `npm run build`; `npm run security:contract` | Pass; lint has 14 existing warnings | `7a8f5f3c…`, local |
+| Final diff hygiene | `git diff --check` | Pass | Test correction in final candidate worktree |
+| GitHub web CI | [Run 36899573765](https://github.com/samarquis/AntiqueTrail/actions/runs/36899573765) | Pass: static checks, 1,059 unit tests (1 skipped), build, 645 browser tests | `5d854943…` |
+| GitHub database CI | [Run 36899573765](https://github.com/samarquis/AntiqueTrail/actions/runs/36899573765) | Pass: migrations, reset, 121 pgTAP files / 3,632 assertions, rollback audit checks | `5d854943…` |
+| Configured media | [Run 36899573778](https://github.com/samarquis/AntiqueTrail/actions/runs/36899573778) | Pass: configured desktop and phone media | `5d854943…` |
+| Configured session sign-out | [Run 36899573806](https://github.com/samarquis/AntiqueTrail/actions/runs/36899573806) | Pass: disposable-session acceptance | `5d854943…` |
+| Local database/RLS/RPC | `npx supabase test db` | Not run: Docker unavailable and `127.0.0.1:54322` refused the connection | Local database unavailable; exact-head GitHub database CI passed |
 | Supabase Preview | GitHub check | Skipped | No hosted/provider proof |
-| Production route | No deployment performed | Unverified / outside scope | No production claim |
+| Canonical production route | No deployment performed | Unverified / outside scope | No production claim |
 
 ## Security and negative proof
 
-- Denied identities/scopes: server-side RPCs restrict exact store, eligible roles, active session, verified email, MFA, fresh authentication, grant state, and expected version. SQL tests cover cross-store and primary-Owner removal.
-- Failure and replay handling: stale versions and mismatched idempotency operations are rejected; exact-head pgTAP passed.
-- Secret/PII handling: invitation email is HMAC-matched and not returned in team projections. Removal reason is bounded and control-free; UI warns against personal/shopper details.
-- Exact-source security review: range `080a3163…992d46c4`, 0 reportable findings, 21 changed source files. Scan ID `9b2165bb-d68a-479a-a2d6-055cc7d1ba70`; report: `C:\Users\samar\.codex\state\plugins\codex-security\scans\AntiqueTrail\992d46c4132b61eccbd12304689c1edbae005f9c_20261001T155926Z_vhg1vjy8\report.md`.
+- Denied identities/scopes: server-side RPCs restrict exact store, eligible roles, active session, verified email, MFA, fresh provider-signed authentication, current anchor, and expected version. pgTAP proves stale signed AMR claims and revoked sessions cannot create invitations; cross-store and primary-Owner actions are denied.
+- Failure and replay behavior: stale versions return the current package version; idempotency mismatches are rejected; each stale/revoked audit assertion is bounded to the event sequence created by that request.
+- Secret/PII handling: invitation email is purpose- and environment-scoped HMAC data while pending, is not returned in team projections, and is cleared on terminal transitions. Site Admin removal reason is bounded and included in the append-only audit chain.
+- Exact-source security review: base `080a3163…` through source SHA `7a8f5f3c…`; 0 reportable findings across 21 source files. Scan ID `0373cc9b-3130-420f-b8ca-cc2aaf08b64b`; [report](C:\Users\samar\.codex\state\plugins\codex-security\scans\AntiqueTrail\7a8f5f3cc7ed407eab79b3e8ed7fae945780c236_20261001T170031Z_8x62lmq4\report.md). Later commits through candidate SHA change tests only; application/migration source is unchanged.
 - No AI feature, AI provider integration, or Reticle instrumentation was added.
 
 ## Independent review
 
-- Spec verdict: pass; dependencies #422 and #429 are closed.
-- Standards verdict: pass; required Site Admin removal reason and `pendingSignals` projection are included.
-- Exact-head security verdict: pass; 0 reportable findings.
+- Reviewer: exact-source security scan plus acceptance and repository-contract review.
+- Standards verdict: pass; authority rules follow the approved Store Owner contract and changes stay within #424 scope.
+- Spec verdict: pass; the stale-auth fixture now ages the provider-signed AMR claims read by authorization, and exact-head CI passes.
 - Final verdict: `PASS — ready for merge`.
+- Findings and disposition: pgTAP initially failed because the test helper regenerated fresh AMR timestamps after aging only the database session row. The fixture now supplies 11-minute-old claims. Audit checks use per-request sequence baselines. Final database and browser CI pass.
 
 ## Unverified
 
@@ -67,4 +68,4 @@ Hosted migration ledger, HMAC key provisioning, lifecycle-worker schedule/secret
 
 ## Invalidation
 
-This evidence is bound to source candidate `992d46c4132b61eccbd12304689c1edbae005f9c` and the named local/GitHub environments. Relevant source, configuration, fixture, or integration changes invalidate affected checks and reviews.
+Evidence is bound to candidate `5d8549434b87159180103ffab558889a95b34362` and the named local/GitHub environments. Relevant source, configuration, fixture, or integration changes invalidate affected checks and reviews.
