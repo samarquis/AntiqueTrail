@@ -13,6 +13,7 @@ import {
 } from './configured-shopper-local.mjs'
 import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
 import { representativeHoursReport } from './configured-representative-hours-report.mjs'
+import { runLocalOwnerCancellation } from './owner-cancellation-local.mjs'
 
 const output = createRunDirectory(path.join(ROOT, 'artifacts'))
 const controller = new AbortController()
@@ -196,6 +197,23 @@ try {
   service = createLocalService({ signal: controller.signal, browserOrigin: origin })
   report.temporaryProject = service.run.directory
   const local = await service.start()
+  function expandSql(file) {
+    return fs
+      .readFileSync(file, 'utf8')
+      .replace(/^\\ir\s+(.+)$/gm, (_, child) =>
+        expandSql(path.resolve(path.dirname(file), child.trim())),
+      )
+  }
+  report.ownerCancellationDatabase = []
+  for (const file of ['0132_store_owner_access.sql', '0133_issue_424_store_team_access.sql']) {
+    const result = await service.sql(expandSql(path.join(ROOT, 'supabase/tests', file)))
+    if (/^not ok/m.test(result)) throw new Error(`Owner cancellation pgTAP failed: ${file}`)
+    report.ownerCancellationDatabase.push({
+      file,
+      assertions: (result.match(/^ok \d+/gm) ?? []).length,
+      status: 'passed',
+    })
+  }
   report.status = 'running'
   const fixture = await provisionRepresentative(local)
   local.fixtureIdentity = crypto
@@ -328,6 +346,89 @@ try {
       ownerResults.stats?.skipped
     )
       throw new Error('Configured Owner browser proof did not pass exactly one test')
+    // Separate local fake-provider scenario; deployed/default billing stays read-only.
+    await service.sql(`
+      begin;
+      insert into partner_private.photo_tier_commercial_configs(version,state) values(426,'draft');
+      update partner_private.photo_tier_sales_control set state='servicing_only',commercial_config_version=426 where singleton;
+      update partner_private.store_photo_tier_state set tier='gallery',source='subscription',version=version+1 where store_id='${ownerFixture.storeId}';
+      insert into partner_private.store_subscriptions(store_id,stripe_customer_id,stripe_subscription_id,state,current_period_end)
+        values('${ownerFixture.storeId}','cus_fake426000001','sub_fake426000001','active',statement_timestamp()+interval '30 days');
+      insert into partner_private.owner_cancellation_fake_provider(store_id,subscription_id) values('${ownerFixture.storeId}','sub_fake426000001');
+      update partner_private.owner_cancellation_test_control set enabled=true;
+      commit;
+    `)
+    const cancellationOutput = path.join(output.directory, 'owner-cancellation')
+    fs.mkdirSync(cancellationOutput, { recursive: true })
+    fs.writeFileSync(
+      ownerSecretFile,
+      JSON.stringify({ ...ownerInput, output: cancellationOutput, cancellation: true }),
+      { mode: 0o600 },
+    )
+    await command(
+      process.execPath,
+      [
+        'node_modules/@playwright/test/cli.js',
+        'test',
+        '--config',
+        'e2e/configured-owner-billing-status-playwright.config.ts',
+      ],
+      {
+        env: { ...env, CONFIGURED_OWNER_BILLING_INPUT: ownerSecretFile },
+        timeout: 900_000,
+        signal: controller.signal,
+      },
+    )
+    const cancellationResults = JSON.parse(
+      fs.readFileSync(path.join(cancellationOutput, 'playwright.json'), 'utf8'),
+    )
+    report.ownerCancellationStats = cancellationResults.stats
+    if (
+      cancellationResults.stats?.expected !== 1 ||
+      cancellationResults.stats?.unexpected ||
+      cancellationResults.stats?.skipped
+    )
+      throw new Error('Configured Owner cancellation proof did not pass exactly one test')
+    const workerResult = await runLocalOwnerCancellation(service)
+    if (!workerResult || workerResult.pending !== 0)
+      throw new Error('Local cancellation worker did not reconcile its durable obligation')
+    report.ownerCancellationWorker = workerResult
+    const verifiedOutput = path.join(output.directory, 'owner-cancellation-verified')
+    fs.mkdirSync(verifiedOutput, { recursive: true })
+    fs.writeFileSync(
+      ownerSecretFile,
+      JSON.stringify({
+        ...ownerInput,
+        output: verifiedOutput,
+        cancellation: true,
+        cancellationVerified: true,
+      }),
+      { mode: 0o600 },
+    )
+    await command(
+      process.execPath,
+      [
+        'node_modules/@playwright/test/cli.js',
+        'test',
+        '--config',
+        'e2e/configured-owner-billing-status-playwright.config.ts',
+      ],
+      {
+        env: { ...env, CONFIGURED_OWNER_BILLING_INPUT: ownerSecretFile },
+        timeout: 900_000,
+        signal: controller.signal,
+      },
+    )
+    const verifiedResults = JSON.parse(
+      fs.readFileSync(path.join(verifiedOutput, 'playwright.json'), 'utf8'),
+    )
+    report.ownerCancellationVerifiedStats = verifiedResults.stats
+    if (
+      verifiedResults.stats?.expected !== 1 ||
+      verifiedResults.stats?.unexpected ||
+      verifiedResults.stats?.skipped
+    )
+      throw new Error('Configured verified cancellation did not pass exactly one test')
   }
 } catch (error) {
   if (report.status !== 'unavailable') report.status = 'failed'

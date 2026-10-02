@@ -137,6 +137,8 @@ select is(app_public.owner_team_accept((select invitation_id from full_invite_re
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
 select is(app_public.billing_get_owner_status()->>'tier','free','Full Store Access can read exact-store billing status');
 select is(app_public.billing_get_owner_status()->'availableActions','[]'::jsonb,'Full Store Access receives no paid billing actions');
+select throws_ok($$select app_public.billing_record_owner_cancel_consent(repeat('0',64),'42600000-0000-4000-8000-000000000005')$$,
+ '42501','billing_action_denied','Full Store Access cannot obtain cancellation consent');
 select is(jsonb_array_length(app_public.promotion_channels()),4,'Full Store Access can read store promotion controls');
 select is(app_public.promotion_channel_command('social','consent',0,false)->>'allowed','true','Full Store Access can record store promotion consent');
 reset role;
@@ -160,6 +162,8 @@ select is(app_public.owner_team_accept((select invitation_id from co_invite_ref4
   'co_owner','verified Co-Owner acceptance creates the delegated role');
 select is(app_public.billing_get_owner_status()->>'tier','free','Co-Owner can read exact-store billing status');
 select is(app_public.billing_get_owner_status()->'availableActions','[]'::jsonb,'Co-Owner receives no paid billing actions');
+select throws_ok($$select app_public.billing_record_owner_cancel_consent(repeat('0',64),'42600000-0000-4000-8000-000000000006')$$,
+ '42501','billing_action_denied','Co-Owner cannot obtain cancellation consent');
 select lives_ok($$select app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','peer424@example.test','co_owner','co424-peer-invite')$$,
   'Co-Owner can invite another Co-Owner');
 select is(app_public.owner_team_invite('00000000-0000-4000-8000-000000000009','co-full424@example.test','full_store_access','co424-full-denied')->>'state',

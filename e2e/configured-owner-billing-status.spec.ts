@@ -8,6 +8,8 @@ type Input = {
   origin: string
   storeId: string
   siblingStoreId: string
+  cancellation?: boolean
+  cancellationVerified?: boolean
   owner: { email: string; password: string; totpSecret: string }
 }
 
@@ -80,15 +82,50 @@ test('configured Owner browser reads exact billing RPC and direct wrong scopes d
   const requestHeaders = await statusResponse.request().allHeaders()
   expect(requestHeaders['x-owner-store-id']).toBe(input.storeId)
   const status = await statusResponse.json()
-  expect(status).toEqual({
-    tier: 'free',
-    subscriptionState: 'none',
-    paidThrough: null,
-    salesOpen: false,
-    availableActions: [],
-  })
-  await expect(page.getByText('Free')).toBeVisible()
-  await expect(page.getByText('No billing actions are available in this workspace.')).toBeVisible()
+  expect(status).toEqual(
+    input.cancellation
+      ? {
+          tier: 'gallery',
+          subscriptionState: 'active',
+          paidThrough: expect.any(String),
+          salesOpen: false,
+          availableActions: [],
+        }
+      : {
+          tier: 'free',
+          subscriptionState: 'none',
+          paidThrough: null,
+          salesOpen: false,
+          availableActions: [],
+        },
+  )
+  if (input.cancellationVerified) {
+    await expect(page.getByRole('status')).toContainText('Renewal cancellation is confirmed.')
+    await expect(page.getByText('Gallery', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel renewal' })).toHaveCount(0)
+  } else if (input.cancellation) {
+    await expect(page.getByText('Gallery', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Cancel renewal' }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Confirm cancellation for Clockwork Cabinet' }),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Confirm cancellation' })).toBeDisabled()
+    await page.getByRole('checkbox').check()
+    const intentResponse = page.waitForResponse((response) =>
+      new URL(response.url()).pathname.endsWith('/rpc/billing_request_owner_cancellation'),
+    )
+    await page.getByRole('button', { name: 'Confirm cancellation' }).click()
+    expect((await intentResponse).status()).toBe(200)
+    await expect(page.getByRole('status')).toContainText('Confirmation is pending.')
+    await page.getByRole('button', { name: 'Refresh billing' }).click()
+    await expect(page.getByRole('status')).toContainText('Confirmation is pending.')
+    await expect(page.getByRole('button', { name: 'Cancel renewal' })).toHaveCount(0)
+  } else {
+    await expect(page.getByText('Free')).toBeVisible()
+    await expect(
+      page.getByText('No billing actions are available in this workspace.'),
+    ).toBeVisible()
+  }
 
   const ownerToken = requestHeaders.authorization?.replace(/^Bearer\s+/i, '')
   if (!ownerToken) throw new Error('Configured Owner browser RPC lacked a bearer session')

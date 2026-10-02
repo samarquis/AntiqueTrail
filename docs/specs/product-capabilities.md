@@ -745,3 +745,7 @@ The product requires:
 ## Account scope requirements
 
 - **Account scope:** Regional Public MVP is United States only. Anonymous browsing has no age gate; account creation, public reviewing, Store Partner participation, and trip sharing require age 18 or older until legal review approves broader participation. Approved 2026-07-31.
+
+## Store Owner cancellation decision — 2026-10-01
+
+The Product Owner approved one narrow amendment to the read-only billing boundary: primary Store Owner cancellation at the paid period's end in isolated synthetic local tests with a fake provider. The [approved cancellation-only contract](store-owner-paid-servicing.md) owns action behavior, eligible states, authentication, immutable confirmation consent, expected versions, idempotency, reconciliation, and acceptance. Co-Owner and Full Store Access billing remain read-only; Listing Editors retain no billing visibility. Existing Representative permissions remain unchanged. This decision permits no actual provider calls, live billing, public rollout, or deployed action. Existing descriptions of read-only Owner billing describe the implemented baseline; #426 still requires scoped implementation, review, and proof.

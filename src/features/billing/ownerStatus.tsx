@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { GENERIC_BILLING_ERROR } from './billingClient'
+import {
+  createOwnerCancellationClient,
+  OwnerCancellation,
+  type OwnerCancellationClient,
+} from './ownerCancellation'
 
 type Tier = 'free' | 'gallery' | 'full_gallery'
 type SubscriptionState = 'none' | 'active' | 'past_due' | 'grace' | 'canceled'
@@ -15,6 +20,7 @@ export interface OwnerBillingStatus {
 
 export interface OwnerBillingStatusClient {
   getStatus(): Promise<OwnerBillingStatus>
+  cancellation?: OwnerCancellationClient
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -47,6 +53,7 @@ export function createOwnerBillingStatusClient(
   ) => PromiseLike<{ data: unknown; error: unknown }>,
 ): OwnerBillingStatusClient {
   return {
+    cancellation: createOwnerCancellationClient(rpc),
     async getStatus() {
       try {
         const result = await rpc('billing_get_owner_status', {})
@@ -134,7 +141,11 @@ export function OwnerBillingStatusPage({ client }: { client: OwnerBillingStatusC
               </div>
             </dl>
             {!status.salesOpen && <p>Paid plan sales are closed.</p>}
-            <p>No billing actions are available in this workspace.</p>
+            {client.cancellation ? (
+              <OwnerCancellation client={client.cancellation} />
+            ) : (
+              <p>No billing actions are available in this workspace.</p>
+            )}
           </>
         )}
         <p>

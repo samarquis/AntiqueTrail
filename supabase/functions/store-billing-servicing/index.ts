@@ -1,4 +1,5 @@
 import { withBillingProviderWork } from '../_shared/billing-work.ts'
+import { runOwnerCancellationWorker } from '../_shared/owner-cancellation-worker.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2.112.1'
 import { loadBillingProviderEnv } from '../_shared/billing-provider.ts'
 import {
@@ -33,6 +34,12 @@ Deno.serve(async (request) => {
   return withBillingProviderWork(
     (name, args) => client.rpc(name, args),
     async () => {
+      const synthetic = await runOwnerCancellationWorker((name, args) => client.rpc(name, args))
+      if (synthetic)
+        return new Response(JSON.stringify(synthetic), {
+          status: synthetic.pending ? 503 : 200,
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+        })
       const due = await client.rpc('billing_due_servicing')
       if (
         due.error ||

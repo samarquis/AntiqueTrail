@@ -142,6 +142,7 @@ select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-800
 select throws_ok('select app_public.billing_get_owner_status()','42501','billing_status_unavailable','Owner status cannot read the Representative store');
 select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
 reset role;
+\ir fixtures/owner_cancellation.inc
 set local role billing_automation;
 select is(partner_private.assert_servicing_actor('00000000-0000-4000-8000-000000000001')::text,
  '76000000-0000-4000-8000-000000000001','existing Representative billing scope remains available');

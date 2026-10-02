@@ -2,6 +2,10 @@ import { syntheticPaidOffer } from './paidOffer'
 import type { SalesClient } from '../features/billing/sales'
 import type { ServicingClient } from '../features/billing/servicing'
 import type { OwnerBillingStatusClient } from '../features/billing/ownerStatus'
+import type {
+  OwnerCancellationClient,
+  OwnerCancellationContext,
+} from '../features/billing/ownerCancellation'
 
 /** Local review composition only; no RPC, provider calls, or activation changes. */
 export function billingServicingReviewClients(url: string): {
@@ -19,6 +23,30 @@ export function billingServicingReviewClients(url: string): {
   )
     return {}
   let pending = false
+  let cancellationState: OwnerCancellationContext['state'] =
+    reviewUrl.searchParams.get('reviewOwnerCancel') === 'reconciliation'
+      ? 'reconciliation_pending'
+      : 'available'
+  const cancellation: OwnerCancellationClient | undefined =
+    reviewUrl.searchParams.has('reviewOwnerCancel') && mode !== 'off_prelaunch'
+      ? {
+          async getContext() {
+            return {
+              storeName: 'Blue Finch Curios',
+              paidThrough: '2026-10-31T00:00:00Z',
+              snapshot: 'a'.repeat(64),
+              scheduledChanges: [],
+              state: cancellationState,
+            }
+          },
+          async cancel() {
+            if (reviewUrl.searchParams.get('reviewOwnerCancel') === 'denied')
+              throw new Error('Synthetic denial')
+            cancellationState = 'pending'
+            return { state: 'pending' }
+          },
+        }
+      : undefined
   const context: Awaited<ReturnType<ServicingClient['getContext']>> = {
     storeId: '17800000-0000-4000-8000-000000000001',
     subscriptionVersion: 3,
@@ -50,6 +78,7 @@ export function billingServicingReviewClients(url: string): {
     ...(reviewUrl.searchParams.get('reviewAs') === 'store-owner'
       ? {
           ownerBillingStatus: {
+            cancellation,
             async getStatus() {
               if (mode === 'unavailable') throw new Error('Synthetic billing status unavailable.')
               const free = mode === 'off_prelaunch'

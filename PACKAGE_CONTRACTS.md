@@ -104,3 +104,7 @@ The authorized free public test (ADR 0010) uses a pinned prebuilt artifact from 
 ## Store-first pilot activation contract
 
 A controlled invited pilot binds the exact candidate, permitted data, accounts/stores, explicit capability allowlist, authentic current approvals/evidence, expiry/stop and rollback. Approval creates Free; billing stays staged off until signed Gallery/commercial/provider activation evidence passes. Public discovery, public registration/intake, promotion, and live billing never follow automatically from a showcase or a controlled pilot.
+
+## Store Owner cancellation decision — 2026-10-01
+
+The Product Owner approved one narrow amendment to the read-only billing boundary: primary Store Owner cancellation at the paid period's end in isolated synthetic local tests with a fake provider. The [approved cancellation-only contract](docs/specs/store-owner-paid-servicing.md) owns action behavior, eligible states, authentication, immutable confirmation consent, expected versions, idempotency, reconciliation, and acceptance. Co-Owner and Full Store Access billing remain read-only; Listing Editors retain no billing visibility. Existing Representative permissions remain unchanged. This decision permits no actual provider calls, live billing, public rollout, or deployed action. Existing descriptions of read-only Owner billing describe the implemented baseline; #426 still requires scoped implementation, review, and proof.
