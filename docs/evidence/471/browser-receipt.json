@@ -4,54 +4,70 @@
     {
       "route": "/for-stores",
       "fixture": "successful availability response, all flags false",
-      "viewport": [
-        1366,
-        900
-      ],
       "explanation": true,
       "noForms": true,
       "catalogLanding": "http://127.0.0.1:4186/stores",
       "catalogVisible": true,
-      "screenshot": "for-stores-desktop.png"
+      "screenshot": "for-stores-desktop.jpg",
+      "requestedViewport": [
+        1366,
+        900
+      ],
+      "screenshotDimensions": [
+        1366,
+        900
+      ]
     },
     {
       "route": "/partner/claim",
       "fixture": "successful availability response, all flags false",
-      "viewport": [
-        1366,
-        900
-      ],
       "explanation": true,
       "noForms": true,
       "catalogLanding": "http://127.0.0.1:4186/stores",
       "catalogVisible": true,
-      "screenshot": "partner-claim-desktop.png"
+      "screenshot": "partner-claim-desktop.jpg",
+      "requestedViewport": [
+        1366,
+        900
+      ],
+      "screenshotDimensions": [
+        1366,
+        900
+      ]
     },
     {
       "route": "/for-stores",
       "fixture": "successful availability response, all flags false",
-      "viewport": [
-        390,
-        844
-      ],
       "explanation": true,
       "noForms": true,
       "catalogLanding": "http://127.0.0.1:4186/stores",
       "catalogVisible": true,
-      "screenshot": "for-stores-mobile.png"
+      "screenshot": "for-stores-mobile.jpg",
+      "requestedViewport": [
+        390,
+        844
+      ],
+      "screenshotDimensions": [
+        375,
+        812
+      ]
     },
     {
       "route": "/partner/claim",
       "fixture": "successful availability response, all flags false",
-      "viewport": [
-        390,
-        844
-      ],
       "explanation": true,
       "noForms": true,
       "catalogLanding": "http://127.0.0.1:4186/stores",
       "catalogVisible": true,
-      "screenshot": "partner-claim-mobile.png"
+      "screenshot": "partner-claim-mobile.jpg",
+      "requestedViewport": [
+        390,
+        844
+      ],
+      "screenshotDimensions": [
+        375,
+        812
+      ]
     },
     {
       "route": "/for-stores",
@@ -88,5 +104,6 @@
     "errorEntries": 0,
     "warnings": "Existing React Router v7 future-flag warnings"
   },
-  "network": "No HTTP provider/request trace claimed; fixture resolves/rejects availability locally."
+  "network": "No HTTP provider/request trace claimed; fixture resolves/rejects availability locally.",
+  "captureLimit": "Browser override requested 390x844 on mobile; saved JPEG captures measure 375x812. Actual DOM viewport was not independently measured. Captures prove a mobile render, not exact 390x844 rendering."
 }

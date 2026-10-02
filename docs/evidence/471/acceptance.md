@@ -29,7 +29,7 @@ No application, claim, invite, activation, provider mutation or deployment is in
 | Do not claim policy before confirmation | Both routes tested with pending promises and rejected availability; asynchronous rejection is flushed before assertions | Pass: NotFound and no policy heading/forms/intake actions |
 | Preserve available flow and server gate | Existing available owner flow remains tested; guard uses only the required flag after ready state | Pass |
 | Keep source scope bounded | Adjacent test restored byte-for-byte to integration base; final runtime/tests only change App.tsx and App.test.tsx | Pass |
-| Render a clear return path | Both routes at desktop 1366x900 and mobile 390x844; each actual Browse stores click reaches `/stores` and visible catalog H1 | Pass, local synthetic proof only; see receipt and screenshots below |
+| Render a clear return path | Both routes captured at desktop 1366x900 and mobile 375x812 (mobile override requested 390x844; actual DOM viewport not independently measured); each actual Browse stores click reaches `/stores` and visible catalog H1 | Pass, local synthetic proof only; see receipt and screenshots below |
 | Separate evidence classes | No deployment/provider mutation; synthetic client never calls hosted provider | Pass; no candidate production acceptance claimed |
 
 ## Verification
@@ -38,14 +38,14 @@ No application, claim, invite, activation, provider mutation or deployment is in
 | --- | --- | --- |
 | Test-first regression | App.test.tsx filtered to `while loading availability` before guard repair | 2 failed: loading incorrectly rendered catalog-only policy. Red log belongs to predecessor `63a23ece` plus new regression tests. |
 | Focused corrected tests | `npx vitest run src/app/App.test.tsx src/features/partners/ownerAcquisitionPage.test.tsx --pool=threads --maxWorkers=1` | 45/45 pass on corrected source/test tree committed as `de09752c`; 41 direct App tests and 4 unchanged adjacent tests. |
-| Full clean web validation | `npm run check` on `de09752c` | Final result recorded in PR handoff. First attempt stopped at lint because temporary ignored browser-fixture config was inside ESLint's scan; fixture moved outside checkout and check rerun. No tracked source fix or lint weakening. |
+| Full clean web validation | `npm run check` on `de09752c` | Pass: typecheck, lint (0 errors; 16 existing warnings), formatting, 1095 unit tests (1 skipped), 164 release tests, build and seed-media checks. Applies to source/test commit `de09752c`. First attempt stopped at lint because temporary ignored browser-fixture config was inside ESLint's scan; fixture moved outside checkout and check rerun. No tracked source fix or lint weakening. |
 | Local rendered/negative states | Temporary synthetic fixture imports committed App and CSS unchanged; availability client resolves all-false, never settles, or rejects; catalog is demo data | Four denial/render/navigation cases and four pending/rejection cases pass. [Browser receipt](browser-receipt.json) binds source `de09752c`. No console error entries; existing React Router v7 future-flag warnings observed. No HTTP/provider trace claimed. |
 | Historical CI/reviews | Takeover and `63a23ece` results | Historical only; guard source change invalidates those checks/reviews for final candidate. |
 | Final hosted CI/reviews | Exact published PR head | Fresh web/database/configured-owner-billing and independent Spec/Standards reviews required; final outcomes recorded in PR handoff. Supabase Preview is a separate skipped integration. |
 | Database/hosted lifecycle | No local database/provider run or mutations | No schema/RPC/RLS/authority change; required database CI remains separate. |
 | Canonical production | Historical source-bound observations above | Candidate production behavior unverified; deployment excluded. |
 
-Rendered screenshots: [for-stores desktop](for-stores-desktop.png), [for-stores mobile](for-stores-mobile.png), [partner claim desktop](partner-claim-desktop.png), [partner claim mobile](partner-claim-mobile.png). These are synthetic local source proofs, not canonical screenshots. They replace the earlier unavailable stock-review-harness proof, not the production baseline receipt.
+Rendered screenshots: [for-stores desktop](for-stores-desktop.jpg), [for-stores mobile](for-stores-mobile.jpg), [partner claim desktop](partner-claim-desktop.jpg), [partner claim mobile](partner-claim-mobile.jpg). These are JPEG captures of synthetic local source proof, not canonical screenshots. Mobile capture dimensions are 375x812 despite requesting a 390x844 viewport override; exact 390x844 rendering is not claimed. They replace the earlier unavailable stock-review-harness proof, not the production baseline receipt.
 
 Local browser servers on owned ports 4185 and 4186 were stopped and tab closed. Proof was captured before root's shared-browser-lane hold arrived. Further local browser runs wait for root's explicit lane release; no use of #469's port 4174.
 
