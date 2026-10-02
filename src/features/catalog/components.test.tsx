@@ -806,7 +806,8 @@ describe('trustworthy Store Details contract', () => {
     const browse = render(
       <BrowsePage client={detailsClient()} initialSearch={window.location.search} />,
     )
-    const storeLink = await screen.findByRole('link', { name: detailedStore.name })
+    const results = await screen.findByRole('region', { name: 'Store results' })
+    const storeLink = await within(results).findByRole('link', { name: detailedStore.name })
     fireEvent.click(storeLink)
     browse.unmount()
 
@@ -820,8 +821,9 @@ describe('trustworthy Store Details contract', () => {
 
     window.history.replaceState({}, '', '/stores?q=finch&area=topeka-ks')
     render(<BrowsePage client={detailsClient()} initialSearch={window.location.search} />)
+    const restoredResults = await screen.findByRole('region', { name: 'Store results' })
     await waitFor(() =>
-      expect(screen.getByRole('link', { name: detailedStore.name })).toHaveFocus(),
+      expect(within(restoredResults).getByRole('link', { name: detailedStore.name })).toHaveFocus(),
     )
     expect(scrollTo).toHaveBeenCalledWith({ top: 640, behavior: 'auto' })
     scrollTo.mockRestore()

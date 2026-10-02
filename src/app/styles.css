@@ -1705,7 +1705,7 @@ textarea[aria-invalid='true'] {
 .catalog-results-heading__first-result {
   margin: 0.25rem 0 0;
   color: var(--muted);
-  font-size: var(--type-size-supporting);
+  font-size: var(--type-size-label);
 }
 
 .catalog-results-heading > p {
@@ -4092,7 +4092,15 @@ main.catalog-browser--editorial .catalog-state {
   main.catalog-browser--editorial.catalog-browser--compact-results
     .browse-editorial-hero__content
     > header {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   main.catalog-browser--editorial.catalog-browser--compact-results .browse-editorial-hero__caption {
