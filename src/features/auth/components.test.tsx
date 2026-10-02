@@ -4,7 +4,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { StrictMode, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthContext'
-import { GENERIC_MFA_ERROR, GENERIC_RECOVERY_MESSAGE, InMemoryAuthStore } from './authClient'
+import {
+  GENERIC_MFA_ERROR,
+  GENERIC_RECOVERY_MESSAGE,
+  GENERIC_SIGN_IN_ERROR,
+  InMemoryAuthStore,
+} from './authClient'
 import {
   AuthCallbackPage,
   MfaPage,
@@ -41,7 +46,10 @@ describe('auth states', () => {
     vi.clearAllMocks()
     clearStagedRecoveryToken()
   })
-  afterEach(() => cleanup())
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllEnvs()
+  })
   it('rejects cross-origin post-login return targets', () => {
     expect(safeReturnTo('https://example.test')).toBe('/stores')
     expect(safeReturnTo('//example.test')).toBe('/stores')
@@ -268,10 +276,31 @@ describe('auth states', () => {
     await user.click(screen.getByRole('checkbox', { name: /18 or older/i }))
     await user.click(screen.getByRole('button', { name: /create account/i }))
     expect(
-      await screen.findByRole('heading', { name: /account setup paused/i }),
+      await screen.findByRole('heading', { name: /new account registration is paused/i }),
     ).toBeInTheDocument()
     expect(document.body).not.toHaveTextContent('long-safe-password')
     expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument()
+  })
+
+  it('explains the public-test registration pause without enabling registration', () => {
+    vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
+    const register = vi.fn()
+    renderAuth(
+      <RegisterPage provider={{ ...unavailableProvider, register }} />,
+      unavailableProvider,
+    )
+
+    expect(
+      screen.getByRole('heading', { name: /new account registration is paused/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/public-test stage/i)).toBeInTheDocument()
+    expect(screen.getByText(/existing accounts can still sign in/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /recover your account/i })).toHaveAttribute(
+      'href',
+      '/auth/sign-in?returnTo=%2Faccount',
+    )
+    expect(register).not.toHaveBeenCalled()
   })
 
   it('moves admitted registration to reason-neutral verification without saving the action', async () => {
@@ -322,7 +351,8 @@ describe('auth states', () => {
     await user.type(screen.getByLabelText(/^password$/i), 'long-safe-password')
     await user.click(screen.getByRole('checkbox'))
     await user.click(screen.getByRole('button', { name: /create account/i }))
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC_SIGN_IN_ERROR)
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/public-test stage/i)
     await user.click(screen.getByRole('button', { name: /create account/i }))
     expect(await screen.findByRole('heading', { name: /check your email/i })).toBeInTheDocument()
     expect(register.mock.calls[0]?.[0].requestId).toBe(register.mock.calls[1]?.[0].requestId)

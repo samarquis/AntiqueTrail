@@ -15,12 +15,18 @@ import { PasswordInput } from './PasswordInput'
 import type { AuthProviderAdapter, OAuthProviderId, ProviderCallbackResult } from './types'
 import { isCatalogOnlyPublicTest, isPublicTestLifecyclePath } from './publicTestMode'
 
-function AccountSetupPaused() {
+function AccountSetupPaused({ registration = false }: { registration?: boolean }) {
   const { session, signOut } = useAuth()
   return (
     <AuthCard
-      title="Account setup paused"
-      description="We couldn't finish this account setup. For your security, this attempt can't continue."
+      title={
+        registration ? 'New account registration is paused' : 'Private account actions are paused'
+      }
+      description={
+        registration
+          ? 'Registration is paused for this public-test stage. Existing accounts can still sign in.'
+          : 'Private actions are paused for this public-test stage. Existing accounts can still sign in.'
+      }
     >
       <Link className="button" to="/stores">
         Back to store list
@@ -416,7 +422,7 @@ export function RegisterPage({ provider }: { provider: AuthProviderAdapter }) {
     }
   }
 
-  if (blocked || isCatalogOnlyPublicTest()) return <AccountSetupPaused />
+  if (blocked || isCatalogOnlyPublicTest()) return <AccountSetupPaused registration />
 
   return (
     <AuthCard

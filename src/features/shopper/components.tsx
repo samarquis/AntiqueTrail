@@ -427,8 +427,8 @@ export function CatalogPrivateActions({
   const correctionPath = `/stores/${encodeURIComponent(slug)}/correction`
   if (isCatalogOnlyPublicTest())
     return (
-      <p className={`catalog-private-actions catalog-private-actions--${context}`}>
-        Account setup paused
+      <p className={`catalog-private-actions catalog-private-actions--${context}`} role="status">
+        Saving stores is paused for this public-test stage. Existing accounts can still sign in.
       </p>
     )
   if (!session)
