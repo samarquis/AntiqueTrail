@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -732,28 +732,63 @@ describe('app shell', () => {
     expect(getEligibility).toHaveBeenCalledWith(storeId)
   })
 
-  it('falls back to the catalog-only boundary when availability lookup fails', async () => {
-    render(
-      <MemoryRouter initialEntries={['/partner/claim']}>
-        <App />
-      </MemoryRouter>,
-    )
-    expect(
-      await screen.findByRole('heading', {
-        name: 'Owner intake is not available in this public test',
-      }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'The current public test supports browsing the store catalog only. Owner applications and partner claims are not available.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Browse stores' })).toHaveAttribute('href', '/stores')
-    expect(screen.queryByRole('form')).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: /apply|claim|submit application/i }),
-    ).not.toBeInTheDocument()
-  })
+  it.each(['/for-stores', '/partner/claim'])(
+    'does not claim a catalog-only policy while loading availability for %s',
+    (route) => {
+      render(
+        <MemoryRouter initialEntries={[route]}>
+          <App
+            clients={{
+              ownerIntakeAvailability: {
+                getAvailability: () => new Promise<never>(() => {}),
+              },
+            }}
+          />
+        </MemoryRouter>,
+      )
+      expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
+      expect(
+        screen.queryByRole('heading', {
+          name: 'Owner intake is not available in this public test',
+        }),
+      ).not.toBeInTheDocument()
+      expect(screen.queryByRole('form')).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: /apply|claim|submit application/i }),
+      ).not.toBeInTheDocument()
+    },
+  )
+
+  it.each(['/for-stores', '/partner/claim'])(
+    'does not claim a catalog-only policy when availability lookup rejects for %s',
+    async (route) => {
+      await act(async () => {
+        render(
+          <MemoryRouter initialEntries={[route]}>
+            <App
+              clients={{
+                ownerIntakeAvailability: {
+                  getAvailability: async () => {
+                    throw new Error('Lookup failed')
+                  },
+                },
+              }}
+            />
+          </MemoryRouter>,
+        )
+      })
+      expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
+      expect(
+        screen.queryByRole('heading', {
+          name: 'Owner intake is not available in this public test',
+        }),
+      ).not.toBeInTheDocument()
+      expect(screen.queryByRole('form')).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: /apply|claim|submit application/i }),
+      ).not.toBeInTheDocument()
+    },
+  )
 
   it('hides partner claims when claimsAvailable is false and the other flags are true', async () => {
     render(

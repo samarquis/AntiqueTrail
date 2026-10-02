@@ -724,7 +724,8 @@ function OwnerIntakeAvailabilityGuard({
       cancelled = true
     }
   }, [client])
-  if (state.kind !== 'ready' || !state.availability[requirement]) {
+  if (state.kind !== 'ready') return <NotFound />
+  if (!state.availability[requirement]) {
     return unavailablePage ?? <NotFound />
   }
   return <>{children(state.availability)}</>
