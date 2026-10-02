@@ -218,7 +218,10 @@ describe('provider-neutral public review boundary', () => {
     )
     expect(explanations).toHaveLength(1)
     expect(explanations[0]).toHaveTextContent('Public reviews are not available in this release.')
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Public reviews are not available in this release.',
+    )
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByRole('form')).not.toBeInTheDocument()
 
