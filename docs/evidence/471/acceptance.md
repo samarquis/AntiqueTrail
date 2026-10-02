@@ -3,59 +3,60 @@
 ## Candidate
 
 - Issue/spec: [#471](https://github.com/samarquis/AntiqueTrail/issues/471); [PR #481](https://github.com/samarquis/AntiqueTrail/pull/481).
-- Owner: takeover chat in `C:/Users/samar/.codex/worktrees/20d6/AntiqueTrail`; branch `codex/issue-471-scope-correction`, published only to existing `codex/issue-471-owner-intake-routes`.
-- Risk: standard for existing route presentation; low for takeover's assertion-only scope correction. Server-owned availability gates remain unchanged.
+- Owner: takeover chat; isolated worktree `20d6/AntiqueTrail`; local branch `codex/issue-471-scope-correction`, published to existing `codex/issue-471-owner-intake-routes`.
+- Risk: standard; public route presentation. Server availability authority unchanged.
 - Ticket-admission baseline: `c9bb80250d5087ace3638059da09cd628bc1fad6`.
 - Integration base: `de76d381ca7b522b25c61eea20920569085f3b93`.
 - Takeover starting head: `1fd901f5e0b471bb372e2c75b675138b4c03da84`.
-- Final source/test commit: `f23185dde891b8727770a1d8c77577e9f3b11781`; evidence-only descendant is the PR candidate. Exact final head, fingerprint, CI and reviews are recorded in the PR handoff.
+- Corrected source/test commit: `de09752c2b1222b4b2f12c6cd4086451d1cafb40`; evidence-only descendant is the final PR candidate. Exact final head/fingerprint/checks/reviews are recorded in PR handoff.
 - Evidence date: 2026-10-02.
 
-## Scope and ownership
+## Scope and correction
 
-When `/for-stores` or `/partner/claim` is withheld, display a shared catalog-only explanation and a Browse stores link. Preserve server authority and existing available-route behavior. Other guarded routes retain their NotFound fallback.
+For `/for-stores` and `/partner/claim`, show the catalog-only explanation and Browse stores link only after a successful availability response has the route's required flag false. Loading and rejected/unknown lookup retain the existing fail-closed NotFound state without asserting product policy. Available-route flows and other guards remain unchanged.
 
-Own App.tsx and direct App.test.tsx assertions. User authorized a scope amendment on 2026-10-02 after the requested strict two-file correction demonstrated a conflicting legacy assertion: permit only the stale heading assertion update in `src/features/partners/ownerAcquisitionPage.test.tsx`. Live issue body records the amendment. Its existing no-acquisition assertion remains intact; extra test title/link/form edits from the takeover starting head were removed. Direct App.test assertions still check explanatory copy, Browse stores, server flags and absence of intake actions.
+Own App.tsx and direct App.test.tsx assertions. Strict scope removal first reproduced the legacy adjacent 404 assertion conflict at `3b6a0999` (41/42). User allowed a minimal adjacent assertion amendment, producing `63a23ece` (42/42). Root review then identified that the guard incorrectly used stage-policy copy for initial loading and lookup rejection. This later correction supersedes that behavior and evidence: the original adjacent assertion now passes unchanged, so the final PR has no `ownerAcquisitionPage.test.tsx` diff. The temporary scope allowance is not needed by the final implementation.
 
-Exclude applications, invitations, claims, activation, provider mutation and deployment. Preserve prior owner's worktree. [Takeover receipt](https://github.com/samarquis/AntiqueTrail/issues/471#issuecomment-5959477016). App.tsx seam remains held; #473 stays queued until root review/merge. Root overseer must review the exact final head before any merge.
+No application, claim, invite, activation, provider mutation or deployment is included. Preserve prior owner's worktree. [Takeover receipt](https://github.com/samarquis/AntiqueTrail/issues/471#issuecomment-5959477016). App.tsx seam remains held; #473 stays queued until root exact-head review/merge. Root must approve the exact final head before merge.
 
 ## Acceptance
 
 | Criterion | Evidence | Result |
 | --- | --- | --- |
-| Bind canonical source/artifact before interpreting routes | Prior read-only canonical alias/metadata readback and [#465 publication receipt](https://github.com/samarquis/AntiqueTrail/pull/465#issuecomment-5952156359) bind `antique-trail.vercel.app` to deployment `dpl_6zUinfmc3LhkpvH7ELAvSHxRyMnT`, URL `antique-trail-1xnz1ydq2-scott-marquis-projects.vercel.app`, source `c9bb80250d5087ace3638059da09cd628bc1fad6`, artifact SHA-256 `D8F3C8980BB8E08CE5D3A88722B4E3082F8528845B037CEB26AC5605E0183940` | Recorded before original route edits; historical receipt, not a new takeover-time production inspection |
-| Recheck both routes against identified deployment | Prior direct anonymous browser checks found Page not found on both paths; [classification receipt](https://github.com/samarquis/AntiqueTrail/issues/471#issuecomment-5955924300) | Intentional withheld acquisition, not a stale-artifact discrepancy |
-| Explain catalog-only stage without acquisition | Direct App.test assertions exercise both routes, explanatory copy, `/stores` return link and absence of forms/intake actions | Pass |
-| Preserve server gate | Tests isolate `routeVisible=false` and `claimsAvailable=false` while other flags are true; rejected lookup remains fail-closed; available owner flow remains covered | Pass |
-| Respect approved scope | Adjacent test diff consists solely of the stale heading assertion; no runtime code changed during takeover | Pass after explicit scope amendment |
-| Separate local from hosted/canonical evidence | Candidate not deployed; no provider/hosted-data mutation | Pass; historical production observation does not prove candidate production behavior |
+| Bind canonical source/artifact before interpreting routes | Prior read-only canonical alias/metadata and [#465 publication receipt](https://github.com/samarquis/AntiqueTrail/pull/465#issuecomment-5952156359) bind `antique-trail.vercel.app` to deployment `dpl_6zUinfmc3LhkpvH7ELAvSHxRyMnT`, URL `antique-trail-1xnz1ydq2-scott-marquis-projects.vercel.app`, source `c9bb80250d5087ace3638059da09cd628bc1fad6`, artifact SHA-256 `D8F3C8980BB8E08CE5D3A88722B4E3082F8528845B037CEB26AC5605E0183940` | Recorded before original route edits; historical receipt, not a new production inspection |
+| Recheck both routes against identified deployment | Prior anonymous browser checks found Page not found on both paths; [classification receipt](https://github.com/samarquis/AntiqueTrail/issues/471#issuecomment-5955924300) | Intentional withheld acquisition, not a stale-artifact discrepancy |
+| Explain confirmed stage denial | Direct tests independently set `routeVisible=false` and `claimsAvailable=false` with other flags true; local synthetic rendered checks return a successful all-false availability object | Pass: explanatory heading/body, `/stores` return link, no intake forms/actions |
+| Do not claim policy before confirmation | Both routes tested with pending promises and rejected availability; asynchronous rejection is flushed before assertions | Pass: NotFound and no policy heading/forms/intake actions |
+| Preserve available flow and server gate | Existing available owner flow remains tested; guard uses only the required flag after ready state | Pass |
+| Keep source scope bounded | Adjacent test restored byte-for-byte to integration base; final runtime/tests only change App.tsx and App.test.tsx | Pass |
+| Render a clear return path | Both routes at desktop 1366x900 and mobile 390x844; each actual Browse stores click reaches `/stores` and visible catalog H1 | Pass, local synthetic proof only; see receipt and screenshots below |
+| Separate evidence classes | No deployment/provider mutation; synthetic client never calls hosted provider | Pass; no candidate production acceptance claimed |
 
 ## Verification
 
 | Layer | Command / source | Result and binding |
 | --- | --- | --- |
-| Scope conflict reproduction | `npx vitest run src/app/App.test.tsx src/features/partners/ownerAcquisitionPage.test.tsx --pool=threads --maxWorkers=1` | Strict scope candidate `3b6a09990686af4177381f8b95fb03421787b5ea`: App tests pass; adjacent legacy 404 assertion fails, total 41/42. This justified requesting the scope amendment. |
-| Focused tests after amendment | Same focused command | 42/42 pass on source/test tree of `f23185dde891b8727770a1d8c77577e9f3b11781`; amendment commit has the identical tracked tree to the tested pre-amend commit `1c6b5ae8aa14713517704cac029be2fdbb7ce866`. |
-| Build/typecheck | `npm run build` | Pass: tsc, Vite 239 modules, PWA 18 precache entries. Runtime source identical to takeover starting head; only adjacent heading assertion changed afterward. |
-| Lint | ESLint on all three relevant source/test files | Pass after scope amendment. |
-| Formatting | Prettier check on all three relevant source/test files | Rerun after normalizing adjacent test line endings. |
-| Toolchain | Locked `npm ci --no-audit --no-fund` in isolated worktree | 604 packages installed; Node v24.11.1, npm 11.13.0. |
-| Historical hosted CI | Actions run `37046721369`, takeover head `1fd901f5e0b471bb372e2c75b675138b4c03da84` | web, database, configured-owner-billing SUCCESS; Supabase Preview SKIPPED. Does not replace final-head checks. |
-| Final hosted CI | Exact published PR head | Pending publication/checks; final outcome goes in PR handoff. |
-| Database/RLS/RPC | No local database changes/run | Database/provider behavior unchanged; final required CI remains separate. |
-| Rendered UI/accessibility | Historical stock local review harness could not manually render withheld state | Manual desktop/mobile proof unavailable; direct DOM route tests prove heading, explanatory copy and return link. |
-| Canonical production | Historical source-bound observations above | Candidate unverified in production; deployment excluded. |
+| Test-first regression | App.test.tsx filtered to `while loading availability` before guard repair | 2 failed: loading incorrectly rendered catalog-only policy. Red log belongs to predecessor `63a23ece` plus new regression tests. |
+| Focused corrected tests | `npx vitest run src/app/App.test.tsx src/features/partners/ownerAcquisitionPage.test.tsx --pool=threads --maxWorkers=1` | 45/45 pass on corrected source/test tree committed as `de09752c`; 41 direct App tests and 4 unchanged adjacent tests. |
+| Full clean web validation | `npm run check` on `de09752c` | Final result recorded in PR handoff. First attempt stopped at lint because temporary ignored browser-fixture config was inside ESLint's scan; fixture moved outside checkout and check rerun. No tracked source fix or lint weakening. |
+| Local rendered/negative states | Temporary synthetic fixture imports committed App and CSS unchanged; availability client resolves all-false, never settles, or rejects; catalog is demo data | Four denial/render/navigation cases and four pending/rejection cases pass. [Browser receipt](browser-receipt.json) binds source `de09752c`. No console error entries; existing React Router v7 future-flag warnings observed. No HTTP/provider trace claimed. |
+| Historical CI/reviews | Takeover and `63a23ece` results | Historical only; guard source change invalidates those checks/reviews for final candidate. |
+| Final hosted CI/reviews | Exact published PR head | Fresh web/database/configured-owner-billing and independent Spec/Standards reviews required; final outcomes recorded in PR handoff. Supabase Preview is a separate skipped integration. |
+| Database/hosted lifecycle | No local database/provider run or mutations | No schema/RPC/RLS/authority change; required database CI remains separate. |
+| Canonical production | Historical source-bound observations above | Candidate production behavior unverified; deployment excluded. |
+
+Rendered screenshots: [for-stores desktop](for-stores-desktop.png), [for-stores mobile](for-stores-mobile.png), [partner claim desktop](partner-claim-desktop.png), [partner claim mobile](partner-claim-mobile.png). These are synthetic local source proofs, not canonical screenshots. They replace the earlier unavailable stock-review-harness proof, not the production baseline receipt.
+
+Local browser servers on owned ports 4185 and 4186 were stopped and tab closed. Proof was captured before root's shared-browser-lane hold arrived. Further local browser runs wait for root's explicit lane release; no use of #469's port 4174.
 
 ## Security and negative proof
 
-No authentication, authorization, availability authority, secret handling or data flows changed. False/rejected availability never exposes applications or claims; other guarded routes retain NotFound. The preserved adjacent assertion forbids the acquisition button even when query parameters request activation/reviewer status.
+No auth, authorization, availability authority, secrets or data flows changed. Unknown/pending/rejected lookups remain fail-closed without policy claims. Only confirmed false flags on the two public routes get the explanatory fallback. Other guards retain NotFound. Unchanged adjacent regression forbids acquisition even with activation/reviewer query parameters.
 
-## Independent review and completion gates
+## Review, completion and invalidation
 
-Prior Spec review at takeover head required scope correction; prior Standards/review receipts are historical. Fresh independent Standards and Spec reviews must bind the final exact PR head and amended live issue. Record verdicts in PR handoff. Source stays frozen during review and CI.
+Root rejected `63a23ece` for inaccurate loading/rejected-state policy copy and missing rendered receipt. Both are corrected by this source/evidence candidate; earlier independent verdicts are superseded. Obtain new exact-head Standards and Spec reviews with these corrected requirements. Keep source frozen during reviews/CI.
 
-Root exact-head review, merge and verified live issue closure remain pending. At closure, record the project-reflection ticket event. No closure or deployment is claimed by this evidence record.
+Root final-head approval, merge and verified live issue closure remain pending. At closure, record the project-reflection ticket event. No merge, closure or deployment is claimed here.
 
-## Invalidation
-
-Source/test proof applies to the identified tree and environment. Any affected source/configuration/fixture or integration change requires refreshed checks/review. Evidence-only descendants require reviewing their documentation delta without relabeling prior runtime evidence as a new run.
+Any affected source/configuration/fixture or integration change requires refreshed checks/review. Evidence-only descendants require reviewing documentation/artifact deltas; do not relabel prior source/runtime proof as a new execution.
