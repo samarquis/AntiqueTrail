@@ -2,75 +2,60 @@
 
 ## Candidate
 
-- Issue/spec: [#471 Reconcile owner-intake routes with canonical source state](https://github.com/samarquis/AntiqueTrail/issues/471)
-- Owner/chat: Samar Marquis / #471 task
-- Risk: standard; public route presentation, with server-owned intake gates unchanged
-- Ticket-admission baseline SHA: c9bb80250d5087ace3638059da09cd628bc1fad6
-- Current integration base: de76d381ca7b522b25c61eea20920569085f3b93
-- Current source/test commit: 18d8cb9a78239bae4281d962fd1f01911c232353
-- Prior implementation review head: 94440c0fc0e8cc3fae80446bb56f6e85d322a912
-- Prior evidence and green-CI head: 5d422063011e7497b12cc1ed986a0d10193f19e7, based on 5391bd027b4f3df3a3fde85e02c284345d8fe1aa
-- Branch: codex/issue-471-owner-intake-routes
-- Evidence captured: 2026-10-02 UTC
+- Issue/spec: [#471](https://github.com/samarquis/AntiqueTrail/issues/471); [PR #481](https://github.com/samarquis/AntiqueTrail/pull/481).
+- Owner: takeover chat in `C:/Users/samar/.codex/worktrees/20d6/AntiqueTrail`; branch `codex/issue-471-scope-correction`, published only to existing `codex/issue-471-owner-intake-routes`.
+- Risk: standard for existing route presentation; low for takeover's assertion-only scope correction. Server-owned availability gates remain unchanged.
+- Ticket-admission baseline: `c9bb80250d5087ace3638059da09cd628bc1fad6`.
+- Integration base: `de76d381ca7b522b25c61eea20920569085f3b93`.
+- Takeover starting head: `1fd901f5e0b471bb372e2c75b675138b4c03da84`.
+- Final source/test commit: `f23185dde891b8727770a1d8c77577e9f3b11781`; evidence-only descendant is the PR candidate. Exact final head, fingerprint, CI and reviews are recorded in the PR handoff.
+- Evidence date: 2026-10-02.
 
-## Scope
+## Scope and ownership
 
-Changed outcome: When owner intake is unavailable on /for-stores or /partner/claim, show one shared catalog-only explanation and a Browse stores link. The server availability response remains the route gate.
+When `/for-stores` or `/partner/claim` is withheld, display a shared catalog-only explanation and a Browse stores link. Preserve server authority and existing available-route behavior. Other guarded routes retain their NotFound fallback.
 
-Excluded scope: Enabling applications, invitations, claims, or activation; changing availability authority; hosted data or provider mutation; publication or deployment.
+Own App.tsx and direct App.test.tsx assertions. User authorized a scope amendment on 2026-10-02 after the requested strict two-file correction demonstrated a conflicting legacy assertion: permit only the stale heading assertion update in `src/features/partners/ownerAcquisitionPage.test.tsx`. Live issue body records the amendment. Its existing no-acquisition assertion remains intact; extra test title/link/form edits from the takeover starting head were removed. Direct App.test assertions still check explanatory copy, Browse stores, server flags and absence of intake actions.
 
-Overlapping work: No existing #471 branch or PR at admission. #473 was held from the shared App.tsx seam and notified after classification: [#473 handoff](https://github.com/samarquis/AntiqueTrail/issues/473#issuecomment-5955939885). Source classification: [#471 comment](https://github.com/samarquis/AntiqueTrail/issues/471#issuecomment-5955924300).
+Exclude applications, invitations, claims, activation, provider mutation and deployment. Preserve prior owner's worktree. [Takeover receipt](https://github.com/samarquis/AntiqueTrail/issues/471#issuecomment-5959477016). App.tsx seam remains held; #473 stays queued until root review/merge. Root overseer must review the exact final head before any merge.
 
 ## Acceptance
 
-| Criterion                                    | Observable pass condition                                                                                               | Verification                                                    | Result                                                                                                                                                                                                                                                                                                                                                                    |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bind source before interpreting routes       | Canonical alias, deployment, source SHA, and artifact receipt identify the same release                                 | Read-only Vercel inspect/alias data and PR #465 release receipt | Pass: alias antique-trail.vercel.app → antique-trail-1xnz1ydq2-scott-marquis-projects.vercel.app; deployment dpl_6zUinfmc3LhkpvH7ELAvSHxRyMnT; source c9bb80250d5087ace3638059da09cd628bc1fad6; artifact SHA-256 D8F3C8980BB8E08CE5D3A88722B4E3082F8528845B037CEB26AC5605E0183940. [Receipt](https://github.com/samarquis/AntiqueTrail/pull/465#issuecomment-5952156359). |
-| Recheck both routes against bound deployment | Both routes show observed baseline state                                                                                | Direct anonymous browser checks before edits                    | Pass: /for-stores and /partner/claim both showed Page not found on the bound c9bb... deployment.                                                                                                                                                                                                                                                                          |
-| Explain intentional public-test withholding  | Both gated routes show the same catalog-only message and /stores link when their server flag is false or unavailable    | Direct route tests                                              | Pass: both assert the shared heading, body, Browse stores link, and absence of intake actions. /for-stores isolates routeVisible; /partner/claim isolates claimsAvailable.                                                                                                                                                                                                |
-| Preserve fail-closed behavior                | False or failed availability never renders owner application or claim flows; other guarded routes keep NotFound default | App route tests                                                 | Pass: unavailable and rejected availability paths show the boundary; the available route test and other private-route default remain covered.                                                                                                                                                                                                                             |
-| Keep hosted evidence separate                | Candidate is not represented as production behavior                                                                     | Read-only Vercel/source review; no deployment                   | Pass: production remains on c9bb...; candidate was not deployed.                                                                                                                                                                                                                                                                                                          |
+| Criterion | Evidence | Result |
+| --- | --- | --- |
+| Bind canonical source/artifact before interpreting routes | Prior read-only canonical alias/metadata readback and [#465 publication receipt](https://github.com/samarquis/AntiqueTrail/pull/465#issuecomment-5952156359) bind `antique-trail.vercel.app` to deployment `dpl_6zUinfmc3LhkpvH7ELAvSHxRyMnT`, URL `antique-trail-1xnz1ydq2-scott-marquis-projects.vercel.app`, source `c9bb80250d5087ace3638059da09cd628bc1fad6`, artifact SHA-256 `D8F3C8980BB8E08CE5D3A88722B4E3082F8528845B037CEB26AC5605E0183940` | Recorded before original route edits; historical receipt, not a new takeover-time production inspection |
+| Recheck both routes against identified deployment | Prior direct anonymous browser checks found Page not found on both paths; [classification receipt](https://github.com/samarquis/AntiqueTrail/issues/471#issuecomment-5955924300) | Intentional withheld acquisition, not a stale-artifact discrepancy |
+| Explain catalog-only stage without acquisition | Direct App.test assertions exercise both routes, explanatory copy, `/stores` return link and absence of forms/intake actions | Pass |
+| Preserve server gate | Tests isolate `routeVisible=false` and `claimsAvailable=false` while other flags are true; rejected lookup remains fail-closed; available owner flow remains covered | Pass |
+| Respect approved scope | Adjacent test diff consists solely of the stale heading assertion; no runtime code changed during takeover | Pass after explicit scope amendment |
+| Separate local from hosted/canonical evidence | Candidate not deployed; no provider/hosted-data mutation | Pass; historical production observation does not prove candidate production behavior |
 
 ## Verification
 
-| Layer                      | Command or flow                                                                                                       | Result                                                                                                                                                                                                                         | Applies to                                                  |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| Focused tests              | npx vitest run src/app/App.test.tsx src/features/partners/ownerAcquisitionPage.test.tsx --pool=threads --maxWorkers=1 | Pass after rebase: 2 files, 42 tests.                                                                                                                                                                                          | Source/test commit 18d8cb9a78239bae4281d962fd1f01911c232353 |
-| Typecheck/build            | npm run build                                                                                                         | Pass after rebase: tsc -b, Vite transformed 239 modules, PWA generated 18 precache entries.                                                                                                                                    | Source/test commit 18d8cb9a78239bae4281d962fd1f01911c232353 |
-| Lint                       | npx eslint src/app/App.tsx src/app/App.test.tsx src/features/partners/ownerAcquisitionPage.test.tsx                   | Pass, exit 0 after rebase.                                                                                                                                                                                                     | Source/test commit 18d8cb9a78239bae4281d962fd1f01911c232353 |
-| Formatting                 | npx prettier --check on the three changed source/test files                                                           | Pass after rebase: all matched files use Prettier code style.                                                                                                                                                                  | Source/test commit 18d8cb9a78239bae4281d962fd1f01911c232353 |
-| Design detector            | Impeccable detect --json src/app/App.tsx                                                                              | Pass: empty findings at reviewed head 94440; App.tsx remains byte-identical after rebase.                                                                                                                                      | App.tsx                                                     |
-| Prior PR CI                | PR #481 head 5d422063011e7497b12cc1ed986a0d10193f19e7, base 5391bd027b4f3df3a3fde85e02c284345d8fe1aa                  | Pass: web, database, configured-owner-billing. Supabase Preview skipped. This check set predates the current main rebase.                                                                                                      | GitHub Actions                                              |
-| Current PR CI              | Rebased candidate based on de76d381ca7b522b25c61eea20920569085f3b93                                                   | Prior results are listed separately; rebase invalidates them for the current head. Verify current-head checks through GitHub before merge.                                                                                     | GitHub Actions                                              |
-| Database/RLS/RPC           | Not run                                                                                                               | UI-only change; no database or hosted account test requested.                                                                                                                                                                  | Not applicable                                              |
-| Desktop/mobile UI          | Opened /partner/claim on local Vite at http://127.0.0.1:4174                                                          | Limitation: no-env review harness reports claimsAvailable=true and redirects to synthetic sign-in, so it cannot display the unavailable state. No account/sign-in test was performed; false-flag UI is covered by route tests. | Local dev fixture                                           |
-| Hosted/provider lifecycle  | Read-only Vercel identity checks; vercel.json has git.deploymentEnabled=false                                         | No provider mutation or deployment.                                                                                                                                                                                            | Bound baseline deployment only                              |
-| Canonical production route | Both routes checked before edits on the bound deployment                                                              | Baseline observed. Candidate production rendering remains unverified because no deployment was authorized.                                                                                                                     | dpl_6zUinfmc3LhkpvH7ELAvSHxRyMnT, source c9bb...            |
-
-### PR check follow-up
-
-PR #481 initially failed web at head e367080b9d4303984ea531e5e6a23fcefcbdef6e because ownerAcquisitionPage.test.tsx expected Page not found. The annotated DOM showed the approved catalog boundary and no acquisition action. The assertion now expects the shared boundary and still forbids the application button/form. The evidence head 5d422 passed web, database, and configured-owner-billing before main advanced. The candidate is now rebased onto de76d381; pre-rebase checks remain historical and do not replace current-head checks.
+| Layer | Command / source | Result and binding |
+| --- | --- | --- |
+| Scope conflict reproduction | `npx vitest run src/app/App.test.tsx src/features/partners/ownerAcquisitionPage.test.tsx --pool=threads --maxWorkers=1` | Strict scope candidate `3b6a09990686af4177381f8b95fb03421787b5ea`: App tests pass; adjacent legacy 404 assertion fails, total 41/42. This justified requesting the scope amendment. |
+| Focused tests after amendment | Same focused command | 42/42 pass on source/test tree of `f23185dde891b8727770a1d8c77577e9f3b11781`; amendment commit has the identical tracked tree to the tested pre-amend commit `1c6b5ae8aa14713517704cac029be2fdbb7ce866`. |
+| Build/typecheck | `npm run build` | Pass: tsc, Vite 239 modules, PWA 18 precache entries. Runtime source identical to takeover starting head; only adjacent heading assertion changed afterward. |
+| Lint | ESLint on all three relevant source/test files | Pass after scope amendment. |
+| Formatting | Prettier check on all three relevant source/test files | Rerun after normalizing adjacent test line endings. |
+| Toolchain | Locked `npm ci --no-audit --no-fund` in isolated worktree | 604 packages installed; Node v24.11.1, npm 11.13.0. |
+| Historical hosted CI | Actions run `37046721369`, takeover head `1fd901f5e0b471bb372e2c75b675138b4c03da84` | web, database, configured-owner-billing SUCCESS; Supabase Preview SKIPPED. Does not replace final-head checks. |
+| Final hosted CI | Exact published PR head | Pending publication/checks; final outcome goes in PR handoff. |
+| Database/RLS/RPC | No local database changes/run | Database/provider behavior unchanged; final required CI remains separate. |
+| Rendered UI/accessibility | Historical stock local review harness could not manually render withheld state | Manual desktop/mobile proof unavailable; direct DOM route tests prove heading, explanatory copy and return link. |
+| Canonical production | Historical source-bound observations above | Candidate unverified in production; deployment excluded. |
 
 ## Security and negative proof
 
-- No authentication, authorization, or availability scopes changed.
-- Availability rejection remains fail-closed. Only /for-stores and /partner/claim receive the explanatory fallback; other guards retain NotFound.
-- No secrets or personal data introduced or transmitted.
-- No security contract or server authority changed.
+No authentication, authorization, availability authority, secret handling or data flows changed. False/rejected availability never exposes applications or claims; other guarded routes retain NotFound. The preserved adjacent assertion forbids the acquisition button even when query parameters request activation/reviewer status.
 
-## Independent review
+## Independent review and completion gates
 
-- Root/overseer Standards and Spec review passed with no findings at PR head 94440c0fc0e8cc3fae80446bb56f6e85d322a912.
-- Current App.tsx and ownerAcquisitionPage.test.tsx match that reviewed head.
-- Current App.test.tsx includes the upstream #480 copy expectation update to “Private account actions are paused”; this test change was not in the reviewed head.
-- Fresh exact-head Standards and Spec review is a merge gate because App.test.tsx changed in the rebase.
+Prior Spec review at takeover head required scope correction; prior Standards/review receipts are historical. Fresh independent Standards and Spec reviews must bind the final exact PR head and amended live issue. Record verdicts in PR handoff. Source stays frozen during review and CI.
 
-## Unverified
-
-- Candidate is not deployed; production still reflects the previously bound artifact. User excluded deployment.
-- Manual desktop/mobile rendering of the unavailable state was not possible with the stock local review harness.
-- Merge and live issue closure remain pending.
+Root exact-head review, merge and verified live issue closure remain pending. At closure, record the project-reflection ticket event. No closure or deployment is claimed by this evidence record.
 
 ## Invalidation
 
-Local verification applies to source/test commit 18d8cb9a78239bae4281d962fd1f01911c232353. Prior remote check results apply only to PR head 5d422063011e7497b12cc1ed986a0d10193f19e7 on base 5391bd027b4f3df3a3fde85e02c284345d8fe1aa. Prior independent review applies to PR head 94440c0fc0e8cc3fae80446bb56f6e85d322a912. Re-run affected checks and obtain fresh review for the current rebase before merge.
+Source/test proof applies to the identified tree and environment. Any affected source/configuration/fixture or integration change requires refreshed checks/review. Evidence-only descendants require reviewing their documentation delta without relabeling prior runtime evidence as a new run.
