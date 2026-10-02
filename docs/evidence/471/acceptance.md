@@ -6,8 +6,8 @@
 - Owner/chat: Samar Marquis / #471 task
 - Risk: standard; public route presentation, with server-owned intake gates unchanged
 - Ticket-admission baseline SHA: c9bb80250d5087ace3638059da09cd628bc1fad6
-- Integration base SHA: 2a97fa2234dd00ded5e3607cdc7cb91821d4630c
-- Tested implementation and test SHA: f484a7b9e074383fa5de3cf762824e39baefd544
+- Integration base SHA: 5391bd027b4f3df3a3fde85e02c284345d8fe1aa
+- Tested implementation and test SHA: ff41b1907cdb4fd83399baefa97f8992a132404b
 - Implementation diff fingerprint: stable Git patch ID f10c20cff8ce26df1bac2564210c96f9ca59304e
 - Worktree/branch: C:\Users\samar\.codex\worktrees\2fe1\AntiqueTrail / codex/issue-471-owner-intake-routes
 - Evidence captured: 2026-10-02 UTC
@@ -34,12 +34,12 @@ Overlapping work: No existing #471 branch or PR at admission. #473 was held from
 
 | Layer                      | Command or flow                                                                                                       | Result                                                                                                                                                                                                                         | Applies to                                                          |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| Focused tests              | npx vitest run src/app/App.test.tsx src/features/partners/ownerAcquisitionPage.test.tsx --pool=threads --maxWorkers=1 | Pass: 2 files, 42 tests. First post-rebase attempt timed out before worker launch while the shared runner was busy; exact implementation head passed after runner release.                                                     | Source/test SHA f484a7b9e074383fa5de3cf762824e39baefd544            |
-| Typecheck/build            | npm run build                                                                                                         | Pass: tsc -b, Vite transformed 239 modules, PWA generated 18 precache entries.                                                                                                                                                 | Source/test SHA f484a7b9e074383fa5de3cf762824e39baefd544            |
-| Lint                       | npx eslint src/app/App.tsx src/app/App.test.tsx src/features/partners/ownerAcquisitionPage.test.tsx                   | Pass, exit 0.                                                                                                                                                                                                                  | Source/test SHA f484a7b9e074383fa5de3cf762824e39baefd544            |
-| Formatting                 | npx prettier --check on the three changed source/test files                                                           | Pass: all matched files use Prettier code style.                                                                                                                                                                               | Source/test SHA f484a7b9e074383fa5de3cf762824e39baefd544            |
-| Design detector            | Impeccable detect --json src/app/App.tsx                                                                              | Pass: empty findings before rebase; App.tsx unchanged since.                                                                                                                                                                   | App.tsx at source/test SHA f484a7b9e074383fa5de3cf762824e39baefd544 |
-| PR CI                      | PR #481 checks at source/test SHA f484a7b9e074383fa5de3cf762824e39baefd544                                            | Pass: web, database, configured-owner-billing. Supabase Preview skipped.                                                                                                                                                       | GitHub Actions                                                      |
+| Focused tests              | npx vitest run src/app/App.test.tsx src/features/partners/ownerAcquisitionPage.test.tsx --pool=threads --maxWorkers=1 | Pass: 2 files, 42 tests. The earlier pre-rebase retry timed out before worker launch during shared-runner load; final rebased candidate passed.                                                                                | Source/test SHA ff41b1907cdb4fd83399baefa97f8992a132404b            |
+| Typecheck/build            | npm run build                                                                                                         | Pass: tsc -b, Vite transformed 239 modules, PWA generated 18 precache entries.                                                                                                                                                 | Source/test SHA ff41b1907cdb4fd83399baefa97f8992a132404b            |
+| Lint                       | npx eslint src/app/App.tsx src/app/App.test.tsx src/features/partners/ownerAcquisitionPage.test.tsx                   | Pass, exit 0.                                                                                                                                                                                                                  | Source/test SHA ff41b1907cdb4fd83399baefa97f8992a132404b            |
+| Formatting                 | npx prettier --check on the three changed source/test files                                                           | Pass: all matched files use Prettier code style.                                                                                                                                                                               | Source/test SHA ff41b1907cdb4fd83399baefa97f8992a132404b            |
+| Design detector            | Impeccable detect --json src/app/App.tsx                                                                              | Pass: empty findings before rebase; App.tsx content and patch fingerprint are unchanged.                                                                                                                                       | App.tsx at source/test SHA ff41b1907cdb4fd83399baefa97f8992a132404b |
+| PR CI                      | PR #481 checks before rebase, at f484a7b9e074383fa5de3cf762824e39baefd544                                             | Pass: web, database, configured-owner-billing. Supabase Preview skipped. CI for the rebased candidate is pending push.                                                                                                         | GitHub Actions                                                      |
 | Database/RLS/RPC           | Not run                                                                                                               | UI-only change; no database or hosted account test requested.                                                                                                                                                                  | Not applicable                                                      |
 | Desktop/mobile UI          | Opened /partner/claim on local Vite at http://127.0.0.1:4174                                                          | Limitation: no-env review harness reports claimsAvailable=true and redirects to synthetic sign-in, so it cannot display the unavailable state. No account/sign-in test was performed; false-flag UI is covered by route tests. | Local dev fixture                                                   |
 | Hosted/provider lifecycle  | Read-only Vercel identity checks; vercel.json has git.deploymentEnabled=false                                         | No provider mutation or deployment.                                                                                                                                                                                            | Bound baseline deployment only                                      |
@@ -47,7 +47,7 @@ Overlapping work: No existing #471 branch or PR at admission. #473 was held from
 
 ### PR check follow-up
 
-PR #481 initially failed web at head e367080b9d4303984ea531e5e6a23fcefcbdef6e because ownerAcquisitionPage.test.tsx expected Page not found. The annotated DOM showed the approved catalog boundary and no acquisition action. The assertion now expects the shared boundary and still forbids the application button/form. Web, database, and owner-billing checks pass at f484a7b9e074383fa5de3cf762824e39baefd544; Supabase Preview is skipped. Evidence-only follow-up commit will trigger fresh CI.
+PR #481 initially failed web at head e367080b9d4303984ea531e5e6a23fcefcbdef6e because ownerAcquisitionPage.test.tsx expected Page not found. The annotated DOM showed the approved catalog boundary and no acquisition action. The assertion now expects the shared boundary and still forbids the application button/form. Before rebase, web, database, and owner-billing passed at f484a7b9e074383fa5de3cf762824e39baefd544; Supabase Preview was skipped. The branch has since been rebased onto live main 5391bd027b4f3df3a3fde85e02c284345d8fe1aa; CI for the rebased PR head will run after push.
 
 ## Security and negative proof
 
@@ -59,18 +59,18 @@ PR #481 initially failed web at head e367080b9d4303984ea531e5e6a23fcefcbdef6e be
 ## Independent review
 
 - Earlier review findings required isolated route-flag assertions and current candidate evidence; both are addressed at the tested source/test SHA.
-- Standards verdict: pending final evidence-only PR head.
-- Spec verdict: pending final evidence-only PR head.
+- Standards verdict: pending fresh review on the rebased PR head.
+- Spec verdict: pending fresh review on the rebased PR head.
 - Final verdict: pending.
-- Findings/disposition: request fresh exact-head review after evidence commit.
+- Findings/disposition: request fresh exact-head review after evidence commit and push.
 
 ## Unverified
 
 - Candidate is not deployed; production still reflects the previously bound artifact. User excluded deployment.
 - Manual desktop/mobile rendering of the unavailable state was not possible with the stock local review harness.
-- Final evidence-only PR head CI and independent review, merge, and live issue closure remain pending.
+- Rebased PR CI, independent review, merge, and live issue closure remain pending.
 - Project reflection vault was unset and no project memory file was found; no reflection entry was recorded.
 
 ## Invalidation
 
-Verification applies to implementation SHA f484a7b9e074383fa5de3cf762824e39baefd544 and the named local or baseline-production environment. Evidence-only documentation changes do not alter the implementation candidate; rerun affected checks and reviews after any source or integration change.
+Verification applies to implementation SHA ff41b1907cdb4fd83399baefa97f8992a132404b and the named local or baseline-production environment. Evidence-only documentation changes do not alter the implementation candidate; rerun affected checks and reviews after any source or integration change.
