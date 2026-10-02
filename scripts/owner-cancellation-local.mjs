@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs'
+import { Buffer } from 'node:buffer'
+import { URL } from 'node:url'
 import ts from 'typescript'
 
 // CI uses Node 20; compile the same dependency-free worker rather than relying on type stripping.
