@@ -5,6 +5,7 @@ const roles = [
   ['shopper-a', 'Shopper A', 'Shopper'],
   ['shopper-b', 'Shopper B', 'Shopper'],
   ['representative', 'Store Representative', 'Representative'],
+  ['store-owner', 'Store Owner', 'Store Owner'],
   ['administrator', 'Administrator', 'Administrator'],
 ] as const
 
@@ -39,6 +40,11 @@ test.describe('local human-review harness contract', () => {
       await expect(
         page.getByLabel('Review this scenario').getByText(role, { exact: true }),
       ).toBeVisible()
+      if (id === 'store-owner') {
+        await expect(page.getByLabel('Review this scenario')).toContainText(
+          'Approved synthetic primary Owner of Blue Finch Curios.',
+        )
+      }
       await expect(page.getByRole('status')).toHaveText(
         'Deterministic fixture loaded successfully.',
       )
