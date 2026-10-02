@@ -328,6 +328,49 @@ try {
       ownerResults.stats?.skipped
     )
       throw new Error('Configured Owner browser proof did not pass exactly one test')
+    // Separate local fake-provider scenario; deployed/default billing stays read-only.
+    await service.sql(`
+      begin;
+      insert into partner_private.photo_tier_commercial_configs(version,state) values(426,'draft');
+      update partner_private.photo_tier_sales_control set state='servicing_only',commercial_config_version=426 where singleton;
+      insert into partner_private.store_photo_tier_state(store_id,tier,source) values('${ownerFixture.storeId}','gallery','subscription');
+      insert into partner_private.store_subscriptions(store_id,stripe_customer_id,stripe_subscription_id,state,current_period_end)
+        values('${ownerFixture.storeId}','cus_fake426000001','sub_fake426000001','active',statement_timestamp()+interval '30 days');
+      insert into partner_private.owner_cancellation_fake_provider(store_id,subscription_id) values('${ownerFixture.storeId}','sub_fake426000001');
+      update partner_private.owner_cancellation_test_control set enabled=true;
+      commit;
+    `)
+    const cancellationOutput = path.join(output.directory, 'owner-cancellation')
+    fs.mkdirSync(cancellationOutput, { recursive: true })
+    fs.writeFileSync(
+      ownerSecretFile,
+      JSON.stringify({ ...ownerInput, output: cancellationOutput, cancellation: true }),
+      { mode: 0o600 },
+    )
+    await command(
+      process.execPath,
+      [
+        'node_modules/@playwright/test/cli.js',
+        'test',
+        '--config',
+        'e2e/configured-owner-billing-status-playwright.config.ts',
+      ],
+      {
+        env: { ...env, CONFIGURED_OWNER_BILLING_INPUT: ownerSecretFile },
+        timeout: 900_000,
+        signal: controller.signal,
+      },
+    )
+    const cancellationResults = JSON.parse(
+      fs.readFileSync(path.join(cancellationOutput, 'playwright.json'), 'utf8'),
+    )
+    report.ownerCancellationStats = cancellationResults.stats
+    if (
+      cancellationResults.stats?.expected !== 1 ||
+      cancellationResults.stats?.unexpected ||
+      cancellationResults.stats?.skipped
+    )
+      throw new Error('Configured Owner cancellation proof did not pass exactly one test')
   }
 } catch (error) {
   if (report.status !== 'unavailable') report.status = 'failed'
