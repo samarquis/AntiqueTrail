@@ -157,4 +157,6 @@ jobs:
             artifacts/*/report.json
             artifacts/*/playwright.json
             artifacts/*/owner-billing/playwright.json
+            artifacts/*/owner-cancellation/playwright.json
+            artifacts/*/owner-cancellation-verified/playwright.json
           if-no-files-found: ignore

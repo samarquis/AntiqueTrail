@@ -179,6 +179,7 @@ begin
     raise exception using errcode='55000',message='billing_stage_disabled'; end if;
   select * into intent from partner_private.owner_cancellation_intents where intent_id=p_intent_id for update;
   if not found then raise exception using errcode='42501',message='billing_action_denied'; end if;
+  if intent.state in ('completed','failed') then return jsonb_build_object('state',intent.state); end if;
   select * into receipt from partner_private.owner_cancellation_consents where consent_id=intent.consent_id;
   perform 1 from partner_private.store_subscriptions where store_id=intent.store_id for share;
   perform 1 from partner_private.store_photo_tier_state where store_id=intent.store_id for share;
@@ -242,7 +243,7 @@ begin
         and version=(receipt.snapshot->>'tierVersion')::bigint) then
       update partner_private.store_subscriptions set state='canceled',version=version+1,updated_at=statement_timestamp()
         where store_id=intent.store_id and stripe_subscription_id=provider.subscription_id and state<>'canceled';
-      update partner_private.store_photo_tier_state set tier='free',version=version+1
+      update partner_private.store_photo_tier_state set tier='free',source='default',version=version+1
         where store_id=intent.store_id and tier<>'free';
     elsif next_state='completed' then
       next_state:='reconciliation_pending';

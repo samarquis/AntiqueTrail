@@ -65,6 +65,13 @@ select is(app_public.billing_execute_owner_fake_cancellation((select intent_id f
 select is(app_public.billing_reconcile_owner_cancellation((select intent_id from cancellation426))->>'state','failed','verified never-executed key resolves permanent version conflict without success');
 reset role;
 select is((select effects from partner_private.owner_cancellation_fake_provider),0,'stale provider version applies no cancellation');
+-- A recovered gate must not authorize an old terminal consent again.
+update partner_private.owner_cancellation_fake_provider set schedule_version=schedule_version-1;
+set local role billing_automation;
+select is(app_public.billing_execute_owner_fake_cancellation((select intent_id from cancellation426))->>'state','failed','stale worker cannot reopen terminal failure after provider gate recovers');
+reset role;
+select is((select effects from partner_private.owner_cancellation_fake_provider),0,'terminal failure retry applies no provider effect');
+update partner_private.owner_cancellation_fake_provider set schedule_version=schedule_version+1;
 set local role authenticated;
 update cancellation426 set snapshot=app_public.billing_get_owner_cancellation()->>'snapshot';
 update cancellation426 set consent_id=(app_public.billing_record_owner_cancel_consent(snapshot,'42600000-0000-4000-8000-000000000007')->>'consentId')::uuid;
@@ -108,7 +115,7 @@ reset role;
 select is((select tier from partner_private.store_photo_tier_state where store_id='00000000-0000-4000-8000-000000000009'),'full_gallery','replacement paid entitlement survives stale completion');
 update partner_private.store_subscriptions set stripe_subscription_id='sub_fake42600000001',version=(select version from old_subscription426)
  where store_id='00000000-0000-4000-8000-000000000009';
-update partner_private.store_photo_tier_state set tier='gallery',version=(select version from old_tier426)
+update partner_private.store_photo_tier_state set tier='gallery',source='subscription',version=(select version from old_tier426)
  where store_id='00000000-0000-4000-8000-000000000009';
 set local role billing_automation;
 select is(app_public.billing_reconcile_owner_cancellation((select intent_id from cancellation426))->>'state','completed','verified fake period boundary ends the bound subscription');
@@ -118,7 +125,7 @@ select is((select tier from partner_private.store_photo_tier_state where store_i
 -- Restore the paid baseline used by the remaining historical read/revocation assertions.
 update partner_private.store_subscriptions set state='active',version=(select version from old_subscription426)
  where store_id='00000000-0000-4000-8000-000000000009';
-update partner_private.store_photo_tier_state set tier='gallery',version=(select version from old_tier426)
+update partner_private.store_photo_tier_state set tier='gallery',source='subscription',version=(select version from old_tier426)
  where store_id='00000000-0000-4000-8000-000000000009';
 -- Leave ordinary billing and later existing Owner tests at their original read-only baseline.
 update partner_private.owner_cancellation_test_control set enabled=false;
