@@ -4072,8 +4072,6 @@ main.catalog-browser--editorial.catalog-browser--compact-results .browse-editori
 
   main.catalog-browser--editorial.catalog-browser--compact-results .browse-editorial-hero h1 {
     max-width: none;
-    font-size: var(--type-size-heading-3);
-    line-height: var(--type-leading-display-relaxed);
   }
 
   main.catalog-browser--editorial.catalog-browser--compact-results .catalog-results-heading {
@@ -4192,8 +4190,6 @@ main.catalog-browser--editorial .catalog-state {
 
   main.catalog-browser--editorial.catalog-browser--compact-results .browse-editorial-hero h1 {
     max-width: none;
-    font-size: var(--type-size-heading-3);
-    line-height: var(--type-leading-display-relaxed);
   }
 
   main.catalog-browser--editorial.catalog-browser--compact-results .browse-editorial-hero__caption {

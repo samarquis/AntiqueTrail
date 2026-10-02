@@ -765,6 +765,24 @@ describe('semantic typography contract', () => {
     expect(sizeInPixels('type-size-caption')).toBeGreaterThanOrEqual(13)
   })
 
+  it('keeps compact Browse H1 typography on the page-title scale', () => {
+    const compactTitleProperties: string[][] = []
+    const titleSelector =
+      'main.catalog-browser--editorial.catalog-browser--compact-results .browse-editorial-hero h1'
+
+    postcss.parse(styles).walkRules((rule) => {
+      if (rule.selector.replace(/\s+/g, ' ').trim() === titleSelector) {
+        compactTitleProperties.push(
+          rule.nodes?.flatMap((node) => (node.type === 'decl' ? [node.prop] : [])) ?? [],
+        )
+      }
+    })
+
+    expect(compactTitleProperties).not.toHaveLength(0)
+    expect(compactTitleProperties.flat()).not.toContain('font-size')
+    expect(compactTitleProperties.flat()).not.toContain('line-height')
+  })
+
   it('uses tokens for typography declarations unless an isolated exception is documented', () => {
     const violations = typographyViolations(styles)
     expect(violations, `Unapproved raw typography declarations:\n${violations.join('\n')}`).toEqual(

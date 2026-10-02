@@ -23,6 +23,13 @@ describe('catalog count labels', () => {
     expect(await screen.findByText(expected)).toBeVisible()
   })
 
+  it('announces the result count politely while preserving its heading', async () => {
+    render(<BrowsePage client={catalogClient([syntheticStores[0]])} />)
+
+    const heading = await screen.findByRole('heading', { level: 2, name: '1 store to explore' })
+    expect(heading).toHaveAttribute('aria-live', 'polite')
+  })
+
   it('uses singular photo wording while preserving the gallery destination', async () => {
     const store = { ...syntheticStores[0], media: [syntheticStores[0].media[0]] }
     render(<DetailsPage client={catalogClient([store])} slug={store.slug} />)

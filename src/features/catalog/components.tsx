@@ -766,7 +766,7 @@ export function BrowsePage({
             <div className="catalog-results-heading">
               <div>
                 <p className="eyebrow">Local directory</p>
-                <h2>
+                <h2 aria-live="polite" aria-atomic="true">
                   {state.stores.length} {state.stores.length === 1 ? 'store' : 'stores'} to explore
                 </h2>
               </div>
