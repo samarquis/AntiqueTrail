@@ -41,14 +41,15 @@ describe('live Browse editorial surface', () => {
     expect(screen.getByRole('main')).toHaveClass('catalog-browser--compact-results')
   })
 
-  it('places the first listing heading before its cover in compact results', async () => {
+  it('keeps the first listing cover before its heading in compact results', async () => {
     render(<BrowsePage client={client()} initialSearch="?q=Blue+Finch" />)
 
     const results = await screen.findByRole('region', { name: 'Store results' })
     const card = within(results).getByRole('article')
+    const cover = within(card).getByRole('img')
     const title = within(card).getByRole('heading', { name: syntheticStores[0].name })
 
-    expect(card.firstElementChild).toBe(title)
+    expect(cover.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(title).getByRole('link', { name: syntheticStores[0].name })).toHaveAttribute(
       'href',
       `/stores/${syntheticStores[0].slug}`,

@@ -301,13 +301,11 @@ export function CatalogCard({
   privateActions,
   mapSelected = false,
   onShowOnMap,
-  titleBeforeImage = false,
 }: {
   store: CatalogStore
   privateActions?: React.ReactNode
   mapSelected?: boolean
   onShowOnMap?: () => void
-  titleBeforeImage?: boolean
 }) {
   const [imageFailed, setImageFailed] = useState(false)
   const cover = store.media.find((item) => item.kind === 'cover') ?? store.media[0]
@@ -322,7 +320,7 @@ export function CatalogCard({
   const detailsHref = catalogAppHref(`/stores/${encodeURIComponent(store.slug)}`)
   const rememberDetailReturn = () => rememberBrowseReturn(store.id)
   const title = (
-    <h2 className={titleBeforeImage ? 'catalog-card__title--above-image' : undefined}>
+    <h2>
       <CatalogLink to={detailsHref} onClick={rememberDetailReturn}>
         {store.name}
       </CatalogLink>
@@ -343,7 +341,6 @@ export function CatalogCard({
       aria-current={mapSelected ? 'true' : undefined}
       tabIndex={-1}
     >
-      {titleBeforeImage && title}
       {cover && !imageFailed ? (
         <img
           className="catalog-card__image"
@@ -360,7 +357,7 @@ export function CatalogCard({
         </div>
       )}
       <div className="catalog-card__body">
-        {!titleBeforeImage && title}
+        {title}
         <p className="catalog-card__area">{location}</p>
         <ul className="catalog-card__categories" aria-label="Store categories">
           {store.categories.map((category) => (
@@ -780,7 +777,6 @@ export function BrowsePage({
                 <CatalogCard
                   key={store.id || store.slug}
                   store={store}
-                  titleBeforeImage={showCompactResults}
                   privateActions={renderPrivateActions?.(store)}
                   mapSelected={selectedStoreId === store.id}
                   onShowOnMap={
