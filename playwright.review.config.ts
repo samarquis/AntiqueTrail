@@ -18,6 +18,10 @@ export default defineConfig({
     'issue-147-catalog-metadata.spec.ts',
     'issue-168-owner-research.spec.ts',
     'issue-175-commercial-research.spec.ts',
+    'issue-422-owner-workspace.spec.ts',
+    'issue-424-team-access.spec.ts',
+    'issue-425-owner-billing-status.spec.ts',
+    'issue-426-owner-cancellation.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
@@ -34,7 +38,11 @@ export default defineConfig({
     command: 'npm run dev:review -- --host 127.0.0.1 --port 4174',
     url: 'http://127.0.0.1:4174/review',
     reuseExistingServer: false,
-    env: { ...process.env, VITE_COMMERCIAL_RESEARCH_REVIEW: 'true' },
+    env: {
+      ...process.env,
+      VITE_REVIEW_HARNESS: 'true',
+      VITE_COMMERCIAL_RESEARCH_REVIEW: 'true',
+    },
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
