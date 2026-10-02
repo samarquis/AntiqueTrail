@@ -45,6 +45,10 @@ Pre-existing failures or unrelated work: None identified. The test-first red run
 | Hosted/provider lifecycle  | Read-only Vercel identity checks; `vercel.json` has `git.deploymentEnabled: false`                                                                            | No provider mutation or deployment.                                                                                                                                               | Bound baseline deployment only                                             |
 | Canonical production route | Both routes returned `Page not found` before edits on bound deployment                                                                                        | Baseline observed; candidate was not deployed, so candidate production rendering is unverified by design.                                                                         | Production deployment `dpl_6zUinfmc3LhkpvH7ELAvSHxRyMnT`, source `c9bb...` |
 
+### PR check follow-up
+
+The initial PR head `e367080b9d4303984ea531e5e6a23fcefcbdef6e` failed its `web` check because `src/features/partners/ownerAcquisitionPage.test.tsx` still expected `Page not found` for `/for-stores?enabled=true&reviewAs=administrator`. The annotated DOM showed the approved catalog-only boundary, its Browse link, and no acquisition button. That assertion now expects the boundary and still forbids the acquisition button/form. The follow-up has not been verified yet. The `database` check was still running; `Supabase Preview` was skipped.
+
 ## Security and negative proof
 
 - Denied identities/scopes: no authentication, authorization, or availability scopes were changed.
@@ -54,17 +58,17 @@ Pre-existing failures or unrelated work: None identified. The test-first red run
 
 ## Independent review
 
-- Reviewer: pending parent/overseer review
+- Reviewer: parent/overseer review requested at the initial PR head; that review is stale after the follow-up test change
 - Standards verdict: pending
 - Spec verdict: pending
 - Final verdict: pending
-- Findings and disposition: request exact-head review after PR creation.
+- Findings and disposition: request exact-head review after the follow-up is pushed.
 
 ## Unverified
 
 - Candidate is not deployed; canonical routes still reflect the previously bound production artifact. User excluded deployment.
 - Manual desktop/mobile rendering of the unavailable state was not possible with the stock local review harness because it reports route and claim availability as true; no harness behavior was expanded for this UI-only ticket.
-- Parent review, CI on PR head, merge, and live issue closure remain pending.
+- The follow-up test change, passing `web`/`database` checks, parent review on final head, merge, and live issue closure remain pending.
 
 ## Invalidation
 

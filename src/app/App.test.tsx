@@ -732,14 +732,16 @@ describe('app shell', () => {
     expect(getEligibility).toHaveBeenCalledWith(storeId)
   })
 
-  it('explains the catalog-only boundary on the disabled public listing claim route', () => {
+  it('falls back to the catalog-only boundary when availability lookup fails', async () => {
     render(
       <MemoryRouter initialEntries={['/partner/claim']}>
         <App />
       </MemoryRouter>,
     )
     expect(
-      screen.getByRole('heading', { name: 'Owner intake is not available in this public test' }),
+      await screen.findByRole('heading', {
+        name: 'Owner intake is not available in this public test',
+      }),
     ).toBeInTheDocument()
     expect(
       screen.getByText(
@@ -753,7 +755,36 @@ describe('app shell', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('explains the catalog-only boundary when owner acquisition is hidden', async () => {
+  it('hides partner claims when claimsAvailable is false and the other flags are true', async () => {
+    render(
+      <MemoryRouter initialEntries={['/partner/claim']}>
+        <App
+          clients={{
+            ownerIntakeAvailability: {
+              getAvailability: async () => ({
+                routeVisible: true,
+                intakeAvailable: true,
+                claimsAvailable: false,
+              }),
+            },
+          }}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Owner intake is not available in this public test',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Browse stores' })).toHaveAttribute('href', '/stores')
+    expect(screen.queryByRole('form')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /apply|claim|submit application/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('hides owner acquisition when routeVisible is false and the other flags are true', async () => {
     render(
       <MemoryRouter initialEntries={['/for-stores']}>
         <App
@@ -762,8 +793,8 @@ describe('app shell', () => {
             ownerIntakeAvailability: {
               getAvailability: async () => ({
                 routeVisible: false,
-                intakeAvailable: false,
-                claimsAvailable: false,
+                intakeAvailable: true,
+                claimsAvailable: true,
               }),
             },
           }}
