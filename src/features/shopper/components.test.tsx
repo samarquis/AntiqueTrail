@@ -68,6 +68,7 @@ describe('private shopper screens', () => {
   afterEach(() => {
     cleanup()
     window.sessionStorage.clear()
+    vi.unstubAllEnvs()
   })
 
   it('renders saved stores from an account-scoped client', async () => {
@@ -148,6 +149,23 @@ describe('private shopper screens', () => {
     expect(window.sessionStorage.getItem('antique-trail:jit-private-action:v1')).toContain(
       '"storeId":"store-1"',
     )
+  })
+
+  it('explains that saving stores is paused during the public-test stage', () => {
+    vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
+    render(
+      <MemoryRouter initialEntries={['/stores/oak']}>
+        <AuthProvider>
+          <CatalogPrivateActions storeId="store-1" slug="oak" client={client()} />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /saving stores is paused for this public-test stage/i,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(/existing accounts can still sign in/i)
+    expect(screen.queryByRole('link', { name: /^save/i })).not.toBeInTheDocument()
   })
 
   it('resumes exactly one pending Save after JIT authentication', async () => {
@@ -485,6 +503,7 @@ describe('private shopper screens', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveFocus()
     expect(alert).toHaveTextContent(/couldn't complete that private action/i)
+    expect(alert).not.toHaveTextContent(/public-test stage/i)
     expect(alert).not.toHaveTextContent(/database detail/i)
     expect(note).toHaveValue(longNote)
   })
