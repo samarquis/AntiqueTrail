@@ -57,7 +57,9 @@ for (const { theme, width } of cases) {
     await page.addInitScript((savedTheme) => localStorage.setItem('at-theme', savedTheme), theme)
     await page.goto('/stores')
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
-    await expect(page.getByRole('heading', { level: 1, name: /browse stores/iu })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: /discover local antiques/iu }),
+    ).toBeVisible()
 
     const searchField = page.getByLabel('Search stores')
     const searchButton = page.getByRole('button', { name: 'Search', exact: true })

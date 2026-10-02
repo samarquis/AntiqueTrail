@@ -130,7 +130,9 @@ test.describe('Issue 357 synthetic store content comparison', () => {
   }) => {
     test.setTimeout(240_000)
     await page.goto('/stores', { waitUntil: 'domcontentloaded' })
-    await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeVisible({
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Discover local antiques.' }),
+    ).toBeVisible({
       timeout: 60_000,
     })
     await expect(page.locator('.catalog-card')).toHaveCount(stores.length)

@@ -23,6 +23,6 @@ test('Administrator can prepare, freeze, and review a bounded RG-01 run', async 
 
 test('missing Administrator/session is denied without private evidence', async ({ page }) => {
   await page.goto('/admin/evidence/rg-01')
-  await expect(page.getByRole('heading', { name: /browse stores/iu })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /discover local antiques/iu })).toBeVisible()
   await expect(page.getByText(/manifest digest|subject|dedup/iu)).toHaveCount(0)
 })

@@ -564,13 +564,30 @@ export function BrowsePage({
       window.history.replaceState({}, '', `/stores${query ? `?${query}` : ''}`)
   }
   return (
-    <main className="catalog-browser">
-      <header>
-        <p className="eyebrow">Antique Trail</p>
-        <h1>Browse stores</h1>
-        <p>Find antique and vintage stores with practical, current details.</p>
-      </header>
-      <CatalogFiltersForm filters={filters} onChange={updateFilters} stage={filterStage} />
+    <main className="catalog-browser catalog-browser--editorial">
+      <section className="browse-editorial-hero" aria-label="Browse the local trail">
+        <img
+          className="browse-editorial-hero__image"
+          src="/images/synthetic-stores/1280w/blue-finch-curios-gallery-aisle.webp"
+          alt="A lamp-lit antique shop aisle with cabinets and curiosities."
+        />
+        <div className="browse-editorial-hero__shade" aria-hidden="true" />
+        <div className="browse-editorial-hero__content">
+          <header>
+            <p className="eyebrow">Antique Trail</p>
+            <h1>Discover local antiques.</h1>
+            <p>
+              Make a day of the shops, stories, and one-of-a-kind finds waiting around the corner.
+            </p>
+          </header>
+          <div className="browse-editorial-hero__filters">
+            <CatalogFiltersForm filters={filters} onChange={updateFilters} stage={filterStage} />
+          </div>
+        </div>
+        <p className="browse-editorial-hero__caption media-overlay-surface">
+          Fictional sample imagery · Antique Trail
+        </p>
+      </section>
       <section
         aria-labelledby="browse-map-heading"
         className="catalog-map-panel"

@@ -74,7 +74,9 @@ async function expectLandscapeCatalogCover(page: Page, viewportWidth: number) {
 test.describe('Synthetic catalog design contract', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/stores')
-    await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Discover local antiques.' }),
+    ).toBeVisible()
     await expect(page.locator('.catalog-card').first()).toBeVisible()
   })
 
@@ -114,13 +116,15 @@ test.describe('Synthetic catalog design contract', () => {
 
     await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
     await expect(page).toHaveURL(/\/stores$/)
-    const browseHeading = page.getByRole('heading', { level: 1, name: 'Browse stores' })
+    const browseHeading = page.getByRole('heading', { level: 1, name: 'Discover local antiques.' })
     await expect(browseHeading).toBeFocused()
   })
 
   test('provides a keyboard skip link to the single main landmark', async ({ page }) => {
     const skipLink = page.getByRole('link', { name: 'Skip to main content' })
-    await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeFocused()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Discover local antiques.' }),
+    ).toBeFocused()
     for (let step = 0; step < 12; step += 1) {
       await page.keyboard.press('Shift+Tab')
       if (await skipLink.evaluate((element) => element === document.activeElement)) break
@@ -291,7 +295,9 @@ test.describe('Synthetic catalog design contract', () => {
     }
   })
 
-  test('opens on a useful first store without an unexposed map placeholder', async ({ page }) => {
+  test('opens on the recovered photo hero with useful stores below it and no map placeholder', async ({
+    page,
+  }, testInfo) => {
     for (const appearance of ['light', 'dark'] as const) {
       for (const viewport of [
         { width: 1440, height: 1000 },
@@ -309,11 +315,28 @@ test.describe('Synthetic catalog design contract', () => {
         await expect(page.getByText(/map and travel-time suggestions/i)).toHaveCount(0)
         await expect(page.getByText('Fictional listings for safe product review')).toBeVisible()
 
+        const hero = page.getByRole('region', { name: 'Browse the local trail' })
+        await expect(
+          hero.getByRole('heading', { name: 'Discover local antiques.' }),
+        ).toBeInViewport()
+        const heroImage = hero.getByRole('img')
+        await expect
+          .poll(() => heroImage.evaluate((image) => (image as HTMLImageElement).naturalWidth))
+          .toBeGreaterThan(0)
+        const heroBox = await hero.boundingBox()
+        expect(Math.round(heroBox!.height)).toBeGreaterThanOrEqual(
+          Math.round(Math.min(768, viewport.height * 0.88)),
+        )
+        await page.screenshot({
+          path: testInfo.outputPath(`recovered-hero-${appearance}-${viewport.width}.png`),
+        })
+
         const firstCard = page.locator('.catalog-card').first()
         const firstImage = firstCard.getByRole('img')
         const firstName = firstCard.getByRole('link', { name: 'Blue Finch Curios', exact: true })
         await expect(firstImage).toBeVisible()
         await expect(firstName).toBeVisible()
+        await firstCard.scrollIntoViewIfNeeded()
 
         const geometry = await firstCard.evaluate((card, viewportHeight) => {
           const image = card.querySelector<HTMLElement>(
@@ -384,7 +407,9 @@ test.describe('Synthetic catalog design contract', () => {
   test('reflows at the 320px CSS viewport equivalent to 200% zoom', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 })
     await page.reload()
-    await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Discover local antiques.' }),
+    ).toBeVisible()
 
     const overflow = await page.evaluate(() => ({
       body: document.body.scrollWidth - document.body.clientWidth,

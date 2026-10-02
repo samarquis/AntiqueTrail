@@ -15,7 +15,9 @@ type CardMetrics = {
 
 async function waitForBrowse(page: Page) {
   await page.goto('/stores')
-  await expect(page.getByRole('heading', { level: 1, name: /browse stores/iu })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { level: 1, name: /discover local antiques/iu }),
+  ).toBeVisible()
   await expect(page.locator('.catalog-card')).toHaveCount(12)
 }
 

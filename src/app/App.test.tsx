@@ -28,7 +28,7 @@ describe('app shell', () => {
         <App />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('heading', { name: /browse stores/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /discover local antiques/i })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /skip to main content/i })).toHaveAttribute(
       'href',
@@ -37,7 +37,7 @@ describe('app shell', () => {
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toHaveTextContent(
       'BrowseSaved stores Requires sign-inMore',
     )
-    expect(screen.getByRole('heading', { name: /browse stores/i })).toHaveFocus()
+    expect(screen.getByRole('heading', { name: /discover local antiques/i })).toHaveFocus()
   })
 
   it('keeps public-test shopper navigation to Browse, Saved stores, and More after sign-in', () => {
@@ -338,7 +338,7 @@ describe('app shell', () => {
       </MemoryRouter>,
     )
     expect(
-      (await screen.findAllByRole('heading', { name: /browse stores/i })).length,
+      (await screen.findAllByRole('heading', { name: /discover local antiques/i })).length,
     ).toBeGreaterThan(0)
     expect(screen.queryByRole('heading', { name: /review queue/i })).not.toBeInTheDocument()
   })
@@ -380,7 +380,7 @@ describe('app shell', () => {
       </MemoryRouter>,
     )
     expect(
-      (await screen.findAllByRole('heading', { name: /browse stores/i })).length,
+      (await screen.findAllByRole('heading', { name: /discover local antiques/i })).length,
     ).toBeGreaterThan(0)
     expect(
       screen.queryByRole('heading', { name: /partner administration/i }),
@@ -501,7 +501,7 @@ describe('app shell', () => {
       </MemoryRouter>,
     )
     expect(
-      (await screen.findAllByRole('heading', { name: /browse stores/i })).length,
+      (await screen.findAllByRole('heading', { name: /discover local antiques/i })).length,
     ).toBeGreaterThan(0)
     expect(
       screen.queryByRole('heading', { name: /synthetic internal alpha/i }),
@@ -584,7 +584,7 @@ describe('app shell', () => {
       </MemoryRouter>,
     )
     expect(
-      (await screen.findAllByRole('heading', { name: /browse stores/i })).length,
+      (await screen.findAllByRole('heading', { name: /discover local antiques/i })).length,
     ).toBeGreaterThan(0)
     expect(
       screen.queryByRole('heading', { name: /external testing readiness/i }),

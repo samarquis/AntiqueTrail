@@ -277,7 +277,7 @@ describe('catalog private-action integration seam', () => {
       12,
     )
     expect(
-      within(screen.getByRole('main')).getByRole('heading', { name: /browse stores/i }),
+      within(screen.getByRole('main')).getByRole('heading', { name: /discover local antiques/i }),
     ).toBeVisible()
   })
 
