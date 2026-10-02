@@ -286,12 +286,12 @@ export function CatalogFiltersForm({
             </button>
           </div>
         </div>
+        {hasFilters && (
+          <p className="catalog-filter-summary" role="status">
+            Filters are active. Open Filters to review or clear them.
+          </p>
+        )}
       </form>
-      {hasFilters && (
-        <p className="catalog-filter-summary" role="status">
-          Filters are active. Open Filters to review or clear them.
-        </p>
-      )}
     </div>
   )
 }
@@ -439,6 +439,11 @@ export function BrowsePage({
   availability?: 'available' | 'blocked'
 }) {
   const [filters, setFilters] = useState(() => normalizeQueryParams(initialSearch))
+  const [hasUsedFilters, setHasUsedFilters] = useState(() =>
+    Object.values(normalizeQueryParams(initialSearch)).some(
+      (value) => value != null && value !== false,
+    ),
+  )
   const [state, setState] = useState<{
     kind: 'loading' | 'success' | 'error' | 'blocked'
     stores?: CatalogStore[]
@@ -558,13 +563,16 @@ export function BrowsePage({
     })
   }, [state.kind, state.stores])
   const updateFilters = (next: CatalogFilters) => {
+    setHasUsedFilters(true)
     setFilters(normalizeQueryParams(queryParams(next)))
     const query = queryParams(next).toString()
     if (typeof window !== 'undefined')
       window.history.replaceState({}, '', `/stores${query ? `?${query}` : ''}`)
   }
   return (
-    <main className="catalog-browser catalog-browser--editorial">
+    <main
+      className={`catalog-browser catalog-browser--editorial${hasUsedFilters ? ' catalog-browser--filtered' : ''}`}
+    >
       <section className="browse-editorial-hero" aria-label="Browse the local trail">
         <img
           className="browse-editorial-hero__image"

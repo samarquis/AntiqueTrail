@@ -4032,8 +4032,22 @@ main.catalog-browser--editorial .browse-editorial-hero {
 }
 
 .browse-editorial-hero__filters .catalog-field--search,
-.browse-editorial-hero__filters .catalog-filters__actions {
+.browse-editorial-hero__filters .catalog-filters__actions,
+.browse-editorial-hero__filters .catalog-filter-summary {
   grid-column: 1 / -1;
+}
+
+.browse-editorial-hero__filters .catalog-filter-summary {
+  margin: 0;
+}
+
+main.catalog-browser--editorial.catalog-browser--filtered .browse-editorial-hero {
+  min-height: 0;
+  margin-bottom: 1rem;
+}
+
+main.catalog-browser--editorial.catalog-browser--filtered .browse-editorial-hero__content {
+  padding-block: 1rem;
 }
 
 .browse-editorial-hero__caption {
