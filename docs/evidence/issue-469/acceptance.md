@@ -11,7 +11,7 @@
 - Source PR head before this evidence-only update: `2c10124a0b7f2a9c942aab30a90614682423d45e`.
 - Diff fingerprint: `4c580d4f9efbad294465fe6ce32d2ad8b52839b9` for the application and regression-test files listed below against the current PR base.
 - Branch: `codex/issue-469-browse-results-viewport` in its isolated ticket worktree.
-- Evidence captured at: 2026-10-02 14:25 CDT, local Windows Chromium and Vite review harness.
+- Evidence captured at: 2026-10-02 14:37 CDT, local Windows Chromium and Vite review harness.
 
 ## Scope
 
@@ -37,7 +37,7 @@ GitHub CI on the previously pushed PR head `395151ab888f8bbc7de30f6594643bdd08d6
 
 ### Rendered evidence
 
-Screenshots use local synthetic catalog fixtures. The before captures retain the local-only review banner; after viewport captures hide only the DEV-only `.review-harness-banner`. The fictional-listing disclosure and public demo notice remain visible. Search captures wait for the cover image to load. Browser console and page errors were empty.
+Screenshots use local synthetic catalog fixtures. Before captures retain the local-only review banner. After captures dispatch a synthetic `pointerdown` to select the app's pointer-input styling; the route H1 remains focused for announcement, while its keyboard focus ring is suppressed by existing CSS. Captures hide only the DEV-only `.review-harness-banner`. The fictional-listing disclosure and public demo notice remain visible. Search captures wait for the cover image to load. Browser console and page errors were empty.
 
 | View                       | Before                                                   | After                                                                             |
 | -------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------- |
