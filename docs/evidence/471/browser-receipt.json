@@ -1,0 +1,109 @@
+{
+  "fixture": "Temporary local harness importing committed App and styles without edits; synthetic availability client and demo catalog. No hosted provider.",
+  "cases": [
+    {
+      "route": "/for-stores",
+      "fixture": "successful availability response, all flags false",
+      "explanation": true,
+      "noForms": true,
+      "catalogLanding": "http://127.0.0.1:4186/stores",
+      "catalogVisible": true,
+      "screenshot": "for-stores-desktop.jpg",
+      "requestedViewport": [
+        1366,
+        900
+      ],
+      "screenshotDimensions": [
+        1366,
+        900
+      ]
+    },
+    {
+      "route": "/partner/claim",
+      "fixture": "successful availability response, all flags false",
+      "explanation": true,
+      "noForms": true,
+      "catalogLanding": "http://127.0.0.1:4186/stores",
+      "catalogVisible": true,
+      "screenshot": "partner-claim-desktop.jpg",
+      "requestedViewport": [
+        1366,
+        900
+      ],
+      "screenshotDimensions": [
+        1366,
+        900
+      ]
+    },
+    {
+      "route": "/for-stores",
+      "fixture": "successful availability response, all flags false",
+      "explanation": true,
+      "noForms": true,
+      "catalogLanding": "http://127.0.0.1:4186/stores",
+      "catalogVisible": true,
+      "screenshot": "for-stores-mobile.jpg",
+      "requestedViewport": [
+        390,
+        844
+      ],
+      "screenshotDimensions": [
+        375,
+        812
+      ]
+    },
+    {
+      "route": "/partner/claim",
+      "fixture": "successful availability response, all flags false",
+      "explanation": true,
+      "noForms": true,
+      "catalogLanding": "http://127.0.0.1:4186/stores",
+      "catalogVisible": true,
+      "screenshot": "partner-claim-mobile.jpg",
+      "requestedViewport": [
+        390,
+        844
+      ],
+      "screenshotDimensions": [
+        375,
+        812
+      ]
+    },
+    {
+      "route": "/for-stores",
+      "fixture": "loading",
+      "notFound": true,
+      "noPolicy": true,
+      "noForms": true
+    },
+    {
+      "route": "/partner/claim",
+      "fixture": "loading",
+      "notFound": true,
+      "noPolicy": true,
+      "noForms": true
+    },
+    {
+      "route": "/for-stores",
+      "fixture": "rejected",
+      "notFound": true,
+      "noPolicy": true,
+      "noForms": true
+    },
+    {
+      "route": "/partner/claim",
+      "fixture": "rejected",
+      "notFound": true,
+      "noPolicy": true,
+      "noForms": true
+    }
+  ],
+  "sourceSha": "de09752c2b1222b4b2f12c6cd4086451d1cafb40",
+  "cleanup": "Owned servers on ports 4185 and 4186 stopped; browser tab closed. No further browser run until root releases shared lane.",
+  "console": {
+    "errorEntries": 0,
+    "warnings": "Existing React Router v7 future-flag warnings"
+  },
+  "network": "No HTTP provider/request trace claimed; fixture resolves/rejects availability locally.",
+  "captureLimit": "Browser override requested 390x844 on mobile; saved JPEG captures measure 375x812. Actual DOM viewport was not independently measured. Captures prove a mobile render, not exact 390x844 rendering."
+}
