@@ -9,6 +9,7 @@ type Input = {
   storeId: string
   siblingStoreId: string
   cancellation?: boolean
+  cancellationVerified?: boolean
   owner: { email: string; password: string; totpSecret: string }
 }
 
@@ -98,7 +99,11 @@ test('configured Owner browser reads exact billing RPC and direct wrong scopes d
           availableActions: [],
         },
   )
-  if (input.cancellation) {
+  if (input.cancellationVerified) {
+    await expect(page.getByRole('status')).toContainText('Renewal cancellation is confirmed.')
+    await expect(page.getByText('Gallery', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel renewal' })).toHaveCount(0)
+  } else if (input.cancellation) {
     await expect(page.getByText('Gallery', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Cancel renewal' }).click()
     await expect(

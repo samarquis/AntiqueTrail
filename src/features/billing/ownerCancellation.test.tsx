@@ -51,6 +51,7 @@ it('requires explicit exact-store confirmation and shows pending instead of succ
           storeName: 'Blue Finch Curios',
           paidThrough: '2026-10-31T00:00:00Z',
           snapshot: 'a'.repeat(64),
+          scheduledChanges: [],
           state: 'available',
         }),
         cancel,
@@ -79,6 +80,7 @@ it('denied or stale confirmation requires a refresh before another request', asy
           storeName: 'Blue Finch Curios',
           paidThrough: '2026-10-31T00:00:00Z',
           snapshot: 'a'.repeat(64),
+          scheduledChanges: [],
           state: 'available',
         }),
         cancel,
@@ -95,6 +97,28 @@ it('denied or stale confirmation requires a refresh before another request', asy
   expect(screen.queryByText(/cancellation is confirmed/)).toBeNull()
 })
 
+it('previews the exact scheduled tier and effective date being superseded', async () => {
+  const user = userEvent.setup()
+  render(
+    <OwnerCancellation
+      client={{
+        getContext: async () => ({
+          storeName: 'Blue Finch Curios',
+          paidThrough: '2026-10-31T00:00:00Z',
+          snapshot: 'a'.repeat(64),
+          state: 'available',
+          scheduledChanges: [{ tier: 'free', effectiveAt: '2026-10-31T00:00:00Z' }],
+        }),
+        cancel: vi.fn(),
+      }}
+    />,
+  )
+  await user.click(await screen.findByRole('button', { name: 'Cancel renewal' }))
+  expect(
+    screen.getByText('Scheduled change to Free on October 31, 2026 will be superseded.'),
+  ).toBeVisible()
+})
+
 it.each(['pending', 'reconciliation_pending', 'scheduled', 'completed', 'failed'] as const)(
   'renders the %s outcome without offering another cancellation',
   async (state) => {
@@ -105,6 +129,7 @@ it.each(['pending', 'reconciliation_pending', 'scheduled', 'completed', 'failed'
             storeName: 'Blue Finch Curios',
             paidThrough: '2026-10-31T00:00:00Z',
             snapshot: 'a'.repeat(64),
+            scheduledChanges: [],
             state,
           }),
           cancel: vi.fn(),

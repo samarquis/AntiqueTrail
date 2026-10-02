@@ -45,11 +45,11 @@ set local role authenticated;
 select throws_ok($$select app_public.billing_request_owner_cancellation((select consent_id from cancellation426),'42600000-0000-4000-8000-000000000002')$$,'42501','billing_consent_invalid','expired consent denies');
 reset role;
 update partner_private.owner_cancellation_consents set expires_at=statement_timestamp()+interval '15 minutes';
-update partner_private.photo_tier_sales_control set state='off_prelaunch';
+update partner_private.photo_tier_sales_control set state='off_prelaunch',commercial_config_version=null;
 set local role authenticated;
 select throws_ok($$select app_public.billing_request_owner_cancellation((select consent_id from cancellation426),'42600000-0000-4000-8000-000000000002')$$,'55000','billing_stage_disabled','off-prelaunch cannot request cancellation');
 reset role;
-update partner_private.photo_tier_sales_control set state='sales_open';
+update partner_private.photo_tier_sales_control set state='sales_open',commercial_config_version=425132;
 set local role authenticated;
 select is(app_public.billing_request_owner_cancellation((select consent_id from cancellation426),'42600000-0000-4000-8000-000000000002')->>'state','pending','intent commits pending without claiming success');
 select is(app_public.billing_request_owner_cancellation((select consent_id from cancellation426),'42600000-0000-4000-8000-000000000002')->>'state','pending','identical request replay applies no new effect');
@@ -62,19 +62,25 @@ update cancellation426 set intent_id=(select intent_id from partner_private.owne
 update partner_private.owner_cancellation_fake_provider set schedule_version=schedule_version+1;
 set local role billing_automation;
 select is(app_public.billing_execute_owner_fake_cancellation((select intent_id from cancellation426))->>'state','reconciliation_pending','concurrent provider schedule change retains obligation without effect');
+select is(app_public.billing_reconcile_owner_cancellation((select intent_id from cancellation426))->>'state','failed','verified never-executed key resolves permanent version conflict without success');
 reset role;
 select is((select effects from partner_private.owner_cancellation_fake_provider),0,'stale provider version applies no cancellation');
-update partner_private.owner_cancellation_fake_provider set schedule_version=schedule_version-1;
+set local role authenticated;
+update cancellation426 set snapshot=app_public.billing_get_owner_cancellation()->>'snapshot';
+update cancellation426 set consent_id=(app_public.billing_record_owner_cancel_consent(snapshot,'42600000-0000-4000-8000-000000000007')->>'consentId')::uuid;
+select is(app_public.billing_request_owner_cancellation((select consent_id from cancellation426),'42600000-0000-4000-8000-000000000008')->>'state','pending','fresh confirmation recovers after verified no-effect failure');
+reset role;
+update cancellation426 set intent_id=(select intent_id from partner_private.owner_cancellation_intents where state='pending');
 set local role billing_automation;
 select is(app_public.billing_reconcile_owner_cancellation((select intent_id from cancellation426))->>'state','reconciliation_pending','unknown provider state retains reconciliation obligation');
 select is(app_public.billing_execute_owner_fake_cancellation((select intent_id from cancellation426))->>'state','verified','worker applies exact fake effect');
 reset role;
-select is((select state from partner_private.owner_cancellation_intents),'reconciliation_pending','lost provider response never reports success');
+select is((select state from partner_private.owner_cancellation_intents where intent_id=(select intent_id from cancellation426)),'reconciliation_pending','lost provider response never reports success');
 select is((select tier from partner_private.store_photo_tier_state where store_id='00000000-0000-4000-8000-000000000009'),'gallery','pending cancellation retains paid entitlement');
 update partner_private.store_partner_grants set state='revoked',revoked_at=statement_timestamp()
  where store_id='00000000-0000-4000-8000-000000000009';
 set local role authenticated;
-select throws_ok($$select app_public.billing_request_owner_cancellation((select consent_id from cancellation426),'42600000-0000-4000-8000-000000000002')$$,'42501','billing_action_denied','revoked access denies even an identical replay');
+select throws_ok($$select app_public.billing_request_owner_cancellation((select consent_id from cancellation426),'42600000-0000-4000-8000-000000000008')$$,'42501','billing_action_denied','revoked access denies even an identical replay');
 reset role;
 set local role billing_automation;
 select is(app_public.billing_execute_owner_fake_cancellation((select intent_id from cancellation426))->>'state','verified','worker restart repeats the same provider key');
@@ -88,5 +94,31 @@ select is((select tier from partner_private.store_photo_tier_state where store_i
 set local role authenticated;
 select is(app_public.billing_get_owner_cancellation()->>'state','scheduled','UI observes verified scheduled outcome');
 reset role;
+create temporary table old_subscription426 as select * from partner_private.store_subscriptions where store_id='00000000-0000-4000-8000-000000000009';
+create temporary table old_tier426 as select * from partner_private.store_photo_tier_state where store_id='00000000-0000-4000-8000-000000000009';
+update partner_private.owner_cancellation_fake_provider set ended=true,
+ observed_at=(select current_period_end from old_subscription426)+interval '1 second';
+update partner_private.store_subscriptions set stripe_subscription_id='sub_replacement42600001',version=version+1
+ where store_id='00000000-0000-4000-8000-000000000009';
+update partner_private.store_photo_tier_state set tier='full_gallery',version=version+1
+ where store_id='00000000-0000-4000-8000-000000000009';
+set local role billing_automation;
+select is(app_public.billing_reconcile_owner_cancellation((select intent_id from cancellation426))->>'state','reconciliation_pending','old ended intent cannot take ownership of a replacement subscription');
+reset role;
+select is((select tier from partner_private.store_photo_tier_state where store_id='00000000-0000-4000-8000-000000000009'),'full_gallery','replacement paid entitlement survives stale completion');
+update partner_private.store_subscriptions set stripe_subscription_id='sub_fake42600000001',version=(select version from old_subscription426)
+ where store_id='00000000-0000-4000-8000-000000000009';
+update partner_private.store_photo_tier_state set tier='gallery',version=(select version from old_tier426)
+ where store_id='00000000-0000-4000-8000-000000000009';
+set local role billing_automation;
+select is(app_public.billing_reconcile_owner_cancellation((select intent_id from cancellation426))->>'state','completed','verified fake period boundary ends the bound subscription');
+select is(app_public.billing_reconcile_owner_cancellation((select intent_id from cancellation426))->>'state','completed','terminal completion replay is stable');
+reset role;
+select is((select tier from partner_private.store_photo_tier_state where store_id='00000000-0000-4000-8000-000000000009'),'free','verified period end applies Free once');
+-- Restore the paid baseline used by the remaining historical read/revocation assertions.
+update partner_private.store_subscriptions set state='active',version=(select version from old_subscription426)
+ where store_id='00000000-0000-4000-8000-000000000009';
+update partner_private.store_photo_tier_state set tier='gallery',version=(select version from old_tier426)
+ where store_id='00000000-0000-4000-8000-000000000009';
 -- Leave ordinary billing and later existing Owner tests at their original read-only baseline.
 update partner_private.owner_cancellation_test_control set enabled=false;

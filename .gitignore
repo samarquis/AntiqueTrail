@@ -29,6 +29,7 @@ artifacts/configured-shopper-*/
 artifacts/local-signup/
 artifacts/configured-shopper-issue342/
 artifacts/configured-trip-partner-*/
+artifacts/issue-426/
 .vercel
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).

@@ -22,9 +22,21 @@ function expand(file) {
 try {
   process.stdout.write(`Run-owned local proof: ${service.run.projectId}\n`)
   await service.start()
-  const result = await service.sql(expand('supabase/tests/0132_store_owner_access.sql'))
-  process.stdout.write(result)
-  assert(!/^not ok/m.test(result), 'Owner cancellation pgTAP failed')
+  for (;;) {
+    try {
+      const result = await service.sql(expand('supabase/tests/0132_store_owner_access.sql'))
+      process.stdout.write(result)
+      assert(!/^not ok/m.test(result), 'Owner cancellation pgTAP failed')
+      break
+    } catch (error) {
+      if (!process.argv.includes('--interactive')) throw error
+      process.stderr.write(
+        `${error.message}\nFixture failure retained on the owned stack. Send r to retry or q to clean up.\n`,
+      )
+      const response = await new Promise((resolve) => process.stdin.once('data', resolve))
+      if (!String(response).trim().startsWith('r')) throw error
+    }
+  }
   receipt.status = 'passed'
 } catch (error) {
   receipt.status = 'failed'

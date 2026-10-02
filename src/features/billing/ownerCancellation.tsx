@@ -8,6 +8,7 @@ export interface OwnerCancellationContext {
   paidThrough: string
   snapshot: string
   state: State | 'available'
+  scheduledChanges: readonly { tier: 'free' | 'gallery' | 'full_gallery'; effectiveAt: string }[]
 }
 export interface OwnerCancellationClient {
   getContext(): Promise<OwnerCancellationContext | null>
@@ -46,7 +47,15 @@ export function createOwnerCancellationClient(
         !Number.isFinite(Date.parse(value.paidThrough)) ||
         typeof value.snapshot !== 'string' ||
         !/^[a-f0-9]{64}$/.test(value.snapshot) ||
-        (value.state !== 'available' && !isState(value.state))
+        (value.state !== 'available' && !isState(value.state)) ||
+        !Array.isArray(value.scheduledChanges) ||
+        value.scheduledChanges.some(
+          (change: unknown) =>
+            !record(change) ||
+            !['free', 'gallery', 'full_gallery'].includes(String(change.tier)) ||
+            typeof change.effectiveAt !== 'string' ||
+            !Number.isFinite(Date.parse(change.effectiveAt)),
+        )
       )
         throw new Error(GENERIC_BILLING_ERROR)
       return {
@@ -54,6 +63,7 @@ export function createOwnerCancellationClient(
         paidThrough: value.paidThrough,
         snapshot: value.snapshot,
         state: value.state,
+        scheduledChanges: value.scheduledChanges,
       }
     },
     async cancel(snapshot, consentKey, requestKey) {
@@ -161,6 +171,21 @@ export function OwnerCancellation({ client }: { client: OwnerCancellationClient 
           {reviewing && (
             <>
               <h2>Confirm cancellation for {context.storeName}</h2>
+              {context.scheduledChanges.map((change, index) => (
+                <p key={index}>
+                  Scheduled change to{' '}
+                  {change.tier === 'free'
+                    ? 'Free'
+                    : change.tier === 'gallery'
+                      ? 'Gallery'
+                      : 'Full Gallery'}{' '}
+                  on{' '}
+                  {new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(
+                    new Date(change.effectiveAt),
+                  )}{' '}
+                  will be superseded.
+                </p>
+              ))}
               <p>
                 Renewal will stop at the end of your paid period on{' '}
                 {new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(

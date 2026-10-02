@@ -27,6 +27,7 @@ create table partner_private.owner_cancellation_fake_provider (
   schedule_version bigint not null default 1 check(schedule_version>0),
   cancel_at_period_end boolean not null default false,
   ended boolean not null default false,
+  observed_at timestamptz not null default statement_timestamp(),
   applied_intent_id uuid unique,
   effects integer not null default 0 check(effects between 0 and 1)
 );
@@ -44,6 +45,7 @@ create table partner_private.owner_cancellation_intents (
   actor_id uuid not null, store_id uuid not null references app_public.stores(id),
   idempotency_key uuid not null unique,
   state text not null default 'pending' check(state in ('pending','reconciliation_pending','scheduled','completed','failed')),
+  verified_no_effect boolean not null default false,
   created_at timestamptz not null default statement_timestamp()
 );
 create unique index owner_one_cancellation_obligation on partner_private.owner_cancellation_intents(store_id)
@@ -113,7 +115,9 @@ begin
   select state into outcome from partner_private.owner_cancellation_intents
     where store_id=(snapshot->>'storeId')::uuid order by created_at desc,intent_id desc limit 1;
   return jsonb_build_object('storeName',snapshot->>'storeName','paidThrough',snapshot->>'paidThrough',
-    'snapshot',encode(extensions.digest(snapshot::text,'sha256'),'hex'),'state',coalesce(outcome,'available'));
+    'snapshot',encode(extensions.digest(snapshot::text,'sha256'),'hex'),'state',case when outcome='failed' then 'available' else coalesce(outcome,'available') end,
+    'scheduledChanges',coalesce((select jsonb_agg(jsonb_build_object('tier',item->>2,'effectiveAt',item->>3))
+      from jsonb_array_elements(snapshot->'schedule') item),'[]'::jsonb));
 exception when insufficient_privilege or object_not_in_prerequisite_state then
   perform portal_private.log_owner_access_denial('owner_cancellation',null);
   raise;
@@ -179,7 +183,11 @@ begin
   perform 1 from partner_private.store_subscriptions where store_id=intent.store_id for share;
   perform 1 from partner_private.store_photo_tier_state where store_id=intent.store_id for share;
   select * into provider from partner_private.owner_cancellation_fake_provider where store_id=intent.store_id for update;
-  if provider.applied_intent_id=p_intent_id then return jsonb_build_object('state','verified'); end if;
+  if provider.applied_intent_id=p_intent_id then
+    update partner_private.owner_cancellation_fake_provider set observed_at=greatest(observed_at,statement_timestamp()),
+      ended=ended or greatest(observed_at,statement_timestamp())>=(receipt.snapshot->>'paidThrough')::timestamptz
+      where store_id=intent.store_id;
+    return jsonb_build_object('state','verified'); end if;
   update partner_private.owner_cancellation_intents set state='reconciliation_pending' where intent_id=p_intent_id;
   if provider.subscription_id is distinct from receipt.snapshot->>'subscriptionId'
     or provider.version is distinct from (receipt.snapshot->>'providerVersion')::bigint
@@ -194,6 +202,10 @@ begin
       from partner_private.photo_tier_subscription_changes where subscription_id=provider.subscription_id and state='scheduled'),'[]'::jsonb)
       is distinct from receipt.snapshot->'schedule'
     or not exists(select 1 from partner_private.photo_tier_sales_control where singleton and state in ('sales_open','servicing_only')) then
+    -- The local fake ledger authoritatively proves this key has never executed.
+    if provider.subscription_id=receipt.snapshot->>'subscriptionId' and provider.applied_intent_id is null and provider.effects=0 then
+      update partner_private.owner_cancellation_intents set verified_no_effect=true where intent_id=p_intent_id;
+    end if;
     return jsonb_build_object('state','reconciliation_pending'); end if;
   update partner_private.owner_cancellation_fake_provider set cancel_at_period_end=true,applied_intent_id=p_intent_id,
     version=version+1,schedule_version=schedule_version+1,effects=effects+1 where store_id=intent.store_id;
@@ -211,19 +223,29 @@ begin
     raise exception using errcode='55000',message='billing_stage_disabled'; end if;
   select * into intent from partner_private.owner_cancellation_intents where intent_id=p_intent_id for update;
   if not found then raise exception using errcode='42501',message='billing_action_denied'; end if;
+  if intent.state in ('completed','failed') then return jsonb_build_object('state',intent.state); end if;
   select * into receipt from partner_private.owner_cancellation_consents where consent_id=intent.consent_id;
+  -- Match the source-root -> tier -> provider order used by authorization snapshots.
+  perform 1 from partner_private.store_subscriptions where store_id=intent.store_id for update;
+  perform 1 from partner_private.store_photo_tier_state where store_id=intent.store_id for update;
   select * into provider from partner_private.owner_cancellation_fake_provider where store_id=intent.store_id for update;
   next_state:='reconciliation_pending';
+  if intent.verified_no_effect and provider.applied_intent_id is distinct from p_intent_id then next_state:='failed'; end if;
   if provider.subscription_id=receipt.snapshot->>'subscriptionId' and provider.applied_intent_id=p_intent_id and provider.cancel_at_period_end then
-    next_state:=case when provider.ended then 'completed' else 'scheduled' end;
+    next_state:=case when provider.ended and provider.observed_at>=(receipt.snapshot->>'paidThrough')::timestamptz then 'completed' else 'scheduled' end;
     if intent.state='completed' then next_state:='completed'; end if;
     update partner_private.photo_tier_subscription_changes set state='superseded',completed_at=statement_timestamp()
       where subscription_id=provider.subscription_id and state='scheduled';
-    if provider.ended then
+    if next_state='completed' and exists(select 1 from partner_private.store_subscriptions where store_id=intent.store_id
+      and stripe_subscription_id=receipt.snapshot->>'subscriptionId' and version=(receipt.snapshot->>'subscriptionVersion')::bigint)
+      and exists(select 1 from partner_private.store_photo_tier_state where store_id=intent.store_id
+        and version=(receipt.snapshot->>'tierVersion')::bigint) then
       update partner_private.store_subscriptions set state='canceled',version=version+1,updated_at=statement_timestamp()
         where store_id=intent.store_id and stripe_subscription_id=provider.subscription_id and state<>'canceled';
       update partner_private.store_photo_tier_state set tier='free',version=version+1
         where store_id=intent.store_id and tier<>'free';
+    elsif next_state='completed' then
+      next_state:='reconciliation_pending';
     end if;
   end if;
   if next_state<>intent.state then
@@ -233,9 +255,19 @@ begin
   return jsonb_build_object('state',next_state);
 end $$;
 
+create function app_public.billing_due_owner_cancellation() returns jsonb
+language sql stable security definer set search_path='' as $$
+  select case when not portal_private.owner_cancel_local_test()
+    or not exists(select 1 from partner_private.owner_cancellation_test_control where singleton and enabled)
+    then jsonb_build_object('enabled',false,'intentIds','[]'::jsonb)
+    else jsonb_build_object('enabled',true,'intentIds',coalesce((select jsonb_agg(intent_id order by created_at,intent_id)
+      from partner_private.owner_cancellation_intents where state in ('pending','reconciliation_pending','scheduled')),'[]'::jsonb)) end
+$$;
+
 revoke all on function partner_private.owner_cancel_snapshot() from public,anon,authenticated,service_role;
 revoke all on function app_public.billing_get_owner_cancellation(),app_public.billing_record_owner_cancel_consent(text,uuid),app_public.billing_request_owner_cancellation(uuid,uuid),
  app_public.billing_execute_owner_fake_cancellation(uuid),app_public.billing_reconcile_owner_cancellation(uuid) from public,anon,authenticated,service_role;
+revoke all on function app_public.billing_due_owner_cancellation() from public,anon,authenticated,service_role;
 grant execute on function app_public.billing_get_owner_cancellation(),app_public.billing_record_owner_cancel_consent(text,uuid),app_public.billing_request_owner_cancellation(uuid,uuid) to authenticated;
 reset role;
 revoke create on schema partner_private,app_public from billing_automation;

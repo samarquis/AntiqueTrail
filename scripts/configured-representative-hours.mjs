@@ -13,6 +13,7 @@ import {
 } from './configured-shopper-local.mjs'
 import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
 import { representativeHoursReport } from './configured-representative-hours-report.mjs'
+import { runLocalOwnerCancellation } from './owner-cancellation-local.mjs'
 
 const output = createRunDirectory(path.join(ROOT, 'artifacts'))
 const controller = new AbortController()
@@ -371,6 +372,46 @@ try {
       cancellationResults.stats?.skipped
     )
       throw new Error('Configured Owner cancellation proof did not pass exactly one test')
+    const workerResult = await runLocalOwnerCancellation(service)
+    if (!workerResult || workerResult.pending !== 0)
+      throw new Error('Local cancellation worker did not reconcile its durable obligation')
+    report.ownerCancellationWorker = workerResult
+    const verifiedOutput = path.join(output.directory, 'owner-cancellation-verified')
+    fs.mkdirSync(verifiedOutput, { recursive: true })
+    fs.writeFileSync(
+      ownerSecretFile,
+      JSON.stringify({
+        ...ownerInput,
+        output: verifiedOutput,
+        cancellation: true,
+        cancellationVerified: true,
+      }),
+      { mode: 0o600 },
+    )
+    await command(
+      process.execPath,
+      [
+        'node_modules/@playwright/test/cli.js',
+        'test',
+        '--config',
+        'e2e/configured-owner-billing-status-playwright.config.ts',
+      ],
+      {
+        env: { ...env, CONFIGURED_OWNER_BILLING_INPUT: ownerSecretFile },
+        timeout: 900_000,
+        signal: controller.signal,
+      },
+    )
+    const verifiedResults = JSON.parse(
+      fs.readFileSync(path.join(verifiedOutput, 'playwright.json'), 'utf8'),
+    )
+    report.ownerCancellationVerifiedStats = verifiedResults.stats
+    if (
+      verifiedResults.stats?.expected !== 1 ||
+      verifiedResults.stats?.unexpected ||
+      verifiedResults.stats?.skipped
+    )
+      throw new Error('Configured verified cancellation did not pass exactly one test')
   }
 } catch (error) {
   if (report.status !== 'unavailable') report.status = 'failed'

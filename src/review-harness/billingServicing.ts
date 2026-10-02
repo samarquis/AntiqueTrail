@@ -35,6 +35,7 @@ export function billingServicingReviewClients(url: string): {
               storeName: 'Blue Finch Curios',
               paidThrough: '2026-10-31T00:00:00Z',
               snapshot: 'a'.repeat(64),
+              scheduledChanges: [],
               state: cancellationState,
             }
           },
