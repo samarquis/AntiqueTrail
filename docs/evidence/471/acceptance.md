@@ -7,7 +7,8 @@
 - Risk: standard; public route presentation, with server-owned intake gates unchanged
 - Ticket-admission baseline SHA: c9bb80250d5087ace3638059da09cd628bc1fad6
 - Integration base SHA: 5391bd027b4f3df3a3fde85e02c284345d8fe1aa
-- Tested implementation and test SHA: ff41b1907cdb4fd83399baefa97f8992a132404b
+- Tested source/test SHA: ff41b1907cdb4fd83399baefa97f8992a132404b
+- Reviewed PR head SHA: 94440c0fc0e8cc3fae80446bb56f6e85d322a912
 - Implementation diff fingerprint: stable Git patch ID f10c20cff8ce26df1bac2564210c96f9ca59304e
 - Worktree/branch: C:\Users\samar\.codex\worktrees\2fe1\AntiqueTrail / codex/issue-471-owner-intake-routes
 - Evidence captured: 2026-10-02 UTC
@@ -39,7 +40,7 @@ Overlapping work: No existing #471 branch or PR at admission. #473 was held from
 | Lint                       | npx eslint src/app/App.tsx src/app/App.test.tsx src/features/partners/ownerAcquisitionPage.test.tsx                   | Pass, exit 0.                                                                                                                                                                                                                  | Source/test SHA ff41b1907cdb4fd83399baefa97f8992a132404b            |
 | Formatting                 | npx prettier --check on the three changed source/test files                                                           | Pass: all matched files use Prettier code style.                                                                                                                                                                               | Source/test SHA ff41b1907cdb4fd83399baefa97f8992a132404b            |
 | Design detector            | Impeccable detect --json src/app/App.tsx                                                                              | Pass: empty findings before rebase; App.tsx content and patch fingerprint are unchanged.                                                                                                                                       | App.tsx at source/test SHA ff41b1907cdb4fd83399baefa97f8992a132404b |
-| PR CI                      | PR #481 checks before rebase, at f484a7b9e074383fa5de3cf762824e39baefd544                                             | Pass: web, database, configured-owner-billing. Supabase Preview skipped. CI for the rebased candidate is pending push.                                                                                                         | GitHub Actions                                                      |
+| PR CI                      | PR #481 at reviewed head 94440c0fc0e8cc3fae80446bb56f6e85d322a912                                                     | Pass: web, database, configured-owner-billing. Supabase Preview skipped. CI will rerun for the evidence-only successor head.                                                                                                   | GitHub Actions                                                      |
 | Database/RLS/RPC           | Not run                                                                                                               | UI-only change; no database or hosted account test requested.                                                                                                                                                                  | Not applicable                                                      |
 | Desktop/mobile UI          | Opened /partner/claim on local Vite at http://127.0.0.1:4174                                                          | Limitation: no-env review harness reports claimsAvailable=true and redirects to synthetic sign-in, so it cannot display the unavailable state. No account/sign-in test was performed; false-flag UI is covered by route tests. | Local dev fixture                                                   |
 | Hosted/provider lifecycle  | Read-only Vercel identity checks; vercel.json has git.deploymentEnabled=false                                         | No provider mutation or deployment.                                                                                                                                                                                            | Bound baseline deployment only                                      |
@@ -47,30 +48,30 @@ Overlapping work: No existing #471 branch or PR at admission. #473 was held from
 
 ### PR check follow-up
 
-PR #481 initially failed web at head e367080b9d4303984ea531e5e6a23fcefcbdef6e because ownerAcquisitionPage.test.tsx expected Page not found. The annotated DOM showed the approved catalog boundary and no acquisition action. The assertion now expects the shared boundary and still forbids the application button/form. Before rebase, web, database, and owner-billing passed at f484a7b9e074383fa5de3cf762824e39baefd544; Supabase Preview was skipped. The branch has since been rebased onto live main 5391bd027b4f3df3a3fde85e02c284345d8fe1aa; CI for the rebased PR head will run after push.
+PR #481 initially failed web at head e367080b9d4303984ea531e5e6a23fcefcbdef6e because ownerAcquisitionPage.test.tsx expected Page not found. The annotated DOM showed the approved catalog boundary and no acquisition action. The assertion now expects the shared boundary and still forbids the application button/form. Before rebase, web, database, and owner-billing passed at f484a7b9e074383fa5de3cf762824e39baefd544; Supabase Preview was skipped. At rebased head 94440c0fc0e8cc3fae80446bb56f6e85d322a912, web, database, and configured-owner-billing all passed; Supabase Preview was skipped. An evidence-only successor commit is being prepared.
 
 ## Security and negative proof
 
 - No authentication, authorization, or availability scopes changed.
 - Availability rejection remains fail-closed. Only /for-stores and /partner/claim receive the explanatory fallback; other guards retain NotFound.
 - No secrets or personal data introduced or transmitted.
-- Exact-head independent review remains pending; no security contract or server authority changed.
+- Exact-head Standards and Spec review passed on 94440c0fc0e8cc3fae80446bb56f6e85d322a912 with no findings.
 
 ## Independent review
 
-- Earlier review findings required isolated route-flag assertions and current candidate evidence; both are addressed at the tested source/test SHA.
-- Standards verdict: pending fresh review on the rebased PR head.
-- Spec verdict: pending fresh review on the rebased PR head.
-- Final verdict: pending.
-- Findings/disposition: request fresh exact-head review after evidence commit and push.
+- Reviewer: root/overseer, reviewed PR head 94440c0fc0e8cc3fae80446bb56f6e85d322a912.
+- Standards verdict: PASS, no findings.
+- Spec verdict: PASS, no findings.
+- Final verdict: PASS for the implementation/test patch at that exact PR head.
+- Findings/disposition: isolated route-flag assertions and candidate evidence were addressed; no open review findings. No source or test changes followed the reviewed head.
 
 ## Unverified
 
 - Candidate is not deployed; production still reflects the previously bound artifact. User excluded deployment.
 - Manual desktop/mobile rendering of the unavailable state was not possible with the stock local review harness.
-- Rebased PR CI, independent review, merge, and live issue closure remain pending.
+- CI for the evidence-only successor head, merge, and live issue closure remain pending.
 - Project reflection vault was unset and no project memory file was found; no reflection entry was recorded.
 
 ## Invalidation
 
-Verification applies to implementation SHA ff41b1907cdb4fd83399baefa97f8992a132404b and the named local or baseline-production environment. Evidence-only documentation changes do not alter the implementation candidate; rerun affected checks and reviews after any source or integration change.
+Verification applies to source/test SHA ff41b1907cdb4fd83399baefa97f8992a132404b, review/CI on PR head 94440c0fc0e8cc3fae80446bb56f6e85d322a912, and the named local or baseline-production environment. Evidence-only documentation changes do not alter implementation; re-run affected checks and reviews after any source or integration change.
