@@ -3988,7 +3988,7 @@ main.catalog-browser--editorial .browse-editorial-hero {
 
 .browse-editorial-hero .eyebrow {
   margin: 0 0 1rem;
-  color: var(--gold);
+  color: var(--media-overlay-text);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-strong);
   letter-spacing: var(--type-tracking-uppercase-wide);
@@ -4063,6 +4063,16 @@ main.catalog-browser--editorial .catalog-state {
   }
 }
 
+@media (max-width: 800px) {
+  .browse-editorial-hero__filters .catalog-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .browse-editorial-hero__shade {
+    background: color-mix(in srgb, var(--media-overlay-surface) 72%, transparent);
+  }
+}
+
 @media (max-width: 540px) {
   main.catalog-browser--editorial {
     padding-top: 0;
@@ -4071,9 +4081,5 @@ main.catalog-browser--editorial .catalog-state {
   .browse-editorial-hero__content {
     gap: 1.5rem;
     padding-top: 3rem;
-  }
-
-  .browse-editorial-hero__filters .catalog-filters {
-    grid-template-columns: 1fr;
   }
 }
