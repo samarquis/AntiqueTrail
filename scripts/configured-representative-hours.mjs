@@ -351,7 +351,7 @@ try {
       begin;
       insert into partner_private.photo_tier_commercial_configs(version,state) values(426,'draft');
       update partner_private.photo_tier_sales_control set state='servicing_only',commercial_config_version=426 where singleton;
-      insert into partner_private.store_photo_tier_state(store_id,tier,source) values('${ownerFixture.storeId}','gallery','subscription');
+      update partner_private.store_photo_tier_state set tier='gallery',source='subscription',version=version+1 where store_id='${ownerFixture.storeId}';
       insert into partner_private.store_subscriptions(store_id,stripe_customer_id,stripe_subscription_id,state,current_period_end)
         values('${ownerFixture.storeId}','cus_fake426000001','sub_fake426000001','active',statement_timestamp()+interval '30 days');
       insert into partner_private.owner_cancellation_fake_provider(store_id,subscription_id) values('${ownerFixture.storeId}','sub_fake426000001');

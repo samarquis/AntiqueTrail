@@ -1,4 +1,17 @@
-import { runOwnerCancellationWorker } from '../supabase/functions/_shared/owner-cancellation-worker.ts'
+import { readFileSync } from 'node:fs'
+import ts from 'typescript'
+
+// CI uses Node 20; compile the same dependency-free worker rather than relying on type stripping.
+const source = readFileSync(
+  new URL('../supabase/functions/_shared/owner-cancellation-worker.ts', import.meta.url),
+  'utf8',
+)
+const { outputText } = ts.transpileModule(source, {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+})
+const { runOwnerCancellationWorker } = await import(
+  `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`
+)
 
 /** Uses only a run-owned local service. Never accepts an endpoint or credential. */
 export async function runLocalOwnerCancellation(service) {
