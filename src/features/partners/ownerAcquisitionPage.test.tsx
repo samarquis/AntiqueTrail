@@ -50,7 +50,9 @@ describe('staged Free owner page', () => {
         <App />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Owner intake is not available in this public test' }),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add or claim my store' })).toBeNull()
   })
   it('retains the search on a failed request and clears stale results when editing', async () => {
