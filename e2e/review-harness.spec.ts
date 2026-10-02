@@ -138,7 +138,7 @@ test.describe('local human-review harness contract', () => {
     await expect(page.getByRole('heading', { name: 'Review Queue' })).toBeVisible()
 
     await page.goto('/admin?reviewAs=shopper-a&reviewState=permission-denied')
-    await expect(page.getByRole('heading', { name: 'Browse stores' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Discover local antiques.' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Review Queue' })).toHaveCount(0)
   })
 

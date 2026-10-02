@@ -35,6 +35,8 @@ test('public status explains availability and reaches Help and Browse', async ({
   await page.goto('/status')
   await page.getByRole('link', { name: 'Browse stores' }).click()
   await expect(page).toHaveURL(/\/stores$/)
-  await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Discover local antiques.' }),
+  ).toBeVisible()
   expect(consoleErrors).toEqual([])
 })

@@ -22,7 +22,9 @@ test.describe('UI-10 integrated product acceptance', () => {
     page,
   }) => {
     await page.goto('/stores')
-    await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeFocused()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Discover local antiques.' }),
+    ).toBeFocused()
     await expect(page.getByRole('link', { name: 'Blue Finch Curios', exact: true })).toBeVisible()
 
     await page.goto(reviewUrl('/saved', 'shopper-a'))
@@ -84,7 +86,9 @@ test.describe('UI-10 integrated product acceptance', () => {
     await page.evaluate(() => {
       document.body.style.zoom = '2'
     })
-    await expect(page.getByRole('heading', { level: 1, name: 'Browse stores' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Discover local antiques.' }),
+    ).toBeVisible()
     await expectNoHorizontalOverflow(page)
   })
 
