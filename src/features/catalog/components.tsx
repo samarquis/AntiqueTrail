@@ -439,7 +439,7 @@ export function BrowsePage({
   availability?: 'available' | 'blocked'
 }) {
   const [filters, setFilters] = useState(() => normalizeQueryParams(initialSearch))
-  const [hasUsedFilters, setHasUsedFilters] = useState(() =>
+  const [showCompactResults, setShowCompactResults] = useState(() =>
     Object.values(normalizeQueryParams(initialSearch)).some(
       (value) => value != null && value !== false,
     ),
@@ -563,7 +563,7 @@ export function BrowsePage({
     })
   }, [state.kind, state.stores])
   const updateFilters = (next: CatalogFilters) => {
-    setHasUsedFilters(true)
+    setShowCompactResults(true)
     setFilters(normalizeQueryParams(queryParams(next)))
     const query = queryParams(next).toString()
     if (typeof window !== 'undefined')
@@ -571,7 +571,7 @@ export function BrowsePage({
   }
   return (
     <main
-      className={`catalog-browser catalog-browser--editorial${hasUsedFilters ? ' catalog-browser--filtered' : ''}`}
+      className={`catalog-browser catalog-browser--editorial${showCompactResults ? ' catalog-browser--compact-results' : ''}`}
     >
       <section className="browse-editorial-hero" aria-label="Browse the local trail">
         <img
@@ -766,6 +766,16 @@ export function BrowsePage({
                 <h2>
                   {state.stores.length} {state.stores.length === 1 ? 'store' : 'stores'} to explore
                 </h2>
+                {showCompactResults && (
+                  <p className="catalog-results-heading__first-result">
+                    First result:{' '}
+                    <CatalogLink
+                      to={catalogAppHref(`/stores/${encodeURIComponent(state.stores[0].slug)}`)}
+                    >
+                      {state.stores[0].name}
+                    </CatalogLink>
+                  </p>
+                )}
               </div>
               <p>Fictional listings for safe product review</p>
             </div>

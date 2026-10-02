@@ -24,7 +24,8 @@ describe('live Browse editorial surface', () => {
       }),
     ).toBeVisible()
     expect(screen.getByRole('textbox', { name: 'Search stores' })).toBeVisible()
-    expect(await screen.findByRole('link', { name: syntheticStores[0].name })).toHaveAttribute(
+    const results = await screen.findByRole('region', { name: 'Store results' })
+    expect(within(results).getByRole('link', { name: syntheticStores[0].name })).toHaveAttribute(
       'href',
       `/stores/${syntheticStores[0].slug}`,
     )
@@ -37,5 +38,16 @@ describe('live Browse editorial surface', () => {
     expect(await within(search).findByRole('status')).toHaveTextContent(
       'Filters are active. Open Filters to review or clear them.',
     )
+    expect(screen.getByRole('main')).toHaveClass('catalog-browser--compact-results')
+  })
+
+  it('identifies the first result beside the result count', async () => {
+    render(<BrowsePage client={client()} initialSearch="?q=Blue+Finch" />)
+
+    const count = await screen.findByRole('heading', { name: '1 store to explore' })
+    const firstResult = count.parentElement?.querySelector('a')
+
+    expect(firstResult).toHaveTextContent(syntheticStores[0].name)
+    expect(firstResult).toHaveAttribute('href', `/stores/${syntheticStores[0].slug}`)
   })
 })
