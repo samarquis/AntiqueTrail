@@ -197,6 +197,23 @@ try {
   service = createLocalService({ signal: controller.signal, browserOrigin: origin })
   report.temporaryProject = service.run.directory
   const local = await service.start()
+  function expandSql(file) {
+    return fs
+      .readFileSync(file, 'utf8')
+      .replace(/^\\ir\s+(.+)$/gm, (_, child) =>
+        expandSql(path.resolve(path.dirname(file), child.trim())),
+      )
+  }
+  report.ownerCancellationDatabase = []
+  for (const file of ['0132_store_owner_access.sql', '0133_issue_424_store_team_access.sql']) {
+    const result = await service.sql(expandSql(path.join(ROOT, 'supabase/tests', file)))
+    if (/^not ok/m.test(result)) throw new Error(`Owner cancellation pgTAP failed: ${file}`)
+    report.ownerCancellationDatabase.push({
+      file,
+      assertions: (result.match(/^ok \d+/gm) ?? []).length,
+      status: 'passed',
+    })
+  }
   report.status = 'running'
   const fixture = await provisionRepresentative(local)
   local.fixtureIdentity = crypto
