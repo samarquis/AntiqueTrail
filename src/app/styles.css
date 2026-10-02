@@ -4050,7 +4050,7 @@ main.catalog-browser--editorial .catalog-map-panel,
 main.catalog-browser--editorial .catalog-results-heading,
 main.catalog-browser--editorial .catalog-grid,
 main.catalog-browser--editorial .catalog-state {
-  width: min(100% - 2rem, 90rem);
+  width: min(100% - 2rem, 68.75rem);
   margin-inline: auto;
 }
 
