@@ -59,11 +59,7 @@ function GenericReviewError() {
 
 export function ReviewUnavailablePage() {
   return (
-    <ReviewCard
-      title="Reviews unavailable"
-      description="Public reviews are not part of this release stage."
-    >
-      <p role="status">{REVIEW_STAGE_DISABLED_MESSAGE}</p>
+    <ReviewCard title="Reviews unavailable" description={REVIEW_STAGE_DISABLED_MESSAGE}>
       <Link className="button" to="/stores">
         Browse stores
       </Link>
