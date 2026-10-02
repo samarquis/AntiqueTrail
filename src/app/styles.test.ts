@@ -844,3 +844,24 @@ describe('semantic typography contract', () => {
     expect(styles).toMatch(/h1,\s*h2,\s*h3\s*\{[^}]*font-family: var\(--font-display\);/s)
   })
 })
+
+describe('compact Browse disclosures', () => {
+  it('keeps the fictional-listings notice visible in compact results', () => {
+    const disclaimerSelector =
+      'main.catalog-browser--editorial.catalog-browser--compact-results .catalog-results-heading > p'
+    const hiddenRules: string[] = []
+
+    postcss.parse(styles).walkRules((rule) => {
+      const selectors = rule.selector
+        .split(',')
+        .map((selector) => selector.replace(/\s+/g, ' ').trim())
+      const hidden = rule.nodes?.some(
+        (node) => node.type === 'decl' && node.prop === 'display' && node.value === 'none',
+      )
+
+      if (hidden && selectors.includes(disclaimerSelector)) hiddenRules.push(rule.selector)
+    })
+
+    expect(hiddenRules).toEqual([])
+  })
+})

@@ -4081,8 +4081,7 @@ main.catalog-browser--editorial.catalog-browser--compact-results .browse-editori
 
   main.catalog-browser--editorial.catalog-browser--compact-results
     .catalog-results-heading
-    .eyebrow,
-  main.catalog-browser--editorial.catalog-browser--compact-results .catalog-results-heading > p {
+    .eyebrow {
     display: none;
   }
 

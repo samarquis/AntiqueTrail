@@ -28,6 +28,7 @@ describe('catalog count labels', () => {
 
     const heading = await screen.findByRole('heading', { level: 2, name: '1 store to explore' })
     expect(heading).toHaveAttribute('aria-live', 'polite')
+    expect(heading).toHaveAttribute('aria-atomic', 'true')
   })
 
   it('uses singular photo wording while preserving the gallery destination', async () => {
