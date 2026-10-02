@@ -35,10 +35,12 @@ import type {
 function ReviewCard({
   title,
   description,
+  descriptionRole,
   children,
 }: {
   title: string
   description: string
+  descriptionRole?: 'status'
   children: ReactNode
 }) {
   return (
@@ -46,7 +48,9 @@ function ReviewCard({
       <section className="page-card" aria-labelledby="reviews-heading">
         <p className="eyebrow">Public reviews</p>
         <h1 id="reviews-heading">{title}</h1>
-        <p className="lede">{description}</p>
+        <p className="lede" role={descriptionRole}>
+          {description}
+        </p>
         {children}
       </section>
     </main>
@@ -61,9 +65,9 @@ export function ReviewUnavailablePage() {
   return (
     <ReviewCard
       title="Reviews unavailable"
-      description="Public reviews are not part of this release stage."
+      description={REVIEW_STAGE_DISABLED_MESSAGE}
+      descriptionRole="status"
     >
-      <p role="status">{REVIEW_STAGE_DISABLED_MESSAGE}</p>
       <Link className="button" to="/stores">
         Browse stores
       </Link>

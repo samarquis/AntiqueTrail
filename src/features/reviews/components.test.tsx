@@ -1,6 +1,6 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DISABLED_REVIEW_CAPABILITY,
@@ -16,7 +16,7 @@ import {
   unavailableReviewClient,
   validateReviewDraft,
 } from './reviewClient'
-import { ModerationQueuePage, PublicReviewsPage } from './components'
+import { ModerationQueuePage, PublicReviewsPage, ReviewUnavailablePage } from './components'
 import type {
   ModerationAction,
   ModerationCase,
@@ -199,6 +199,38 @@ describe('provider-neutral public review boundary', () => {
     )
     expect(await screen.findByText(/not available in this release/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /preview review/i })).not.toBeInTheDocument()
+  })
+
+  it('explains unavailable reviews once and returns to Browse by keyboard', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/stores/antique-reviews/reviews']}>
+        <Routes>
+          <Route path="/stores/:slug/reviews" element={<ReviewUnavailablePage />} />
+          <Route path="/stores" element={<h1>Browse</h1>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Reviews unavailable' })).toBeVisible()
+    const explanations = screen.getAllByText(
+      /^Public reviews are not (?:part of this release stage|available in this release)\.$/,
+    )
+    expect(explanations).toHaveLength(1)
+    expect(explanations[0]).toHaveTextContent('Public reviews are not available in this release.')
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Public reviews are not available in this release.',
+    )
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('form')).not.toBeInTheDocument()
+
+    const browseLink = screen.getByRole('link', { name: 'Browse stores' })
+    expect(browseLink).toHaveAttribute('href', '/stores')
+    await user.tab()
+    expect(browseLink).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(await screen.findByRole('heading', { name: 'Browse' })).toBeVisible()
   })
 
   it('keeps published reviews readable when anonymous eligibility is unavailable', async () => {
