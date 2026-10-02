@@ -50,4 +50,8 @@ The Store Owner may remove active team access, including a Co-Owner's store-team
 
 ## Downstream contract
 
-Issue #422 consumes claim, scope, MFA, approval, and primary-Owner revocation rules. #424 consumes invitation, role, team-removal, and last-Co-Owner rules. #425 consumes billing visibility and read-only behavior. #426 remains blocked on a separately approved paid-servicing action and provider/consent gates. None of these issues authorizes public rollout or paid activation by itself.
+Issue #422 consumes claim, scope, MFA, approval, and primary-Owner revocation rules. #424 consumes invitation, role, team-removal, and last-Co-Owner rules. #425 consumes billing visibility and read-only behavior. The 2026-10-01 cancellation contract below resolves #426's Product Owner action decision; exact implementation contracts and local provider/database proof remain required. None of these issues authorizes public rollout or paid activation by itself.
+
+## Store Owner cancellation decision — 2026-10-01
+
+The Product Owner approved one narrow amendment to the read-only billing boundary: primary Store Owner cancellation at the paid period's end in isolated synthetic local tests with a fake provider. The [approved cancellation-only contract](store-owner-paid-servicing.md) owns action behavior, eligible states, authentication, immutable confirmation consent, expected versions, idempotency, reconciliation, and acceptance. Co-Owner and Full Store Access billing remain read-only; Listing Editors retain no billing visibility. Existing Representative permissions remain unchanged. This decision permits no actual provider calls, live billing, public rollout, or deployed action. Existing descriptions of read-only Owner billing describe the implemented baseline; #426 still requires scoped implementation, review, and proof.
