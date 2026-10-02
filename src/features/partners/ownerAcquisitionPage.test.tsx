@@ -44,18 +44,14 @@ describe('staged Free owner page', () => {
     expect(list).not.toHaveBeenCalled()
     expect(screen.getByRole('heading', { name: 'Find your store first' })).toHaveFocus()
   })
-  it('explains the boundary without exposing acquisition through a route or query', () => {
+  it('normal application artifact cannot expose the page through a route or query', () => {
     render(
       <MemoryRouter initialEntries={['/for-stores?enabled=true&reviewAs=administrator']}>
         <App />
       </MemoryRouter>,
     )
-    expect(
-      screen.getByRole('heading', { name: 'Owner intake is not available in this public test' }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Browse stores' })).toHaveAttribute('href', '/stores')
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add or claim my store' })).toBeNull()
-    expect(screen.queryByRole('form')).toBeNull()
   })
   it('retains the search on a failed request and clears stale results when editing', async () => {
     const user = userEvent.setup()
