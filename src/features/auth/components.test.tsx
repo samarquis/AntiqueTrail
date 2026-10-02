@@ -275,9 +275,10 @@ describe('auth states', () => {
     expect(register).not.toHaveBeenCalled()
     await user.click(screen.getByRole('checkbox', { name: /18 or older/i }))
     await user.click(screen.getByRole('button', { name: /create account/i }))
-    expect(
-      await screen.findByRole('heading', { name: /new account registration is paused/i }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /registration unavailable/i })).toBeVisible()
+    expect(screen.getByText(/couldn't finish this account setup/i)).toBeVisible()
+    expect(screen.getByText(/can't continue/i)).toBeVisible()
+    expect(screen.queryByText(/public-test stage/i)).not.toBeInTheDocument()
     expect(document.body).not.toHaveTextContent('long-safe-password')
     expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument()
   })

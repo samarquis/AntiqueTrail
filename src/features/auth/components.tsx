@@ -422,7 +422,18 @@ export function RegisterPage({ provider }: { provider: AuthProviderAdapter }) {
     }
   }
 
-  if (blocked || isCatalogOnlyPublicTest()) return <AccountSetupPaused registration />
+  if (blocked)
+    return (
+      <AuthCard
+        title="Registration unavailable"
+        description="We couldn't finish this account setup. For your security, this attempt can't continue."
+      >
+        <Link className="button" to="/stores">
+          Back to store list
+        </Link>
+      </AuthCard>
+    )
+  if (isCatalogOnlyPublicTest()) return <AccountSetupPaused registration />
 
   return (
     <AuthCard
