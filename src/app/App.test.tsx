@@ -81,7 +81,9 @@ describe('app shell', () => {
         <App runtime={{ authStore }} />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('heading', { name: 'Account setup paused' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Private account actions are paused' }),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'My trips' })).not.toBeInTheDocument()
     publicView.unmount()
 

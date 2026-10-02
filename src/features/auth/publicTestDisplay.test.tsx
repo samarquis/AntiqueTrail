@@ -45,7 +45,16 @@ it.each(['sign-in', 'registration', 'private account'])(
         <AuthProvider provider={auth}>{content}</AuthProvider>
       </MemoryRouter>,
     )
-    expect(screen.getByRole('heading', { name: 'Account setup paused' })).toBeVisible()
+    expect(
+      screen.getByRole('heading', {
+        name:
+          kind === 'registration'
+            ? 'New account registration is paused'
+            : 'Private account actions are paused',
+      }),
+    ).toBeVisible()
+    expect(screen.getByText(/public-test stage/i)).toBeVisible()
+    expect(screen.getByText(/existing accounts can still sign in/i)).toBeVisible()
     expect(screen.getByRole('link', { name: 'Back to store list' })).toHaveAttribute(
       'href',
       '/stores',
@@ -71,7 +80,10 @@ it('replaces save/setup promises with the existing paused state and makes no pri
       </AuthProvider>
     </MemoryRouter>,
   )
-  expect(screen.getByText('Account setup paused')).toBeVisible()
+  expect(screen.getByRole('status')).toHaveTextContent(
+    /saving stores is paused for this public-test stage/i,
+  )
+  expect(screen.getByRole('status')).toHaveTextContent(/existing accounts can still sign in/i)
   expect(screen.queryByRole('link', { name: /save|correction/i })).not.toBeInTheDocument()
   expect(getSaveState).not.toHaveBeenCalled()
   expect(setSave).not.toHaveBeenCalled()
@@ -146,7 +158,7 @@ it.each([
       </AuthProvider>
     </MemoryRouter>,
   )
-  expect(screen.getByRole('heading', { name: 'Account setup paused' })).toBeVisible()
+  expect(screen.getByRole('heading', { name: 'Private account actions are paused' })).toBeVisible()
   expect(screen.queryByText('Forbidden private controls')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Sign out' })).toBeVisible()
 })
