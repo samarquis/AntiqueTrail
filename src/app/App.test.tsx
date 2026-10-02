@@ -732,14 +732,60 @@ describe('app shell', () => {
     expect(getEligibility).toHaveBeenCalledWith(storeId)
   })
 
-  it('returns not-found for the disabled public listing claim route', () => {
+  it('explains the catalog-only boundary on the disabled public listing claim route', () => {
     render(
       <MemoryRouter initialEntries={['/partner/claim']}>
         <App />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('heading', { name: /page not found/i })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: /claim a listing/i })).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Owner intake is not available in this public test' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'The current public test supports browsing the store catalog only. Owner applications and partner claims are not available.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Browse stores' })).toHaveAttribute('href', '/stores')
+    expect(screen.queryByRole('form')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /apply|claim|submit application/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('explains the catalog-only boundary when owner acquisition is hidden', async () => {
+    render(
+      <MemoryRouter initialEntries={['/for-stores']}>
+        <App
+          clients={{
+            catalog: demoCatalogClient,
+            ownerIntakeAvailability: {
+              getAvailability: async () => ({
+                routeVisible: false,
+                intakeAvailable: false,
+                claimsAvailable: false,
+              }),
+            },
+          }}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Owner intake is not available in this public test',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'The current public test supports browsing the store catalog only. Owner applications and partner claims are not available.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Browse stores' })).toHaveAttribute('href', '/stores')
+    expect(screen.queryByRole('form')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /apply|claim|submit application/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('uses server-owned availability for the normal owner search branch', async () => {

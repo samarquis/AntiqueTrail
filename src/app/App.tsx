@@ -697,10 +697,12 @@ function OwnerIntakeAvailabilityGuard({
   client,
   requirement,
   children,
+  unavailablePage,
 }: {
   client: OwnerIntakeAvailabilityClient
   requirement: keyof OwnerIntakeAvailability
   children: (availability: OwnerIntakeAvailability) => ReactNode
+  unavailablePage?: ReactNode
 }) {
   const [state, setState] = useState<
     | { kind: 'loading' }
@@ -722,7 +724,9 @@ function OwnerIntakeAvailabilityGuard({
       cancelled = true
     }
   }, [client])
-  if (state.kind !== 'ready' || !state.availability[requirement]) return <NotFound />
+  if (state.kind !== 'ready' || !state.availability[requirement]) {
+    return unavailablePage ?? <NotFound />
+  }
   return <>{children(state.availability)}</>
 }
 
@@ -1163,6 +1167,25 @@ function NotFound() {
   )
 }
 
+function OwnerIntakeUnavailablePage() {
+  return (
+    <main>
+      <section className="page-card" aria-labelledby="owner-intake-unavailable-heading">
+        <h1 id="owner-intake-unavailable-heading">
+          Owner intake is not available in this public test
+        </h1>
+        <p>
+          The current public test supports browsing the store catalog only. Owner applications and
+          partner claims are not available.
+        </p>
+        <Link className="button" to="/stores">
+          Browse stores
+        </Link>
+      </section>
+    </main>
+  )
+}
+
 export interface AppClients {
   catalog?: CatalogClient
   map?: CatalogMapAdapter
@@ -1403,6 +1426,7 @@ export default function App({
               <OwnerIntakeAvailabilityGuard
                 client={ownerIntakeAvailabilityClient}
                 requirement="routeVisible"
+                unavailablePage={<OwnerIntakeUnavailablePage />}
               >
                 {(availability) => (
                   <OwnerAcquisitionRoute
@@ -1741,6 +1765,7 @@ export default function App({
               <OwnerIntakeAvailabilityGuard
                 client={ownerIntakeAvailabilityClient}
                 requirement="claimsAvailable"
+                unavailablePage={<OwnerIntakeUnavailablePage />}
               >
                 {() => (
                   <RequireSession>
