@@ -4,7 +4,9 @@ const disclosureText = 'Fictional listing for product review.'
 const freshnessStates = ['current', 'stale', 'unknown'] as const
 
 test('keeps fictional disclosure beside freshness on Browse and Details', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('at-theme', 'light'))
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('at-theme')) localStorage.setItem('at-theme', 'light')
+  })
   await page.goto('/stores')
   await expect(page.locator('.catalog-card')).toHaveCount(12)
   await expect(page.locator('.catalog-card .listing-fictional-disclosure')).toHaveCount(12)
@@ -34,6 +36,7 @@ test('keeps fictional disclosure beside freshness on Browse and Details', async 
       const detailsHref = await card.locator('.catalog-card__details').getAttribute('href')
       expect(detailsHref).toMatch(/^\/stores\/[a-z0-9-]+$/u)
       await page.goto(detailsHref!)
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
 
       await expect(
         page.getByLabel('Listing status').locator(`.status-badge--${status}`),
@@ -76,6 +79,7 @@ test('keeps fictional disclosure beside freshness on Browse and Details', async 
       ).toBe(true)
 
       await page.goto('/stores')
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
     }
   }
 })
