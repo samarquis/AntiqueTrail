@@ -77,10 +77,10 @@ Install used Node `v24.11.1` and npm `11.13.0` with an isolated worktree install
 
 - Initial overseer review: **REWORK** at exact PR head `66cda4a7859f9076ef47e7cc473ebeb9abb74ca5` because the notice was outside Browse's existing content-width selector ([review comment](https://github.com/samarquis/AntiqueTrail/pull/510#issuecomment-5972530297)).
 - Resolution: source candidate `4a44ad05826754c2c210b51f83b02d5767589c5f` wraps the notice with existing `.catalog-state`; existing CSS applies the 16px mobile gutter and 68.75rem desktop cap. No CSS declaration was added.
-- Standards review: **PASS** at exact PR head `ceead982b79f345c3d20ce48959b7a67c88dde2a`; no findings.
-- Spec review: **PASS** at exact PR head `ceead982b79f345c3d20ce48959b7a67c88dde2a`; source-level criteria pass. Rendered true/false behavior and 320px geometry remain unverified.
-- This evidence-only edit creates a newer PR head; exact-head review refresh is pending.
-- Final verdict: `BLOCKED` until exact-head review refresh, browser lease, and current-head CI complete.
+- Standards review: **PASS** at exact PR head `58df21339fcc27a2927b43edac6da9e3ecea6bd9`; no findings.
+- Spec review: **PASS** at exact PR head `58df21339fcc27a2927b43edac6da9e3ecea6bd9`; source-level criteria pass. Rendered true/false behavior and 320px geometry remain unverified.
+- This documentation update records those reviews; a new doc-only PR head requires a final-head review refresh.
+- Final verdict at this evidence capture: `BLOCKED` until final-head review refresh, browser lease, rendered geometry, and current-head CI complete.
 - Findings: width issue resolved; browser rendering and current-head CI pending.
 
 ## Unverified
