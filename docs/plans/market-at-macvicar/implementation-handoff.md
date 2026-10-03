@@ -29,7 +29,7 @@ Use Vite on 127.0.0.1:5982 with strict port, no server reuse, one Playwright wor
 - npx --no-install playwright test --config playwright.market-at-macvicar.config.ts
 - npm run build
 
-Initial local source and selected-media proof completed on candidate SHA `99221830705ca13d54d9297f2cf1984b65b92844`. Final preview code candidate `f104c61287951334acb9591ab0fec56339067e7c` adds the full postal address and native lazy loading to shared photo-wall images, changing request timing across all store galleries. Selected media and the development-only host/slug gate remain unchanged. Full evidence is recorded in [local preview evidence](../../evidence/market-at-macvicar/local-preview.md).
+Initial local source and selected-media proof completed on candidate SHA `99221830705ca13d54d9297f2cf1984b65b92844`. Final preview code candidate `03241ef63cecef0e87a28e854f5118e45589fd5a` adds the full postal address and native lazy loading to shared photo-wall images, changing request timing across all store galleries. A Prettier-only commit after reviewed candidate `f104c61287951334acb9591ab0fec56339067e7c` passed formatting and full AST-equivalence checks, including a host-literal negative control. Selected media and the development-only host/slug gate remain unchanged. Full evidence is recorded in [local preview evidence](../../evidence/market-at-macvicar/local-preview.md).
 
 Final focused local verification on the code candidate:
 
@@ -37,6 +37,7 @@ Final focused local verification on the code candidate:
 - The separate desktop/mobile asset pass forces and verifies all 51 exact WebP requests, response statuses and content types, layout at 1440px/390px, Escape close, and opener focus return.
 - `npm run build`: PASS, 241 modules transformed. Production `dist` scan found 59 identity, contact, origin, and selected-media markers absent.
 - Ordinary Playwright discovery: 760 tests in 48 files, with this preview suite excluded. Dedicated preview discovery: 4 tests in 1 file.
+- A focused existing-gallery regression through normal CI remains a merge gate; this branch has not been merged.
 - Reticle MCP is unavailable in this environment and was not installed. The parent completed local CUA review, and the user accepted the rendered local page and requested publication in test/dev.
 
 The first development-only import can be cold; its measured local module response exceeded the old five-second heading wait. The detail readiness wait is 45 seconds and the complete viewport test has a 120-second budget. These waits do not change application bootstrap behavior.

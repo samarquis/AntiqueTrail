@@ -8,7 +8,7 @@ The user accepted the rendered local page and requested publication in test/dev.
 
 - Initial reviewed app and selected-media candidate: `99221830705ca13d54d9297f2cf1984b65b92844`.
 - Test-discovery and handoff commit: `31325054e7749f3c993aba8115a9930372cca5cd`.
-- Final local-preview code candidate: `f104c61287951334acb9591ab0fec56339067e7c`. It adds the full postal address to the store description, native lazy loading to shared photo-wall feature and tile images, and bounded browser checks. Lazy loading changes image request timing across all store galleries; Macvicar identity and selected media remain excluded from production. Selected media files and `gallery-wall.json` are unchanged.
+- Final local-preview code candidate: `03241ef63cecef0e87a28e854f5118e45589fd5a`. It adds the full postal address to the store description, native lazy loading to shared photo-wall feature and tile images, and bounded browser checks. Lazy loading changes image request timing across all store galleries; Macvicar identity and selected media remain excluded from production. Selected media files and `gallery-wall.json` are unchanged. A later Prettier-only commit from reviewed candidate `f104c61287951334acb9591ab0fec56339067e7c` changed formatting in `App.tsx` and the preview spec. Prettier passed; full TypeScript AST comparison (normalizing JSX line endings and redundant parentheses) passed on both files, and an in-memory hostname-change negative control was detected.
 
 Initial local validation on the first reviewed candidate:
 
@@ -20,7 +20,7 @@ No failing lazy-delivery baseline was recorded before adding the native loading 
 
 ## Final-candidate verification
 
-On `f104c61287951334acb9591ab0fec56339067e7c`:
+On `03241ef63cecef0e87a28e854f5118e45589fd5a`:
 
 - `npx --no-install playwright test --config playwright.market-at-macvicar.config.ts`: 4 passed. Address assertion checks the complete postal address in About. A fresh page opens `/photos`, confirms native lazy loading and fewer than 51 complete images at the top, decodes the visible cover, then scrolls photo 50 into view and confirms its successful decode and response. The separate desktop/mobile asset pass still forces and verifies all 51 exact derivatives; the simulated 503 fallback remains covered.
 - The host/slug denial test checks wrong slug on `127.0.0.1` and exact slug on `localhost`, across details and photos routes. Both use the normal `Store not found` fallback. Neither shows the Macvicar heading or photos; both record zero media responses and zero blocked provider/database or other external requests.
@@ -29,6 +29,8 @@ On `f104c61287951334acb9591ab0fec56339067e7c`:
 
 - Ordinary `npx --no-install playwright test --list`: 760 tests in 48 files; no Macvicar preview tests listed. Before test exclusion, discovery listed 764 tests in 49 files, including four project instances of the preview suite.
 - `npx --no-install playwright test --config playwright.market-at-macvicar.config.ts --list`: 4 tests in 1 file.
+
+A focused existing-gallery regression through normal CI remains a merge gate; this draft PR has not been merged.
 
 ## Media evidence boundary
 
