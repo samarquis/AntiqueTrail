@@ -351,9 +351,14 @@ export function CatalogCard({
           onError={() => setImageFailed(true)}
         />
       ) : (
-        <div className="catalog-card__placeholder" role="img" aria-label="Store image unavailable">
+        <div
+          className="catalog-card__placeholder"
+          role="img"
+          aria-label="Store image unavailable"
+          aria-description="Cover photo unavailable"
+        >
           <span aria-hidden="true">{initials}</span>
-          <small>{store.categories[0]?.label ?? 'Antiques'} · Photo coming soon</small>
+          <small>Photo coming soon</small>
         </div>
       )}
       <div className="catalog-card__body">

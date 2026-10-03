@@ -174,6 +174,18 @@ describe('catalog private-action integration seam', () => {
     expect(cover).toHaveAttribute('sizes', '(max-width: 1023px) calc(100vw - 2rem), 540px')
   })
 
+  it('keeps the missing-cover fallback concise and accessible', async () => {
+    const storeWithoutCover = { ...syntheticStores[0], media: [] }
+    const catalog = client()
+    catalog.list = vi.fn(async () => ({ stores: [storeWithoutCover], generatedAt: '2026-08-04' }))
+    render(<BrowsePage client={catalog} />)
+
+    const card = await screen.findByRole('article')
+    const fallback = within(card).getByRole('img', { name: 'Store image unavailable' })
+    expect(fallback).toHaveAccessibleDescription('Cover photo unavailable')
+    expect(within(fallback).getByText('Photo coming soon')).toBeVisible()
+  })
+
   it('renders a distinct blocked state without requesting catalog data', async () => {
     const catalog = client()
     render(<BrowsePage client={catalog} availability="blocked" />)
