@@ -1826,7 +1826,7 @@ textarea[aria-invalid='true'] {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-  margin: 0.7rem 0 0;
+  margin: 0.4rem 0 0;
   padding: 0;
   list-style: none;
 }
@@ -1844,7 +1844,7 @@ textarea[aria-invalid='true'] {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  margin: auto 0 0.8rem;
+  margin: auto 0 0;
   padding-top: 0.75rem;
   color: var(--teal-dark);
   font-size: var(--type-size-label);
@@ -1889,6 +1889,13 @@ textarea[aria-invalid='true'] {
   box-shadow: 0 0 0 3px var(--surface-status-neutral);
 }
 
+.listing-fictional-disclosure {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--type-size-label);
+  line-height: var(--type-leading-supporting);
+}
+
 .catalog-card__details {
   align-self: flex-start;
   margin-top: 0;
@@ -1899,7 +1906,7 @@ textarea[aria-invalid='true'] {
   z-index: 1;
   display: grid;
   width: 100%;
-  gap: 0.75rem;
+  gap: 0.5rem;
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--line);
@@ -3055,6 +3062,11 @@ main > article dt {
 .store-detail__provenance {
   border-bottom: 0;
   background: color-mix(in srgb, var(--mint) 35%, var(--card));
+}
+
+.store-detail__provenance > .eyebrow {
+  /* Contrast exception documented in DESIGN_SYSTEM.md. */
+  color: var(--muted);
 }
 
 @media (max-width: 800px) {

@@ -311,6 +311,7 @@ export function CatalogCard({
   const cover = store.media.find((item) => item.kind === 'cover') ?? store.media[0]
   const hours = todayHoursSummary(store)
   const freshness = listingFreshness(store)
+  const fictional = isFictionalListing(store)
   const initials = store.name
     .split(/\s+/u)
     .slice(0, 2)
@@ -379,6 +380,9 @@ export function CatalogCard({
         <p className={`catalog-card__freshness catalog-card__freshness--${freshness.status}`}>
           {freshness.label}
         </p>
+        {fictional && (
+          <p className="listing-fictional-disclosure">Fictional listing for product review.</p>
+        )}
         <section className="catalog-card__actions" aria-label={`Store actions for ${store.name}`}>
           <CatalogLink
             className="button catalog-card__details"
@@ -402,6 +406,23 @@ export function CatalogCard({
         </section>
       </div>
     </article>
+  )
+}
+
+function isFictionalListing(store: CatalogStore): boolean {
+  const trustText = [
+    store.address,
+    store.summary,
+    store.description,
+    store.provenance?.sourceLabel,
+    store.provenance?.note,
+    store.fixtureProfile?.label,
+  ]
+    .filter(Boolean)
+    .join(' ')
+  return (
+    Boolean(store.fixtureProfile) ||
+    /\b(?:synthetic|fiction(?:al)?|imaginary|imagined|make-believe|storybook)\b/i.test(trustText)
   )
 }
 
@@ -1217,22 +1238,9 @@ export function DetailsPage({
   const canAddToTrip = detailsStageRank[stage] >= detailsStageRank['package-5a']
   const today = todayHoursSummary(store)
   const freshness = listingFreshness(store)
-  const listingTrustText = [
-    store.address,
-    store.description,
-    store.provenance?.sourceLabel,
-    store.provenance?.note,
-    store.fixtureProfile?.label,
-  ]
-    .filter(Boolean)
-    .join(' ')
-  const isFictionalListing =
-    Boolean(store.fixtureProfile) ||
-    /\b(?:synthetic|fiction(?:al)?|imaginary|imagined|make-believe|storybook)\b/i.test(
-      listingTrustText,
-    )
+  const fictional = isFictionalListing(store)
   const hasNavigableAddress =
-    Boolean(store.address.trim()) && freshness.status === 'current' && !isFictionalListing
+    Boolean(store.address.trim()) && freshness.status === 'current' && !fictional
   return (
     <main className="store-detail">
       <CatalogLink className="store-detail__back" to={catalogAppHref(backHref)}>
@@ -1290,7 +1298,7 @@ export function DetailsPage({
             </a>
           ) : (
             <p className="honesty-note">
-              {isFictionalListing
+              {fictional
                 ? 'Directions are unavailable for this fictional address.'
                 : 'Directions are unavailable until this address is verified.'}
             </p>
@@ -1478,14 +1486,17 @@ export function DetailsPage({
         ) : null}
 
         <section className="store-detail__provenance" aria-labelledby="source-heading">
-          <p className="eyebrow">Why you can trust this listing</p>
+          <p className="eyebrow">Listing information</p>
           <h2 id="source-heading">Source &amp; freshness</h2>
+          {fictional && (
+            <p className="listing-fictional-disclosure">Fictional listing for product review.</p>
+          )}
           <dl>
             <dt>Listing source</dt>
             <dd>{store.provenance?.sourceLabel || 'Source information unavailable'}</dd>
             <dt>Source updated</dt>
             <dd>{provenanceDate || 'Update date unavailable'}</dd>
-            <dt>Details verified</dt>
+            <dt>Verification date</dt>
             <dd>{verifiedDate || 'Verification date unavailable'}</dd>
           </dl>
           {store.provenance?.note && <p>{store.provenance.note}</p>}
