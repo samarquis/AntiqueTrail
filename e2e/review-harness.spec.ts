@@ -127,21 +127,15 @@ test.describe('local human-review harness contract', () => {
           page.getByText('No billing actions are available in this workspace.'),
         ).toBeVisible()
         await expect(page.locator('main').getByRole('button')).toHaveCount(0)
+        await page.goBack()
+        await page
+          .getByRole('navigation', { name: 'Store Portal sections' })
+          .getByRole('link', { name: 'Promotion permissions' })
+          .click()
+        await expect(page.getByRole('heading', { name: 'Promotion permissions' })).toBeVisible()
         if (id === 'full-store-access') {
-          await page.goBack()
-          await page
-            .getByRole('navigation', { name: 'Store Portal sections' })
-            .getByRole('link', { name: 'Promotion permissions' })
-            .click()
-          await expect(page.getByRole('heading', { name: 'Promotion permissions' })).toBeVisible()
           await expect(page.getByRole('button', { name: /Give permission:/ })).toHaveCount(4)
         } else {
-          await page.goBack()
-          await page
-            .getByRole('navigation', { name: 'Store Portal sections' })
-            .getByRole('link', { name: 'Promotion permissions' })
-            .click()
-          await expect(page.getByRole('heading', { name: 'Promotion permissions' })).toBeVisible()
           await expect(page.getByRole('alert')).toBeVisible()
         }
       }
