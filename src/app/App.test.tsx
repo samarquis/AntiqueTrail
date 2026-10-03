@@ -121,6 +121,9 @@ describe('app shell', () => {
     await user.click(screen.getByRole('link', { name: 'More' }))
 
     expect(screen.getByRole('heading', { name: 'More' })).toHaveFocus()
+    expect(
+      screen.getByText('Find account settings, installation help, and self-service guidance.'),
+    ).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: /more destinations/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /account & privacy/i })).toHaveAttribute(
       'href',
@@ -145,6 +148,11 @@ describe('app shell', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Help' })).toHaveFocus()
+    expect(
+      screen.getByText(
+        'Use these public routes. No staffed support channel is published right now.',
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Correct store information' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Browse stores' })).toHaveAttribute('href', '/stores')
     expect(screen.getByRole('heading', { name: 'Recover account access' })).toBeInTheDocument()

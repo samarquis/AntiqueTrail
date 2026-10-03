@@ -535,7 +535,7 @@ function MorePage({
       <header>
         <p className="eyebrow">Your Antique Trail</p>
         <h1>More</h1>
-        <p>Find account settings, installation help, and support.</p>
+        <p>Find account settings, installation help, and self-service guidance.</p>
       </header>
       <nav className="more-menu" aria-label="More destinations">
         {destinations.map((destination) => (
