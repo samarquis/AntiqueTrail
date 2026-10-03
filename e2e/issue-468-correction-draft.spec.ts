@@ -12,6 +12,9 @@ test('Help and Store Details expose correction drafts without implying submissio
     ),
   ).toBeVisible()
 
+  const accessibility = await new AxeBuilder({ page }).include('main').analyze()
+  expect(accessibility.violations).toEqual([])
+
   await page.goto('/stores/blue-finch-curios')
   await expect(page.getByRole('heading', { name: /blue finch curios/i })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Draft a correction' })).toHaveAttribute(
@@ -20,8 +23,6 @@ test('Help and Store Details expose correction drafts without implying submissio
   )
   await expect(page.getByText(/drafts are available.*submission is unavailable/i)).toBeVisible()
 
-  const accessibility = await new AxeBuilder({ page }).include('main').analyze()
-  expect(accessibility.violations).toEqual([])
 })
 
 test('direct correction route saves a local draft, denies form submission, and returns to the store', async ({
