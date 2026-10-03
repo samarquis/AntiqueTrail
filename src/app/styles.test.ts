@@ -765,6 +765,24 @@ describe('semantic typography contract', () => {
     expect(sizeInPixels('type-size-caption')).toBeGreaterThanOrEqual(13)
   })
 
+  it('keeps compact Browse H1 typography on the page-title scale', () => {
+    const compactTitleProperties: string[][] = []
+    const titleSelector =
+      'main.catalog-browser--editorial.catalog-browser--compact-results .browse-editorial-hero h1'
+
+    postcss.parse(styles).walkRules((rule) => {
+      if (rule.selector.replace(/\s+/g, ' ').trim() === titleSelector) {
+        compactTitleProperties.push(
+          rule.nodes?.flatMap((node) => (node.type === 'decl' ? [node.prop] : [])) ?? [],
+        )
+      }
+    })
+
+    expect(compactTitleProperties).not.toHaveLength(0)
+    expect(compactTitleProperties.flat()).not.toContain('font-size')
+    expect(compactTitleProperties.flat()).not.toContain('line-height')
+  })
+
   it('uses tokens for typography declarations unless an isolated exception is documented', () => {
     const violations = typographyViolations(styles)
     expect(violations, `Unapproved raw typography declarations:\n${violations.join('\n')}`).toEqual(
@@ -824,5 +842,26 @@ describe('semantic typography contract', () => {
       'font-family: var(--font-display);',
     )
     expect(styles).toMatch(/h1,\s*h2,\s*h3\s*\{[^}]*font-family: var\(--font-display\);/s)
+  })
+})
+
+describe('compact Browse disclosures', () => {
+  it('keeps the fictional-listings notice visible in compact results', () => {
+    const disclaimerSelector =
+      'main.catalog-browser--editorial.catalog-browser--compact-results .catalog-results-heading > p'
+    const hiddenRules: string[] = []
+
+    postcss.parse(styles).walkRules((rule) => {
+      const selectors = rule.selector
+        .split(',')
+        .map((selector) => selector.replace(/\s+/g, ' ').trim())
+      const hidden = rule.nodes?.some(
+        (node) => node.type === 'decl' && node.prop === 'display' && node.value === 'none',
+      )
+
+      if (hidden && selectors.includes(disclaimerSelector)) hiddenRules.push(rule.selector)
+    })
+
+    expect(hiddenRules).toEqual([])
   })
 })

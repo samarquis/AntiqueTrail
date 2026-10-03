@@ -286,12 +286,12 @@ export function CatalogFiltersForm({
             </button>
           </div>
         </div>
+        {hasFilters && (
+          <p className="catalog-filter-summary" role="status">
+            Filters are active. Open Filters to review or clear them.
+          </p>
+        )}
       </form>
-      {hasFilters && (
-        <p className="catalog-filter-summary" role="status">
-          Filters are active. Open Filters to review or clear them.
-        </p>
-      )}
     </div>
   )
 }
@@ -319,6 +319,13 @@ export function CatalogCard({
     .toLocaleUpperCase()
   const detailsHref = catalogAppHref(`/stores/${encodeURIComponent(store.slug)}`)
   const rememberDetailReturn = () => rememberBrowseReturn(store.id)
+  const title = (
+    <h2>
+      <CatalogLink to={detailsHref} onClick={rememberDetailReturn}>
+        {store.name}
+      </CatalogLink>
+    </h2>
+  )
   const normalizedArea = store.area.label
     .toLocaleLowerCase()
     .replace(/\s+area$/u, '')
@@ -350,11 +357,7 @@ export function CatalogCard({
         </div>
       )}
       <div className="catalog-card__body">
-        <h2>
-          <CatalogLink to={detailsHref} onClick={rememberDetailReturn}>
-            {store.name}
-          </CatalogLink>
-        </h2>
+        {title}
         <p className="catalog-card__area">{location}</p>
         <ul className="catalog-card__categories" aria-label="Store categories">
           {store.categories.map((category) => (
@@ -439,6 +442,11 @@ export function BrowsePage({
   availability?: 'available' | 'blocked'
 }) {
   const [filters, setFilters] = useState(() => normalizeQueryParams(initialSearch))
+  const [showCompactResults, setShowCompactResults] = useState(() =>
+    Object.values(normalizeQueryParams(initialSearch)).some(
+      (value) => value != null && value !== false,
+    ),
+  )
   const [state, setState] = useState<{
     kind: 'loading' | 'success' | 'error' | 'blocked'
     stores?: CatalogStore[]
@@ -558,13 +566,16 @@ export function BrowsePage({
     })
   }, [state.kind, state.stores])
   const updateFilters = (next: CatalogFilters) => {
+    setShowCompactResults(true)
     setFilters(normalizeQueryParams(queryParams(next)))
     const query = queryParams(next).toString()
     if (typeof window !== 'undefined')
       window.history.replaceState({}, '', `/stores${query ? `?${query}` : ''}`)
   }
   return (
-    <main className="catalog-browser catalog-browser--editorial">
+    <main
+      className={`catalog-browser catalog-browser--editorial${showCompactResults ? ' catalog-browser--compact-results' : ''}`}
+    >
       <section className="browse-editorial-hero" aria-label="Browse the local trail">
         <img
           className="browse-editorial-hero__image"
@@ -755,7 +766,7 @@ export function BrowsePage({
             <div className="catalog-results-heading">
               <div>
                 <p className="eyebrow">Local directory</p>
-                <h2>
+                <h2 aria-live="polite" aria-atomic="true">
                   {state.stores.length} {state.stores.length === 1 ? 'store' : 'stores'} to explore
                 </h2>
               </div>
