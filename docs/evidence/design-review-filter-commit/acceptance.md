@@ -41,7 +41,7 @@ Pre-existing failures or unrelated work: the full Vitest run had one 5-second ti
 | Release tests | `npm run test:release` | Pass: 165 tests | Candidate source; local |
 | Seed media | `node scripts/verify-seed-media.mjs --built-root dist` | Pass: no errors | Candidate build; local |
 | E2E discovery | `npx playwright test e2e/design-review-filter-commit.spec.ts --project=chromium --list` | Pass: five cases discovered; no browser launched. | Candidate source; local |
-| Desktop/mobile UI | `npx playwright test e2e/design-review-filter-commit.spec.ts --project=chromium --project=mobile --workers=1 --retries=0` | Pass: 10/10 in 39.8s. | Local strict 4173 harness; corrected helper, app source at `148925d85ebda3833dd48ee948679f84926acdfb` |
+| Desktop/mobile UI | `npx playwright test e2e/design-review-filter-commit.spec.ts --project=chromium --project=mobile --workers=1 --retries=0` | Follow-up pass: 10/10 in 22.5s; command exit 0. | Fresh strict 4173; [lease receipt](https://github.com/samarquis/AntiqueTrail/issues/502#issuecomment-5973467226); exact app/spec blobs below |
 | Database/RLS/RPC | None | Not applicable; no database access. | — |
 | Hosted/provider lifecycle | None | Not run or in scope. | — |
 | Canonical production route | None | Not run or in scope. | — |
@@ -50,7 +50,9 @@ Pre-existing failures or unrelated work: the full Vitest run had one 5-second ti
 
 At candidate `148925d85ebda3833dd48ee948679f84926acdfb`, [GitHub Actions run 37150696906](https://github.com/samarquis/AntiqueTrail/actions/runs/37150696906) reported six new E2E failures: Search, Enter, and Apply on Chromium and Mobile. Each timed out looking for the `Filters` button. Web static checks, unit tests, and build passed; database and configured-owner jobs passed.
 
-The failure reproduced locally against that clean SHA. Playwright context showed the test helper had forced a 1280px viewport, where Category, Area, and Apply are directly visible and the responsive Filters button is absent. Updated the helper to preserve each project's configured viewport and open the Filters control only when visible. The corrected desktop/mobile run passed 10/10 in 39.8s using the strict 4173 review harness; afterward the server exited and port 4173 had no listener. Corrected-head CI is pending.
+The failure reproduced locally against that clean SHA. Playwright context showed the test helper had forced a 1280px viewport, where Category, Area, and Apply are directly visible and the responsive Filters button is absent. Updated the helper to preserve each project's configured viewport and open the Filters control only when visible. The corrected desktop/mobile run passed 10/10 in 39.8s using the strict 4173 review harness; afterward the server exited and port 4173 had no listener. CI for candidate `5582e3fd204afe3ce69b9eff8671caf40a300314` passed web, database, and configured-owner jobs in [run 37152892076](https://github.com/samarquis/AntiqueTrail/actions/runs/37152892076); Supabase Preview was skipped. The visibility assertion added in the follow-up below requires CI on its new candidate.
+
+Under the explicit lease above, the 390px case now asserts the Filters trigger is visible before checking its collapsed state and opening it. Follow-up run completed at `2026-10-03T21:07:23.5575932Z` with 10/10 passing (Playwright duration 22.5s). It ran with app HEAD `5582e3fd204afe3ce69b9eff8671caf40a300314`, app source blob `b43170bd164ca18ba9c54ec89e02e7242eef68e6`, and E2E spec blob `1e9307f82714a57ade695cf003f655b564334b28`. The fresh server and browser processes exited; ports 4173 and 4174 had no listeners afterward. No hosted or provider state was touched.
 
 ## Security and negative proof
 
@@ -64,7 +66,7 @@ The failure reproduced locally against that clean SHA. Playwright context showed
 - Reviewer: exact PR-head Standards and Spec receipts are maintained in the PR description.
 - Standards verdict: pending at evidence capture; see PR description for the exact-head receipt.
 - Spec verdict: pending at evidence capture; see PR description for the exact-head receipt.
-- Final verdict: `BLOCKED` at evidence capture pending independent review, browser evidence, and required CI.
+- Final verdict: `BLOCKED` at this report revision pending corrected-head independent reviews and required CI; the desktop/mobile browser run passed as recorded above.
 - Findings and disposition: final review and integration receipts are maintained in the PR description; issue closure remains with the serial owner.
 
 ## Unverified

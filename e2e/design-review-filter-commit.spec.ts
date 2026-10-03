@@ -95,6 +95,7 @@ test('keeps Package 1 labels and gating, and clears draft-only values', async ({
   await expect(page.locator('.catalog-card')).toHaveCount(12)
 
   const trigger = page.getByRole('button', { name: 'Filters', exact: true })
+  await expect(trigger).toBeVisible()
   await expect(trigger).toHaveAttribute('aria-expanded', 'false')
   await openFilters(page)
   await expect(page.getByLabel('Search stores')).toBeVisible()
