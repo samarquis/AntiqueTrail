@@ -277,11 +277,13 @@ test.describe('issue 147 catalog metadata', () => {
     }
   }
 
-  test('measures the meaningful failed-cover placeholder variant', async ({ page }) => {
+  test('keeps failed-cover copy concise and preserves category metadata', async ({ page }) => {
     await page.route(/blue-finch-curios-cover\.webp(?:\?.*)?$/u, (route) => route.abort('failed'))
     await openCatalog(page, `${populatedPath}&q=Blue`, viewports[1], 'light')
-    const placeholder = page.locator('.catalog-card__placeholder').first()
+    const card = page.locator('.catalog-card').first()
+    const placeholder = card.locator('.catalog-card__placeholder')
     await expect(placeholder).toBeVisible()
+    await expect(card.locator('.catalog-card__categories')).toContainText('Antique mall')
     const measurement = await placeholder.locator('small').evaluate((node) => {
       const style = getComputedStyle(node)
       const rect = node.getBoundingClientRect()
@@ -300,7 +302,7 @@ test.describe('issue 147 catalog metadata', () => {
     })
     expect(measurement).toEqual({
       size: 15,
-      text: 'Antique mall · Photo coming soon',
+      text: 'Photo coming soon',
       clipped: false,
     })
     await expectNoDocumentOverflow(page)
