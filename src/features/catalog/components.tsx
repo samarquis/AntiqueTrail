@@ -104,13 +104,28 @@ export function CatalogFiltersForm({
   onChange: (filters: CatalogFilters) => void
   stage?: CatalogBrowseStage
 }) {
-  const [q, setQ] = useState(filters.q ?? '')
+  const [draftFilters, setDraftFilters] = useState<Pick<CatalogFilters, 'q' | 'category' | 'area'>>(
+    {
+      q: filters.q,
+      category: filters.category,
+      area: filters.area,
+    },
+  )
   const [panelOpen, setPanelOpen] = useState(false)
-  useEffect(() => setQ(filters.q ?? ''), [filters.q])
+  useEffect(
+    () =>
+      setDraftFilters({
+        q: filters.q,
+        category: filters.category,
+        area: filters.area,
+      }),
+    [filters.q, filters.category, filters.area],
+  )
   const available = stageRank[stage]
   const hasFilters = Boolean(
     Object.values(filters).some((value) => value != null && value !== false),
   )
+  const hasDraftFilters = Boolean(draftFilters.q || draftFilters.category || draftFilters.area)
   return (
     <div className="catalog-filter-region">
       <form
@@ -118,7 +133,7 @@ export function CatalogFiltersForm({
         role="search"
         onSubmit={(event) => {
           event.preventDefault()
-          onChange({ ...filters, q: q.trim() || undefined })
+          onChange({ ...filters, ...draftFilters, q: draftFilters.q?.trim() || undefined })
           setPanelOpen(false)
         }}
       >
@@ -128,8 +143,10 @@ export function CatalogFiltersForm({
             <input
               id="catalog-search"
               name="q"
-              value={q}
-              onChange={(event) => setQ(event.target.value)}
+              value={draftFilters.q ?? ''}
+              onChange={(event) =>
+                setDraftFilters((draft) => ({ ...draft, q: event.target.value }))
+              }
               placeholder="Name, town, or category"
             />
             <button type="submit">Search</button>
@@ -153,9 +170,12 @@ export function CatalogFiltersForm({
             <label htmlFor="catalog-category">Category</label>
             <select
               id="catalog-category"
-              value={filters.category ?? ''}
+              value={draftFilters.category ?? ''}
               onChange={(event) =>
-                onChange({ ...filters, category: event.target.value || undefined })
+                setDraftFilters((draft) => ({
+                  ...draft,
+                  category: event.target.value || undefined,
+                }))
               }
             >
               <option value="">All categories</option>
@@ -171,8 +191,10 @@ export function CatalogFiltersForm({
             <label htmlFor="catalog-area">Area</label>
             <select
               id="catalog-area"
-              value={filters.area ?? ''}
-              onChange={(event) => onChange({ ...filters, area: event.target.value || undefined })}
+              value={draftFilters.area ?? ''}
+              onChange={(event) =>
+                setDraftFilters((draft) => ({ ...draft, area: event.target.value || undefined }))
+              }
             >
               <option value="">All areas</option>
               <option value="topeka-ks">Topeka</option>
@@ -275,9 +297,9 @@ export function CatalogFiltersForm({
             <button type="submit">Apply filters</button>
             <button
               type="button"
-              disabled={!hasFilters && !q}
+              disabled={!hasFilters && !hasDraftFilters}
               onClick={() => {
-                setQ('')
+                setDraftFilters({})
                 onChange({})
                 setPanelOpen(false)
               }}
