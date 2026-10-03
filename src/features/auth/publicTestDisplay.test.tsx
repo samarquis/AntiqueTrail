@@ -84,7 +84,12 @@ it('replaces save/setup promises with the existing paused state and makes no pri
     /saving stores is paused for this public-test stage/i,
   )
   expect(screen.getByRole('status')).toHaveTextContent(/existing accounts can still sign in/i)
-  expect(screen.queryByRole('link', { name: /save|correction/i })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: /save/i })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Draft a correction' })).toHaveAttribute(
+    'href',
+    '/stores/fixture/correction',
+  )
+  expect(screen.queryByRole('link', { name: /submit correction/i })).not.toBeInTheDocument()
   expect(getSaveState).not.toHaveBeenCalled()
   expect(setSave).not.toHaveBeenCalled()
 })

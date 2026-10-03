@@ -39,7 +39,9 @@ export async function handleCorrectionSubmit(
   request: Request,
   platformAddress: string | undefined,
   gateway: CorrectionGateway | null,
+  publicTestMode = false,
 ): Promise<Response> {
+  if (publicTestMode) return new Response('Unavailable', { status: 503 })
   if (request.method !== 'POST' || !gateway?.hmacSecret || !platformAddress?.trim())
     return new Response('Unavailable', { status: 503 })
   const token = request.headers.get('authorization')?.match(/^Bearer\s+(\S+)$/iu)?.[1]

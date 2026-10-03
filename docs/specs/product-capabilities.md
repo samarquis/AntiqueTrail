@@ -135,7 +135,7 @@ Public store records may include:
 
 ### Corrections
 
-Anyone may draft a correction, but submission requires just-in-time verified account authentication; cancellation writes nothing. The submitter can read only the reason-neutral status of their own report, with no anonymous submission or internal case-detail access. The exact commands, authorization tests, retry handling, and case lifecycle live in Package 3 of PACKAGE_CONTRACTS.md.
+Anyone may prepare a correction draft. During the catalog-only public test, the draft stays in this tab's `sessionStorage`, survives same-tab reload/navigation, and can be reopened from the same store; cancel/back returns to that store without submitting or writing a server case, leaving the local draft available while its tab-scoped entry remains. The public-test form exposes neither sign-in-to-submit nor submit controls. The server-only `PUBLIC_TEST_MODE` guard rejects direct submissions before session verification or gateway/database calls, including for an existing authenticated session. Outside that draft-only stage, submission requires just-in-time verified account authentication. The submitter can read only the reason-neutral status of their own report, with no anonymous submission or internal case-detail access. The exact commands, authorization tests, retry handling, and case lifecycle live in Package 3 of PACKAGE_CONTRACTS.md.
 
 ## Store categories and attributes
 

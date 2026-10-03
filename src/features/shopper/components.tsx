@@ -294,8 +294,13 @@ function readCorrectionDraft(slug: string): CorrectionDraft | null {
   }
 }
 
-function rememberCorrectionDraft(slug: string, draft: CorrectionDraft) {
-  window.sessionStorage.setItem(correctionDraftStorageKey(slug), JSON.stringify(draft))
+function rememberCorrectionDraft(slug: string, draft: CorrectionDraft): boolean {
+  try {
+    window.sessionStorage.setItem(correctionDraftStorageKey(slug), JSON.stringify(draft))
+    return true
+  } catch {
+    return false
+  }
 }
 
 function forgetCorrectionDraft(slug: string) {
@@ -427,9 +432,19 @@ export function CatalogPrivateActions({
   const correctionPath = `/stores/${encodeURIComponent(slug)}/correction`
   if (isCatalogOnlyPublicTest())
     return (
-      <p className={`catalog-private-actions catalog-private-actions--${context}`} role="status">
-        Saving stores is paused for this public-test stage. Existing accounts can still sign in.
-      </p>
+      <div className={`catalog-private-actions catalog-private-actions--${context}`}>
+        <p role="status">
+          Saving stores is paused for this public-test stage. Existing accounts can still sign in.
+        </p>
+        {context === 'details' && (
+          <>
+            <Link to={correctionPath}>Draft a correction</Link>
+            <p>
+              Drafts are available, but submission is unavailable during this public-test stage.
+            </p>
+          </>
+        )}
+      </div>
     )
   if (!session)
     return (
@@ -988,6 +1003,7 @@ export function CorrectionPage({
   const { slug = '' } = useParams()
   const { session } = useAuth()
   const location = useLocation()
+  const publicTestMode = isCatalogOnlyPublicTest()
   const [draft, setDraft] = useState<CorrectionDraft>(
     () =>
       readCorrectionDraft(slug) ?? {
@@ -1000,15 +1016,24 @@ export function CorrectionPage({
   const [result, setResult] = useState<CorrectionStatus | null>(null)
   const [error, setError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [draftStorageError, setDraftStorageError] = useState(false)
+  function updateDraft(nextDraft: CorrectionDraft) {
+    setDraft(nextDraft)
+    if (publicTestMode) setDraftStorageError(!rememberCorrectionDraft(slug, nextDraft))
+  }
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (publicTestMode) {
+      setDraftStorageError(!rememberCorrectionDraft(slug, draft))
+      return
+    }
     if (submitting || !online) return
     if (!draft.description.trim()) {
       setError(true)
       return
     }
     if (!session) {
-      rememberCorrectionDraft(slug, draft)
+      setDraftStorageError(!rememberCorrectionDraft(slug, draft))
       setError(true)
       return
     }
@@ -1032,9 +1057,16 @@ export function CorrectionPage({
   return (
     <ShopperCard
       title="Suggest a correction"
-      description="Draft anonymously, then sign in to submit. We show only your own reason-neutral status."
+      description={
+        publicTestMode
+          ? 'You can prepare a correction draft. Submission is unavailable during this public-test stage; your draft stays in this browser tab.'
+          : 'Draft anonymously, then sign in to submit. We show only your own reason-neutral status.'
+      }
     >
       {!online && <OfflineNotice />}
+      {draftStorageError && (
+        <p role="alert">This browser tab could not save your draft. Keep this page open.</p>
+      )}
       {result ? (
         <div>
           <p role="status">Correction submitted. Status: {result.state}.</p>
@@ -1047,7 +1079,7 @@ export function CorrectionPage({
             id="correction-type"
             value={draft.type}
             onChange={(event) =>
-              setDraft({ ...draft, type: event.target.value as CorrectionDraft['type'] })
+              updateDraft({ ...draft, type: event.target.value as CorrectionDraft['type'] })
             }
           >
             <option value="identity">Store identity</option>
@@ -1062,7 +1094,7 @@ export function CorrectionPage({
             required
             maxLength={2000}
             value={draft.description}
-            onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+            onChange={(event) => updateDraft({ ...draft, description: event.target.value })}
           />
           <p>{draft.description.length} of 2,000 characters</p>
           <label htmlFor="correction-source">Public source URL (optional)</label>
@@ -1072,10 +1104,10 @@ export function CorrectionPage({
             inputMode="url"
             value={draft.publicSourceUrl ?? ''}
             onChange={(event) =>
-              setDraft({ ...draft, publicSourceUrl: event.target.value || undefined })
+              updateDraft({ ...draft, publicSourceUrl: event.target.value || undefined })
             }
           />
-          {error && (
+          {error && !draftStorageError && (
             <GenericError
               message={
                 !draft.description.trim()
@@ -1086,19 +1118,31 @@ export function CorrectionPage({
               }
             />
           )}
-          {!session && (
+          {!publicTestMode && !session && (
             <p>
               <Link
                 to={`/auth/sign-in?returnTo=${encodeURIComponent(location.pathname)}`}
-                onClick={() => rememberCorrectionDraft(slug, draft)}
+                onClick={(event) => {
+                  const retained = rememberCorrectionDraft(slug, draft)
+                  setDraftStorageError(!retained)
+                  if (!retained) event.preventDefault()
+                }}
               >
                 Sign in to submit this correction
               </Link>
             </p>
           )}
-          <button className="button" type="submit" disabled={submitting || !online}>
-            {submitting ? 'Submitting correction…' : 'Submit correction'}
-          </button>
+          {publicTestMode ? (
+            <p>
+              <Link to={`/stores/${encodeURIComponent(slug)}`}>
+                Cancel and return to this store
+              </Link>
+            </p>
+          ) : (
+            <button className="button" type="submit" disabled={submitting || !online}>
+              {submitting ? 'Submitting correction…' : 'Submit correction'}
+            </button>
+          )}
         </form>
       )}
     </ShopperCard>

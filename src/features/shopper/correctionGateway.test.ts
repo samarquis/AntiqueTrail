@@ -47,6 +47,17 @@ async function loadHandler() {
 }
 
 describe('trusted correction Edge', () => {
+  it('rejects correction submissions in public-test mode before session verification or database writes', async () => {
+    const { handleCorrectionSubmit } = await loadHandler()
+    const transport = gateway()
+
+    const response = await handleCorrectionSubmit(request(), '192.0.2.14', transport, true)
+
+    expect(response.status).toBe(503)
+    expect(transport.verify).not.toHaveBeenCalled()
+    expect(transport.submit).not.toHaveBeenCalled()
+  })
+
   it('uses provider identity and runtime IP despite forged body and forwarding context', async () => {
     const { handleCorrectionSubmit } = await loadHandler()
     const transport = gateway()
