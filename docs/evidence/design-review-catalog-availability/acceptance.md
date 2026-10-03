@@ -9,7 +9,8 @@
 - Source SHA tested: `68751a42c9a05d1ffd7c129d8f1f409dccd1775a`
 - Target: `main`
 - Branch: `codex/issue-505-catalog-availability`
-- Evidence captured: 2026-10-03 13:11 America/Chicago
+- Initial source/test evidence captured: 2026-10-03 13:11 America/Chicago; this timestamp applies only to that evidence.
+- Browser tab-creation attempt: after 2026-10-03 18:52:46 UTC; exact attempt time was not captured. The result was recorded in [issue comment #5972532978](https://github.com/samarquis/AntiqueTrail/issues/505#issuecomment-5972532978) at 2026-10-03 19:05:32 UTC; comment time is not the attempt time.
 - Report head: record the exact commit that adds this file in the PR and issue handoff. Behavioral evidence applies to the source SHA above.
 
 The ticket baseline is an ancestor of current `main`. The four owned source and test files have no changes between the ticket baseline and the tested source SHA.
@@ -32,7 +33,7 @@ Ownership check before claim found #505 open, unassigned, without comments, matc
 
 | Criterion | Result | Evidence |
 | --- | --- | --- |
-| Valid canonical browser observation | **Unavailable.** The bounded lane was granted, but the fresh visible Chrome-tab request was rejected before tab creation with `Capability is not available: visibility`. No canonical HTTP request ran; status, timestamp, safe correlation ID, and request source binding remain unknown. A success will be a point observation, not continuous health. | The failed tab-creation call produced no browser context or network request. Do not use an alternate browser path. Unit tests below use synthetic `Request` objects. |
+| Valid canonical browser observation | **Not executed.** One leased call supplied `visible: true`, which this Chrome entry rejected before tab creation with `Capability is not available: visibility`. This establishes only that the option is unsupported here; no canonical HTTP request ran, and status, timestamp, safe correlation ID, and request source binding remain unknown. A success will be a point observation, not continuous health. | No tab or network request was created. The coordinator now has #503 on the shared lane; #505 waits for its cleanup and a fresh grant. Unit tests below use synthetic `Request` objects. |
 | Deliberate request denial | **Confirmed in source and focused tests.** | The Edge handler returns `503 GATEWAY_UNAVAILABLE` for a non-OPTIONS request with missing or mismatched Origin, required gateway configuration missing, unavailable runtime remote address, or an invalid public-test backend/origin binding. Tests cover a wrong Origin, a mismatched backend URL, and a missing runtime address even when the caller supplies `x-forwarded-for`. |
 | Preflight behavior | **Confirmed in source.** | `OPTIONS` with a wrong Origin returns `403`; do not report that preflight response as the POST gateway's `503`. |
 | Expired or revoked scope | **Confirmed in source and focused test.** | A `public_test_catalog_gateway_request` error maps to `503 CATALOG_UNAVAILABLE`. The test uses `public_test_unavailable` and proves the handler makes one RPC call without falling back to an older stage. |
@@ -83,14 +84,14 @@ Supabase's current [Logs in Studio guide](https://supabase.com/docs/guides/obser
 
 ## Unverified and next action
 
-This report confirms deliberate denial paths and the client's generic mapping. It does not show whether a valid canonical browser request currently succeeds or fails, or establish the deployment/configuration identity serving it. The requested fresh Chrome tab could not be created because the browser tool does not expose its visibility capability in this environment. No valid-request failure has been reproduced, so matching hosted-log correlation is not currently an acceptance requirement or finding.
+This report confirms deliberate denial paths and the client's generic mapping. It does not show whether a valid canonical browser request currently succeeds or fails, or establish the deployment/configuration identity serving it. The first Chrome tab-creation attempt was rejected because `visible` is unsupported for this Chrome entry. No valid-request failure has been reproduced, so matching hosted-log correlation is not currently an acceptance requirement or finding.
 
-Request one read-only browser lease for this bounded observation:
+After #503 releases the shared lane, request a fresh read-only browser lease for this bounded observation:
 
-- **Command:** Open a fresh Chrome tab with `await cua.createBrowserTab("chrome", "https://antique-trail.vercel.app/stores", { sessionName: "🔎 Issue 505", visible: true })`. Wait for the real list response, open the first rendered store's Details route, and capture only each operation, HTTP status, timestamp, canonical route/source binding, and safe correlation ID. A success is a point observation.
-- **Source and fixture:** The canonical `https://antique-trail.vercel.app/stores` page and the anonymous catalog it returns at run time. Use only list and details requests. Do not seed or mutate data.
+- **Command, after #503 cleanup and a fresh lane grant:** Open a new Chrome tab with `await cua.createBrowserTab("chrome", "https://antique-trail.vercel.app/stores", { sessionName: "🔎 Issue 505" })`. Omit unsupported `visible`; do not switch browser paths. Wait for the real list response, open the first rendered store's Details route, and capture sanitized operation, HTTP status, timestamp, canonical request source binding, safe deployment/source identity if exposed, safe correlation ID, and console/network failure classification. Do not capture headers or bodies. A success is a point observation. If tab creation fails again, record the exact result and stop.
+- **Source and fixture:** The canonical `https://antique-trail.vercel.app/stores` page and the anonymous catalog it returns at run time, using its actual canonical Origin. Use only list and details requests. Do not seed, spoof request headers, or mutate data.
 - **Ports:** No local app or Supabase server. Leave 4173 and 4174 unused.
 - **Logs:** Only if a valid request fails, inspect existing Supabase Studio Edge Function logs for its exact time window and endpoint when current read-only access is available. If access is unavailable, record that limitation and leave cause unresolved; do not request new provider rights. A successful observation does not require logs. Do not use retired `logs.all`.
 - **Cleanup receipt:** The tab-creation call failed before creating a context, so none exists to close. This attempt started no local server or owned process/listener. The coordinator's pre-grant listener check found ports 4173 and 4174 absent at 2026-10-03 18:52:46 UTC.
 
-No alternate browser path was attempted after the visibility-capability rejection. Keep valid-browser status and source binding unavailable until this bounded observation can run in a session that supports a fresh visible Chrome tab and has a granted lane. Treat log correlation as conditional on a reproduced valid-request failure. Do not add retries or relax request guards.
+No alternate browser path was attempted after the unsupported-option rejection. The shared lane is currently held by #503; wait for its cleanup and a fresh #505 grant before retrying the same Chrome call without `visible`. Keep valid-browser status and source binding unavailable until then. Treat log correlation as conditional on a reproduced valid-request failure. Do not add retries or relax request guards.
