@@ -122,8 +122,8 @@ test('direct correction route saves a local draft, denies form submission, and r
     'aria-pressed',
     'true',
   )
-  const darkFormAccessibility = await new AxeBuilder({ page }).include('form').analyze()
-  expect(darkFormAccessibility.violations).toEqual([])
+  const darkPageAccessibility = await new AxeBuilder({ page }).include('main').analyze()
+  expect(darkPageAccessibility.violations).toEqual([])
 
   await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' })
   const formModeMedia = await page.evaluate(() => ({
@@ -131,8 +131,8 @@ test('direct correction route saves a local draft, denies form submission, and r
     forcedColors: matchMedia('(forced-colors: active)').matches,
   }))
   expect(formModeMedia).toEqual({ reducedMotion: true, forcedColors: true })
-  const forcedColorsFormAccessibility = await new AxeBuilder({ page }).include('form').analyze()
-  expect(forcedColorsFormAccessibility.violations).toEqual([])
+  const forcedColorsPageAccessibility = await new AxeBuilder({ page }).include('main').analyze()
+  expect(forcedColorsPageAccessibility.violations).toEqual([])
 
   // Narrow viewport simulates reflow at 200% zoom; browser-chrome zoom is not emulated here.
   await page.setViewportSize({ width: 640, height: 900 })
