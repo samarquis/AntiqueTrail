@@ -1702,6 +1702,10 @@ textarea[aria-invalid='true'] {
   line-height: var(--type-leading-display);
 }
 
+.catalog-results-heading .eyebrow {
+  color: var(--muted);
+}
+
 .catalog-results-heading > p {
   margin: 0;
   color: var(--muted);
@@ -1834,7 +1838,7 @@ textarea[aria-invalid='true'] {
 .catalog-card__categories li {
   padding: 0.28rem 0.6rem;
   border-radius: 999px;
-  color: var(--olive);
+  color: var(--muted);
   background: var(--mint);
   font-size: var(--type-size-label);
   font-weight: var(--type-weight-strong);

@@ -43,6 +43,8 @@ Catalog verification is “recent” for at most 30 calendar days from the recor
 
 Contrast exception: `.store-detail__provenance > .eyebrow` uses `muted` on the provenance panel because `olive` falls below 4.5:1 on that composite surface. Keep the exception token-based and verify at least 4.5:1 contrast in light and dark themes in the provenance browser test.
 
+Category badges are secondary metadata and use `muted` on `mint`. The Browse results context label (`.catalog-results-heading .eyebrow`) also uses `muted`: `olive` falls below 4.5:1 on the directory surface. Verify both surfaces with full-main accessibility scans in actual light and dark themes; preserve other eyebrow tokens.
+
 ### Icon and app identity
 
 `public/app-icon.svg` is the canonical install/fav icon: the approved V3 storefront mark with a keyed ivory cornice, slate-blue three-scallop awning, and ivory arched doorway on blue-black. PNG derivatives (`app-icon-192.png`, `app-icon-512.png`, `apple-touch-icon.png`) are the manifest and Apple touch assets.
