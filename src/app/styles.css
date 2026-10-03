@@ -1769,8 +1769,9 @@ textarea[aria-invalid='true'] {
   border: 1px solid var(--line);
   border-radius: 50%;
   max-width: 100%;
+  font-family: var(--font-display);
   font-size: var(--type-size-label);
-  line-height: 1;
+  line-height: var(--type-leading-compact);
 }
 
 .catalog-card__placeholder > small {
