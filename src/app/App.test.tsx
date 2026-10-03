@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +8,7 @@ import type { PartnerAdminClient } from '../features/partners'
 import { createAccessibleCatalogMapAdapter, demoCatalogClient } from '../features/catalog'
 import { unavailableReviewClient } from '../features/reviews'
 import { unavailablePortalClient } from '../features/portal'
+import { unavailableShopperClient } from '../features/shopper'
 import type { DurableReadinessClient } from '../features/readiness'
 import type { BillingClient, CommercialResearchConfig } from '../features/billing'
 import App from './App'
@@ -20,6 +21,7 @@ import {
 describe('app shell', () => {
   afterEach(() => {
     cleanup()
+    window.sessionStorage.clear()
     vi.unstubAllEnvs()
   })
   it('renders the browse route with a skip-free accessible heading', () => {
@@ -317,6 +319,104 @@ describe('app shell', () => {
     expect(
       screen.queryByRole('link', { name: /private memory|add to trip/i }),
     ).not.toBeInTheDocument()
+  })
+
+  it('explains draft-only corrections in public Help and the store listing', async () => {
+    vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
+    const help = render(
+      <MemoryRouter initialEntries={['/help']}>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(
+      screen.getByText(
+        /correction drafts are available during this public-test stage, but you cannot submit them/i,
+      ),
+    ).toBeVisible()
+    help.unmount()
+
+    render(
+      <MemoryRouter initialEntries={['/stores/blue-finch-curios']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: /blue finch curios/i })).toBeVisible()
+    expect(screen.getByRole('link', { name: /draft a correction/i })).toHaveAttribute(
+      'href',
+      '/stores/blue-finch-curios/correction',
+    )
+    expect(screen.getByText(/drafts are available.*submission is unavailable/i)).toBeVisible()
+  })
+
+  it('keeps direct public-test correction routes draft-only for signed-in shoppers', async () => {
+    vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession({
+      userId: 'shopper-a',
+      accessToken: 'memory-only-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaVerified: true,
+    })
+    const submitCorrection = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/stores/blue-finch-curios/correction']}>
+        <App
+          clients={{ shopper: { ...unavailableShopperClient, submitCorrection } }}
+          runtime={{ authStore }}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Suggest a correction' })).toBeVisible()
+    expect(
+      screen.getByText(/prepare a correction draft.*submission is unavailable.*browser tab/i),
+    ).toBeVisible()
+    expect(screen.queryByRole('link', { name: /sign in to submit/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /submit correction/i })).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Description'), 'Weekend hours changed')
+    await waitFor(() =>
+      expect(
+        window.sessionStorage.getItem('antique-trail:correction-draft:blue-finch-curios'),
+      ).toContain('Weekend hours changed'),
+    )
+    fireEvent.submit(screen.getByLabelText('Description').closest('form') as HTMLFormElement)
+    expect(submitCorrection).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('link', { name: /cancel and return to this store/i }))
+    expect(await screen.findByRole('heading', { name: /blue finch curios/i })).toBeVisible()
+    await user.click(screen.getByRole('link', { name: /draft a correction/i }))
+    expect(await screen.findByLabelText('Description')).toHaveValue('Weekend hours changed')
+  })
+
+  it('warns when the browser tab cannot retain a public-test correction draft', async () => {
+    vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
+    const setItem = vi.spyOn(window.Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage blocked')
+    })
+    const submitCorrection = vi.fn()
+    const user = userEvent.setup()
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/stores/blue-finch-curios/correction']}>
+          <App clients={{ shopper: { ...unavailableShopperClient, submitCorrection } }} />
+        </MemoryRouter>,
+      )
+      const description = await screen.findByLabelText('Description')
+      await user.type(description, 'Weekend hours changed')
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/could not save your draft/i)
+      expect(description).toHaveValue('Weekend hours changed')
+      fireEvent.submit(description.closest('form') as HTMLFormElement)
+      expect(submitCorrection).not.toHaveBeenCalled()
+    } finally {
+      setItem.mockRestore()
+    }
   })
 
   it('composes an injected accessible map without replacing the browse list', async () => {
