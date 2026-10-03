@@ -41,6 +41,8 @@ Catalog verification is “recent” for at most 30 calendar days from the recor
 
 **Semantic color reservation**: `rust`/clay is reserved exclusively for destructive actions, danger states, and important-new status. Use `olive`/slate for eyebrow and section-label context, `muted` for secondary text. `gold`/brass is reserved for warning and freshness-attention states. Dark-mode tokens activate under `:root[data-theme='dark']`, set before first paint from the saved switcher choice or the system `prefers-color-scheme: dark`. Dark mode is a mandatory acceptance check at every package boundary.
 
+Contrast exception: `.store-detail__provenance > .eyebrow` uses `muted` on the provenance panel because `olive` falls below 4.5:1 on that composite surface. Keep the exception token-based and verify at least 4.5:1 contrast in light and dark themes in the provenance browser test.
+
 ### Icon and app identity
 
 `public/app-icon.svg` is the canonical install/fav icon: the approved V3 storefront mark with a keyed ivory cornice, slate-blue three-scallop awning, and ivory arched doorway on blue-black. PNG derivatives (`app-icon-192.png`, `app-icon-512.png`, `apple-touch-icon.png`) are the manifest and Apple touch assets.

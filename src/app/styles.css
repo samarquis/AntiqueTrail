@@ -3065,6 +3065,7 @@ main > article dt {
 }
 
 .store-detail__provenance > .eyebrow {
+  /* Contrast exception documented in DESIGN_SYSTEM.md. */
   color: var(--muted);
 }
 
