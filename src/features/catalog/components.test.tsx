@@ -559,6 +559,32 @@ describe('trustworthy Store Details contract', () => {
     ).toBe(disclosure)
   })
 
+  it('shows fictional disclosure when only the summary identifies a seeded listing', async () => {
+    const sunroomSalvage = {
+      ...detailedStore,
+      address: '909 Sunbeam Boulevard',
+      summary: 'Fictional salvaged furniture and cheerful collectible accents.',
+      description: 'Supports missing-image and category-filter fixture coverage.',
+      fixtureProfile: null,
+      provenance: {
+        sourceLabel: 'Catalog record',
+        updatedAt: '2026-08-02T12:00:00Z',
+      },
+    }
+    const catalog = detailsClient(sunroomSalvage)
+    const browse = render(<BrowsePage client={catalog} />)
+
+    expect(within(await screen.findByRole('article')).getByText(fictionalDisclosure)).toBeVisible()
+
+    browse.unmount()
+    render(<DetailsPage client={catalog} slug={sunroomSalvage.slug} />)
+    expect(
+      within(await screen.findByRole('region', { name: 'Source & freshness' })).getByText(
+        fictionalDisclosure,
+      ),
+    ).toBeVisible()
+  })
+
   it('shows unavailable freshness and provenance without inventing a source or date', async () => {
     const unavailableStore = {
       ...detailedStore,

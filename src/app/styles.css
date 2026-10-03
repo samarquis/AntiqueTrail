@@ -3064,6 +3064,10 @@ main > article dt {
   background: color-mix(in srgb, var(--mint) 35%, var(--card));
 }
 
+.store-detail__provenance > .eyebrow {
+  color: var(--muted);
+}
+
 @media (max-width: 800px) {
   .store-detail__actions {
     display: grid;

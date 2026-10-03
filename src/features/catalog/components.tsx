@@ -412,6 +412,7 @@ export function CatalogCard({
 function isFictionalListing(store: CatalogStore): boolean {
   const trustText = [
     store.address,
+    store.summary,
     store.description,
     store.provenance?.sourceLabel,
     store.provenance?.note,
