@@ -11,7 +11,7 @@
 - Evidence captured: 2026-10-03 18:22:45 UTC
 - Risk: low. This change records source and publication evidence only.
 - Report snapshot reviewed in first review: `a44669c888d1beba1ef47263e7c0e4d7bd2aebb1`.
-- Diff fingerprint for that exact report snapshot: `ef783350ab6a0e0d48500a4d8f12aa6fbc79734a`.
+- Diff fingerprint for that exact report snapshot: `d5d11a2ea4a649d36ffa4082994a75bec97d2e36`.
 - Reproduction command: `git diff --binary 68751a42c9a05d1ffd7c129d8f1f409dccd1775a a44669c888d1beba1ef47263e7c0e4d7bd2aebb1 -- docs/evidence/design-review-publication-lineage/acceptance.md | git hash-object --stdin`.
 - The source candidate is the implementation state assessed by this report; the report snapshot identifies the exact prior evidence revision. New report revisions are bound to their review through the commit SHA in PR #509.
 
@@ -93,7 +93,12 @@ The configured Vercel connector returned no teams, and this worktree has no link
 | --- | --- | --- | --- |
 | Source and issue history | `gh api repos/samarquis/AntiqueTrail/commits/main --jq .sha`; `git rev-parse refs/remotes/origin/main`; `gh issue view` and `gh pr view` for the linked issues and PRs; `git merge-base --is-ancestor` for each merge commit | Merged source facts verified at `68751a42` | Local source and GitHub |
 | Focused tests | Not run. This change contains evidence documentation only. | Not applicable | Local |
+| Type/lint/format/build | Not run locally; this change contains evidence documentation only. | Not applicable locally | Local |
+| Database/RLS/RPC | Not run; no schema, policy, RPC, or database data changed. | Not applicable | Local/database |
+| Desktop/mobile UI | Anonymous browser review of the canonical routes and viewport layouts | Blocked; no rendered-browser lease, screenshot, or layout observation | Production |
+| Accessibility/error states | Inspect the live missing-cover fallback, accessible name/description, and route error states | Blocked; live cards and rendered route states were not observed | Production |
 | Vercel metadata | Read-only team lookup and available GitHub deployment records | No team or current production receipt available | Provider metadata |
+| Hosted/provider lifecycle | Read-only lookup for deployment source, artifact, configuration, and alias binding | Blocked; no accepted receipt or provider project access | Provider |
 | Canonical production route | Anonymous browser review of the routes above | Not run. Awaiting the shared browser lease. | Production |
 | Human review | Independent Standards and Spec review | Pending on the exact documentation PR head | GitHub PR |
 
