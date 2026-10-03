@@ -123,8 +123,36 @@ test('Representative publishes exact-store Monday hours through real Auth and MF
   await expect(page.locator('#hours-1-close-1')).toHaveValue('19:45')
   const shopper = await browser.newContext({ baseURL: input.origin })
   let shopperPage: Page | undefined
+  const catalogSignals: Array<Promise<{ status: number; code: string; rows: number }>> = []
   try {
     shopperPage = await shopper.newPage()
+    shopperPage.on('response', (response) => {
+      if (
+        catalogSignals.length >= 8 ||
+        response.request().method() !== 'POST' ||
+        !new URL(response.url()).pathname.endsWith('/functions/v1/public-catalog')
+      )
+        return
+      catalogSignals.push(
+        response
+          .json()
+          .then((payload) => ({
+            status: response.status(),
+            code: [
+              'ALPHA_AUTH_REQUIRED',
+              'CATALOG_UNAVAILABLE',
+              'GATEWAY_UNAVAILABLE',
+              'RATE_LIMITED',
+            ].includes(payload?.error?.code)
+              ? payload.error.code
+              : response.ok()
+                ? 'ok'
+                : 'other',
+            rows: Array.isArray(payload?.data) ? payload.data.length : 0,
+          }))
+          .catch(() => ({ status: response.status(), code: 'unavailable', rows: 0 })),
+      )
+    })
     await shopperPage.goto('/auth/sign-in?returnTo=%2Fstores%2Fclockwork-cabinet')
     await shopperPage.getByLabel('Email', { exact: true }).fill(input.users[1].email)
     await shopperPage.getByLabel('Password', { exact: true }).fill(input.users[1].password)
@@ -150,6 +178,7 @@ test('Representative publishes exact-store Monday hours through real Auth and MF
         JSON.stringify({
           detailLoaded: Boolean(detailLoaded),
           clocks: clocks?.flatMap((text) => text.match(/\d{1,2}:\d{2}\s*[AP]M/g) ?? []) ?? [],
+          catalog: await Promise.all(catalogSignals),
         }),
       )
     } finally {
@@ -177,4 +206,50 @@ test('revoked exact scope denies the next UI edit and preserves both stores', as
   expect(await weeklyClose(ownStore)).toBe(beforeOwn)
   expect(await weeklyClose(siblingStore)).toBe(beforeSibling)
   await page.screenshot({ path: info.outputPath('revoked-scope-denial.png') })
+})
+
+test('repeated native time edits publish the selected clock without losing changes', async ({
+  page,
+}) => {
+  const siblingBefore = await weeklyClose(siblingStore)
+  await login(page)
+  const close = page.locator('#hours-1-close-1')
+  let completed = 0
+  let submitted = 'unavailable'
+  let persisted = 'unavailable'
+  try {
+    for (let iteration = 0; iteration < 50; iteration++) {
+      const selected = iteration % 2 === 0 ? '19:45' : '18:00'
+      await close.fill(selected)
+      await close.press('Tab')
+      await expect(close).toHaveValue(selected)
+      const [response] = await Promise.all([
+        page.waitForResponse(
+          (response) =>
+            response.request().method() === 'POST' &&
+            new URL(response.url()).pathname.endsWith('/rpc/portal_save_hours'),
+          { timeout: 15_000 },
+        ),
+        page.getByRole('button', { name: 'Save hours', exact: true }).click(),
+      ])
+      const closing = response
+        .request()
+        .postDataJSON()
+        ?.p_hours?.weekly?.find((day: { weekday: number }) => day.weekday === 1)
+        ?.intervals?.[0]?.closesAt
+      submitted = typeof closing === 'string' && /^\d{2}:\d{2}$/.test(closing) ? closing : 'invalid'
+      expect(response.ok()).toBe(true)
+      expect(submitted).toBe(selected)
+      await expect(page.getByRole('status')).toHaveText('Hours saved and freshness updated.')
+      persisted = await weeklyClose(ownStore)
+      expect(persisted).toBe(`${selected}:00`)
+      await expect(close).toHaveValue(selected)
+      completed++
+    }
+    expect(await weeklyClose(siblingStore)).toBe(siblingBefore)
+    await page.reload()
+    await expect(page.locator('#hours-1-close-1')).toHaveValue('18:00')
+  } finally {
+    console.log('[issue-494-stability]', JSON.stringify({ completed, submitted, persisted }))
+  }
 })
