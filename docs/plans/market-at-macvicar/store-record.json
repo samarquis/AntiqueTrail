@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "preparationState": "local-preview-in-progress-not-admitted",
+  "preparationState": "local-preview-reviewed-not-admitted",
   "storeId": null,
   "claimed": false,
   "displayName": "The Market at Macvicar",
@@ -106,8 +106,8 @@
     ]
   },
   "publicationState": "Not inserted or published. Local preview work only.",
-  "businessInformationReadiness": "Sufficient confirmed information for a store draft: public address, phone, email, categories, description, official Facebook profile, and owner-confirmed hours.",
-  "localPageState": "Development-only preview using a static read-only catalog adapter; no catalog insertion or provider operation.",
+  "businessInformationReadiness": "Sufficient confirmed information for a store draft: public address, phone, email, categories, description, official Facebook profile, and user-confirmed hours.",
+  "localPageState": "Development-only preview reviewed in local CUA and accepted by the user for test/dev publication; no hosted catalog insertion, public launch, or provider operation.",
   "technicalAdmission": [
     "Site Admin must create/admit the exact store record and bind the normal verified owner/claim authority, assigning the stable UUID.",
     "The exact UUID needs governed admission to the intended catalog/publication boundary; existing synthetic-only catalog binding and public-test allowlist stay unchanged.",
