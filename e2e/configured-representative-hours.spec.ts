@@ -216,6 +216,8 @@ test('revoked exact scope denies the next UI edit and preserves both stores', as
 test('repeated native time edits publish the selected clock without losing changes', async ({
   page,
 }) => {
+  // Fifty authenticated writes took 118s on desktop; keep individual operation deadlines unchanged.
+  test.setTimeout(180_000)
   const siblingBefore = await weeklyClose(siblingStore)
   await login(page)
   const close = page.locator('#hours-1-close-1')
@@ -255,7 +257,9 @@ test('repeated native time edits publish the selected clock without losing chang
     await page.reload()
     await expect(page.locator('#hours-1-close-1')).toHaveValue('19:45')
   } finally {
-    persisted = await weeklyClose(ownStore).catch(() => 'unavailable')
-    console.log('[issue-494-stability]', JSON.stringify({ completed, submitted, persisted }))
+    console.log(
+      '[issue-494-stability]',
+      JSON.stringify({ completed, submitted, lastVerifiedPersisted: persisted }),
+    )
   }
 })
