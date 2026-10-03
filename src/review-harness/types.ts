@@ -1,4 +1,5 @@
 import type { AuthStore, SessionRegistryClient } from '../features/auth'
+import type { OwnerTeamRole } from '../features/owner/ownerClient'
 
 export const REVIEW_SCENARIO_IDS = [
   'anonymous',
@@ -6,6 +7,9 @@ export const REVIEW_SCENARIO_IDS = [
   'shopper-b',
   'representative',
   'store-owner',
+  'co-owner',
+  'full-store-access',
+  'listing-editor',
   'administrator',
 ] as const
 
@@ -38,6 +42,7 @@ export interface ReviewScenario {
   label: string
   identity: string
   role: 'Anonymous' | 'Shopper' | 'Representative' | 'Store Owner' | 'Administrator'
+  storeRole?: OwnerTeamRole
   fixtureSummary: string
   destinations: readonly ReviewDestination[]
   deniedDestinations: readonly ReviewDestination[]
