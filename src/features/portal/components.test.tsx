@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -185,6 +185,80 @@ describe('provider-neutral Store Portal boundary', () => {
       'aria-describedby',
       'hours-error',
     )
+  })
+
+  it('uses the returned hours version for the next publication', async () => {
+    const user = userEvent.setup()
+    let published = hours()
+    const saveHours = vi.fn(async (draft: PortalHours) => {
+      if (draft.version !== published.version) throw new Error('Stale version')
+      published = { ...draft, version: published.version + 1 }
+      return published
+    })
+    render(
+      <MemoryRouter>
+        <PortalHoursPage client={client({ saveHours })} />
+      </MemoryRouter>,
+    )
+    const close = (await screen.findAllByLabelText('First closing'))[0]
+    fireEvent.change(close, { target: { value: '18:00' } })
+    await user.click(screen.getByRole('button', { name: 'Save hours' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Hours saved')
+    fireEvent.change(close, { target: { value: '19:45' } })
+    await user.click(screen.getByRole('button', { name: 'Save hours' }))
+    expect(published.weekly[0].intervals[0].closesAt).toBe('19:45')
+    expect(saveHours.mock.calls[1][0].version).toBe(2)
+    expect(saveHours.mock.calls[1][0].weekly[0].intervals[0].closesAt).toBe('19:45')
+  })
+
+  it('clears the previous success when the next publication fails and retains the edit', async () => {
+    const user = userEvent.setup()
+    const published = hours()
+    published.version = 2
+    published.weekly[0].intervals[0].closesAt = '18:00'
+    const saveHours = vi
+      .fn<PortalClient['saveHours']>()
+      .mockResolvedValueOnce(published)
+      .mockRejectedValueOnce(new Error('Denied'))
+    render(
+      <MemoryRouter>
+        <PortalHoursPage client={client({ saveHours })} />
+      </MemoryRouter>,
+    )
+    const close = (await screen.findAllByLabelText('First closing'))[0]
+    fireEvent.change(close, { target: { value: '18:00' } })
+    await user.click(screen.getByRole('button', { name: 'Save hours' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Hours saved')
+    fireEvent.change(close, { target: { value: '19:45' } })
+    await user.click(screen.getByRole('button', { name: 'Save hours' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC_PORTAL_ERROR)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(close).toHaveValue('19:45')
+  })
+
+  it('keeps edits made while publishing and advances their version', async () => {
+    const user = userEvent.setup()
+    let finishSave!: (saved: PortalHours) => void
+    const saveHours = vi
+      .fn<PortalClient['saveHours']>()
+      .mockImplementationOnce(() => new Promise((resolve) => (finishSave = resolve)))
+      .mockImplementationOnce(async (draft) => ({ ...draft, version: draft.version + 1 }))
+    render(
+      <MemoryRouter>
+        <PortalHoursPage client={client({ saveHours })} />
+      </MemoryRouter>,
+    )
+    const close = (await screen.findAllByLabelText('First closing'))[0]
+    fireEvent.change(close, { target: { value: '19:45' } })
+    await user.click(screen.getByRole('button', { name: 'Save hours' }))
+    fireEvent.change(close, { target: { value: '20:15' } })
+    await act(async () => finishSave({ ...hours(), version: 2 }))
+    expect(close).toHaveValue('20:15')
+    await user.click(screen.getByRole('button', { name: 'Save hours' }))
+    const expected = hours()
+    expected.version = 2
+    expected.weekly[0].intervals[0].closesAt = '20:15'
+    expect(saveHours.mock.calls[1][0]).toEqual(expected)
   })
 
   it('rejects shorteners and unrelated social hosts while normalizing official links', () => {

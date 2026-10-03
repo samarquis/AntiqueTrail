@@ -309,7 +309,7 @@ try {
     report.status = 'unavailable'
     report.errors.push('Missing Playwright report')
   } else {
-    const results = representativeHoursReport(fs.readFileSync(resultPath, 'utf8'))
+    const results = representativeHoursReport(fs.readFileSync(resultPath, 'utf8'), 6)
     report.stats = results.stats
     report.checks = results.checks
     if (results.status !== 'passed') report.status = 'failed'
