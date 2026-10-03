@@ -100,6 +100,7 @@ Install used Node `v24.11.1` and npm `11.13.0` with an isolated worktree install
 ## Unverified
 
 - Required CI and exact-head review refresh on the resulting documentation-only PR head.
+- Design System acceptance checks not run for this change: reduced motion, dark theme, forced colors, keyboard-only use, screen-reader labels, 200% zoom, and text-spacing overrides.
 - Canonical production behavior; deployment was outside authority.
 
 ## Invalidation
