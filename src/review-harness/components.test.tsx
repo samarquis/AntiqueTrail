@@ -30,6 +30,27 @@ describe('review harness screen', () => {
     expect(document.body.textContent).not.toContain('local-review-only:')
   })
 
+  it('shows a team persona role separately from its account role', async () => {
+    const runtime = await createReviewHarness({
+      dev: true,
+      mode: 'review',
+      enabled: 'true',
+      url: 'http://127.0.0.1:4173/review?reviewAs=co-owner&reviewState=success',
+    })
+    render(
+      <MemoryRouter initialEntries={['/review?reviewAs=co-owner&reviewState=success']}>
+        <ReviewHarnessPage runtime={runtime!} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Role', { exact: true }).nextElementSibling).toHaveTextContent(
+      'Store Owner',
+    )
+    expect(screen.getByText('Store role', { exact: true }).nextElementSibling).toHaveTextContent(
+      'Co-Owner',
+    )
+  })
+
   it('renders compact local context without inheriting task-card styling', async () => {
     const runtime = await createReviewHarness({
       dev: true,

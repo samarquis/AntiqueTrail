@@ -164,6 +164,73 @@ export const reviewScenarios: readonly ReviewScenario[] = [
     ],
   },
   {
+    id: 'co-owner',
+    label: 'Co-Owner · Blue Finch Curios',
+    identity: 'Riley · co-owner@local.invalid',
+    role: 'Store Owner',
+    storeRole: 'co_owner',
+    fixtureSummary:
+      'Exact Blue Finch Co-Owner grant with read-only billing and scoped team actions.',
+    destinations: [
+      {
+        label: 'Your store workspace',
+        path: '/owner/stores',
+        purpose: 'Select the exact Blue Finch Co-Owner grant',
+      },
+    ],
+    deniedDestinations: [
+      { label: 'Administrator', path: '/admin', purpose: 'Co-Owner is not an Administrator' },
+      { label: 'Saved stores', path: '/saved', purpose: 'No shopper-private authority' },
+    ],
+  },
+  {
+    id: 'full-store-access',
+    label: 'Full Store Access · Blue Finch Curios',
+    identity: 'Casey · full-access@local.invalid',
+    role: 'Store Owner',
+    storeRole: 'full_store_access',
+    fixtureSummary:
+      'Exact Blue Finch Full Store Access grant with read-only billing and Listing Editor invitations.',
+    destinations: [
+      {
+        label: 'Your store workspace',
+        path: '/owner/stores',
+        purpose: 'Select the exact Blue Finch Full Store Access grant',
+      },
+    ],
+    deniedDestinations: [
+      {
+        label: 'Administrator',
+        path: '/admin',
+        purpose: 'Full Store Access is not an Administrator',
+      },
+      { label: 'Saved stores', path: '/saved', purpose: 'No shopper-private authority' },
+    ],
+  },
+  {
+    id: 'listing-editor',
+    label: 'Listing Editor · Blue Finch Curios',
+    identity: 'Jordan · listing-editor@local.invalid',
+    role: 'Store Owner',
+    storeRole: 'listing_editor',
+    fixtureSummary: 'Exact Blue Finch Listing Editor grant with listing access and no owner tools.',
+    destinations: [
+      {
+        label: 'Your store workspace',
+        path: '/owner/stores',
+        purpose: 'Select the exact Blue Finch Listing Editor grant',
+      },
+    ],
+    deniedDestinations: [
+      {
+        label: 'Administrator',
+        path: '/admin',
+        purpose: 'Listing Editor is not an Administrator',
+      },
+      { label: 'Saved stores', path: '/saved', purpose: 'No shopper-private authority' },
+    ],
+  },
+  {
     id: 'administrator',
     label: 'Administrator',
     identity: 'Morgan · administrator@local.invalid',

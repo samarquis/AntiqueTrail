@@ -23,6 +23,164 @@ describe('scenario-aware review clients', () => {
     await expect(clients.readinessAdmin!.getWorkspace()).rejects.toThrow(/permission denied/i)
   })
 
+  it.each([
+    ['co-owner', 'co_owner'],
+    ['full-store-access', 'full_store_access'],
+    ['listing-editor', 'listing_editor'],
+  ] as const)('%s receives only its Blue Finch store grant', async (id, storeRole) => {
+    const clients = createReviewHarnessClients(scenario(id), 'success')
+
+    expect(scenario(id)).toMatchObject({ role: 'Store Owner', storeRole })
+    await expect(clients.owner!.listStores()).resolves.toEqual([
+      { storeId: 'store-blue-finch', name: 'Blue Finch Curios', role: storeRole },
+    ])
+    await expect(clients.owner!.selectStore('store-editor-view')).rejects.toThrow(
+      /permission denied/i,
+    )
+    await expect(clients.owner!.selectStore('store-sibling-denied')).rejects.toThrow(
+      /permission denied/i,
+    )
+    await expect(clients.owner!.listTeam('store-sibling-denied')).rejects.toThrow(
+      /permission denied|workspace access is unavailable/i,
+    )
+
+    await clients.owner!.selectStore('store-blue-finch')
+    await expect(clients.portal!.getHome()).resolves.toMatchObject({
+      store: { id: 'store-blue-finch', name: 'Blue Finch Curios' },
+    })
+    if (storeRole === 'co_owner' || storeRole === 'full_store_access') {
+      expect(clients.billingServicing).toBeDefined()
+      await expect(clients.ownerBillingStatus!.getStatus()).resolves.toMatchObject({
+        availableActions: [],
+      })
+      expect(clients.ownerBillingStatus).not.toHaveProperty('cancellation')
+    } else {
+      expect(clients.billingServicing).toBeUndefined()
+      expect(clients.ownerBillingStatus).toBeUndefined()
+    }
+    await expect(clients.shopper!.listSaved()).rejects.toThrow(/permission denied/i)
+    await expect(clients.admin!.listCases()).rejects.toThrow(/permission denied/i)
+  })
+
+  it('enforces Co-Owner, Full Store Access, and Listing Editor team boundaries', async () => {
+    const coOwnerClients = createReviewHarnessClients(scenario('co-owner'), 'success')
+    const coOwner = coOwnerClients.owner!
+    await expect(coOwnerClients.promotion!.list()).rejects.toThrow(/permission denied/i)
+    const coOwnerTeam = await coOwner.listTeam('store-blue-finch')
+    expect(coOwnerTeam).toMatchObject({
+      members: [{ role: 'listing_editor', canRevoke: false }],
+      invitations: [{ invitationId: 'review-owner-pending-invitation', canCancel: true }],
+    })
+    await expect(
+      coOwner.inviteTeam(
+        'store-blue-finch',
+        'teammate@local.invalid',
+        'co_owner',
+        'review-co-owner',
+      ),
+    ).resolves.toBeUndefined()
+    await expect(
+      coOwner.inviteTeam(
+        'store-blue-finch',
+        'teammate@local.invalid',
+        'full_store_access',
+        'review-co-owner-denied',
+      ),
+    ).rejects.toThrow(/permission denied/i)
+    await expect(
+      coOwner.cancelTeamInvitation(
+        'store-blue-finch',
+        'review-owner-pending-invitation',
+        1,
+        'review-co-owner-cancel',
+      ),
+    ).resolves.toBeUndefined()
+    await expect(
+      coOwner.revokeTeamMember(
+        'store-blue-finch',
+        'review-listing-editor',
+        1,
+        'review-co-owner-remove',
+      ),
+    ).rejects.toThrow(/permission denied/i)
+
+    const fullAccessClients = createReviewHarnessClients(scenario('full-store-access'), 'success')
+    const fullAccess = fullAccessClients.owner!
+    await expect(fullAccessClients.promotion!.list()).resolves.toHaveLength(4)
+    const fullAccessTeam = await fullAccess.listTeam('store-blue-finch')
+    expect(fullAccessTeam.invitations).toEqual([
+      {
+        invitationId: 'review-owner-pending-invitation',
+        role: 'co_owner',
+        version: 1,
+        canCancel: false,
+      },
+      {
+        invitationId: 'review-full-access-pending-invitation',
+        role: 'listing_editor',
+        version: 1,
+        canCancel: true,
+      },
+    ])
+    await expect(
+      fullAccess.inviteTeam(
+        'store-blue-finch',
+        'teammate@local.invalid',
+        'listing_editor',
+        'review-full-access',
+      ),
+    ).resolves.toBeUndefined()
+    await expect(
+      fullAccess.inviteTeam(
+        'store-blue-finch',
+        'teammate@local.invalid',
+        'co_owner',
+        'review-full-access-denied',
+      ),
+    ).rejects.toThrow(/permission denied/i)
+    await expect(
+      fullAccess.cancelTeamInvitation(
+        'store-blue-finch',
+        'review-full-access-pending-invitation',
+        1,
+        'review-full-access-cancel',
+      ),
+    ).resolves.toBeUndefined()
+    await expect(
+      fullAccess.cancelTeamInvitation(
+        'store-blue-finch',
+        'review-owner-pending-invitation',
+        1,
+        'review-full-access-cancel-denied',
+      ),
+    ).rejects.toThrow(/permission denied/i)
+    await expect(
+      fullAccess.revokeTeamMember(
+        'store-blue-finch',
+        'review-listing-editor',
+        1,
+        'review-full-access-remove',
+      ),
+    ).rejects.toThrow(/permission denied/i)
+
+    const listingEditorClients = createReviewHarnessClients(scenario('listing-editor'), 'success')
+    const listingEditor = listingEditorClients.owner!
+    await expect(listingEditorClients.promotion!.list()).rejects.toThrow(/permission denied/i)
+    await expect(listingEditor.listTeam('store-blue-finch')).rejects.toThrow(/permission denied/i)
+    await expect(
+      listingEditor.inviteTeam(
+        'store-blue-finch',
+        'teammate@local.invalid',
+        'listing_editor',
+        'review-listing-editor-denied',
+      ),
+    ).rejects.toThrow(/permission denied/i)
+    await expect(listingEditor.listPendingInvitations()).rejects.toThrow(/permission denied/i)
+    await expect(
+      listingEditor.acceptInvitation('review-owner-pending-invitation', 1, 'review-accept-denied'),
+    ).rejects.toThrow(/permission denied/i)
+  })
+
   it.each(['expired', 'revoked'] as const)(
     'denies every advertised private or privileged fixture client for a %s session',
     async (state) => {
