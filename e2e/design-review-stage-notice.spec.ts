@@ -16,6 +16,11 @@ test('shows the stage notice once on Browse and preserves Details boundaries', a
     await expect(notice).toHaveCount(1)
     await expect(notice).toHaveAttribute('role', 'status')
     await expect(resultsHeading).toBeVisible()
+    await page.setViewportSize({ width: 320, height: 800 })
+    const noticeBox = await notice.boundingBox()
+    expect(noticeBox).not.toBeNull()
+    expect(noticeBox!.x).toBeGreaterThanOrEqual(16)
+    expect(noticeBox!.x + noticeBox!.width).toBeLessThanOrEqual(304)
     const appearsBeforeResults = await notice.evaluate((element) => {
       const results = document.querySelector('.catalog-results-heading h2')
       return Boolean(
