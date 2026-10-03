@@ -10,6 +10,7 @@ export default defineConfig({
     'configured-owner-billing-status.spec.ts',
     'local-signup.spec.ts',
     'issue-468-correction-draft.spec.ts',
+    'market-at-macvicar.preview.spec.ts',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

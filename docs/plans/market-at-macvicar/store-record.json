@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "preparationState": "local-preview-reviewed-not-admitted",
+  "storeId": null,
+  "claimed": false,
+  "displayName": "The Market at Macvicar",
+  "sourceTitle": "The Market at Macvicar - A Vintage Boutique",
+  "businessType": "Vintage Store",
+  "address": {
+    "street": "2307 SW 10th Ave",
+    "city": "Topeka",
+    "region": "KS",
+    "postalCode": "66604",
+    "country": "United States",
+    "source": "Official Facebook page Details"
+  },
+  "phone": {
+    "value": "(785) 409-4277",
+    "source": "Official Facebook page Details and Contact info"
+  },
+  "publicEmail": {
+    "value": "themarketatmacvicar2307@gmail.com",
+    "source": "Official Facebook page Contact info; Visit Topeka cross-reference confirmed 2026-10-03"
+  },
+  "publicUrl": "https://www.facebook.com/TheMarketatMacvicar2307/",
+  "categoriesFromFacebook": [
+    "Antiques",
+    "Vintage",
+    "Rustic",
+    "Collectibles",
+    "Gifts",
+    "Home Accents",
+    "Handcrafted",
+    "Accessories",
+    "Handbags",
+    "Jewelry",
+    "Furniture"
+  ],
+  "officialBio": "Antiques, Vintage, Rustic, Collectibles, Gifts, Home Accents, Handcrafted, Accessories, Handbags, Jewelry, Furniture, and much more. Not a thrift store. We are a boutique of 50+ little shops that have a diverse array of finds. #MarketAtMacvicar",
+  "descriptionDraft": "Explore a vintage boutique with more than 50 little shops offering antiques, collectibles, rustic decor, furniture, gifts, handcrafted goods, jewelry, handbags, and home accents. Find The Market at Macvicar at 2307 SW 10th Ave, Topeka, KS 66604, on the corner of 10th and Macvicar.",
+  "hours": {
+    "timezone": "America/Chicago",
+    "monday": {
+      "closed": true
+    },
+    "tuesday": {
+      "closes": "17:00",
+      "opens": "10:00"
+    },
+    "wednesday": {
+      "closes": "17:00",
+      "opens": "10:00"
+    },
+    "thursday": {
+      "closes": "17:00",
+      "opens": "10:00"
+    },
+    "friday": {
+      "closes": "17:00",
+      "opens": "10:00"
+    },
+    "saturday": {
+      "closes": "16:00",
+      "opens": "10:00"
+    },
+    "sunday": {
+      "closed": true
+    },
+    "source": "User-confirmed 2026-10-03"
+  },
+  "checkedAtLocal": "2026-10-03",
+  "locationCoordinates": null,
+  "ownerAccount": null,
+  "planEntitlement": {
+    "decision": "Complimentary highest store-tier benefit approved by the user.",
+    "status": "Approved decision; grant not provisioned or activated.",
+    "scope": "One store record only, keyed by its stable store UUID after governed admission; no name or email matching.",
+    "currentEquivalentTier": "Full Gallery",
+    "benefitCeiling": "Highest released store-level tier and store-level benefits during the guarantee.",
+    "includedDraftMedia": {
+      "coverPhotos": 1,
+      "galleryPhotos": 50,
+      "galleryCountIsMaximum": false
+    },
+    "priceCents": 0,
+    "currency": "USD",
+    "paymentMethodRequired": false,
+    "trial": false,
+    "subscriptionOrRenewal": false,
+    "continuingReviewCondition": false,
+    "paidLifecycleMayReduceGrant": false,
+    "minimumGuarantee": {
+      "calendarYears": 5,
+      "startsAt": "Actual store activation; not planning, review, approval, or code date.",
+      "activatedAt": null,
+      "guaranteedFreeThrough": null,
+      "anniversaryBehavior": "No automatic charge or downgrade. A post-minimum change requires a separate explicit future decision; retain existing access while no decision exists."
+    },
+    "implementation": "Needs a durable store-keyed complimentary grant at the existing photo-tier entitlement boundary; not implemented.",
+    "authorityNotIncluded": [
+      "Site Admin",
+      "owner-claim approval",
+      "paid ranking",
+      "moderation bypass",
+      "account ownership or claim authority"
+    ]
+  },
+  "publicationState": "Not inserted or published. Local preview work only.",
+  "businessInformationReadiness": "Sufficient confirmed information for a store draft: public address, phone, email, categories, description, official Facebook profile, and user-confirmed hours.",
+  "localPageState": "Development-only preview reviewed in local CUA and accepted by the user for test/dev publication; no hosted catalog insertion, public launch, or provider operation.",
+  "technicalAdmission": [
+    "Site Admin must create/admit the exact store record and bind the normal verified owner/claim authority, assigning the stable UUID.",
+    "The exact UUID needs governed admission to the intended catalog/publication boundary; existing synthetic-only catalog binding and public-test allowlist stay unchanged.",
+    "M-01 provider must pass its independent human acceptance gate before any actual image upload, derivative publication, or catalog media binding."
+  ]
+}

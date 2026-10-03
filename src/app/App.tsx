@@ -687,6 +687,25 @@ function useCatalogClient(override?: CatalogClient) {
   )
 }
 
+const marketAtMacvicarPreviewSlug = 'the-market-at-macvicar'
+
+function isMarketAtMacvicarPreviewHost() {
+  return (
+    import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === '127.0.0.1'
+  )
+}
+
+const marketAtMacvicarPreviewCatalog: CatalogClient = {
+  list: async () => ({ stores: [] }),
+  details: async (slug) => {
+    if (!isMarketAtMacvicarPreviewHost() || slug !== marketAtMacvicarPreviewSlug) return null
+    const { marketAtMacvicarPreviewStore } = await import(
+      '../features/catalog/marketAtMacvicarPreview'
+    )
+    return marketAtMacvicarPreviewStore
+  },
+}
+
 function OwnerAcquisitionRoute({
   catalog,
   intakeAvailable,
@@ -785,14 +804,17 @@ function StoreDetails({
   const { session } = useAuth()
   const shopperProjection = !session || session.role === 'Shopper'
   const { slug = '' } = useParams()
-  const client = useCatalogClient(catalog)
+  const localPreview = isMarketAtMacvicarPreviewHost() && slug === marketAtMacvicarPreviewSlug
+  const client = useCatalogClient(localPreview ? marketAtMacvicarPreviewCatalog : catalog)
   return (
     <CatalogDetailsPage
       client={client}
       slug={slug}
       stage="package-3"
       renderPrivateActions={(store) =>
-        shopperProjection ? (
+        localPreview ? (
+          <p>Local preview only. Save and store claim actions are unavailable.</p>
+        ) : shopperProjection ? (
           <CatalogPrivateActions
             storeId={store.id}
             storeName={store.name}
@@ -818,7 +840,8 @@ function StoreUpdates({ catalog }: { catalog?: CatalogClient }) {
 
 function StorePhotos({ catalog }: { catalog?: CatalogClient }) {
   const { slug = '' } = useParams()
-  const client = useCatalogClient(catalog)
+  const localPreview = isMarketAtMacvicarPreviewHost() && slug === marketAtMacvicarPreviewSlug
+  const client = useCatalogClient(localPreview ? marketAtMacvicarPreviewCatalog : catalog)
   return <StorePhotosPage client={client} slug={slug} />
 }
 
