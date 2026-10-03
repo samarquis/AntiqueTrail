@@ -70,12 +70,31 @@ test('Representative publishes exact-store Monday hours through real Auth and MF
   const priorSibling = await weeklyClose(siblingStore)
   await login(page)
   const close = page.locator('#hours-1-close-1')
-  await close.fill('19:45')
-  await close.press('Tab')
-  await expect(close).toHaveValue('19:45')
-  await page.getByRole('button', { name: 'Save hours', exact: true }).click()
-  await expect(page.getByRole('status')).toHaveText('Hours saved and freshness updated.')
-  await expect.poll(() => weeklyClose(ownStore)).toBe('19:45:00')
+  const hoursSignal: { selected?: string; submitted?: string; persisted?: string } = {}
+  try {
+    await close.fill('19:45')
+    await close.press('Tab')
+    await expect(close).toHaveValue('19:45')
+    hoursSignal.selected = await close.inputValue()
+    const saveRequest = page.waitForRequest((request) =>
+      request.url().endsWith('/rest/v1/rpc/portal_save_hours'),
+    )
+    await page.getByRole('button', { name: 'Save hours', exact: true }).click()
+    const request = await saveRequest
+    const closing = request
+      .postDataJSON()
+      ?.p_hours?.weekly?.find((day: { weekday: number }) => day.weekday === 1)
+      ?.intervals?.[0]?.closesAt
+    hoursSignal.submitted =
+      typeof closing === 'string' && /^\d{2}:\d{2}$/.test(closing) ? closing : 'invalid'
+    await expect(page.getByRole('status')).toHaveText('Hours saved and freshness updated.')
+    hoursSignal.persisted = await weeklyClose(ownStore)
+    expect(hoursSignal.submitted).toBe('19:45')
+    await expect.poll(() => weeklyClose(ownStore)).toBe('19:45:00')
+  } finally {
+    // Allowlist clock values only; never log Auth, MFA, headers, or the raw payload.
+    console.log('[issue-494-hours]', JSON.stringify(hoursSignal))
+  }
   expect(await weeklyClose(siblingStore)).toBe(priorSibling)
   expect(priorOwn).not.toBe('19:45:00')
   await page.reload()
