@@ -3,15 +3,15 @@
 ## Candidate
 
 - Issue/spec: [#485](https://github.com/samarquis/AntiqueTrail/issues/485), draft-only corrections in catalog-only public test
-- PR: [#492](https://github.com/samarquis/AntiqueTrail/pull/492), draft pending final CI and reviews
+- PR: [#492](https://github.com/samarquis/AntiqueTrail/pull/492), draft; final-head CI and reviews pending
 - Owner/chat: `samarquis`, Codex task `#485`
 - Risk: high (authorization boundary and untrusted correction input)
 - Baseline SHA: `07e8610d8cd1cf9a941d0b6de6a0f3aeb87c304a`
-- Implementation, test, and contract SHA: `e342241e3bd1f88c4aaf0b8f28b81e5fbc41c47d`
-- Implementation diff fingerprint (excluding this evidence report): `63beaba2c3f6df1f91daf75f9f85f221ca782529`
+- Implementation, test, and contract SHA: `1cc979dbe43876d3b8f8a5716167a8536af1ac40`
+- Implementation diff fingerprint (excluding this evidence report): `65ad6732cc5bd62e40f02a540817280aa467f395`
 - Worktree/branch: `C:\Users\samar\.codex\worktrees\1b64\AntiqueTrail`, `codex/issue-485-correction-drafts`
 - Evidence captured at: 2026-10-03
-- This evidence file is a documentation-only addition after the implementation SHA; final CI and review must use the PR head containing this report.
+- The product implementation is unchanged after `e342241`; later commits strengthen the dedicated E2E proof. This report records that exact test candidate. The evidence-report commit is documentation-only; CI and reviews must bind to the PR head containing it.
 
 ## Scope
 
@@ -38,12 +38,12 @@ Pre-existing failures or unrelated work: an initial whole-Store-Details axe scan
 | Focused regressions        | Vitest on `publicTestDisplay`, `App`, `correctionGateway`, and shopper components.                                | PASS: 4 files, 97 tests.                                                                                                                                        | Content committed as `e342241`; Windows, clean install from current lockfile.                                                                                          |
 | Full local check           | `npm run check`                                                                                                   | PASS: typecheck; lint (16 existing warnings, 0 errors); format; 1,109 tests passed and 1 skipped; 164 release tests; production build; seed-media verification. | Exact working-tree content committed as `e342241`; Windows.                                                                                                            |
 | Security contract          | `npm run security:contract`                                                                                       | PASS: secrets, licenses, action pins, migrations, and tier vocabulary.                                                                                          | Exact working-tree content committed as `e342241`; Windows.                                                                                                            |
-| Playwright selection       | Default and dedicated Playwright `--list` commands.                                                               | PASS: default selection has no issue-468 spec; dedicated selection contains exactly 2 tests.                                                                    | `e342241`, local config discovery.                                                                                                                                     |
-| Desktop browser            | `npx playwright test --config=playwright.issue-468.config.ts`                                                     | PASS: 2 Chromium tests; guidance, draft-only flow, reload, cancel, and no Edge request. Receipt `test-results/.last-run.json` reports `passed`.                 | `2495fcb`; `VITE_PUBLIC_TEST_CATALOG_ONLY=true`; synthetic Blue Finch Curios; port 4185. UI source is unchanged in `e342241`; E2E spec/config formatting changed only. |
-| Final-head browser and CI  | GitHub Actions on [PR #492](https://github.com/samarquis/AntiqueTrail/pull/492)                                   | Pending after refreshed test and contract changes; check all jobs on the final PR head.                                                                         | GitHub runner; evidence-file commit also requires checks.                                                                                                              |
+| Desktop browser            | `npx playwright test --config=playwright.issue-468.config.ts`                                                     | PASS: 2 Chromium tests on `1cc979d`; light/dark axe, forced-color system-palette contrast and visible focus, keyboard Tab+Enter, blocked submission, text spacing, and 640px reflow proxy. Browser-chrome 200% zoom is not emulated. | Windows, `VITE_PUBLIC_TEST_CATALOG_ONLY=true`; synthetic Blue Finch Curios; port 4185; receipt `test-results/.last-run.json` reports `passed`. |
+| Playwright selection       | `npx playwright test --list`; dedicated config `--list`                                                            | PASS: default suite excludes this spec (758 tests listed); dedicated config selects exactly 2 tests.                                                            | `1cc979d`; local config discovery.                                                                                                                                   |
+| Final-head browser and CI  | GitHub Actions on [PR #492](https://github.com/samarquis/AntiqueTrail/pull/492)                                   | Pending on the pushed `1cc979d` candidate; earlier run `37125488483` failed at forced-color axe color-contrast, now narrowly excluded with direct contrast assertions. | GitHub runner; report-only commit will receive checks on its final PR head.                                                                                           |
 | Database/RLS/RPC           | No database/schema/RLS changes. Handler denial uses injected local verifier/gateway fakes.                        | N/A; local unit proof.                                                                                                                                          | No database or hosted data used.                                                                                                                                       |
 | Mobile browser             | Not run; issue acceptance is keyboard operation and route behavior, exercised in desktop Chromium.                | Not applicable to current acceptance.                                                                                                                           | No mobile rendering claim.                                                                                                                                             |
-| Accessibility/error states | Axe on public Help and correction form; keyboard focus assertion; blocked `sessionStorage` behavior in App tests. | PASS on ticket-owned surfaces; pre-existing whole-Details contrast finding recorded above.                                                                      | `2495fcb` E2E plus `e342241` focused tests.                                                                                                                            |
+| Accessibility/error states | Axe on owned surfaces in light/dark; forced-colors axe except its stale `-webkit-text-fill-color` contrast rule, with computed system-palette contrast/focus assertions; keyboard operation; blocked `sessionStorage`. | PASS locally on `1cc979d`; independent exact-head review pending. Pre-existing whole-Details contrast finding remains outside owned surface. | Dedicated E2E plus focused tests. |
 | Hosted/provider lifecycle  | Not run; issue excludes hosted tests and provider mutation.                                                       | Not applicable.                                                                                                                                                 | No hosted environment used.                                                                                                                                            |
 | Canonical production route | Not run; Edge/site deployment remains separately gated.                                                           | Not authorized/in scope.                                                                                                                                        | No production claim.                                                                                                                                                   |
 
@@ -56,7 +56,7 @@ Pre-existing failures or unrelated work: an initial whole-Store-Details axe scan
 - Project ID: none; local browser-only Vite app with synthetic catalog client
 - Loopback port: `127.0.0.1:4185`; no listener after the run
 - Fixture mode: `VITE_PUBLIC_TEST_CATALOG_ONLY=true`; synthetic Blue Finch Curios listing
-- Release: Playwright exited, browser contexts closed, and port 4185 released for #470/#467.
+- Release: Playwright exited, browser contexts closed, and port 4185 released for #470/#467; no listener remained after the final run.
 - Preflight note: `docker info` could not connect to the Linux engine. This route uses no Docker, database, or provider, so Docker was not a prerequisite.
 
 ## Security and negative proof
@@ -64,11 +64,11 @@ Pre-existing failures or unrelated work: an initial whole-Store-Details axe scan
 - Denied identities/scopes: public-test correction requests are denied even for authenticated sessions; `PUBLIC_TEST_MODE=true` check precedes session verification or RPC gateway.
 - Failure behavior: blocked session storage keeps current field values visible and announces that the tab could not save the draft; ordinary public server errors remain generic `Unavailable`.
 - Secret/PII handling: no credentials or personal data used. Test draft text is synthetic.
-- Security review: pending exact-head `codex-security:security-diff-scan` over all 18 PR files, including CI, both Playwright configs, canonical security/product/design/admission docs, and this report.
+- Security review: the sealed `cc7ad64` scan covered the original 18-file PR diff (0 candidates/findings) but is stale after the E2E harness change. A fresh exact-final-head diff scan is pending; see PR #492 for its final receipt.
 
 ## Independent review
 
-- Reviewer: pending independent exact-head Standards/Spec review
+- Reviewer: pending independent exact-head Standards/Spec review of final PR head
 - Standards verdict: pending
 - Spec verdict: pending
 - Final verdict: pending
@@ -76,7 +76,7 @@ Pre-existing failures or unrelated work: an initial whole-Store-Details axe scan
 
 ## Unverified
 
-Hosted `PUBLIC_TEST_MODE` value, Edge deployment identity, hosted correction denial, mobile layout, full PR CI at the final head, exact-head security scan, and independent review remain unverified. Hosted/deployment proof is excluded by issue #485 and needs a separate gate; CI and both reviews are required before merge.
+Hosted `PUBLIC_TEST_MODE` value, Edge deployment identity, hosted correction denial, mobile layout, full PR CI at the final head, fresh exact-head security scan, and independent review remain unverified. Hosted/deployment proof is excluded by issue #485 and needs a separate gate; CI and both reviews are required before merge.
 
 ## Invalidation
 
