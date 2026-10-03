@@ -4,19 +4,30 @@
 
 - Issue: [#499](https://github.com/samarquis/AntiqueTrail/issues/499)
 - Baseline in the issue: `81703453ee5e445ee3bdb1c38ef2cf8f81a362ee`
-- Source candidate inspected: `68751a42c9a05d1ffd7c129d8f1f409dccd1775a` (`main`)
+- Candidate SHA (source state assessed): `68751a42c9a05d1ffd7c129d8f1f409dccd1775a` (`main`)
 - Live remote `main` matched the local source candidate at capture time.
 - Work branch: `codex/issue-499-publication-lineage`
 - Evidence owner: issue #499 diagnostic worker.
 - Evidence captured: 2026-10-03 18:22:45 UTC
 - Risk: low. This change records source and publication evidence only.
-- Diff fingerprint: recorded in the PR description for `git diff --binary <baseline> <candidate> -- docs/evidence/design-review-publication-lineage/acceptance.md | git hash-object --stdin`.
+- Report snapshot reviewed in first review: `a44669c888d1beba1ef47263e7c0e4d7bd2aebb1`.
+- Diff fingerprint for that exact report snapshot: `ef783350ab6a0e0d48500a4d8f12aa6fbc79734a`.
+- Reproduction command: `git diff --binary 68751a42c9a05d1ffd7c129d8f1f409dccd1775a a44669c888d1beba1ef47263e7c0e4d7bd2aebb1 -- docs/evidence/design-review-publication-lineage/acceptance.md | git hash-object --stdin`.
+- The source candidate is the implementation state assessed by this report; the report snapshot identifies the exact prior evidence revision. New report revisions are bound to their review through the commit SHA in PR #509.
 
 The source SHA names the repository state inspected. Verify it with the [GitHub commit record](https://github.com/samarquis/AntiqueTrail/commit/68751a42c9a05d1ffd7c129d8f1f409dccd1775a). No file hash is used.
 
 ## Scope
 
 This report compares the account, trust, and missing-cover fixes in `main` with the evidence available for the documented canonical catalog. It does not change product code or provider state.
+
+Changed outcome: durable evidence separates merged source fixes, rendered-route observations, and publication lineage. Rendered and publication acceptance remains blocked until corresponding receipts are available.
+
+Excluded scope: product/UI changes, browser or provider mutation, deployment, account access, and starting a new publication.
+
+Overlapping branches/worktrees checked: active worktrees and open issue/PR ownership were inspected before work; the only overlapping catalog evidence PR was #508 for #505 on a different path.
+
+Pre-existing failures or unrelated work: none changed or attributed to this report. Existing provider/build checks run by CI are recorded separately below.
 
 The report covers the source changes from #466, #467, and #470. Issue #496 and its contrast correction are recorded as a separate merged change so this report does not reopen or duplicate that work.
 
@@ -67,14 +78,14 @@ The configured Vercel connector returned no teams, and this worktree has no link
 
 ## Acceptance
 
-| Criterion | Observable condition | Result |
-| --- | --- | --- |
-| Source fixes already in `main` | Each closed issue maps to a merged PR and its merge commit is in the inspected source SHA. | Pass |
-| Current anonymous account and trust text | Observe the named canonical routes and compare their text with source. | Blocked. No rendered-browser lease was available. |
-| Missing-cover examples | Observe two coverless cards on the canonical `/stores` route. | Blocked. No rendered-browser lease was available. |
-| Published source identity | Bind the canonical alias to exact source, artifact, and configuration using a provider or accepted receipt. | Blocked. No current receipt or provider project access was available. |
-| No duplicate product issue | Preserve the closed #466, #467, #470, and adjacent #496 work. | Pass |
-| Public evidence privacy | Omit secrets, actor identifiers, private admission receipts, credential-bearing URLs, and workstation paths. | Pass |
+| Criterion | Observable condition | Verification method | Result/evidence |
+| --- | --- | --- | --- |
+| Source fixes already in `main` | Each closed issue maps to a merged PR and its merge commit is in the inspected source SHA. | Inspect linked GitHub issue/PR records and run `git merge-base --is-ancestor` for each merge commit at the named source SHA. | Pass; merge receipts above. |
+| Current anonymous account and trust text | Observe the named canonical routes and compare their text with source. | Anonymous browser flow: visit `/stores` and `/stores/clockwork-cabinet`, wait for measured page text, confirm settled theme after each navigation, compare captured text with source. | Blocked. No rendered-browser lease was available; no live text or theme asserted. |
+| Missing-cover examples | Observe two coverless cards on the canonical `/stores` route. | Anonymous browser flow: identify two live cards without cover images and record each visible fallback and accessible name/description. | Blocked. No rendered-browser lease was available; no live examples identified. |
+| Published source identity | Bind the canonical alias to exact source, artifact, and configuration using a provider or accepted receipt. | Read-only provider/deployment receipt lookup; require source SHA, immutable artifact identity, deployed configuration, and canonical alias binding. | Blocked. No current receipt or provider project access was available. |
+| No duplicate product issue | Preserve the closed #466, #467, #470, and adjacent #496 work. | Inspect live GitHub issue and merged PR states. | Pass; merge receipts above. |
+| Public evidence privacy | Omit secrets, actor identifiers, private admission receipts, credential-bearing URLs, and workstation paths. | Scan the report and PR diff for those data classes. | Pass; no such content found in the report. |
 
 ## Verification
 
@@ -85,6 +96,20 @@ The configured Vercel connector returned no teams, and this worktree has no link
 | Vercel metadata | Read-only team lookup and available GitHub deployment records | No team or current production receipt available | Provider metadata |
 | Canonical production route | Anonymous browser review of the routes above | Not run. Awaiting the shared browser lease. | Production |
 | Human review | Independent Standards and Spec review | Pending on the exact documentation PR head | GitHub PR |
+
+## Security and negative proof
+
+- Denied identities/scopes: not applicable; no authenticated route or account flow was attempted.
+- Failure and timeout behavior: no browser flow was run, so route failure/timeout behavior is unverified. CI/provider results are not treated as route evidence.
+- Secret/PII handling: no secrets, private admission receipt, actor identifier, credential-bearing URL, or workstation path is included. Read-only evidence only.
+- Security review: no security behavior or source code changed; privacy check covered the report content.
+
+## Independent review
+
+| Reviewer | Standards verdict | Spec verdict | Final verdict | Findings and disposition |
+| --- | --- | --- | --- | --- |
+| Independent read-only review of snapshot `a44669c888d1beba1ef47263e7c0e4d7bd2aebb1` | REWORK | BLOCKED | BLOCKED | Standards requested candidate/fingerprint, acceptance verification methods, and these template sections; this revision adds them. Spec confirmed source claims were accurate and kept route and publication criteria blocked. Both reviews must be rerun on the updated PR head. |
+| Updated PR #509 head | Pending | Pending | Pending | Exact-head review requested after this revision is committed. |
 
 ## Unverified
 
