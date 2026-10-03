@@ -31,7 +31,7 @@ Pre-existing failures or unrelated work: the default parallel full Vitest run ti
 | Details boundary | Details keeps the paused notice, `Draft a correction`, and submission-unavailable text; no Save/create-account/submit action appears. | New shopper unit test. | Pass. |
 | Ordinary mode | Flag-off Browse has no stage notice and keeps anonymous JIT Save. | New shopper test plus existing shopper suite. | Pass. |
 | No mutation | Public-test Browse calls neither stubbed `getSaveState` nor `setSave`. | New shopper unit test. | Pass; zero calls. |
-| Rendered browser flow | Compiled true and false modes each match their expected Browse/Details behavior. | New Playwright spec on leased port 4173. | Not run; browser lease ungranted. |
+| Rendered browser flow | True mode checks Browse notice and Details boundary; false mode checks Browse notice absence and 12 JIT Save links. | New Playwright spec on leased port 4173. | Not run; browser lease ungranted. |
 
 ## Verification
 
