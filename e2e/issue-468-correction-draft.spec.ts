@@ -26,18 +26,17 @@ test('Help and Store Details expose correction drafts without implying submissio
     .analyze()
   expect(detailsAccessibility.violations).toEqual([])
 
-  for (
-    let index = 0;
-    index < 40 && !(await draftLink.evaluate((link) => link === document.activeElement));
-    index += 1
+  await page.getByRole('button', { name: 'Switch to dark theme' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await expect(page.getByRole('button', { name: 'Switch to light theme' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
   )
-    await page.keyboard.press('Tab')
-  await expect(draftLink).toBeFocused()
-
-  await page.emulateMedia({ colorScheme: 'dark' })
   await expect(draftLink).toBeVisible()
-  const darkTheme = await page.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)
-  expect(darkTheme).toBe(true)
+  const darkAccessibility = await new AxeBuilder({ page })
+    .include('.catalog-private-actions')
+    .analyze()
+  expect(darkAccessibility.violations).toEqual([])
 
   await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' })
   await expect(draftLink).toBeVisible()
@@ -59,6 +58,13 @@ test('Help and Store Details expose correction drafts without implying submissio
   )
   expect(horizontalOverflow).toBe(false)
 
+  for (
+    let index = 0;
+    index < 40 && !(await draftLink.evaluate((link) => link === document.activeElement));
+    index += 1
+  )
+    await page.keyboard.press('Tab')
+  await expect(draftLink).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL('/stores/blue-finch-curios/correction')
 })
