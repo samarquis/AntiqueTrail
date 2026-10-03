@@ -173,6 +173,8 @@ test('Representative publishes exact-store Monday hours through real Auth and MF
         ?.getByRole('heading', { name: 'Clockwork Cabinet', exact: true })
         .isVisible()
         .catch(() => false)
+      // Closing first also cancels any diagnostic response body that never completes.
+      await shopper.close()
       console.log(
         '[issue-494-shopper-hours]',
         JSON.stringify({
@@ -192,6 +194,8 @@ test('revoked exact scope denies the next UI edit and preserves both stores', as
   page,
 }, info) => {
   await login(page)
+  await page.getByRole('button', { name: 'Save hours', exact: true }).click()
+  await expect(page.getByRole('status')).toHaveText('Hours saved and freshness updated.')
   const beforeOwn = await weeklyClose(ownStore)
   const beforeSibling = await weeklyClose(siblingStore)
   await service.sql(
@@ -203,6 +207,7 @@ test('revoked exact scope denies the next UI edit and preserves both stores', as
   await expect(error).toBeVisible()
   await expect(error).toContainText("We couldn't update this store portal")
   await expect(error).toBeFocused()
+  await expect(page.getByRole('status')).toHaveCount(0)
   expect(await weeklyClose(ownStore)).toBe(beforeOwn)
   expect(await weeklyClose(siblingStore)).toBe(beforeSibling)
   await page.screenshot({ path: info.outputPath('revoked-scope-denial.png') })
@@ -219,7 +224,7 @@ test('repeated native time edits publish the selected clock without losing chang
   let persisted = 'unavailable'
   try {
     for (let iteration = 0; iteration < 50; iteration++) {
-      const selected = iteration % 2 === 0 ? '19:45' : '18:00'
+      const selected = iteration % 2 === 0 ? '18:00' : '19:45'
       await close.fill(selected)
       await close.press('Tab')
       await expect(close).toHaveValue(selected)
@@ -248,8 +253,9 @@ test('repeated native time edits publish the selected clock without losing chang
     }
     expect(await weeklyClose(siblingStore)).toBe(siblingBefore)
     await page.reload()
-    await expect(page.locator('#hours-1-close-1')).toHaveValue('18:00')
+    await expect(page.locator('#hours-1-close-1')).toHaveValue('19:45')
   } finally {
+    persisted = await weeklyClose(ownStore).catch(() => 'unavailable')
     console.log('[issue-494-stability]', JSON.stringify({ completed, submitted, persisted }))
   }
 })
