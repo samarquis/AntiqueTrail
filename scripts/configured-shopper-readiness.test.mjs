@@ -1,3 +1,4 @@
+/* global AbortController */
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { waitForLocalServiceReadiness } from './configured-shopper-local.mjs'
