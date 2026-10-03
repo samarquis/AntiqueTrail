@@ -1786,7 +1786,7 @@ textarea[aria-invalid='true'] {
   min-width: 0;
   flex-direction: column;
   align-items: flex-start;
-  padding: 1.3rem 1.35rem 0.5rem;
+  padding: 1.3rem 1.35rem 1.2rem;
 }
 
 .catalog-card__area {
@@ -1826,7 +1826,7 @@ textarea[aria-invalid='true'] {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-  margin: 0.7rem 0 0;
+  margin: 0.4rem 0 0;
   padding: 0;
   list-style: none;
 }
@@ -1844,7 +1844,7 @@ textarea[aria-invalid='true'] {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  margin: auto 0 0.4rem;
+  margin: auto 0 0;
   padding-top: 0.75rem;
   color: var(--teal-dark);
   font-size: var(--type-size-label);
