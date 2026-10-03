@@ -27,7 +27,7 @@ Excluded scope: product/UI changes, browser or provider mutation, deployment, ac
 
 Overlapping branches/worktrees checked: active worktrees and open issue/PR ownership were inspected before work; the only overlapping catalog evidence PR was #508 for #505 on a different path.
 
-Pre-existing failures or unrelated work: none changed or attributed to this report. Existing provider/build checks run by CI are recorded separately below.
+Pre-existing failures or unrelated work: none changed or attributed to this report. The exact-head CI result below is a separate GitHub receipt and does not establish route rendering or deployed publication.
 
 The report covers the source changes from #466, #467, and #470. Issue #496 and its contrast correction are recorded as a separate merged change so this report does not reopen or duplicate that work.
 
@@ -92,6 +92,7 @@ The configured Vercel connector returned no teams, and this worktree has no link
 | Layer | Command or flow | Result | Environment |
 | --- | --- | --- | --- |
 | Source and issue history | `gh api repos/samarquis/AntiqueTrail/commits/main --jq .sha`; `git rev-parse refs/remotes/origin/main`; `gh issue view` and `gh pr view` for the linked issues and PRs; `git merge-base --is-ancestor` for each merge commit | Merged source facts verified at `68751a42` | Local source and GitHub |
+| GitHub CI for exact candidate `9f6320ab22999f527aab86d296fef1949ba8e665` | GitHub Actions run [37145501984](https://github.com/samarquis/AntiqueTrail/actions/runs/37145501984); status read at 2026-10-03 18:52:56 UTC | In progress: database passed; web and configured-owner-billing in progress; Supabase Preview skipped. This status is a snapshot and does not establish browser or publication acceptance. | GitHub PR #509, exact head `9f6320ab22999f527aab86d296fef1949ba8e665` |
 | Focused tests | Not run. This change contains evidence documentation only. | Not applicable | Local |
 | Type/lint/format/build | Not run locally; this change contains evidence documentation only. | Not applicable locally | Local |
 | Database/RLS/RPC | Not run; no schema, policy, RPC, or database data changed. | Not applicable | Local/database |
