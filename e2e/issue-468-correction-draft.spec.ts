@@ -17,11 +17,50 @@ test('Help and Store Details expose correction drafts without implying submissio
 
   await page.goto('/stores/blue-finch-curios')
   await expect(page.getByRole('heading', { name: /blue finch curios/i })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Draft a correction' })).toHaveAttribute(
-    'href',
-    '/stores/blue-finch-curios/correction',
-  )
+  const draftLink = page.getByRole('link', { name: 'Draft a correction' })
+  await expect(draftLink).toHaveAttribute('href', '/stores/blue-finch-curios/correction')
   await expect(page.getByText(/drafts are available.*submission is unavailable/i)).toBeVisible()
+
+  const detailsAccessibility = await new AxeBuilder({ page })
+    .include('.catalog-private-actions')
+    .analyze()
+  expect(detailsAccessibility.violations).toEqual([])
+
+  for (
+    let index = 0;
+    index < 40 && !(await draftLink.evaluate((link) => link === document.activeElement));
+    index += 1
+  )
+    await page.keyboard.press('Tab')
+  await expect(draftLink).toBeFocused()
+
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await expect(draftLink).toBeVisible()
+  const darkTheme = await page.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)
+  expect(darkTheme).toBe(true)
+
+  await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' })
+  await expect(draftLink).toBeVisible()
+  const reducedMotion = await page.evaluate(
+    () => matchMedia('(prefers-reduced-motion: reduce)').matches,
+  )
+  const forcedColors = await page.evaluate(() => matchMedia('(forced-colors: active)').matches)
+  expect({ reducedMotion, forcedColors }).toEqual({ reducedMotion: true, forcedColors: true })
+
+  // Narrow viewport simulates reflow at 200% zoom; browser-chrome zoom is not emulated here.
+  await page.setViewportSize({ width: 640, height: 900 })
+  await page.addStyleTag({
+    content:
+      '* { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; } p { margin-bottom: 2em !important; }',
+  })
+  await expect(draftLink).toBeVisible()
+  const horizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  )
+  expect(horizontalOverflow).toBe(false)
+
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL('/stores/blue-finch-curios/correction')
 })
 
 test('direct correction route saves a local draft, denies form submission, and returns to the store', async ({
@@ -66,7 +105,15 @@ test('direct correction route saves a local draft, denies form submission, and r
   const accessibility = await new AxeBuilder({ page }).include('main').analyze()
   expect(accessibility.violations).toEqual([])
 
-  await page.getByRole('link', { name: 'Cancel and return to this store' }).click()
+  const cancelLink = page.getByRole('link', { name: 'Cancel and return to this store' })
+  for (
+    let index = 0;
+    index < 40 && !(await cancelLink.evaluate((link) => link === document.activeElement));
+    index += 1
+  )
+    await page.keyboard.press('Tab')
+  await expect(cancelLink).toBeFocused()
+  await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/stores\/blue-finch-curios$/)
   await expect(page.getByRole('heading', { name: /blue finch curios/i })).toBeVisible()
   await page.getByRole('link', { name: 'Draft a correction' }).click()
