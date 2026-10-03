@@ -32,13 +32,13 @@ Ownership check before claim found #505 open, unassigned, without comments, matc
 
 | Criterion | Result | Evidence |
 | --- | --- | --- |
-| Valid canonical browser observation | **Unavailable.** No browser or provider request was made. The actual canonical list/details status, timestamp, and correlation ID remain unknown. | The required browser/provider resource lease was not granted. Unit tests below use synthetic `Request` objects. |
+| Valid canonical browser observation | **Unavailable.** No browser request was made. The canonical list/details status, timestamp, safe correlation ID, and request source binding remain unknown. A success will be recorded as a point observation, not continuous health. | The required browser resource lease was not granted. Unit tests below use synthetic `Request` objects. |
 | Deliberate request denial | **Confirmed in source and focused tests.** | The Edge handler returns `503 GATEWAY_UNAVAILABLE` for a non-OPTIONS request with missing or mismatched Origin, required gateway configuration missing, unavailable runtime remote address, or an invalid public-test backend/origin binding. Tests cover a wrong Origin, a mismatched backend URL, and a missing runtime address even when the caller supplies `x-forwarded-for`. |
 | Preflight behavior | **Confirmed in source.** | `OPTIONS` with a wrong Origin returns `403`; do not report that preflight response as the POST gateway's `503`. |
 | Expired or revoked scope | **Confirmed in source and focused test.** | A `public_test_catalog_gateway_request` error maps to `503 CATALOG_UNAVAILABLE`. The test uses `public_test_unavailable` and proves the handler makes one RPC call without falling back to an older stage. |
 | Rate limit | **Confirmed in source and focused test.** | Rate rejection remains `429 RATE_LIMITED` with `Retry-After: 300`. This is not a gateway `503`; no retry behavior was added or changed. |
 | Network and parse ambiguity | **Confirmed in client source; no live failure observed.** | `configuredCatalogClient` catches both `fetch` failures and `response.json()` failures and returns `GATEWAY_UNAVAILABLE`. For a parseable non-2xx response, it preserves `payload.error` or uses the same generic code when the payload has no error. A client-mapped code alone cannot establish whether the browser received an HTTP response. |
-| Relevant hosted logs | **Unavailable.** | No valid browser request supplied a timestamp or deployment/config context, and no hosted logs were accessed. No cause is inferred. |
+| Relevant hosted logs | **Conditional; not triggered.** | No valid request failure was reproduced, so hosted-log correlation is not required or claimed. If a valid request fails, use only existing read-only access; if that access is unavailable, record it as unavailable and leave the cause unresolved. |
 | Safety | **Preserved.** | Tests retain wrong-Origin, invalid-binding, missing-address, expired/revoked-scope, map-scope, and rate-limit denials. No tokens, headers, response bodies, private configuration, or provider data were recorded. |
 
 The handler's configuration guard is in `supabase/functions/_shared/public-catalog.ts:43-71`. Public-test scope and RPC error handling are in lines 98-118. Client status and exception mapping are in `src/features/catalog/supabaseClient.ts:28-45`.
@@ -70,7 +70,7 @@ Dependencies were installed from the lockfile in this isolated worktree with a t
 
 ## Hosted log guidance
 
-After a valid browser request, use Supabase Studio Logs to filter Edge Function events by the `public-catalog` path, `POST`, status, and the observed time window. Check the invocation view for status and duration. Record only the operation, status, timestamp, and a safe correlation ID if one exists. Do not publish invocation headers or bodies.
+If a valid canonical list/details request fails after confirming the actual allowed Origin and request path, and existing read-only Supabase access is available, use Studio Logs to filter Edge Function events by the `public-catalog` path, `POST`, status, and observed time window. Check invocation status, duration, and safe deployment/config identity when exposed. Record only the operation, status, timestamp, request source binding, and safe correlation ID if one exists. Do not publish invocation headers or bodies. A successful list/details observation needs no hosted-log read; record its sanitized status, time, route, source binding, and safe correlation ID instead. If existing log access is unavailable after a reproduced failure, mark that evidence unavailable and keep the cause unresolved; request no new provider rights.
 
 Supabase's current [Logs in Studio guide](https://supabase.com/docs/guides/observability/logs) documents filters for log type, status, method, and pathname. It also warns that an empty result does not prove no activity. The [Edge Function logging guide](https://supabase.com/docs/guides/functions/logging) distinguishes invocation request/response data from platform and function logs. Supabase removed Management API `logs.all` on 2026-09-23; use the current Studio Logs view or the current ClickHouse-backed `logs` endpoint instead of that retired endpoint, as documented in the [Supabase changelog](https://supabase.com/changelog?types=breaking-change).
 
@@ -83,14 +83,14 @@ Supabase's current [Logs in Studio guide](https://supabase.com/docs/guides/obser
 
 ## Unverified and next action
 
-This report confirms deliberate denial paths and the client's generic mapping. It does not show whether a valid canonical browser request currently succeeds or fails. It also cannot establish a network cause, current deployment/configuration identity, or matching hosted logs.
+This report confirms deliberate denial paths and the client's generic mapping. It does not show whether a valid canonical browser request currently succeeds or fails, or establish the deployment/configuration identity serving it. No valid-request failure has been reproduced, so matching hosted-log correlation is not currently an acceptance requirement or finding.
 
-Request one read-only browser/provider lease for this bounded observation:
+Request one read-only browser lease for this bounded observation:
 
-- **Command:** Open a fresh Chrome tab with `await cua.createBrowserTab("chrome", "https://antique-trail.vercel.app/stores", { sessionName: "🔎 Issue 505", visible: true })`. Wait for the real list response, open the first rendered store's Details route, and capture only each operation, HTTP status, timestamp, and safe correlation ID.
+- **Command:** Open a fresh Chrome tab with `await cua.createBrowserTab("chrome", "https://antique-trail.vercel.app/stores", { sessionName: "🔎 Issue 505", visible: true })`. Wait for the real list response, open the first rendered store's Details route, and capture only each operation, HTTP status, timestamp, canonical route/source binding, and safe correlation ID. A success is a point observation.
 - **Source and fixture:** The canonical `https://antique-trail.vercel.app/stores` page and the anonymous catalog it returns at run time. Use only list and details requests. Do not seed or mutate data.
 - **Ports:** No local app or Supabase server. Leave 4173 and 4174 unused.
-- **Logs:** After the requests, read the existing Supabase Studio Edge Function logs for their exact time window and endpoint. Do not use retired `logs.all`.
+- **Logs:** Only if a valid request fails, inspect existing Supabase Studio Edge Function logs for its exact time window and endpoint when current read-only access is available. If access is unavailable, record that limitation and leave cause unresolved; do not request new provider rights. A successful observation does not require logs. Do not use retired `logs.all`.
 - **Cleanup receipt:** Close the new browser context. Confirm this run started no local server and left no owned process or listener.
 
-Until the lease is granted, keep valid-browser status and log correlation marked unavailable. Do not add retries or relax request guards.
+Until the lease is granted, keep valid-browser status and source binding unavailable. Treat log correlation as conditional on a reproduced valid-request failure. Do not add retries or relax request guards.
