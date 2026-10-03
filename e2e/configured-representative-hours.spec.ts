@@ -70,17 +70,26 @@ test('Representative publishes exact-store Monday hours through real Auth and MF
   const priorSibling = await weeklyClose(siblingStore)
   await login(page)
   const close = page.locator('#hours-1-close-1')
-  const hoursSignal: { selected?: string; submitted?: string; persisted?: string } = {}
+  const hoursSignal: {
+    selected?: string
+    submitted?: string
+    persisted?: string
+    outcome?: 'saved' | 'error' | 'unavailable'
+  } = {}
   try {
     await close.fill('19:45')
     await close.press('Tab')
-    await expect(close).toHaveValue('19:45')
     hoursSignal.selected = await close.inputValue()
-    const saveRequest = page.waitForRequest((request) =>
-      request.url().endsWith('/rest/v1/rpc/portal_save_hours'),
-    )
-    await page.getByRole('button', { name: 'Save hours', exact: true }).click()
-    const request = await saveRequest
+    await expect(close).toHaveValue('19:45')
+    const [request] = await Promise.all([
+      page.waitForRequest(
+        (request) =>
+          request.method() === 'POST' &&
+          new URL(request.url()).pathname.endsWith('/rpc/portal_save_hours'),
+        { timeout: 15_000 },
+      ),
+      page.getByRole('button', { name: 'Save hours', exact: true }).click(),
+    ])
     const closing = request
       .postDataJSON()
       ?.p_hours?.weekly?.find((day: { weekday: number }) => day.weekday === 1)
@@ -92,6 +101,19 @@ test('Representative publishes exact-store Monday hours through real Auth and MF
     expect(hoursSignal.submitted).toBe('19:45')
     await expect.poll(() => weeklyClose(ownStore)).toBe('19:45:00')
   } finally {
+    hoursSignal.selected ??= await close.inputValue().catch(() => 'unavailable')
+    hoursSignal.persisted = await weeklyClose(ownStore).catch(() => 'unavailable')
+    const saved = await page
+      .getByRole('status')
+      .filter({ hasText: 'Hours saved and freshness updated.' })
+      .isVisible()
+      .catch(() => false)
+    const error = await page
+      .getByRole('alert')
+      .first()
+      .isVisible()
+      .catch(() => false)
+    hoursSignal.outcome = saved ? 'saved' : error ? 'error' : 'unavailable'
     // Allowlist clock values only; never log Auth, MFA, headers, or the raw payload.
     console.log('[issue-494-hours]', JSON.stringify(hoursSignal))
   }
