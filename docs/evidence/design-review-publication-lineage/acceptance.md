@@ -80,7 +80,7 @@ The public [#511 recovery gate](https://github.com/samarquis/AntiqueTrail/issues
 | Merged source | `main` at `68751a42c9a05d1ffd7c129d8f1f409dccd1775a` | Independently verified in this report. |
 | Local prebuild | 669-file prebuilt artifact, SHA-256 `e1e0ba11770053e0f8a2448d13e288161aeec393322cd4b037f57cdf7002cc8c`, reported locally approved. | Reported only; artifact not inspected and not accepted as publication proof. |
 | Hosted checks | Intercepted artifact reportedly has 32 main Axe scans and 20 hosted catalog HTTP 200 responses. | Reported only; no binding to canonical alias or exact deployed source/configuration. |
-| Canonical deployment | Vercel deployment identifier `dpl_6zUinfmc3LhkpvH7ELAvSHxRyMnT` reported. | Not independently verified or bound to source, artifact, deployed configuration, or alias. Current canonical text/theme remain unknown. |
+| Canonical deployment | Vercel deployment identifier `dpl_6zUinfmc3LhkpvH7ELAvSHxRyMnT` reported. | Not independently verified or bound to source, artifact, deployed configuration, or alias. This task observed `/stores` text/theme, but those observations are not bound to this reported deployment; `/stores/clockwork-cabinet` text/theme remain unverified. |
 
 No new deployment, provider mutation, or database action was performed for this report.
 
