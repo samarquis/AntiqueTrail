@@ -774,7 +774,7 @@ export function BrowsePage({
           </>
         )}
       </section>
-      {browseNotice}
+      {browseNotice && <div className="catalog-state">{browseNotice}</div>}
       {state.kind === 'loading' && <LoadingState />}
       {state.kind === 'error' && (
         <ErrorState message={state.message ?? 'Catalog unavailable.'} onRetry={load} />

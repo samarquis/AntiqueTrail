@@ -39,6 +39,7 @@ describe('catalog Browse notice placement', () => {
 
     const pauseNotice = await screen.findByText(noticeCopy, { exact: true })
     expect(pauseNotice).toHaveAttribute('role', 'status')
+    expect(pauseNotice.parentElement).toHaveClass('catalog-state')
     const results = await screen.findByRole('heading', { name: '12 stores to explore' })
     const notices = screen
       .getAllByRole('status')
