@@ -6,8 +6,8 @@
 - Owner/chat: #503 worker
 - Risk: low, evidence report only
 - Baseline SHA: `68751a42c9a05d1ffd7c129d8f1f409dccd1775a`
-- Candidate SHA: pending
-- Diff fingerprint: pending
+- Candidate SHA: reviewed report commit `f37e877b04f7104f8b7f98d1a2bf87a44d306df5` on [PR #513](https://github.com/samarquis/AntiqueTrail/pull/513); browser evidence applies to source SHA `68751a42c9a05d1ffd7c129d8f1f409dccd1775a`.
+- Diff fingerprint: PR #513 metadata records final-head SHA and raw-byte result from `git diff --binary --full-index 68751a42c9a05d1ffd7c129d8f1f409dccd1775a...HEAD | git hash-object --stdin`. Independent Standards receipt, this task's 2026-10-03 handoff: reviewed PR #513 at `f37e877b04f7104f8b7f98d1a2bf87a44d306df5`; no safety/runtime scope issue; criterion gaps explicit.
 - Worktree/branch: isolated `codex/issue-503-browse-evidence`
 - Evidence captured at: 2026-10-03; source SHA `68751a42c9a05d1ffd7c129d8f1f409dccd1775a`; four local Chromium runs completed
 
