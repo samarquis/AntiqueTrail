@@ -489,6 +489,7 @@ describe('trustworthy Store Details contract', () => {
       },
     ],
   }
+  const fictionalDisclosure = 'Fictional listing for product review.'
 
   it('shows the same derived overdue status and verification date on Browse and Details', async () => {
     const olderStore = {
@@ -511,11 +512,80 @@ describe('trustworthy Store Details contract', () => {
       'catalog-card__freshness',
       'catalog-card__freshness--stale',
     )
+    expect(within(screen.getByRole('article')).getByText(fictionalDisclosure)).toBeVisible()
 
     browse.unmount()
     render(<DetailsPage client={catalog} slug={olderStore.slug} />)
     expect(await screen.findByText(expected)).toHaveClass('status-badge--stale')
     expect(screen.getByText(/this listing may be out of date/i)).toBeVisible()
+    expect(
+      within(screen.getByRole('region', { name: 'Source & freshness' })).getByText(
+        fictionalDisclosure,
+      ),
+    ).toBeVisible()
+  })
+
+  it('shows current freshness with fictional disclosure on Browse and Details', async () => {
+    const currentStore = {
+      ...detailedStore,
+      freshness: {
+        label: 'Stale fixture label',
+        verifiedAt: '2026-08-03T12:00:00Z',
+        status: 'stale' as const,
+      },
+    }
+    const catalog = detailsClient(currentStore)
+    const browse = render(<BrowsePage client={catalog} />)
+    const expected = 'Verified 9 days ago · August 3, 2026'
+    const card = await screen.findByRole('article')
+    const cardFreshness = within(card).getByText(expected)
+
+    expect(cardFreshness).toHaveClass('catalog-card__freshness--current')
+    expect(cardFreshness.nextElementSibling).toHaveTextContent(fictionalDisclosure)
+
+    browse.unmount()
+    render(<DetailsPage client={catalog} slug={currentStore.slug} />)
+    const detailFreshness = await screen.findByText(expected)
+    const provenance = screen.getByRole('region', { name: 'Source & freshness' })
+    const disclosure = within(provenance).getByText(fictionalDisclosure)
+
+    expect(detailFreshness).toHaveClass('status-badge--current')
+    expect(within(provenance).getByText('Listing information')).toBeVisible()
+    expect(
+      within(provenance).queryByText(/why you can trust this listing/i),
+    ).not.toBeInTheDocument()
+    expect(
+      within(provenance).getByRole('heading', { name: 'Source & freshness' }).nextElementSibling,
+    ).toBe(disclosure)
+  })
+
+  it('shows unavailable freshness and provenance without inventing a source or date', async () => {
+    const unavailableStore = {
+      ...detailedStore,
+      freshness: undefined,
+      provenance: undefined,
+    }
+    const catalog = detailsClient(unavailableStore)
+    const browse = render(<BrowsePage client={catalog} />)
+    const card = await screen.findByRole('article')
+    const cardFreshness = within(card).getByText('Verification date unavailable')
+
+    expect(cardFreshness).toHaveClass('catalog-card__freshness--unknown')
+    expect(cardFreshness.nextElementSibling).toHaveTextContent(fictionalDisclosure)
+
+    browse.unmount()
+    render(<DetailsPage client={catalog} slug={unavailableStore.slug} />)
+    const detailFreshness = await screen.findByText('Verification date unavailable', {
+      selector: 'p.status-badge--unknown',
+    })
+    expect(detailFreshness).toBeVisible()
+    const provenance = screen.getByRole('region', { name: 'Source & freshness' })
+
+    expect(within(provenance).getByText('Source information unavailable')).toBeVisible()
+    expect(within(provenance).getByText('Update date unavailable')).toBeVisible()
+    expect(within(provenance).getAllByText('Verification date unavailable')).toHaveLength(1)
+    expect(within(provenance).queryByText(/\b[A-Z][a-z]+ \d{1,2}, \d{4}\b/)).not.toBeInTheDocument()
+    expect(within(provenance).getByText(fictionalDisclosure)).toBeVisible()
   })
 
   function detailsClient(store: CatalogStore = detailedStore): CatalogClient {
