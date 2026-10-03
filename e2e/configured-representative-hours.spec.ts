@@ -122,8 +122,9 @@ test('Representative publishes exact-store Monday hours through real Auth and MF
   await page.reload()
   await expect(page.locator('#hours-1-close-1')).toHaveValue('19:45')
   const shopper = await browser.newContext({ baseURL: input.origin })
+  let shopperPage: Page | undefined
   try {
-    const shopperPage = await shopper.newPage()
+    shopperPage = await shopper.newPage()
     await shopperPage.goto('/auth/sign-in?returnTo=%2Fstores%2Fclockwork-cabinet')
     await shopperPage.getByLabel('Email', { exact: true }).fill(input.users[1].email)
     await shopperPage.getByLabel('Password', { exact: true }).fill(input.users[1].password)
@@ -135,7 +136,25 @@ test('Representative publishes exact-store Monday hours through real Auth and MF
       ),
     ).toBeVisible()
   } finally {
-    await shopper.close()
+    try {
+      const clocks = await shopperPage
+        ?.locator('.store-hours dd')
+        .allTextContents()
+        .catch(() => [])
+      const detailLoaded = await shopperPage
+        ?.getByRole('heading', { name: 'Clockwork Cabinet', exact: true })
+        .isVisible()
+        .catch(() => false)
+      console.log(
+        '[issue-494-shopper-hours]',
+        JSON.stringify({
+          detailLoaded: Boolean(detailLoaded),
+          clocks: clocks?.flatMap((text) => text.match(/\d{1,2}:\d{2}\s*[AP]M/g) ?? []) ?? [],
+        }),
+      )
+    } finally {
+      await shopper.close()
+    }
   }
   await page.screenshot({ path: info.outputPath('published-hours.png') })
 })
