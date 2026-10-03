@@ -775,6 +775,13 @@ function StoreBrowser({
       client={client}
       map={map}
       initialSearch={location.search}
+      browseNotice={
+        isCatalogOnlyPublicTest() ? (
+          <p role="status">
+            Saving stores is paused for this public-test stage. Existing accounts can still sign in.
+          </p>
+        ) : null
+      }
       renderPrivateActions={(store) =>
         shopperProjection ? (
           <CatalogPrivateActions

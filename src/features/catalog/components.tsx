@@ -456,6 +456,7 @@ export function BrowsePage({
   client,
   initialSearch = '',
   renderPrivateActions,
+  browseNotice,
   map,
   filterStage = 'package-1',
   availability = 'available',
@@ -463,6 +464,7 @@ export function BrowsePage({
   client: CatalogClient
   initialSearch?: string
   renderPrivateActions?: (store: CatalogStore) => React.ReactNode
+  browseNotice?: React.ReactNode
   map?: CatalogMapAdapter
   filterStage?: CatalogBrowseStage
   availability?: 'available' | 'blocked'
@@ -772,6 +774,7 @@ export function BrowsePage({
           </>
         )}
       </section>
+      {browseNotice && <div className="catalog-state">{browseNotice}</div>}
       {state.kind === 'loading' && <LoadingState />}
       {state.kind === 'error' && (
         <ErrorState message={state.message ?? 'Catalog unavailable.'} onRetry={load} />

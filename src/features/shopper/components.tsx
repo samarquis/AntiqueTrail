@@ -430,7 +430,8 @@ export function CatalogPrivateActions({
   }, [client, returnTo, session, storeId])
 
   const correctionPath = `/stores/${encodeURIComponent(slug)}/correction`
-  if (isCatalogOnlyPublicTest())
+  if (isCatalogOnlyPublicTest()) {
+    if (context === 'browse') return null
     return (
       <div className={`catalog-private-actions catalog-private-actions--${context}`}>
         <p role="status">
@@ -446,6 +447,7 @@ export function CatalogPrivateActions({
         )}
       </div>
     )
+  }
   if (!session)
     return (
       <div className={`catalog-private-actions catalog-private-actions--${context}`}>
