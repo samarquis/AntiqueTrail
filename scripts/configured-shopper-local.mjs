@@ -264,6 +264,51 @@ export function validateOwner(run) {
     throw new Error('Project identity mismatch')
   return root
 }
+export async function waitForLocalServiceReadiness(
+  run,
+  request,
+  signal,
+  wait = () => new Promise((resolve) => setTimeout(resolve, 1000)),
+) {
+  let ready = false
+  for (let attempt = 0; attempt < 60; attempt++) {
+    signal?.throwIfAborted()
+    try {
+      if (run.users.length) {
+        const result = await request('/functions/v1/public-catalog', {
+          key: run.anonKey,
+          token: run.users[0].token,
+          origin: run.origin,
+          body: { operation: 'list', args: { p_q: null, p_category: null, p_area: null } },
+        })
+        if (Array.isArray(result.data)) {
+          ready = true
+          break
+        }
+      } else {
+        const result = await request('/functions/v1/account-registration', {
+          key: run.anonKey,
+          token: run.anonKey,
+          origin: run.origin,
+          body: {},
+        })
+        if (result.state === 'blocked') {
+          ready = true
+          break
+        }
+      }
+    } catch {
+      /* Readiness only; actual commands record their own result. */
+    }
+    await wait()
+  }
+  if (!ready)
+    throw new Error(
+      run.users.length
+        ? 'Local catalog function did not become ready'
+        : 'Local registration function did not become ready',
+    )
+}
 export function createLocalService({
   signal,
   resumeDirectory,
@@ -539,37 +584,7 @@ export function createLocalService({
       env: proxy.env,
     })
     serving.on('error', () => {})
-    let ready = false
-    for (let attempt = 0; attempt < 60; attempt++) {
-      signal?.throwIfAborted()
-      try {
-        if (run.users.length) {
-          const result = await request('/functions/v1/public-catalog', {
-            key: run.anonKey,
-            token: run.users[0].token,
-            origin: run.origin,
-            body: { operation: 'list', args: { p_q: null, p_category: null, p_area: null } },
-          })
-          if (Array.isArray(result.data)) break
-        } else {
-          const result = await request('/functions/v1/account-registration', {
-            key: run.anonKey,
-            token: run.anonKey,
-            origin: run.origin,
-            body: {},
-          })
-          if (result.state === 'blocked') {
-            ready = true
-            break
-          }
-        }
-      } catch {
-        /* Readiness only; actual commands record their own result. */
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-    }
-    if (!ready && !run.users.length)
-      throw new Error('Local registration function did not become ready')
+    await waitForLocalServiceReadiness(run, request, signal)
     return run
   }
   async function cleanup() {
