@@ -6,6 +6,14 @@ const roles = [
   ['shopper-b', 'Shopper B', 'Shopper'],
   ['representative', 'Store Representative', 'Representative'],
   ['store-owner', 'Store Owner', 'Store Owner'],
+  ['co-owner', 'Co-Owner · Blue Finch Curios', 'Store Owner', 'Co-Owner'],
+  [
+    'full-store-access',
+    'Full Store Access · Blue Finch Curios',
+    'Store Owner',
+    'Full Store Access',
+  ],
+  ['listing-editor', 'Listing Editor · Blue Finch Curios', 'Store Owner', 'Listing Editor'],
   ['administrator', 'Administrator', 'Administrator'],
 ] as const
 
@@ -30,7 +38,7 @@ async function expectCompactReviewContext(page: Page) {
 }
 
 test.describe('local human-review harness contract', () => {
-  for (const [id, label, role] of roles) {
+  for (const [id, label, role, storeRole] of roles) {
     test(`${label} is directly addressable and isolated`, async ({ page }) => {
       await page.goto(`/review?reviewAs=${id}&reviewState=success`)
       await expect(
@@ -40,6 +48,14 @@ test.describe('local human-review harness contract', () => {
       await expect(
         page.getByLabel('Review this scenario').getByText(role, { exact: true }),
       ).toBeVisible()
+      if (storeRole) {
+        await expect(
+          page
+            .getByLabel('Review this scenario')
+            .locator('dl')
+            .getByText(storeRole, { exact: true }),
+        ).toContainText(storeRole)
+      }
       if (id === 'store-owner') {
         await expect(page.getByLabel('Review this scenario')).toContainText(
           'Approved synthetic primary Owner of Blue Finch Curios.',
@@ -51,6 +67,91 @@ test.describe('local human-review harness contract', () => {
       await expect(page.getByText(/local-review-only:/)).toHaveCount(0)
     })
   }
+
+  test('owner team personas stay scoped and expose only their existing actions', async ({
+    page,
+  }) => {
+    for (const [id, storeRole] of [
+      ['co-owner', 'Co-Owner'],
+      ['full-store-access', 'Full Store Access'],
+      ['listing-editor', 'Listing Editor'],
+    ] as const) {
+      await page.goto(`/owner/stores?reviewAs=${id}&reviewState=success`)
+      await expect(page.getByRole('heading', { name: 'Your store workspace' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Blue Finch Curios' })).toBeVisible()
+      await expect(page.getByText(storeRole, { exact: true })).toBeVisible()
+      await expect(page.getByText('Editor Workspace', { exact: true })).toHaveCount(0)
+      await expect(page.getByText('Sibling Workspace', { exact: true })).toHaveCount(0)
+
+      if (id === 'listing-editor') {
+        await expect(
+          page.getByRole('button', { name: 'Manage team access for Blue Finch Curios' }),
+        ).toHaveCount(0)
+      } else {
+        await page.getByRole('button', { name: 'Manage team access for Blue Finch Curios' }).click()
+        const roleOptions = await page.getByLabel('Store role').locator('option').allTextContents()
+        await expect(page.getByLabel('Store role')).toHaveValue(
+          id === 'co-owner' ? 'co_owner' : 'listing_editor',
+        )
+        expect(roleOptions).toEqual([id === 'co-owner' ? 'Co-Owner' : 'Listing Editor'])
+        await expect(page.getByRole('button', { name: 'Remove Jordan Editor' })).toHaveCount(0)
+        if (id === 'co-owner') {
+          await expect(
+            page.getByRole('button', { name: 'Cancel Full Store Access invitation' }),
+          ).toBeVisible()
+        } else {
+          const invitations = page.getByRole('list', { name: 'Pending team invitations' })
+          await expect(invitations.getByRole('listitem')).toHaveCount(2)
+          await expect(
+            page.getByRole('button', { name: 'Cancel Listing Editor invitation' }),
+          ).toHaveCount(1)
+          await expect(
+            page.getByRole('button', { name: 'Cancel Co-Owner invitation' }),
+          ).toHaveCount(0)
+        }
+      }
+
+      await page.getByRole('button', { name: 'Open Blue Finch Curios' }).click()
+      const portalNav = page.getByRole('navigation', { name: 'Store Portal sections' })
+      await expect(portalNav).toBeVisible()
+      if (id === 'listing-editor') {
+        await expect(portalNav.getByRole('link', { name: 'Billing status' })).toHaveCount(0)
+        await portalNav.getByRole('link', { name: 'Promotion permissions' }).click()
+        await expect(page.getByRole('heading', { name: 'Promotion permissions' })).toBeVisible()
+        await expect(page.getByRole('button', { name: /Give permission:/ })).toHaveCount(0)
+      } else {
+        await expect(portalNav.getByRole('link', { name: 'Billing status' })).toBeVisible()
+        await portalNav.getByRole('link', { name: 'Billing status' }).click()
+        await expect(page.getByRole('heading', { name: 'Billing status' })).toBeVisible()
+        await expect(
+          page.getByText('No billing actions are available in this workspace.'),
+        ).toBeVisible()
+        await expect(page.locator('main').getByRole('button')).toHaveCount(0)
+        if (id === 'full-store-access') {
+          await page.goBack()
+          await page
+            .getByRole('navigation', { name: 'Store Portal sections' })
+            .getByRole('link', { name: 'Promotion permissions' })
+            .click()
+          await expect(page.getByRole('heading', { name: 'Promotion permissions' })).toBeVisible()
+          await expect(page.getByRole('button', { name: /Give permission:/ })).toHaveCount(4)
+        } else {
+          await page.goBack()
+          await page
+            .getByRole('navigation', { name: 'Store Portal sections' })
+            .getByRole('link', { name: 'Promotion permissions' })
+            .click()
+          await expect(page.getByRole('heading', { name: 'Promotion permissions' })).toBeVisible()
+          await expect(page.getByRole('alert')).toBeVisible()
+        }
+      }
+
+      await page.goto(`/admin?reviewAs=${id}&reviewState=success`)
+      await expect(page.getByRole('heading', { name: 'Review Queue' })).toHaveCount(0)
+      await page.goto(`/saved?reviewAs=${id}&reviewState=success`)
+      await expect(page.getByRole('heading', { name: 'Saved stores' })).toHaveCount(0)
+    }
+  })
 
   test('all required fixture states are addressable and semantic', async ({ page }) => {
     const states = [

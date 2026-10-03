@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { ownerTeamRoleLabel } from '../features/owner/ownerClient'
 import type { ReviewHarnessRuntime, ReviewStateId } from './types'
 
 function harnessUrl(path: string, scenario: string, state: ReviewStateId) {
@@ -97,6 +98,12 @@ export function ReviewHarnessPage({ runtime }: { runtime: ReviewHarnessRuntime }
         <dl>
           <dt>Role</dt>
           <dd>{runtime.scenario.role}</dd>
+          {runtime.scenario.storeRole && (
+            <>
+              <dt>Store role</dt>
+              <dd>{ownerTeamRoleLabel[runtime.scenario.storeRole]}</dd>
+            </>
+          )}
           <dt>Synthetic identity</dt>
           <dd>{runtime.scenario.identity}</dd>
           <dt>Seeded coverage</dt>

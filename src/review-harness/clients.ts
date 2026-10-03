@@ -80,6 +80,8 @@ import type {
   OwnerTeamMember,
   OwnerTeamRole,
 } from '../features/owner/ownerClient'
+import type { OwnerBillingStatusClient } from '../features/billing/ownerStatus'
+import type { ServicingClient } from '../features/billing/servicing'
 import type { RG01Client } from '../features/rg01'
 import {
   unavailableShopperClient,
@@ -414,6 +416,106 @@ function fixture<T>(state: ReviewStateId, success: T, empty: T): Promise<T> {
 function requireRole<T>(scenario: ReviewScenario, allowed: ReviewScenario['role'][], value: T): T {
   if (!allowed.includes(scenario.role)) throw new Error('Synthetic permission denied.')
   return value
+}
+
+const reviewOwnerPolicies: Record<
+  OwnerTeamRole,
+  {
+    canManageTeam: boolean
+    inviteRoles: readonly OwnerTeamRole[]
+    canCancelAnyInvitation: boolean
+    canRevokeMembers: boolean
+    canReadBilling: boolean
+    canUsePromotions: boolean
+    seededInvitations: readonly OwnerTeamInvitation[]
+  }
+> = {
+  store_owner: {
+    canManageTeam: true,
+    inviteRoles: ['co_owner', 'full_store_access', 'listing_editor'],
+    canCancelAnyInvitation: true,
+    canRevokeMembers: true,
+    canReadBilling: true,
+    canUsePromotions: true,
+    seededInvitations: [],
+  },
+  co_owner: {
+    canManageTeam: true,
+    inviteRoles: ['co_owner'],
+    canCancelAnyInvitation: true,
+    canRevokeMembers: false,
+    canReadBilling: true,
+    canUsePromotions: false,
+    seededInvitations: [
+      {
+        invitationId: 'review-owner-pending-invitation',
+        role: 'full_store_access',
+        version: 1,
+        canCancel: true,
+      },
+    ],
+  },
+  full_store_access: {
+    canManageTeam: true,
+    inviteRoles: ['listing_editor'],
+    canCancelAnyInvitation: false,
+    canRevokeMembers: false,
+    canReadBilling: true,
+    canUsePromotions: true,
+    seededInvitations: [
+      {
+        invitationId: 'review-owner-pending-invitation',
+        role: 'co_owner',
+        version: 1,
+        canCancel: false,
+      },
+      {
+        invitationId: 'review-full-access-pending-invitation',
+        role: 'listing_editor',
+        version: 1,
+        canCancel: true,
+      },
+    ],
+  },
+  listing_editor: {
+    canManageTeam: false,
+    inviteRoles: [],
+    canCancelAnyInvitation: false,
+    canRevokeMembers: false,
+    canReadBilling: false,
+    canUsePromotions: false,
+    seededInvitations: [],
+  },
+}
+
+type ReviewOwnerContext = {
+  role: OwnerTeamRole
+  policy: (typeof reviewOwnerPolicies)[OwnerTeamRole]
+}
+
+const readOnlyReviewBillingRoute: ServicingClient = {
+  async getContext() {
+    return null
+  },
+  async change() {
+    throw new Error('Synthetic Owner billing is read-only.')
+  },
+  async refund() {
+    throw new Error('Synthetic Owner billing is read-only.')
+  },
+}
+
+function reviewOwnerContext(scenario: ReviewScenario): ReviewOwnerContext | null {
+  if (scenario.role !== 'Store Owner') return null
+  const role = scenario.storeRole ?? (scenario.id === 'store-owner' ? 'store_owner' : null)
+  return role ? { role, policy: reviewOwnerPolicies[role] } : null
+}
+
+function requireReviewOwner(scenario: ReviewScenario, teamAccess = false): ReviewOwnerContext {
+  const context = reviewOwnerContext(scenario)
+  if (!context || (teamAccess && !context.policy.canManageTeam))
+    throw new Error('Synthetic permission denied.')
+  return context
 }
 
 /**
@@ -3073,6 +3175,8 @@ export function createReviewHarnessClients(
   session: ReviewFixtureSession = ACTIVE_REVIEW_FIXTURE_SESSION,
   adminDecisionMode: ReviewAdminDecisionMode = 'ordinary',
 ): AppClients {
+  const storeRole = reviewOwnerContext(scenario)?.role ?? null
+  const storePolicy = storeRole ? reviewOwnerPolicies[storeRole] : null
   let ownerStoreSelected = false
   let selectedOwnerStore: Pick<PortalHomeSnapshot['store'], 'id' | 'name'> | null = null
   let ownerTeamMembers: OwnerTeamMember[] = [
@@ -3081,10 +3185,12 @@ export function createReviewHarnessClients(
       role: 'listing_editor',
       displayName: 'Jordan Editor',
       version: 1,
-      canRevoke: true,
+      canRevoke: storePolicy?.canRevokeMembers ?? false,
     },
   ]
-  let ownerTeamInvitations: OwnerTeamInvitation[] = []
+  let ownerTeamInvitations: OwnerTeamInvitation[] = structuredClone([
+    ...(storePolicy?.seededInvitations ?? []),
+  ])
   let ownerInvitationCount = 0
   const promotionPermissions = Object.keys(promotionLabels).map((channel) => ({
     channel,
@@ -3093,7 +3199,8 @@ export function createReviewHarnessClients(
     removalRequested: false,
   }))
   const promotion = createPromotionClient(async (name, args) => {
-    requireRole(scenario, ['Representative'], true)
+    if (scenario.role !== 'Representative' && !storePolicy?.canUsePromotions)
+      throw new Error('Synthetic permission denied.')
     if (state !== 'success') throw new Error('Synthetic promotion unavailable')
     if (name === 'promotion_channels') return structuredClone(promotionPermissions)
     const permission = promotionPermissions.find((p) => p.channel === args.p_channel)
@@ -3128,16 +3235,36 @@ export function createReviewHarnessClients(
   return withReviewFixtureSessionGuard(
     {
       promotion,
+      ...(storePolicy?.canReadBilling && scenario.id !== 'store-owner'
+        ? {
+            billingServicing: readOnlyReviewBillingRoute,
+            ownerBillingStatus: {
+              async getStatus() {
+                requireReviewOwner(scenario)
+                if (state !== 'success') throw new Error('Synthetic billing status is unavailable.')
+                return {
+                  tier: 'gallery',
+                  subscriptionState: 'active',
+                  paidThrough: '2026-10-31T00:00:00Z',
+                  salesOpen: false,
+                  availableActions: [] as const,
+                }
+              },
+            } satisfies OwnerBillingStatusClient,
+          }
+        : {}),
       owner: {
         async listStores() {
-          requireRole(scenario, ['Store Owner'], true)
+          const { role: membership } = requireReviewOwner(scenario)
           if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+          const blueFinch = {
+            storeId: 'store-blue-finch',
+            name: 'Blue Finch Curios',
+            role: membership,
+          }
+          if (scenario.id !== 'store-owner') return [blueFinch]
           return [
-            {
-              storeId: 'store-blue-finch',
-              name: 'Blue Finch Curios',
-              role: 'store_owner' as const,
-            },
+            blueFinch,
             {
               storeId: 'store-editor-view',
               name: 'Editor Workspace',
@@ -3152,9 +3279,13 @@ export function createReviewHarnessClients(
           ]
         },
         async selectStore(storeId) {
-          requireRole(scenario, ['Store Owner'], true)
-          if (state !== 'success' || !['store-blue-finch', 'store-editor-view'].includes(storeId))
-            throw new Error('Store workspace access is unavailable.')
+          requireReviewOwner(scenario)
+          if (state !== 'success') throw new Error('Store workspace access is unavailable.')
+          if (
+            storeId !== 'store-blue-finch' &&
+            !(scenario.id === 'store-owner' && storeId === 'store-editor-view')
+          )
+            throw new Error('Synthetic permission denied.')
           ownerStoreSelected = true
           selectedOwnerStore =
             storeId === 'store-blue-finch'
@@ -3162,7 +3293,7 @@ export function createReviewHarnessClients(
               : { id: storeId, name: 'Editor Workspace' }
         },
         async listTeam(storeId) {
-          requireRole(scenario, ['Store Owner'], true)
+          requireReviewOwner(scenario, true)
           if (state !== 'success' || storeId !== 'store-blue-finch')
             throw new Error('Store workspace access is unavailable.')
           return {
@@ -3171,9 +3302,10 @@ export function createReviewHarnessClients(
           }
         },
         async inviteTeam(storeId, _email, role: OwnerTeamRole, idempotencyKey) {
-          requireRole(scenario, ['Store Owner'], true)
+          const { policy } = requireReviewOwner(scenario, true)
           if (state !== 'success' || storeId !== 'store-blue-finch' || !idempotencyKey)
             throw new Error('Store workspace access is unavailable.')
+          if (!policy.inviteRoles.includes(role)) throw new Error('Synthetic permission denied.')
           ownerInvitationCount++
           ownerTeamInvitations = [
             ...ownerTeamInvitations,
@@ -3186,7 +3318,7 @@ export function createReviewHarnessClients(
           ]
         },
         async cancelTeamInvitation(storeId, invitationId, expectedVersion) {
-          requireRole(scenario, ['Store Owner'], true)
+          const { policy } = requireReviewOwner(scenario, true)
           if (state !== 'success' || storeId !== 'store-blue-finch')
             throw new Error('Store workspace access is unavailable.')
           const invitation = ownerTeamInvitations.find(
@@ -3194,12 +3326,15 @@ export function createReviewHarnessClients(
           )
           if (!invitation || invitation.version !== expectedVersion)
             throw new Error('Synthetic stale team invitation.')
+          if (!policy.canCancelAnyInvitation && !invitation.canCancel)
+            throw new Error('Synthetic permission denied.')
           ownerTeamInvitations = ownerTeamInvitations.filter(
             (candidate) => candidate.invitationId !== invitationId,
           )
         },
         async revokeTeamMember(storeId, accessId, expectedVersion) {
-          requireRole(scenario, ['Store Owner'], true)
+          if (!requireReviewOwner(scenario, true).policy.canRevokeMembers)
+            throw new Error('Synthetic permission denied.')
           if (state !== 'success' || storeId !== 'store-blue-finch')
             throw new Error('Store workspace access is unavailable.')
           const member = ownerTeamMembers.find((candidate) => candidate.accessId === accessId)
@@ -3208,7 +3343,7 @@ export function createReviewHarnessClients(
           ownerTeamMembers = ownerTeamMembers.filter((candidate) => candidate.accessId !== accessId)
         },
         async listPendingInvitations() {
-          requireRole(scenario, ['Store Owner'], true)
+          requireReviewOwner(scenario, true)
           if (state !== 'success') throw new Error('Store workspace access is unavailable.')
           return ownerTeamInvitations.map((invitation) => ({
             invitationId: invitation.invitationId,
@@ -3220,7 +3355,7 @@ export function createReviewHarnessClients(
           }))
         },
         async acceptInvitation(invitationId, expectedVersion) {
-          requireRole(scenario, ['Store Owner'], true)
+          const { policy } = requireReviewOwner(scenario, true)
           if (state !== 'success') throw new Error('Store workspace access is unavailable.')
           const invitation = ownerTeamInvitations.find(
             (candidate) => candidate.invitationId === invitationId,
@@ -3237,7 +3372,7 @@ export function createReviewHarnessClients(
               role: invitation.role,
               displayName: 'New teammate',
               version: 1,
-              canRevoke: true,
+              canRevoke: policy.canRevokeMembers,
             },
           ]
           return 'store-blue-finch'
