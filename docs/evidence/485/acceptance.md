@@ -40,7 +40,7 @@ Pre-existing failures or unrelated work: an initial whole-Store-Details axe scan
 | Security contract          | `npm run security:contract`                                                                                       | PASS: secrets, licenses, action pins, migrations, and tier vocabulary.                                                                                          | Exact working-tree content committed as `e342241`; Windows.                                                                                                            |
 | Desktop browser            | `npx playwright test --config=playwright.issue-468.config.ts`                                                     | PASS: 2 Chromium tests on `1cc979d`; light/dark axe, forced-color system-palette contrast and visible focus, keyboard Tab+Enter, blocked submission, text spacing, and 640px reflow proxy. Browser-chrome 200% zoom is not emulated. | Windows, `VITE_PUBLIC_TEST_CATALOG_ONLY=true`; synthetic Blue Finch Curios; port 4185; receipt `test-results/.last-run.json` reports `passed`. |
 | Playwright selection       | `npx playwright test --list`; dedicated config `--list`                                                            | PASS: default suite excludes this spec (758 tests listed); dedicated config selects exactly 2 tests.                                                            | `1cc979d`; local config discovery.                                                                                                                                   |
-| Final-head browser and CI  | GitHub Actions on [PR #492](https://github.com/samarquis/AntiqueTrail/pull/492)                                   | Pending on the pushed `1cc979d` candidate; earlier run `37125488483` failed at forced-color axe color-contrast, now narrowly excluded with direct contrast assertions. | GitHub runner; report-only commit will receive checks on its final PR head.                                                                                           |
+| Final-head browser and CI  | GitHub Actions on PR #492 | PASS: CI run 37129121914 completed successfully on exact PR head 083d491a; web, database, configured-owner-billing all passed, and session-signout run 37129121913 passed. This head contains source/test candidate 1cc979d. | GitHub runner; exact head 083d491a. The following evidence-reference correction is documentation-only and needs its own PR checks. |
 | Database/RLS/RPC           | No database/schema/RLS changes. Handler denial uses injected local verifier/gateway fakes.                        | N/A; local unit proof.                                                                                                                                          | No database or hosted data used.                                                                                                                                       |
 | Mobile browser             | Not run; issue acceptance is keyboard operation and route behavior, exercised in desktop Chromium.                | Not applicable to current acceptance.                                                                                                                           | No mobile rendering claim.                                                                                                                                             |
 | Accessibility/error states | Axe on owned surfaces in light/dark; forced-colors axe except its stale `-webkit-text-fill-color` contrast rule, with computed system-palette contrast/focus assertions; keyboard operation; blocked `sessionStorage`. | PASS locally on `1cc979d`; independent exact-head review pending. Pre-existing whole-Details contrast finding remains outside owned surface. | Dedicated E2E plus focused tests. |
@@ -50,7 +50,7 @@ Pre-existing failures or unrelated work: an initial whole-Store-Details axe scan
 ## Resource lease
 
 - Owner/task: `samarquis`, Codex task `#485`, ticket #485
-- Browser-tested source: `2495fcb0caf4f00c160b51d6f05cc50dbb1c17fc`
+- Browser-tested source: `1cc979dbe43876d3b8f8a5716167a8536af1ac40`
 - Runner: `npx playwright test --config=playwright.issue-468.config.ts`
 - Run receipt: `test-results/.last-run.json` (`status: passed`, no failed tests)
 - Project ID: none; local browser-only Vite app with synthetic catalog client
@@ -64,19 +64,19 @@ Pre-existing failures or unrelated work: an initial whole-Store-Details axe scan
 - Denied identities/scopes: public-test correction requests are denied even for authenticated sessions; `PUBLIC_TEST_MODE=true` check precedes session verification or RPC gateway.
 - Failure behavior: blocked session storage keeps current field values visible and announces that the tab could not save the draft; ordinary public server errors remain generic `Unavailable`.
 - Secret/PII handling: no credentials or personal data used. Test draft text is synthetic.
-- Security review: the sealed `cc7ad64` scan covered the original 18-file PR diff (0 candidates/findings) but is stale after the E2E harness change. A fresh exact-final-head diff scan is pending; see PR #492 for its final receipt.
+- Security review: exact final diff scan 2a15422a-9696-4fc6-bcd1-eaf36d60bd72 completed on PR head 083d491a; complete coverage, 11 source/config rows, 0 candidates/findings. The report-only evidence-reference correction does not change source or test files.
 
 ## Independent review
 
-- Reviewer: pending independent exact-head Standards/Spec review of final PR head
-- Standards verdict: pending
-- Spec verdict: pending
-- Final verdict: pending
-- Findings and disposition: pending
+- Reviewer: /root/review_485; REWORK on 083d491a for two stale evidence references. Browser source SHA and CI head are now corrected; exact review of the documentation-only follow-up is pending.
+- Standards verdict: REWORK on 083d491a; no product-code finding, two evidence-reference corrections made.
+- Spec verdict: PASS for draft-only behavior and acceptance coverage.
+- Final verdict: pending exact review of the evidence-reference follow-up.
+- Findings and disposition: updated browser-tested SHA to 1cc979d; bound CI status to run 37129121914 at 083d491a.
 
 ## Unverified
 
-Hosted `PUBLIC_TEST_MODE` value, Edge deployment identity, hosted correction denial, mobile layout, full PR CI at the final head, fresh exact-head security scan, and independent review remain unverified. Hosted/deployment proof is excluded by issue #485 and needs a separate gate; CI and both reviews are required before merge.
+Hosted PUBLIC_TEST_MODE value, Edge deployment identity, hosted correction denial, mobile layout, PR checks on the evidence-reference-only follow-up, and exact-head independent re-review remain unverified. CI and security review passed at 083d491a; the source/test candidate is unchanged by the pending documentation correction. Hosted/deployment proof is excluded by issue #485 and needs a separate gate; both reviews and current PR checks remain required before merge.
 
 ## Invalidation
 
