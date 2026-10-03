@@ -62,7 +62,7 @@ export const marketAtMacvicarPreviewStore: CatalogStore = {
   })),
   summary: 'A Vintage Boutique with more than 50 little shops in Topeka.',
   description:
-    'Explore a vintage boutique with more than 50 little shops offering antiques, collectibles, rustic decor, furniture, gifts, handcrafted goods, jewelry, handbags, and home accents. Find The Market at Macvicar at the corner of SW 10th Avenue and Macvicar in Topeka.',
+    'Explore a vintage boutique with more than 50 little shops offering antiques, collectibles, rustic decor, furniture, gifts, handcrafted goods, jewelry, handbags, and home accents. Find The Market at Macvicar at 2307 SW 10th Ave, Topeka, KS 66604, on the corner of 10th and Macvicar.',
   phone: '(785) 409-4277',
   email: 'themarketatmacvicar2307@gmail.com',
   timeZone: 'America/Chicago',

@@ -15,14 +15,22 @@ const wall = JSON.parse(
 const media = [wall.cover, ...wall.gallery]
 const allowedPhotoIds = new Set(media.map((item) => item.photoId))
 
-async function restrictPreviewRequests(page: Page, unavailablePhotoId?: string) {
+async function restrictPreviewRequests(
+  page: Page,
+  unavailablePhotoId?: string,
+  allowedAppOrigin?: string,
+) {
   const blockedRequests: string[] = []
   const mediaResponses: Array<{ id: string; status: number; contentType: string | undefined }> = []
 
   await page.route('**/*', async (route) => {
     const request = route.request()
     const url = new URL(request.url())
-    if (url.origin === appOrigin && request.method() === 'GET') return route.continue()
+    if (
+      (url.origin === appOrigin || url.origin === allowedAppOrigin) &&
+      request.method() === 'GET'
+    )
+      return route.continue()
 
     const match = url.pathname.match(/^\/photos\/([0-9]+)\.webp$/)
     if (
@@ -65,6 +73,9 @@ test('opens the real store route and its complete gallery on desktop and mobile'
       name: 'The Market at Macvicar',
     })
     await expect(detailHeading).toBeVisible({ timeout: 45_000 })
+    await expect(page.getByRole('region', { name: 'About this store' })).toContainText(
+      '2307 SW 10th Ave, Topeka, KS 66604',
+    )
     await expect(page.getByRole('link', { name: 'Call (785) 409-4277' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Email the store' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Facebook' })).toBeVisible()
@@ -101,6 +112,7 @@ test('opens the real store route and its complete gallery on desktop and mobile'
     await page.getByRole('link', { name: 'See all 51 photos' }).click()
     await expect(page.getByRole('heading', { name: 'Store photos' })).toBeVisible()
     await expect(page.locator('.store-photos__body img')).toHaveCount(51)
+    // This separate all-assets check forces complete loading after the fresh-page lazy check.
     await page.locator('.store-photos__body img').evaluateAll((images) => {
       images.forEach((image) => {
         if (image instanceof HTMLImageElement) image.loading = 'eager'
@@ -151,6 +163,112 @@ test('opens the real store route and its complete gallery on desktop and mobile'
   expect(mediaResponses.every((response) => response.contentType?.startsWith('image/webp'))).toBe(
     true,
   )
+})
+
+test('loads lower photo wall images when scrolled into view', async ({ page }) => {
+  const { blockedRequests, mediaResponses } = await restrictPreviewRequests(page)
+
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto(pagePath + '/photos')
+  await expect(page.getByRole('heading', { name: 'Store photos' })).toBeVisible()
+
+  const images = page.locator('.store-photos__body img')
+  await expect(images).toHaveCount(51)
+  const cover = page.locator(
+    `.store-photos__body img[src$="${wall.cover.photoId}.webp"]`,
+  )
+  await expect(cover).toBeInViewport()
+  await expect
+    .poll(
+      () =>
+        cover.evaluate(
+          (image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0,
+        ),
+      { timeout: 30_000 },
+    )
+    .toBe(true)
+  await cover.evaluate(async (image) => {
+    if (!(image instanceof HTMLImageElement)) throw new Error('Cover is not an image.')
+    await image.decode()
+  })
+
+  const initialReadiness = await images.evaluateAll((elements) =>
+    elements.map((element) => {
+      const image = element as HTMLImageElement
+      return {
+        loading: image.loading,
+        complete: image.complete,
+        naturalWidth: image.naturalWidth,
+      }
+    }),
+  )
+  expect(initialReadiness).toHaveLength(51)
+  expect(initialReadiness.every((image) => image.loading === 'lazy')).toBe(true)
+  expect(
+    initialReadiness.filter((image) => image.complete && image.naturalWidth > 0).length,
+  ).toBeLessThan(51)
+
+  const lowerTile = page.locator('.store-photos__tile[data-photo-index="50"]')
+  const lowerImage = lowerTile.locator('img')
+  await expect(lowerImage).toHaveCount(1)
+  expect(
+    await lowerImage.evaluate((image) => (image as HTMLImageElement).naturalWidth),
+  ).toBe(0)
+  await lowerTile.scrollIntoViewIfNeeded()
+  await expect
+    .poll(
+      () =>
+        lowerImage.evaluate(
+          (image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0,
+        ),
+      { timeout: 30_000 },
+    )
+    .toBe(true)
+  await lowerImage.evaluate(async (image) => {
+    if (!(image instanceof HTMLImageElement)) throw new Error('Lower tile is not an image.')
+    await image.decode()
+  })
+
+  const lowerPhotoId = wall.gallery[wall.gallery.length - 1].photoId
+  expect(
+    mediaResponses.some((response) => response.id === wall.cover.photoId && response.status === 200),
+  ).toBe(true)
+  expect(
+    mediaResponses.some((response) => response.id === lowerPhotoId && response.status === 200),
+  ).toBe(true)
+  expect(blockedRequests).toEqual([])
+})
+
+test('uses the normal not-found state outside the exact preview host and slug', async ({ browser }) => {
+  const cases = [
+    { origin: appOrigin, storePath: '/stores/not-the-market-at-macvicar' },
+    { origin: 'http://localhost:5982', storePath: pagePath },
+  ]
+
+  for (const scenario of cases) {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
+    const page = await context.newPage()
+    const { blockedRequests, mediaResponses } = await restrictPreviewRequests(
+      page,
+      undefined,
+      scenario.origin === 'http://localhost:5982' ? scenario.origin : undefined,
+    )
+
+    for (const path of [scenario.storePath, scenario.storePath + '/photos']) {
+      await page.goto(scenario.origin + path)
+      await expect(page.getByRole('heading', { name: 'Store not found' })).toBeVisible()
+      await expect(
+        page.getByRole('heading', { name: 'The Market at Macvicar', exact: true }),
+      ).toHaveCount(0)
+      await expect(page.getByRole('heading', { name: 'Store photos' })).toHaveCount(0)
+      await expect(page.locator('.store-gallery__print')).toHaveCount(0)
+      await expect(page.locator('.store-photos__body img')).toHaveCount(0)
+    }
+
+    expect(blockedRequests).toEqual([])
+    expect(mediaResponses).toEqual([])
+    await context.close()
+  }
 })
 
 test('keeps the photo wall usable when one selected image fails', async ({ page }) => {
