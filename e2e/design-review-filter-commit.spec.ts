@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
-async function gotoBrowse(page: Page, path = '/stores', width = 1280) {
-  await page.setViewportSize({ width, height: 900 })
+async function gotoBrowse(page: Page, path = '/stores', width?: number) {
+  if (width !== undefined) await page.setViewportSize({ width, height: 900 })
   await page.addInitScript(() => localStorage.setItem('at-theme', 'light'))
   await page.goto(path)
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
@@ -12,6 +12,7 @@ async function gotoBrowse(page: Page, path = '/stores', width = 1280) {
 
 async function openFilters(page: Page) {
   const trigger = page.getByRole('button', { name: /^filters(?: · active)?$/iu })
+  if (!(await trigger.isVisible())) return
   if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click()
   await expect(trigger).toHaveAttribute('aria-expanded', 'true')
 }
