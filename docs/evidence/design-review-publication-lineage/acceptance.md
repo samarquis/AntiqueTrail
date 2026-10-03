@@ -21,7 +21,7 @@ The source SHA names the repository state inspected. Verify it with the [GitHub 
 
 This report compares the account, trust, and missing-cover fixes in `main` with the evidence available for the documented canonical catalog. It does not change product code or provider state.
 
-Changed outcome: durable evidence separates merged source fixes, rendered-route observations, and publication lineage. Rendered and publication acceptance remains blocked until corresponding receipts are available.
+Changed outcome: durable evidence separates merged source fixes, rendered-route observations, and publication lineage. Rendered-route acceptance is partial; published-lineage acceptance remains blocked until its receipt is available.
 
 Excluded scope: product/UI changes, browser or provider mutation, deployment, account access, and starting a new publication.
 
@@ -39,7 +39,7 @@ Source identity uses the inspected Git commit, not a file hash. Any browser foll
 | --- | --- | --- |
 | Account action reads like a generic sign-in requirement | [`CatalogPrivateActions`](https://github.com/samarquis/AntiqueTrail/blob/68751a42c9a05d1ffd7c129d8f1f409dccd1775a/src/features/shopper/components.tsx#L425-L445) renders "Saving stores is paused for this public-test stage. Existing accounts can still sign in." when the catalog-only public-test stage is active. The details view also says correction drafts are available while submission is paused. | Fixed in source. The active branch is conditional on stage configuration. |
 | Listing trust wording exceeds the shown provenance | [`CatalogCard`](https://github.com/samarquis/AntiqueTrail/blob/68751a42c9a05d1ffd7c129d8f1f409dccd1775a/src/features/catalog/components.tsx#L299-L410) shows freshness and conditionally renders the fictional-listing disclosure. [`DetailsPage`](https://github.com/samarquis/AntiqueTrail/blob/68751a42c9a05d1ffd7c129d8f1f409dccd1775a/src/features/catalog/components.tsx#L1488-L1505) labels the section "Source & freshness," conditionally repeats the disclosure, and gives explicit unavailable values for missing source and dates. | Fixed in source. No real-store verification is claimed. |
-| Missing cover appears cramped | [`CatalogCard`](https://github.com/samarquis/AntiqueTrail/blob/68751a42c9a05d1ffd7c129d8f1f409dccd1775a/src/features/catalog/components.tsx#L354-L364) renders “Photo coming soon” and exposes unavailable-image status to assistive technology. [`styles.css`](https://github.com/samarquis/AntiqueTrail/blob/68751a42c9a05d1ffd7c129d8f1f409dccd1775a/src/app/styles.css#L1747-L1783) uses the catalog card ratio, spacing, and theme tokens. | Fixed in source. Rendered examples remain uninspected. |
+| Missing cover appears cramped | [`CatalogCard`](https://github.com/samarquis/AntiqueTrail/blob/68751a42c9a05d1ffd7c129d8f1f409dccd1775a/src/features/catalog/components.tsx#L354-L364) renders “Photo coming soon” and exposes unavailable-image status to assistive technology. [`styles.css`](https://github.com/samarquis/AntiqueTrail/blob/68751a42c9a05d1ffd7c129d8f1f409dccd1775a/src/app/styles.css#L1747-L1783) uses the catalog card ratio, spacing, and theme tokens. | Fixed in source. Two live examples observed; no screenshot or card-specific contrast measurement. |
 
 ## Merge receipts
 
@@ -56,17 +56,20 @@ Git ancestry confirms the #480, #484, and #493 merge commits are in the inspecte
 
 The [stable anonymous alias](https://antique-trail.vercel.app) is named in [ADR 0010](../../adr/0010-free-public-test-publication.md). The ADR identifies the intended alias; it does not prove the alias currently serves a particular source.
 
-No rendered-browser lease was available at capture time. The following observations remain unrecorded:
+**Capture:** An anonymous Chrome tab opened `https://antique-trail.vercel.app/stores` on 2026-10-03. CUA supplied no event timestamp. The settled view was 1620×855, `data-theme=dark`, and `color-scheme: dark`; computed body colors were background `rgb(18, 21, 25)` and foreground `rgb(243, 238, 228)`. These are global body values, not card-contrast evidence. The browser did not expose source, artifact, deployed configuration, or alias-to-source binding.
 
-| Route or example | Result |
-| --- | --- |
-| `/stores` | Not inspected. Live account-action text is unknown. |
-| `/stores/clockwork-cabinet` | Not inspected. Live trust, disclosure, and provenance wording are unknown. |
-| Two missing-cover cards on `/stores` | Not identified in the rendered catalog. Source fixtures were not substituted for live examples. |
+**`/stores`:** The page showed 12 stores to explore, heading “Discover local antiques.”, and tagline “Make a day of the shops, stories, and one-of-a-kind finds waiting around the corner.” Visible catalog copy included “Fictional sample imagery · Antique Trail”, “Fictional listings for safe product review”, and footer “Synthetic catalog · Built for curious local explorers”. Cards showed “Verification overdue · Verified July 15, 2026” and repeated “Account setup paused”. The navigation exposed “Saved stores Requires sign-in”.
 
-No live text, theme, screenshot, or visual match is claimed.
+**Live missing-cover cards:** Both appeared in the live `/stores` DOM and accessibility tree; no source fixture was substituted.
 
-These route and fallback criteria remain open in the parent/release acceptance map. Completing this lineage diagnostic does not mark parent acceptance complete.
+- **Velvet Veranda** (`/stores/velvet-veranda`, Home Decor): visible fallback “VV” and “HOME DECOR · PHOTO COMING SOON”; accessibility role `img`, name “Store image unavailable”. “VV” had `aria-hidden="true"`.
+- **Willow Warehouse** (`/stores/willow-warehouse`, Furniture): visible fallback “WW” and “FURNITURE · PHOTO COMING SOON”; accessibility role `img`, name “Store image unavailable”. “WW” had `aria-hidden="true"`.
+
+No separate accessible description appeared in either card's DOM or accessibility tree.
+
+**`/stores/clockwork-cabinet`:** Not inspected. After `/stores` settled, selected-tab control and accessibility retrieval timed out; the CUA session reset and reconnect failed. No alternate tab or local server was used. Details-route copy, theme, viewport, and product-console output remain unknown.
+
+No screenshot or console output was captured. Card-specific visual contrast was not measured. These observations do not establish a visual match, a source comparison, or publication of the inspected source. Route and fallback criteria remain partial/open in the parent/release acceptance map; this report does not mark parent acceptance complete.
 
 ## Reported release-owner checkpoint
 
@@ -96,8 +99,8 @@ The configured Vercel connector returned no teams, and this worktree has no link
 | Criterion | Observable condition | Verification method | Result/evidence |
 | --- | --- | --- | --- |
 | Source fixes already in `main` | Each closed issue maps to a merged PR and its merge commit is in the inspected source SHA. | Inspect linked GitHub issue/PR records and run `git merge-base --is-ancestor` for each merge commit at the named source SHA. | Pass; merge receipts above. |
-| Current anonymous account and trust text | Observe the named canonical routes and compare their text with source. | Anonymous browser flow: visit `/stores` and `/stores/clockwork-cabinet`, wait for measured page text, confirm settled theme after each navigation, compare captured text with source. | Blocked. No rendered-browser lease was available; no live text or theme asserted. |
-| Missing-cover examples | Observe two coverless cards on the canonical `/stores` route. | Anonymous browser flow: identify two live cards without cover images and record each visible fallback and accessible name/description. | Blocked. No rendered-browser lease was available; no live examples identified. |
+| Current anonymous account and trust text | Observe the named canonical routes and compare their text with source. | Anonymous browser flow: visit `/stores` and `/stores/clockwork-cabinet`, wait for measured page text, confirm settled theme after each navigation, compare captured text with source. | Partial/open. `/stores` copy and settled dark theme recorded above; details route and source comparison remain unverified. |
+| Missing-cover examples | Observe two coverless cards on the canonical `/stores` route. | Anonymous browser flow: identify two live cards without cover images and record each visible fallback and accessible name/description. | Partial/open. Two live cards and visible fallbacks/names recorded; no separate description, screenshot, or card-specific contrast measurement. |
 | Published source identity | Bind the canonical alias to exact source, artifact, and configuration using a provider or accepted receipt. | Read-only provider/deployment receipt lookup; require source SHA, immutable artifact identity, deployed configuration, and canonical alias binding. | Blocked. No current receipt or provider project access was available. |
 | No duplicate product issue | Preserve the closed #466, #467, #470, and adjacent #496 work. | Inspect live GitHub issue and merged PR states. | Pass; merge receipts above. |
 | Public evidence privacy | Omit secrets, actor identifiers, private admission receipts, credential-bearing URLs, and workstation paths. | Scan the report and PR diff for those data classes. | Pass; no such content found in the report. |
@@ -107,21 +110,21 @@ The configured Vercel connector returned no teams, and this worktree has no link
 | Layer | Command or flow | Result | Environment |
 | --- | --- | --- | --- |
 | Source and issue history | `gh api repos/samarquis/AntiqueTrail/commits/main --jq .sha`; `git rev-parse refs/remotes/origin/main`; `gh issue view` and `gh pr view` for the linked issues and PRs; `git merge-base --is-ancestor` for each merge commit | Merged source facts verified at `68751a42` | Local source and GitHub |
-| GitHub CI for exact candidate `9f6320ab22999f527aab86d296fef1949ba8e665` | GitHub Actions run [37145501984](https://github.com/samarquis/AntiqueTrail/actions/runs/37145501984); status read at 2026-10-03 18:52:56 UTC | In progress: database passed; web and configured-owner-billing in progress; Supabase Preview skipped. This status is a snapshot and does not establish browser or publication acceptance. | GitHub PR #509, exact head `9f6320ab22999f527aab86d296fef1949ba8e665` |
+| GitHub CI for preceding report candidate `c9c184c5895f9d65ba38eb3f9709907c4ab73e9e` | GitHub Actions run [37146685645](https://github.com/samarquis/AntiqueTrail/actions/runs/37146685645) | Web, database, and configured-owner-billing passed; Supabase Preview skipped. This preceding-candidate result does not cover the current report revision or establish browser/publication acceptance. | GitHub PR #509, preceding exact head `c9c184c5895f9d65ba38eb3f9709907c4ab73e9e` |
 | Focused tests | Not run. This change contains evidence documentation only. | Not applicable | Local |
 | Type/lint/format/build | Not run locally; this change contains evidence documentation only. | Not applicable locally | Local |
 | Database/RLS/RPC | Not run; no schema, policy, RPC, or database data changed. | Not applicable | Local/database |
-| Desktop/mobile UI | Anonymous browser review of the canonical routes and viewport layouts | Blocked; no rendered-browser lease, screenshot, or layout observation | Production |
-| Accessibility/error states | Inspect the live missing-cover fallback, accessible name/description, and route error states | Blocked; live cards and rendered route states were not observed | Production |
+| Desktop/mobile UI | Anonymous browser review of the canonical routes and viewport layouts | Partial; `/stores` observed at 1620×855; no screenshot/mobile viewport, details-route observation, or card-specific contrast measurement | Canonical alias |
+| Accessibility/error states | Inspect the live missing-cover fallback, accessible name/description, and route error states | Partial; two live image roles/names and fallbacks recorded; no separate description or product error state observed | Canonical alias |
 | Vercel metadata | Read-only team lookup and available GitHub deployment records | No team or current production receipt available | Provider metadata |
 | Hosted/provider lifecycle | Read-only lookup for deployment source, artifact, configuration, and alias binding | Blocked; no accepted receipt or provider project access | Provider |
-| Canonical production route | Anonymous browser review of the routes above | Not run. Awaiting the shared browser lease. | Production |
+| Canonical production route | Anonymous browser review of the routes above | Partial; anonymous `/stores` text and settled theme recorded; `/stores/clockwork-cabinet` not inspected and source binding unknown | Canonical alias |
 | Human review | Independent Standards and Spec review | Pending on the exact documentation PR head | GitHub PR |
 
 ## Security and negative proof
 
 - Denied identities/scopes: not applicable; no authenticated route or account flow was attempted.
-- Failure and timeout behavior: no browser flow was run, so route failure/timeout behavior is unverified. CI/provider results are not treated as route evidence.
+- Failure and timeout behavior: tab control/accessibility retrieval timed out after `/stores`; the details route was not visited. No product error state was observed. CI/provider results are not treated as route evidence.
 - Secret/PII handling: no secrets, private admission receipt, actor identifier, credential-bearing URL, or workstation path is included. Read-only evidence only.
 - Security review: no security behavior or source code changed; privacy check covered the report content.
 
@@ -134,8 +137,8 @@ The configured Vercel connector returned no teams, and this worktree has no link
 
 ## Unverified
 
-- The current rendered text and settled theme on `/stores` and `/stores/clockwork-cabinet`.
-- Two live missing-cover card examples and their rendered fallback.
+- The rendered text and settled theme on `/stores/clockwork-cabinet`, and source comparison for the observed `/stores` text.
+- A separate accessible description, screenshot, and card-specific visual-contrast measurement for the two live missing-cover examples.
 - The exact source, artifact, and deployed configuration behind the canonical alias.
 - Any conclusion that the merged fixes are published.
 
@@ -143,4 +146,4 @@ The designated release owner must provide the existing publication receipt. This
 
 ## Invalidation
 
-Source claims apply only to `68751a42c9a05d1ffd7c129d8f1f409dccd1775a`. A source or deployment change requires fresh lineage checks. Route observations, if added, must record their capture time, route, settled theme, and observed text separately from the source SHA.
+Source claims apply only to `68751a42c9a05d1ffd7c129d8f1f409dccd1775a`. A source or deployment change requires fresh lineage checks. Route observations are separate from that source SHA; this browser capture has a date but no exact event timestamp because CUA did not return one.
