@@ -1771,6 +1771,7 @@ textarea[aria-invalid='true'] {
   max-width: 100%;
   font-family: var(--font-display);
   font-size: var(--type-size-label);
+  font-weight: var(--type-weight-strong);
   line-height: var(--type-leading-compact);
 }
 
