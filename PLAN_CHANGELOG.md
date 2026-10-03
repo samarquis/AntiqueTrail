@@ -233,3 +233,11 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Canonical contract: [Store Owner cancellation](docs/specs/store-owner-paid-servicing.md). Governing documents link this amendment without duplicating its detailed behavior.
 - Evidence: originating chat 01a0fa12-0375-7cc1-a88f-ad30456f817a; #425 and #429 verified closed; #426 verified open; inspected source baseline c0bf4e12.
 - Remaining: later deep review is available against this recorded decision. Exact leaf contracts, implementation, negative SQL tests, local provider/database/browser acceptance, exact-candidate review, CI and merged-main evidence remain required before #426 closure. No implementation or provider acceptance is claimed by this receipt.
+
+## 2026-10-03 — Allow local correction drafts in the catalog-only public test (#468 / #485)
+
+- Product Owner direction: in #468, approve public-test correction drafting only at this stage; correction submission is a later capability.
+- Decision: anonymous visitors may prepare and revisit a correction draft in the current browser tab's `sessionStorage`. Cancel/back returns to the same store without sending or writing a server report; the tab-scoped draft remains available while its session-storage entry remains. Public-test UI exposes neither sign-in-to-submit nor submit controls. With server-only `PUBLIC_TEST_MODE=true`, the correction Edge handler rejects direct submission before session verification or gateway/database calls, including for an existing authenticated session.
+- Boundary: this adds no corrections backend capability, anonymous submission, schema/RLS change, provider setting, hosted test, Edge deployment, or production publication. Trips, maps, and privileged operations remain outside the public-test scope. Any later submission stage requires its own approved implementation and release gates.
+- Canonical sources: [Security and Trust public-test boundary](SECURITY_AND_TRUST.md#public-test-boundary), [Corrections capability](docs/specs/product-capabilities.md#corrections), [Report a correction](DESIGN.md#report-a-correction), and [public-test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).
+- Implementation/evidence: issue #485 and PR #492 own the bounded UI, server guard, negative proof, and local acceptance report. The issue does not authorize hosted behavior or deployment.

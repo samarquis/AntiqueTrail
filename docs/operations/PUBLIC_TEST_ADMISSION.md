@@ -48,6 +48,12 @@ For the first catalog-only milestone, build with
 leave `testers` empty. Registration remains closed. The display flag reuses the
 existing **Account setup paused** state for new account entry, registration,
 non-lifecycle private entry and catalog save controls; it cannot grant backend access.
+This stage also permits anonymous correction drafting in the current tab's
+`sessionStorage` only. The correction form offers no sign-in or submit action; it
+creates no server record, and the server-only `PUBLIC_TEST_MODE` guard denies direct
+correction submissions before session verification or gateway/database calls.
+This does not add a corrections backend capability; see the [corrections
+capability](../specs/product-capabilities.md#corrections).
 Previously admitted users retain provider sign-in with an exact lifecycle return
 path, account status, privacy/export/download/deletion/cancellation and local
 sign-out. Existing hydration, expiry, role and cancellation-only checks still
@@ -76,8 +82,9 @@ Only a provider-verified UUID with a confirmed intended email and its exact
 reserved receipt can become an ordinary shopper. Caller-editable metadata is
 not an admission credential. Session admission and direct PostgREST requests
 retain the original role/session checks and additionally permit only the scoped
-saved-store actions. Trips, corrections, maps and privileged operations are
-outside this scope. Saved stores are limited to the inventoried catalog.
+saved-store actions. Trips, correction submissions, maps and privileged operations
+are outside this scope. The separate browser-tab correction draft is local-only
+and grants no server authority. Saved stores are limited to the inventoried catalog.
 
 ## Stop and evidence
 

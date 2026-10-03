@@ -22,7 +22,6 @@ test('Help and Store Details expose correction drafts without implying submissio
     '/stores/blue-finch-curios/correction',
   )
   await expect(page.getByText(/drafts are available.*submission is unavailable/i)).toBeVisible()
-
 })
 
 test('direct correction route saves a local draft, denies form submission, and returns to the store', async ({

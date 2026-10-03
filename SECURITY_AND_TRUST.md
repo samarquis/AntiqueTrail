@@ -111,7 +111,7 @@ A missing required environment is `UNAVAILABLE`, not `PASS`.
 
 ## Public test boundary
 
-The authorized free public test (ADR 0010) admits anonymous catalog browsing of twelve fictional stores and scoped saved-store actions. Registration stays closed until account/provider acceptance is complete. Trips, corrections, maps, and privileged operations are outside that scope. The display flag (`VITE_PUBLIC_TEST_CATALOG_ONLY`) is not a stop mechanism; previously admitted accounts retain lifecycle access under their original authorization. See [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).
+The authorized free public test (ADR 0010) admits anonymous catalog browsing of twelve fictional stores and scoped saved-store actions. Under #468, the public UI may also prepare anonymous correction drafts in this tab's `sessionStorage`; this does not add a backend capability or server write. The form has no sign-in-to-submit or submit action, and the server-only `PUBLIC_TEST_MODE` guard rejects direct correction submissions before session verification or gateway/database calls, including for an existing authenticated session. Registration stays closed until account/provider acceptance is complete. Trips, correction submissions, maps, and privileged operations remain outside this scope. The display flag (`VITE_PUBLIC_TEST_CATALOG_ONLY`) is not a stop mechanism; previously admitted accounts retain lifecycle access under their original authorization. See [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).
 
 ## Store-first stage applicability
 

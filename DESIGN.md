@@ -79,7 +79,7 @@ Store Details shows `Is this your store? Claim this listing` for unclaimed listi
 
 ### Report a correction
 
-Anyone may open the correction form and draft it; submission requires just-in-time verified-account authentication. Cancel/failure writes nothing. The submitter sees only the status of their own report.
+Anyone may open the correction form and draft it. During the catalog-only public test, the draft remains in this tab's `sessionStorage` across same-tab reload/navigation. The form offers no sign-in-to-submit or submit action; cancel/back returns to the same store without a server request and leaves the local draft available while its tab-scoped entry remains. With server-only `PUBLIC_TEST_MODE=true`, the Edge handler rejects direct submissions before session verification or gateway/database access, even for an existing authenticated session. Outside that draft-only stage, submission requires just-in-time verified-account authentication. Cancellation/failure creates no server report. The submitter sees only the status of their own report.
 
 ## Add to Trip and new-trip setup
 
