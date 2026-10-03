@@ -77,6 +77,7 @@ import {
   type AuthCallback,
   type SessionRegistryClient,
 } from '../features/auth'
+import { isCatalogOnlyPublicTest } from '../features/auth/publicTestMode'
 import {
   CatalogPrivateActions,
   CorrectionPage,
@@ -633,6 +634,7 @@ function StorePortalBillingRoute({
 }
 
 function PublicHelpPage() {
+  const publicTestMode = isCatalogOnlyPublicTest()
   return (
     <main>
       <article className="public-help" aria-labelledby="help-heading">
@@ -646,9 +648,14 @@ function PublicHelpPage() {
           <h2 id="help-correction-heading">Correct store information</h2>
           <ol>
             <li>Browse stores and open the listing that needs an update.</li>
-            <li>Choose Suggest a correction and describe what should change.</li>
             <li>
-              Sign in only when you are ready to submit. Your draft stays in this browser tab.
+              Choose {publicTestMode ? 'Draft a correction' : 'Suggest a correction'} and describe
+              what should change.
+            </li>
+            <li>
+              {publicTestMode
+                ? 'Correction drafts are available during this public-test stage, but you cannot submit them. Your draft stays in this browser tab.'
+                : 'Sign in only when you are ready to submit. Your draft stays in this browser tab.'}
             </li>
           </ol>
           <Link className="button" to="/stores">

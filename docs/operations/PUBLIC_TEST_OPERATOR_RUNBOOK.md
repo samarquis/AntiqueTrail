@@ -144,7 +144,7 @@ beta URL and app origin.
 
 | Name | Used by | Rule |
 |---|---|---|
-| `PUBLIC_TEST_MODE` | public-catalog, account-registration, account-registration-callback | exactly `true` |
+| `PUBLIC_TEST_MODE` | public-catalog, correction-submit, account-registration, account-registration-callback | exactly `true` |
 | `PUBLIC_CATALOG_GATEWAY_JWT` | public-catalog | constrained HS256 JWT, see 4b |
 | `PUBLIC_CATALOG_RATE_SALT` | public-catalog | 32 random bytes hex |
 | `PUBLIC_APP_ORIGIN` | public-catalog | `https://antique-trail.vercel.app` |

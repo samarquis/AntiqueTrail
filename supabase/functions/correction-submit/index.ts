@@ -12,6 +12,7 @@ const url = Deno.env.get('SUPABASE_URL')
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const hmacSecret = Deno.env.get('CANDIDATE_EMAIL_HMAC_SECRET')
+const publicTestMode = Deno.env.get('PUBLIC_TEST_MODE') === 'true'
 const options = {
   db: { schema: 'app_public' },
   auth: { persistSession: false, autoRefreshToken: false },
@@ -36,5 +37,6 @@ Deno.serve((request, connection) =>
           },
         }
       : null,
+    publicTestMode,
   ),
 )
