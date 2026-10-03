@@ -26,10 +26,7 @@ async function restrictPreviewRequests(
   await page.route('**/*', async (route) => {
     const request = route.request()
     const url = new URL(request.url())
-    if (
-      (url.origin === appOrigin || url.origin === allowedAppOrigin) &&
-      request.method() === 'GET'
-    )
+    if ((url.origin === appOrigin || url.origin === allowedAppOrigin) && request.method() === 'GET')
       return route.continue()
 
     const match = url.pathname.match(/^\/photos\/([0-9]+)\.webp$/)
@@ -61,7 +58,9 @@ async function restrictPreviewRequests(
   return { blockedRequests, mediaResponses }
 }
 
-test('opens the real store route and its complete gallery on desktop and mobile', async ({ page }, testInfo) => {
+test('opens the real store route and its complete gallery on desktop and mobile', async ({
+  page,
+}, testInfo) => {
   test.setTimeout(120_000)
   const { blockedRequests, mediaResponses } = await restrictPreviewRequests(page)
 
@@ -94,9 +93,9 @@ test('opens the real store route and its complete gallery on desktop and mobile'
     await expect(page.getByText('10:00', { exact: false }).first()).toBeVisible()
     await expect(page.getByRole('link', { name: 'See all 51 photos' })).toBeVisible()
 
-    const detailLabels = await page.locator('.store-gallery__print').evaluateAll((buttons) =>
-      buttons.map((button) => button.getAttribute('aria-label')),
-    )
+    const detailLabels = await page
+      .locator('.store-gallery__print')
+      .evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label')))
     expect(detailLabels).toEqual(
       media.map((item, index) => 'Show image ' + (index + 1) + ': ' + item.alt),
     )
@@ -121,13 +120,15 @@ test('opens the real store route and its complete gallery on desktop and mobile'
     await expect
       .poll(
         () =>
-          page.locator('.store-photos__body img').evaluateAll(
-            (images) =>
-              images.filter(
-                (image) =>
-                  image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0,
-              ).length,
-          ),
+          page
+            .locator('.store-photos__body img')
+            .evaluateAll(
+              (images) =>
+                images.filter(
+                  (image) =>
+                    image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0,
+                ).length,
+            ),
         { timeout: 30_000 },
       )
       .toBe(51)
@@ -135,7 +136,12 @@ test('opens the real store route and its complete gallery on desktop and mobile'
     const loadedPhotoIds = await page.locator('.store-photos__body img').evaluateAll((images) =>
       images.map((image) => {
         const path = new URL(image.getAttribute('src') ?? '').pathname
-        return path.split('/').pop()?.replace(/\.webp$/u, '') ?? ''
+        return (
+          path
+            .split('/')
+            .pop()
+            ?.replace(/\.webp$/u, '') ?? ''
+        )
       }),
     )
     expect([...loadedPhotoIds].sort()).toEqual([...allowedPhotoIds].sort())
@@ -174,9 +180,7 @@ test('loads lower photo wall images when scrolled into view', async ({ page }) =
 
   const images = page.locator('.store-photos__body img')
   await expect(images).toHaveCount(51)
-  const cover = page.locator(
-    `.store-photos__body img[src$="${wall.cover.photoId}.webp"]`,
-  )
+  const cover = page.locator(`.store-photos__body img[src$="${wall.cover.photoId}.webp"]`)
   await expect(cover).toBeInViewport()
   await expect
     .poll(
@@ -211,9 +215,7 @@ test('loads lower photo wall images when scrolled into view', async ({ page }) =
   const lowerTile = page.locator('.store-photos__tile[data-photo-index="50"]')
   const lowerImage = lowerTile.locator('img')
   await expect(lowerImage).toHaveCount(1)
-  expect(
-    await lowerImage.evaluate((image) => (image as HTMLImageElement).naturalWidth),
-  ).toBe(0)
+  expect(await lowerImage.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBe(0)
   await lowerTile.scrollIntoViewIfNeeded()
   await expect
     .poll(
@@ -231,7 +233,9 @@ test('loads lower photo wall images when scrolled into view', async ({ page }) =
 
   const lowerPhotoId = wall.gallery[wall.gallery.length - 1].photoId
   expect(
-    mediaResponses.some((response) => response.id === wall.cover.photoId && response.status === 200),
+    mediaResponses.some(
+      (response) => response.id === wall.cover.photoId && response.status === 200,
+    ),
   ).toBe(true)
   expect(
     mediaResponses.some((response) => response.id === lowerPhotoId && response.status === 200),
@@ -239,7 +243,9 @@ test('loads lower photo wall images when scrolled into view', async ({ page }) =
   expect(blockedRequests).toEqual([])
 })
 
-test('uses the normal not-found state outside the exact preview host and slug', async ({ browser }) => {
+test('uses the normal not-found state outside the exact preview host and slug', async ({
+  browser,
+}) => {
   const cases = [
     { origin: appOrigin, storePath: '/stores/not-the-market-at-macvicar' },
     { origin: 'http://localhost:5982', storePath: pagePath },
@@ -273,7 +279,10 @@ test('uses the normal not-found state outside the exact preview host and slug', 
 
 test('keeps the photo wall usable when one selected image fails', async ({ page }) => {
   const failedPhoto = wall.gallery[0]
-  const { blockedRequests, mediaResponses } = await restrictPreviewRequests(page, failedPhoto.photoId)
+  const { blockedRequests, mediaResponses } = await restrictPreviewRequests(
+    page,
+    failedPhoto.photoId,
+  )
 
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto(pagePath + '/photos')
@@ -299,7 +308,7 @@ test('keeps the photo wall usable when one selected image fails', async ({ page 
   ).toBe(true)
   const successfulResponses = mediaResponses.filter((response) => response.status === 200)
   expect(successfulResponses.length).toBeGreaterThan(0)
-  expect(successfulResponses.every((response) => response.contentType?.startsWith('image/webp'))).toBe(
-    true,
-  )
+  expect(
+    successfulResponses.every((response) => response.contentType?.startsWith('image/webp')),
+  ).toBe(true)
 })

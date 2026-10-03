@@ -691,9 +691,7 @@ const marketAtMacvicarPreviewSlug = 'the-market-at-macvicar'
 
 function isMarketAtMacvicarPreviewHost() {
   return (
-    import.meta.env.DEV &&
-    typeof window !== 'undefined' &&
-    window.location.hostname === '127.0.0.1'
+    import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === '127.0.0.1'
   )
 }
 
