@@ -99,7 +99,7 @@ The internal test workspace must implement the authority matrix in [Store Owner 
 
 ## Public test execution contract
 
-The authorized free public test (ADR 0010) uses a pinned prebuilt artifact from an isolated clean checkout. The stable entry is `https://antique-trail.vercel.app/`. Anonymous visitors browse the synthetic catalog; admitted accounts save stores within the inventoried catalog. All RLS, auth, and RPC gates remain enforced. The substitute hosting/recovery acceptance receipt replaces H-01 for this test only and is not an H-01 pass. Registration stays closed until account/provider acceptance is complete. See [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).
+The authorized free public test (ADR 0010) uses a pinned prebuilt artifact from an isolated clean checkout. The stable entry is `https://antique-trail.vercel.app/`. Anonymous visitors browse the synthetic catalog; admitted accounts save stores within the inventoried catalog. [ADR 0011](docs/adr/0011-market-at-macvicar-public-listing.md) governs the single admitted Market at Macvicar projection and first eligible result; its exact real UUID, approved media/capacity, and lawful hosting remain separately receipted. Existing fictional binding cardinality and synthetic catalog predicates must not be weakened into arbitrary real-store exposure. All RLS, auth, and RPC gates remain enforced. The substitute hosting/recovery acceptance receipt replaces H-01 for this test only and is not an H-01 pass. Registration stays closed until account/provider acceptance is complete. See [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).
 
 ## Store-first pilot activation contract
 

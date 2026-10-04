@@ -60,12 +60,14 @@ A public Progressive Web App, mobile-first, desktop and tablet compatible. Users
 Stores claim their listing and manage it:
 
 **Free tier:**
+
 - Claim listing (name, address, hours, phone, website)
 - Upload up to 5 photos per month
 - Post text updates (sales, announcements)
 - Link social media (Facebook, Instagram, etc.)
 
 **Paid tier ($30/month):**
+
 - Unlimited photo uploads
 - Photos appear on the store's photo wall
 
@@ -111,13 +113,15 @@ The sole current exception to deferral is the repository-controlled local invita
 
 The owner-authorized bounded free public test follows [ADR 0010](docs/adr/0010-free-public-test-publication.md). The stable entry is `https://antique-trail.vercel.app/`. Anonymous visitors browse the synthetic catalog; admission criteria and boundaries are in [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md), [security](SECURITY_AND_TRUST.md#public-test-boundary), and [execution contract](PACKAGE_CONTRACTS.md#public-test-execution-contract).
 
+The Product Owner has also authorized the first real client, The Market at Macvicar, for public listing delivery as the first eligible Browse result. [ADR 0011](docs/adr/0011-market-at-macvicar-public-listing.md) owns this exact-store exception, approved content, media/capacity admission, provider eligibility, and verification. It does not imply that the real store is already admitted or published.
+
 ## Provider and external-action prerequisites
 
 Provider and external-action activation requires an accepted gate receipt (H-01 hosting, E-01 email, R-01 routing, M-01 media, L-01 audit anchoring, S-01 support channels). ADR 0010 replaces H-01 only for the free public test with its substitute controls. No provider activation follows automatically from a showcase or pilot.
 
 ## Assessment environment boundary
 
-The free public test uses synthetic stores and the preserved beta. No real-store marketing, external cohort, deferred-trip exposure, billing, paid provider, or fabricated release receipt is authorized. AI and agent-assisted test accounts remain restricted to synthetic store data.
+The free public test uses synthetic stores and the preserved beta, with only the separately admitted Market at Macvicar real-store exception in ADR 0011. No other real-store marketing, external cohort, deferred-trip exposure, billing, paid provider, or fabricated release receipt is authorized. AI and agent-assisted test accounts remain restricted to synthetic store data; the Macvicar catalog-display decision grants no account or privileged access.
 
 ## Human usability acceptance
 
