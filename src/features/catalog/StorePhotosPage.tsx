@@ -373,6 +373,7 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
                     <>
                       <img
                         src={item.src}
+                        loading="lazy"
                         {...responsiveCatalogImage(item.src, '100vw')}
                         alt={item.alt}
                         onError={() => markFailed(slot.index)}
@@ -412,6 +413,7 @@ function StorePhotosView({ store }: { store: CatalogStore }) {
                   <>
                     <img
                       src={item.src}
+                      loading="lazy"
                       {...responsiveCatalogImage(item.src, '(max-width: 800px) 60vw, 30vw')}
                       alt=""
                       onError={() => markFailed(slot.index)}

@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -42,7 +42,7 @@ describe('app shell', () => {
     expect(screen.getByRole('heading', { name: /discover local antiques/i })).toHaveFocus()
   })
 
-  it('keeps public-test shopper navigation to Browse, Saved stores, and More after sign-in', () => {
+  it('keeps public-test shopper navigation and shows one saving notice on Browse', async () => {
     vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
     const authStore = new InMemoryAuthStore()
     authStore.setSession({
@@ -65,6 +65,21 @@ describe('app shell', () => {
     expect(navigation).toHaveTextContent('BrowseSaved storesMore')
     expect(screen.queryByRole('link', { name: /my trip/i })).not.toBeInTheDocument()
     expect(navigation).not.toHaveTextContent(/create account/i)
+
+    const stores = await screen.findAllByRole('article')
+    expect(stores).toHaveLength(12)
+    const noticeCopy =
+      'Saving stores is paused for this public-test stage. Existing accounts can still sign in.'
+    const notices = screen
+      .getAllByRole('status')
+      .filter((notice) => notice.textContent?.trim() === noticeCopy)
+    expect(notices).toHaveLength(1)
+    expect(notices[0]).toBeVisible()
+    for (const store of stores) {
+      const actions = within(store).getByRole('region', { name: /store actions for/i })
+      expect(within(actions).queryByText(noticeCopy)).not.toBeInTheDocument()
+      expect(within(actions).getByRole('link', { name: /view store/i })).toBeVisible()
+    }
   })
 
   it('blocks direct trip routes in the public test without removing local review fixtures', async () => {
