@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { webcrypto } from 'node:crypto'
+import { createHash, webcrypto } from 'node:crypto'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 import {
@@ -11,6 +11,7 @@ const { Request, TextEncoder, TextDecoder, atob } = globalThis
 const PROJECT = 'uaupykgpegbseboklubv'
 const NONCE = 'a'.repeat(64)
 const NOW = Date.now()
+const OPERATOR_BEARER = 'Bearer synthetic-operator-selected-service-role-jwt'
 const recipient = await webcrypto.subtle.generateKey(
   {
     name: 'RSA-OAEP',
@@ -24,6 +25,7 @@ const recipient = await webcrypto.subtle.generateKey(
 const publicJwk = await webcrypto.subtle.exportKey('jwk', recipient.publicKey)
 const config = {
   publicJwk,
+  operatorBearerSha256: createHash('sha256').update(OPERATOR_BEARER).digest('hex'),
   operationNonce: NONCE,
   projectRef: PROJECT,
   issuedAt: NOW,
@@ -31,7 +33,6 @@ const config = {
 }
 const SETTINGS = {
   SUPABASE_URL: `https://${PROJECT}.supabase.co`,
-  SUPABASE_SERVICE_ROLE_KEY: 'synthetic-service-role-key',
   PUBLIC_CATALOG_GATEWAY_JWT: 'synthetic-existing-catalog-jwt',
   PUBLIC_CATALOG_RATE_SALT: 'synthetic-existing-catalog-salt',
 }
@@ -40,7 +41,7 @@ function request(overrides = {}) {
   return new Request('https://operator.test/custody', {
     method: 'POST',
     headers: {
-      authorization: `Bearer ${SETTINGS.SUPABASE_SERVICE_ROLE_KEY}`,
+      authorization: OPERATOR_BEARER,
       'x-catalog-custody-nonce': NONCE,
     },
     ...overrides,
@@ -186,6 +187,46 @@ test('generated Deno source executes the actual factory with native crypto and a
   assert.equal(reads.length, priorReads)
 })
 
+test('pinned operator exports when the injected service key differs and is never read', async () => {
+  const reads = []
+  const handler = await createCatalogCustodyHandler(config, {
+    now: () => NOW,
+    getEnv: (name) => {
+      reads.push(name)
+      if (name === 'SUPABASE_SERVICE_ROLE_KEY') return 'synthetic-distinct-injected-service-key'
+      return SETTINGS[name]
+    },
+  })
+  const response = await handler(request())
+  assert.equal(response.status, 200)
+  assert.deepEqual(await decrypt(await response.json()), {
+    PUBLIC_CATALOG_GATEWAY_JWT: SETTINGS.PUBLIC_CATALOG_GATEWAY_JWT,
+    PUBLIC_CATALOG_RATE_SALT: SETTINGS.PUBLIC_CATALOG_RATE_SALT,
+  })
+  assert.deepEqual(reads.sort(), Object.keys(SETTINGS).sort())
+})
+
+test('a different well-formed operator hash denies before catalog reads', async () => {
+  const reads = []
+  const handler = await createCatalogCustodyHandler(
+    { ...config, operatorBearerSha256: 'b'.repeat(64) },
+    {
+      now: () => NOW,
+      getEnv: (name) => {
+        reads.push(name)
+        return SETTINGS[name]
+      },
+    },
+  )
+  const response = await handler(request())
+  assert.equal(response.status, 403)
+  assert.equal(await response.text(), '{"error":"denied"}')
+  assert.equal(
+    reads.some((name) => name.startsWith('PUBLIC_CATALOG_')),
+    false,
+  )
+})
+
 test('rejects a recipient modulus with noncanonical base64url padding bits', async () => {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
   const n = publicJwk.n.slice(0, -1) + alphabet[alphabet.indexOf(publicJwk.n.at(-1)) + 1]
@@ -217,7 +258,7 @@ for (const [name, change] of [
   [
     'wrong bearer scheme',
     (item) => {
-      item.request.headers.set('authorization', `bearer ${SETTINGS.SUPABASE_SERVICE_ROLE_KEY}`)
+      item.request.headers.set('authorization', OPERATOR_BEARER.replace('Bearer', 'bearer'))
     },
   ],
   [
@@ -263,9 +304,12 @@ for (const [name, change] of [
     },
   ],
   [
-    'missing service key',
+    'arbitrary service-role-looking JWT',
     (item) => {
-      delete item.env.SUPABASE_SERVICE_ROLE_KEY
+      item.request.headers.set(
+        'authorization',
+        'Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.invalid-signature',
+      )
     },
   ],
   [
@@ -353,6 +397,36 @@ test('wrong recipient and envelope tampering cannot decrypt either value', async
 })
 
 for (const [name, change] of [
+  [
+    'missing operator hash',
+    (value) => {
+      delete value.operatorBearerSha256
+    },
+  ],
+  [
+    'short operator hash',
+    (value) => {
+      value.operatorBearerSha256 = 'a'.repeat(63)
+    },
+  ],
+  [
+    'uppercase operator hash',
+    (value) => {
+      value.operatorBearerSha256 = 'A'.repeat(64)
+    },
+  ],
+  [
+    'nonhex operator hash',
+    (value) => {
+      value.operatorBearerSha256 = 'g'.repeat(64)
+    },
+  ],
+  [
+    'nonstring operator hash',
+    (value) => {
+      value.operatorBearerSha256 = 123
+    },
+  ],
   [
     'unknown config key',
     (value) => {
