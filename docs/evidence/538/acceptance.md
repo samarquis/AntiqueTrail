@@ -3,10 +3,11 @@
 ## Candidate and ownership
 
 - Issue: [#538](https://github.com/samarquis/AntiqueTrail/issues/538).
-- Source baseline: `fa1fbe4e7fb28596c3418293df043fa78b32a76b`.
-- Candidate SHA/fingerprint: pending root freeze; current evidence applies to the uncommitted three new files against that baseline.
-- Worktree/branch: isolated `issue-538-email-custody/AntiqueTrail`, `codex/issue-538-email-custody`; started clean and detached.
-- Source writer owns only the new generator, its native test file and this receipt. Root owns commits, integration, independent review, protected credentials, provider operations, recovery custody and closure.
+- Original source baseline: `fa1fbe4e7fb28596c3418293df043fa78b32a76b`; original writer commit: `9e4a10338d293c851d6b9de0f9c4b95af1042a55`.
+- Current integration baseline: `8a28fc6532e960b2ebbaabe8a71a91581d0155e8` (merged main after #532).
+- Source-only integration commit: `6cd07eebcd702b651694ce101c758c5ddda4d466`, tree `dfd1b97a81ee40ddd84dfa80c4c503aef9f9b10e`. It carries the same three added paths onto current main; review and CI must bind to the final PR head.
+- Worktree/branch: managed `C:\Users\samar\.codex\worktrees\macvicar-luna-delivery\AntiqueTrail`, `codex/issue-538-email-hmac-custody-luna`; based on current main.
+- Original source writer created the generator and tests. The current owner integrates and maintains the evidence, independent review, protected credentials, provider operations, recovery custody and closure.
 - Risk: high, temporary privileged export. No credentials, provider settings, hosted data or database were accessed or modified by the source writer.
 - Governing contracts: issue READY acceptance, `SECURITY_AND_TRUST.md`, ADR0010 matching configuration recovery and ADR0011 preserved custody. The public generator and generated handler are the authorized test seams.
 
@@ -38,7 +39,7 @@ All new runtime tests execute actual generated `Deno.serve` source in a VM with 
 | Exact-head review/CI/main        | Root freezes source and obtains independent Standards/Spec/security review and required CI                                                                | PENDING |
 | Actual custody/cleanup           | Root performs pinned authorized fixed-one export, endpoint removal/independent 404, provider digest match and sealed-custody round trip                   | PENDING |
 
-Final bounded source checks before requested handoff:
+Original source-writer proof before handoff (bound to commit `9e4a10338d293c851d6b9de0f9c4b95af1042a55`, not a substitute for current-head review and CI):
 
 - `node --test scripts/catalog-custody-recovery.test.mjs scripts/recovery-email-hmac-custody.test.mjs`: **121 passed** (55 original, 66 new), zero failures/skips/cancellations; actual native WebCrypto and generated VM.
 - Scoped ESLint for both new scripts: PASS. Existing installed tooling was invoked from the #532 worktree; its ESLint configuration Git blob exactly matches this worktree (`a335f94aea848ec6188f4760cf922df314d95479`). No dependencies were installed or shared files mutated.
