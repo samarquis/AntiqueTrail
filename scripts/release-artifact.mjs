@@ -142,7 +142,7 @@ function assertVercelAuthHeaders(config) {
   }
   const fallback = [
     { handle: 'filesystem' },
-    { src: '^(?:/(.*))$', dest: '/index.html', check: true },
+    { src: '^(?:/((?!curated/macvicar/v1(?:/|$)).*))$', dest: '/index.html', check: true },
   ]
   const errorFallback = [
     { handle: 'error' },
