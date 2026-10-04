@@ -5,7 +5,14 @@ export async function createCatalogCustodyHandler(config, options = {}) {
   }
   const now = options.now ?? (() => Date.now())
   const getEnv = options.getEnv ?? ((name) => globalThis.Deno?.env.get(name))
-  const keys = ['publicJwk', 'operationNonce', 'projectRef', 'issuedAt', 'expiresAt']
+  const keys = [
+    'publicJwk',
+    'operatorBearerSha256',
+    'operationNonce',
+    'projectRef',
+    'issuedAt',
+    'expiresAt',
+  ]
   if (
     !config ||
     typeof config !== 'object' ||
@@ -14,10 +21,13 @@ export async function createCatalogCustodyHandler(config, options = {}) {
     Object.keys(config).some((key) => !keys.includes(key))
   )
     invalid()
-  const { operationNonce, projectRef, issuedAt, expiresAt, publicJwk } = config
+  const { operatorBearerSha256, operationNonce, projectRef, issuedAt, expiresAt, publicJwk } =
+    config
   const current = now()
   if (
     projectRef !== 'uaupykgpegbseboklubv' ||
+    typeof operatorBearerSha256 !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(operatorBearerSha256) ||
     typeof operationNonce !== 'string' ||
     !/^[a-f0-9]{64}$/.test(operationNonce) ||
     ![issuedAt, expiresAt, current].every(Number.isSafeInteger) ||
@@ -48,6 +58,7 @@ export async function createCatalogCustodyHandler(config, options = {}) {
   let recipient
   const recipientJwk = { kty: 'RSA', n: publicJwk.n, e: 'AQAB' }
   const encoder = new globalThis.TextEncoder()
+  const expected = Uint8Array.from(operatorBearerSha256.match(/../g), (byte) => parseInt(byte, 16))
   try {
     const modulus = globalThis.atob(publicJwk.n.replaceAll('-', '+').replaceAll('_', '/'))
     if (
@@ -103,19 +114,9 @@ export async function createCatalogCustodyHandler(config, options = {}) {
         return denied()
       const authorization = request.headers.get('authorization')
       if (typeof authorization !== 'string' || authorization.length > 8199) return denied()
-      const serviceKey = getEnv('SUPABASE_SERVICE_ROLE_KEY')
-      if (
-        typeof serviceKey !== 'string' ||
-        serviceKey.length === 0 ||
-        serviceKey.length > 8192 ||
-        getEnv('SUPABASE_URL') !== `https://${projectRef}.supabase.co`
-      )
-        return denied()
+      if (getEnv('SUPABASE_URL') !== `https://${projectRef}.supabase.co`) return denied()
       const supplied = new Uint8Array(
         await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(authorization)),
-      )
-      const expected = new Uint8Array(
-        await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(`Bearer ${serviceKey}`)),
       )
       let difference = 0
       for (let index = 0; index < 32; index += 1) difference |= supplied[index] ^ expected[index]
