@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "storeSlug": "the-market-at-macvicar",
-  "galleryWallSha256": "59978483a1de34241ef20dd6ccbc55a3a2b64d262e3b559856752a7f0f6188cd",
+  "galleryWallSha256": "f8407bffae6d1a90d8e46b55d2892a680db96d36cdfb4631b2739025467dfb83",
   "sourceRightsManifestSha256": "48e66a51a179fd4b91603973068af0b90b999b715ac944fc750b8b9b208304cf",
   "assets": [
     {
@@ -14,7 +14,7 @@
       "chunks": ["VP8"],
       "path": "/curated/macvicar/v1/d551c0df68f8f1a859b4d914d5be3e21b585875ca729389de7cda27b4ba2f7e3.webp",
       "alt": "Storefront windows bearing THE MARKET at Macvicar lettering.",
-      "caption": "Front windows at The Market at Macvicar \u00b7 official Facebook photo, October 2017",
+      "caption": "Front windows at The Market at Macvicar · official Facebook photo, October 2017",
       "rightsLabel": "Store owner-authorized photo",
       "sourcePhotoId": "891416547700044"
     },
@@ -181,7 +181,7 @@
       "height": 1600,
       "chunks": ["VP8"],
       "path": "/curated/macvicar/v1/f73d013655e32e7c022d62d9d5d0e1afe118d1610852bfb232682ec9fa8ab04e.webp",
-      "alt": "A painted wooden duck pull toy with red wheels sits below letter blocks on a shelf.",
+      "alt": "A painted wooden duck pull toy sits below letter blocks on a shelf.",
       "caption": "A painted wooden duck",
       "rightsLabel": "Store owner-authorized photo",
       "sourcePhotoId": "2125927681682972"
@@ -279,7 +279,7 @@
       "height": 1600,
       "chunks": ["VP8"],
       "path": "/curated/macvicar/v1/3199933376efbcc8f81c5acace76d37bf24c179ec64cc76b243c479478eba4c3.webp",
-      "alt": "A framed kitten print hangs behind a white cat figurine on a shelf.",
+      "alt": "A framed kitten print is displayed behind a white cat figurine on a shelf.",
       "caption": "Kittens and a cat figure",
       "rightsLabel": "Store owner-authorized photo",
       "sourcePhotoId": "2125927451682995"
@@ -307,7 +307,7 @@
       "height": 1600,
       "chunks": ["VP8"],
       "path": "/curated/macvicar/v1/e46e995f5478644c2ba89ced483fcc3f311d6f7540d5de813a469f8e4b40bc00.webp",
-      "alt": "A framed Coca-Cola advertisement shows two figures against an orange background.",
+      "alt": "A framed Coca-Cola advertisement shows three figures against a dark background.",
       "caption": "A framed soda advertisement",
       "rightsLabel": "Store owner-authorized photo",
       "sourcePhotoId": "2125926908349716"
@@ -503,7 +503,7 @@
       "height": 1600,
       "chunks": ["VP8"],
       "path": "/curated/macvicar/v1/ebaf81c466fe7e057e88c845c8bd5da9d460faae1f1e1b1052d5e4987cac8d44.webp",
-      "alt": "A circular wall clock made with colored pieces hangs against a pale wall.",
+      "alt": "A cocktail-glass-shaped clock with floral decoration hangs against a pale wall.",
       "caption": "A decorated wall clock",
       "rightsLabel": "Store owner-authorized photo",
       "sourcePhotoId": "2125927258349681"
@@ -531,7 +531,7 @@
       "height": 1600,
       "chunks": ["VP8"],
       "path": "/curated/macvicar/v1/9c34466ab722af146aae63adcef44d49bfd385e77144251fc19c884b360b40ac.webp",
-      "alt": "A brown jug with a metal handle stands beside a metal bowl.",
+      "alt": "A gray jug sits in a wooden carrier with a metal handle.",
       "caption": "A small jug on display",
       "rightsLabel": "Store owner-authorized photo",
       "sourcePhotoId": "2125926138349793"
@@ -685,8 +685,8 @@
       "height": 1600,
       "chunks": ["VP8"],
       "path": "/curated/macvicar/v1/cfd762072e57788ba33a5686b10b2aa2582a0b0de100fa42848685556cc4e7f2.webp",
-      "alt": "Large turquoise letters spelling BABY BOUTIQUE stand in a metal basket.",
-      "caption": "A boutique-themed sign",
+      "alt": "Large turquoise letters spelling BABY BUTTON sit within a striped wooden frame.",
+      "caption": "A framed BABY BUTTON sign",
       "rightsLabel": "Store owner-authorized photo",
       "sourcePhotoId": "2125928628349544"
     },
@@ -713,7 +713,7 @@
       "height": 1600,
       "chunks": ["VP8"],
       "path": "/curated/macvicar/v1/cabe2a39bb4efc760764ded0593a6dfca8911c07380b9f6bcb0cd88172031b46.webp",
-      "alt": "An orange serving bowl and miniature figures sit below a handwritten seasonal sign.",
+      "alt": "An orange serving bowl and miniature figures sit beside a seasonal sign.",
       "caption": "Orange ceramics and miniatures",
       "rightsLabel": "Store owner-authorized photo",
       "sourcePhotoId": "2125927548349652"
