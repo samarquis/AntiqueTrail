@@ -101,7 +101,7 @@ Public store records may include:
 - Do not scrape or bulk-import any source without written license review.
 - Do not use Google Places content as the stored catalog. A Google place ID may be retained only for a separately approved live lookup that follows current attribution and provider terms.
 
-The Product Owner-authorized [Market at Macvicar public listing](../adr/0011-market-at-macvicar-public-listing.md) is the exact real-store exception to the current fictional test. It uses normal verified public facts, documented image permission, M-01 publication and effective-capacity admission. It does not activate its complimentary benefit, establish a fixture tier, or waive account/provider gates.
+The Product Owner-authorized [Market at Macvicar public listing](../adr/0011-market-at-macvicar-public-listing.md) is the exact real-store exception to the current fictional test. It uses normal verified public facts and a separate protected Administrator-curated manifest for the fixed approved one-cover/fifty-gallery derivative selection, with processing, rights, hash, withdrawal, and public-artifact proof. Its read-only catalog-display capacity does not activate Owner uploads, its complimentary benefit, a fixture tier, or account/provider gates. M-01 remains required for future upload/provider operations; this curated path is not an M-01 acceptance receipt.
 
 ### Official Store Profile Photos
 
@@ -109,6 +109,7 @@ The Product Owner-authorized [Market at Macvicar public listing](../adr/0011-mar
 - Real photos require an authorized Store Partner submission or specific documented permission.
 - Do not capture or copy automatic website/social screenshots or third-party images.
 - Process every real image through private quarantine, validation, re-encoding, metadata removal, accessible alternative text, and Administrator approval before display.
+- ADR0011's exact reviewed Macvicar manifest may use its separately admitted curated derivative publication path and fixed catalog-display capacity. It preserves the processing and withdrawal controls, grants no Owner-upload capability, and does not change the tier limits below.
 - Allow the current tier's approved Store Profile capacity: Free one cover + five gallery, Gallery one cover + fifteen gallery, Full Gallery one cover + no plan-count cap under its published non-count limits. Allow one image per Store Update. The fixture-only 50-photo evaluation profile is a separate internal evaluation surface, not a tier; it never changes these capacities and is never served as public entitlement.
 - Require preview/crop, rights confirmation, and meaningful alternative text before submission.
 - Keep the current approved profile image live while its replacement is reviewed. Hold an image-bearing Store Update in full until its image is approved.
