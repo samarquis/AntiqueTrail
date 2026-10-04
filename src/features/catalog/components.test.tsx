@@ -282,6 +282,12 @@ describe('catalog private-action integration seam', () => {
     expect(card).toHaveFocus()
 
     await user.selectOptions(screen.getByLabelText('Category'), 'vintage')
+    expect(catalog.map).toHaveBeenLastCalledWith(
+      {},
+      { north: 40, south: 39, east: -95, west: -96 },
+      12,
+    )
+    await user.click(screen.getByRole('button', { name: 'Apply filters' }))
     expect(await screen.findByTestId('provider-map')).toBeVisible()
     expect(catalog.map).toHaveBeenLastCalledWith(
       { category: 'vintage' },
