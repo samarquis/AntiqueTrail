@@ -313,7 +313,9 @@ test.describe('Synthetic catalog design contract', () => {
 
         await expect(page.getByRole('heading', { name: 'Store map' })).toHaveCount(0)
         await expect(page.getByText(/map and travel-time suggestions/i)).toHaveCount(0)
-        await expect(page.getByText('Fictional listings for safe product review')).toBeVisible()
+        await expect(
+          page.getByText('Real shops and clearly marked fictional test listings'),
+        ).toBeVisible()
 
         const hero = page.getByRole('region', { name: 'Browse the local trail' })
         await expect(

@@ -2,6 +2,383 @@ import { describe, expect, it, vi } from 'vitest'
 import { createCatalogClient } from './catalogApi'
 
 describe('catalog RPC client', () => {
+  it.each(['list', 'details'] as const)(
+    'omits malformed media, URLs, and nontext optional fields through %s',
+    async (method) => {
+      const rpc = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'public-store',
+            slug: 'public-store',
+            media: [
+              null,
+              'not a record',
+              [],
+              { src: { private: 'object' }, alt: 'Wrong source' },
+              { src: 'javascript:alert(1)', alt: 'Wrong protocol' },
+              { src: '//unapproved.invalid/photo.webp', alt: 'Protocol relative' },
+              { src: 'https://user:password@unapproved.invalid/photo.webp', alt: 'Credentials' },
+              { src: '/\\unapproved.invalid/photo.webp', alt: 'Backslash' },
+              { src: 'https://images.example.invalid/\u0000photo.webp', alt: 'Control character' },
+              { src: '/public/photo.webp', alt: { private: 'object' } },
+              { src: '/public/photo.webp', alt: 'Wrong enum', kind: 'secret' },
+              {
+                path: '/public/legacy.webp',
+                alt_text: 'Legacy public photo',
+                kind: 'gallery',
+                caption: { private: 'object' },
+                rightsLabel: 123,
+                private_note: 'private',
+              },
+              { src: 'https://images.example.invalid/photo.webp', alt: 'Public photo' },
+            ],
+          },
+        ],
+        error: null,
+      })
+      const client = createCatalogClient({ rpc })
+      const store =
+        method === 'list' ? (await client.list({})).stores[0] : await client.details('public-store')
+
+      expect(store?.media).toStrictEqual([
+        { src: '/public/legacy.webp', alt: 'Legacy public photo', kind: 'gallery' },
+        { src: 'https://images.example.invalid/photo.webp', alt: 'Public photo' },
+      ])
+    },
+  )
+
+  it.each(['list', 'details'] as const)(
+    'narrows malformed public profile data and exact approved Facebook links through %s',
+    async (method) => {
+      const approved = {
+        platform: 'Facebook',
+        href: 'https://www.facebook.com/TheMarketatMacvicar2307/',
+      }
+      const rpc = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'public-store',
+            slug: 'public-store',
+            email: 'public@example.invalid?subject=private',
+            provenance: {
+              sourceLabel: 'Public source',
+              updatedAt: '2026-02-30',
+              note: { private: 'value' },
+              owner_id: 'private',
+            },
+            accessibility: {
+              status: 'unverified',
+              details: ['Public text', null, 42, { private: 'value' }],
+              verifiedAt: '2026-10-03T25:00:00Z',
+              owner_id: 'private',
+            },
+            socialLinks: [
+              null,
+              [],
+              'not a record',
+              approved,
+              { ...approved, platform: 'Instagram' },
+              { ...approved, href: 'http://www.facebook.com/TheMarketatMacvicar2307/' },
+              { ...approved, href: `${approved.href}?token=private` },
+              { ...approved, href: 'https://www.facebook.com/private-owner/' },
+              {
+                ...approved,
+                href: 'https://www.facebook.com.evil.invalid/TheMarketatMacvicar2307/',
+              },
+              {
+                ...approved,
+                href: 'https://user:password@www.facebook.com/TheMarketatMacvicar2307/',
+              },
+            ],
+          },
+        ],
+        error: null,
+      })
+      const client = createCatalogClient({ rpc })
+      const store =
+        method === 'list' ? (await client.list({})).stores[0] : await client.details('public-store')
+
+      expect(store?.email).toBeNull()
+      expect(store?.provenance).toStrictEqual({
+        sourceLabel: 'Public source',
+        updatedAt: null,
+        note: null,
+      })
+      expect(store?.accessibility).toStrictEqual({
+        status: 'unverified',
+        details: ['Public text'],
+        verifiedAt: null,
+      })
+      expect(store?.socialLinks).toStrictEqual([approved])
+    },
+  )
+
+  it.each(['list', 'details'] as const)(
+    'omits malformed exceptions and updates without inventing clocks or links through %s',
+    async (method) => {
+      const closed = {
+        date: '2026-12-25',
+        label: 'Fictional closure',
+        status: 'closed',
+        intervals: [],
+        note: null,
+      }
+      const unavailable = { ...closed, date: '2026-12-26', status: 'unavailable' }
+      const open = {
+        ...closed,
+        status: 'open',
+        intervals: [{ opensAt: '10:00', closesAt: '16:00' }],
+      }
+      const update = {
+        id: 'public-notice',
+        title: 'Public notice',
+        body: 'Public text',
+        publishedAt: '2026-10-03',
+        href: null,
+      }
+      const rpc = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'public-store',
+            slug: 'public-store',
+            hoursExceptions: [
+              null,
+              [],
+              123,
+              closed,
+              unavailable,
+              { ...open, date: '2026-02-30' },
+              { ...open, date: '2026-12-25T00:00:00Z' },
+              { ...open, label: { private: 'object' } },
+              { ...open, status: 'secret' },
+              { ...open, intervals: { opensAt: '10:00', closesAt: '16:00' } },
+              { ...open, intervals: [{ opensAt: '24:00', closesAt: '25:00' }] },
+              { ...open, intervals: [{ opensAt: '16:00', closesAt: '10:00' }] },
+              { ...open, intervals: [{ opensAt: '10:00', closesAt: '10:00' }] },
+              { ...open, intervals: [null] },
+              { ...closed, intervals: open.intervals },
+              { ...open, intervals: [] },
+            ],
+            updates: [
+              null,
+              [],
+              123,
+              { ...update, href: 'javascript:alert(1)' },
+              { ...update, href: '//unapproved.invalid/' },
+              { ...update, href: 'https://user:password@unapproved.invalid/' },
+              { ...update, id: { private: 'object' } },
+              { ...update, title: 123 },
+              { ...update, body: { private: 'object' } },
+              { ...update, publishedAt: '2026-02-30T12:00:00Z' },
+              { ...update, publishedAt: '2026-10-03T12:60:00Z' },
+              { ...update, publishedAt: '2026-10-03T12:00:00' },
+            ],
+          },
+        ],
+        error: null,
+      })
+      const client = createCatalogClient({ rpc })
+      const store =
+        method === 'list' ? (await client.list({})).stores[0] : await client.details('public-store')
+
+      expect(store?.hoursExceptions).toStrictEqual([closed, unavailable])
+      expect(store?.updates).toStrictEqual([update, update, update])
+    },
+  )
+
+  it.each([undefined, null, 123, 'not a collection', {}, []])(
+    'safely omits invalid optional objects and collections: %j',
+    async (value) => {
+      const rpc = vi.fn().mockResolvedValue({
+        data: {
+          id: 'public-store',
+          slug: 'public-store',
+          email: value,
+          provenance: value,
+          accessibility: value,
+          socialLinks: value,
+          hoursExceptions: value,
+          updates: value,
+          media: value,
+        },
+        error: null,
+      })
+      const store = await createCatalogClient({ rpc }).details('public-store')
+
+      expect(store?.email).toBeNull()
+      expect(store?.provenance).toBeUndefined()
+      expect(store?.accessibility).toBeUndefined()
+      expect(store?.socialLinks).toStrictEqual([])
+      expect(store?.hoursExceptions).toStrictEqual([])
+      expect(store?.updates).toStrictEqual([])
+      expect(store?.media).toStrictEqual([])
+    },
+  )
+
+  it.each([
+    'public..business@example.invalid',
+    '.public@example.invalid',
+    'public.@example.invalid',
+    'public@example..invalid',
+    'public@-example.invalid',
+    'public@example-.invalid',
+    'public@example.invalid\n',
+    'public@example.invalid#private',
+  ])('omits malformed business email %j', async (email) => {
+    const rpc = vi.fn().mockResolvedValue({ data: { id: 'public-store', email }, error: null })
+    const store = await createCatalogClient({ rpc }).details('public-store')
+
+    expect(store?.email).toBeNull()
+  })
+
+  it.each([
+    {
+      provenance: { sourceLabel: { private: 'object' } },
+      accessibility: { status: 'secret', details: ['Not verified'] },
+    },
+    {
+      provenance: { sourceLabel: ' ' },
+      accessibility: { status: ['verified'], details: ['Not verified'] },
+    },
+  ])('omits invalid profile labels and status enums: %j', async (profile) => {
+    const rpc = vi.fn().mockResolvedValue({ data: { id: 'public-store', ...profile }, error: null })
+    const store = await createCatalogClient({ rpc }).details('public-store')
+
+    expect(store?.provenance).toBeUndefined()
+    expect(store?.accessibility).toBeUndefined()
+  })
+
+  it.each(['list', 'details'] as const)(
+    'preserves approved plain media captions and rights through %s',
+    async (method) => {
+      const media = {
+        src: '/curated/macvicar/v1/cover.webp',
+        alt: 'Storefront windows bearing THE MARKET at Macvicar lettering.',
+        kind: 'cover',
+        caption: 'Front windows at The Market at Macvicar · official Facebook photo, October 2017',
+        rightsLabel: 'Store owner-authorized photo',
+      }
+      const rpc = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'approved-store',
+            slug: 'the-market-at-macvicar',
+            media: [{ ...media, reviewer_note: 'private' }],
+          },
+        ],
+        error: null,
+      })
+      const client = createCatalogClient({ rpc })
+      const store =
+        method === 'list'
+          ? (await client.list({})).stores[0]
+          : await client.details('the-market-at-macvicar')
+
+      expect(store?.media).toStrictEqual([media])
+    },
+  )
+
+  it.each(['list', 'details'] as const)(
+    'maps valid public exception and update records through %s',
+    async (method) => {
+      const hoursExceptions = [
+        {
+          date: '2026-12-24',
+          label: 'Fictional winter schedule',
+          status: 'open',
+          intervals: [{ opensAt: '11:00', closesAt: '15:00' }],
+          note: '<b>Plain public text</b>',
+        },
+      ]
+      const updates = [
+        {
+          id: 'public-update',
+          title: 'Fictional notice',
+          body: '<script>Shown as plain text</script>',
+          publishedAt: '2026-10-03T12:00:00Z',
+          href: '/stores/public-store/updates',
+        },
+      ]
+      const provenance = {
+        sourceLabel: 'Public business source',
+        updatedAt: '2026-10-03T12:00:00Z',
+        note: 'Public source note',
+      }
+      const accessibility = {
+        status: 'verified',
+        details: ['Public verified detail'],
+        verifiedAt: '2026-10-03T12:00:00+00:00',
+      }
+      const rpc = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'public-store',
+            slug: 'public-store',
+            provenance,
+            accessibility,
+            hoursExceptions: hoursExceptions.map((item) => ({ ...item, owner_id: 'private' })),
+            updates: updates.map((item) => ({ ...item, moderation_note: 'private' })),
+          },
+        ],
+        error: null,
+      })
+      const client = createCatalogClient({ rpc })
+      const store =
+        method === 'list' ? (await client.list({})).stores[0] : await client.details('public-store')
+
+      expect(store?.hoursExceptions).toStrictEqual(hoursExceptions)
+      expect(store?.updates).toStrictEqual(updates)
+      expect(store?.provenance).toStrictEqual(provenance)
+      expect(store?.accessibility).toStrictEqual(accessibility)
+    },
+  )
+
+  it.each(['list', 'details'] as const)(
+    'preserves the approved public business profile through %s without private records',
+    async (method) => {
+      const profile = {
+        email: 'themarketatmacvicar2307@gmail.com',
+        provenance: {
+          sourceLabel: 'Official Facebook profile; user-confirmed hours',
+          updatedAt: '2026-10-03',
+          note: 'Hours confirmed by the user on October 3, 2026. Gallery images show examples and may not reflect current inventory. The cover is an official Facebook photo dated October 21, 2017; it shows the front windows only.',
+        },
+        accessibility: {
+          status: 'unverified',
+          details: ['Entry and other accessibility details have not been verified.'],
+        },
+        socialLinks: [
+          { platform: 'Facebook', href: 'https://www.facebook.com/TheMarketatMacvicar2307/' },
+        ],
+        hoursExceptions: [],
+        updates: [],
+      }
+      const rpc = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'approved-store',
+            slug: 'the-market-at-macvicar',
+            ...profile,
+            ownerAccount: { email: 'private-owner@example.invalid' },
+            planEntitlement: { tier: 'private' },
+            technicalAdmission: { token: 'private' },
+            private_email: 'private@example.invalid',
+          },
+        ],
+        error: null,
+      })
+      const client = createCatalogClient({ rpc })
+      const store =
+        method === 'list'
+          ? (await client.list({})).stores[0]
+          : await client.details('the-market-at-macvicar')
+
+      expect(store).toMatchObject(profile)
+      for (const key of ['ownerAccount', 'planEntitlement', 'technicalAdmission', 'private_email'])
+        expect(store).not.toHaveProperty(key)
+    },
+  )
+
   it('uses one bounded list RPC and maps the complete projection', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {

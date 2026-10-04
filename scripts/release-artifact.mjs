@@ -3,6 +3,7 @@ import { cp, lstat, mkdir, readFile, readdir, writeFile } from 'node:fs/promises
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { importCuratedCatalog, verifyCuratedCatalog } from './curated-catalog-assets.mjs'
 
 const SHA256 = /^[a-f0-9]{64}$/
 const SOURCE_SHA = /^[a-f0-9]{40}$/
@@ -175,8 +176,11 @@ export async function assertProductionArtifact(root, kind = 'pages') {
   assertPagesAuthHeaders(await readFile(path.join(root, '_headers'), 'utf8').catch(() => ''))
 }
 
-function treeDigest(files) {
-  return sha256(files.map((file) => `${file.sha256}  ${file.size}  ${file.path}\n`).join(''))
+function treeDigest(files, curatedCatalog) {
+  return sha256(
+    files.map((file) => `${file.sha256}  ${file.size}  ${file.path}\n`).join('') +
+      (curatedCatalog ? canonicalJson(curatedCatalog) : ''),
+  )
 }
 
 function requireValue(options, name, pattern) {
@@ -212,10 +216,17 @@ export async function createRelease(options) {
   const kind = options.kind ?? 'pages'
 
   await assertProductionArtifact(dist, kind)
-  const files = await inventory(dist)
+  await inventory(dist)
+  await mkdir(out, { recursive: false })
+  const sealedDist = path.join(out, 'dist')
+  await cp(dist, sealedDist, { recursive: true, errorOnExist: true })
+  await inventory(sealedDist)
+  const curatedCatalog = await importCuratedCatalog(options, sealedDist, kind)
+  await assertProductionArtifact(sealedDist, kind)
+  const files = await inventory(sealedDist)
   const manifest = {
     schemaVersion: 1,
-    artifactDigest: treeDigest(files),
+    artifactDigest: treeDigest(files, curatedCatalog),
     sourceSha,
     repository,
     buildEnvironment: {
@@ -227,10 +238,9 @@ export async function createRelease(options) {
     },
     lockfile: { path: path.basename(lockfile), sha256: sha256(await readFile(lockfile)) },
     files,
+    ...(curatedCatalog ? { curatedCatalog } : {}),
   }
 
-  await mkdir(out, { recursive: false })
-  await cp(dist, path.join(out, 'dist'), { recursive: true, errorOnExist: true })
   await writeFile(
     path.join(out, 'artifact-manifest.json'),
     `${JSON.stringify(manifest, null, 2)}\n`,
@@ -245,7 +255,14 @@ export async function verifyRelease(options) {
   const manifest = JSON.parse(await readFile(path.join(bundle, 'artifact-manifest.json'), 'utf8'))
   await assertProductionArtifact(path.join(bundle, 'dist'), options.kind ?? 'pages')
   const actualFiles = await inventory(path.join(bundle, 'dist'))
-  const actualDigest = treeDigest(actualFiles)
+  verifyCuratedCatalog(
+    actualFiles,
+    options.kind ?? 'pages',
+    manifest.curatedCatalog,
+    options['expected-curated-manifest-sha256'],
+    options['expected-curated-withdrawn-sha256'],
+  )
+  const actualDigest = treeDigest(actualFiles, manifest.curatedCatalog)
 
   if (manifest.schemaVersion !== 1) throw new Error('Unsupported artifact manifest schema')
   if (manifest.artifactDigest !== expectedDigest || actualDigest !== expectedDigest) {
@@ -269,6 +286,8 @@ export async function createReceipt(options) {
     kind: options.kind,
     'expected-digest': expectedDigest,
     'expected-source-sha': expectedSourceSha,
+    'expected-curated-manifest-sha256': options['expected-curated-manifest-sha256'],
+    'expected-curated-withdrawn-sha256': options['expected-curated-withdrawn-sha256'],
   })
   const provider = JSON.parse(await readFile(providerFile, 'utf8'))
   const requiredProviderFields = [

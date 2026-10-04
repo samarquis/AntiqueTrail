@@ -176,6 +176,14 @@ function toStore(value: unknown): CatalogStore {
     summary: stringOrNull(row.summary),
     description: stringOrNull(row.description),
     phone: stringOrNull(row.phone),
+    email:
+      typeof row.email === 'string' &&
+      !/\s/.test(row.email) &&
+      /^[A-Za-z0-9_+-]+(?:\.[A-Za-z0-9_+-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/.test(
+        row.email,
+      )
+        ? row.email
+        : null,
     website: stringOrNull(row.website),
     timeZone: stringOrNull(row.timezone_name ?? row.time_zone ?? row.timeZone),
     freshness: parseFreshness(
@@ -183,26 +191,155 @@ function toStore(value: unknown): CatalogStore {
       row.verified_at ?? row.oldest_verified_at,
     ),
     asOfUtc: stringOrNull(row.as_of_utc),
+    provenance: mapProvenance(row.provenance),
+    accessibility: mapAccessibility(row.accessibility),
+    socialLinks: asArray(row.socialLinks).flatMap((value) => {
+      const link = asRow(value)
+      return link.platform === 'Facebook' &&
+        link.href === 'https://www.facebook.com/TheMarketatMacvicar2307/'
+        ? [{ platform: 'Facebook' as const, href: link.href }]
+        : []
+    }),
+    hoursExceptions: asArray(row.hoursExceptions).flatMap(mapHoursException),
+    updates: asArray(row.updates).flatMap(mapUpdate),
     hours,
-    media: media.map((value) => {
+    media: media.flatMap((value) => {
       const item = asRow(value)
-      return {
-        src: String(item.src ?? item.path ?? item.asset_path ?? ''),
-        alt: String(item.alt ?? item.alt_text ?? ''),
-        kind: item.kind as 'cover' | 'gallery' | undefined,
-      }
+      const src = publicUrlOrNull(item.src ?? item.path ?? item.asset_path)
+      const alt = item.alt ?? item.alt_text ?? ''
+      if (
+        !src ||
+        typeof alt !== 'string' ||
+        (item.kind != null && item.kind !== 'cover' && item.kind !== 'gallery')
+      )
+        return []
+      return [
+        {
+          src,
+          alt,
+          ...(item.kind === 'cover' || item.kind === 'gallery' ? { kind: item.kind } : {}),
+          ...(typeof item.caption === 'string' ? { caption: item.caption } : {}),
+          ...(typeof item.rightsLabel === 'string' ? { rightsLabel: item.rightsLabel } : {}),
+        },
+      ]
     }),
   }
 }
 
 function asRow(value: unknown): LooseRow {
-  return value && typeof value === 'object' ? (value as LooseRow) : {}
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as LooseRow) : {}
 }
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
 function stringOrNull(value: unknown): string | null {
   return typeof value === 'string' ? value : null
+}
+function dateOrNull(value: unknown): string | null {
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}(?:T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d))?$/.test(
+      value,
+    )
+  )
+    return null
+  const date = new Date(`${value.slice(0, 10)}T00:00:00Z`)
+  return Number.isFinite(Date.parse(value)) &&
+    Number.isFinite(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value.slice(0, 10)
+    ? value
+    : null
+}
+function publicUrlOrNull(value: unknown): string | null {
+  if (
+    typeof value !== 'string' ||
+    !value ||
+    /[\s\\]/.test(value) ||
+    [...value].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
+  )
+    return null
+  if (value.startsWith('/') && !value.startsWith('//')) return value
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.username && !url.password ? value : null
+  } catch {
+    return null
+  }
+}
+function mapHoursException(value: unknown): NonNullable<CatalogStore['hoursExceptions']> {
+  const row = asRow(value)
+  if (
+    typeof row.date !== 'string' ||
+    row.date.length !== 10 ||
+    !dateOrNull(row.date) ||
+    typeof row.label !== 'string' ||
+    !row.label.trim() ||
+    (row.status !== 'open' && row.status !== 'closed' && row.status !== 'unavailable') ||
+    !Array.isArray(row.intervals)
+  )
+    return []
+  const intervals = row.intervals.flatMap((value) => {
+    const interval = asRow(value)
+    return typeof interval.opensAt === 'string' &&
+      typeof interval.closesAt === 'string' &&
+      /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(interval.opensAt) &&
+      /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(interval.closesAt) &&
+      interval.opensAt < interval.closesAt
+      ? [{ opensAt: interval.opensAt, closesAt: interval.closesAt }]
+      : []
+  })
+  if (
+    intervals.length !== row.intervals.length ||
+    (row.status === 'open' ? !intervals.length : !!intervals.length)
+  )
+    return []
+  return [
+    {
+      date: row.date,
+      label: row.label,
+      status: row.status,
+      intervals,
+      note: stringOrNull(row.note),
+    },
+  ]
+}
+function mapUpdate(value: unknown): NonNullable<CatalogStore['updates']> {
+  const row = asRow(value)
+  const publishedAt = dateOrNull(row.publishedAt)
+  if (
+    typeof row.id !== 'string' ||
+    !row.id.trim() ||
+    typeof row.title !== 'string' ||
+    !row.title.trim() ||
+    typeof row.body !== 'string' ||
+    !publishedAt
+  )
+    return []
+  return [
+    { id: row.id, title: row.title, body: row.body, publishedAt, href: publicUrlOrNull(row.href) },
+  ]
+}
+function mapProvenance(value: unknown): CatalogStore['provenance'] {
+  const row = asRow(value)
+  return typeof row.sourceLabel === 'string' && row.sourceLabel.trim()
+    ? {
+        sourceLabel: row.sourceLabel,
+        updatedAt: dateOrNull(row.updatedAt),
+        note: stringOrNull(row.note),
+      }
+    : undefined
+}
+function mapAccessibility(value: unknown): CatalogStore['accessibility'] {
+  const row = asRow(value)
+  return row.status === 'verified' || row.status === 'unverified' || row.status === 'unavailable'
+    ? {
+        status: row.status,
+        details: asArray(row.details).filter(
+          (detail): detail is string => typeof detail === 'string',
+        ),
+        verifiedAt: dateOrNull(row.verifiedAt),
+      }
+    : undefined
 }
 function parseFreshness(value: unknown, verifiedAt: unknown) {
   if (value && typeof value === 'object') {

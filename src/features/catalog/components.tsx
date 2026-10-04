@@ -851,7 +851,7 @@ export function BrowsePage({
                   {state.stores.length} {state.stores.length === 1 ? 'store' : 'stores'} to explore
                 </h2>
               </div>
-              <p>Fictional listings for safe product review</p>
+              <p>Real shops and clearly marked fictional test listings</p>
             </div>
             <section aria-label="Store results" className="catalog-grid">
               {state.stores.map((store) => (

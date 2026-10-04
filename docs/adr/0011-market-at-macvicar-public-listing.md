@@ -19,6 +19,8 @@ Normal store admission supplies one stable UUID for this real record. Record the
 
 Keep the existing twelve fictional UUIDs inventoried and governed independently. Add this single reviewed real UUID through an explicit server-side admission; do not relabel it synthetic, replace a fictional record, relax the allowlist to arbitrary stores, or enable all real-store catalog reads. Preserve origin, RLS/RPC, expiry, and private-data denial. Missing, expired, revoked, or mismatched real-store admission fails closed without inventing a card.
 
+The protected curated operator records verification of this exact profile's four existing groups: identity/location, contact, hours, and categories/attributes. Use the truthful `administrator_curated_source` classification, actual operator review time, and protected source/decision references. This is a narrow channel for the admitted real UUID; it does not claim Store Partner authority, two human reviewers, a physical inspection, or verified accessibility. Preserve the existing completeness and age rules; derive public freshness from those receipts rather than a fixed date. Incomplete, altered, or expired verification cannot create a current listing, and the separate general catalog routes cannot bypass its exact admission.
+
 Anonymous reads may expose only approved catalog fields and published approved derivatives for this record. Listing admission creates no account, claim, Owner/Representative role, private access, external promotion tool, or privileged write. Registration and other unadmitted capabilities retain their current release gates. This amendment does not activate saving, maps, trips, correction submission, billing, or account/provider operations.
 
 ## First eligible Browse result
