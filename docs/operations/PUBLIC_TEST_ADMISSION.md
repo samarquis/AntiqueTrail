@@ -28,7 +28,7 @@ Keep the operator specification private. It contains `backendRef`, `origin`,
 `evidenceDigest`, plus `decisionRef`, the reviewed `reviewRef` GitHub PR address,
 `operatorRef`, `stopOwner`, `startsAt`, `expiresAt`, `storeIds`, `capabilities`
 and `testers`. Capabilities are limited to `catalog`, `registration` and `saved`.
-Inventory the exact twelve fictional store UUIDs. Tester entries contain a
+Inventory the exact twelve fictional store UUIDs. For the separately authorized [Market at Macvicar listing](../adr/0011-market-at-macvicar-public-listing.md), record its exact stable real UUID and independent public catalog/media/capacity/hosting admission; preserve the fictional set and deny every other real record. This document's existing fictional binding is not an implicit real-store allowlist. Tester entries contain a
 normalized `email` and its 64-character `emailHmac`, derived using the same
 private registration HMAC configuration as the Edge function. Never put emails,
 keys or the private specification in a public issue or tracked artifact.

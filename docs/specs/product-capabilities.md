@@ -101,6 +101,8 @@ Public store records may include:
 - Do not scrape or bulk-import any source without written license review.
 - Do not use Google Places content as the stored catalog. A Google place ID may be retained only for a separately approved live lookup that follows current attribution and provider terms.
 
+The Product Owner-authorized [Market at Macvicar public listing](../adr/0011-market-at-macvicar-public-listing.md) is the exact real-store exception to the current fictional test. It uses normal verified public facts, documented image permission, M-01 publication and effective-capacity admission. It does not activate its complimentary benefit, establish a fixture tier, or waive account/provider gates.
+
 ### Official Store Profile Photos
 
 - Internal Alpha uses generated fictional storefront/interior images for Synthetic Stores.

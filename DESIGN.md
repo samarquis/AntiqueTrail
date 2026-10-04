@@ -50,6 +50,7 @@ Every role uses a separate account and session in testing.
 
 - Readable list is the default; map is secondary.
 - Search by store name, town, and category.
+- For the explicitly admitted [Market at Macvicar test listing](docs/adr/0011-market-at-macvicar-public-listing.md), show its single card first only when it matches server-side search, area/category, and admission filters. Preserve all other results' relative order; do not prepend an ineligible store or treat placement as paid ranking.
 - Each card: cover image or neutral placeholder, store name, town or distance, category summary, today's hours/open state, freshness, `Save`, `Add to Trip`.
 - Do not require map-only browsing or location permission.
 
