@@ -563,9 +563,27 @@ function MorePage({
 function PortalRouteGuard({ client }: { client: PortalClient }) {
   const { session } = useAuth()
   const location = useLocation()
+  // Display-only identity updates must not unmount an authorized private draft.
+  const authorizationKey = session
+    ? JSON.stringify([
+        session.userId,
+        session.emailVerified,
+        session.provider,
+        session.role,
+        session.accessToken,
+        session.expiresAt,
+        session.mfaRequired,
+        session.mfaVerified,
+        session.passwordAuthenticatedAt,
+        session.mfaEnrolled,
+        session.mfaVerifiedAt,
+        session.accountState,
+        session.deletionDueAt,
+      ])
+    : null
   const [checked, setChecked] = useState<{
     client: PortalClient
-    session: typeof session
+    authorizationKey: string | null
     locationKey: string
     allowed: boolean
   } | null>(null)
@@ -573,20 +591,22 @@ function PortalRouteGuard({ client }: { client: PortalClient }) {
     let cancelled = false
     client.getHome().then(
       () => {
-        if (!cancelled) setChecked({ client, session, locationKey: location.key, allowed: true })
+        if (!cancelled)
+          setChecked({ client, authorizationKey, locationKey: location.key, allowed: true })
       },
       () => {
-        if (!cancelled) setChecked({ client, session, locationKey: location.key, allowed: false })
+        if (!cancelled)
+          setChecked({ client, authorizationKey, locationKey: location.key, allowed: false })
       },
     )
     return () => {
       cancelled = true
     }
-  }, [client, session, location.key])
+  }, [client, authorizationKey, location.key])
   if (
     !checked ||
     checked.client !== client ||
-    checked.session !== session ||
+    checked.authorizationKey !== authorizationKey ||
     checked.locationKey !== location.key
   )
     return (

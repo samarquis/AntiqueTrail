@@ -3,7 +3,13 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { InMemoryAuthStore, type AuthSession } from '../features/auth'
-import type { TripOfflineRuntime } from '../features/trips'
+import * as auth from '../features/auth'
+import { unavailableAccountSettingsClient } from '../features/account/settings'
+import {
+  createTripOfflineRuntime,
+  InMemoryOfflineDatabase,
+  type TripOfflineRuntime,
+} from '../features/trips'
 import type { PartnerAdminClient } from '../features/partners'
 import { createAccessibleCatalogMapAdapter, demoCatalogClient } from '../features/catalog'
 import { unavailableReviewClient } from '../features/reviews'
@@ -17,6 +23,295 @@ import {
   createReviewHarnessAuthProvider,
   createReviewHarnessClients,
 } from '../review-harness/clients'
+
+describe('portal authorization continuity', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  function fixture() {
+    const session: AuthSession = {
+      userId: 'representative-1',
+      accessToken: 'synthetic-memory-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Representative',
+      mfaRequired: false,
+      mfaVerified: true,
+      displayName: 'Original Name',
+      email: 'synthetic@example.invalid',
+      emailVerified: true,
+      provider: 'email',
+      passwordAuthenticatedAt: '2026-10-04T00:00:00Z',
+      mfaEnrolled: true,
+      mfaVerifiedAt: '2026-10-04T00:00:00Z',
+      accountState: 'active',
+      deletionDueAt: '2026-10-11T00:00:00Z',
+    }
+    const authStore = new InMemoryAuthStore()
+    authStore.setSession(session)
+    let finishSettings!: (value: {
+      displayName: string
+      locationAddress: null
+      version: number
+    }) => void
+    const getSettings = vi.fn(
+      () =>
+        new Promise<{ displayName: string; locationAddress: null; version: number }>((resolve) => {
+          finishSettings = resolve
+        }),
+    )
+    const getHours = vi.fn(async () => ({
+      timeZone: 'America/Chicago',
+      version: 1,
+      weekly: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(
+        (label, index) => ({
+          weekday: index + 1,
+          label,
+          isClosed: false,
+          intervals: [{ opensAt: '10:00', closesAt: '18:00' }],
+        }),
+      ),
+      holidays: [],
+    }))
+    const getHome = vi.fn(async () => ({
+      store: {
+        id: 'store-1',
+        name: 'Synthetic Store',
+        listingState: 'active' as const,
+        timeZone: 'America/Chicago',
+      },
+      freshness: { state: 'verified' as const, label: 'Verified' },
+      provenance: {
+        sourceLabel: 'Representative',
+        verifiedBy: 'Synthetic Admin',
+        verifiedAt: '2026-10-04',
+        ownerConfirmed: true,
+      },
+      pendingChanges: [],
+    }))
+    const saveHours = vi.fn(async (value: Awaited<ReturnType<typeof getHours>>) => ({
+      ...value,
+      version: value.version + 1,
+    }))
+    const registry = {
+      registerCurrentSession: vi.fn(async () => undefined),
+      isActive: vi.fn(async () => true),
+      revoke: vi.fn(async () => undefined),
+    }
+    let portal = { ...unavailablePortalClient, getHome, getHours, saveHours }
+    const tripOffline = createTripOfflineRuntime({ database: new InMemoryOfflineDatabase() })
+    const tree = () => (
+      <MemoryRouter initialEntries={['/store-portal/hours']}>
+        <App
+          runtime={{ authStore, sessionRegistry: registry, tripOffline }}
+          clients={{
+            portal,
+            accountSettings: { ...unavailableAccountSettingsClient, getSettings },
+          }}
+        />
+      </MemoryRouter>
+    )
+    const view = render(tree())
+    let controlledSession: AuthSession | null = session
+    let controlling = false
+    function replaceSession(next: AuthSession | null) {
+      if (!controlling) {
+        const actualUseAuth = auth.useAuth
+        vi.spyOn(auth, 'useAuth').mockImplementation(() => ({
+          ...actualUseAuth(),
+          session: controlledSession,
+        }))
+        controlling = true
+      }
+      controlledSession = next
+      view.rerender(tree())
+    }
+    return {
+      session,
+      authStore,
+      registry,
+      getHome,
+      getHours,
+      saveHours,
+      replaceSession,
+      finishSettings: (value: { displayName: string; locationAddress: null }) =>
+        finishSettings({ ...value, version: 1 }),
+      replaceClient: (getHome: typeof portal.getHome) => {
+        portal = { ...portal, getHome }
+        view.rerender(tree())
+      },
+    }
+  }
+
+  it('retains the mounted hours draft when deferred display-name hydration completes', async () => {
+    const item = fixture()
+    const original = (await screen.findAllByLabelText('First closing'))[0]
+    fireEvent.change(original, { target: { value: '19:45' } })
+    expect(original).toHaveValue('19:45')
+    const reads = { hours: item.getHours.mock.calls.length, home: item.getHome.mock.calls.length }
+    await act(async () => item.finishSettings({ displayName: 'Saved Name', locationAddress: null }))
+    await waitFor(() => expect(item.authStore.getSession()?.displayName).toBe('Saved Name'))
+    const after = (await screen.findAllByLabelText('First closing'))[0]
+    expect(after).toBe(original)
+    expect(after).toHaveValue('19:45')
+    expect(item.getHours).toHaveBeenCalledTimes(reads.hours)
+    expect(item.getHome).toHaveBeenCalledTimes(reads.home)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Save hours' }))
+    expect(item.saveHours.mock.calls[0][0].weekly[0].intervals[0].closesAt).toBe('19:45')
+  })
+
+  it('preserves the mounted draft when only display-only email changes', async () => {
+    const item = fixture()
+    const original = (await screen.findAllByLabelText('First closing'))[0]
+    fireEvent.change(original, { target: { value: '19:45' } })
+    const reads = { home: item.getHome.mock.calls.length, hours: item.getHours.mock.calls.length }
+    item.replaceSession({ ...item.session, email: 'changed@example.invalid' })
+    expect(screen.getAllByLabelText('First closing')[0]).toBe(original)
+    expect(original).toHaveValue('19:45')
+    expect(item.getHome).toHaveBeenCalledTimes(reads.home)
+    expect(item.getHours).toHaveBeenCalledTimes(reads.hours)
+  })
+
+  it.each<[keyof AuthSession, AuthSession[keyof AuthSession]]>([
+    ['userId', 'another-user'],
+    ['emailVerified', false],
+    ['provider', 'google'],
+    ['role', 'Shopper'],
+    ['accessToken', 'different-token'],
+    ['expiresAt', Date.now() + 120_000],
+    ['mfaRequired', true],
+    ['mfaVerified', false],
+    ['passwordAuthenticatedAt', '2026-10-04T00:01:00Z'],
+    ['mfaEnrolled', false],
+    ['mfaVerifiedAt', '2026-10-04T00:01:00Z'],
+    ['accountState', 'deletion_scheduled'],
+    ['deletionDueAt', '2026-10-12T00:00:00Z'],
+  ])('invalidates portal proof when security field %s changes', async (field, value) => {
+    const item = fixture()
+    await screen.findAllByLabelText('First closing')
+    const reads = item.getHome.mock.calls.length
+    let deny!: (error: Error) => void
+    item.getHome.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          deny = reject
+        }),
+    )
+    item.replaceSession({ ...item.session, [field]: value })
+    expect(screen.queryByLabelText('First closing')).not.toBeInTheDocument()
+    await waitFor(() => expect(item.getHome).toHaveBeenCalledTimes(reads + 1))
+    await act(async () => deny(new Error('Denied')))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
+    expect(screen.queryByLabelText('First closing')).not.toBeInTheDocument()
+  })
+
+  it.each<keyof AuthSession>([
+    'emailVerified',
+    'provider',
+    'passwordAuthenticatedAt',
+    'mfaEnrolled',
+    'mfaVerifiedAt',
+    'accountState',
+    'deletionDueAt',
+  ])('invalidates proof when optional security field %s becomes missing', async (field) => {
+    const item = fixture()
+    await screen.findAllByLabelText('First closing')
+    const next = { ...item.session }
+    delete next[field]
+    item.getHome.mockImplementationOnce(() => new Promise(() => undefined))
+    item.replaceSession(next)
+    expect(screen.queryByLabelText('First closing')).not.toBeInTheDocument()
+  })
+
+  it('invalidates a cleared session and ignores a stale approval after denial', async () => {
+    const item = fixture()
+    await screen.findAllByLabelText('First closing')
+    let approve!: (home: Awaited<ReturnType<typeof item.getHome>>) => void
+    item.getHome.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          approve = resolve
+        }),
+    )
+    item.replaceSession({ ...item.session, accessToken: 'first-refresh' })
+    expect(screen.queryByLabelText('First closing')).not.toBeInTheDocument()
+    item.getHome.mockRejectedValueOnce(new Error('Session cleared'))
+    item.replaceSession(null)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
+    await act(async () => approve(await item.getHome()))
+    expect(screen.queryByLabelText('First closing')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/access is unavailable/i)
+  })
+
+  it('invalidates the old portal client while its replacement is pending and denied', async () => {
+    const item = fixture()
+    await screen.findAllByLabelText('First closing')
+    let deny!: (error: Error) => void
+    const replacement = vi.fn(
+      () =>
+        new Promise<Awaited<ReturnType<typeof item.getHome>>>((_resolve, reject) => {
+          deny = reject
+        }),
+    )
+    item.replaceClient(replacement)
+    expect(screen.queryByLabelText('First closing')).not.toBeInTheDocument()
+    await act(async () => deny(new Error('Denied replacement client')))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
+  })
+
+  it('rechecks the next portal route and hides private controls before denial', async () => {
+    const item = fixture()
+    await screen.findAllByLabelText('First closing')
+    let deny!: (error: Error) => void
+    item.getHome.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          deny = reject
+        }),
+    )
+    await userEvent.setup().click(screen.getByRole('link', { name: 'Pending changes' }))
+    expect(screen.queryByLabelText('First closing')).not.toBeInTheDocument()
+    await act(async () => deny(new Error('Revoked exact scope')))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
+  })
+
+  it('removes the workspace when the existing session expiry timer fires', async () => {
+    vi.useFakeTimers()
+    const item = fixture()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(screen.getAllByLabelText('First closing')).not.toHaveLength(0)
+    item.getHome.mockRejectedValue(new Error('Expired session'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_001)
+    })
+    expect(item.authStore.getSession()).toBeNull()
+    expect(item.registry.revoke).toHaveBeenCalledWith(expect.anything(), 'session_expired')
+    expect(screen.getByRole('alert')).toHaveTextContent(/access is unavailable/i)
+    expect(screen.queryByLabelText('First closing')).not.toBeInTheDocument()
+  })
+
+  it('removes the workspace when the existing registry validation detects revocation', async () => {
+    vi.useFakeTimers()
+    const item = fixture()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(screen.getAllByLabelText('First closing')).not.toHaveLength(0)
+    item.registry.isActive.mockResolvedValue(false)
+    item.getHome.mockRejectedValue(new Error('Inactive session'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    expect(item.authStore.getSession()).toBeNull()
+    expect(item.registry.revoke).toHaveBeenCalledWith(expect.anything(), 'session_revoked')
+    expect(screen.getByRole('alert')).toHaveTextContent(/access is unavailable/i)
+    expect(screen.queryByLabelText('First closing')).not.toBeInTheDocument()
+  })
+})
 
 describe('app shell', () => {
   afterEach(() => {
