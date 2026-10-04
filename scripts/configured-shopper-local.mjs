@@ -11,6 +11,18 @@ import { fileURLToPath } from 'node:url'
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const CLI_VERSION = '2.115.0'
+const readinessFailureMetadata = new WeakMap()
+const readinessRequestMetadata = new WeakMap()
+
+function tagReadinessFailure(error, category, status) {
+  if (error !== null && (typeof error === 'object' || typeof error === 'function'))
+    readinessFailureMetadata.set(error, { category, status })
+}
+
+function isReadinessHttpStatus(status) {
+  return Number.isInteger(status) && status >= 100 && status <= 599
+}
+
 export function localServiceExclusions(disableStorage = false) {
   if (typeof disableStorage !== 'boolean') throw new Error('Invalid local service options')
   return `studio,postgres-meta,realtime,imgproxy,logflare,vector,supavisor${disableStorage ? ',storage-api' : ''}`
@@ -182,10 +194,18 @@ export function digestFiles(directory) {
   visit(directory)
   return hash.digest('hex')
 }
-export async function loopbackRequest(
+export function loopbackRequest(base, route, options = {}) {
+  const metadata = {}
+  const promise = performLoopbackRequest(base, route, options, metadata)
+  readinessRequestMetadata.set(promise, metadata)
+  return promise
+}
+
+async function performLoopbackRequest(
   base,
   route,
   { key, token = key, body, method = 'POST', schema, origin, fetcher = fetch, signal } = {},
+  metadata,
 ) {
   const url = new URL(base)
   if (
@@ -204,22 +224,36 @@ export async function loopbackRequest(
     )
   )
     throw new Error('Unexpected local request route')
-  const response = await fetcher(`${url.origin}${route}`, {
-    method,
-    redirect: 'error',
-    signal: signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(20_000)])
-      : AbortSignal.timeout(20_000),
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...(schema ? { 'Content-Profile': schema, 'Accept-Profile': schema } : {}),
-      ...(origin ? { Origin: origin } : {}),
-    },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  })
-  const data = await response.json()
+  let response
+  try {
+    response = await fetcher(`${url.origin}${route}`, {
+      method,
+      redirect: 'error',
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(20_000)])
+        : AbortSignal.timeout(20_000),
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...(schema ? { 'Content-Profile': schema, 'Accept-Profile': schema } : {}),
+        ...(origin ? { Origin: origin } : {}),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    })
+  } catch (error) {
+    tagReadinessFailure(error, 'fetchFailure')
+    throw error
+  }
+  const status = isReadinessHttpStatus(response?.status) ? response.status : undefined
+  metadata.status = status
+  let data
+  try {
+    data = await response.json()
+  } catch (error) {
+    tagReadinessFailure(error, 'responseParseFailure', status)
+    throw error
+  }
   if (!response.ok) {
     // Whitelist server diagnostic fields; never echo arbitrary request/response bodies.
     const code = String(data?.error?.code ?? data?.code ?? response.status)
@@ -228,7 +262,9 @@ export async function loopbackRequest(
     const message = String(data?.message ?? '')
       .replace(/[^A-Za-z0-9_ .]/g, '')
       .slice(0, 160)
-    throw new Error(`HTTP ${response.status} ${code} ${message}`)
+    const error = new Error(`HTTP ${response.status} ${code} ${message}`)
+    tagReadinessFailure(error, 'httpFailure', status)
+    throw error
   }
   return data
 }
@@ -271,20 +307,35 @@ export async function waitForLocalServiceReadiness(
   wait = () => new Promise((resolve) => setTimeout(resolve, 1000)),
 ) {
   let ready = false
+  let attempts = 0
+  const categoryCounts = {
+    fetchFailure: 0,
+    responseParseFailure: 0,
+    httpFailure: 0,
+    invalidResponse: 0,
+    unclassifiedFailure: 0,
+  }
+  const httpStatusCounts = new Map()
   for (let attempt = 0; attempt < 60; attempt++) {
     signal?.throwIfAborted()
+    attempts++
     try {
       if (run.users.length) {
-        const result = await request('/functions/v1/public-catalog', {
+        const pending = request('/functions/v1/public-catalog', {
           key: run.anonKey,
           token: run.users[0].token,
           origin: run.origin,
           body: { operation: 'list', args: { p_q: null, p_category: null, p_area: null } },
         })
-        if (Array.isArray(result.data)) {
+        const result = await pending
+        if (result != null && Array.isArray(result.data)) {
           ready = true
           break
         }
+        categoryCounts.invalidResponse++
+        const status = readinessRequestMetadata.get(pending)?.status
+        if (isReadinessHttpStatus(status))
+          httpStatusCounts.set(status, (httpStatusCounts.get(status) ?? 0) + 1)
       } else {
         const result = await request('/functions/v1/account-registration', {
           key: run.anonKey,
@@ -296,18 +347,51 @@ export async function waitForLocalServiceReadiness(
           ready = true
           break
         }
+        categoryCounts.invalidResponse++
       }
-    } catch {
+    } catch (error) {
       /* Readiness only; actual commands record their own result. */
+      const metadata =
+        error !== null && (typeof error === 'object' || typeof error === 'function')
+          ? readinessFailureMetadata.get(error)
+          : undefined
+      const category = metadata?.category
+      if (Object.hasOwn(categoryCounts, category)) categoryCounts[category]++
+      else categoryCounts.unclassifiedFailure++
+      const status = metadata?.status
+      if (
+        (category === 'httpFailure' || category === 'responseParseFailure') &&
+        isReadinessHttpStatus(status)
+      )
+        httpStatusCounts.set(status, (httpStatusCounts.get(status) ?? 0) + 1)
     }
     await wait()
   }
-  if (!ready)
+  if (!ready) {
+    if (run.users.length && !signal?.aborted) {
+      const httpStatuses = [...httpStatusCounts]
+        .sort(([left], [right]) => left - right)
+        .map(([status, count]) => ({ status, count }))
+      const diagnostic = {
+        event: 'readiness-exhausted',
+        probeKind: 'public-catalog',
+        attempts,
+        categoryCounts,
+        httpStatusCounts: httpStatuses,
+      }
+      // Fixed fields and at most 60 attempts keep this record below 2 KiB.
+      try {
+        process.stderr.write(`${JSON.stringify(diagnostic)}\n`)
+      } catch {
+        /* Diagnostics must not replace the fixed readiness failure. */
+      }
+    }
     throw new Error(
       run.users.length
         ? 'Local catalog function did not become ready'
         : 'Local registration function did not become ready',
     )
+  }
 }
 export function createLocalService({
   signal,
