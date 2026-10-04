@@ -186,10 +186,11 @@ select lives_ok($test$do $proof$declare target uuid;admission uuid;activated tim
  delete from release_private.regional_releases where release_id=release;
 end $proof$;$test$,'real listing never grants private actions or Owner benefits');
 
-set local role postgres;
 select lives_ok($test$do $proof$declare target uuid;row jsonb;fact app_public.store_fact_verifications%rowtype;reviewed_at timestamptz;original_zone text;original_pin bytea;begin
  select store_id into target from macvicar_fixture;
+ execute 'set local role public_catalog_gateway';
  row:=app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')->0;
+ execute 'reset role';
  assert row->>'freshness_state'=(select freshness_state from app_public.catalog_freshness(target,statement_timestamp())),'public freshness derives from four recorded fact groups';
  assert (select count(*)=4 from app_public.store_fact_verifications where store_id=target and verification_group in ('identity_location','contact','hours','categories_attributes')),'four reviewed public fact groups recorded';
  select prepared_at into reviewed_at from public_test_private.macvicar_admissions where admission_id=(select admission_id from macvicar_fixture);
@@ -198,7 +199,9 @@ select lives_ok($test$do $proof$declare target uuid;row jsonb;fact app_public.st
  assert (select bool_and(verifier_kind='administrator_curated_source' and verified_at=reviewed_at and position('2026-10-03' in provenance_label)>0) from app_public.store_fact_verifications where store_id=target),'truthful curated review kind, source date and protected review time';
  original_zone:=current_setting('TimeZone');
  perform set_config('TimeZone','Pacific/Honolulu',true);
+ execute 'set local role public_catalog_gateway';
  assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')->0->>'id'=target::text,'fact digest does not depend on session timezone';
+ execute 'reset role';
  perform set_config('TimeZone',original_zone,true);
  perform public_test_private.prepare_macvicar_store();
  assert (select oldest_verified_at=reviewed_at from app_public.catalog_freshness(target,statement_timestamp())),'reusing identity does not reset verification clock';
@@ -216,22 +219,32 @@ select lives_ok($test$do $proof$declare target uuid;row jsonb;fact app_public.st
  assert pg_temp.denied('update app_public.store_fact_verifications set verifier_kind=''administrator_curated_source'' where store_id=(select id from app_public.stores where synthetic order by id limit 1)'),'even operator cannot mint curated kind for another store';
  select * into fact from app_public.store_fact_verifications where store_id=target and verification_group='hours';
  delete from app_public.store_fact_verifications where store_id=target and verification_group='hours';
+ execute 'set local role public_catalog_gateway';
  assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')='[]'::jsonb,'missing required group removes listing';
+ execute 'set local role postgres';
  insert into app_public.store_fact_verifications values(fact.*);
  update app_public.store_fact_verifications set verified_at=verified_at+interval '1 second' where store_id=target and verification_group='hours';
+ execute 'set local role public_catalog_gateway';
  assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')='[]'::jsonb,'unreviewed clock change breaks profile pin';
+ execute 'set local role postgres';
  update app_public.store_fact_verifications set verified_at=fact.verified_at,provenance_label='Unreviewed source change' where store_id=target and verification_group='hours';
+ execute 'set local role public_catalog_gateway';
  assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')='[]'::jsonb,'unreviewed provenance breaks profile pin';
+ execute 'set local role postgres';
  update app_public.store_fact_verifications set provenance_label=fact.provenance_label where store_id=target and verification_group='hours';
+ execute 'set local role public_catalog_gateway';
  assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')->0->>'freshness_state'='current','restored pinned facts restore eligibility';
+ execute 'set local role postgres';
  -- Simulate aged reviewed facts with a matching isolated receipt pin; this
  -- distinguishes normal freshness exclusion from the separate tamper denial.
  select public_profile_digest into original_pin from public_test_private.macvicar_admissions where admission_id=(select admission_id from macvicar_fixture);
  update app_public.store_fact_verifications set verified_at=statement_timestamp()-interval '366 days' where store_id=target;
  update public_test_private.macvicar_admissions set public_profile_digest=public_test_private.macvicar_profile_digest(target) where admission_id=(select admission_id from macvicar_fixture);
  assert public_test_private.macvicar_active(target),'aged fixture still has matching admission pin';
+ execute 'set local role public_catalog_gateway';
  assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')='[]'::jsonb,'stale facts exclude Details despite valid admission pin';
  assert not exists(select 1 from jsonb_array_elements(app_public.public_test_catalog_gateway_request(repeat('a',64),'list','{}')) x where x->>'id'=target::text),'stale facts exclude Browse';
+ execute 'set local role postgres';
  update app_public.store_fact_verifications set verified_at=reviewed_at where store_id=target;
  update public_test_private.macvicar_admissions set public_profile_digest=original_pin where admission_id=(select admission_id from macvicar_fixture);
  assert public_test_private.macvicar_active(target),'restored original review clock/pin retained';
