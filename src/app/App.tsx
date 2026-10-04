@@ -589,6 +589,7 @@ function PortalRouteGuard({ client }: { client: PortalClient }) {
   } | null>(null)
   useEffect(() => {
     let cancelled = false
+    setChecked(null)
     client.getHome().then(
       () => {
         if (!cancelled)

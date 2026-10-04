@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { InMemoryAuthStore, type AuthSession } from '../features/auth'
 import * as auth from '../features/auth'
@@ -101,9 +101,18 @@ describe('portal authorization continuity', () => {
       revoke: vi.fn(async () => undefined),
     }
     let portal = { ...unavailablePortalClient, getHome, getHours, saveHours }
+    const originalPortal = portal
+    let navigate!: ReturnType<typeof useNavigate>
+    let locationKey = ''
+    function NavigationControl() {
+      navigate = useNavigate()
+      locationKey = useLocation().key
+      return null
+    }
     const tripOffline = createTripOfflineRuntime({ database: new InMemoryOfflineDatabase() })
     const tree = () => (
       <MemoryRouter initialEntries={['/store-portal/hours']}>
+        <NavigationControl />
         <App
           runtime={{ authStore, sessionRegistry: registry, tripOffline }}
           clients={{
@@ -136,10 +145,16 @@ describe('portal authorization continuity', () => {
       getHours,
       saveHours,
       replaceSession,
+      locationKey: () => locationKey,
+      historyBack: () => navigate(-1),
       finishSettings: (value: { displayName: string; locationAddress: null }) =>
         finishSettings({ ...value, version: 1 }),
       replaceClient: (getHome: typeof portal.getHome) => {
         portal = { ...portal, getHome }
+        view.rerender(tree())
+      },
+      restoreClient: () => {
+        portal = originalPortal
         view.rerender(tree())
       },
     }
@@ -259,6 +274,129 @@ describe('portal authorization continuity', () => {
     expect(screen.queryByLabelText('First closing')).not.toBeInTheDocument()
     await act(async () => deny(new Error('Denied replacement client')))
     expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
+  })
+
+  it.each([
+    ['changed token', 'denied'],
+    ['cleared session', 'denied'],
+    ['changed token', 'allowed'],
+    ['cleared session', 'allowed'],
+  ] as const)(
+    'requires fresh authorization after %s returns to copied A (%s)',
+    async (transition, outcome) => {
+      const item = fixture()
+      await screen.findAllByLabelText('First closing')
+      type Home = Awaited<ReturnType<typeof item.getHome>>
+      const home = await item.getHome()
+      const reads = item.getHome.mock.calls.length
+      let finishB!: (home: Home) => void
+      let approveA!: (home: Home) => void
+      let denyA!: (error: Error) => void
+      item.getHome.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishB = resolve
+          }),
+      )
+      item.replaceSession(
+        transition === 'cleared session'
+          ? null
+          : { ...item.session, accessToken: 'different-token' },
+      )
+      expect(screen.queryAllByLabelText('First closing')).toHaveLength(0)
+      expect(screen.queryByRole('button', { name: 'Save hours' })).not.toBeInTheDocument()
+      await waitFor(() => expect(item.getHome).toHaveBeenCalledTimes(reads + 1))
+      item.getHome.mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            approveA = resolve
+            denyA = reject
+          }),
+      )
+      item.replaceSession({ ...item.session })
+      expect(screen.queryAllByLabelText('First closing')).toHaveLength(0)
+      expect(screen.queryByRole('button', { name: 'Save hours' })).not.toBeInTheDocument()
+      await waitFor(() => expect(item.getHome).toHaveBeenCalledTimes(reads + 2))
+      await act(async () => finishB(home))
+      expect(screen.queryAllByLabelText('First closing')).toHaveLength(0)
+      expect(screen.queryByRole('button', { name: 'Save hours' })).not.toBeInTheDocument()
+      if (outcome === 'denied') {
+        await act(async () => denyA(new Error('Current A denied')))
+        expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
+        expect(screen.queryAllByLabelText('First closing')).toHaveLength(0)
+        expect(screen.queryByRole('button', { name: 'Save hours' })).not.toBeInTheDocument()
+      } else {
+        await act(async () => approveA(home))
+        expect((await screen.findAllByLabelText('First closing'))[0]).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Save hours' })).toBeInTheDocument()
+      }
+    },
+  )
+
+  it('requires fresh authorization when the exact original portal client returns', async () => {
+    const item = fixture()
+    await screen.findAllByLabelText('First closing')
+    type Home = Awaited<ReturnType<typeof item.getHome>>
+    const home = await item.getHome()
+    let finishB!: (home: Home) => void
+    const replacement = vi.fn(
+      () =>
+        new Promise<Awaited<ReturnType<typeof item.getHome>>>((resolve) => {
+          finishB = resolve
+        }),
+    )
+    item.replaceClient(replacement)
+    expect(screen.queryAllByLabelText('First closing')).toHaveLength(0)
+    await waitFor(() => expect(replacement).toHaveBeenCalledOnce())
+    let denyA!: (error: Error) => void
+    item.getHome.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          denyA = reject
+        }),
+    )
+    item.restoreClient()
+    expect(screen.queryAllByLabelText('First closing')).toHaveLength(0)
+    expect(screen.queryByRole('button', { name: 'Save hours' })).not.toBeInTheDocument()
+    await act(async () => finishB(home))
+    expect(screen.queryAllByLabelText('First closing')).toHaveLength(0)
+    await act(async () => denyA(new Error('Returned client denied')))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
+    expect(screen.queryByRole('button', { name: 'Save hours' })).not.toBeInTheDocument()
+  })
+
+  it('requires fresh authorization when history returns to the original location key', async () => {
+    const item = fixture()
+    await screen.findAllByLabelText('First closing')
+    const originalKey = item.locationKey()
+    type Home = Awaited<ReturnType<typeof item.getHome>>
+    const home = await item.getHome()
+    let finishB!: (home: Home) => void
+    item.getHome.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishB = resolve
+        }),
+    )
+    await userEvent.setup().click(screen.getByRole('link', { name: 'Pending changes' }))
+    expect(item.locationKey()).not.toBe(originalKey)
+    expect(screen.queryAllByLabelText('First closing')).toHaveLength(0)
+    let denyA!: (error: Error) => void
+    item.getHome.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          denyA = reject
+        }),
+    )
+    await act(async () => item.historyBack())
+    expect(item.locationKey()).toBe(originalKey)
+    expect(screen.queryAllByLabelText('First closing')).toHaveLength(0)
+    expect(screen.queryByRole('button', { name: 'Save hours' })).not.toBeInTheDocument()
+    await act(async () => finishB(home))
+    expect(screen.queryAllByLabelText('First closing')).toHaveLength(0)
+    await act(async () => denyA(new Error('Returned route denied')))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/access is unavailable/i)
+    expect(screen.queryByRole('button', { name: 'Save hours' })).not.toBeInTheDocument()
   })
 
   it('rechecks the next portal route and hides private controls before denial', async () => {
