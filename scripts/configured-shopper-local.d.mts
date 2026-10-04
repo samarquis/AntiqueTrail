@@ -30,6 +30,13 @@ export interface LocalService {
   ): Promise<T>
 }
 
+export function waitForLocalServiceReadiness(
+  run: Pick<LocalServiceRun, 'anonKey' | 'origin'> & { users: Array<{ token: string }> },
+  request: LocalService['request'],
+  signal?: AbortSignal,
+  wait?: () => Promise<void>,
+): Promise<void>
+
 export function createLocalService(options?: {
   signal?: AbortSignal
   resumeDirectory?: string
