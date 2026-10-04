@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path=public,extensions;
-select plan(14);
+select plan(15);
 
 -- All authority, approvals, hashes and bytes here are isolated SQL fixtures,
 -- never a hosted asset permission, Administrator decision, or scan receipt.
@@ -37,6 +37,44 @@ select set_config('request.headers','{"origin":"https://antique-trail.vercel.app
 
 create function pg_temp.denied(p_command text,p_state text default '42501') returns boolean language plpgsql as $$
 begin execute p_command;return false;exception when others then return sqlstate=p_state;end $$;
+
+-- Invoke actual general RPCs under their external roles. A transactional
+-- capability fixture below enables the general stage, so denial is not a false
+-- green caused by its usual disabled flag. No provider/release evidence follows.
+create function pg_temp.macvicar_general_denied(p_target uuid) returns void language plpgsql as $$
+declare actor text:=current_user;reader text;rows jsonb;
+begin
+ foreach reader in array array['anon','authenticated','service_role','public_catalog_gateway'] loop
+  execute format('set local role %I',reader);
+  if has_schema_privilege(current_user,'app_public','USAGE') and has_function_privilege(current_user,'app_public.catalog_list(text,text,text)','EXECUTE') then
+   assert not exists(select 1 from app_public.catalog_list(null,null,null) where id=p_target),'legacy list never adds curated UUID';
+   assert not exists(select 1 from app_public.catalog_details('the-market-at-macvicar') where id=p_target),'legacy details never add curated UUID';
+  else
+   assert pg_temp.denied('select * from app_public.catalog_list(null,null,null)'),'legacy list without role grant denied';
+  end if;
+  if has_schema_privilege(current_user,'app_public','USAGE') and has_function_privilege(current_user,'app_public.regional_catalog_list(text,text,text)','EXECUTE') then
+   assert not exists(select 1 from app_public.regional_catalog_list(null,null,null) where id=p_target),'general regional list denies curated UUID';
+   assert not exists(select 1 from app_public.regional_catalog_details('the-market-at-macvicar') where id=p_target),'general regional details deny curated UUID';
+  else
+   assert pg_temp.denied('select * from app_public.regional_catalog_details(''the-market-at-macvicar'')'),'regional details without role grant denied';
+  end if;
+  if has_schema_privilege(current_user,'app_public','USAGE') and has_function_privilege(current_user,'app_public.public_catalog_gateway_request(text,text,jsonb)','EXECUTE') then
+   rows:=app_public.public_catalog_gateway_request(repeat('9',64),'details','{"p_slug":"the-market-at-macvicar"}');
+   assert position(p_target::text in rows::text)=0,'general gateway details cannot bypass exact admission';
+   rows:=app_public.public_catalog_gateway_request(repeat('9',64),'list','{}');
+   assert position(p_target::text in rows::text)=0,'general gateway list cannot bypass exact admission';
+  else
+   assert pg_temp.denied('select app_public.public_catalog_gateway_request('''||repeat('9',64)||''',''list'',''{}'')'),'general gateway without role grant denied';
+  end if;
+  execute format('set local role %I',actor);
+ end loop;
+ foreach reader in array array['catalog_reader','release_automation'] loop
+  execute format('set local role %I',reader);
+  assert not exists(select 1 from app_public.stores where id=p_target),'general RPC owner cannot read curated UUID';
+  assert exists(select 1 from app_public.stores where synthetic and publication_state='active'),'general reader preserves unrelated fictional rows';
+  execute format('set local role %I',actor);
+ end loop;
+end $$;
 
 select lives_ok($test$do $proof$declare rows jsonb;begin
  rows:=app_public.public_test_catalog_gateway_request(repeat('3',64),'list','{}');
@@ -116,13 +154,89 @@ select lives_ok($test$do $proof$begin
 end $proof$;$test$,'spoofed origin denied');
 select set_config('request.headers','{"origin":"https://antique-trail.vercel.app"}',true);
 
-select lives_ok($test$do $proof$declare target uuid;begin
+select lives_ok($test$do $proof$declare target uuid;admission uuid;activated timestamptz;release uuid:=extensions.gen_random_uuid();begin
  select store_id into target from macvicar_fixture;
  assert not shopper_private.store_is_shopper_visible(target),'existing users cannot save or trip real scoped record';
  assert (select count(*) from public_test_private.bindings where binding_id=(select binding_id from macvicar_fixture) and cardinality(store_ids)=12)=1,'fictional admission cardinality unchanged';
  assert not exists(select 1 from app_private.role_grants where store_id=target),'no real Owner or Representative role';
  assert not exists(select 1 from partner_private.store_partner_grants where store_id=target),'no partner grant activated';
+ -- Enable only isolated SQL fixture capability rows, never provider state.
+ insert into release_private.regional_releases(release_id,region_key,artifact_digest,catalog_digest,prerequisite_receipt_digest,state)
+ values(release,'topeka-ks','sha256:'||repeat('7',64),'sha256:'||repeat('8',64),'sha256:'||repeat('9',64),'active');
+ insert into release_private.release_capabilities(release_id,public_catalog,public_claims,public_reviews,public_registration,product_promotion)
+ values(release,true,true,true,true,true);
+ assert release_private.public_capability_enabled('catalog'),'general stage truly enabled for denial proof';
+ select admission_id,activated_at into admission,activated from public_test_private.macvicar_admissions where admission_id=(select admission_id from macvicar_fixture);
+ perform pg_temp.macvicar_general_denied(target);
+ update public_test_private.macvicar_admissions set state='prepared',activated_at=null where admission_id=admission;
+ perform pg_temp.macvicar_general_denied(target);
+ assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')='[]'::jsonb,'prepared narrow route denied even with verified facts';
+ update public_test_private.macvicar_admissions set state='revoked',revoked_at=statement_timestamp() where admission_id=admission;
+ perform pg_temp.macvicar_general_denied(target);
+ update public_test_private.macvicar_admissions set state='active',activated_at=activated,revoked_at=null where admission_id=admission;
+ perform set_config('request.headers','{"origin":"https://evil.example"}',true);
+ perform pg_temp.macvicar_general_denied(target);
+ assert pg_temp.denied('select app_public.public_test_catalog_gateway_request('''||repeat('a',64)||''',''details'',''{"p_slug":"the-market-at-macvicar"}'')'),'wrong origin narrow route denied';
+ perform set_config('request.headers','{"origin":"https://antique-trail.vercel.app"}',true);
+ update public_test_private.macvicar_admissions set source_sha=repeat('0',40) where admission_id=admission;
+ perform pg_temp.macvicar_general_denied(target);
+ assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')='[]'::jsonb,'wrong binding narrow route denied';
+ update public_test_private.macvicar_admissions set source_sha=repeat('a',40) where admission_id=admission;
+ delete from release_private.release_capabilities where release_id=release;
+ delete from release_private.regional_releases where release_id=release;
 end $proof$;$test$,'real listing never grants private actions or Owner benefits');
+
+set local role postgres;
+select lives_ok($test$do $proof$declare target uuid;row jsonb;fact app_public.store_fact_verifications%rowtype;reviewed_at timestamptz;original_zone text;original_pin bytea;begin
+ select store_id into target from macvicar_fixture;
+ row:=app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')->0;
+ assert row->>'freshness_state'=(select freshness_state from app_public.catalog_freshness(target,statement_timestamp())),'public freshness derives from four recorded fact groups';
+ assert (select count(*)=4 from app_public.store_fact_verifications where store_id=target and verification_group in ('identity_location','contact','hours','categories_attributes')),'four reviewed public fact groups recorded';
+ select prepared_at into reviewed_at from public_test_private.macvicar_admissions where admission_id=(select admission_id from macvicar_fixture);
+ assert (row->>'oldest_verified_at')::timestamptz=reviewed_at,'freshness uses actual protected review time, not dated source provenance';
+ assert row->'provenance'->>'updatedAt'='2026-10-03','dated public source remains separate';
+ assert (select bool_and(verifier_kind='administrator_curated_source' and verified_at=reviewed_at and position('2026-10-03' in provenance_label)>0) from app_public.store_fact_verifications where store_id=target),'truthful curated review kind, source date and protected review time';
+ original_zone:=current_setting('TimeZone');
+ perform set_config('TimeZone','Pacific/Honolulu',true);
+ assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')->0->>'id'=target::text,'fact digest does not depend on session timezone';
+ perform set_config('TimeZone',original_zone,true);
+ perform public_test_private.prepare_macvicar_store();
+ assert (select oldest_verified_at=reviewed_at from app_public.catalog_freshness(target,statement_timestamp())),'reusing identity does not reset verification clock';
+ assert (select freshness_state='current' from app_public.catalog_freshness(target,reviewed_at+interval '180 days')),'day 180 remains current';
+ assert (select freshness_state='overdue' from app_public.catalog_freshness(target,reviewed_at+interval '181 days')),'day 181 becomes overdue';
+ assert (select freshness_state='overdue' from app_public.catalog_freshness(target,reviewed_at+interval '365 days')),'day 365 remains overdue';
+ assert (select freshness_state='stale' from app_public.catalog_freshness(target,reviewed_at+interval '366 days')),'after day 365 becomes stale';
+ assert not has_column_privilege('macvicar_catalog_reader','app_public.store_fact_verifications','provenance_label','SELECT'),'protected review receipt provenance is not granted to narrow public reader';
+ assert has_column_privilege('identity_service','app_public.store_fact_verifications','provenance_label','UPDATE'),'negative tests exercise preexisting generic writer privilege';
+ execute 'set local role identity_service';
+ assert pg_temp.denied(format('update app_public.store_fact_verifications set provenance_label=''forged review'' where store_id=%L',target)),'generic writer cannot mutate curated review';
+ assert pg_temp.denied(format('update app_public.store_fact_verifications set verifier_kind=''synthetic_fixture'' where store_id=%L',target)),'generic writer cannot downgrade protected verification kind';
+ assert pg_temp.denied(format('delete from app_public.store_fact_verifications where store_id=%L',target)),'generic writer cannot delete curated review';
+ execute 'set local role postgres';
+ assert pg_temp.denied('update app_public.store_fact_verifications set verifier_kind=''administrator_curated_source'' where store_id=(select id from app_public.stores where synthetic order by id limit 1)'),'even operator cannot mint curated kind for another store';
+ select * into fact from app_public.store_fact_verifications where store_id=target and verification_group='hours';
+ delete from app_public.store_fact_verifications where store_id=target and verification_group='hours';
+ assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')='[]'::jsonb,'missing required group removes listing';
+ insert into app_public.store_fact_verifications values(fact.*);
+ update app_public.store_fact_verifications set verified_at=verified_at+interval '1 second' where store_id=target and verification_group='hours';
+ assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')='[]'::jsonb,'unreviewed clock change breaks profile pin';
+ update app_public.store_fact_verifications set verified_at=fact.verified_at,provenance_label='Unreviewed source change' where store_id=target and verification_group='hours';
+ assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')='[]'::jsonb,'unreviewed provenance breaks profile pin';
+ update app_public.store_fact_verifications set provenance_label=fact.provenance_label where store_id=target and verification_group='hours';
+ assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')->0->>'freshness_state'='current','restored pinned facts restore eligibility';
+ -- Simulate aged reviewed facts with a matching isolated receipt pin; this
+ -- distinguishes normal freshness exclusion from the separate tamper denial.
+ select public_profile_digest into original_pin from public_test_private.macvicar_admissions where admission_id=(select admission_id from macvicar_fixture);
+ update app_public.store_fact_verifications set verified_at=statement_timestamp()-interval '366 days' where store_id=target;
+ update public_test_private.macvicar_admissions set public_profile_digest=public_test_private.macvicar_profile_digest(target) where admission_id=(select admission_id from macvicar_fixture);
+ assert public_test_private.macvicar_active(target),'aged fixture still has matching admission pin';
+ assert app_public.public_test_catalog_gateway_request(repeat('a',64),'details','{"p_slug":"the-market-at-macvicar"}')='[]'::jsonb,'stale facts exclude Details despite valid admission pin';
+ assert not exists(select 1 from jsonb_array_elements(app_public.public_test_catalog_gateway_request(repeat('a',64),'list','{}')) x where x->>'id'=target::text),'stale facts exclude Browse';
+ update app_public.store_fact_verifications set verified_at=reviewed_at where store_id=target;
+ update public_test_private.macvicar_admissions set public_profile_digest=original_pin where admission_id=(select admission_id from macvicar_fixture);
+ assert public_test_private.macvicar_active(target),'restored original review clock/pin retained';
+end $proof$;$test$,'curated freshness derives from protected actual review without invented verification');
+reset role;
 
 select lives_ok($test$do $proof$declare original text;v_manifest jsonb;area_label text;begin
  select description into original from app_public.stores where id=(select store_id from macvicar_fixture);

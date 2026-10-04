@@ -14,6 +14,39 @@ function client(): CatalogClient {
 describe('live Browse editorial surface', () => {
   afterEach(cleanup)
 
+  it('describes mixed real and fictional listings without marking the real shop fictional', async () => {
+    const publishedStore = {
+      ...syntheticStores[0],
+      id: 'published-store',
+      slug: 'published-store',
+      name: 'Published local shop',
+      address: 'Example local address',
+      summary: 'A local shop.',
+      description: undefined,
+      fixtureProfile: undefined,
+      provenance: { sourceLabel: 'Store owner-authorized listing' },
+    }
+    const catalog = client()
+    catalog.list = vi.fn(async () => ({
+      stores: [publishedStore, syntheticStores[0]],
+      generatedAt: '2026-08-04',
+    }))
+    render(<BrowsePage client={catalog} />)
+    const results = await screen.findByRole('region', { name: 'Store results' })
+    expect(screen.getByText('Real shops and clearly marked fictional test listings')).toBeVisible()
+    expect(screen.queryByText('Fictional listings for safe product review')).not.toBeInTheDocument()
+    const realCard = within(results)
+      .getByRole('heading', { name: publishedStore.name })
+      .closest('article')
+    const fictionalCard = within(results)
+      .getByRole('heading', { name: syntheticStores[0].name })
+      .closest('article')
+    expect(
+      within(realCard!).queryByText('Fictional listing for product review.'),
+    ).not.toBeInTheDocument()
+    expect(within(fictionalCard!).getByText('Fictional listing for product review.')).toBeVisible()
+  })
+
   it('uses the prototype visual direction without replacing live store data', async () => {
     render(<BrowsePage client={client()} />)
 

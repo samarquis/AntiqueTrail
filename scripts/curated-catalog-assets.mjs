@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { Buffer } from 'node:buffer'
 import { constants } from 'node:fs'
 import { lstat, mkdir, open, readdir, realpath, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -176,7 +177,14 @@ async function readStable(filename, maximum) {
   try {
     if (!sameFile(before, await handle.stat({ bigint: true })))
       fail('Curated input changed during read')
-    const bytes = await handle.readFile()
+    const buffer = Buffer.alloc(maximum + 1)
+    let length = 0
+    while (length < buffer.length) {
+      const { bytesRead } = await handle.read(buffer, length, buffer.length - length, null)
+      if (bytesRead === 0) break
+      length += bytesRead
+    }
+    const bytes = buffer.subarray(0, length)
     if (
       bytes.length > maximum ||
       !sameFile(before, await handle.stat({ bigint: true })) ||
@@ -252,7 +260,7 @@ export async function importCuratedCatalog(options, outputRoot, kind) {
       fail('Missing, extra or nonregular curated input')
     const selected = []
     for (const asset of manifest.assets) {
-      const bytes = await readStable(path.join(input, `${asset.sourcePhotoId}.webp`), MAX_BYTES)
+      const bytes = await readStable(path.join(input, `${asset.sourcePhotoId}.webp`), asset.bytes)
       const image = inspectCuratedWebP(bytes)
       if (
         bytes.length !== asset.bytes ||

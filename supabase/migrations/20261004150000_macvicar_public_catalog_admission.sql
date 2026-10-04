@@ -46,6 +46,34 @@ alter table public_test_private.macvicar_admissions force row level security;
 revoke all on public_test_private.macvicar_admissions from public,anon,authenticated,service_role;
 create policy macvicar_operator on public_test_private.macvicar_admissions to postgres using(true) with check(true);
 
+-- This truthful verification channel is not synthetic, a Partner claim, or a
+-- two-human provenance review. Only the native operator and exact receipt may
+-- create or mutate its four reviewed public fact groups.
+alter table app_public.store_fact_verifications drop constraint fact_verifier_kind_stage;
+alter table app_public.store_fact_verifications add constraint fact_verifier_kind_stage check (
+ verifier_kind in ('synthetic_fixture','store_partner','two_person_public_source','administrator_curated_source')
+);
+create function public_test_private.guard_macvicar_verification()
+returns trigger language plpgsql security invoker set search_path='' as $$
+declare target uuid;
+begin
+ if (tg_op<>'DELETE' and new.verifier_kind='administrator_curated_source')
+  or (tg_op<>'INSERT' and old.verifier_kind='administrator_curated_source') then
+  target:=case when tg_op='DELETE' then old.store_id else new.store_id end;
+  if current_user<>'postgres' then raise exception 'macvicar_verification_denied' using errcode='42501';end if;
+  if tg_op<>'DELETE' and not exists(select 1 from public_test_private.macvicar_admissions a
+   join app_public.stores s on s.id=a.store_id where a.store_id=target and a.state in ('prepared','active')
+    and not s.synthetic and s.audience='public' and s.slug='the-market-at-macvicar'
+    and s.name='The Market at Macvicar' and s.address='2307 SW 10th Ave' and s.town='Topeka' and s.state_code='KS')
+  then raise exception 'macvicar_verification_denied' using errcode='42501';end if;
+  if tg_op<>'DELETE' and new.verification_group not in ('identity_location','contact','hours','categories_attributes')
+  then raise exception 'macvicar_verification_denied' using errcode='42501';end if;
+ end if;
+ if tg_op='DELETE' then return old;else return new;end if;
+end $$;
+create trigger guard_macvicar_verification before insert or update or delete on app_public.store_fact_verifications
+ for each row execute function public_test_private.guard_macvicar_verification();
+
 -- Native publication operator, not a browser claim, account or Owner command.
 create function public_test_private.prepare_macvicar_store()
 returns uuid language plpgsql security definer set search_path='' as $$
@@ -99,7 +127,9 @@ returns bytea language sql stable security definer set search_path='' as $$
   'area',(select jsonb_build_array(a.id,a.slug,a.label,a.state_code) from app_public.catalog_areas a where a.id=s.area_id),
   'summary',s.summary,'description',s.description,'phone',s.phone,'website',s.website,'timezone',s.timezone_name,
   'categories',(select jsonb_agg(jsonb_build_array(c.slug,c.label) order by c.slug) from app_public.store_category_assignments ca join app_public.store_categories c on c.id=ca.category_id where ca.store_id=s.id),
-  'hours',(select jsonb_agg(jsonb_build_array(h.iso_weekday,h.interval_index,h.is_closed,h.opens_at,h.closes_at) order by h.iso_weekday,h.interval_index) from app_public.store_weekly_hours h where h.store_id=s.id))::text,'UTF8'),'sha256')
+  'hours',(select jsonb_agg(jsonb_build_array(h.iso_weekday,h.interval_index,h.is_closed,h.opens_at,h.closes_at) order by h.iso_weekday,h.interval_index) from app_public.store_weekly_hours h where h.store_id=s.id),
+  'verification',(select jsonb_agg(jsonb_build_array(v.verification_group,extract(epoch from v.verified_at),v.provenance_label,v.verifier_kind) order by v.verification_group)
+   from app_public.store_fact_verifications v where v.store_id=s.id and v.verification_group in ('identity_location','contact','hours','categories_attributes')))::text,'UTF8'),'sha256')
  from app_public.stores s where s.id=p_store_id;
 $$;
 create function public_test_private.prepare_macvicar(p_spec jsonb,p_manifest text,p_approvals jsonb,p_expected_runtime_version bigint)
@@ -175,6 +205,13 @@ begin
  values(target,b.binding_id,r.version,b.source_sha,b.artifact_digest,b.configuration_digest,b.schema_digest,p_spec->>'manifestSha256',extensions.digest(convert_to(m::text,'UTF8'),'sha256'),public_test_private.macvicar_profile_digest(target),m,p_approvals,
   p_spec->>'decisionRef',p_spec->>'reviewRef',p_spec->>'operatorRef',p_spec->>'stopOwner',(p_spec->>'startsAt')::timestamptz,(p_spec->>'expiresAt')::timestamptz)
  returning admission_id into receipt;
+ -- Receipt preparation is the protected actual review, not a backdated source
+ -- check. Identity reuse alone never refreshes these timestamps.
+ insert into app_public.store_fact_verifications(store_id,verification_group,verified_at,provenance_label,verifier_kind)
+ select target,g,statement_timestamp(),'Administrator-curated review; public source 2026-10-03; admission '||receipt::text,'administrator_curated_source'
+ from unnest(array['identity_location','contact','hours','categories_attributes']::app_public.verification_group[]) g
+ on conflict(store_id,verification_group) do update set verified_at=excluded.verified_at,provenance_label=excluded.provenance_label,verifier_kind=excluded.verifier_kind;
+ update public_test_private.macvicar_admissions set public_profile_digest=public_test_private.macvicar_profile_digest(target) where admission_id=receipt;
  return receipt;
 end $$;
 
@@ -241,12 +278,14 @@ grant usage on schema public_test_private,app_public to macvicar_catalog_reader;
 grant select(store_id,manifest,withdrawn_sha256) on public_test_private.macvicar_admissions to macvicar_catalog_reader;
 grant select(id,slug,name,town,state_code,address,area_id,summary,description,phone,website,timezone_name) on app_public.stores to macvicar_catalog_reader;
 grant select on app_public.catalog_areas,app_public.store_categories,app_public.store_category_assignments,app_public.store_weekly_hours to macvicar_catalog_reader;
+grant select(store_id,verification_group,verified_at) on app_public.store_fact_verifications to macvicar_catalog_reader;
 create policy macvicar_reader_admission on public_test_private.macvicar_admissions for select to macvicar_catalog_reader using(public_test_private.macvicar_active(store_id,admission_id));
 create policy macvicar_reader_store on app_public.stores for select to macvicar_catalog_reader using(public_test_private.macvicar_active(id));
 create policy macvicar_reader_areas on app_public.catalog_areas for select to macvicar_catalog_reader using(true);
 create policy macvicar_reader_categories on app_public.store_categories for select to macvicar_catalog_reader using(true);
 create policy macvicar_reader_assignments on app_public.store_category_assignments for select to macvicar_catalog_reader using(public_test_private.macvicar_active(store_id));
 create policy macvicar_reader_hours on app_public.store_weekly_hours for select to macvicar_catalog_reader using(public_test_private.macvicar_active(store_id));
+create policy macvicar_reader_verification on app_public.store_fact_verifications for select to macvicar_catalog_reader using(public_test_private.macvicar_active(store_id));
 
 create function public_test_private.macvicar_projection(p_q text,p_category text,p_area text,p_slug text)
 returns jsonb language sql stable security definer set search_path='' as $$
@@ -259,8 +298,7 @@ returns jsonb language sql stable security definer set search_path='' as $$
   'weekly_hours',(select jsonb_agg(jsonb_build_object('weekday',h.iso_weekday,'is_closed',h.is_closed,'interval_index',h.interval_index,
    'opens_at',to_char(h.opens_at,'HH24:MI'),'closes_at',to_char(h.closes_at,'HH24:MI')) order by h.iso_weekday,h.interval_index) from app_public.store_weekly_hours h where h.store_id=s.id),
   'media',(select coalesce(jsonb_agg(jsonb_build_object('src',x->>'path','alt',x->>'alt','kind',x->>'kind','caption',x->>'caption','rightsLabel',x->>'rightsLabel') order by (x->>'order')::integer),'[]'::jsonb) from jsonb_array_elements(a.manifest->'assets') x where not(x->>'sha256'=any(a.withdrawn_sha256))),
-  'freshness_state',case when statement_timestamp()>'2026-10-03'::date+interval '180 days' then 'overdue' else 'current' end,
-  'oldest_verified_at','2026-10-03','as_of_utc',statement_timestamp(),
+  'freshness_state',f.freshness_state,'oldest_verified_at',f.oldest_verified_at,'as_of_utc',statement_timestamp(),
   'provenance',jsonb_build_object('sourceLabel','Official Facebook profile; user-confirmed hours','updatedAt','2026-10-03',
    'note','Hours confirmed by the user on October 3, 2026. Gallery images show examples and may not reflect current inventory. The cover is an official Facebook photo dated October 21, 2017; it shows the front windows only.'),
   'accessibility',jsonb_build_object('status','unverified','details',jsonb_build_array('Entry and other accessibility details have not been verified.')),
@@ -268,7 +306,8 @@ returns jsonb language sql stable security definer set search_path='' as $$
   'hoursExceptions','[]'::jsonb,'updates','[]'::jsonb))
  from app_public.stores s join app_public.catalog_areas area on area.id=s.area_id
  join public_test_private.macvicar_admissions a on a.store_id=s.id
- where public_test_private.macvicar_active(s.id) and statement_timestamp()<('2026-10-03'::date+interval '365 days')
+ cross join lateral app_public.catalog_freshness(s.id,statement_timestamp()) f
+ where public_test_private.macvicar_active(s.id) and f.freshness_state in ('current','overdue')
   and (p_slug is null or s.slug=p_slug) and (p_area is null or area.slug=p_area)
   and (p_category is null or exists(select 1 from app_public.store_category_assignments ca join app_public.store_categories c on c.id=ca.category_id where ca.store_id=s.id and c.slug=p_category))
   and (p_q is null or s.name ilike '%'||p_q||'%' or s.town ilike '%'||p_q||'%' or area.label ilike '%'||p_q||'%'
@@ -311,6 +350,11 @@ create function public_test_private.macvicar_store_scoped(p_store_id uuid)
 returns boolean language sql stable security definer set search_path='' as $$
  select exists(select 1 from public_test_private.macvicar_admissions where store_id=p_store_id);
 $$;
+-- General regional catalog/map readers must never turn curated verification
+-- into a second admission path. Retain all prior permissive policies/OIDs.
+grant usage on schema public_test_private to catalog_reader,release_automation;
+create policy macvicar_general_catalog_exclusion on app_public.stores as restrictive for select to catalog_reader,release_automation
+ using(not public_test_private.macvicar_store_scoped(id));
 grant create on schema shopper_private to identity_service;
 set local role identity_service;
 create or replace function shopper_private.store_is_shopper_visible(p_store_id uuid)
@@ -325,12 +369,12 @@ revoke all on function public_test_private.prepare_macvicar_store(),public_test_
  public_test_private.activate_macvicar(uuid,bigint),public_test_private.revoke_macvicar(uuid,bigint),
  public_test_private.withdraw_macvicar_asset(uuid,text,text,bigint),
  public_test_private.macvicar_active(uuid,uuid),public_test_private.macvicar_profile_digest(uuid),public_test_private.macvicar_projection(text,text,text,text),
- public_test_private.catalog_gateway_base(text,text,jsonb),public_test_private.macvicar_store_scoped(uuid)
+ public_test_private.catalog_gateway_base(text,text,jsonb),public_test_private.macvicar_store_scoped(uuid),public_test_private.guard_macvicar_verification()
  from public,anon,authenticated,service_role;
 grant execute on function public_test_private.macvicar_active(uuid,uuid) to macvicar_catalog_reader;
 grant execute on function public_test_private.macvicar_projection(text,text,text,text),public_test_private.catalog_gateway_base(text,text,jsonb) to public_test_catalog_composer;
 grant execute on function app_public.normalize_catalog_query(text) to public_test_catalog_composer;
-grant execute on function public_test_private.macvicar_store_scoped(uuid) to identity_service;
+grant execute on function public_test_private.macvicar_store_scoped(uuid) to identity_service,catalog_reader,release_automation;
 revoke all on function app_public.public_test_catalog_gateway_request(text,text,jsonb) from public,anon,authenticated,service_role;
 grant execute on function app_public.public_test_catalog_gateway_request(text,text,jsonb) to public_catalog_gateway;
 revoke create on schema public_test_private from macvicar_catalog_reader,synthetic_catalog_automation;

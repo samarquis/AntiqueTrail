@@ -324,15 +324,16 @@ test('rejects a derivative modified during its actual file read', async (context
     await writeFile(path.join(input, `${asset.sourcePhotoId}.webp`), IMAGE)
   const probe = await open(manifestPath, 'r'),
     prototype = Object.getPrototypeOf(probe)
-  const readFile = prototype.readFile
+  const read = prototype.read
   await probe.close()
-  context.mock.method(prototype, 'readFile', async function (...arguments_) {
-    const bytes = await readFile.apply(this, arguments_)
-    if (bytes.toString('ascii', 0, 4) === 'RIFF') {
+  context.mock.method(prototype, 'read', async function (...arguments_) {
+    const result = await read.apply(this, arguments_)
+    const bytes = arguments_[0]
+    if (result.bytesRead && bytes.toString('ascii', 0, 4) === 'RIFF') {
       const changedTime = new Date(Date.now() + 10000)
       await utimes(path.join(input, '1.webp'), changedTime, changedTime)
     }
-    return bytes
+    return result
   })
   await assert.rejects(
     importCuratedCatalog(
@@ -347,4 +348,62 @@ test('rejects a derivative modified during its actual file read', async (context
     ),
     /changed during read/,
   )
+})
+
+test('bounds native read allocation when a derivative grows after its stat guard', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'curated-growth-'))
+  const input = path.join(root, 'input'),
+    output = path.join(root, 'output'),
+    manifestPath = path.join(root, 'manifest.json')
+  await mkdir(input)
+  await mkdir(output)
+  const item = manifest(),
+    text = JSON.stringify(item),
+    firstInput = path.join(input, '1.webp')
+  await writeFile(manifestPath, text)
+  for (const asset of item.assets)
+    await writeFile(path.join(input, `${asset.sourcePhotoId}.webp`), IMAGE)
+  const probe = await open(manifestPath, 'r'),
+    prototype = Object.getPrototypeOf(probe)
+  const read = prototype.read,
+    readFile = prototype.readFile
+  await probe.close()
+  let unboundedReads = 0,
+    grew = false
+  const nativeReadSizes = []
+  async function grow(handle) {
+    if (!grew && (await handle.stat()).size === IMAGE.length) {
+      await writeFile(firstInput, Buffer.concat([IMAGE, Buffer.alloc(1024)]))
+      grew = true
+      return true
+    }
+    return false
+  }
+  context.mock.method(prototype, 'readFile', async function (...arguments_) {
+    unboundedReads += 1
+    await grow(this)
+    return readFile.apply(this, arguments_)
+  })
+  context.mock.method(prototype, 'read', async function (buffer, offset, length, position) {
+    if (await grow(this)) {
+      nativeReadSizes.push({ allocation: buffer.length, requested: length })
+    }
+    return read.call(this, buffer, offset, length, position)
+  })
+  await assert.rejects(
+    importCuratedCatalog(
+      {
+        'curated-scope': 'macvicar',
+        'curated-manifest': manifestPath,
+        'curated-input': input,
+        'curated-manifest-sha256': createHash('sha256').update(text).digest('hex'),
+      },
+      output,
+      'pages',
+    ),
+    /changed during read/,
+  )
+  assert.equal(grew, true)
+  assert.equal(unboundedReads, 0)
+  assert.deepEqual(nativeReadSizes, [{ allocation: IMAGE.length + 1, requested: IMAGE.length + 1 }])
 })
