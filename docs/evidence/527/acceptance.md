@@ -5,10 +5,11 @@
 - Issue: [#527](https://github.com/samarquis/AntiqueTrail/issues/527).
 - Owner: root release lane; delegated source writer owns only the four files below.
 - Risk: high; public routing and release artifact validation.
-- Baseline SHA: `dddb9cfd1440b9f883a3ebe5451601ce04f822fb` (fast-forward integration of the disjoint #526 source merge).
-- Candidate SHA: pending root commit and independent exact-candidate review.
-- Worktree/branch: isolated `issue-527-curated-routing`, `codex/issue-527-curated-routing`.
-- Evidence captured: 2026-10-04; local source checks only.
+- Baseline SHA: `8a28fc6532e960b2ebbaabe8a71a91581d0155e8` (current main with #532 accepted).
+- Integrated source commit: `3b8f9d548626cc636decf8192051ffa959a1fd92` (original #527 candidate plus current main).
+- Candidate: final #530 PR head, bound by the live PR, required CI, and exact-head review receipts.
+- Worktree/branch: managed `issue-527-route-integration`, local `codex/issue-527-route-main-integration-luna`; PR continues on `codex/issue-527-curated-routing`.
+- Evidence captured: 2026-10-04; local source and native Build Output checks only.
 
 ## Scope
 
@@ -34,15 +35,17 @@ The authored pattern follows Vercel's [capture-group negative-lookahead syntax](
 - Focused GREEN after the change: 11 routing/artifact tests passed with zero failures or skips.
 - Full artifact tests: 77 passed, zero failures or skips (`node --test scripts/release-artifact.test.mjs`).
 - Final focused routing/artifact checks after the explicit Node URL import: 12 passed, zero failures or skips. The import corrected the sole scoped-lint finding.
-- Scoped ESLint and Prettier checks passed; `git diff --check` passed. Existing dependencies were reused without installation.
+- Original candidate scoped ESLint and Prettier checks passed; `git diff --check` passed.
 - Build Output fixture uses synthetic public inputs. No client image, private configuration, credential, provider mutation, or deployment was used.
 
-Root independently reran all 77 artifact tests with zero failures or skips. Root installed this worktree's own dependencies with `npm ci`: audit 591 packages, zero vulnerabilities. Native `vercel build --prod --yes` succeeded using the existing project's ten approved public inputs (configuration SHA256 `477787d13efb7d7bccb737624808c9029b770cbe41fa4a293de2b9ae45fc93d0`). Its actual generated `config.json` contains the exact guarded rewrite `^(?:/((?!curated/macvicar/v1(?:/|$)).*))$` after the filesystem phase, with existing global/auth/private/cache headers and error routing preserved. This is native compilation proof, not a hosted 404 response or production acceptance.
+On the integrated candidate, `node --test scripts/release-artifact.test.mjs` passed all 77 tests with zero failures or skips. The full `npm run test:release` suite passed 319 tests, failed none, and skipped one platform-dependent case. `npm ci` installed 591 packages with zero reported vulnerabilities. Scoped ESLint, Prettier, and `git diff --check` passed.
+
+Native Vercel CLI 50.25.5 `vercel build --prod` succeeded using only the ten approved public Vite inputs (configuration SHA256 `477787d13efb7d7bccb737624808c9029b770cbe41fa4a293de2b9ae45fc93d0`); no provider write or deployment occurred. The generated `.vercel/output/config.json` passed `assertProductionArtifact(..., 'vercel')`. Its emitted routes place the filesystem handler first, then the exact guarded rewrite `^(?:/((?!curated/macvicar/v1(?:/|$)).*))$` with `check: true`, followed by the existing error route. `static/index.html` exists. This proves native compilation and the local artifact contract, not a hosted 404 response or production acceptance.
 
 ## Independent review and unverified
 
-Root must freeze the candidate SHA, obtain independent Standards/Spec/security review, and record native Vercel build and serving-copy proof before closure. Hosted withdrawal, retained deployment/cache handling, canonical route acceptance, and ADR0011 release gates remain separate operator work. This receipt provides no hosted or production acceptance.
+Independent exact-head Standards/Spec and formal security review, plus required CI, must bind to the final PR head after integration. Hosted withdrawal, retained deployment/cache handling, canonical route acceptance, and ADR0011 release gates remain separate operator work. This receipt provides no hosted or production acceptance; #527 remains open until an actual missing/excluded-path HTTP 404 is verified on the admitted deployment.
 
 ## Invalidation
 
-Evidence belongs to the named source baseline plus this uncommitted diff. Any source, emitted route, artifact, or integration change invalidates affected checks and requires a fresh exact-candidate receipt.
+Evidence belongs to the named source baseline and final PR head. Any source, emitted route, artifact, or integration change invalidates affected checks and requires a fresh exact-head receipt.
