@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type {
   CatalogClient,
   CatalogBrowseStage,
@@ -112,6 +112,31 @@ export function CatalogFiltersForm({
     },
   )
   const [panelOpen, setPanelOpen] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [restoreFocusAfterClose, setRestoreFocusAfterClose] = useState(false)
+  useLayoutEffect(() => {
+    if (!restoreFocusAfterClose) return
+    setRestoreFocusAfterClose(false)
+    const focused = document.activeElement
+    if (
+      focused instanceof HTMLElement &&
+      focused !== document.body &&
+      !focused.matches(':disabled') &&
+      focused.getClientRects().length > 0
+    ) {
+      return
+    }
+    const trigger = triggerRef.current
+    if (trigger?.getClientRects().length) trigger.focus()
+    else searchRef.current?.focus()
+  }, [restoreFocusAfterClose])
+
+  const closePanel = (restoreFocus: boolean) => {
+    setRestoreFocusAfterClose(restoreFocus)
+    setPanelOpen(false)
+  }
   useEffect(
     () =>
       setDraftFilters({
@@ -133,8 +158,9 @@ export function CatalogFiltersForm({
         role="search"
         onSubmit={(event) => {
           event.preventDefault()
+          const focusWasInPanel = panelRef.current?.contains(document.activeElement) ?? false
           onChange({ ...filters, ...draftFilters, q: draftFilters.q?.trim() || undefined })
-          setPanelOpen(false)
+          closePanel(focusWasInPanel)
         }}
       >
         <div className="catalog-field catalog-field--search">
@@ -143,6 +169,7 @@ export function CatalogFiltersForm({
             <input
               id="catalog-search"
               name="q"
+              ref={searchRef}
               value={draftFilters.q ?? ''}
               onChange={(event) =>
                 setDraftFilters((draft) => ({ ...draft, q: event.target.value }))
@@ -154,6 +181,7 @@ export function CatalogFiltersForm({
         </div>
         <button
           className="catalog-filters__trigger"
+          ref={triggerRef}
           type="button"
           aria-expanded={panelOpen}
           aria-controls="catalog-filter-panel"
@@ -164,6 +192,7 @@ export function CatalogFiltersForm({
         <div
           id="catalog-filter-panel"
           className="catalog-filters__panel"
+          ref={panelRef}
           data-expanded={panelOpen ? 'true' : 'false'}
         >
           <div className="catalog-field">
@@ -299,9 +328,10 @@ export function CatalogFiltersForm({
               type="button"
               disabled={!hasFilters && !hasDraftFilters}
               onClick={() => {
+                const focusWasInPanel = panelRef.current?.contains(document.activeElement) ?? false
                 setDraftFilters({})
                 onChange({})
-                setPanelOpen(false)
+                closePanel(focusWasInPanel)
               }}
             >
               Clear filters

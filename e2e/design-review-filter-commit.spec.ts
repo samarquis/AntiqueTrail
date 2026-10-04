@@ -36,11 +36,38 @@ for (const submit of ['Search', 'Enter', 'Apply filters'] as const) {
     ).toHaveCount(0)
 
     if (submit === 'Search') {
-      await page.getByRole('button', { name: 'Search', exact: true }).click()
+      const searchButton = page.getByRole('button', { name: 'Search', exact: true })
+      await searchButton.click()
+      await expect(searchButton).toBeFocused()
     } else if (submit === 'Enter') {
       await search.press('Enter')
+      await expect(search).toBeFocused()
     } else {
-      await page.getByRole('button', { name: 'Apply filters' }).click()
+      const apply = page.getByRole('button', { name: 'Apply filters' })
+      await page.getByLabel('Area').focus()
+      await page.keyboard.press('Tab')
+      await expect(apply).toBeFocused()
+      await page.keyboard.press('Enter')
+      const trigger = page.getByRole('button', { name: /^filters(?: · active)?$/iu })
+      const focusTarget = (await apply.isVisible())
+        ? apply
+        : (await trigger.isVisible())
+          ? trigger
+          : search
+      await expect(focusTarget).toBeFocused()
+      expect(await focusTarget.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+      await page.keyboard.press('Tab')
+      expect(
+        await page.evaluate(() => {
+          const element = document.activeElement
+          return (
+            element instanceof HTMLElement &&
+            element !== document.body &&
+            element.getClientRects().length > 0 &&
+            window.getComputedStyle(element).visibility === 'visible'
+          )
+        }),
+      ).toBe(true)
     }
 
     await expect(page).toHaveURL(
@@ -111,7 +138,19 @@ test('keeps Package 1 labels and gating, and clears draft-only values', async ({
   await expect(clear).toBeEnabled()
   await expect(page).toHaveURL(/\/stores$/u)
   await expect(page.locator('.catalog-card')).toHaveCount(12)
-  await clear.click()
+  await page.getByLabel('Area').focus()
+  await page.keyboard.press('Tab')
+  await page.keyboard.press('Tab')
+  await expect(clear).toBeFocused()
+  await page.keyboard.press('Enter')
+  const focusTarget =
+    (await clear.isVisible()) && (await clear.isEnabled())
+      ? clear
+      : (await trigger.isVisible())
+        ? trigger
+        : page.getByLabel('Search stores')
+  await expect(focusTarget).toBeFocused()
+  expect(await focusTarget.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
 
   await expect(page).toHaveURL(/\/stores$/u)
   await expect(page.locator('.catalog-card')).toHaveCount(12)

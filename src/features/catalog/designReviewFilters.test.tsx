@@ -17,9 +17,14 @@ function renderBrowse(client: CatalogClient, initialSearch = '') {
   return render(<BrowsePage client={client} initialSearch={initialSearch} />)
 }
 
+function mockVisible(element: HTMLElement) {
+  return vi.spyOn(element, 'getClientRects').mockReturnValue({ length: 1 } as DOMRectList)
+}
+
 describe('Browse filter commit behavior', () => {
   afterEach(() => {
     cleanup()
+    vi.restoreAllMocks()
     window.history.replaceState({}, '', '/')
     window.sessionStorage.clear()
   })
@@ -78,18 +83,21 @@ describe('Browse filter commit behavior', () => {
       renderBrowse(client)
       expect(await screen.findByRole('heading', { name: '12 stores to explore' })).toBeVisible()
 
-      await user.click(screen.getByRole('button', { name: /^filters$/i }))
+      const filtersButton = screen.getByRole('button', { name: /^filters$/i })
+      await user.click(filtersButton)
       const search = screen.getByRole('textbox', { name: 'Search stores' })
+      const searchButton = screen.getByRole('button', { name: /^Search$/ })
       await user.type(search, '  filter-501-no-match  ')
       await user.selectOptions(screen.getByLabelText('Category'), 'vintage')
       await user.selectOptions(screen.getByLabelText('Area'), 'topeka-ks')
 
       if (submission === 'Search') {
-        await user.click(screen.getByRole('button', { name: /^Search$/ }))
+        await user.click(searchButton)
       } else if (submission === 'Enter') {
         await user.click(search)
         await user.keyboard('{Enter}')
       } else {
+        mockVisible(filtersButton)
         await user.click(screen.getByRole('button', { name: 'Apply filters' }))
       }
 
@@ -103,6 +111,9 @@ describe('Browse filter commit behavior', () => {
         category: 'vintage',
         area: 'topeka-ks',
       })
+      if (submission === 'Search') expect(searchButton).toHaveFocus()
+      else if (submission === 'Enter') expect(search).toHaveFocus()
+      else expect(filtersButton).toHaveFocus()
     },
   )
 
@@ -162,6 +173,8 @@ describe('Browse filter commit behavior', () => {
     await user.selectOptions(screen.getByLabelText('Area'), 'topeka-ks')
 
     const clear = screen.getByRole('button', { name: 'Clear filters' })
+    const filtersButton = screen.getByRole('button', { name: /^filters$/i })
+    mockVisible(filtersButton)
     expect(clear).toBeEnabled()
     expect(window.location.pathname + window.location.search).toBe('/stores')
     expect(screen.getByRole('heading', { name: '12 stores to explore' })).toBeVisible()
@@ -170,12 +183,44 @@ describe('Browse filter commit behavior', () => {
     await user.click(clear)
 
     expect(await screen.findByRole('heading', { name: '12 stores to explore' })).toBeVisible()
+    expect(filtersButton).toHaveFocus()
     expect(window.location.pathname + window.location.search).toBe('/stores')
     expect(screen.getByRole('textbox', { name: 'Search stores' })).toHaveValue('')
     expect(screen.getByLabelText('Category')).toHaveValue('')
     expect(screen.getByLabelText('Area')).toHaveValue('')
     await user.click(screen.getByRole('button', { name: /^filters$/i }))
     expect(screen.getByRole('button', { name: 'Clear filters' })).toBeDisabled()
+  })
+
+  it('returns focus to Search when the Filters trigger is hidden after Apply', async () => {
+    const user = userEvent.setup()
+    const client = catalogClient()
+    renderBrowse(client)
+    expect(await screen.findByRole('heading', { name: '12 stores to explore' })).toBeVisible()
+
+    const filtersButton = screen.getByRole('button', { name: /^filters$/i })
+    await user.click(filtersButton)
+    filtersButton.style.display = 'none'
+    await user.type(screen.getByRole('textbox', { name: 'Search stores' }), 'filter-501-no-match')
+    await user.selectOptions(screen.getByLabelText('Category'), 'vintage')
+
+    await user.click(screen.getByRole('button', { name: 'Apply filters' }))
+
+    expect(await screen.findByText('No stores match those filters.')).toBeVisible()
+    expect(screen.getByRole('textbox', { name: 'Search stores' })).toHaveFocus()
+  })
+
+  it('restores focus after Apply when the panel state is already closed', async () => {
+    const user = userEvent.setup()
+    const client = catalogClient()
+    renderBrowse(client)
+    expect(await screen.findByRole('heading', { name: '12 stores to explore' })).toBeVisible()
+
+    const filtersButton = screen.getByRole('button', { name: /^filters$/i })
+    mockVisible(filtersButton)
+    await user.click(screen.getByRole('button', { name: 'Apply filters' }))
+
+    expect(filtersButton).toHaveFocus()
   })
 
   it('retains the submitted snapshot and reports a request error', async () => {
