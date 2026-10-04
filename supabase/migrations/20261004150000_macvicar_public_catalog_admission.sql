@@ -27,6 +27,7 @@ create table public_test_private.macvicar_admissions (
  public_profile_digest bytea not null check(octet_length(public_profile_digest)=32),
  manifest jsonb not null,
  approvals jsonb not null,
+ withdrawn_sha256 text[] not null default '{}'::text[],
  decision_ref text not null check(length(decision_ref) between 1 and 500),
  review_ref text not null check(review_ref~'^https://github.com/samarquis/AntiqueTrail/pull/[0-9]+$'),
  operator_ref text not null check(length(operator_ref) between 1 and 100),
@@ -50,6 +51,8 @@ create function public_test_private.prepare_macvicar_store()
 returns uuid language plpgsql security definer set search_path='' as $$
 declare target app_public.stores%rowtype; area uuid; category uuid; item text;
 begin
+ perform pg_advisory_xact_lock(hashtextextended('store-application-projection',0));
+ lock table app_public.stores in share row exclusive mode;
  perform pg_advisory_xact_lock(hashtextextended('ADR0011:Macvicar',0));
  if exists(select 1 from app_public.stores where slug<>'the-market-at-macvicar' and
   (lower(btrim(name))='the market at macvicar'
@@ -216,9 +219,26 @@ begin
  return p_expected_version+1;
 end $$;
 
+create function public_test_private.withdraw_macvicar_asset(p_id uuid,p_sha256 text,p_metadata_digest text,p_expected_version bigint)
+returns bigint language plpgsql security definer set search_path='' as $$
+declare a public_test_private.macvicar_admissions%rowtype;
+begin
+ perform 1 from public_test_private.runtime where id=1 for update;
+ select * into a from public_test_private.macvicar_admissions where admission_id=p_id for update;
+ if a.admission_id is null or a.version is distinct from p_expected_version or a.state<>'active'
+  or p_sha256 is null or p_sha256!~'^[0-9a-f]{64}$'
+  or p_metadata_digest is null or p_metadata_digest!~'^[0-9a-f]{64}$'
+  or not exists(select 1 from jsonb_array_elements(a.manifest->'assets') x where x->>'sha256'=p_sha256
+   and p_metadata_digest=encode(extensions.digest(convert_to(x::text,'UTF8'),'sha256'),'hex'))
+  or p_sha256=any(a.withdrawn_sha256)
+ then raise exception 'macvicar_withdrawal_denied' using errcode='42501';end if;
+ update public_test_private.macvicar_admissions set withdrawn_sha256=array_append(withdrawn_sha256,p_sha256),version=version+1 where admission_id=p_id;
+ return p_expected_version+1;
+end $$;
+
 -- Only reviewed public columns; no account/approval/secret JSON serialization.
 grant usage on schema public_test_private,app_public to macvicar_catalog_reader;
-grant select(store_id,manifest) on public_test_private.macvicar_admissions to macvicar_catalog_reader;
+grant select(store_id,manifest,withdrawn_sha256) on public_test_private.macvicar_admissions to macvicar_catalog_reader;
 grant select(id,slug,name,town,state_code,address,area_id,summary,description,phone,website,timezone_name) on app_public.stores to macvicar_catalog_reader;
 grant select on app_public.catalog_areas,app_public.store_categories,app_public.store_category_assignments,app_public.store_weekly_hours to macvicar_catalog_reader;
 create policy macvicar_reader_admission on public_test_private.macvicar_admissions for select to macvicar_catalog_reader using(public_test_private.macvicar_active(store_id,admission_id));
@@ -238,7 +258,7 @@ returns jsonb language sql stable security definer set search_path='' as $$
    from app_public.store_category_assignments ca join app_public.store_categories c on c.id=ca.category_id where ca.store_id=s.id),
   'weekly_hours',(select jsonb_agg(jsonb_build_object('weekday',h.iso_weekday,'is_closed',h.is_closed,'interval_index',h.interval_index,
    'opens_at',to_char(h.opens_at,'HH24:MI'),'closes_at',to_char(h.closes_at,'HH24:MI')) order by h.iso_weekday,h.interval_index) from app_public.store_weekly_hours h where h.store_id=s.id),
-  'media',(select jsonb_agg(jsonb_build_object('src',x->>'path','alt',x->>'alt','kind',x->>'kind','caption',x->>'caption','rightsLabel',x->>'rightsLabel') order by (x->>'order')::integer) from jsonb_array_elements(a.manifest->'assets') x),
+  'media',(select coalesce(jsonb_agg(jsonb_build_object('src',x->>'path','alt',x->>'alt','kind',x->>'kind','caption',x->>'caption','rightsLabel',x->>'rightsLabel') order by (x->>'order')::integer),'[]'::jsonb) from jsonb_array_elements(a.manifest->'assets') x where not(x->>'sha256'=any(a.withdrawn_sha256))),
   'freshness_state',case when statement_timestamp()>'2026-10-03'::date+interval '180 days' then 'overdue' else 'current' end,
   'oldest_verified_at','2026-10-03','as_of_utc',statement_timestamp(),
   'provenance',jsonb_build_object('sourceLabel','Official Facebook profile; user-confirmed hours','updatedAt','2026-10-03',
@@ -303,6 +323,7 @@ revoke create on schema shopper_private from identity_service;
 
 revoke all on function public_test_private.prepare_macvicar_store(),public_test_private.prepare_macvicar(jsonb,text,jsonb,bigint),
  public_test_private.activate_macvicar(uuid,bigint),public_test_private.revoke_macvicar(uuid,bigint),
+ public_test_private.withdraw_macvicar_asset(uuid,text,text,bigint),
  public_test_private.macvicar_active(uuid,uuid),public_test_private.macvicar_profile_digest(uuid),public_test_private.macvicar_projection(text,text,text,text),
  public_test_private.catalog_gateway_base(text,text,jsonb),public_test_private.macvicar_store_scoped(uuid)
  from public,anon,authenticated,service_role;
@@ -317,6 +338,7 @@ alter function public_test_private.prepare_macvicar_store() owner to postgres;
 alter function public_test_private.prepare_macvicar(jsonb,text,jsonb,bigint) owner to postgres;
 alter function public_test_private.activate_macvicar(uuid,bigint) owner to postgres;
 alter function public_test_private.revoke_macvicar(uuid,bigint) owner to postgres;
+alter function public_test_private.withdraw_macvicar_asset(uuid,text,text,bigint) owner to postgres;
 alter function public_test_private.macvicar_active(uuid,uuid) owner to postgres;
 alter function public_test_private.macvicar_profile_digest(uuid) owner to postgres;
 alter function public_test_private.macvicar_store_scoped(uuid) owner to postgres;

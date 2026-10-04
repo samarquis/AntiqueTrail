@@ -9,6 +9,7 @@ import {
   importCuratedCatalog,
   inspectCuratedWebP,
   validateCuratedManifest,
+  verifyCuratedCatalog,
 } from './curated-catalog-assets.mjs'
 
 const IMAGE = Buffer.from(
@@ -45,6 +46,28 @@ test('accepts only the fixed ordered public manifest and simple still-image WebP
   assert.equal(validateCuratedManifest(manifest()).assets.length, 51)
   assert.deepEqual(inspectCuratedWebP(IMAGE), { width: 1, height: 1, chunks: ['VP8'] })
 })
+
+for (const [name, value] of [
+  ['null', () => null],
+  ['scalar', (item) => item.assets[0].sha256],
+  ['duplicates', (item) => [item.assets[0].sha256, item.assets[0].sha256]],
+  ['unapproved hash', () => ['f'.repeat(64)]],
+  ['unsorted hashes', (item) => [item.assets[1].sha256, item.assets[0].sha256]],
+]) {
+  test(`rejects ${name} withdrawal metadata`, () => {
+    const item = manifest()
+    const binding = {
+      storeSlug: item.storeSlug,
+      manifestSha256: 'c'.repeat(64),
+      assets: item.assets,
+      withdrawnSha256: value(item),
+    }
+    assert.throws(
+      () => verifyCuratedCatalog([], 'pages', binding, binding.manifestSha256, ''),
+      /withdrawal/,
+    )
+  })
+}
 
 for (const [name, change] of [
   [

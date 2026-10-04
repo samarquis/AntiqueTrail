@@ -148,53 +148,73 @@ test('requires external curated manifest identity when verifying a curated relea
   )
 })
 
-test('imports curated assets into Vercel static output and retains the binding in receipts', async () => {
-  const item = await curatedFixture('vercel')
-  const manifest = await createRelease(item.options)
-  assert.equal(manifest.files.filter((file) => file.path.startsWith('static/curated/')).length, 51)
-  const expected = {
-    bundle: item.bundle,
-    kind: 'vercel',
-    'expected-digest': manifest.artifactDigest,
-    'expected-source-sha': SOURCE_SHA,
-    'expected-curated-manifest-sha256': item.manifestSha256,
-  }
-  await verifyRelease(expected)
-  const providerFile = path.join(item.root, 'provider.json')
-  await writeFile(
-    providerFile,
-    JSON.stringify({
-      deploymentId: 'id',
-      deploymentUrl: 'https://deployment.test',
-      canonicalHostname: 'https://canonical.test',
-      projectName: 'antique-trail',
-      branch: 'main',
-      environment: 'production',
-      cliVersion: '1',
-      mode: 'promotion',
-      reasonCode: 'reviewed',
-      sourceRunId: '1',
-      deployedAt: '2026-10-04T00:00:00Z',
-      deploymentAccessStatus: '200',
-      canonicalAccessStatus: '200',
-    }),
-  )
-  await assert.rejects(
-    createReceipt({
+for (const withdrawing of [false, true]) {
+  test(`${withdrawing ? 'withdrawal ' : ''}imports curated assets into Vercel static output and retains the binding in receipts`, async () => {
+    const item = await curatedFixture('vercel')
+    const withdrawn = withdrawing ? item.manifest.assets[1].sha256 : undefined
+    const manifest = await createRelease({
+      ...item.options,
+      ...(withdrawing ? { 'curated-withdrawn-sha256': withdrawn } : {}),
+    })
+    assert.equal(
+      manifest.files.filter((file) => file.path.startsWith('static/curated/')).length,
+      withdrawing ? 50 : 51,
+    )
+    const expected = {
+      bundle: item.bundle,
+      kind: 'vercel',
+      'expected-digest': manifest.artifactDigest,
+      'expected-source-sha': SOURCE_SHA,
+      'expected-curated-manifest-sha256': item.manifestSha256,
+      'expected-curated-withdrawn-sha256': withdrawn,
+    }
+    await verifyRelease(expected)
+    const providerFile = path.join(item.root, 'provider.json')
+    await writeFile(
+      providerFile,
+      JSON.stringify({
+        deploymentId: 'id',
+        deploymentUrl: 'https://deployment.test',
+        canonicalHostname: 'https://canonical.test',
+        projectName: 'antique-trail',
+        branch: 'main',
+        environment: 'production',
+        cliVersion: '1',
+        mode: 'promotion',
+        reasonCode: 'reviewed',
+        sourceRunId: '1',
+        deployedAt: '2026-10-04T00:00:00Z',
+        deploymentAccessStatus: '200',
+        canonicalAccessStatus: '200',
+      }),
+    )
+    await assert.rejects(
+      createReceipt({
+        ...expected,
+        'expected-curated-manifest-sha256': undefined,
+        'provider-file': providerFile,
+        out: path.join(item.root, 'invalid-receipt.json'),
+      }),
+      /expected curated manifest/,
+    )
+    const receipt = await createReceipt({
       ...expected,
-      'expected-curated-manifest-sha256': undefined,
       'provider-file': providerFile,
-      out: path.join(item.root, 'invalid-receipt.json'),
-    }),
-    /expected curated manifest/,
-  )
-  const receipt = await createReceipt({
-    ...expected,
-    'provider-file': providerFile,
-    out: path.join(item.root, 'receipt.json'),
+      out: path.join(item.root, 'receipt.json'),
+    })
+    assert.deepEqual(receipt.artifact.curatedCatalog, manifest.curatedCatalog)
+    if (withdrawing)
+      await assert.rejects(
+        createReceipt({
+          ...expected,
+          'expected-curated-withdrawn-sha256': undefined,
+          'provider-file': providerFile,
+          out: path.join(item.root, 'missing-withdrawal-receipt.json'),
+        }),
+        /expected curated withdrawal/,
+      )
   })
-  assert.deepEqual(receipt.artifact.curatedCatalog, manifest.curatedCatalog)
-})
+}
 
 for (const flag of [
   'curated-scope',
@@ -348,6 +368,166 @@ test('denies a retained curated artifact under a new withdrawal manifest identit
       'expected-curated-manifest-sha256': 'c'.repeat(64),
     }),
     /expected admission/,
+  )
+})
+
+test('denies an old full-photo artifact against the current individual withdrawal set', async () => {
+  const item = await curatedFixture(),
+    manifest = await createRelease(item.options)
+  await assert.rejects(
+    verifyRelease({
+      bundle: item.bundle,
+      'expected-digest': manifest.artifactDigest,
+      'expected-source-sha': SOURCE_SHA,
+      'expected-curated-manifest-sha256': item.manifestSha256,
+      'expected-curated-withdrawn-sha256': item.manifest.assets[1].sha256,
+    }),
+    /withdrawal/,
+  )
+})
+
+for (const [name, indexes] of [
+  ['one gallery image', [1]],
+  ['cover', [0]],
+  ['all gallery images leaving only cover', Array.from({ length: 50 }, (_, index) => index + 1)],
+  ['all images including the final cover', Array.from({ length: 51 }, (_, index) => index)],
+]) {
+  test(`withdrawal excludes ${name} while retaining immutable approved metadata`, async () => {
+    const item = await curatedFixture()
+    const withdrawn = indexes.map((index) => item.manifest.assets[index].sha256)
+    const manifest = await createRelease({
+      ...item.options,
+      'curated-withdrawn-sha256': withdrawn.join(','),
+    })
+    assert.deepEqual(manifest.curatedCatalog.assets, item.manifest.assets)
+    assert.deepEqual(manifest.curatedCatalog.withdrawnSha256, [...withdrawn].sort())
+    assert.equal(
+      manifest.files.filter((file) => file.path.startsWith('curated/')).length,
+      51 - withdrawn.length,
+    )
+    for (const hash of withdrawn)
+      await assert.rejects(
+        readFile(path.join(item.bundle, 'dist', 'curated', 'macvicar', 'v1', `${hash}.webp`)),
+        { code: 'ENOENT' },
+      )
+    const expected = {
+      bundle: item.bundle,
+      'expected-digest': manifest.artifactDigest,
+      'expected-source-sha': SOURCE_SHA,
+      'expected-curated-manifest-sha256': item.manifestSha256,
+    }
+    await assert.rejects(verifyRelease(expected), /expected curated withdrawal/)
+    await verifyRelease({ ...expected, 'expected-curated-withdrawn-sha256': withdrawn.join(',') })
+    await assert.rejects(
+      verifyRelease({ ...expected, 'expected-curated-withdrawn-sha256': '' }),
+      /withdrawal/,
+    )
+  })
+}
+
+for (const [name, value] of [
+  [
+    'duplicate hash',
+    (item) => `${item.manifest.assets[1].sha256},${item.manifest.assets[1].sha256}`,
+  ],
+  ['unapproved hash', () => 'f'.repeat(64)],
+  ['uppercase hash', (item) => item.manifest.assets[1].sha256.toUpperCase()],
+  ['empty list item', (item) => `${item.manifest.assets[1].sha256},`],
+  ['nonstring value', () => null],
+]) {
+  test(`withdrawal rejects ${name}`, async () => {
+    const item = await curatedFixture()
+    await assert.rejects(
+      createRelease({ ...item.options, 'curated-withdrawn-sha256': value(item) }),
+      /withdrawal/,
+    )
+  })
+}
+
+test('withdrawal option requires the complete curated admission group', async () => {
+  const item = await fixture()
+  await assert.rejects(
+    createRelease({
+      ...VERCEL_COMMON,
+      dist: item.dist,
+      out: item.bundle,
+      lockfile: item.lockfile,
+      'source-sha': SOURCE_SHA,
+      'curated-withdrawn-sha256': '',
+    }),
+    /curated option group/,
+  )
+})
+
+test('empty withdrawal preserves the original artifact metadata and digest', async () => {
+  const item = await curatedFixture(),
+    original = await createRelease(item.options)
+  const empty = await createRelease({
+    ...item.options,
+    out: path.join(item.root, 'empty-withdrawal-bundle'),
+    'curated-withdrawn-sha256': '',
+  })
+  assert.deepEqual(empty, original)
+  await verifyRelease({
+    bundle: item.bundle,
+    'expected-digest': original.artifactDigest,
+    'expected-source-sha': SOURCE_SHA,
+    'expected-curated-manifest-sha256': item.manifestSha256,
+    'expected-curated-withdrawn-sha256': '',
+  })
+})
+
+test('withdrawal metadata cannot hide retained copies from an old full-photo artifact', async () => {
+  const item = await curatedFixture(),
+    manifest = await createRelease(item.options)
+  const withdrawn = item.manifest.assets[1].sha256
+  manifest.curatedCatalog.withdrawnSha256 = [withdrawn]
+  await writeFile(path.join(item.bundle, 'artifact-manifest.json'), JSON.stringify(manifest))
+  await assert.rejects(
+    verifyRelease({
+      bundle: item.bundle,
+      'expected-digest': manifest.artifactDigest,
+      'expected-source-sha': SOURCE_SHA,
+      'expected-curated-manifest-sha256': item.manifestSha256,
+      'expected-curated-withdrawn-sha256': withdrawn,
+    }),
+    /coverage/,
+  )
+})
+
+test('stripped withdrawal metadata and reintroduced withdrawn bytes both fail verification', async () => {
+  const item = await curatedFixture(),
+    withdrawn = item.manifest.assets[1].sha256
+  const manifest = await createRelease({ ...item.options, 'curated-withdrawn-sha256': withdrawn })
+  const expected = {
+    bundle: item.bundle,
+    'expected-digest': manifest.artifactDigest,
+    'expected-source-sha': SOURCE_SHA,
+    'expected-curated-manifest-sha256': item.manifestSha256,
+    'expected-curated-withdrawn-sha256': withdrawn,
+  }
+  delete manifest.curatedCatalog.withdrawnSha256
+  await writeFile(path.join(item.bundle, 'artifact-manifest.json'), JSON.stringify(manifest))
+  await assert.rejects(verifyRelease(expected), /withdrawal/)
+  manifest.curatedCatalog.withdrawnSha256 = [withdrawn]
+  await writeFile(path.join(item.bundle, 'artifact-manifest.json'), JSON.stringify(manifest))
+  await writeFile(
+    path.join(item.bundle, 'dist', item.manifest.assets[1].path),
+    Buffer.from(CURATED_WEBPS[1], 'base64'),
+  )
+  await assert.rejects(verifyRelease(expected), /coverage/)
+})
+
+test('withdrawal still validates withdrawn private input bytes rather than omitting failures', async () => {
+  const item = await curatedFixture(),
+    asset = item.manifest.assets[1]
+  await writeFile(
+    path.join(item.input, `${asset.sourcePhotoId}.webp`),
+    Buffer.from(CURATED_WEBPS[2], 'base64'),
+  )
+  await assert.rejects(
+    createRelease({ ...item.options, 'curated-withdrawn-sha256': asset.sha256 }),
+    /hash, size or dimensions/,
   )
 })
 

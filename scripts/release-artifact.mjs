@@ -260,6 +260,7 @@ export async function verifyRelease(options) {
     options.kind ?? 'pages',
     manifest.curatedCatalog,
     options['expected-curated-manifest-sha256'],
+    options['expected-curated-withdrawn-sha256'],
   )
   const actualDigest = treeDigest(actualFiles, manifest.curatedCatalog)
 
@@ -286,6 +287,7 @@ export async function createReceipt(options) {
     'expected-digest': expectedDigest,
     'expected-source-sha': expectedSourceSha,
     'expected-curated-manifest-sha256': options['expected-curated-manifest-sha256'],
+    'expected-curated-withdrawn-sha256': options['expected-curated-withdrawn-sha256'],
   })
   const provider = JSON.parse(await readFile(providerFile, 'utf8'))
   const requiredProviderFields = [

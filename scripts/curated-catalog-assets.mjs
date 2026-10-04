@@ -27,6 +27,7 @@ const ASSET_KEYS = [
   'sourcePhotoId',
 ]
 const FLAGS = ['curated-scope', 'curated-manifest', 'curated-input', 'curated-manifest-sha256']
+const WITHDRAWAL_FLAG = 'curated-withdrawn-sha256'
 const PREFIX = '/curated/macvicar/v1/'
 const MAX_BYTES = 8 * 1024 * 1024
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex')
@@ -192,6 +193,27 @@ function curatedRoot(root, kind) {
   return path.join(root, kind === 'vercel' ? 'static' : '', 'curated')
 }
 
+function validateWithdrawnSha256(values, assets) {
+  const approved = new Set(assets.map((asset) => asset.sha256))
+  if (
+    !Array.isArray(values) ||
+    values.length > 51 ||
+    new Set(values).size !== values.length ||
+    values.some(
+      (value) => typeof value !== 'string' || !HASH.test(value) || !approved.has(value),
+    ) ||
+    values.some((value, index) => index > 0 && value < values[index - 1])
+  )
+    fail('Invalid curated withdrawal set')
+  return values
+}
+
+function parseWithdrawnSha256(value, assets) {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string') fail('Invalid curated withdrawal option')
+  return validateWithdrawnSha256(value === '' ? [] : value.split(',').sort(), assets)
+}
+
 export async function importCuratedCatalog(options, outputRoot, kind) {
   const supplied = Object.keys(options).filter((flag) => flag.startsWith('curated-'))
   const existing = await lstat(curatedRoot(outputRoot, kind)).catch((error) =>
@@ -200,8 +222,7 @@ export async function importCuratedCatalog(options, outputRoot, kind) {
   if (existing) fail('Unexpected curated output before import')
   if (supplied.length === 0) return undefined
   if (
-    supplied.length !== FLAGS.length ||
-    supplied.some((flag) => !FLAGS.includes(flag)) ||
+    supplied.some((flag) => !FLAGS.includes(flag) && flag !== WITHDRAWAL_FLAG) ||
     FLAGS.some((flag) => typeof options[flag] !== 'string' || !options[flag]) ||
     options['curated-scope'] !== 'macvicar' ||
     !HASH.test(options['curated-manifest-sha256'])
@@ -218,6 +239,8 @@ export async function importCuratedCatalog(options, outputRoot, kind) {
       fail('Invalid curated manifest JSON')
     }
     validateCuratedManifest(manifest)
+    const withdrawnSha256 = parseWithdrawnSha256(options[WITHDRAWAL_FLAG], manifest.assets) ?? []
+    const withdrawn = new Set(withdrawnSha256)
     const input = path.resolve(options['curated-input'])
     await regularDirectory(input)
     const entries = await readdir(input, { withFileTypes: true })
@@ -238,7 +261,7 @@ export async function importCuratedCatalog(options, outputRoot, kind) {
         image.height !== asset.height
       )
         fail('Curated asset hash, size or dimensions do not match')
-      selected.push({ asset, bytes })
+      if (!withdrawn.has(asset.sha256)) selected.push({ asset, bytes })
     }
     await regularDirectory(outputRoot)
     if (kind === 'vercel') await regularDirectory(path.join(outputRoot, 'static'))
@@ -250,6 +273,7 @@ export async function importCuratedCatalog(options, outputRoot, kind) {
       storeSlug: manifest.storeSlug,
       manifestSha256: options['curated-manifest-sha256'],
       assets: manifest.assets,
+      ...(withdrawnSha256.length ? { withdrawnSha256 } : {}),
     }
   } catch (error) {
     if (/^(?:Invalid|Curated|Missing|Complete|Unexpected)/.test(error.message)) throw error
@@ -257,30 +281,61 @@ export async function importCuratedCatalog(options, outputRoot, kind) {
   }
 }
 
-export function verifyCuratedCatalog(files, kind, binding, expectedManifestSha256) {
+export function verifyCuratedCatalog(
+  files,
+  kind,
+  binding,
+  expectedManifestSha256,
+  expectedWithdrawnSha256,
+) {
   const curatedFiles = files.filter((file) => /^(?:static\/)?curated\//.test(file.path))
   if (!binding) {
-    if (curatedFiles.length || expectedManifestSha256 !== undefined)
+    if (
+      curatedFiles.length ||
+      expectedManifestSha256 !== undefined ||
+      expectedWithdrawnSha256 !== undefined
+    )
       fail('Missing curated admission metadata; unsafe withdrawal rollback')
     return
   }
   if (typeof expectedManifestSha256 !== 'string' || !HASH.test(expectedManifestSha256))
     fail('Missing or invalid expected curated manifest digest')
-  exactKeys(binding, ['storeSlug', 'manifestSha256', 'assets'])
+  exactKeys(binding, [
+    'storeSlug',
+    'manifestSha256',
+    'assets',
+    ...(Object.hasOwn(binding, 'withdrawnSha256') ? ['withdrawnSha256'] : []),
+  ])
   if (
     binding.storeSlug !== 'the-market-at-macvicar' ||
     binding.manifestSha256 !== expectedManifestSha256
   )
     fail('Curated manifest digest does not match expected admission')
   validateCuratedAssets(binding.assets)
+  const withdrawnSha256 = validateWithdrawnSha256(
+    Object.hasOwn(binding, 'withdrawnSha256') ? binding.withdrawnSha256 : [],
+    binding.assets,
+  )
+  const expectedWithdrawn = parseWithdrawnSha256(expectedWithdrawnSha256, binding.assets)
+  if (withdrawnSha256.length && expectedWithdrawn === undefined)
+    fail('Missing expected curated withdrawal set')
+  if (
+    expectedWithdrawn !== undefined &&
+    (expectedWithdrawn.length !== withdrawnSha256.length ||
+      expectedWithdrawn.some((value, index) => value !== withdrawnSha256[index]))
+  )
+    fail('Curated withdrawal set does not match current admission')
+  const withdrawn = new Set(withdrawnSha256)
   const selected = new Map(
-    binding.assets.map((asset) => [
-      `${kind === 'vercel' ? 'static' : ''}${asset.path}`.replace(/^\//, ''),
-      asset,
-    ]),
+    binding.assets
+      .filter((asset) => !withdrawn.has(asset.sha256))
+      .map((asset) => [
+        `${kind === 'vercel' ? 'static' : ''}${asset.path}`.replace(/^\//, ''),
+        asset,
+      ]),
   )
   if (
-    curatedFiles.length !== 51 ||
+    curatedFiles.length !== selected.size ||
     curatedFiles.some((file) => {
       const asset = selected.get(file.path)
       return !asset || asset.sha256 !== file.sha256 || asset.bytes !== file.size

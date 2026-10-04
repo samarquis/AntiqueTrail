@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path=public,extensions;
-select plan(13);
+select plan(14);
 
 -- All authority, approvals, hashes and bytes here are isolated SQL fixtures,
 -- never a hosted asset permission, Administrator decision, or scan receipt.
@@ -149,11 +149,25 @@ select lives_ok($test$do $proof$declare n integer;begin
  assert pg_temp.denied('select app_public.public_test_catalog_gateway_request('''||repeat('1',64)||''',''details'',''{"p_slug":"the-market-at-macvicar"}'')','P0001'),'121st detail rate denied';
 end $proof$;$test$,'existing list/details rate limits apply to real projection');
 
-select public_test_private.revoke_macvicar(admission_id,2) from macvicar_fixture;
+select lives_ok($test$do $proof$declare a uuid;asset jsonb;hash text;metadata text;row jsonb;begin
+ select admission_id into a from macvicar_fixture;
+ select manifest::jsonb->'assets'->1 into asset from macvicar_fixture;
+ hash:=asset->>'sha256';metadata:=encode(extensions.digest(convert_to(asset::text,'UTF8'),'sha256'),'hex');
+ assert pg_temp.denied(format('select public_test_private.withdraw_macvicar_asset(%L,%L,%L,2)',a,repeat('0',64),metadata)),'unselected asset cannot be withdrawn';
+ assert pg_temp.denied(format('select public_test_private.withdraw_macvicar_asset(%L,%L,%L,2)',a,hash,repeat('0',64))),'wrong metadata identity denied';
+ assert pg_temp.denied(format('select public_test_private.withdraw_macvicar_asset(%L,%L,%L,1)',a,hash,metadata)),'stale withdrawal denied';
+ assert public_test_private.withdraw_macvicar_asset(a,hash,metadata,2)=3,'protected monotonic withdrawal advances version';
+ row:=app_public.public_test_catalog_gateway_request(repeat('5',64),'details','{"p_slug":"the-market-at-macvicar"}')->0;
+ assert row->>'name'='The Market at Macvicar' and jsonb_array_length(row->'media')=50,'one withdrawal preserves real text and unrelated fifty images';
+ assert not exists(select 1 from jsonb_array_elements(row->'media') x where x->>'src'=asset->>'path'),'withdrawn catalog URL absent';
+ assert pg_temp.denied(format('select public_test_private.withdraw_macvicar_asset(%L,%L,%L,3)',a,hash,metadata)),'withdrawn asset cannot be reactivated through withdrawal';
+end $proof$;$test$,'individual approved hash/metadata withdrawal retains valid listing');
+
+select public_test_private.revoke_macvicar(admission_id,3) from macvicar_fixture;
 select lives_ok($test$do $proof$begin
  assert app_public.public_test_catalog_gateway_request(repeat('f',64),'details','{"p_slug":"the-market-at-macvicar"}')='[]'::jsonb,'real stop removes Details and photo references';
  assert jsonb_array_length(app_public.public_test_catalog_gateway_request(repeat('f',64),'list','{}'))=12,'real stop retains unrelated synthetic catalog';
- assert pg_temp.denied(format('select public_test_private.activate_macvicar(%L,3)',(select admission_id from macvicar_fixture))),'revoked admission cannot reactivate';
+ assert pg_temp.denied(format('select public_test_private.activate_macvicar(%L,4)',(select admission_id from macvicar_fixture))),'revoked admission cannot reactivate';
 end $proof$;$test$,'scoped revocation stops real record without disturbing fictional records');
 select public_test_private.revoke(binding_id,(select version from public_test_private.runtime where id=1)) from macvicar_fixture;
 select lives_ok($test$do $proof$begin
