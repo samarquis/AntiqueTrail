@@ -3,7 +3,7 @@
   "git": {
     "deploymentEnabled": false
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/((?!curated/macvicar/v1(?:/|$)).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/(.*)",

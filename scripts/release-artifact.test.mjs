@@ -5,6 +5,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { URL } from 'node:url'
 import { createReceipt, createRelease, verifyRelease } from './release-artifact.mjs'
 
 // Fifty-one distinct 1x1 color images encoded and decoded with libwebp via Pillow.
@@ -761,8 +762,51 @@ const VERCEL_COMMON = {
   'runner-arch': 'X64',
 }
 
-// Shape emitted by vercel build for this static Vite SPA, including compiled
-// header patterns and the filesystem-first rewrite (not vercel.json input).
+test('authored SPA fallback excludes only the exact curated namespace and preserves adjacent deep links', async () => {
+  const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'))
+  assert.equal(config.rewrites.length, 1)
+  assert.equal(config.rewrites[0].destination, '/index.html')
+  const fallback = new RegExp(`^${config.rewrites[0].source}$`)
+  for (const pathname of [
+    '/curated/macvicar/v1',
+    '/curated/macvicar/v1/',
+    '/curated/macvicar/v1/missing.webp',
+    '/curated/macvicar/v1/nested/missing.webp',
+  ])
+    assert.equal(fallback.test(pathname), false, pathname)
+  for (const pathname of [
+    '/',
+    '/stores',
+    '/stores/the-market-at-macvicar',
+    '/stores/the-market-at-macvicar/photos',
+    '/auth/callback',
+    '/auth/recovery/code',
+    '/curated/macvicar/v10/missing.webp',
+    '/curated/macvicar/v1-adjacent/missing.webp',
+  ])
+    assert.equal(fallback.test(pathname), true, pathname)
+})
+
+test('rejects the original unrestricted Vercel SPA fallback', async () => {
+  const item = await vercelFixture()
+  const config = vercelOutputConfig()
+  config.routes[7].src = '^(?:/(.*))$'
+  await writeFile(path.join(item.dist, 'config.json'), JSON.stringify(config))
+  await assert.rejects(
+    createRelease({
+      ...VERCEL_COMMON,
+      kind: 'vercel',
+      'source-sha': SOURCE_SHA,
+      dist: item.dist,
+      out: item.bundle,
+      lockfile: item.lockfile,
+    }),
+    /SPA fallback required/,
+  )
+})
+
+// Reviewed Build Output contract; native build evidence must confirm this exact
+// compiled shape, including headers and filesystem-first rewrite.
 function vercelOutputConfig() {
   return {
     version: 3,
@@ -783,7 +827,7 @@ function vercelOutputConfig() {
         continue: true,
       },
       { handle: 'filesystem' },
-      { src: '^(?:/(.*))$', dest: '/index.html', check: true },
+      { src: '^(?:/((?!curated/macvicar/v1(?:/|$)).*))$', dest: '/index.html', check: true },
       { handle: 'error' },
       { status: 404, src: '^(?!/api).*$', dest: '/404.html' },
     ],
@@ -831,6 +875,50 @@ test('creates and verifies a deterministic Vercel prebuilt bundle', async () => 
     'expected-source-sha': SOURCE_SHA,
   })
   assert.deepEqual(verified.files, firstManifest.files)
+})
+
+test('accepted emitted SPA pattern excludes bare and nested curated misses without excluding v10', () => {
+  const fallback = new RegExp(vercelOutputConfig().routes[7].src)
+  for (const pathname of [
+    '/curated/macvicar/v1',
+    '/curated/macvicar/v1/',
+    '/curated/macvicar/v1/missing.webp',
+    '/curated/macvicar/v1/nested/missing.webp',
+  ])
+    assert.equal(fallback.test(pathname), false, pathname)
+  for (const pathname of [
+    '/curated/macvicar/v10/missing.webp',
+    '/curated/macvicar/v1-adjacent',
+    '/stores',
+    '/stores/the-market-at-macvicar',
+    '/stores/the-market-at-macvicar/photos',
+    '/auth/register',
+    '/auth/callback/code',
+    '/auth/verify/code',
+    '/auth/recovery/code',
+  ])
+    assert.equal(fallback.test(pathname), true, pathname)
+})
+
+test('accepts the protected emitted fallback with the existing optional error handler omitted', async () => {
+  const item = await vercelFixture(),
+    config = vercelOutputConfig()
+  config.routes.splice(-2)
+  await writeFile(path.join(item.dist, 'config.json'), JSON.stringify(config))
+  const manifest = await createRelease({
+    ...VERCEL_COMMON,
+    kind: 'vercel',
+    'source-sha': SOURCE_SHA,
+    dist: item.dist,
+    out: item.bundle,
+    lockfile: item.lockfile,
+  })
+  await verifyRelease({
+    bundle: item.bundle,
+    kind: 'vercel',
+    'expected-digest': manifest.artifactDigest,
+    'expected-source-sha': SOURCE_SHA,
+  })
 })
 
 test('records only the explicitly supplied runner image', async () => {
@@ -1037,6 +1125,35 @@ for (const [name, change, error] of [
       config.routes[7].has = [{ type: 'header', key: 'x-preview' }]
     },
     /SPA fallback required/,
+  ],
+  [
+    'curated exclusion missing bare namespace protection',
+    (config) => {
+      config.routes[7].src = '^(?:/((?!curated/macvicar/v1/).*))$'
+    },
+    /SPA fallback required/,
+  ],
+  [
+    'curated exclusion also blocking adjacent v10',
+    (config) => {
+      config.routes[7].src = '^(?:/((?!curated/macvicar/v1).*))$'
+    },
+    /SPA fallback required/,
+  ],
+  [
+    'SPA rewrite without filesystem recheck',
+    (config) => {
+      config.routes[7].check = false
+    },
+    /SPA fallback required/,
+  ],
+  [
+    'SPA rewrite before filesystem',
+    (config) => {
+      const [rewrite] = config.routes.splice(7, 1)
+      config.routes.splice(6, 0, rewrite)
+    },
+    /header routing/,
   ],
   [
     'late header override',
