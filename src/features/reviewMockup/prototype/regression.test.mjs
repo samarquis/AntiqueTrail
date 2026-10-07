@@ -151,6 +151,45 @@ test('support audit identifies the exact conversation without message content', 
   assert.doesNotMatch(result, /Private question text|Private answer one|Private answer two/);
 });
 
+test('photo replacement retains capacity and publishes the exact approved cover', () => {
+  const { run } = fixture();
+  run("S.role='owner'; S.person='Evelyn'; S.approved=true; route='photos'; action('replace-photo',{dataset:{id:'cover'}}); route='photo-upload'; submit('photo-upload',{alt:'Approved replacement cover',rights:'on',original:'on'})");
+  assert.equal(run('S.galleryCount'), 3);
+  assert.doesNotMatch(run("route='photos'; renderPage()"), /alt="Approved replacement cover"/);
+  run("S.role='admin'; S.person='June'; mutate('photoApprove')");
+  assert.equal(run('S.galleryCount'), 3);
+  assert.equal(run("catalogStore('blue').coverPhoto.alt"), 'Approved replacement cover');
+  assert.match(run("route='store'; S.store='blue'; renderPage()"), /alt="Approved replacement cover"/);
+  assert.match(run("route='gallery'; renderPage()"), /alt="Approved replacement cover"/);
+});
+
+test('photo submissions require fresh rights, reject full additions and allow full-capacity replacements', () => {
+  const { run } = fixture();
+  run("S.role='owner'; S.person='Evelyn'; S.approved=true; route='photo-upload'; submit('photo-upload',{alt:'Unconfirmed photo'})");
+  assert.equal(run('S.photoState'), 'Approved');
+  run("S.galleryCount=5; S.storeEdits.blue={galleryCount:5}; submit('photo-upload',{alt:'Full addition',rights:'on',original:'on'})");
+  assert.equal(run('S.photoState'), 'Approved');
+  assert.match(run('lastNotice'), /Replace/);
+  run("route='photos'; action('replace-photo',{dataset:{id:'1'}}); route='photo-upload'; submit('photo-upload',{alt:'Replacement gallery 2',rights:'on',original:'on'})");
+  assert.doesNotMatch(run('renderPage()'), /type="checkbox"[^>]*checked/);
+  run("S.role='admin'; S.person='June'; mutate('photoApprove')");
+  assert.equal(run('S.galleryCount'), 5);
+  assert.equal(run("storePhotos(catalogStore('blue'))[2].alt"), 'Replacement gallery 2');
+  assert.notEqual(run("storePhotos(catalogStore('blue'))[1].alt"), 'Replacement gallery 2');
+});
+
+test('pending photo protects approved places and remains scoped to its store', () => {
+  const { run } = fixture();
+  run("S.role='owner'; S.person='Evelyn'; S.approved=true; route='photos'; action('add-photo',{}); route='photo-upload'; submit('photo-upload',{alt:'Blue-only addition',rights:'on',original:'on'}); route='photos'; action('remove-photo',{})");
+  assert.match(run('lastNotice'), /Wait/);
+  assert.equal(run('S.galleryCount'), 3);
+  run("S.role='admin'; S.person='June'; switchOwnerStore('cedar'); mutate('photoApprove')");
+  assert.equal(run("catalogStore('cedar').galleryCount??3"), 3);
+  run("switchOwnerStore('blue'); mutate('photoApprove')");
+  assert.equal(run("catalogStore('blue').galleryCount"), 4);
+  assert.equal(run("storePhotos(catalogStore('blue'))[4].alt"), 'Blue-only addition');
+});
+
 test('all Plan forms retain unfinished input without retaining unchecked values', () => {
   const { run, forms } = fixture();
   const key = run('draftKey()');
