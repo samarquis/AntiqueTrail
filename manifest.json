@@ -39,9 +39,5 @@
     "docs/plans/shopper-first-scope-review.md"
   ],
   "purpose": "One product reading path with explicitly owned specialist requirements and separately classified history/evidence",
-  "reading_order": [
-    "README.md",
-    "PRD.md",
-    "PROJECT_STATE.md"
-  ]
+  "reading_order": ["README.md", "PRD.md", "PROJECT_STATE.md"]
 }
