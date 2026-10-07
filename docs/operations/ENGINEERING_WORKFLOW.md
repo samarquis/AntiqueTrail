@@ -12,6 +12,16 @@ Every open task has one queue, an honest status and one current outcome. Parent 
 
 Use capability names. Historical package numbers remain compatibility identifiers for migrations and receipts, never execution order. Existing code/data/permissions retain their protections until a separately reviewed change retires them.
 
+### Retained review tooling
+
+The hourly [Exact-SHA review queue](../../.github/workflows/opencode-review-queue.yml)
+is retained as an optional read-only compatibility report, not a second product
+queue or an acceptance gate. Its structured-comment protocol in
+`scripts/opencode-review-queue.mjs` reads explicitly opted-in draft PR/issue
+handoffs and independent reviews, then emits a seven-day artifact. It never
+assigns, implements, merges or closes work. Ordinary tasks use the workflow and
+current issue bodies here; no duplicate marker comments are required.
+
 ## 1. Establish authority and state
 
 Identify authorized outcome: inspect, implement, publish, deploy, or operate hosted data. Do not infer later stages from an earlier one.
