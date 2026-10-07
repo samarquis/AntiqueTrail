@@ -269,3 +269,7 @@ Owner authorized removal of old workflow and plan instructions from active work.
 ## 2026-10-07 — Close deep-review reconciliation gaps
 
 Owner directed “do what is next” after the deep review. Reconcile public-test saving and exact admitted release data, secure the operator recipe, mark old research historical, and retain the review poller explicitly as optional read-only tooling. Product planning is owned by #560; #487 remains evidence specification. The compatible source-map-js 1.2.2 lockfile patch repairs the observed CI audit blocker. No product scope or runtime capability is added. See [follow-up evidence](docs/evidence/shopper-first-scope/deep-review-repairs.md).
+
+## 2026-10-07 — Preserve approved existing visual baseline
+
+Owner supplied the current Browse screenshot and asked to maintain its look and feel, then directed the next step. DESIGN_SYSTEM owns the retained composition reference and before/after acceptance. Product work extends existing visual components; approved light-theme, responsive, accessibility and stage rules remain intact. The screenshot is a documentation asset, not new runtime imagery. #560 carries this constraint into bounded Add to Trip planning.
