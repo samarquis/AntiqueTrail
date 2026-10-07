@@ -10,39 +10,11 @@ run is not a gate receipt. Record links to real provider configuration,
 observed execution, and named-human approval. Keep capabilities disabled when
 evidence is absent, expired, or contradictory.
 
-Historical workbook baseline (not current deployment evidence):
-
-- Commit: `c8aa53dfb62e4852b00ee8f305c3c7b7d249b611` (`docs: select Vercel for gated deployment (#86)`)
-- Prior baseline with recorded CI run: `680681049df2c2b5495c8baa7064b091be414827`, <https://github.com/samarquis/AntiqueTrail/actions/runs/32331761838>
-- Deployment-provider decision: ADR 0006 selects Vercel; live Vercel configuration and release evidence remain unaccepted
-
 ## Gate order
 
-For current work, identify the exact exposure and apply its actual provider, authorization, recovery and release prerequisites under ADR 0010/0011 and PRD stages. Deferred features do not block unrelated selected capabilities.
+Select the exact exposure first. Existing catalog-only verification follows ADR 0010/0011 and its current release-owner admission. New hosted account, routing or media work needs only its applicable prerequisites plus retained-data protections. The unpaid local outing does not depend on a complete regional launch, paid plans, teams or public reviews.
 
-The table below preserves the original full-program gate map and historical states. Its dependency column does not impose that entire program on the unpaid outing or override scoped admissions. Refresh evidence before executing an applicable gate.
-
-| Layer | Gate               | Required decision or observed evidence                                                                                                                                   | Depends on                                                 | Current state                          |
-| ----- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | -------------------------------------- |
-| 1     | #2 H-01            | Approve Vercel/Supabase topology, plan eligibility, protected prebuilt deployment, cost ceiling, quota stops, RPO/RTO; witness DB/Auth/Storage restore and rollback      | None                                                       | NO-GO                                  |
-| 1     | #3 E-01            | Approve email provider/region/retention/cost; witness tracking-free delivery, reconciliation, retry, outage, and recovery behavior                                       | None                                                       | NO-GO                                  |
-| 1     | #4 R-01            | Approve routing/geocoding privacy, region, retention, attribution, quota/cost; witness minimized request and fallback behavior                                           | None                                                       | NO-GO                                  |
-| 1     | #5 M-01            | Approve quarantined media pipeline; witness decode limits, EXIF removal, re-encode, deletion, and restore                                                                | None                                                       | NO-GO                                  |
-| 1     | #6 L-01            | Approve separately administered content-free audit anchor; witness publish, missed-root disablement, recovery, and replay                                                | None                                                       | NO-GO                                  |
-| 1     | #7 S-01            | Name monitored support/security/status channels, severity commitments, on-call primary/backup; rehearse incident and deletion lifecycle                                  | None                                                       | NO-GO                                  |
-| 1     | #8 HC-01           | Name and obtain acceptance from Product, Engineering/Security, Operations, support backup, second verifier, legal/insurance, and independent reviewer humans             | None                                                       | NO-GO                                  |
-| 1     | #11 B-01           | Product Owner approves final brand/copy/owned HTTPS domain; verify canonical routes, redirects, sitemap, robots, and non-endorsement copy                                | None                                                       | NO-GO                                  |
-| 1     | A-01               | Optional analytics requires a separate consent/minimization ADR and acceptance receipt; otherwise analytics remains disabled                                             | None                                                       | OFF / NO-GO unless separately approved |
-| 2     | #15, #16, #17, #18 | Hosted Synthetic isolation, workers, cleanup, separate-device/offline journey, and Product Owner Continue/Revise/Stop receipt                                            | H-01; #18 also needs #15/#17                               | NO-GO                                  |
-| 3     | #19                | Real provider-backed map/Check My Day privacy, attribution, quota, outage, and fallback evidence                                                                         | R-01, #17                                                  | NO-GO                                  |
-| 3     | #20                | Real invitation/email, Administrator MFA, authority, consent, withdrawal, and recheck evidence                                                                           | E-01, HC-01; shared external use also needs H-01/S-01/L-01 | NO-GO                                  |
-| 4     | #25                | Product Owner authorizes stores 1, 2, and 3 sequentially; signed expansion receipts, recovery/support/monitoring, zero Blocking Defects                                  | Prior private-beta prerequisites                           | NO-GO                                  |
-| 4     | #9 HC-02           | Name and rehearse moderation, independent appeal, support, on-call backup, two verifiers, accessibility, and incident owners                                             | Package 8B is complete                                     | NO-GO                                  |
-| 4     | #10 SEC-01         | Independent release-candidate review, dated dispositions, executable retests, zero Blocking Defects                                                                      | Package 9 is complete                                      | NO-GO                                  |
-| 5     | #27                | Two named CAT-01 reviewers, three listings, budget approval, invited cohort, nine unique itineraries, legal/support/security/recovery evidence, signed readiness receipt | #25, HC-02                                                 | NO-GO                                  |
-| 6     | #28                | Product Owner release approval; recovery/capacity, migration dry run, canary, smoke, monitoring/status, consented promotion, rollback, signed receipt                    | #27 and accepted #2-#7/#9/#10/#11                          | NO-GO                                  |
-| 7     | #29                | Frozen rolling Topeka evidence and Product Owner-only RG-01 receipt                                                                                                      | Signed #28 release                                         | NO-GO                                  |
-| 8     | #30                | Separately selected eligible community, real listings/consent/provenance/trips/support/recovery, activation/rollback and signed gate; stop after ordinal 3               | Passing #29, then prior community gate                     | NO-GO                                  |
+Use live GitHub issues for remaining work. Never infer a current NO-GO/PASS or assignment from an old workbook. Original full-program sequencing is [archived](../archive/planning/DEPLOYMENT_READINESS_CHECKLIST.md); it is not an execution queue.
 
 ## Configuration inventory
 
@@ -210,26 +182,6 @@ Supersedes:
 Notes (content-free):
 ```
 
-## Immediate first H-01 intake
+## Exposure-specific intake
 
-H-01 can start now and unlocks hosted acceptance. The Product Owner must choose
-and approve:
-
-1. The exact Vercel project/owner/plan plus Supabase environment/access topology.
-2. The allowed monthly cost/no-overage ceiling.
-3. Whether public-stage backup/restore uses an approved paid capability or a
-   demonstrated compliant alternative.
-4. Named human custodian(s) for provider accounts, secrets, backup media, and
-   restore/rollback execution.
-
-These choices are intake inputs, not an H-01 acceptance receipt. Every H-01
-requirement in ADRs 0005/0006 remains mandatory, including Vercel plan-use
-eligibility, disabled automatic Git deployment, deny-by-default Deployment
-Protection for every shared hostname, protected prebuilt deployment and
-digest-matched rollback, complete
-Database/Auth/Storage/configuration recovery, quota and no-charge stops, the
-external registration journal and deployment fence, two-custodian encrypted
-backup recovery, hosted private-helper privilege/denial proofs, and separate
-Product/Security recovery signers. Until every applicable proof is observed and
-signed, shared hosted acceptance and every dependent public/private stage
-remain **NO-GO**.
+Record the actual target, owner, cost boundary, data/credentials involved, recovery/rollback and selected capability. Read the applicable ADR/runbook and existing authorization. A new intake does not renew an expired receipt or reopen a paused provider operation. Use the scoped ADR 0010/0011 admission where it applies; do not impose the archived full H-01 program on unrelated local work or treat a narrow exception as general hosted approval.

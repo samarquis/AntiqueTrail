@@ -1,6 +1,6 @@
 # Antique Trail Plan Changelog
 
-Append-only record of authorized changes to the controlling plan. Status-only updates to `PROJECT_STATE.md` do not belong here unless they also change a controlling requirement.
+Historical record of authorized changes. Entries preserve decisions as they stood at the time; they are not current task instructions. Use the PRD, current engineering workflow, and live issue bodies for active work.
 
 ## 2026-08-30 — Lock plan and ticket governance
 
@@ -261,3 +261,7 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Clarify distinct store summaries/visit memories, private-stop history, confirmed navigation destinations and routing failure behavior within the approved outing. Provider/interface selection and runtime proof remain implementation prerequisites.
 - Repair historical references against their actual Git source instead of recreating removed requirements. Add a product-purpose line to the existing small-task template.
 - No application change, data deletion, provider mutation, new billing offer, issue closure, publication or deployment. See the follow-up in `docs/evidence/shopper-first-scope/acceptance.md`.
+
+## 2026-10-06 — Retire legacy workflow execution
+
+Owner authorized removal of old workflow and plan instructions from active work. Current engineering workflow and live issue bodies replace historical package orchestration; obsolete handoff generation is retired. Historical plans remain reference-only. See [retirement evidence](docs/evidence/shopper-first-scope/workflow-retirement.md) for queue dispositions, preserved duties, review, and publication limits.

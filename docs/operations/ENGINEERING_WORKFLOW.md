@@ -1,10 +1,16 @@
 # Engineering Workflow
 
-## Historical package identifiers
+This is the only active delivery workflow. PRD owns product scope; live GitHub issue bodies own current task outcomes and status. Changelogs, archived plans, old comments and evidence are history, not additional prerequisites. When updating an issue, reconcile its body with accepted later decisions; preserve old comments as audit history.
 
-Use capability names in new task descriptions. Current package summaries are navigation aids; do not renumber migrations or reinterpret historical issue evidence. Older identifiers include Package 4 candidate capture, 5A/5B trips, 9 reviews and 13 billing. The current summary uses Package 4 trips, 5 Go, 8 reviews and 9 billing. Resolve an old reference against its exact source SHA and named capability before reusing it.
+## Work queues
 
-This is AntiqueTrail's delivery path from request to verified closure. GitHub issues and pull requests remain the live backlog; `PROJECT_STATE.md` records dated implementation facts.
+- **Product:** the connected shopper outing and basic owner/admin listing management. Select the next observable missing connection, not the next historical package number.
+- **Maintenance:** existing data, security, account and approved-media obligations. These block the capabilities that actually depend on them, not all local development.
+- **Release:** proof/publication for an exact admitted candidate, owned by the existing operator. Keep paused releases paused; do not reopen broad launch or paid-upgrade work from a documentation change.
+
+Every open task has one queue, an honest status and one current outcome. Parent tickets summarize unfinished evidence; never assign them as broad implementation jobs. Closed/superseded orchestration is not a queue. The old phase roadmap, model-specific swarm instructions and generated `.planning` handoffs are retired.
+
+Use capability names. Historical package numbers remain compatibility identifiers for migrations and receipts, never execution order. Existing code/data/permissions retain their protections until a separately reviewed change retires them.
 
 ## 1. Establish authority and state
 
@@ -20,7 +26,7 @@ Capture:
 
 Completion: scope, authority, baseline SHA, owner, and pre-existing changes are explicit.
 
-### Admit a small-model task
+### Admit a bounded task
 
 Use the [small-task issue template](../../.github/ISSUE_TEMPLATE/small-task.md). READY means one observable outcome with resolved governing clauses, a pinned base/target, satisfied dependencies, exact owned files and interfaces, runnable acceptance commands, required negative cases, resource ownership, and a clear completion boundary. The planner verifies these before dispatch; the worker does not invent missing product or API decisions.
 

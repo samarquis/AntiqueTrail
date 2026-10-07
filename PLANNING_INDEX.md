@@ -17,7 +17,7 @@ Current scope is the 2026-10-06 shopper-first amendment in [PRD](PRD.md) and [AD
 
 - README.md, CODEX_START_PROMPT.md, repository agent guides: entry instructions and links, not extra product policies.
 - PLAN_CHANGELOG.md: append-only amendment history and closure receipts.
-- Repository issue/PR templates and the append-only changelog: the ticket-to-closure workflow; no live backlog copies. The former `OPEN_TICKET_TODO.md` and `docs/agents/issue-tracker.md` are archived history.
+- The engineering workflow and small-task template define delivery. The changelog records history; no live backlog copies. The former `OPEN_TICKET_TODO.md` and `docs/agents/issue-tracker.md` are archived history.
 - PLAN_ACCEPTANCE.md: linked capability navigation and historical acceptance receipts.
 - PRODUCT.md: compatibility link to the PRD.
 - manifest.json: handoff file inventory and reading order, not the PWA manifest.
@@ -28,7 +28,7 @@ Current scope is the 2026-10-06 shopper-first amendment in [PRD](PRD.md) and [AD
 - [Shopper-first reconciliation](docs/plans/shopper-first-scope-review.md): dated source/backlog assessment, not a second live queue.
 - [Cleanup acceptance](docs/evidence/shopper-first-scope/acceptance.md): documentation-only validation and limitations.
 - PRODUCT_DECISIONS.md: preserved decisions and reasons, linked to current requirements; PLAN_CHANGELOG.md: append-only amendment history.
-- IMPLEMENTATION_PLAN.md: historical phase/package roadmap, with links to migrated requirements.
+- IMPLEMENTATION_PLAN.md and docs/specs/TDD_DEVELOPMENT_PLAN.md: compatibility pointers to archived plans; no execution instructions remain in the active files.
 - PHASE_0_REVIEW.md, DEEP_SPEC_REVIEW.md, ROLE_BASED_SITE_REVIEW.md, REVIEW_VERDICTS.md: dated reviews, not current whole-product acceptance.
 - Removed corpus files (PLAN.md, PLAN_TICKET_SEQUENCE.md, GATES.md, OPENCODE_TICKET_REVIEW_TODO.md, PLAN_GOVERNANCE.md, CONTEXT.md, former agent variants, ADRs 0001–0004, gates/, docs/agents/, and obsolete research documents): archived by the 2026-09-14 corpus slimming; do not recreate as live authority.
 - Issue #56 closure and its former `docs/operations/G56_RELEASE_GATE_STATUS_LEDGER.md` (archived): historical row states; surviving gate procedures live in [DEPLOYMENT_READINESS_CHECKLIST.md](docs/operations/DEPLOYMENT_READINESS_CHECKLIST.md) and the release runbooks, and issue #56's closure does not waive surviving requirements.

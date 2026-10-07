@@ -68,6 +68,8 @@ For Impeccable and other generic design tools, `PRODUCT.md` is a pointer to the 
 
 ## Source precedence
 
+[Engineering workflow](docs/operations/ENGINEERING_WORKFLOW.md) is the only delivery procedure. GitHub queue labels separate product, maintenance and release work; current issue bodies define remaining outcomes. Archived plans, decision records, changelogs and older comments supply evidence only.
+
 | Document | Owns |
 |---|---|
 | [PRD.md](PRD.md) | Product outcomes, offered scope, stages |
