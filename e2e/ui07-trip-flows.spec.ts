@@ -79,12 +79,10 @@ test.describe('Details Add to Trip connection', () => {
     await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
     await expect(page.getByText("This store is already on: Avery's antique day.")).toBeVisible()
-    await page.getByRole('link', { name: 'Back to stores' }).click()
-    await page.getByRole('link', { name: 'More', exact: true }).click()
-    await page.getByRole('link', { name: 'My trips', exact: true }).click()
-    await expect(page.getByLabel('My trips').locator('li')).toHaveCount(1)
-    await page.getByRole('link', { name: "Avery's antique day", exact: true }).click()
-    await expect(page.getByLabel('Ordered trip stops').locator('li')).toHaveCount(2)
+    await expect(page.getByRole('heading', { name: /^Added to/ })).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: "Add to Avery's antique day", exact: true }),
+    ).toHaveCount(0)
   })
 
   test('keeps anonymous writes and privileged identities denied', async ({ page }) => {

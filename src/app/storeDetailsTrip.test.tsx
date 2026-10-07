@@ -19,21 +19,27 @@ describe('local Details to Add to Trip connection', () => {
     window.sessionStorage.clear()
   })
 
-  async function openDetails(identity: ReviewScenarioId = 'shopper-a', selected = true) {
+  async function openDetails(
+    identity: ReviewScenarioId = 'shopper-a',
+    selected = true,
+    signedOut = false,
+  ) {
     const harness = await createReviewHarness({
       dev: true,
       mode: 'review',
       enabled: 'true',
       url: `http://localhost/stores/blue-finch-curios?reviewAs=${identity}`,
     })
+    if (signedOut) harness!.authStore.clearSession()
     const user = userEvent.setup()
+    const clients = {
+      catalog: createReviewHarnessCatalogClient(harness!.state),
+      ...createReviewHarnessClients(harness!.scenario, harness!.state),
+    }
     render(
       <MemoryRouter initialEntries={['/stores/blue-finch-curios']}>
         <App
-          clients={{
-            catalog: createReviewHarnessCatalogClient(harness!.state),
-            ...createReviewHarnessClients(harness!.scenario, harness!.state),
-          }}
+          clients={clients}
           runtime={{
             reviewHarness: selected ? harness! : undefined,
             authStore: harness!.authStore,
@@ -46,7 +52,7 @@ describe('local Details to Add to Trip connection', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Blue Finch Curios' }),
     ).toBeVisible()
-    return { user, harness: harness! }
+    return { user, harness: harness!, clients }
   }
 
   it('opens the existing chooser from the visible store action with the same store', async () => {
@@ -80,6 +86,15 @@ describe('local Details to Add to Trip connection', () => {
   it('keeps ordinary composition restricted even in development', async () => {
     await openDetails('shopper-a', false)
     expect(screen.queryByRole('link', { name: 'Add to Trip' })).not.toBeInTheDocument()
+  })
+
+  it('leaves existing trip data unchanged when selected-shopper authentication is cancelled', async () => {
+    const { user, clients } = await openDetails('shopper-a', true, true)
+    const originalTrips = await clients.trips!.list()
+    await user.click(screen.getByRole('link', { name: 'Add to Trip' }))
+    await user.click(await screen.findByRole('link', { name: 'Cancel and return without saving' }))
+    expect(await screen.findByRole('heading', { name: /Discover local antiques/i })).toBeVisible()
+    expect(await clients.trips!.list()).toEqual(originalTrips)
   })
 
   it('keeps catalog-only public exposure restricted even with a review runtime', async () => {
