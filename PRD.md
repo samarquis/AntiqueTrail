@@ -79,6 +79,8 @@ Separate daily trips can represent a weekend initially. First scope is online-fi
 
 ## Non-goals
 
+Scope guard: proposed work must directly support the connected outing, basic owner listing management, or a necessary safety/retained-data obligation. A historical checklist or available technology alone is not justification. Detailed memory and destination behavior belongs to [capabilities](docs/specs/product-capabilities.md); unresolved provider and interface choices remain bounded planning inputs, not permission to grow the feature set.
+
 Advertising, paid placement, marketplace transactions, turn-by-turn navigation, background tracking and a social network are outside the product. Paid storage never buys shopper data, ranking or approval.
 
 ## Public test publication

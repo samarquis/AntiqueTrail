@@ -159,6 +159,7 @@ Use a final card inside Plan. Show date, departure time, stop count, first stop,
 - Finishing or skipping the last stop opens Trip Summary automatically.
 - `End Trip Early` requires one confirmation when stops remain.
 - Completed route history is read-only. Private ratings and notes remain editable.
+- Open visit memories from completed trip stops; store details and Favorites expose the shopper's store summary/history. Follow [memory ownership and repeat-visit behavior](docs/specs/product-capabilities.md#finding-and-revisiting-memories); a new visit never overwrites an earlier memory.
 - `Plan This Trip Again` creates a new draft; it never alters history.
 
 ### Offline behavior

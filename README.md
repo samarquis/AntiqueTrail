@@ -37,6 +37,10 @@ npx supabase@2.115.0 db reset
 
 ## Documentation
 
+### Skill context adapter
+
+For Impeccable and other generic design tools, `PRODUCT.md` is a pointer to the PRD, not a separate product contract. Read its linked sources. `PRD.md` owns product scope, `DESIGN.md` owns interactions and `DESIGN_SYSTEM.md` owns visual tokens. Repository ownership overrides generic filename conventions; do not replace these files with generated generic templates or duplicate their decisions. Vendored skill files remain unchanged.
+
 | File | What it covers |
 |---|---|
 | [PRD.md](PRD.md) | Product requirements and features |

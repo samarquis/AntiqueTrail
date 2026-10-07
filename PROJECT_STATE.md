@@ -12,7 +12,7 @@ The Product Owner selected Vintage Day Out in the scoped direction recorded in i
 
 ## Summary
 
-The application and repository still use Antique Trail/AntiqueTrail identifiers pending a separate migration. Vintage Day Out is the selected plan-level product name. The application is a working React/TypeScript/Vite PWA with a Supabase/PostgreSQL backend, in beta on Vercel hobby tier with Supabase. Public release is not authorized yet.
+The application and repository still use Antique Trail/AntiqueTrail identifiers pending a separate migration. Vintage Day Out is the selected plan-level product name. The application is a working React/TypeScript/Vite PWA with a Supabase/PostgreSQL backend, in beta on Vercel hobby tier with Supabase. The maintained catalog-only exposure follows ADR 0010 and the exact Macvicar exception in ADR 0011. Wider feature activation requires separate admission and current evidence.
 
 ## What is implemented
 
@@ -30,13 +30,13 @@ The application and repository still use Antique Trail/AntiqueTrail identifiers 
 
 - **Stripe billing** (`photo_tiers_enabled` = false, prices unset). Stripe is the selected provider (hosted Checkout, webhooks, customer portal). Never collect card details in-app.
 - **Public reviews** — server denies public review routes during alpha/beta.
-- **Public release** — NO-GO. Blocked on hosting upgrade, domain purchase, security/operational evidence.
+- **Wider public release** remains unapproved. Apply hosting, security and operational requirements to the proposed exposure; a custom domain is not a prerequisite for the existing approved catalog test.
 
 ## Business model
 
-- Free tier: claim listing, upload 5 photos/month
-- Paid tier: $30/month unlimited photos
-- Stripe Checkout for subscription purchase
+- Free listing and optional paid photo capacity; [membership specification](docs/specs/store-membership-spec.md) owns the offer.
+- Photos occupy capacity until replaced or explicitly removed. No monthly deletion; paid prices/capacities remain undecided.
+- First outing and unpaid owner evaluation do not require billing. Stripe remains selected for separately approved paid activation.
 
 ## Where work is tracked
 

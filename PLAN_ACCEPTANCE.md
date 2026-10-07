@@ -49,7 +49,7 @@ Manifest v2.5 contains 23/23 declared handoff files. Fresh independent adversari
 | Cross-document coherence and independent handoff | 10/10 |
 | **Total plan quality** | **100/100** |
 
-This 100/100 rates the original implementation-plan handoff, not the current corpus, implementation completeness, or deployment readiness. Application code, migrations, automated tests, CI, and a Supabase project now exist, but no accepted Vercel deployment, recovery rehearsal, complete provider PASS set, external participant, live Stripe billing, or public release has been established. H-01/E-01/R-01/M-01/L-01/S-01/SEC-01/B-01/HC-01/HC-02 and package acceptance checks remain executable stop gates; a failed or unproved gate blocks its dependent stage and does not reduce the historical plan score by being honestly unresolved at runtime.
+This 100/100 rates the original implementation-plan handoff, not the current corpus, implementation completeness, or deployment readiness. The remainder of this paragraph records the original assessment state, not current availability: application code, migrations, automated tests, CI, and a Supabase project existed, but no accepted Vercel deployment, recovery rehearsal, complete provider PASS set, external participant, live Stripe billing, or public release has been established. H-01/E-01/R-01/M-01/L-01/S-01/SEC-01/B-01/HC-01/HC-02 and package acceptance checks remain executable stop gates; a failed or unproved gate blocks its dependent stage and does not reduce the historical plan score by being honestly unresolved at runtime.
 
 ## Protected internal synthetic review exception
 

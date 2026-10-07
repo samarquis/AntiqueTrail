@@ -10,7 +10,7 @@ run is not a gate receipt. Record links to real provider configuration,
 observed execution, and named-human approval. Keep capabilities disabled when
 evidence is absent, expired, or contradictory.
 
-Current accepted code baseline:
+Historical workbook baseline (not current deployment evidence):
 
 - Commit: `c8aa53dfb62e4852b00ee8f305c3c7b7d249b611` (`docs: select Vercel for gated deployment (#86)`)
 - Prior baseline with recorded CI run: `680681049df2c2b5495c8baa7064b091be414827`, <https://github.com/samarquis/AntiqueTrail/actions/runs/32331761838>
@@ -18,8 +18,9 @@ Current accepted code baseline:
 
 ## Gate order
 
-Independent preflight gates may run in parallel. Downstream execution must
-still follow the dependency column.
+For current work, identify the exact exposure and apply its actual provider, authorization, recovery and release prerequisites under ADR 0010/0011 and PRD stages. Deferred features do not block unrelated selected capabilities.
+
+The table below preserves the original full-program gate map and historical states. Its dependency column does not impose that entire program on the unpaid outing or override scoped admissions. Refresh evidence before executing an applicable gate.
 
 | Layer | Gate               | Required decision or observed evidence                                                                                                                                   | Depends on                                                 | Current state                          |
 | ----- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | -------------------------------------- |

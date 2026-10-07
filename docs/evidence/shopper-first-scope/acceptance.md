@@ -56,3 +56,13 @@ Runtime gaps, configured service behavior, real outing, owner usability, paid of
 ## Invalidation
 
 Re-run affected document/link checks and review after semantic changes. This receipt never substitutes for application, retained-data, provider or release proof.
+
+## Audit reconciliation follow-up — 2026-10-06
+
+Authority: Product Owner said “lets take your rec” following the complete Markdown audit. Baseline: `f489e37f73597f641297e6ff0b02371c2395d3be`; owner: this chat, worktree `ba15/AntiqueTrail`, branch `codex/shopper-first-scope`. Low-risk documentation-only work; earlier independent reviews above apply to their named candidates, not this follow-up.
+
+Acceptance: preserve the connected outing and basic owner goal; remove competing active requirements; clarify memories and destinations; archive old planning without losing evidence; repair broken references without restoring deferred scope. Preserve application/data/provider state and live issue ownership.
+
+Validation: all seven archived files match their baseline contents (line endings normalized); all 44 previously broken references repaired, with historical heading targets verified against local Git objects. Current Markdown local-link/path/heading scan and manifest existence check pass; `git diff --check` passes. Exact-diff self-review checks each of the twelve findings against the [disposition map](../../plans/shopper-first-scope-review.md#markdown-audit-reconciliation--2026-10-06). No runtime or vendor skill files changed. Review result: documentation acceptance passed, with implementation limits below.
+
+Unverified: remote availability of pinned GitHub links, runtime behavior, routing/provider selection and exact interfaces, real outing, owner usability, hosted acceptance and production deployment. Application tests were not run for this documentation-only change. Superseded statements in the earlier receipt remain historical; this follow-up repairs its previously recorded local-link debt. This record is bound to the commit containing it and must be refreshed after affected changes.

@@ -1,5 +1,7 @@
 # UI-06 candidate capture, shares, and trip ideas review
 
+Historical record: preserve the observations and original decisions below. They are not a current work queue, live approval state, or acceptance of the shopper-first outing. PRD.md and ADR 0012 own current target scope; recipient sharing, trip collaboration and other deferred examples are not implementation requirements.
+
 This review proves the private Candidate Link → Candidate Share → Trip Idea
 flows required by the SLM-01 checkpoint: an authenticated shopper captures a
 candidate link privately, sends it to one named recipient, and the recipient

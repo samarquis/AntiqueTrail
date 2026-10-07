@@ -23,7 +23,7 @@ Status: historical roadmap, preserved at the 2026-09-07 consolidation. Original 
 
 ## Phase 0 — Product and security foundation
 
-Current requirements: [Foundation acceptance](SECURITY_AND_TRUST.md#foundation-acceptance). Original roadmap text follows as history.
+Current requirements: [Foundation acceptance](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#foundation-acceptance). Original roadmap text follows as history.
 
 Deliverables:
 
@@ -687,7 +687,7 @@ Failure routes to the owning step; never weaken a gate or replace a failed datab
 
 ## Repository structure baseline
 
-Current requirements: [Repository structure baseline](PACKAGE_CONTRACTS.md#repository-structure-baseline). Original roadmap text follows as history.
+Current requirements: [Repository structure baseline](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/PACKAGE_CONTRACTS.md#repository-structure-baseline). Original roadmap text follows as history.
 
 ```text
 /

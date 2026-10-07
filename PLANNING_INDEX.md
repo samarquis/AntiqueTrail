@@ -13,6 +13,8 @@ Current scope is the 2026-10-06 shopper-first amendment in [PRD](PRD.md) and [AD
 
 ## Navigation and workflow
 
+- [Historical planning archive](docs/archive/planning/README.md): former `.planning` contracts and handoffs, preserved for reference and excluded from the current task queue. Generated Graft cards and vendored skill Markdown are tools, not product authorities.
+
 - README.md, CODEX_START_PROMPT.md, repository agent guides: entry instructions and links, not extra product policies.
 - PLAN_CHANGELOG.md: append-only amendment history and closure receipts.
 - Repository issue/PR templates and the append-only changelog: the ticket-to-closure workflow; no live backlog copies. The former `OPEN_TICKET_TODO.md` and `docs/agents/issue-tracker.md` are archived history.

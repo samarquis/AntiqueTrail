@@ -5,9 +5,9 @@ Use before assigning or running local provider/database/browser acceptance. The 
 ## Admit the run
 
 1. Pin source SHA and fixture mode. Confirm required scripts exist in that exact package.json and the locked installation completed. Record Node/npm versions and the pinned CLI version. A missing command or partial installation is an environment blocker, not a product failure.
-2. Verify the Docker Linux engine responds with `docker info`. Do not infer readiness from the Desktop window or a stopped Windows service alone. If unavailable, preserve the run and assign environment recovery; no blanket service/process killing.
+2. For Docker-dependent database/provider runs only, verify the Docker Linux engine responds with `docker info`. Do not infer readiness from the Desktop window or a stopped Windows service alone. If unavailable, preserve the run and assign environment recovery; no blanket service/process killing.
 3. Record a resource lease: owner/task, checkout/SHA, runner command, run ID, project ID, exact loopback ports, fixture mode, receipt path, and release condition. Keep credentials and callback tokens out. Initially permit one heavy local provider/browser run at a time; independent source checks may continue.
-4. Use the existing isolated runner from the approved account candidate. It must gate Auth/Edge readiness, use a run-owned mailbox for email proof, reset user fixtures between browser projects, and scope cleanup by verified owner markers. If a prerequisite fails, one infrastructure owner repairs the shared harness before dependent retries.
+4. For account/provider acceptance, use the existing isolated runner from the approved account candidate. That runner must gate Auth/Edge readiness, use a run-owned mailbox for email proof, reset user fixtures between browser projects, and scope cleanup by verified owner markers. If a prerequisite fails, one infrastructure owner repairs the shared harness before dependent retries. Frontend-only fixtures use their own bounded runner and do not acquire an unrelated account-harness dependency.
 
 Completion: the intended scenario is reachable on the correct source/fixture, and no resource or shared-file owner overlaps. Do not launch another full-stack proof merely to discover which API or fixture the ticket means.
 

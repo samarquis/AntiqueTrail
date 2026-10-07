@@ -9,6 +9,7 @@ assignees: ''
 ## Outcome and admission
 
 - Outcome: one observable behavior.
+- Product purpose: connected outing step, basic owner listing outcome, or necessary safety/retained-data obligation; cite its current owner.
 - Status: SPECIFICATION / BLOCKED / READY / INTEGRATING.
 - Base SHA and target branch:
 - Prerequisites and approved governing clauses:

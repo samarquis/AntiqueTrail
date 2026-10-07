@@ -44,13 +44,13 @@ Current rules are owned by [PRD.md](PRD.md), its [capability reference](docs/spe
 
 Authorization: `update plan`. The Product Owner requested roughly 50 photos per test store to evaluate a long editorial photo wall and chose the fixture-only evaluation profile over any tier/state change: an internal evaluation surface that cannot be confused with a Free listing and leaves real-media gating, entitlement capacities, and release gates unchanged.
 
-Current requirement owners: [Fixture-only 50-photo evaluation profile](DESIGN.md#fixture-only-50-photo-evaluation-profile), the [Store photo gallery page](DESIGN.md#store-photo-gallery-page), and the routes/count surface in [Production navigation and routes](DESIGN_SYSTEM.md#production-navigation-and-routes) and [Shared asynchronous-state matrix](DESIGN_SYSTEM.md#shared-asynchronous-state-matrix). These headings, not this decision history, define the designated store set, approximate 50-photo count, labeling, provenance, and boundary behaviors. This decision authorizes the scoped plan amendment only; issue #309's delivered fixtures, deterministic checks, browser journeys, and exact-candidate deployment require their own governed work.
+Current requirement owners: [Fixture-only 50-photo evaluation profile](https://github.com/samarquis/AntiqueTrail/blob/2388c53ed3ec75f7e680fb77e7dc77f172a08bb6/DESIGN.md#fixture-only-50-photo-evaluation-profile), the [Store photo gallery page](https://github.com/samarquis/AntiqueTrail/blob/2388c53ed3ec75f7e680fb77e7dc77f172a08bb6/DESIGN.md#store-photo-gallery-page), and the routes/count surface in [Production navigation and routes](https://github.com/samarquis/AntiqueTrail/blob/2388c53ed3ec75f7e680fb77e7dc77f172a08bb6/DESIGN_SYSTEM.md#production-navigation-and-routes) and [Shared asynchronous-state matrix](https://github.com/samarquis/AntiqueTrail/blob/2388c53ed3ec75f7e680fb77e7dc77f172a08bb6/DESIGN_SYSTEM.md#shared-asynchronous-state-matrix). These headings, not this decision history, define the designated store set, approximate 50-photo count, labeling, provenance, and boundary behaviors. This decision authorizes the scoped plan amendment only; issue #309's delivered fixtures, deterministic checks, browser journeys, and exact-candidate deployment require their own governed work.
 
 ### Full-width desktop Store Details — 2026-09-09
 
 Authorization: `update plan for this full-width store layout.` The Product Owner approved the concrete 2026-09-09 layout exploration after requesting Apple-like components and scrolling rather than color or font changes. The reason is that the previous 720px Store Details composition cramped the available computer screen; the selected direction uses broad photographs and sections with readable local text bounds.
 
-Current requirement owners: [Store Details scroll sequence](DESIGN.md#store-details-scroll-sequence) and [Full-width Store Details](DESIGN_SYSTEM.md#full-width-store-details). These headings, rather than the exploratory mockup or this decision history, define the section order, responsive geometry, action placement, and acceptance requirements. The dedicated gallery route, existing palette/typography, photo entitlements, private-action flows, and release gates keep their current owners. This decision authorizes the scoped plan amendment; application implementation and the separate 50-photo evaluation require their own governed work.
+Current requirement owners: [Store Details scroll sequence](https://github.com/samarquis/AntiqueTrail/blob/2388c53ed3ec75f7e680fb77e7dc77f172a08bb6/DESIGN.md#store-details-scroll-sequence) and [Full-width Store Details](https://github.com/samarquis/AntiqueTrail/blob/2388c53ed3ec75f7e680fb77e7dc77f172a08bb6/DESIGN_SYSTEM.md#full-width-store-details). These headings, rather than the exploratory mockup or this decision history, define the section order, responsive geometry, action placement, and acceptance requirements. The dedicated gallery route, existing palette/typography, photo entitlements, private-action flows, and release gates keep their current owners. This decision authorizes the scoped plan amendment; application implementation and the separate 50-photo evaluation require their own governed work.
 
 ### Public, multi-user product
 
@@ -136,31 +136,31 @@ Regional Public MVP limits one trip to eight active stops. This bounds phone usa
 
 ### Routing location privacy
 
-Current requirement owner: [Routing location policy](SECURITY_AND_TRUST.md#location-privacy). The record below preserves its original wording.
+Historical requirement reference: [Routing location policy](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#location-privacy). The record below preserves its original wording.
 
 Antique Trail may send only the coordinates necessary for a user-requested route to a named routing provider disclosed in the privacy notice. Device location requires explicit while-in-use permission; users may instead enter a start location manually. Directory browsing and manual trip planning work without device-location permission. Do not collect background or continuous location, raw movement history, or precise coordinates in analytics, application logs, email, or support records. Saved trip locations remain private to their shopper. Completed-trip location data follows a separately approved retention policy.
 
 ### Professional and commercial standard
 
-Current requirement owner: [Professional and commercial standard policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#product-goals). The record below preserves its original wording.
+Historical requirement reference: [Professional and commercial standard policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#product-goals). The record below preserves its original wording.
 
 The application must be secure, maintainable, moderated, monitored, and polished enough to promote through opt-in printed flyers in participating stores.
 
 ### Security is launch-blocking
 
-Current requirement owner: [Security is launch-blocking policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-public-mvp). The record below preserves its original wording.
+Historical requirement reference: [Security is launch-blocking policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-public-mvp). The record below preserves its original wording.
 
 Security, privacy, moderation, backups, logs, incident response, and authorization testing are required before launch.
 
 ### Regional launch
 
-Current requirement owner: [Regional launch policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-launch-strategy). The record below preserves its original wording.
+Historical requirement reference: [Regional launch policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-launch-strategy). The record below preserves its original wording.
 
 Start with one strong region and verified store data rather than a sparse national launch.
 
 ### Staged release gates
 
-Current requirement owner: [Staged release gates policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#delivery-and-release-boundary). The record below preserves its original wording.
+Historical requirement reference: [Staged release gates policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#delivery-and-release-boundary). The record below preserves its original wording.
 
 Launch first as a controlled-access Private Beta without public user-generated content. After directory, trip planning, moderation, and abuse controls are proven, launch a Regional Public MVP with text-only public ratings and reviews.
 
@@ -168,7 +168,7 @@ Repository implementation and external activation are separate decisions. Implem
 
 ### Regional Public MVP boundary
 
-Current requirement owner: [Regional Public MVP boundary policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-public-mvp). The record below preserves its original wording.
+Historical requirement reference: [Regional Public MVP boundary policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-public-mvp). The record below preserves its original wording.
 
 The Regional Public MVP requires Packages 1–10B and every named provider, human-capacity, security, privacy, legal, recovery, accessibility, age-representative usability, operations, and release gate. Phase headings are capability groupings, not execution authority. Defer Phase 4 finds/households, Phase 5 preference onboarding/personalization, shopper/review photos, and owner review responses until after the Regional Public MVP.
 
@@ -186,13 +186,13 @@ Use Topeka city limits as the future Private Beta Pilot Area. Store outreach, pa
 
 ### Internal Alpha before external participation
 
-Current requirement owner: [Internal Alpha before external participation policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
+Historical requirement reference: [Internal Alpha before external participation policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
 
 Run an Internal Alpha before adding real stores or contacting any owner or public entity. It begins with a Solo Agent-Assisted Alpha: Scott, as Primary Internal Tester, operates all separate role accounts and may supervise AI Test Agents. It ends with Two-Person Acceptance: Scott's wife, as Independent Internal Tester, performs shopper acceptance using her own account and phone. AI evidence cannot substitute for her independent acceptance or approve a release gate. Test with Synthetic Stores only. Synthetic records may represent store types and owner workflows, but must not use real names, logos, photos, reviews, or imply affiliation.
 
 ### Separate Internal Alpha accounts
 
-Current requirement owner: [Separate Internal Alpha accounts policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
+Historical requirement reference: [Separate Internal Alpha accounts policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
 
 Every role uses a separate Test Account. During Solo Agent-Assisted Alpha, the Primary Internal Tester operates Test User A and may use a separate Agent-Assisted Shopper Account for user-two simulation while preserving separate sessions, ownership, and visibility. During Two-Person Acceptance, the Independent Internal Tester uses a newly created Test User B account on her own phone; the solo-stage account is never reassigned to her. Test User A and Test User B may intentionally perform identical actions or enter duplicate values, but neither can read or change the other's private data. Household sharing remains disabled during this isolation test; recipient-specific Candidate Share grants no household membership or broader access.
 
@@ -216,7 +216,7 @@ The sender addresses a Candidate Share to the verified email of an existing Anti
 
 ### Representative Test Account
 
-Current requirement owner: [Representative Test Account policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
+Historical requirement reference: [Representative Test Account policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
 
 Internal Alpha includes a separate Representative Test Account scoped to one Synthetic Store and operated by the Primary Internal Tester. It is never shared with shopper sessions. The Independent Internal Tester is not required to use it. It cannot access shopper saves, personal ratings, notes, trips, or other private records.
 
@@ -234,31 +234,31 @@ Use a fourth, separate Administrator Test Account to approve or reject Store Cha
 
 ### Internal Alpha feature boundary
 
-Current requirement owner: [Internal Alpha feature boundary policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
+Historical requirement reference: [Internal Alpha feature boundary policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
 
 Internal Alpha includes four-role authentication; a list-first Synthetic Store Browser with search, optional map, details, hours, and generated fictional profile images; private Candidate Link capture, recipient-specific Candidate Share, and Trip Ideas using synthetic sources; private saves, personal ratings, and notes; hours-aware trip planning; active-trip navigation handoff; offline recovery; Store Representative and Administrator workflows; and audit records. It applies the Age-Inclusive Usability Baseline. It excludes public reviews, shopper/review photos, household lists or broad shared access, finds and collections, public Event records, notifications, owner analytics, advanced personalization, and real stores.
 
 ### Internal Alpha shopper-trip exit gate
 
-Current requirement owner: [Internal Alpha shopper-trip exit gate policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
+Historical requirement reference: [Internal Alpha shopper-trip exit gate policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
 
 The Primary Internal Tester using Test User A and the Independent Internal Tester using Test User B must each complete three successful Shopper Trip Acceptance Runs on separate phones and accounts. At least one run must prove Test User B can send a synthetic Candidate Share to Test User A, Test User A alone can accept it into a recipient-owned Trip Idea and add it to Plan, and neither account can read the other's unrelated private records or recipient edits. Anonymous, wrong-recipient, Representative, and Administrator access must be denied. For each account, at least one run must prove active-trip recovery after refresh or app restart and while offline. Across the runs, the tester must exercise navigation handoff, arrived/completed/skipped/closed stop states, and route recalculation. AI-assisted or Primary Internal Tester runs against Test User B are supplemental and do not replace the Independent Internal Tester's three runs. The gate requires zero Blocking Defects and zero unauthorized cross-account exposure or modification of shopper-private data.
 
 ### Internal Alpha privileged-workflow exit gate
 
-Current requirement owner: [Internal Alpha privileged-workflow exit gate policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
+Historical requirement reference: [Internal Alpha privileged-workflow exit gate policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
 
 The Primary Internal Tester must operate two complete Privileged Workflow Acceptance Cycles using the separate Representative Test Account and MFA-protected Administrator Test Account; the Independent Internal Tester is not required to operate privileged accounts. Across each cycle, every Representative-Managed Field must publish directly; at least one Store Change Request must be approved and one rejected; unapproved Controlled Store Fields must remain unpublished; representative self-approval must fail; revocation must block further writes from the representative's existing session; and all privileged actions must have audit records. Both privileged accounts must remain unable to read or modify Test User A or Test User B shopper-private data. The gate requires zero Blocking Defects; every allowed action must succeed and every forbidden action must be denied.
 
 ### No store-owner participation before readiness
 
-Current requirement owner: [No store-owner participation before readiness policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
+Historical requirement reference: [No store-owner participation before readiness policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
 
 Do not contact or include a store owner, import a real store, or add any external participant until Solo Agent-Assisted Alpha and Two-Person Acceptance pass and a separate External Testing Readiness gate is defined and passed. After that gate passes, invite one consenting Store Partner representative into the controlled, invitation-only Private Beta to test the real owner workflow before public access. The gate does not authorize public product promotion.
 
 ### External Testing Readiness gate
 
-Current requirement owner: [External Testing Readiness gate policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
+Historical requirement reference: [External Testing Readiness gate policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). The record below preserves its original wording.
 
 Before first-owner contact, require dated passing evidence approved by the Primary Internal Tester for all nine checks: both Internal Alpha stages; the complete authorization and security test set; zero open Blocking Defects or known privacy, security, or data-loss defects; successful backup-restore and rollback rehearsals; working pilot-environment monitoring, error reporting, and support intake; legally reviewed final pilot privacy notice and owner-consent wording; one successful External Testing Dress Rehearsal; one Private-Beta incident rehearsal covering detection, containment, credential/scope revocation, user/store communication, database and Storage recovery, deletion-receipt replay, and post-incident evidence; and documented confirmation from qualified counsel/insurance professionals that the operating legal entity and required pilot insurance are active for the planned owner contact and participation. A failed check blocks outreach. AI Test Agents may collect evidence but cannot approve the gate.
 
@@ -300,13 +300,13 @@ Public access remains blocked until dated evidence proves all three Controlled P
 
 ### Regional growth sequence
 
-Current requirement owner: [Regional growth sequence policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-launch-strategy). The record below preserves its original wording.
+Historical requirement reference: [Regional growth sequence policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-launch-strategy). The record below preserves its original wording.
 
 Use Topeka city limits for the first Regional Public MVP. After Package 11 RG-01 passes and the Product Owner separately selects one Eligible Small Community, Package 12 privately recruits its approved anchor owner, verifies at least two listings, and reuses Package 10A/10B exact catalog, consented-promotion, recovery/capacity, preactivation signature, and rollback controls before activating only that area. After activation, run the Community Expansion Gate below; its passing receipt is required before a separately approved Package 12 run for another community. Package 12 is repeatable once per area for ordinals 1–3, with a separate Product Owner selection each time. An Eligible Small Community is outside a larger metro, roughly within a 60-minute drive of Topeka, has at least two antique or vintage shops, and has at least one willing anchor Store Partner before activation. Stop after three communities and conduct a separate larger-metro readiness review before considering Kansas City or another larger metro. Exact communities remain unresolved.
 
 ### Community Expansion Gate
 
-Current requirement owner: [Community Expansion Gate policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-launch-strategy). The record below preserves its original wording.
+Historical requirement reference: [Community Expansion Gate policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-launch-strategy). The record below preserves its original wording.
 
 Before activating another small community, require dated Primary Internal Tester approval that the current community has: at least two verified active shop listings; one anchor Store Partner who completed onboarding, one direct edit, one controlled change, and one support request; separate-phone/account multi-stop trip runs completed by Scott and the Independent Internal Tester; voluntary trip-use confirmation from five additional shoppers without requiring precise-location tracking; passing monitoring, support, and store-data accuracy checks; and zero open Blocking Defects or known privacy, security, or data-loss defects. No minimum calendar duration applies. A failed or incomplete check blocks the next community.
 
@@ -342,7 +342,7 @@ Provide an in-app Pilot Support Ticket workflow with categories for bug, confusi
 
 ### Product promise and first arrival
 
-Current requirement owner: [Product promise and first arrival policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#core-workflow). The record below preserves its original wording.
+Historical requirement reference: [Product promise and first arrival policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#core-workflow). The record below preserves its original wording.
 
 The product promise is: “Antique Trail makes a fun day of antique shopping easy to see, easy to plan, and easy to trust.” Browse Stores is the first-arrival screen for the approved area and shows results immediately without sign-in or location permission. Anonymous visitors may Browse, open Store Details, and Navigate. Save, Add to Trip, private ratings, and private notes use just-in-time authentication and return to the interrupted action without creating a write on cancellation or failure. Approved through D5–D6 on 2026-07-30.
 
@@ -442,7 +442,7 @@ Keep the full approved PRD and phased roadmap, but do not implement Phases 0–3
 
 ### Startup Learning MVP
 
-Current requirement owner: [Startup Learning MVP policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#startup-learning-mvp-slm-01). The record below preserves its original wording.
+Historical requirement reference: [Startup Learning MVP policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#startup-learning-mvp-slm-01). The record below preserves its original wording.
 
 After the first slice, `SLM-01` is the first private value checkpoint: Packages 1, 2, 3, and 5A with Synthetic Stores. It proves separate Test User A and Agent-Assisted Shopper accounts can complete Browse → Details → Save → manually ordered hours-aware Trip → one-trip Partner/Navigator handoff → external-map Go → private visit memory, including refresh/offline recovery and cross-account denial. Package 4 Candidate Share is a separate branch and does not block this checkpoint. SLM-01 excludes Package 5B routing suggestions, Store Partner/Admin workflows, real stores, external participants, public reviews, public indexing, acquisition, or advertising. Completion authorizes only Product Owner continue/revise/stop disposition; it does not skip any Regional Public MVP package or gate. Approved 2026-08-03.
 
@@ -450,7 +450,7 @@ SLM-01 `continue` additionally requires both accounts to finish without an outsi
 
 ### Startup free-service and hosting boundary
 
-Current requirement owner: [Startup free-service and hosting boundary policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#budget-and-commercial-direction). The record below preserves its original wording.
+Historical requirement reference: [Startup free-service and hosting boundary policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#budget-and-commercial-direction). The record below preserves its original wording.
 
 The startup `$0` infrastructure boundary includes audit anchoring and geocoding as well as the services listed below; failure to find a compliant free L-01/R-01 option disables the dependent remote capability rather than authorizing spend.
 
@@ -458,7 +458,7 @@ Local development, Shared Synthetic Alpha, SLM-01, and Controlled Private Beta m
 
 ### Product promotion is not monetization
 
-Current requirement owner: [Product promotion is not monetization policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-launch-strategy). The record below preserves its original wording.
+Historical requirement reference: [Product promotion is not monetization policy](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-launch-strategy). The record below preserves its original wording.
 
 Antique Trail may promote its own Regional Public MVP only after Package 10B signature. Startup has no ad inventory, sponsored listing, paid ranking, affiliate link, lead sale, shopper-data sale, paid claim verification, paid Store Partner tier, ad network, or behavioral targeting. Verification, discovery order, public ratings, and moderation cannot be purchased. Any monetization requires a new Product Decision and is deferred at least through RG-01 and the separately approved first three small-community reviews. Approved 2026-08-03.
 
@@ -468,7 +468,7 @@ Three QR classes are mandatory and cannot be repurposed. Shopper promotional QR 
 
 ### Correction, claim, and review-delete closure decisions
 
-Current requirement owners: [Corrections](docs/specs/product-capabilities.md#corrections), [claim/add-store scope](docs/specs/product-capabilities.md#business-accounts), and [review deletion and Undo](SECURITY_AND_TRUST.md#reviews-and-abuse). The record below preserves its original wording.
+Current requirement owners: [Corrections](docs/specs/product-capabilities.md#corrections), [claim/add-store scope](docs/specs/product-capabilities.md#business-accounts), and [review deletion and Undo](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#reviews-and-abuse). The record below preserves its original wording.
 
 - **Correction identity:** anyone may draft a correction, but submission requires just-in-time verified account authentication. Cancellation writes nothing. The submitter may read only reason-neutral status for their own report; anonymous writes and internal case detail are denied. Approved 2026-08-03.
 - **Claim stage and evidence:** Package 6 builds/tests claims with Synthetic data while `public_listing_claims_enabled=false` through Alpha, Private Beta, and Package 10A. Package 10B alone may enable it after release signature. Two authority signals must use distinct channel classes, evidence objects, and verification events; the same email, phone, document, or contact cannot count twice. Regional Public MVP accepts content-free callback, mailed-code, public-filing, or in-person verification records. User-uploaded claim documents are not accepted; lease/utility evidence may be inspected in person but no copy is retained. Raw digital claim evidence has no approved storage path. Approved 2026-08-03.
@@ -496,25 +496,25 @@ An account becomes inactive after three years without a successful sign-in. Send
 
 ### Operational-record retention
 
-Current requirement owner: [Operational-record policy](SECURITY_AND_TRUST.md#operational-retention). The record below preserves its original wording.
+Historical requirement reference: [Operational-record policy](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#operational-retention). The record below preserves its original wording.
 
 Retain application/error logs for 30 days; authentication/security events for 90 days; privileged Store Representative and Administrator audit events for two years; support and moderation cases for two years after closure; Pilot Consent Receipts, authority verification, and role-grant history for three years after the relationship ends; rejected or quarantined uploads for 30 days; and content-free deletion receipts for 31 days. Never copy shopper-private content into logs or audit events. At each deadline, securely delete or irreversibly de-identify the record. Legal review may require a longer period before external testing; no shorter period is allowed without product-owner approval. Approved 2026-07-31.
 
 ### Recovery objectives
 
-Current requirement owner: [Stage recovery policy](SECURITY_AND_TRUST.md#backups). The record below preserves its original wording.
+Historical requirement reference: [Stage recovery policy](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#backups). The record below preserves its original wording.
 
 Use staged recovery targets. Internal Alpha permits at most 24 hours of data loss and one business day of outage. Private Beta permits at most four hours of data loss and eight hours of outage. Regional Public MVP permits at most 15 minutes of data loss and four hours of outage. Prove database and Storage recovery separately before passing each corresponding gate; a provider backup claim alone is insufficient. Approved 2026-07-31.
 
 ### Break-glass emergency access
 
-Current requirement owner: [Emergency-access policy](SECURITY_AND_TRUST.md#break-glass-emergency-access). The record below preserves its original wording.
+Historical requirement reference: [Emergency-access policy](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#break-glass-emergency-access). The record below preserves its original wording.
 
 Disable break-glass access during Synthetic Internal Alpha. During Private Beta and Regional Public MVP, allow it only for a confirmed security or data-recovery incident, never routine support. Require Administrator MFA, recent authentication, an incident ID, a plain-language reason, and the exact requested data scope. Access is read-only by default and expires after 30 minutes. Require a second Administrator's approval when available; while Scott is the sole Administrator, permit activation only with an independent review within 24 hours. Notify the affected user when safe and legally allowed. Audit every attempt for two years in append-only hash-chained records with the externally anchored chain-root verification defined by the security plan. Prohibit bulk export, role changes, deletion bypass, and access to unrelated data. Approved 2026-07-31; storage wording aligned 2026-08-03.
 
 ### Closed lifecycle, portability, usability, and release decisions
 
-Historical requirement reference: [Inactive-account timing requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Completed-trip location requirements](SECURITY_AND_TRUST.md#operational-retention); [Candidate Share terminal states requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Invitation terminal states requirements](SECURITY_AND_TRUST.md#operational-retention); [Participant exit requirements](SECURITY_AND_TRUST.md#user-controls); [Freshness requirements](docs/specs/product-capabilities.md#listing-freshness); [Duplicate merge requirements](SECURITY_AND_TRUST.md#directory-data-provenance-and-integrity); [Account scope requirements](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#account-scope-requirements); [Authentication requirements](SECURITY_AND_TRUST.md#authentication); [Trip duration and Check My Day requirements](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#package-5b-planning-factors-and-output); [Account-deletion cancellation and recent authentication requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Portability requirements](SECURITY_AND_TRUST.md#user-controls); [Browser/device baseline requirements](DESIGN_SYSTEM.md#browser-and-device-acceptance-matrix); [Human usability acceptance](PRD.md#human-usability-acceptance); [External support requirements](SECURITY_AND_TRUST.md#incident-response); [Metric gate RG-01 requirements](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#operating-scorecard-and-rg-01). The record below preserves its original wording.
+Historical requirement reference: [Inactive-account timing requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Completed-trip location requirements](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#operational-retention); [Candidate Share terminal states requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Invitation terminal states requirements](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#operational-retention); [Participant exit requirements](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#user-controls); [Freshness requirements](docs/specs/product-capabilities.md#listing-freshness); [Duplicate merge requirements](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#directory-data-provenance-and-integrity); [Account scope requirements](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#account-scope-requirements); [Authentication requirements](SECURITY_AND_TRUST.md#authentication); [Trip duration and Check My Day requirements](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#package-5b-planning-factors-and-output); [Account-deletion cancellation and recent authentication requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Portability requirements](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#user-controls); [Browser/device baseline requirements](DESIGN_SYSTEM.md#browser-and-device-acceptance-matrix); [Human usability acceptance](PRD.md#human-usability-acceptance); [External support requirements](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#incident-response); [Metric gate RG-01 requirements](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#operating-scorecard-and-rg-01). The record below preserves its original wording.
 
 - **Inactive-account timing:** use UTC instants. On the first daily job run at or after the third anniversary of the last successful sign-in, schedule deletion for 90 days later and send the 90-day warning; send the remaining warnings at or after 30 and 7 days. A successful sign-in before deletion atomically clears the schedule. Jobs are idempotent by account and milestone; retries do not duplicate deletion requests, and notification failure alerts operations but does not extend retention. At the deletion instant, apply the approved seven-day account-deletion cancellation period, so primary deletion completes by day 98 after scheduling unless cancelled. Leap-day anniversaries use February's last day. Approved 2026-07-31.
 - **Completed-trip location:** device/provider traces are never stored. Exact manual/current start and optional return coordinates are removed from primary data within 24 hours after completed-trip synchronization; only a user-entered coarse label, store IDs, chosen order, planned/actual stop states, and user-authored private memory remain. Coordinates are excluded from later exports and age out of backups within 30 days. Approved 2026-07-31.
@@ -617,7 +617,7 @@ For the owner-only product-reset assessment, [ADR 0007](docs/adr/0007-protected-
 
 ## Store-showcase presentation — 2026-09-11
 
-The Product Owner confirmed the prepared proposal with “update everything” after requesting that the five design findings be written to the plan and GitHub tickets, and after being asked to confirm the scoped plan update. [DESIGN.md — Store-showcase presentation](DESIGN.md#store-showcase-presentation) owns behavior and stage precedence; [DESIGN_SYSTEM.md — Store-showcase presentation acceptance](DESIGN_SYSTEM.md#store-showcase-presentation-acceptance) owns reproducible geometry and accessibility checks. The PRD retains scope/stage ownership.
+The Product Owner confirmed the prepared proposal with “update everything” after requesting that the five design findings be written to the plan and GitHub tickets, and after being asked to confirm the scoped plan update. [DESIGN.md — Store-showcase presentation](https://github.com/samarquis/AntiqueTrail/blob/2388c53ed3ec75f7e680fb77e7dc77f172a08bb6/DESIGN.md#store-showcase-presentation) owns behavior and stage precedence; [DESIGN_SYSTEM.md — Store-showcase presentation acceptance](https://github.com/samarquis/AntiqueTrail/blob/2388c53ed3ec75f7e680fb77e7dc77f172a08bb6/DESIGN_SYSTEM.md#store-showcase-presentation-acceptance) owns reproducible geometry and accessibility checks. The PRD retains scope/stage ownership.
 
 Prioritize early store results, a clear store destination with secondary Save, early visit information, and distinct descriptions using the existing synthetic assets. Retain identity and the already-approved full-width Store Details contract. The Dribbble mockups do not become specifications. #353 owns the amendment; verify #312’s existing accepted outcome against current main before reopening it. Existing #324/#325 retain human judgments. No application implementation, new media library, release, provider, spending or hosted activation is approved here.
 

@@ -72,7 +72,15 @@ One organizer, one shopping date and a set of catalog/private stops. Preserve ex
 
 Suggest an order using driving time, browsing durations and known opening hours. Explain missing/stale hours and impossible schedules; estimates are not guarantees. Shopper explicitly chooses Use suggested order or Keep my order. Never silently reorder or claim a mathematically optimal route. Missing routing service leaves manual ordering and hours review usable, labeled Travel time is not included; that fallback does not pass acceptance for the suggested-order capability. No continuous automatic replanning.
 
-### Visit and navigation
+### Destination and routing inputs
+
+Confirm each stop's destination before enabling Navigate or including it in a driving-time suggestion. Unresolved addresses may remain drafts; never silently choose an ambiguous match. Preserve a private stop's entered name, address, optional source URL, hours and duration. Unknown hours/time zones remain explicit uncertainties.
+
+Use the selected date, departure time and explicit start location with an admitted routing adapter. Disclose location use; do not send private notes, ratings or source URLs to routing providers. Provider, configuration and exact RPC/data mapping must be resolved in the implementation contract before READY; this requirement is not evidence that an adapter exists or is admitted. Failure preserves the current order and offers manual ordering/hours review without travel-time claims.
+
+Recheck catalog availability when adding a shared store. An unavailable store adds nothing and preserves the existing trip; creating a private stop is a separate explicit choice. Navigation hands off the confirmed destination, with Copy address/map link fallback. Returning from Maps does not mark a visit automatically.
+
+### Visit controls
 
 Explicit Navigate opens Maps/Waze for the selected stop. User confirms arrived/done/skipped; no tracking or geofencing. End early and reopen history. Keep private notes safe on network failure; do not claim server persistence or queue offline commands silently. Mutable offline work and shared Navigator authority are deferred. Existing signed-grant dependencies require a reviewed simplification contract before runtime removal.
 
@@ -81,6 +89,16 @@ Explicit Navigate opens Maps/Waze for the selected stop. User confirms arrived/d
 One first-release rating: an optional account-private 1–5 store/visit rating. Include No/Maybe/Yes would-return and a note for finds, categories and personal recommendation. Never publish or include private fields in store shares. Public aggregates and personalized match scores are deferred.
 
 ## Private content lifetime
+
+### Finding and revisiting memories
+
+Keep the existing store-level personal summary distinct from individual stop/visit memories. Editing a summary is explicit; later visits never overwrite earlier visit notes or the summary automatically. Completed trip history opens its stop memories; store details and Favorites provide access to the shopper's store summary and visit history.
+
+Private unlisted stops support the same rating, would-return and note fields without requiring a public store ID. Retain entered name/address with the memory; no automatic cross-trip matching, public listing conversion or collection subsystem. Removing a favorite or draft stop does not delete previously saved visit memories. An unavailable public listing does not erase private history. Explicit deletion and account lifecycle still apply.
+
+Acceptance: save a brass-item note and would-return choice, reopen in a later session, record a later visit, and recover both memories without overwrite; another account cannot read either. Repeat for an unlisted stop. These are target checks, not claims of passing runtime proof.
+
+### Retention
 
 Favorites, trips, private stops and memories remain private until explicit deletion/account lifecycle applies; age alone does not expire them. Reopening retains saved memories. Existing export, deletion, recovery and account-switch protections remain; [security](../../SECURITY_AND_TRUST.md) owns their mechanics.
 

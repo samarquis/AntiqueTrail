@@ -76,7 +76,7 @@ Category badges are secondary metadata and use `muted` on `mint`. The Browse res
 | Display tracking | `--type-tracking-display`, `--type-tracking-display-subtle` | `-0.025em`, `-0.015em` | Headings and compact brand wordmark |
 | Uppercase tracking | `--type-tracking-uppercase`, `--type-tracking-uppercase-wide` | `0.08em`, `0.13em` | Short uppercase labels; wide for eyebrows |
 
-Body text must not fall below 16px on desktop or 14px on mobile for core content. Freshness, provenance, hours, warnings, and privacy consequences are core content. Caption text may use 13px only for nonessential timestamps, rights lines, or decorative context.
+Use the 18px body default and a 16px minimum for essential content on every viewport. Freshness, provenance, hours, warnings, and privacy consequences are core content. Caption text may use 13px only for nonessential timestamps, rights lines, or decorative context.
 
 Production self-hosts licensed WOFF2 subsets for Newsreader and Atkinson Hyperlegible with `font-display: swap`; no Google Fonts request.
 

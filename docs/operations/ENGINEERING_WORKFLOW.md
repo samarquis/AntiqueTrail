@@ -1,5 +1,9 @@
 # Engineering Workflow
 
+## Historical package identifiers
+
+Use capability names in new task descriptions. Current package summaries are navigation aids; do not renumber migrations or reinterpret historical issue evidence. Older identifiers include Package 4 candidate capture, 5A/5B trips, 9 reviews and 13 billing. The current summary uses Package 4 trips, 5 Go, 8 reviews and 9 billing. Resolve an old reference against its exact source SHA and named capability before reusing it.
+
 This is AntiqueTrail's delivery path from request to verified closure. GitHub issues and pull requests remain the live backlog; `PROJECT_STATE.md` records dated implementation facts.
 
 ## 1. Establish authority and state

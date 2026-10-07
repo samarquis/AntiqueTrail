@@ -8,8 +8,8 @@ The Product Owner's exact directive was `update plan for this full-width store l
 
 | Criterion | Evidence |
 | --- | --- |
-| 1 — Section order and journey | [Store Details scroll sequence](../../../DESIGN.md#store-details-scroll-sequence): introduction, exploration, visit planning, listing context, continuation; ordinary section jumps; unchanged Browse, gallery, and sign-in/cancel continuations. |
-| 2 — Reproducible layout | [Full-width Store Details](../../../DESIGN_SYSTEM.md#full-width-store-details): desktop page width, content gutters, local prose/table bounds, component grid, narrow/intermediate reflow, media failures, sticky/focus behavior, and later application acceptance. |
+| 1 — Section order and journey | [Store Details scroll sequence](https://github.com/samarquis/AntiqueTrail/blob/2388c53ed3ec75f7e680fb77e7dc77f172a08bb6/DESIGN.md#store-details-scroll-sequence): introduction, exploration, visit planning, listing context, continuation; ordinary section jumps; unchanged Browse, gallery, and sign-in/cancel continuations. |
+| 2 — Reproducible layout | [Full-width Store Details](https://github.com/samarquis/AntiqueTrail/blob/2388c53ed3ec75f7e680fb77e7dc77f172a08bb6/DESIGN_SYSTEM.md#full-width-store-details): desktop page width, content gutters, local prose/table bounds, component grid, narrow/intermediate reflow, media failures, sticky/focus behavior, and later application acceptance. |
 | 3 — Consistent authority | DESIGN and DESIGN_SYSTEM own their rules, PRODUCT_DECISIONS links them, and the changelog appends authorization. All four changed owners already appear in the 53-file manifest. The separate 50-photo proposal in #309 is neither approved nor implemented. |
 | 4 — Verification and delivery | Local checks below passed. Independent candidate review, required hosted checks, merge, and issue closure must be verified on GitHub before this amendment is called complete. |
 

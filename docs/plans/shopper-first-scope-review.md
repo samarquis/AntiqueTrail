@@ -58,3 +58,25 @@ Split these into independent leaves only after inputs, ownership, exact interfac
 ## Limits
 
 No application tests, database migrations, browser journeys, account/provider operations or deployment were run for this scope change. Existing stack, code, grants, data and published assets remain intact. The earlier broad contracts remain recoverable at the baseline commit for any compatibility migration; historical evidence has not been rewritten as current proof.
+
+
+## Markdown audit reconciliation — 2026-10-06
+
+The approved follow-up addresses the audit findings as follows:
+
+| Finding | Disposition and owner |
+|---|---|
+| F01 commercial drift | PROJECT_STATE defers pricing/capacity to membership; no monthly deletion |
+| F02 exposure versus target/history | PROJECT_STATE and PACKAGE_CONTRACTS preserve catalog-only restrictions; Macvicar history points to ADR 0011 |
+| F03 speculative media migration | ADR 0005/M-01 retire the mandatory future transition, preserving operational controls |
+| F04 competing plans | Seven `.planning` files archived unchanged; old UI/evaluation/release records explicitly historical |
+| F05 onboarding burden/persistence | Owner setup removes artificial tasks and describes tab versus acknowledged server persistence |
+| F06 memory gaps | Capabilities distinguish store summary, repeat visits and unlisted-stop memories |
+| F07 destination/routing gaps | Capabilities require confirmed destinations, minimized provider inputs and honest fallbacks; implementation mapping still required |
+| F08 numbering ambiguity | Engineering and database guides map historical identifiers without renumbering code |
+| F09 typography contradiction | DESIGN_SYSTEM uses the existing 18px default/16px essential minimum across devices |
+| F10 generic skill conflict | README/AGENTS adapter preserves PRD, interaction and token ownership without vendor edits |
+| F11 workflow burden | Existing task template ties work to product purpose; startup reading and local proof dependencies are scoped |
+| F12 broken history references | Original heading targets resolved from Git history; malformed evidence links repaired |
+
+This reconciliation is documentation acceptance only. The real outing/owner evaluation and concrete routing/private-stop interfaces remain unverified; do not create a READY ticket by copying this table.

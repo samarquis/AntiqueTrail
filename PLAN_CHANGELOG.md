@@ -252,3 +252,12 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Evidence: [scope/backlog reconciliation](docs/plans/shopper-first-scope-review.md) and [documentation acceptance](docs/evidence/shopper-first-scope/acceptance.md). Baseline `d075998137c501c6ff7252880ad59500e59bec16`.
 - Backlog: 26 open issues inspected; existing release/recovery/account work preserved. #487 remains specification with selected-role scope reconciliation before READY. No new implementation tickets, issue closure or publication is claimed.
 - Boundaries: documentation-only approval; no code deletion/rewrite, schema change, grant/data cleanup, provider mutation, new account, external contact, spending or deployment. Existing ADR0010/0011 exposure remains unchanged.
+
+
+## 2026-10-06 — Apply the Markdown audit reconciliation
+
+- Authorization: Product Owner said “lets take your rec” after the full Markdown audit and recommendation for focused documentation cleanup.
+- Reconcile current state, undecided pricing, storage transition, owner setup, typography, package identifiers and generic-skill source ownership. Preserve historical evidence and archive the seven former `.planning` files without changing their contents.
+- Clarify distinct store summaries/visit memories, private-stop history, confirmed navigation destinations and routing failure behavior within the approved outing. Provider/interface selection and runtime proof remain implementation prerequisites.
+- Repair historical references against their actual Git source instead of recreating removed requirements. Add a product-purpose line to the existing small-task template.
+- No application change, data deletion, provider mutation, new billing offer, issue closure, publication or deployment. See the follow-up in `docs/evidence/shopper-first-scope/acceptance.md`.

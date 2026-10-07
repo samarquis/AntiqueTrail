@@ -1,6 +1,8 @@
 # Free private evaluation packet
 
-For the current store-first showcase setup and blank owner notes, use the [Store-first local showcase handoff](STORE_FIRST_HANDOFF.md). This supplements this original packet without rewriting its scenarios or reports.
+Current acceptance follows the [complete outing milestone](../../../PRD.md#next-milestone-one-complete-shopping-outing): two shoppers favorite/share a public store, open it anonymously, sign in and Add to Trip, add an unlisted stop, review driving/hours suggestions, navigate, and recover private memories after a later visit. Include basic owner listing/hours/approved-photo/update maintenance and exact-store denial. Observe computer and phone use with actual human feedback.
+
+The existing runner below is a reusable historical fixture packet. It does not yet prove every connected step; unsupported steps remain unverified. The [store-first showcase handoff](STORE_FIRST_HANDOFF.md) is historical supporting material, not the current milestone.
 
 This packet implements the repository-controlled preparation for issue #251. It is a
 local, synthetic evaluation of the current review harness, not a hosted test and not

@@ -1,5 +1,7 @@
 # Local catalog database
 
+The package numbering below records implementation history. Use capability names and the [historical identifier map](../docs/operations/ENGINEERING_WORKFLOW.md#historical-package-identifiers) when relating it to current plans. Docker is needed for the local Supabase commands, not for ordinary frontend development or customer installation.
+
 Package 1 is intentionally local and synthetic. The migration creates the `app_public` schema, seeds twelve fictional stores, and exposes only two anonymous read RPCs:
 
 - `catalog_list(p_q, p_category, p_area)` — deterministic name/area/category search.
