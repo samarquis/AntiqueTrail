@@ -27,7 +27,7 @@ The selected fixture account is explicit. Successful authentication continuation
 | Cancellation makes no write | Browser cancellation returned to Browse without a result; unit comparison through the public TripClient interface found identical trip data before/after cancellation. |
 | Create and repeat without duplicate stop | Created a dated trip through the chooser; Plan showed exactly one Blue Finch stop. Re-entering through Browse/Details reported the existing membership and offered no second Add action for that trip. |
 | Public and privileged exposure stays denied | Unit tests deny production, absent review runtime, non-loopback host, catalog-only mode and Owner/Representative/Admin projections. Browser tests deny privileged projections and send anonymous entry through sign-in. Macvicar preview exclusion is retained in source; real-store admission was not exercised. |
-| Preserve visual baseline | Existing action/chooser styles reused. Desktop Chrome and Pixel 5 emulation captured Details/chooser in light/dark; action measured at least48×48 CSS pixels, narrow chooser had no horizontal overflow. Inspected mobile light chooser and desktop dark Details captures. |
+| Preserve visual baseline | Existing action/chooser styles reused. Desktop Chrome and Pixel 5 emulation captured Details/chooser in light/dark; action measured at least 48×48 CSS pixels, narrow chooser had no horizontal overflow. Inspected mobile light chooser and desktop dark Details captures. |
 
 ## Verification and exact-source limits
 
@@ -35,19 +35,19 @@ The selected fixture account is explicit. Successful authentication continuation
 | --- | --- |
 | Test-first | Initial rendered App test failed because Add to Trip was absent. The minimal App composition change made it pass. |
 | Final focused Vitest | `npx vitest run src/app/storeDetailsTrip.test.tsx --reporter=dot`: **10 passed**, final test contents identical to `2abaaaf7`. |
-| Final browser | Existing `npm run test:e2e:review -- e2e/ui07-trip-flows.spec.ts --grep 'Details Add to Trip connection' --project desktop --project mobile --output .codex/details-trip/browser-final`: **6 passed**, zero skips/failures,31.1seconds, clean `2abaaaf7`. |
-| Repository check | `npm run check` exited0: type/lint/format, **1204 Vitest passes +1 skip**, **385 release passes +1 skip**, build and seed-media validation passed. This broader run preceded the final test-only amendment; App source is identical to the final candidate. Do not relabel its unit count as a freshly rerun final suite. |
+| Final browser | Existing `npm run test:e2e:review -- e2e/ui07-trip-flows.spec.ts --grep 'Details Add to Trip connection' --project desktop --project mobile --output .codex/details-trip/browser-final`: **6 passed**, zero skips/failures, 31.1 seconds, clean `2abaaaf7`. |
+| Repository check | `npm run check` exited 0: type/lint/format, **1204 Vitest passes +1 skip**, **385 release passes +1 skip**, build and seed-media validation passed. This broader run preceded the final test-only amendment; App source is identical to the final candidate. Do not relabel its unit count as a freshly rerun final suite. |
 | Final amended-test checks | Final focused tests, `npm run typecheck`, changed-file ESLint and Prettier passed. Runtime source is unchanged from `8331be4d`; the amendment strengthens cancellation proof and fixes test navigation assumptions. |
 | Impeccable detector | One App scan returned `[]`. No CSS/design-token change. Reticle tools unavailable; rendered Playwright assertions and screenshots supply browser evidence. |
 | Independent review | Spec and Standards independently cleared exact `2abaaaf79830fc806c6a878749e7a6f8d31e63f1`, with no actionable findings. |
 
-The repository check reported16 existing ESLint warnings, an existing jsdom navigation diagnostic and two skipped cases; these are recorded rather than hidden. Browser setup reported Node color-environment warnings. Earlier browser runs failed on incorrect test selectors and an assumed More → My trips link; runtime behavior was not changed to accommodate those assumptions. The final selected suite passed after fixing those tests.
+The repository check reported 16 existing ESLint warnings, an existing jsdom navigation diagnostic and two skipped cases; these are recorded rather than hidden. Browser setup reported Node color-environment warnings. Earlier browser runs failed on incorrect test selectors and an assumed More → My trips link; runtime behavior was not changed to accommodate those assumptions. The final selected suite passed after fixing those tests.
 
 ## Artifacts and resource release
 
 Local artifacts remain ignored under `.codex/details-trip/`: `contract.md`, `unit.log`, `check.log`, `typecheck-final.log`, `browser-first.log`, `browser-second.log`, `browser-auth.log`, `browser-final.log`, and eight screenshots under `browser-final/`. SHA-256 hashes are retained in `artifact-hashes.json`. Screenshots are synthetic; no response bodies, real credentials or private account material were captured.
 
-Resource lease: this chat, selected review runner, DEV fictional fixtures, loopback4174; Node24.11.1/npm11.13.0, locked install completed. Final runner exited0; no4174 listener remained. The existing4187 standalone mockup server was preserved. No database/container/provider lane was acquired.
+Resource lease: this chat, selected review runner, DEV fictional fixtures, loopback 4174; Node 24.11.1/npm 11.13.0, locked install completed. Final runner exited 0; no 4174 listener remained. The existing 4187 standalone mockup server was preserved. No database/container/provider lane was acquired.
 
 ## Unverified and handoff
 
