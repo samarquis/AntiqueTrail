@@ -16,7 +16,7 @@ The original problem is a couple collecting stores from websites and social medi
 
 Before implementing a rename, inventory every reference across rendered screens, PWA/install metadata, titles/sharing/accessibility text, images/logos, emails, print/QR materials, documents, fixtures/tests, code/configuration, domains/URLs, and external settings. Give each reference a migration action and verification result, checking rendered output as well as source text. Record dispositions for immutable history, third-party references, and compatibility-sensitive values that could break data, links, authentication, or integrations. Do not mass-replace identifiers or claim completion until every item has a disposition and proof. A separate scoped implementation owns this migration and its proof.
 
-This is a plan-level name selection only. Keep the current store-first showcase and pilot sequence, approved visual identity, and active work intact. It authorizes no application-wide rename, homepage redesign, device-location browsing, trip exposure or implementation, deployment, public promotion, domain purchase, or spending.
+The name selection itself authorizes no application-wide rename, homepage redesign, deployment, public promotion, domain purchase or spending. Preserve the approved visual identity and active work. Product sequencing and the target location/trip scope now follow [Stage dependencies](#stage-dependencies) below; their implementation and exposure still require separate bounded work and proof.
 
 
 ## What it is
