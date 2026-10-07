@@ -70,4 +70,4 @@ Test-only candidate `b4330f0dd6c2f27a25964d0941f028d78023ce99` replaces the blan
 - Changed-file ESLint passed; Prettier formatting applied. Independent Spec and Standards review cleared exact `b4330f0dd6c2f27a25964d0941f028d78023ce99` with no findings.
 - Focused App exposure/denial suite at the committed source/test candidate: **10 passed**, no skips/failures, 7.05 seconds.
 
-Updated hosted CI must be observed separately. These local results do not claim new service, production or human acceptance.
+Previously published head `30be3e6677b7c365cf25e473e3809571011969f4` passed required hosted `web`, `database` and `configured-owner-billing` checks; optional Supabase Preview was skipped ([CI run](https://github.com/samarquis/AntiqueTrail/actions/runs/37677092349)). That run verifies the source candidate only; it does not claim hosted account/provider, production or human acceptance.
