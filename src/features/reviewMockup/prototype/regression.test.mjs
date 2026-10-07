@@ -100,6 +100,36 @@ test('support rejects blank replies and failure-state writes; messages render as
   assert.doesNotMatch(run('renderPage()'), /<img src=x/);
 });
 
+test('new support questions preserve prior conversations and their unsent drafts', () => {
+  const { run } = fixture();
+  run("route='request'; submit('request',{topic:'Using the site',message:'Original question'}); route='support-detail'; formDrafts[draftKey()]={message:'Unsent original follow-up'}");
+  const original = 1; // Seeded Mara request is first; this submitted question is second.
+  run("S.role='admin'; S.person='June'; S.supportPerson='Mara'; route='admin-support'; submit('admin-support',{reply:'Original resolution',status:'Resolved'})");
+  run("S.role='shopper'; S.person='Mara'; route='request'; submit('request',{topic:'Account access',message:'Separate question'}); route='support-detail'");
+  assert.doesNotMatch(run('renderPage()'), /Unsent original follow-up|Original resolution/);
+  assert.match(run('renderPage()'), /Original question|Using the site/);
+  run(`action('open-support',{dataset:{id:${JSON.stringify(String(original))}}})`);
+  assert.match(run('renderPage()'), /Original resolution/);
+  assert.match(run('renderPage()'), /Unsent original follow-up/);
+  run("S.role='admin'; S.person='June'; route='admin'");
+  assert.match(run('renderPage()'), /Using the site/);
+  assert.match(run('renderPage()'), /Account access/);
+});
+
+test('submitted support status cannot override a reopened request', () => {
+  const { run, forms } = fixture();
+  run("S.role='admin'; S.person='June'; S.supportPerson='Mara'; route='admin-support'; submit('admin-support',{reply:'Resolved answer',status:'Resolved'})");
+  const key = run('draftKey()');
+  forms.push({dataset:{draftKey:key},elements:[{name:'reply'},{name:'status'}],values:[['reply',''],['status','Resolved']]});
+  run('stash()');
+  assert.equal(run(`formDrafts[${JSON.stringify(key)}].status`), undefined);
+  forms.length = 0;
+  run("S.role='shopper'; S.person='Mara'; route='support-detail'; submit('support-reply',{message:'Still need help'})");
+  run("S.role='admin'; S.person='June'; route='admin-support'");
+  assert.doesNotMatch(run('renderPage()'), /<option selected>Resolved/);
+  assert.match(run('renderPage()'), /<option selected>In Review/);
+});
+
 test('all Plan forms retain unfinished input without retaining unchecked values', () => {
   const { run, forms } = fixture();
   const key = run('draftKey()');
