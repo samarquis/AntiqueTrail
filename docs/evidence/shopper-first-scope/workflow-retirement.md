@@ -20,7 +20,7 @@ This cleanup changes documentation, issue instructions, queue organization, and 
 | Release | #507, #548–#558 |
 | Retired orchestration | #498; remaining release obligation stays in #507 |
 
-The three old milestones have no open issues and are candidates for closure as historical organization. Closing orchestration is not a production acceptance claim.
+The three old milestones have no open issues and were closed as historical organization. Closing orchestration is not a production acceptance claim.
 
 ## Prepared publication artifact
 
@@ -32,8 +32,18 @@ Publication must compare current title/body against the captured originals befor
 
 ## Verification and limits
 
-Before publication: local Markdown references passed (494 references, zero broken); package/manifest formatting and whitespace checks passed; archived generator contents match the original after line-ending normalization. Full local checks and final publication receipts are recorded below when complete.
+Before publication: local Markdown references passed (495 references, zero broken); package/manifest formatting and whitespace checks passed; archived generator contents match the original after line-ending normalization. Full local checks and final publication receipts are recorded below when complete.
 
 GitHub Projects could not be inspected: the existing token lacks `read:project`. No additional OAuth authority was requested. Board configuration is outside verified coverage. GitHub history and old comments are retained with current-body precedence. No project-reflection vault is configured; this receipt records the cleanup rationale without modifying personal memories.
 
 PR #559 remains subject to normal review and CI. The inherited dependency-audit finding for `source-map-js` is not fixed or waived by this workflow cleanup. Main-branch instructions remain unchanged until merge.
+
+## Published result — 2026-10-06 America/Chicago
+
+Guarded publication completed; each current issue body, title, label set, assignee and state was read back from GitHub. The original snapshot matched before each mutation. All 26 prepared issues were accounted for: 25 remain open (1 Product, 12 Maintenance, 12 Release), while #498 is closed with reason `not_planned`. No unfinished obligation was marked complete. All three legacy milestones (UI Acceptance, Packages, Gates) are closed with zero open issues. Existing assignees remain unchanged.
+
+Repository candidate `356b9fa0580bb033cb54192db7b69a2a50281099` and the prepared payload passed independent Standards and Spec reviews with zero remaining findings. The candidate was pushed to PR #559. This receipt update records completed publication; it does not change the reviewed procedure or issue payload.
+
+Local validation: 495 Markdown references resolve; formatting and whitespace checks pass. `npm run check` passed typechecking, lint (16 warnings, zero errors), and formatting, then returned failure: 166 test files passed, 1 skipped, 1 failed; 1,194 tests passed, 1 skipped, 1 timed out. The failing `ownerAcquisitionPage.test.tsx` case timed out at 5 seconds; its isolated rerun passed all four tests. The full check is not claimed green; later release-test/build/media stages were not reached. No test or runtime source was changed. The local Graft index was rebuilt after generator retirement.
+
+At the previous published head `cf93b91a92dd102d1b7efbe917ebf6c724f6505e`, GitHub web CI failed the inherited dependency audit, while database and configured-owner-billing passed. Checks for the newer candidate are separate evidence. Merge and project-board coverage remain outstanding; this cleanup does not override either limitation.
