@@ -2,6 +2,10 @@
 
 **Decision:** Product Owner approved on 2026-10-01 for [#426](https://github.com/samarquis/AntiqueTrail/issues/426). Approval in the originating chat: “this looks good to me. Make sure this is documented in our system so I can have a deeper review later on.” This records approved product rules, not implementation completion or provider acceptance.
 
+## Applicability after the 2026-10-06 scope cleanup
+
+Retained historical/compatibility contract for existing local cancellation work and any verified servicing obligations. The [shopper-first scope](../../PRD.md) does not require custom cancellation or paid-to-paid scheduling for its first outing. No existing subscription, grant, consent or lifecycle state is changed; no live payment action is enabled.
+
 ## Scope and actor
 
 One action: cancel renewal at the current paid period's end. Retain valid paid entitlement through that boundary. No immediate termination, new charge, upgrade, refund, or new subscription acquisition is included. Existing scheduled changes cannot restore renewal after accepted cancellation; opening billing or abandoning confirmation must not alter a schedule.

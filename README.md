@@ -2,7 +2,9 @@
 
 The selected product name and pending migration are defined in [PRD Brand and positioning](PRD.md#brand-and-positioning). Antique Trail/AntiqueTrail remain legacy application and technical identifiers until a separately scoped migration; this documentation amendment does not rename the application or repository.
 
-A PWA for antique shoppers to discover shops, plan day trips, and leave reviews.
+An ad-free PWA to discover antique shops, favorite and share stores, plan a day trip, and keep private memories. Store Owners maintain listings; optional paid photo capacity funds the service.
+
+The [approved shopper-first scope](PRD.md) defines the next complete outing milestone. It does not activate that scope in the existing catalog-only public test. [Scope and backlog reconciliation](docs/plans/shopper-first-scope-review.md) separates reusable implementation, missing connections and preserved release work.
 
 ## Getting started
 
@@ -35,6 +37,10 @@ npx supabase@2.115.0 db reset
 
 ## Documentation
 
+### Skill context adapter
+
+For Impeccable and other generic design tools, `PRODUCT.md` is a pointer to the PRD, not a separate product contract. Read its linked sources. `PRD.md` owns product scope, `DESIGN.md` owns interactions and `DESIGN_SYSTEM.md` owns visual tokens. Repository ownership overrides generic filename conventions; do not replace these files with generated generic templates or duplicate their decisions. Vendored skill files remain unchanged.
+
 | File | What it covers |
 |---|---|
 | [PRD.md](PRD.md) | Product requirements and features |
@@ -50,7 +56,7 @@ npx supabase@2.115.0 db reset
 
 | File | What it covers |
 |---|---|
-| [docs/specs/store-membership-spec.md](docs/specs/store-membership-spec.md) | Stripe integration and photo tiers |
+| [docs/specs/store-membership-spec.md](docs/specs/store-membership-spec.md) | Photo capacity, unresolved paid offer and existing servicing |
 | [docs/specs/owner-onboarding.md](docs/specs/owner-onboarding.md) | Store owner claim flow |
 
 ### Design assets
@@ -62,10 +68,12 @@ npx supabase@2.115.0 db reset
 
 ## Source precedence
 
+[Engineering workflow](docs/operations/ENGINEERING_WORKFLOW.md) is the only delivery procedure. GitHub queue labels separate product, maintenance and release work; current issue bodies define remaining outcomes. Archived plans, decision records, changelogs and older comments supply evidence only.
+
 | Document | Owns |
 |---|---|
 | [PRD.md](PRD.md) | Product outcomes, offered scope, stages |
-| [docs/specs/store-owner-authority.md](docs/specs/store-owner-authority.md) | Store Owner and team authority matrix |
+| [docs/specs/store-owner-authority.md](docs/specs/store-owner-authority.md) | Store Owner authority and legacy-grant preservation |
 | [docs/specs/product-capabilities.md](docs/specs/product-capabilities.md) | Detailed capability behavior |
 | [DESIGN.md](DESIGN.md) | Interaction rules and routes |
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Visual style and accessibility values |

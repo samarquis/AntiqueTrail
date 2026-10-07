@@ -1,19 +1,12 @@
-# Owner Onboarding Spec — Simple 70-Year-Old-Friendly Store Partner Journey
+# Owner Onboarding Spec
 
-Stage applicability: this existing invited flow is the initial store-pilot path under [PRD.md](../../PRD.md#the-store-and-administrator-experience). Its account/consent/MFA/authority/approval/interruption protections remain. Historical full-public cohort and Package 10B references below are not prerequisites to the internal showcase or bounded invited pilot; public self-service acquisition needs separate exposure approval.
+Current target: the 2026-10-06 shopper-first scope in [PRD](../../PRD.md). Reuse the existing guided invited-owner flow for the first permitted owner evaluation. This is not a new team, paid-acquisition or role-redesign project. [Store Owner authority](store-owner-authority.md) owns target permission; existing Representative routes/grants below remain compatibility mechanisms until an explicit mapping is implemented.
 
-Status: approved specialist interaction baseline for invited-owner onboarding. Resolves wayfinder
-map #61. Reconciled against PRD.md, DESIGN.md, DESIGN_SYSTEM.md, PACKAGE_CONTRACTS.md
-Package 6, [ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding), [ADR 0003](../../PRODUCT_DECISIONS.md#pilot-store-draft-review-and-approval), and [PRD human usability acceptance](../../PRD.md#human-usability-acceptance).
-
-Controlling-doc precedence applies (README.md source-precedence table). Where this
-spec states invited-owner interaction/copy, PRD.md and DESIGN.md explicitly delegate that detail here (see "Contract
-reconciliation" below); product behavior remains PRD.md, visual values remain DESIGN_SYSTEM.md, and security controls remain SECURITY_AND_TRUST.md.
+Verified account/MFA, documented authority, consent, Site Admin approval, safe interruption/resume and approved media remain required. Public self-service intake needs separate exposure approval. Optional photos and PWA installation never block a valid listing. The historical fixed cohort is replaced by section 10's selected-journey observations.
 
 ## 0. Purpose and baseline
 
-The journey is the invited Store Partner onboarding flow, rebuilt so a 70-year-old
-non-computer person can complete it **alone**: QR scan → consent → account/MFA →
+Reuse the invited Store Partner onboarding flow, with clear steps a person unfamiliar with computers can complete independently: QR scan → consent → account/MFA →
 store draft → approval wait → activation → first Portal login.
 
 This document remains the unpaid invitation/pilot variant. After separately approved public acquisition exposure,
@@ -36,7 +29,7 @@ Baseline decisions (recorded 2026-08-17, map #61):
 - Explicit interruption/resume design on every task.
 - Guide gently through owner-controlled verified email + MFA; never helper-owned
   accounts.
-- Testable older-adult acceptance criteria from the approved eight-person cohort.
+- Actual older-adult usability and selected-path accessibility observations under section 10.
 
 The Age-Inclusive Usability Baseline (PRD/DESIGN.md) applies everywhere below:
 plain labels, one primary action per screen, no time pressure, 18px+ body, 48px+
@@ -108,8 +101,7 @@ flow with generic enumeration-resistant errors (DESIGN_SYSTEM.md). This spec add
 - Recovery codes: `Write these codes down and keep them in a safe place. If you
   ever lose your phone or email access, these codes are how you get back in.`
   Require a plain confirm step ("I saved my codes") before continuing.
-- Reassurance on every step: `Your progress is saved. You can stop and come
-  back.` Interrupted signup stays resumable and unprivileged ([ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding)).
+- Reassurance reflects actual persistence: safe pre-submit fields may be retained only in this tab; show `Saved` only after server acknowledgement. Interrupted signup stays resumable and unprivileged ([ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding)).
 
 ## 4. Task 3 — Submit store draft (`/partner/draft`): one field per screen
 
@@ -144,8 +136,7 @@ Photo does **not** appear here (deferred to post-approval, §8).
 The owner WILL be interrupted. Mandated design (Ticket 65 resolution; [ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding)
 resume semantics; DESIGN_SYSTEM route-contract safe-draft preservation):
 
-1. **Every task intro and every typed screen** shows the persistent reassurance
-   line: `You can stop and come back — your answers are saved.`
+1. **Every task intro and typed screen** accurately states persistence. Before server acknowledgement use `Your answers are kept in this tab`; explain that closing the tab or an expired invitation may require recovery. After acknowledged persistence use `Saved — you can return later`. Never show saved on failure; preserve safe inputs and offer retry.
 2. **Task 1**: typed identity fields + acknowledgement states auto-save to
    sessionStorage on each advance. The invitation token is consumed only by the
    final atomic provisional-consent transaction, so a pre-submit interruption
@@ -213,10 +204,7 @@ Photo is never a draft step. It lands in the post-approval activation checklist.
   recognize your store.` One primary action opens a **Store Change Request**
   with a photo attachment (the only media-bearing change request; media
   commands exist only after M-01 per Package 6). Optional; never required.
-- The item stays optional in the guided first-login checklist (confirm listing,
-  review hours, one Representative-Managed Field edit, one Store Change
-  Request, pilot support — PRD.md activation checklist; photo is an optional
-  sixth item, not a replacement).
+- First-login setup confirms listing, hours, permissions and safe access. Do not require an artificial direct edit, change request or support request merely to finish setup; these remain applicable tester scenarios. Photo is optional for an individual listing, but the complete owner milestone must prove an admitted approved-photo path. A placeholder does not pass that capability.
 
 ## 9. Tasks 4–5 — activation (`/partner/activate`)
 
@@ -228,43 +216,15 @@ plain language; one primary action per screen.
 
 ## 10. Acceptance criteria (older-adult cohort)
 
-The numerical cohort below is the retained full-public acceptance protocol. Initial showcase/pilot observations use the stage-specific protocol in PRD.md and the membership spec; do not make this full-public cohort a prerequisite to internal owner feedback. All selected-path accessibility and safety requirements still apply.
+The first shopper-first owner evaluation follows [PRD human acceptance](../../PRD.md#human-usability-acceptance). Use actual computer/phone and applicable assistive-technology observations for the admitted owner journey. A fixed eight-person or age-quota cohort is not a first-milestone prerequisite.
 
-Cohort ([PRD human usability acceptance](../../PRD.md#human-usability-acceptance)): ≥8 participants 55+, ≥3 at 70+, ≥2
-with low-vision/motor/assistive-tech adaptations; own device.
+Observe authority/consent comprehension, owner-controlled email/MFA/recovery, correct facts/hours, interruption/resume without data loss, clear approval wait, approved-scope activation, and optional safe photo submission. Record difficulties and fix repeated critical failures. Require zero privacy/authorization/data-loss failures. Do not claim production acceptance from simulated personas.
 
-| # | Journey step | Pass threshold | Evidence |
-|---|---|---|---|
-| A1 | Invitation → Welcome → Task 1 consent, unaided | 90% complete | session recording, moderator log |
-| A2 | Consent comprehension: after Task 1, state in own words that participation is voluntary and unpaid | 100% | post-screen comprehension check |
-| A3 | Task 2: email verification + MFA + recovery-code confirmation, unaided | 90% | recording; participant can produce saved codes |
-| A4 | Task 3: each of the 9 draft fields completable unaided | 90% per field | field-level completion log |
-| A5 | Hours accuracy: entered hours match spoken hours within one 15-min block | 90% of entries | moderator comparison |
-| A6 | Interruption/resume: scripted ≥30-min interruption mid-draft; resume at exact field, all prior answers intact, no data loss | 90% | recording, state diff |
-| A7 | Status wait understood (no false progress, no action taken that shouldn't be) | 90% | recording, post-screen check |
-| A8 | Tasks 4–5 activation checklist incl. optional photo item, unaided | 90% | checklist progress log |
-| A9 | Zero safety/privacy/authorization failure (absolute) | 0 failures | incident log |
-| A10 | Group average noncritical task errors | ≤1 per participant | error log |
+Existing invitations, consent and safe draft state keep their security/lifetime rules. An expired invitation must offer its existing safe recovery path, not silently restart or discard a submitted draft.
 
-Repeated critical failure on any row → fix and retest the same cohort (cohort
-rule). Evidence artifacts are dated and reviewed by the Primary Internal
-Tester (Product Owner) before release gates.
+## 11. Contract ownership
 
-## 11. Contract reconciliation (Ticket 70 resolution)
-
-The spec is a **new document** (`docs/specs/owner-onboarding.md`), not a PRD
-amendment: no PRD product-behavior change exists (all fields, the checklist,
-the editor, and tags are already approved in PRD.md). Interaction/copy changes
-amend DESIGN.md and DESIGN_SYSTEM.md minimally (done as part of this ticket):
-
-- DESIGN.md: Task 3 draft becomes one-field-per-screen with field-level
-  progress; hours editor progressive-reveal; photo ask = optional activation
-  checklist item, M-01 gated; category step = radio-first presentation.
-- DESIGN_SYSTEM.md: partner onboarding progress section gains the
-  field-level-progress rule (never a second `Step n of 5`) and the activation
-  photo checklist item.
-- No ADR change: the archived [ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding) (QR/resume/expiry) and [ADR 0003](../../PRODUCT_DECISIONS.md#pilot-store-draft-review-and-approval) (owner-controlled
-  draft) remain preserved in the decision receipts above.
+PRD and the linked authority/capability specifications own current product scope. This file owns reusable guided onboarding behavior; DESIGN and DESIGN_SYSTEM own interactions and visual rules. The original Ticket 70 rationale is preserved in the pre-reconciliation Git history and does not restore removed PRD requirements. Existing safe drafts, consent, MFA and invitation lifetimes remain protected.
 
 ## 12. Out of scope
 
@@ -273,4 +233,4 @@ Store Portal redesign beyond first-login activation; implementing the public
 `/for-stores` acquisition/plan pages; changing invitation expiry or the
 owner-controlled email+MFA requirement. Public claim/add applicants are governed
 by the membership and controlling plan contracts and may reuse these interaction
-patterns only after Package 10B.
+patterns only after the applicable public-intake admission and exact owner-authority proof. Historical Package 10B numbering alone is not an additional product milestone.

@@ -2,7 +2,7 @@
 
 2026-09-11 scope note: [ADR0009](0009-store-first-stage-applicability.md) supersedes only stage prerequisites for the bounded store/Gallery pilot. This decision retains its provider, eligibility, funding, security, recovery and original assessment-authority limits; no expired or task-specific receipt is renewed. A Gallery membership does not itself activate the funded hosting/media transition.
 
-- Status: Partially superseded by ADR 0006 on 2026-08-20. Its Cloudflare Pages/Access/Direct Upload frontend selection is retired. Supabase, recovery, startup cost, media-transition, and service-gate requirements remain accepted; H-01 and L-01 activation receipts are not accepted until their executable proofs pass.
+- Status: Partially superseded by ADR 0006 on 2026-08-20. Its Cloudflare Pages/Access/Direct Upload frontend selection is retired. ADR 0012 and the 2026-10-06 audit reconciliation supersede the future media-transition selection below. Supabase, recovery, startup cost and applicable service-gate requirements remain accepted; H-01 and L-01 activation receipts are not accepted until their executable proofs pass.
 - Date: 2026-08-03 (transition plan recorded 2026-08-17)
 - Decision owner: Product Owner
 - Applies to: local development through Regional Public MVP
@@ -39,18 +39,9 @@ Regional Public MVP is not promised at `$0`. Under the approved 15-minute RPO, p
 
 ### Paid-tier transition plan (recorded, not yet activated)
 
-The Product Owner has stated the intent to move to paid hosting after development; this section records the approved *path* so the transition is a config-and-receipt change, not a redesign. It activates only when the Product Owner signs a funding approval with a hard monthly cost ceiling (no automatic overage, no automatic upgrade) and the relevant gate receipt passes. Until then, every `$0` control above remains in force.
+Superseded for future product planning by ADR 0012 and the approved audit reconciliation. Supabase Storage remains the selected baseline. A paid photo offer does not require R2/S3 migration, retained originals, unlimited space, AI or video. Any infrastructure change needs measured need, an approved cost ceiling and applicable migration/recovery proof. Current retention, rights, deletion, abuse controls and existing customer obligations remain unchanged. No provider spending or activation is authorized.
 
-At transition, in order:
-
-1. **Fund the recovery target.** Approve a paid plan that proves the stage's RPO/RTO (15-minute RPO/four-hour RTO for Regional Public MVP), replacing the `$0` recovery constraint with the approved ceiling. This unlocks H-01 and dependent stages.
-2. **Move the public media bucket to Cloudflare R2 (or S3).** The media pipeline (`docs/operations/M01_MEDIA_PROVIDER_RUNBOOK.md`) is provider-neutral: object keys are immutable (`official/<id>/vN/<digest>.webp`), so a bucket migration is configuration plus a receipt, with no application code change. R2 egress to the Cloudflare CDN is free, so image serving cost stays near zero at any volume.
-3. **Retain stripped originals instead of purging at 24 hours.** At paid tier, keep re-encode-safe originals in the existing private bucket so variants can be regenerated later (new thumbnail sizes, higher-quality re-encodes, future AI alt-text) without recontacting stores. Metadata stripping and quarantine remain mandatory; originals never leave the private bucket.
-4. **Lift space-based caps; keep abuse caps.** The 20 uploads/store/day and five-concurrent limits are anti-abuse and stay. The 4 MiB derivative cap is a quality/bandwidth bound and stays. Per-store *space* ceilings disappear; stores may upload as many photos as they want, bounded by the approved budget.
-5. **Future video reviews** become a new pipeline behind the same provider-neutral boundary (e.g. Cloudflare Stream or Mux), with its own receipt, quotas, and cost ceiling. Nothing in the image pipeline blocks it; nothing is built now.
-6. **Keep the 25%/75%/90% quota monitors** as runaway-bill protection: at 75% stop nonessential growth, at 90% disable optional media/uploads before core Browse/Details, account safety, deletion, revocation, or support.
-
-The transition is deliberately not an amendment of every `$0` clause in this ADR; each clause yields only when its named gate receipt (H-01, M-01, E-01, R-01, L-01) passes under the approved paid ceiling. One summary reference lives in `README.md` under Source precedence; the media-specific steps live in the M-01 runbook.
+The original proposal is preserved in [the historical source](https://github.com/samarquis/AntiqueTrail/blob/f489e37f73597f641297e6ff0b02371c2395d3be/docs/adr/0005-host-free-first-on-cloudflare-pages-and-supabase.md).
 
 ### Environment topology
 

@@ -1,5 +1,7 @@
 # UI-07 trip planning, Go, and collaboration review — spec
 
+Historical record: preserve the observations and original decisions below. They are not a current work queue, live approval state, or acceptance of the shopper-first outing. PRD.md and ADR 0012 own current target scope; recipient sharing, trip collaboration and other deferred examples are not implementation requirements.
+
 This spec is the implementation contract for the UI-07 evidence review. It
 proves the private trip slice of the SLM-01 checkpoint: separate-account trip
 planning, manual Review Hours, Trip → Partner → Navigator handoff, external-map

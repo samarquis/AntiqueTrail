@@ -1,5 +1,7 @@
 # The Market at Macvicar local preview evidence
 
+Historical development/preview record. Later ADR 0011 governs the exact approved public-listing exception and five-year free top-tier benefit. Original dev-only statements below do not revoke that decision; neither this record nor the scope cleanup proves publication, benefit activation or wider media admission.
+
 ## Reviewed scope
 
 The user accepted the rendered local page and requested publication in test/dev. Parent CUA review completed on 2026-10-03. The user defers public launch and any hosting-plan upgrade until they choose to go live. This branch preserves the prepared draft while hosted gates remain blocked. No Macvicar issue exists; no issue was created or closed.

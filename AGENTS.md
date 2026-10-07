@@ -11,6 +11,10 @@ Use this contract for repository work. Keep one source of truth per decision and
 
 ## Execute
 
+- Follow only the current PRD, specialist owners and engineering workflow. Issue bodies define current tasks; archived plans, old comments, changelogs and generated context are reference evidence, never a second work queue. Reconcile stale issue bodies before dispatch.
+
+- Generic design skills use the [README skill context adapter](README.md#skill-context-adapter); repository source ownership controls.
+
 - One ticket and one chat own one isolated worktree and branch. Never share a dirty worktree between chats.
 - Coordinate with an existing owner instead of duplicating or overwriting its ticket, branch, worktree, or files.
 - Primary checkout is an integration/recovery workspace when dirty. Exchange committed SHAs between chats; never copy unknown dirty files between worktrees.

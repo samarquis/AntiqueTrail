@@ -1,6 +1,6 @@
 # Antique Trail Plan Changelog
 
-Append-only record of authorized changes to the controlling plan. Status-only updates to `PROJECT_STATE.md` do not belong here unless they also change a controlling requirement.
+Historical record of authorized changes. Entries preserve decisions as they stood at the time; they are not current task instructions. Use the PRD, current engineering workflow, and live issue bodies for active work.
 
 ## 2026-08-30 — Lock plan and ticket governance
 
@@ -241,3 +241,31 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Boundary: this adds no corrections backend capability, anonymous submission, schema/RLS change, provider setting, hosted test, Edge deployment, or production publication. Trips, maps, and privileged operations remain outside the public-test scope. Any later submission stage requires its own approved implementation and release gates.
 - Canonical sources: [Security and Trust public-test boundary](SECURITY_AND_TRUST.md#public-test-boundary), [Corrections capability](docs/specs/product-capabilities.md#corrections), [Report a correction](DESIGN.md#report-a-correction), and [public-test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).
 - Implementation/evidence: issue #485 and PR #492 own the bounded UI, server guard, negative proof, and local acceptance report. The issue does not authorize hosted behavior or deployment.
+
+
+## 2026-10-06 — Restore the complete shopper outing and reconcile scope
+
+- Authorization: Product Owner said “I approve this cleanup and scope” after the explicit scope proposal; approval includes private unlisted stops, suggested order with manual adjustment and persistent capacity-based photos. Dollar prices and paid capacities remain provisional.
+- Outcome: discover → favorite/share public stores → Add to Trip → plan → visit → remember privately. Simple owner/admin listing management supports the ad-free, optionally photo-funded service.
+- Changed owners: PRD, product capabilities, DESIGN, DESIGN_SYSTEM applicability, owner authority/onboarding/membership, security applicability and engineering contracts; entry/index/acceptance/state/research references reconciled; ADR0012 records supersession.
+- Removed first-milestone requirements: mandatory full synthetic Owner business suite, team delegation, mutable offline collaboration/Navigator transfer, public reviews, AI, advanced analytics/promotions, custom paid schedules and regional programs. Existing reachable-path/data/subscriber safeguards remain.
+- Evidence: [scope/backlog reconciliation](docs/plans/shopper-first-scope-review.md) and [documentation acceptance](docs/evidence/shopper-first-scope/acceptance.md). Baseline `d075998137c501c6ff7252880ad59500e59bec16`.
+- Backlog: 26 open issues inspected; existing release/recovery/account work preserved. #487 remains specification with selected-role scope reconciliation before READY. No new implementation tickets, issue closure or publication is claimed.
+- Boundaries: documentation-only approval; no code deletion/rewrite, schema change, grant/data cleanup, provider mutation, new account, external contact, spending or deployment. Existing ADR0010/0011 exposure remains unchanged.
+
+
+## 2026-10-06 — Apply the Markdown audit reconciliation
+
+- Authorization: Product Owner said “lets take your rec” after the full Markdown audit and recommendation for focused documentation cleanup.
+- Reconcile current state, undecided pricing, storage transition, owner setup, typography, package identifiers and generic-skill source ownership. Preserve historical evidence and archive the seven former `.planning` files without changing their contents.
+- Clarify distinct store summaries/visit memories, private-stop history, confirmed navigation destinations and routing failure behavior within the approved outing. Provider/interface selection and runtime proof remain implementation prerequisites.
+- Repair historical references against their actual Git source instead of recreating removed requirements. Add a product-purpose line to the existing small-task template.
+- No application change, data deletion, provider mutation, new billing offer, issue closure, publication or deployment. See the follow-up in `docs/evidence/shopper-first-scope/acceptance.md`.
+
+## 2026-10-06 — Retire legacy workflow execution
+
+Owner authorized removal of old workflow and plan instructions from active work. Current engineering workflow and live issue bodies replace historical package orchestration; obsolete handoff generation is retired. Historical plans remain reference-only. See [retirement evidence](docs/evidence/shopper-first-scope/workflow-retirement.md) for queue dispositions, preserved duties, review, and publication limits.
+
+## 2026-10-07 — Close deep-review reconciliation gaps
+
+Owner directed “do what is next” after the deep review. Reconcile public-test saving and exact admitted release data, secure the operator recipe, mark old research historical, and retain the review poller explicitly as optional read-only tooling. Product planning is owned by #560; #487 remains evidence specification. The compatible source-map-js 1.2.2 lockfile patch repairs the observed CI audit blocker. No product scope or runtime capability is added. See [follow-up evidence](docs/evidence/shopper-first-scope/deep-review-repairs.md).

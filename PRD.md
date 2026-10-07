@@ -1,8 +1,12 @@
 # Product Requirements Document
 
+Approved scope: 2026-10-06. Product Owner: “I approve this cleanup and scope.” [ADR 0012](docs/adr/0012-shopper-first-scope.md) records the decision and preservation boundary. This is the target product; existing deployment availability is separate.
+
 ## Purpose, people, and product promise
 
-Vintage Day Out makes a fun day of antique shopping easy to see, easy to plan, and easy to trust. It brings store discovery, trip planning, and personal shopping memory into one connected experience.
+Find antique stores worth visiting, save and share them, build an outing, and remember where to return. Stores maintain useful listings and fund the ad-free service through optional photo plans.
+
+The original problem is a couple collecting stores from websites and social media, transferring them into maps to plan a day, then needing private memories of what they found and whether they would return. The complete outing is the first product milestone.
 
 ## Brand and positioning
 
@@ -12,133 +16,87 @@ Vintage Day Out makes a fun day of antique shopping easy to see, easy to plan, a
 
 Before implementing a rename, inventory every reference across rendered screens, PWA/install metadata, titles/sharing/accessibility text, images/logos, emails, print/QR materials, documents, fixtures/tests, code/configuration, domains/URLs, and external settings. Give each reference a migration action and verification result, checking rendered output as well as source text. Record dispositions for immutable history, third-party references, and compatibility-sensitive values that could break data, links, authentication, or integrations. Do not mass-replace identifiers or claim completion until every item has a disposition and proof. A separate scoped implementation owns this migration and its proof.
 
-This is a plan-level name selection only. Keep the current store-first showcase and pilot sequence, approved visual identity, and active work intact. It authorizes no application-wide rename, homepage redesign, device-location browsing, trip exposure or implementation, deployment, public promotion, domain purchase, or spending.
+The name selection itself authorizes no application-wide rename, homepage redesign, deployment, public promotion, domain purchase or spending. Preserve the approved visual identity and active work. Product sequencing and the target location/trip scope now follow [Stage dependencies](#stage-dependencies) below; their implementation and exposure still require separate bounded work and proof.
+
 
 ## What it is
 
-A public Progressive Web App, mobile-first, desktop and tablet compatible. Users browse antique shops, plan day trips, visit stores, and leave reviews. Store owners can claim their listing and manage their profile.
+A mobile-first React/TypeScript/Vite Progressive Web App, usable on desktop and tablet. Supabase supplies authentication, PostgreSQL and Storage; Vercel hosts the frontend. Stripe remains the selected provider for a later paid-photo launch. Installed users still use the web application. Docker is local/CI testing infrastructure, not a customer installation requirement or a prerequisite for ordinary frontend development.
 
 ## Core users
 
-**Shoppers** — browse stores, save favorites, plan trips, leave reviews.
+- Anonymous visitors browse and open shared public store links without an account.
+- Shoppers sign in for favorites, trips and private memories.
+- Store Owners manage an approved store listing; initially one responsible owner per store.
+- Site Admin approves store authority and controlled changes and handles operational support. This grants no routine access to shopper-private data.
 
-**Store Owners** — claim a listing, manage photos and hours, post updates.
+Visitor is an access state, not a fourth account type. Store access is scoped permission, not a reason to create duplicate identities. Existing roles/grants remain intact pending any separately reviewed migration.
 
 ## Core features
 
-### 1. Browse stores
-
-- List-first browsing with search by name, town, and category
-- Each store shows: cover image, name, town, category summary, hours, open/closed state
-- Store details page: photos, hours, description, contact, social links, reviews
-- No sign-in required to browse
-
-### 2. Save and trip planning
-
-- Save stores to favorites
-- Create a trip: name, date, area
-- Add stores to a trip, arrange order
-- Set expected browsing time per stop
-- Review hours before going
-
-### 3. Go mode
-
-- Start a trip, navigate to current stop
-- Hand off to Google Maps or Waze for directions
-- Mark arrived, mark done, move to next stop
-- End trip early if needed
-
-### 4. Reviews and ratings
-
-- Rate stores 1-5 stars
-- Write text reviews
-- See public rating on store pages
-- Personal ratings and notes visible only to the author
-
-### 5. Store portal
-
-Stores claim their listing and manage it:
-
-**Free tier:**
-
-- Claim listing (name, address, hours, phone, website)
-- Upload up to 5 photos per month
-- Post text updates (sales, announcements)
-- Link social media (Facebook, Instagram, etc.)
-
-**Paid tier ($30/month):**
-
-- Unlimited photo uploads
-- Photos appear on the store's photo wall
-
-### 6. User accounts
-
-- Create account to save favorites and access filtered stores
-- Account-based preferences for nearby stores
-- Just-in-time sign-in: browse without account, sign in when saving
-
-## Tech stack
-
-- React + TypeScript + Vite PWA
-- Supabase (PostgreSQL, Auth, Storage)
-- Stripe for paid memberships
-- Hosted on Vercel (hobby tier during testing)
-
-## Current status
-
-Working in beta. The public test exposes browsing only. Trip planning, Go mode, offline-cached trips, trip-partner sharing, map view, and reviews with moderation are built; partner sharing, offline, the map, and reviews are gated off for the catalog-only public test. Plan to move to paid hosting and purchase domain after beta.
-
-## Future considerations (not built yet)
-
-- More store attributes and categories
-- Public Store Owner responses to reviews outside the isolated synthetic test
-
-## Non-goals
-
-- Marketplace transactions
-- Turn-by-turn navigation
-- AI antique identification
-- Social network features
-- Background location tracking
-
-## Stage dependencies
-
-The internal store showcase and controlled invited pilot support browse, details/photos, optional saves, exact-store Representative publishing, and Administrator approval. The full Store Owner workspace is available in the current isolated internal test experience using synthetic accounts and store fixtures, so the complete claim, team, listing, analytics, promotion, review-response, and read-only billing journeys can be tested now. This does not change the public test's catalog-only boundary, admit real external Store Owner accounts, enable live payments or external promotion, or release public reviews. External use and side effects retain their separate release and provider gates. The exact authority matrix is in [Store Owner authority](docs/specs/store-owner-authority.md); see also [capability stage applicability](docs/specs/product-capabilities.md#stage-applicability) and [security stage applicability](SECURITY_AND_TRUST.md#store-first-stage-applicability).
-
-## Deferred implementation boundary
-
-The sole current exception to deferral is the repository-controlled local invitation diagnosis, minimal invitation ACL repair, accepted-partner removal repairs, and joined verification for #321/#342/#343/#344/#365. It exposes no trips and authorizes no adjacent trip work. Security and data-lifecycle obligations still apply to retained data and every reachable path.
-
-## Public test publication
-
-The owner-authorized bounded free public test follows [ADR 0010](docs/adr/0010-free-public-test-publication.md). The stable entry is `https://antique-trail.vercel.app/`. Anonymous visitors browse the synthetic catalog; admission criteria and boundaries are in [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md), [security](SECURITY_AND_TRUST.md#public-test-boundary), and [execution contract](PACKAGE_CONTRACTS.md#public-test-execution-contract).
-
-The Product Owner has also authorized the first real client, The Market at Macvicar, for public listing delivery as the first eligible Browse result. [ADR 0011](docs/adr/0011-market-at-macvicar-public-listing.md) owns this exact-store exception, approved content, media/capacity admission, provider eligibility, and verification. It does not imply that the real store is already admitted or published.
-
-## Provider and external-action prerequisites
-
-Provider and external-action activation requires an accepted gate receipt (H-01 hosting, E-01 email, R-01 routing, M-01 media, L-01 audit anchoring, S-01 support channels). ADR 0010 replaces H-01 only for the free public test with its substitute controls. No provider activation follows automatically from a showcase or pilot.
-
-## Assessment environment boundary
-
-The free public test uses synthetic stores and the preserved beta, with only the separately admitted Market at Macvicar real-store exception in ADR 0011. No other real-store marketing, external cohort, deferred-trip exposure, billing, paid provider, or fabricated release receipt is authorized. AI and agent-assisted test accounts remain restricted to synthetic store data; the Macvicar catalog-display decision grants no account or privileged access.
-
-## Human usability acceptance
-
-The owner's first computer-then-phone evaluation with actual device or assistive-technology observations is required before wider exposure. Preparation is recorded in issue #251 and the human-accessibility worksheet.
+1. **Discover:** search by store name, town and category; optionally find nearby stores using explicitly requested device location and a radius such as 20 miles. Manual location works without permission. No advertising or behavioral profiling of anonymous visitors.
+2. **Explore:** store details, hours, address/contact, description, photos/photo wall and simple store updates. Social links open externally.
+3. **Favorite and share:** favorite a store, share its public link through normal sharing/text tools, open it and choose Favorite or Add to Trip. Sharing includes no private notes, rating, trip or account identifiers. An in-app recipient inbox is deferred.
+4. **Plan:** create a dated day trip; Add to Trip from details, favorites or an opened shared store; choose an existing trip or create one. Add an unlisted shop as a private stop with name, address, optional source link and hours. Include browsing duration. Suggest a stop order using driving time and opening hours; allow manual adjustment and explain uncertain inputs.
+5. **Visit:** follow the selected stops, explicitly hand each navigation leg to Maps/Waze, mark visits/skips and end the outing. No turn-by-turn engine, background location or automatic continuous replanning.
+6. **Remember:** private 1–5 rating, notes, would-return choice and what was found. Free-text notes cover item details and personal recommendations; no inventory/collection subsystem or public rating is required.
+7. **Maintain listings:** guided owner setup, verified claim and Site Admin approval; owners manage details, hours, approved photos, social links and simple updates such as store news. Sensitive facts and photos retain review protections.
+8. **Fund the service:** Free listing and optional paid photo capacity. Photos occupy capacity until replaced or explicitly removed; no recurring monthly deletion. Prices and paid capacities remain unresolved and cannot block the first unpaid outing/owner evaluation.
 
 ## The connected shopper experience
 
-Browse stores and details, save favorites, plan trips, and leave reviews. Sign in when saving; browse without an account. See [core features](#core-features).
+One shopper favorites stores and sends public store links to another. The recipient opens those stores, adds them to a trip, includes any privately entered unlisted shop, reviews a suggested order and hours, visits, and records memories. Each shopper owns their favorites, trips and notes; a public store link shares no private state. One organizer controls each trip initially. Shared private trip views, partner editing and an app inbox are deferred.
 
 ## The store and administrator experience
 
-Store owners claim listings, manage hours and photos, and post updates. Administrators approve store changes, manage access, and review support. See [core features](#core-features).
+A responsible owner creates or claims a listing, confirms store facts, establishes verified identity/MFA and receives exact-store approval. They maintain hours, details, photos and updates. Site Admin verifies authority and reviews controlled changes. Store teams, analytics and marketing tools are not requirements for this journey. Detailed owners: [authority](docs/specs/store-owner-authority.md), [onboarding](docs/specs/owner-onboarding.md), [photo plans](docs/specs/store-membership-spec.md).
 
-## Next milestone: usable internal store showcase
+## Next milestone: one complete shopping outing
 
-The current milestone is the bounded free public test: stable public link, anonymous browse of the twelve fictional stores, and scoped saved-store actions. See [public test publication](#public-test-publication).
+Prove the following connected journey on computer and phone with admitted data/accounts:
 
-## Store Owner cancellation decision — 2026-10-01
+- Wife favorites and shares several stores; recipient opens a shared link without signing in and successfully adds its store after sign-in.
+- Recipient creates/reuses a trip and adds an unlisted stop without creating a public listing or owner relationship.
+- A suggested order accounts for driving, browsing duration and known hours; the shopper can keep or change the order. Missing hours, permission denial and routing failure remain understandable and recoverable.
+- During a real outing, navigation opens the intended store, visits/skips can be recorded, and private memories survive reopening.
+- A permitted store owner can set up and maintain their listing, hours, photo wall and a simple update; Site Admin approval and cross-account/store denial work.
+- Record actual friction, failures and whether the couple would use it again. No invented time-saving percentage or market validation. Privacy, authorization, accessibility and data-loss failures must be fixed before accepting the affected journey.
 
-The Product Owner approved one narrow amendment to the read-only billing boundary: primary Store Owner cancellation at the paid period's end in isolated synthetic local tests with a fake provider. The [approved cancellation-only contract](docs/specs/store-owner-paid-servicing.md) owns action behavior, eligible states, authentication, immutable confirmation consent, expected versions, idempotency, reconciliation, and acceptance. Co-Owner and Full Store Access billing remain read-only; Listing Editors retain no billing visibility. Existing Representative permissions remain unchanged. This decision permits no actual provider calls, live billing, public rollout, or deployed action. Existing descriptions of read-only Owner billing describe the implemented baseline; #426 still requires scoped implementation, review, and proof.
+## Stage dependencies
+
+1. Reconcile source and missing connections against this scope; produce small implementation contracts with resolved behavior and runnable proof.
+2. Verify the connected journey locally with synthetic data and real local service boundaries where applicable.
+3. Conduct an explicitly admitted real outing and owner evaluation with applicable hosting, account, media, routing, privacy and recovery evidence.
+4. Decide the paid offer using observed owner value and operating cost, then verify billing and obtain explicit paid activation.
+
+The existing catalog-only public test is a separate maintained exposure. This amendment does not enable trips, registration, location, owner intake or payments there. A showcase alone is not acceptance of the complete outing. Regional expansion, public reviews, team/offline completeness and live billing are not prerequisites for the unpaid milestone.
+
+## Deferred implementation boundary
+
+Defer AI item research, consumer subscriptions, public reviews/ratings/replies/appeals, simultaneous trip editing, Navigator transfer, mutable offline synchronization, owner teams, advanced analytics/promotions, regional/community programs, custom billing schedules/paid-to-paid transitions, dedicated weekend grouping, native Android packaging, taste profiles, collections, automated external-site extraction and in-app recipient sharing.
+
+Separate daily trips can represent a weekend initially. First scope is online-first; PWA installation does not promise offline private writes. Preserve existing code, records, permissions, subscriptions and retained-data obligations. No blanket deletion, rewrite, gate removal or new implementation assignment follows from this documentation approval.
+
+## Non-goals
+
+Scope guard: proposed work must directly support the connected outing, basic owner listing management, or a necessary safety/retained-data obligation. A historical checklist or available technology alone is not justification. Detailed memory and destination behavior belongs to [capabilities](docs/specs/product-capabilities.md); unresolved provider and interface choices remain bounded planning inputs, not permission to grow the feature set.
+
+Advertising, paid placement, marketplace transactions, turn-by-turn navigation, background tracking and a social network are outside the product. Paid storage never buys shopper data, ranking or approval.
+
+## Public test publication
+
+The existing bounded test remains governed by [ADR 0010](docs/adr/0010-free-public-test-publication.md) and [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md), with canonical entry `https://antique-trail.vercel.app/`. Its actual enabled capabilities require current evidence; scoped saved-account wording in older receipts is not permission to enable saving or registration today.
+
+[ADR 0011](docs/adr/0011-market-at-macvicar-public-listing.md) retains the exact Market at Macvicar listing, media and provider boundaries. This scope approval does not publish that listing, activate its benefit or widen any account grant.
+
+## Provider and external-action prerequisites
+
+Applicable hosting, email, routing, media, audit and support prerequisites remain for their actual exposure. Use [security](SECURITY_AND_TRUST.md) and the relevant operational runbook. Do not require a deferred feature's provider or historical cohort to prove an unrelated selected capability. Approval here grants no deployment, spending, provider mutation, external communication or data cleanup.
+
+## Assessment environment boundary
+
+Local synthetic proof, configured local services, hosted/provider proof, canonical production and human observations are distinct. Preserve current public-test restrictions and all existing data until separately reviewed implementation and activation authorize a change.
+
+## Human usability acceptance
+
+Evaluate the actual computer/phone journey and applicable assistive-technology behavior, including permission denial, sign-in interruption and safe recovery. Record failures and Product Owner continue/revise/stop disposition. A fixed historical cohort count or a complete synthetic owner business suite is not a prerequisite for this first evaluation. WCAG 2.2 AA and the approved design system remain required.

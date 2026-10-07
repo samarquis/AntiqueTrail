@@ -1,5 +1,7 @@
 # UI-10 full-spec Product Owner acceptance
 
+Historical record: preserve the observations and original decisions below. They are not a current work queue, live approval state, or acceptance of the shopper-first outing. PRD.md and ADR 0012 own current target scope; recipient sharing, trip collaboration and other deferred examples are not implementation requirements.
+
 Status: **Awaiting explicit Product Owner approval.** Automation and screenshots are evidence, not approval or authority to close #40.
 
 ## Start the local review build

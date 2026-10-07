@@ -1,5 +1,7 @@
 # UI-03 Product Owner visual review
 
+Historical record: preserve the observations and original decisions below. They are not a current work queue, live approval state, or acceptance of the shopper-first outing. PRD.md and ADR 0012 own current target scope; recipient sharing, trip collaboration and other deferred examples are not implementation requirements.
+
 Status: **Awaiting Product Owner approval.** Do not close issue #33 until that approval is
 recorded on the issue.
 

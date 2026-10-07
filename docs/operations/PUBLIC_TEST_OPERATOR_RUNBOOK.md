@@ -244,12 +244,29 @@ where synthetic and audience = 'synthetic' and publication_state = 'active';
 -- must return exactly 12; the prepare function rechecks this filter
 ```
 
-For a registration tester, compute the email HMAC exactly as the Edge function
-does (NFKC normalize, trim, lowercase en-US, then HMAC-SHA256 with the
-`REGISTRATION_EMAIL_HMAC_SECRET`, hex):
+The separately approved [Market at Macvicar admission](PUBLIC_TEST_ADMISSION.md)
+and [ADR 0011](../adr/0011-market-at-macvicar-public-listing.md) bind the exact real
+record and derivatives independently. Do not add its UUID to the fictional
+array, change the twelve-store check, or treat this recipe as general real-store
+admission. Verify the separate receipt for any release that includes it.
+
+For an explicitly admitted registration tester only, use the existing secret and
+normalized email from private operator custody. This example does not authorize
+secret retrieval or rotation. Populate `REGISTRATION_EMAIL_HMAC_SECRET` and
+`ADMITTED_TESTER_EMAIL` through the approved private environment mechanism; never
+paste their values into commands, command arguments, chat, CI or shared logs.
+Run only in a private, non-recorded operator session. Treat the resulting digest
+as private admission data and retain it only in the approved private receipt.
+
+The process reads the existing environment internally; no secret or email is
+passed through process arguments or printed. It emits only the HMAC. Missing
+inputs fail with a generic error. NFKC, trim and en-US lowercase match the Edge
+function. Remove the temporary tester-email environment value after use.
+
+```powershell
+node -e "const c=require('node:crypto');const secret=process.env.REGISTRATION_EMAIL_HMAC_SECRET;const email=process.env.ADMITTED_TESTER_EMAIL;if(!secret||secret.length<32||!email||!email.trim()){process.stderr.write('Required private inputs unavailable.');process.exit(1)}const norm=email.normalize('NFKC').trim().toLocaleLowerCase('en-US');process.stdout.write(c.createHmac('sha256',secret).update(norm).digest('hex'))"
 ```
-node -e "const c=require('crypto');const [email,secret]=process.argv.slice(2);const norm=email.normalize('NFKC').trim().toLocaleLowerCase('en-US');process.stdout.write('email='+norm+' hmac='+c.createHmac('sha256',secret).update(norm).digest('hex'))" "Tester.Name@Example.com" "%REGISTRATION_EMAIL_HMAC_SECRET%"
-```
+
 The `email` in the spec is the same normalized value; `emailHmac` is the
 64-hex HMAC. The database stores and enforces both (`lower(btrim(email))` and
 `octet_length(email_hmac) = 32`).

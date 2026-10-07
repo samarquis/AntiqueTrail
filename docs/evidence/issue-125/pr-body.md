@@ -25,7 +25,7 @@ Conforming work; no plan change.
 - The forward-only migration projects exactly `uploadId`, `kind`, `state`, `altText`, `submittedAt`, and `rejectionReason`; it returns no object key, bucket, URL, signing material, dimensions, or secret identifier.
 - `PortalMediaUpload` and `decodePortalMediaUploadHistory` require exactly that shape; tests reject reintroduced storage or dimension fields.
 - pgTAP exercises active session/MFA/recent-auth, exact-one scope, own-store results, anonymous/no-grant denial, and a separately authorized other-store representative's isolated response.
-- [Verification receipt](docs/evidence/issue-125/verification.md) and [independent review](docs/evidence/issue-125/independent-review.md) record the local evidence and review outcome.
+- [Verification receipt](verification.md) and [independent review](independent-review.md) record the local evidence and review outcome.
 
 ## Verification
 

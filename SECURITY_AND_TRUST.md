@@ -1,6 +1,6 @@
 # Security, Privacy, Trust, and Operations
 
-Security is a product requirement and a launch gate.
+Security is a product requirement and a launch gate. Target scope follows the 2026-10-06 [PRD](PRD.md); existing deployment/data protections are not waived. Deferred public-review/team/offline clauses below protect retained reachable behavior only, not new milestone requirements.
 
 ## Security objectives
 
@@ -35,8 +35,7 @@ Private rows are readable and writable only by their owning account. Store Repre
 
 ### One-trip shared
 
-- One trip's draft, stop order, schedule, and progress are readable by its Trip Creator and one accepted Trip Partner only.
-- Each participant's ratings and notes remain private to that participant.
+The first scope shares public store links only, with no private trip/note/rating/account/location fields. Existing partner records retain their original one-trip access and revocation controls until separately reviewed migration. Sharing a store never grants access to those records; private memories remain author-only.
 
 ### Sensitive operational data
 
@@ -65,7 +64,7 @@ Private rows are readable and writable only by their owning account. Store Repre
 ## Privacy by default
 
 - Browse works without an account or device-location permission.
-- Device location is requested only after an explicit in-use action (routing).
+- Device location is requested only after an explicit in-use action (nearby search or trip start/routing); manual location remains usable after denial. No background tracking or anonymous behavioral profiling. Necessary minimized security/rate-limit logs are not a promise of zero infrastructure logging.
 - An optional account starting address is private to its authenticated owner and used for a trip only by explicit choice. Never infer or automatically apply a Home location; no background or continuous location or raw movement history.
 - Owner export includes the current starting address. Clearing it or deleting the account leaves no stale private address or address-derived retry data; stores cannot access it.
 - Precise coordinates never enter analytics, application logs, email, or support records.
@@ -111,12 +110,14 @@ A missing required environment is `UNAVAILABLE`, not `PASS`.
 
 ## Public test boundary
 
-The authorized free public test (ADR 0010) admits anonymous catalog browsing of twelve fictional stores and scoped saved-store actions. The separately authorized [Market at Macvicar exception](docs/adr/0011-market-at-macvicar-public-listing.md) adds only its explicitly admitted public catalog projection and approved derivatives; it grants no private, account, claim, role, payment, or other real-store access and preserves origin/RLS/RPC/expiry/stop checks. Under #468, the public UI may also prepare anonymous correction drafts in this tab's `sessionStorage`; this does not add a backend capability or server write. The form has no sign-in-to-submit or submit action, and the server-only `PUBLIC_TEST_MODE` guard rejects direct correction submissions before session verification or gateway/database calls, including for an existing authenticated session. Registration stays closed until account/provider acceptance is complete. Trips, correction submissions, maps, and privileged operations remain outside this scope. The display flag (`VITE_PUBLIC_TEST_CATALOG_ONLY`) is not a stop mechanism; previously admitted accounts retain lifecycle access under their original authorization. See [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).
+The authorized free public test (ADR 0010) currently admits anonymous catalog browsing of twelve fictional stores; the tester allowlist is empty, registration remains closed, and saving is disabled. Older saved-account admission wording grants no current activation authority. The separately authorized [Market at Macvicar exception](docs/adr/0011-market-at-macvicar-public-listing.md) adds only its explicitly admitted public catalog projection and approved derivatives; it grants no private, account, claim, role, payment, or other real-store access and preserves origin/RLS/RPC/expiry/stop checks. Under #468, the public UI may also prepare anonymous correction drafts in this tab's `sessionStorage`; this does not add a backend capability or server write. The form has no sign-in-to-submit or submit action, and the server-only `PUBLIC_TEST_MODE` guard rejects direct correction submissions before session verification or gateway/database calls, including for an existing authenticated session. Registration stays closed until account/provider acceptance is complete. Trips, correction submissions, maps, and privileged operations remain outside this scope. The display flag (`VITE_PUBLIC_TEST_CATALOG_ONLY`) is not a stop mechanism; previously admitted accounts retain lifecycle access under their original authorization. See [public test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).
 
 ## Store-first stage applicability
 
-The public test remains catalog-only. A separate isolated internal test may exercise the complete Store Owner workflow against synthetic identities and store fixtures under the existing controlled internal synthetic admission and teardown rules. Require verified email, MFA, documented authority in the claim scenario, Site Admin approval, exact-store server authorization, audit, and immediate revocation behavior. This permits no real external Owner, real-store data, public review response, external promotion, payment, or production activation. All public and external release gates remain in force. The authority details live in [Store Owner authority](docs/specs/store-owner-authority.md). Trips, Candidate Share, visit memory, personalization, collections, and Android packaging remain deferred; the local invitation exception for #321/#342/#343/#344/#365 remains unchanged. Security and data-lifecycle obligations apply to every reachable path.
+This legacy anchor now points to the shopper-first target in [PRD stages](PRD.md#stage-dependencies). The existing catalog-only public test remains unchanged. Future admitted discovery/favorites/sharing/planning/private-memory and owner/admin journeys require applicable account, privacy, store/media, routing, recovery and allow/deny evidence. Scope approval is not runtime activation.
+
+Require verified owner email, MFA, documented authority, Site Admin approval, exact-store server authorization, audit and immediate revocation. No mandatory full synthetic team/analytics/promotion/review-response suite. Keep every retained-data lifecycle and reachable-path safeguard. Public-store-link sharing does not require recipient lookup or expose private content. For safe URL/address handling, a pasted source is not authorization for network fetching.
 
 ## Store Owner cancellation decision — 2026-10-01
 
-The Product Owner approved one narrow amendment to the read-only billing boundary: primary Store Owner cancellation at the paid period's end in isolated synthetic local tests with a fake provider. The [approved cancellation-only contract](docs/specs/store-owner-paid-servicing.md) owns action behavior, eligible states, authentication, immutable confirmation consent, expected versions, idempotency, reconciliation, and acceptance. Co-Owner and Full Store Access billing remain read-only; Listing Editors retain no billing visibility. Existing Representative permissions remain unchanged. This decision permits no actual provider calls, live billing, public rollout, or deployed action. Existing descriptions of read-only Owner billing describe the implemented baseline; #426 still requires scoped implementation, review, and proof.
+[Historical local cancellation contract](docs/specs/store-owner-paid-servicing.md) remains bounded to fake-provider synthetic testing and existing servicing obligations. It is not a prerequisite for the first outing or permission for deployed billing actions. Any later paid offer must provide safe supported cancellation and preserve incumbent obligations.

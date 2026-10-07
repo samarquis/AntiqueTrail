@@ -1,5 +1,7 @@
 # Issue #170 independent review
 
+Historical record: preserve the observations and original decisions below. They are not a current work queue, live approval state, or acceptance of the shopper-first outing. PRD.md and ADR 0012 own current target scope; recipient sharing, trip collaboration and other deferred examples are not implementation requirements.
+
 - Reviewer: independent Codex specification reviewer (`pr202_spec`).
 - Initial result: changes requested for account-deletion-blocking receipt links and overstated screen-reader/browser-zoom evidence.
 - Reviewer: independent Codex implementation reviewer (`pr202_standards`).

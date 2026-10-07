@@ -5,6 +5,10 @@
 - Scope: internal store showcase, controlled real-store pilot and paid Gallery pilot described in [PRD.md](../../PRD.md).
 - Supersedes: earlier product/package prerequisite sequencing only for these bounded stages, including ADR0006's blanket Packages 1–10B prerequisite. Provider topology, eligibility, funding, security and recovery controls remain. ADR0007/0008's particular assessment authority is neither extended nor renewed.
 
+## Scope successor — 2026-10-06
+
+[ADR0012](0012-shopper-first-scope.md) supersedes the product sequencing and trip-deferral decision below. This original decision remains historical; existing provider, data, consent and exposure protections survive. Do not use its store-only priority as the current development queue.
+
 ## Decision
 
 The current product is a store showcase with optional paid photo capacity. Trips, route planning, Navigator/Go/offline, public reviews, regional release, RG-01 and three community expansions are not prerequisites to the internal showcase or controlled store/Gallery pilot. Those prior programs are retained history/deferred options, not the current delivery queue. The narrow exception in [PRD deferred implementation boundary](../../PRD.md#deferred-implementation-boundary) admits only repository-controlled local invitation diagnosis, the minimal invitation ACL repair, accepted-partner removal repairs and joined verification for #321/#342/#343/#344/#365; it neither exposes trips nor reactivates the former program. The first offer is Free/Gallery; new Full Gallery sales and new paid-to-paid features are deferred. Existing code, data and provider obligations remain protected.

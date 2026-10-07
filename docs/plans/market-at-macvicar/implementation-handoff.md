@@ -1,5 +1,7 @@
 # The Market at Macvicar local page handoff
 
+Historical development/preview record. Later ADR 0011 governs the exact approved public-listing exception and five-year free top-tier benefit. Original dev-only statements below do not revoke that decision; neither this record nor the scope cleanup proves publication, benefit activation or wider media admission.
+
 ## Decision and scope
 
 User approved one store-scoped complimentary benefit at the highest released store tier, free for **at least five calendar years from actual activation**. Current equivalent is Full Gallery, which has no gallery-count cap. Draft starts with one separate storefront cover and 50 selected gallery photos; 50 is an opening wall, not a plan maximum. No fee, payment method, trial, subscription, renewal, or continuing-review condition. Paid cancellation, failure, downgrade, and webhook state cannot reduce the guarantee. No automatic charge or silent downgrade at its anniversary; any later change requires a separate explicit decision, retaining access while none exists. This is approved product policy, not a provisioned entitlement.
