@@ -79,7 +79,7 @@ test('support preserves ordered replies and shows the same conversation to both 
   assert.doesNotMatch(run('renderPage()'), /Mara initial question|June final answer/);
   assert.match(run('S.audit.at(-1).text'), /Mara/);
   assert.equal(run('S.audit[0].store'), null);
-  assert.equal(run('S.audit[0].name'), 'Mara');
+  assert.equal(run('S.audit[0].name'), 'Mara · Request 2');
 });
 
 test('support rejects blank replies and failure-state writes; messages render as text', () => {
@@ -128,6 +128,27 @@ test('submitted support status cannot override a reopened request', () => {
   run("S.role='admin'; S.person='June'; route='admin-support'");
   assert.doesNotMatch(run('renderPage()'), /<option selected>Resolved/);
   assert.match(run('renderPage()'), /<option selected>In Review/);
+});
+
+test('administrator personal support remains separate from reviewed shopper requests', () => {
+  const { run } = fixture();
+  run("S.role='admin'; S.person='June'; S.supportPerson='Mara'; route='request'; submit('request',{topic:'Account access',message:'June own account question'}); route='support-detail'");
+  assert.match(run('renderPage()'), /June own account question/);
+  assert.doesNotMatch(run('renderPage()'), /Help me plan an outing/);
+  run("route='admin'; action('review-support',{dataset:{id:'Mara',request:'0'}})");
+  run("route='admin-support'");
+  assert.match(run('renderPage()'), /Help me plan an outing/);
+  assert.doesNotMatch(run('renderPage()'), /June own account question/);
+});
+
+test('support audit identifies the exact conversation without message content', () => {
+  const { run } = fixture();
+  run("route='request'; submit('request',{topic:'Account access',message:'Private question text'}); S.role='admin'; S.person='June'; route='admin'; action('review-support',{dataset:{id:'Mara',request:'0'}}); route='admin-support'; submit('admin-support',{reply:'Private answer one',status:'Resolved'})");
+  run("route='admin'; action('review-support',{dataset:{id:'Mara',request:'1'}}); route='admin-support'; submit('admin-support',{reply:'Private answer two',status:'Resolved'}); route='admin-audit'");
+  const result = run('renderPage()');
+  assert.match(result, /Mara · Request 1/);
+  assert.match(result, /Mara · Request 2/);
+  assert.doesNotMatch(result, /Private question text|Private answer one|Private answer two/);
 });
 
 test('all Plan forms retain unfinished input without retaining unchecked values', () => {
