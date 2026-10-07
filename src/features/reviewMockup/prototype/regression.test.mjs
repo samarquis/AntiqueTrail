@@ -52,6 +52,54 @@ test('visit drafts stay with the account, outing and stop', () => {
   assert.notEqual(run('draftKey()'), blue);
 });
 
+test('admin support drafts stay with the requester across store switching', () => {
+  const { run } = fixture();
+  run("S.role='admin'; S.person='June'; route='admin-support'; S.supportPerson='Mara'; formDrafts[draftKey()]={reply:'Only for Mara'}");
+  run("S.supportPerson='Evelyn'");
+  assert.doesNotMatch(run('renderPage()'), /Only for Mara/);
+  run("S.supportPerson='Mara'; S.ownerStore='cedar'");
+  assert.match(run('renderPage()'), /Only for Mara/);
+});
+
+test('support preserves ordered replies and shows the same conversation to both roles', () => {
+  const { run } = fixture();
+  run("route='request'; submit('request',{topic:'Using the site',message:'Mara initial question'})");
+  run("S.role='admin'; S.person='June'; S.supportPerson='Mara'; route='admin-support'; submit('admin-support',{reply:'June first answer',status:'Waiting on You'})");
+  run("S.role='shopper'; S.person='Mara'; route='support-detail'; submit('support-reply',{message:'Mara follow-up'})");
+  run("S.role='admin'; S.person='June'; route='admin-support'; submit('admin-support',{reply:'June final answer',status:'Resolved'})");
+  const admin = run('renderPage()');
+  for (const text of ['Mara initial question','June first answer','Mara follow-up','June final answer']) assert.match(admin, new RegExp(text));
+  run("S.role='shopper'; S.person='Mara'; route='support-detail'");
+  const shopper = run('renderPage()');
+  assert.ok(shopper.indexOf('Mara initial question') < shopper.indexOf('June first answer'));
+  assert.ok(shopper.indexOf('June first answer') < shopper.indexOf('Mara follow-up'));
+  assert.ok(shopper.indexOf('Mara follow-up') < shopper.indexOf('June final answer'));
+  assert.match(shopper, /Resolved/);
+  run("S.person='Alex'");
+  assert.doesNotMatch(run('renderPage()'), /Mara initial question|June final answer/);
+  assert.match(run('S.audit.at(-1).text'), /Mara/);
+  assert.equal(run('S.audit[0].store'), null);
+  assert.equal(run('S.audit[0].name'), 'Mara');
+});
+
+test('support rejects blank replies and failure-state writes; messages render as text', () => {
+  const { run } = fixture();
+  run("route='request'; submit('request',{topic:'Using the site',message:'<img src=x onerror=alert(1)>'})");
+  run("route='support-detail'; submit('support-reply',{message:'   '})");
+  assert.equal(run('requestRecord().messages.length'), 1);
+  assert.match(run('lastNotice'), /Enter/);
+  run("S.role='admin'; S.person='June'; S.supportPerson='Mara'; route='admin-support'; submit('admin-support',{reply:'   ',status:'Resolved'})");
+  assert.equal(run('requestRecord().messages.length'), 1);
+  assert.equal(run('requestRecord().status'), 'Submitted');
+  for (const state of ['offline','error','expired']) {
+    run(`scenario=${JSON.stringify(state)}; submit('admin-support',{reply:'Must remain unsent',status:'Resolved'})`);
+    assert.equal(run('requestRecord().messages.length'), 1);
+  }
+  run("scenario='normal'");
+  assert.match(run('renderPage()'), /&lt;img/);
+  assert.doesNotMatch(run('renderPage()'), /<img src=x/);
+});
+
 test('all Plan forms retain unfinished input without retaining unchecked values', () => {
   const { run, forms } = fixture();
   const key = run('draftKey()');
