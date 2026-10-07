@@ -4,6 +4,12 @@ Open [full-site.html](full-site.html) to explore the target shopper, owner and a
 
 Keep the repaired artifact on `codex/mockup-workflow-fixes`, separate from main. It is a review artifact, not authorization to implement, merge, publish, activate billing or deploy. Screen coverage is not product acceptance or proof that production services implement these flows.
 
+## Latest repair acceptance
+
+The [completion review](completion-review.md), [current receipt](verification.json) and [portable browser evidence](verification-replay.json) describe final source `1d98b75f5a6ec233e57646df459784d3fe8d5059`: 15 passing regression suites, 56 passing browser assertions, 390 direct role/page presentations, a 78-screen mobile inspection and 21 representative responsive presentations. Both independent reviews cleared this source. See the receipt for explicit carry-forward checks and unavailable proof.
+
+Run the portable regression suite with `node --test src/features/reviewMockup/prototype/regression.test.mjs`.
+
 ## Run and explore
 
 Double-click `full-site.html`; its CSS, JavaScript, fonts and images are embedded. No package installation or application build is needed. Alternatively, from the repository root, if Python is available:
@@ -44,7 +50,7 @@ All stores, people, invitations, accounts, requests, grants, audit entries and t
 
 Route suggestions use a disclosed demo rule and fictional travel minutes. Hours checks use the saved fictional schedule and selected date; they do not verify real business hours or driving times. Map, location, navigation, sharing, upload/moderation, export/deletion, MFA, install and payment presentations do not prove those integrations. Client-side role switching is a storytelling aid, not a security boundary. Offline mode is an induced UI state; it does not implement durable offline writes or synchronization. Consent, terms and prices are not an approved legal or commercial offer.
 
-The current [verification receipt](verification.json), [portable replay evidence](verification-replay.json) and [workflow repair review](workflow-review.md) bind the repaired HTML to 78 rendered pages, 390 direct presentations across five role fixtures, 19 connected observations and 33 passing assertions. Two independent reviewers cleared the final HTML source. Mobile planner widths 390/320 and application-review width 390 had no horizontal overflow. Original verification at base commit `2ccaebde` remains historical and does not apply to this changed HTML.
+The earlier workflow repair run at source `473405e3` is historical; its [workflow review](workflow-review.md) remains useful context. Current HTML acceptance is owned by [completion-review.md](completion-review.md) and the hash-bound receipt above. Original verification at base `2ccaebde` and the superseded 33-assertion run do not establish current acceptance.
 
 Each store now keeps its own application, grant, drafts, media reviews and billing preview through the **Store workspace** selector. Starting another application preserves existing approved access and begins a fresh Free/unpaid context. Visit completion does not depend on saving optional notes; final-stop Undo removes its stale history entry. News, approved facts, effective dates and review feedback connect to the intended store or outing.
 

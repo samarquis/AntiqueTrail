@@ -1,5 +1,7 @@
 # Connected workflow repair review
 
+Historical review at `473405e3`. Current source and proof are recorded in [completion-review.md](completion-review.md); the current receipt/replay supersede this run. Earlier records remain recoverable from Git.
+
 Reviewed 2026-10-07. The mockup now carries decisions and entered values through its connected shopper, owner and administrator journeys. This is local fictional prototype evidence. Production behavior, service integrations and publication are not established by this review.
 
 ## Source and evidence

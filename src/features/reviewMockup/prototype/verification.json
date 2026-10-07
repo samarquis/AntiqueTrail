@@ -1,19 +1,24 @@
 {
   "artifact": "full-site.html",
-  "sha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+  "sha256": "937ca802833978003fc8733f3b609ef22bc6e1cb6984004aa4c3e3c134302b19",
   "date": "2026-10-07",
-  "sourceRevision": "473405e3237762943b6d1845e04fe7e9f20a0bf1",
-  "baseRevision": "2ccaebde37df8d00930e2114488c73dffb51683a",
-  "scope": "Standalone fictional local mockup only. No backend, hosted, publication or production claim.",
+  "sourceRevision": "1d98b75f5a6ec233e57646df459784d3fe8d5059",
+  "baseRevision": "8654d77ce9499782c0d9a9de6550216842f93452",
+  "scope": "Standalone fictional local mockup only; no provider, publication or production acceptance.",
   "evidence": "verification-replay.json",
-  "renderSweep": {
-    "screens": 78,
-    "detectedProblems": 0,
-    "missingHeadings": 0
+  "unitRegressions": {
+    "command": "node --test src/features/reviewMockup/prototype/regression.test.mjs",
+    "suites": 15,
+    "passed": 15,
+    "sourceRoleRenderPresentations": 390
+  },
+  "browserAssertions": {
+    "total": 56,
+    "passed": 56,
+    "failed": 0
   },
   "roleMatrix": {
     "presentations": 390,
-    "passed": 390,
     "profiles": [
       "Visitor",
       "Mara",
@@ -21,50 +26,83 @@
       "Evelyn",
       "June"
     ],
-    "fixture": "Fresh page for each role; owner unapproved. Directory staging tested separately."
+    "fixture": "Fresh reload per role, unapproved owner, direct route presentations; browser assertions check headings and admin/owner gates."
   },
-  "connectedReplay": {
-    "scope": "Focused final-source connected regressions. Earlier exploratory logs excluded.",
-    "assertions": 33,
-    "observations": 19,
-    "passed": 33,
-    "failed": 0
-  },
-  "independentReview": {
-    "sourceRevision": "473405e3237762943b6d1845e04fe7e9f20a0bf1",
-    "spec": "Clean focused review",
-    "methods": "Read-only source and isolated function/state checks, separate from browser acceptance.",
-    "standards": "Clean focused review"
+  "mobileSweep": {
+    "screens": 78,
+    "cssViewport": 320,
+    "documentOverflow": 0,
+    "mainLinksBelow48px": 0,
+    "sourceRevision": "c6543c0f95f4160b994d3c7aad91d96d598cd6d8"
   },
   "responsive": {
-    "horizontalOverflow": 0,
-    "plannerWidths": [
+    "presentations": 21,
+    "widths": [
+      320,
       390,
-      320
+      1280
     ],
-    "applicationReviewWidths": [
-      390
+    "surfaces": [
+      "store",
+      "plan",
+      "ready",
+      "visit",
+      "portal",
+      "admin-access",
+      "admin-claim"
     ],
-    "desktopWidth": 1280
+    "documentOverflow": 0
+  },
+  "themeIconContrast": [
+    {
+      "background": "rgb(135, 149, 181)",
+      "foreground": "rgb(17, 25, 35)",
+      "theme": "dark",
+      "state": "normal",
+      "ratio": 5.893408595177732
+    },
+    {
+      "background": "rgb(52, 74, 112)",
+      "foreground": "rgb(255, 255, 255)",
+      "theme": "light",
+      "state": "hover",
+      "ratio": 8.900209509233829
+    },
+    {
+      "background": "rgb(76, 98, 138)",
+      "foreground": "rgb(255, 255, 255)",
+      "theme": "light",
+      "state": "normal",
+      "ratio": 6.137894765782391
+    },
+    {
+      "background": "rgb(165, 181, 213)",
+      "foreground": "rgb(17, 25, 35)",
+      "theme": "dark",
+      "state": "hover",
+      "ratio": 8.566888353383453
+    }
+  ],
+  "independentReview": {
+    "sourceRevision": "1d98b75f5a6ec233e57646df459784d3fe8d5059",
+    "spec": "Clean focused final review",
+    "standards": "Clean focused final review",
+    "methods": "Two independent source/function reviews; separate rendered browser verification."
   },
   "browserLogs": {
     "errors": 0,
     "warnings": 0
   },
-  "staticChecks": [
-    "Inline JavaScript syntax passed",
-    "Git diff whitespace passed",
-    "Impeccable mechanical detector returned no findings"
-  ],
-  "openDecisions": [
-    "Paid amount/tax, capacity and plan count",
-    "Renewal/cancellation dates and retained-photo visibility"
-  ],
-  "limits": [
-    "Reticle unavailable; supported manual browser verification used",
-    "No exhaustive action or accessibility claim",
-    "Authentication, persistence, maps, media, support delivery, payments and lifecycle integrations unverified",
-    "Original base verification receipt is historical and does not apply to this HTML"
-  ],
-  "report": "workflow-review.md"
+  "carryForwardValidation": {
+    "functionalEvidenceSourceRevision": "be1d5109cee2431c611c531d0bd06e14919a10b0",
+    "inlineScriptIdentical": true,
+    "fullMobileSweepSourceRevision": "c6543c0f95f4160b994d3c7aad91d96d598cd6d8",
+    "cssIdenticalExceptThemeHoverColor": true,
+    "rendererIdentical": true
+  },
+  "unverified": [
+    "Real devices, Safari/Firefox, screen-reader operation and actual 200% browser zoom",
+    "Production accounts, authorization, persistence, email, routing, media, support and payment integrations",
+    "Paid prices, capacities and renewal/cancellation terms remain undecided"
+  ]
 }
