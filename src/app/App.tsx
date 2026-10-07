@@ -825,9 +825,11 @@ function StoreBrowser({
 function StoreDetails({
   shopperClient,
   catalog,
+  localTripEvaluation = false,
 }: {
   shopperClient: ShopperPrivateClient
   catalog?: CatalogClient
+  localTripEvaluation?: boolean
 }) {
   const { session } = useAuth()
   const shopperProjection = !session || session.role === 'Shopper'
@@ -838,7 +840,7 @@ function StoreDetails({
     <CatalogDetailsPage
       client={client}
       slug={slug}
-      stage="package-3"
+      stage={localTripEvaluation && shopperProjection && !localPreview ? 'package-5a' : 'package-3'}
       renderPrivateActions={(store) =>
         localPreview ? (
           <p>Local preview only. Save and store claim actions are unavailable.</p>
@@ -1511,7 +1513,19 @@ export default function App({
           />
           <Route
             path="/stores/:slug"
-            element={<StoreDetails shopperClient={shopperClient} catalog={clients.catalog} />}
+            element={
+              <StoreDetails
+                shopperClient={shopperClient}
+                catalog={clients.catalog}
+                localTripEvaluation={
+                  import.meta.env.DEV &&
+                  runtime.reviewHarness?.active === true &&
+                  typeof window !== 'undefined' &&
+                  ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
+                  !isCatalogOnlyPublicTest()
+                }
+              />
+            }
           />
           <Route
             path="/stores/:slug/updates"
