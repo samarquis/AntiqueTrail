@@ -10,6 +10,26 @@ owner, provider, server-authorization, cohort, release, or paid-activation evide
 
 ## Run
 
+### First couple's outing
+
+The [2026-10-06 readiness rehearsal](../../evidence/shopper-first-scope/outing-readiness.md) found that the connected outing is **not ready for real use**. Existing fixture tests pass but bypass the missing Store Details-to-trip connection. Use the sequence below as acceptance after the gaps are fixed and the environment is admitted; it is not an instruction to enable the current public site's private features.
+
+Choose two or three stores and one unlisted shop. Each person uses their own account. Start on a computer, repeat the important steps on an actual phone, then take the outing:
+
+1. Your wife finds and favorites a store, then shares its public link using her normal messaging app. The link contains no private notes or trip information.
+2. You open that link signed out. Choose Add to Trip, sign in, and confirm the same store is still selected. Add it to a new dated trip; add a second store to that trip without creating a duplicate.
+3. Add the unlisted shop with its name, confirmed address, optional source link/hours and browsing time. It stays private and creates no public listing.
+4. Set departure/start location. Review an order based on driving and known opening hours, then adjust the order yourself. Unknown hours and service failure must be understandable; a manual-only fallback does not prove routing works.
+5. At the outing, open navigation for each intended address and mark visited/skipped. Confirm the external map destination before driving. Use ordinary maps if the app is unclear; record where the app failed.
+6. Record “Found a brass item,” a rating and whether you would return. Close and reopen the app in a later session. Find that memory, record another visit and confirm the original remains. Repeat for the unlisted stop; your wife's account must not expose your private notes.
+7. Each of you records where help was needed, what felt unnecessary, and whether you would use this instead of your current text-message/Maps process. Choose continue, revise or stop and explain why.
+
+Keep a separate short owner walkthrough: an admitted owner confirms their store, changes hours, submits a rights-approved photo, and adds a simple store update; observe the correct direct/reviewed result and denial for another store. Do not require a purchase, team setup, analytics or an artificial support request.
+
+Record: stores/date, device/browser, step attempted, expected/actual result, assistance needed, and continue/revise/stop. Leave observations blank until you actually try them. Test privacy/accessibility/data-loss failures before accepting the affected step. The agent does not send messages to your wife or stores as part of this packet.
+
+### Existing local fixture runner
+
 From the repository root, run:
 
 ```text
