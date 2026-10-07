@@ -11,6 +11,94 @@ const ACCEPT_URL =
 
 const GENERIC_TRIP_ALERT = "We couldn't update this trip. Please try again."
 
+test.describe('Details Add to Trip connection', () => {
+  test('creates one stop from the visible Details action and prevents a repeat addition', async ({
+    page,
+  }, testInfo) => {
+    await page.emulateMedia({ colorScheme: 'light' })
+    await page.goto(reviewUrl('/stores/blue-finch-curios', 'shopper-b'))
+    const add = page.getByRole('link', { name: 'Add to Trip', exact: true })
+    await expect(add).toHaveAttribute(
+      'href',
+      '/trips/new?addStoreId=00000000-0000-4000-8000-000000000001',
+    )
+    const box = await add.boundingBox()
+    expect(box!.width).toBeGreaterThanOrEqual(48)
+    expect(box!.height).toBeGreaterThanOrEqual(48)
+    await page.screenshot({ path: testInfo.outputPath('details-light.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Switch to dark theme' }).click()
+    await page.screenshot({ path: testInfo.outputPath('details-dark.png'), fullPage: true })
+    await add.click()
+    await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath('chooser-dark.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Switch to light theme' }).click()
+    await page.screenshot({ path: testInfo.outputPath('chooser-light.png'), fullPage: true })
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true)
+    await page.getByLabel('Trip name').fill('Local connected outing')
+    await page.getByLabel('Date', { exact: true }).fill('2026-10-10')
+    await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Added to Local connected outing' }),
+    ).toBeVisible()
+    await page.getByRole('link', { name: 'View Trip' }).click()
+    await expect(
+      page.getByLabel('Ordered trip stops').locator('li').filter({ hasText: 'Blue Finch Curios' }),
+    ).toHaveCount(1)
+    await page.goBack()
+    await page.getByRole('link', { name: 'Back to stores' }).click()
+    await page.getByRole('link', { name: 'View store: Blue Finch Curios', exact: true }).click()
+    await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+    await expect(page.getByText('This store is already on: Local connected outing.')).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Add to Local connected outing', exact: true }),
+    ).toHaveCount(0)
+  })
+
+  test('returns from allowed sign-in with the selected store and supports cancellation', async ({
+    page,
+  }) => {
+    await page.goto(reviewUrl('/account', 'shopper-a'))
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+    await page
+      .getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('link', { name: 'Browse', exact: true })
+      .click()
+    await page.getByRole('link', { name: 'View store: Blue Finch Curios', exact: true }).click()
+    await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+    await expect(page).toHaveURL(
+      /returnTo=%2Ftrips%2Fnew%3FaddStoreId%3D00000000-0000-4000-8000-000000000001/,
+    )
+    await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
+    await expect(page.getByRole('heading', { name: /Discover local antiques/i })).toBeVisible()
+    await page.getByRole('link', { name: 'View store: Blue Finch Curios', exact: true }).click()
+    await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+    await page.getByLabel('Email', { exact: true }).fill('shopper-a@local.invalid')
+    await page.getByLabel('Password', { exact: true }).fill('synthetic-password')
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+    await expect(page.getByText("This store is already on: Avery's antique day.")).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^Added to/ })).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: "Add to Avery's antique day", exact: true }),
+    ).toHaveCount(0)
+  })
+
+  test('keeps anonymous writes and privileged identities denied', async ({ page }) => {
+    await page.goto(reviewUrl('/stores/blue-finch-curios', 'anonymous'))
+    await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+    for (const identity of ['store-owner', 'representative', 'administrator']) {
+      await page.goto(reviewUrl('/stores/blue-finch-curios', identity))
+      await expect(
+        page.getByRole('heading', { name: 'Blue Finch Curios', exact: true }),
+      ).toBeVisible()
+      await expect(page.getByRole('link', { name: 'Add to Trip', exact: true })).toHaveCount(0)
+    }
+  })
+})
+
 async function assertMinimumTargets(page: Page) {
   expect(
     await page.locator('a, button, input, select').evaluateAll((elements) =>
