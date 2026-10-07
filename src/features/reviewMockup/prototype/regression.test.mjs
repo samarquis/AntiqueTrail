@@ -185,6 +185,15 @@ test('explicit location permission preview sets only the selected trip start', (
   assert.equal(run('S.profiles.Mara.home'), undefined);
 });
 
+test('failure states do not commit a simulated trip starting location', () => {
+  for (const scenario of ['offline','error','expired']) {
+    const { run } = fixture();
+    run(`scenario=${JSON.stringify(scenario)}; action('location-yes', {})`);
+    assert.equal(run('currentTrip().start'), undefined, scenario);
+    assert.match(run('lastNotice'), /paused/);
+  }
+});
+
 test('Clear filters resets both data and visible filter drafts', () => {
   const { run } = fixture();
   run("route='browse'; S.category='Copper & brass'; formDrafts[draftKey()]={category:'Copper & brass',area:'Lawrence'}; action('clear', {})");
