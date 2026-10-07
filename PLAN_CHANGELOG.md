@@ -265,3 +265,7 @@ Historical record of authorized changes. Entries preserve decisions as they stoo
 ## 2026-10-06 — Retire legacy workflow execution
 
 Owner authorized removal of old workflow and plan instructions from active work. Current engineering workflow and live issue bodies replace historical package orchestration; obsolete handoff generation is retired. Historical plans remain reference-only. See [retirement evidence](docs/evidence/shopper-first-scope/workflow-retirement.md) for queue dispositions, preserved duties, review, and publication limits.
+
+## 2026-10-07 — Close deep-review reconciliation gaps
+
+Owner directed “do what is next” after the deep review. Reconcile public-test saving and exact admitted release data, secure the operator recipe, mark old research historical, and retain the review poller explicitly as optional read-only tooling. Product planning is owned by #560; #487 remains evidence specification. The compatible source-map-js 1.2.2 lockfile patch repairs the observed CI audit blocker. No product scope or runtime capability is added. See [follow-up evidence](docs/evidence/shopper-first-scope/deep-review-repairs.md).

@@ -11,7 +11,7 @@
 
 | Finding | Correction | Proof |
 | --- | --- | --- |
-| Missing Product planning ownership | #560 owns six gap dispositions and first bounded Add to Trip contract; #487 remains evidence specification | Created issue read back with exact body, OPEN state and Product label; planning parent stays SPECIFICATION |
+| Missing Product planning ownership | #560 owns six gap dispositions and first bounded Add to Trip contract; #487 remains evidence specification | Created issue read back with matching body (line endings/trailing newline normalized), OPEN state and Product label; planning parent stays SPECIFICATION |
 | Conflicting saving rules | Security states current empty tester allowlist and save denial | Compared with PRD/package contract; retained lifecycle exception preserved |
 | Eight conflicting release exclusions | #549–#556 permit read-only exact admitted Macvicar verification; no new data or mutation | Each original body checked before update; new body, assignees, labels and OPEN state read back |
 | Secret in command arguments | Node reads existing private environment internally; no raw email/secret output | Synthetic-only normalized-email HMAC matches independent Python calculation; missing secret exits 1 with generic error and empty stdout |

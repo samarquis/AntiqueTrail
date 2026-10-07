@@ -44,6 +44,8 @@ None of these 26 issues is a new feature assignment that can be safely closed so
 
 ## Next bounded planning work
 
+Current planning ownership: [#560](https://github.com/samarquis/AntiqueTrail/issues/560) owns disposition of the six gaps below and the first bounded Add to Trip contract. #487 owns evidence specification. Use those current issue bodies; this dated assessment is not a parallel queue.
+
 This is an ordered gap assessment, not READY implementation tickets or a second backlog:
 
 1. Pin one connected acceptance scenario across two shopper accounts and one permitted owner/admin flow. Distinguish synthetic/local/hosted/human layers.
