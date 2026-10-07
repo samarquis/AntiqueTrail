@@ -7,11 +7,13 @@ const html = readFileSync(new URL('./full-site.html', import.meta.url), 'utf8');
 const inline = html.match(/<script>([\s\S]*)<\/script>/)[1];
 const source = inline.slice(0, inline.indexOf("document.addEventListener('click'")) +
   inline.match(/const privateScreens=\[[^;]+;/)[0] +
-  inline.slice(inline.indexOf('function onHash()'), inline.indexOf("window.addEventListener('hashchange'"));
+  inline.slice(inline.indexOf('function onHash()'), inline.indexOf("window.addEventListener('hashchange'")) +
+  inline.match(/document.addEventListener\('change',[^\n]+/)[0];
 
 function fixture() {
   const elements = new Map();
   const forms = [];
+  const handlers = {};
   const context = createContext({
     structuredClone, URL, console,
     location: { hash: '#plan', href: 'http://localhost/full-site.html#plan' },
@@ -20,6 +22,7 @@ function fixture() {
     navigator: {},
     FormData: class { constructor(form) { return form.values[Symbol.iterator](); } },
     document: {
+      addEventListener(name, fn) { handlers[name] = fn; },
       body: { classList: { toggle() {} } }, activeElement: null,
       querySelectorAll(selector) { return selector === 'main form' ? forms : []; },
       querySelector(selector) {
@@ -32,7 +35,7 @@ function fixture() {
   runInContext(source, context);
   const run = code => runInContext(code, context);
   run("S.role='shopper'; S.person='Mara'; route='plan'");
-  return { run, forms, elements };
+  return { run, forms, elements, handlers };
 }
 
 test('visit drafts stay with the account, outing and stop', () => {
@@ -146,4 +149,46 @@ test('all 78 screens render across five fresh role fixtures with access gates', 
       if (role === 'owner' && route === 'portal') assert.equal(run('guarded()'), true);
     }
   }
+});
+
+test('active visits stay stable and completed stops cannot move or disappear', () => {
+  const { run } = fixture();
+  run('currentTrip().started=true; tripProgress().arrived=true; completeStop()');
+  run("mutate('move',{id:'cedar',direction:-1})");
+  assert.equal(run('selectedStop().id'), 'blue');
+  run("mutate('removeStop',{id:'blue'})");
+  assert.equal(run('selectedStop().id'), 'blue');
+  assert.equal(run('suggestedStops()[0].id'), 'blue');
+});
+
+test('failure states do not commit browsing durations', () => {
+  for (const scenario of ['offline','error','expired']) {
+    const { run, handlers } = fixture();
+    run(`scenario=${JSON.stringify(scenario)}`);
+    handlers.change({target:{dataset:{duration:'blue'},value:'90'}});
+    assert.equal(run('currentTrip().stops[0].duration'), 60, scenario);
+  }
+});
+
+test('saving optional notes cannot manufacture an unconfirmed visit', () => {
+  const { run } = fixture();
+  const before = run('S.memories.Mara.length');
+  run("route='visit'; submit('visit',{note:'Fictional unconfirmed visit'})");
+  assert.equal(run('S.memories.Mara.length'), before);
+  assert.equal(run('tripProgress().completed.length'), 0);
+});
+
+test('explicit location permission preview sets only the selected trip start', () => {
+  const { run } = fixture();
+  run("action('location-yes', {})");
+  assert.match(run('currentTrip().start'), /fictional/);
+  assert.equal(run('S.profiles.Mara.home'), undefined);
+});
+
+test('Clear filters resets both data and visible filter drafts', () => {
+  const { run } = fixture();
+  run("route='browse'; S.category='Copper & brass'; formDrafts[draftKey()]={category:'Copper & brass',area:'Lawrence'}; action('clear', {})");
+  assert.equal(run('S.category'), 'All categories');
+  assert.match(run('searchPanel()'), /<option selected>All categories/);
+  assert.match(run('searchPanel()'), /<option selected>All areas/);
 });
