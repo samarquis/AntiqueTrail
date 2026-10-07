@@ -161,6 +161,9 @@ test('photo replacement retains capacity and publishes the exact approved cover'
   assert.equal(run("catalogStore('blue').coverPhoto.alt"), 'Approved replacement cover');
   assert.match(run("route='store'; S.store='blue'; renderPage()"), /alt="Approved replacement cover"/);
   assert.match(run("route='gallery'; renderPage()"), /alt="Approved replacement cover"/);
+  assert.match(run("storeRows([catalogStore('blue')])"), /alt="Approved replacement cover"/);
+  run("S.role='owner'; S.person='Evelyn'; route='portal'");
+  assert.match(run('renderPage()'), /alt="Approved replacement cover"/);
 });
 
 test('photo submissions require fresh rights, reject full additions and allow full-capacity replacements', () => {
