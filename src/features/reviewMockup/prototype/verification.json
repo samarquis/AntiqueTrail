@@ -1,108 +1,55 @@
 {
   "artifact": "full-site.html",
-  "sha256": "937ca802833978003fc8733f3b609ef22bc6e1cb6984004aa4c3e3c134302b19",
+  "sha256": "b1fc89f7f8dd37f15f033df237b2bc630b3cd23c9312c1260fa9787a471c8bd1",
   "date": "2026-10-07",
-  "sourceRevision": "1d98b75f5a6ec233e57646df459784d3fe8d5059",
-  "baseRevision": "8654d77ce9499782c0d9a9de6550216842f93452",
-  "scope": "Standalone fictional local mockup only; no provider, publication or production acceptance.",
-  "evidence": "verification-replay.json",
+  "sourceRevision": "5372a359f9a33be33a95582b550371cc53a5803c",
+  "candidateRevision": "6e7041f29cbb1035ca098647a61082c6cbfa87f0",
+  "baseRevision": "fd9ff9f51a74c297b1919ef4766808a010272272",
+  "diffFingerprint": "d16476b1927a238318ad7126ae7deb5bc6d84d60",
+  "scope": "Focused local fictional support and photo continuation only; not publication, exhaustive whole-site browser acceptance or production proof.",
   "unitRegressions": {
     "command": "node --test src/features/reviewMockup/prototype/regression.test.mjs",
-    "suites": 15,
-    "passed": 15,
+    "tests": 25,
+    "passed": 25,
     "sourceRoleRenderPresentations": 390
   },
-  "browserAssertions": {
-    "total": 56,
-    "passed": 56,
-    "failed": 0
-  },
-  "roleMatrix": {
-    "presentations": 390,
-    "profiles": [
-      "Visitor",
-      "Mara",
-      "Alex",
-      "Evelyn",
-      "June"
-    ],
-    "fixture": "Fresh reload per role, unapproved owner, direct route presentations; browser assertions check headings and admin/owner gates."
-  },
-  "mobileSweep": {
-    "screens": 78,
-    "cssViewport": 320,
-    "documentOverflow": 0,
-    "mainLinksBelow48px": 0,
-    "sourceRevision": "c6543c0f95f4160b994d3c7aad91d96d598cd6d8"
-  },
-  "responsive": {
-    "presentations": 21,
+  "browser": {
+    "supportAssertions": 45,
+    "photoAssertions": 36,
+    "totalPassingAssertions": 81,
+    "responsivePresentations": 15,
     "widths": [
       320,
       390,
       1280
     ],
-    "surfaces": [
-      "store",
-      "plan",
-      "ready",
-      "visit",
-      "portal",
-      "admin-access",
-      "admin-claim"
-    ],
-    "documentOverflow": 0
+    "supportEvidence": "verification-support.json",
+    "photoEvidence": "verification-photo.json",
+    "carryForward": "Support captured at 7059ca5f; unchanged support functions, handlers, draft branches and CSS verified equal at final candidate. Photo replay captured at final candidate.",
+    "excludedAssertions": 1
   },
-  "themeIconContrast": [
-    {
-      "background": "rgb(135, 149, 181)",
-      "foreground": "rgb(17, 25, 35)",
-      "theme": "dark",
-      "state": "normal",
-      "ratio": 5.893408595177732
-    },
-    {
-      "background": "rgb(52, 74, 112)",
-      "foreground": "rgb(255, 255, 255)",
-      "theme": "light",
-      "state": "hover",
-      "ratio": 8.900209509233829
-    },
-    {
-      "background": "rgb(76, 98, 138)",
-      "foreground": "rgb(255, 255, 255)",
-      "theme": "light",
-      "state": "normal",
-      "ratio": 6.137894765782391
-    },
-    {
-      "background": "rgb(165, 181, 213)",
-      "foreground": "rgb(17, 25, 35)",
-      "theme": "dark",
-      "state": "hover",
-      "ratio": 8.566888353383453
-    }
-  ],
+  "detector": {
+    "exitCode": 0,
+    "findings": []
+  },
   "independentReview": {
+    "supportRevision": "7059ca5f92114b0c6c002d7fa4df5a8279b1e09b",
+    "photoRevision": "6e7041f29cbb1035ca098647a61082c6cbfa87f0",
+    "spec": "Clean focused final disposition",
+    "standards": "Clean focused final disposition"
+  },
+  "earlierBroadEvidence": {
     "sourceRevision": "1d98b75f5a6ec233e57646df459784d3fe8d5059",
-    "spec": "Clean focused final review",
-    "standards": "Clean focused final review",
-    "methods": "Two independent source/function reviews; separate rendered browser verification."
+    "receiptInGit": "fd9ff9f:src/features/reviewMockup/prototype/verification.json",
+    "evidence": "verification-replay.json",
+    "report": "completion-review.md",
+    "status": "Historical: prior 390 browser presentations,78 mobile screens and21 responsive presentations were not rerun for this continuation."
   },
-  "browserLogs": {
-    "errors": 0,
-    "warnings": 0
-  },
-  "carryForwardValidation": {
-    "functionalEvidenceSourceRevision": "be1d5109cee2431c611c531d0bd06e14919a10b0",
-    "inlineScriptIdentical": true,
-    "fullMobileSweepSourceRevision": "c6543c0f95f4160b994d3c7aad91d96d598cd6d8",
-    "cssIdenticalExceptThemeHoverColor": true,
-    "rendererIdentical": true
-  },
-  "unverified": [
-    "Real devices, Safari/Firefox, screen-reader operation and actual 200% browser zoom",
-    "Production accounts, authorization, persistence, email, routing, media, support and payment integrations",
-    "Paid prices, capacities and renewal/cancellation terms remain undecided"
+  "limits": [
+    "Reticle unavailable; supported CUA browser controls used without installing tooling.",
+    "25source regressions are not browser acceptance; role matrix source checks render/access gates only.",
+    "Real media processing, accounts, support delivery, persistence, maps, billing and hosted behavior remain simulated/unverified.",
+    "No physical touch, Safari/Firefox, screen reader or 200 percent browser zoom acceptance.",
+    "Local commits only; no push, PR, merge, document publication or deployment."
   ]
 }

@@ -1,0 +1,269 @@
+{
+  "sourceCommit": "7059ca5f92114b0c6c002d7fa4df5a8279b1e09b",
+  "htmlSha256": "7972a7a9d637276ed25cd7a508d1e1853c6c2afe57191778bf1c95496bcc15b0",
+  "scope": "Focused synthetic support continuation, fresh reload at final source; no full-site browser acceptance inferred",
+  "assertions": [
+    {
+      "name": "Mara request submitted",
+      "passed": true
+    },
+    {
+      "name": "Admin reply begins empty",
+      "passed": true
+    },
+    {
+      "name": "Evelyn does not receive Mara draft",
+      "passed": true
+    },
+    {
+      "name": "Returning to Mara restores her draft",
+      "passed": true
+    },
+    {
+      "name": "Shopper receives June first answer",
+      "passed": true
+    },
+    {
+      "name": "Submitted shopper reply clears composer",
+      "passed": true
+    },
+    {
+      "name": "Submitted admin reply clears composer",
+      "passed": true
+    },
+    {
+      "name": "Reopened record does not inherit submitted Resolved selection",
+      "passed": true
+    },
+    {
+      "name": "Admin retains all four turns in order",
+      "passed": true
+    },
+    {
+      "name": "Admin displays resolution history",
+      "passed": true
+    },
+    {
+      "name": "Admin current status remains Resolved",
+      "passed": true
+    },
+    {
+      "name": "Blank admin reply shows actionable validation",
+      "passed": true
+    },
+    {
+      "name": "Blank reply does not add a conversation turn",
+      "passed": true
+    },
+    {
+      "name": "offline does not add a conversation turn",
+      "passed": true
+    },
+    {
+      "name": "offline retains unsent reply",
+      "passed": true
+    },
+    {
+      "name": "error does not add a conversation turn",
+      "passed": true
+    },
+    {
+      "name": "error retains unsent reply",
+      "passed": true
+    },
+    {
+      "name": "expired does not add a conversation turn",
+      "passed": true
+    },
+    {
+      "name": "expired retains unsent reply",
+      "passed": true
+    },
+    {
+      "name": "Recovered status remains Resolved",
+      "passed": true
+    },
+    {
+      "name": "June own question reads back in personal context",
+      "passed": true
+    },
+    {
+      "name": "June personal context excludes reviewed Mara messages",
+      "passed": true
+    },
+    {
+      "name": "Admin queue lists June own request separately",
+      "passed": true
+    },
+    {
+      "name": "Shopper transcript contains four correct turns",
+      "passed": true
+    },
+    {
+      "name": "New question has a fresh composer",
+      "passed": true
+    },
+    {
+      "name": "New question does not contain previous conversation",
+      "passed": true
+    },
+    {
+      "name": "Original conversation remains accessible",
+      "passed": true
+    },
+    {
+      "name": "Original unsent reply stays with its request",
+      "passed": true
+    },
+    {
+      "name": "Queue preserves both Mara requests",
+      "passed": true
+    },
+    {
+      "name": "New request does not inherit earlier admin reply draft",
+      "passed": true
+    },
+    {
+      "name": "Audit distinguishes Mara Request 2 and Request 3",
+      "passed": true
+    },
+    {
+      "name": "Audit excludes message content",
+      "passed": true
+    },
+    {
+      "name": "Reopen preserves conversation and records resolution transition",
+      "passed": true
+    },
+    {
+      "name": "Alex cannot see Mara or June questions",
+      "passed": true
+    },
+    {
+      "name": "Owner sees only her own support thread",
+      "passed": true
+    },
+    {
+      "name": "Visitor support history requires sign-in",
+      "passed": true
+    },
+    {
+      "name": "Reopening resets stale pending admin status",
+      "passed": true
+    },
+    {
+      "name": "Reopening retains unsent admin reply text",
+      "passed": true
+    },
+    {
+      "name": "Admin support at 320 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "Admin support at 390 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "Admin support at 1280 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "Shopper support at 320 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "Shopper support at 390 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "Shopper support at 1280 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "Browser warning and error log remains empty",
+      "passed": true
+    }
+  ],
+  "responsive": [
+    {
+      "route": "admin-support",
+      "heading": "Reply to Mara\u2019s request",
+      "overflow": false,
+      "smallControls": [],
+      "width": 320
+    },
+    {
+      "route": "admin-support",
+      "heading": "Reply to Mara\u2019s request",
+      "overflow": false,
+      "smallControls": [],
+      "width": 390
+    },
+    {
+      "route": "admin-support",
+      "heading": "Reply to Mara\u2019s request",
+      "overflow": false,
+      "smallControls": [],
+      "width": 1280
+    },
+    {
+      "route": "support-detail",
+      "heading": "Using the site",
+      "overflow": false,
+      "smallControls": [],
+      "width": 320
+    },
+    {
+      "route": "support-detail",
+      "heading": "Using the site",
+      "overflow": false,
+      "smallControls": [],
+      "width": 390
+    },
+    {
+      "route": "support-detail",
+      "heading": "Using the site",
+      "overflow": false,
+      "smallControls": [],
+      "width": 1280
+    }
+  ],
+  "excludedAssertions": [
+    {
+      "name": "Shopper retains all four turns in order",
+      "passed": true,
+      "reason": "Bookkeeping predicate was tautological; excluded. Separate transcript-order assertion above performs the real check."
+    }
+  ],
+  "warningErrorLogs": [],
+  "finalDom": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: \u00b7 Fictional data \u00b7 Nothing is sent or charged\n- text: Mara \u00b7 shopper \u00b7 10/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper \u00b7 Mara\" [selected]\n  - option \"Other shopper \u00b7 Alex\"\n  - option \"Store owner \u00b7 Evelyn\"\n  - option \"Site admin \u00b7 June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\" [active]:\n- main:\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Using the site\" [level=1]\n  - paragraph: Request 2 \u00b7 Reopened\n  - heading \"Your requests\" [level=2]\n  - 'button \"Request 1: Support request \u00b7 Open\"'\n  - 'button \"Request 2: Using the site \u00b7 Reopened\"'\n  - 'button \"Request 3: Account access \u00b7 Resolved\"'\n  - link \"Ask another question\":\n    - /url: \"#request\"\n  - article:\n    - heading \"Your message\" [level=3]\n    - paragraph: Fictional Mara initial question <sample>.\n    - paragraph: \"Status: Submitted\"\n  - article:\n    - heading \"Support reply\" [level=3]\n    - paragraph: Fictional June first answer.\n    - paragraph: \"Status: Resolved\"\n  - article:\n    - heading \"Your message\" [level=3]\n    - paragraph: Fictional Mara follow-up.\n    - paragraph: \"Status: Reopened\"\n  - article:\n    - heading \"Support reply\" [level=3]\n    - paragraph: Fictional June final answer.\n    - paragraph: \"Status: Resolved\"\n  - article:\n    - heading \"Your message\" [level=3]\n    - paragraph: Mara marked this request Reopened.\n    - paragraph: \"Status: Reopened\"\n  - generic: Add a reply\n  - textbox \"Add a reply\": Fictional unsent reply about the original question.\n  - button \"Send reply\"\n  - button \"Back\"\n  - button \"Mark resolved\"\n- contentinfo:\n  - generic: Antique Trail \u00b7 A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\"",
+  "carryForward": {
+    "targetCandidate": "6e7041f29cbb1035ca098647a61082c6cbfa87f0",
+    "source": "7059ca5f92114b0c6c002d7fa4df5a8279b1e09b",
+    "checks": {
+      "function requester": true,
+      "function supportRequests": true,
+      "function requestIndex": true,
+      "function requestRecord": true,
+      "function setSupportStatus": true,
+      "function supportHistory": true,
+      "function supportMessages": true,
+      "function supportConversation": true,
+      "function clearSupportDraft": true,
+      "function stash": true,
+      "case'request':": true,
+      "case'support-detail':": true,
+      "case'support-reply':": true,
+      "case'admin-support':": true,
+      "case'review-support':": true,
+      "case'open-support':": true,
+      "case'support-status':": true,
+      "case'admin-audit':": true,
+      "function submit(": true,
+      "function action(": true,
+      "supportDraftKeysUnchanged": true,
+      "cssUnchanged": true
+    },
+    "limits": "Support browser replay was not relabeled as rerun; unaffected support source/handlers/geometry carry forward by explicit equality. Photo browser replay and25regressions ran on final candidate."
+  }
+}

@@ -1,5 +1,7 @@
 # Mockup completion review — 2026-10-07
 
+Historical broad review at `1d98b75f`; superseded for current-source acceptance by [continuation-review.md](continuation-review.md). Its receipt is recoverable at `fd9ff9f:src/features/reviewMockup/prototype/verification.json`; current verification.json describes the continuation.
+
 ## Candidate and scope
 
 - Owner: this chat; branch `codex/mockup-workflow-fixes`.

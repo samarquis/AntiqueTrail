@@ -1,0 +1,230 @@
+{
+  "candidate": "6e7041f29cbb1035ca098647a61082c6cbfa87f0",
+  "htmlSourceCommit": "5372a359f9a33be33a95582b550371cc53a5803c",
+  "htmlSha256": "b1fc89f7f8dd37f15f033df237b2bc630b3cd23c9312c1260fa9787a471c8bd1",
+  "scope": "Synthetic owner photo continuation, staged approved owner via All flows then actual actions; no real media or hosted acceptance",
+  "assertions": [
+    {
+      "name": "Pending addition does not consume approved capacity",
+      "passed": true
+    },
+    {
+      "name": "Pending addition stays outside approved owner images",
+      "passed": true
+    },
+    {
+      "name": "Approved addition consumes one gallery place",
+      "passed": true
+    },
+    {
+      "name": "Approved addition appears with supplied alt text",
+      "passed": true
+    },
+    {
+      "name": "Cover replacement labels its exact target",
+      "passed": true
+    },
+    {
+      "name": "New replacement requires fresh rights",
+      "passed": true
+    },
+    {
+      "name": "Pending cover replacement retains old approved cover",
+      "passed": true
+    },
+    {
+      "name": "Pending review protects gallery slots",
+      "passed": true
+    },
+    {
+      "name": "Admin reviews the exact cover replacement",
+      "passed": true
+    },
+    {
+      "name": "Approval states replacement preserves gallery usage",
+      "passed": true
+    },
+    {
+      "name": "Cover replacement preserves gallery count",
+      "passed": true
+    },
+    {
+      "name": "Owner cover shows approved replacement",
+      "passed": true
+    },
+    {
+      "name": "Owner overview shows approved cover",
+      "passed": true
+    },
+    {
+      "name": "Browse card shows approved cover",
+      "passed": true
+    },
+    {
+      "name": "Public store hero shows approved cover",
+      "passed": true
+    },
+    {
+      "name": "Public wall retains cover plus four gallery places",
+      "passed": true
+    },
+    {
+      "name": "Enlarged approved cover preserves description",
+      "passed": true
+    },
+    {
+      "name": "Gallery replacement preserves capacity",
+      "passed": true
+    },
+    {
+      "name": "Chosen gallery place receives replacement",
+      "passed": true
+    },
+    {
+      "name": "Other gallery place remains unchanged",
+      "passed": true
+    },
+    {
+      "name": "Second addition does not reuse completed rights check",
+      "passed": true
+    },
+    {
+      "name": "Final free gallery place reaches five used",
+      "passed": true
+    },
+    {
+      "name": "Full-capacity addition is rejected with a replacement path",
+      "passed": true
+    },
+    {
+      "name": "Offline photo submission retains draft and reports no save",
+      "passed": true
+    },
+    {
+      "name": "Replacement succeeds when gallery is full without increasing count",
+      "passed": true
+    },
+    {
+      "name": "Full-capacity replacement publishes exact cover",
+      "passed": true
+    },
+    {
+      "name": "photos at 320 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "photos at 390 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "photos at 1280 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "gallery at 320 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "gallery at 390 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "gallery at 1280 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "photo-upload at 320 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "photo-upload at 390 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "photo-upload at 1280 has no overflow or small task controls",
+      "passed": true
+    },
+    {
+      "name": "Photo browser warning and error log empty",
+      "passed": true
+    }
+  ],
+  "responsive": [
+    {
+      "route": "photos",
+      "heading": "Show shoppers around",
+      "overflow": false,
+      "smallControls": [],
+      "width": 320
+    },
+    {
+      "route": "photos",
+      "heading": "Show shoppers around",
+      "overflow": false,
+      "smallControls": [],
+      "width": 390
+    },
+    {
+      "route": "photos",
+      "heading": "Show shoppers around",
+      "overflow": false,
+      "smallControls": [],
+      "width": 1280
+    },
+    {
+      "route": "gallery",
+      "heading": "A closer look inside",
+      "overflow": false,
+      "smallControls": [],
+      "width": 320
+    },
+    {
+      "route": "gallery",
+      "heading": "A closer look inside",
+      "overflow": false,
+      "smallControls": [],
+      "width": 390
+    },
+    {
+      "route": "gallery",
+      "heading": "A closer look inside",
+      "overflow": false,
+      "smallControls": [],
+      "width": 1280
+    },
+    {
+      "route": "photo-upload",
+      "heading": "A good picture tells a story",
+      "overflow": false,
+      "smallControls": [],
+      "width": 320
+    },
+    {
+      "route": "photo-upload",
+      "heading": "A good picture tells a story",
+      "overflow": false,
+      "smallControls": [],
+      "width": 390
+    },
+    {
+      "route": "photo-upload",
+      "heading": "A good picture tells a story",
+      "overflow": false,
+      "smallControls": [],
+      "width": 1280
+    }
+  ],
+  "warningErrorLogs": [],
+  "baselineDefects": [
+    {
+      "source": "7059ca5f",
+      "finding": "Replacing cover after addition increased gallery usage from4 to5; rights remained checked."
+    }
+  ],
+  "failedAttempts": [
+    {
+      "reason": "After reload current photos route was already visited; exact guide link using not visited did not match. Inspected guide link and continued.",
+      "source": "92f530e5"
+    }
+  ]
+}
