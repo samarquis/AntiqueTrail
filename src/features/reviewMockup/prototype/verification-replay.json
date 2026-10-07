@@ -1,0 +1,3863 @@
+{
+  "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+  "sourceRevision": "473405e3237762943b6d1845e04fe7e9f20a0bf1",
+  "connectedReplay": [
+    {
+      "label": "Completed visit survives omitted review",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Cedar visited",
+          "passed": true
+        },
+        {
+          "expected": "Only one history entry",
+          "passed": true
+        },
+        {
+          "expected": "No skipped snapshot",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Mara · shopper · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\" [selected]\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\"\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Days you’ll want to remember\" [active] [level=1]\n  - paragraph: Completed routes stay read-only; your private notes remain editable.\n  - article:\n    - heading \"A Saturday in Topeka\" [level=2]\n    - paragraph: 2026-10-17 · 1 stops · read-only\n    - list:\n      - listitem: Cedar & Brass · Visited\n    - link \"Open private visit memories\":\n      - /url: \"#memories\"\n    - button \"Plan this trip again\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "Repeat asks for fresh date",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Date blank",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Mara · shopper · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\" [selected]\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\"\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Start with a date\" [active] [level=1]\n  - paragraph: Make a separate daily trip for each day of a weekend.\n  - generic: Trip name\n  - textbox \"Trip name\": A Saturday in Topeka again\n  - generic: Shopping date\n  - textbox \"Shopping date\"\n  - generic: Choose the new outing date. Stops are copied; earlier visits and memories remain with the original outing.\n  - button \"Create trip\"\n  - button \"Back\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "Other shopper history isolated",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Mara history hidden",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Alex · shopper · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\" [selected]\n  - option \"Store owner · Evelyn\"\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Days you’ll want to remember\" [active] [level=1]\n  - paragraph: Completed routes stay read-only; your private notes remain editable.\n  - heading \"No completed outings in this preview yet.\" [level=2]\n  - link \"Plan an outing\":\n    - /url: \"#plan\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "Anonymous private support gate",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Sign-in required",
+          "passed": true
+        },
+        {
+          "expected": "Private request hidden",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Visitor · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\" [selected]\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\"\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"Saved stores\":\n      - /url: \"#saved\"\n      - text: Saved stores\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Good to see you again\" [active] [level=1]\n  - paragraph: Sign in to continue where you left off.\n  - generic: Email\n  - textbox \"Email\": <redacted>\n  - generic: Password\n  - textbox \"Password\"\n  - generic: \"Demo only: use any fictional email and an invented password. No credentials are sent or stored.\"\n  - button \"Sign in\"\n  - button \"Back\"\n  - button \"Continue with a social account\"\n  - link \"Forgot password?\":\n    - /url: \"#forgot\"\n  - paragraph:\n    - text: New here?\n    - link \"Create an account\":\n      - /url: \"#signup\"\n  - button \"Cancel sign-in\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "Support answer returns to its requester",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Exact submitted request",
+          "passed": true
+        },
+        {
+          "expected": "Exact admin answer",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Mara · shopper · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\" [selected]\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\"\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Using the site\" [active] [level=1]\n  - paragraph: Request AT-DEMO-104 · Waiting on You\n  - article:\n    - heading \"Your message\" [level=3]\n    - paragraph: \"FINAL-MARA-REQUEST: sample navigation question.\"\n  - article:\n    - heading \"Support reply\" [level=3]\n    - paragraph: \"FINAL-MARA-ANSWER: sample reply.\"\n  - generic: Add a reply\n  - textbox \"Add a reply\"\n  - button \"Send reply\"\n  - button \"Back\"\n  - button \"Mark resolved\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "Support editor names selected shopper",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Mara heading",
+          "passed": true
+        },
+        {
+          "expected": "Mara reply field",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: June · admin · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\"\n  - option \"Site admin · June\" [selected]\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Reply to Mara’s request\" [active] [level=1]\n  - paragraph: Only the relevant support conversation is shown.\n  - complementary \"Administrator sections\":\n    - link \"Needs review\":\n      - /url: \"#admin\"\n    - link \"Access & Safety\":\n      - /url: \"#admin-access\"\n    - link \"Privileged activity\":\n      - /url: \"#admin-audit\"\n  - paragraph: \"FINAL-MARA-REQUEST: sample navigation question.\"\n  - generic: Reply to Mara\n  - textbox \"Reply to Mara\": \"FINAL-MARA-ANSWER: sample reply.\"\n  - generic: Status\n  - combobox \"Status\":\n    - option \"Waiting on You\" [selected]\n    - option \"In Review\"\n    - option \"Resolved\"\n  - button \"Send reply\"\n  - button \"Back\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "Commercial decisions remain explicit",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Price unresolved",
+          "passed": true
+        },
+        {
+          "expected": "Terms unresolved",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Evelyn · owner · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\" [selected]\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Review before you pay\" [active] [level=1]\n  - paragraph: Your approved Free listing remains independent of this choice.\n  - complementary \"Store sections\":\n    - link \"Store overview\":\n      - /url: \"#portal\"\n    - link \"Store information\":\n      - /url: \"#listing\"\n    - link \"Opening hours\":\n      - /url: \"#hours\"\n    - link \"Store photos\":\n      - /url: \"#photos\"\n    - link \"Store updates\":\n      - /url: \"#store-updates\"\n    - link \"Official social links\":\n      - /url: \"#social\"\n    - link \"Pending changes\":\n      - /url: \"#pending\"\n    - link \"Your photo plan\":\n      - /url: \"#billing\"\n    - link \"Access & Help\":\n      - /url: \"#owner-help\"\n  - heading \"Additional photo capacity\" [level=2]\n  - table:\n    - rowgroup:\n      - row \"Monthly price / tax Decision pending\":\n        - rowheader \"Monthly price / tax\"\n        - cell \"Decision pending\"\n      - row \"Included capacity Decision pending\":\n        - rowheader \"Included capacity\"\n        - cell \"Decision pending\"\n      - row \"Renewal / cancellation terms Final offer required before real checkout\":\n        - rowheader \"Renewal / cancellation terms\"\n        - cell \"Final offer required before real checkout\"\n  - generic: Photos occupy capacity until replaced or explicitly removed. No routine monthly deletion. Payment never approves your listing or images.\n  - checkbox \"I understand this is a fictional checkout walkthrough, not a purchasable offer.\"\n  - generic: I understand this is a fictional checkout walkthrough, not a purchasable offer.\n  - button \"Continue to simulated checkout\"\n  - button \"Back\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "Failed payment preserves Free listing",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Still Free",
+          "passed": true
+        },
+        {
+          "expected": "Failure visible",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Evelyn · owner · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\" [selected]\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Your photo plan\" [active] [level=1]\n  - paragraph: Blue Finch Curios\n  - complementary \"Store sections\":\n    - link \"Store overview\":\n      - /url: \"#portal\"\n    - link \"Store information\":\n      - /url: \"#listing\"\n    - link \"Opening hours\":\n      - /url: \"#hours\"\n    - link \"Store photos\":\n      - /url: \"#photos\"\n    - link \"Store updates\":\n      - /url: \"#store-updates\"\n    - link \"Official social links\":\n      - /url: \"#social\"\n    - link \"Pending changes\":\n      - /url: \"#pending\"\n    - link \"Your photo plan\":\n      - /url: \"#billing\"\n    - link \"Access & Help\":\n      - /url: \"#owner-help\"\n  - heading \"Free\" [level=2]\n  - paragraph: Your approved Free listing stays available.\n  - paragraph: Paid amounts, periods and capacity below are preview states, not an approved offer.\n  - link \"Explore photo plans\":\n    - /url: \"#plans\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\"\n- status:\n  - text: Payment failed in the preview. Your existing plan remains unchanged.\n  - button \"Dismiss\""
+    },
+    {
+      "label": "Applying for second store retains first grant",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Blue stays approved",
+          "passed": true
+        },
+        {
+          "expected": "Cedar independent draft",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Evelyn · owner · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\" [selected]\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - navigation \"Store workspaces\":\n    - generic: Store workspace\n    - combobox \"Store workspace\":\n      - option \"Blue Finch Curios · Approved\"\n      - option \"Cedar & Brass · Draft\" [selected]\n    - paragraph: Each store keeps its own grant, application, pending changes and billing preview.\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"One step at a time\" [active] [level=1]\n  - paragraph: Step 1 of 5 · Your store account and authority.\n  - checkbox \"I am the owner or authorized manager of this store.\"\n  - generic: I am the owner or authorized manager of this store.\n  - checkbox \"I understand that approval is required before I can manage the listing.\"\n  - generic: I understand that approval is required before I can manage the listing.\n  - checkbox \"I consent to publishing the approved store facts I provide.\"\n  - generic: I consent to publishing the approved store facts I provide.\n  - checkbox \"I understand approval starts a Free listing; any paid upgrade is optional and separate.\"\n  - generic: I understand approval starts a Free listing; any paid upgrade is optional and separate.\n  - generic: Consent wording is a walkthrough summary, not a replacement for the approved invitation or commercial agreement.\n  - button \"Continue to account security\"\n  - button \"Back\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "Second store cannot inherit billing",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Free plan",
+          "passed": true
+        },
+        {
+          "expected": "No payment",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Evelyn · owner · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\" [selected]\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - navigation \"Store workspaces\":\n    - generic: Store workspace\n    - combobox \"Store workspace\":\n      - option \"Blue Finch Curios · Approved\"\n      - option \"Cedar & Brass · Draft\" [selected]\n    - paragraph: Each store keeps its own grant, application, pending changes and billing preview.\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"One step at a time\" [level=1]\n  - paragraph: Step 1 of 5 · Your store account and authority.\n  - checkbox \"I am the owner or authorized manager of this store.\"\n  - generic: I am the owner or authorized manager of this store.\n  - checkbox \"I understand that approval is required before I can manage the listing.\"\n  - generic: I understand that approval is required before I can manage the listing.\n  - checkbox \"I consent to publishing the approved store facts I provide.\"\n  - generic: I consent to publishing the approved store facts I provide.\n  - checkbox \"I understand approval starts a Free listing; any paid upgrade is optional and separate.\"\n  - generic: I understand approval starts a Free listing; any paid upgrade is optional and separate.\n  - generic: Consent wording is a walkthrough summary, not a replacement for the approved invitation or commercial agreement.\n  - button \"Continue to account security\"\n  - button \"Back\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\"\n- dialog \"Every flow, in one place\":\n  - article:\n    - heading \"Every flow, in one place\" [level=2]\n    - button \"Close\" [active]\n    - paragraph: Explore 78 screens using fictional data. A screen link stages the appropriate demo role. For connected behavior, start a journey and use the site’s own actions.\n    - button \"Visitor → favorite → trip\"\n    - button \"Store application → approval\"\n    - button \"Invited owner setup\"\n    - button \"Owner → paid plan\"\n    - button \"Admin review & revoke\"\n    - paragraph: Return guest means a returning signed-in shopper; choose Visitor to preview an anonymous return. Store manager and store owner share exact-store permission. Site Admin is a separate account.\n    - heading \"Visitor\" [level=2]\n    - link \"Browse stores visited\":\n      - /url: \"#browse\"\n      - generic: Browse stores\n      - generic \"visited\": Viewed\n    - link \"Search results visited\":\n      - /url: \"#results\"\n      - generic: Search results\n      - generic \"visited\": Viewed\n    - link \"Nearby stores visited\":\n      - /url: \"#nearby\"\n      - generic: Nearby stores\n      - generic \"visited\": Viewed\n    - link \"Explore the area visited\":\n      - /url: \"#map\"\n      - generic: Explore the area\n      - generic \"visited\": Viewed\n    - link \"Store details visited\":\n      - /url: \"#store\"\n      - generic: Store details\n      - generic \"visited\": Viewed\n    - link \"Photo wall visited\":\n      - /url: \"#gallery\"\n      - generic: Photo wall\n      - generic \"visited\": Viewed\n    - link \"Store news visited\":\n      - /url: \"#updates\"\n      - generic: Store news\n      - generic \"visited\": Viewed\n    - link \"Report a correction visited\":\n      - /url: \"#correction\"\n      - generic: Report a correction\n      - generic \"visited\": Viewed\n    - link \"For store owners visited\":\n      - /url: \"#for-stores\"\n      - generic: For store owners\n      - generic \"visited\": Viewed\n    - link \"Privacy visited\":\n      - /url: \"#privacy\"\n      - generic: Privacy\n      - generic \"visited\": Viewed\n    - link \"Terms preview visited\":\n      - /url: \"#terms\"\n      - generic: Terms preview\n      - generic \"visited\": Viewed\n    - heading \"Accounts\" [level=2]\n    - link \"Sign in visited\":\n      - /url: \"#signin\"\n      - generic: Sign in\n      - generic \"visited\": Viewed\n    - link \"Create your account visited\":\n      - /url: \"#signup\"\n      - generic: Create your account\n      - generic \"visited\": Viewed\n    - link \"Check your email visited\":\n      - /url: \"#verify\"\n      - generic: Check your email\n      - generic \"visited\": Viewed\n    - link \"Reset your password visited\":\n      - /url: \"#forgot\"\n      - generic: Reset your password\n      - generic \"visited\": Viewed\n    - link \"Choose a new password visited\":\n      - /url: \"#reset-password\"\n      - generic: Choose a new password\n      - generic \"visited\": Viewed\n    - link \"Your second security check visited\":\n      - /url: \"#mfa\"\n      - generic: Your second security check\n      - generic \"visited\": Viewed\n    - link \"Protect your store account visited\":\n      - /url: \"#mfa-setup\"\n      - generic: Protect your store account\n      - generic \"visited\": Viewed\n    - link \"Account & Privacy visited\":\n      - /url: \"#account\"\n      - generic: Account & Privacy\n      - generic \"visited\": Viewed\n    - link \"Your details visited\":\n      - /url: \"#profile\"\n      - generic: Your details\n      - generic \"visited\": Viewed\n    - link \"Sign-in & security visited\":\n      - /url: \"#security\"\n      - generic: Sign-in & security\n      - generic \"visited\": Viewed\n    - link \"Export your data visited\":\n      - /url: \"#export\"\n      - generic: Export your data\n      - generic \"visited\": Viewed\n    - link \"Delete your account visited\":\n      - /url: \"#delete-account\"\n      - generic: Delete your account\n      - generic \"visited\": Viewed\n    - link \"Account deletion scheduled visited\":\n      - /url: \"#deletion-status\"\n      - generic: Account deletion scheduled\n      - generic \"visited\": Viewed\n    - heading \"Shopper & outing\" [level=2]\n    - link \"Your favorite stores visited\":\n      - /url: \"#saved\"\n      - generic: Your favorite stores\n      - generic \"visited\": Viewed\n    - link \"Add to a trip visited\":\n      - /url: \"#trip-chooser\"\n      - generic: Add to a trip\n      - generic \"visited\": Viewed\n    - link \"Plan a new day out visited\":\n      - /url: \"#new-trip\"\n      - generic: Plan a new day out\n      - generic \"visited\": Viewed\n    - link \"Plan your day visited\":\n      - /url: \"#plan\"\n      - generic: Plan your day\n      - generic \"visited\": Viewed\n    - link \"Add an unlisted stop visited\":\n      - /url: \"#private-stop\"\n      - generic: Add an unlisted stop\n      - generic \"visited\": Viewed\n    - link \"Check My Day visited\":\n      - /url: \"#suggestion\"\n      - generic: Check My Day\n      - generic \"visited\": Viewed\n    - link \"Review Hours visited\":\n      - /url: \"#review-hours\"\n      - generic: Review Hours\n      - generic \"visited\": Viewed\n    - link \"Ready for your day out? visited\":\n      - /url: \"#ready\"\n      - generic: Ready for your day out?\n      - generic \"visited\": Viewed\n    - link \"Your next stop visited\":\n      - /url: \"#go\"\n      - generic: Your next stop\n      - generic \"visited\": Viewed\n    - link \"Remember this visit visited\":\n      - /url: \"#visit\"\n      - generic: Remember this visit\n      - generic \"visited\": Viewed\n    - link \"Your day, remembered visited\":\n      - /url: \"#summary\"\n      - generic: Your day, remembered\n      - generic \"visited\": Viewed\n    - link \"Past outings visited\":\n      - /url: \"#history\"\n      - generic: Past outings\n      - generic \"visited\": Viewed\n    - link \"Your private memories visited\":\n      - /url: \"#memories\"\n      - generic: Your private memories\n      - generic \"visited\": Viewed\n    - link \"A memory worth keeping visited\":\n      - /url: \"#memory\"\n      - generic: A memory worth keeping\n      - generic \"visited\": Viewed\n    - link \"Your store summary visited\":\n      - /url: \"#store-memory\"\n      - generic: Your store summary\n      - generic \"visited\": Viewed\n    - link \"How can we help? visited\":\n      - /url: \"#help\"\n      - generic: How can we help?\n      - generic \"visited\": Viewed\n    - link \"Ask for help visited\":\n      - /url: \"#request\"\n      - generic: Ask for help\n      - generic \"visited\": Viewed\n    - link \"Your support request visited\":\n      - /url: \"#support-detail\"\n      - generic: Your support request\n      - generic \"visited\": Viewed\n    - heading \"Store onboarding\" [level=2]\n    - link \"Your store invitation visited\":\n      - /url: \"#owner-invite\"\n      - generic: Your store invitation\n      - generic \"visited\": Viewed\n    - link \"Find your store visited\":\n      - /url: \"#owner-search\"\n      - generic: Find your store\n      - generic \"visited\": Viewed\n    - link \"A useful listing starts here visited\":\n      - /url: \"#owner-consent\"\n      - generic: A useful listing starts here\n      - generic \"visited\": Viewed\n    - link \"Tell us about your store visited\":\n      - /url: \"#owner-facts\"\n      - generic: Tell us about your store\n      - generic \"visited\": Viewed\n    - link \"When can shoppers visit? visited\":\n      - /url: \"#owner-hours\"\n      - generic: When can shoppers visit?\n      - generic \"visited\": Viewed\n    - link \"Confirm your authority visited\":\n      - /url: \"#owner-evidence\"\n      - generic: Confirm your authority\n      - generic \"visited\": Viewed\n    - link \"Review your application visited\":\n      - /url: \"#owner-review\"\n      - generic: Review your application\n      - generic \"visited\": Viewed\n    - link \"Your application visited\":\n      - /url: \"#owner-status\"\n      - generic: Your application\n      - generic \"visited\": Viewed\n    - link \"Welcome to your store workspace visited\":\n      - /url: \"#owner-activate\"\n      - generic: Welcome to your store workspace\n      - generic \"visited\": Viewed\n    - heading \"Store management\" [level=2]\n    - link \"Store overview visited\":\n      - /url: \"#portal\"\n      - generic: Store overview\n      - generic \"visited\": Viewed\n    - link \"Store information visited\":\n      - /url: \"#listing\"\n      - generic: Store information\n      - generic \"visited\": Viewed\n    - link \"Opening hours visited\":\n      - /url: \"#hours\"\n      - generic: Opening hours\n      - generic \"visited\": Viewed\n    - link \"Store photos visited\":\n      - /url: \"#photos\"\n      - generic: Store photos\n      - generic \"visited\": Viewed\n    - link \"Add a store photo visited\":\n      - /url: \"#photo-upload\"\n      - generic: Add a store photo\n      - generic \"visited\": Viewed\n    - link \"Store updates visited\":\n      - /url: \"#store-updates\"\n      - generic: Store updates\n      - generic \"visited\": Viewed\n    - link \"Write a store update visited\":\n      - /url: \"#update-edit\"\n      - generic: Write a store update\n      - generic \"visited\": Viewed\n    - link \"Official social links visited\":\n      - /url: \"#social\"\n      - generic: Official social links\n      - generic \"visited\": Viewed\n    - link \"Pending changes visited\":\n      - /url: \"#pending\"\n      - generic: Pending changes\n      - generic \"visited\": Viewed\n    - link \"Closure & controlled changes visited\":\n      - /url: \"#closure\"\n      - generic: Closure & controlled changes\n      - generic \"visited\": Viewed\n    - link \"Access & Help visited\":\n      - /url: \"#owner-help\"\n      - generic: Access & Help\n      - generic \"visited\": Viewed\n    - heading \"Paid photo plans\" [level=2]\n    - link \"More room for your store visited\":\n      - /url: \"#plans\"\n      - generic: More room for your store\n      - generic \"visited\": Viewed\n    - link \"Review your photo plan visited\":\n      - /url: \"#offer\"\n      - generic: Review your photo plan\n      - generic \"visited\": Viewed\n    - link \"Simulated secure checkout visited\":\n      - /url: \"#checkout\"\n      - generic: Simulated secure checkout\n      - generic \"visited\": Viewed\n    - link \"Your photo plan visited\":\n      - /url: \"#billing\"\n      - generic: Your photo plan\n      - generic \"visited\": Viewed\n    - link \"Simulated billing portal visited\":\n      - /url: \"#billing-portal\"\n      - generic: Simulated billing portal\n      - generic \"visited\": Viewed\n    - heading \"Site admin\" [level=2]\n    - link \"Needs review visited\":\n      - /url: \"#admin\"\n      - generic: Needs review\n      - generic \"visited\": Viewed\n    - link \"Review store authority visited\":\n      - /url: \"#admin-claim\"\n      - generic: Review store authority\n      - generic \"visited\": Viewed\n    - link \"Review a listing change visited\":\n      - /url: \"#admin-change\"\n      - generic: Review a listing change\n      - generic \"visited\": Viewed\n    - link \"Review a store photo visited\":\n      - /url: \"#admin-photo\"\n      - generic: Review a store photo\n      - generic \"visited\": Viewed\n    - link \"Reply to a support request visited\":\n      - /url: \"#admin-support\"\n      - generic: Reply to a support request\n      - generic \"visited\": Viewed\n    - link \"Access & Safety visited\":\n      - /url: \"#admin-access\"\n      - generic: Access & Safety\n      - generic \"visited\": Viewed\n    - link \"Revoke store access visited\":\n      - /url: \"#admin-revoke\"\n      - generic: Revoke store access\n      - generic \"visited\": Viewed\n    - link \"Privileged activity visited\":\n      - /url: \"#admin-audit\"\n      - generic: Privileged activity\n      - generic \"visited\": Viewed\n    - heading \"Navigation & protection\" [level=2]\n    - link \"More from Antique Trail visited\":\n      - /url: \"#more\"\n      - generic: More from Antique Trail\n      - generic \"visited\": Viewed\n    - link \"Add to Home Screen visited\":\n      - /url: \"#install\"\n      - generic: Add to Home Screen\n      - generic \"visited\": Viewed\n    - link \"This page is not available to this account visited\":\n      - /url: \"#denied\"\n      - generic: This page is not available to this account\n      - generic \"visited\": Viewed\n    - heading \"Not part of this spec\" [level=2]\n    - paragraph: AI item identification, public reviews, team editing, private-trip sharing, offline synchronization and advanced billing schedules remain deferred. They have no pretend production screens here.\n    - heading \"Preview state\" [level=2]\n    - paragraph:\n      - text: \"Application: Draft\"\n      - text: \"Store access: not approved\"\n      - text: \"Photo: Approved\"\n      - text: \"Plan: Free\"\n      - text: \"Payment: none\"\n    - button \"Reset all demo data\""
+    },
+    {
+      "label": "Switching back restores original billing",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Blue plan restored",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Evelyn · owner · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\" [selected]\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - navigation \"Store workspaces\":\n    - generic: Store workspace\n    - combobox \"Store workspace\":\n      - option \"Blue Finch Curios · Approved\" [selected]\n      - option \"Cedar & Brass · Draft\"\n    - paragraph: Each store keeps its own grant, application, pending changes and billing preview.\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Your photo plan\" [active] [level=1]\n  - paragraph: Blue Finch Curios\n  - complementary \"Store sections\":\n    - link \"Store overview\":\n      - /url: \"#portal\"\n    - link \"Store information\":\n      - /url: \"#listing\"\n    - link \"Opening hours\":\n      - /url: \"#hours\"\n    - link \"Store photos\":\n      - /url: \"#photos\"\n    - link \"Store updates\":\n      - /url: \"#store-updates\"\n    - link \"Official social links\":\n      - /url: \"#social\"\n    - link \"Pending changes\":\n      - /url: \"#pending\"\n    - link \"Your photo plan\":\n      - /url: \"#billing\"\n    - link \"Access & Help\":\n      - /url: \"#owner-help\"\n  - heading \"Additional photo capacity (demo)\" [level=2]\n  - paragraph: Simulated paid subscription active. No actual charge.\n  - paragraph: Paid amounts, periods and capacity below are preview states, not an approved offer.\n  - link \"Manage payment and subscription\":\n    - /url: \"#billing-portal\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "All pending image updates stay reviewable",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "First pending item",
+          "passed": true
+        },
+        {
+          "expected": "Second pending item",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: June · admin · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\"\n  - option \"Site admin · June\" [selected]\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - navigation \"Store workspaces\":\n    - generic: Store workspace\n    - combobox \"Store workspace\":\n      - option \"Blue Finch Curios · Approved\" [selected]\n      - option \"Cedar & Brass · Draft\"\n    - paragraph: Each store keeps its own grant, application, pending changes and billing preview.\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Needs review\" [active] [level=1]\n  - paragraph: June Sample · Site Admin · Separate privileged account\n  - complementary \"Administrator sections\":\n    - link \"Needs review\":\n      - /url: \"#admin\"\n    - link \"Access & Safety\":\n      - /url: \"#admin-access\"\n    - link \"Privileged activity\":\n      - /url: \"#admin-audit\"\n  - generic: Review store authority and controlled changes. Shopper-private favorites, trips, ratings and notes are not available here.\n  - link \"Store application Blue Finch Curios · Draft\":\n    - /url: \"#admin-claim\"\n    - strong: Store application\n    - generic: Blue Finch Curios · Draft\n  - link \"Store facts Blue Finch Curios · Illustrative pending example\":\n    - /url: \"#admin-change\"\n    - strong: Store facts\n    - generic: Blue Finch Curios · Illustrative pending example\n  - link \"Photo approval Blue Finch Curios · Approved\":\n    - /url: \"#admin-photo\"\n    - strong: Photo approval\n    - generic: Blue Finch Curios · Approved\n  - heading \"Update images awaiting review\" [level=2]\n  - article:\n    - heading \"FINAL-BLUE-IMAGE-TWO\" [level=3]\n    - paragraph: Store News\n    - button \"Review update image\"\n  - article:\n    - heading \"FINAL-BLUE-IMAGE-ONE\" [level=3]\n    - paragraph: Store News\n    - button \"Review update image\"\n  - heading \"Support requests\" [level=2]\n  - article:\n    - heading \"Mara · Using the site\" [level=3]\n    - paragraph: Waiting on You\n    - button \"Review support request\"\n  - article:\n    - heading \"Evelyn · Support request\" [level=3]\n    - paragraph: Open\n    - button \"Review support request\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "One approval leaves other image pending",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Second remains",
+          "passed": true
+        },
+        {
+          "expected": "First removed from queue",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: June · admin · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\"\n  - option \"Site admin · June\" [selected]\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - navigation \"Store workspaces\":\n    - generic: Store workspace\n    - combobox \"Store workspace\":\n      - option \"Blue Finch Curios · Approved\" [selected]\n      - option \"Cedar & Brass · Draft\"\n    - paragraph: Each store keeps its own grant, application, pending changes and billing preview.\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Needs review\" [active] [level=1]\n  - paragraph: June Sample · Site Admin · Separate privileged account\n  - complementary \"Administrator sections\":\n    - link \"Needs review\":\n      - /url: \"#admin\"\n    - link \"Access & Safety\":\n      - /url: \"#admin-access\"\n    - link \"Privileged activity\":\n      - /url: \"#admin-audit\"\n  - generic: Review store authority and controlled changes. Shopper-private favorites, trips, ratings and notes are not available here.\n  - link \"Store application Blue Finch Curios · Draft\":\n    - /url: \"#admin-claim\"\n    - strong: Store application\n    - generic: Blue Finch Curios · Draft\n  - link \"Store facts Blue Finch Curios · Illustrative pending example\":\n    - /url: \"#admin-change\"\n    - strong: Store facts\n    - generic: Blue Finch Curios · Illustrative pending example\n  - link \"Photo approval Blue Finch Curios · Approved\":\n    - /url: \"#admin-photo\"\n    - strong: Photo approval\n    - generic: Blue Finch Curios · Approved\n  - heading \"Update images awaiting review\" [level=2]\n  - article:\n    - heading \"FINAL-BLUE-IMAGE-TWO\" [level=3]\n    - paragraph: Store News\n    - button \"Review update image\"\n  - heading \"Support requests\" [level=2]\n  - article:\n    - heading \"Mara · Using the site\" [level=3]\n    - paragraph: Waiting on You\n    - button \"Review support request\"\n  - article:\n    - heading \"Evelyn · Support request\" [level=3]\n    - paragraph: Open\n    - button \"Review support request\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\"\n- status:\n  - text: Sample image approved. Audit recorded.\n  - button \"Dismiss\""
+    },
+    {
+      "label": "Approved news only reaches correct public store",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "First public",
+          "passed": true
+        },
+        {
+          "expected": "Rejected second hidden",
+          "passed": true
+        },
+        {
+          "expected": "Image public",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: June · admin · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\"\n  - option \"Site admin · June\" [selected]\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - navigation \"Store workspaces\":\n    - generic: Store workspace\n    - combobox \"Store workspace\":\n      - option \"Blue Finch Curios · Approved\" [selected]\n      - option \"Cedar & Brass · Draft\"\n    - paragraph: Each store keeps its own grant, application, pending changes and billing preview.\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Blue Finch Curios\" [active] [level=1]\n  - paragraph: Topeka · Furniture & finds\n  - img \"Fictional Blue Finch Curios interior\"\n  - button \"Favorite\":\n    - text: Favorite\n  - button \"Share store\"\n  - button \"Add to Trip\"\n  - button \"Navigate\"\n  - heading \"A little about the shop\" [level=2]\n  - paragraph: A quiet aisle, a cabinet full of stories, and something unexpected around every corner. Browse vintage furniture, brass curios and well-loved decorative pieces.\n  - heading \"Inside the store\" [level=2]\n  - img \"Fictional antique-shop display\"\n  - img \"Fictional antique-shop display\"\n  - img \"Fictional antique-shop display\"\n  - paragraph:\n    - link \"Open the photo wall\":\n      - /url: \"#gallery\"\n  - heading \"What’s new\" [level=2]\n  - article:\n    - heading \"FINAL-BLUE-IMAGE-ONE\" [level=2]\n    - paragraph: First sample image update.\n    - img \"Warm antique shop with display cabinets and pottery\"\n    - paragraph: Store News\n  - article:\n    - heading \"A cabinet full of new finds\" [level=2]\n    - paragraph: A new cabinet of brass finds is waiting by the window.\n    - paragraph: Store News\n  - link \"See all store updates\":\n    - /url: \"#updates\"\n  - complementary:\n    - heading \"Plan your visit\" [level=3]\n    - paragraph: 18 Sample Lane, Topeka — fictional\n    - paragraph:\n      - strong: Today\n      - text: 10:00–17:00\n    - list:\n      - listitem: \"Monday: Closed\"\n      - listitem: \"Tuesday: 10:00–17:00\"\n      - listitem: \"Wednesday: 10:00–17:00\"\n      - listitem: \"Thursday: 10:00–17:00\"\n      - listitem: \"Friday: 10:00–17:00\"\n      - listitem: \"Saturday: 10:00–17:00\"\n      - listitem: \"Sunday: Closed\"\n    - paragraph: \"Today: 2026-10-07 · America/Chicago\"\n    - paragraph: Phone not supplied\n    - paragraph: Website not supplied\n    - paragraph: Illustrative hours and contact information. No real navigation will open.\n    - button \"View official social link\"\n    - link \"Report a correction\":\n      - /url: \"#correction\"\n    - link \"Is this your store? Claim this listing\":\n      - /url: \"#owner-search\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "Other store receives no borrowed news",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Blue headline excluded",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: June · admin · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\"\n  - option \"Site admin · June\" [selected]\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - navigation \"Store workspaces\":\n    - generic: Store workspace\n    - combobox \"Store workspace\":\n      - option \"Blue Finch Curios · Approved\" [selected]\n      - option \"Cedar & Brass · Draft\"\n    - paragraph: Each store keeps its own grant, application, pending changes and billing preview.\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Cedar & Brass\" [active] [level=1]\n  - paragraph: Topeka · Copper & brass\n  - img \"Fictional Cedar & Brass interior\"\n  - button \"Favorite\":\n    - text: Favorite\n  - button \"Share store\"\n  - button \"Add to Trip\"\n  - button \"Navigate\"\n  - heading \"A little about the shop\" [level=2]\n  - paragraph: Old brass, good books and beautifully useful objects. Take your time among the shelves and talk with someone who knows the story behind the find.\n  - heading \"Inside the store\" [level=2]\n  - img \"Fictional antique-shop display\"\n  - img \"Fictional antique-shop display\"\n  - img \"Fictional antique-shop display\"\n  - paragraph:\n    - link \"Open the photo wall\":\n      - /url: \"#gallery\"\n  - heading \"What’s new\" [level=2]\n  - generic: No current published updates.\n  - link \"See all store updates\":\n    - /url: \"#updates\"\n  - complementary:\n    - heading \"Plan your visit\" [level=3]\n    - paragraph: 42 Example Avenue, Topeka — fictional\n    - paragraph:\n      - strong: Today\n      - text: 11:00–18:00\n    - list:\n      - listitem: \"Monday: Closed\"\n      - listitem: \"Tuesday: 11:00–18:00\"\n      - listitem: \"Wednesday: 11:00–18:00\"\n      - listitem: \"Thursday: 11:00–18:00\"\n      - listitem: \"Friday: 11:00–18:00\"\n      - listitem: \"Saturday: 11:00–18:00\"\n      - listitem: \"Sunday: Closed\"\n    - paragraph: \"Today: 2026-10-07 · America/Chicago\"\n    - paragraph: Phone not supplied\n    - paragraph: Website not supplied\n    - paragraph: Illustrative hours and contact information. No real navigation will open.\n    - button \"View official social link\"\n    - link \"Report a correction\":\n      - /url: \"#correction\"\n    - link \"Is this your store? Claim this listing\":\n      - /url: \"#owner-search\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "Rejected image reason returns to owner",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Exact reason",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Evelyn · owner · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\" [selected]\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - navigation \"Store workspaces\":\n    - generic: Store workspace\n    - combobox \"Store workspace\":\n      - option \"Blue Finch Curios · Approved\" [selected]\n      - option \"Cedar & Brass · Draft\"\n    - paragraph: Each store keeps its own grant, application, pending changes and billing preview.\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"What’s happening in your shop?\" [active] [level=1]\n  - paragraph: Blue Finch Curios\n  - complementary \"Store sections\":\n    - link \"Store overview\":\n      - /url: \"#portal\"\n    - link \"Store information\":\n      - /url: \"#listing\"\n    - link \"Opening hours\":\n      - /url: \"#hours\"\n    - link \"Store photos\":\n      - /url: \"#photos\"\n    - link \"Store updates\":\n      - /url: \"#store-updates\"\n    - link \"Official social links\":\n      - /url: \"#social\"\n    - link \"Pending changes\":\n      - /url: \"#pending\"\n    - link \"Your photo plan\":\n      - /url: \"#billing\"\n    - link \"Access & Help\":\n      - /url: \"#owner-help\"\n  - article:\n    - heading \"FINAL-BLUE-IMAGE-TWO\" [level=2]\n    - paragraph: Second sample image update.\n    - paragraph: \"Rejected: FINAL-IMAGE-REJECT: sample crop needs revision. · Store News\"\n    - button \"Edit update\"\n    - button \"Archive update\"\n  - article:\n    - heading \"FINAL-BLUE-IMAGE-ONE\" [level=2]\n    - paragraph: First sample image update.\n    - paragraph: Published · Store News\n    - button \"Edit update\"\n    - button \"Archive update\"\n  - article:\n    - heading \"A cabinet full of new finds\" [level=2]\n    - paragraph: A new cabinet of brass finds is waiting by the window.\n    - paragraph: Published · Store News\n    - button \"Edit update\"\n    - button \"Archive update\"\n  - button \"Write a new update\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    },
+    {
+      "label": "Reversed hours rejected without losing draft",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Validation",
+          "passed": true
+        },
+        {
+          "expected": "Draft opening retained",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Evelyn · owner · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\" [selected]\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - navigation \"Store workspaces\":\n    - generic: Store workspace\n    - combobox \"Store workspace\":\n      - option \"Blue Finch Curios · Approved\" [selected]\n      - option \"Cedar & Brass · Draft\"\n    - paragraph: Each store keeps its own grant, application, pending changes and billing preview.\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"When is your shop open?\" [level=1]\n  - paragraph: Hours publish immediately after your confirmation.\n  - complementary \"Store sections\":\n    - link \"Store overview\":\n      - /url: \"#portal\"\n    - link \"Store information\":\n      - /url: \"#listing\"\n    - link \"Opening hours\":\n      - /url: \"#hours\"\n    - link \"Store photos\":\n      - /url: \"#photos\"\n    - link \"Store updates\":\n      - /url: \"#store-updates\"\n    - link \"Official social links\":\n      - /url: \"#social\"\n    - link \"Pending changes\":\n      - /url: \"#pending\"\n    - link \"Your photo plan\":\n      - /url: \"#billing\"\n    - link \"Access & Help\":\n      - /url: \"#owner-help\"\n  - generic: Monday\n  - combobox \"Monday\":\n    - option \"Open\"\n    - option \"Closed\" [selected]\n  - textbox \"Monday opening time\": 10:00\n  - textbox \"Monday closing time\": 17:00\n  - generic: Tuesday\n  - combobox \"Tuesday\":\n    - option \"Open\" [selected]\n    - option \"Closed\"\n  - textbox \"Tuesday opening time\": 18:00\n  - textbox \"Tuesday closing time\": 10:00\n  - generic: Wednesday\n  - combobox \"Wednesday\":\n    - option \"Open\" [selected]\n    - option \"Closed\"\n  - textbox \"Wednesday opening time\": 10:00\n  - textbox \"Wednesday closing time\": 17:00\n  - generic: Thursday\n  - combobox \"Thursday\":\n    - option \"Open\" [selected]\n    - option \"Closed\"\n  - textbox \"Thursday opening time\": 10:00\n  - textbox \"Thursday closing time\": 17:00\n  - generic: Friday\n  - combobox \"Friday\":\n    - option \"Open\" [selected]\n    - option \"Closed\"\n  - textbox \"Friday opening time\": 10:00\n  - textbox \"Friday closing time\": 17:00\n  - generic: Saturday\n  - combobox \"Saturday\":\n    - option \"Open\" [selected]\n    - option \"Closed\"\n  - textbox \"Saturday opening time\": 10:00\n  - textbox \"Saturday closing time\": 17:00\n  - generic: Sunday\n  - combobox \"Sunday\":\n    - option \"Open\"\n    - option \"Closed\" [selected]\n  - textbox \"Sunday opening time\": 10:00\n  - textbox \"Sunday closing time\": 17:00\n  - generic: \"Optional second range: day\"\n  - 'textbox \"Optional second range: day\"'\n  - generic: Second range opens\n  - textbox \"Second range opens\"\n  - generic: Second range closes\n  - textbox \"Second range closes\"\n  - generic: Dated exception (optional)\n  - textbox \"Dated exception (optional)\"\n  - generic: Exception note\n  - textbox \"Exception note\"\n  - generic: \"Preview: regular hours apply for the next 14 days unless you add an exception.\"\n  - button \"Save and confirm hours\" [active]\n  - button \"Back\"\n  - button \"Copy Tuesday hours to weekdays\"\n  - button \"Preview next 14 days\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\"\n- status:\n  - text: \"Tuesday: closing time must be later than opening time. Overnight hours are not represented in this preview.\"\n  - button \"Dismiss\""
+    },
+    {
+      "label": "Overlapping split hours rejected",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "Overlap validation",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Evelyn · owner · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\" [selected]\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - navigation \"Store workspaces\":\n    - generic: Store workspace\n    - combobox \"Store workspace\":\n      - option \"Blue Finch Curios · Approved\" [selected]\n      - option \"Cedar & Brass · Draft\"\n    - paragraph: Each store keeps its own grant, application, pending changes and billing preview.\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"When is your shop open?\" [level=1]\n  - paragraph: Hours publish immediately after your confirmation.\n  - complementary \"Store sections\":\n    - link \"Store overview\":\n      - /url: \"#portal\"\n    - link \"Store information\":\n      - /url: \"#listing\"\n    - link \"Opening hours\":\n      - /url: \"#hours\"\n    - link \"Store photos\":\n      - /url: \"#photos\"\n    - link \"Store updates\":\n      - /url: \"#store-updates\"\n    - link \"Official social links\":\n      - /url: \"#social\"\n    - link \"Pending changes\":\n      - /url: \"#pending\"\n    - link \"Your photo plan\":\n      - /url: \"#billing\"\n    - link \"Access & Help\":\n      - /url: \"#owner-help\"\n  - generic: Monday\n  - combobox \"Monday\":\n    - option \"Open\"\n    - option \"Closed\" [selected]\n  - textbox \"Monday opening time\": 10:00\n  - textbox \"Monday closing time\": 17:00\n  - generic: Tuesday\n  - combobox \"Tuesday\":\n    - option \"Open\" [selected]\n    - option \"Closed\"\n  - textbox \"Tuesday opening time\": 11:00\n  - textbox \"Tuesday closing time\": 16:00\n  - generic: Wednesday\n  - combobox \"Wednesday\":\n    - option \"Open\" [selected]\n    - option \"Closed\"\n  - textbox \"Wednesday opening time\": 10:00\n  - textbox \"Wednesday closing time\": 17:00\n  - generic: Thursday\n  - combobox \"Thursday\":\n    - option \"Open\" [selected]\n    - option \"Closed\"\n  - textbox \"Thursday opening time\": 10:00\n  - textbox \"Thursday closing time\": 17:00\n  - generic: Friday\n  - combobox \"Friday\":\n    - option \"Open\" [selected]\n    - option \"Closed\"\n  - textbox \"Friday opening time\": 10:00\n  - textbox \"Friday closing time\": 17:00\n  - generic: Saturday\n  - combobox \"Saturday\":\n    - option \"Open\" [selected]\n    - option \"Closed\"\n  - textbox \"Saturday opening time\": 10:00\n  - textbox \"Saturday closing time\": 17:00\n  - generic: Sunday\n  - combobox \"Sunday\":\n    - option \"Open\"\n    - option \"Closed\" [selected]\n  - textbox \"Sunday opening time\": 10:00\n  - textbox \"Sunday closing time\": 17:00\n  - generic: \"Optional second range: day\"\n  - 'textbox \"Optional second range: day\"': Tuesday\n  - generic: Second range opens\n  - textbox \"Second range opens\": 14:00\n  - generic: Second range closes\n  - textbox \"Second range closes\": 18:00\n  - generic: Dated exception (optional)\n  - textbox \"Dated exception (optional)\"\n  - generic: Exception note\n  - textbox \"Exception note\"\n  - generic: \"Preview: regular hours apply for the next 14 days unless you add an exception.\"\n  - button \"Save and confirm hours\" [active]\n  - button \"Back\"\n  - button \"Copy Tuesday hours to weekdays\"\n  - button \"Preview next 14 days\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\"\n- status:\n  - text: Second range must be later than and must not overlap the first range.\n  - button \"Dismiss\""
+    },
+    {
+      "label": "Valid owner hours reach public listing",
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "results": [
+        {
+          "expected": "New Tuesday hours",
+          "passed": true
+        }
+      ],
+      "text": "- link \"Skip to content\":\n  - /url: \"#main\"\n- strong: Interactive mockup\n- text: · Fictional data · Nothing is sent or charged\n- text: Evelyn · owner · 78/78 screens visited\n- text: View as\n- combobox \"View as\":\n  - option \"Visitor\"\n  - option \"Returning shopper · Mara\"\n  - option \"Other shopper · Alex\"\n  - option \"Store owner · Evelyn\" [selected]\n  - option \"Site admin · June\"\n- text: State\n- combobox \"State\":\n  - option \"Normal\" [selected]\n  - option \"Loading\"\n  - option \"Empty\"\n  - option \"Request failed\"\n  - option \"Offline\"\n  - option \"Expired session/link\"\n  - option \"Access denied\"\n- button \"All flows\"\n- banner:\n  - link \"Antique Trail\":\n    - /url: \"#browse\"\n    - text: Antique Trail\n  - navigation \"Main navigation\":\n    - link \"Browse\":\n      - /url: \"#browse\"\n      - text: Browse\n    - link \"My Trip\":\n      - /url: \"#plan\"\n      - text: My Trip\n    - link \"More\":\n      - /url: \"#more\"\n      - text: More\n  - button \"Switch light or dark theme\":\n- main:\n  - navigation \"Store workspaces\":\n    - generic: Store workspace\n    - combobox \"Store workspace\":\n      - option \"Blue Finch Curios · Approved\" [selected]\n      - option \"Cedar & Brass · Draft\"\n    - paragraph: Each store keeps its own grant, application, pending changes and billing preview.\n  - link \"Browse stores\":\n    - /url: \"#browse\"\n    - text: Browse stores\n  - heading \"Blue Finch Curios\" [active] [level=1]\n  - paragraph: Topeka · Furniture & finds\n  - img \"Fictional Blue Finch Curios interior\"\n  - button \"Favorite\":\n    - text: Favorite\n  - button \"Share store\"\n  - button \"Add to Trip\"\n  - button \"Navigate\"\n  - heading \"A little about the shop\" [level=2]\n  - paragraph: A quiet aisle, a cabinet full of stories, and something unexpected around every corner. Browse vintage furniture, brass curios and well-loved decorative pieces.\n  - heading \"Inside the store\" [level=2]\n  - img \"Fictional antique-shop display\"\n  - img \"Fictional antique-shop display\"\n  - img \"Fictional antique-shop display\"\n  - paragraph:\n    - link \"Open the photo wall\":\n      - /url: \"#gallery\"\n  - heading \"What’s new\" [level=2]\n  - article:\n    - heading \"FINAL-BLUE-IMAGE-ONE\" [level=2]\n    - paragraph: First sample image update.\n    - img \"Warm antique shop with display cabinets and pottery\"\n    - paragraph: Store News\n  - article:\n    - heading \"A cabinet full of new finds\" [level=2]\n    - paragraph: A new cabinet of brass finds is waiting by the window.\n    - paragraph: Store News\n  - link \"See all store updates\":\n    - /url: \"#updates\"\n  - complementary:\n    - heading \"Plan your visit\" [level=3]\n    - paragraph: 18 Sample Lane, Topeka — fictional\n    - paragraph:\n      - strong: Today\n      - text: 10:00–17:00\n    - list:\n      - listitem: \"Monday: Closed\"\n      - listitem: \"Tuesday: 11:00–16:00\"\n      - listitem: \"Wednesday: 10:00–17:00\"\n      - listitem: \"Thursday: 10:00–17:00\"\n      - listitem: \"Friday: 10:00–17:00\"\n      - listitem: \"Saturday: 10:00–17:00\"\n      - listitem: \"Sunday: Closed\"\n    - paragraph: \"Today: 2026-10-07 · America/Chicago\"\n    - paragraph: Phone not supplied\n    - paragraph: Website not supplied\n    - paragraph: Illustrative hours and contact information. No real navigation will open.\n    - button \"View official social link\"\n    - link \"Report a correction\":\n      - /url: \"#correction\"\n    - link \"Is this your store? Claim this listing\":\n      - /url: \"#owner-search\"\n- contentinfo:\n  - generic: Antique Trail · A day of good finds.\n  - link \"For stores\":\n    - /url: \"#for-stores\"\n  - link \"Help\":\n    - /url: \"#help\"\n  - link \"Privacy\":\n    - /url: \"#privacy\"\n  - link \"Terms\":\n    - /url: \"#terms\"\n  - link \"Install\":\n    - /url: \"#install\""
+    }
+  ],
+  "pageSweep": [
+    {
+      "route": "#browse",
+      "heading": "Discover local antiques.",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#results",
+      "heading": "Find your next favorite",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#nearby",
+      "heading": "A good day out, nearby",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#map",
+      "heading": "Explore the area",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#store",
+      "heading": "Blue Finch Curios",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#gallery",
+      "heading": "A closer look inside",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#updates",
+      "heading": "News from the shop",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#correction",
+      "heading": "Report a correction",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#for-stores",
+      "heading": "Give your shop a welcoming front door",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#privacy",
+      "heading": "Private by design",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#terms",
+      "heading": "Terms preview",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#signin",
+      "heading": "Good to see you again",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#signup",
+      "heading": "Make room for your next day out",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#verify",
+      "heading": "Check your inbox",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#forgot",
+      "heading": "Find your way back",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#reset-password",
+      "heading": "Choose a new password",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#mfa",
+      "heading": "Your second security check",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#mfa-setup",
+      "heading": "Protect your store account",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#account",
+      "heading": "Account & Privacy",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#profile",
+      "heading": "Your details",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#security",
+      "heading": "Sign-in & security",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#export",
+      "heading": "Take a copy with you",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#delete-account",
+      "heading": "Delete your account",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#deletion-status",
+      "heading": "Deletion scheduled",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#saved",
+      "heading": "Mara’s favorite stores",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#trip-chooser",
+      "heading": "Where should this stop go?",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#new-trip",
+      "heading": "Start with a date",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#plan",
+      "heading": "A Saturday in Topeka",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#private-stop",
+      "heading": "A shop you found elsewhere",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#suggestion",
+      "heading": "A comfortable order for your day",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#review-hours",
+      "heading": "Review hours in your order",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#ready",
+      "heading": "Ready for your day out?",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#go",
+      "heading": "Stop 1 of 2",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#visit",
+      "heading": "What will you remember?",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#summary",
+      "heading": "A day worth remembering",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#history",
+      "heading": "Days you’ll want to remember",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#memories",
+      "heading": "Your private memories",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#memory",
+      "heading": "Keep the useful details",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#store-memory",
+      "heading": "Your history with Blue Finch Curios",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#help",
+      "heading": "How can we help?",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#request",
+      "heading": "Tell us what you need",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#support-detail",
+      "heading": "Your support request",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#owner-invite",
+      "heading": "Welcome to Antique Trail",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#owner-search",
+      "heading": "Is your shop already here?",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#owner-consent",
+      "heading": "One step at a time",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#owner-facts",
+      "heading": "Store name",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#owner-hours",
+      "heading": "Help people plan a visit",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#owner-evidence",
+      "heading": "Confirm you can speak for the shop",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#owner-review",
+      "heading": "Does everything look right?",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#owner-status",
+      "heading": "We’ll help you get ready",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#owner-activate",
+      "heading": "Your shop is ready for you",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#portal",
+      "heading": "Welcome back, Evelyn",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#listing",
+      "heading": "Keep your store facts useful",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#hours",
+      "heading": "When is your shop open?",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#photos",
+      "heading": "Show shoppers around",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#photo-upload",
+      "heading": "A good picture tells a story",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#store-updates",
+      "heading": "What’s happening in your shop?",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#update-edit",
+      "heading": "Give shoppers a reason to stop by",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#social",
+      "heading": "Official social profiles",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#pending",
+      "heading": "What is waiting for review?",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#closure",
+      "heading": "Keep the listing accurate",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#owner-help",
+      "heading": "Access & Help",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#plans",
+      "heading": "A little more space to show your shop",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#offer",
+      "heading": "Review before you pay",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#checkout",
+      "heading": "Secure checkout preview",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#billing",
+      "heading": "Your photo plan",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#billing-portal",
+      "heading": "Billing portal preview",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#admin",
+      "heading": "Needs review",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#admin-claim",
+      "heading": "Review store authority",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#admin-change",
+      "heading": "Review a store change",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#admin-photo",
+      "heading": "Review a store photo",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#admin-support",
+      "heading": "Reply to Evelyn’s request",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#admin-access",
+      "heading": "Access & Safety",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#admin-revoke",
+      "heading": "Revoke this store’s access",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#admin-audit",
+      "heading": "Privileged activity",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#more",
+      "heading": "A little more Antique Trail",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#install",
+      "heading": "Keep Antique Trail close",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    },
+    {
+      "route": "#denied",
+      "heading": "This page is not available to this account",
+      "problem": false,
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb"
+    }
+  ],
+  "roleMatrix": [
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#browse",
+      "heading": "Discover local antiques.",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#results",
+      "heading": "Find your next favorite",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#nearby",
+      "heading": "A good day out, nearby",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#map",
+      "heading": "Explore the area",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#store",
+      "heading": "Blue Finch Curios",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#gallery",
+      "heading": "A closer look inside",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#updates",
+      "heading": "News from the shop",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#correction",
+      "heading": "Report a correction",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#for-stores",
+      "heading": "Give your shop a welcoming front door",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#privacy",
+      "heading": "Private by design",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#terms",
+      "heading": "Terms preview",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#signin",
+      "heading": "Good to see you again",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#signup",
+      "heading": "Make room for your next day out",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#verify",
+      "heading": "Check your inbox",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#forgot",
+      "heading": "Find your way back",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#reset-password",
+      "heading": "Choose a new password",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#mfa",
+      "heading": "Your second security check",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#mfa-setup",
+      "heading": "Protect your store account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#account",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#profile",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#security",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#export",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#delete-account",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#deletion-status",
+      "heading": "Deletion scheduled",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#saved",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#trip-chooser",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#new-trip",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#plan",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#private-stop",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#suggestion",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#review-hours",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#ready",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#go",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#visit",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#summary",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#history",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#memories",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#memory",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#store-memory",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#help",
+      "heading": "How can we help?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#request",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#support-detail",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#owner-invite",
+      "heading": "Welcome to Antique Trail",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#owner-search",
+      "heading": "Is your shop already here?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#owner-consent",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#owner-facts",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#owner-hours",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#owner-evidence",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#owner-review",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#owner-status",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#owner-activate",
+      "heading": "Good to see you again",
+      "expected": "sign-in",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#portal",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#listing",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#hours",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#photos",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#photo-upload",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#store-updates",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#update-edit",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#social",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#pending",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#closure",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#owner-help",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#plans",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#offer",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#checkout",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#billing",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#billing-portal",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#admin",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#admin-claim",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#admin-change",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#admin-photo",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#admin-support",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#admin-access",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#admin-revoke",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#admin-audit",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#more",
+      "heading": "A little more Antique Trail",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#install",
+      "heading": "Keep Antique Trail close",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "visitor",
+      "route": "#denied",
+      "heading": "This page is not available to this account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#browse",
+      "heading": "Discover local antiques.",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#results",
+      "heading": "Find your next favorite",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#nearby",
+      "heading": "A good day out, nearby",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#map",
+      "heading": "Explore the area",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#store",
+      "heading": "Blue Finch Curios",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#gallery",
+      "heading": "A closer look inside",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#updates",
+      "heading": "News from the shop",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#correction",
+      "heading": "Report a correction",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#for-stores",
+      "heading": "Give your shop a welcoming front door",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#privacy",
+      "heading": "Private by design",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#terms",
+      "heading": "Terms preview",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#signin",
+      "heading": "Good to see you again",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#signup",
+      "heading": "Make room for your next day out",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#verify",
+      "heading": "Check your inbox",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#forgot",
+      "heading": "Find your way back",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#reset-password",
+      "heading": "Choose a new password",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#mfa",
+      "heading": "Your second security check",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#mfa-setup",
+      "heading": "Protect your store account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#account",
+      "heading": "Account & Privacy",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#profile",
+      "heading": "Your details",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#security",
+      "heading": "Sign-in & security",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#export",
+      "heading": "Take a copy with you",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#delete-account",
+      "heading": "Delete your account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#deletion-status",
+      "heading": "Deletion scheduled",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#saved",
+      "heading": "Mara’s favorite stores",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#trip-chooser",
+      "heading": "Where should this stop go?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#new-trip",
+      "heading": "Start with a date",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#plan",
+      "heading": "A Saturday in Topeka",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#private-stop",
+      "heading": "A shop you found elsewhere",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#suggestion",
+      "heading": "A comfortable order for your day",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#review-hours",
+      "heading": "Review hours in your order",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#ready",
+      "heading": "Ready for your day out?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#go",
+      "heading": "Stop 1 of 2",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#visit",
+      "heading": "What will you remember?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#summary",
+      "heading": "A day worth remembering",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#history",
+      "heading": "Days you’ll want to remember",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#memories",
+      "heading": "Your private memories",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#memory",
+      "heading": "Keep the useful details",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#store-memory",
+      "heading": "Your history with Blue Finch Curios",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#help",
+      "heading": "How can we help?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#request",
+      "heading": "Tell us what you need",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#support-detail",
+      "heading": "Your support request",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#owner-invite",
+      "heading": "Welcome to Antique Trail",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#owner-search",
+      "heading": "Is your shop already here?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#owner-consent",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#owner-facts",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#owner-hours",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#owner-evidence",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#owner-review",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#owner-status",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#owner-activate",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#portal",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#listing",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#hours",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#photos",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#photo-upload",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#store-updates",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#update-edit",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#social",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#pending",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#closure",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#owner-help",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#plans",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#offer",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#checkout",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#billing",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#billing-portal",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#admin",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#admin-claim",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#admin-change",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#admin-photo",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#admin-support",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#admin-access",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#admin-revoke",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#admin-audit",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#more",
+      "heading": "A little more Antique Trail",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#install",
+      "heading": "Keep Antique Trail close",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "shopper",
+      "route": "#denied",
+      "heading": "This page is not available to this account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#browse",
+      "heading": "Discover local antiques.",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#results",
+      "heading": "Find your next favorite",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#nearby",
+      "heading": "A good day out, nearby",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#map",
+      "heading": "Explore the area",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#store",
+      "heading": "Blue Finch Curios",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#gallery",
+      "heading": "A closer look inside",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#updates",
+      "heading": "News from the shop",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#correction",
+      "heading": "Report a correction",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#for-stores",
+      "heading": "Give your shop a welcoming front door",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#privacy",
+      "heading": "Private by design",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#terms",
+      "heading": "Terms preview",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#signin",
+      "heading": "Good to see you again",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#signup",
+      "heading": "Make room for your next day out",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#verify",
+      "heading": "Check your inbox",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#forgot",
+      "heading": "Find your way back",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#reset-password",
+      "heading": "Choose a new password",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#mfa",
+      "heading": "Your second security check",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#mfa-setup",
+      "heading": "Protect your store account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#account",
+      "heading": "Account & Privacy",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#profile",
+      "heading": "Your details",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#security",
+      "heading": "Sign-in & security",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#export",
+      "heading": "Take a copy with you",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#delete-account",
+      "heading": "Delete your account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#deletion-status",
+      "heading": "Deletion scheduled",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#saved",
+      "heading": "Alex’s favorite stores",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#trip-chooser",
+      "heading": "Where should this stop go?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#new-trip",
+      "heading": "Start with a date",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#plan",
+      "heading": "Plan a day out",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#private-stop",
+      "heading": "A shop you found elsewhere",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#suggestion",
+      "heading": "A comfortable order for your day",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#review-hours",
+      "heading": "Review hours in your order",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#ready",
+      "heading": "Ready for your day out?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#go",
+      "heading": "Your stops are complete",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#visit",
+      "heading": "What will you remember?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#summary",
+      "heading": "A day worth remembering",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#history",
+      "heading": "Days you’ll want to remember",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#memories",
+      "heading": "Your private memories",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#memory",
+      "heading": "Keep the useful details",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#store-memory",
+      "heading": "Your history with Blue Finch Curios",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#help",
+      "heading": "How can we help?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#request",
+      "heading": "Tell us what you need",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#support-detail",
+      "heading": "Your support requests",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#owner-invite",
+      "heading": "Welcome to Antique Trail",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#owner-search",
+      "heading": "Is your shop already here?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#owner-consent",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#owner-facts",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#owner-hours",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#owner-evidence",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#owner-review",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#owner-status",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#owner-activate",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#portal",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#listing",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#hours",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#photos",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#photo-upload",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#store-updates",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#update-edit",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#social",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#pending",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#closure",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#owner-help",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#plans",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#offer",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#checkout",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#billing",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#billing-portal",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#admin",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#admin-claim",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#admin-change",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#admin-photo",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#admin-support",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#admin-access",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#admin-revoke",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#admin-audit",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#more",
+      "heading": "A little more Antique Trail",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#install",
+      "heading": "Keep Antique Trail close",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "other",
+      "route": "#denied",
+      "heading": "This page is not available to this account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#browse",
+      "heading": "Discover local antiques.",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#results",
+      "heading": "Find your next favorite",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#nearby",
+      "heading": "A good day out, nearby",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#map",
+      "heading": "Explore the area",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#store",
+      "heading": "Blue Finch Curios",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#gallery",
+      "heading": "A closer look inside",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#updates",
+      "heading": "News from the shop",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#correction",
+      "heading": "Report a correction",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#for-stores",
+      "heading": "Give your shop a welcoming front door",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#privacy",
+      "heading": "Private by design",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#terms",
+      "heading": "Terms preview",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#signin",
+      "heading": "Good to see you again",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#signup",
+      "heading": "Make room for your next day out",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#verify",
+      "heading": "Check your inbox",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#forgot",
+      "heading": "Find your way back",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#reset-password",
+      "heading": "Choose a new password",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#mfa",
+      "heading": "Your second security check",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#mfa-setup",
+      "heading": "Protect your store account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#account",
+      "heading": "Account & Privacy",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#profile",
+      "heading": "Your details",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#security",
+      "heading": "Sign-in & security",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#export",
+      "heading": "Take a copy with you",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#delete-account",
+      "heading": "Delete your account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#deletion-status",
+      "heading": "Deletion scheduled",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#saved",
+      "heading": "Evelyn’s favorite stores",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#trip-chooser",
+      "heading": "Where should this stop go?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#new-trip",
+      "heading": "Start with a date",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#plan",
+      "heading": "Plan a day out",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#private-stop",
+      "heading": "A shop you found elsewhere",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#suggestion",
+      "heading": "A comfortable order for your day",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#review-hours",
+      "heading": "Review hours in your order",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#ready",
+      "heading": "Ready for your day out?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#go",
+      "heading": "Your stops are complete",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#visit",
+      "heading": "What will you remember?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#summary",
+      "heading": "A day worth remembering",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#history",
+      "heading": "Days you’ll want to remember",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#memories",
+      "heading": "Your private memories",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#memory",
+      "heading": "Keep the useful details",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#store-memory",
+      "heading": "Your history with Blue Finch Curios",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#help",
+      "heading": "How can we help?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#request",
+      "heading": "Tell us what you need",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#support-detail",
+      "heading": "Your support request",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#owner-invite",
+      "heading": "Welcome to Antique Trail",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#owner-search",
+      "heading": "Is your shop already here?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#owner-consent",
+      "heading": "One step at a time",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#owner-facts",
+      "heading": "Store name",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#owner-hours",
+      "heading": "Help people plan a visit",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#owner-evidence",
+      "heading": "Confirm you can speak for the shop",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#owner-review",
+      "heading": "Does everything look right?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#owner-status",
+      "heading": "We’ll help you get ready",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#owner-activate",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#portal",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#listing",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#hours",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#photos",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#photo-upload",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#store-updates",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#update-edit",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#social",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#pending",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#closure",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#owner-help",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#plans",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#offer",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#checkout",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#billing",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#billing-portal",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#admin",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#admin-claim",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#admin-change",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#admin-photo",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#admin-support",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#admin-access",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#admin-revoke",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#admin-audit",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#more",
+      "heading": "A little more Antique Trail",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#install",
+      "heading": "Keep Antique Trail close",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "owner",
+      "route": "#denied",
+      "heading": "This page is not available to this account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#browse",
+      "heading": "Discover local antiques.",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#results",
+      "heading": "Find your next favorite",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#nearby",
+      "heading": "A good day out, nearby",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#map",
+      "heading": "Explore the area",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#store",
+      "heading": "Blue Finch Curios",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#gallery",
+      "heading": "A closer look inside",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#updates",
+      "heading": "News from the shop",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#correction",
+      "heading": "Report a correction",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#for-stores",
+      "heading": "Give your shop a welcoming front door",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#privacy",
+      "heading": "Private by design",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#terms",
+      "heading": "Terms preview",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#signin",
+      "heading": "Good to see you again",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#signup",
+      "heading": "Make room for your next day out",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#verify",
+      "heading": "Check your inbox",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#forgot",
+      "heading": "Find your way back",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#reset-password",
+      "heading": "Choose a new password",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#mfa",
+      "heading": "Your second security check",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#mfa-setup",
+      "heading": "Protect your store account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#account",
+      "heading": "Account & Privacy",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#profile",
+      "heading": "Your details",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#security",
+      "heading": "Sign-in & security",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#export",
+      "heading": "Take a copy with you",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#delete-account",
+      "heading": "Delete your account",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#deletion-status",
+      "heading": "Deletion scheduled",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#saved",
+      "heading": "June’s favorite stores",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#trip-chooser",
+      "heading": "Where should this stop go?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#new-trip",
+      "heading": "Start with a date",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#plan",
+      "heading": "Plan a day out",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#private-stop",
+      "heading": "A shop you found elsewhere",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#suggestion",
+      "heading": "A comfortable order for your day",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#review-hours",
+      "heading": "Review hours in your order",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#ready",
+      "heading": "Ready for your day out?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#go",
+      "heading": "Your stops are complete",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#visit",
+      "heading": "What will you remember?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#summary",
+      "heading": "A day worth remembering",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#history",
+      "heading": "Days you’ll want to remember",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#memories",
+      "heading": "Your private memories",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#memory",
+      "heading": "Keep the useful details",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#store-memory",
+      "heading": "Your history with Blue Finch Curios",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#help",
+      "heading": "How can we help?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#request",
+      "heading": "Tell us what you need",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#support-detail",
+      "heading": "Your support request",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#owner-invite",
+      "heading": "Welcome to Antique Trail",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#owner-search",
+      "heading": "Is your shop already here?",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#owner-consent",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#owner-facts",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#owner-hours",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#owner-evidence",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#owner-review",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#owner-status",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#owner-activate",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#portal",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#listing",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#hours",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#photos",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#photo-upload",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#store-updates",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#update-edit",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#social",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#pending",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#closure",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#owner-help",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#plans",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#offer",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#checkout",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#billing",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#billing-portal",
+      "heading": "This page is not available to this account",
+      "expected": "gate",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#admin",
+      "heading": "Needs review",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#admin-claim",
+      "heading": "Review store authority",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#admin-change",
+      "heading": "Review a store change",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#admin-photo",
+      "heading": "Review a store photo",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#admin-support",
+      "heading": "Reply to Evelyn’s request",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#admin-access",
+      "heading": "Access & Safety",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#admin-revoke",
+      "heading": "Revoke this store’s access",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#admin-audit",
+      "heading": "Privileged activity",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#more",
+      "heading": "A little more Antique Trail",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#install",
+      "heading": "Keep Antique Trail close",
+      "expected": "page",
+      "passed": true
+    },
+    {
+      "sourceSha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
+      "role": "admin",
+      "route": "#denied",
+      "heading": "This page is not available to this account",
+      "expected": "page",
+      "passed": true
+    }
+  ]
+}

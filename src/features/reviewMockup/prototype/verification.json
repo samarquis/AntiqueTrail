@@ -1,83 +1,70 @@
 {
   "artifact": "full-site.html",
-  "sha256": "006c68100dbdd3851e9e5aaeffefcbb8e43fa595a2c773f6dbf282433d6368ea",
+  "sha256": "b37b9b23e166fa78eb32f2b0b681c964c675731903c72b372784de710dd2a2cb",
   "date": "2026-10-07",
-  "scope": "Standalone fictional browser mockup only; not application/backend/hosted/production proof.",
+  "sourceRevision": "473405e3237762943b6d1845e04fe7e9f20a0bf1",
+  "baseRevision": "2ccaebde37df8d00930e2114488c73dffb51683a",
+  "scope": "Standalone fictional local mockup only. No backend, hosted, publication or production claim.",
+  "evidence": "verification-replay.json",
   "renderSweep": {
     "screens": 78,
-    "errors": [],
-    "problems": []
+    "detectedProblems": 0,
+    "missingHeadings": 0
   },
-  "connectedJourneys": {
-    "checks": [
-      "JIT account setup retains selected store",
-      "Private stop added without public listing",
-      "Visit and skip finish into read-only history",
-      "Repeat preserves history and creates draft",
-      "Share payload is public store URL only",
-      "Other shopper cannot see Mara memories",
-      "Unapproved application cannot change public name",
-      "Owner waits for independent approval",
-      "Approval grants exact-store Free workspace",
-      "Photo stays pending review",
-      "Admin approves photo",
-      "Failed payment preserves Free plan",
-      "Abandoned checkout preserves Free plan",
-      "Paid cancellation changes demo state without deleting photos",
-      "Revoked owner is denied",
-      "Offline retains unsent form and blocks save",
-      "Retry can save retained draft",
-      "Reload resets fictional data"
+  "roleMatrix": {
+    "presentations": 390,
+    "passed": 390,
+    "profiles": [
+      "Visitor",
+      "Mara",
+      "Alex",
+      "Evelyn",
+      "June"
     ],
-    "errors": [],
-    "externalRequests": []
+    "fixture": "Fresh page for each role; owner unapproved. Directory staging tested separately."
   },
-  "reviewRegressions": {
-    "checks": [
-      "Cross-account unsent note not restored",
-      "Other account has no private start",
-      "Memory editor uses selected rating return and note",
-      "Full weekly schedule and exception published",
-      "Social destination saved and visible",
-      "Controlled change reviewer sees submitted type and details",
-      "Approval preserves unrelated name",
-      "Applied route exactly matches displayed suggestion",
-      "Invited owner completes eight progressive draft questions",
-      "Support isolated from owner request"
+  "connectedReplay": {
+    "scope": "Focused final-source connected regressions. Earlier exploratory logs excluded.",
+    "assertions": 33,
+    "observations": 19,
+    "passed": 33,
+    "failed": 0
+  },
+  "independentReview": {
+    "sourceRevision": "473405e3237762943b6d1845e04fe7e9f20a0bf1",
+    "spec": "Clean focused review",
+    "methods": "Read-only source and isolated function/state checks, separate from browser acceptance.",
+    "standards": "Clean focused review"
+  },
+  "responsive": {
+    "horizontalOverflow": 0,
+    "plannerWidths": [
+      390,
+      320
     ],
-    "errors": []
+    "applicationReviewWidths": [
+      390
+    ],
+    "desktopWidth": 1280
   },
-  "finalOnboardingRevisit": {
-    "questionIndex": 8,
-    "result": "Reset to first question; retained sample name; no browser errors"
+  "browserLogs": {
+    "errors": 0,
+    "warnings": 0
   },
-  "standaloneFile": "Opened file:// with all directory screens; no server required.",
-  "review": "Independent finish reviewer: ship for scored fixes; all eight findings resolved across two repair batches.",
-  "viewports": [
-    {
-      "width": 1440,
-      "height": 1000
-    },
-    {
-      "width": 390,
-      "height": 844
-    },
-    {
-      "width": 320,
-      "height": 800
-    }
+  "staticChecks": [
+    "Inline JavaScript syntax passed",
+    "Git diff whitespace passed",
+    "Impeccable mechanical detector returned no findings"
   ],
-  "unverified": [
-    "Real authentication, email, storage, location, route provider, payment and installation",
-    "Persistent/reopened real accounts and data",
-    "Full assistive technology and 200 percent zoom acceptance",
-    "Human outing and owner usability acceptance",
-    "All possible combinations of demo states"
+  "openDecisions": [
+    "Paid amount/tax, capacity and plan count",
+    "Renewal/cancellation dates and retained-photo visibility"
   ],
-  "owner": "Current full-site mockup chat",
-  "branch": "codex/prototype-full-site",
-  "baseline": "28b9cc8cba71a9a260b0ab4be1612fcf3442e6c3",
-  "risk": "Low: fictional standalone HTML, no runtime integration",
-  "acceptance": "Preserve approved Browse identity; expose target roles and journeys; keep paid choices provisional and services simulated; isolate fictional account records",
-  "candidateBinding": "Exact full-site.html SHA256; adding this receipt does not change artifact bytes"
+  "limits": [
+    "Reticle unavailable; supported manual browser verification used",
+    "No exhaustive action or accessibility claim",
+    "Authentication, persistence, maps, media, support delivery, payments and lifecycle integrations unverified",
+    "Original base verification receipt is historical and does not apply to this HTML"
+  ],
+  "report": "workflow-review.md"
 }

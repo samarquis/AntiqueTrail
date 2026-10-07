@@ -2,7 +2,7 @@
 
 Open [full-site.html](full-site.html) to explore the target shopper, owner and administrator journeys with fictional data. This standalone prototype preserves the supplied Browse composition and incumbent Midnight Archive/Daylight Archive visual language.
 
-Keep this work on `codex/prototype-full-site`, separate from main. It is a review artifact, not authorization to implement, merge, publish, activate billing or deploy. Screen coverage is not product acceptance or proof that production services implement these flows.
+Keep the repaired artifact on `codex/mockup-workflow-fixes`, separate from main. It is a review artifact, not authorization to implement, merge, publish, activate billing or deploy. Screen coverage is not product acceptance or proof that production services implement these flows.
 
 ## Run and explore
 
@@ -42,14 +42,13 @@ Route names below are prototype hash fragments, not production URLs. Source docu
 
 All stores, people, invitations, accounts, requests, grants, audit entries and transactions are fictional. Data changes affect in-memory JavaScript only. The prototype does not connect to production authentication, a database, email, media processing, support delivery, routing or payment services. Forms must use sample data, not real credentials, payment details or private records.
 
-Route suggestions use a disclosed demo rule and fictional travel minutes, not real driving-time or opening-hours calculations. Map, location, navigation, sharing, upload/moderation, export/deletion, MFA, install and payment presentations do not prove those integrations. Client-side role switching is a storytelling aid, not a security boundary. Offline mode is an induced UI state; it does not implement durable offline writes or synchronization. Consent, terms and prices are not an approved legal or commercial offer.
+Route suggestions use a disclosed demo rule and fictional travel minutes. Hours checks use the saved fictional schedule and selected date; they do not verify real business hours or driving times. Map, location, navigation, sharing, upload/moderation, export/deletion, MFA, install and payment presentations do not prove those integrations. Client-side role switching is a storytelling aid, not a security boundary. Offline mode is an induced UI state; it does not implement durable offline writes or synchronization. Consent, terms and prices are not an approved legal or commercial offer.
 
-The portable [verification receipt](verification.json) binds review results to the exact HTML SHA-256, including the 78-screen sweep, 18 journey outcomes, 10 regression checks and 1440/390/320-pixel viewport captures. Its recorded independent finish review resolved eight findings across two repair batches. Local supporting records live under `.codex/full-site/` (review support files, not application runtime):
+The current [verification receipt](verification.json), [portable replay evidence](verification-replay.json) and [workflow repair review](workflow-review.md) bind the repaired HTML to 78 rendered pages, 390 direct presentations across five role fixtures, 19 connected observations and 33 passing assertions. Two independent reviewers cleared the final HTML source. Mobile planner widths 390/320 and application-review width 390 had no horizontal overflow. Original verification at base commit `2ccaebde` remains historical and does not apply to this changed HTML.
 
-- `inspection.json` records inspection of 78 screens with empty error/problem arrays.
-- `journeys.json` records 18 connected checks with empty errors and external-request arrays.
-- `review-checks.json` records 10 follow-up checks with an empty errors array.
-- `screens/` contains captured desktop, mobile, small, plan, owner, checkout and administrator views.
+Each store now keeps its own application, grant, drafts, media reviews and billing preview through the **Store workspace** selector. Starting another application preserves existing approved access and begins a fresh Free/unpaid context. Visit completion does not depend on saving optional notes; final-stop Undo removes its stale history entry. News, approved facts, effective dates and review feedback connect to the intended store or outing.
+
+Earlier exploratory records under `.codex/mockup-fixes/` include superseded attempts and stale helper metadata. Only the final hash-bound evidence in the portable receipt is used for final counts.
 
 These records describe the local mockup run that produced them. They do not establish complete accessibility, older-adult usability, live authorization/privacy, provider, hosted or canonical-production acceptance. An affected artifact change invalidates prior evidence until rechecked. No database, backend or production-service change is part of this artifact.
 
