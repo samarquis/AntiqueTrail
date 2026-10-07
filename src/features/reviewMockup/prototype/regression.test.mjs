@@ -152,7 +152,7 @@ test('support audit identifies the exact conversation without message content', 
 });
 
 test('photo replacement retains capacity and publishes the exact approved cover', () => {
-  const { run } = fixture();
+  const { run, elements } = fixture();
   run("S.role='owner'; S.person='Evelyn'; S.approved=true; route='photos'; action('replace-photo',{dataset:{id:'cover'}}); route='photo-upload'; submit('photo-upload',{alt:'Approved replacement cover',rights:'on',original:'on'})");
   assert.equal(run('S.galleryCount'), 3);
   assert.doesNotMatch(run("route='photos'; renderPage()"), /alt="Approved replacement cover"/);
@@ -164,6 +164,8 @@ test('photo replacement retains capacity and publishes the exact approved cover'
   assert.match(run("storeRows([catalogStore('blue')])"), /alt="Approved replacement cover"/);
   run("S.role='owner'; S.person='Evelyn'; route='portal'");
   assert.match(run('renderPage()'), /alt="Approved replacement cover"/);
+  run("route='gallery'; openPhoto(0)");
+  assert.equal(elements.get('#dialog').innerHTML.match(/alt="([^"]+)"/)[1], 'Approved replacement cover');
 });
 
 test('photo submissions require fresh rights, reject full additions and allow full-capacity replacements', () => {
