@@ -4,6 +4,16 @@ Open [full-site.html](full-site.html) to explore the target shopper, owner and a
 
 Keep the repaired artifact on `codex/mockup-workflow-fixes`, separate from main. It is a review artifact, not authorization to implement, merge, publish, activate billing or deploy. Screen coverage is not product acceptance or proof that production services implement these flows.
 
+## Accepted implementation reference — 2026-10-07
+
+The Product Owner accepted this presentation: “This looks good. I want to implement this.” Use HTML source `5372a359f9a33be33a95582b550371cc53a5803c`, reviewed candidate `6e7041f29cbb1035ca098647a61082c6cbfa87f0`, and the continuation evidence below as the interaction reference. This records implementation intent; each source/service change still needs its bounded contract and verification. The approved PRD already describes the connected shopper outing and basic Owner/Admin target; the mockup does not add paid activation or replace retained account, data and release obligations.
+
+Current planning owner [#560](https://github.com/samarquis/AntiqueTrail/issues/560) should consume this reference, with [#487](https://github.com/samarquis/AntiqueTrail/issues/487) owning evidence specification. Reuse those issue bodies rather than create another plan or backlog. Their first selected outcome remains visible **Add to Trip from Store Details**, reusing the chooser in an explicitly selected local shopper evaluation. Resolve that local selection before READY; prove selected-store continuation, cancel without writes, retry without duplicate stops, and unchanged catalog-only denial. Subsequent connections should consume the accepted flows within the approved scope.
+
+The Product Owner also requested “Market on 10th” as the first listed store. The prepared record is **The Market at Macvicar**, 2307 SW 10th Ave, Topeka; confirmation of the intended identity/name is pending. [ADR 0011](../../../../docs/adr/0011-market-at-macvicar-public-listing.md) already specifies first placement when the store matches the server-side query/area/category and admission, before pagination, preserving other stores' relative order. Reuse its [prepared record and media handoff](../../../../docs/plans/market-at-macvicar/implementation-handoff.md); do not rename it, create a duplicate, promote a fixture, or bypass admission. Its approved 50-image opening gallery and complimentary benefit require their own exact-store binding; generic mockup photo limits are not its entitlement contract.
+
+Actual application implementation and durable service-backed behavior remain unverified. [#507](https://github.com/samarquis/AntiqueTrail/issues/507) retains its existing release owner and current publication hold. This acceptance does not publish the prototype or activate the target features in the catalog-only exposure.
+
 ## Latest repair acceptance
 
 The [continuation review](continuation-review.md) and [current receipt](verification.json) describe candidate `6e7041f2` / HTML source `5372a359`: 25 passing regressions, 45 support and36 photo browser assertions, and15 responsive presentations. Both independent reviews cleared the final scope. Support proof carries forward only through the recorded equality checks; photo proof ran on the final source. This is focused continuation acceptance, not a newly rerun whole-site browser matrix.
