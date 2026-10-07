@@ -1,6 +1,6 @@
 # M-01 official-media provider runbook
 
-Stage applicability (2026-09-11): use [PRD stages](../../PRD.md#stage-dependencies), [security applicability](../../SECURITY_AND_TRUST.md#store-first-stage-applicability) and [ADR0009](../adr/0009-store-first-stage-applicability.md) for the bounded store/Gallery pilot. The full-program sequences and dated receipts below retain their original scope; they do not impose unrelated trip/community completion or authorize a new pilot. Applicable hosting, media, privacy, recovery, cost and approval checks remain. Gallery membership does not authorize the separate paid-hosting/media migration.
+Stage applicability (2026-10-06): [PRD stages](../../PRD.md#stage-dependencies) and [ADR0012](../adr/0012-shopper-first-scope.md) own target product scope. The procedures below remain controls for their actual provider/exposure and retained data. Historical full-program cohorts or deferred features are not prerequisites to unrelated selected work. Existing ADR0010/0011 admissions are not expanded; future admitted routing/media/account use still requires its applicable proof. Photo subscriptions do not authorize infrastructure spending or migration.
 
 Status: **UNACCEPTED / NO-GO**
 

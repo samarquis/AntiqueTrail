@@ -1,4 +1,4 @@
-Historical development plan: sequencing and scope below are preserved as earlier planning, not current authority. [PRD.md](../../PRD.md) owns the store-first stages; [README](../../README.md#source-precedence) owns requirement delegation. No post-RG-01 or three-community prerequisite here governs the bounded Gallery pilot.
+Historical development plan: sequencing and scope below are preserved as earlier planning, not current authority. [PRD.md](../../PRD.md) owns the current shopper-first scope; [README](../../README.md#source-precedence) owns requirement delegation. No post-RG-01 or three-community prerequisite here governs the bounded Gallery pilot.
 
 # TDD Development Plan
 

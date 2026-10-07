@@ -1,14 +1,8 @@
-# Owner Onboarding Spec — Simple 70-Year-Old-Friendly Store Partner Journey
+# Owner Onboarding Spec
 
-Stage applicability: this existing invited flow is the initial store-pilot path under [PRD.md](../../PRD.md#the-store-and-administrator-experience). Its account/consent/MFA/authority/approval/interruption protections remain. Historical full-public cohort and Package 10B references below are not prerequisites to the internal showcase or bounded invited pilot; public self-service acquisition needs separate exposure approval.
+Current target: the 2026-10-06 shopper-first scope in [PRD](../../PRD.md). Reuse the existing guided invited-owner flow for the first permitted owner evaluation. This is not a new team, paid-acquisition or role-redesign project. [Store Owner authority](store-owner-authority.md) owns target permission; existing Representative routes/grants below remain compatibility mechanisms until an explicit mapping is implemented.
 
-Status: approved specialist interaction baseline for invited-owner onboarding. Resolves wayfinder
-map #61. Reconciled against PRD.md, DESIGN.md, DESIGN_SYSTEM.md, PACKAGE_CONTRACTS.md
-Package 6, [ADR 0002](../../PRODUCT_DECISIONS.md#first-store-partner-onboarding), [ADR 0003](../../PRODUCT_DECISIONS.md#pilot-store-draft-review-and-approval), and [PRD human usability acceptance](../../PRD.md#human-usability-acceptance).
-
-Controlling-doc precedence applies (README.md source-precedence table). Where this
-spec states invited-owner interaction/copy, PRD.md and DESIGN.md explicitly delegate that detail here (see "Contract
-reconciliation" below); product behavior remains PRD.md, visual values remain DESIGN_SYSTEM.md, and security controls remain SECURITY_AND_TRUST.md.
+Verified account/MFA, documented authority, consent, Site Admin approval, safe interruption/resume and approved media remain required. Public self-service intake needs separate exposure approval. Optional photos and PWA installation never block a valid listing. The historical fixed cohort is replaced by section 10's selected-journey observations.
 
 ## 0. Purpose and baseline
 
@@ -36,7 +30,7 @@ Baseline decisions (recorded 2026-08-17, map #61):
 - Explicit interruption/resume design on every task.
 - Guide gently through owner-controlled verified email + MFA; never helper-owned
   accounts.
-- Testable older-adult acceptance criteria from the approved eight-person cohort.
+- Actual older-adult usability and selected-path accessibility observations under section 10.
 
 The Age-Inclusive Usability Baseline (PRD/DESIGN.md) applies everywhere below:
 plain labels, one primary action per screen, no time pressure, 18px+ body, 48px+
@@ -228,27 +222,11 @@ plain language; one primary action per screen.
 
 ## 10. Acceptance criteria (older-adult cohort)
 
-The numerical cohort below is the retained full-public acceptance protocol. Initial showcase/pilot observations use the stage-specific protocol in PRD.md and the membership spec; do not make this full-public cohort a prerequisite to internal owner feedback. All selected-path accessibility and safety requirements still apply.
+The first shopper-first owner evaluation follows [PRD human acceptance](../../PRD.md#human-usability-acceptance). Use actual computer/phone and applicable assistive-technology observations for the admitted owner journey. A fixed eight-person or age-quota cohort is not a first-milestone prerequisite.
 
-Cohort ([PRD human usability acceptance](../../PRD.md#human-usability-acceptance)): ≥8 participants 55+, ≥3 at 70+, ≥2
-with low-vision/motor/assistive-tech adaptations; own device.
+Observe authority/consent comprehension, owner-controlled email/MFA/recovery, correct facts/hours, interruption/resume without data loss, clear approval wait, approved-scope activation, and optional safe photo submission. Record difficulties and fix repeated critical failures. Require zero privacy/authorization/data-loss failures. Do not claim production acceptance from simulated personas.
 
-| # | Journey step | Pass threshold | Evidence |
-|---|---|---|---|
-| A1 | Invitation → Welcome → Task 1 consent, unaided | 90% complete | session recording, moderator log |
-| A2 | Consent comprehension: after Task 1, state in own words that participation is voluntary and unpaid | 100% | post-screen comprehension check |
-| A3 | Task 2: email verification + MFA + recovery-code confirmation, unaided | 90% | recording; participant can produce saved codes |
-| A4 | Task 3: each of the 9 draft fields completable unaided | 90% per field | field-level completion log |
-| A5 | Hours accuracy: entered hours match spoken hours within one 15-min block | 90% of entries | moderator comparison |
-| A6 | Interruption/resume: scripted ≥30-min interruption mid-draft; resume at exact field, all prior answers intact, no data loss | 90% | recording, state diff |
-| A7 | Status wait understood (no false progress, no action taken that shouldn't be) | 90% | recording, post-screen check |
-| A8 | Tasks 4–5 activation checklist incl. optional photo item, unaided | 90% | checklist progress log |
-| A9 | Zero safety/privacy/authorization failure (absolute) | 0 failures | incident log |
-| A10 | Group average noncritical task errors | ≤1 per participant | error log |
-
-Repeated critical failure on any row → fix and retest the same cohort (cohort
-rule). Evidence artifacts are dated and reviewed by the Primary Internal
-Tester (Product Owner) before release gates.
+Existing invitations, consent and safe draft state keep their security/lifetime rules. An expired invitation must offer its existing safe recovery path, not silently restart or discard a submitted draft.
 
 ## 11. Contract reconciliation (Ticket 70 resolution)
 

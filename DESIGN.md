@@ -1,5 +1,7 @@
 # Vintage Day Out Design and Interaction Requirements
 
+Approved target scope: [2026-10-06 PRD](PRD.md). Current catalog-only exposure remains separately gated; target interactions below describe the intended next product, not deployed availability.
+
 ## Product promise
 
 > Vintage Day Out makes a fun day of antique shopping easy to see, easy to plan, and easy to trust.
@@ -30,11 +32,7 @@ Messaging records intent only. It claims no market exclusivity, automated person
 
 ## Roles
 
-- **Shopper**: browses anonymously, authenticates for private writes.
-- **Store Representative**: verified, MFA-protected, scoped to one store.
-- **Administrator**: separate MFA-protected operational role; no default access to shopper-private data.
-
-Every role uses a separate account and session in testing.
+Anonymous visitors browse public content. Shoppers authenticate for private writes. Store Owners require verified email, MFA and exact-store approval. Site Admin has a separate privileged permission and no routine shopper-private access. Existing Representative/team identities and grants are preserved pending explicit mapping; no new team-management UI is required. Use separate independent accounts for isolation tests.
 
 ## Shopper entry, browsing, authentication
 
@@ -42,7 +40,7 @@ Every role uses a separate account and session in testing.
 
 1. Open directly to Browse Stores in the approved area; show results immediately.
 2. No area setup, sign-in, or device-location permission required.
-3. Provide a prominent manual area selector. Browse never requests device location.
+3. Provide a prominent manual area selector and optional `Use my location`. Request location only on that explicit action; denied/unavailable location leaves manual browsing usable.
 4. `Save`, `Add to Trip`, personal rating, and private note use just-in-time authentication.
 5. Successful authentication completes the original action and returns to context. Cancel or failure writes nothing.
 
@@ -68,7 +66,7 @@ Store Details shows:
 
 - Cover photo and gallery images (capacity varies by store tier)
 - Description, address/map, hours and exceptions, contact, provenance, freshness
-- `Save`, `Add to Trip`, `Navigate`
+- `Favorite`, `Share`, `Add to Trip`, `Navigate` (existing `Save` refers to the same favorites collection)
 - Latest three Store Updates and `See All`
 - Official social links (open externally; never scrape, embed, or track)
 - Public review display after public review is enabled
@@ -81,6 +79,10 @@ Store Details shows `Is this your store? Claim this listing` for unclaimed listi
 ### Report a correction
 
 Anyone may open the correction form and draft it. During the catalog-only public test, the draft remains in this tab's `sessionStorage` across same-tab reload/navigation. The form offers no sign-in-to-submit or submit action; cancel/back returns to the same store without a server request and leaves the local draft available while its tab-scoped entry remains. With server-only `PUBLIC_TEST_MODE=true`, the Edge handler rejects direct submissions before session verification or gateway/database access, even for an existing authenticated session. Outside that draft-only stage, submission requires just-in-time verified-account authentication. Cancellation/failure creates no server report. The submitter sees only the status of their own report.
+
+## Favorites and sharing
+
+Store details, favorites and an opened shared public store offer Add to Trip. Share uses the public store URL through platform sharing or Copy link; opening it needs no account. No private note/rating, trip ID, account identifier or tracking token is added. An unavailable share API falls back to Copy link. Saving or adding prompts sign-in and retains the selected store. Favorites and existing Saved stores are one collection. In-app recipient delivery and private trip sharing are deferred.
 
 ## Add to Trip and new-trip setup
 
@@ -96,6 +98,7 @@ Anyone may open the correction form and draft it. During the catalog-only public
 - Requires and visually shows the shopping date.
 - Retains the first selected store.
 - Defers start location, time, return destination, and stop durations to Plan.
+- `Add an unlisted stop` accepts name, address, optional source link/hours and duration; label it private and unverified. No public listing is created. Confirm a resolvable destination before claiming reliable navigation.
 
 ## Plan mode
 
@@ -116,7 +119,7 @@ Anyone may open the correction form and draft it. During the catalog-only public
 
 `Review Hours` checks the current manual order against known store-day hours and freshness. It states `Travel time is not included`. Accessible `Move Up`/`Move Down` is the reorder method. Starting with unresolved warnings requires one explicit acknowledgement.
 
-After travel-time data is available, `Check My Day` replaces it: estimated arrival/departure/finish, explained warnings, and a suggested order. Require separate `Use Suggested Order` and `Keep My Order`; never auto-apply or claim an optimized route.
+The target milestone requires travel-aware `Check My Day`. `Review Hours` is an honest fallback when travel data is unavailable, not complete suggested-order acceptance. `Check My Day` shows: estimated arrival/departure/finish, explained warnings, and a suggested order. Require separate `Use Suggested Order` and `Keep My Order`; never auto-apply or claim an optimized route.
 
 Warnings shown beside each affected stop:
 
@@ -160,35 +163,15 @@ Use a final card inside Plan. Show date, departure time, stop count, first stop,
 
 ### Offline behavior
 
-- The active-trip snapshot and pending mutations are stored in encrypted IndexedDB bound to the authenticated account and local install.
-- Reopening the PWA prioritizes `Resume Trip`.
-- Offline Go supports arrival, completion, skip, private rating, and private note, shown as `Local only · Pending sync`.
-- Draft planning changes require service.
-- Server authorization, Navigator/device assignment, and trip state always win over offline state.
+First scope is online-first. Show loss of connectivity clearly and preserve safe unsent form text without claiming it is saved to the server. Retry after service returns; do not expose replay/purge/device-authority controls as shopping actions. New offline mutation/sync is deferred. Existing encrypted offline data, signed grants and revocation controls must be assessed before changing their runtime dependencies.
 
 ## Shared trip (partner)
 
-- A Trip Creator may invite one authenticated Trip Partner to one trip. Both may edit the draft.
-- Either participant may be Navigator; only the assigned Navigator controls Go.
-- Other participant sees read-only progress.
-- Shared plan never includes either shopper's private ratings or notes.
-- Invitation is single-use, bound to the recipient's verified email, and expires after seven days.
-- Creator may cancel or remove; the accepted partner may leave. Removing an active Navigator pauses Go until reassignment.
+Deferred from the first outing. Each trip has one organizer. Public store sharing does not grant access to trips, favorites, notes or ratings. Existing partner/device rights and retained data remain protected until any separate retirement/migration. No invitation inbox, shared edit session or Navigator-transfer UI is required.
 
 ## Store Owner workspace
 
-The internal test experience exercises the full store-level Owner workflow using synthetic accounts and fixtures. It includes a multi-store workspace, claim status, team invitations and removal, listing edits, analytics, promotion tools, review responses, and read-only billing. Test promotions and review responses operate only on the isolated test data. The current public test remains catalog-only.
-
-- Store Owner sees only separately approved store scopes; a claim remains pending until a Site Admin verifies authority and confirms or corrects the store boundary.
-- Site Admin approves claims and alone grants or revokes the primary Store Owner claim, per store or across the Owner's stores.
-- A Store Owner can manage multiple eligible stores; multi-location businesses use the support path. A store may have multiple Co-Owners.
-- Store Owner can invite and remove team members for that store. Co-Owners may invite another Co-Owner. Full Store Access can invite Listing Editors only. Listing Editors retain current Representative-style editing.
-- Store Owner and Co-Owner can cancel any pending invitation; an inviter can cancel their own. Invitations activate only after acceptance, verified email, and MFA.
-- Full Store Access includes store analytics and promotion tools. Billing is visible but read-only to Store Owner, Co-Owner, and Full Store Access; Listing Editors do not see billing.
-- Site Admin retains review moderation. Owner replies cannot change ratings, rankings, moderation, or reveal shopper-private data. Sensitive facts and photos require Site Admin approval before publication.
-- Existing Store Representative grants and their permissions continue unchanged alongside Owner access.
-
-The complete authority and test/release boundary is owned by [Store Owner authority](docs/specs/store-owner-authority.md).
+Lead with approved store details, hours, photos, updates, pending changes and help. Use the existing portal where suitable. One responsible owner per store; no mandatory team management, analytics, promotion or public review replies. [Store Owner authority](docs/specs/store-owner-authority.md) owns claim, exact-store access and legacy-grant protection. Billing remains subject to separate paid activation.
 
 ## Store Representative portal
 
@@ -216,7 +199,7 @@ The complete authority and test/release boundary is owned by [Store Owner author
 
 ### Images
 
-- Free tier: 1 cover + 5 gallery photos. Gallery tier: 1 cover + 15 gallery. Full Gallery: unlimited under published non-count limits.
+- Capacity comes only from [membership](docs/specs/store-membership-spec.md). Show current usage/limit and safe replacement; no monthly photo deletion. Never display tentative paid prices as an active offer.
 - Require local preview/crop, plain alternative text, and explicit rights confirmation.
 - Prohibit copied website images, social screenshots, and shopper photos.
 - Keep uploads private during validation, re-encoding, metadata stripping, and review.
@@ -235,10 +218,7 @@ The complete authority and test/release boundary is owned by [Store Owner author
 
 ## Store membership and billing
 
-- Free tier: claim listing, manage hours/info, 5 photos per month, text updates, social links.
-- Paid tier ($30/month): unlimited photo uploads via Stripe Checkout.
-- Payment never publishes a listing or grants Administrator authority.
-- Shop through Stripe-hosted Checkout and the Stripe customer portal; never collect or store card details in-app.
+Free listings support the first outing/owner evaluation. Optional paid photo capacity follows [membership](docs/specs/store-membership-spec.md); exact prices and paid capacities are provisional. Retain photos within capacity until owner replacement/removal or an explicitly disclosed lifecycle. No ads, paid ranking or automatic monthly deletion. Use Stripe-hosted Checkout/customer portal when separately activated; never collect cards. Custom paid-to-paid scheduling is deferred.
 
 ## Administrator experience
 
@@ -291,7 +271,7 @@ Moderation of public reviews is applied only after public reviews are enabled. C
 
 ## Implementation acceptance journeys
 
-Before external testing, prove at minimum:
+For the selected connected-outing evaluation, prove the admitted paths below; they are not new prerequisites for maintaining the existing catalog-only test:
 
 1. Anonymous Browse and Details work without location or sign-in.
 2. Just-in-time sign-in returns to and completes the original private action.
@@ -300,7 +280,7 @@ Before external testing, prove at minimum:
 5. Store Representative direct/controlled fields, hours, updates, images, social links, and support obey their labels and scopes.
 6. Administrator review and access revocation work from separate MFA sessions and never expose shopper-private data.
 7. Forbidden actions fail server-side; privileged attempts create audit records.
-8. Public-review routes are absent through beta; at release, eligibility, compose, moderation, and appeal preserve privacy and update the aggregate transactionally.
+8. Favorite → share public store → recipient Add to Trip and private unlisted-stop entry work without exposing private fields. Public reviews, team workflows and offline synchronization remain deferred.
 
 ## Product brand personality
 

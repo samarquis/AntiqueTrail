@@ -1,5 +1,7 @@
 # User Research and Product Discovery
 
+Current applicability: the Product Owner reaffirmed the original outing problem on 2026-10-06 and approved the [shopper-first scope](PRD.md). Favorite → public store share → Add to Trip and private unlisted stops are core. Preference learning/public-review ideas below are historical hypotheses, not first-release requirements. The old SLM-01 benchmark link remains history; current acceptance is in PRD.
+
 ## Origin of the concept
 
 The product emerged from a real multi-store antique-shopping workflow.

@@ -1,7 +1,7 @@
 {
   "project": "Vintage Day Out",
-  "handoff_version": "3.0",
-  "generated_date": "2026-09-28",
+  "handoff_version": "3.1",
+  "generated_date": "2026-10-06",
   "files": [
     "README.md",
     "PROJECT_STATE.md",
@@ -30,8 +30,18 @@
     "public/icons/navigate.svg",
     "public/icons/shared-trip.svg",
     "public/icons/private-notes.svg",
-    "public/icons/store-details.svg"
+    "public/icons/store-details.svg",
+    "PLANNING_INDEX.md",
+    "docs/specs/product-capabilities.md",
+    "docs/specs/store-owner-authority.md",
+    "docs/specs/store-owner-paid-servicing.md",
+    "docs/adr/0012-shopper-first-scope.md",
+    "docs/plans/shopper-first-scope-review.md"
   ],
   "purpose": "One product reading path with explicitly owned specialist requirements and separately classified history/evidence",
-  "reading_order": ["README.md", "PRD.md", "PROJECT_STATE.md"]
+  "reading_order": [
+    "README.md",
+    "PRD.md",
+    "PROJECT_STATE.md"
+  ]
 }

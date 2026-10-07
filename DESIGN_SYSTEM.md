@@ -1,5 +1,7 @@
 # Antique Trail Design System and Screen Contract
 
+Scope applicability: [PRD](PRD.md) owns the 2026-10-06 shopper-first target. Component examples for deferred offline, team, public-review or promotion features are reusable visual references, not requirements to build those features. Preserve current palette, typography, accessibility and applicable route states.
+
 `DESIGN.md` controls behavior and journey intent. This file controls exact visual tokens, recurring component states, responsive behavior, and screen-level acceptance.
 
 ## Visual tokens

@@ -2,6 +2,8 @@
 
 Engineering mechanics for the current build scope. Product behavior lives in `PRD.md`, interactions in `DESIGN.md`, visual/accessibility rules in `DESIGN_SYSTEM.md`, and security controls in `SECURITY_AND_TRUST.md`.
 
+Scope: [approved shopper-first PRD](PRD.md), 2026-10-06. Schema/command names below describe reusable existing contracts, not proof that the new journey is complete. Pin missing field/API and migration decisions in small implementation contracts before READY; do not silently rewrite runtime permissions.
+
 ## Shared execution rules
 
 Every package uses the single React/TypeScript/Vite PWA and Supabase/PostgreSQL boundary retained in ADR 0009.
@@ -39,7 +41,7 @@ Supabase Auth with email/password and approved social providers.
 
 ## Package 3 — Shopper-private actions
 
-Saves, personal ratings, notes, correction intake.
+Favorites (existing saves), private ratings/notes and existing correction intake. Public store sharing needs only a canonical public URL, not a recipient database or inbox.
 
 **Schema:** `saved_stores(user_id, store_id)`; `private_store_memories(user_id, store_id, rating 1-5 nullable, note, last_visit_month, version)`; `store_correction_reports` (own-status only).
 
@@ -49,19 +51,19 @@ Saves, personal ratings, notes, correction intake.
 
 ## Package 4 — Trip planning
 
-Trips, stops, planning, and private visit memory. (Candidate link capture is deferred.)
+One-organizer day trips, catalog/private stops, travel-aware suggested order and private visit memory. Manual source-link entry is included; automated extraction and recipient Candidate Share are deferred.
 
 **Schema:** `trips` (owner, name, area, date, state, version); `trip_stops` (trip, store, position, expected duration, state, version); `trip_memory` per user.
 
 **Commands:** trip create/update/delete, stop add/remove/reorder, review-hours check, start/end trip, mark arrived/done/skipped, observed-closed.
 
-**Rules:** one-to-eight active stops; default duration 60 minutes with 30/45/60/90/Custom presets; manual order with accessible Up/Down; hours check states `Travel time is not included`; explicit confirmation before starting with unresolved warnings.
+**Rules:** one-to-eight active stops; default duration 60 minutes with 30/45/60/90/Custom presets; accessible manual reorder. Suggested order uses driving time, browsing duration and known hours and requires explicit user acceptance. A travel-unavailable hours fallback says `Travel time is not included` and does not satisfy suggestion acceptance. Private unlisted stops need address/source/hours mapping and validated navigation destination in a pinned contract; labels alone are insufficient. Preserve selected store across sign-in/chooser and idempotent retries. No public listing from private input.
 
 ## Package 5 — Go mode
 
-**Schema:** active-trip snapshot per Navigator; pending offline mutations with idempotency keys.
+Explicit Maps/Waze handoff for each stop, arrived/done/skip/end actions and private memory. Online-first target with recoverable failures and no silent data loss. No automatic location tracking.
 
-**Rules:** offline snapshot in encrypted IndexedDB bound to authenticated account and local install; non-extractable device-local Web Crypto key; replay authorized actions exactly once in recorded order; server authorization and trip state authoritative; purge on completed sync, account switch, logout, authorization loss.
+Existing encrypted offline snapshots, signed device grants and replay are compatibility dependencies, not new milestone requirements. Any decoupling must preserve access denial, retained private data and recoverability; changing a UI flag alone cannot remove those dependencies safely.
 
 ## Package 6 — Store Representative portal
 
@@ -69,7 +71,7 @@ Hours, updates, images, social links, support.
 
 **Schema:** `store_hours` (weekly + dated exceptions), `store_updates` (type, headline, text, image, end date, archive state), `store_media` (approved profile photos with alt text, rights, processing state), `store_social_links`, `support_tickets`.
 
-**Rules:** direct-publish fields vs Administrator-reviewed changes labeled before submission; hours editor with copy-to-days and 14-day preview; text updates publish immediately, image updates wait for image approval; sale requires end date and auto-archives; photo capacity by tier (Free cover+5, Gallery cover+15, Full Gallery unlimited under non-count limits); one social link per platform with validated domains; support states Submitted/In Review/Waiting on You/Resolved/Reopened.
+**Rules:** direct-publish fields vs Administrator-reviewed changes labeled before submission; hours editor with copy-to-days and 14-day preview; text updates publish immediately, image updates wait for image approval; sale requires end date and auto-archives; photo capacity from the [membership contract](docs/specs/store-membership-spec.md), with existing entitlements preserved until reviewed migration; one social link per platform with validated domains; support states Submitted/In Review/Waiting on You/Resolved/Reopened.
 
 ## Package 7 — Administrator
 
@@ -79,23 +81,17 @@ Queued review and Access & Safety.
 
 ## Package 8 — Public reviews (staged off until release)
 
-**Schema:** `reviews` (author, store, rating 1-5, text, display name, visit month/year, conflict disclosure, state, version); version history retained internally; aggregate on `stores`.
-
-**Rules:** eligibility after `Done Here` or eligible manual attestation; one active review per user/store; published fields limited to rating, text, display name, visit month/year, edit marker, conflict label; mean and count recomputed transactionally; Store Representative cannot review own store; author delete removes aggregate immediately with 60-second Undo; purge text within 24 hours; moderation transitions Hold/Remove/Restore/Dismiss with reason-coded evidence; one appeal within 30 days to a different reviewer.
+Deferred from the first release, including public ratings, responses, moderation and appeals. Existing review data and reachable services retain their authorization, privacy and lifecycle rules. No new public review work is a dependency of private visit memory.
 
 ## Package 9 — Store membership and Stripe
 
-**Tiers:** Free (claim listing, manage info, 5 photos/month, text updates, social links); Paid $30/month unlimited photos under published non-count limits.
+The [membership spec](docs/specs/store-membership-spec.md) alone owns capacity and commercial decisions. Free listing first; paid prices/capacities unresolved. Persistent capacity, not monthly upload/deletion quotas. `photo_tiers_enabled` stays disabled until separately authorized paid activation.
 
-**Integration:** Stripe-hosted Checkout, verified webhooks, Stripe customer portal; never collect or persist card details. Payment does not publish a listing or grant Administrator authority.
-
-**Capability flag:** `photo_tiers_enabled` remains false with prices unset until activation is authorized.
-
-**Schema:** subscription mirror rows keyed to the store's membership; entitlement applied on verified webhook events only.
+Stripe-hosted Checkout, verified webhooks and supported customer portal; never collect cards. Preserve exact-store entitlement, idempotency and provider reconciliation. New custom schedules/paid-to-paid transitions are deferred. Existing subscriber obligations must be inventoried and preserved before any migration.
 
 ## Store Owner authority and test workspace
 
-The internal test workspace must implement the authority matrix in [Store Owner authority](docs/specs/store-owner-authority.md): Site Admin approved exact-store claims; scoped Co-Owner and teammate invitations, acceptance, and removal; and Store Owner tools against isolated synthetic records. Server-side authorization is authoritative for every store read and mutation. Billing is a read-only status view. Test promotion and review-response flows cannot cause external publication, provider mutation, or spending. Exact schema, RPC, error, audit, and migration contracts are owned by the downstream implementation plans after this authority is frozen.
+Use [Store Owner authority](docs/specs/store-owner-authority.md) for one responsible owner per store, Site Admin approval, exact-store server enforcement and safe revocation. Existing Representative/team grants remain intact. Local acceptance needs listing setup/management and direct/controlled publication, not a complete synthetic team/analytics/promotion/review-reply suite. Runtime role mapping remains a scoped implementation decision.
 
 ## Public test execution contract
 
@@ -107,8 +103,8 @@ ADR0011 also delegates the opening manifest `f1a7bd7608abbe3f758314587505da4fecc
 
 ## Store-first pilot activation contract
 
-A controlled invited pilot binds the exact candidate, permitted data, accounts/stores, explicit capability allowlist, authentic current approvals/evidence, expiry/stop and rollback. Approval creates Free; billing stays staged off until signed Gallery/commercial/provider activation evidence passes. Public discovery, public registration/intake, promotion, and live billing never follow automatically from a showcase or a controlled pilot.
+A controlled invited pilot binds the exact candidate, permitted data, accounts/stores, explicit capability allowlist, authentic current approvals/evidence, expiry/stop and rollback. Approval creates Free; billing stays staged off until the exact future offer and applicable commercial/provider activation evidence pass. Public discovery, public registration/intake, promotion, and live billing never follow automatically from a showcase or a controlled pilot.
 
 ## Store Owner cancellation decision — 2026-10-01
 
-The Product Owner approved one narrow amendment to the read-only billing boundary: primary Store Owner cancellation at the paid period's end in isolated synthetic local tests with a fake provider. The [approved cancellation-only contract](docs/specs/store-owner-paid-servicing.md) owns action behavior, eligible states, authentication, immutable confirmation consent, expected versions, idempotency, reconciliation, and acceptance. Co-Owner and Full Store Access billing remain read-only; Listing Editors retain no billing visibility. Existing Representative permissions remain unchanged. This decision permits no actual provider calls, live billing, public rollout, or deployed action. Existing descriptions of read-only Owner billing describe the implemented baseline; #426 still requires scoped implementation, review, and proof.
+Retained compatibility reference: [local fake-provider cancellation contract](docs/specs/store-owner-paid-servicing.md). It creates no first-outing dependency or live provider permission. Existing legitimate cancellation/servicing obligations remain protected; do not erase schedules or consent records during scope cleanup.

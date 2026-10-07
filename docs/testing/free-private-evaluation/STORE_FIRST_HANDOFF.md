@@ -1,6 +1,6 @@
 # Store-first local showcase handoff
 
-This is the reproducible setup and blank observation packet for issue [#348](https://github.com/samarquis/AntiqueTrail/issues/348). It prepares the existing local, synthetic evaluation for the current [store-first PRD](../../../PRD.md#next-milestone-usable-internal-store-showcase). It does not change application behavior, create hosting, contact a real store, use a real account, or establish backend, provider, deployment, accessibility-human, or release acceptance.
+This is the reproducible setup and blank observation packet for issue [#348](https://github.com/samarquis/AntiqueTrail/issues/348). It prepares the existing local, synthetic evaluation for the current [store-first PRD](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/PRD.md#next-milestone-usable-internal-store-showcase). It does not change application behavior, create hosting, contact a real store, use a real account, or establish backend, provider, deployment, accessibility-human, or release acceptance.
 
 ## Candidate and boundaries
 

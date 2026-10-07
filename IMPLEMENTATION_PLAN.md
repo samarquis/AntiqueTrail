@@ -334,7 +334,7 @@ Exit criteria:
 
 ## Phase 2B — Public reviews and moderation after Internal Alpha
 
-Current requirements: [Public-review capability acceptance](docs/specs/product-capabilities.md#review-requirements). Original roadmap text follows as history.
+Current requirements: [Public-review capability acceptance](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#review-requirements). Original roadmap text follows as history.
 
 Entry conditions:
 
@@ -403,7 +403,7 @@ Exit criteria:
 
 ## Phase 4 — Personal finds and households
 
-Current requirements: [Deferred finds and household capability acceptance](docs/specs/product-capabilities.md#deferred-phase-4--find-capture-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
+Current requirements: [Deferred finds and household capability acceptance](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#deferred-phase-4--find-capture-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
 
 Features:
 
@@ -427,7 +427,7 @@ Security:
 
 ## Phase 5 — Personalization
 
-Current requirements: [Deferred personalization capability acceptance](docs/specs/product-capabilities.md#deferred-phase-5--onboarding-and-taste-profile-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
+Current requirements: [Deferred personalization capability acceptance](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#deferred-phase-5--onboarding-and-taste-profile-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
 
 Features:
 

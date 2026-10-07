@@ -8,17 +8,19 @@ Current requirements: [Stage dependencies](PRD.md#stage-dependencies).
 
 ## Traceability
 
-This map follows the store-first amendment. Earlier full-program acceptance receipts below remain dated history, not evidence that the new pilot passed.
+This map follows the 2026-10-06 shopper-first amendment. Earlier receipts below remain dated history, not evidence that the connected outing passed.
 
-| Outcome | Controlling behavior | Required boundary/evidence |
-| --- | --- | --- |
-| Internal showcase | PRD selected shopper/store/admin journey; product-capabilities.md; DESIGN/DESIGN_SYSTEM | Reproducible candidate, truthful fixtures, actual owner observations |
-| Optional sign-in/save | PRD connected shopper experience; auth/design contracts | JIT continuation, own-data isolation, cancellation writes nothing |
-| Invited representative and admin approval | Product capability reference Business accounts; owner-onboarding; ADR0002/0003 | Verified identity/MFA, exact-store grant, direct/reviewed split, revocation and audit |
-| Controlled real-store pilot | PRD following milestone; ADR0009 | Security stage table and Package pilot record, permitted data/participants, current operating/provider evidence |
-| Paid Gallery pilot | PRD first offer; membership; Package13 | Exact offer/consent, authorized Stripe tests, signed-event entitlements, incumbent servicing, explicit live approval |
-| Public discovery/acquisition/promotion | Separate PRD exposure decision | Applicable public catalog/rate/privacy/legal/security/accessibility/recovery requirements |
-| Trips, reviews, regional/community expansion and Full Gallery | Retained detailed contracts/history | Deferred; not a current pilot prerequisite. Exposed paths and retained obligations still require their protections. |
+| Outcome | Controlling behavior | Required proof |
+|---|---|---|
+| Discover stores | PRD; capabilities; DESIGN | Anonymous/manual location, explicit optional device location, useful details/photos, failure recovery |
+| Favorite/share/Add to Trip | PRD connected journey; capabilities | Wife's public store link opens anonymously; recipient's sign-in returns to selected store/chooser; no private fields shared |
+| Plan and visit | PRD milestone; DESIGN Plan/Go | Catalog and private unlisted stops; travel/hours suggestion; explicit order choice; reliable map destination; visit/skip/end |
+| Remember | Capabilities rating/lifetime; security | Author-private ratings, return choice and notes persist; account isolation, export/deletion and safe recovery |
+| Owner and Site Admin | Authority; onboarding; DESIGN | Correct facts/hours/photos/update, clear approval wait, verified authority/MFA, exact-store denial/revocation |
+| Human acceptance | PRD human usability | Actual computer/phone and applicable assistive-technology observations; real outing and owner feedback |
+| Existing release obligations | ADR0010/0011 and applicable runbooks | Preserve exact existing exposure, data, recovery and operator boundaries; no implicit expansion |
+| Future paid offer | Membership | Resolved capacity/price/lifecycle/cost, secure provider proof and explicit activation; not an unpaid-outing prerequisite |
+
 
 ## Provider and external-decision boundary
 

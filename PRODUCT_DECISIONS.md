@@ -4,6 +4,10 @@ Status: historical decision record with links to current requirement owners. Ori
 
 `DESIGN.md` is the canonical interaction contract for the approved flows summarized here; `DESIGN_SYSTEM.md` defines reproducible visual and component rules. This file preserves the decision record; current requirements are at the linked owning headings.
 
+## Shopper-first scope — 2026-10-06
+
+The Product Owner approved the cleanup and scope after reaffirming the original couple's outing workflow and Favorite → Share → Add to Trip. [PRD](PRD.md) and [ADR0012](docs/adr/0012-shopper-first-scope.md) now govern. Earlier full synthetic Owner, trip-deferral and commercial statements below retain historical meaning only; existing grants, data and subscriber obligations remain protected. Prices and paid capacities remain provisional.
+
 ## Confirmed decisions
 
 ### Store Owner workflow for internal testing — 2026-09-29
@@ -82,7 +86,7 @@ Current requirement owner: [Separate rating concepts policy](docs/specs/product-
 
 ### Preference profile belongs to the user account
 
-Current requirement owner: [Preference profile belongs to the user account policy](docs/specs/product-capabilities.md#deferred-phase-5--onboarding-and-taste-profile-not-authorized-for-regional-public-mvp). The record below preserves its original wording.
+Current requirement owner: [Preference profile belongs to the user account policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#deferred-phase-5--onboarding-and-taste-profile-not-authorized-for-regional-public-mvp). The record below preserves its original wording.
 
 Every user's taste model is private and individualized.
 
@@ -94,7 +98,7 @@ Store Partners provide and confirm their own listing data. A non-partner listing
 
 ### Store Browser is the shopper front door
 
-Current requirement owner: [Store Browser is the shopper front door policy](docs/specs/product-capabilities.md#store-browser-requirements). The record below preserves its original wording.
+Current requirement owner: [Store Browser is the shopper front door policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#store-browser-requirements). The record below preserves its original wording.
 
 Open on a list-first Store Browser, not the trip planner or map. Search supports store name, town or area, and category. Manual area browsing works without device location. An optional map is a secondary view. Each store card shows a cover image or neutral placeholder, name, town or distance when available, category/what-you-will-find summary, today's hours and open state, freshness state, Save, and Add to Trip. Store Details adds the approved gallery, description, address/map, full hours/exceptions, contact links, provenance/freshness, Navigate, Report correction, and shopper-private history.
 
@@ -170,13 +174,13 @@ The Regional Public MVP requires Packages 1–10B and every named provider, huma
 
 ### In-person store-partner pilot
 
-Current requirement owner: [In-person store-partner pilot policy](docs/specs/product-capabilities.md#first-store-partner-onboarding). The record below preserves its original wording.
+Current requirement owner: [In-person store-partner pilot policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#first-store-partner-onboarding). The record below preserves its original wording.
 
 Choose a Pilot Area where direct shop-owner outreach is practical before public product promotion. A candidate shop is a Prospective Store Partner until an authorized owner or manager explicitly agrees to participate; that person may then join the Private Beta as a Beta Tester. Do not imply a partnership before consent.
 
 ### Topeka Private Beta Pilot Area
 
-Current requirement owner: [Topeka Private Beta Pilot Area policy](docs/specs/product-capabilities.md#first-pilot-store-record). The record below preserves its original wording.
+Current requirement owner: [Topeka Private Beta Pilot Area policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#first-pilot-store-record). The record below preserves its original wording.
 
 Use Topeka city limits as the future Private Beta Pilot Area. Store outreach, partner claims, and real-location import remain deferred until a separate pre-pilot readiness gate is defined and passed.
 
@@ -260,37 +264,37 @@ Before first-owner contact, require dated passing evidence approved by the Prima
 
 ### First Store Partner onboarding
 
-Current requirement owner: [First Store Partner onboarding policy](docs/specs/product-capabilities.md#first-store-partner-onboarding). The record below preserves its original wording.
+Current requirement owner: [First Store Partner onboarding policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#first-store-partner-onboarding). The record below preserves its original wording.
 
 Demonstrate the product using Synthetic Stores only. Before creating a real store record or representative account, obtain Store Partner Pilot Consent and verify the representative's authority both in person and through a published business contact. The representative must use an owner-controlled verified email and MFA; shared credentials are prohibited. Consent states that the pilot is voluntary, invitation-only, unpaid, non-endorsing, and not public product promotion. On withdrawal, revoke representative access and remove the real store from the active pilot. Audit onboarding, scope grants, withdrawal, and revocation.
 
 ### First Pilot Store Record
 
-Current requirement owner: [First Pilot Store Record policy](docs/specs/product-capabilities.md#first-pilot-store-record). The record below preserves its original wording.
+Current requirement owner: [First Pilot Store Record policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#first-pilot-store-record). The record below preserves its original wording.
 
 After consent and authority verification, atomic Administrator approval of the owner-submitted Pilot Store Draft creates one Pilot Store Record using owner-confirmed name, address, phone, website, regular and holiday hours, official description, and category tags. Record the source/provenance and verification date. The Store Representative then tests the already-approved Representative-Managed Field workflow and submits rights-confirmed Official Store Profile Photos through Store Change Requests. Quarantine and process images before Administrator approval and display. Restrict the record to invited Private Beta participants. Exclude ratings/reviews, shopper/review photos, events, owner responses, and analytics.
 
 ### Initial Private Beta Cohort
 
-Current requirement owner: [Initial Private Beta Cohort policy](docs/specs/product-capabilities.md#initial-private-beta-cohort). The record below preserves its original wording.
+Current requirement owner: [Initial Private Beta Cohort policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#initial-private-beta-cohort). The record below preserves its original wording.
 
 Limit the Initial Private Beta Cohort to four human accounts and one Pilot Store Record: Scott's separate shopper and Administrator accounts, Scott's wife's separate shopper account, and the first owner's Store Representative account. The owner does not use the representative account for shopper activity; any future shopper testing requires a separately approved account. AI and Agent-Assisted Test Accounts remain restricted to Synthetic Store data. Do not add another user or real store until a separate expansion gate passes.
 
 ### Initial Private Beta Expansion Gate
 
-Current requirement owner: [Initial Private Beta Expansion Gate policy](docs/specs/product-capabilities.md#initial-private-beta-expansion-gate). The record below preserves its original wording.
+Current requirement owner: [Initial Private Beta Expansion Gate policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#initial-private-beta-expansion-gate). The record below preserves its original wording.
 
 Before adding any additional user or a second real store, require dated evidence approved by the Primary Internal Tester that: the owner completed Representative-Managed Field edits, one independently completed direct hours/content edit, submitted two Store Change Requests that the Administrator approved and rejected respectively, used MFA, and participated in a scheduled revoke/regrant test; Scott and the Independent Internal Tester each completed two shopper trip runs containing the Pilot Store Record; support and feedback intake worked; privileged audit records were complete; monitoring, backup restore, and rollback checks remained passing; and no Blocking Defect or known privacy, security, or data-loss defect remained open. The owner must independently record `continue` or `withdraw` and whether the listing is useful, hours maintenance and reviewed changes are understandable, each flyer/social channel is accepted or declined, and the operator interventions/minutes/support cases were acceptable. `Withdraw` or missing owner evidence blocks expansion; `continue` still requires Product Owner acceptance of support load. No minimum calendar duration applies. A failed check blocks expansion.
 
 ### Controlled Private Beta Expansion
 
-Current requirement owner: [Controlled Private Beta Expansion policy](docs/specs/product-capabilities.md#controlled-private-beta-expansion). The record below preserves its original wording.
+Current requirement owner: [Controlled Private Beta Expansion policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#controlled-private-beta-expansion). The record below preserves its original wording.
 
 After the Initial Private Beta Expansion Gate passes, add one Store Partner and one Pilot Store Record at a time. Apply the same consent, authority verification, account onboarding, owner workflow, shopper-trip, security, audit, support, and recovery checks to each addition before adding the next. Cap the controlled Private Beta at three total Store Partners and stores. Keep it invitation-only with no public product promotion. After all three pass, stop expansion and conduct the separate Regional Public Readiness Gate below; passing the pilot does not automatically authorize public access.
 
 ### Regional Public Readiness Gate
 
-Current requirement owner: [Regional Public Readiness Gate policy](docs/specs/product-capabilities.md#regional-public-readiness-gate). The record below preserves its original wording.
+Current requirement owner: [Regional Public Readiness Gate policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#regional-public-readiness-gate). The record below preserves its original wording.
 
 Public access remains blocked until dated evidence proves all three Controlled Private Beta additions passed; every Package 1–10A prerequisite required by the Regional Public MVP passed; all provider, human-capacity, security, privacy, legal, accessibility, browser/device, support, availability, DB/Auth/Storage recovery, and incident gates passed; and zero Blocking Defects or known privacy, security, or data-loss defects remain. Topeka catalog readiness additionally requires 100% of active discoverable listings inside their approved verification interval, at least 12 active verified listings inside Topeka city limits, at least 70% coverage of an independently enumerated eligible-shop baseline, and at least three valid unique three-store itineraries on each of Tuesday, Friday, and Saturday—nine total—using current hours. Use one non-holiday date per named day within 30 days after the baseline recheck; each itinerary starts at the first store's verified opening, allows 45 minutes per store plus a 10-minute transition buffer, uses the accepted Package 5B provider's recorded travel-time matrix, and finishes every visit no later than verified closing. An eligible shop is a brick-and-mortar business inside Topeka city limits, open to the public on at least one recurring day per week, whose primary advertised inventory is antiques or vintage goods; event-only markets and general thrift or consignment businesses without that primary focus are excluded. Two people independently enumerate the baseline from dated public sources, reconcile disagreements, preserve the source list, and recheck it within 30 days before signature. If the 70% rule requires fewer than 12 listings, 12 still controls; if fewer than 12 eligible shops exist, the Product Owner must approve a written market-size exception instead of silently weakening the gate. Before public product promotion, at least eight invited independent Topeka shoppers outside the Initial Private Beta household/owner cohort—including the approved older-adult cohort where eligible—must attempt Browse, Details, Plan, Go, and private visit memory; at least seven must complete without a Blocking Defect and at least five must confirm return intent or complete a second trip. The Product Owner signs the evidence. Public deployment, product promotion, and anonymous real-store access remain unauthorized until that signature and Package 10B's public recovery/domain/capacity gate.
 
@@ -308,31 +312,31 @@ Before activating another small community, require dated Primary Internal Tester
 
 ### In-person Store Partner QR invitation
 
-Current requirement owner: [In-person Store Partner QR invitation policy](docs/specs/product-capabilities.md#store-partner-invitation). The record below preserves its original wording.
+Current requirement owner: [In-person Store Partner QR invitation policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#store-partner-invitation). The record below preserves its original wording.
 
 After a Synthetic Store demonstration and verbal interest, the recently authenticated MFA-protected Administrator creates a Store Partner Invitation and displays its QR code. The QR contains only an opaque random token, expires after 30 minutes or one successful redemption, and contains no owner, store, email, or role data. Scanning opens the same PWA's partner-onboarding page; it does not install the PWA or grant access. The owner reviews the pilot privacy notice and terms, enters the required consent statements and identity credentials, and submits once. One idempotent transaction consumes the invitation, stores an immutable provisional consent submission, and creates an owner-controlled Pending Partner Identity with no store, role, scope, or pilot-data grant. The owner then verifies email and configures MFA. Only after verified email and MFA does the system finalize the immutable Pilot Consent Receipt, bind it to that verified email, and deliver the owner copy. Interruption before transaction commit consumes nothing; interruption after commit resumes the same pending onboarding record and cannot create a second identity or receipt. The invitation remains pending for authority review until the Administrator independently verifies authority through the published business contact and approves it. Only final Pilot Store Draft approval may create the Pilot Store Record and store-scoped Store Representative grant. Installation instructions appear after approved sign-in. Generation, expiry, revocation, consumption, provisional consent, identity creation, email/MFA verification, receipt finalization, authority review, approval, role grant, and installation handoff are audited. See ADR 0002.
 
 ### Store Partner pilot-consent capture
 
-Current requirement owner: [Store Partner pilot-consent capture policy](docs/specs/product-capabilities.md#pilot-consent-capture). The record below preserves its original wording.
+Current requirement owner: [Store Partner pilot-consent capture policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#pilot-consent-capture). The record below preserves its original wording.
 
 Use a phone-friendly consent screen with a plain-language summary and links to the full, legally reviewed pilot privacy notice and terms. Require separate acknowledgments of authority, voluntary participation, permitted store-data use, no payment or endorsement, and withdrawal. Require typed name, business title, store name, and owner-controlled email. Submission creates the immutable provisional consent record and unprivileged Pending Partner Identity atomically; it does not grant access. After email verification and MFA, finalize the immutable Pilot Consent Receipt with the provisional submission, verified email, finalization timestamp, invitation identifier, and policy version. Email the owner a receipt/PDF copy without internal verification evidence. Administrators may view but never edit either consent record. A material term change requires fresh consent before continued participation.
 
 ### Pilot Store Draft review and approval
 
-Current requirement owner: [Pilot Store Draft review and approval policy](docs/specs/product-capabilities.md#pilot-store-draft). The record below preserves its original wording.
+Current requirement owner: [Pilot Store Draft review and approval policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#pilot-store-draft). The record below preserves its original wording.
 
 After consent, verified email, and MFA, the Pending Partner Identity enters the owner-confirmed core listing fields into a Pilot Store Draft. Only that identity and Administrators may read it. The owner may edit while draft or changes-requested and submits it for review. The Administrator verifies the submission against the published business contact and may approve it or return comments, but may not silently edit owner-submitted values. The owner corrects and resubmits. Approval requires MFA, recent authentication, and an exact final preview. One atomic transaction freezes the approved draft snapshot and provenance, creates the Pilot Store Record, and grants only its store-scoped Store Representative role; any failure creates neither record nor grant. Preserve comments and all state transitions in the audit history. See ADR 0003.
 
 ### Representative activation and first login
 
-Current requirement owner: [Representative activation and first login policy](docs/specs/product-capabilities.md#representative-activation-and-first-login). The record below preserves its original wording.
+Current requirement owner: [Representative activation and first login policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#representative-activation-and-first-login). The record below preserves its original wording.
 
 After successful approval, send a status-only email containing the normal PWA sign-in link; never send a reusable invitation, magic role, or authorization token. The owner signs in using the already verified email and MFA. The portal shows the exact approved Pilot Store Record, store-scoped Representative permissions, Pilot Consent Receipt, and approval history, then offers device-appropriate PWA installation instructions. Start a guided checklist: confirm the listing, review hours, make one Representative-Managed Field edit, submit one Store Change Request, and use pilot support. Changes-requested or rejected emails contain status only; comments and store data require authenticated portal access. Audit email delivery, first approved sign-in, installation handoff, and checklist progress. See ADR 0002.
 
 ### Store Partner Pilot Support
 
-Current requirement owner: [Store Partner Pilot Support policy](docs/specs/product-capabilities.md#store-partner-pilot-support). The record below preserves its original wording.
+Current requirement owner: [Store Partner Pilot Support policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#store-partner-pilot-support). The record below preserves its original wording.
 
 Provide an in-app Pilot Support Ticket workflow with categories for bug, confusing workflow, store-data correction, feature idea, and security/privacy concern. Automatically attach only store/account identifiers, app version, timestamp, and basic device/browser details; never attach tokens, shopper data, precise location, or internal logs. Allow an optional screenshot only after owner preview. The submitting Store Representative and Administrators may read the ticket, replies, and status in the authenticated portal. Email contains status only. Security/privacy concerns trigger an urgent Administrator alert. A fallback support email accepts sign-in-failure reports but exposes no pilot data until identity is verified. The owner may confirm resolution or reopen the ticket.
 
@@ -350,31 +354,31 @@ Add to Trip always names the destination trip and supports an explicit existing-
 
 ### Active trip and private visit memory
 
-Current requirement owner: [Active trip and private visit memory policy](docs/specs/product-capabilities.md#active-trip-actions). The record below preserves its original wording.
+Current requirement owner: [Active trip and private visit memory policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#active-trip-actions). The record below preserves its original wording.
 
 Arrival is manual; Antique Trail does not geofence or provide turn-by-turn navigation. Go shows one stop at a time and hands the current leg to an external map. A quiet active-visit screen ends with `Done Here`, then offers an optional private 1–5 rating, return choice of No/Maybe/Yes, and note. Skip is immediate and reversible with Undo. Completion or confirmed early ending produces a private summary and immutable visit history; private notes and ratings remain editable, and `Plan Again` clones the trip. Approved through D15–D19 on 2026-07-30.
 
 ### One-trip partner handoff
 
-Current requirement owner: [One-trip partner handoff policy](docs/specs/product-capabilities.md#one-trip-roles-and-invitation). The record below preserves its original wording.
+Current requirement owner: [One-trip partner handoff policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#one-trip-roles-and-invitation). The record below preserves its original wording.
 
 A Trip Creator may invite one Trip Partner to one trip. Both may edit the draft, and either may be assigned Navigator. Only the Navigator controls Go; the other participant sees read-only progress. Ratings and notes stay private to their author, and neither participant gains access to the other person's unrelated trips or account data. The invitation is bound to a verified matching email, single-use, valid seven days, and may be presented through the native share sheet or a QR code. Removal of an active Navigator pauses the trip until another Navigator is assigned. Approved through D20–D21 on 2026-07-30.
 
 ### Offline active trip
 
-Current requirement owner: [Offline active trip policy](docs/specs/product-capabilities.md#offline-active-trip). The record below preserves its original wording.
+Current requirement owner: [Offline active trip policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#offline-active-trip). The record below preserves its original wording.
 
 Only the assigned Navigator receives the minimum offline snapshot for the active trip. Arrival, completion, skip, private rating, and private note may be recorded offline with a visible pending-sync state and safe resume after refresh or restart. Draft collaboration stays online-only. The partner sees last-updated state, and external-map offline availability remains outside Antique Trail's control. Approved as D22 on 2026-07-30.
 
 ### Offline active-trip storage
 
-Current requirement owner: [Offline active-trip storage policy](docs/specs/product-capabilities.md#offline-active-trip). The record below preserves its original wording.
+Current requirement owner: [Offline active-trip storage policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#offline-active-trip). The record below preserves its original wording.
 
 Persist only the assigned Navigator's minimum active-trip snapshot and pending offline mutations in encrypted IndexedDB. Bind the cache cryptographically to the authenticated account and local PWA installation with a non-extractable device-local Web Crypto key; never place authenticated trip data in the public service-worker cache. The snapshot may survive refresh, browser close, and PWA restart. Purge it after completed-trip changes successfully synchronize, on account switch, and on logout. If unsynced changes exist, logout must warn plainly that continuing will delete those local changes and require explicit confirmation. On known authorization loss, delete the key and cache; when the device was offline during revocation, recheck authorization on reconnect and purge before accepting sync or showing refreshed private data. Already decrypted data on an offline device cannot be remotely recalled. Approved 2026-07-31.
 
 ### Offline synchronization and device precedence
 
-Current requirement owner: [Offline synchronization and device precedence policy](docs/specs/product-capabilities.md#offline-active-trip). The record below preserves its original wording.
+Current requirement owner: [Offline synchronization and device precedence policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#offline-active-trip). The record below preserves its original wording.
 
 Bind each active Go session to one Navigator account and one active Navigator device. A device transfer requires authenticated online confirmation; the old device cannot submit later mutations after transfer. Give every offline mutation a unique idempotency key and local sequence number, then replay authorized mutations exactly once in their original order. Server authorization, current Navigator/device assignment, and trip lifecycle/state always win. Reject queued actions that lost authorization or conflict with a completed/reassigned trip, and show a plain sync explanation without exposing other-account data. Apply non-conflicting actions normally. If the same private rating or note changed from the offline base version on another device, preserve both versions and require the author to choose `Keep This Phone's Version` or `Keep Saved Version`; never silently overwrite either. Approved 2026-07-31.
 
@@ -382,37 +386,37 @@ Online shared-draft edits use one monotonically increasing trip version and an i
 
 ### Store Portal and publishing states
 
-Current requirement owner: [Store Portal and publishing states policy](docs/specs/product-capabilities.md#store-portal-home-and-publishing-labels). The record below preserves its original wording.
+Current requirement owner: [Store Portal and publishing states policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#store-portal-home-and-publishing-labels). The record below preserves its original wording.
 
 Store Portal home shows store identity, listing status, hours verification/staleness, `Update Hours`, and `Preview Listing`, with secondary access to Store Info, Photos, Pending Changes, and Access & Help. It excludes analytics, advertising, and shopper data. Every field is labeled `Publishes Immediately` or `Requires Admin Review`; controlled changes preserve the current public value and use Pending, Changes Requested, Approved, or Rejected states. Approved through D23–D24 on 2026-07-30.
 
 ### Hours editing
 
-Current requirement owner: [Hours editing policy](docs/specs/product-capabilities.md#hours-editor). The record below preserves its original wording.
+Current requirement owner: [Hours editing policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#hours-editor). The record below preserves its original wording.
 
 Representatives maintain weekly Open/Closed hours, one range plus an optional second range, dated exceptions, and closure dates. Approved address determines time zone. A 14-day preview and explicit confirmation precede publication; successful publication refreshes verification and offers Undo. Active trips receive updated hours on next sync while completed history remains frozen. Approved as D25 on 2026-07-30.
 
 ### Store Updates and Vendor Contributor boundary
 
-Current requirement owner: [Store Updates and Vendor Contributor boundary policy](docs/specs/product-capabilities.md#store-updates-images-and-social-links). The record below preserves its original wording.
+Current requirement owner: [Store Updates and Vendor Contributor boundary policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#store-updates-images-and-social-links). The record below preserves its original wording.
 
 Store Representatives may post native Store Updates of New Finds, Sale, Announcement, or Store News. Text publishes directly; any image remains held for Administrator image approval. The latest three appear on Store Details with `See All`. No scraping, feed synchronization, comments, likes, or event system is included. MVP may label store-posted vendor content, but a separate Vendor Contributor role is deferred until pilot demand and authorization testing justify it; if added, it is store/booth-scoped and draft-only. Approved through D26–D27 on 2026-07-30.
 
 ### Official images and social links
 
-Current requirement owner: [Official images and social links policy](docs/specs/product-capabilities.md#store-updates-images-and-social-links). The record below preserves its original wording.
+Current requirement owner: [Official images and social links policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#store-updates-images-and-social-links). The record below preserves its original wording.
 
 Free allows one cover plus five gallery images; Gallery allows one cover plus fifteen gallery images; Full Gallery follows its active published non-count limits and has no plan-count cap. A Store Update may contain one image. Every profile-image change requires Administrator approval, and the current image remains live during replacement. Uploads require preview/crop, meaningful alternative text, rights confirmation, quarantine, re-encoding, metadata removal, and review. Copied website/social screenshots and shopper images are prohibited. A verified Representative may directly publish one validated official link for each approved social platform; no credentials, embed, scrape, sync, or imported tracking is allowed. Approved through D24–D25 on 2026-07-30; tier-specific cap amendment approved 2026-08-30.
 
 ### Store Update lifecycle and support
 
-Current requirement owner: [Store Update lifecycle and support policy](docs/specs/product-capabilities.md#store-updates-images-and-social-links). The record below preserves its original wording.
+Current requirement owner: [Store Update lifecycle and support policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#store-updates-images-and-social-links). The record below preserves its original wording.
 
 Sales require an end date and auto-archive. Announcements may have an end date; New Finds and Store News archive manually. Archive is reversible and representatives do not permanently delete history. Pilot Support uses categorized tickets, allowlisted diagnostics, at most one previewed/sanitized screenshot, authenticated replies/history, status-only email, urgent security routing, and a verified-identity fallback for sign-in failure. Approved through D26–D27 on 2026-07-30.
 
 ### New-store discovery
 
-Current requirement owner: [New-store discovery policy](docs/specs/product-capabilities.md#store-browser-requirements). The record below preserves its original wording.
+Current requirement owner: [New-store discovery policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#store-browser-requirements). The record below preserves its original wording.
 
 Authenticated shoppers may see `New Since Your Last Visit` based only on a coarse last-seen timestamp and manually selected area. The in-app card appears in Browse and home/return context, links to the new listings, and may be dismissed. No push/email notification, background location, or behavior tracking is implied. Approved as D28A on 2026-07-30.
 
@@ -424,7 +428,7 @@ Administrator home shows role/environment, urgent safety items, and one grouped 
 
 ### Access & Safety
 
-Current requirement owner: [Access & Safety policy](docs/specs/product-capabilities.md#access--safety). The record below preserves its original wording.
+Current requirement owner: [Access & Safety policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#access--safety). The record below preserves its original wording.
 
 Access & Safety separates pending invitations from active Store Representative grants and shows exact scope, verified-email/MFA state, dates, and relevant privileged activity without shopper activity. Revocation requires Administrator MFA, recent authentication, reason, and consequence preview; it removes only the selected store scope and blocks the next server-authorized write, including an open session. Regrant repeats identity and scope gates. No bulk changes, multi-store Representative grants, self-service role changes, or history deletion are allowed. Approved as D30 on 2026-07-30.
 
@@ -510,7 +514,7 @@ Disable break-glass access during Synthetic Internal Alpha. During Private Beta 
 
 ### Closed lifecycle, portability, usability, and release decisions
 
-Current requirement owner: [Inactive-account timing requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Completed-trip location requirements](SECURITY_AND_TRUST.md#operational-retention); [Candidate Share terminal states requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Invitation terminal states requirements](SECURITY_AND_TRUST.md#operational-retention); [Participant exit requirements](SECURITY_AND_TRUST.md#user-controls); [Freshness requirements](docs/specs/product-capabilities.md#listing-freshness); [Duplicate merge requirements](SECURITY_AND_TRUST.md#directory-data-provenance-and-integrity); [Account scope requirements](docs/specs/product-capabilities.md#account-scope-requirements); [Authentication requirements](SECURITY_AND_TRUST.md#authentication); [Trip duration and Check My Day requirements](docs/specs/product-capabilities.md#package-5b-planning-factors-and-output); [Account-deletion cancellation and recent authentication requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Portability requirements](SECURITY_AND_TRUST.md#user-controls); [Browser/device baseline requirements](DESIGN_SYSTEM.md#browser-and-device-acceptance-matrix); [Human usability acceptance](PRD.md#human-usability-acceptance); [External support requirements](SECURITY_AND_TRUST.md#incident-response); [Metric gate RG-01 requirements](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#operating-scorecard-and-rg-01). The record below preserves its original wording.
+Current requirement owner: [Inactive-account timing requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Completed-trip location requirements](SECURITY_AND_TRUST.md#operational-retention); [Candidate Share terminal states requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Invitation terminal states requirements](SECURITY_AND_TRUST.md#operational-retention); [Participant exit requirements](SECURITY_AND_TRUST.md#user-controls); [Freshness requirements](docs/specs/product-capabilities.md#listing-freshness); [Duplicate merge requirements](SECURITY_AND_TRUST.md#directory-data-provenance-and-integrity); [Account scope requirements](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#account-scope-requirements); [Authentication requirements](SECURITY_AND_TRUST.md#authentication); [Trip duration and Check My Day requirements](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#package-5b-planning-factors-and-output); [Account-deletion cancellation and recent authentication requirements](SECURITY_AND_TRUST.md#privacy-by-default); [Portability requirements](SECURITY_AND_TRUST.md#user-controls); [Browser/device baseline requirements](DESIGN_SYSTEM.md#browser-and-device-acceptance-matrix); [Human usability acceptance](PRD.md#human-usability-acceptance); [External support requirements](SECURITY_AND_TRUST.md#incident-response); [Metric gate RG-01 requirements](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#operating-scorecard-and-rg-01). The record below preserves its original wording.
 
 - **Inactive-account timing:** use UTC instants. On the first daily job run at or after the third anniversary of the last successful sign-in, schedule deletion for 90 days later and send the 90-day warning; send the remaining warnings at or after 30 and 7 days. A successful sign-in before deletion atomically clears the schedule. Jobs are idempotent by account and milestone; retries do not duplicate deletion requests, and notification failure alerts operations but does not extend retention. At the deletion instant, apply the approved seven-day account-deletion cancellation period, so primary deletion completes by day 98 after scheduling unless cancelled. Leap-day anniversaries use February's last day. Approved 2026-07-31.
 - **Completed-trip location:** device/provider traces are never stored. Exact manual/current start and optional return coordinates are removed from primary data within 24 hours after completed-trip synchronization; only a user-entered coarse label, store IDs, chosen order, planned/actual stop states, and user-authored private memory remain. Coordinates are excluded from later exports and age out of backups within 30 days. Approved 2026-07-31.
@@ -531,7 +535,7 @@ Current requirement owner: [Inactive-account timing requirements](SECURITY_AND_T
 
 ### Public review and scalable claim policy
 
-Current requirement owner: [Public review and scalable claim policy policy](docs/specs/product-capabilities.md#review-requirements). The record below preserves its original wording.
+Current requirement owner: [Public review and scalable claim policy policy](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#review-requirements). The record below preserves its original wording.
 
 - **Review eligibility:** Regional Public MVP accounts are verified-email, age-attested 18+, and rate-limited. A user may review after an Antique Trail trip marks that store `Done Here`, or after a manual `I visited` attestation that displays the honesty/conflict rules. One active review per user/store; rating is integer 1–5 with optional text. A new or edited review enters automated validation and may remain pending moderation. Approved 2026-07-31.
 - **Display and aggregate:** publish rating, allowed text, author-chosen public display name, visit month/year, edit marker, and disclosed conflict only. Never publish email, exact visit time, trip, note, location, or account history. Aggregate is the arithmetic mean and count of active eligible ratings, updated transactionally with review state; show from the first eligible rating and label the count. No weighting, paid boost, owner override, or hidden personalized score changes the public aggregate. Approved 2026-07-31.

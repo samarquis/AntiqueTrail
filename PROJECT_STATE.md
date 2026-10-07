@@ -2,6 +2,10 @@
 
 Workflow metadata updated: 2026-09-28. This update did not revalidate every implementation claim below. This document records implementation facts, not live GitHub, provider, credential, deployment, or worktree state. Recheck named evidence and live systems before acting or claiming completion. Evidence applies only to its named SHA and environment.
 
+## Scope reconciliation — 2026-10-06
+
+The Product Owner approved the shopper-first documentation cleanup. [PRD](PRD.md) describes target behavior, not deployed availability. Static inspection at `d075998137c501c6ff7252880ad59500e59bec16` found reusable catalog, trips/private memory and portal code plus gaps in candidate-to-trip/address/location flow; no new runtime or provider proof was run. See [source and backlog reconciliation](docs/plans/shopper-first-scope-review.md). Existing exposure, data and active release work remain intact; no implementation, deployment or issue closure is claimed by this amendment.
+
 ## Brand selection — 2026-09-28
 
 The Product Owner selected Vintage Day Out in the scoped direction recorded in issue #370. PRD.md owns the selected name and migration boundary; DESIGN.md owns its stage-appropriate messaging. This plan selection does not rename the application, repository, package, or identity tokens, acquire a domain, clear the name, change a stage, or activate public branding. Those remain separate work and evidence gates.

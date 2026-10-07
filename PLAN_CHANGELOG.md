@@ -241,3 +241,14 @@ Append-only record of authorized changes to the controlling plan. Status-only up
 - Boundary: this adds no corrections backend capability, anonymous submission, schema/RLS change, provider setting, hosted test, Edge deployment, or production publication. Trips, maps, and privileged operations remain outside the public-test scope. Any later submission stage requires its own approved implementation and release gates.
 - Canonical sources: [Security and Trust public-test boundary](SECURITY_AND_TRUST.md#public-test-boundary), [Corrections capability](docs/specs/product-capabilities.md#corrections), [Report a correction](DESIGN.md#report-a-correction), and [public-test admission](docs/operations/PUBLIC_TEST_ADMISSION.md).
 - Implementation/evidence: issue #485 and PR #492 own the bounded UI, server guard, negative proof, and local acceptance report. The issue does not authorize hosted behavior or deployment.
+
+
+## 2026-10-06 — Restore the complete shopper outing and reconcile scope
+
+- Authorization: Product Owner said “I approve this cleanup and scope” after the explicit scope proposal; approval includes private unlisted stops, suggested order with manual adjustment and persistent capacity-based photos. Dollar prices and paid capacities remain provisional.
+- Outcome: discover → favorite/share public stores → Add to Trip → plan → visit → remember privately. Simple owner/admin listing management supports the ad-free, optionally photo-funded service.
+- Changed owners: PRD, product capabilities, DESIGN, DESIGN_SYSTEM applicability, owner authority/onboarding/membership, security applicability and engineering contracts; entry/index/acceptance/state/research references reconciled; ADR0012 records supersession.
+- Removed first-milestone requirements: mandatory full synthetic Owner business suite, team delegation, mutable offline collaboration/Navigator transfer, public reviews, AI, advanced analytics/promotions, custom paid schedules and regional programs. Existing reachable-path/data/subscriber safeguards remain.
+- Evidence: [scope/backlog reconciliation](docs/plans/shopper-first-scope-review.md) and [documentation acceptance](docs/evidence/shopper-first-scope/acceptance.md). Baseline `d075998137c501c6ff7252880ad59500e59bec16`.
+- Backlog: 26 open issues inspected; existing release/recovery/account work preserved. #487 remains specification with selected-role scope reconciliation before READY. No new implementation tickets, issue closure or publication is claimed.
+- Boundaries: documentation-only approval; no code deletion/rewrite, schema change, grant/data cleanup, provider mutation, new account, external contact, spending or deployment. Existing ADR0010/0011 exposure remains unchanged.
