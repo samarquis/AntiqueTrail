@@ -23,7 +23,7 @@ Status: historical roadmap, preserved at the 2026-09-07 consolidation. Original 
 
 ## Phase 0 — Product and security foundation
 
-Current requirements: [Foundation acceptance](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#foundation-acceptance). Original roadmap text follows as history.
+Historical requirements: [Foundation acceptance](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/SECURITY_AND_TRUST.md#foundation-acceptance). Original roadmap text follows as history.
 
 Deliverables:
 
@@ -104,7 +104,7 @@ Exit criteria:
 
 ## Cross-phase Internal Alpha gate
 
-Current requirements: [Complete Internal Alpha and external-readiness acceptance](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). Original roadmap text follows as history.
+Historical requirements: [Complete Internal Alpha and external-readiness acceptance](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#internal-alpha). Original roadmap text follows as history.
 
 Assemble the Phase 1, Phase 2A, and Phase 3 synthetic slices and test this gate before Phase 2B public reviews, real-store import, or owner outreach.
 
@@ -334,7 +334,7 @@ Exit criteria:
 
 ## Phase 2B — Public reviews and moderation after Internal Alpha
 
-Current requirements: [Public-review capability acceptance](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#review-requirements). Original roadmap text follows as history.
+Historical requirements: [Public-review capability acceptance](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#review-requirements). Original roadmap text follows as history.
 
 Entry conditions:
 
@@ -403,7 +403,7 @@ Exit criteria:
 
 ## Phase 4 — Personal finds and households
 
-Current requirements: [Deferred finds and household capability acceptance](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#deferred-phase-4--find-capture-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
+Historical requirements: [Deferred finds and household capability acceptance](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#deferred-phase-4--find-capture-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
 
 Features:
 
@@ -427,7 +427,7 @@ Security:
 
 ## Phase 5 — Personalization
 
-Current requirements: [Deferred personalization capability acceptance](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#deferred-phase-5--onboarding-and-taste-profile-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
+Historical requirements: [Deferred personalization capability acceptance](https://github.com/samarquis/AntiqueTrail/blob/d075998137c501c6ff7252880ad59500e59bec16/docs/specs/product-capabilities.md#deferred-phase-5--onboarding-and-taste-profile-not-authorized-for-regional-public-mvp). Original roadmap text follows as history.
 
 Features:
 
@@ -448,7 +448,7 @@ Rules:
 
 ## Phase 6 — Regional launch
 
-Current requirements: [Regional launch and expansion acceptance](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-launch-strategy). Original roadmap text follows as history.
+Historical requirements: [Regional launch and expansion acceptance](https://github.com/samarquis/AntiqueTrail/blob/f182871d9de0d5db2a30ad0de9ac8dc72467648b/PRD.md#regional-launch-strategy). Original roadmap text follows as history.
 
 Phase 6 is a capability grouping implemented only through Packages 10A–10B after every earlier package/gate, not another feature bundle. Phases 4–5 remain deferred.
 
@@ -687,7 +687,7 @@ Failure routes to the owning step; never weaken a gate or replace a failed datab
 
 ## Repository structure baseline
 
-Current requirements: [Repository structure baseline](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/PACKAGE_CONTRACTS.md#repository-structure-baseline). Original roadmap text follows as history.
+Historical requirements: [Repository structure baseline](https://github.com/samarquis/AntiqueTrail/blob/23dd73c4dc7629a1770a1c7d166e23b16d07ca64/PACKAGE_CONTRACTS.md#repository-structure-baseline). Original roadmap text follows as history.
 
 ```text
 /
