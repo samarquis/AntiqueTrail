@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
+import { setTimeout } from 'node:timers'
 import {
   CLI_VERSION,
   ROOT,
