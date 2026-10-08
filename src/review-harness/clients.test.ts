@@ -968,18 +968,10 @@ describe('scenario-aware review clients', () => {
     replayAfterLaterReorder.stops[0]!.position = -1
     await expect(trips.get('trip-a')).resolves.toEqual(afterLaterReorder)
     await expect(
-      trips.useCheckMyDaySuggestion!(
-        'trip-b',
-        suggestion.requestId,
-        suggestion.tripVersion!,
-      ),
+      trips.useCheckMyDaySuggestion!('trip-b', suggestion.requestId, suggestion.tripVersion!),
     ).rejects.toThrow(/couldn't update this trip/i)
     await expect(
-      trips.useCheckMyDaySuggestion!(
-        'trip-a',
-        suggestion.requestId,
-        suggestion.tripVersion! + 1,
-      ),
+      trips.useCheckMyDaySuggestion!('trip-a', suggestion.requestId, suggestion.tripVersion! + 1),
     ).rejects.toThrow(/couldn't update this trip/i)
     await expect(trips.get('trip-a')).resolves.toEqual(afterLaterReorder)
 

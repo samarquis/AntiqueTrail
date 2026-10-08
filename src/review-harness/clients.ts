@@ -1975,11 +1975,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
     async useCheckMyDaySuggestion(tripId, requestId, expectedVersion) {
       allowed()
       const request = checkMyDay.get(requestId)
-      if (
-        !request ||
-        request.actorUserId !== currentUserId ||
-        request.tripId !== tripId
-      )
+      if (!request || request.actorUserId !== currentUserId || request.tripId !== tripId)
         throw new Error(GENERIC_TRIP_ERROR)
       if (request.useReceipt) {
         if (request.useReceipt.expectedVersion !== expectedVersion)
@@ -1989,8 +1985,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
       await fixture(state, true, true)
       const replayReceipt = checkMyDay.get(requestId)?.useReceipt
       if (replayReceipt) {
-        if (replayReceipt.expectedVersion !== expectedVersion)
-          throw new Error(GENERIC_TRIP_ERROR)
+        if (replayReceipt.expectedVersion !== expectedVersion) throw new Error(GENERIC_TRIP_ERROR)
         return structuredClone(findTrip(tripId))
       }
       const trip = findTrip(tripId)

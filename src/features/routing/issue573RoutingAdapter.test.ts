@@ -44,11 +44,7 @@
  * 6048392339. This file is prepared for #573 only; no runtime tests were run.
  */
 import { describe, expect, it, vi } from 'vitest'
-import {
-  checkMyDay,
-  type CheckMyDayProvider,
-  type CheckMyDayRequest,
-} from './checkMyDay'
+import { checkMyDay, type CheckMyDayProvider, type CheckMyDayRequest } from './checkMyDay'
 import { createProviderBackedCheckMyDay, type RoutingEdgeTransport } from './providerAdapter'
 
 const idempotencyKey = '22222222-2222-4222-8222-222222222222'

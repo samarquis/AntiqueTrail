@@ -200,7 +200,9 @@ describe('authoritative suggested order', () => {
     await user.click(await screen.findByRole('button', { name: /use suggested order/i }))
 
     expect(use).toHaveBeenCalledWith('r1', 3)
-    expect(await screen.findByRole('alert')).toHaveTextContent(/could not confirm whether the suggestion was applied/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /could not confirm whether the suggestion was applied/i,
+    )
     expect(screen.getByRole('button', { name: /use suggested order/i })).toBeDisabled()
   })
 })

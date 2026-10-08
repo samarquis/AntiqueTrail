@@ -27,7 +27,9 @@ const request: CheckMyDayRequest = {
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise })
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
   return { promise, resolve }
 }
 
@@ -68,11 +70,7 @@ describe('Check My Day page', () => {
     }
     const useSuggested = vi.fn()
     render(
-      <CheckMyDayPage
-        request={request}
-        provider={provider}
-        onUseSuggestedOrder={useSuggested}
-      />,
+      <CheckMyDayPage request={request} provider={provider} onUseSuggestedOrder={useSuggested} />,
     )
     expect(provider.getCoordinateMatrix).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: /^check my day$/i }))
@@ -201,11 +199,10 @@ describe('Check My Day page', () => {
       explanation: ['Synthetic suggestion'],
     }))
     const pollServer = vi.fn()
-    const loadTrip = vi
-      .fn()
-      .mockResolvedValueOnce(currentTrip)
-      .mockResolvedValueOnce(refreshedTrip)
-    const use = vi.fn(async () => { throw new Error('uncertain result') })
+    const loadTrip = vi.fn().mockResolvedValueOnce(currentTrip).mockResolvedValueOnce(refreshedTrip)
+    const use = vi.fn(async () => {
+      throw new Error('uncertain result')
+    })
     render(
       <AuthoritativeCheckMyDayPage
         loadTrip={loadTrip}
@@ -247,7 +244,9 @@ describe('Check My Day page', () => {
       .fn()
       .mockResolvedValueOnce(currentTrip)
       .mockRejectedValueOnce(new Error('read failed'))
-    const use = vi.fn(async () => { throw new Error('uncertain result') })
+    const use = vi.fn(async () => {
+      throw new Error('uncertain result')
+    })
     render(
       <AuthoritativeCheckMyDayPage
         loadTrip={loadTrip}
@@ -293,7 +292,9 @@ describe('Check My Day page', () => {
     await act(async () => lateTrip.resolve(currentTrip))
 
     expect(screen.queryByText('Late suggestion')).not.toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(/server request or trip read may still finish/i)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /server request or trip read may still finish/i,
+    )
     expect(pollServer).not.toHaveBeenCalled()
   })
 
@@ -312,7 +313,9 @@ describe('Check My Day page', () => {
 
     await user.click(screen.getByRole('button', { name: /^check my day$/i }))
     await user.click(screen.getByRole('button', { name: /stop waiting/i }))
-    expect(screen.getByRole('status')).toHaveTextContent(/server request or trip read may still finish/i)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /server request or trip read may still finish/i,
+    )
 
     await act(async () => {
       lateRequest.resolve({
@@ -326,7 +329,9 @@ describe('Check My Day page', () => {
 
     expect(pollServer).not.toHaveBeenCalled()
     expect(screen.queryByText('Late suggestion')).not.toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(/server request or trip read may still finish/i)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /server request or trip read may still finish/i,
+    )
   })
 
   it('keeps a retry result when an earlier poll settles late after cancellation', async () => {

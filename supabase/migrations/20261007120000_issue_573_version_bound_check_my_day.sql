@@ -6,6 +6,27 @@ alter table trip_private.check_my_day_command_evidence
 create unique index check_my_day_command_evidence_request_uidx
   on trip_private.check_my_day_command_evidence(request_id) where request_id is not null;
 
+create temporary table issue573_prior_identity_service_privileges on commit drop as
+select current_user::name as migration_role,
+  pg_has_role(current_user,'identity_service','MEMBER') as had_identity_service_membership,
+  has_schema_privilege('identity_service','app_public','CREATE') as had_app_public_create;
+
+do $owner_transfer_prepare$
+declare
+  v_state record;
+begin
+  select * into v_state from pg_temp.issue573_prior_identity_service_privileges;
+  if not v_state.had_identity_service_membership then
+    execute format('grant identity_service to %I',v_state.migration_role);
+  end if;
+  if not v_state.had_app_public_create then
+    execute 'grant create on schema app_public to identity_service';
+  end if;
+end;
+$owner_transfer_prepare$;
+
+set role identity_service;
+
 create or replace function app_public.request_check_my_day(trip_id text)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare
@@ -194,38 +215,26 @@ begin
   return v_result;
 end $$;
 
--- Transfer ownership with only the temporary privileges the executor lacks.
--- Restore their prior state so migrations do not leave a new schema or role grant.
-do $owner_transfer$
+revoke all on function app_public.request_check_my_day(text) from public,anon;
+revoke all on function app_public.get_check_my_day_suggestion(text) from public,anon;
+grant execute on function app_public.request_check_my_day(text) to authenticated;
+grant execute on function app_public.get_check_my_day_suggestion(text) to authenticated;
+revoke all on function app_public.use_check_my_day_suggestion(text,text,bigint) from public,anon,authenticated;
+grant execute on function app_public.use_check_my_day_suggestion(text,text,bigint) to authenticated;
+
+reset role;
+
+-- Restore only privileges this migration added for its owner-controlled DDL.
+do $owner_transfer_cleanup$
 declare
-  v_migration_role name := current_user;
-  v_had_identity_service_membership boolean :=
-    pg_has_role(current_user,'identity_service','MEMBER');
-  v_had_app_public_create boolean :=
-    has_schema_privilege('identity_service','app_public','CREATE');
+  v_state record;
 begin
-  if not v_had_identity_service_membership then
-    execute format('grant identity_service to %I',v_migration_role);
-  end if;
-  if not v_had_app_public_create then
-    execute 'grant create on schema app_public to identity_service';
-  end if;
-
-  execute 'alter function app_public.request_check_my_day(text) owner to identity_service';
-  execute 'alter function app_public.get_check_my_day_suggestion(text) owner to identity_service';
-  execute 'alter function app_public.use_check_my_day_suggestion(text,text,bigint) owner to identity_service';
-  execute 'revoke all on function app_public.request_check_my_day(text) from public,anon';
-  execute 'revoke all on function app_public.get_check_my_day_suggestion(text) from public,anon';
-  execute 'grant execute on function app_public.request_check_my_day(text) to authenticated';
-  execute 'grant execute on function app_public.get_check_my_day_suggestion(text) to authenticated';
-  execute 'revoke all on function app_public.use_check_my_day_suggestion(text,text,bigint) from public,anon,authenticated';
-  execute 'grant execute on function app_public.use_check_my_day_suggestion(text,text,bigint) to authenticated';
-
-  if not v_had_app_public_create then
+  select * into v_state from pg_temp.issue573_prior_identity_service_privileges;
+  if not v_state.had_app_public_create then
     execute 'revoke create on schema app_public from identity_service';
   end if;
-  if not v_had_identity_service_membership then
-    execute format('revoke identity_service from %I',v_migration_role);
+  if not v_state.had_identity_service_membership then
+    execute format('revoke identity_service from %I',v_state.migration_role);
   end if;
 end;
-$owner_transfer$;
+$owner_transfer_cleanup$;

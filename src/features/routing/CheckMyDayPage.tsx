@@ -35,10 +35,13 @@ export function AuthoritativeCheckMyDayPage({
   const [tripRefreshPending, setTripRefreshPending] = useState(false)
   const [tripRefreshFailed, setTripRefreshFailed] = useState(false)
   const [tripRefreshed, setTripRefreshed] = useState(false)
-  useEffect(() => () => {
-    runSequence.current += 1
-    runActive.current = false
-  }, [])
+  useEffect(
+    () => () => {
+      runSequence.current += 1
+      runActive.current = false
+    },
+    [],
+  )
 
   async function run() {
     if (runActive.current) return
@@ -81,7 +84,9 @@ export function AuthoritativeCheckMyDayPage({
       }
       if (
         next.state === 'suggested' &&
-        (next.requestId !== requestId || next.tripVersion !== tripVersion || tripVersion === undefined)
+        (next.requestId !== requestId ||
+          next.tripVersion !== tripVersion ||
+          tripVersion === undefined)
       ) {
         next = { requestId, state: 'failed', reason: 'trip_changed', tripVersion }
       }
@@ -194,7 +199,11 @@ export function AuthoritativeCheckMyDayPage({
         >
           {pending ? 'Checking…' : 'Check My Day'}
         </button>
-        {pending && <button type="button" onClick={stopWaiting}>Stop waiting</button>}
+        {pending && (
+          <button type="button" onClick={stopWaiting}>
+            Stop waiting
+          </button>
+        )}
         {cancelMessage && <p role="status">{cancelMessage}</p>}
         {requestFailed && (
           <p role="alert">
@@ -218,7 +227,11 @@ export function AuthoritativeCheckMyDayPage({
         {result?.state === 'suggested' && tripLoadFailed && (
           <>
             <p role="status">The trip could not be refreshed. Your manual order is unchanged.</p>
-            <button type="button" disabled={tripRefreshPending} onClick={() => void retryTripLoad()}>
+            <button
+              type="button"
+              disabled={tripRefreshPending}
+              onClick={() => void retryTripLoad()}
+            >
               {tripRefreshPending ? 'Refreshing trip…' : 'Retry trip refresh'}
             </button>
           </>
@@ -226,7 +239,11 @@ export function AuthoritativeCheckMyDayPage({
         {result?.state === 'suggested' && !tripLoadFailed && !trip && (
           <p role="status">Loading the current trip…</p>
         )}
-        {result?.state === 'suggested' && trip && !tripLoadFailed && result.orderedStopIds && (() => {
+        {result?.state === 'suggested' &&
+          trip &&
+          !tripLoadFailed &&
+          result.orderedStopIds &&
+          (() => {
             const ids = result.orderedStopIds!
             const unique = new Set(ids)
             const valid =
@@ -267,8 +284,14 @@ export function AuthoritativeCheckMyDayPage({
                     {choiceFailed && (
                       <div role="alert">
                         <p>We could not confirm whether the suggestion was applied.</p>
-                        {tripRefreshFailed && <p>Trip refresh failed. Try again before using another suggestion.</p>}
-                        <button type="button" disabled={tripRefreshPending} onClick={() => void refreshTrip()}>
+                        {tripRefreshFailed && (
+                          <p>Trip refresh failed. Try again before using another suggestion.</p>
+                        )}
+                        <button
+                          type="button"
+                          disabled={tripRefreshPending}
+                          onClick={() => void refreshTrip()}
+                        >
                           {tripRefreshPending
                             ? 'Refreshing trip…'
                             : tripRefreshFailed
@@ -286,11 +309,15 @@ export function AuthoritativeCheckMyDayPage({
         {tripRefreshed && trip && (
           <section aria-labelledby="current-trip-order-heading">
             <h2 id="current-trip-order-heading">Current trip order</h2>
-            <p role="status">Trip refreshed. Check My Day again for a suggestion based on the current trip.</p>
+            <p role="status">
+              Trip refreshed. Check My Day again for a suggestion based on the current trip.
+            </p>
             <ol aria-label="Current saved trip order">
               {[...trip.stops]
                 .sort((left, right) => left.position - right.position)
-                .map((stop) => <li key={stop.id}>{stop.label}</li>)}
+                .map((stop) => (
+                  <li key={stop.id}>{stop.label}</li>
+                ))}
             </ol>
           </section>
         )}
