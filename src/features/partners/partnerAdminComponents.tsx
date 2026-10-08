@@ -102,6 +102,7 @@ export function PartnerAdminPage({
     try {
       const next = await client.getCase(claimId.trim())
       setClaim(next)
+      setOperation('changes')
       if (next.storeId) await refreshTeam(next.storeId)
     } catch {
       setError(true)
@@ -138,8 +139,13 @@ export function PartnerAdminPage({
     if (!claim?.version) return
     if (
       operation === 'approve_owner' &&
-      (!isPartnerAdminStoreId(claim.storeId) || !claim.exactStoreScope)
+      (!claim.ownerIntent || !isPartnerAdminStoreId(claim.storeId) || !claim.exactStoreScope)
     ) {
+      setError(true)
+      setConfirmDecision(false)
+      return
+    }
+    if ((operation === 'approve' || operation === 'transfer') && claim.ownerIntent !== false) {
       setError(true)
       setConfirmDecision(false)
       return
@@ -151,18 +157,17 @@ export function PartnerAdminPage({
     setPending(true)
     setError(false)
     try {
-      setClaim(
-        await client.decide({
-          operation,
-          claimId: claim.claimId,
-          expectedVersion: claim.version,
-          idempotencyKey: decisionKey.trim(),
-          reasonCode:
-            operation === 'approve_owner' ? OWNER_APPROVAL_REASON_CODE : reasonCode.trim(),
-          transferFromClaimId: operation === 'transfer' ? transferFromClaimId.trim() : undefined,
-          ...(operation === 'approve_owner' ? { confirmedStoreId: claim.storeId } : {}),
-        }),
-      )
+      const next = await client.decide({
+        operation,
+        claimId: claim.claimId,
+        expectedVersion: claim.version,
+        idempotencyKey: decisionKey.trim(),
+        reasonCode: operation === 'approve_owner' ? OWNER_APPROVAL_REASON_CODE : reasonCode.trim(),
+        transferFromClaimId: operation === 'transfer' ? transferFromClaimId.trim() : undefined,
+        ...(operation === 'approve_owner' ? { confirmedStoreId: claim.storeId } : {}),
+      })
+      setClaim(next)
+      setOperation('changes')
       setConfirmDecision(false)
     } catch {
       setError(true)
@@ -415,12 +420,19 @@ export function PartnerAdminPage({
                 value={operation}
                 onChange={(event) => setOperation(event.target.value as PartnerAdminOperation)}
               >
-                {operations.map((candidate) => (
-                  <option key={candidate} value={candidate}>
-                    {labelState(candidate)}
-                  </option>
-                ))}
-                {client.ownerApprovalAvailable &&
+                {operations
+                  .filter(
+                    (candidate) =>
+                      (candidate !== 'approve' && candidate !== 'transfer') ||
+                      claim.ownerIntent === false,
+                  )
+                  .map((candidate) => (
+                    <option key={candidate} value={candidate}>
+                      {labelState(candidate)}
+                    </option>
+                  ))}
+                {claim.ownerIntent &&
+                  client.ownerApprovalAvailable &&
                   isPartnerAdminStoreId(claim.storeId) &&
                   claim.exactStoreScope && (
                     <option value="approve_owner">

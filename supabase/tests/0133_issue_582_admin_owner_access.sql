@@ -98,6 +98,11 @@ grant select,insert on revoke_result582 to authenticated;
 
 select pg_temp.seed_claim582('58200000-0000-4000-8000-000000000004','76000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000009');
 insert into review_cases582 select '58200000-0000-4000-8000-000000000004',case_id,null from admin_private.admin_review_cases where target_id='58200000-0000-4000-8000-000000000004' and case_type='listing_claim';
+create temporary table owner_claim_before582 as
+ select c.claim_id,c.version as claim_version,r.version as review_version
+ from partner_private.listing_claims c join admin_private.admin_review_cases r
+   on r.target_id=c.claim_id and r.case_type='listing_claim'
+ where c.claim_id='58200000-0000-4000-8000-000000000004';
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
 set local role authenticated;
 update review_cases582 r set version=(app_public.admin_get_review_case(r.case_id::text)->>'version')::bigint where r.claim_id='58200000-0000-4000-8000-000000000004';
@@ -105,6 +110,17 @@ select throws_ok($$select app_public.admin_decide_review_case((select case_id::t
 select is((app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-000000000004'),'approve','Owner authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-000000000004'),'582-review-owner-a')->>'state'),'approved','invitation-backed Owner approval routes through owner_admin_approve_claim');
 select is((app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-000000000004'),'approve','Owner authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-000000000004'),'582-review-owner-a')->>'state'),'approved','Owner approval replay returns its recorded result');
 reset role;
+select is((select state from partner_private.listing_claims where claim_id='58200000-0000-4000-8000-000000000004'),'approved','Owner approval preserves approved claim state');
+select is((select version from partner_private.listing_claims where claim_id='58200000-0000-4000-8000-000000000004'),(select claim_version from owner_claim_before582),'Owner approval preserves the claim version contract');
+select is((select expected_version from partner_private.owner_claim_approvals where claim_id='58200000-0000-4000-8000-000000000004'),(select claim_version from owner_claim_before582),'Owner receipt binds the original claim version');
+select is((select version from app_private.role_grants where subject_user_id='76000000-0000-4000-8000-000000000001' and store_id='00000000-0000-4000-8000-000000000009' and role='store_owner' and state='active'),2::bigint,'Owner role conversion increments its grant version once');
+select is((select version from partner_private.store_partner_grants where auth_user_id='76000000-0000-4000-8000-000000000001' and store_id='00000000-0000-4000-8000-000000000009' and role='store_owner' and state='active'),2::bigint,'Owner partner-scope conversion increments its grant version once');
+select is((select version from admin_private.admin_review_cases where target_id='58200000-0000-4000-8000-000000000004' and case_type='listing_claim'),(select review_version+2 from owner_claim_before582),'claiming and deciding the Owner review each increment the review-case version once');
+select is((select count(*) from partner_private.claim_events where claim_id='58200000-0000-4000-8000-000000000004' and idempotency_key='582-review-owner-a'),1::bigint,'Owner approval writes one claim event');
+select is((select count(*) from partner_private.claim_command_receipts where idempotency_key='582-review-owner-a' and operation='approve'),1::bigint,'Owner approval writes one generic claim command receipt');
+select is((select count(*) from partner_private.owner_claim_approvals where idempotency_key='582-review-owner-a'),1::bigint,'Owner approval writes one Owner-specific approval marker');
+select is((select count(*) from app_private.privileged_audit_events where resource_kind='listing_claim' and resource_id='58200000-0000-4000-8000-000000000004' and action='partner_claim_approve'),1::bigint,'Owner approval preserves the generic claim audit');
+select is((select count(*) from app_private.privileged_audit_events where resource_kind='listing_claim' and resource_id='58200000-0000-4000-8000-000000000004' and action='owner_claim_approved'),1::bigint,'Owner approval writes one Owner-specific audit');
 create temporary table owner_root_before_replay582 as
  select applicant_id,active_kind,active_id,version from partner_private.store_owner_intake_roots
  where applicant_id='76000000-0000-4000-8000-000000000001';
@@ -117,10 +133,28 @@ insert into claim_versions582
  select claim_id,expected_version from partner_private.owner_claim_approvals
  where claim_id='58200000-0000-4000-8000-000000000004'
  on conflict(claim_id) do update set version=excluded.version;
+create temporary table owner_replay_before582 as
+ select c.version as claim_version,
+   (select version from app_private.role_grants where subject_user_id=c.claimant_id and store_id=c.store_id and role='store_owner' and state='active') as role_grant_version,
+   (select version from partner_private.store_partner_grants where auth_user_id=c.claimant_id and store_id=c.store_id and role='store_owner' and state='active') as partner_grant_version,
+   (select count(*) from partner_private.claim_events where claim_id=c.claim_id) as event_count,
+   (select count(*) from partner_private.claim_command_receipts where idempotency_key='582-review-owner-a') as claim_receipt_count,
+   (select count(*) from partner_private.owner_claim_approvals where idempotency_key='582-review-owner-a') as owner_receipt_count,
+   (select count(*) from app_private.privileged_audit_events where resource_kind='listing_claim' and resource_id=c.claim_id and action in ('partner_claim_approve','owner_claim_approved')) as audit_count
+ from partner_private.listing_claims c where c.claim_id='58200000-0000-4000-8000-000000000004';
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
 set local role authenticated;
 select is((app_public.owner_admin_approve_claim('58200000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000009',(select version from claim_versions582 where claim_id='58200000-0000-4000-8000-000000000004'),'582-review-owner-a')->>'claimId'),'58200000-0000-4000-8000-000000000004','recorded Owner approval replay survives a later intake-root change');
 reset role;
+select ok((select c.version=b.claim_version
+  and (select version from app_private.role_grants where subject_user_id=c.claimant_id and store_id=c.store_id and role='store_owner' and state='active')=b.role_grant_version
+  and (select version from partner_private.store_partner_grants where auth_user_id=c.claimant_id and store_id=c.store_id and role='store_owner' and state='active')=b.partner_grant_version
+  and (select count(*) from partner_private.claim_events where claim_id=c.claim_id)=b.event_count
+  and (select count(*) from partner_private.claim_command_receipts where idempotency_key='582-review-owner-a')=b.claim_receipt_count
+  and (select count(*) from partner_private.owner_claim_approvals where idempotency_key='582-review-owner-a')=b.owner_receipt_count
+  and (select count(*) from app_private.privileged_audit_events where resource_kind='listing_claim' and resource_id=c.claim_id and action in ('partner_claim_approve','owner_claim_approved'))=b.audit_count
+ from partner_private.listing_claims c cross join owner_replay_before582 b where c.claim_id='58200000-0000-4000-8000-000000000004'),
+ 'Owner replay after root change preserves claim/grant versions and writes no duplicate events, receipts, or audits');
 update partner_private.store_owner_intake_roots r
  set active_kind=prior.active_kind,active_id=prior.active_id,version=r.version+1,updated_at=statement_timestamp()
  from owner_root_before_replay582 prior where r.applicant_id=prior.applicant_id;
@@ -148,11 +182,32 @@ select pg_temp.seed_claim582('58200000-0000-4000-8000-00000000000c','76000000-00
 insert into review_cases582 select '58200000-0000-4000-8000-00000000000c',case_id,null from admin_private.admin_review_cases where target_id='58200000-0000-4000-8000-00000000000c' and case_type='listing_claim';
 update partner_private.pending_partner_identities set state='auth_pending',bound_at=null
  where auth_user_id='76000000-0000-4000-8000-000000000001';
+insert into claim_versions582 select claim_id,version from partner_private.listing_claims
+ where claim_id='58200000-0000-4000-8000-00000000000c'
+ on conflict(claim_id) do update set version=excluded.version;
+create temporary table owner_intent_before582 as
+ select c.claim_id,c.claimant_id,c.store_id,c.state,c.version,
+   (select count(*) from partner_private.listing_claims same_scope where same_scope.claimant_id=c.claimant_id and same_scope.store_id=c.store_id) as claim_count,
+   (select count(*) from partner_private.claim_events e where e.claim_id=c.claim_id) as event_count,
+   (select count(*) from app_private.role_grants g where g.subject_user_id=c.claimant_id and g.store_id=c.store_id and g.role in ('representative','store_owner') and g.state='active') as role_grant_count,
+   (select count(*) from partner_private.store_partner_grants g where g.auth_user_id=c.claimant_id and g.store_id=c.store_id and g.state='active') as partner_grant_count,
+   (select count(*) from app_private.privileged_audit_events a where a.resource_kind='listing_claim' and a.resource_id=c.claim_id) as audit_count
+ from partner_private.listing_claims c where c.claim_id='58200000-0000-4000-8000-00000000000c';
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
 set local role authenticated;
+select throws_ok($$select app_public.partner_admin_claim_command('approve','58200000-0000-4000-8000-00000000000c',(select version from claim_versions582 where claim_id='58200000-0000-4000-8000-00000000000c'),'582-generic-owner-approve','owner_authority_verified',null)$$,'42501',null,'generic Representative approval rejects unbound exact Owner intent');
 update review_cases582 r set version=(app_public.admin_get_review_case(r.case_id::text)->>'version')::bigint where r.claim_id='58200000-0000-4000-8000-00000000000c';
 select throws_ok($$select app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000c'),'approve','Owner authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000c'),'582-review-owner-invalid-identity')$$,'42501','admin_unavailable','Owner-intake claim with unbound synthetic identity fails closed before Representative approval');
 reset role;
+select ok((select c.state=b.state and c.version=b.version from partner_private.listing_claims c cross join owner_intent_before582 b where c.claim_id=b.claim_id),'generic Owner-intent denial leaves claim state and version unchanged');
+select is((select count(*) from partner_private.listing_claims c cross join owner_intent_before582 b where c.claimant_id=b.claimant_id and c.store_id=b.store_id),(select claim_count from owner_intent_before582),'generic Owner-intent denial creates no claim');
+select is((select count(*) from partner_private.claim_events where claim_id='58200000-0000-4000-8000-00000000000c'),(select event_count from owner_intent_before582),'generic Owner-intent denial writes no claim event');
+select is((select count(*) from app_private.role_grants g join partner_private.listing_claims c on c.claimant_id=g.subject_user_id and c.store_id=g.store_id where c.claim_id='58200000-0000-4000-8000-00000000000c' and g.role in ('representative','store_owner') and g.state='active'),(select role_grant_count from owner_intent_before582),'generic Owner-intent denial grants no authority');
+select is((select count(*) from partner_private.store_partner_grants g join partner_private.listing_claims c on c.claimant_id=g.auth_user_id and c.store_id=g.store_id where c.claim_id='58200000-0000-4000-8000-00000000000c' and g.state='active'),(select partner_grant_count from owner_intent_before582),'generic Owner-intent denial creates no partner scope');
+select is((select count(*) from partner_private.claim_command_receipts where idempotency_key='582-generic-owner-approve'),0::bigint,'generic Owner-intent denial writes no claim command receipt');
+select is((select count(*) from admin_private.admin_command_receipts where idempotency_key in ('582-generic-owner-approve','582-review-owner-invalid-identity')),0::bigint,'Owner-intent denial writes no Admin command receipt');
+select is((select count(*) from app_private.privileged_audit_events a where a.resource_kind='listing_claim' and a.resource_id='58200000-0000-4000-8000-00000000000c'),(select audit_count from owner_intent_before582),'generic Owner-intent denial writes no audit event');
+select is((select count(*) from partner_private.owner_claim_approvals where claim_id='58200000-0000-4000-8000-00000000000c'),0::bigint,'generic Owner-intent denial creates no Owner approval marker');
 update partner_private.pending_partner_identities set state='bound',bound_at=statement_timestamp()
  where auth_user_id='76000000-0000-4000-8000-000000000001';
 select is((select count(*) from app_private.role_grants where subject_user_id='76000000-0000-4000-8000-000000000001' and role='representative' and store_id='00000000-0000-4000-8000-000000000007' and state='active'),0::bigint,'ineligible Owner-intake claim creates no Representative grant');
@@ -208,9 +263,32 @@ select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-40
 set local role authenticated;
 select throws_ok($$select app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000b'),'approve','Representative authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000b'),'582-review-owner-a')$$,'22023',null,'Owner receipt cannot replay as a Representative decision');
 select is((app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000b'),'approve','Representative authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000b'),'582-review-rep-c')->>'state'),'approved','public listing claim retains Representative decision path');
+select is((app_public.partner_admin_claim_command('approve','58200000-0000-4000-8000-00000000000b',(select version from claim_versions582 where claim_id='58200000-0000-4000-8000-00000000000b'),'582-review-rep-c-claim','administrator_decision',null)->>'ownerIntent')::boolean,false,'public Representative generic replay returns a boolean false Owner-intent DTO');
 reset role;
 select is((select count(*) from app_private.role_grants where subject_user_id='58200000-0000-4000-8000-000000000012' and role='representative' and store_id='00000000-0000-4000-8000-000000000007' and state='active'),1::bigint,'Representative approval creates no Owner authority');
+select is((select count(*) from partner_private.store_partner_grants where auth_user_id='58200000-0000-4000-8000-000000000012' and role='representative' and store_id='00000000-0000-4000-8000-000000000007' and state='active'),1::bigint,'Representative approval retains one Representative partner scope');
 select is((select count(*) from partner_private.owner_claim_approvals where claim_id='58200000-0000-4000-8000-00000000000b'),0::bigint,'Representative claim has no Owner approval marker');
+select is((select count(*) from partner_private.claim_command_receipts where idempotency_key='582-review-rep-c-claim' and operation='approve'),1::bigint,'Representative generic approval replay keeps one command receipt');
+select is((select count(*) from partner_private.claim_events where claim_id='58200000-0000-4000-8000-00000000000b' and idempotency_key='582-review-rep-c-claim'),1::bigint,'Representative generic approval replay keeps one claim event');
+select is((select count(*) from app_private.privileged_audit_events where resource_kind='listing_claim' and resource_id='58200000-0000-4000-8000-00000000000b' and action='partner_claim_approve'),1::bigint,'Representative generic approval replay writes one generic approval audit');
+
+create temporary table rep_transfer_before582 as
+ select c.state,c.version as claim_version,
+   (select version from app_private.role_grants where subject_user_id=c.claimant_id and store_id=c.store_id and role='representative' and state='active') as role_grant_version,
+   (select version from partner_private.store_partner_grants where auth_user_id=c.claimant_id and store_id=c.store_id and role='representative' and state='active') as partner_grant_version,
+   (select count(*) from partner_private.claim_events where claim_id in ('58200000-0000-4000-8000-00000000000b','58200000-0000-4000-8000-00000000000c')) as event_count,
+   (select count(*) from app_private.privileged_audit_events where resource_kind='listing_claim' and resource_id in ('58200000-0000-4000-8000-00000000000b','58200000-0000-4000-8000-00000000000c') and action like 'partner_claim_%') as audit_count
+ from partner_private.listing_claims c where c.claim_id='58200000-0000-4000-8000-00000000000b';
+select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
+set local role authenticated;
+select throws_ok($$select app_public.partner_admin_claim_command('transfer','58200000-0000-4000-8000-00000000000c',(select version from claim_versions582 where claim_id='58200000-0000-4000-8000-00000000000c'),'582-generic-owner-transfer','verified_authority_transfer','58200000-0000-4000-8000-00000000000b')$$,'42501',null,'generic transfer rejects exact Owner-intent target before source revocation');
+reset role;
+select ok((select c.state=b.state and c.version=b.claim_version from partner_private.listing_claims c cross join rep_transfer_before582 b where c.claim_id='58200000-0000-4000-8000-00000000000b'),'Owner-intent transfer denial leaves the Representative source claim unchanged');
+select is((select version from app_private.role_grants where subject_user_id='58200000-0000-4000-8000-000000000012' and store_id='00000000-0000-4000-8000-000000000007' and role='representative' and state='active'),(select role_grant_version from rep_transfer_before582),'Owner-intent transfer denial leaves the Representative role grant unchanged');
+select is((select version from partner_private.store_partner_grants where auth_user_id='58200000-0000-4000-8000-000000000012' and store_id='00000000-0000-4000-8000-000000000007' and role='representative' and state='active'),(select partner_grant_version from rep_transfer_before582),'Owner-intent transfer denial leaves the Representative partner grant unchanged');
+select is((select count(*) from partner_private.claim_events where claim_id in ('58200000-0000-4000-8000-00000000000b','58200000-0000-4000-8000-00000000000c')),(select event_count from rep_transfer_before582),'Owner-intent transfer denial writes no claim event');
+select is((select count(*) from partner_private.claim_command_receipts where idempotency_key='582-generic-owner-transfer'),0::bigint,'Owner-intent transfer denial writes no command receipt');
+select is((select count(*) from app_private.privileged_audit_events where resource_kind='listing_claim' and resource_id in ('58200000-0000-4000-8000-00000000000b','58200000-0000-4000-8000-00000000000c') and action like 'partner_claim_%'),(select audit_count from rep_transfer_before582),'Owner-intent transfer denial writes no claim audit');
 
 -- Reuse the already-denied Owner-intake claim; active claimant/store pairs are unique.
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');

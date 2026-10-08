@@ -22,6 +22,7 @@ export interface PartnerAdminCase {
   claimId: string
   storeId?: string
   state: PartnerClaimState
+  ownerIntent?: boolean
   version?: number
   exactStoreScope?: string
   verifiedSignals?: ReadonlyArray<{ channelClass: string; signalType: string }>
@@ -30,6 +31,14 @@ export interface PartnerAdminCase {
     channelClass: string
     signalType: string
   }>
+}
+
+function parsePartnerAdminCase(value: unknown): PartnerAdminCase {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new Error('partner_administration_unavailable')
+  if (typeof (value as { ownerIntent?: unknown }).ownerIntent !== 'boolean')
+    throw new Error('partner_administration_unavailable')
+  return value as PartnerAdminCase
 }
 
 export interface PartnerAdminTeamMember {
@@ -88,10 +97,12 @@ export interface PartnerAdminClient {
 export function createPartnerAdminClient(transport: PartnerAdminTransport): PartnerAdminClient {
   return {
     ownerApprovalAvailable: transport.ownerApprovalAvailable === true,
-    getCase(claimId: string): Promise<PartnerAdminCase> {
-      return transport.rpc('partner_admin_claim_case', {
-        p_claim_id: claimId,
-      }) as Promise<PartnerAdminCase>
+    async getCase(claimId: string): Promise<PartnerAdminCase> {
+      return parsePartnerAdminCase(
+        await transport.rpc('partner_admin_claim_case', {
+          p_claim_id: claimId,
+        }),
+      )
     },
     async listStoreTeam(storeId: string): Promise<{ members: PartnerAdminTeamMember[] }> {
       if (!uuid.test(storeId)) throw new Error('partner_administration_unavailable')
@@ -183,18 +194,22 @@ export function createPartnerAdminClient(transport: PartnerAdminTransport): Part
           p_expected_version: input.expectedVersion,
           p_idempotency_key: input.idempotencyKey,
         })
-        return transport.rpc('partner_admin_claim_case', {
-          p_claim_id: input.claimId,
-        }) as Promise<PartnerAdminCase>
+        return parsePartnerAdminCase(
+          await transport.rpc('partner_admin_claim_case', {
+            p_claim_id: input.claimId,
+          }),
+        )
       }
-      return transport.rpc('partner_admin_claim_command', {
-        p_operation: input.operation,
-        p_claim_id: input.claimId,
-        p_expected_version: input.expectedVersion,
-        p_idempotency_key: input.idempotencyKey,
-        p_reason_code: input.reasonCode,
-        p_transfer_from_claim_id: input.transferFromClaimId ?? null,
-      }) as Promise<PartnerAdminCase>
+      return parsePartnerAdminCase(
+        await transport.rpc('partner_admin_claim_command', {
+          p_operation: input.operation,
+          p_claim_id: input.claimId,
+          p_expected_version: input.expectedVersion,
+          p_idempotency_key: input.idempotencyKey,
+          p_reason_code: input.reasonCode,
+          p_transfer_from_claim_id: input.transferFromClaimId ?? null,
+        }),
+      )
     },
     issueSyntheticInvitation(input) {
       if (!transport.edge) return Promise.reject(new Error('partner_invitation_unavailable'))
@@ -203,15 +218,17 @@ export function createPartnerAdminClient(transport: PartnerAdminTransport): Part
         idempotencyKey: input.idempotencyKey,
       }) as Promise<SyntheticPartnerInvitation>
     },
-    verifySignal(input) {
-      return transport.rpc('partner_admin_signal_command', {
-        p_operation: input.operation,
-        p_claim_id: input.claimId,
-        p_signal_id: input.signalId,
-        p_expected_version: input.expectedVersion,
-        p_idempotency_key: input.idempotencyKey,
-        p_reason_code: input.reasonCode,
-      }) as Promise<PartnerAdminCase>
+    async verifySignal(input) {
+      return parsePartnerAdminCase(
+        await transport.rpc('partner_admin_signal_command', {
+          p_operation: input.operation,
+          p_claim_id: input.claimId,
+          p_signal_id: input.signalId,
+          p_expected_version: input.expectedVersion,
+          p_idempotency_key: input.idempotencyKey,
+          p_reason_code: input.reasonCode,
+        }),
+      )
     },
   }
 }

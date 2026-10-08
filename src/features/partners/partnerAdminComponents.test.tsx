@@ -11,6 +11,7 @@ function client(overrides: Partial<PartnerAdminClient> = {}): PartnerAdminClient
       claimId: '11111111-1111-4111-8111-111111111111',
       storeId: '00000000-0000-4000-8000-000000000009',
       state: 'verification_pending' as const,
+      ownerIntent: false,
       version: 3,
       exactStoreScope: 'synthetic-store',
       verifiedSignals: [{ channelClass: 'callback', signalType: 'authority' }],
@@ -25,6 +26,7 @@ function client(overrides: Partial<PartnerAdminClient> = {}): PartnerAdminClient
     decide: vi.fn(async (input) => ({
       claimId: input.claimId,
       state: input.operation === 'approve' ? ('approved' as const) : ('changes_requested' as const),
+      ownerIntent: false,
       version: input.expectedVersion + 1,
       exactStoreScope: 'synthetic-store',
     })),
@@ -36,6 +38,7 @@ function client(overrides: Partial<PartnerAdminClient> = {}): PartnerAdminClient
     verifySignal: vi.fn(async (input) => ({
       claimId: input.claimId,
       state: 'verification_pending' as const,
+      ownerIntent: false,
       version: input.expectedVersion + 1,
       exactStoreScope: 'synthetic-store',
       verifiedSignals: [
@@ -101,6 +104,11 @@ describe('Partner Administrator screen', () => {
     await user.selectOptions(screen.getByLabelText(/^decision$/i), 'approve')
     await user.type(screen.getByLabelText(/reason code/i), 'verified_authority')
     await user.type(screen.getByLabelText(/^decision key$/i), 'approve-claim-v3')
+    expect(
+      screen.queryByRole('option', {
+        name: /Approve Store Owner for this exact synthetic store/i,
+      }),
+    ).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /apply decision/i }))
     expect(boundary.decide).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: /confirm approve decision/i }))
@@ -118,7 +126,17 @@ describe('Partner Administrator screen', () => {
 
   it('confirms Owner approval with the UUID while showing the human-readable store scope', async () => {
     const user = userEvent.setup()
-    const boundary = client({ ownerApprovalAvailable: true })
+    const boundary = client({
+      ownerApprovalAvailable: true,
+      getCase: vi.fn(async () => ({
+        claimId: '11111111-1111-4111-8111-111111111111',
+        storeId: '00000000-0000-4000-8000-000000000009',
+        state: 'verification_pending' as const,
+        ownerIntent: true,
+        version: 3,
+        exactStoreScope: 'synthetic-store',
+      })),
+    })
     render(
       <MemoryRouter>
         <PartnerAdminPage client={boundary} />
@@ -130,6 +148,15 @@ describe('Partner Administrator screen', () => {
     await user.type(screen.getByLabelText(/exact claim id/i), claimId)
     await user.click(screen.getByRole('button', { name: /open exact claim/i }))
     await screen.findByText(/verification pending/i)
+
+    const decision = screen.getByLabelText(/^decision$/i) as HTMLSelectElement
+    expect(Array.from(decision.options, (option) => option.value)).not.toContain('approve')
+    expect(Array.from(decision.options, (option) => option.value)).not.toContain('transfer')
+    expect(
+      screen.getByRole('option', {
+        name: /Approve Store Owner for this exact synthetic store/i,
+      }),
+    ).toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText(/^decision$/i), 'approve_owner')
     await user.type(screen.getByLabelText(/^decision key$/i), 'owner-approval-v3')
@@ -150,6 +177,35 @@ describe('Partner Administrator screen', () => {
     })
   })
 
+  it('hides generic approve and transfer when the claim intent is unclassified', async () => {
+    const user = userEvent.setup()
+    const boundary = client({
+      getCase: vi.fn(async () => ({
+        claimId: '11111111-1111-4111-8111-111111111111',
+        storeId: '00000000-0000-4000-8000-000000000009',
+        state: 'verification_pending' as const,
+        version: 3,
+        exactStoreScope: 'synthetic-store',
+      })),
+    })
+    render(
+      <MemoryRouter>
+        <PartnerAdminPage client={boundary} />
+      </MemoryRouter>,
+    )
+
+    await user.type(
+      screen.getByLabelText(/exact claim id/i),
+      '11111111-1111-4111-8111-111111111111',
+    )
+    await user.click(screen.getByRole('button', { name: /open exact claim/i }))
+    await screen.findByText(/verification pending/i)
+
+    const decision = screen.getByLabelText(/^decision$/i) as HTMLSelectElement
+    expect(Array.from(decision.options, (option) => option.value)).not.toContain('approve')
+    expect(Array.from(decision.options, (option) => option.value)).not.toContain('transfer')
+  })
+
   it.each([undefined, 'synthetic-store'])(
     'does not offer Owner approval without a UUID store ID (%s)',
     async (storeId) => {
@@ -159,6 +215,7 @@ describe('Partner Administrator screen', () => {
           claimId: '11111111-1111-4111-8111-111111111111',
           ...(storeId === undefined ? {} : { storeId }),
           state: 'verification_pending' as const,
+          ownerIntent: true,
           version: 3,
           exactStoreScope: 'synthetic-store',
         })),
