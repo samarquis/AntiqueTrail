@@ -768,6 +768,61 @@ describe('manual trips', () => {
     expect(screen.getByRole('heading', { name: 'Private shop: Second Shop' })).toBeVisible()
   })
 
+  it('clears a failed private-stop retry when its trip route changes', async () => {
+    const user = userEvent.setup()
+    const secondTrip: Trip = {
+      ...trip,
+      id: 'trip-2',
+      name: 'Second outing',
+      stops: [{ ...privateStop, id: 'private-stop-2', label: 'Second Shop' }],
+    }
+    const updatePrivateTripStop = vi
+      .fn<NonNullable<TripClient['updatePrivateTripStop']>>()
+      .mockRejectedValueOnce(new Error('transient'))
+    function SwitchTrip() {
+      const navigate = useNavigate()
+      return <button onClick={() => navigate('/trips/trip-2/plan')}>Open second trip</button>
+    }
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <SwitchTrip />
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <PlanPage
+                client={client({
+                  get: vi.fn(async (tripId: string) =>
+                    tripId === 'trip-1' ? { ...trip, stops: [privateStop] } : secondTrip,
+                  ),
+                  updatePrivateTripStop,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: /^edit private shop: hidden finds$/i }),
+    )
+    const address = await screen.findByLabelText(/^private shop address for hidden finds$/i)
+    await user.clear(address)
+    await user.type(address, '456 Updated St')
+    await user.click(screen.getByRole('button', { name: /^save changes to hidden finds$/i }))
+    await screen.findByRole('alert')
+    expect(screen.getByRole('button', { name: /^retry$/i })).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'Open second trip' }))
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Second outing' })).toBeVisible())
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^retry$/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^edit private shop: second shop$/i })).toBeEnabled()
+    expect(updatePrivateTripStop).toHaveBeenCalledTimes(1)
+  })
+
   it('reopens private fields, resets address confirmation on edit, and confirms only the current address', async () => {
     const user = userEvent.setup()
     const changedStop: Trip['stops'][number] = {

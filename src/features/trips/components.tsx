@@ -1132,6 +1132,8 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     state: 'empty',
     pendingCount: 0,
   })
+  const currentActionError =
+    actionError?.context && !actionError.context.isCurrent() ? null : actionError
   async function runAction(
     label: string,
     action: () => Promise<void>,
@@ -1150,6 +1152,9 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       setActionPending(null)
     }
   }
+  useEffect(() => {
+    if (actionError?.context && !actionError.context.isCurrent()) setActionError(null)
+  }, [actionError, tripId])
   useEffect(() => {
     let cancelled = false
     client
@@ -1314,26 +1319,31 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       </TripCard>
     )
   const privateStopRetryBlocked =
-    actionError?.context?.scope === 'private-stop' && actionError.context.isCurrent()
+    currentActionError?.context?.scope === 'private-stop' &&
+    currentActionError.context.isCurrent()
   return (
     <TripCard
       title={trip.name}
       description="Review Hours shows store hours only. Travel time is not included, and no feasible-order or arrival claim is made."
       icon="/icons/trail-map.svg"
     >
-      {actionError && (
+      {currentActionError && (
         <div role="alert">
-          <p>Couldn&apos;t {actionError.label}. Your last saved trip is still shown.</p>
+          <p>Couldn&apos;t {currentActionError.label}. Your last saved trip is still shown.</p>
           <button
             className="button"
             type="button"
             disabled={actionPending !== null}
             onClick={() => {
-              if (actionError.context && !actionError.context.isCurrent()) {
+              if (currentActionError.context && !currentActionError.context.isCurrent()) {
                 setActionError(null)
                 return
               }
-              void runAction(actionError.label, actionError.retry, actionError.context)
+              void runAction(
+                currentActionError.label,
+                currentActionError.retry,
+                currentActionError.context,
+              )
             }}
           >
             {actionPending ? 'Retrying…' : 'Retry'}
