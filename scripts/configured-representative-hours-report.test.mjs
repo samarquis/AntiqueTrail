@@ -87,6 +87,7 @@ test('Owner failure diagnostics retain only allowlisted operation data', () => {
     '/owner/stores',
   )
   assert.equal(ownerListingPathname('http://127.0.0.1:4174/auth/mfa'), '/auth/mfa')
+  assert.equal(ownerListingPathname('http://127.0.0.1:4174/stores'), '/stores')
   assert.equal(ownerListingPathname('https://example.invalid/private'), 'unknown')
   const steps = ownerListingStepResults(
     JSON.stringify([

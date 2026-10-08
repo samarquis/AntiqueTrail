@@ -32,6 +32,7 @@ const ownerListingPathnames = new Set([
   '/partner/join',
   '/partner/verify',
   '/partner/draft',
+  '/stores',
 ])
 const ownerListingAssertions = [
   'toHaveText',

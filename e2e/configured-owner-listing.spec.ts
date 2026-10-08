@@ -165,8 +165,8 @@ async function signIn(page: Page, user: User, returnTo: string, mark: MarkOperat
     mark('sign_in_submit_mfa', page)
     await page.getByRole('button', { name: 'Verify code', exact: true }).click()
   }
-  mark('sign_in_wait_return_url', page, returnTo)
   await expect(page).toHaveURL(new RegExp(`${returnTo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
+  mark('sign_in_wait_return_url', page, returnTo)
 }
 
 async function acceptInvitation(
@@ -494,6 +494,9 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       await expectDenied(await rpc(ownerToken, 'owner_list_stores'), 'Owner A before approval')
 
       await signIn(admin, input.admin, '/admin/partners', mark)
+      await expect(
+        admin.getByRole('heading', { name: 'Partner administration', exact: true }),
+      ).toBeVisible()
       const token = adminToken()
       if (!token) throw new Error('Site Admin session token was not observed')
       await expectDenied(await rpc(token, 'owner_list_stores'), 'Site Admin as Owner')
