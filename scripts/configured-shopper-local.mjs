@@ -583,6 +583,7 @@ export function createLocalService({
     const functionEnv = [
       `PUBLIC_CATALOG_GATEWAY_JWT=${gateway}`,
       `PUBLIC_CATALOG_RATE_SALT=${crypto.randomBytes(32).toString('hex')}`,
+      `APP_ORIGIN=${run.origin}`,
       `PUBLIC_APP_ORIGIN=${run.origin}`,
       ...(signupJourney ? [registrationSettings] : []),
     ].join('\n')
