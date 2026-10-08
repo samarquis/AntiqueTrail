@@ -1,3 +1,7 @@
+grant identity_service to postgres;
+grant create on schema app_public to identity_service;
+set role identity_service;
+
 create or replace function app_public.partner_admin_claim_command(
   p_operation text,p_claim_id uuid,p_expected_version bigint,p_idempotency_key text,
   p_reason_code text,p_transfer_from_claim_id uuid default null
@@ -62,3 +66,7 @@ begin
     values(actor,'administrator','partner_claim_'||p_operation,'completed','listing_claim',c.claim_id,p_reason_code,d,decode(repeat('00',32),'hex'));
   return result;
 end $$;
+
+reset role;
+revoke create on schema app_public from identity_service;
+revoke identity_service from postgres;
