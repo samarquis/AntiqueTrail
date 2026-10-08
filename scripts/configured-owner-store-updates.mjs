@@ -285,6 +285,10 @@ async function provisionOwner(local) {
           'Local Owner update fixture','Synthetic Owner A store','America/Chicago',true,'synthetic','active'),
         ('${siblingStoreId}','${siblingSlug}','Issue 581 Store B','Topeka','KS','2 Synthetic Way','${areaId}',
           'Local Owner update fixture','Unowned sibling store','America/Chicago',true,'synthetic','active');
+    insert into app_public.store_category_assignments(store_id,category_id)
+      select fixtures.store_id,category.id
+      from (values ('${storeId}'::uuid),('${siblingStoreId}'::uuid)) fixtures(store_id)
+      join app_public.store_categories category on category.slug='antique-mall';
     insert into app_public.store_fact_verifications(store_id,verification_group,verified_at,provenance_label)
       select stores.store_id,groups.verification_group,statement_timestamp(),'Issue 581 local synthetic catalog fixture'
       from (values ('${storeId}'::uuid),('${siblingStoreId}'::uuid)) stores(store_id)
