@@ -1,5 +1,14 @@
 -- #568: organizer-only private trip stops and stop-scoped visit identity.
 
+create temporary table issue568_prior_identity_service_membership on commit drop as
+select 1 as present
+where exists (
+  select 1 from pg_auth_members
+  where roleid='identity_service'::regrole and member='postgres'::regrole
+);
+grant identity_service to postgres;
+grant create on schema trip_private to identity_service;
+
 create table trip_private.private_stop_capability (
   singleton boolean primary key default true check (singleton),
   enabled boolean not null default false
@@ -338,6 +347,7 @@ alter table trip_private.trip_visit_memories add column memory_id uuid;
 update trip_private.trip_visit_memories
    set memory_id = extensions.gen_random_uuid()
  where memory_id is null;
+alter table trip_private.trip_visit_memories drop constraint trip_visit_memories_pkey;
 alter table trip_private.trip_visit_memories
   alter column memory_id set default extensions.gen_random_uuid(),
   alter column memory_id set not null,
@@ -346,7 +356,6 @@ alter table trip_private.trip_visit_memories
   add column private_stop_id uuid references trip_private.trip_stops(stop_id) on delete set null,
   add column private_stop_name text,
   add column private_stop_address text;
-alter table trip_private.trip_visit_memories drop constraint trip_visit_memories_pkey;
 alter table trip_private.trip_visit_memories add constraint trip_visit_memories_pkey primary key (memory_id);
 alter table trip_private.trip_visit_memories add constraint visit_memory_stop_identity_shape
   check (stop_id is not null or store_id is not null);
@@ -510,6 +519,7 @@ begin
   return trip_private.trip_command_json(v_trip);
 end;
 $$;
+grant create on schema app_public to identity_service;
 alter function app_public.remove_trip_stop(text,text,bigint) owner to identity_service;
 
 create or replace function app_public.complete_trip(trip_id text)
@@ -704,6 +714,7 @@ as $$
   ) from trip_private.trips as t where t.trip_id=target_trip_id;
 $$;
 alter function trip_private.trip_command_json(uuid) owner to identity_service;
+revoke create on schema trip_private from identity_service;
 
 create or replace function app_public.add_private_trip_stop(
   trip_id text,name text,address text,source_url text,hours jsonb,priority text,
@@ -908,6 +919,15 @@ begin
 end;
 $$;
 alter function app_public.confirm_trip_stop_destination(text,text,text,bigint,text) owner to identity_service;
+
+revoke create on schema app_public from identity_service;
+do $cleanup$
+begin
+  if not exists (select 1 from pg_temp.issue568_prior_identity_service_membership) then
+    execute 'revoke identity_service from postgres';
+  end if;
+end;
+$cleanup$;
 
 revoke all on function app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text) from public, anon;
 revoke all on function app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text) from public, anon;

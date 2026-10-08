@@ -12,6 +12,7 @@ import type {
   TripInvitation,
   TripParticipant,
   PrivateTripStopInput,
+  TripPrivateDestination,
   TripPrivateHours,
   TripStop,
   TripMutationReplayResult,
@@ -84,7 +85,6 @@ const TRIP_STATES = new Set(['draft', 'ready', 'active', 'completed', 'cancelled
 const STOP_STATES = new Set(['planned', 'arrived', 'completed', 'skipped', 'observed_closed'])
 const PRIORITIES = new Set(['must', 'prefer', 'flexible'])
 const QUEUE_STATES = new Set(['empty', 'queued', 'replaying', 'conflict', 'purged', 'blocked'])
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -138,7 +138,7 @@ function privateText(value: unknown, maximum: number, optional = false): string 
   if (optional && (value == null || value === '')) return undefined
   if (typeof value !== 'string') throw genericFailure()
   const normalized = value.normalize('NFKC').trim()
-  if (!normalized || normalized.length > maximum || /[\u0000-\u001f\u007f]/.test(normalized))
+  if (!normalized || normalized.length > maximum || hasControlCharacters(normalized))
     throw genericFailure()
   return normalized
 }
@@ -310,7 +310,10 @@ function parseStop(value: unknown, completedTrip = false): TripStop {
     coordinate: parseCoordinate(source.coordinate),
     hours: hoursSource
       ? {
-          state: enumValue(hoursSource.state, new Set(['verified', 'unknown', 'stale'])),
+          state: enumValue<NonNullable<TripStop['hours']>['state']>(
+            hoursSource.state,
+            new Set(['verified', 'unknown', 'stale']),
+          ),
           opensAt: hoursSource.opensAt == null ? undefined : integer(hoursSource.opensAt, 0, 1_439),
           closesAt:
             hoursSource.closesAt == null ? undefined : integer(hoursSource.closesAt, 0, 1_439),
@@ -323,7 +326,7 @@ function parseStop(value: unknown, completedTrip = false): TripStop {
     if (source.storeId != null || source.coordinate != null || source.hours != null)
       throw genericFailure()
     const address = privateText(source.address, 320, true)
-    const destination = enumValue(
+    const destination = enumValue<TripPrivateDestination>(
       source.destination,
       new Set(['draft', 'confirmed_by_organizer']),
     )
@@ -341,13 +344,18 @@ function parseStop(value: unknown, completedTrip = false): TripStop {
   if (source.sourceUrl != null || source.shopperHours != null || source.destination != null)
     throw genericFailure()
   if (kind === 'rest' && source.storeId != null) throw genericFailure()
+  if (kind === 'store')
+    return {
+      ...common,
+      ...routeFields,
+      kind,
+      ...(source.storeId != null ? { storeId: string(source.storeId, 128) } : {}),
+      address: optionalString(source.address, 500),
+    }
   return {
     ...common,
     ...routeFields,
     kind,
-    ...(kind === 'store' && source.storeId != null
-      ? { storeId: string(source.storeId, 128) }
-      : {}),
     address: optionalString(source.address, 500),
   }
 }

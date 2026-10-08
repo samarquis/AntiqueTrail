@@ -6,9 +6,28 @@ select has_column('trip_private','trip_stops','private_name','private stop name 
 select has_column('trip_private','trip_stops','private_hours','shopper schedule is retained separately from route hours');
 select has_column('trip_private','trip_stops','destination_status','address confirmation has explicit state');
 select has_table('trip_private','private_stop_capability','private-stop server capability exists');
+select is(
+  (select tableowner from pg_catalog.pg_tables where schemaname='trip_private' and tablename='private_stop_capability'),
+  'identity_service',
+  'private-stop capability remains identity-service-owned');
+select ok(
+  not has_schema_privilege('identity_service','trip_private','CREATE')
+  and not has_schema_privilege('identity_service','app_public','CREATE')
+  and not has_schema_privilege('authenticated','trip_private','CREATE'),
+  'temporary ownership grants are revoked and trip-private stays closed');
 select has_column('trip_private','trip_visit_memories','memory_id','visit rows retain a durable memory ID');
 select has_column('trip_private','trip_visit_memories','stop_id','new visit identity binds to a stop');
 select has_column('trip_private','trip_visit_memories','private_stop_id','private visit linkage can be detached');
+select is(
+  (select pg_get_constraintdef(oid) from pg_catalog.pg_constraint
+    where conrelid='trip_private.trip_visit_memories'::regclass and contype='p'),
+  'PRIMARY KEY (memory_id)',
+  'visit identity uses a stable memory UUID');
+select is(
+  (select is_nullable from information_schema.columns
+    where table_schema='trip_private' and table_name='trip_visit_memories' and column_name='store_id'),
+  'YES',
+  'private visits can retain memory without a catalog store');
 select has_function('app_public','add_private_trip_stop',array['text','text','text','text','jsonb','text','integer','bigint','text'],'private stop create RPC exists');
 select has_function('app_public','update_private_trip_stop',array['text','text','text','text','text','jsonb','text','integer','bigint','text'],'private stop update RPC exists');
 select has_function('app_public','confirm_trip_stop_destination',array['text','text','text','bigint','text'],'exact-address confirmation RPC exists');
@@ -16,6 +35,31 @@ select ok(
   has_function_privilege('authenticated','app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE')
   and not has_function_privilege('anon','app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE'),
   'private-stop create is authenticated-only');
+select ok(
+  has_function_privilege('authenticated','app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE')
+  and not has_function_privilege('anon','app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE')
+  and has_function_privilege('authenticated','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE')
+  and not has_function_privilege('anon','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE'),
+  'private-stop update and confirmation are authenticated-only');
+select ok(
+  (select count(*)=15 and bool_and(proowner='identity_service'::regrole)
+   from pg_catalog.pg_proc where oid in (
+     'trip_private.private_stop_capability_enabled()'::regprocedure,
+     'trip_private.enforce_private_stop_capability()'::regprocedure,
+     'trip_private.private_source_url_valid(text)'::regprocedure,
+     'trip_private.private_hours_valid(jsonb)'::regprocedure,
+     'trip_private.validate_private_stop_visit_memory()'::regprocedure,
+     'trip_private.lock_private_stop_trip(uuid)'::regprocedure,
+     'trip_private.private_stop_receipt_replay(uuid,bigint,text,text,text,bigint,jsonb,uuid)'::regprocedure,
+     'app_public.remove_trip_stop(text,text,bigint)'::regprocedure,
+     'app_public.complete_trip(text)'::regprocedure,
+     'app_public.save_trip_visit_memory(text,text,integer,text,text)'::regprocedure,
+     'app_public.accept_trip_invitation(text)'::regprocedure,
+     'trip_private.trip_command_json(uuid)'::regprocedure,
+     'app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)'::regprocedure,
+     'app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)'::regprocedure,
+     'app_public.confirm_trip_stop_destination(text,text,text,bigint,text)'::regprocedure)),
+  'all migration-owned capability, receipt, lifecycle, and private-stop functions remain identity-service-owned');
 select ok(
   (select pg_get_functiondef('app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)'::regprocedure) like '%lock_private_stop_trip%'
      and pg_get_functiondef('app_public.accept_trip_invitation(text)'::regprocedure) like '%for update%'
