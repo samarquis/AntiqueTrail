@@ -5,10 +5,18 @@ update trip_private.private_stop_capability set enabled=true where singleton;
 insert into auth.users(id) values
   ('57700000-0000-4000-8000-000000000001'),
   ('57700000-0000-4000-8000-000000000002');
-insert into app_private.profiles(user_id,verified_email_snapshot,public_display_name,age_18_attested_at,last_authenticated_at)
-values
-  ('57700000-0000-4000-8000-000000000001','owner-a@example.test','Owner A',statement_timestamp(),statement_timestamp()),
-  ('57700000-0000-4000-8000-000000000002','owner-b@example.test','Owner B',statement_timestamp(),statement_timestamp());
+update app_private.profiles
+set verified_email_snapshot=case user_id
+      when '57700000-0000-4000-8000-000000000001' then 'owner-a@example.test'
+      when '57700000-0000-4000-8000-000000000002' then 'owner-b@example.test'
+    end,
+    public_display_name=case user_id
+      when '57700000-0000-4000-8000-000000000001' then 'Owner A'
+      when '57700000-0000-4000-8000-000000000002' then 'Owner B'
+    end,
+    age_18_attested_at=statement_timestamp(),
+    last_authenticated_at=statement_timestamp()
+where user_id in ('57700000-0000-4000-8000-000000000001','57700000-0000-4000-8000-000000000002');
 insert into shopper_private.private_store_memories(user_id,store_id,rating,note,last_visit_month)
 values ('57700000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000001001',4,'OWNER-A-STORE-SUMMARY-NOTE','2026-09-01');
 
