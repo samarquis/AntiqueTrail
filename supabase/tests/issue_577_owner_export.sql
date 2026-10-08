@@ -46,9 +46,9 @@ insert into trip_private.trip_stops(
       'holidays','[]'::jsonb),'draft',0,'must',60,'completed',statement_timestamp(),1),
   ('57700000-0000-4000-8000-000000000021','57700000-0000-4000-8000-000000000010','private',null,null,null,'DETACHED-PRIVATE-STOP','DETACHED-ADDRESS-SNAPSHOT','https://example.test/detached',null,'draft',1,'flexible',60,'completed',statement_timestamp(),1),
   ('57700000-0000-4000-8000-000000000022','57700000-0000-4000-8000-000000000011','private',null,null,null,'OWNER-B-PRIVATE-STOP','OWNER-B-ADDRESS','https://example.test/b',null,'draft',0,'prefer',60,'completed',statement_timestamp(),1),
-  ('57700000-0000-4000-8000-000000000025','57700000-0000-4000-8000-000000000010','store','00000000-0000-4000-8000-000000001001',null,null,null,null,null,null,null,2,'flexible',60,'completed',statement_timestamp(),1),
-  ('57700000-0000-4000-8000-000000000026','57700000-0000-4000-8000-000000000010','rest',null,'OWNER-A-REST','OWNER-A-REST-ADDRESS',null,null,null,null,null,3,'flexible',60,'completed',statement_timestamp(),1),
-  ('57700000-0000-4000-8000-000000000027','57700000-0000-4000-8000-000000000011','store','00000000-0000-4000-8000-000000001001',null,null,null,null,null,null,null,1,'flexible',60,'completed',statement_timestamp(),1);
+  ('57700000-0000-4000-8000-000000000025','57700000-0000-4000-8000-000000000010','store','00000000-0000-4000-8000-000000001001',null,null,null,null,null,null,'draft',2,'flexible',60,'completed',statement_timestamp(),1),
+  ('57700000-0000-4000-8000-000000000026','57700000-0000-4000-8000-000000000010','rest',null,'OWNER-A-REST','OWNER-A-REST-ADDRESS',null,null,null,null,'draft',3,'flexible',60,'completed',statement_timestamp(),1),
+  ('57700000-0000-4000-8000-000000000027','57700000-0000-4000-8000-000000000011','store','00000000-0000-4000-8000-000000001001',null,null,null,null,null,null,'draft',1,'flexible',60,'completed',statement_timestamp(),1);
 
 insert into trip_private.trip_visit_memories(
   memory_id,author_user_id,trip_id,stop_id,store_id,private_stop_id,
