@@ -82,6 +82,12 @@ update app_private.profiles set verified_email_snapshot=case user_id
   when '56800000-0000-4000-8000-000000000002' then 'partner-568@example.invalid' end,
   age_18_attested_at=statement_timestamp()
 where user_id in ('56800000-0000-4000-8000-000000000001','56800000-0000-4000-8000-000000000002');
+insert into app_private.active_sessions(
+  session_id,user_id,provider_created_at,session_epoch,state,last_authenticated_at,access_token_expires_at
+)
+select '56800000-0000-4000-8000-000000000011',p.user_id,statement_timestamp(),p.session_epoch,
+  'active',statement_timestamp(),statement_timestamp()+interval '30 minutes'
+from app_private.profiles as p where p.user_id='56800000-0000-4000-8000-000000000001';
 insert into app_private.role_grants(subject_user_id,role,state) values
   ('56800000-0000-4000-8000-000000000001','shopper','active'),
   ('56800000-0000-4000-8000-000000000002','shopper','active');
@@ -337,12 +343,20 @@ update trip_private.trips as t set state='active',navigator_user_id=t.owner_id,
   hours_warnings_acknowledged_at=case when trip_private.trip_has_unresolved_hours(t.trip_id)
     then statement_timestamp() else null end
 where t.trip_id='56800000-0000-4000-8000-000000000103';
+select set_config('test.completion_version',(
+  select t.version::text from trip_private.trips as t
+  where t.trip_id='56800000-0000-4000-8000-000000000103'
+),true);
 update trip_private.private_stop_capability set enabled=false where singleton;
 reset role;
-set local role authenticated;
+set local role trip_go_gateway;
 select set_config('request.jwt.claims','{"sub":"56800000-0000-4000-8000-000000000001","role":"authenticated","session_id":"56800000-0000-4000-8000-000000000011"}',true);
-select throws_ok($$select app_public.mark_arrived(
-  '56800000-0000-4000-8000-000000000103',current_setting('test.completion_stop')::jsonb #>> '{stops,0,id}')$$,
+select throws_ok($$select app_public.execute_verified_go_command(
+  '56800000-0000-4000-8000-000000000001','56800000-0000-4000-8000-000000000011',
+  '56800000-0000-4000-8000-000000000103','mark_arrived',
+  current_setting('test.completion_stop')::jsonb #>> '{stops,0,id}',
+  current_setting('test.completion_version')::bigint,'issue568-device',
+  '56800000-0000-4000-8000-000000000231',statement_timestamp())$$,
   '55000','private_trip_stops_disabled','navigator progress commands cannot mutate private stops while capability is disabled');
 reset role;
 set local role identity_service;
@@ -350,9 +364,13 @@ update trip_private.private_stop_capability set enabled=true where singleton;
 update trip_private.trip_stops as s set state='completed',completed_at=statement_timestamp()
 where s.trip_id='56800000-0000-4000-8000-000000000103' and s.kind='private';
 reset role;
-set local role authenticated;
+set local role trip_go_gateway;
 select set_config('request.jwt.claims','{"sub":"56800000-0000-4000-8000-000000000001","role":"authenticated","session_id":"56800000-0000-4000-8000-000000000011"}',true);
-select set_config('test.completed',app_public.complete_trip('56800000-0000-4000-8000-000000000103')::text,true);
+select set_config('test.completed',app_public.execute_verified_go_command(
+  '56800000-0000-4000-8000-000000000001','56800000-0000-4000-8000-000000000011',
+  '56800000-0000-4000-8000-000000000103','complete_trip',null,
+  current_setting('test.completion_version')::bigint,'issue568-device',
+  '56800000-0000-4000-8000-000000000232',statement_timestamp())::text,true);
 select is(current_setting('test.completed')::jsonb->>'state','completed','trip completion reaches its final state');
 reset role;
 set local role identity_service;
