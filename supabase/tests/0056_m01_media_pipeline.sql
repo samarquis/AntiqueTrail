@@ -52,7 +52,7 @@ select ok(position($q$capabilities->>'official_media_upload'='true'$q$ in replac
   'capability requires server stage flag and externally verified M-01 receipt');
 select ok(position('daily_count>=20' in replace(lower(pg_get_functiondef('app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)),' ',''))>0
   and position('concurrent_count>=5' in replace(lower(pg_get_functiondef('app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)),' ',''))>0
-  and position('not p_rights_confirmed' in lower(pg_get_functiondef('app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)))>0,
+  and position('p_rights_confirmed is distinct from true' in lower(pg_get_functiondef('app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)))>0,
   'reservation enforces rights, 20/day, and five concurrent uploads per store');
 select ok(position($q$p_scan_outcome<>'clean'$q$ in replace(lower(pg_get_functiondef('media_private.record_processing_result(uuid,text,text,text,bytea,bigint,integer,integer,boolean,boolean)'::regprocedure)),' ',''))>0
   and position('not p_metadata_stripped' in lower(pg_get_functiondef('media_private.record_processing_result(uuid,text,text,text,bytea,bigint,integer,integer,boolean,boolean)'::regprocedure)))>0

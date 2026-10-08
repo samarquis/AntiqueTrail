@@ -17,6 +17,7 @@ create index media_upload_replacement_target_idx
 
 grant media_automation to postgres;
 grant create on schema app_public,media_private,partner_private to media_automation;
+grant usage on schema auth to media_automation;
 set role media_automation;
 
 create or replace function partner_private.check_store_media_cap(
