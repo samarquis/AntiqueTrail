@@ -20,6 +20,7 @@ const operations: PartnerAdminOperation[] = [
   'recheck',
   'transfer',
 ]
+const OWNER_APPROVAL_REASON_CODE = 'owner_boundary_confirmed'
 
 function labelState(state: string) {
   return state.replaceAll('_', ' ')
@@ -156,7 +157,8 @@ export function PartnerAdminPage({
           claimId: claim.claimId,
           expectedVersion: claim.version,
           idempotencyKey: decisionKey.trim(),
-          reasonCode: reasonCode.trim(),
+          reasonCode:
+            operation === 'approve_owner' ? OWNER_APPROVAL_REASON_CODE : reasonCode.trim(),
           transferFromClaimId: operation === 'transfer' ? transferFromClaimId.trim() : undefined,
           ...(operation === 'approve_owner' ? { confirmedStoreId: claim.storeId } : {}),
         }),
@@ -429,7 +431,7 @@ export function PartnerAdminPage({
               <label htmlFor="partner-admin-reason">Reason code</label>
               <input
                 id="partner-admin-reason"
-                value={operation === 'approve_owner' ? 'owner_boundary_confirmed' : reasonCode}
+                value={operation === 'approve_owner' ? OWNER_APPROVAL_REASON_CODE : reasonCode}
                 readOnly={operation === 'approve_owner'}
                 onChange={(event) => setReasonCode(event.target.value)}
                 pattern="[a-z][a-z0-9_]{1,63}"

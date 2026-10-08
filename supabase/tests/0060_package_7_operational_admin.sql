@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(79);
+select plan(80);
 
 select has_table('admin_private','admin_command_receipts','Administrator commands have durable idempotency receipts');
 select has_table('admin_private','admin_break_glass_gate','break-glass has an explicit named gate');
