@@ -213,7 +213,10 @@ function csv(value: unknown): string {
     ...new Set(rows.flatMap((row) => (row && typeof row === 'object' ? Object.keys(row) : []))),
   ].sort()
   const quote = (cell: unknown) => {
-    const raw = String(cell ?? '')
+    const raw =
+      typeof cell === 'object' && cell !== null
+        ? JSON.stringify(cell) ?? ''
+        : String(cell ?? '')
     const safe = /^[=+\-@\t\r]/u.test(raw) ? `'${raw}` : raw
     return `"${safe.replaceAll('"', '""')}"`
   }
@@ -244,6 +247,8 @@ export async function buildPortableExport(
   for (const [path, value] of [
     ['tables/saved-stores.csv', shopper.savedStores],
     ['tables/memories.csv', shopper.memories],
+    ['tables/private-stops.csv', shopper.privateStops],
+    ['tables/visit-memories.csv', shopper.visitMemories],
     ['tables/corrections.csv', shopper.corrections],
     ['tables/candidate-links.csv', candidate.links],
     ['tables/candidate-shares.csv', candidate.shares],
