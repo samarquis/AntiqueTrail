@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global AbortController, AbortSignal, Buffer, URL, console, fetch, process, setTimeout */
 /* #580: loopback-only Owner/Admin media replacement acceptance harness. */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -185,7 +186,7 @@ async function provisionBrowserFixtures(local) {
   const adminClaimsSql = sqlText(JSON.stringify(adminClaims))
   await service.sql(`
     begin;
-    update app_private.environment_stage set stage='private_beta',
+    update app_private.environment_stage set stage='synthetic_alpha',
       capabilities=coalesce(capabilities,'{}'::jsonb)||jsonb_build_object(
         'private_auth',true,'shopper_private',true,'representative_portal',true,
         'administrator',true,'official_media_upload',true),version=version+1 where id=1;
@@ -221,6 +222,7 @@ async function provisionBrowserFixtures(local) {
     set local role authenticated;
     select app_public.owner_admin_approve_claim(${sqlText(claimId)},${sqlText(storeId)},(select version from issue580_browser_claim),'issue580-browser-owner-grant');
     reset role;
+    update app_private.environment_stage set stage='private_beta',version=version+1 where id=1;
 
     insert into release_private.regional_releases(release_id,region_key,artifact_digest,catalog_digest,prerequisite_receipt_digest,state)
       values(${sqlText(releaseId)},'topeka-ks','sha256:'||repeat('a',64),'sha256:'||repeat('b',64),'sha256:'||repeat('c',64),'active');
@@ -294,6 +296,7 @@ try {
     { cwd: ROOT, env, stdio: 'ignore', windowsHide: true },
   )
   let ready = false
+  let previewStartupError = 'no HTTP response before the deadline'
   for (let attempt = 0; attempt < 60; attempt++) {
     if (controller.signal.aborted) throw controller.signal.reason
     try {
@@ -302,10 +305,12 @@ try {
         ready = true
         break
       }
-    } catch {}
+    } catch (error) {
+      previewStartupError = error instanceof Error ? error.message : String(error)
+    }
     await pause(500)
   }
-  if (!ready) throw new Error('Configured Owner media preview did not start')
+  if (!ready) throw new Error('Configured Owner media preview did not start: ' + previewStartupError)
   report.phase = 'running exact-store Owner/Admin/public media browser flow'
   await command(
     process.execPath,
@@ -324,21 +329,27 @@ try {
   report.errors.push(redact(error instanceof Error ? error.message : String(error)))
 } finally {
   report.cleanup = 'running'
+  const cleanupErrors = []
   try {
     await stopChild(preview)
-  } catch {}
+  } catch (error) {
+    cleanupErrors.push(redact(error instanceof Error ? error.message : String(error)))
+  }
   if (inputFile) {
     try {
       fs.rmSync(inputFile, { force: true })
-    } catch {}
+    } catch (error) {
+      if (!error || typeof error !== 'object' || error.code !== 'ENOENT')
+        cleanupErrors.push(redact(error instanceof Error ? error.message : String(error)))
+    }
   }
   try {
     await service?.cleanup()
-    report.cleanup = 'completed'
   } catch (error) {
-    report.cleanup = 'failed'
-    report.errors.push(redact(error instanceof Error ? error.message : String(error)))
+    cleanupErrors.push(redact(error instanceof Error ? error.message : String(error)))
   }
+  report.cleanup = cleanupErrors.length ? 'failed' : 'completed'
+  report.errors.push(...cleanupErrors)
   const reportPath = path.join(output.directory, 'issue-580-report.json')
   fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`)
   console.log(`Issue #580 status: ${report.status}; cleanup: ${report.cleanup}; report: ${reportPath}`)

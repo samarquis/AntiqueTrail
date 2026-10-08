@@ -3,8 +3,26 @@
 -- the local media_worker test role; no provider endpoint or account is used.
 \ir media_resubmission.inc
 
-update app_private.environment_stage set stage='private_beta',version=version+1 where id=1;
-update app_private.audit_anchor_capability set deployment_environment='local',state='disabled' where id=1;
+update app_private.audit_anchor_capability set deployment_environment='private_beta',state='open',
+  provider_key='test_sink',provider_version='contract-v1',contract_receipt_id='receipt:l01:test',
+  watchdog_state='disabled',last_ack_sequence=0,last_ack_root=null,last_ack_at=null,
+  changed_at=statement_timestamp(),version=version+1 where id=1;
+-- This rolled-back SQL fixture uses the existing worker RPC contract with a
+-- local test sink; no audit or media provider endpoint is called.
+insert into app_private.privileged_audit_events(
+  actor_role,action,outcome,resource_kind,reason_code,event_hash
+) values('administrator','issue580_anchor_setup','completed','system','fixture',decode(repeat('00',32),'hex'));
+set local role service_role;
+select app_public.prepare_audit_anchor();
+select set_config('test.issue580_anchor_claim',app_public.claim_audit_anchor(
+  gen_random_uuid(),statement_timestamp()
+)::text,true);
+select app_public.acknowledge_audit_anchor(
+  current_setting('test.issue580_anchor_claim')::jsonb->'payload'->>'idempotencyKey',
+  (current_setting('test.issue580_anchor_claim')::jsonb->>'leaseToken')::uuid,statement_timestamp());
+reset role;
+select ok(app_private.privileged_anchor_is_current(),
+  'private-beta fixture opens only after the worker acknowledges its current audit anchor');
 update app_public.stores set synthetic=true,audience='synthetic' where id in
   ('00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000009');
 update app_public.stores set slug='issue580-clockwork-cabinet',name='Clockwork Cabinet'
@@ -33,10 +51,28 @@ insert into auth.users(id,email,email_confirmed_at) values
   ('58000000-0000-4000-8000-000000000001','admin580@example.test',statement_timestamp());
 insert into auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at) values
   ('58000000-0000-4000-8000-000000000002','58000000-0000-4000-8000-000000000001','totp','verified',statement_timestamp(),statement_timestamp());
-insert into app_private.role_grants(subject_user_id,role) values
-  ('58000000-0000-4000-8000-000000000001','administrator');
 insert into app_private.active_sessions(session_id,user_id,provider_created_at,session_epoch,last_authenticated_at,mfa_verified_at,access_token_expires_at) values
   ('58000000-0000-4000-8000-000000000003','58000000-0000-4000-8000-000000000001',statement_timestamp(),1,statement_timestamp(),statement_timestamp(),statement_timestamp()+interval '30 minutes');
+select ok(exists(select 1 from app_private.active_sessions
+  where session_id='58000000-0000-4000-8000-000000000003'
+    and last_authenticated_at>=statement_timestamp()-interval '15 minutes'
+    and mfa_verified_at>=statement_timestamp()-interval '15 minutes'
+    and access_token_expires_at>statement_timestamp()),
+  'Administrator fixture carries current session, last-auth, and MFA state');
+insert into app_private.role_grants(subject_user_id,role) values
+  ('58000000-0000-4000-8000-000000000001','administrator');
+insert into app_private.privileged_audit_events(
+  actor_role,action,outcome,resource_kind,reason_code,event_hash
+) values('administrator','issue580_admin_role_ready','completed','system','fixture',decode(repeat('00',32),'hex'));
+set local role service_role;
+select app_public.prepare_audit_anchor();
+select set_config('test.issue580_anchor_claim',app_public.claim_audit_anchor(
+  gen_random_uuid(),statement_timestamp()
+)::text,true);
+select app_public.acknowledge_audit_anchor(
+  current_setting('test.issue580_anchor_claim')::jsonb->'payload'->>'idempotencyKey',
+  (current_setting('test.issue580_anchor_claim')::jsonb->>'leaseToken')::uuid,statement_timestamp());
+reset role;
 insert into partner_private.listing_claims(claim_id,claimant_id,store_id,relationship,authority_statement) values
   ('58000000-0000-4000-8000-000000000004','76000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000009','store owner','Synthetic authority documented by independent channels.');
 insert into partner_private.claim_authority_signals(claim_id,channel_class,signal_type,status,verified_by,verified_at,evidence_ref_hmac,authority_object_hmac,verification_event_id) values
@@ -59,6 +95,18 @@ select set_config('request.jwt.claims',jsonb_build_object('sub','58000000-0000-4
 set local role authenticated;
 select app_public.owner_admin_approve_claim('58000000-0000-4000-8000-000000000004',
   '00000000-0000-4000-8000-000000000009',(select version from issue580_claim_version),'issue580-owner-grant');
+reset role;
+insert into app_private.privileged_audit_events(
+  actor_role,action,outcome,resource_kind,reason_code,event_hash
+) values('administrator','issue580_owner_scope_ready','completed','system','fixture',decode(repeat('00',32),'hex'));
+set local role service_role;
+select app_public.prepare_audit_anchor();
+select set_config('test.issue580_anchor_claim',app_public.claim_audit_anchor(
+  gen_random_uuid(),statement_timestamp()
+)::text,true);
+select app_public.acknowledge_audit_anchor(
+  current_setting('test.issue580_anchor_claim')::jsonb->'payload'->>'idempotencyKey',
+  (current_setting('test.issue580_anchor_claim')::jsonb->>'leaseToken')::uuid,statement_timestamp());
 reset role;
 
 insert into partner_private.store_photo_tier_state(store_id,tier,source)

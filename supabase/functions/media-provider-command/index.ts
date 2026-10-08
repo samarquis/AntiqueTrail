@@ -119,7 +119,14 @@ Deno.serve(async (request) => {
     const idempotencyKey = form.get('idempotencyKey')
     const rightsConfirmed = form.get('rightsConfirmed')
     const originalUploadId = form.get('originalUploadId')
+    const targetMediaId = form.get('targetMediaId')
+    const expectedVersionValue = form.get('expectedVersion')
     const resubmitting = typeof originalUploadId === 'string' && originalUploadId.length > 0
+    const replacing = form.has('targetMediaId') || form.has('expectedVersion')
+    const expectedVersion =
+      typeof expectedVersionValue === 'string' && /^[1-9][0-9]*$/u.test(expectedVersionValue)
+        ? Number(expectedVersionValue)
+        : undefined
     if (
       !(image instanceof File) ||
       typeof altText !== 'string' ||
@@ -134,21 +141,49 @@ Deno.serve(async (request) => {
     // the form as today.
     let activeStoreId: string | undefined
     let activeKind: 'cover' | 'gallery' | undefined
-    if (resubmitting) {
-      if (typeof storeId === 'string' || typeof kind === 'string') return unavailable(headers)
+    if (resubmitting || replacing) {
+      if (
+        (resubmitting && replacing) ||
+        form.has('storeId') ||
+        form.has('kind') ||
+        (resubmitting && (form.has('targetMediaId') || form.has('expectedVersion'))) ||
+        (replacing &&
+          (!form.has('targetMediaId') ||
+            !form.has('expectedVersion') ||
+            typeof targetMediaId !== 'string' ||
+            !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+              targetMediaId,
+            ) ||
+            expectedVersion === undefined ||
+            !Number.isSafeInteger(expectedVersion) ||
+            form.has('originalUploadId')))
+      )
+        return unavailable(headers)
     } else {
-      if (typeof storeId !== 'string' || (kind !== 'cover' && kind !== 'gallery'))
+      if (
+        typeof storeId !== 'string' ||
+        (kind !== 'cover' && kind !== 'gallery') ||
+        form.has('originalUploadId')
+      )
         return unavailable(headers)
       activeStoreId = storeId
       activeKind = kind
     }
     const bytes = new Uint8Array(await image.arrayBuffer())
     const sourceDigest = await sha256Hex(bytes)
+    const verifiedStagedBytes = async (uploadId: string, objectKey: string) => {
+      if (objectKey !== 'quarantine/' + uploadId + '/original') throw new Error('media_unavailable')
+      const { data, error } = await workerClient.storage.from(privateBucket).download(objectKey)
+      if (error || !data) throw new Error('media_unavailable')
+      const stagedBytes = new Uint8Array(await data.arrayBuffer())
+      if ((await sha256Hex(stagedBytes)) !== sourceDigest) throw new Error('media_unavailable')
+      return stagedBytes
+    }
 
     // Tier cap check at intake for normal uploads (M-01 enforcement per #119).
     // Resubmission performs the cap check atomically inside media_reserve_resubmission
     // against the server-derived store/kind; a denial surfaces as a 409 below.
-    if (!resubmitting) {
+    if (!resubmitting && !replacing) {
       const capCheck = await rpc<{
         allowed: boolean
         remaining?: number
@@ -200,6 +235,20 @@ Deno.serve(async (request) => {
           })
           if (value.error === 'media_cap_exceeded') throw new MediaCapDeniedError(value)
           if (value.error === 'media_unavailable') throw new MediaPipelineError()
+        } else if (replacing) {
+          value = await rpc<Record<string, unknown>>(userClient, 'media_reserve_replacement', {
+            p_target_media_id: input.targetMediaId,
+            p_expected_media_version: input.expectedVersion,
+            p_alt_text: input.altText,
+            p_idempotency_key: input.idempotencyKey,
+            p_rights_confirmed: input.rightsConfirmed,
+            p_source_mime: input.inspection.mime,
+            p_source_bytes: input.inspection.bytes,
+            p_source_width: input.inspection.width,
+            p_source_height: input.inspection.height,
+            p_source_digest: '\\x' + sourceDigest,
+          })
+          if (value.error === 'media_unavailable') throw new MediaPipelineError()
         } else {
           value = await rpc<Record<string, unknown>>(userClient, 'media_reserve_upload', {
             p_store_id: input.storeId,
@@ -214,7 +263,10 @@ Deno.serve(async (request) => {
           })
         }
         const uploadId = typeof value.uploadId === 'string' ? value.uploadId : ''
-        const state = value.state
+        const state =
+          value.state === 'reserved' || value.state === 'staged' || value.state === 'awaiting_review'
+            ? value.state
+            : undefined
         const replayed = value.replayed === true
         const originalObjectKey = resubmitting
           ? `quarantine/${uploadId}/original`
@@ -228,6 +280,8 @@ Deno.serve(async (request) => {
             : ''
         if (
           !/^[0-9a-f-]{36}$/iu.test(uploadId) ||
+          !state ||
+          (replacing && value.targetMediaId !== input.targetMediaId) ||
           (resubmitting &&
             state !== 'reserved' &&
             state !== 'staged' &&
@@ -237,12 +291,12 @@ Deno.serve(async (request) => {
         )
           throw new Error('media_unavailable')
         acceptedUploadId = uploadId
-        replayedReservation = resubmitting && replayed
+        replayedReservation = (resubmitting || replacing) && replayed
         return {
           uploadId,
           originalObjectKey,
           derivativeObjectKey,
-          state: resubmitting ? state : 'reserved',
+          state,
           isReplay: replayedReservation,
         }
       },
@@ -260,6 +314,9 @@ Deno.serve(async (request) => {
         }
       },
       async scan(input) {
+        const scanBytes = replacing
+          ? await verifiedStagedBytes(input.uploadId, input.objectKey)
+          : input.bytes
         const response = await fetch(scanUrl, {
           method: 'POST',
           headers: {
@@ -267,7 +324,7 @@ Deno.serve(async (request) => {
             'Content-Type': 'application/octet-stream',
             'X-Media-Upload-Id': input.uploadId,
           },
-          body: input.bytes,
+          body: scanBytes,
           redirect: 'error',
           signal: AbortSignal.timeout(10_000),
         })
@@ -283,6 +340,9 @@ Deno.serve(async (request) => {
         }
       },
       async reencode(input) {
+        const sourceBytes = replacing
+          ? await verifiedStagedBytes(input.uploadId, input.objectKey)
+          : input.bytes
         const response = await fetch(processorUrl, {
           method: 'POST',
           headers: {
@@ -294,7 +354,7 @@ Deno.serve(async (request) => {
             'X-Max-Height': String(input.maxHeight),
             'X-Max-Pixels': String(input.maxPixels),
           },
-          body: input.bytes,
+          body: sourceBytes,
           redirect: 'error',
           signal: AbortSignal.timeout(15_000),
         })
@@ -343,12 +403,14 @@ Deno.serve(async (request) => {
       {
         bytes,
         claimedMime: image.type,
-        storeId: resubmitting ? undefined : activeStoreId,
-        kind: resubmitting ? undefined : activeKind,
+        storeId: resubmitting || replacing ? undefined : activeStoreId,
+        kind: resubmitting || replacing ? undefined : activeKind,
         altText,
         idempotencyKey,
         rightsConfirmed: true,
         originalUploadId: resubmitting ? (originalUploadId as string) : undefined,
+        targetMediaId: replacing ? (targetMediaId as string) : undefined,
+        expectedVersion: replacing ? expectedVersion : undefined,
       },
       dependencies,
     )

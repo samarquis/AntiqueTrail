@@ -152,6 +152,7 @@ function client(overrides: Partial<PortalClient> = {}): PortalClient {
       liveFields: {},
       pendingChanges: [],
       freshness: home.freshness,
+      media: [],
     })),
     getDiagnostics: vi.fn(async () =>
       sanitizeDiagnostics({ browser: 'Chrome', route: '/store-portal/support?token=hidden' }),
@@ -612,6 +613,48 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(await screen.findByText('Latest saved headline')).toBeInTheDocument()
   })
 
+  it('shows and retries a failed readback after an edit conflict without losing the draft', async () => {
+    const user = userEvent.setup()
+    const existing = {
+      id: 'update-1',
+      type: 'announcement' as const,
+      headline: 'Existing announcement',
+      details: 'Saved body',
+      state: 'live' as const,
+      version: 7,
+      publishedAt: '2026-10-01T12:00:00Z',
+    }
+    const latest = { ...existing, headline: 'Latest saved headline', version: 8 }
+    const listUpdates = vi
+      .fn()
+      .mockResolvedValueOnce([existing])
+      .mockRejectedValueOnce(new Error('readback unavailable'))
+      .mockResolvedValueOnce([latest])
+    const editUpdate = vi.fn(async () => {
+      throw new PortalUpdateConflictError(8)
+    })
+    render(
+      <MemoryRouter>
+        <PortalUpdatesPage client={client({ listUpdates, editUpdate })} />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Edit Existing announcement' }))
+    const editHeadline = screen.getByLabelText('Edit headline')
+    await user.clear(editHeadline)
+    await user.type(editHeadline, 'My unsent text')
+    await user.click(screen.getByRole('button', { name: 'Save update' }))
+
+    expect(await screen.findByText(/we couldn't refresh saved updates/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Edit headline')).toHaveValue('My unsent text')
+    await user.click(screen.getByRole('button', { name: 'Retry refresh' }))
+
+    expect(await screen.findByText('Latest saved headline')).toBeInTheDocument()
+    expect(screen.queryByText(/we couldn't refresh saved updates/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Edit headline')).toHaveValue('My unsent text')
+    expect(screen.getByRole('alert')).toHaveTextContent('version 8')
+  })
+
   it('uploads official media through M-01 and leaves publication pending review', async () => {
     const user = userEvent.setup()
     const uploadOfficialMedia = vi.fn(async () => ({
@@ -649,6 +692,61 @@ describe('provider-neutral Store Portal boundary', () => {
       'role',
       'status',
     )
+  })
+
+  it('submits an approved-slot replacement bound to the previewed row version', async () => {
+    const user = userEvent.setup()
+    const uploadOfficialMedia = vi.fn(async () => ({
+      uploadId: '11111111-1111-4111-8111-111111111111',
+      state: 'awaiting_review' as const,
+    }))
+    const target = {
+      id: '55555555-5555-4555-8555-555555555555',
+      kind: 'gallery' as const,
+      altText: 'Front entrance',
+      displayOrder: 1,
+      version: 4,
+    }
+    render(
+      <MemoryRouter>
+        <PortalMediaReviewPage
+          client={client({
+            getMediaCapability: vi.fn(async () => ({ enabled: true, source: 'server' as const })),
+            previewPublicListing: vi.fn(async () => ({
+              storeName: 'Oak Antiques',
+              listingState: 'active',
+              liveFields: {},
+              pendingChanges: [],
+              freshness: { state: 'verified', label: 'Verified' },
+              media: [target],
+            })),
+            uploadOfficialMedia,
+          })}
+        />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Replace gallery photo 2' }))
+    const file = new File([new Uint8Array(32)], 'replacement.png', { type: 'image/png' })
+    await user.upload(screen.getByLabelText('Replacement image file'), file)
+    const altInput = screen.getByLabelText('Alternative text for replacement image')
+    await user.clear(altInput)
+    await user.type(altInput, 'New front entrance')
+    await user.click(screen.getByLabelText(/confirm.*rights.*replacement/i))
+    await user.click(screen.getByRole('button', { name: 'Submit replacement for review' }))
+
+    expect(uploadOfficialMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetMediaId: target.id,
+        expectedVersion: 4,
+        altText: 'New front entrance',
+        file,
+        rightsConfirmed: true,
+        idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      }),
+    )
+    expect(uploadOfficialMedia.mock.calls[0][0]).not.toHaveProperty('storeId')
+    expect(uploadOfficialMedia.mock.calls[0][0]).not.toHaveProperty('kind')
   })
 
   it.each([

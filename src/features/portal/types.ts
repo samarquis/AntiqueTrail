@@ -106,15 +106,35 @@ export interface PortalMediaCapacity {
 
 export type PortalMediaKind = 'cover' | 'gallery'
 
-export interface PortalMediaUploadInput {
-  storeId: string
-  kind: PortalMediaKind
+interface PortalMediaSubmissionBase {
   altText: string
   file: File
   rightsConfirmed: true
   idempotencyKey: string
-  originalUploadId?: string
 }
+
+export type PortalMediaUploadInput =
+  | (PortalMediaSubmissionBase & {
+      storeId: string
+      kind: PortalMediaKind
+      originalUploadId?: never
+      targetMediaId?: never
+      expectedVersion?: never
+    })
+  | (PortalMediaSubmissionBase & {
+      originalUploadId: string
+      storeId?: never
+      kind?: never
+      targetMediaId?: never
+      expectedVersion?: never
+    })
+  | (PortalMediaSubmissionBase & {
+      targetMediaId: string
+      expectedVersion: number
+      storeId?: never
+      kind?: never
+      originalUploadId?: never
+    })
 
 export interface PortalMediaUploadReceipt {
   uploadId: string
@@ -141,6 +161,14 @@ export interface PortalMediaUpload {
 
 export interface PortalMediaUploadHistory {
   uploads: PortalMediaUpload[]
+}
+
+export interface PortalMediaSlot {
+  id: string
+  kind: PortalMediaKind
+  altText: string
+  displayOrder: number
+  version: number
 }
 
 /**
@@ -245,6 +273,8 @@ export interface PortalPreview {
   liveFields: Record<string, string>
   pendingChanges: PortalPendingChange[]
   freshness: PortalFreshness
+  /** Present on the current scoped RPC; optional while alternate clients upgrade. */
+  media?: PortalMediaSlot[]
 }
 
 export interface PortalAccessContext {

@@ -925,16 +925,28 @@ describe('trustworthy Store Details contract', () => {
         id: 'update-002',
         title: 'Earlier tie',
         body: 'Tie body',
-        publishedAt: '2026-02-01T00:00:00Z',
+        publishedAt: '2026-02-01T00:00:00.123001Z',
       },
       {
         id: 'update-003',
         title: 'Later tie',
         body: 'Tie body',
-        publishedAt: '2026-02-01T00:00:00Z',
+        publishedAt: '2026-02-01T00:00:00.123999Z',
       },
       {
         id: 'update-004',
+        title: 'Lower exact-timestamp tie',
+        body: 'Tie body',
+        publishedAt: '2026-02-01T00:00:00.456000Z',
+      },
+      {
+        id: 'update-005',
+        title: 'Higher exact-timestamp tie',
+        body: 'Tie body',
+        publishedAt: '2026-02-01T00:00:00.456000Z',
+      },
+      {
+        id: 'update-006',
         title: 'Newer update',
         body: 'Newer body',
         publishedAt: '2026-03-01T00:00:00Z',
@@ -950,7 +962,7 @@ describe('trustworthy Store Details contract', () => {
     expect(latestSection).not.toBeNull()
     expect(
       Array.from(latestSection!.querySelectorAll('h3'), (heading) => heading.textContent),
-    ).toEqual(['Newer update', 'Later tie', 'Earlier tie'])
+    ).toEqual(['Newer update', 'Higher exact-timestamp tie', 'Lower exact-timestamp tie'])
     expect(screen.getByRole('link', { name: 'See all store updates' })).toHaveAttribute(
       'href',
       `/stores/${store.slug}/updates`,
@@ -963,7 +975,14 @@ describe('trustworthy Store Details contract', () => {
     expect(allSection).not.toBeNull()
     expect(
       Array.from(allSection!.querySelectorAll('h3'), (heading) => heading.textContent),
-    ).toEqual(['Newer update', 'Later tie', 'Earlier tie', 'Oldest update'])
+    ).toEqual([
+      'Newer update',
+      'Higher exact-timestamp tie',
+      'Lower exact-timestamp tie',
+      'Later tie',
+      'Earlier tie',
+      'Oldest update',
+    ])
   })
 
   it('restores the exact Browse query, scroll position, and originating store focus', async () => {

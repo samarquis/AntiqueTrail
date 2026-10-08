@@ -217,6 +217,65 @@ describe('Administrator workspace', () => {
     expect(screen.getByRole('heading', { name: /review queue/i })).toHaveFocus()
   })
 
+  it('shows the approved slot and version that an image candidate would replace', async () => {
+    const user = userEvent.setup()
+    const mediaCase: AdminReviewCaseDetail = {
+      id: 'media-case-1',
+      caseType: 'image_review',
+      queueCategory: 'images',
+      assignedCount: 1,
+      targetKind: 'official_media',
+      storeLabel: 'Oak Antiques',
+      state: 'claimed',
+      version: 2,
+      createdAt: '2026-10-07T12:00:00Z',
+      immutableSubmission: true,
+      context: {
+        kind: 'gallery',
+        altText: 'Replacement entrance',
+        state: 'awaiting_review',
+        replacementTargetId: '55555555-5555-4555-8555-555555555555',
+        replacementExpectedVersion: 4,
+        replacementKind: 'gallery',
+        replacementAltText: 'Current entrance',
+        replacementDisplayOrder: 1,
+        replacementCurrentVersion: 4,
+        replacementTargetCurrent: true,
+      },
+      allowedActions: ['approve', 'return', 'reject'],
+      audit: [],
+    }
+    render(
+      <MemoryRouter>
+        <ReviewQueuePage
+          client={client({
+            listCases: async () => [
+              {
+                id: mediaCase.id,
+                caseType: 'image_review',
+                queueCategory: 'images',
+                assignedCount: 1,
+                targetKind: 'official_media',
+                storeLabel: mediaCase.storeLabel,
+                state: 'claimed',
+                version: 2,
+                createdAt: mediaCase.createdAt,
+              },
+            ],
+            getCase: async () => mediaCase,
+          })}
+        />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: /review oak antiques/i }))
+    const target = screen.getByLabelText('Approved photo replacement target')
+    expect(target).toHaveTextContent('approved gallery at position 2')
+    expect(target).toHaveTextContent('Current alternative text: Current entrance.')
+    expect(target).toHaveTextContent('Submitted against slot version 4; current slot version 4.')
+    expect(target).toHaveTextContent('The approved slot still matches the submitted version.')
+  })
+
   it('routes an assigned Pilot Store Draft through the New stores category and names its exact approval outcome', async () => {
     const onboardingCase: AdminReviewCaseDetail = {
       id: 'case-onboarding-1',

@@ -20,6 +20,8 @@ import type {
   PortalMediaState,
   PortalMediaResubmitInput,
   PortalMediaResubmitReceipt,
+  PortalMediaSlot,
+  PortalPreview,
   OfficialLink,
   SupportTicketDraft,
 } from './types'
@@ -98,6 +100,19 @@ export function createPortalMediaHttpTransport(options: {
   const fetcher = options.fetcher ?? fetch
   return {
     async upload(input) {
+      if (typeof input.targetMediaId === 'string') {
+        if (
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+            input.targetMediaId,
+          ) ||
+          !Number.isSafeInteger(input.expectedVersion) ||
+          (input.expectedVersion ?? 0) < 1 ||
+          input.storeId !== undefined ||
+          input.kind !== undefined ||
+          input.originalUploadId !== undefined
+        )
+          throw new Error(GENERIC_PORTAL_ERROR)
+      }
       const accessToken = await options.getAccessToken()
       if (!accessToken) throw new Error(GENERIC_PORTAL_ERROR)
       const storeScope = options.getStoreScope?.()
@@ -105,7 +120,10 @@ export function createPortalMediaHttpTransport(options: {
       body.set('image', input.file)
       body.set('altText', input.altText)
       body.set('idempotencyKey', input.idempotencyKey)
-      if (input.originalUploadId) {
+      if (typeof input.targetMediaId === 'string') {
+        body.set('targetMediaId', input.targetMediaId)
+        body.set('expectedVersion', String(input.expectedVersion))
+      } else if (input.originalUploadId) {
         body.set('originalUploadId', input.originalUploadId)
       } else {
         body.set('storeId', input.storeId)
@@ -212,8 +230,7 @@ export function createPortalClient(
       if (!media) throw new Error(GENERIC_PORTAL_ERROR)
       try {
         const receipt = await media.upload({
-          storeId: input.originalUploadId,
-          kind: 'gallery',
+          originalUploadId: input.originalUploadId,
           altText: input.altText,
           file: input.file,
           rightsConfirmed: true,
@@ -290,7 +307,8 @@ export function createPortalClient(
       call('portal_confirm_support_resolution', { p_ticket_id: ticketId }),
     reopenSupportTicket: (ticketId) =>
       call('portal_reopen_support_ticket', { p_ticket_id: ticketId }),
-    previewPublicListing: () => call('portal_preview_public_listing'),
+    previewPublicListing: async () =>
+      decodePortalPreview(await call<unknown>('portal_preview_public_listing')),
     getDiagnostics: async () => diagnostics(),
   }
 }
@@ -356,6 +374,35 @@ export function decodePortalMediaUploadHistory(value: unknown): PortalMediaUploa
     }
   })
   return { uploads }
+}
+
+export function decodePortalPreview(value: unknown): PortalPreview {
+  if (!isRecord(value) || !Array.isArray(value.media)) throw new Error(GENERIC_PORTAL_ERROR)
+  const media: PortalMediaSlot[] = value.media.map((slot) => {
+    if (!isRecord(slot) || !hasExactKeys(slot, ['altText', 'displayOrder', 'id', 'kind', 'version']))
+      throw new Error(GENERIC_PORTAL_ERROR)
+    if (
+      typeof slot.id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+        slot.id,
+      ) ||
+      !isPortalMediaKind(slot.kind) ||
+      typeof slot.altText !== 'string' ||
+      !Number.isSafeInteger(slot.displayOrder) ||
+      (slot.displayOrder as number) < 0 ||
+      !Number.isSafeInteger(slot.version) ||
+      (slot.version as number) < 1
+    )
+      throw new Error(GENERIC_PORTAL_ERROR)
+    return {
+      id: slot.id,
+      kind: slot.kind,
+      altText: slot.altText,
+      displayOrder: slot.displayOrder as number,
+      version: slot.version as number,
+    }
+  })
+  return { ...value, media } as PortalPreview
 }
 
 function unavailable<T>(): Promise<T> {

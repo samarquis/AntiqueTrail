@@ -17,8 +17,8 @@ describe('production portal client', () => {
           ? { removed: true }
           : name === 'portal_list_media_uploads'
             ? { uploads: [] }
-            : name === 'portal_edit_update'
-              ? {
+          : name === 'portal_edit_update'
+            ? {
                   state: 'saved',
                   update: {
                     id: 'update-1',
@@ -29,6 +29,15 @@ describe('production portal client', () => {
                     version: 2,
                   },
                 }
+              : name === 'portal_preview_public_listing'
+                ? {
+                    storeName: 'Oak Antiques',
+                    listingState: 'active',
+                    liveFields: {},
+                    pendingChanges: [],
+                    freshness: { state: 'verified', label: 'Verified' },
+                    media: [],
+                  }
               : { name, args },
       error: null,
     }))
@@ -58,6 +67,14 @@ describe('production portal client', () => {
       file: new File([new Uint8Array(32)], 'store.png', { type: 'image/png' }),
       rightsConfirmed: true,
       idempotencyKey: '22222222-2222-4222-8222-222222222222',
+    })
+    await client.uploadOfficialMedia({
+      targetMediaId: '55555555-5555-4555-8555-555555555555',
+      expectedVersion: 4,
+      altText: 'Replacement front entrance',
+      file: new File([new Uint8Array(32)], 'replacement.png', { type: 'image/png' }),
+      rightsConfirmed: true,
+      idempotencyKey: '66666666-6666-4666-8666-666666666666',
     })
     await client.listMediaUploads()
     await client.resubmitMedia({
@@ -355,8 +372,6 @@ describe('production portal client', () => {
     })
     const originalUploadId = '33333333-3333-4333-8333-333333333333'
     await transport.upload({
-      storeId: '11111111-1111-4111-8111-111111111111',
-      kind: 'gallery',
       altText: 'Replacement',
       file: new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
       rightsConfirmed: true,
@@ -367,5 +382,36 @@ describe('production portal client', () => {
     expect(body.get('originalUploadId')).toBe(originalUploadId)
     expect(body.get('storeId')).toBeNull()
     expect(body.get('kind')).toBeNull()
+  })
+
+  it('sends an exact-slot replacement without client store or kind authority', async () => {
+    const requests: RequestInit[] = []
+    const transport = createPortalMediaHttpTransport({
+      endpoint: 'https://project.supabase.co/functions/v1/media-provider-command',
+      apiKey: 'public-anon-key',
+      getAccessToken: async () => 'user-access-token',
+      fetcher: async (_input, init) => {
+        requests.push(init ?? {})
+        return Response.json({
+          uploadId: '11111111-1111-4111-8111-111111111111',
+          state: 'awaiting_review',
+        })
+      },
+    })
+    const targetMediaId = '55555555-5555-4555-8555-555555555555'
+    await transport.upload({
+      targetMediaId,
+      expectedVersion: 4,
+      altText: 'Replacement front entrance',
+      file: new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
+      rightsConfirmed: true,
+      idempotencyKey: '66666666-6666-4666-8666-666666666666',
+    })
+    const body = requests[0].body as FormData
+    expect(body.get('targetMediaId')).toBe(targetMediaId)
+    expect(body.get('expectedVersion')).toBe('4')
+    expect(body.get('storeId')).toBeNull()
+    expect(body.get('kind')).toBeNull()
+    expect(body.get('originalUploadId')).toBeNull()
   })
 })

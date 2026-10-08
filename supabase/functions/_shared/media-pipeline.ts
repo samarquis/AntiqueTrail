@@ -21,6 +21,8 @@ export interface MediaIngestInput {
   idempotencyKey: string
   rightsConfirmed: boolean
   originalUploadId?: string
+  targetMediaId?: string
+  expectedVersion?: number
 }
 
 interface ReservedUpload {
@@ -49,6 +51,8 @@ export interface MediaPipelineDependencies {
     idempotencyKey: string
     rightsConfirmed: boolean
     originalUploadId?: string
+    targetMediaId?: string
+    expectedVersion?: number
     inspection: MediaInspection
   }): Promise<ReservedUpload>
   putPrivate(
@@ -98,7 +102,11 @@ export interface MediaPipelineDependencies {
     bytes: Uint8Array,
     options: { cacheControl: '31536000'; contentType: 'image/webp'; upsert: false },
   ): Promise<void>
-  completePublish(jobId: string, uploadId: string, publicKey: string): Promise<void>
+  completePublish(
+    jobId: string,
+    uploadId: string,
+    publicKey: string,
+  ): Promise<'published' | 'conflict'>
   claimPurge(jobId: string): Promise<{
     uploadId: string
     privateKeys: string[]
@@ -225,12 +233,22 @@ async function digestHex(bytes: Uint8Array): Promise<string> {
 function validInput(input: MediaIngestInput): boolean {
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
   const resubmitting = input.originalUploadId !== undefined
-  return (
-    (!resubmitting
-      ? uuid.test(input.storeId ?? '') && (input.kind === 'cover' || input.kind === 'gallery')
-      : input.storeId === undefined &&
+  const replacing = input.targetMediaId !== undefined || input.expectedVersion !== undefined
+  const scopeValid = replacing
+    ? !resubmitting &&
+      input.storeId === undefined &&
+      input.kind === undefined &&
+      uuid.test(input.targetMediaId ?? '') &&
+      Number.isSafeInteger(input.expectedVersion) &&
+      (input.expectedVersion ?? 0) > 0
+    : resubmitting
+      ? input.storeId === undefined &&
         input.kind === undefined &&
-        uuid.test(input.originalUploadId ?? '')) &&
+        uuid.test(input.originalUploadId ?? '')
+      : uuid.test(input.storeId ?? '') &&
+        (input.kind === 'cover' || input.kind === 'gallery')
+  return (
+    scopeValid &&
     uuid.test(input.idempotencyKey) &&
     input.altText === input.altText.trim() &&
     input.altText.length >= 1 &&
@@ -253,6 +271,8 @@ export async function runMediaIngest(
       idempotencyKey: input.idempotencyKey,
       rightsConfirmed: input.rightsConfirmed,
       originalUploadId: input.originalUploadId,
+      targetMediaId: input.targetMediaId,
+      expectedVersion: input.expectedVersion,
       inspection,
     })
     if (reserved.state === 'awaiting_review') return { state: 'awaiting_review' }
@@ -349,7 +369,7 @@ const PUBLIC_KEY = /^official\/[0-9a-f-]{36}\/v[1-9][0-9]*\/[a-f0-9]{16,64}\.web
 export async function runMediaPublish(
   jobId: string,
   dependencies: MediaPipelineDependencies,
-): Promise<{ state: 'published' }> {
+): Promise<{ state: 'published' | 'conflict' }> {
   try {
     const claim = await dependencies.claimPublish(jobId)
     if (
@@ -365,8 +385,8 @@ export async function runMediaPublish(
       contentType: 'image/webp',
       upsert: false,
     })
-    await dependencies.completePublish(jobId, claim.uploadId, claim.publicDerivativeKey)
-    return { state: 'published' }
+    const state = await dependencies.completePublish(jobId, claim.uploadId, claim.publicDerivativeKey)
+    return { state }
   } catch (error) {
     if (error instanceof MediaPipelineError) throw error
     unavailable()

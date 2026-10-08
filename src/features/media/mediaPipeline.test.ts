@@ -68,7 +68,7 @@ function dependencies(
     })),
     getPrivate: vi.fn(async () => webp(640, 480)),
     putPublic: vi.fn(async () => undefined),
-    completePublish: vi.fn(async () => undefined),
+    completePublish: vi.fn(async () => 'published' as const),
     claimPurge: vi.fn(async () => ({
       uploadId: '11111111-1111-4111-8111-111111111111',
       privateKeys: [
@@ -265,10 +265,17 @@ describe('M-01 media pipeline boundary', () => {
     const boundary = dependencies()
     await expect(runMediaPublish('job-1', boundary)).resolves.toEqual({ state: 'published' })
     expect(boundary.putPublic).toHaveBeenCalledWith(
-      expect.stringMatching(/^official\/[0-9a-f-]+\/v1\/[a-f0-9]{16}\.webp$/u),
+      expect.stringMatching(/^official\/[0-9a-f-]+\/v1\/[a-f0-9]{64}\.webp$/u),
       expect.any(Uint8Array),
       { cacheControl: '31536000', contentType: 'image/webp', upsert: false },
     )
+    expect(boundary.completePublish).toHaveBeenCalled()
+  })
+
+  it('returns a compare-and-swap publication conflict as a terminal result', async () => {
+    const boundary = dependencies({ completePublish: vi.fn(async () => 'conflict' as const) })
+    await expect(runMediaPublish('job-1', boundary)).resolves.toEqual({ state: 'conflict' })
+    expect(boundary.putPublic).toHaveBeenCalled()
     expect(boundary.completePublish).toHaveBeenCalled()
   })
 

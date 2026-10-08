@@ -330,12 +330,16 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
           <h2 id="case-heading">{selected.storeLabel}</h2>
           <p>Submitted fields are read-only. Decisions apply only to this case.</p>
           <dl>
-            {Object.entries(selected.context).map(([label, value]) => (
-              <div key={label}>
-                <dt>{label.replaceAll('_', ' ')}</dt>
-                <dd>{String(value ?? 'Not provided')}</dd>
-              </div>
-            ))}
+            {Object.entries(selected.context)
+              .filter(
+                ([label]) => selected.caseType !== 'image_review' || !label.startsWith('replacement'),
+              )
+              .map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label.replaceAll('_', ' ')}</dt>
+                  <dd>{String(value ?? 'Not provided')}</dd>
+                </div>
+              ))}
           </dl>
           {selected.caseType === 'partner_onboarding' ? (
             <section aria-label="Pilot Store Draft decision summary">
@@ -349,6 +353,45 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
                 {String(selected.context.authorityStatus ?? 'Not provided')}. Identity:{' '}
                 {String(selected.context.identityStatus ?? 'Not provided')}.
               </p>
+            </section>
+          ) : selected.caseType === 'image_review' ? (
+            <section aria-label="Approved photo replacement target">
+              <h3>Approved photo replacement target</h3>
+              {typeof selected.context.replacementTargetId === 'string' ? (
+                <>
+                  <p>
+                    This candidate targets the approved{' '}
+                    {String(selected.context.replacementKind ?? 'photo')}
+                    {selected.context.replacementKind === 'gallery' &&
+                    typeof selected.context.replacementDisplayOrder === 'number'
+                      ? ` at position ${selected.context.replacementDisplayOrder + 1}`
+                      : ''}
+                    .
+                  </p>
+                  <p>
+                    Current alternative text:{' '}
+                    {String(selected.context.replacementAltText ?? 'Not available')}.
+                  </p>
+                  <p>
+                    Submitted against slot version{' '}
+                    {String(selected.context.replacementExpectedVersion ?? 'unknown')}; current slot
+                    version {String(selected.context.replacementCurrentVersion ?? 'unavailable')}.
+                  </p>
+                  <p role="status">
+                    {selected.context.replacementTargetCurrent === true
+                      ? 'The approved slot still matches the submitted version.'
+                      : 'The approved slot changed or was removed after submission; this candidate cannot publish against it.'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>This candidate adds a new {String(selected.context.kind ?? 'photo')} photo.</p>
+                  <p>The new photo stays private until it is approved and published successfully.</p>
+                </>
+              )}
+              {typeof selected.context.replacementTargetId === 'string' && (
+                <p>The current approved photo remains public until a replacement publishes successfully.</p>
+              )}
             </section>
           ) : (
             <section aria-label="Current and requested listing preview">
