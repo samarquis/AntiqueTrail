@@ -1,6 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select no_plan();
+select set_config('test.device_key_id','device-key-'||repeat('a',43),true);
 
 select has_column('trip_private','trip_stops','private_name','private stop name remains private to the trip stop');
 select has_column('trip_private','trip_stops','private_hours','shopper schedule is retained separately from route hours');
@@ -333,10 +334,10 @@ select throws_ok($$insert into trip_private.trip_stops(
   'confirmed destination cannot exist without its exact address');
 insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version)
 select '56800000-0000-4000-8000-000000000103','56800000-0000-4000-8000-000000000001',
-  extensions.digest(convert_to('issue568-device','utf8'),'sha256'),p.session_epoch
+  extensions.digest(convert_to(current_setting('test.device_key_id'),'utf8'),'sha256'),p.session_epoch
 from app_private.profiles as p where p.user_id='56800000-0000-4000-8000-000000000001';
 update trip_private.trips as t set state='active',navigator_user_id=t.owner_id,
-  navigator_device_hash=extensions.digest(convert_to('issue568-device','utf8'),'sha256'),
+  navigator_device_hash=extensions.digest(convert_to(current_setting('test.device_key_id'),'utf8'),'sha256'),
   start_kind='manual',private_start_label='Home',departure_local_time=time '09:00',
   hours_reviewed_at=statement_timestamp(),
   hours_review_has_unresolved=trip_private.trip_has_unresolved_hours(t.trip_id),
@@ -355,7 +356,7 @@ select throws_ok($$select app_public.execute_verified_go_command(
   '56800000-0000-4000-8000-000000000001','56800000-0000-4000-8000-000000000011',
   '56800000-0000-4000-8000-000000000103','mark_arrived',
   current_setting('test.completion_stop')::jsonb #>> '{stops,0,id}',
-  current_setting('test.completion_version')::bigint,'issue568-device',
+  current_setting('test.completion_version')::bigint,current_setting('test.device_key_id'),
   '56800000-0000-4000-8000-000000000231',statement_timestamp())$$,
   '55000','private_trip_stops_disabled','navigator progress commands cannot mutate private stops while capability is disabled');
 reset role;
@@ -369,7 +370,7 @@ select set_config('request.jwt.claims','{"sub":"56800000-0000-4000-8000-00000000
 select set_config('test.completed',app_public.execute_verified_go_command(
   '56800000-0000-4000-8000-000000000001','56800000-0000-4000-8000-000000000011',
   '56800000-0000-4000-8000-000000000103','complete_trip',null,
-  current_setting('test.completion_version')::bigint,'issue568-device',
+  current_setting('test.completion_version')::bigint,current_setting('test.device_key_id'),
   '56800000-0000-4000-8000-000000000232',statement_timestamp())::text,true);
 select is(current_setting('test.completed')::jsonb->>'state','completed','trip completion reaches its final state');
 reset role;
