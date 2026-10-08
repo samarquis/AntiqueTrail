@@ -36,6 +36,14 @@ type ConfiguredInput = {
     shopper: { id: string; email: string; password: string }
   }
 }
+
+type PreviewMismatch =
+  | 'preview_grant_id_mismatch'
+  | 'preview_grant_version_mismatch'
+  | 'preview_subject_mismatch'
+  | 'preview_store_mismatch'
+  | 'preview_current_version_mismatch'
+
 const inputPath = process.env.CONFIGURED_ADMIN_SCOPE_INPUT
 const input: ConfiguredInput = inputPath
   ? JSON.parse(fs.readFileSync(inputPath, 'utf8'))
@@ -140,9 +148,15 @@ const safeHttpStatusCategory = (status: number) =>
         : 'http_status'
 
 const expectPreviewStatus = (status: number) => {
-  if (status !== 200) throw new Error(`safe-http-status:${safeHttpStatusCategory(status)}`)
+  if (status !== 200) throw new Error(`safe-failure:${safeHttpStatusCategory(status)}`)
   expect(status).toBe(200)
 }
+
+const expectPreviewValue = (actual: unknown, expected: unknown, mismatch: PreviewMismatch) => {
+  if (actual !== expected) throw new Error(`safe-failure:${mismatch}`)
+  expect(actual).toBe(expected)
+}
+
 const read = (store: string, subjectId: string) =>
   command(
     'docker',
@@ -404,8 +418,12 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
   const previewStatus = previewResponseValue.status()
   expectPreviewStatus(previewStatus)
   const preview = await previewResponseValue.json()
-  expect(preview.grantId).toBe(regrantReadback.grantId)
-  expect(preview.grantVersion).toBe(regrantReadback.version)
+  expectPreviewValue(preview.grantId, regrantReadback.grantId, 'preview_grant_id_mismatch')
+  expectPreviewValue(
+    preview.grantVersion,
+    regrantReadback.version,
+    'preview_grant_version_mismatch',
+  )
   await expect(regranted.getByText(`Confirm exact scope: ${scope.targetStoreName}`)).toBeVisible()
   await regranted.getByRole('button', { name: 'Cancel scope change', exact: true }).click()
 })
@@ -483,9 +501,13 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   expectPreviewStatus(previewStatus)
   expect(response.request().postDataJSON()).toEqual(previewInput)
   const preview = await response.json()
-  expect(preview.subjectUserId).toBe(scope.targetSubjectId)
-  expect(preview.storeId).toBe(scope.target)
-  expect(preview.grantVersion).toBe(current.version)
+  expectPreviewValue(preview.subjectUserId, scope.targetSubjectId, 'preview_subject_mismatch')
+  expectPreviewValue(preview.storeId, scope.target, 'preview_store_mismatch')
+  expectPreviewValue(
+    preview.grantVersion,
+    current.version,
+    'preview_current_version_mismatch',
+  )
   const token = response
     .request()
     .headers()

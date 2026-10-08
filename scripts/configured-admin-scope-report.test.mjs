@@ -67,7 +67,7 @@ test('configured Administrator reports exact allowlisted HTTP status categories 
       status: 'failed',
       errors: [
         {
-          message: 'Error: safe-http-status:http_403\nprivate-owner@example.invalid',
+          message: 'Error: safe-failure:http_403\nprivate-owner@example.invalid',
           stack: 'Error\n at /runner/e2e/configured-admin-scope.spec.ts:457:18',
         },
       ],

@@ -6,6 +6,26 @@ export function configuredAdminScopeReport(parsed, expected = 8) {
       throw new Error('Malformed browser counts')
 
   const specs = parsed.suites.flatMap((suite) => suite.specs ?? [])
+  const safeFailureCategories = new Set([
+    'http_400',
+    'http_401',
+    'http_403',
+    'http_404',
+    'http_409',
+    'http_422',
+    'http_429',
+    'http_4xx',
+    'http_500',
+    'http_502',
+    'http_503',
+    'http_5xx',
+    'http_status',
+    'preview_grant_id_mismatch',
+    'preview_grant_version_mismatch',
+    'preview_subject_mismatch',
+    'preview_store_mismatch',
+    'preview_current_version_mismatch',
+  ])
   const assertions = [
     'toHaveText',
     'toHaveURL',
@@ -28,9 +48,8 @@ export function configuredAdminScopeReport(parsed, expected = 8) {
       const error = final?.errors?.[0] ?? final?.error
       const message = typeof error?.message === 'string' ? error.message : ''
       const assertion = assertions.find((name) => message.includes(name)) ?? null
-      const httpFailureCategory = message.match(
-        /safe-http-status:(http_(?:400|401|403|404|409|422|429|4xx|500|502|503|5xx|status))\b/,
-      )?.[1]
+      const failureCode = message.match(/safe-failure:([a-z0-9_]+)\b/)?.[1]
+      const safeFailureCategory = safeFailureCategories.has(failureCode) ? failureCode : null
       const stackLine = String(error?.stack ?? '').match(
         /configured-admin-scope\.spec\.ts:(\d+):\d+/,
       )
@@ -47,8 +66,8 @@ export function configuredAdminScopeReport(parsed, expected = 8) {
             ? 'timeout'
             : message.includes('strict mode violation')
               ? 'strict_locator'
-              : httpFailureCategory
-                ? httpFailureCategory
+              : safeFailureCategory
+                ? safeFailureCategory
                 : assertion
                   ? 'assertion'
                   : error
