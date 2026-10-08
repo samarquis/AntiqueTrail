@@ -18,11 +18,13 @@ export function configuredCatalogClient(
       const operation =
         name === 'catalog_list'
           ? 'list'
-          : name === 'catalog_details'
-            ? 'details'
-            : name === 'get_browse_map_v2'
-              ? 'map'
-              : null
+          : name === 'catalog_list_nearby'
+            ? 'nearby-list'
+            : name === 'catalog_details'
+              ? 'details'
+              : name === 'get_browse_map_v2'
+                ? 'map'
+                : null
       if (!operation) return { data: null, error: { code: 'INVALID_OPERATION' } }
       try {
         const response = await fetch(`${url}/functions/v1/public-catalog`, {

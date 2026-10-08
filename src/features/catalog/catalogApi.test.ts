@@ -1,6 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createCatalogClient } from './catalogApi'
 
+function nearbyList(
+  client: ReturnType<typeof createCatalogClient>,
+  filters: unknown,
+  nearby: unknown,
+): Promise<unknown> {
+  return (
+    client as unknown as {
+      nearbyList(filters: unknown, nearby: unknown): Promise<unknown>
+    }
+  ).nearbyList(filters, nearby)
+}
+
 describe('catalog RPC client', () => {
   it.each(['list', 'details'] as const)(
     'omits malformed media, URLs, and nontext optional fields through %s',
@@ -410,6 +422,62 @@ describe('catalog RPC client', () => {
     })
     expect(result.stores[0].name).toBe('Oak Mall')
     expect(result.asOfUtc).toBe('2026-01-01T00:00:00Z')
+  })
+
+  it.each([
+    ['zero coordinates and the default radius', { latitude: 0, longitude: 0 }, undefined, 25],
+    ['the north/east boundary and radius 5', { latitude: 90, longitude: 180 }, 5, 5],
+    ['the south/west boundary and radius 10', { latitude: -90, longitude: -180 }, 10, 10],
+    ['radius 25', { latitude: 12, longitude: -45 }, 25, 25],
+    ['radius 50', { latitude: 0, longitude: 0 }, 50, 50],
+  ] as const)(
+    'sends a nearby catalog list for %s',
+    async (_case, coordinates, radiusMiles, radius) => {
+      const filters = { q: 'oak', category: 'vintage', area: 'topeka-ks' }
+      const originalFilters = { ...filters }
+      const rpc = vi.fn().mockResolvedValue({ data: { stores: [] }, error: null })
+      const client = createCatalogClient({ rpc })
+
+      await nearbyList(client, filters, {
+        ...coordinates,
+        ...(radiusMiles === undefined ? {} : { radiusMiles }),
+      })
+
+      expect(rpc).toHaveBeenCalledWith('catalog_list_nearby', {
+        p_q: 'oak',
+        p_category: 'vintage',
+        p_area: null,
+        p_device_latitude: coordinates.latitude,
+        p_device_longitude: coordinates.longitude,
+        p_device_radius_miles: radius,
+      })
+      expect(filters).toEqual(originalFilters)
+    },
+  )
+
+  it.each([
+    ['null filters', null, { latitude: 1, longitude: 2 }],
+    ['nonobject filters', 'private filters', { latitude: 1, longitude: 2 }],
+    ['null nearby input', {}, null],
+    ['nonobject nearby input', {}, []],
+    ['string nearby input', {}, 'private nearby input'],
+    ['partial coordinates', {}, { latitude: 1 }],
+    ['string latitude', {}, { latitude: '1', longitude: 2 }],
+    ['nonfinite latitude', {}, { latitude: Number.NaN, longitude: 2 }],
+    ['infinite longitude', {}, { latitude: 1, longitude: Number.POSITIVE_INFINITY }],
+    ['latitude below range', {}, { latitude: -90.01, longitude: 2 }],
+    ['latitude above range', {}, { latitude: 90.01, longitude: 2 }],
+    ['longitude below range', {}, { latitude: 1, longitude: -180.01 }],
+    ['longitude above range', {}, { latitude: 1, longitude: 180.01 }],
+    ['null radius', {}, { latitude: 1, longitude: 2, radiusMiles: null }],
+    ['string radius', {}, { latitude: 1, longitude: 2, radiusMiles: '5' }],
+    ['unsupported radius', {}, { latitude: 1, longitude: 2, radiusMiles: 15 }],
+  ])('rejects %s before transport with a generic error', async (_case, filters, nearby) => {
+    const rpc = vi.fn()
+    const client = createCatalogClient({ rpc })
+
+    await expect(nearbyList(client, filters, nearby)).rejects.toThrow('Invalid nearby search')
+    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('preserves the SQL timezone_name projection for local-hours rendering', async () => {
