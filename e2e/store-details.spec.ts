@@ -52,9 +52,7 @@ test.describe('Store Details decision-screen contract', () => {
     await expect(page.getByRole('heading', { name: 'Latest updates' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Source & freshness' })).toBeVisible()
     await expect(page.getByText('Step-free entrance at the blue front door')).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Late-summer lighting collection' }),
-    ).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Saturday pop-up restock' })).toBeVisible()
     await expect(page.getByText('Antique Trail Synthetic Store fixture')).toBeVisible()
     await expect(page.getByText('Labor Day', { exact: true })).toBeVisible()
     await expect(page.getByText(/September 7, 2026.*Closed/)).toBeVisible()
