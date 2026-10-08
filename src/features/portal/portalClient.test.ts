@@ -324,8 +324,6 @@ describe('production portal client', () => {
     })
     await expect(
       transport.upload({
-        storeId: '11111111-1111-4111-8111-111111111111',
-        kind: 'gallery',
         altText: 'Replacement',
         file: new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
         rightsConfirmed: true,

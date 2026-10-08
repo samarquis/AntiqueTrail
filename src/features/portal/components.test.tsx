@@ -24,7 +24,7 @@ import {
   PortalUpdatesPage,
 } from './components'
 import type { PortalMediaResubmitInput } from './types'
-import type { PortalClient, PortalHours, SupportTicket } from './types'
+import type { PortalClient, PortalHours, PortalMediaUploadInput, SupportTicket } from './types'
 
 function hours(): PortalHours {
   return {
@@ -657,7 +657,7 @@ describe('provider-neutral Store Portal boundary', () => {
 
   it('uploads official media through M-01 and leaves publication pending review', async () => {
     const user = userEvent.setup()
-    const uploadOfficialMedia = vi.fn(async () => ({
+    const uploadOfficialMedia = vi.fn(async (_input: PortalMediaUploadInput) => ({
       uploadId: '11111111-1111-4111-8111-111111111111',
       state: 'awaiting_review' as const,
     }))
@@ -714,7 +714,7 @@ describe('provider-neutral Store Portal boundary', () => {
             getMediaCapability: vi.fn(async () => ({ enabled: true, source: 'server' as const })),
             previewPublicListing: vi.fn(async () => ({
               storeName: 'Oak Antiques',
-              listingState: 'active',
+              listingState: 'active' as const,
               liveFields: {},
               pendingChanges: [],
               freshness: { state: 'verified', label: 'Verified' },

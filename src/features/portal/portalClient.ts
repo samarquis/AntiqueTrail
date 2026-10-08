@@ -100,8 +100,9 @@ export function createPortalMediaHttpTransport(options: {
   const fetcher = options.fetcher ?? fetch
   return {
     async upload(input) {
-      if (typeof input.targetMediaId === 'string') {
+      if (input.targetMediaId !== undefined) {
         if (
+          typeof input.targetMediaId !== 'string' ||
           !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
             input.targetMediaId,
           ) ||
@@ -120,10 +121,10 @@ export function createPortalMediaHttpTransport(options: {
       body.set('image', input.file)
       body.set('altText', input.altText)
       body.set('idempotencyKey', input.idempotencyKey)
-      if (typeof input.targetMediaId === 'string') {
+      if (input.targetMediaId !== undefined) {
         body.set('targetMediaId', input.targetMediaId)
         body.set('expectedVersion', String(input.expectedVersion))
-      } else if (input.originalUploadId) {
+      } else if (input.originalUploadId !== undefined) {
         body.set('originalUploadId', input.originalUploadId)
       } else {
         body.set('storeId', input.storeId)
@@ -235,7 +236,6 @@ export function createPortalClient(
           file: input.file,
           rightsConfirmed: true,
           idempotencyKey: input.idempotencyKey,
-          originalUploadId: input.originalUploadId,
         })
         if (
           receipt.state !== 'awaiting_review' ||
