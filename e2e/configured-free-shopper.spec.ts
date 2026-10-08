@@ -28,6 +28,7 @@ function issue565ActualRoute(value: string) {
 }
 async function expectDetailsSignIn(page: Page) {
   try {
+    await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
     await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=/)
   } catch (error) {
     test.info().annotations.push({
@@ -205,14 +206,12 @@ test('visible Details Add to Trip preserves store through cancel, auth failure, 
 }) => {
   const tripsBefore = await ownedTripCount()
   await page.goto('/stores/clockwork-cabinet')
-  await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
   await expectDetailsSignIn(page)
 
   await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
   await expect(page).toHaveURL(/\/stores\/clockwork-cabinet$/)
   expect(await ownedTripCount()).toBe(tripsBefore)
 
-  await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
   await expectDetailsSignIn(page)
   const failedLogin = page.waitForResponse((response) =>
     response.url().includes('/auth/v1/token?grant_type=password'),
