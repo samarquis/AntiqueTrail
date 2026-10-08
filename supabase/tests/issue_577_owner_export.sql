@@ -35,7 +35,7 @@ insert into trip_private.trip_stops(
       jsonb_build_object('weekday',4,'label','Thursday','isClosed',false,'intervals','[]'::jsonb),
       jsonb_build_object('weekday',5,'label','Friday','isClosed',false,'intervals','[]'::jsonb),
       jsonb_build_object('weekday',6,'label','Saturday','isClosed',false,'intervals','[]'::jsonb)),
-      'holidays','[]'::jsonb,'version',1),'draft',0,'must',60,'completed',statement_timestamp(),1),
+      'holidays','[]'::jsonb),'draft',0,'must',60,'completed',statement_timestamp(),1),
   ('57700000-0000-4000-8000-000000000021','57700000-0000-4000-8000-000000000010','private',null,null,null,'DETACHED-PRIVATE-STOP','DETACHED-ADDRESS-SNAPSHOT','https://example.test/detached',null,'draft',1,'flexible',60,'completed',statement_timestamp(),1),
   ('57700000-0000-4000-8000-000000000022','57700000-0000-4000-8000-000000000011','private',null,null,null,'OWNER-B-PRIVATE-STOP','OWNER-B-ADDRESS','https://example.test/b',null,'draft',0,'prefer',60,'completed',statement_timestamp(),1),
   ('57700000-0000-4000-8000-000000000025','57700000-0000-4000-8000-000000000010','store','00000000-0000-4000-8000-000000001001',null,null,null,null,null,null,null,2,'flexible',60,'completed',statement_timestamp(),1),
@@ -71,7 +71,7 @@ set local role account_lifecycle_service;
 select is(jsonb_array_length(app_public.build_account_export('57700000-0000-4000-8000-000000000040','57700000-0000-4000-8000-000000000041')::jsonb #> '{canonical,shopper,privateStops}'),1,'owner A gets only extant private stops from trips they own');
 select ok(app_public.build_account_export('57700000-0000-4000-8000-000000000040','57700000-0000-4000-8000-000000000041')::jsonb #> '{canonical,shopper,privateStops}' @> '[{"stopId":"57700000-0000-4000-8000-000000000020","label":"OWNER-A-PRIVATE-STOP"}]'::jsonb,'owner A export includes their private stop');
 select ok(
-  app_public.build_account_export('57700000-0000-4000-8000-000000000040','57700000-0000-4000-8000-000000000041')::jsonb #> '{canonical,shopper,privateStops}' @> '[{"stopId":"57700000-0000-4000-8000-000000000020","state":"completed","address":null,"shopperHours":{"timeZone":"America/Chicago","version":1,"weekly":[{"weekday":1,"label":"Monday","intervals":[{"opensAt":"09:00","closesAt":"17:00"}]}]}}]'::jsonb
+  app_public.build_account_export('57700000-0000-4000-8000-000000000040','57700000-0000-4000-8000-000000000041')::jsonb #> '{canonical,shopper,privateStops}' @> '[{"stopId":"57700000-0000-4000-8000-000000000020","state":"completed","address":null,"shopperHours":{"timeZone":"America/Chicago","weekly":[{"weekday":1,"label":"Monday","intervals":[{"opensAt":"09:00","closesAt":"17:00"}]}]}}]'::jsonb
   and app_public.build_account_export('57700000-0000-4000-8000-000000000040','57700000-0000-4000-8000-000000000041')::jsonb #> '{canonical,shopper,visitMemories}' @> '[{"memoryId":"57700000-0000-4000-8000-000000000030","privateStopAddress":"OWNER-A-MEMORY-ADDRESS-SNAPSHOT"}]'::jsonb,
   'completed trip exports the extant private stop with JSON hours, without its cleared address, and retains the visit snapshot');
 select ok(app_public.build_account_export('57700000-0000-4000-8000-000000000040','57700000-0000-4000-8000-000000000041')::jsonb #> '{canonical,shopper,memories}' @> '[{"storeId":"00000000-0000-4000-8000-000000001001","note":"OWNER-A-STORE-SUMMARY-NOTE"}]'::jsonb,'existing store summary stays in shopper.memories');
