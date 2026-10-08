@@ -38,6 +38,15 @@ import {
   MediaPosition,
 } from './mediaOverlay'
 
+function newestFirstUpdates<T extends { id: string; publishedAt: string }>(
+  updates: readonly T[],
+): T[] {
+  return [...updates].sort((a, b) => {
+    const byPublishedAt = Date.parse(b.publishedAt) - Date.parse(a.publishedAt)
+    return byPublishedAt || b.id.localeCompare(a.id)
+  })
+}
+
 const stageRank: Record<CatalogBrowseStage, number> = {
   'package-1': 1,
   'package-3': 3,
@@ -1286,6 +1295,7 @@ export function DetailsPage({
       </main>
     )
   const store = state.store!
+  const latestUpdates = newestFirstUpdates(store.updates ?? [])
   const browseReturn = readBrowseReturn()
   const backHref = browseReturn?.href ?? '/stores'
   const verifiedDate = formatCatalogDate(store.freshness?.verifiedAt)
@@ -1497,7 +1507,7 @@ export function DetailsPage({
           {store.updates?.length ? (
             <>
               <ol className="store-updates">
-                {store.updates.slice(0, 3).map((update) => (
+                {latestUpdates.slice(0, 3).map((update) => (
                   <li key={update.id}>
                     <article>
                       <h3>{update.title}</h3>
@@ -1510,7 +1520,7 @@ export function DetailsPage({
                   </li>
                 ))}
               </ol>
-              {store.updates.length > 3 && (
+              {latestUpdates.length > 3 && (
                 <CatalogLink
                   to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/updates`)}
                   onClick={() => rememberStoreReturn(store.id, 'updates')}
@@ -1611,9 +1621,7 @@ export function StoreUpdatesPage({ client, slug }: { client: CatalogClient; slug
       </main>
     )
   const store = state.store!
-  const updates = [...(store.updates ?? [])].sort((a, b) =>
-    a.publishedAt.localeCompare(b.publishedAt),
-  )
+  const updates = newestFirstUpdates(store.updates ?? [])
   return (
     <main className="store-detail">
       <CatalogLink
