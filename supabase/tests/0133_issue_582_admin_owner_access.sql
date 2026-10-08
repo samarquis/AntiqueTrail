@@ -313,7 +313,7 @@ insert into claim_versions582
  on conflict(claim_id) do update set version=excluded.version;
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
 set local role authenticated;
-select throws_ok($$select app_public.owner_admin_approve_claim('58200000-0000-4000-8000-00000000000c','00000000-0000-4000-8000-000000000007',(select version from claim_versions582 where claim_id='58200000-0000-4000-8000-00000000000c'),'582-direct-owner-inactive')$$,'55000',null,'direct Owner RPC rejects a rejected claim');
+select throws_ok($$select app_public.owner_admin_approve_claim('58200000-0000-4000-8000-00000000000c','00000000-0000-4000-8000-000000000007',(select version from claim_versions582 where claim_id='58200000-0000-4000-8000-00000000000c'),'582-direct-owner-inactive')$$,'42501',null,'direct Owner RPC rejects a rejected claim with the privacy-neutral approval denial');
 reset role;
 select is((select state from partner_private.listing_claims where claim_id='58200000-0000-4000-8000-00000000000c'),'rejected','inactive Owner claim remains rejected');
 select is((select count(*) from partner_private.owner_claim_approvals where idempotency_key='582-direct-owner-inactive'),0::bigint,'inactive claim denial writes no Owner approval receipt');
