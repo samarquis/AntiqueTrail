@@ -232,7 +232,7 @@ describe('StartTripPage', () => {
     expect(runtimeStart).toHaveBeenCalledTimes(1)
     expect(api.confirmCurrentNavigatorDevice).toHaveBeenCalledWith(readyTrip.id)
     expect(onStarted).not.toHaveBeenCalled()
-    expect(await screen.findByRole('alert')).toHaveTextContent(/device could not be confirmed/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Start could not be confirmed/i)
     expect(screen.queryByRole('button', { name: 'Review and retry' })).not.toBeInTheDocument()
   })
 
