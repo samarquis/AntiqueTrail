@@ -155,10 +155,18 @@ async function safeRpcOutcome(token: string, name: string, body: object) {
 }
 async function expectDetailsSignIn(page: Page) {
   const link = page.getByRole('link', { name: 'Add to Trip', exact: true })
+  const detailsHeading = page.getByRole('heading', {
+    level: 1,
+    name: 'Clockwork Cabinet',
+    exact: true,
+  })
   let stage = 'before-click'
   let beforeClick = await issue565AddToTripProbe(page, link)
   let pathnameAfterClick = '<missing>'
   try {
+    await expect(detailsHeading).toBeVisible()
+    stage = 'details-ready'
+    beforeClick = await issue565AddToTripProbe(page, link)
     expectIssue565FixtureAdmission(beforeClick)
     await expect(link).toHaveCount(1)
     beforeClick = await issue565AddToTripProbe(page, link)
@@ -364,7 +372,9 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
     }
   })
   await page.goto('/stores')
-  await page.getByRole('link', { name: 'Clockwork Cabinet', exact: true }).first().click()
+  const storeLink = page.getByRole('link', { name: 'Clockwork Cabinet', exact: true }).first()
+  await expect(storeLink).toBeVisible()
+  await storeLink.click()
   try {
     await expect(page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' })).toBeVisible()
   } catch (error) {
