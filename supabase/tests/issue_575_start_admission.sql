@@ -18,7 +18,7 @@ select ok(
   position('for update' in lower(pg_get_functiondef('app_public.prepare_initial_navigator(text,bigint,text)'::regprocedure)))
     < position('if v_version <> expected_version' in lower(pg_get_functiondef('app_public.prepare_initial_navigator(text,bigint,text)'::regprocedure)))
     and position('if v_version <> expected_version' in lower(pg_get_functiondef('app_public.prepare_initial_navigator(text,bigint,text)'::regprocedure)))
-    < position('update trip_private.trip_device_bindings' in lower(pg_get_functiondef('app_public.prepare_initial_navigator(text,bigint,text)'::regprocedure)),
+    < position('update trip_private.trip_device_bindings' in lower(pg_get_functiondef('app_public.prepare_initial_navigator(text,bigint,text)'::regprocedure))),
   'trip lock and expected-version gate precede device binding side effects');
 
 insert into auth.users(id,email,email_confirmed_at) values
