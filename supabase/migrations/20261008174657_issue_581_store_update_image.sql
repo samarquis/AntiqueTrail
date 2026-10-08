@@ -26,6 +26,12 @@ begin
   if media_app_create_added then execute 'grant create on schema app_public to media_automation'; end if;
 end $$;
 
+-- Verify both required owner transitions before changing application objects.
+set role identity_service;
+reset role;
+set role media_automation;
+reset role;
+
 alter table portal_private.store_updates
   alter column published_at drop not null;
 alter table portal_private.store_updates
@@ -77,6 +83,7 @@ create table portal_private.store_update_image_bindings (
   created_at timestamptz not null default statement_timestamp()
 );
 alter table portal_private.store_update_image_bindings owner to identity_service;
+set role identity_service;
 alter table portal_private.store_update_image_bindings enable row level security;
 alter table portal_private.store_update_image_bindings force row level security;
 revoke all on portal_private.store_update_image_bindings
@@ -85,6 +92,7 @@ grant select,insert on portal_private.store_update_image_bindings to identity_se
 create policy identity_service_store_update_image_bindings
   on portal_private.store_update_image_bindings
   for all to identity_service using(true) with check(true);
+reset role;
 
 grant usage on schema media_private to identity_service;
 grant usage on schema portal_private to media_automation;
@@ -101,10 +109,12 @@ begin
   return found;
 end $$;
 alter function media_private.store_update_image_receipt_reviewable(uuid,uuid,uuid) owner to media_automation;
+set role media_automation;
 revoke all on function media_private.store_update_image_receipt_reviewable(uuid,uuid,uuid)
   from public,anon,authenticated,service_role,media_worker,media_lifecycle_service;
 grant execute on function media_private.store_update_image_receipt_reviewable(uuid,uuid,uuid)
   to identity_service;
+reset role;
 
 create function media_private.store_update_image_is_published(p_upload_id uuid)
 returns boolean language sql stable security definer set search_path='' as $$
@@ -115,10 +125,12 @@ returns boolean language sql stable security definer set search_path='' as $$
   );
 $$;
 alter function media_private.store_update_image_is_published(uuid) owner to media_automation;
+set role media_automation;
 revoke all on function media_private.store_update_image_is_published(uuid)
   from public,anon,authenticated,service_role,media_worker,media_lifecycle_service;
 grant execute on function media_private.store_update_image_is_published(uuid)
   to identity_service;
+reset role;
 
 create function portal_private.store_update_image_bound(p_upload_id uuid,p_store_id uuid)
 returns boolean language sql stable security definer set search_path='' as $$
@@ -129,10 +141,12 @@ returns boolean language sql stable security definer set search_path='' as $$
   );
 $$;
 alter function portal_private.store_update_image_bound(uuid,uuid) owner to identity_service;
+set role identity_service;
 revoke all on function portal_private.store_update_image_bound(uuid,uuid)
   from public,anon,authenticated,service_role,catalog_reader,store_update_expiry_service;
 grant execute on function portal_private.store_update_image_bound(uuid,uuid)
   to media_automation;
+reset role;
 
 create function portal_private.record_store_update_image_publish_event(
   p_store_id uuid,p_update_id uuid,p_digest bytea,p_previous_version bigint,p_resulting_version bigint
@@ -148,8 +162,10 @@ begin
     'approved_media_receipt',p_digest,decode(repeat('00',32),'hex'));
 end $$;
 alter function portal_private.record_store_update_image_publish_event(uuid,uuid,bytea,bigint,bigint) owner to identity_service;
+set role identity_service;
 revoke all on function portal_private.record_store_update_image_publish_event(uuid,uuid,bytea,bigint,bigint)
   from public,anon,authenticated;
+reset role;
 
 create function portal_private.publish_store_update_image(p_upload_id uuid)
 returns uuid language plpgsql volatile security definer set search_path='' as $$
@@ -185,9 +201,11 @@ begin
   return target_id;
 end $$;
 alter function portal_private.publish_store_update_image(uuid) owner to identity_service;
+set role identity_service;
 revoke all on function portal_private.publish_store_update_image(uuid)
   from public,anon,authenticated,service_role,catalog_reader,store_update_expiry_service;
 grant execute on function portal_private.publish_store_update_image(uuid) to media_automation;
+reset role;
 
 set role identity_service;
 create or replace function app_public.portal_create_update(p_update jsonb)

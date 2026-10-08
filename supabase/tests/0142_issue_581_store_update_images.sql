@@ -52,6 +52,41 @@ select ok(not has_schema_privilege('identity_service','portal_private','CREATE')
   and not has_schema_privilege('media_automation','media_private','CREATE')
   and not has_schema_privilege('media_automation','app_public','CREATE'),
   'ownership-only schema CREATE grants are not retained');
+select ok(exists(
+  select 1 from pg_class c
+  join pg_namespace n on n.oid=c.relnamespace
+  join pg_roles r on r.oid=c.relowner
+  where n.nspname='portal_private' and c.relname='store_update_image_bindings'
+    and r.rolname='identity_service' and c.relrowsecurity and c.relforcerowsecurity
+), 'image bindings are identity-owned with forced RLS');
+select ok(
+  (select pg_get_userbyid(proowner) from pg_proc where oid='media_private.store_update_image_receipt_reviewable(uuid,uuid,uuid)'::regprocedure)='media_automation'
+  and (select pg_get_userbyid(proowner) from pg_proc where oid='media_private.store_update_image_is_published(uuid)'::regprocedure)='media_automation'
+  and (select pg_get_userbyid(proowner) from pg_proc where oid='portal_private.store_update_image_bound(uuid,uuid)'::regprocedure)='identity_service'
+  and (select pg_get_userbyid(proowner) from pg_proc where oid='portal_private.record_store_update_image_publish_event(uuid,uuid,bytea,bigint,bigint)'::regprocedure)='identity_service'
+  and (select pg_get_userbyid(proowner) from pg_proc where oid='portal_private.publish_store_update_image(uuid)'::regprocedure)='identity_service',
+  'image helper functions retain their service owners');
+select ok(
+  has_function_privilege('identity_service','media_private.store_update_image_receipt_reviewable(uuid,uuid,uuid)','EXECUTE')
+  and has_function_privilege('identity_service','media_private.store_update_image_is_published(uuid)','EXECUTE')
+  and has_function_privilege('media_automation','portal_private.store_update_image_bound(uuid,uuid)','EXECUTE')
+  and has_function_privilege('media_automation','portal_private.publish_store_update_image(uuid)','EXECUTE'),
+  'image helper execute grants remain scoped to their service callers');
+select ok(not exists(
+  select 1
+  from (values ('anon'),('authenticated'),('service_role'),('media_worker'),
+    ('media_lifecycle_service'),('catalog_reader'),('store_update_expiry_service')) as denied_roles(role_name)
+  cross join (values
+    ('media_private.store_update_image_receipt_reviewable(uuid,uuid,uuid)'),
+    ('media_private.store_update_image_is_published(uuid)'),
+    ('portal_private.store_update_image_bound(uuid,uuid)'),
+    ('portal_private.record_store_update_image_publish_event(uuid,uuid,bytea,bigint,bigint)'),
+    ('portal_private.publish_store_update_image(uuid)')
+  ) as image_helpers(function_name)
+  where has_function_privilege(denied_roles.role_name,image_helpers.function_name,'EXECUTE')
+) and not has_function_privilege('media_automation',
+  'portal_private.record_store_update_image_publish_event(uuid,uuid,bytea,bigint,bigint)','EXECUTE'),
+  'browser, generic service and unrelated workers cannot execute image helpers');
 
 create temporary table issue581_image_created(value jsonb);
 create temporary table issue581_image_create_replay(value jsonb);
