@@ -56,7 +56,7 @@ test('configured Owner edits text through selected-store context and shoppers se
   browser,
 }) => {
   await loginOwner(page)
-  await expect(page.getByRole('heading', { name: 'Your stores' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your store workspace' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Open Issue 581 Store A' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Open Issue 581 Store B' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Open Issue 581 Store A' }).click()
