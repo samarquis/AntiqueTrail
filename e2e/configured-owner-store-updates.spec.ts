@@ -99,8 +99,8 @@ test('configured Owner edits text through selected-store context and shoppers se
     if (rpcRequest(request, 'portal_edit_update')) editRequests += 1
   })
   await page.getByRole('button', { name: 'Edit Issue 581 update 3', exact: true }).click()
-  await page.getByLabel('Headline', { exact: true }).fill('Unsent Issue 581 edit')
-  await page.getByLabel('Details', { exact: true }).fill('This edit is cancelled.')
+  await page.getByLabel('Edit headline', { exact: true }).fill('Unsent Issue 581 edit')
+  await page.getByLabel('Edit details', { exact: true }).fill('This edit is cancelled.')
   await page.getByRole('button', { name: 'Cancel edit', exact: true }).click()
   expect(editRequests).toBe(0)
   await expect(page.getByText('Issue 581 update 3', { exact: true })).toBeVisible()
@@ -109,8 +109,8 @@ test('configured Owner edits text through selected-store context and shoppers se
     rpcRequest(response.request(), 'portal_edit_update'),
   )
   await page.getByRole('button', { name: 'Edit Issue 581 update 3', exact: true }).click()
-  await page.getByLabel('Headline', { exact: true }).fill('Edited Issue 581 update 3')
-  await page.getByLabel('Details', { exact: true }).fill('Edited public text body.')
+  await page.getByLabel('Edit headline', { exact: true }).fill('Edited Issue 581 update 3')
+  await page.getByLabel('Edit details', { exact: true }).fill('Edited public text body.')
   await page.getByRole('button', { name: 'Save update', exact: true }).click()
   const editResponse = await editResponsePromise
   expect(editResponse.status()).toBe(200)
@@ -118,10 +118,16 @@ test('configured Owner edits text through selected-store context and shoppers se
   expect(editHeaders['x-owner-store-id']).toBe(input.storeId)
   const editInput = editResponse.request().postDataJSON() as {
     p_update_id: string
+    p_update: Record<string, unknown>
     p_expected_version: number
     p_idempotency_key: string
   }
   expect(editInput.p_update_id).toBe(created[2]?.id)
+  expect(editInput.p_update).toMatchObject({
+    type: 'new_finds',
+    headline: 'Edited Issue 581 update 3',
+    details: 'Edited public text body.',
+  })
   expect(editInput.p_expected_version).toBe(1)
   expect(editInput.p_idempotency_key).toMatch(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/)
   const savedEdit = (await editResponse.json()) as {
