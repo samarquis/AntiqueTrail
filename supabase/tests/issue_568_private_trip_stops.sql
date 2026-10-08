@@ -226,6 +226,19 @@ select throws_ok($$select app_public.update_private_trip_stop(
   'Hidden Finds','456 New St','https://example.com/shop',current_setting('test.private_hours')::jsonb,
   'must',60,12,'update_private_trip_stop:address')$$,
   'P0001','conflict','same update key cannot replay against a different stop');
+select is((app_public.get_trip('56800000-0000-4000-8000-000000000101')->>'version')::bigint,
+  13::bigint,'different-stop update replay leaves trip version unchanged');
+select is(
+  (select stop from jsonb_array_elements(app_public.get_trip('56800000-0000-4000-8000-000000000101')->'stops') as stops(stop)
+    where stop->>'id'=current_setting('test.replay_target_id')),
+  (select stop from jsonb_array_elements(current_setting('test.replay_target')::jsonb->'stops') as stops(stop)
+    where stop->>'id'=current_setting('test.replay_target_id')),
+  'different-stop update replay leaves the requested stop unchanged');
+select is((app_public.update_private_trip_stop(
+  '56800000-0000-4000-8000-000000000101',current_setting('test.created')::jsonb #>> '{stops,0,id}',
+  'Hidden Finds','456 New St','https://example.com/shop',current_setting('test.private_hours')::jsonb,
+  'must',60,12,'update_private_trip_stop:address')->>'version')::bigint,
+  13::bigint,'same-stop update replay returns without adding another version');
 select throws_ok($$select app_public.update_private_trip_stop(
   '56800000-0000-4000-8000-000000000101','56800000-0000-4000-8000-000000000999',
   'Hidden Finds','456 New St','https://example.com/shop',current_setting('test.private_hours')::jsonb,
@@ -241,6 +254,18 @@ select throws_ok($$select app_public.confirm_trip_stop_destination(
   '56800000-0000-4000-8000-000000000101',current_setting('test.replay_target_id'),
   '456 New St',13,'confirm_trip_stop_destination:address')$$,
   'P0001','conflict','same confirmation key cannot replay against a different stop');
+select is((app_public.get_trip('56800000-0000-4000-8000-000000000101')->>'version')::bigint,
+  14::bigint,'different-stop confirmation replay leaves trip version unchanged');
+select is(
+  (select stop from jsonb_array_elements(app_public.get_trip('56800000-0000-4000-8000-000000000101')->'stops') as stops(stop)
+    where stop->>'id'=current_setting('test.replay_target_id')),
+  (select stop from jsonb_array_elements(current_setting('test.replay_target')::jsonb->'stops') as stops(stop)
+    where stop->>'id'=current_setting('test.replay_target_id')),
+  'different-stop confirmation replay leaves the requested stop unchanged');
+select is((app_public.confirm_trip_stop_destination(
+  '56800000-0000-4000-8000-000000000101',current_setting('test.created')::jsonb #>> '{stops,0,id}',
+  '456 New St',13,'confirm_trip_stop_destination:address')->>'version')::bigint,
+  14::bigint,'same-stop confirmation replay returns without adding another version');
 select throws_ok($$select app_public.confirm_trip_stop_destination(
   '56800000-0000-4000-8000-000000000101',current_setting('test.created')::jsonb #>> '{stops,0,id}',
   'Not the saved address',14,'confirm_trip_stop_destination:wrong')$$,
@@ -281,6 +306,15 @@ select throws_ok($$select app_public.update_private_trip_stop(
   'Hidden Finds','456 New St','https://example.com/shop',current_setting('test.private_hours')::jsonb,
   'must',60,14,'update_private_trip_stop:foreign')$$,
   'P0001','authorization_lost','nonmember cannot update owner private stop fields');
+select throws_ok($$select app_public.update_private_trip_stop(
+  '56800000-0000-4000-8000-000000000101',current_setting('test.created')::jsonb #>> '{stops,0,id}',
+  'Hidden Finds','456 New St','https://example.com/shop',current_setting('test.private_hours')::jsonb,
+  'must',60,12,'update_private_trip_stop:address')$$,
+  'P0001','authorization_lost','nonmember cannot replay owner update receipt');
+select throws_ok($$select app_public.confirm_trip_stop_destination(
+  '56800000-0000-4000-8000-000000000101',current_setting('test.created')::jsonb #>> '{stops,0,id}',
+  '456 New St',13,'confirm_trip_stop_destination:address')$$,
+  'P0001','authorization_lost','nonmember cannot replay owner confirmation receipt');
 select throws_ok($$select app_public.remove_trip_stop(
   '56800000-0000-4000-8000-000000000101',current_setting('test.created')::jsonb #>> '{stops,0,id}',14)$$,
   'P0001','not_allowed','nonmember cannot remove owner private stop');
