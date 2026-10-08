@@ -16,6 +16,53 @@ const issue565RoutePaths = new Set([
   '/stores/clockwork-cabinet',
 ])
 const issue565CoverPath = '/images/synthetic-stores/1280w/blue-finch-curios-cover.webp'
+const issue565CatalogErrorCodes = new Set([
+  'GATEWAY_UNAVAILABLE',
+  'INVALID_REQUEST',
+  'INVALID_OPERATION',
+  'MAP_UNAVAILABLE',
+  'RATE_LIMITED',
+  'ALPHA_AUTH_REQUIRED',
+  'CATALOG_UNAVAILABLE',
+])
+
+type Issue565CatalogFailure = {
+  operation: 'list' | 'details'
+  status: number
+  errorCode: string
+}
+
+function issue565CatalogFailureProbe(page: Page) {
+  let firstFailure: Promise<Issue565CatalogFailure> | null = null
+  page.on('response', (response) => {
+    if (firstFailure || response.status() < 400 || response.status() > 599) return
+    try {
+      if (new URL(response.url()).pathname !== '/functions/v1/public-catalog') return
+      const request = response.request()
+      if (request.method() !== 'POST') return
+      const body = request.postDataJSON() as { operation?: unknown }
+      if (body.operation !== 'list' && body.operation !== 'details') return
+      const operation = body.operation
+      firstFailure = (async () => {
+        let errorCode = 'other'
+        try {
+          const payload = (await response.json()) as { error?: { code?: unknown } }
+          if (
+            typeof payload.error?.code === 'string' &&
+            issue565CatalogErrorCodes.has(payload.error.code)
+          )
+            errorCode = payload.error.code
+        } catch {
+          /* Keep only the fixed fallback when the response is not JSON. */
+        }
+        return { operation, status: response.status(), errorCode }
+      })()
+    } catch {
+      /* Ignore unrelated or malformed responses. */
+    }
+  })
+  return async () => (firstFailure ? await firstFailure : null)
+}
 
 function issue565Path(value: string | null, base = 'http://127.0.0.1/') {
   if (value === null) return '<missing>'
@@ -90,7 +137,12 @@ function expectIssue565FixtureAdmission(
   expect(diagnostics.previewGuard).toBe(false)
 }
 
-async function issue565DiscoveryProbe(page: Page, coverStatuses: number[], coverFailed: boolean) {
+async function issue565DiscoveryProbe(
+  page: Page,
+  coverStatuses: number[],
+  coverFailed: boolean,
+  catalogFailure?: () => Promise<Issue565CatalogFailure | null>,
+) {
   const viewState =
     (await page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' }).count()) > 0
       ? 'details'
@@ -131,6 +183,7 @@ async function issue565DiscoveryProbe(page: Page, coverStatuses: number[], cover
     coverRequestFailed: coverFailed,
     imageState,
     imageErrors: imageErrors === 0 ? 0 : 1,
+    ...(catalogFailure && { catalogFailure: await catalogFailure() }),
   }
 }
 
@@ -164,7 +217,10 @@ async function safeRpcOutcome(token: string, name: string, body: object) {
     return `http-${match[1]}-${code}`
   }
 }
-async function expectDetailsSignIn(page: Page) {
+async function expectDetailsSignIn(
+  page: Page,
+  catalogFailure: () => Promise<Issue565CatalogFailure | null>,
+) {
   const link = page.getByRole('link', { name: 'Add to Trip', exact: true })
   const detailsHeading = page.getByRole('heading', {
     level: 1,
@@ -210,7 +266,7 @@ async function expectDetailsSignIn(page: Page) {
         type: 'issue-565-discovery-probe',
         description: JSON.stringify({
           stage: 'details-heading',
-          ...(await issue565DiscoveryProbe(page, [], false)),
+          ...(await issue565DiscoveryProbe(page, [], false, catalogFailure)),
         }),
       })
     throw error
@@ -361,6 +417,7 @@ test('creator removes an accepted partner through configured transport', async (
 
 test('anonymous discovery, permitted photo and JIT save context return', async ({ page }) => {
   const coverStatuses: number[] = []
+  const catalogFailure = issue565CatalogFailureProbe(page)
   let coverFailed = false
   await page.addInitScript((coverPath) => {
     const target = window as Window & { __issue565CoverErrors?: number }
@@ -399,7 +456,7 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
       type: 'issue-565-discovery-probe',
       description: JSON.stringify({
         stage: 'store-link',
-        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed)),
+        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed, catalogFailure)),
       }),
     })
     throw error
@@ -412,7 +469,7 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
       type: 'issue-565-discovery-probe',
       description: JSON.stringify({
         stage: 'details-heading',
-        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed)),
+        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed, catalogFailure)),
       }),
     })
     throw error
@@ -437,7 +494,7 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
       type: 'issue-565-discovery-probe',
       description: JSON.stringify({
         stage: 'cover-image',
-        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed)),
+        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed, catalogFailure)),
       }),
     })
     throw error
@@ -454,15 +511,16 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
 test('visible Details Add to Trip preserves store through cancel, auth failure, and sign-in', async ({
   page,
 }) => {
+  const catalogFailure = issue565CatalogFailureProbe(page)
   const tripsBefore = await ownedTripCount()
   await page.goto('/stores/clockwork-cabinet')
-  await expectDetailsSignIn(page)
+  await expectDetailsSignIn(page, catalogFailure)
 
   await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
   await expect(page).toHaveURL(/\/stores\/clockwork-cabinet$/)
   expect(await ownedTripCount()).toBe(tripsBefore)
 
-  await expectDetailsSignIn(page)
+  await expectDetailsSignIn(page, catalogFailure)
   const failedLogin = page.waitForResponse((response) =>
     response.url().includes('/auth/v1/token?grant_type=password'),
   )

@@ -6,6 +6,15 @@ const allowedRoutePaths = new Set([
   '<other-route>',
   '<missing>',
 ])
+const catalogErrorCategories = new Map([
+  ['GATEWAY_UNAVAILABLE', 'gateway-unavailable'],
+  ['INVALID_REQUEST', 'invalid-request'],
+  ['INVALID_OPERATION', 'invalid-operation'],
+  ['MAP_UNAVAILABLE', 'map-unavailable'],
+  ['RATE_LIMITED', 'rate-limited'],
+  ['ALPHA_AUTH_REQUIRED', 'authorization-required'],
+  ['CATALOG_UNAVAILABLE', 'catalog-rpc-failed'],
+])
 
 function safeRoutePath(value) {
   return typeof value === 'string' && allowedRoutePaths.has(value) ? value : '<other-route>'
@@ -13,6 +22,20 @@ function safeRoutePath(value) {
 
 function safeCount(value) {
   return Number.isSafeInteger(value) && value >= 0 && value <= 20 ? value : undefined
+}
+
+function safeCatalogFailure(value) {
+  if (!value || !['list', 'details'].includes(value.operation)) return undefined
+  const errorCode = catalogErrorCategories.has(value.errorCode) ? value.errorCode : 'other'
+  return {
+    operation: value.operation,
+    httpStatus:
+      Number.isSafeInteger(value.status) && value.status >= 400 && value.status <= 599
+        ? value.status
+        : null,
+    errorCode,
+    rpcErrorCategory: catalogErrorCategories.get(errorCode) ?? 'other',
+  }
 }
 
 function safeAnnotation(annotations, type) {
@@ -71,6 +94,7 @@ export function safeIssue565Diagnostics(value) {
 
   const discovery = value?.discovery
   if (discovery) {
+    const catalogFailure = safeCatalogFailure(discovery.catalogFailure)
     diagnostics.discovery = {
       ...(typeof discovery.stage === 'string' &&
         ['details-heading', 'store-link', 'cover-image'].includes(discovery.stage) && {
@@ -97,6 +121,7 @@ export function safeIssue565Diagnostics(value) {
           ? discovery.imageState
           : 'other',
       imageErrors: discovery.imageErrors === 1 ? 1 : 0,
+      ...(catalogFailure && { catalogFailure }),
     }
   }
 

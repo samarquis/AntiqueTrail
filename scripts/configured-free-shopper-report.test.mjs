@@ -160,6 +160,15 @@ test('Issue 565 probes retain safe route and revocation classes only', () => {
                         coverRequestFailed: false,
                         imageState: 'not-rendered',
                         imageErrors: 0,
+                        catalogFailure: {
+                          operation: 'list',
+                          status: 503,
+                          errorCode: 'CATALOG_UNAVAILABLE',
+                          rpcErrorCategory: 'unsafe-input',
+                          requestUrl: 'https://private.invalid/?token=private-token',
+                          responseBody: 'Bearer private-token person@private.invalid',
+                          headers: { authorization: 'Bearer private-token' },
+                        },
                       }),
                     },
                     {
@@ -217,6 +226,12 @@ test('Issue 565 probes retain safe route and revocation classes only', () => {
       coverRequestFailed: false,
       imageState: 'not-rendered',
       imageErrors: 0,
+      catalogFailure: {
+        operation: 'list',
+        httpStatus: 503,
+        errorCode: 'CATALOG_UNAVAILABLE',
+        rpcErrorCategory: 'catalog-rpc-failed',
+      },
     },
     sessionRevocation: {
       tokenSubjectMatchesSibling: true,
@@ -229,7 +244,7 @@ test('Issue 565 probes retain safe route and revocation classes only', () => {
   })
   assert.doesNotMatch(
     JSON.stringify(report.checks),
-    /private-token|private\.invalid|accessToken|sessionId|token=/,
+    /private-token|private\.invalid|accessToken|sessionId|token=|responseBody|authorization/,
   )
 })
 
