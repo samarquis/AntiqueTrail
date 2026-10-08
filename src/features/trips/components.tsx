@@ -16,6 +16,8 @@ import type {
   TripClient,
   TripCollaboration,
   TripParticipant,
+  TripPrivateHours,
+  TripStop,
 } from './types'
 import type { TripOfflineGrantSource, TripOfflineRuntime } from './tripRuntime'
 
@@ -55,6 +57,649 @@ function TripCard({
 }
 function TripError() {
   return <p role="alert">{GENERIC_TRIP_ERROR}</p>
+}
+
+const PRIVATE_WEEKDAYS = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+]
+
+type TripActionContext = { scope: 'private-stop'; isCurrent: () => boolean }
+type TripActionRunner = (
+  label: string,
+  action: () => Promise<void>,
+  context?: TripActionContext,
+) => Promise<boolean>
+type PrivateTripStop = Extract<TripStop, { kind: 'private' }>
+type TripCommandKeyRef = { current: { signature: string; key: string } | null }
+
+function tripCommandKey(ref: TripCommandKeyRef, command: string, value: unknown): string {
+  const signature = JSON.stringify(value) ?? ''
+  if (ref.current?.signature !== signature)
+    ref.current = { signature, key: `${command}:${crypto.randomUUID()}` }
+  return ref.current.key
+}
+
+function emptyPrivateHours(): TripPrivateHours {
+  return {
+    timeZone: '',
+    weekly: PRIVATE_WEEKDAYS.map((label, weekday) => ({
+      weekday,
+      label,
+      isClosed: false,
+      intervals: [],
+    })),
+    holidays: [],
+  }
+}
+
+function PrivateHoursIntervals({
+  label,
+  prefix,
+  intervals,
+  onChange,
+}: {
+  label: string
+  prefix: string
+  intervals: TripPrivateHours['weekly'][number]['intervals']
+  onChange: (intervals: TripPrivateHours['weekly'][number]['intervals']) => void
+}) {
+  return (
+    <>
+      {intervals.map((interval, index) => (
+        <div key={`${prefix}-${index}`}>
+          <label htmlFor={`${prefix}-opens-${index}`}>{label} opens</label>
+          <input
+            id={`${prefix}-opens-${index}`}
+            type="time"
+            value={interval.opensAt}
+            onChange={(event) =>
+              onChange(
+                intervals.map((current, currentIndex) =>
+                  currentIndex === index ? { ...current, opensAt: event.target.value } : current,
+                ),
+              )
+            }
+          />
+          <label htmlFor={`${prefix}-closes-${index}`}>{label} closes</label>
+          <input
+            id={`${prefix}-closes-${index}`}
+            type="time"
+            value={interval.closesAt}
+            onChange={(event) =>
+              onChange(
+                intervals.map((current, currentIndex) =>
+                  currentIndex === index ? { ...current, closesAt: event.target.value } : current,
+                ),
+              )
+            }
+          />
+          <button
+            className="button button--secondary"
+            type="button"
+            onClick={() => onChange(intervals.filter((_, currentIndex) => currentIndex !== index))}
+          >
+            Remove {label.toLowerCase()} interval {index + 1}
+          </button>
+        </div>
+      ))}
+      {intervals.length < 2 && (
+        <button
+          className="button button--secondary"
+          type="button"
+          onClick={() => onChange([...intervals, { opensAt: '', closesAt: '' }])}
+        >
+          Add interval for {label}
+        </button>
+      )}
+    </>
+  )
+}
+
+function PrivateHoursEditor({
+  value,
+  prefix,
+  onChange,
+}: {
+  value: TripPrivateHours | null
+  prefix: string
+  onChange: (value: TripPrivateHours | null) => void
+}) {
+  if (!value)
+    return (
+      <button
+        className="button button--secondary"
+        type="button"
+        onClick={() => onChange(emptyPrivateHours())}
+      >
+        Add shopper hours
+      </button>
+    )
+  const updateDay = (
+    weekday: number,
+    update: (day: TripPrivateHours['weekly'][number]) => TripPrivateHours['weekly'][number],
+  ) =>
+    onChange({
+      ...value,
+      weekly: value.weekly.map((day) => (day.weekday === weekday ? update(day) : day)),
+    })
+  return (
+    <fieldset>
+      <legend>Shopper hours</legend>
+      <label htmlFor={`${prefix}-time-zone`}>Hours time zone</label>
+      <input
+        id={`${prefix}-time-zone`}
+        value={value.timeZone}
+        maxLength={128}
+        onChange={(event) => onChange({ ...value, timeZone: event.target.value })}
+      />
+      {value.weekly
+        .slice()
+        .sort((left, right) => left.weekday - right.weekday)
+        .map((day) => (
+          <fieldset key={day.weekday}>
+            <legend>{day.label}</legend>
+            <label>
+              <input
+                type="checkbox"
+                checked={day.isClosed}
+                onChange={(event) =>
+                  updateDay(day.weekday, (current) => ({
+                    ...current,
+                    isClosed: event.target.checked,
+                    intervals: event.target.checked ? [] : current.intervals,
+                  }))
+                }
+              />
+              Closed on {day.label}
+            </label>
+            {!day.isClosed && (
+              <PrivateHoursIntervals
+                label={day.label}
+                prefix={`${prefix}-day-${day.weekday}`}
+                intervals={day.intervals}
+                onChange={(intervals) =>
+                  updateDay(day.weekday, (current) => ({ ...current, intervals }))
+                }
+              />
+            )}
+          </fieldset>
+        ))}
+      <fieldset>
+        <legend>Holiday hours</legend>
+        {value.holidays.map((holiday, index) => (
+          <fieldset key={`${holiday.localDate}-${index}`}>
+            <legend>Holiday {index + 1}</legend>
+            <label htmlFor={`${prefix}-holiday-date-${index}`}>Holiday date</label>
+            <input
+              id={`${prefix}-holiday-date-${index}`}
+              type="date"
+              value={holiday.localDate}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  holidays: value.holidays.map((current, currentIndex) =>
+                    currentIndex === index
+                      ? { ...current, localDate: event.target.value }
+                      : current,
+                  ),
+                })
+              }
+            />
+            <label htmlFor={`${prefix}-holiday-label-${index}`}>Holiday name</label>
+            <input
+              id={`${prefix}-holiday-label-${index}`}
+              value={holiday.label}
+              maxLength={80}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  holidays: value.holidays.map((current, currentIndex) =>
+                    currentIndex === index ? { ...current, label: event.target.value } : current,
+                  ),
+                })
+              }
+            />
+            <label>
+              <input
+                type="checkbox"
+                checked={holiday.isClosed}
+                onChange={(event) =>
+                  onChange({
+                    ...value,
+                    holidays: value.holidays.map((current, currentIndex) =>
+                      currentIndex === index
+                        ? {
+                            ...current,
+                            isClosed: event.target.checked,
+                            intervals: event.target.checked ? [] : current.intervals,
+                          }
+                        : current,
+                    ),
+                  })
+                }
+              />
+              Closed for this holiday
+            </label>
+            {!holiday.isClosed && (
+              <PrivateHoursIntervals
+                label={`Holiday ${index + 1}`}
+                prefix={`${prefix}-holiday-${index}`}
+                intervals={holiday.intervals}
+                onChange={(intervals) =>
+                  onChange({
+                    ...value,
+                    holidays: value.holidays.map((current, currentIndex) =>
+                      currentIndex === index ? { ...current, intervals } : current,
+                    ),
+                  })
+                }
+              />
+            )}
+            <button
+              className="button button--secondary"
+              type="button"
+              onClick={() =>
+                onChange({ ...value, holidays: value.holidays.filter((_, i) => i !== index) })
+              }
+            >
+              Remove holiday {index + 1}
+            </button>
+          </fieldset>
+        ))}
+        <button
+          className="button button--secondary"
+          type="button"
+          onClick={() =>
+            onChange({
+              ...value,
+              holidays: [
+                ...value.holidays,
+                { localDate: '', label: '', isClosed: true, intervals: [] },
+              ],
+            })
+          }
+        >
+          Add holiday hours
+        </button>
+      </fieldset>
+      {value.temporaryClosure ? (
+        <fieldset>
+          <legend>Temporary closure</legend>
+          <label htmlFor={`${prefix}-closure-start`}>Closure start date</label>
+          <input
+            id={`${prefix}-closure-start`}
+            type="date"
+            value={value.temporaryClosure.startDate}
+            onChange={(event) =>
+              onChange({
+                ...value,
+                temporaryClosure: { ...value.temporaryClosure!, startDate: event.target.value },
+              })
+            }
+          />
+          <label htmlFor={`${prefix}-closure-end`}>Closure end date</label>
+          <input
+            id={`${prefix}-closure-end`}
+            type="date"
+            value={value.temporaryClosure.endDate}
+            onChange={(event) =>
+              onChange({
+                ...value,
+                temporaryClosure: { ...value.temporaryClosure!, endDate: event.target.value },
+              })
+            }
+          />
+          <label htmlFor={`${prefix}-closure-reason`}>Closure note</label>
+          <input
+            id={`${prefix}-closure-reason`}
+            value={value.temporaryClosure.reason ?? ''}
+            maxLength={200}
+            onChange={(event) =>
+              onChange({
+                ...value,
+                temporaryClosure: { ...value.temporaryClosure!, reason: event.target.value },
+              })
+            }
+          />
+          <button
+            className="button button--secondary"
+            type="button"
+            onClick={() => {
+              const hours = { ...value }
+              delete hours.temporaryClosure
+              onChange(hours)
+            }}
+          >
+            Remove temporary closure
+          </button>
+        </fieldset>
+      ) : (
+        <button
+          className="button button--secondary"
+          type="button"
+          onClick={() => onChange({ ...value, temporaryClosure: { startDate: '', endDate: '' } })}
+        >
+          Add temporary closure
+        </button>
+      )}
+      <button className="button button--secondary" type="button" onClick={() => onChange(null)}>
+        Remove shopper hours
+      </button>
+    </fieldset>
+  )
+}
+
+function PrivateTripStopEditor({
+  trip,
+  version,
+  pending,
+  retryBlocked,
+  client,
+  stop,
+  runAction,
+  onCancel,
+  onTrip,
+  isTripCurrent,
+}: {
+  trip: Trip
+  version: number
+  pending: boolean
+  retryBlocked: boolean
+  client: TripClient
+  stop?: PrivateTripStop
+  runAction: TripActionRunner
+  onCancel: () => void
+  onTrip: (trip: Trip) => void
+  isTripCurrent: (tripId: string) => boolean
+}) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(stop?.label ?? '')
+  const [address, setAddress] = useState(stop?.address ?? '')
+  const [sourceUrl, setSourceUrl] = useState(stop?.sourceUrl ?? '')
+  const [shopperHours, setShopperHours] = useState<TripPrivateHours | null>(
+    stop?.shopperHours ?? null,
+  )
+  const [priority, setPriority] = useState<StopPriority>(stop?.priority ?? 'prefer')
+  const [dwell, setDwell] = useState(stop?.plannedDwellMinutes ?? 60)
+  const [editVersion, setEditVersion] = useState(version)
+  const saveKey = useRef<{ signature: string; key: string } | null>(null)
+  const confirmKey = useRef<{ signature: string; key: string } | null>(null)
+  const actionGeneration = useRef(0)
+  const versionChanged = editVersion !== version
+  const controlsDisabled = pending || retryBlocked
+  const nameLabel = stop ? `Private shop name for ${stop.label}` : 'Private shop name'
+  const addressLabel = stop ? `Private shop address for ${stop.label}` : 'Private shop address'
+  const urlLabel = stop ? `Private shop source URL for ${stop.label}` : 'Private shop source URL'
+  const prefix = `private-${stop?.id ?? 'new'}`
+
+  useEffect(
+    () => () => {
+      actionGeneration.current += 1
+    },
+    [],
+  )
+
+  function createActionContext(): TripActionContext {
+    const generation = ++actionGeneration.current
+    return {
+      scope: 'private-stop',
+      isCurrent: () => actionGeneration.current === generation && isTripCurrent(trip.id),
+    }
+  }
+
+  function resetFields() {
+    setName(stop?.label ?? '')
+    setAddress(stop?.address ?? '')
+    setSourceUrl(stop?.sourceUrl ?? '')
+    setShopperHours(stop?.shopperHours ?? null)
+    setPriority(stop?.priority ?? 'prefer')
+    setDwell(stop?.plannedDwellMinutes ?? 60)
+  }
+
+  function cancel() {
+    if (controlsDisabled) return
+    actionGeneration.current += 1
+    resetFields()
+    saveKey.current = null
+    confirmKey.current = null
+    setEditing(false)
+    onCancel()
+  }
+
+  function beginEditing() {
+    if (controlsDisabled) return
+    actionGeneration.current += 1
+    resetFields()
+    setEditVersion(version)
+    setEditing(true)
+  }
+
+  async function save(event: FormEvent) {
+    event.preventDefault()
+    if (controlsDisabled || versionChanged) return
+    const input = {
+      name,
+      address: address || null,
+      sourceUrl: sourceUrl || null,
+      shopperHours,
+      priority,
+      plannedDwellMinutes: dwell,
+    }
+    const add = client.addPrivateTripStop
+    const update = client.updatePrivateTripStop
+    if ((!stop && !add) || (stop && !update)) return
+    const command = stop ? 'update_private_trip_stop' : 'add_private_trip_stop'
+    const key = tripCommandKey(saveKey, command, {
+      tripId: trip.id,
+      stopId: stop?.id,
+      version: editVersion,
+      input,
+    })
+    const context = createActionContext()
+    await runAction(
+      stop ? `save changes to ${stop.label}` : 'save private shop',
+      async () => {
+        if (!context.isCurrent()) return
+        const next = stop
+          ? await update!(trip.id, stop.id, input, editVersion, key)
+          : await add!(trip.id, input, editVersion, key)
+        if (!context.isCurrent()) return
+        onTrip(next)
+        saveKey.current = null
+        if (stop) {
+          const saved = next.stops.find(
+            (item): item is PrivateTripStop => item.id === stop.id && item.kind === 'private',
+          )
+          if (saved) {
+            setName(saved.label)
+            setAddress(saved.address ?? '')
+            setSourceUrl(saved.sourceUrl ?? '')
+            setShopperHours(saved.shopperHours ?? null)
+            setPriority(saved.priority)
+            setDwell(saved.plannedDwellMinutes)
+          }
+        } else {
+          setName('')
+          setAddress('')
+          setSourceUrl('')
+          setShopperHours(null)
+          setPriority('prefer')
+          setDwell(60)
+        }
+        setEditing(false)
+      },
+      context,
+    )
+  }
+
+  async function confirmAddress() {
+    const exactAddress = stop?.address?.trim()
+    if (controlsDisabled || !stop || !exactAddress || !client.confirmPrivateTripStopDestination)
+      return
+    const key = tripCommandKey(confirmKey, 'confirm_trip_stop_destination', {
+      tripId: trip.id,
+      stopId: stop.id,
+      version: trip.version,
+      exactAddress,
+    })
+    const context = createActionContext()
+    await runAction(
+      `confirm the address for ${stop.label}`,
+      async () => {
+        if (!context.isCurrent()) return
+        const next = await client.confirmPrivateTripStopDestination!(
+          trip.id,
+          stop.id,
+          exactAddress,
+          trip.version,
+          key,
+        )
+        if (!context.isCurrent()) return
+        onTrip(next)
+        confirmKey.current = null
+      },
+      context,
+    )
+  }
+
+  return (
+    <section className="trip-plan-section" aria-labelledby={`${prefix}-heading`}>
+      <h3 id={`${prefix}-heading`}>
+        {stop ? `Private shop: ${stop.label}` : 'Add a private shop'}
+      </h3>
+      {controlsDisabled && (
+        <p role="status">
+          {pending
+            ? 'A trip update is in progress. Private shop controls are temporarily disabled.'
+            : 'Retry or dismiss the private shop change before editing or cancelling.'}
+        </p>
+      )}
+      {!editing ? (
+        <>
+          {stop ? (
+            <>
+              <p role="status">
+                {stop.destination === 'confirmed_by_organizer'
+                  ? 'Address confirmed by you.'
+                  : 'Address is a draft until you confirm the exact text.'}
+              </p>
+              <p>Address: {stop.address ?? 'Not entered'}</p>
+              <p>Source URL: {stop.sourceUrl ?? 'Not provided'}</p>
+              <p>Shopper hours: {stop.shopperHours ? 'Saved' : 'Not provided'}</p>
+              <button
+                className="button button--secondary"
+                type="button"
+                disabled={controlsDisabled}
+                onClick={beginEditing}
+              >
+                Edit private shop: {stop.label}
+              </button>
+              {stop.destination === 'draft' &&
+                stop.address &&
+                client.confirmPrivateTripStopDestination && (
+                  <button
+                    className="button"
+                    type="button"
+                    disabled={controlsDisabled}
+                    onClick={() => void confirmAddress()}
+                  >
+                    Confirm exact address for {stop.label}
+                  </button>
+                )}
+            </>
+          ) : (
+            <button
+              className="button button--secondary"
+              type="button"
+              disabled={controlsDisabled}
+              onClick={beginEditing}
+            >
+              Add a private shop
+            </button>
+          )}
+        </>
+      ) : (
+        <form onSubmit={(event) => void save(event)}>
+          <fieldset disabled={controlsDisabled}>
+            <legend>Private shop details</legend>
+            {stop && (
+              <p role="status">
+                {stop.destination === 'confirmed_by_organizer'
+                  ? 'Address confirmed by you.'
+                  : 'Address is a draft until you confirm the exact text.'}
+              </p>
+            )}
+            {versionChanged && (
+              <p role="alert">
+                Trip changed while this private shop was being edited. Cancel and reopen it to load
+                current values.
+              </p>
+            )}
+            <label htmlFor={`${prefix}-name`}>{nameLabel}</label>
+            <input
+              id={`${prefix}-name`}
+              value={name}
+              maxLength={160}
+              required
+              onChange={(event) => setName(event.target.value)}
+            />
+            <label htmlFor={`${prefix}-address`}>{addressLabel}</label>
+            <input
+              id={`${prefix}-address`}
+              value={address}
+              maxLength={320}
+              onChange={(event) => setAddress(event.target.value)}
+            />
+            <label htmlFor={`${prefix}-source-url`}>{urlLabel}</label>
+            <input
+              id={`${prefix}-source-url`}
+              type="url"
+              value={sourceUrl}
+              maxLength={2_048}
+              onChange={(event) => setSourceUrl(event.target.value)}
+            />
+            <PrivateHoursEditor value={shopperHours} prefix={prefix} onChange={setShopperHours} />
+            <label htmlFor={`${prefix}-priority`}>Private shop priority</label>
+            <select
+              id={`${prefix}-priority`}
+              value={priority}
+              onChange={(event) => setPriority(event.target.value as StopPriority)}
+            >
+              <option value="must">Must</option>
+              <option value="prefer">Prefer</option>
+              <option value="flexible">Flexible</option>
+            </select>
+            <label htmlFor={`${prefix}-dwell`}>Private shop dwell minutes</label>
+            <input
+              id={`${prefix}-dwell`}
+              type="number"
+              min={5}
+              max={720}
+              step={1}
+              value={dwell}
+              onChange={(event) => setDwell(Number(event.target.value))}
+            />
+            <button
+              className="button"
+              type="submit"
+              disabled={versionChanged || (trip.stops.length >= MAX_ACTIVE_STOPS && !stop)}
+            >
+              {stop ? `Save changes to ${stop.label}` : 'Save private shop'}
+            </button>
+            <button className="button button--secondary" type="button" onClick={cancel}>
+              {stop ? `Cancel editing ${stop.label}` : 'Cancel adding private shop'}
+            </button>
+          </fieldset>
+        </form>
+      )}
+    </section>
+  )
 }
 
 function mapHandoffUrl(provider: 'google' | 'waze', destination: string): string {
@@ -457,12 +1102,15 @@ export function AddToTripPage({
 
 export function PlanPage({ client = unavailableTripClient }: { client?: TripClient }) {
   const { tripId = '' } = useParams()
+  const currentTripId = useRef(tripId)
+  currentTripId.current = tripId
   const [trip, setTrip] = useState<Trip | null>(null)
   const [error, setError] = useState(false)
   const [actionPending, setActionPending] = useState<string | null>(null)
   const [actionError, setActionError] = useState<{
     label: string
     retry: () => Promise<void>
+    context?: TripActionContext
   } | null>(null)
   const [label, setLabel] = useState('')
   const [priority, setPriority] = useState<StopPriority>('prefer')
@@ -484,18 +1132,29 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     state: 'empty',
     pendingCount: 0,
   })
-  async function runAction(label: string, action: () => Promise<void>) {
-    if (actionPending) return
+  const currentActionError =
+    actionError?.context && !actionError.context.isCurrent() ? null : actionError
+  async function runAction(
+    label: string,
+    action: () => Promise<void>,
+    context?: TripActionContext,
+  ): Promise<boolean> {
+    if (actionPending) return false
     setActionPending(label)
     setActionError(null)
     try {
       await action()
+      return true
     } catch {
-      setActionError({ label, retry: action })
+      if (!context || context.isCurrent()) setActionError({ label, retry: action, context })
+      return false
     } finally {
       setActionPending(null)
     }
   }
+  useEffect(() => {
+    if (actionError?.context && !actionError.context.isCurrent()) setActionError(null)
+  }, [actionError, tripId])
   useEffect(() => {
     let cancelled = false
     client
@@ -659,20 +1318,32 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
         <p role="status">Loading…</p>
       </TripCard>
     )
+  const privateStopRetryBlocked =
+    currentActionError?.context?.scope === 'private-stop' && currentActionError.context.isCurrent()
   return (
     <TripCard
       title={trip.name}
       description="Review Hours shows store hours only. Travel time is not included, and no feasible-order or arrival claim is made."
       icon="/icons/trail-map.svg"
     >
-      {actionError && (
+      {currentActionError && (
         <div role="alert">
-          <p>Couldn&apos;t {actionError.label}. Your last saved trip is still shown.</p>
+          <p>Couldn&apos;t {currentActionError.label}. Your last saved trip is still shown.</p>
           <button
             className="button"
             type="button"
             disabled={actionPending !== null}
-            onClick={() => void runAction(actionError.label, actionError.retry)}
+            onClick={() => {
+              if (currentActionError.context && !currentActionError.context.isCurrent()) {
+                setActionError(null)
+                return
+              }
+              void runAction(
+                currentActionError.label,
+                currentActionError.retry,
+                currentActionError.context,
+              )
+            }}
           >
             {actionPending ? 'Retrying…' : 'Retry'}
           </button>
@@ -1005,6 +1676,41 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
           </button>
         </form>
       </section>
+      <section className="trip-plan-section" aria-labelledby="trip-private-stops-heading">
+        <h2 id="trip-private-stops-heading">Private shops</h2>
+        <p>Private shops stay in this trip and are not added to the public catalog.</p>
+        {trip.stops
+          .filter((stop): stop is PrivateTripStop => stop.kind === 'private')
+          .map((stop) => (
+            <PrivateTripStopEditor
+              key={`${trip.id}:${stop.id}`}
+              trip={trip}
+              version={trip.version}
+              pending={actionPending !== null}
+              retryBlocked={privateStopRetryBlocked}
+              client={client}
+              stop={stop}
+              runAction={runAction}
+              onCancel={() => setActionError(null)}
+              onTrip={setTrip}
+              isTripCurrent={(expectedTripId) => currentTripId.current === expectedTripId}
+            />
+          ))}
+        {client.addPrivateTripStop && trip.stops.length < MAX_ACTIVE_STOPS && (
+          <PrivateTripStopEditor
+            key={`${trip.id}:new-private-stop`}
+            trip={trip}
+            version={trip.version}
+            pending={actionPending !== null}
+            retryBlocked={privateStopRetryBlocked}
+            client={client}
+            runAction={runAction}
+            onCancel={() => setActionError(null)}
+            onTrip={setTrip}
+            isTripCurrent={(expectedTripId) => currentTripId.current === expectedTripId}
+          />
+        )}
+      </section>
       {error && <TripError />}
       <section className="trip-plan-section" aria-labelledby="trip-hours-heading">
         <h2 id="trip-hours-heading">Store hours</h2>
@@ -1333,7 +2039,7 @@ export function GoPage({
               client.saveVisitMemory && (
                 <VisitMemoryForm
                   tripId={trip.id}
-                  storeId={stop.storeId}
+                  stopId={stop.id}
                   storeLabel={stop.label}
                   save={client.saveVisitMemory}
                   onSaved={setTrip}
@@ -1478,7 +2184,7 @@ export function SummaryPage({ client = unavailableTripClient }: { client?: TripC
                   client.saveVisitMemory && (
                     <VisitMemoryForm
                       tripId={trip.id}
-                      storeId={stop.storeId}
+                      stopId={stop.id}
                       storeLabel={stop.label}
                       save={client.saveVisitMemory}
                       onSaved={setTrip}
@@ -1540,18 +2246,18 @@ function summaryMemoryStatus(stop: Trip['stops'][number]): string {
 
 function VisitMemoryForm({
   tripId,
-  storeId,
+  stopId,
   storeLabel,
   save,
   onSaved,
 }: {
   tripId: string
-  storeId: string
+  stopId: string
   storeLabel: string
   save: NonNullable<TripClient['saveVisitMemory']>
   onSaved: (trip: Trip) => void
 }) {
-  const fieldId = storeId.replace(/[^A-Za-z0-9_-]/g, '-')
+  const fieldId = stopId.replace(/[^A-Za-z0-9_-]/g, '-')
   const [rating, setRating] = useState('')
   const [returnChoice, setReturnChoice] = useState('')
   const [note, setNote] = useState('')
@@ -1567,7 +2273,7 @@ function VisitMemoryForm({
     setSaved(false)
     try {
       onSaved(
-        await save(tripId, storeId, {
+        await save(tripId, stopId, {
           rating: rating ? Number(rating) : undefined,
           returnChoice: returnChoice ? (returnChoice as 'no' | 'maybe' | 'yes') : undefined,
           note: note.trim() || undefined,

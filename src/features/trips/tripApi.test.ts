@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { GENERIC_TRIP_ERROR } from './tripClient'
 import { createTripApi, type TripApiCommand, type TripTransport } from './tripApi'
-import type { OfflineQueueSnapshot, Trip, TripCollaboration } from './types'
+import type { OfflineQueueSnapshot, Trip, TripCollaboration, TripPrivateHours } from './types'
 
 const trip: Trip = {
   id: 'trip-1',
@@ -21,6 +21,37 @@ const collaboration: TripCollaboration = {
   navigatorUserId: 'creator-a',
 }
 const queue: OfflineQueueSnapshot = { state: 'queued', pendingCount: 1 }
+const privateHours: TripPrivateHours = {
+  timeZone: 'America/Chicago',
+  weekly: Array.from({ length: 7 }, (_, weekday) => ({
+    weekday,
+    label: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][weekday],
+    isClosed: weekday === 0,
+    intervals: weekday === 0 ? [] : [{ opensAt: '09:00', closesAt: '17:00' }],
+  })),
+  holidays: [],
+}
+const privateStop: Trip['stops'][number] = {
+  id: 'private-stop-1',
+  kind: 'private',
+  label: 'Hidden Finds',
+  address: '123 Main St',
+  sourceUrl: 'https://example.com/shop',
+  shopperHours: privateHours,
+  destination: 'draft',
+  position: 0,
+  priority: 'must',
+  plannedDwellMinutes: 60,
+  state: 'planned',
+}
+const privateStopInput = {
+  name: 'Hidden Finds',
+  address: '123 Main St',
+  sourceUrl: 'https://example.com/shop',
+  shopperHours: privateHours,
+  priority: 'must' as const,
+  plannedDwellMinutes: 60,
+}
 
 function transport(result: unknown): TripTransport & { invoke: ReturnType<typeof vi.fn> } {
   return {
@@ -52,6 +83,171 @@ describe('implicit-actor TripClient transport', () => {
     await expect(createTripApi(wire).get('trip-1')).resolves.toMatchObject({
       stops: [{ id: 'stop-1', storeId: 'store-1' }],
     })
+  })
+
+  it('round trips private-stop data and sends versioned, namespaced RPC commands', async () => {
+    const response = {
+      ...trip,
+      stops: [{ ...privateStop, storeId: null, coordinate: null, hours: null }],
+    }
+    const wire = transport(response)
+    const api = createTripApi(wire)
+    const input = { ...privateStopInput, sourceUrl: 'HTTPS://EXAMPLE.COM:443/shop' }
+
+    await expect(api.get('trip-1')).resolves.toMatchObject({
+      stops: [
+        {
+          id: 'private-stop-1',
+          kind: 'private',
+          label: 'Hidden Finds',
+          address: '123 Main St',
+          sourceUrl: 'https://example.com/shop',
+          shopperHours: privateHours,
+          destination: 'draft',
+        },
+      ],
+    })
+    await api.addPrivateTripStop?.('trip-1', input, 1, 'add_private_trip_stop:add-1')
+    await api.updatePrivateTripStop?.(
+      'trip-1',
+      'private-stop-1',
+      input,
+      2,
+      'update_private_trip_stop:edit-1',
+    )
+    await api.confirmPrivateTripStopDestination?.(
+      'trip-1',
+      'private-stop-1',
+      '123 Main St',
+      3,
+      'confirm_trip_stop_destination:confirm-1',
+    )
+
+    expect(wire.invoke.mock.calls.slice(1)).toEqual([
+      [
+        'add_private_trip_stop',
+        {
+          trip_id: 'trip-1',
+          name: 'Hidden Finds',
+          address: '123 Main St',
+          source_url: 'https://example.com/shop',
+          hours: privateHours,
+          priority: 'must',
+          planned_dwell_minutes: 60,
+          expected_version: 1,
+          idempotency_key: 'add_private_trip_stop:add-1',
+        },
+      ],
+      [
+        'update_private_trip_stop',
+        {
+          trip_id: 'trip-1',
+          stop_id: 'private-stop-1',
+          name: 'Hidden Finds',
+          address: '123 Main St',
+          source_url: 'https://example.com/shop',
+          hours: privateHours,
+          priority: 'must',
+          planned_dwell_minutes: 60,
+          expected_version: 2,
+          idempotency_key: 'update_private_trip_stop:edit-1',
+        },
+      ],
+      [
+        'confirm_trip_stop_destination',
+        {
+          trip_id: 'trip-1',
+          stop_id: 'private-stop-1',
+          exact_address: '123 Main St',
+          expected_version: 3,
+          idempotency_key: 'confirm_trip_stop_destination:confirm-1',
+        },
+      ],
+    ])
+  })
+
+  it('rejects private-stop response shape and URL or hours input that cannot be trusted', async () => {
+    const malformed = transport({
+      ...trip,
+      stops: [{ ...privateStop, storeId: 'catalog-store' }],
+    })
+    await expect(createTripApi(malformed).get('trip-1')).rejects.toThrow(GENERIC_TRIP_ERROR)
+    const routeHours = transport({
+      ...trip,
+      stops: [{ ...privateStop, hours: { state: 'verified' } }],
+    })
+    await expect(createTripApi(routeHours).get('trip-1')).rejects.toThrow(GENERIC_TRIP_ERROR)
+    const routeCoordinate = transport({
+      ...trip,
+      stops: [{ ...privateStop, coordinate: { latitude: 41.8, longitude: -87.6 } }],
+    })
+    await expect(createTripApi(routeCoordinate).get('trip-1')).rejects.toThrow(GENERIC_TRIP_ERROR)
+    const extraHoursField = transport({
+      ...trip,
+      stops: [{ ...privateStop, shopperHours: { ...privateHours, extra: 'rejected' } }],
+    })
+    await expect(createTripApi(extraHoursField).get('trip-1')).rejects.toThrow(GENERIC_TRIP_ERROR)
+
+    const unconfirmedAddress = transport({
+      ...trip,
+      stops: [{ ...privateStop, address: null, destination: 'confirmed_by_organizer' }],
+    })
+    await expect(createTripApi(unconfirmedAddress).get('trip-1')).rejects.toThrow(
+      GENERIC_TRIP_ERROR,
+    )
+    const purgedCompletedAddress = transport({
+      ...trip,
+      state: 'completed',
+      stops: [
+        {
+          ...privateStop,
+          state: 'completed',
+          address: null,
+          destination: 'confirmed_by_organizer',
+        },
+      ],
+    })
+    await expect(createTripApi(purgedCompletedAddress).get('trip-1')).resolves.toMatchObject({
+      state: 'completed',
+      stops: [{ address: undefined, destination: 'confirmed_by_organizer' }],
+    })
+
+    const wire = transport(trip)
+    const api = createTripApi(wire)
+    await expect(
+      api.addPrivateTripStop?.(
+        'trip-1',
+        { ...privateStopInput, sourceUrl: 'https://user:pass@example.com/shop' },
+        1,
+        'add_private_trip_stop:add-2',
+      ),
+    ).rejects.toThrow(GENERIC_TRIP_ERROR)
+    await expect(
+      api.addPrivateTripStop?.(
+        'trip-1',
+        {
+          ...privateStopInput,
+          shopperHours: { ...privateHours, timeZone: 'Not/A_Time_Zone' },
+        },
+        1,
+        'add_private_trip_stop:add-3',
+      ),
+    ).rejects.toThrow(GENERIC_TRIP_ERROR)
+    await expect(
+      api.addPrivateTripStop?.(
+        'trip-1',
+        {
+          ...privateStopInput,
+          shopperHours: { ...privateHours, extra: 'rejected' } as TripPrivateHours,
+        },
+        1,
+        'add_private_trip_stop:add-4',
+      ),
+    ).rejects.toThrow(GENERIC_TRIP_ERROR)
+    await expect(
+      api.addPrivateTripStop?.('trip-1', privateStopInput, 1, 'wrong-command:key'),
+    ).rejects.toThrow(GENERIC_TRIP_ERROR)
+    expect(wire.invoke).not.toHaveBeenCalled()
   })
 
   it('normalizes bounded create input and sends no caller-supplied actor identity', async () => {
@@ -242,7 +438,7 @@ describe('implicit-actor TripClient transport', () => {
     await api.markObservedClosed?.('trip-1', 'stop-1')
     await api.restoreStop?.('trip-1', 'stop-1')
     await api.completeTrip?.('trip-1')
-    await api.saveVisitMemory?.('trip-1', 'store-1', {
+    await api.saveVisitMemory?.('trip-1', 'stop-1', {
       rating: 5,
       returnChoice: 'yes',
       note: 'Great booths.',
@@ -257,6 +453,13 @@ describe('implicit-actor TripClient transport', () => {
       'complete_trip',
       'save_trip_visit_memory',
     ])
+    expect(wire.invoke).toHaveBeenLastCalledWith('save_trip_visit_memory', {
+      trip_id: 'trip-1',
+      stop_id: 'stop-1',
+      rating: 5,
+      return_choice: 'yes',
+      note: 'Great booths.',
+    })
   })
 
   it('exposes bounded versioned planning and stable-device commands', async () => {
