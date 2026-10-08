@@ -271,7 +271,25 @@ end $$;
 
 reset role;
 alter function partner_private.check_store_media_cap(uuid,text,uuid) owner to media_automation;
+-- owner_stores is owned by identity_service; use that owner for the scoped grant.
+-- Preserve any existing membership and remove only the temporary membership added here.
+do $$
+declare membership_added boolean:=not pg_has_role(session_user,'identity_service','member');
+begin
+  perform set_config('antiquetrail.issue580_identity_membership_added',membership_added::text,true);
+  if membership_added then
+    execute format('grant identity_service to %I',session_user);
+  end if;
+end $$;
+set role identity_service;
 grant execute on function portal_private.owner_stores() to media_automation;
+reset role;
+do $$
+begin
+  if current_setting('antiquetrail.issue580_identity_membership_added',true)='true' then
+    execute format('revoke identity_service from %I',session_user);
+  end if;
+end $$;
 revoke all on function app_public.media_reserve_replacement(uuid,bigint,text,uuid,boolean,text,bigint,integer,integer,bytea)
   from public,anon,service_role;
 grant execute on function app_public.media_reserve_replacement(uuid,bigint,text,uuid,boolean,text,bigint,integer,integer,bytea)

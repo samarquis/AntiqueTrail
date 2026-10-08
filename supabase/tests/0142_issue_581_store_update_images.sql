@@ -35,6 +35,14 @@ insert into media_private.media_uploads(
   'quarantine/58100000-0000-4000-8000-000000000033/derivative.webp',decode(repeat('33',32),'hex'),
   900,100,100,'clean',true,true,'awaiting_review');
 
+-- Synthetic Alpha intentionally blocks provider intake. Override that dependency
+-- only inside this rollback-only test so the reservation kind branch is exercised;
+-- M-01 provider gating remains covered by 0056_m01_media_pipeline.sql.
+select is(media_private.capability_enabled(),false,
+  'synthetic Owner fixture keeps provider media capability disabled');
+create or replace function media_private.capability_enabled() returns boolean
+language sql stable security definer set search_path='' as $$ select true $$;
+
 select ok(not has_table_privilege('authenticated','portal_private.store_update_image_bindings','SELECT')
   and not has_table_privilege('catalog_reader','portal_private.store_update_image_bindings','SELECT')
   and not has_table_privilege('service_role','portal_private.store_update_image_bindings','SELECT'),
@@ -55,11 +63,14 @@ create temporary table issue581_image_published(value jsonb);
 create temporary table issue581_image_projection(value jsonb);
 create temporary table issue581_image_projection_after(value jsonb);
 create temporary table issue581_store_media_before(row_count bigint);
+create temporary table issue581_image_reserved(value jsonb);
+create temporary table issue581_different_actor_receipt(value boolean);
 grant select,insert on issue581_image_created,issue581_image_create_replay,
   issue581_text_created,issue581_image_edited,issue581_image_edit_replay,
   issue581_second_text_created,
   issue581_image_stale,issue581_image_reuse,issue581_rejected_image,
-  issue581_image_approved to authenticated;
+  issue581_image_approved,issue581_image_reserved to authenticated;
+grant insert on issue581_different_actor_receipt to identity_service;
 grant select,insert on issue581_image_claim,issue581_image_published to media_worker;
 grant select,insert on issue581_image_projection,issue581_image_projection_after to catalog_reader;
 insert into issue581_store_media_before
@@ -67,6 +78,26 @@ select count(*) from app_public.store_media where store_id='58100000-0000-4000-8
 
 select pg_temp.issue581_actor('58100000-0000-4000-8000-000000000001','58100000-0000-4000-8000-000000000004');
 select set_config('request.headers','{"x-owner-store-id":"58100000-0000-4000-8000-000000000011"}',true);
+set local role authenticated;
+insert into issue581_image_reserved
+select app_public.media_reserve_upload(
+  '58100000-0000-4000-8000-000000000011','store_update','Reservation probe',
+  '58100000-0000-4000-8000-000000000044',true,'image/webp',1000,100,100
+);
+select is((select value->>'state' from issue581_image_reserved),'reserved',
+  'owner can reserve a Store Update image through the media RPC');
+select is((select value->>'replayed' from issue581_image_reserved),'false',
+  'first Store Update image reservation is not a replay');
+reset role;
+set local role identity_service;
+insert into issue581_different_actor_receipt
+select media_private.store_update_image_receipt_reviewable(
+  '58100000-0000-4000-8000-000000000030','58100000-0000-4000-8000-000000000002',
+  '58100000-0000-4000-8000-000000000011'
+);
+reset role;
+select is((select value from issue581_different_actor_receipt),false,
+  'valid same-store receipt is rejected for a different actor');
 set local role authenticated;
 insert into issue581_image_created
 select app_public.portal_create_update(
@@ -132,6 +163,13 @@ select is((select version::text from portal_private.store_updates
 select is((select version::text from portal_private.store_updates
   where update_id=(select (value->>'id')::uuid from issue581_second_text_created)),'1',
   'reusing a receipt leaves the second update unchanged');
+select throws_ok($$update portal_private.store_updates
+  set state='archived',published_at=null,archived_at=statement_timestamp()
+  where update_id=(select (value->>'id')::uuid from issue581_second_text_created)$$,
+  '23514',null,'an archived update must retain its publication timestamp');
+select is((select state from portal_private.store_updates
+  where update_id=(select (value->>'id')::uuid from issue581_second_text_created)),'live',
+  'rejected archive transition leaves the published update live');
 select is((select count(*)::integer from portal_private.store_update_image_bindings
   where upload_id='58100000-0000-4000-8000-000000000030'),1,
   'create replay and changed-payload conflict leave one exact receipt binding');
@@ -198,6 +236,16 @@ select app_public.media_complete_publish_job(
 select is((select value->>'state' from issue581_image_published),'published',
   'worker publishes the exact update bound to the approved receipt');
 reset role;
+
+select is((select count(*)::integer from app_private.privileged_audit_events
+  where action='portal_text_update_image_published' and resource_kind='store_update'
+    and resource_id=(select (value->>'id')::uuid from issue581_image_created)),1,
+  'image publication writes one privileged audit event for the exact Store Update');
+select ok(exists(select 1 from app_private.privileged_audit_events
+  where action='portal_text_update_image_published' and resource_kind='store_update'
+    and resource_id=(select (value->>'id')::uuid from issue581_image_created)
+    and actor_user_id is null and actor_role is null and reason_code='approved_media_receipt'),
+  'worker publication audit records system attribution without inventing a representative');
 
 select is((select state from portal_private.store_updates
   where update_id=(select (value->>'id')::uuid from issue581_image_created)),'live',

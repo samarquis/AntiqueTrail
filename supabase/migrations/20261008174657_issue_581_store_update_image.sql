@@ -26,7 +26,7 @@ alter table portal_private.store_updates
   add constraint store_update_publication_state_check check(
     (state='live' and published_at is not null and archived_at is null)
     or (state='pending_review' and published_at is null and archived_at is null)
-    or (state='archived' and archived_at is not null)
+    or (state='archived' and published_at is not null and archived_at is not null)
   );
 
 alter table media_private.media_uploads
@@ -109,6 +109,23 @@ revoke all on function portal_private.store_update_image_bound(uuid,uuid)
 grant execute on function portal_private.store_update_image_bound(uuid,uuid)
   to media_automation;
 
+create function portal_private.record_store_update_image_publish_event(
+  p_store_id uuid,p_update_id uuid,p_digest bytea,p_previous_version bigint,p_resulting_version bigint
+)
+returns void language plpgsql volatile security definer set search_path='' as $$
+begin
+  insert into portal_private.portal_audit_events(
+    event_kind,actor_user_id,store_id,resource_id,payload_hash,previous_version,resulting_version
+  ) values('text_update_image_published',null,p_store_id,p_update_id,p_digest,p_previous_version,p_resulting_version);
+  insert into app_private.privileged_audit_events(
+    actor_user_id,actor_role,action,outcome,resource_kind,resource_id,reason_code,payload_hash,event_hash
+  ) values(null,null,'portal_text_update_image_published','completed','store_update',p_update_id,
+    'approved_media_receipt',p_digest,decode(repeat('00',32),'hex'));
+end $$;
+alter function portal_private.record_store_update_image_publish_event(uuid,uuid,bytea,bigint,bigint) owner to identity_service;
+revoke all on function portal_private.record_store_update_image_publish_event(uuid,uuid,bytea,bigint,bigint)
+  from public,anon,authenticated;
+
 create function portal_private.publish_store_update_image(p_upload_id uuid)
 returns uuid language plpgsql volatile security definer set search_path='' as $$
 declare
@@ -137,8 +154,8 @@ begin
     state='live',published_at=statement_timestamp(),archived_at=null,
     version=version+1,updated_at=statement_timestamp()
     where update_id=target_id and store_id=target_store returning * into row;
-  perform portal_private.record_portal_event(
-    'text_update_image_published',null,target_store,target_id,event_digest,prior_version,row.version
+  perform portal_private.record_store_update_image_publish_event(
+    target_store,target_id,event_digest,prior_version,row.version
   );
   return target_id;
 end $$;
