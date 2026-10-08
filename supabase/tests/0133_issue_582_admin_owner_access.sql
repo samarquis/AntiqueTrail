@@ -88,6 +88,8 @@ end $$;
 
 create temporary table review_cases582(claim_id uuid primary key,case_id uuid not null,version bigint);
 grant select,insert,update on review_cases582 to authenticated;
+create temporary table claim_versions582(claim_id uuid primary key,version bigint not null);
+grant select on claim_versions582 to authenticated;
 create temporary table previews582(kind text primary key,data jsonb not null);
 grant select,insert on previews582 to authenticated;
 create temporary table revoke_result582(data jsonb);
@@ -104,9 +106,13 @@ select is((app_public.admin_decide_review_case((select case_id::text from review
 reset role;
 update partner_private.store_owner_intake_roots set active_id='58200000-0000-4000-8000-00000000000e'
  where applicant_id='76000000-0000-4000-8000-000000000001';
+insert into claim_versions582
+ select claim_id,expected_version from partner_private.owner_claim_approvals
+ where claim_id='58200000-0000-4000-8000-000000000004'
+ on conflict(claim_id) do update set version=excluded.version;
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
 set local role authenticated;
-select is((app_public.owner_admin_approve_claim('58200000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000009',(select expected_version from partner_private.owner_claim_approvals where claim_id='58200000-0000-4000-8000-000000000004'),'582-review-owner-a')->>'claimId'),'58200000-0000-4000-8000-000000000004','recorded Owner approval replay survives a later intake-root change');
+select is((app_public.owner_admin_approve_claim('58200000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000009',(select version from claim_versions582 where claim_id='58200000-0000-4000-8000-000000000004'),'582-review-owner-a')->>'claimId'),'58200000-0000-4000-8000-000000000004','recorded Owner approval replay survives a later intake-root change');
 reset role;
 update partner_private.store_owner_intake_roots set active_id='58200000-0000-4000-8000-000000000004'
  where applicant_id='76000000-0000-4000-8000-000000000001';
@@ -157,10 +163,14 @@ insert into review_cases582 select '58200000-0000-4000-8000-00000000000b',case_i
 update partner_private.partner_invitations set synthetic=true where invitation_id='58200000-0000-4000-8000-000000000014';
 update partner_private.store_owner_intake_roots set active_id='58200000-0000-4000-8000-00000000000c'
  where applicant_id='58200000-0000-4000-8000-000000000012';
+insert into claim_versions582
+ select claim_id,version from partner_private.listing_claims
+ where claim_id='58200000-0000-4000-8000-00000000000b'
+ on conflict(claim_id) do update set version=excluded.version;
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
 set local role authenticated;
 update review_cases582 r set version=(app_public.admin_get_review_case(r.case_id::text)->>'version')::bigint where r.claim_id='58200000-0000-4000-8000-00000000000b';
-select throws_ok($$select app_public.owner_admin_approve_claim('58200000-0000-4000-8000-00000000000b','00000000-0000-4000-8000-000000000007',(select version from partner_private.listing_claims where claim_id='58200000-0000-4000-8000-00000000000b'),'582-direct-owner-wrong-root')$$,'42501',null,'direct Owner RPC rejects a Representative claim with an unrelated bound synthetic invitation');
+select throws_ok($$select app_public.owner_admin_approve_claim('58200000-0000-4000-8000-00000000000b','00000000-0000-4000-8000-000000000007',(select version from claim_versions582 where claim_id='58200000-0000-4000-8000-00000000000b'),'582-direct-owner-wrong-root')$$,'42501',null,'direct Owner RPC rejects a Representative claim with an unrelated bound synthetic invitation');
 select is((select state from partner_private.listing_claims where claim_id='58200000-0000-4000-8000-00000000000b'),'verification_pending','direct Owner RPC rejection leaves claim pending');
 select is((select count(*) from partner_private.owner_claim_approvals where claim_id='58200000-0000-4000-8000-00000000000b'),0::bigint,'direct Owner RPC rejection creates no Owner approval marker');
 select is((select count(*) from app_private.role_grants where subject_user_id='58200000-0000-4000-8000-000000000012' and store_id='00000000-0000-4000-8000-000000000007' and role in ('representative','store_owner') and state='active'),0::bigint,'direct Owner RPC rejection creates no scope grant');
@@ -268,9 +278,13 @@ select is((select count(*) from app_private.role_grants where subject_user_id='7
 -- A rejected claim cannot enter the direct Owner command even with a matching root and identity.
 update partner_private.store_owner_intake_roots set active_kind='claim',active_id='58200000-0000-4000-8000-00000000000c'
  where applicant_id='76000000-0000-4000-8000-000000000001';
+insert into claim_versions582
+ select claim_id,version from partner_private.listing_claims
+ where claim_id='58200000-0000-4000-8000-00000000000c'
+ on conflict(claim_id) do update set version=excluded.version;
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
 set local role authenticated;
-select throws_ok($$select app_public.owner_admin_approve_claim('58200000-0000-4000-8000-00000000000c','00000000-0000-4000-8000-000000000007',(select version from partner_private.listing_claims where claim_id='58200000-0000-4000-8000-00000000000c'),'582-direct-owner-inactive')$$,'55000',null,'direct Owner RPC rejects a rejected claim');
+select throws_ok($$select app_public.owner_admin_approve_claim('58200000-0000-4000-8000-00000000000c','00000000-0000-4000-8000-000000000007',(select version from claim_versions582 where claim_id='58200000-0000-4000-8000-00000000000c'),'582-direct-owner-inactive')$$,'55000',null,'direct Owner RPC rejects a rejected claim');
 reset role;
 select is((select state from partner_private.listing_claims where claim_id='58200000-0000-4000-8000-00000000000c'),'rejected','inactive Owner claim remains rejected');
 select is((select count(*) from partner_private.owner_claim_approvals where idempotency_key='582-direct-owner-inactive'),0::bigint,'inactive claim denial writes no Owner approval receipt');
