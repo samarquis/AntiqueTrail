@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import { createLocalService, loopbackRequest } from '../scripts/configured-shopper-local.mjs'
+import { verifyConfiguredMyTripsVisibleNavigation } from './configured-my-trips-navigation.case'
 
 const input = JSON.parse(fs.readFileSync(process.env.CONFIGURED_SHOPPER_INPUT!, 'utf8'))
 const service = createLocalService({ resumeDirectory: input.directory })
@@ -407,6 +408,7 @@ test('visible Details Add to Trip preserves store through cancel, auth failure, 
 
 test('visible Saved-row chooser cancels, retries, and reads back one dated stop', async ({
   page,
+  browser,
 }) => {
   await login(page, 0, '/stores/clockwork-cabinet')
   await page.getByRole('button', { name: 'Save store Clockwork Cabinet', exact: true }).click()
@@ -464,6 +466,51 @@ test('visible Saved-row chooser cancels, retries, and reads back one dated stop'
   expect(trip.name).toBe(tripName)
   expect(trip.date).toBe('2026-10-11')
   expect(trip.stops.map((stop: { store: string }) => stop.store)).toEqual([A])
+
+  if (process.env.CONFIGURED_SHOPPER_MY_TRIPS_VISUALS === '1') {
+    await page.emulateMedia({ colorScheme: 'light' })
+    await page.goto('/stores')
+    const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' })
+    await primaryNavigation.getByRole('link', { name: 'More', exact: true }).click()
+    await expect(page.getByRole('heading', { level: 1, name: 'More' })).toBeFocused()
+    await page.screenshot({ path: test.info().outputPath('more-light.png'), fullPage: true })
+    const myTrips = page
+      .getByRole('navigation', { name: 'More destinations' })
+      .getByRole('link', { name: 'My trips', exact: true })
+    await page.getByRole('button', { name: 'Switch to dark theme' }).click()
+    await page.screenshot({ path: test.info().outputPath('more-dark.png'), fullPage: true })
+    await expect(myTrips).toBeVisible()
+    await myTrips.click()
+    await expect(page.getByRole('heading', { level: 1, name: 'My trips' })).toBeFocused()
+    const tripRow = page.getByLabel('My trips').locator('li').filter({ hasText: tripName })
+    await expect(tripRow).toContainText(trip.date)
+    await page.screenshot({ path: test.info().outputPath('trips-dark.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Switch to light theme' }).click()
+    await page.screenshot({ path: test.info().outputPath('trips-light.png'), fullPage: true })
+    const tripLink = tripRow.getByRole('link', { name: tripName, exact: true })
+    await tripLink.click()
+    await expect(page).toHaveURL(new RegExp(`/trips/${id}/plan$`))
+    await expect(
+      page.getByRole('heading', { level: 1, name: tripName, exact: true }),
+    ).toBeFocused()
+    await expect(page.getByText(`Trip date: ${trip.date}`)).toBeVisible()
+    await page.screenshot({ path: test.info().outputPath('plan-light.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Switch to dark theme' }).click()
+    await page.screenshot({ path: test.info().outputPath('plan-dark.png'), fullPage: true })
+
+    const shopperBContext = await browser.newContext({ baseURL: input.origin })
+    try {
+      const shopperB = await shopperBContext.newPage()
+      await login(shopperB, 1, '/stores')
+      await verifyConfiguredMyTripsVisibleNavigation(page, shopperB, {
+        id,
+        name: trip.name,
+        localDate: trip.date,
+      })
+    } finally {
+      await shopperBContext.close()
+    }
+  }
 })
 
 test('JIT trip entry, authenticated catalog, photo, save and two-store creation', async ({
@@ -1070,11 +1117,12 @@ test('two local accounts keep settings private across save, fresh login, and rev
       writeOutcome: 'not-run',
       profileUnchanged: null as boolean | null,
     }
-    const revocationAnnotation = { type: 'issue-565-session-revocation', description: '' }
     const annotateRevocation = () => {
-      revocationAnnotation.description = JSON.stringify(revocationProbe)
+      test.info().annotations.push({
+        type: 'issue-565-session-revocation',
+        description: JSON.stringify(revocationProbe),
+      })
     }
-    test.info().annotations.push(revocationAnnotation)
 
     const claims = await tokenSessionClaims(freshSiblingToken)
     revocationProbe.tokenSubjectMatchesSibling = claims?.matchesSibling === true

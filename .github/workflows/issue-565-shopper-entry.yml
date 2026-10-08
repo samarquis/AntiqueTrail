@@ -53,6 +53,7 @@ on:
           - anonymous-discovery
           - account-settings
           - media-only
+          - my-trips-visuals
 
 permissions:
   contents: read
@@ -87,6 +88,8 @@ jobs:
             ['e2e/configured-free-shopper.spec.ts', 'visible Saved-row chooser cancels, retries, and reads back one dated stop'],
             ['e2e/configured-free-shopper.spec.ts', 'anonymous discovery, permitted photo and JIT save context return'],
             ['e2e/configured-free-shopper.spec.ts', 'two local accounts keep settings private across save, fresh login, and revocation'],
+            ['e2e/configured-my-trips-navigation.case.ts', 'verifyConfiguredMyTripsVisibleNavigation'],
+            ['e2e/configured-free-shopper.spec.ts', 'verifyConfiguredMyTripsVisibleNavigation'],
             ['src/app/configuredComposition.test.ts', 'requires configured credentials, literal browser origin, and local mode'],
             ['src/app/App.test.tsx', 'keeps the Details chooser hidden in catalog-only public mode'],
             ['src/app/App.test.tsx', 'blocks direct trip routes in the public test without removing local review fixtures'],
@@ -114,8 +117,75 @@ jobs:
             anonymous-discovery) npm run test:e2e:configured-shopper -- --anonymous-discovery ;;
             account-settings) npm run test:e2e:configured-shopper -- --account-settings ;;
             media-only) npm run test:e2e:configured-shopper -- --media-only ;;
+            my-trips-visuals) npm run test:e2e:configured-shopper -- --my-trips-visuals ;;
             *) echo "Unsupported Issue 565 scope"; exit 2 ;;
           esac
+      - name: Verify and stage scoped My trips screenshots
+        id: my_trips_visuals
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && github.event.inputs.scope == 'my-trips-visuals' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import path from 'node:path'
+
+          const roots = fs.existsSync('artifacts')
+            ? fs.readdirSync('artifacts').filter((name) => name.startsWith('configured-shopper-'))
+            : []
+          if (roots.length !== 1) throw new Error('Expected one configured shopper output')
+          const screenshotRoot = path.join('artifacts', roots[0], 'browser')
+          const names = [
+            'more-light.png',
+            'more-dark.png',
+            'trips-light.png',
+            'trips-dark.png',
+            'plan-light.png',
+            'plan-dark.png',
+          ]
+          const projects = ['desktop', 'phone']
+          const counts = new Map(projects.flatMap((project) => names.map((name) => [`${project}/${name}`, 0])))
+          function visit(directory) {
+            if (!fs.existsSync(directory)) return
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+              const target = path.join(directory, entry.name)
+              if (entry.isDirectory()) visit(target)
+              else if (names.includes(entry.name)) {
+                const relative = path.relative(screenshotRoot, target).split(path.sep)
+                const matches = projects.filter((project) =>
+                  relative.some((part) => part === project || part.endsWith(`-${project}`)),
+                )
+                if (matches.length !== 1) return
+                const key = `${matches[0]}/${entry.name}`
+                counts.set(key, counts.get(key) + 1)
+                const destination = path.join(
+                  'test-results',
+                  'issue-566-my-trips-visuals',
+                  process.env.GITHUB_RUN_ID,
+                  matches[0],
+                  entry.name,
+                )
+                fs.mkdirSync(path.dirname(destination), { recursive: true })
+                fs.copyFileSync(target, destination)
+              }
+            }
+          }
+          visit(screenshotRoot)
+          if ([...counts.values()].some((count) => count !== 1))
+            throw new Error('Expected six allowlisted screenshots for desktop and phone')
+          NODE
+      - name: Retain scoped My trips screenshots
+        id: my_trips_visual_upload
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && github.event.inputs.scope == 'my-trips-visuals' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: issue-566-my-trips-visuals
+          path: |
+            test-results/**/more-light.png
+            test-results/**/more-dark.png
+            test-results/**/trips-light.png
+            test-results/**/trips-dark.png
+            test-results/**/plan-light.png
+            test-results/**/plan-dark.png
+          if-no-files-found: error
       - name: Prepare allowlisted proof receipt
         if: always()
         env:
@@ -123,6 +193,8 @@ jobs:
           CRITERIA_STEP: ${{ steps.criteria_presence.outcome }}
           ADMISSION_STEP: ${{ steps.admission_tests.outcome }}
           BROWSER_STEP: ${{ steps.browser_acceptance.outcome }}
+          VISUALS_STEP: ${{ steps.my_trips_visuals.outcome }}
+          VISUAL_UPLOAD_STEP: ${{ steps.my_trips_visual_upload.outcome }}
           ISSUE_565_SCOPE: ${{ github.event.inputs.scope || 'full' }}
         run: |
           node --input-type=module <<'NODE'
@@ -175,6 +247,11 @@ jobs:
               reportScope: 'seed-media-desktop-phone',
               expected: 2,
               names: ['JIT trip entry, authenticated catalog, photo, save and two-store creation'],
+            },
+            'my-trips-visuals': {
+              reportScope: 'my-trips-visuals',
+              expected: 2,
+              names: ['visible Saved-row chooser cancels, retries, and reads back one dated stop'],
             },
           }
           const selectedScope = scopeDefinitions[process.env.ISSUE_565_SCOPE]
@@ -229,6 +306,11 @@ jobs:
           if (process.env.CRITERIA_STEP !== 'success') failures.push('required test definitions missing')
           if (!admissionPassed) failures.push('direct admission denial proof unavailable or incomplete')
           if (process.env.BROWSER_STEP !== 'success') failures.push('configured shopper command failed')
+          if (
+            process.env.ISSUE_565_SCOPE === 'my-trips-visuals' &&
+            (process.env.VISUALS_STEP !== 'success' || process.env.VISUAL_UPLOAD_STEP !== 'success')
+          )
+            failures.push('scoped My trips screenshots missing or incomplete')
 
           const allowedActualRoutes = new Set([
             '/auth/sign-in',

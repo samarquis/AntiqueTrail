@@ -21,6 +21,7 @@ const partnerRemoval = process.argv.includes('--partner-removal')
 const accountSettings = process.argv.includes('--account-settings')
 const detailsAddToTrip = process.argv.includes('--details-add-to-trip')
 const anonymousDiscovery = process.argv.includes('--anonymous-discovery')
+const myTripsVisuals = process.argv.includes('--my-trips-visuals')
 const scopes = [
   sessionSignout,
   mediaOnly,
@@ -28,6 +29,7 @@ const scopes = [
   accountSettings,
   detailsAddToTrip,
   anonymousDiscovery,
+  myTripsVisuals,
 ].filter(Boolean)
 const report = {
   scope:
@@ -45,7 +47,9 @@ const report = {
                 ? 'details-add-to-trip'
                 : anonymousDiscovery
                   ? 'anonymous-discovery'
-                  : 'connected-shopper',
+                  : myTripsVisuals
+                    ? 'my-trips-visuals'
+                    : 'connected-shopper',
   status: 'unavailable',
   stage: 'preflight',
   failedAt: undefined,
@@ -129,6 +133,7 @@ try {
     VITE_BROWSE_MAP_ENABLED: 'false',
     CONFIGURED_SHOPPER_INPUT: secretFile,
     CONFIGURED_SHOPPER_OUTPUT: output.directory,
+    CONFIGURED_SHOPPER_MY_TRIPS_VISUALS: myTripsVisuals ? '1' : '0',
   }
   const build = path.join(local.directory, 'browser-dist')
   await command(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', build], {
@@ -205,7 +210,12 @@ try {
                         '--grep',
                         'anonymous discovery, permitted photo and JIT save context return$',
                       ]
-                    : []),
+                    : myTripsVisuals
+                      ? [
+                          '--grep',
+                          'visible Saved-row chooser cancels, retries, and reads back one dated stop$',
+                        ]
+                      : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
@@ -224,7 +234,7 @@ try {
       fs.readFileSync(resultPath, 'utf8'),
       sessionSignout
         ? 4
-        : mediaOnly || partnerRemoval || accountSettings || detailsAddToTrip || anonymousDiscovery
+        : mediaOnly || partnerRemoval || accountSettings || detailsAddToTrip || anonymousDiscovery || myTripsVisuals
           ? 2
           : 26,
     )
