@@ -131,6 +131,9 @@ select '56800000-0000-4000-8000-000000000201',
   'shared_alpha','trip_invitation',h.key_version
 from trip_private.email_hmac('partner-568@example.invalid','trip_invitation','shared_alpha',568) as h;
 reset role;
+set local role identity_service;
+update trip_private.private_stop_capability set enabled=false where singleton;
+reset role;
 
 select set_config('test.private_hours',(
   select pg_catalog.jsonb_build_object(
@@ -520,6 +523,7 @@ create extension if not exists dblink with schema extensions;
 
 -- Remove only this test's committed fixtures so interrupted prior runs are repeatable.
 begin;
+update trip_private.private_stop_capability set enabled=false where singleton;
 delete from trip_private.trip_invitations where invitation_id='56800000-0000-4000-8000-000000000331';
 delete from trip_private.trips where trip_id='56800000-0000-4000-8000-000000000321';
 delete from app_private.role_grants where subject_user_id in
@@ -556,6 +560,8 @@ insert into trip_private.email_hmac_keys(environment,purpose,key_version,key_mat
 values ('shared_alpha','trip_invitation',569,extensions.digest(convert_to('issue-568-race-key','utf8'),'sha256'),'active');
 reset role;
 set local role identity_service;
+-- The dblink sessions need a committed enable after the main test transaction rolls back.
+update trip_private.private_stop_capability set enabled=true where singleton;
 insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date,version)
 select '56800000-0000-4000-8000-000000000321','56800000-0000-4000-8000-000000000301',a.id,
   'Private-stop race',date '2026-10-07',10
@@ -635,10 +641,8 @@ delete from auth.sessions where id in
   ('56800000-0000-4000-8000-000000000311','56800000-0000-4000-8000-000000000312');
 delete from auth.users where id in
   ('56800000-0000-4000-8000-000000000301','56800000-0000-4000-8000-000000000302');
-set local role trip_email_key_manager;
 delete from trip_private.email_hmac_keys
  where environment='shared_alpha' and purpose='trip_invitation' and key_version=569;
-reset role;
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"56800000-0000-4000-8000-000000000001","role":"authenticated","session_id":"56800000-0000-4000-8000-000000000011"}',true);
 select set_config('test.legacy_private',app_public.add_private_trip_stop(
