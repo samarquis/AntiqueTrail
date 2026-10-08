@@ -29,6 +29,11 @@ end where user_id in (
   '58100000-0000-4000-8000-000000000002',
   '58100000-0000-4000-8000-000000000013'
 );
+insert into partner_private.public_claim_consent_receipts(
+  auth_user_id,policy_version,reviewed_ack,voluntary_ack,idempotency_key,receipt_checksum
+)
+select '58100000-0000-4000-8000-000000000001',policy_version,true,true,'issue581-consent-owner',decode(repeat('58',32),'hex')
+from partner_private.partner_material_terms where is_current;
 insert into auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at) values
  ('58100000-0000-4000-8000-000000000008','58100000-0000-4000-8000-000000000001','totp','verified',statement_timestamp(),statement_timestamp()),
  ('58100000-0000-4000-8000-000000000009','58100000-0000-4000-8000-000000000002','totp','verified',statement_timestamp(),statement_timestamp()),
