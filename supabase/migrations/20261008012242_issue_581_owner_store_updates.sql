@@ -5,9 +5,16 @@ begin
   if not exists (select 1 from pg_roles where rolname='store_update_expiry_service') then
     create role store_update_expiry_service nologin noinherit nosuperuser nobypassrls;
   end if;
+  if exists (
+    select 1 from pg_roles
+    where rolname='store_update_expiry_service'
+      and (rolcanlogin or rolinherit or rolsuper or rolbypassrls)
+  ) then
+    raise exception 'store_update_expiry_service must remain a non-login, no-inherit, non-superuser, non-bypass role';
+  end if;
 end
 $$;
-alter role store_update_expiry_service nologin noinherit nosuperuser nobypassrls;
+grant store_update_expiry_service to authenticator;
 grant usage on schema app_public to store_update_expiry_service;
 
 alter type app_public.catalog_details_row add attribute updates jsonb;

@@ -4,21 +4,26 @@ type ExpiryRpcClient = {
 
 export function createStoreUpdateExpiryHandler(dependencies: {
   url?: string
+  apiKey?: string
   workerJwt?: string
   schedulerToken?: string
   now?: () => Date
-  createClient: (url: string, jwt: string) => ExpiryRpcClient
+  createClient: (url: string, apiKey: string, workerJwt: string) => ExpiryRpcClient
 }) {
   return async (request: Request): Promise<Response> => {
     const suppliedToken = request.headers.get('x-antique-trail-scheduler')
     if (!(await schedulerAuthorized(dependencies.schedulerToken, suppliedToken)))
       return new Response('Unauthorized', { status: 401 })
     if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 })
-    if (!dependencies.url || !dependencies.workerJwt)
+    if (!dependencies.url || !dependencies.apiKey || !dependencies.workerJwt)
       return new Response('Unavailable', { status: 503 })
 
     try {
-      const client = dependencies.createClient(dependencies.url, dependencies.workerJwt)
+      const client = dependencies.createClient(
+        dependencies.url,
+        dependencies.apiKey,
+        dependencies.workerJwt,
+      )
       const result = await client.rpc('portal_expire_store_sales', {
         p_now: (dependencies.now?.() ?? new Date()).toISOString(),
         p_limit: 100,
