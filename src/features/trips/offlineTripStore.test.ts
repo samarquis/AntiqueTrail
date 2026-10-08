@@ -93,7 +93,7 @@ function mutation(sequence: number): OfflineMutation {
   }
 }
 
-function store(database = new InMemoryOfflineDatabase()) {
+function store(database: OfflineTripDatabase = new InMemoryOfflineDatabase()) {
   return new EncryptedTripOfflineStore(database, 'install-a', verifier, 'device-key-a')
 }
 
