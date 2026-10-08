@@ -26,6 +26,10 @@ const saved = () =>
       `select count(*) from shopper_private.saved_stores where user_id='${owner}' and store_id='${A}';`,
     )
     .then((s: string) => Number(s.trim()))
+const ownedTripCount = () =>
+  service
+    .sql(`select count(*) from trip_private.trips where owner_id='${owner}';`)
+    .then((s: string) => Number(s.trim()))
 const read = (id: string) =>
   service
     .sql(
@@ -165,6 +169,73 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
   await submitLogin(page)
   await expect.poll(saved).toBe(1)
   await expect(page).toHaveURL(/\/stores\/clockwork-cabinet$/)
+})
+
+test('visible Details Add to Trip preserves store through cancel, auth failure, and sign-in', async ({
+  page,
+}) => {
+  const tripsBefore = await ownedTripCount()
+  await page.goto('/stores/clockwork-cabinet')
+  await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+  await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=/)
+
+  await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
+  await expect(page).toHaveURL(/\/stores\/clockwork-cabinet$/)
+  expect(await ownedTripCount()).toBe(tripsBefore)
+
+  await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+  await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=/)
+  const failedLogin = page.waitForResponse((response) =>
+    response.url().includes('/auth/v1/token?grant_type=password'),
+  )
+  await page.getByLabel('Email', { exact: true }).fill(input.users[0].email)
+  await page.getByLabel('Password', { exact: true }).fill('incorrect-local-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  expect((await failedLogin).ok()).toBe(false)
+  await expect(page.getByRole('alert')).toBeVisible()
+  expect(await ownedTripCount()).toBe(tripsBefore)
+
+  await submitLogin(page)
+  await expect(page).toHaveURL(new RegExp(`/trips/new\\?addStoreId=${A}`))
+  await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+
+  const name = `Details outing ${crypto.randomUUID().slice(0, 8)}`
+  await page.getByLabel('Trip name', { exact: true }).fill(name)
+  await page.getByLabel('Date', { exact: true }).fill('2026-10-10')
+  await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
+  await page.getByRole('link', { name: 'View Trip', exact: true }).click()
+  const id = uuid(page.url().split('/trips/')[1].split('/')[0])
+  const trip = await read(id)
+  expect(trip.name).toBe(name)
+  expect(trip.date).toBe('2026-10-10')
+  expect(trip.stops.map((stop: { store: string }) => stop.store)).toEqual([A])
+  expect(await ownedTripCount()).toBe(tripsBefore + 1)
+})
+
+test('visible Saved-row Add to Trip uses the saved store ID and adds one dated stop', async ({
+  page,
+}) => {
+  await login(page, 0, '/stores/clockwork-cabinet')
+  await page.getByRole('button', { name: 'Save store Clockwork Cabinet', exact: true }).click()
+  await expect.poll(saved).toBe(1)
+  await page.goto('/saved')
+  await expect(page.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toBeVisible()
+
+  const tripsBefore = await ownedTripCount()
+  await page.getByRole('link', { name: 'Add Clockwork Cabinet to a trip' }).click()
+  await expect(page).toHaveURL(new RegExp(`/trips/new\\?addStoreId=${A}&returnTo=%2Fsaved`))
+
+  const name = `Saved outing ${crypto.randomUUID().slice(0, 8)}`
+  await page.getByLabel('Trip name', { exact: true }).fill(name)
+  await page.getByLabel('Date', { exact: true }).fill('2026-10-11')
+  await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
+  await page.getByRole('link', { name: 'View Trip', exact: true }).click()
+  const id = uuid(page.url().split('/trips/')[1].split('/')[0])
+  const trip = await read(id)
+  expect(trip.name).toBe(name)
+  expect(trip.date).toBe('2026-10-11')
+  expect(trip.stops.map((stop: { store: string }) => stop.store)).toEqual([A])
+  expect(await ownedTripCount()).toBe(tripsBefore + 1)
 })
 
 test('JIT trip entry, authenticated catalog, photo, save and two-store creation', async ({

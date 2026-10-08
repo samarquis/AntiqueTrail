@@ -1596,4 +1596,51 @@ describe('app shell', () => {
     expect(screen.getByRole('heading', { name: /check my day/i })).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent(/not available yet/i)
   })
+
+  describe('configured-local shopper trip entry', () => {
+    afterEach(() => {
+      cleanup()
+      vi.unstubAllEnvs()
+    })
+
+    it('shows the existing Details chooser only when local trip entry is admitted', async () => {
+      vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
+      const admitted = render(
+        <MemoryRouter initialEntries={['/stores/blue-finch-curios']}>
+          <App
+            clients={{ catalog: demoCatalogClient }}
+            runtime={{ configuredLocalShopperReview: true }}
+          />
+        </MemoryRouter>,
+      )
+      const addToTrip = await screen.findByRole('link', { name: 'Add to Trip', exact: true })
+      expect(addToTrip).toHaveAttribute(
+        'href',
+        '/trips/new?addStoreId=00000000-0000-4000-8000-000000000001',
+      )
+      admitted.unmount()
+
+      render(
+        <MemoryRouter initialEntries={['/stores/blue-finch-curios']}>
+          <App clients={{ catalog: demoCatalogClient }} />
+        </MemoryRouter>,
+      )
+      await screen.findByRole('heading', { name: 'Blue Finch Curios' })
+      expect(screen.queryByRole('link', { name: 'Add to Trip', exact: true })).toBeNull()
+    })
+
+    it('keeps the Details chooser hidden in catalog-only public mode', async () => {
+      vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
+      render(
+        <MemoryRouter initialEntries={['/stores/blue-finch-curios']}>
+          <App
+            clients={{ catalog: demoCatalogClient }}
+            runtime={{ configuredLocalShopperReview: true }}
+          />
+        </MemoryRouter>,
+      )
+      await screen.findByRole('heading', { name: 'Blue Finch Curios' })
+      expect(screen.queryByRole('link', { name: 'Add to Trip', exact: true })).toBeNull()
+    })
+  })
 })

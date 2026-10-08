@@ -88,6 +88,17 @@ describe('private shopper screens', () => {
     expect(savedCard.queryByRole('link', { name: /add to trip/i })).not.toBeInTheDocument()
   })
 
+  it('routes an admitted Saved row to the existing trip chooser by stable store ID', async () => {
+    renderPage(<SavedPage client={client()} allowAddToTrip />)
+
+    const action = await screen.findByRole('link', { name: 'Add Oak Antiques to a trip' })
+    expect(action).toHaveTextContent('Add to Trip')
+    expect(action).toHaveAttribute(
+      'href',
+      '/trips/new?addStoreId=store-1&returnTo=%2Fsaved',
+    )
+  })
+
   it('removes a saved store and can undo the removal', async () => {
     const user = userEvent.setup()
     const setSave = vi

@@ -198,7 +198,7 @@ try {
   } else {
     const results = browserReport(
       fs.readFileSync(resultPath, 'utf8'),
-      sessionSignout ? 4 : mediaOnly || partnerRemoval || accountSettings ? 2 : 22,
+      sessionSignout ? 4 : mediaOnly || partnerRemoval || accountSettings ? 2 : 26,
     )
     report.stats = results.stats
     report.checks = results.checks

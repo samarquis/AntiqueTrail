@@ -1286,6 +1286,8 @@ export interface AppClients {
 
 export interface AppRuntime {
   tripOffline?: TripOfflineRuntime
+  /** Local configured-shopper provenance only; grants no account or trip authority. */
+  configuredLocalShopperReview?: true
   authStore?: AuthStore
   authProvider?: AuthProviderAdapter
   sessionRegistry?: SessionRegistryClient
@@ -1317,6 +1319,13 @@ export default function App({
   runtime?: AppRuntime
 }) {
   const location = useLocation()
+  const localShopperTripEntry =
+    !isCatalogOnlyPublicTest() &&
+    (runtime.configuredLocalShopperReview === true ||
+      (import.meta.env.DEV &&
+        runtime.reviewHarness?.active === true &&
+        typeof window !== 'undefined' &&
+        ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)))
   const capabilityOnlyRoute = [
     '/reviewer/setup',
     '/reviewer/credentials',
@@ -1517,13 +1526,7 @@ export default function App({
               <StoreDetails
                 shopperClient={shopperClient}
                 catalog={clients.catalog}
-                localTripEvaluation={
-                  import.meta.env.DEV &&
-                  runtime.reviewHarness?.active === true &&
-                  typeof window !== 'undefined' &&
-                  ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
-                  !isCatalogOnlyPublicTest()
-                }
+                localTripEvaluation={localShopperTripEntry}
               />
             }
           />
@@ -1642,7 +1645,7 @@ export default function App({
             path="/saved"
             element={
               <RequireSession requiredRole="Shopper">
-                <SavedPage client={shopperClient} />
+                <SavedPage client={shopperClient} allowAddToTrip={localShopperTripEntry} />
               </RequireSession>
             }
           />
