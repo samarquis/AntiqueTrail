@@ -8,6 +8,14 @@ import {
 } from '../scripts/configured-representative-hours-report.mjs'
 
 type User = { email: string; password: string; totpSecret?: string }
+type OwnerListingPhase =
+  | 'first'
+  | 'full'
+  | 'invited-lifecycle'
+  | 'owner-identity'
+  | 'portal-drafts'
+  | 'managed-hours'
+  | 'controlled-change'
 type Input = {
   endpoint: string
   anonKey: string
@@ -23,7 +31,7 @@ type Input = {
   ownerCancel: User
   shopper: User
   admin: User
-  diagnosticPhase?: 'first' | 'full'
+  phase?: OwnerListingPhase
 }
 
 const inputPath = process.env.CONFIGURED_OWNER_LISTING_INPUT
@@ -274,10 +282,25 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
     'Wrong-store direct write is denied and does not change Store B',
     'Site Admin revocation denies the next request in Owner A’s same session',
   ]
-  const firstPhase = input.diagnosticPhase === 'first'
-  const stepReceipts: Array<Record<string, unknown>> = (
-    firstPhase ? stepTitles.slice(0, 1) : stepTitles
-  ).map((name) => ({
+  const phase = input.phase ?? 'full'
+  const phaseSteps: Record<OwnerListingPhase, number[]> = {
+    first: [1],
+    full: stepTitles.map((_, index) => index + 1),
+    'invited-lifecycle': [1, 2, 3, 4, 5],
+    'owner-identity': [1, 6, 7, 13, 14],
+    'portal-drafts': [1, 6, 8],
+    'managed-hours': [6, 9, 10, 11],
+    'controlled-change': [6, 12],
+  }
+  const selectedStepNumbers = phaseSteps[phase]
+  if (!selectedStepNumbers) throw new Error('Unknown configured Owner listing phase')
+  const selectedStepTitles = selectedStepNumbers.map((number) => {
+    const title = stepTitles[number - 1]
+    if (!title) throw new Error('Configured Owner phase references an unknown step')
+    return title
+  })
+  const firstPhase = phase === 'first'
+  const stepReceipts: Array<Record<string, unknown>> = selectedStepTitles.map((name) => ({
     name,
     status: 'pending',
     durationMs: 0,
@@ -289,6 +312,7 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
   const writeStepReceipts = () => fs.writeFileSync(stepReceiptPath, JSON.stringify(stepReceipts))
   writeStepReceipts()
   const step = async (name: string, action: (mark: MarkOperation) => Promise<void>) => {
+    if (!selectedStepTitles.includes(name)) return
     const receipt = stepReceipts[stepIndex]
     if (!receipt || receipt.name !== name) throw new Error('Owner listing step manifest drift')
     const startedAtMs = Date.now()
@@ -345,7 +369,7 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       'Invited applicant accepts setup without receiving Owner authority',
       async (mark) => {
         await signIn(invitedOwner, input.ownerApplicant, '/owner/stores', mark)
-        if (!firstPhase) {
+        if (phase === 'full') {
           mark('capture_before_approval_screenshot', invitedOwner)
           await invitedOwner.screenshot({
             path: testInfo.outputPath('owner-before-approval.png'),
@@ -424,10 +448,11 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
           name: 'Owner intake is not available in this public test',
         }),
       ).toBeVisible()
-      await invitedOwner.screenshot({
-        path: testInfo.outputPath('owner-intake-gate.png'),
-        fullPage: true,
-      })
+      if (phase === 'full')
+        await invitedOwner.screenshot({
+          path: testInfo.outputPath('owner-intake-gate.png'),
+          fullPage: true,
+        })
     })
 
     await step('Canceled invited setup creates no claim or grant', async () => {
@@ -484,10 +509,11 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       await admin.getByRole('button', { name: /Apply decision/ }).click()
       await admin.getByRole('button', { name: /Confirm approve owner decision/ }).click()
       await expect(admin.getByText(/approved/).first()).toBeVisible()
-      await admin.screenshot({
-        path: testInfo.outputPath('owner-admin-approval.png'),
-        fullPage: true,
-      })
+      if (phase === 'full')
+        await admin.screenshot({
+          path: testInfo.outputPath('owner-admin-approval.png'),
+          fullPage: true,
+        })
     })
 
     await step('Owner A selects only Store A and other identities cannot select it', async () => {
@@ -496,10 +522,11 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       await expect(ownerA.getByRole('button', { name: /Open Sibling Market/ })).toHaveCount(0)
       await ownerA.getByRole('button', { name: 'Open Clockwork Cabinet' }).click()
       await expect(ownerA.getByRole('heading', { name: 'Clockwork Cabinet' })).toBeVisible()
-      await ownerA.screenshot({
-        path: testInfo.outputPath('owner-store-workspace.png'),
-        fullPage: true,
-      })
+      if (phase === 'full')
+        await ownerA.screenshot({
+          path: testInfo.outputPath('owner-store-workspace.png'),
+          fullPage: true,
+        })
 
       const token = ownerAToken()
       if (!token) throw new Error('Owner session token was not observed')
@@ -790,10 +817,11 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
           await rpc(ownerBearer, 'portal_get_home', {}, input.storeA.id),
           'revoked Owner session Portal read',
         )
-        await ownerA.screenshot({
-          path: testInfo.outputPath('owner-after-revocation.png'),
-          fullPage: true,
-        })
+        if (phase === 'full')
+          await ownerA.screenshot({
+            path: testInfo.outputPath('owner-after-revocation.png'),
+            fullPage: true,
+          })
       },
     )
   } finally {

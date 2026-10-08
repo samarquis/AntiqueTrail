@@ -4,6 +4,20 @@ on:
   push:
     branches:
       - codex/issue-579-owner-listing
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: Configured Owner acceptance phase
+        required: true
+        type: choice
+        options:
+          - first
+          - invited-lifecycle
+          - owner-identity
+          - portal-drafts
+          - managed-hours
+          - controlled-change
+          - full
 
 permissions:
   contents: read
@@ -34,14 +48,16 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: Run configured Owner listing proof
+      - name: Run selected configured Owner listing phase
         env:
-          OWNER_LISTING_PHASE: ${{ contains(github.event.head_commit.message, '[owner-first-phase]') && 'first' || 'full' }}
+          OWNER_LISTING_PHASE: ${{ github.event_name == 'workflow_dispatch' && inputs.phase || contains(github.event.head_commit.message, '[owner-phase:invited-lifecycle]') && 'invited-lifecycle' || contains(github.event.head_commit.message, '[owner-phase:owner-identity]') && 'owner-identity' || contains(github.event.head_commit.message, '[owner-phase:portal-drafts]') && 'portal-drafts' || contains(github.event.head_commit.message, '[owner-phase:managed-hours]') && 'managed-hours' || contains(github.event.head_commit.message, '[owner-phase:controlled-change]') && 'controlled-change' || contains(github.event.head_commit.message, '[owner-first-phase]') && 'first' || 'full' }}
         run: |
           if [ "$OWNER_LISTING_PHASE" = first ]; then
             node scripts/configured-representative-hours.mjs --owner-listing-first-phase
-          else
+          elif [ "$OWNER_LISTING_PHASE" = full ]; then
             node scripts/configured-representative-hours.mjs --owner-listing
+          else
+            node scripts/configured-representative-hours.mjs "--owner-listing-phase=$OWNER_LISTING_PHASE"
           fi
 
       - name: Upload sanitized Owner listing evidence

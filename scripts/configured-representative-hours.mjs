@@ -19,25 +19,51 @@ import {
 import { runLocalOwnerCancellation } from './owner-cancellation-local.mjs'
 
 const modeArgs = process.argv.slice(2)
+const ownerListingPhases = new Set([
+  'invited-lifecycle',
+  'owner-identity',
+  'portal-drafts',
+  'managed-hours',
+  'controlled-change',
+])
+const ownerListingPhaseArgument = modeArgs[0]?.startsWith('--owner-listing-phase=')
+  ? modeArgs[0].slice('--owner-listing-phase='.length)
+  : undefined
 const ownerListingMode =
-  modeArgs.length === 1 && ['--owner-listing', '--owner-listing-first-phase'].includes(modeArgs[0])
+  modeArgs.length === 1 &&
+  (['--owner-listing', '--owner-listing-first-phase'].includes(modeArgs[0]) ||
+    ownerListingPhaseArgument !== undefined)
 const ownerListingFirstPhase = modeArgs[0] === '--owner-listing-first-phase'
+const ownerListingPhase = ownerListingFirstPhase
+  ? 'first'
+  : ownerListingPhaseArgument ?? (ownerListingMode ? 'full' : undefined)
 if (modeArgs.length && !ownerListingMode)
   throw new Error(
-    'Supported invocation is no arguments, --owner-listing, or --owner-listing-first-phase',
+    'Supported invocation is no arguments, --owner-listing, --owner-listing-first-phase, or --owner-listing-phase=<phase>',
   )
+if (ownerListingPhaseArgument !== undefined && !ownerListingPhases.has(ownerListingPhaseArgument))
+  throw new Error(`Unknown Owner listing phase: ${ownerListingPhaseArgument}`)
 const output = createRunDirectory(
   path.join(ROOT, ownerListingMode ? '.codex/issue-579/runs' : 'artifacts'),
 )
 const controller = new AbortController()
 const report = {
   scope: ownerListingMode
-    ? ownerListingFirstPhase
+    ? ownerListingPhase === 'first'
       ? 'configured-owner-listing-first-phase-diagnostic'
-      : 'configured-owner-listing-isolated-local-proof'
+      : ownerListingPhase === 'full'
+        ? 'configured-owner-listing-isolated-local-proof'
+        : `configured-owner-listing-${ownerListingPhase}`
     : 'representative-hours-and-owner-exact-store-billing-status',
   ...(ownerListingMode
-    ? { phase: ownerListingFirstPhase ? 'first-phase-diagnostic' : 'full-acceptance' }
+    ? {
+        phase:
+          ownerListingPhase === 'first'
+            ? 'first-phase-diagnostic'
+            : ownerListingPhase === 'full'
+              ? 'full-acceptance'
+              : ownerListingPhase,
+      }
     : {}),
   ...(ownerListingMode
     ? {
@@ -451,7 +477,7 @@ async function runOwnerListing() {
       },
       shopper: { email: shopper.email, password: shopper.password },
       admin: { email: admin.email, password: admin.password, totpSecret: adminTotp },
-      ...(ownerListingFirstPhase ? { diagnosticPhase: 'first' } : {}),
+      phase: ownerListingPhase,
     }
     ownerSecretFile = path.join(local.directory, 'owner-listing-browser-input.json')
     fs.writeFileSync(ownerSecretFile, JSON.stringify(input), { mode: 0o600, flag: 'wx' })
