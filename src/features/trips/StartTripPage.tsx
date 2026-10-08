@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Trip, TripClient, TripCollaboration } from './types'
+import type { Trip, TripClient, TripCollaboration, TripStartDeviceCheck } from './types'
 import type { TripOfflineGrantSource, TripOfflineRuntime } from './tripRuntime'
 
-export interface StartTripPageDeviceCheck {
-  tripVersion: number
-  currentDeviceBound: boolean
-}
+export type StartTripPageDeviceCheck = TripStartDeviceCheck
 
-export type StartTripPageClient = Pick<TripClient, 'get' | 'getCollaboration' | 'start'> & {
-  prepareInitialNavigator(tripId: string, expectedVersion: number): Promise<TripCollaboration>
-  verifyInitialNavigatorDevice(tripId: string): Promise<StartTripPageDeviceCheck>
-  confirmCurrentNavigatorDevice(tripId: string): Promise<number>
-}
+export type StartTripPageClient = Pick<TripClient, 'get' | 'getCollaboration' | 'start'> &
+  Required<
+    Pick<
+      TripClient,
+      'prepareInitialNavigator' | 'verifyInitialNavigatorDevice' | 'confirmCurrentNavigatorDevice'
+    >
+  >
 
 class StartTripFailure extends Error {
   constructor(
