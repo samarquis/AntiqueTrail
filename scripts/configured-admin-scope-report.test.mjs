@@ -35,6 +35,30 @@ test('configured Administrator report preserves failed and timed-out Playwright 
   }
 })
 
+test('configured Administrator failures expose only allowlisted assertion metadata', () => {
+  const failed = clone(complete)
+  failed.stats = { ...stats, expected: 7, unexpected: 1 }
+  failed.suites[0].specs[0].tests[0].results = [
+    {
+      status: 'failed',
+      errors: [
+        {
+          message: 'Expected private-owner@example.invalid; expect(locator).toBeFocused()',
+          stack: 'Error\n at /runner/e2e/configured-admin-scope.spec.ts:499:18',
+        },
+      ],
+    },
+  ]
+  const report = configuredAdminScopeReport(failed)
+  assert.deepEqual(report.checks[0].failure, {
+    category: 'assertion',
+    sourceLine: 499,
+    assertion: 'toBeFocused',
+  })
+  assert.equal(JSON.stringify(report).includes('private-owner@example.invalid'), false)
+  assert.equal(JSON.stringify(report).includes('Expected '), false)
+})
+
 test('configured Administrator report rejects malformed or incomplete acceptance data', () => {
   assert.throws(() => configuredAdminScopeReport({}), /Malformed browser report/)
   const malformed = clone(complete)

@@ -6,11 +6,58 @@ export function configuredAdminScopeReport(parsed, expected = 8) {
       throw new Error('Malformed browser counts')
 
   const specs = parsed.suites.flatMap((suite) => suite.specs ?? [])
+  const assertions = [
+    'toHaveText',
+    'toHaveURL',
+    'toHaveCount',
+    'toBeVisible',
+    'toBeFocused',
+    'toHaveValue',
+    'toContainText',
+    'toMatchObject',
+    'toBe',
+    'toThrow',
+    'locator.click',
+    'locator.fill',
+    'locator.press',
+  ]
   const checks = specs.flatMap((spec) =>
-    (spec.tests ?? []).map((test) => ({
-      title: `${test.projectName ?? 'unknown'}: ${spec.title}`,
-      status: test.results?.at(-1)?.status ?? test.status ?? 'unavailable',
-    })),
+    (spec.tests ?? []).map((test) => {
+      const final = test.results?.at(-1)
+      const status = final?.status ?? test.status ?? 'unavailable'
+      const error = final?.errors?.[0] ?? final?.error
+      const message = typeof error?.message === 'string' ? error.message : ''
+      const assertion = assertions.find((name) => message.includes(name)) ?? null
+      const stackLine = String(error?.stack ?? '').match(
+        /configured-admin-scope\.spec\.ts:(\d+):\d+/,
+      )
+      const sourceLine = stackLine
+        ? Number(stackLine[1])
+        : String(error?.location?.file ?? '').endsWith('configured-admin-scope.spec.ts') &&
+            Number.isSafeInteger(error.location.line)
+          ? error.location.line
+          : null
+      const category =
+        status === 'skipped' || status === 'passed'
+          ? null
+          : status === 'timedOut' || /Timeout.*exceeded/.test(message)
+            ? 'timeout'
+            : message.includes('strict mode violation')
+              ? 'strict_locator'
+              : assertion
+                ? 'assertion'
+                : error
+                  ? 'test_error'
+                  : 'unclassified'
+
+      return {
+        title: `${test.projectName ?? 'unknown'}: ${spec.title}`,
+        status,
+        ...(category && {
+          failure: { category, sourceLine, assertion },
+        }),
+      }
+    }),
   )
   const passed =
     checks.length === expected &&

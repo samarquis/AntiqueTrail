@@ -83,6 +83,12 @@ jobs:
             if (fs.existsSync(reportPath)) report = JSON.parse(fs.readFileSync(reportPath, 'utf8'))
           }
           const statuses = new Set(['passed', 'failed', 'timedOut', 'skipped', 'unavailable'])
+          const failureCategories = new Set(['timeout', 'strict_locator', 'assertion', 'test_error', 'unclassified'])
+          const failureAssertions = new Set([
+            'toHaveText', 'toHaveURL', 'toHaveCount', 'toBeVisible', 'toBeFocused',
+            'toHaveValue', 'toContainText', 'toMatchObject', 'toBe', 'toThrow',
+            'locator.click', 'locator.fill', 'locator.press',
+          ])
           const summary = {
             candidateSha: process.env.CANDIDATE_SHA,
             sourceSha: typeof report?.sourceSha === 'string' ? report.sourceSha : null,
@@ -95,9 +101,16 @@ jobs:
             stats: report?.stats && Object.fromEntries(
               ['expected', 'unexpected', 'skipped', 'flaky'].map(key => [key, report.stats[key]]),
             ),
-            checks: Array.isArray(report?.checks) ? report.checks.map(({ title, status }) => ({
+            checks: Array.isArray(report?.checks) ? report.checks.map(({ title, status, failure }) => ({
               title: typeof title === 'string' ? title.slice(0, 160) : 'unknown',
               status: statuses.has(status) ? status : 'unavailable',
+              ...(failure && status !== 'passed' && status !== 'skipped' ? {
+                failure: {
+                  category: failureCategories.has(failure.category) ? failure.category : 'unclassified',
+                  sourceLine: Number.isSafeInteger(failure.sourceLine) ? failure.sourceLine : null,
+                  assertion: failureAssertions.has(failure.assertion) ? failure.assertion : null,
+                },
+              } : {}),
             })) : [],
           }
           fs.mkdirSync('artifacts', { recursive: true })
