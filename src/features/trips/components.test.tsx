@@ -705,7 +705,11 @@ describe('manual trips', () => {
     const confirmPrivateTripStopDestination = vi
       .fn<NonNullable<TripClient['confirmPrivateTripStopDestination']>>()
       .mockRejectedValueOnce(new Error('transient'))
-      .mockResolvedValue({ ...changedTrip, version: 3, stops: [{ ...changedStop, destination: 'confirmed_by_organizer' }] })
+      .mockResolvedValue({
+        ...changedTrip,
+        version: 3,
+        stops: [{ ...changedStop, destination: 'confirmed_by_organizer' }],
+      })
     render(
       <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
         <Routes>
@@ -725,7 +729,9 @@ describe('manual trips', () => {
       </MemoryRouter>,
     )
 
-    await user.click(await screen.findByRole('button', { name: /^edit private shop: hidden finds$/i }))
+    await user.click(
+      await screen.findByRole('button', { name: /^edit private shop: hidden finds$/i }),
+    )
     const address = await screen.findByLabelText(/^private shop address for hidden finds$/i)
     expect(address).toHaveValue('123 Main St')
     expect(screen.getByLabelText(/^private shop source url for hidden finds$/i)).toHaveValue(
@@ -747,7 +753,9 @@ describe('manual trips', () => {
       1,
       expect.stringMatching(/^update_private_trip_stop:/),
     )
-    await user.click(await screen.findByRole('button', { name: /^confirm exact address for hidden finds$/i }))
+    await user.click(
+      await screen.findByRole('button', { name: /^confirm exact address for hidden finds$/i }),
+    )
     await screen.findByRole('alert')
     const firstConfirmKey = confirmPrivateTripStopDestination.mock.calls[0][4]
     await user.click(screen.getByRole('button', { name: /^retry$/i }))

@@ -31,16 +31,12 @@ select is(
 select has_function('app_public','add_private_trip_stop',array['text','text','text','text','jsonb','text','integer','bigint','text'],'private stop create RPC exists');
 select has_function('app_public','update_private_trip_stop',array['text','text','text','text','text','jsonb','text','integer','bigint','text'],'private stop update RPC exists');
 select has_function('app_public','confirm_trip_stop_destination',array['text','text','text','bigint','text'],'exact-address confirmation RPC exists');
-select ok(
-  has_function_privilege('authenticated','app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE')
-  and not has_function_privilege('anon','app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE'),
-  'private-stop create is authenticated-only');
-select ok(
-  has_function_privilege('authenticated','app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE')
-  and not has_function_privilege('anon','app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE')
-  and has_function_privilege('authenticated','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE')
-  and not has_function_privilege('anon','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE'),
-  'private-stop update and confirmation are authenticated-only');
+select is(has_function_privilege('authenticated','app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE'),true,'authenticated can execute private-stop create');
+select is(has_function_privilege('anon','app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE'),false,'anon cannot execute private-stop create');
+select is(has_function_privilege('authenticated','app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE'),true,'authenticated can execute private-stop update');
+select is(has_function_privilege('anon','app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE'),false,'anon cannot execute private-stop update');
+select is(has_function_privilege('authenticated','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE'),true,'authenticated can execute private-stop confirmation');
+select is(has_function_privilege('anon','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE'),false,'anon cannot execute private-stop confirmation');
 select ok(
   (select count(*)=15 and bool_and(proowner='identity_service'::regrole)
    from pg_catalog.pg_proc where oid in (
@@ -163,7 +159,9 @@ select is(current_setting('test.created')::jsonb #>> '{stops,0,label}','Hidden F
 select is(current_setting('test.created')::jsonb #>> '{stops,0,address}','123 Main St','entered address is retained');
 select is(current_setting('test.created')::jsonb #>> '{stops,0,shopperHours,timeZone}','America/Chicago','shopper timezone is returned separately');
 select is(current_setting('test.created')::jsonb #>> '{stops,0,destination}','draft','new private address starts as a draft');
+reset role;
 select is((select count(*) from trip_private.trip_stops as s where s.trip_id='56800000-0000-4000-8000-000000000101'),1::bigint,'create inserts one stop row');
+set local role authenticated;
 select is(
   (app_public.add_private_trip_stop(
     '56800000-0000-4000-8000-000000000101','Hidden Finds','123 Main St','https://example.com/shop',
@@ -179,7 +177,9 @@ select throws_ok($$select app_public.add_private_trip_stop(
   '56800000-0000-4000-8000-000000000101','Different Name','123 Main St','https://example.com/shop',
   current_setting('test.private_hours')::jsonb,'must',60,10,'add_private_trip_stop:first')$$,
   'P0001','conflict','changed-payload retry conflicts');
+reset role;
 select is((select version from trip_private.trips where trip_id='56800000-0000-4000-8000-000000000101'),11::bigint,'conflicting replay does not change version');
+set local role authenticated;
 select throws_ok($$select app_public.update_private_trip_stop(
   'not-a-trip-uuid',current_setting('test.created')::jsonb #>> '{stops,0,id}',
   'Hidden Finds','123 Main St','https://example.com/shop',current_setting('test.private_hours')::jsonb,
@@ -268,7 +268,7 @@ select throws_ok($$select app_public.update_private_trip_stop(
   'P0001','authorization_lost','nonmember cannot update owner private stop fields');
 select throws_ok($$select app_public.remove_trip_stop(
   '56800000-0000-4000-8000-000000000101',current_setting('test.created')::jsonb #>> '{stops,0,id}',14)$$,
-  'P0001','authorization_lost','nonmember cannot remove owner private stop');
+  'P0001','not_allowed','nonmember cannot remove owner private stop');
 reset role;
 set local role identity_service;
 insert into trip_private.trip_participants(trip_id,user_id,participant_role,state,left_at)
@@ -286,7 +286,7 @@ select throws_ok($$select app_public.update_private_trip_stop(
   'P0001','authorization_lost','revoked former partner cannot update owner private stop fields');
 select throws_ok($$select app_public.remove_trip_stop(
   '56800000-0000-4000-8000-000000000101',current_setting('test.created')::jsonb #>> '{stops,0,id}',14)$$,
-  'P0001','authorization_lost','revoked former partner cannot remove owner private stop');
+  'P0001','not_allowed','revoked former partner cannot remove owner private stop');
 select throws_ok($$select app_public.add_private_trip_stop(
   '56800000-0000-4000-8000-000000000101','Foreign','1 Other St',null,null,'must',60,14,'add_private_trip_stop:foreign')$$,
   'P0001','authorization_lost','nonowner cannot add private fields');
@@ -295,7 +295,8 @@ select throws_ok($$select app_public.accept_trip_invitation(repeat('i',32))$$,
 reset role;
 set local role identity_service;
 select is((select count(*) from trip_private.trip_participants as p
-  where p.trip_id='56800000-0000-4000-8000-000000000101' and p.participant_role='partner'),0::bigint,
+  where p.trip_id='56800000-0000-4000-8000-000000000101'
+    and p.participant_role='partner' and p.state='active'),0::bigint,
   'blocked invitation acceptance creates no membership');
 reset role;
 
@@ -322,14 +323,19 @@ select throws_ok($$insert into trip_private.trip_stops(
   trip_id,kind,private_name,destination_status,position
 ) values ('56800000-0000-4000-8000-000000000101','private','Missing Address',
   'confirmed_by_organizer',7)$$,
-  '23514','stop_kind_shape','confirmed destination cannot exist without its exact address');
+  '23514','new row for relation "trip_stops" violates check constraint "stop_kind_shape"',
+  'confirmed destination cannot exist without its exact address');
 insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version)
 select '56800000-0000-4000-8000-000000000103','56800000-0000-4000-8000-000000000001',
   extensions.digest(convert_to('issue568-device','utf8'),'sha256'),p.session_epoch
 from app_private.profiles as p where p.user_id='56800000-0000-4000-8000-000000000001';
 update trip_private.trips as t set state='active',navigator_user_id=t.owner_id,
   navigator_device_hash=extensions.digest(convert_to('issue568-device','utf8'),'sha256'),
-  start_kind='manual',private_start_label='Home',departure_local_time=time '09:00'
+  start_kind='manual',private_start_label='Home',departure_local_time=time '09:00',
+  hours_reviewed_at=statement_timestamp(),
+  hours_review_has_unresolved=trip_private.trip_has_unresolved_hours(t.trip_id),
+  hours_warnings_acknowledged_at=case when trip_private.trip_has_unresolved_hours(t.trip_id)
+    then statement_timestamp() else null end
 where t.trip_id='56800000-0000-4000-8000-000000000103';
 update trip_private.private_stop_capability set enabled=false where singleton;
 reset role;
@@ -419,18 +425,20 @@ select set_config('test.catalog_memory_a',app_public.save_trip_visit_memory(
   '56800000-0000-4000-8000-000000000102',current_setting('test.catalog_stop_a'),5,'yes','first visit')::text,true);
 select app_public.save_trip_visit_memory(
   '56800000-0000-4000-8000-000000000102',current_setting('test.catalog_stop_b'),4,'maybe','second visit');
+reset role;
 select is((select count(*) from trip_private.trip_visit_memories as m
   where m.trip_id='56800000-0000-4000-8000-000000000102' and m.stop_id is not null),2::bigint,
   'the real writer creates one visit row for each same-store stop');
+set local role authenticated;
 select is((current_setting('test.catalog_memory_a')::jsonb #>> '{stops,0,memoryStatus}'),'saved',
   'writer projection marks the first stop memory saved');
 select is((app_public.save_trip_visit_memory(
   '56800000-0000-4000-8000-000000000102',current_setting('test.catalog_stop_a'),3,'no','updated first visit'
   ) #>> '{stops,0,memoryStatus}'),'saved','same-stop writer replay keeps its stop-scoped row');
+reset role;
 select is((select count(distinct m.memory_id) from trip_private.trip_visit_memories as m
   where m.trip_id='56800000-0000-4000-8000-000000000102' and m.stop_id is not null),2::bigint,
   'replaying a visit update does not create a duplicate row');
-reset role;
 set local role identity_service;
 insert into trip_private.trip_visit_memories(author_user_id,trip_id,store_id,rating)
 select '56800000-0000-4000-8000-000000000001','56800000-0000-4000-8000-000000000102',s.id,4

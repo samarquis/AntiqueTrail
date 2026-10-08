@@ -337,7 +337,8 @@ function parseStop(value: unknown, completedTrip = false): TripStop {
       kind,
       address,
       sourceUrl: normalizePrivateUrl(source.sourceUrl),
-      shopperHours: source.shopperHours == null ? undefined : parsePrivateHours(source.shopperHours),
+      shopperHours:
+        source.shopperHours == null ? undefined : parsePrivateHours(source.shopperHours),
       destination,
     }
   }
@@ -868,7 +869,13 @@ export function createTripApi(
         parseTrip,
       )
     },
-    confirmPrivateTripStopDestination(tripId, stopId, exactAddress, expectedVersion, idempotencyKey) {
+    confirmPrivateTripStopDestination(
+      tripId,
+      stopId,
+      exactAddress,
+      expectedVersion,
+      idempotencyKey,
+    ) {
       return execute(
         'confirm_trip_stop_destination',
         () => ({
