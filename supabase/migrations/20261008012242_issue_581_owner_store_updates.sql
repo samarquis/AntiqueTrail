@@ -3,14 +3,17 @@
 do $$
 begin
   if not exists (select 1 from pg_roles where rolname='store_update_expiry_service') then
-    create role store_update_expiry_service nologin noinherit nosuperuser nobypassrls;
+    create role store_update_expiry_service nologin noinherit nosuperuser nocreatedb nocreaterole noreplication nobypassrls;
   end if;
   if exists (
     select 1 from pg_roles
     where rolname='store_update_expiry_service'
-      and (rolcanlogin or rolinherit or rolsuper or rolbypassrls)
+      and (
+        rolcanlogin or rolinherit or rolsuper or rolcreatedb or rolcreaterole or rolreplication or
+        rolbypassrls
+      )
   ) then
-    raise exception 'store_update_expiry_service must remain a non-login, no-inherit, non-superuser, non-bypass role';
+    raise exception 'store_update_expiry_service has unsafe role attributes';
   end if;
 end
 $$;
@@ -60,6 +63,9 @@ create policy catalog_reader_public_store_updates on portal_private.store_update
     )
   );
 
+grant identity_service to postgres;
+grant create on schema portal_private,app_public to identity_service;
+set role identity_service;
 create or replace function portal_private.store_update_json(target uuid)
 returns jsonb language sql stable security definer set search_path='' as $$
   select jsonb_strip_nulls(jsonb_build_object('id',u.update_id,'type',u.update_type,'headline',u.headline,'details',u.details,
@@ -76,6 +82,7 @@ declare target uuid:=portal_private.require_portal_scope(); begin
     from portal_private.store_updates u where u.store_id=target),'[]'::jsonb);
 end $$;
 alter function app_public.portal_list_updates() owner to identity_service;
+reset role;
 
 create or replace function app_public.portal_edit_update(
   p_update_id text,p_update jsonb,p_expected_version bigint,p_idempotency_key text
@@ -253,6 +260,9 @@ alter function app_public.portal_expire_store_sales(timestamptz,integer) owner t
 revoke all on function app_public.portal_expire_store_sales(timestamptz,integer) from public,anon,authenticated;
 grant execute on function app_public.portal_expire_store_sales(timestamptz,integer) to store_update_expiry_service;
 
+grant catalog_reader to postgres;
+grant create on schema app_public to catalog_reader;
+set role catalog_reader;
 create or replace function app_public.catalog_details(p_slug text)
 returns setof app_public.catalog_details_row language plpgsql stable security definer
 set search_path = pg_catalog, app_public as $$
@@ -294,4 +304,8 @@ returns setof app_public.catalog_details_row language sql stable security define
 $$;
 alter function app_public.regional_catalog_details(text) owner to catalog_reader;
 
+reset role;
+revoke create on schema app_public from catalog_reader;
+revoke catalog_reader from postgres;
+revoke create on schema portal_private,app_public from identity_service;
 revoke identity_service from postgres;
