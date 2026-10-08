@@ -1754,9 +1754,7 @@ describe('app shell', () => {
       function CurrentLocation() {
         const location = useLocation()
         return (
-          <output data-testid="current-location">
-            {`${location.pathname}${location.search}`}
-          </output>
+          <output data-testid="current-location">{`${location.pathname}${location.search}`}</output>
         )
       }
       render(
