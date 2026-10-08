@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(53);
+select plan(54);
 
 select has_column('partner_private','partner_invitations','synthetic','invitations distinguish the bounded Synthetic path');
 select has_column('partner_private','partner_invitations','issuance_idempotency_key','invitation issuance is one-use keyed');
