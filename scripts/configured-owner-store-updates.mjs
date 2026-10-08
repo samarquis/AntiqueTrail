@@ -19,8 +19,12 @@ const report = {
   scope: 'issue-581-owner-store-updates',
   evidenceClass: 'real-local-database-and-browser',
   status: 'unavailable',
+  sourceSha: null,
+  expectedSourceSha: null,
+  sourceDirty: null,
+  cliVersion: null,
   cleanup: 'not-started',
-  database: { status: 'not-started', assertions: 0 },
+  database: { status: 'not-started', plan: null, assertions: 0, skipped: 0, failed: 0, cases: [] },
   browser: { status: 'not-started' },
   errors: [],
 }
@@ -109,10 +113,32 @@ async function provisionOwner(local) {
   const storeSlug = `issue-581-${uuid().replaceAll('-', '').slice(0, 12)}`
   const siblingSlug = `${storeSlug}-sibling`
   const claimId = uuid()
+  const invitationId = uuid()
+  const pendingIdentityId = uuid()
+  const provisionalConsentId = uuid()
+  const pilotConsentReceiptId = uuid()
   const adminId = '58100000-0000-4000-8000-000000000002'
   const adminSessionId = '58100000-0000-4000-8000-000000000003'
   const authorityEventA = uuid()
   const authorityEventB = uuid()
+
+  const enrolled = await localAuth(local, owner.token, '/auth/v1/factors', {
+    factor_type: 'totp',
+    friendly_name: 'issue-581-local',
+  })
+  if (typeof enrolled.id !== 'string' || typeof enrolled.totp?.secret !== 'string')
+    throw new Error('Local MFA enrollment response malformed')
+  const challenge = await localAuth(
+    local,
+    owner.token,
+    `/auth/v1/factors/${enrolled.id}/challenge`,
+    {},
+  )
+  if (typeof challenge.id !== 'string') throw new Error('Local MFA challenge malformed')
+  await localAuth(local, owner.token, `/auth/v1/factors/${enrolled.id}/verify`, {
+    challenge_id: challenge.id,
+    code: totp(enrolled.totp.secret),
+  })
 
   await service.sql(`
     begin;
@@ -142,6 +168,41 @@ async function provisionOwner(local) {
     insert into app_private.active_sessions(session_id,user_id,provider_created_at,session_epoch,last_authenticated_at,mfa_verified_at,access_token_expires_at)
       values('${adminSessionId}','${adminId}',statement_timestamp(),1,statement_timestamp(),statement_timestamp(),statement_timestamp()+interval '30 minutes');
     reset role;
+    insert into partner_private.partner_invitations(
+      invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at
+    ) values (
+      '${invitationId}',decode(repeat('58',32),'hex'),decode(repeat('59',32),'hex'),
+      '${adminId}','consumed',statement_timestamp()
+    );
+    insert into partner_private.pending_partner_identities(
+      pending_identity_id,invitation_id,email_hmac,auth_user_id,state,verified_email_at,mfa_verified_at,bound_at
+    ) values (
+      '${pendingIdentityId}','${invitationId}',decode(repeat('59',32),'hex'),'${owner.id}',
+      'bound',statement_timestamp(),statement_timestamp(),statement_timestamp()
+    );
+    insert into partner_private.provisional_partner_consents(
+      provisional_consent_id,invitation_id,pending_identity_id,policy_version,typed_name,business_title,store_name,
+      owner_email_hmac,authority_ack,voluntary_ack,permitted_data_ack,no_payment_endorsement_ack,withdrawal_ack,idempotency_key
+    ) values (
+      '${provisionalConsentId}','${invitationId}','${pendingIdentityId}','synthetic-v3','Owner 581','Owner',
+      'Issue 581 Store A',decode(repeat('59',32),'hex'),true,true,true,true,true,'issue581-pilot-${claimId}'
+    );
+    insert into partner_private.pilot_consent_receipts(
+      consent_receipt_id,provisional_consent_id,pending_identity_id,invitation_id,auth_user_id,verified_email_hmac,
+      policy_version,receipt_checksum
+    ) values (
+      '${pilotConsentReceiptId}','${provisionalConsentId}','${pendingIdentityId}','${invitationId}',
+      '${owner.id}',decode(repeat('59',32),'hex'),'synthetic-v3',decode(repeat('5a',32),'hex')
+    );
+    update partner_private.partner_invitations set synthetic=true,
+      issuance_idempotency_key='issue581-owner-${claimId}',raw_returned_at=created_at,
+      expires_at=created_at+interval '30 minutes'
+    where invitation_id='${invitationId}';
+    insert into partner_private.public_claim_consent_receipts(
+      auth_user_id,policy_version,reviewed_ack,voluntary_ack,idempotency_key,receipt_checksum
+    )
+    select '${owner.id}',policy_version,true,true,'issue581-public-${claimId}',decode(repeat('58',32),'hex')
+    from partner_private.partner_material_terms where is_current;
     insert into partner_private.listing_claims(claim_id,claimant_id,store_id,relationship,authority_statement)
       values('${claimId}','${owner.id}','${storeId}','store owner','Synthetic Owner authority for local proof.');
     insert into partner_private.claim_authority_signals(claim_id,channel_class,signal_type,status,verified_by,verified_at,evidence_ref_hmac,authority_object_hmac,verification_event_id)
@@ -163,23 +224,38 @@ async function provisionOwner(local) {
     commit;
   `)
 
-  const enrolled = await localAuth(local, owner.token, '/auth/v1/factors', {
-    factor_type: 'totp',
-    friendly_name: 'issue-581-local',
-  })
-  if (typeof enrolled.id !== 'string' || typeof enrolled.totp?.secret !== 'string')
-    throw new Error('Local MFA enrollment response malformed')
-  const challenge = await localAuth(
-    local,
-    owner.token,
-    `/auth/v1/factors/${enrolled.id}/challenge`,
-    {},
-  )
-  if (typeof challenge.id !== 'string') throw new Error('Local MFA challenge malformed')
-  await localAuth(local, owner.token, `/auth/v1/factors/${enrolled.id}/verify`, {
-    challenge_id: challenge.id,
-    code: totp(enrolled.totp.secret),
-  })
+  const ownerFixture = await service.sql(`
+    select case when
+      exists(
+        select 1 from partner_private.pending_partner_identities p
+        join partner_private.partner_invitations i using (invitation_id)
+        where p.auth_user_id='${owner.id}' and p.state='bound' and i.synthetic
+      )
+      and exists(
+        select 1 from partner_private.pilot_consent_receipts r
+        where r.auth_user_id='${owner.id}' and r.policy_version='synthetic-v3'
+      )
+      and exists(
+        select 1 from partner_private.public_claim_consent_receipts r
+        join partner_private.partner_material_terms t using (policy_version)
+        where r.auth_user_id='${owner.id}' and t.is_current
+      )
+      and exists(
+        select 1 from auth.mfa_factors
+        where user_id='${owner.id}' and factor_type='totp' and status='verified'
+      )
+      and (select count(*) from app_private.role_grants
+        where subject_user_id='${owner.id}' and store_id='${storeId}' and role='store_owner' and state='active')=1
+      and not exists(select 1 from app_private.role_grants
+        where subject_user_id='${owner.id}' and store_id='${siblingStoreId}' and role='store_owner' and state='active')
+      and (select count(*) from partner_private.store_partner_grants
+        where auth_user_id='${owner.id}' and store_id='${storeId}' and role='store_owner' and state='active')=1
+      and not exists(select 1 from partner_private.store_partner_grants
+        where auth_user_id='${owner.id}' and store_id='${siblingStoreId}' and role='store_owner' and state='active')
+      then 'complete' else 'incomplete' end;
+  `)
+  if (ownerFixture.trim() !== 'complete')
+    throw new Error('Synthetic current-consent Owner/MFA/store-scope fixture incomplete')
 
   const expiredSaleEndDate = chicagoYesterday()
   const expiredSaleId = uuid()
@@ -216,19 +292,61 @@ async function provisionOwner(local) {
 
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).trim()
+  const expectedSourceSha = process.env.ISSUE_581_EXPECTED_SOURCE_SHA
+  if (process.env.GITHUB_ACTIONS === 'true' && !/^[0-9a-f]{40}$/.test(expectedSourceSha ?? ''))
+    throw new Error('Expected candidate SHA is required in hosted verification')
+  if (expectedSourceSha && !/^[0-9a-f]{40}$/.test(expectedSourceSha))
+    throw new Error('Expected candidate SHA is malformed')
+  report.expectedSourceSha = expectedSourceSha ?? null
+  if (expectedSourceSha && report.sourceSha !== expectedSourceSha)
+    throw new Error('Checked-out source does not match expected candidate SHA')
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
     throw new Error('External endpoint selection is forbidden')
 
   service = createLocalService({ signal: controller.signal, disableStorage: true })
   report.temporaryProject = service.run.directory
   const local = await service.start()
+  report.sourceDirty = Boolean(local.sourceDirty)
+  report.cliVersion = local.cliVersion
+  if (local.sourceSha !== report.sourceSha || local.sourceDirty)
+    throw new Error('Source changed during hosted fixture preparation')
   report.projectId = local.projectId
   report.database.source = 'supabase/tests/0141_issue_581_store_updates.sql'
   const dbResult = await service.sql(
     expandSql(path.join(ROOT, 'supabase/tests/0141_issue_581_store_updates.sql')),
   )
-  report.database.assertions = (dbResult.match(/^ok \d+/gm) ?? []).length
-  if (/^not ok/m.test(dbResult)) throw new Error('Issue 581 Owner update pgTAP failed')
+  const databaseCases = dbResult
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^(?:ok|not ok) \d+(?:\s|$)/.test(line))
+    .map((line) => {
+      const match = line.match(/^(ok|not ok) (\d+)(?: - (.*?))?(?: # (SKIP.*))?$/)
+      if (!match)
+        return {
+          number: Number(line.match(/\d+/)?.[0] ?? 0),
+          status: 'unparsed',
+          name: 'Unparsed pgTAP result',
+          skip: null,
+        }
+      return {
+        number: Number(match[2]),
+        status: match[1] === 'ok' ? 'passed' : 'failed',
+        name: redact(match[3] ?? 'Unlabeled pgTAP result')
+          .replace(/[\r\n]/g, ' ')
+          .trim(),
+        skip: match[4] ? redact(match[4]) : null,
+      }
+    })
+  const plan = dbResult.match(/^1\.\.(\d+)$/m)
+  report.database.plan = plan ? Number(plan[1]) : null
+  report.database.assertions = databaseCases.length
+  report.database.skipped = databaseCases.filter((test) => test.skip !== null).length
+  report.database.failed = databaseCases.filter((test) => test.status !== 'passed').length
+  report.database.cases = databaseCases
+  if (!plan || Number(plan[1]) !== databaseCases.length || databaseCases.length === 0)
+    throw new Error('Issue 581 Owner update pgTAP result count did not match its plan')
+  if (databaseCases.some((test) => test.status !== 'passed'))
+    throw new Error('Issue 581 Owner update pgTAP failed or returned an unparsed case')
   report.database.status = 'passed'
 
   const fixture = await provisionOwner(local)
@@ -303,15 +421,41 @@ try {
   const playwrightReport = JSON.parse(fs.readFileSync(reportFile, 'utf8'))
   report.browser.stats = playwrightReport.stats ?? null
   report.browser.testFile = 'e2e/configured-owner-store-updates.spec.ts'
+  report.browser.testName =
+    'configured Owner edits text through selected-store context and shoppers see newest live updates'
   report.browser.commandExit = browserResult.exitCode ?? 0
   report.status = 'passed'
 } catch (error) {
   report.status = 'failed'
   report.errors.push(redact(String(error?.message ?? 'unknown_error')))
 } finally {
-  if (server) await stopChild(server)
-  if (service) report.cleanup = await service.cleanup()
-  if (secretFile && fs.existsSync(secretFile)) fs.rmSync(secretFile, { force: true })
+  let cleanupFailed = false
+  try {
+    if (server) await stopChild(server)
+  } catch (error) {
+    cleanupFailed = true
+    report.errors.push(
+      redact(`local_preview_cleanup_failed: ${String(error?.message ?? 'unknown_error')}`),
+    )
+  }
+  try {
+    if (service) report.cleanup = await service.cleanup()
+  } catch (error) {
+    cleanupFailed = true
+    report.cleanup = 'failed'
+    report.errors.push(
+      redact(`local_service_cleanup_failed: ${String(error?.message ?? 'unknown_error')}`),
+    )
+  }
+  try {
+    if (secretFile && fs.existsSync(secretFile)) fs.rmSync(secretFile, { force: true })
+  } catch (error) {
+    cleanupFailed = true
+    report.errors.push(
+      redact(`temporary_input_cleanup_failed: ${String(error?.message ?? 'unknown_error')}`),
+    )
+  }
+  if (cleanupFailed) report.status = 'failed'
   fs.writeFileSync(path.join(output.directory, 'issue-581.json'), JSON.stringify(report, null, 2))
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
 }
