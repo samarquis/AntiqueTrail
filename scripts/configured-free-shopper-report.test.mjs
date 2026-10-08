@@ -134,6 +134,11 @@ test('Issue 565 probes retain safe route and revocation classes only', () => {
                     {
                       type: 'issue-565-add-to-trip-probe',
                       description: JSON.stringify({
+                        catalogOnly: false,
+                        configuredLocalMarker: true,
+                        localTripEvaluation: true,
+                        shopperProjection: true,
+                        previewGuard: false,
                         stage: 'assert-route',
                         locatorCount: 1,
                         hrefPath: '/auth/sign-in?token=private-token',
@@ -190,6 +195,11 @@ test('Issue 565 probes retain safe route and revocation classes only', () => {
   )
   assert.deepEqual(report.checks[0].diagnostics, {
     addToTrip: {
+      catalogOnly: false,
+      configuredLocalMarker: true,
+      localTripEvaluation: true,
+      shopperProjection: true,
+      previewGuard: false,
       stage: 'assert-route',
       locatorCount: 1,
       hrefPath: '<other-route>',

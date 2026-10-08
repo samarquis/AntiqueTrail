@@ -23,9 +23,36 @@ function issue565Path(value: string | null, base = 'http://127.0.0.1/') {
 }
 
 async function issue565AddToTripProbe(page: Page, link: ReturnType<Page['getByRole']>) {
+  const [detailsHeadingCount, publicViewCount, previewNoticeCount] = await Promise.all([
+    page
+      .getByRole('heading', { level: 1, name: 'Clockwork Cabinet', exact: true })
+      .count()
+      .catch(() => 0),
+    page
+      .getByText(
+        'Public directory view. Sign out and use a separate shopper account for private actions.',
+        { exact: true },
+      )
+      .count()
+      .catch(() => 0),
+    page
+      .getByText('Local preview only. Save and store claim actions are unavailable.', {
+        exact: true,
+      })
+      .count()
+      .catch(() => 0),
+  ])
+  const gates = {
+    catalogOnly: process.env.VITE_PUBLIC_TEST_CATALOG_ONLY === 'true',
+    configuredLocalMarker: process.env.CONFIGURED_SHOPPER_LOCAL_MARKER === 'true',
+    localTripEvaluation: process.env.CONFIGURED_SHOPPER_LOCAL_TRIP_EVALUATION === 'true',
+    shopperProjection: detailsHeadingCount === 1 && publicViewCount === 0,
+    previewGuard: detailsHeadingCount === 1 && previewNoticeCount > 0,
+  }
   const locatorCount = await link.count().catch(() => 0)
   if (locatorCount !== 1)
     return {
+      ...gates,
       locatorCount,
       hrefPath: '<missing>',
       disabled: null,
@@ -39,12 +66,23 @@ async function issue565AddToTripProbe(page: Page, link: ReturnType<Page['getByRo
     link.evaluate((element) => getComputedStyle(element).pointerEvents).catch(() => 'unknown'),
   ])
   return {
+    ...gates,
     locatorCount,
     hrefPath: issue565Path(href, page.url()),
     disabled,
     ariaDisabled: ariaDisabled === 'true' || ariaDisabled === 'false' ? ariaDisabled : 'unset',
     pointerEvents: pointerEvents === 'auto' || pointerEvents === 'none' ? pointerEvents : 'other',
   }
+}
+
+function expectIssue565FixtureAdmission(
+  diagnostics: Awaited<ReturnType<typeof issue565AddToTripProbe>>,
+) {
+  expect(diagnostics.catalogOnly).toBe(false)
+  expect(diagnostics.configuredLocalMarker).toBe(true)
+  expect(diagnostics.localTripEvaluation).toBe(true)
+  expect(diagnostics.shopperProjection).toBe(true)
+  expect(diagnostics.previewGuard).toBe(false)
 }
 
 async function issue565DiscoveryProbe(page: Page, coverStatuses: number[], coverFailed: boolean) {
@@ -121,12 +159,22 @@ async function expectDetailsSignIn(page: Page) {
   let beforeClick = await issue565AddToTripProbe(page, link)
   let pathnameAfterClick = '<missing>'
   try {
+    expectIssue565FixtureAdmission(beforeClick)
     await expect(link).toHaveCount(1)
     beforeClick = await issue565AddToTripProbe(page, link)
+    expectIssue565FixtureAdmission(beforeClick)
     await link.click()
     stage = 'click-resolved'
     pathnameAfterClick = issue565Path(page.url())
     stage = 'assert-route'
+    test.info().annotations.push({
+      type: 'issue-565-add-to-trip-probe',
+      description: JSON.stringify({
+        stage,
+        ...beforeClick,
+        pathnameAfterClick,
+      }),
+    })
     await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=/)
   } catch (error) {
     test.info().annotations.push({

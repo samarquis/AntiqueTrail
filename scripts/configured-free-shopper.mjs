@@ -22,6 +22,7 @@ const accountSettings = process.argv.includes('--account-settings')
 const detailsAddToTrip = process.argv.includes('--details-add-to-trip')
 const anonymousDiscovery = process.argv.includes('--anonymous-discovery')
 const myTripsVisuals = process.argv.includes('--my-trips-visuals')
+const fullShopperFixtureScope = !anonymousDiscovery
 const scopes = [
   sessionSignout,
   mediaOnly,
@@ -122,6 +123,7 @@ try {
   })
   const env = {
     ...process.env,
+    ...(fullShopperFixtureScope ? { VITE_PUBLIC_TEST_CATALOG_ONLY: 'false' } : {}),
     VITE_SUPABASE_URL: local.endpoint,
     VITE_SUPABASE_ANON_KEY: local.anonKey,
     VITE_REVIEW_HARNESS: 'false',
@@ -134,6 +136,25 @@ try {
     CONFIGURED_SHOPPER_OUTPUT: output.directory,
     CONFIGURED_SHOPPER_MY_TRIPS_VISUALS: myTripsVisuals ? '1' : '0',
   }
+  const catalogOnlyPublicTest = env.VITE_PUBLIC_TEST_CATALOG_ONLY === 'true'
+  const isLiteralLoopbackHttpUrl = (value) => {
+    const match = /^http:\/\/127\.0\.0\.1:([1-9]\d{0,4})\/?$/.exec(value ?? '')
+    return Boolean(match) && Number(match[1]) <= 65535
+  }
+  const configuredLocalMarker =
+    env.VITE_REVIEW_HARNESS === 'false' &&
+    !catalogOnlyPublicTest &&
+    Boolean(env.VITE_SUPABASE_ANON_KEY?.trim()) &&
+    isLiteralLoopbackHttpUrl(env.VITE_SUPABASE_URL) &&
+    isLiteralLoopbackHttpUrl(origin)
+  const localTripEvaluation = !catalogOnlyPublicTest && configuredLocalMarker
+  if (
+    fullShopperFixtureScope &&
+    (!configuredLocalMarker || !localTripEvaluation || local.users?.length !== 2)
+  )
+    throw new Error('Configured local shopper fixture admission failed')
+  env.CONFIGURED_SHOPPER_LOCAL_MARKER = String(configuredLocalMarker)
+  env.CONFIGURED_SHOPPER_LOCAL_TRIP_EVALUATION = String(localTripEvaluation)
   const build = path.join(local.directory, 'browser-dist')
   await command(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', build], {
     env,

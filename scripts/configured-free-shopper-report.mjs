@@ -31,6 +31,17 @@ export function safeIssue565Diagnostics(value) {
   if (addToTrip) {
     const locatorCount = safeCount(addToTrip.locatorCount)
     diagnostics.addToTrip = {
+      ...(typeof addToTrip.catalogOnly === 'boolean' && { catalogOnly: addToTrip.catalogOnly }),
+      ...(typeof addToTrip.configuredLocalMarker === 'boolean' && {
+        configuredLocalMarker: addToTrip.configuredLocalMarker,
+      }),
+      ...(typeof addToTrip.localTripEvaluation === 'boolean' && {
+        localTripEvaluation: addToTrip.localTripEvaluation,
+      }),
+      ...(typeof addToTrip.shopperProjection === 'boolean' && {
+        shopperProjection: addToTrip.shopperProjection,
+      }),
+      ...(typeof addToTrip.previewGuard === 'boolean' && { previewGuard: addToTrip.previewGuard }),
       ...(typeof addToTrip.stage === 'string' &&
         ['before-click', 'click-resolved', 'assert-route'].includes(addToTrip.stage) && {
           stage: addToTrip.stage,
