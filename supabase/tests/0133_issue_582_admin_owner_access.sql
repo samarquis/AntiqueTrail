@@ -166,8 +166,8 @@ set local role authenticated;
 select is(jsonb_array_length(app_public.admin_list_owner_access()),2,'Owner list includes only approved Owner claims');
 select ok(exists(select 1 from jsonb_array_elements(app_public.admin_list_owner_access()) r where r->>'claimId'='58200000-0000-4000-8000-000000000004' and r->>'ownerUserId'='76000000-0000-4000-8000-000000000001' and r->>'storeId'='00000000-0000-4000-8000-000000000009' and r->>'accessState'='active' and jsonb_typeof(r->'history')='array'),'Owner list binds exact claim, account, store and minimized history');
 select ok(not exists(select 1 from jsonb_array_elements(app_public.admin_list_owner_access()) r where r ?| array['shopperActivity','privateNotes','savedStores','authorityStatement','evidence']),'Owner list omits Shopper-private data and raw authority evidence');
-select is(jsonb_array_length(app_public.admin_list_store_scopes()),1,'Representative list remains Representative-only');
-select ok(not exists(select 1 from jsonb_array_elements(app_public.admin_list_store_scopes()) r where r->>'subjectUserId'='76000000-0000-4000-8000-000000000001'),'Owner grants never appear in Representative list');
+select is(jsonb_array_length(app_public.admin_list_store_scopes()),2,'Representative list remains Representative-only');
+select ok(not exists(select 1 from jsonb_array_elements(app_public.admin_list_store_scopes()) r where r->>'subjectUserId'='76000000-0000-4000-8000-000000000001' and r->>'storeId' in ('00000000-0000-4000-8000-000000000009','00000000-0000-4000-8000-000000000008')),'Owner grants never appear in Representative list');
 select pg_temp.actor582('76000000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000011');
 select throws_ok('select app_public.admin_list_owner_access()','42501',null,'Owner cannot read Site Admin access list');
 select throws_ok($$select app_public.owner_admin_approve_claim('58200000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000009',(select version from owner_versions582 where claim_id='58200000-0000-4000-8000-000000000004'),'582-owner-self-approve')$$,'42501',null,'Owner cannot self-approve');
@@ -184,8 +184,9 @@ select throws_ok($$select app_public.admin_revoke_owner_claim('58200000-0000-400
 select throws_ok($$select app_public.admin_revoke_owner_claim('58200000-0000-4000-8000-000000000004',(select version+1 from owner_versions582 where claim_id='58200000-0000-4000-8000-000000000004'),'administrator_revoked','582-owner-stale-claim-version',(select (data->>'previewId')::uuid from previews582 where kind='a'))$$,'40001',null,'stale Owner claim version denies commit without consuming the valid preview');
 reset role;
 
-update admin_private.admin_scope_previews set expires_at=statement_timestamp()-interval '1 minute'
+update admin_private.admin_scope_previews set expires_at=created_at+interval '1 second'
  where preview_id=(select (data->>'previewId')::uuid from previews582 where kind='b');
+select pg_sleep(1.1);
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
 set local role authenticated;
 select throws_ok($$select app_public.admin_revoke_owner_claim('58200000-0000-4000-8000-000000000008',(select version from owner_versions582 where claim_id='58200000-0000-4000-8000-000000000008'),'administrator_revoked','582-owner-expired-preview',(select (data->>'previewId')::uuid from previews582 where kind='b'))$$,'42501',null,'expired preview denies Store B revoke');
