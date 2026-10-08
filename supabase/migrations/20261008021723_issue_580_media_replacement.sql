@@ -5,9 +5,6 @@ alter table app_public.store_media
 alter table media_private.media_uploads
   add column target_media_id uuid,
   add column expected_media_version bigint,
-  add column source_digest bytea,
-  add constraint media_upload_source_digest_shape
-    check(source_digest is null or octet_length(source_digest)=32),
   add constraint media_upload_replacement_shape check(
     (target_media_id is null and expected_media_version is null)
     or (target_media_id is not null and expected_media_version is not null
