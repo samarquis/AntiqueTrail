@@ -1,6 +1,9 @@
 -- Keep invitation-backed Owner claims out of generic Representative approval
 -- and transfer commands, including claims whose identity is not yet bound.
 
+grant create on schema app_public,partner_private to identity_service;
+set role identity_service;
+
 alter function app_public.partner_admin_claim_command(text,uuid,bigint,text,text,uuid)
   set schema partner_private;
 alter function partner_private.partner_admin_claim_command(text,uuid,bigint,text,text,uuid)
@@ -161,4 +164,5 @@ begin
 end $$;
 alter function app_public.owner_admin_approve_claim(uuid,uuid,bigint,text) owner to identity_service;
 
-revoke create on schema partner_private from identity_service;
+reset role;
+revoke create on schema app_public,partner_private from identity_service;
