@@ -31,16 +31,12 @@ select is(
 select has_function('app_public','add_private_trip_stop',array['text','text','text','text','jsonb','text','integer','bigint','text'],'private stop create RPC exists');
 select has_function('app_public','update_private_trip_stop',array['text','text','text','text','text','jsonb','text','integer','bigint','text'],'private stop update RPC exists');
 select has_function('app_public','confirm_trip_stop_destination',array['text','text','text','bigint','text'],'exact-address confirmation RPC exists');
-select ok(
-  has_function_privilege('authenticated','app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE')
-  and not has_function_privilege('anon','app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE'),
-  'private-stop create is authenticated-only');
-select ok(
-  has_function_privilege('authenticated','app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE')
-  and not has_function_privilege('anon','app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE')
-  and has_function_privilege('authenticated','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE')
-  and not has_function_privilege('anon','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE'),
-  'private-stop update and confirmation are authenticated-only');
+select is(has_function_privilege('authenticated','app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE'),true,'authenticated can execute private-stop create');
+select is(has_function_privilege('anon','app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE'),false,'anon cannot execute private-stop create');
+select is(has_function_privilege('authenticated','app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE'),true,'authenticated can execute private-stop update');
+select is(has_function_privilege('anon','app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)','EXECUTE'),false,'anon cannot execute private-stop update');
+select is(has_function_privilege('authenticated','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE'),true,'authenticated can execute private-stop confirmation');
+select is(has_function_privilege('anon','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE'),false,'anon cannot execute private-stop confirmation');
 select ok(
   (select count(*)=15 and bool_and(proowner='identity_service'::regrole)
    from pg_catalog.pg_proc where oid in (
@@ -163,7 +159,9 @@ select is(current_setting('test.created')::jsonb #>> '{stops,0,label}','Hidden F
 select is(current_setting('test.created')::jsonb #>> '{stops,0,address}','123 Main St','entered address is retained');
 select is(current_setting('test.created')::jsonb #>> '{stops,0,shopperHours,timeZone}','America/Chicago','shopper timezone is returned separately');
 select is(current_setting('test.created')::jsonb #>> '{stops,0,destination}','draft','new private address starts as a draft');
+reset role;
 select is((select count(*) from trip_private.trip_stops as s where s.trip_id='56800000-0000-4000-8000-000000000101'),1::bigint,'create inserts one stop row');
+set local role authenticated;
 select is(
   (app_public.add_private_trip_stop(
     '56800000-0000-4000-8000-000000000101','Hidden Finds','123 Main St','https://example.com/shop',

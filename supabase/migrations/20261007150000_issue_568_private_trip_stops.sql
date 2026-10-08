@@ -920,6 +920,15 @@ end;
 $$;
 alter function app_public.confirm_trip_stop_destination(text,text,text,bigint,text) owner to identity_service;
 
+set role identity_service;
+revoke all on function app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text) from public, anon;
+revoke all on function app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text) from public, anon;
+revoke all on function app_public.confirm_trip_stop_destination(text,text,text,bigint,text) from public, anon;
+grant execute on function app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text),
+  app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text),
+  app_public.confirm_trip_stop_destination(text,text,text,bigint,text) to authenticated;
+reset role;
+
 revoke create on schema app_public from identity_service;
 do $cleanup$
 begin
@@ -928,10 +937,3 @@ begin
   end if;
 end;
 $cleanup$;
-
-revoke all on function app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text) from public, anon;
-revoke all on function app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text) from public, anon;
-revoke all on function app_public.confirm_trip_stop_destination(text,text,text,bigint,text) from public, anon;
-grant execute on function app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text),
-  app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text),
-  app_public.confirm_trip_stop_destination(text,text,text,bigint,text) to authenticated;
