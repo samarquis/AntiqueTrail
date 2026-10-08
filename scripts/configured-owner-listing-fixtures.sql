@@ -27,6 +27,11 @@ on conflict(user_id) do update set
   verified_email_snapshot=excluded.verified_email_snapshot,
   age_18_attested_at=coalesce(app_private.profiles.age_18_attested_at,excluded.age_18_attested_at);
 
+update auth.users
+set raw_app_meta_data =
+  coalesce(raw_app_meta_data, '{}'::jsonb) || jsonb_build_object('role', 'Administrator')
+where id = '--ADMIN--';
+
 insert into app_private.role_grants(subject_user_id,role,state) values
   ('--OWNER_A--','shopper','active'),
   ('--OWNER_APPLICANT--','shopper','active'),
