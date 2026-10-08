@@ -1,4 +1,4 @@
-export function configuredAdminScopeReport(parsed, expected = 6) {
+export function configuredAdminScopeReport(parsed, expected = 8) {
   const stats = parsed?.stats
   if (!stats || !Array.isArray(parsed.suites)) throw new Error('Malformed browser report')
   for (const key of ['expected', 'unexpected', 'skipped', 'flaky'])
