@@ -11,13 +11,6 @@ select has_function(
 select ok(
   has_function_privilege('authenticated','app_public.prepare_initial_navigator(text,bigint,text)','EXECUTE'),
   'authenticated callers can request guarded admission');
-select diag(format(
-  'prepare_initial_navigator acl=%s anon_execute=%s anon_in_authenticated=%s auth_in_anon=%s',
-  (select p.proacl::text from pg_proc p where p.oid='app_public.prepare_initial_navigator(text,bigint,text)'::regprocedure),
-  has_function_privilege('anon','app_public.prepare_initial_navigator(text,bigint,text)','EXECUTE'),
-  pg_has_role('anon','authenticated','MEMBER'),
-  pg_has_role('authenticated','anon','MEMBER')
-));
 select ok(
   not has_function_privilege('anon','app_public.prepare_initial_navigator(text,bigint,text)','EXECUTE'),
   'anonymous callers cannot request admission');
