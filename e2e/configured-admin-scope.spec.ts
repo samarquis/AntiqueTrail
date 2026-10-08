@@ -13,9 +13,24 @@ type ConfiguredInput = {
   anonKey: string
   output: string
   wrongReadback?: boolean
-  stores: { target: string; sibling: string }
+  stores: {
+    target: string
+    sibling: string
+    owners: Record<
+      string,
+      {
+        a: string
+        b: string
+        claimA: string
+        claimB: string
+        nameA: string
+        nameB: string
+      }
+    >
+  }
   actors: {
     admin: Record<string, { id: string; email: string; password: string; secret: string }>
+    owner: Record<string, { id: string; email: string; password: string }>
     subject: { id: string; email: string; password: string }
     sibling: { id: string; email: string; password: string }
     shopper: { id: string; email: string; password: string }
@@ -29,9 +44,17 @@ const input: ConfiguredInput = inputPath
       endpoint: '',
       anonKey: '',
       output: '',
-      stores: { target: '', sibling: '' },
+      stores: {
+        target: '',
+        sibling: '',
+        owners: {
+          desktop: { a: '', b: '', claimA: '', claimB: '', nameA: '', nameB: '' },
+          phone: { a: '', b: '', claimA: '', claimB: '', nameA: '', nameB: '' },
+        },
+      },
       actors: {
         admin: { desktop: { id: '', email: '', password: '', secret: '' } },
+        owner: { desktop: { id: '', email: '', password: '' } },
         subject: { id: '', email: '', password: '' },
         sibling: { id: '', email: '', password: '' },
         shopper: { id: '', email: '', password: '' },
@@ -60,6 +83,21 @@ function scopeFor(projectName: string) {
     targetStoreName: 'Clockwork Cabinet',
     targetSubjectName: 'Clockwork Scope Subject',
     siblingSubjectName: 'Prairie Scope Subject',
+  }
+}
+function ownerScopeFor(projectName: string) {
+  const variant = projectName === 'phone' ? 'phone' : 'desktop'
+  const owner = input.actors.owner[variant]
+  const stores = input.stores.owners[variant]
+  if (!owner || !stores) throw new Error(`No Store Owner fixture for ${variant}`)
+  return {
+    ownerId: owner.id,
+    storeA: stores.a,
+    storeB: stores.b,
+    claimA: stores.claimA,
+    claimB: stores.claimB,
+    storeAName: stores.nameA,
+    storeBName: stores.nameB,
   }
 }
 const base32 = (value: string) => {
@@ -120,6 +158,36 @@ const read = (store: string, subjectId: string) =>
       .find((line: string) => line.startsWith('{'))
     if (!record)
       throw new Error(`Independent scope readback returned no record: ${text.trim() || 'empty'}`)
+    return JSON.parse(record)
+  })
+const readOwner = (store: string, subjectId: string, claimId: string) =>
+  command(
+    'docker',
+    [
+      'exec',
+      '-i',
+      '-e',
+      'PGPASSWORD=postgres',
+      `supabase_db_${service!.run.projectId}`,
+      'psql',
+      '-U',
+      'supabase_admin',
+      '-d',
+      'postgres',
+      '-At',
+      '-v',
+      'ON_ERROR_STOP=1',
+    ],
+    {
+      input: `select json_build_object('partnerState',(select g.state from partner_private.store_partner_grants g where g.auth_user_id='${subjectId}' and g.store_id='${store}' and g.role='store_owner' order by g.granted_at desc,g.grant_id desc limit 1),'roleState',(select r.state from app_private.role_grants r where r.subject_user_id='${subjectId}' and r.store_id='${store}' and r.role='store_owner' order by r.granted_at desc,r.grant_id desc limit 1),'partnershipState',(select p.state from partner_private.store_partnerships p where p.auth_user_id='${subjectId}' and p.store_id='${store}' order by p.started_at desc,p.partnership_id desc limit 1),'claimState',(select c.state from partner_private.listing_claims c where c.claim_id='${claimId}'),'actions',(select count(*) from admin_private.admin_scope_actions a where a.subject_user_id='${subjectId}' and a.store_id='${store}' and a.role='store_owner'),'audit',(select count(*) from app_private.privileged_audit_events e where e.action='partner_claim_revoke' and e.resource_kind='listing_claim' and e.resource_id='${claimId}'));`,
+    },
+  ).then((text: string) => {
+    const record = text
+      .split(/\r?\n/)
+      .map((line: string) => line.trim())
+      .find((line: string) => line.startsWith('{'))
+    if (!record)
+      throw new Error(`Independent Owner readback returned no record: ${text.trim() || 'empty'}`)
     return JSON.parse(record)
   })
 async function login(page: Page, projectName: string) {
@@ -213,6 +281,9 @@ function siblingRow(page: Page, scope: ReturnType<typeof scopeFor>) {
     .getByLabel('Store Representative scopes')
     .getByRole('listitem')
     .filter({ hasText: scope.siblingSubjectName })
+}
+function ownerRow(page: Page, storeName: string) {
+  return page.getByLabel('Store Owner scopes').getByRole('listitem').filter({ hasText: storeName })
 }
 
 test('actual Auth MFA Administrator identity cannot read populated shopper-private data', async ({
@@ -461,4 +532,49 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
       actions: baseline.actions + 2,
       audit: baseline.audit + 2,
     })
+})
+
+test('exact Owner claim revoke removes Store A access while Store B remains active', async ({
+  page,
+}, testInfo) => {
+  const scope = ownerScopeFor(testInfo.project.name)
+  await login(page, testInfo.project.name)
+  const row = ownerRow(page, scope.storeAName)
+  const baselineA = await readOwner(scope.storeA, scope.ownerId, scope.claimA)
+  const baselineB = await readOwner(scope.storeB, scope.ownerId, scope.claimB)
+  expect(baselineA).toMatchObject({
+    partnerState: 'active',
+    roleState: 'active',
+    claimState: 'approved',
+  })
+  expect(baselineB).toMatchObject({
+    partnerState: 'active',
+    roleState: 'active',
+    claimState: 'approved',
+  })
+  await expect(row).toContainText(scope.ownerId)
+  await row.getByRole('button', { name: `Preview revoke ${scope.storeAName} Owner scope` }).click()
+  await expect(
+    row.getByText(new RegExp(`Confirm exact Store Owner scope: ${scope.storeAName}`)),
+  ).toBeVisible()
+  await row.getByLabel('Owner administrative reason code').fill('authority_withdrawn')
+  await row.getByRole('button', { name: `Confirm revoke ${scope.storeAName} Owner scope` }).click()
+  await expect
+    .poll(() => readOwner(scope.storeA, scope.ownerId, scope.claimA))
+    .toMatchObject({
+      partnerState: 'revoked',
+      roleState: 'revoked',
+      partnershipState: 'revoked',
+      claimState: 'revoked',
+      actions: baselineA.actions + 1,
+      audit: baselineA.audit + 1,
+    })
+  expect(await readOwner(scope.storeB, scope.ownerId, scope.claimB)).toMatchObject(baselineB)
+  await page.reload()
+  const revoked = ownerRow(page, scope.storeAName)
+  await expect(revoked).toContainText('revoked')
+  await expect(revoked).toContainText('owner claim approved (completed)')
+  await expect(revoked).toContainText('partner claim revoke (completed)')
+  await expect(revoked.getByRole('button', { name: /regrant.*owner/i })).toHaveCount(0)
+  await expect(ownerRow(page, scope.storeBName)).toContainText('active')
 })

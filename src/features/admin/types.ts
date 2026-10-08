@@ -143,6 +143,46 @@ export interface AdminScopePreview {
   expiresAt: string
 }
 
+export interface AdminOwnerAccessHistory {
+  action: string
+  outcome: string
+  occurredAt: string
+}
+
+export interface AdminOwnerAccessScope {
+  claimId: string
+  ownerUserId: string
+  storeId: string
+  storeLabel: string
+  claimState: 'approved' | 'revoked'
+  claimVersion: number
+  accessState: 'active' | 'inactive' | 'revoked'
+  approvedAt: string
+  revokedAt: string | null
+  history: AdminOwnerAccessHistory[]
+}
+
+export interface AdminOwnerClaimPreview {
+  claimId: string
+  ownerUserId: string
+  storeId: string
+  grantId: string
+  claimVersion: number
+  grantVersion: number
+  previewId: string
+  previewHash: string
+  expiresAt: string
+}
+
+export interface AdminOwnerClaimRevokeResult {
+  claimId: string
+  claimState: 'revoked'
+  claimVersion: number
+  accessState: 'revoked'
+  revokedAt: string
+  history: AdminOwnerAccessHistory[]
+}
+
 export interface AdminMergeReference {
   ordinal: number
   kind: string

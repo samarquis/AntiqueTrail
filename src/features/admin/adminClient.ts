@@ -8,6 +8,9 @@ import type {
   AdminScopePreview,
   AdminStoreScope,
   AdminAuditEntry,
+  AdminOwnerAccessScope,
+  AdminOwnerClaimPreview,
+  AdminOwnerClaimRevokeResult,
 } from './types'
 import { GENERIC_ADMIN_FAILURE } from './boundary'
 
@@ -17,8 +20,11 @@ type AdminRpcName =
   | 'admin_get_review_case'
   | 'admin_decide_review_case'
   | 'admin_list_store_scopes'
+  | 'admin_list_owner_access'
   | 'admin_preview_store_scope_change'
   | 'admin_change_store_scope'
+  | 'admin_preview_owner_claim_revoke'
+  | 'admin_revoke_owner_claim'
   | 'admin_preview_duplicate_merge'
   | 'admin_execute_duplicate_merge'
   | 'admin_rollback_duplicate_merge'
@@ -42,6 +48,7 @@ export interface AdminClient {
     idempotencyKey: string,
   ): Promise<AdminDecisionResult>
   listStoreGrants(retry?: boolean): Promise<AdminStoreScope[]>
+  listOwnerAccess(retry?: boolean): Promise<AdminOwnerAccessScope[]>
   previewStoreScopeChange(
     operation: 'revoke' | 'regrant',
     subjectUserId: string,
@@ -57,6 +64,17 @@ export interface AdminClient {
     idempotencyKey: string,
     previewId: string | null,
   ): Promise<AdminScopeResult>
+  previewOwnerClaimRevoke(
+    claimId: string,
+    expectedClaimVersion: number,
+  ): Promise<AdminOwnerClaimPreview>
+  revokeOwnerClaim(
+    claimId: string,
+    expectedClaimVersion: number,
+    reasonCode: string,
+    idempotencyKey: string,
+    previewId: string,
+  ): Promise<AdminOwnerClaimRevokeResult>
   previewDuplicateMerge(canonicalStoreId: string, duplicateStoreId: string): Promise<AdminMergePlan>
   executeDuplicateMerge(
     proposalId: string,
@@ -113,6 +131,7 @@ export function createAdminClient(transport: AdminRpcTransport): AdminClient {
         p_idempotency_key: idempotencyKey,
       }),
     listStoreGrants: () => call('admin_list_store_scopes'),
+    listOwnerAccess: () => call('admin_list_owner_access'),
     previewStoreScopeChange: (operation, subjectUserId, storeId, expectedVersion) =>
       call('admin_preview_store_scope_change', {
         p_operation: operation,
@@ -134,6 +153,19 @@ export function createAdminClient(transport: AdminRpcTransport): AdminClient {
         p_subject_user_id: subjectUserId,
         p_store_id: storeId,
         p_expected_version: expectedVersion,
+        p_reason_code: reasonCode,
+        p_idempotency_key: idempotencyKey,
+        p_preview_id: previewId,
+      }),
+    previewOwnerClaimRevoke: (claimId, expectedClaimVersion) =>
+      call('admin_preview_owner_claim_revoke', {
+        p_claim_id: claimId,
+        p_expected_claim_version: expectedClaimVersion,
+      }),
+    revokeOwnerClaim: (claimId, expectedClaimVersion, reasonCode, idempotencyKey, previewId) =>
+      call('admin_revoke_owner_claim', {
+        p_claim_id: claimId,
+        p_expected_claim_version: expectedClaimVersion,
         p_reason_code: reasonCode,
         p_idempotency_key: idempotencyKey,
         p_preview_id: previewId,
@@ -168,8 +200,11 @@ export const unavailableAdminClient: AdminClient = {
   getCase: unavailable,
   decideCase: unavailable,
   listStoreGrants: unavailable,
+  listOwnerAccess: unavailable,
   previewStoreScopeChange: unavailable,
   changeStoreScope: unavailable,
+  previewOwnerClaimRevoke: unavailable,
+  revokeOwnerClaim: unavailable,
   previewDuplicateMerge: unavailable,
   executeDuplicateMerge: unavailable,
   rollbackDuplicateMerge: unavailable,

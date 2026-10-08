@@ -8,6 +8,7 @@ import {
   MEDIA_GATE_MESSAGE,
   PORTAL_ACCESS_ERROR,
   PortalMediaCapError,
+  PortalUpdateConflictError,
   copyHoursDay,
   unavailablePortalClient,
   validateHours,
@@ -27,10 +28,12 @@ import type {
   PortalManagedFields,
   PortalMediaUpload,
   PortalMediaUploadHistory,
+  PortalMediaSlot,
   PortalMediaCapacity,
   PortalPreview,
   StoreUpdate,
   StoreUpdateDraft,
+  StoreUpdateEdit,
   SupportCategory,
   SupportTicket,
 } from './types'
@@ -669,14 +672,61 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
     headline: '',
     details: '',
   })
+  const [editing, setEditing] = useState<StoreUpdateEdit | null>(null)
+  const [editPending, setEditPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
+  const [refreshFailed, setRefreshFailed] = useState(false)
   useEffect(() => {
     client
       .listUpdates()
-      .then(setUpdates)
-      .catch(() => setError(GENERIC_PORTAL_ERROR))
+      .then((items) => {
+        setUpdates(items)
+        setRefreshFailed(false)
+      })
+      .catch(() => setRefreshFailed(true))
   }, [client])
+  function retryUpdatesRefresh() {
+    client
+      .listUpdates()
+      .then((items) => {
+        setUpdates(items)
+        setRefreshFailed(false)
+      })
+      .catch(() => setRefreshFailed(true))
+  }
+  function beginEdit(update: StoreUpdate) {
+    setError(null)
+    setStatus(null)
+    setEditing({
+      id: update.id,
+      update: {
+        type: update.type,
+        headline: update.headline,
+        details: update.details,
+        vendorLabel: update.vendorLabel,
+        sourceUrl: update.sourceUrl,
+        endDate: update.endDate,
+        imageRequested: false,
+      },
+      expectedVersion: update.version,
+      idempotencyKey: crypto.randomUUID(),
+    })
+  }
+  function changeEdit<K extends Exclude<keyof StoreUpdateDraft, 'imageRequested'>>(
+    field: K,
+    value: StoreUpdateDraft[K],
+  ) {
+    setEditing((current) =>
+      current
+        ? {
+            ...current,
+            update: { ...current.update, [field]: value },
+            idempotencyKey: crypto.randomUUID(),
+          }
+        : current,
+    )
+  }
   function submit(event: FormEvent) {
     event.preventDefault()
     const errors = validateUpdateDraft(draft)
@@ -694,6 +744,44 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
       })
       .catch(() => setError(GENERIC_PORTAL_ERROR))
   }
+  function submitEdit(event: FormEvent) {
+    event.preventDefault()
+    if (!editing || editPending) return
+    const errors = validateUpdateDraft(editing.update)
+    if (errors.length) {
+      setError(errors.join(' '))
+      return
+    }
+    setError(null)
+    setStatus(null)
+    setEditPending(true)
+    client
+      .editUpdate(editing)
+      .then((saved) => {
+        setUpdates((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+        setEditing(null)
+        setStatus('Store Update saved.')
+      })
+      .catch((failure: unknown) => {
+        if (failure instanceof PortalUpdateConflictError) {
+          void client
+            .listUpdates()
+            .then((items) => {
+              setUpdates(items)
+              setRefreshFailed(false)
+            })
+            .catch(() => setRefreshFailed(true))
+          setError(
+            failure.latestVersion
+              ? `This update is now version ${failure.latestVersion}. Your edit is still here; cancel and reopen the update to review the latest text.`
+              : 'This edit conflicts with a saved update. Your edit is still here; cancel and reopen the update to review the latest text.',
+          )
+          return
+        }
+        setError(GENERIC_PORTAL_ERROR)
+      })
+      .finally(() => setEditPending(false))
+  }
   function changeState(update: StoreUpdate, action: 'archive' | 'restore') {
     const request =
       action === 'archive' ? client.archiveUpdate(update.id) : client.restoreUpdate(update.id)
@@ -709,6 +797,16 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
       description="Text-only updates publish immediately; images remain blocked until M-01."
     >
       <PortalNav />
+      {error && <p role="alert">{error}</p>}
+      {status && <p role="status">{status}</p>}
+      {refreshFailed && (
+        <div role="alert">
+          <p>We couldn't refresh saved updates. The list may be out of date.</p>
+          <button type="button" className="button button--secondary" onClick={retryUpdatesRefresh}>
+            Retry refresh
+          </button>
+        </div>
+      )}
       <form onSubmit={submit}>
         <fieldset>
           <legend>New Store Update</legend>
@@ -769,8 +867,6 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
           )}
           <p role="status">{MEDIA_GATE_MESSAGE}</p>
         </fieldset>
-        {error && <p role="alert">{error}</p>}
-        {status && <p role="status">{status}</p>}
         <button className="button" type="submit">
           Publish text update
         </button>
@@ -784,14 +880,97 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
             {updates.map((update) => (
               <li key={update.id}>
                 <strong>{update.headline}</strong> — {update.state}{' '}
-                <button
-                  type="button"
-                  onClick={() =>
-                    changeState(update, update.state === 'archived' ? 'restore' : 'archive')
-                  }
-                >
-                  {update.state === 'archived' ? 'Restore' : 'Archive'}
-                </button>
+                {editing?.id === update.id ? (
+                  <form onSubmit={submitEdit}>
+                    <fieldset disabled={editPending}>
+                      <legend>Edit Store Update</legend>
+                      <label htmlFor={`edit-update-type-${update.id}`}>Edit type</label>
+                      <select
+                        id={`edit-update-type-${update.id}`}
+                        value={editing.update.type}
+                        onChange={(event) =>
+                          changeEdit('type', event.target.value as StoreUpdateDraft['type'])
+                        }
+                      >
+                        {UPDATE_TYPES.map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
+                      <label htmlFor={`edit-update-headline-${update.id}`}>Edit headline</label>
+                      <input
+                        id={`edit-update-headline-${update.id}`}
+                        maxLength={160}
+                        value={editing.update.headline}
+                        onChange={(event) => changeEdit('headline', event.target.value)}
+                        required
+                      />
+                      <label htmlFor={`edit-update-details-${update.id}`}>Edit details</label>
+                      <textarea
+                        id={`edit-update-details-${update.id}`}
+                        maxLength={4000}
+                        value={editing.update.details}
+                        onChange={(event) => changeEdit('details', event.target.value)}
+                        required
+                      />
+                      <label htmlFor={`edit-update-vendor-${update.id}`}>
+                        Edit vendor or booth label (optional)
+                      </label>
+                      <input
+                        id={`edit-update-vendor-${update.id}`}
+                        value={editing.update.vendorLabel ?? ''}
+                        onChange={(event) => changeEdit('vendorLabel', event.target.value)}
+                      />
+                      <label htmlFor={`edit-update-source-${update.id}`}>
+                        Edit official source link (optional)
+                      </label>
+                      <input
+                        id={`edit-update-source-${update.id}`}
+                        type="url"
+                        value={editing.update.sourceUrl ?? ''}
+                        onChange={(event) => changeEdit('sourceUrl', event.target.value)}
+                      />
+                      {editing.update.type === 'sale' && (
+                        <>
+                          <label htmlFor={`edit-update-end-${update.id}`}>Edit sale end date</label>
+                          <input
+                            id={`edit-update-end-${update.id}`}
+                            type="date"
+                            value={editing.update.endDate ?? ''}
+                            onChange={(event) => changeEdit('endDate', event.target.value)}
+                            required
+                          />
+                        </>
+                      )}
+                      <button className="button" type="submit">
+                        {editPending ? 'Saving…' : 'Save update'}
+                      </button>
+                      <button
+                        className="button button--secondary"
+                        type="button"
+                        onClick={() => setEditing(null)}
+                      >
+                        Cancel edit
+                      </button>
+                    </fieldset>
+                  </form>
+                ) : (
+                  <>
+                    <button type="button" disabled={!!editing} onClick={() => beginEdit(update)}>
+                      Edit {update.headline}
+                    </button>{' '}
+                    <button
+                      type="button"
+                      disabled={!!editing}
+                      onClick={() =>
+                        changeState(update, update.state === 'archived' ? 'restore' : 'archive')
+                      }
+                    >
+                      {update.state === 'archived' ? 'Restore' : 'Archive'}
+                    </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -1266,17 +1445,19 @@ export function PortalManagedFieldsPage({
 function PortalMediaHistorySection({
   client,
   onStatus,
-  resubmissionEnabled,
+  mediaEnabled,
 }: {
   client: PortalClient
   onStatus: (message: string) => void
-  resubmissionEnabled: boolean
+  mediaEnabled: boolean
 }) {
   const [history, setHistory] = useState<PortalMediaUploadHistory | null>(null)
+  const [slots, setSlots] = useState<PortalMediaSlot[] | null>(null)
   const [capacity, setCapacity] = useState<PortalMediaCapacity | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [selected, setSelected] = useState<PortalMediaUpload | null>(null)
+  const [replacementTarget, setReplacementTarget] = useState<PortalMediaSlot | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [altText, setAltText] = useState('')
   const [rights, setRights] = useState(false)
@@ -1288,10 +1469,15 @@ function PortalMediaHistorySection({
   const refresh = () => {
     setLoading(true)
     setLoadError(false)
-    Promise.all([client.listMediaUploads(), client.getMediaCapacity()])
-      .then(([history, capacity]) => {
+    Promise.all([
+      client.listMediaUploads(),
+      client.getMediaCapacity(),
+      client.previewPublicListing(),
+    ])
+      .then(([history, capacity, preview]) => {
         setHistory(history)
         setCapacity(capacity)
+        setSlots(preview.media ?? [])
         if (!history.uploads.some((upload) => upload.uploadId === selectedRef.current?.uploadId))
           setSelected(null)
       })
@@ -1302,7 +1488,17 @@ function PortalMediaHistorySection({
 
   function beginResubmit(upload: PortalMediaUpload) {
     setSelected(upload)
+    setReplacementTarget(null)
     setAltText(upload.altText)
+    setFile(null)
+    setRights(false)
+    setFormError(null)
+    setIdempotencyKey(null)
+  }
+  function beginReplacement(slot: PortalMediaSlot) {
+    setSelected(null)
+    setReplacementTarget(slot)
+    setAltText(slot.altText)
     setFile(null)
     setRights(false)
     setFormError(null)
@@ -1340,6 +1536,41 @@ function PortalMediaHistorySection({
       .catch((error: unknown) => {
         setFormError(error instanceof PortalMediaCapError ? error.message : GENERIC_PORTAL_ERROR)
       })
+      .finally(() => setPending(false))
+  }
+  function submitReplacement(event: FormEvent) {
+    event.preventDefault()
+    if (pending || loading || loadError) return
+    const alt = altText.normalize('NFKC').trim()
+    if (!replacementTarget || !file || !rights || !alt) {
+      setFormError('Choose a new image, describe it, and confirm your publishing rights.')
+      return
+    }
+    setFormError(null)
+    setPending(true)
+    const key = idempotencyKey ?? crypto.randomUUID()
+    setIdempotencyKey(key)
+    client
+      .uploadOfficialMedia({
+        targetMediaId: replacementTarget.id,
+        expectedVersion: replacementTarget.version,
+        file,
+        altText: alt,
+        rightsConfirmed: true,
+        idempotencyKey: key,
+      })
+      .then(() => {
+        onStatus(
+          'Replacement submitted for Administrator review. The approved photo stays public until publication succeeds.',
+        )
+        setReplacementTarget(null)
+        setFile(null)
+        setAltText('')
+        setRights(false)
+        setIdempotencyKey(null)
+        refresh()
+      })
+      .catch(() => setFormError(GENERIC_PORTAL_ERROR))
       .finally(() => setPending(false))
   }
 
@@ -1382,6 +1613,42 @@ function PortalMediaHistorySection({
             : `${Math.max(0, capacity.cap - capacity.approvedCount)} of ${capacity.cap} gallery places available.`}{' '}
           Capacity is checked again when you submit and when an Administrator approves.
         </p>
+      )}
+      {slots && (
+        <section aria-labelledby="approved-media-slots-heading">
+          <h3 id="approved-media-slots-heading">Current approved photos</h3>
+          {slots.length === 0 ? (
+            <p>No approved photos are currently published.</p>
+          ) : (
+            <ul>
+              {slots.map((slot) => {
+                const placement =
+                  slot.kind === 'cover' ? 'cover photo' : `gallery photo ${slot.displayOrder + 1}`
+                return (
+                  <li key={slot.id}>
+                    <p>
+                      <strong>
+                        {slot.kind === 'cover'
+                          ? 'Cover photo'
+                          : `Gallery photo ${slot.displayOrder + 1}`}
+                      </strong>
+                      {' · '}
+                      {slot.altText}
+                    </p>
+                    <button
+                      type="button"
+                      className="button button--secondary"
+                      disabled={pending || loading || loadError || !mediaEnabled}
+                      onClick={() => beginReplacement(slot)}
+                    >
+                      Replace {placement}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
       )}
       {loading && <p role="status">Refreshing official photo history…</p>}
       {loadError && history && (
@@ -1427,7 +1694,7 @@ function PortalMediaHistorySection({
               {upload.state === 'rejected' && (
                 <div className="portal-media-rejection">
                   <p>Reason: {upload.rejectionReason ?? 'No reason provided'}</p>
-                  {resubmissionEnabled ? (
+                  {mediaEnabled ? (
                     <button
                       type="button"
                       className="button"
@@ -1502,6 +1769,63 @@ function PortalMediaHistorySection({
           </button>
         </form>
       )}
+      {replacementTarget && (
+        <form onSubmit={submitReplacement}>
+          <h4>Replace approved {replacementTarget.kind} photo</h4>
+          <p>
+            The current approved photo stays public until an Administrator approves the replacement
+            and publication succeeds.
+          </p>
+          <label htmlFor="replace-approved-file">Replacement image file</label>
+          <input
+            id="replace-approved-file"
+            disabled={pending}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => {
+              setFile(event.target.files?.[0] ?? null)
+              setIdempotencyKey(null)
+            }}
+            required
+          />
+          <label htmlFor="replace-approved-alt">Alternative text for replacement image</label>
+          <input
+            id="replace-approved-alt"
+            disabled={pending}
+            value={altText}
+            maxLength={240}
+            onChange={(event) => {
+              setAltText(event.target.value)
+              setIdempotencyKey(null)
+            }}
+            required
+          />
+          <label>
+            <input
+              type="checkbox"
+              checked={rights}
+              disabled={pending}
+              onChange={(event) => {
+                setRights(event.target.checked)
+                setIdempotencyKey(null)
+              }}
+            />{' '}
+            I confirm that I have rights to publish this replacement image.
+          </label>
+          {formError && <p role="alert">{formError}</p>}
+          <button className="button" type="submit" disabled={pending || loading || loadError}>
+            {pending ? 'Submitting…' : 'Submit replacement for review'}
+          </button>
+          <button
+            type="button"
+            className="button button--secondary"
+            disabled={pending}
+            onClick={() => setReplacementTarget(null)}
+          >
+            Cancel
+          </button>
+        </form>
+      )}
     </div>
   )
 }
@@ -1534,7 +1858,7 @@ export function PortalMediaReviewPage({
   return (
     <PortalCard
       title="Official photos"
-      description="Review your official photo submissions and correct a rejected item without changing the original."
+      description="Replace an approved photo or correct a rejected submission. Every new image receives separate Administrator review."
     >
       <PortalNav />
       <section aria-label="Official photos">
@@ -1551,7 +1875,7 @@ export function PortalMediaReviewPage({
         <PortalMediaHistorySection
           client={client}
           onStatus={setStatus}
-          resubmissionEnabled={mediaReady === true}
+          mediaEnabled={mediaReady === true}
         />
       </section>
     </PortalCard>
@@ -1742,7 +2066,7 @@ export function PortalControlledChangesPage({
         <PortalMediaHistorySection
           client={client}
           onStatus={setMediaStatus}
-          resubmissionEnabled={mediaReady === true}
+          mediaEnabled={mediaReady === true}
         />
       </section>
     </PortalCard>

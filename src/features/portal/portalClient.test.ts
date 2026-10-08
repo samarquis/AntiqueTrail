@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   GENERIC_PORTAL_ERROR,
   PortalMediaCapError,
+  PortalUpdateConflictError,
   createPortalClient,
   createPortalMediaHttpTransport,
   decodePortalMediaUploadHistory,
@@ -16,7 +17,28 @@ describe('production portal client', () => {
           ? { removed: true }
           : name === 'portal_list_media_uploads'
             ? { uploads: [] }
-            : { name, args },
+            : name === 'portal_edit_update'
+              ? {
+                  state: 'saved',
+                  update: {
+                    id: 'update-1',
+                    type: 'announcement',
+                    headline: 'Hello edited',
+                    details: 'Details',
+                    state: 'live',
+                    version: 2,
+                  },
+                }
+              : name === 'portal_preview_public_listing'
+                ? {
+                    storeName: 'Oak Antiques',
+                    listingState: 'active',
+                    liveFields: {},
+                    pendingChanges: [],
+                    freshness: { state: 'verified', label: 'Verified' },
+                    media: [],
+                  }
+                : { name, args },
       error: null,
     }))
     const client = createPortalClient(
@@ -46,6 +68,14 @@ describe('production portal client', () => {
       rightsConfirmed: true,
       idempotencyKey: '22222222-2222-4222-8222-222222222222',
     })
+    await client.uploadOfficialMedia({
+      targetMediaId: '55555555-5555-4555-8555-555555555555',
+      expectedVersion: 4,
+      altText: 'Replacement front entrance',
+      file: new File([new Uint8Array(32)], 'replacement.png', { type: 'image/png' }),
+      rightsConfirmed: true,
+      idempotencyKey: '66666666-6666-4666-8666-666666666666',
+    })
     await client.listMediaUploads()
     await client.resubmitMedia({
       originalUploadId: '33333333-3333-4333-8333-333333333333',
@@ -56,6 +86,12 @@ describe('production portal client', () => {
     })
     await client.listUpdates()
     await client.createUpdate({ type: 'announcement', headline: 'Hello', details: 'Details' })
+    await client.editUpdate({
+      id: 'update-1',
+      update: { type: 'announcement', headline: 'Hello edited', details: 'Details' },
+      expectedVersion: 1,
+      idempotencyKey: 'issue581-edit-1',
+    })
     await client.archiveUpdate('update-1')
     await client.restoreUpdate('update-1')
     await client.listOfficialLinks()
@@ -84,6 +120,7 @@ describe('production portal client', () => {
       'portal_list_media_uploads',
       'portal_list_updates',
       'portal_create_update',
+      'portal_edit_update',
       'portal_archive_update',
       'portal_restore_update',
       'portal_list_official_links',
@@ -97,6 +134,12 @@ describe('production portal client', () => {
       'portal_preview_public_listing',
     ])
     expect(rpc).toHaveBeenCalledWith('portal_save_hours', { p_hours: hours })
+    expect(rpc).toHaveBeenCalledWith('portal_edit_update', {
+      p_update_id: 'update-1',
+      p_update: { type: 'announcement', headline: 'Hello edited', details: 'Details' },
+      p_expected_version: 1,
+      p_idempotency_key: 'issue581-edit-1',
+    })
     expect(await client.getDiagnostics()).toEqual([
       { key: 'route', label: 'Current screen', value: '/store-portal' },
     ])
@@ -108,6 +151,35 @@ describe('production portal client', () => {
     })
     await expect(failed.getHome()).rejects.toThrow(GENERIC_PORTAL_ERROR)
     await expect(failed.removeOfficialLink('facebook')).rejects.toThrow(GENERIC_PORTAL_ERROR)
+  })
+
+  it('exposes the latest version for stale edits without treating conflicts as transport errors', async () => {
+    const client = createPortalClient({
+      rpc: vi.fn(async () => ({
+        data: { state: 'conflict', latest: { version: 4 } },
+        error: null,
+      })),
+    })
+    await expect(
+      client.editUpdate({
+        id: 'update-1',
+        update: { type: 'announcement', headline: 'Edit', details: 'Text' },
+        expectedVersion: 3,
+        idempotencyKey: 'issue581-edit-stale',
+      }),
+    ).rejects.toMatchObject({ name: 'PortalUpdateConflictError', latestVersion: 4 })
+
+    const changedKey = createPortalClient({
+      rpc: vi.fn(async () => ({ data: { state: 'conflict' }, error: null })),
+    })
+    await expect(
+      changedKey.editUpdate({
+        id: 'update-1',
+        update: { type: 'announcement', headline: 'Edit', details: 'Text' },
+        expectedVersion: 3,
+        idempotencyKey: 'issue581-edit-mismatch',
+      }),
+    ).rejects.toBeInstanceOf(PortalUpdateConflictError)
   })
 
   it('preserves the scoped managed-field hydration payload from Portal home', async () => {
@@ -141,6 +213,14 @@ describe('production portal client', () => {
 
   it('keeps unavailable media-history actions on the generic portal error boundary', async () => {
     await expect(unavailablePortalClient.listMediaUploads()).rejects.toThrow(GENERIC_PORTAL_ERROR)
+    await expect(
+      unavailablePortalClient.editUpdate({
+        id: 'update-1',
+        update: { type: 'announcement', headline: 'Edit', details: 'Text' },
+        expectedVersion: 1,
+        idempotencyKey: 'issue581-unavailable',
+      }),
+    ).rejects.toThrow(GENERIC_PORTAL_ERROR)
     await expect(
       unavailablePortalClient.resubmitMedia({
         originalUploadId: '33333333-3333-4333-8333-333333333333',
@@ -244,8 +324,6 @@ describe('production portal client', () => {
     })
     await expect(
       transport.upload({
-        storeId: '11111111-1111-4111-8111-111111111111',
-        kind: 'gallery',
         altText: 'Replacement',
         file: new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
         rightsConfirmed: true,
@@ -292,8 +370,6 @@ describe('production portal client', () => {
     })
     const originalUploadId = '33333333-3333-4333-8333-333333333333'
     await transport.upload({
-      storeId: '11111111-1111-4111-8111-111111111111',
-      kind: 'gallery',
       altText: 'Replacement',
       file: new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
       rightsConfirmed: true,
@@ -304,5 +380,36 @@ describe('production portal client', () => {
     expect(body.get('originalUploadId')).toBe(originalUploadId)
     expect(body.get('storeId')).toBeNull()
     expect(body.get('kind')).toBeNull()
+  })
+
+  it('sends an exact-slot replacement without client store or kind authority', async () => {
+    const requests: RequestInit[] = []
+    const transport = createPortalMediaHttpTransport({
+      endpoint: 'https://project.supabase.co/functions/v1/media-provider-command',
+      apiKey: 'public-anon-key',
+      getAccessToken: async () => 'user-access-token',
+      fetcher: async (_input, init) => {
+        requests.push(init ?? {})
+        return Response.json({
+          uploadId: '11111111-1111-4111-8111-111111111111',
+          state: 'awaiting_review',
+        })
+      },
+    })
+    const targetMediaId = '55555555-5555-4555-8555-555555555555'
+    await transport.upload({
+      targetMediaId,
+      expectedVersion: 4,
+      altText: 'Replacement front entrance',
+      file: new File([new Uint8Array(16)], 'replacement.png', { type: 'image/png' }),
+      rightsConfirmed: true,
+      idempotencyKey: '66666666-6666-4666-8666-666666666666',
+    })
+    const body = requests[0].body as FormData
+    expect(body.get('targetMediaId')).toBe(targetMediaId)
+    expect(body.get('expectedVersion')).toBe('4')
+    expect(body.get('storeId')).toBeNull()
+    expect(body.get('kind')).toBeNull()
+    expect(body.get('originalUploadId')).toBeNull()
   })
 })

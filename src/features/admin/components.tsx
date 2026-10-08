@@ -13,6 +13,8 @@ import type {
   AdminReviewCaseSummary,
   AdminScopePreview,
   AdminStoreScope,
+  AdminOwnerAccessScope,
+  AdminOwnerClaimPreview,
 } from './types'
 
 const reviewQueueCategories = [
@@ -328,12 +330,17 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
           <h2 id="case-heading">{selected.storeLabel}</h2>
           <p>Submitted fields are read-only. Decisions apply only to this case.</p>
           <dl>
-            {Object.entries(selected.context).map(([label, value]) => (
-              <div key={label}>
-                <dt>{label.replaceAll('_', ' ')}</dt>
-                <dd>{String(value ?? 'Not provided')}</dd>
-              </div>
-            ))}
+            {Object.entries(selected.context)
+              .filter(
+                ([label]) =>
+                  selected.caseType !== 'image_review' || !label.startsWith('replacement'),
+              )
+              .map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label.replaceAll('_', ' ')}</dt>
+                  <dd>{String(value ?? 'Not provided')}</dd>
+                </div>
+              ))}
           </dl>
           {selected.caseType === 'partner_onboarding' ? (
             <section aria-label="Pilot Store Draft decision summary">
@@ -347,6 +354,50 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
                 {String(selected.context.authorityStatus ?? 'Not provided')}. Identity:{' '}
                 {String(selected.context.identityStatus ?? 'Not provided')}.
               </p>
+            </section>
+          ) : selected.caseType === 'image_review' ? (
+            <section aria-label="Approved photo replacement target">
+              <h3>Approved photo replacement target</h3>
+              {typeof selected.context.replacementTargetId === 'string' ? (
+                <>
+                  <p>
+                    This candidate targets the approved{' '}
+                    {String(selected.context.replacementKind ?? 'photo')}
+                    {selected.context.replacementKind === 'gallery' &&
+                    typeof selected.context.replacementDisplayOrder === 'number'
+                      ? ` at position ${selected.context.replacementDisplayOrder + 1}`
+                      : ''}
+                    .
+                  </p>
+                  <p>
+                    Current alternative text:{' '}
+                    {String(selected.context.replacementAltText ?? 'Not available')}.
+                  </p>
+                  <p>
+                    Submitted against slot version{' '}
+                    {String(selected.context.replacementExpectedVersion ?? 'unknown')}; current slot
+                    version {String(selected.context.replacementCurrentVersion ?? 'unavailable')}.
+                  </p>
+                  <p role="status">
+                    {selected.context.replacementTargetCurrent === true
+                      ? 'The approved slot still matches the submitted version.'
+                      : 'The approved slot changed or was removed after submission; this candidate cannot publish against it.'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>This candidate adds a new {String(selected.context.kind ?? 'photo')} photo.</p>
+                  <p>
+                    The new photo stays private until it is approved and published successfully.
+                  </p>
+                </>
+              )}
+              {typeof selected.context.replacementTargetId === 'string' && (
+                <p>
+                  The current approved photo remains public until a replacement publishes
+                  successfully.
+                </p>
+              )}
             </section>
           ) : (
             <section aria-label="Current and requested listing preview">
@@ -434,13 +485,17 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
 }
 export function AccessSafetyPage({ client = unavailableAdminClient }: { client?: AdminClient }) {
   const [grants, setGrants] = useState<AdminStoreScope[]>([])
+  const [ownerScopes, setOwnerScopes] = useState<AdminOwnerAccessScope[]>([])
   const [message, setMessage] = useState('')
   const [listState, setListState] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [ownerListState, setOwnerListState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [canonicalStoreId, setCanonicalStoreId] = useState('')
   const [duplicateStoreId, setDuplicateStoreId] = useState('')
   const [merge, setMerge] = useState<AdminMergePlan | null>(null)
   const [scopePreview, setScopePreview] = useState<AdminScopePreview | null>(null)
   const [scopeReason, setScopeReason] = useState('')
+  const [ownerPreview, setOwnerPreview] = useState<AdminOwnerClaimPreview | null>(null)
+  const [ownerReason, setOwnerReason] = useState('')
   const clientRef = useRef(client)
   clientRef.current = client
 
@@ -456,6 +511,18 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
     }
   }
 
+  async function loadOwnerScopes(retry = false) {
+    setOwnerListState('loading')
+    setMessage('')
+    try {
+      setOwnerScopes(await clientRef.current.listOwnerAccess(retry))
+      setOwnerListState('ready')
+    } catch {
+      setOwnerListState('error')
+      setMessage(GENERIC_ADMIN_FAILURE)
+    }
+  }
+
   useEffect(() => {
     let current = true
     void clientRef.current.listStoreGrants().then(
@@ -467,6 +534,25 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
       () => {
         if (!current) return
         setListState('error')
+        setMessage(GENERIC_ADMIN_FAILURE)
+      },
+    )
+    return () => {
+      current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let current = true
+    void clientRef.current.listOwnerAccess().then(
+      (items) => {
+        if (!current) return
+        setOwnerScopes(items)
+        setOwnerListState('ready')
+      },
+      () => {
+        if (!current) return
+        setOwnerListState('error')
         setMessage(GENERIC_ADMIN_FAILURE)
       },
     )
@@ -507,6 +593,45 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
         ),
       )
       setScopePreview(null)
+    } catch {
+      setMessage(GENERIC_ADMIN_FAILURE)
+    }
+  }
+
+  async function changeOwnerScope(scope: AdminOwnerAccessScope) {
+    setMessage('')
+    try {
+      if (ownerPreview?.claimId !== scope.claimId) {
+        setOwnerReason('')
+        setOwnerPreview(
+          await clientRef.current.previewOwnerClaimRevoke(scope.claimId, scope.claimVersion),
+        )
+        return
+      }
+      if (!/^[a-z][a-z0-9_]{1,63}$/.test(ownerReason.trim())) return
+      const result = await clientRef.current.revokeOwnerClaim(
+        scope.claimId,
+        scope.claimVersion,
+        ownerReason.trim(),
+        `admin-owner-revoke-${scope.claimId}-${scope.claimVersion}-${Date.now()}`,
+        ownerPreview.previewId,
+      )
+      setOwnerScopes((items) =>
+        items.map((item) =>
+          item.claimId === scope.claimId
+            ? {
+                ...item,
+                claimState: result.claimState,
+                claimVersion: result.claimVersion,
+                accessState: result.accessState,
+                revokedAt: result.revokedAt,
+                history: result.history,
+              }
+            : item,
+        ),
+      )
+      setOwnerPreview(null)
+      setOwnerReason('')
     } catch {
       setMessage(GENERIC_ADMIN_FAILURE)
     }
@@ -628,6 +753,89 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
         Initial Store Representative access is created only by an approved onboarding or listing
         claim. This workspace can revoke or regrant an existing exact scope.
       </p>
+      <section aria-labelledby="owner-scopes-heading">
+        <h2 id="owner-scopes-heading">Store Owner access</h2>
+        <p>
+          Revoke one approved Owner claim at a time. A later grant requires a fresh claim and new
+          approval.
+        </p>
+        {ownerListState === 'error' && (
+          <button type="button" onClick={() => void loadOwnerScopes(true)}>
+            Retry Store Owner access
+          </button>
+        )}
+        {ownerListState === 'loading' ? (
+          <p role="status">Loading Store Owner access…</p>
+        ) : ownerScopes.length ? (
+          <ul aria-label="Store Owner scopes">
+            {ownerScopes.map((scope) => (
+              <li key={scope.claimId}>
+                <strong>{scope.storeLabel}</strong> — Store Owner — {scope.accessState}
+                <p>
+                  Owner account {scope.ownerUserId}. Claim {scope.claimId}, version{' '}
+                  {scope.claimVersion}. Approved {new Date(scope.approvedAt).toLocaleDateString()}
+                  {scope.revokedAt
+                    ? `. Revoked ${new Date(scope.revokedAt).toLocaleDateString()}.`
+                    : '.'}
+                </p>
+                {scope.history.length > 0 && (
+                  <p>
+                    Claim history:{' '}
+                    {scope.history
+                      .map((entry) => `${entry.action.replaceAll('_', ' ')} (${entry.outcome})`)
+                      .join(', ')}
+                  </p>
+                )}
+                {scope.accessState === 'active' && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={
+                        ownerPreview?.claimId === scope.claimId &&
+                        !/^[a-z][a-z0-9_]{1,63}$/.test(ownerReason.trim())
+                      }
+                      onClick={() => void changeOwnerScope(scope)}
+                    >
+                      {ownerPreview?.claimId === scope.claimId
+                        ? 'Confirm revoke'
+                        : 'Preview revoke'}{' '}
+                      {scope.storeLabel} Owner scope
+                    </button>
+                    {ownerPreview?.claimId === scope.claimId && (
+                      <>
+                        <p>
+                          Confirm exact Store Owner scope: {scope.storeLabel} for Owner account{' '}
+                          {scope.ownerUserId}. This claim will be revoked for this store only.
+                          Preview expires {new Date(ownerPreview.expiresAt).toLocaleTimeString()}.
+                        </p>
+                        <label>
+                          Owner administrative reason code
+                          <input
+                            pattern="[a-z][a-z0-9_]{1,63}"
+                            value={ownerReason}
+                            onChange={(event) => setOwnerReason(event.target.value)}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOwnerPreview(null)
+                            setOwnerReason('')
+                          }}
+                        >
+                          Cancel Owner revoke
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No Store Owner access.</p>
+        )}
+      </section>
       <section aria-labelledby="merge-heading">
         <h2 id="merge-heading">Duplicate store merge</h2>
         <p>Preview one exact canonical and duplicate store before changing anything.</p>

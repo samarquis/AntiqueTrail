@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(50);
+select plan(51);
 
 select has_schema('media_private','M-01 has an isolated media schema');
 select has_table('media_private','media_provider_config','provider capability is durable');
@@ -37,6 +37,16 @@ select has_function('app_public','media_list_purge_jobs',array['integer'],'lifec
 select has_function('app_public','media_complete_purge_job',array['uuid','uuid'],'worker records deletion only after storage success');
 select has_function('app_public','media_accept_provider_config',array['uuid','text','text','text','integer','bigint','integer','integer','text','bytea'],'deployment-only gate acceptance hook exists');
 select has_function('app_public','media_pause_capability',array['text'],'worker can fail closed on provider or quota failure');
+select ok(
+  (select prosecdef and pg_get_userbyid(proowner)='media_automation'
+    from pg_proc where oid='app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)
+  and (select prosecdef and pg_get_userbyid(proowner)='media_automation'
+    from pg_proc where oid='partner_private.check_store_media_cap(uuid,text,uuid)'::regprocedure)
+  and (select prosecdef and pg_get_userbyid(proowner)='billing_automation'
+    from pg_proc where oid='partner_private.resolve_store_photo_cap(uuid)'::regprocedure)
+  and position('app_public.request_user_id()' in pg_get_functiondef('partner_private.check_store_media_cap(uuid,text,uuid)'::regprocedure))>0
+  and position('auth.uid()' in lower(pg_get_functiondef('partner_private.check_store_media_cap(uuid,text,uuid)'::regprocedure)))=0,
+  'media intake uses its effective media and tier definer owners with app-owned request claims');
 
 select ok(has_function_privilege('anon','app_public.media_get_capability()','EXECUTE'),'anonymous callers may read only capability state');
 select ok(not has_function_privilege('anon','app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)','EXECUTE'),'anonymous upload reservation is denied');
@@ -52,7 +62,7 @@ select ok(position($q$capabilities->>'official_media_upload'='true'$q$ in replac
   'capability requires server stage flag and externally verified M-01 receipt');
 select ok(position('daily_count>=20' in replace(lower(pg_get_functiondef('app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)),' ',''))>0
   and position('concurrent_count>=5' in replace(lower(pg_get_functiondef('app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)),' ',''))>0
-  and position('not p_rights_confirmed' in lower(pg_get_functiondef('app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)))>0,
+  and position('p_rights_confirmed is distinct from true' in lower(pg_get_functiondef('app_public.media_reserve_upload(uuid,text,text,uuid,boolean,text,bigint,integer,integer)'::regprocedure)))>0,
   'reservation enforces rights, 20/day, and five concurrent uploads per store');
 select ok(position($q$p_scan_outcome<>'clean'$q$ in replace(lower(pg_get_functiondef('media_private.record_processing_result(uuid,text,text,text,bytea,bigint,integer,integer,boolean,boolean)'::regprocedure)),' ',''))>0
   and position('not p_metadata_stripped' in lower(pg_get_functiondef('media_private.record_processing_result(uuid,text,text,text,bytea,bigint,integer,integer,boolean,boolean)'::regprocedure)))>0

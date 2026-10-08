@@ -89,12 +89,16 @@ Deno.serve(async (request) => {
         const result = await worker.storage.from(publicBucket).upload(key, bytes, options)
         if (result.error) throw result.error
       },
-      completePublish: (jobId, uploadId, publicKey) =>
-        rpc(worker, 'media_complete_publish_job', {
+      completePublish: async (jobId, uploadId, publicKey) => {
+        const result = await rpc<{ state?: unknown }>(worker, 'media_complete_publish_job', {
           p_job_id: jobId,
           p_upload_id: uploadId,
           p_public_key: publicKey,
-        }),
+        })
+        if (result.state !== 'published' && result.state !== 'conflict')
+          throw new Error('media_unavailable')
+        return result.state
+      },
       claimPurge: async (jobId) => {
         const value = await rpc<Record<string, unknown>>(lifecycle, 'media_claim_purge_job', {
           p_job_id: jobId,

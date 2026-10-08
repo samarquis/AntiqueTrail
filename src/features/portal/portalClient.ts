@@ -8,7 +8,9 @@ import type {
   PortalFreshness,
   PortalHours,
   PortalDiagnostic,
+  StoreUpdate,
   StoreUpdateDraft,
+  StoreUpdateEdit,
   PortalControlledChangeDraft,
   PortalManagedFields,
   PortalMediaUploadInput,
@@ -18,6 +20,8 @@ import type {
   PortalMediaState,
   PortalMediaResubmitInput,
   PortalMediaResubmitReceipt,
+  PortalMediaSlot,
+  PortalPreview,
   OfficialLink,
   SupportTicketDraft,
 } from './types'
@@ -35,6 +39,13 @@ export class PortalMediaCapError extends Error {
   }
 }
 
+export class PortalUpdateConflictError extends Error {
+  constructor(readonly latestVersion?: number) {
+    super('This Store Update changed before the edit was saved.')
+    this.name = 'PortalUpdateConflictError'
+  }
+}
+
 type PortalRpcName =
   | 'portal_get_home'
   | 'portal_get_hours'
@@ -43,6 +54,7 @@ type PortalRpcName =
   | 'portal_submit_controlled_change'
   | 'portal_list_updates'
   | 'portal_create_update'
+  | 'portal_edit_update'
   | 'portal_archive_update'
   | 'portal_restore_update'
   | 'portal_list_official_links'
@@ -88,6 +100,20 @@ export function createPortalMediaHttpTransport(options: {
   const fetcher = options.fetcher ?? fetch
   return {
     async upload(input) {
+      if (input.targetMediaId !== undefined) {
+        if (
+          typeof input.targetMediaId !== 'string' ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+            input.targetMediaId,
+          ) ||
+          !Number.isSafeInteger(input.expectedVersion) ||
+          (input.expectedVersion ?? 0) < 1 ||
+          input.storeId !== undefined ||
+          input.kind !== undefined ||
+          input.originalUploadId !== undefined
+        )
+          throw new Error(GENERIC_PORTAL_ERROR)
+      }
       const accessToken = await options.getAccessToken()
       if (!accessToken) throw new Error(GENERIC_PORTAL_ERROR)
       const storeScope = options.getStoreScope?.()
@@ -95,7 +121,10 @@ export function createPortalMediaHttpTransport(options: {
       body.set('image', input.file)
       body.set('altText', input.altText)
       body.set('idempotencyKey', input.idempotencyKey)
-      if (input.originalUploadId) {
+      if (input.targetMediaId !== undefined) {
+        body.set('targetMediaId', input.targetMediaId)
+        body.set('expectedVersion', String(input.expectedVersion))
+      } else if (input.originalUploadId !== undefined) {
         body.set('originalUploadId', input.originalUploadId)
       } else {
         body.set('storeId', input.storeId)
@@ -202,13 +231,11 @@ export function createPortalClient(
       if (!media) throw new Error(GENERIC_PORTAL_ERROR)
       try {
         const receipt = await media.upload({
-          storeId: input.originalUploadId,
-          kind: 'gallery',
+          originalUploadId: input.originalUploadId,
           altText: input.altText,
           file: input.file,
           rightsConfirmed: true,
           idempotencyKey: input.idempotencyKey,
-          originalUploadId: input.originalUploadId,
         })
         if (
           receipt.state !== 'awaiting_review' ||
@@ -225,6 +252,45 @@ export function createPortalClient(
     },
     listUpdates: () => call('portal_list_updates'),
     createUpdate: (draft: StoreUpdateDraft) => call('portal_create_update', { p_update: draft }),
+    editUpdate: async ({ id, update, expectedVersion, idempotencyKey }: StoreUpdateEdit) => {
+      const result = await call<unknown>('portal_edit_update', {
+        p_update_id: id,
+        p_update: update,
+        p_expected_version: expectedVersion,
+        p_idempotency_key: idempotencyKey,
+      })
+      if (result === null || typeof result !== 'object' || Array.isArray(result))
+        throw new Error(GENERIC_PORTAL_ERROR)
+      const response = result as Record<string, unknown>
+      if (response.state === 'conflict') {
+        const latest = response.latest
+        const latestVersion =
+          latest !== null && typeof latest === 'object' && !Array.isArray(latest)
+            ? (latest as Record<string, unknown>).version
+            : undefined
+        throw new PortalUpdateConflictError(
+          typeof latestVersion === 'number' &&
+          Number.isSafeInteger(latestVersion) &&
+          latestVersion > 0
+            ? latestVersion
+            : undefined,
+        )
+      }
+      const value = response.update
+      if (
+        response.state !== 'saved' ||
+        value === null ||
+        typeof value !== 'object' ||
+        Array.isArray(value) ||
+        typeof (value as Record<string, unknown>).id !== 'string' ||
+        typeof (value as Record<string, unknown>).headline !== 'string' ||
+        typeof (value as Record<string, unknown>).details !== 'string' ||
+        !Number.isSafeInteger((value as Record<string, unknown>).version) ||
+        ((value as Record<string, unknown>).version as number) < 1
+      )
+        throw new Error(GENERIC_PORTAL_ERROR)
+      return value as StoreUpdate
+    },
     archiveUpdate: (id) => call('portal_archive_update', { p_update_id: id }),
     restoreUpdate: (id) => call('portal_restore_update', { p_update_id: id }),
     listOfficialLinks: () => call('portal_list_official_links'),
@@ -241,7 +307,8 @@ export function createPortalClient(
       call('portal_confirm_support_resolution', { p_ticket_id: ticketId }),
     reopenSupportTicket: (ticketId) =>
       call('portal_reopen_support_ticket', { p_ticket_id: ticketId }),
-    previewPublicListing: () => call('portal_preview_public_listing'),
+    previewPublicListing: async () =>
+      decodePortalPreview(await call<unknown>('portal_preview_public_listing')),
     getDiagnostics: async () => diagnostics(),
   }
 }
@@ -309,6 +376,38 @@ export function decodePortalMediaUploadHistory(value: unknown): PortalMediaUploa
   return { uploads }
 }
 
+export function decodePortalPreview(value: unknown): PortalPreview {
+  if (!isRecord(value) || !Array.isArray(value.media)) throw new Error(GENERIC_PORTAL_ERROR)
+  const media: PortalMediaSlot[] = value.media.map((slot) => {
+    if (
+      !isRecord(slot) ||
+      !hasExactKeys(slot, ['altText', 'displayOrder', 'id', 'kind', 'version'])
+    )
+      throw new Error(GENERIC_PORTAL_ERROR)
+    if (
+      typeof slot.id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+        slot.id,
+      ) ||
+      !isPortalMediaKind(slot.kind) ||
+      typeof slot.altText !== 'string' ||
+      !Number.isSafeInteger(slot.displayOrder) ||
+      (slot.displayOrder as number) < 0 ||
+      !Number.isSafeInteger(slot.version) ||
+      (slot.version as number) < 1
+    )
+      throw new Error(GENERIC_PORTAL_ERROR)
+    return {
+      id: slot.id,
+      kind: slot.kind,
+      altText: slot.altText,
+      displayOrder: slot.displayOrder as number,
+      version: slot.version as number,
+    }
+  })
+  return { ...value, media } as PortalPreview
+}
+
 function unavailable<T>(): Promise<T> {
   return Promise.reject(new Error(GENERIC_PORTAL_ERROR))
 }
@@ -327,6 +426,7 @@ export const unavailablePortalClient: PortalClient = {
   resubmitMedia: unavailable,
   listUpdates: unavailable,
   createUpdate: unavailable,
+  editUpdate: unavailable,
   archiveUpdate: unavailable,
   restoreUpdate: unavailable,
   listOfficialLinks: unavailable,

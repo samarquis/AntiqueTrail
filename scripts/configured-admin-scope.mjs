@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* global process, console, AbortController, Buffer, URL, fetch, setTimeout */
-/* #323 local-only, redacted Administrator scope diagnostic. */
+/* #323/#582 local-only, redacted Administrator scope diagnostic. */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -97,7 +97,15 @@ try {
   const password = crypto.randomBytes(24).toString('base64url')
   const actors = {}
   report.phase = 'creating local Auth fixture identities'
-  for (const alias of ['desktopAdmin', 'phoneAdmin', 'subject', 'sibling', 'shopper']) {
+  for (const alias of [
+    'desktopAdmin',
+    'phoneAdmin',
+    'subject',
+    'sibling',
+    'shopper',
+    'ownerDesktop',
+    'ownerPhone',
+  ]) {
     const created = await authRequest(
       local.endpoint,
       '/auth/v1/signup',
@@ -115,7 +123,7 @@ try {
     }
   }
   await service.sql(
-    `update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Administrator') where id in ('${actors.desktopAdmin.id}','${actors.phoneAdmin.id}'); update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Representative') where id in ('${actors.subject.id}','${actors.sibling.id}'); update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Shopper') where id='${actors.shopper.id}';`,
+    `update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Administrator') where id in ('${actors.desktopAdmin.id}','${actors.phoneAdmin.id}'); update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Representative') where id in ('${actors.subject.id}','${actors.sibling.id}'); update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Shopper') where id='${actors.shopper.id}'; update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Store Owner') where id in ('${actors.ownerDesktop.id}','${actors.ownerPhone.id}');`,
   )
   report.phase = 'establishing Administrator MFA assurance'
   const enrollAdminMfa = async (actor, variant) => {
@@ -226,6 +234,26 @@ try {
       'GRANT_B',
       'CLAIM_A',
       'CLAIM_B',
+      'OWNER_DESKTOP_INVITE',
+      'OWNER_PHONE_INVITE',
+      'OWNER_DESKTOP_PENDING',
+      'OWNER_PHONE_PENDING',
+      'OWNER_DESKTOP_CONSENT',
+      'OWNER_PHONE_CONSENT',
+      'OWNER_DESKTOP_RECEIPT',
+      'OWNER_PHONE_RECEIPT',
+      'OWNER_DESKTOP_PARTNERSHIP_A',
+      'OWNER_DESKTOP_PARTNERSHIP_B',
+      'OWNER_PHONE_PARTNERSHIP_A',
+      'OWNER_PHONE_PARTNERSHIP_B',
+      'OWNER_DESKTOP_GRANT_A',
+      'OWNER_DESKTOP_GRANT_B',
+      'OWNER_PHONE_GRANT_A',
+      'OWNER_PHONE_GRANT_B',
+      'OWNER_DESKTOP_CLAIM_A',
+      'OWNER_DESKTOP_CLAIM_B',
+      'OWNER_PHONE_CLAIM_A',
+      'OWNER_PHONE_CLAIM_B',
     ].map((name) => [name, uuid()]),
   )
   const fixture = fs.readFileSync(
@@ -239,13 +267,15 @@ try {
       SUBJECT: actors.subject.id,
       SIBLING: actors.sibling.id,
       SHOPPER: actors.shopper.id,
+      OWNER_DESKTOP: actors.ownerDesktop.id,
+      OWNER_PHONE: actors.ownerPhone.id,
       ...ids,
     }),
   )
   const fixtureAuthority = await service.sql(
-    `select (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and role='representative' and state='active'),(select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and role='representative' and state='active');`,
+    `select (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and role='representative' and state='active'),(select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and role='representative' and state='active'),(select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.ownerDesktop.id}' and store_id in ('00000000-0000-4000-8000-000000001003','00000000-0000-4000-8000-000000001004') and role='store_owner' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.ownerDesktop.id}' and store_id in ('00000000-0000-4000-8000-000000001003','00000000-0000-4000-8000-000000001004') and role='store_owner' and state='active'),(select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.ownerPhone.id}' and store_id in ('00000000-0000-4000-8000-000000001005','00000000-0000-4000-8000-000000001006') and role='store_owner' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.ownerPhone.id}' and store_id in ('00000000-0000-4000-8000-000000001005','00000000-0000-4000-8000-000000001006') and role='store_owner' and state='active');`,
   )
-  if (fixtureAuthority.trim() !== '1|1|1|1')
+  if (fixtureAuthority.trim() !== '1|1|1|1|2|2|2|2')
     throw new Error(`Configured scope fixture authority is incomplete: ${fixtureAuthority.trim()}`)
   const fixtureIdentity = crypto
     .createHash('sha256')
@@ -262,10 +292,32 @@ try {
       output: output.directory,
       origin,
       wrongReadback: process.env.CONFIGURED_ADMIN_SCOPE_WRONG_READBACK === '1',
-      actors: { ...actors, admin },
+      actors: {
+        ...actors,
+        admin,
+        owner: { desktop: actors.ownerDesktop, phone: actors.ownerPhone },
+      },
       stores: {
         target: '00000000-0000-4000-8000-000000001001',
         sibling: '00000000-0000-4000-8000-000000001002',
+        owners: {
+          desktop: {
+            a: '00000000-0000-4000-8000-000000001003',
+            b: '00000000-0000-4000-8000-000000001004',
+            claimA: ids.OWNER_DESKTOP_CLAIM_A,
+            claimB: ids.OWNER_DESKTOP_CLAIM_B,
+            nameA: 'Owner Clockwork',
+            nameB: 'Owner Prairie',
+          },
+          phone: {
+            a: '00000000-0000-4000-8000-000000001005',
+            b: '00000000-0000-4000-8000-000000001006',
+            claimA: ids.OWNER_PHONE_CLAIM_A,
+            claimB: ids.OWNER_PHONE_CLAIM_B,
+            nameA: 'Owner Walnut',
+            nameB: 'Owner Maple',
+          },
+        },
       },
     }),
     { mode: 0o600, flag: 'wx' },
