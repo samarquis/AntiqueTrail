@@ -1,0 +1,138 @@
+name: Issue 582 Admin scope
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - '.github/workflows/issue-582-admin-scope.yml'
+      - 'e2e/configured-admin-scope*'
+      - 'scripts/configured-admin-scope*'
+      - 'scripts/configured-shopper-local.mjs'
+      - 'scripts/configured-shopper-probe.mjs'
+      - 'src/**'
+      - 'src/features/admin/**'
+      - 'supabase/migrations/**'
+      - 'supabase/seed.sql'
+      - 'supabase/config.toml'
+      - 'supabase/tests/0133_issue_582_admin_owner_access.sql'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.nvmrc'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue-582-admin-scope-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  configured-admin-scope:
+    if: ${{ github.event.pull_request.number == 594 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+      CI: 'true'
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Verify candidate and local-only environment
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test -z "$(git status --porcelain)"
+          test -z "${ANTIQUE_TRAIL_LOCAL_URL:-}"
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run configured Admin scope acceptance
+        shell: bash
+        run: |
+          unset ANTIQUE_TRAIL_LOCAL_URL
+          npm run test:e2e:configured-admin-scope
+
+      - name: Prepare privacy-safe exact-candidate summary
+        if: always()
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import path from 'node:path'
+
+          const roots = fs.existsSync('artifacts')
+            ? fs.readdirSync('artifacts').filter(name => name.startsWith('configured-shopper-'))
+            : []
+          let report
+          if (roots.length === 1) {
+            const reportPath = path.join('artifacts', roots[0], 'report.json')
+            if (fs.existsSync(reportPath)) report = JSON.parse(fs.readFileSync(reportPath, 'utf8'))
+          }
+          const statuses = new Set(['passed', 'failed', 'timedOut', 'skipped', 'unavailable'])
+          const summary = {
+            candidateSha: process.env.CANDIDATE_SHA,
+            sourceSha: typeof report?.sourceSha === 'string' ? report.sourceSha : null,
+            exactSha: report?.sourceSha === process.env.CANDIDATE_SHA,
+            scope: report?.scope === 'administrator-exact-scope' ? report.scope : null,
+            evidenceClass: 'github-hosted-ubuntu-ephemeral-local-supabase',
+            status: ['passed', 'failed', 'unavailable'].includes(report?.status) ? report.status : 'unavailable',
+            cleanup: ['removed', 'failed', 'not-started'].includes(report?.cleanup) ? report.cleanup : 'unknown',
+            errorCount: Array.isArray(report?.errors) ? report.errors.length : null,
+            stats: report?.stats && Object.fromEntries(
+              ['expected', 'unexpected', 'skipped', 'flaky'].map(key => [key, report.stats[key]]),
+            ),
+            checks: Array.isArray(report?.checks) ? report.checks.map(({ title, status }) => ({
+              title: typeof title === 'string' ? title.slice(0, 160) : 'unknown',
+              status: statuses.has(status) ? status : 'unavailable',
+            })) : [],
+          }
+          fs.mkdirSync('artifacts', { recursive: true })
+          fs.writeFileSync('artifacts/issue-582-admin-scope-summary.json', JSON.stringify(summary, null, 2))
+          NODE
+
+      - name: Require eight exact passing cases and cleanup
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          const report = JSON.parse(fs.readFileSync('artifacts/issue-582-admin-scope-summary.json', 'utf8'))
+          const stats = report.stats
+          if (
+            report.status !== 'passed' ||
+            report.exactSha !== true ||
+            report.scope !== 'administrator-exact-scope' ||
+            report.cleanup !== 'removed' ||
+            report.errorCount !== 0 ||
+            stats?.expected !== 8 ||
+            stats?.unexpected !== 0 ||
+            stats?.skipped !== 0 ||
+            stats?.flaky !== 0 ||
+            report.checks.length !== 8 ||
+            report.checks.some(check => check.status !== 'passed')
+          ) throw new Error('Configured Admin scope evidence did not satisfy the exact-candidate acceptance contract.')
+          NODE
+
+      - name: Upload sanitized summary and synthetic screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: issue-582-admin-scope
+          path: |
+            artifacts/issue-582-admin-scope-summary.json
+            artifacts/configured-shopper-*/browser/**/*.png
+          if-no-files-found: error
+          retention-days: 7
