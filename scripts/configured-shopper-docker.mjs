@@ -14,6 +14,34 @@ export function bindLoopback(body, projectId) {
     for (const binding of bindings) binding.HostIp = '127.0.0.1'
   return body
 }
+function edgeVolumeCreateResult(status, message = '') {
+  const normalized = message.toLowerCase()
+  const outcome =
+    status >= 200 && status < 300
+      ? 'accepted'
+      : /already exists/.test(normalized)
+        ? 'already-exists'
+        : /permission|denied|forbidden/.test(normalized)
+          ? 'permission-denied'
+          : /no space|quota/.test(normalized)
+            ? 'capacity'
+            : /invalid|malformed|bad request/.test(normalized)
+              ? 'invalid-request'
+              : status === 409
+                ? 'conflict'
+                : status >= 500
+                  ? 'server-error'
+                  : status >= 400
+                    ? 'request-rejected'
+                    : 'unknown'
+  return {
+    status: Number.isInteger(status) ? status : null,
+    outcome,
+    ...(outcome === 'already-exists'
+      ? { cliSubstringRecognized: message.includes('already exists') }
+      : {}),
+  }
+}
 export async function dockerLoopbackProxy(run) {
   const context = JSON.parse(await command('docker', ['context', 'inspect']))[0]
   const host = process.env.DOCKER_HOST ?? context.Endpoints?.docker?.Host
@@ -26,23 +54,45 @@ export async function dockerLoopbackProxy(run) {
   return serveDockerProxy(run, upstream)
 }
 export async function serveDockerProxy(run, upstream) {
+  run.edgeVolumeCreateResults ??= []
+  const expectedVolumeName = `supabase_edge_runtime_${run.projectId}`
   const socket =
     process.platform === 'win32'
       ? `\\\\.\\pipe\\${run.projectId}`
       : path.join(run.directory, 'docker.sock')
   const server = http.createServer(async (req, res) => {
+    let inspectEdgeVolumeCreate = false
     try {
       let payload
-      if (req.method === 'POST' && /^\/(?:v[\d.]+\/)?containers\/create(?:\?|$)/.test(req.url)) {
+      const containerCreate =
+        req.method === 'POST' && /^\/(?:v[\d.]+\/)?containers\/create(?:\?|$)/.test(req.url)
+      const volumeCreate =
+        req.method === 'POST' && /^\/(?:v[\d.]+\/)?volumes\/create(?:\?|$)/.test(req.url)
+      if (containerCreate || volumeCreate) {
         const parts = []
+        let size = 0
         for await (const part of req) {
           parts.push(part)
-          if (parts.reduce((n, p) => n + p.length, 0) > 2_000_000)
-            throw new Error('Oversized container request')
+          size += part.length
+          if (size > 2_000_000) throw new Error('Oversized Docker request')
         }
-        payload = Buffer.from(
-          JSON.stringify(bindLoopback(JSON.parse(Buffer.concat(parts)), run.projectId)),
-        )
+        const requestBody = Buffer.concat(parts)
+        if (containerCreate)
+          payload = Buffer.from(
+            JSON.stringify(bindLoopback(JSON.parse(requestBody), run.projectId)),
+          )
+        else {
+          payload = requestBody
+          try {
+            const volume = JSON.parse(requestBody)
+            inspectEdgeVolumeCreate =
+              volume.Name === expectedVolumeName &&
+              volume.Labels?.['com.supabase.cli.project'] === run.projectId &&
+              volume.Labels?.['com.docker.compose.project'] === run.projectId
+          } catch {
+            /* Keep forwarding the original Docker request unchanged. */
+          }
+        }
       }
       const headers = { ...req.headers }
       if (payload) {
@@ -52,12 +102,36 @@ export async function serveDockerProxy(run, upstream) {
       const proxy = http.request(
         { socketPath: upstream, path: req.url, method: req.method, headers, agent: false },
         (reply) => {
+          if (inspectEdgeVolumeCreate) {
+            const parts = []
+            let size = 0
+            reply.on('data', (part) => {
+              if (size < 4096) {
+                const safePart = part.subarray(0, 4096 - size)
+                parts.push(safePart)
+                size += safePart.length
+              }
+            })
+            reply.once('end', () => {
+              let message = ''
+              try {
+                const body = JSON.parse(Buffer.concat(parts).toString('utf8'))
+                if (typeof body?.message === 'string') message = body.message.slice(0, 4096)
+              } catch {
+                /* Outcome falls back to the fixed HTTP status category. */
+              }
+              if (run.edgeVolumeCreateResults.length < 4)
+                run.edgeVolumeCreateResults.push(edgeVolumeCreateResult(reply.statusCode, message))
+            })
+          }
           res.writeHead(reply.statusCode, reply.headers)
           res.flushHeaders()
           reply.pipe(res)
         },
       )
       proxy.on('error', () => {
+        if (inspectEdgeVolumeCreate && run.edgeVolumeCreateResults.length < 4)
+          run.edgeVolumeCreateResults.push(edgeVolumeCreateResult(null))
         if (!res.headersSent) res.writeHead(502)
         res.end()
       })

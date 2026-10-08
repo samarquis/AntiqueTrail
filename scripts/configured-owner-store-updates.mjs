@@ -30,6 +30,7 @@ const report = {
     mounted: false,
     mount: null,
     mountCheck: 'not-run',
+    createRequests: [],
     cleanup: 'not-started',
   },
   database: { status: 'not-started', plan: null, assertions: 0, skipped: 0, failed: 0, cases: [] },
@@ -412,7 +413,7 @@ async function provisionOwner(local) {
   return {
     endpoint: local.endpoint,
     anonKey: local.anonKey,
-    origin: `http://127.0.0.1:${await freePort()}`,
+    origin: local.origin,
     storeId,
     siblingStoreId,
     storeSlug,
@@ -435,7 +436,8 @@ try {
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
     throw new Error('External endpoint selection is forbidden')
 
-  service = createLocalService({ signal: controller.signal, disableStorage: true })
+  const browserOrigin = `http://127.0.0.1:${await freePort()}`
+  service = createLocalService({ signal: controller.signal, browserOrigin, disableStorage: true })
   report.temporaryProject = service.run.directory
   report.projectId = service.run.projectId
   if (!/^probe-[a-f0-9]{24}$/.test(service.run.projectId))
@@ -469,6 +471,7 @@ try {
   )
   report.edgeRuntimeVolume.mounted = true
   report.edgeRuntimeVolume.mountCheck = 'confirmed'
+  report.edgeRuntimeVolume.createRequests = [...(service.run.edgeVolumeCreateResults ?? [])]
   report.sourceDirty = Boolean(local.sourceDirty)
   report.cliVersion = local.cliVersion
   if (local.sourceSha !== report.sourceSha || local.sourceDirty)
@@ -513,6 +516,8 @@ try {
   report.database.status = 'passed'
 
   const fixture = await provisionOwner(local)
+  if (local.origin !== browserOrigin || fixture.origin !== browserOrigin)
+    throw new Error('Configured Owner browser and catalog origins do not match')
   report.schemaIdentity = local.schemaIdentity
   report.functionIdentity = local.functionIdentity
   report.fixtureIdentity = crypto
@@ -594,6 +599,7 @@ try {
   if (service?.run) {
     report.cliVersion = service.run.cliVersion ?? null
     report.sourceDirty = service.run.sourceDirty ?? null
+    report.edgeRuntimeVolume.createRequests = [...(service.run.edgeVolumeCreateResults ?? [])]
     if (edgeRuntimeVolume) {
       try {
         report.edgeRuntimeVolume.mount = await confirmEdgeRuntimeVolumeMount(
