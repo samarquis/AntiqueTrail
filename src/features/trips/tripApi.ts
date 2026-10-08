@@ -12,6 +12,7 @@ import type {
   TripInvitation,
   TripParticipant,
   PrivateTripStopInput,
+  TripPrivateDestination,
   TripPrivateHours,
   TripStop,
   TripMutationReplayResult,
@@ -310,7 +311,10 @@ function parseStop(value: unknown, completedTrip = false): TripStop {
     coordinate: parseCoordinate(source.coordinate),
     hours: hoursSource
       ? {
-          state: enumValue(hoursSource.state, new Set(['verified', 'unknown', 'stale'])),
+          state: enumValue<NonNullable<TripStop['hours']>['state']>(
+            hoursSource.state,
+            new Set(['verified', 'unknown', 'stale']),
+          ),
           opensAt: hoursSource.opensAt == null ? undefined : integer(hoursSource.opensAt, 0, 1_439),
           closesAt:
             hoursSource.closesAt == null ? undefined : integer(hoursSource.closesAt, 0, 1_439),
@@ -323,7 +327,7 @@ function parseStop(value: unknown, completedTrip = false): TripStop {
     if (source.storeId != null || source.coordinate != null || source.hours != null)
       throw genericFailure()
     const address = privateText(source.address, 320, true)
-    const destination = enumValue(
+    const destination = enumValue<TripPrivateDestination>(
       source.destination,
       new Set(['draft', 'confirmed_by_organizer']),
     )
@@ -341,13 +345,18 @@ function parseStop(value: unknown, completedTrip = false): TripStop {
   if (source.sourceUrl != null || source.shopperHours != null || source.destination != null)
     throw genericFailure()
   if (kind === 'rest' && source.storeId != null) throw genericFailure()
+  if (kind === 'store')
+    return {
+      ...common,
+      ...routeFields,
+      kind,
+      ...(source.storeId != null ? { storeId: string(source.storeId, 128) } : {}),
+      address: optionalString(source.address, 500),
+    }
   return {
     ...common,
     ...routeFields,
     kind,
-    ...(kind === 'store' && source.storeId != null
-      ? { storeId: string(source.storeId, 128) }
-      : {}),
     address: optionalString(source.address, 500),
   }
 }

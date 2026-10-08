@@ -6,6 +6,15 @@ select has_column('trip_private','trip_stops','private_name','private stop name 
 select has_column('trip_private','trip_stops','private_hours','shopper schedule is retained separately from route hours');
 select has_column('trip_private','trip_stops','destination_status','address confirmation has explicit state');
 select has_table('trip_private','private_stop_capability','private-stop server capability exists');
+select is(
+  (select tableowner from pg_catalog.pg_tables where schemaname='trip_private' and tablename='private_stop_capability'),
+  'identity_service',
+  'private-stop capability remains identity-service-owned');
+select ok(
+  not has_schema_privilege('identity_service','trip_private','CREATE')
+  and not has_schema_privilege('identity_service','app_public','CREATE')
+  and not has_schema_privilege('authenticated','trip_private','CREATE'),
+  'temporary ownership grants are revoked and trip-private stays closed');
 select has_column('trip_private','trip_visit_memories','memory_id','visit rows retain a durable memory ID');
 select has_column('trip_private','trip_visit_memories','stop_id','new visit identity binds to a stop');
 select has_column('trip_private','trip_visit_memories','private_stop_id','private visit linkage can be detached');
