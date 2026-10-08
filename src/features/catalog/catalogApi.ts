@@ -1,6 +1,7 @@
 import type {
   CatalogClient,
   CatalogFilters,
+  CatalogNearbySearch,
   CatalogListResult,
   CatalogMapBounds,
   CatalogMapPoint,
@@ -25,6 +26,28 @@ export function createCatalogClient(client: RpcClient): CatalogClient {
         p_q: filters.q ?? null,
         p_category: filters.category ?? null,
         p_area: filters.area ?? null,
+      })
+      if (error) throw catalogError(error)
+      const payload = Array.isArray(data)
+        ? { stores: data }
+        : ((data ?? {}) as Record<string, unknown>)
+      return {
+        stores: ((payload.stores ?? payload.results ?? []) as unknown[]).map(toStore),
+        asOfUtc: typeof payload.as_of_utc === 'string' ? payload.as_of_utc : undefined,
+      }
+    },
+    async nearbyList(
+      filters: CatalogFilters,
+      nearby: CatalogNearbySearch,
+    ): Promise<CatalogListResult> {
+      if (!validNearbySearch(filters, nearby)) throw new Error('Invalid nearby search')
+      const { data, error } = await client.rpc('catalog_list_nearby', {
+        p_q: filters.q ?? null,
+        p_category: filters.category ?? null,
+        p_area: null,
+        p_device_latitude: nearby.latitude,
+        p_device_longitude: nearby.longitude,
+        p_device_radius_miles: nearby.radiusMiles ?? 25,
       })
       if (error) throw catalogError(error)
       const payload = Array.isArray(data)
@@ -81,6 +104,34 @@ export function createCatalogClient(client: RpcClient): CatalogClient {
       }
     },
   }
+}
+
+function validNearbySearch(filters: unknown, nearby: unknown): nearby is CatalogNearbySearch {
+  if (
+    !filters ||
+    typeof filters !== 'object' ||
+    Array.isArray(filters) ||
+    !nearby ||
+    typeof nearby !== 'object' ||
+    Array.isArray(nearby)
+  )
+    return false
+  const search = nearby as CatalogNearbySearch
+  return (
+    typeof search.latitude === 'number' &&
+    Number.isFinite(search.latitude) &&
+    search.latitude >= -90 &&
+    search.latitude <= 90 &&
+    typeof search.longitude === 'number' &&
+    Number.isFinite(search.longitude) &&
+    search.longitude >= -180 &&
+    search.longitude <= 180 &&
+    (search.radiusMiles === undefined ||
+      search.radiusMiles === 5 ||
+      search.radiusMiles === 10 ||
+      search.radiusMiles === 25 ||
+      search.radiusMiles === 50)
+  )
 }
 
 export function validMapBounds(bounds: CatalogMapBounds): boolean {

@@ -171,8 +171,15 @@ export interface CatalogError {
   retryable: boolean
 }
 
+export interface CatalogNearbySearch {
+  latitude: number
+  longitude: number
+  radiusMiles?: 5 | 10 | 25 | 50
+}
+
 export interface CatalogClient {
   list(filters: CatalogFilters): Promise<CatalogListResult>
+  nearbyList?(filters: CatalogFilters, nearby: CatalogNearbySearch): Promise<CatalogListResult>
   details(slug: string): Promise<CatalogStore | null>
   map?(filters: CatalogFilters, bounds: CatalogMapBounds, zoom: number): Promise<CatalogMapResult>
 }
