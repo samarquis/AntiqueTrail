@@ -116,6 +116,74 @@ describe('Partner Administrator screen', () => {
     expect(await screen.findByText(/^approved$/i)).toBeInTheDocument()
   })
 
+  it('confirms Owner approval with the UUID while showing the human-readable store scope', async () => {
+    const user = userEvent.setup()
+    const boundary = client({ ownerApprovalAvailable: true })
+    render(
+      <MemoryRouter>
+        <PartnerAdminPage client={boundary} />
+      </MemoryRouter>,
+    )
+
+    const claimId = '11111111-1111-4111-8111-111111111111'
+    const storeId = '00000000-0000-4000-8000-000000000009'
+    await user.type(screen.getByLabelText(/exact claim id/i), claimId)
+    await user.click(screen.getByRole('button', { name: /open exact claim/i }))
+    await screen.findByText(/verification pending/i)
+
+    await user.selectOptions(screen.getByLabelText(/^decision$/i), 'approve_owner')
+    await user.type(screen.getByLabelText(/^decision key$/i), 'owner-approval-v3')
+    await user.click(screen.getByRole('button', { name: /apply decision/i }))
+    expect(
+      screen.getByText(/Confirm Store Owner approval for exact store synthetic-store/),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /confirm approve owner decision/i }))
+
+    expect(boundary.decide).toHaveBeenCalledWith({
+      operation: 'approve_owner',
+      claimId,
+      expectedVersion: 3,
+      idempotencyKey: 'owner-approval-v3',
+      reasonCode: 'owner_boundary_confirmed',
+      transferFromClaimId: undefined,
+      confirmedStoreId: storeId,
+    })
+  })
+
+  it.each([undefined, 'synthetic-store'])(
+    'does not offer Owner approval without a UUID store ID (%s)',
+    async (storeId) => {
+      const boundary = client({
+        ownerApprovalAvailable: true,
+        getCase: vi.fn(async () => ({
+          claimId: '11111111-1111-4111-8111-111111111111',
+          ...(storeId === undefined ? {} : { storeId }),
+          state: 'verification_pending' as const,
+          version: 3,
+          exactStoreScope: 'synthetic-store',
+        })),
+      })
+      const user = userEvent.setup()
+      render(
+        <MemoryRouter>
+          <PartnerAdminPage client={boundary} />
+        </MemoryRouter>,
+      )
+      await user.type(
+        screen.getByLabelText(/exact claim id/i),
+        '11111111-1111-4111-8111-111111111111',
+      )
+      await user.click(screen.getByRole('button', { name: /open exact claim/i }))
+      await screen.findByText(/verification pending/i)
+
+      expect(
+        screen.queryByRole('option', {
+          name: /Approve Store Owner for this exact synthetic store/i,
+        }),
+      ).not.toBeInTheDocument()
+    },
+  )
+
   it('shows a generic failure without leaking provider or authorization details', async () => {
     const user = userEvent.setup()
     render(

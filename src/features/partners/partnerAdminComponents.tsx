@@ -1,12 +1,13 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { GENERIC_ADMIN_FAILURE } from '../admin'
-import type {
-  PartnerAdminCase,
-  PartnerAdminClient,
-  PartnerAdminOperation,
-  PartnerAdminTeamMember,
-  SyntheticPartnerInvitation,
+import {
+  isPartnerAdminStoreId,
+  type PartnerAdminCase,
+  type PartnerAdminClient,
+  type PartnerAdminOperation,
+  type PartnerAdminTeamMember,
+  type SyntheticPartnerInvitation,
 } from './partnerAdmin'
 import { ownerTeamRoleLabel } from '../owner/ownerClient'
 
@@ -134,6 +135,14 @@ export function PartnerAdminPage({
   async function decide(event: FormEvent) {
     event.preventDefault()
     if (!claim?.version) return
+    if (
+      operation === 'approve_owner' &&
+      (!isPartnerAdminStoreId(claim.storeId) || !claim.exactStoreScope)
+    ) {
+      setError(true)
+      setConfirmDecision(false)
+      return
+    }
     if (!confirmDecision) {
       setConfirmDecision(true)
       return
@@ -149,7 +158,7 @@ export function PartnerAdminPage({
           idempotencyKey: decisionKey.trim(),
           reasonCode: reasonCode.trim(),
           transferFromClaimId: operation === 'transfer' ? transferFromClaimId.trim() : undefined,
-          ...(operation === 'approve_owner' ? { confirmedStoreId: claim.exactStoreScope } : {}),
+          ...(operation === 'approve_owner' ? { confirmedStoreId: claim.storeId } : {}),
         }),
       )
       setConfirmDecision(false)
@@ -409,11 +418,13 @@ export function PartnerAdminPage({
                     {labelState(candidate)}
                   </option>
                 ))}
-                {client.ownerApprovalAvailable && claim.exactStoreScope && (
-                  <option value="approve_owner">
-                    Approve Store Owner for this exact synthetic store
-                  </option>
-                )}
+                {client.ownerApprovalAvailable &&
+                  isPartnerAdminStoreId(claim.storeId) &&
+                  claim.exactStoreScope && (
+                    <option value="approve_owner">
+                      Approve Store Owner for this exact synthetic store
+                    </option>
+                  )}
               </select>
               <label htmlFor="partner-admin-reason">Reason code</label>
               <input

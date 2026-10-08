@@ -4,6 +4,10 @@ import type { OwnerTeamInviteRole } from '../owner/ownerClient'
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const idempotencyKey = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
 
+export function isPartnerAdminStoreId(value: unknown): value is string {
+  return typeof value === 'string' && uuid.test(value)
+}
+
 export type PartnerAdminOperation =
   | 'changes'
   | 'conflict'
@@ -170,11 +174,12 @@ export function createPartnerAdminClient(transport: PartnerAdminTransport): Part
       confirmedStoreId?: string
     }): Promise<PartnerAdminCase> {
       if (input.operation === 'approve_owner') {
-        if (!transport.ownerApprovalAvailable || !input.confirmedStoreId)
+        const storeId = input.confirmedStoreId
+        if (!transport.ownerApprovalAvailable || !isPartnerAdminStoreId(storeId))
           throw new Error('partner_administration_unavailable')
         await transport.rpc('owner_admin_approve_claim', {
           p_claim_id: input.claimId,
-          p_store_id: input.confirmedStoreId,
+          p_store_id: storeId,
           p_expected_version: input.expectedVersion,
           p_idempotency_key: input.idempotencyKey,
         })

@@ -74,7 +74,6 @@ begin
   exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
   if p_operation not in ('revoke','regrant') or p_expected_version is null or p_expected_version<1 then
     raise exception using errcode='22023',message='admin_unavailable'; end if;
-  perform admin_private.enforce_operational_admin_rate(actor,target_store);
   select * into representative_grant from partner_private.store_partner_grants g
     where g.auth_user_id=subject and g.store_id=target_store and g.role='representative'
     order by g.granted_at desc,g.grant_id desc limit 1;
@@ -117,7 +116,6 @@ begin
       raise exception using errcode='22023',message='admin_unavailable'; end if;
     return prior.result;
   end if;
-  perform admin_private.enforce_operational_admin_rate(actor,target_store);
   select * into representative_grant from partner_private.store_partner_grants g
     where g.auth_user_id=subject and g.store_id=target_store and g.role='representative'
     order by g.granted_at desc,g.grant_id desc limit 1;
@@ -361,20 +359,13 @@ declare
 begin
   begin id:=p_case_id::uuid;
   exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
-  perform admin_private.enforce_operational_admin_rate(actor,id);
-  if p_action not in ('approve','return','reject') or p_reason is null or p_reason<>btrim(p_reason)
+  if p_action is null or p_action not in ('approve','return','reject')
+    or p_reason is null or p_reason<>btrim(p_reason)
     or char_length(p_reason) not between 1 and 1000 or p_reason~'[[:cntrl:]]'
     or p_expected_version is null or p_expected_version<1
     or p_idempotency_key is null or p_idempotency_key!~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' then
     raise exception using errcode='22023',message='admin_unavailable'; end if;
   input_digest:=extensions.digest(convert_to(concat_ws('|',id,p_action,p_reason,p_expected_version,actor),'utf8'),'sha256');
-  select * into prior from admin_private.admin_command_receipts where idempotency_key=p_idempotency_key;
-  if found then
-    if prior.actor_user_id<>actor or prior.command_kind<>'review_decision'
-      or prior.resource_id<>id or prior.input_digest<>input_digest then
-      raise exception using errcode='22023',message='admin_unavailable'; end if;
-    return prior.result;
-  end if;
   if p_action<>'approve' then
     return app_public.admin_decide_review_case_representative_base(
       p_case_id,p_action,p_reason,p_expected_version,p_idempotency_key);
@@ -400,6 +391,15 @@ begin
   if not owner_intent then
     return app_public.admin_decide_review_case_representative_base(
       p_case_id,p_action,p_reason,p_expected_version,p_idempotency_key);
+  end if;
+
+  perform admin_private.enforce_operational_admin_rate(actor,id);
+  select * into prior from admin_private.admin_command_receipts where idempotency_key=p_idempotency_key;
+  if found then
+    if prior.actor_user_id<>actor or prior.command_kind<>'review_decision'
+      or prior.resource_id<>id or prior.input_digest<>input_digest then
+      raise exception using errcode='22023',message='admin_unavailable'; end if;
+    return prior.result;
   end if;
 
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('admin-case:'||id,0));

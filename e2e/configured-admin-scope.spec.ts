@@ -147,9 +147,27 @@ const safeHttpStatusCategory = (status: number) =>
         ? 'http_4xx'
         : 'http_status'
 
-const expectPreviewStatus = (status: number) => {
-  if (status !== 200) throw new Error(`safe-failure:${safeHttpStatusCategory(status)}`)
-  expect(status).toBe(200)
+const expectSafeHttpStatus = (status: number, expected: number) => {
+  if (status !== expected) {
+    const statusValue =
+      Number.isSafeInteger(status) && status >= 100 && status <= 599 ? status : null
+    throw new Error(
+      `safe-failure:${safeHttpStatusCategory(status)}${statusValue === null ? '' : ` status=${statusValue}`}`,
+    )
+  }
+  expect(status).toBe(expected)
+}
+
+type SafeSqlState = '22023' | '40001' | '42501' | '55000' | 'P0001'
+const safeSqlStates = new Set<SafeSqlState>(['22023', '40001', '42501', '55000', 'P0001'])
+
+const expectSqlState = (actual: unknown, expected: SafeSqlState) => {
+  if (actual !== expected) {
+    const code =
+      typeof actual === 'string' && safeSqlStates.has(actual as SafeSqlState) ? actual : null
+    throw new Error(`safe-failure:${code ? `sqlstate_${code}` : 'sqlstate_mismatch'}`)
+  }
+  expect(actual).toBe(expected)
 }
 
 const expectPreviewValue = (actual: unknown, expected: unknown, mismatch: PreviewMismatch) => {
@@ -416,7 +434,7 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
     .click()
   const previewResponseValue = await previewResponse
   const previewStatus = previewResponseValue.status()
-  expectPreviewStatus(previewStatus)
+  expectSafeHttpStatus(previewStatus, 200)
   const preview = await previewResponseValue.json()
   expectPreviewValue(preview.grantId, regrantReadback.grantId, 'preview_grant_id_mismatch')
   expectPreviewValue(
@@ -498,7 +516,7 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
     .press('Enter')
   const response = await previewResponse
   const previewStatus = response.status()
-  expectPreviewStatus(previewStatus)
+  expectSafeHttpStatus(previewStatus, 200)
   expect(response.request().postDataJSON()).toEqual(previewInput)
   const preview = await response.json()
   expectPreviewValue(preview.subjectUserId, scope.targetSubjectId, 'preview_subject_mismatch')
@@ -539,8 +557,18 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   await confirm.focus()
   await confirm.press('Enter')
   const denied = await rejected
-  expect(denied.status()).toBe(500)
-  expect(await denied.json()).toMatchObject({ code: '40001', message: 'admin_unavailable' })
+  expectSafeHttpStatus(denied.status(), 500)
+  const deniedBody = await denied.json()
+  const deniedCode =
+    deniedBody && typeof deniedBody === 'object' && 'code' in deniedBody
+      ? deniedBody.code
+      : undefined
+  expectSqlState(deniedCode, '40001')
+  const deniedMessage =
+    deniedBody && typeof deniedBody === 'object' && 'message' in deniedBody
+      ? deniedBody.message
+      : undefined
+  expect(deniedMessage).toBe('admin_unavailable')
   await expect(page.getByRole('status')).toHaveText('This item is not available.')
   await expect(confirm).toBeFocused()
   await expect(row).toContainText(`Confirm exact scope: ${scope.targetStoreName}`)

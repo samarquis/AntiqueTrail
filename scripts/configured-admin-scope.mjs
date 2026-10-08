@@ -9,11 +9,15 @@ import {
   createLocalService,
   command,
   freePort,
+  getReadinessFailureMetadata,
   ROOT,
   stopChild,
 } from './configured-shopper-local.mjs'
 import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
-import { configuredAdminScopeReport } from './configured-admin-scope-report.mjs'
+import {
+  configuredAdminScopeFailure,
+  configuredAdminScopeReport,
+} from './configured-admin-scope-report.mjs'
 
 const output = createRunDirectory(path.join(ROOT, 'artifacts'))
 const report = {
@@ -21,12 +25,23 @@ const report = {
   status: 'unavailable',
   cleanup: 'not-started',
   errors: [],
+  failure: null,
   evidenceClass: 'real-local-browser',
 }
 const controller = new AbortController()
 let service, server
 const uuid = () => crypto.randomUUID()
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+function recordFailure(error, operation) {
+  const message = error instanceof Error ? error.message : 'Configured Administrator scope failure'
+  report.errors.push(redact(message))
+  if (report.failure === null)
+    report.failure = configuredAdminScopeFailure(error, {
+      stage: report.phase,
+      operation,
+      readinessFailure: getReadinessFailureMetadata(error),
+    })
+}
 function totp(secret) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
   let bits = 0,
@@ -399,12 +414,12 @@ try {
     report.phase = 'validating configured browser report'
   } catch (error) {
     report.status = 'failed'
-    report.errors.push(redact(error.message))
+    recordFailure(error)
   }
   const resultPath = path.join(output.directory, 'playwright.json')
   if (!fs.existsSync(resultPath)) {
     report.status = 'unavailable'
-    report.errors.push('Missing Playwright report')
+    recordFailure(new Error('Missing Playwright report'), 'validate_browser_report')
   } else {
     const parsed = JSON.parse(fs.readFileSync(resultPath, 'utf8'))
     const result = configuredAdminScopeReport(parsed)
@@ -414,22 +429,28 @@ try {
   }
 } catch (error) {
   report.status = 'failed'
-  report.errors.push(redact(error.message))
+  recordFailure(error)
 } finally {
-  await stopChild(server)
+  report.phase = 'cleanup'
+  try {
+    await stopChild(server)
+  } catch (error) {
+    report.status = 'failed'
+    recordFailure(error, 'cleanup')
+  }
   if (service) {
     try {
       fs.rmSync(path.join(service.run.directory, 'admin-scope-input.json'), { force: true })
     } catch (error) {
       report.status = 'failed'
-      report.errors.push(redact(error.message))
+      recordFailure(error, 'cleanup')
     }
     try {
       report.cleanup = await service.cleanup()
     } catch (error) {
       report.cleanup = 'failed'
       report.status = 'failed'
-      report.errors.push(redact(error.message))
+      recordFailure(error, 'cleanup')
     }
   }
   fs.writeFileSync(

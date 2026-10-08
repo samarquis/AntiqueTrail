@@ -128,9 +128,40 @@ select ok(position('admin_privileged_rate_windows' in lower(pg_get_functiondef('
   and position('10' in pg_get_functiondef('admin_private.enforce_operational_admin_rate(uuid,uuid)'::regprocedure))>0,
   'privileged mutations atomically enforce per-Administrator and exact-target hourly limits');
 select ok(position('enforce_operational_admin_rate' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0
-  and position('enforce_operational_admin_rate' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('enforce_operational_admin_rate' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0
   and position('enforce_operational_admin_rate' in lower(pg_get_functiondef('app_public.admin_execute_duplicate_merge(text,bigint,text)'::regprocedure)))>0,
   'every Package 7 privileged mutation enters the shared atomic rate-limit seam');
+
+with bodies as (
+  select
+    lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)) as preview_wrapper,
+    lower(pg_get_functiondef('app_public.admin_preview_store_scope_change_representative_base(text,text,text,bigint)'::regprocedure)) as preview_base,
+    lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)) as change_wrapper,
+    lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)) as change_base,
+    regexp_replace(lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)),'[[:space:]]+','','g') as decision_wrapper,
+    lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)) as decision_base
+), counts as (
+  select
+    (length(preview_wrapper)-length(replace(preview_wrapper,'enforce_operational_admin_rate','')))/length('enforce_operational_admin_rate') as preview_wrapper_calls,
+    (length(preview_base)-length(replace(preview_base,'enforce_operational_admin_rate','')))/length('enforce_operational_admin_rate') as preview_base_calls,
+    (length(change_wrapper)-length(replace(change_wrapper,'enforce_operational_admin_rate','')))/length('enforce_operational_admin_rate') as change_wrapper_calls,
+    (length(change_base)-length(replace(change_base,'enforce_operational_admin_rate','')))/length('enforce_operational_admin_rate') as change_base_calls,
+    (length(decision_wrapper)-length(replace(decision_wrapper,'enforce_operational_admin_rate','')))/length('enforce_operational_admin_rate') as decision_wrapper_calls,
+    (length(decision_base)-length(replace(decision_base,'enforce_operational_admin_rate','')))/length('enforce_operational_admin_rate') as decision_base_calls,
+    decision_wrapper
+  from bodies
+)
+select ok(
+  preview_wrapper_calls=0 and preview_base_calls=1
+    and change_wrapper_calls=0 and change_base_calls=1
+    and decision_wrapper_calls=1 and decision_base_calls=1
+    and position('returnapp_public.admin_decide_review_case_representative_base(' in decision_wrapper)
+      < position('performadmin_private.enforce_operational_admin_rate(actor,id)' in decision_wrapper)
+    and position('p_actionisnull' in decision_wrapper)>0
+    and position('performadmin_private.enforce_operational_admin_rate(actor,id)' in decision_wrapper)
+      < position('performpg_catalog.pg_advisory_xact_lock' in decision_wrapper),
+  'Representative paths delegate to one canonical rate charge and Owner approval keeps one separate charge')
+from counts;
 
 select ok(position('privileged_audit_events' in lower(pg_get_functiondef('admin_private.record_operational_admin_event(text,uuid,uuid,bytea,text)'::regprocedure)))>0,'all mutations append narrow privileged audit evidence');
 select ok(not has_function_privilege('anon','app_public.admin_list_review_cases()','EXECUTE')
