@@ -85,7 +85,6 @@ const TRIP_STATES = new Set(['draft', 'ready', 'active', 'completed', 'cancelled
 const STOP_STATES = new Set(['planned', 'arrived', 'completed', 'skipped', 'observed_closed'])
 const PRIORITIES = new Set(['must', 'prefer', 'flexible'])
 const QUEUE_STATES = new Set(['empty', 'queued', 'replaying', 'conflict', 'purged', 'blocked'])
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -139,7 +138,7 @@ function privateText(value: unknown, maximum: number, optional = false): string 
   if (optional && (value == null || value === '')) return undefined
   if (typeof value !== 'string') throw genericFailure()
   const normalized = value.normalize('NFKC').trim()
-  if (!normalized || normalized.length > maximum || /[\u0000-\u001f\u007f]/.test(normalized))
+  if (!normalized || normalized.length > maximum || hasControlCharacters(normalized))
     throw genericFailure()
   return normalized
 }

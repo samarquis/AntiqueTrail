@@ -347,6 +347,7 @@ alter table trip_private.trip_visit_memories add column memory_id uuid;
 update trip_private.trip_visit_memories
    set memory_id = extensions.gen_random_uuid()
  where memory_id is null;
+alter table trip_private.trip_visit_memories drop constraint trip_visit_memories_pkey;
 alter table trip_private.trip_visit_memories
   alter column memory_id set default extensions.gen_random_uuid(),
   alter column memory_id set not null,
@@ -355,7 +356,6 @@ alter table trip_private.trip_visit_memories
   add column private_stop_id uuid references trip_private.trip_stops(stop_id) on delete set null,
   add column private_stop_name text,
   add column private_stop_address text;
-alter table trip_private.trip_visit_memories drop constraint trip_visit_memories_pkey;
 alter table trip_private.trip_visit_memories add constraint trip_visit_memories_pkey primary key (memory_id);
 alter table trip_private.trip_visit_memories add constraint visit_memory_stop_identity_shape
   check (stop_id is not null or store_id is not null);

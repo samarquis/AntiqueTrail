@@ -337,7 +337,8 @@ function PrivateHoursEditor({
             className="button button--secondary"
             type="button"
             onClick={() => {
-              const { temporaryClosure: _removed, ...hours } = value
+              const hours = { ...value }
+              delete hours.temporaryClosure
               onChange(hours)
             }}
           >
