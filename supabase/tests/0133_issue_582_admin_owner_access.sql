@@ -19,13 +19,30 @@ insert into auth.users(id,email,email_confirmed_at) values
 insert into partner_private.public_claim_consent_receipts(auth_user_id,policy_version,reviewed_ack,voluntary_ack,idempotency_key,receipt_checksum)
 select '58200000-0000-4000-8000-000000000012',policy_version,true,true,'issue582-public-claim-consent',decode(repeat('58',32),'hex')
 from partner_private.partner_material_terms where is_current;
+insert into partner_private.partner_invitations(invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at,synthetic,issuance_idempotency_key,raw_returned_at)
+ values('58200000-0000-4000-8000-000000000014',decode(repeat('81',32),'hex'),decode(repeat('82',32),'hex'),'58200000-0000-4000-8000-000000000001','consumed',statement_timestamp(),false,'issue582-rep-invitation',statement_timestamp());
+insert into partner_private.pending_partner_identities(pending_identity_id,invitation_id,email_hmac,auth_user_id,state,verified_email_at,mfa_verified_at,bound_at)
+ values('58200000-0000-4000-8000-000000000015','58200000-0000-4000-8000-000000000014',decode(repeat('82',32),'hex'),'58200000-0000-4000-8000-000000000012','bound',statement_timestamp(),statement_timestamp(),statement_timestamp());
+insert into partner_private.partner_invitations(invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at,synthetic,issuance_idempotency_key,raw_returned_at)
+ values('58200000-0000-4000-8000-000000000018',decode(repeat('84',32),'hex'),decode(repeat('85',32),'hex'),'58200000-0000-4000-8000-000000000001','consumed',statement_timestamp(),true,'issue582-admin-owner-invitation',statement_timestamp());
+insert into partner_private.pending_partner_identities(pending_identity_id,invitation_id,email_hmac,auth_user_id,state,verified_email_at,mfa_verified_at,bound_at)
+ values('58200000-0000-4000-8000-000000000019','58200000-0000-4000-8000-000000000018',decode(repeat('85',32),'hex'),'58200000-0000-4000-8000-000000000001','bound',statement_timestamp(),statement_timestamp(),statement_timestamp());
+insert into partner_private.provisional_partner_consents(provisional_consent_id,invitation_id,pending_identity_id,policy_version,typed_name,business_title,store_name,owner_email_hmac,authority_ack,voluntary_ack,permitted_data_ack,no_payment_endorsement_ack,withdrawal_ack,idempotency_key)
+select '58200000-0000-4000-8000-000000000016','58200000-0000-4000-8000-000000000014','58200000-0000-4000-8000-000000000015',policy_version,'Issue 582 Representative','Representative','Owner Store C',decode(repeat('82',32),'hex'),true,true,true,true,true,'issue582-rep-bound-consent'
+from partner_private.partner_material_terms where is_current;
+insert into partner_private.pilot_consent_receipts(consent_receipt_id,provisional_consent_id,pending_identity_id,invitation_id,auth_user_id,verified_email_hmac,policy_version,receipt_checksum)
+select '58200000-0000-4000-8000-000000000017','58200000-0000-4000-8000-000000000016','58200000-0000-4000-8000-000000000015','58200000-0000-4000-8000-000000000014','58200000-0000-4000-8000-000000000012',decode(repeat('82',32),'hex'),policy_version,decode(repeat('83',32),'hex')
+from partner_private.partner_material_terms where is_current;
 insert into auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at) values
- ('58200000-0000-4000-8000-000000000002','58200000-0000-4000-8000-000000000001','totp','verified',statement_timestamp(),statement_timestamp());
+ ('58200000-0000-4000-8000-000000000002','58200000-0000-4000-8000-000000000001','totp','verified',statement_timestamp(),statement_timestamp()),
+ ('58200000-0000-4000-8000-000000000013','58200000-0000-4000-8000-000000000012','totp','verified',statement_timestamp(),statement_timestamp());
 insert into app_private.profiles(user_id,public_display_name,age_18_attested_at) values
  ('58200000-0000-4000-8000-000000000001','Issue 582 Administrator',statement_timestamp()),
  ('58200000-0000-4000-8000-000000000010','Issue 582 Shopper',statement_timestamp()),
  ('58200000-0000-4000-8000-000000000012','Issue 582 Representative',statement_timestamp())
 on conflict (user_id) do update set public_display_name=excluded.public_display_name;
+update app_private.profiles set status='active',verified_email_snapshot='rep582@example.test'
+ where user_id='58200000-0000-4000-8000-000000000012';
 insert into app_private.role_grants(subject_user_id,role,state) values
  ('58200000-0000-4000-8000-000000000001','administrator','active'),
  ('58200000-0000-4000-8000-000000000010','shopper','active');
@@ -73,6 +90,7 @@ insert into review_cases582 select '58200000-0000-4000-8000-000000000004',case_i
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
 set local role authenticated;
 update review_cases582 r set version=(app_public.admin_get_review_case(r.case_id::text)->>'version')::bigint where r.claim_id='58200000-0000-4000-8000-000000000004';
+select throws_ok($$select app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-000000000004'),'approve','Owner authority verified',(select version+1 from review_cases582 where claim_id='58200000-0000-4000-8000-000000000004'),'582-review-owner-stale')$$,'40001',null,'stale Owner review-case version fails closed');
 select is((app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-000000000004'),'approve','Owner authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-000000000004'),'582-review-owner-a')->>'state'),'approved','invitation-backed Owner approval routes through owner_admin_approve_claim');
 select is((app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-000000000004'),'approve','Owner authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-000000000004'),'582-review-owner-a')->>'state'),'approved','Owner approval replay returns its recorded result');
 reset role;
@@ -85,7 +103,32 @@ update review_cases582 r set version=(app_public.admin_get_review_case(r.case_id
 select is((app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-000000000008'),'approve','Owner authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-000000000008'),'582-review-owner-b')->>'state'),'approved','same invitation-backed Owner receives only the separately approved Store B scope');
 reset role;
 
--- Public claims without the bound synthetic Owner identity retain Representative approval.
+-- A synthetic invitation classifies Owner intent before identity eligibility is checked.
+select pg_temp.seed_claim582('58200000-0000-4000-8000-00000000000c','76000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000007');
+insert into review_cases582 select '58200000-0000-4000-8000-00000000000c',case_id,null from admin_private.admin_review_cases where target_id='58200000-0000-4000-8000-00000000000c' and case_type='listing_claim';
+update partner_private.pending_partner_identities set state='auth_pending',bound_at=null
+ where auth_user_id='76000000-0000-4000-8000-000000000001';
+select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
+set local role authenticated;
+update review_cases582 r set version=(app_public.admin_get_review_case(r.case_id::text)->>'version')::bigint where r.claim_id='58200000-0000-4000-8000-00000000000c';
+select throws_ok($$select app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000c'),'approve','Owner authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000c'),'582-review-owner-invalid-identity')$$,'42501','admin_unavailable','Owner-intake claim with unbound synthetic identity fails closed before Representative approval');
+reset role;
+update partner_private.pending_partner_identities set state='bound',bound_at=statement_timestamp()
+ where auth_user_id='76000000-0000-4000-8000-000000000001';
+select is((select count(*) from app_private.role_grants where subject_user_id='76000000-0000-4000-8000-000000000001' and role='representative' and store_id='00000000-0000-4000-8000-000000000007' and state='active'),0::bigint,'ineligible Owner-intake claim creates no Representative grant');
+select is((select count(*) from partner_private.owner_claim_approvals where claim_id='58200000-0000-4000-8000-00000000000c'),0::bigint,'ineligible Owner-intake claim creates no Owner approval marker');
+
+select pg_temp.seed_claim582('58200000-0000-4000-8000-00000000000d','58200000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000007');
+insert into review_cases582 select '58200000-0000-4000-8000-00000000000d',case_id,null from admin_private.admin_review_cases where target_id='58200000-0000-4000-8000-00000000000d' and case_type='listing_claim';
+select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
+set local role authenticated;
+update review_cases582 r set version=(app_public.admin_get_review_case(r.case_id::text)->>'version')::bigint where r.claim_id='58200000-0000-4000-8000-00000000000d';
+select throws_ok($$select app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000d'),'approve','Owner authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000d'),'582-review-owner-self')$$,'42501',null,'Admin cannot self-approve an Owner-intake claim through the review wrapper');
+reset role;
+select is((select count(*) from app_private.role_grants where subject_user_id='58200000-0000-4000-8000-000000000001' and role in ('representative','store_owner') and store_id='00000000-0000-4000-8000-000000000007' and state='active'),0::bigint,'self-approval denial creates no store authority');
+select is((select count(*) from partner_private.owner_claim_approvals where claim_id='58200000-0000-4000-8000-00000000000d'),0::bigint,'self-approval denial creates no Owner approval marker');
+
+-- A bound non-synthetic invitation keeps public listing approval on the Representative path.
 select pg_temp.seed_claim582('58200000-0000-4000-8000-00000000000b','58200000-0000-4000-8000-000000000012','00000000-0000-4000-8000-000000000007');
 insert into review_cases582 select '58200000-0000-4000-8000-00000000000b',case_id,null from admin_private.admin_review_cases where target_id='58200000-0000-4000-8000-00000000000b' and case_type='listing_claim';
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');

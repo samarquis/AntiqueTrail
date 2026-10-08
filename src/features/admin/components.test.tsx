@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -512,7 +512,11 @@ describe('Administrator workspace', () => {
       expect.stringMatching(/^admin-owner-revoke-claim-owner-a-4-/),
       'owner-preview-1',
     )
-    expect(await screen.findByText(/revoked/i)).toBeInTheDocument()
+    expect(
+      await within(screen.getByRole('list', { name: 'Store Owner scopes' })).findByText('revoked', {
+        exact: true,
+      }),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /regrant.*owner/i })).not.toBeInTheDocument()
   })
 

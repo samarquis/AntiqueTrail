@@ -395,7 +395,7 @@ begin
       join partner_private.pending_partner_identities pending on pending.auth_user_id=claim.claimant_id
       join partner_private.partner_invitations invitation on invitation.invitation_id=pending.invitation_id
     where root_row.applicant_id=claim.claimant_id and root_row.active_kind='claim'
-      and root_row.active_id=claim.claim_id and pending.state='bound' and invitation.synthetic)
+      and root_row.active_id=claim.claim_id and invitation.synthetic)
   into owner_intent;
   if not owner_intent then
     return app_public.admin_decide_review_case_representative_base(
