@@ -134,25 +134,35 @@ async function confirmEdgeRuntimeVolumeMount(volume, workdir) {
   const containers = JSON.parse(
     await command('docker', ['inspect', ...containerIds], { signal: controller.signal }),
   )
-  const mountDestinations = containers.flatMap((container) => {
-    const labels = container.Config?.Labels ?? {}
-    if (
-      labels['com.supabase.cli.project'] !== volume.projectId ||
-      labels['com.supabase.cli.workdir'] !== workdir
-    )
-      throw new Error('Issue 581 Edge Runtime container ownership mismatch')
-    return (container.Mounts ?? [])
-      .filter((mount) => mount.Type === 'volume' && mount.Name === volume.name)
-      .map((mount) => mount.Destination)
-  })
+  const expectedContainer = `/supabase_edge_runtime_${volume.projectId}`
+  const runtimeContainers = containers.filter((container) => container.Name === expectedContainer)
+  if (runtimeContainers.length !== 1)
+    throw new Error('Issue 581 Edge Runtime container identity not confirmed')
+
+  const runtime = runtimeContainers[0]
+  const labels = runtime.Config?.Labels ?? {}
   if (
-    mountDestinations.length !== 1 ||
-    typeof mountDestinations[0] !== 'string' ||
-    !mountDestinations[0].startsWith('/')
+    labels['com.supabase.cli.project'] !== volume.projectId ||
+    labels['com.supabase.cli.workdir'] !== workdir
+  )
+    throw new Error('Issue 581 Edge Runtime container ownership mismatch')
+
+  const mounts = (runtime.Mounts ?? []).filter(
+    (mount) => mount.Type === 'volume' && mount.Name === volume.name,
+  )
+  if (
+    mounts.length !== 1 ||
+    typeof mounts[0].Destination !== 'string' ||
+    !mounts[0].Destination.startsWith('/')
   )
     throw new Error('Issue 581 Edge Runtime volume mount not confirmed')
 
-  return { type: 'volume', destination: mountDestinations[0] }
+  return {
+    service: 'edge_runtime',
+    container: expectedContainer.slice(1),
+    type: 'volume',
+    destination: mounts[0].Destination,
+  }
 }
 
 function chicagoYesterday() {
