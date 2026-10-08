@@ -39,9 +39,17 @@ create function partner_private.partner_admin_claim_command_core(
   p_operation text,p_claim_id uuid,p_expected_version bigint,p_idempotency_key text,
   p_reason_code text,p_transfer_from_claim_id uuid,p_allow_owner_intent boolean
 ) returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare claimant uuid; intake_root partner_private.store_owner_intake_roots%rowtype;
+declare
+  claimant uuid;
+  intake_root partner_private.store_owner_intake_roots%rowtype;
+  target_store uuid;
 begin
   perform partner_private.require_claim_admin();
+  -- Preserve exact historical generic-command receipt replay before Owner guards.
+  if exists(select 1 from partner_private.claim_command_receipts where idempotency_key=p_idempotency_key) then
+    return partner_private.partner_admin_claim_command_core_unchecked(
+      p_operation,p_claim_id,p_expected_version,p_idempotency_key,p_reason_code,p_transfer_from_claim_id);
+  end if;
   if p_operation in ('approve','transfer') and not coalesce(p_allow_owner_intent,false) then
     select c.claimant_id into claimant from partner_private.listing_claims c where c.claim_id=p_claim_id;
     if found then
@@ -49,6 +57,24 @@ begin
         where applicant_id=claimant for update;
       if found and intake_root.active_kind='claim' and intake_root.active_id=p_claim_id
         and partner_private.is_owner_intent_claim(p_claim_id) then
+        raise exception using errcode='42501',message='partner_admin_owner_path_required';
+      end if;
+    end if;
+  end if;
+  if p_operation in ('revoke','recheck','transfer') then
+    select c.store_id into target_store from partner_private.listing_claims c where c.claim_id=p_claim_id;
+    if target_store is not null then
+      perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('partner-store:'||target_store,0));
+      perform 1 from partner_private.listing_claims where store_id=target_store for update;
+      perform 1 from partner_private.store_partner_grants where store_id=target_store for update;
+      if exists(select 1 from partner_private.owner_claim_approvals
+        where claim_id=p_claim_id and store_id=target_store)
+        or (p_operation='transfer' and exists(
+          select 1 from partner_private.listing_claims source
+          join partner_private.owner_claim_approvals approval
+            on approval.claim_id=source.claim_id and approval.store_id=source.store_id
+          where source.claim_id=p_transfer_from_claim_id and source.store_id=target_store
+        )) then
         raise exception using errcode='42501',message='partner_admin_owner_path_required';
       end if;
     end if;
