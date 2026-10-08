@@ -362,7 +362,7 @@ begin
   begin id:=p_case_id::uuid;
   exception when others then raise exception using errcode='22023',message='admin_unavailable'; end;
   perform admin_private.enforce_operational_admin_rate(actor,id);
-  if p_action not in ('approve','return','reject') or p_reason is null or p_reason<>btrim(p_reason)
+  if p_action is null or p_action not in ('approve','return','reject') or p_reason is null or p_reason<>btrim(p_reason)
     or char_length(p_reason) not between 1 and 1000 or p_reason~'[[:cntrl:]]'
     or p_expected_version is null or p_expected_version<1
     or p_idempotency_key is null or p_idempotency_key!~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' then
