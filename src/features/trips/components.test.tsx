@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StrictMode, type ReactNode } from 'react'
 import { BrowserRouter, MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -14,7 +14,7 @@ import {
   SummaryPage,
 } from './components'
 import { normalizeTripName } from './tripClient'
-import type { Trip, TripClient } from './types'
+import type { Trip, TripClient, TripPrivateHours } from './types'
 import type { OfflineQueueSnapshot } from './types'
 import type { TripOfflineGrantSource, TripOfflineRuntime } from './tripRuntime'
 
@@ -25,6 +25,29 @@ const trip: Trip = {
   state: 'draft',
   version: 1,
   stops: [],
+}
+const privateHours: TripPrivateHours = {
+  timeZone: 'America/Chicago',
+  weekly: Array.from({ length: 7 }, (_, weekday) => ({
+    weekday,
+    label: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][weekday],
+    isClosed: weekday === 0,
+    intervals: weekday === 0 ? [] : [{ opensAt: '09:00', closesAt: '17:00' }],
+  })),
+  holidays: [],
+}
+const privateStop: Trip['stops'][number] = {
+  id: 'private-stop-1',
+  kind: 'private',
+  label: 'Hidden Finds',
+  address: '123 Main St',
+  sourceUrl: 'https://example.com/shop',
+  shopperHours: privateHours,
+  destination: 'confirmed_by_organizer',
+  position: 0,
+  priority: 'must',
+  plannedDwellMinutes: 60,
+  state: 'planned',
 }
 function client(overrides: Partial<TripClient> = {}): TripClient {
   return {
@@ -591,6 +614,154 @@ describe('manual trips', () => {
     expect(screen.getByText(/travel time is not included/i)).toBeInTheDocument()
   })
 
+  it('creates a private shop and preserves entered fields until the save succeeds', async () => {
+    const user = userEvent.setup()
+    const savedTrip: Trip = { ...trip, version: 2, stops: [privateStop] }
+    const addPrivateTripStop = vi
+      .fn<NonNullable<TripClient['addPrivateTripStop']>>()
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockResolvedValueOnce(savedTrip)
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={<PlanPage client={client({ addPrivateTripStop })} />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: /^add a private shop$/i }))
+    fireEvent.change(await screen.findByLabelText(/^private shop name$/i), {
+      target: { value: 'Discarded entry' },
+    })
+    await user.click(screen.getByRole('button', { name: /^cancel adding private shop$/i }))
+    expect(addPrivateTripStop).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText(/^private shop name$/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /^add a private shop$/i }))
+    fireEvent.change(await screen.findByLabelText(/^private shop name$/i), {
+      target: { value: 'Hidden Finds' },
+    })
+    fireEvent.change(screen.getByLabelText(/^private shop address$/i), {
+      target: { value: '123 Main St' },
+    })
+    fireEvent.change(screen.getByLabelText(/^private shop source url$/i), {
+      target: { value: 'https://example.com/shop' },
+    })
+    await user.click(screen.getByRole('button', { name: /^add shopper hours$/i }))
+    fireEvent.change(screen.getByLabelText(/^hours time zone$/i), {
+      target: { value: 'America/Chicago' },
+    })
+    await user.click(screen.getByRole('button', { name: /add interval for thursday/i }))
+    fireEvent.change(screen.getByLabelText(/thursday opens/i), { target: { value: '09:00' } })
+    fireEvent.change(screen.getByLabelText(/thursday closes/i), { target: { value: '17:00' } })
+    await user.click(screen.getByRole('button', { name: /^save private shop$/i }))
+    await screen.findByRole('alert')
+    expect(screen.getByLabelText(/^private shop name$/i)).toHaveValue('Hidden Finds')
+    expect(screen.getByLabelText(/^private shop address$/i)).toHaveValue('123 Main St')
+    expect(screen.getByLabelText(/^hours time zone$/i)).toHaveValue('America/Chicago')
+
+    const firstSaveKey = addPrivateTripStop.mock.calls[0][3]
+    await user.click(screen.getByRole('button', { name: /^retry$/i }))
+    await waitFor(() => expect(addPrivateTripStop).toHaveBeenCalledTimes(2))
+    expect(addPrivateTripStop.mock.calls[1][3]).toBe(firstSaveKey)
+    expect(addPrivateTripStop).toHaveBeenLastCalledWith(
+      'trip-1',
+      expect.objectContaining({
+        name: 'Hidden Finds',
+        address: '123 Main St',
+        sourceUrl: 'https://example.com/shop',
+        shopperHours: expect.objectContaining({
+          timeZone: 'America/Chicago',
+          weekly: expect.arrayContaining([
+            expect.objectContaining({
+              weekday: 4,
+              intervals: [{ opensAt: '09:00', closesAt: '17:00' }],
+            }),
+          ]),
+        }),
+        priority: 'prefer',
+        plannedDwellMinutes: 60,
+      }),
+      1,
+      expect.stringMatching(/^add_private_trip_stop:/),
+    )
+  })
+
+  it('reopens private fields, resets address confirmation on edit, and confirms only the current address', async () => {
+    const user = userEvent.setup()
+    const changedStop: Trip['stops'][number] = {
+      ...privateStop,
+      address: '456 New St',
+      destination: 'draft',
+    }
+    const changedTrip: Trip = { ...trip, version: 2, stops: [changedStop] }
+    const updatePrivateTripStop = vi
+      .fn<NonNullable<TripClient['updatePrivateTripStop']>>()
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockResolvedValueOnce(changedTrip)
+    const confirmPrivateTripStopDestination = vi
+      .fn<NonNullable<TripClient['confirmPrivateTripStopDestination']>>()
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockResolvedValue({ ...changedTrip, version: 3, stops: [{ ...changedStop, destination: 'confirmed_by_organizer' }] })
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <PlanPage
+                client={client({
+                  get: vi.fn(async () => ({ ...trip, stops: [privateStop] })),
+                  updatePrivateTripStop,
+                  confirmPrivateTripStopDestination,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: /^edit private shop: hidden finds$/i }))
+    const address = await screen.findByLabelText(/^private shop address for hidden finds$/i)
+    expect(address).toHaveValue('123 Main St')
+    expect(screen.getByLabelText(/^private shop source url for hidden finds$/i)).toHaveValue(
+      'https://example.com/shop',
+    )
+    await user.clear(address)
+    await user.type(address, '456 New St')
+    await user.click(screen.getByRole('button', { name: /^save changes to hidden finds$/i }))
+    await screen.findByRole('alert')
+    expect(address).toHaveValue('456 New St')
+    const firstUpdateKey = updatePrivateTripStop.mock.calls[0][4]
+    await user.click(screen.getByRole('button', { name: /^retry$/i }))
+    await waitFor(() => expect(updatePrivateTripStop).toHaveBeenCalledTimes(2))
+    expect(updatePrivateTripStop.mock.calls[1][4]).toBe(firstUpdateKey)
+    expect(updatePrivateTripStop).toHaveBeenLastCalledWith(
+      'trip-1',
+      'private-stop-1',
+      expect.objectContaining({ address: '456 New St' }),
+      1,
+      expect.stringMatching(/^update_private_trip_stop:/),
+    )
+    await user.click(await screen.findByRole('button', { name: /^confirm exact address for hidden finds$/i }))
+    await screen.findByRole('alert')
+    const firstConfirmKey = confirmPrivateTripStopDestination.mock.calls[0][4]
+    await user.click(screen.getByRole('button', { name: /^retry$/i }))
+    expect(confirmPrivateTripStopDestination).toHaveBeenCalledTimes(2)
+    expect(confirmPrivateTripStopDestination.mock.calls[1][4]).toBe(firstConfirmKey)
+    expect(confirmPrivateTripStopDestination).toHaveBeenLastCalledWith(
+      'trip-1',
+      'private-stop-1',
+      '456 New St',
+      2,
+      expect.stringMatching(/^confirm_trip_stop_destination:/),
+    )
+  })
+
   it('provides keyboard-accessible move controls and queues offline changes as state', async () => {
     const user = userEvent.setup()
     const orderedTrip: Trip = {
@@ -989,7 +1160,7 @@ describe('manual trips', () => {
     await user.selectOptions(screen.getByLabelText(/return to oak antiques/i), 'yes')
     await user.type(screen.getByLabelText(/private note for oak antiques/i), 'Great lamps')
     await user.click(screen.getByRole('button', { name: /save private memory for oak antiques/i }))
-    expect(saveVisitMemory).toHaveBeenCalledWith('trip-1', 'store-1', {
+    expect(saveVisitMemory).toHaveBeenCalledWith('trip-1', 'stop-1', {
       rating: 5,
       returnChoice: 'yes',
       note: 'Great lamps',
