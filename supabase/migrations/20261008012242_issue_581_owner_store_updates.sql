@@ -1,5 +1,15 @@
 -- #581: versioned Owner text edits, least-privilege public projection, and durable sale expiry.
 
+create temporary table issue581_prior_role_access on commit drop as
+select
+  exists(select 1 from pg_auth_members where roleid='identity_service'::regrole and member='postgres'::regrole)
+    as identity_service_member,
+  has_schema_privilege('identity_service','portal_private','CREATE') as identity_service_portal_create,
+  has_schema_privilege('identity_service','app_public','CREATE') as identity_service_app_create,
+  exists(select 1 from pg_auth_members where roleid='catalog_reader'::regrole and member='postgres'::regrole)
+    as catalog_reader_member,
+  has_schema_privilege('catalog_reader','app_public','CREATE') as catalog_reader_app_create;
+
 do $$
 begin
   if not exists (select 1 from pg_roles where rolname='store_update_expiry_service') then
@@ -60,6 +70,16 @@ create policy catalog_reader_public_store_updates on portal_private.store_update
     )
   );
 
+do $$
+declare prior record;
+begin
+  select * into prior from pg_temp.issue581_prior_role_access;
+  if not prior.identity_service_member then execute 'grant identity_service to postgres'; end if;
+  if not prior.identity_service_portal_create then execute 'grant create on schema portal_private to identity_service'; end if;
+  if not prior.identity_service_app_create then execute 'grant create on schema app_public to identity_service'; end if;
+end
+$$;
+set role identity_service;
 create or replace function portal_private.store_update_json(target uuid)
 returns jsonb language sql stable security definer set search_path='' as $$
   select jsonb_strip_nulls(jsonb_build_object('id',u.update_id,'type',u.update_type,'headline',u.headline,'details',u.details,
@@ -76,6 +96,7 @@ declare target uuid:=portal_private.require_portal_scope(); begin
     from portal_private.store_updates u where u.store_id=target),'[]'::jsonb);
 end $$;
 alter function app_public.portal_list_updates() owner to identity_service;
+reset role;
 
 create or replace function app_public.portal_edit_update(
   p_update_id text,p_update jsonb,p_expected_version bigint,p_idempotency_key text
@@ -253,6 +274,15 @@ alter function app_public.portal_expire_store_sales(timestamptz,integer) owner t
 revoke all on function app_public.portal_expire_store_sales(timestamptz,integer) from public,anon,authenticated;
 grant execute on function app_public.portal_expire_store_sales(timestamptz,integer) to store_update_expiry_service;
 
+do $$
+declare prior record;
+begin
+  select * into prior from pg_temp.issue581_prior_role_access;
+  if not prior.catalog_reader_member then execute 'grant catalog_reader to postgres'; end if;
+  if not prior.catalog_reader_app_create then execute 'grant create on schema app_public to catalog_reader'; end if;
+end
+$$;
+set role catalog_reader;
 create or replace function app_public.catalog_details(p_slug text)
 returns setof app_public.catalog_details_row language plpgsql stable security definer
 set search_path = pg_catalog, app_public as $$
@@ -294,4 +324,15 @@ returns setof app_public.catalog_details_row language sql stable security define
 $$;
 alter function app_public.regional_catalog_details(text) owner to catalog_reader;
 
-revoke identity_service from postgres;
+reset role;
+do $$
+declare prior record;
+begin
+  select * into prior from pg_temp.issue581_prior_role_access;
+  if not prior.identity_service_portal_create then execute 'revoke create on schema portal_private from identity_service'; end if;
+  if not prior.identity_service_app_create then execute 'revoke create on schema app_public from identity_service'; end if;
+  if not prior.identity_service_member then execute 'revoke identity_service from postgres'; end if;
+  if not prior.catalog_reader_app_create then execute 'revoke create on schema app_public from catalog_reader'; end if;
+  if not prior.catalog_reader_member then execute 'revoke catalog_reader from postgres'; end if;
+end
+$$;
