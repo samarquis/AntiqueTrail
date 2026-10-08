@@ -27,12 +27,10 @@ function safeCount(value) {
 function safeCatalogFailure(value) {
   if (!value || !['list', 'details'].includes(value.operation)) return undefined
   const errorCode = catalogErrorCategories.has(value.errorCode) ? value.errorCode : 'other'
+  const status = Number.isSafeInteger(value.status) ? value.status : value.httpStatus
   return {
     operation: value.operation,
-    httpStatus:
-      Number.isSafeInteger(value.status) && value.status >= 400 && value.status <= 599
-        ? value.status
-        : null,
+    httpStatus: Number.isSafeInteger(status) && status >= 400 && status <= 599 ? status : null,
     errorCode,
     rpcErrorCategory: catalogErrorCategories.get(errorCode) ?? 'other',
   }

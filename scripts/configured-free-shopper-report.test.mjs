@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { browserReport } from './configured-free-shopper-report.mjs'
+import { browserReport, safeIssue565Diagnostics } from './configured-free-shopper-report.mjs'
 
 const good = {
   stats: { expected: 18, unexpected: 0, skipped: 0, flaky: 0 },
@@ -242,6 +242,10 @@ test('Issue 565 probes retain safe route and revocation classes only', () => {
       profileUnchanged: true,
     },
   })
+  const sanitizedAgain = safeIssue565Diagnostics({
+    discovery: report.checks[0].diagnostics.discovery,
+  })
+  assert.equal(sanitizedAgain.discovery.catalogFailure.httpStatus, 503)
   assert.doesNotMatch(
     JSON.stringify(report.checks),
     /private-token|private\.invalid|accessToken|sessionId|token=|responseBody|authorization/,
