@@ -1,3 +1,12 @@
+create temporary table issue577_prior_identity_service_membership on commit drop as
+select 1 as present
+where exists (
+  select 1 from pg_auth_members
+  where roleid='identity_service'::regrole and member='postgres'::regrole
+);
+grant identity_service to postgres;
+grant create on schema app_public to identity_service;
+
 set role identity_service;
 alter function app_public.build_account_export_canonical_json(uuid,uuid)
   rename to build_account_export_before_private_stops;
@@ -74,9 +83,16 @@ begin
   return canonical::text;
 end; $$;
 
-grant create on schema app_public to identity_service;
 alter function app_public.build_account_export_canonical_json(uuid,uuid) owner to identity_service;
 revoke create on schema app_public from identity_service;
 revoke all on function app_public.build_account_export_canonical_json(uuid,uuid)
   from public,anon,authenticated;
 grant execute on function app_public.build_account_export_canonical_json(uuid,uuid) to identity_service;
+
+do $cleanup$
+begin
+  if not exists (select 1 from pg_temp.issue577_prior_identity_service_membership) then
+    execute 'revoke identity_service from postgres';
+  end if;
+end;
+$cleanup$;
