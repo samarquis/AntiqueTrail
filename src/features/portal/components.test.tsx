@@ -663,6 +663,41 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('version 8')
   })
 
+  it('does not conflate a failed initial updates read with an empty list', async () => {
+    const user = userEvent.setup()
+    let rejectInitial!: (failure: Error) => void
+    const initialRead = new Promise<never>((_resolve, reject) => {
+      rejectInitial = reject
+    })
+    let resolveRetry!: (items: []) => void
+    const retryRead = new Promise<[]>((resolve) => {
+      resolveRetry = resolve
+    })
+    const listUpdates = vi.fn().mockReturnValueOnce(initialRead).mockReturnValueOnce(retryRead)
+    render(
+      <MemoryRouter>
+        <PortalUpdatesPage client={client({ listUpdates })} />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Refreshing saved updates…')).toHaveAttribute('role', 'status')
+    expect(screen.queryByText('No Store Updates yet.')).not.toBeInTheDocument()
+
+    rejectInitial(new Error('initial read unavailable'))
+    expect(await screen.findByText(/we couldn't refresh saved updates/i)).toBeInTheDocument()
+    expect(screen.queryByText('No Store Updates yet.')).not.toBeInTheDocument()
+
+    const retryButton = screen.getByRole('button', { name: 'Retry refresh' })
+    await user.click(retryButton)
+    expect(retryButton).toBeDisabled()
+    expect(screen.getByText('Refreshing saved updates…')).toHaveAttribute('role', 'status')
+    expect(screen.queryByText('No Store Updates yet.')).not.toBeInTheDocument()
+
+    resolveRetry([])
+    expect(await screen.findByText('No Store Updates yet.')).toBeInTheDocument()
+    expect(listUpdates).toHaveBeenCalledTimes(2)
+  })
+
   it('uploads official media through M-01 and leaves publication pending review', async () => {
     const user = userEvent.setup()
     const uploadOfficialMedia = vi.fn(async () => ({

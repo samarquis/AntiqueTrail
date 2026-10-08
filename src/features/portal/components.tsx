@@ -676,7 +676,7 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [refreshFailed, setRefreshFailed] = useState(false)
-  const [refreshPending, setRefreshPending] = useState(false)
+  const [refreshPending, setRefreshPending] = useState(true)
   useEffect(() => {
     setRefreshPending(true)
     client
@@ -887,7 +887,9 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
       <section aria-labelledby="updates-list-heading">
         <h2 id="updates-list-heading">Your updates</h2>
         {updates.length === 0 ? (
-          <p>No Store Updates yet.</p>
+          refreshPending || refreshFailed ? null : (
+            <p>No Store Updates yet.</p>
+          )
         ) : (
           <ul>
             {updates.map((update) => (
