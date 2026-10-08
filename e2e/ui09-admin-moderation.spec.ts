@@ -296,7 +296,9 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
     await expect(page.locator('.review-queue__workspace')).toBeVisible()
     await expect(page.getByText('No assigned review cases.')).toHaveCount(0)
     await page.goto(reviewUrl('/admin/access', 'administrator', 'loading'))
-    await expect(page.getByRole('status')).toContainText('Loading Store Representative scopes')
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Loading Store Representative scopes' }),
+    ).toContainText('Loading Store Representative scopes')
     await expect(page.getByText('No Store Representative scopes.')).toHaveCount(0)
     await page.goto(reviewUrl('/admin', 'administrator', 'empty'))
     await expect(page.getByText('No assigned review cases.')).toBeVisible()
