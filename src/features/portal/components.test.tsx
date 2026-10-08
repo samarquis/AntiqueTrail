@@ -696,7 +696,7 @@ describe('provider-neutral Store Portal boundary', () => {
 
   it('submits an approved-slot replacement bound to the previewed row version', async () => {
     const user = userEvent.setup()
-    const uploadOfficialMedia = vi.fn(async () => ({
+    const uploadOfficialMedia = vi.fn(async (_input: PortalMediaUploadInput) => ({
       uploadId: '11111111-1111-4111-8111-111111111111',
       state: 'awaiting_review' as const,
     }))
@@ -717,7 +717,7 @@ describe('provider-neutral Store Portal boundary', () => {
               listingState: 'active' as const,
               liveFields: {},
               pendingChanges: [],
-              freshness: { state: 'verified', label: 'Verified' },
+              freshness: { state: 'verified' as const, label: 'Verified' },
               media: [target],
             })),
             uploadOfficialMedia,
