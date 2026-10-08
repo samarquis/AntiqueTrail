@@ -63,9 +63,9 @@ begin
   );
 end;
 $$;
-alter function app_public.verify_initial_navigator_device(text,text) owner to identity_service;
 revoke all on function app_public.verify_initial_navigator_device(text,text) from public, anon;
 grant execute on function app_public.verify_initial_navigator_device(text,text) to authenticated;
+alter function app_public.verify_initial_navigator_device(text,text) owner to identity_service;
 
 create or replace function app_public.prepare_initial_navigator(
   trip_id text,
@@ -150,7 +150,7 @@ begin
   return trip_private.collaboration_json(v_trip);
 end;
 $$;
-alter function app_public.prepare_initial_navigator(text,bigint,text) owner to identity_service;
 revoke all on function app_public.prepare_initial_navigator(text,bigint,text) from public, anon;
 grant execute on function app_public.prepare_initial_navigator(text,bigint,text) to authenticated;
+alter function app_public.prepare_initial_navigator(text,bigint,text) owner to identity_service;
 revoke create on schema app_public from identity_service;
