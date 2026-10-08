@@ -270,6 +270,7 @@ begin
 end $$;
 
 reset role;
+alter function partner_private.check_store_media_cap(uuid,text,uuid) owner to media_automation;
 revoke all on function app_public.media_reserve_replacement(uuid,bigint,text,uuid,boolean,text,bigint,integer,integer,bytea)
   from public,anon,service_role;
 grant execute on function app_public.media_reserve_replacement(uuid,bigint,text,uuid,boolean,text,bigint,integer,integer,bytea)
