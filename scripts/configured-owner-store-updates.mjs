@@ -239,6 +239,9 @@ async function provisionOwner(local) {
   const owner = local.users[0]
   if (!owner || typeof owner.id !== 'string' || typeof owner.email !== 'string')
     throw new Error('Local Owner identity is unavailable')
+  const shopper = local.users[1]
+  if (!shopper || typeof shopper.email !== 'string' || typeof shopper.password !== 'string')
+    throw new Error('Local catalog Shopper identity is unavailable')
 
   const areaId = uuid()
   const storeId = uuid()
@@ -435,6 +438,7 @@ async function provisionOwner(local) {
     siblingSlug,
     storeName: 'Issue 581 Store A',
     owner: { email: owner.email, password: owner.password, totpSecret: enrolled.totp.secret },
+    shopper: { email: shopper.email, password: shopper.password },
   }
 }
 

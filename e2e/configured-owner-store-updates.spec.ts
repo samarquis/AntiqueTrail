@@ -14,6 +14,7 @@ type Input = {
   siblingSlug: string
   storeName: string
   owner: { email: string; password: string; totpSecret: string }
+  shopper: { email: string; password: string }
 }
 
 const inputPath = process.env.CONFIGURED_OWNER_STORE_UPDATES_INPUT
@@ -45,6 +46,18 @@ async function loginOwner(page: Page) {
   await page.getByLabel('Authentication code', { exact: true }).fill(totp(input.owner.totpSecret))
   await page.getByRole('button', { name: 'Verify code', exact: true }).click()
   await expect(page).toHaveURL(/\/owner\/stores$/)
+}
+
+async function loginShopper(page: Page) {
+  await page.goto(`/auth/sign-in?returnTo=${encodeURIComponent('/stores')}`)
+  await page.getByLabel('Email', { exact: true }).fill(input.shopper.email)
+  await page.getByLabel('Password', { exact: true }).fill(input.shopper.password)
+  const responsePromise = page.waitForResponse((response) =>
+    response.url().includes('/auth/v1/token?grant_type=password'),
+  )
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  expect((await responsePromise).status()).toBe(200)
+  await expect(page).toHaveURL(/\/stores$/)
 }
 
 function rpcRequest(request: import('@playwright/test').Request, name: string) {
@@ -145,10 +158,11 @@ test('configured Owner edits text through selected-store context and shoppers se
   )
   const orderedUpdates = newestFirst(editedUpdates)
 
-  const anonymousContext = await browser.newContext({ baseURL: input.origin })
-  const anonymousPage = await anonymousContext.newPage()
+  const shopperContext = await browser.newContext({ baseURL: input.origin })
+  const shopperPage = await shopperContext.newPage()
   try {
-    const detailResponsePromise = anonymousPage.waitForResponse((response) => {
+    await loginShopper(shopperPage)
+    const detailResponsePromise = shopperPage.waitForResponse((response) => {
       const request = response.request()
       if (
         request.method() !== 'POST' ||
@@ -157,7 +171,7 @@ test('configured Owner edits text through selected-store context and shoppers se
         return false
       return (request.postDataJSON() as { operation?: string }).operation === 'details'
     })
-    await anonymousPage.goto(`/stores/${encodeURIComponent(input.storeSlug)}`)
+    await shopperPage.goto(`/stores/${encodeURIComponent(input.storeSlug)}`)
     const detailResponse = await detailResponsePromise
     const detailPayload = (await detailResponse.json()) as {
       data?: unknown
@@ -183,28 +197,28 @@ test('configured Owner edits text through selected-store context and shoppers se
         ? 1
         : 0
     if (rowCount !== 1) throw new Error(`Public catalog detail returned ${rowCount} rows`)
-    await expect(anonymousPage.getByRole('heading', { name: 'Latest updates' })).toBeVisible()
-    const latest = anonymousPage.locator('.store-updates h3')
+    await expect(shopperPage.getByRole('heading', { name: 'Latest updates' })).toBeVisible()
+    const latest = shopperPage.locator('.store-updates h3')
     await expect(latest).toHaveText(orderedUpdates.slice(0, 3).map((update) => update.headline))
-    await expect(anonymousPage.getByText('Expired sale fixture', { exact: true })).toHaveCount(0)
-    await expect(anonymousPage.getByRole('link', { name: 'See all store updates' })).toBeVisible()
-    await anonymousPage.screenshot({
+    await expect(shopperPage.getByText('Expired sale fixture', { exact: true })).toHaveCount(0)
+    await expect(shopperPage.getByRole('link', { name: 'See all store updates' })).toBeVisible()
+    await shopperPage.screenshot({
       path: path.join(input.output, 'issue-581-store-detail-desktop.png'),
       fullPage: true,
     })
 
-    await anonymousPage.getByRole('link', { name: 'See all store updates' }).click()
-    await expect(anonymousPage).toHaveURL(new RegExp(`/stores/${input.storeSlug}/updates$`))
-    await expect(anonymousPage.locator('.store-updates h3')).toHaveText(
+    await shopperPage.getByRole('link', { name: 'See all store updates' }).click()
+    await expect(shopperPage).toHaveURL(new RegExp(`/stores/${input.storeSlug}/updates$`))
+    await expect(shopperPage.locator('.store-updates h3')).toHaveText(
       orderedUpdates.map((update) => update.headline),
     )
-    await expect(anonymousPage.getByText('Expired sale fixture', { exact: true })).toHaveCount(0)
-    await anonymousPage.setViewportSize({ width: 390, height: 844 })
-    await anonymousPage.emulateMedia({ colorScheme: 'dark' })
+    await expect(shopperPage.getByText('Expired sale fixture', { exact: true })).toHaveCount(0)
+    await shopperPage.setViewportSize({ width: 390, height: 844 })
+    await shopperPage.emulateMedia({ colorScheme: 'dark' })
     expect(
-      await anonymousPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      await shopperPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true)
-    await anonymousPage.screenshot({
+    await shopperPage.screenshot({
       path: path.join(input.output, 'issue-581-store-updates-narrow-dark.png'),
       fullPage: true,
     })
@@ -222,20 +236,20 @@ test('configured Owner edits text through selected-store context and shoppers se
     expect((await archiveResponse.request().allHeaders())['x-owner-store-id']).toBe(input.storeId)
     const remainingUpdates = orderedUpdates.filter((update) => update.id !== oldest.id)
 
-    await anonymousPage.goto(`/stores/${encodeURIComponent(input.storeSlug)}`)
-    await expect(anonymousPage.locator('.store-updates h3')).toHaveText(
+    await shopperPage.goto(`/stores/${encodeURIComponent(input.storeSlug)}`)
+    await expect(shopperPage.locator('.store-updates h3')).toHaveText(
       remainingUpdates.slice(0, 3).map((update) => update.headline),
     )
-    await expect(anonymousPage.getByText('Expired sale fixture', { exact: true })).toHaveCount(0)
-    await anonymousPage.getByRole('link', { name: 'See all store updates' }).click()
-    await expect(anonymousPage.locator('.store-updates h3')).toHaveText(
+    await expect(shopperPage.getByText('Expired sale fixture', { exact: true })).toHaveCount(0)
+    await shopperPage.getByRole('link', { name: 'See all store updates' }).click()
+    await expect(shopperPage.locator('.store-updates h3')).toHaveText(
       remainingUpdates.map((update) => update.headline),
     )
 
-    await anonymousPage.goto(`/stores/${encodeURIComponent(input.siblingSlug)}`)
-    await expect(anonymousPage.getByText('This store has not published any updates.')).toBeVisible()
-    await expect(anonymousPage.getByText(/Issue 581 update|Edited Issue 581 update/)).toHaveCount(0)
+    await shopperPage.goto(`/stores/${encodeURIComponent(input.siblingSlug)}`)
+    await expect(shopperPage.getByText('This store has not published any updates.')).toBeVisible()
+    await expect(shopperPage.getByText(/Issue 581 update|Edited Issue 581 update/)).toHaveCount(0)
   } finally {
-    await anonymousContext.close()
+    await shopperContext.close()
   }
 })
