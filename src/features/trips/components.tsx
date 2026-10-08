@@ -1132,9 +1132,8 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     state: 'empty',
     pendingCount: 0,
   })
-  const currentActionError = actionError?.context && !actionError.context.isCurrent()
-    ? null
-    : actionError
+  const currentActionError =
+    actionError?.context && !actionError.context.isCurrent() ? null : actionError
   async function runAction(
     label: string,
     action: () => Promise<void>,
@@ -1320,8 +1319,7 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       </TripCard>
     )
   const privateStopRetryBlocked =
-    currentActionError?.context?.scope === 'private-stop' &&
-    currentActionError.context.isCurrent()
+    currentActionError?.context?.scope === 'private-stop' && currentActionError.context.isCurrent()
   return (
     <TripCard
       title={trip.name}
