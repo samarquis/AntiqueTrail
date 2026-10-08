@@ -108,7 +108,13 @@ describe('implicit-actor TripClient transport', () => {
       ],
     })
     await api.addPrivateTripStop?.('trip-1', input, 1, 'add_private_trip_stop:add-1')
-    await api.updatePrivateTripStop?.('trip-1', 'private-stop-1', input, 2, 'update_private_trip_stop:edit-1')
+    await api.updatePrivateTripStop?.(
+      'trip-1',
+      'private-stop-1',
+      input,
+      2,
+      'update_private_trip_stop:edit-1',
+    )
     await api.confirmPrivateTripStopDestination?.(
       'trip-1',
       'private-stop-1',
@@ -186,12 +192,19 @@ describe('implicit-actor TripClient transport', () => {
       ...trip,
       stops: [{ ...privateStop, address: null, destination: 'confirmed_by_organizer' }],
     })
-    await expect(createTripApi(unconfirmedAddress).get('trip-1')).rejects.toThrow(GENERIC_TRIP_ERROR)
+    await expect(createTripApi(unconfirmedAddress).get('trip-1')).rejects.toThrow(
+      GENERIC_TRIP_ERROR,
+    )
     const purgedCompletedAddress = transport({
       ...trip,
       state: 'completed',
       stops: [
-        { ...privateStop, state: 'completed', address: null, destination: 'confirmed_by_organizer' },
+        {
+          ...privateStop,
+          state: 'completed',
+          address: null,
+          destination: 'confirmed_by_organizer',
+        },
       ],
     })
     await expect(createTripApi(purgedCompletedAddress).get('trip-1')).resolves.toMatchObject({
@@ -232,12 +245,7 @@ describe('implicit-actor TripClient transport', () => {
       ),
     ).rejects.toThrow(GENERIC_TRIP_ERROR)
     await expect(
-      api.addPrivateTripStop?.(
-        'trip-1',
-        privateStopInput,
-        1,
-        'wrong-command:key',
-      ),
+      api.addPrivateTripStop?.('trip-1', privateStopInput, 1, 'wrong-command:key'),
     ).rejects.toThrow(GENERIC_TRIP_ERROR)
     expect(wire.invoke).not.toHaveBeenCalled()
   })

@@ -59,7 +59,15 @@ function TripError() {
   return <p role="alert">{GENERIC_TRIP_ERROR}</p>
 }
 
-const PRIVATE_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const PRIVATE_WEEKDAYS = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+]
 
 type TripActionRunner = (label: string, action: () => Promise<void>) => Promise<boolean>
 type PrivateTripStop = Extract<TripStop, { kind: 'private' }>
@@ -75,7 +83,12 @@ function tripCommandKey(ref: TripCommandKeyRef, command: string, value: unknown)
 function emptyPrivateHours(): TripPrivateHours {
   return {
     timeZone: '',
-    weekly: PRIVATE_WEEKDAYS.map((label, weekday) => ({ weekday, label, isClosed: false, intervals: [] })),
+    weekly: PRIVATE_WEEKDAYS.map((label, weekday) => ({
+      weekday,
+      label,
+      isClosed: false,
+      intervals: [],
+    })),
     holidays: [],
   }
 }
@@ -154,7 +167,11 @@ function PrivateHoursEditor({
 }) {
   if (!value)
     return (
-      <button className="button button--secondary" type="button" onClick={() => onChange(emptyPrivateHours())}>
+      <button
+        className="button button--secondary"
+        type="button"
+        onClick={() => onChange(emptyPrivateHours())}
+      >
         Add shopper hours
       </button>
     )
@@ -162,7 +179,10 @@ function PrivateHoursEditor({
     weekday: number,
     update: (day: TripPrivateHours['weekly'][number]) => TripPrivateHours['weekly'][number],
   ) =>
-    onChange({ ...value, weekly: value.weekly.map((day) => (day.weekday === weekday ? update(day) : day)) })
+    onChange({
+      ...value,
+      weekly: value.weekly.map((day) => (day.weekday === weekday ? update(day) : day)),
+    })
   return (
     <fieldset>
       <legend>Shopper hours</legend>
@@ -198,7 +218,9 @@ function PrivateHoursEditor({
                 label={day.label}
                 prefix={`${prefix}-day-${day.weekday}`}
                 intervals={day.intervals}
-                onChange={(intervals) => updateDay(day.weekday, (current) => ({ ...current, intervals }))}
+                onChange={(intervals) =>
+                  updateDay(day.weekday, (current) => ({ ...current, intervals }))
+                }
               />
             )}
           </fieldset>
@@ -217,7 +239,9 @@ function PrivateHoursEditor({
                 onChange({
                   ...value,
                   holidays: value.holidays.map((current, currentIndex) =>
-                    currentIndex === index ? { ...current, localDate: event.target.value } : current,
+                    currentIndex === index
+                      ? { ...current, localDate: event.target.value }
+                      : current,
                   ),
                 })
               }
@@ -275,7 +299,9 @@ function PrivateHoursEditor({
             <button
               className="button button--secondary"
               type="button"
-              onClick={() => onChange({ ...value, holidays: value.holidays.filter((_, i) => i !== index) })}
+              onClick={() =>
+                onChange({ ...value, holidays: value.holidays.filter((_, i) => i !== index) })
+              }
             >
               Remove holiday {index + 1}
             </button>
@@ -287,7 +313,10 @@ function PrivateHoursEditor({
           onClick={() =>
             onChange({
               ...value,
-              holidays: [...value.holidays, { localDate: '', label: '', isClosed: true, intervals: [] }],
+              holidays: [
+                ...value.holidays,
+                { localDate: '', label: '', isClosed: true, intervals: [] },
+              ],
             })
           }
         >
@@ -380,7 +409,9 @@ function PrivateTripStopEditor({
   const [name, setName] = useState(stop?.label ?? '')
   const [address, setAddress] = useState(stop?.address ?? '')
   const [sourceUrl, setSourceUrl] = useState(stop?.sourceUrl ?? '')
-  const [shopperHours, setShopperHours] = useState<TripPrivateHours | null>(stop?.shopperHours ?? null)
+  const [shopperHours, setShopperHours] = useState<TripPrivateHours | null>(
+    stop?.shopperHours ?? null,
+  )
   const [priority, setPriority] = useState<StopPriority>(stop?.priority ?? 'prefer')
   const [dwell, setDwell] = useState(stop?.plannedDwellMinutes ?? 60)
   const saveKey = useRef<{ signature: string; key: string } | null>(null)
@@ -421,7 +452,12 @@ function PrivateTripStopEditor({
     const update = client.updatePrivateTripStop
     if ((!stop && !add) || (stop && !update)) return
     const command = stop ? 'update_private_trip_stop' : 'add_private_trip_stop'
-    const key = tripCommandKey(saveKey, command, { tripId: trip.id, stopId: stop?.id, version: trip.version, input })
+    const key = tripCommandKey(saveKey, command, {
+      tripId: trip.id,
+      stopId: stop?.id,
+      version: trip.version,
+      input,
+    })
     await runAction(stop ? `save changes to ${stop.label}` : 'save private shop', async () => {
       const next = stop
         ? await update!(trip.id, stop.id, input, trip.version, key)
@@ -429,7 +465,9 @@ function PrivateTripStopEditor({
       onTrip(next)
       saveKey.current = null
       if (stop) {
-        const saved = next.stops.find((item): item is PrivateTripStop => item.id === stop.id && item.kind === 'private')
+        const saved = next.stops.find(
+          (item): item is PrivateTripStop => item.id === stop.id && item.kind === 'private',
+        )
         if (saved) {
           setName(saved.label)
           setAddress(saved.address ?? '')
@@ -475,7 +513,9 @@ function PrivateTripStopEditor({
 
   return (
     <section className="trip-plan-section" aria-labelledby={`${prefix}-heading`}>
-      <h3 id={`${prefix}-heading`}>{stop ? `Private shop: ${stop.label}` : 'Add a private shop'}</h3>
+      <h3 id={`${prefix}-heading`}>
+        {stop ? `Private shop: ${stop.label}` : 'Add a private shop'}
+      </h3>
       {!editing ? (
         <>
           {stop ? (
@@ -488,17 +528,27 @@ function PrivateTripStopEditor({
               <p>Address: {stop.address ?? 'Not entered'}</p>
               <p>Source URL: {stop.sourceUrl ?? 'Not provided'}</p>
               <p>Shopper hours: {stop.shopperHours ? 'Saved' : 'Not provided'}</p>
-              <button className="button button--secondary" type="button" onClick={() => setEditing(true)}>
+              <button
+                className="button button--secondary"
+                type="button"
+                onClick={() => setEditing(true)}
+              >
                 Edit private shop: {stop.label}
               </button>
-              {stop.destination === 'draft' && stop.address && client.confirmPrivateTripStopDestination && (
-                <button className="button" type="button" onClick={() => void confirmAddress()}>
-                  Confirm exact address for {stop.label}
-                </button>
-              )}
+              {stop.destination === 'draft' &&
+                stop.address &&
+                client.confirmPrivateTripStopDestination && (
+                  <button className="button" type="button" onClick={() => void confirmAddress()}>
+                    Confirm exact address for {stop.label}
+                  </button>
+                )}
             </>
           ) : (
-            <button className="button button--secondary" type="button" onClick={() => setEditing(true)}>
+            <button
+              className="button button--secondary"
+              type="button"
+              onClick={() => setEditing(true)}
+            >
               Add a private shop
             </button>
           )}
@@ -556,7 +606,11 @@ function PrivateTripStopEditor({
             value={dwell}
             onChange={(event) => setDwell(Number(event.target.value))}
           />
-          <button className="button" type="submit" disabled={trip.stops.length >= MAX_ACTIVE_STOPS && !stop}>
+          <button
+            className="button"
+            type="submit"
+            disabled={trip.stops.length >= MAX_ACTIVE_STOPS && !stop}
+          >
             {stop ? `Save changes to ${stop.label}` : 'Save private shop'}
           </button>
           <button className="button button--secondary" type="button" onClick={cancel}>
