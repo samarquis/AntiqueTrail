@@ -127,3 +127,52 @@ test('Owner failure diagnostics retain only allowlisted operation data', () => {
   assert.equal('invitationExchangeHttpStatus' in invalidStatus[0], false)
   assert.doesNotMatch(JSON.stringify(invalidStatus), /private-token/)
 })
+
+test('Owner MFA diagnostics retain only allowlisted verification evidence', () => {
+  const steps = ownerListingStepResults(
+    JSON.stringify([
+      {
+        name: 'identity',
+        status: 'failed',
+        mfaVerification: {
+          verifyHttpStatus: 422,
+          verifyErrorCode: 'mfa_verification_failed',
+          factorVerified: false,
+          aal2Session: false,
+          retryExecuted: true,
+          accessToken: 'private-jwt',
+          rawBody: 'private-response-body',
+        },
+      },
+      {
+        name: 'unknown-code',
+        mfaVerification: {
+          verifyHttpStatus: '401 private-header',
+          verifyErrorCode: 'private-user-input',
+          factorVerified: true,
+          aal2Session: true,
+          retryExecuted: false,
+        },
+      },
+    ]),
+  )
+
+  assert.deepEqual(steps[0].mfaVerification, {
+    verifyHttpStatus: 422,
+    verifyErrorCode: 'mfa_verification_failed',
+    factorVerified: false,
+    aal2Session: false,
+    retryExecuted: true,
+  })
+  assert.deepEqual(steps[1].mfaVerification, {
+    verifyHttpStatus: null,
+    verifyErrorCode: 'other',
+    factorVerified: true,
+    aal2Session: true,
+    retryExecuted: false,
+  })
+  assert.doesNotMatch(
+    JSON.stringify(steps),
+    /private-jwt|private-response-body|private-header|private-user-input/,
+  )
+})

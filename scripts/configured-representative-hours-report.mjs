@@ -7,6 +7,8 @@ const ownerListingOperations = new Set([
   'sign_in_submit_password',
   'sign_in_expect_mfa',
   'sign_in_fill_mfa',
+  'sign_in_mfa_retry',
+  'sign_in_mfa_result',
   'sign_in_submit_mfa',
   'sign_in_wait_return_url',
   'capture_before_approval_screenshot',
@@ -61,6 +63,19 @@ const ownerListingInvitationUiStates = new Set([
   'unexpected_route',
   'unknown',
 ])
+const ownerListingMfaErrorCodes = new Set([
+  'bad_jwt',
+  'mfa_challenge_expired',
+  'mfa_factor_name_conflict',
+  'mfa_factor_not_found',
+  'mfa_ip_address_mismatch',
+  'mfa_totp_verify_not_enabled',
+  'mfa_verification_failed',
+  'mfa_verification_rejected',
+  'mfa_verified_factor_exists',
+  'no_authorization',
+  'over_request_rate_limit',
+])
 
 export function ownerListingPathname(value) {
   if (typeof value !== 'string') return 'unknown'
@@ -72,6 +87,11 @@ export function ownerListingPathname(value) {
   } catch {
     return 'unknown'
   }
+}
+
+export function ownerListingMfaErrorCode(value) {
+  if (typeof value !== 'string') return null
+  return ownerListingMfaErrorCodes.has(value) ? value : 'other'
 }
 
 export function ownerListingFailure(error) {
@@ -128,6 +148,21 @@ export function ownerListingStepResults(text) {
       step.invitationExchangeHttpStatus <= 599
         ? { invitationExchangeHttpStatus: step.invitationExchangeHttpStatus }
         : {}),
+    }
+    if (step?.mfaVerification && typeof step.mfaVerification === 'object') {
+      const mfaVerification = step.mfaVerification
+      result.mfaVerification = {
+        verifyHttpStatus:
+          Number.isSafeInteger(mfaVerification.verifyHttpStatus) &&
+          mfaVerification.verifyHttpStatus >= 100 &&
+          mfaVerification.verifyHttpStatus <= 599
+            ? mfaVerification.verifyHttpStatus
+            : null,
+        verifyErrorCode: ownerListingMfaErrorCode(mfaVerification.verifyErrorCode),
+        factorVerified: mfaVerification.factorVerified === true,
+        aal2Session: mfaVerification.aal2Session === true,
+        retryExecuted: mfaVerification.retryExecuted === true,
+      }
     }
     if (step?.failure && typeof step.failure === 'object') {
       const failure = step.failure

@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import {
   ownerListingFailure,
+  ownerListingMfaErrorCode,
   ownerListingPathname,
 } from '../scripts/configured-representative-hours-report.mjs'
 
@@ -68,6 +69,58 @@ function totp(secret: string) {
   return String((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, '0')
 }
 
+type MfaVerificationEvidence = {
+  verifyHttpStatus: number | null
+  verifyErrorCode: string | null
+  factorVerified: boolean
+  aal2Session: boolean
+  retryExecuted: boolean
+}
+
+function isOwnerMfaVerifyResponse(response: Response) {
+  const url = new URL(response.url())
+  return (
+    response.request().method() === 'POST' &&
+    url.protocol === 'http:' &&
+    url.hostname === '127.0.0.1' &&
+    /^\/auth\/v1\/factors\/[^/]+\/verify$/.test(url.pathname)
+  )
+}
+
+function accessTokenHasAal2(accessToken: string) {
+  const payload = accessToken.split('.')[1]
+  if (!payload) return false
+  try {
+    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+      aal?: unknown
+    }
+    return claims.aal === 'aal2'
+  } catch {
+    return false
+  }
+}
+
+async function ownerMfaVerificationEvidence(
+  response: Response,
+): Promise<Omit<MfaVerificationEvidence, 'retryExecuted'>> {
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch {
+    body = null
+  }
+  const responseBody =
+    body && typeof body === 'object' ? (body as Record<string, unknown>) : undefined
+  const accessToken =
+    typeof responseBody?.access_token === 'string' ? responseBody.access_token : undefined
+  return {
+    verifyHttpStatus: response.status(),
+    verifyErrorCode: ownerListingMfaErrorCode(responseBody?.code),
+    factorVerified: response.ok(),
+    aal2Session: accessToken ? accessTokenHasAal2(accessToken) : false,
+  }
+}
+
 function bearerFor(page: Page) {
   let bearer: string | null = null
   page.on('request', (request) => {
@@ -123,6 +176,7 @@ type MarkOperation = (
   pathname?: string,
   invitationUiState?: InvitationUiState,
   invitationExchangeHttpStatus?: number,
+  mfaVerification?: MfaVerificationEvidence,
 ) => void
 
 async function invitationUiState(page: Page): Promise<InvitationUiState> {
@@ -157,33 +211,57 @@ async function signIn(page: Page, user: User, returnTo: string, mark: MarkOperat
   await page.getByLabel('Password', { exact: true }).fill(user.password)
   mark('sign_in_submit_password', page)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  if (user.totpSecret) {
-    mark('sign_in_expect_mfa', page)
-    await expect(page.getByRole('heading', { name: 'Verify your sign-in' })).toBeVisible()
-    mark('sign_in_fill_mfa', page)
-    await page.getByLabel('Authentication code', { exact: true }).fill(totp(user.totpSecret))
-    mark('sign_in_submit_mfa', page)
-    await page.getByRole('button', { name: 'Verify code', exact: true }).click()
-  }
   const returnUrl = new RegExp(`${returnTo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
-  try {
-    await expect(page).toHaveURL(returnUrl)
-  } catch (error) {
-    const mfaVisible = await page
-      .getByRole('heading', { name: 'Verify your sign-in' })
-      .isVisible()
-      .catch(() => false)
-    const mfaErrorVisible = await page
-      .getByRole('alert')
-      .isVisible()
-      .catch(() => false)
-    if (!user.totpSecret || !mfaVisible || !mfaErrorVisible) throw error
-    await page.getByLabel('Authentication code', { exact: true }).fill(totp(user.totpSecret))
-    mark('sign_in_submit_mfa', page)
-    await page.getByRole('button', { name: 'Verify code', exact: true }).click()
+  let mfaVerification: MfaVerificationEvidence | undefined
+  if (user.totpSecret) {
+    let retryExecuted = false
+    const attempts: Promise<Omit<MfaVerificationEvidence, 'retryExecuted'>>[] = []
+    const captureMfaResponse = (response: Response) => {
+      if (isOwnerMfaVerifyResponse(response)) attempts.push(ownerMfaVerificationEvidence(response))
+    }
+    page.on('response', captureMfaResponse)
+    try {
+      mark('sign_in_expect_mfa', page)
+      await expect(page.getByRole('heading', { name: 'Verify your sign-in' })).toBeVisible()
+      mark('sign_in_fill_mfa', page)
+      await page.getByLabel('Authentication code', { exact: true }).fill(totp(user.totpSecret))
+      mark('sign_in_submit_mfa', page)
+      await page.getByRole('button', { name: 'Verify code', exact: true }).click()
+      try {
+        await expect(page).toHaveURL(returnUrl)
+      } catch (error) {
+        const mfaVisible = await page
+          .getByRole('heading', { name: 'Verify your sign-in' })
+          .isVisible()
+          .catch(() => false)
+        const mfaErrorVisible = await page
+          .getByRole('alert')
+          .isVisible()
+          .catch(() => false)
+        if (!mfaVisible || !mfaErrorVisible) throw error
+        retryExecuted = true
+        await page.getByLabel('Authentication code', { exact: true }).fill(totp(user.totpSecret))
+        mark('sign_in_mfa_retry', page)
+        await page.getByRole('button', { name: 'Verify code', exact: true }).click()
+        await expect(page).toHaveURL(returnUrl)
+      }
+    } finally {
+      page.off('response', captureMfaResponse)
+      const latestAttempt = attempts.at(-1)
+      mfaVerification = {
+        verifyHttpStatus: null,
+        verifyErrorCode: null,
+        factorVerified: false,
+        aal2Session: false,
+        retryExecuted,
+        ...(latestAttempt ? await latestAttempt : {}),
+      }
+      mark('sign_in_mfa_result', page, undefined, undefined, undefined, mfaVerification)
+    }
+  } else {
     await expect(page).toHaveURL(returnUrl)
   }
-  mark('sign_in_wait_return_url', page, returnTo)
+  mark('sign_in_wait_return_url', page, returnTo, undefined, undefined, mfaVerification)
 }
 
 async function acceptInvitation(
@@ -336,7 +414,14 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
     receipt.status = 'running'
     Object.assign(receipt, { startedAtMs })
     writeStepReceipts()
-    const mark: MarkOperation = (operation, page, pathname, uiState, exchangeHttpStatus) => {
+    const mark: MarkOperation = (
+      operation,
+      page,
+      pathname,
+      uiState,
+      exchangeHttpStatus,
+      mfaVerification,
+    ) => {
       receipt.operation = operation
       receipt.pathname = ownerListingPathname(pathname ?? page.url())
       receipt.observedPathname = ownerListingPathname(page.url())
@@ -348,6 +433,7 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
         exchangeHttpStatus <= 599
       )
         receipt.invitationExchangeHttpStatus = exchangeHttpStatus
+      if (mfaVerification) receipt.mfaVerification = mfaVerification
       writeStepReceipts()
     }
     try {
