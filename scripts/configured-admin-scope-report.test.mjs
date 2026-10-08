@@ -68,8 +68,9 @@ test('configured Administrator reports exact allowlisted HTTP status categories 
       errors: [
         {
           message:
-            'Error: expect(received).toBe(expected)\npreview_http_status:http_403\nprivate-owner@example.invalid',
+            'Error: expect(received).toBe(expected)\nprivate-owner@example.invalid',
           stack: 'Error\n at /runner/e2e/configured-admin-scope.spec.ts:457:18',
+          matcherResult: { expected: 200, actual: 403 },
         },
       ],
     },

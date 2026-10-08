@@ -28,9 +28,21 @@ export function configuredAdminScopeReport(parsed, expected = 8) {
       const error = final?.errors?.[0] ?? final?.error
       const message = typeof error?.message === 'string' ? error.message : ''
       const assertion = assertions.find((name) => message.includes(name)) ?? null
-      const httpFailureCategory = message.match(
-        /preview_http_status:(http_(?:400|401|403|404|409|422|429|500|502|503|4xx|5xx|status))/,
-      )?.[1]
+      const actualStatus = error?.matcherResult?.actual
+      const isHttpStatusMismatch =
+        error?.matcherResult?.expected === 200 &&
+        Number.isSafeInteger(actualStatus) &&
+        actualStatus >= 100 &&
+        actualStatus <= 599
+      const httpFailureCategory = isHttpStatusMismatch
+        ? [400, 401, 403, 404, 409, 422, 429, 500, 502, 503].includes(actualStatus)
+          ? `http_${actualStatus}`
+          : actualStatus >= 500
+            ? 'http_5xx'
+            : actualStatus >= 400
+              ? 'http_4xx'
+              : 'http_status'
+        : null
       const stackLine = String(error?.stack ?? '').match(
         /configured-admin-scope\.spec\.ts:(\d+):\d+/,
       )

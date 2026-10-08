@@ -130,15 +130,6 @@ const totp = (secret: string, stepOffset = 0) => {
       1_000_000,
   ).padStart(6, '0')
 }
-const safeHttpStatusCategory = (status: number) =>
-  [400, 401, 403, 404, 409, 422, 429, 500, 502, 503].includes(status)
-    ? `http_${status}`
-    : status >= 500
-      ? 'http_5xx'
-      : status >= 400
-        ? 'http_4xx'
-        : 'http_status'
-
 const read = (store: string, subjectId: string) =>
   command(
     'docker',
@@ -397,8 +388,7 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
     .getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` })
     .click()
   const previewResponseValue = await previewResponse
-  const previewStatus = previewResponseValue.status()
-  expect(previewStatus, `preview_http_status:${safeHttpStatusCategory(previewStatus)}`).toBe(200)
+  expect(previewResponseValue.status()).toBe(200)
   const preview = await previewResponseValue.json()
   expect(preview.grantId).toBe(regrantReadback.grantId)
   expect(preview.grantVersion).toBe(regrantReadback.version)
@@ -475,8 +465,7 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
     .getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` })
     .press('Enter')
   const response = await previewResponse
-  const previewStatus = response.status()
-  expect(previewStatus, `preview_http_status:${safeHttpStatusCategory(previewStatus)}`).toBe(200)
+  expect(response.status()).toBe(200)
   expect(response.request().postDataJSON()).toEqual(previewInput)
   const preview = await response.json()
   expect(preview.subjectUserId).toBe(scope.targetSubjectId)
