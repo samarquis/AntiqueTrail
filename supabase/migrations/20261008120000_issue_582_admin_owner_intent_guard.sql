@@ -70,10 +70,8 @@ begin
       if exists(select 1 from partner_private.owner_claim_approvals
         where claim_id=p_claim_id and store_id=target_store)
         or (p_operation='transfer' and exists(
-          select 1 from partner_private.listing_claims source
-          join partner_private.owner_claim_approvals approval
-            on approval.claim_id=source.claim_id and approval.store_id=source.store_id
-          where source.claim_id=p_transfer_from_claim_id and source.store_id=target_store
+          select 1 from partner_private.owner_claim_approvals
+          where claim_id=p_transfer_from_claim_id
         )) then
         raise exception using errcode='42501',message='partner_admin_owner_path_required';
       end if;
