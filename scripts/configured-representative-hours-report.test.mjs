@@ -86,6 +86,7 @@ test('Owner failure diagnostics retain only allowlisted operation data', () => {
     ),
     '/owner/stores',
   )
+  assert.equal(ownerListingPathname('http://127.0.0.1:4174/auth/mfa'), '/auth/mfa')
   assert.equal(ownerListingPathname('https://example.invalid/private'), 'unknown')
   const steps = ownerListingStepResults(
     JSON.stringify([
@@ -95,6 +96,7 @@ test('Owner failure diagnostics retain only allowlisted operation data', () => {
         durationMs: 12000,
         operation: 'expect_unapproved_owner_access_alert',
         pathname: '/owner/stores?claimStore=private-id#token=private-token',
+        observedPathname: '/admin/partners?claim=private-id#token=private-token',
         invitationUiState: 'person@private.invalid private-token',
         invitationExchangeHttpStatus: 503,
         failure: { ...failure, message: 'private-token', email: 'person@private.invalid' },
@@ -107,6 +109,7 @@ test('Owner failure diagnostics retain only allowlisted operation data', () => {
     durationMs: 12000,
     operation: 'expect_unapproved_owner_access_alert',
     pathname: '/owner/stores',
+    observedPathname: '/admin/partners',
     invitationExchangeHttpStatus: 503,
     failure: {
       assertion: 'toBeVisible',

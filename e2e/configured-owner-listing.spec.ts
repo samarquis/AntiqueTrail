@@ -322,6 +322,7 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
     const mark: MarkOperation = (operation, page, pathname, uiState, exchangeHttpStatus) => {
       receipt.operation = operation
       receipt.pathname = ownerListingPathname(pathname ?? page.url())
+      receipt.observedPathname = ownerListingPathname(page.url())
       if (uiState) receipt.invitationUiState = uiState
       if (
         typeof exchangeHttpStatus === 'number' &&

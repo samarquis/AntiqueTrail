@@ -25,6 +25,9 @@ const ownerListingOperations = new Set([
 ])
 const ownerListingPathnames = new Set([
   '/auth/sign-in',
+  '/auth/mfa',
+  '/admin',
+  '/admin/partners',
   '/owner/stores',
   '/partner/join',
   '/partner/verify',
@@ -113,6 +116,9 @@ export function ownerListingStepResults(text) {
             : 0,
       operation: ownerListingOperations.has(step?.operation) ? step.operation : 'unknown',
       pathname: ownerListingPathname(step?.pathname),
+      ...(step?.observedPathname !== undefined
+        ? { observedPathname: ownerListingPathname(step.observedPathname) }
+        : {}),
       ...(ownerListingInvitationUiStates.has(step?.invitationUiState)
         ? { invitationUiState: step.invitationUiState }
         : {}),
