@@ -93,10 +93,7 @@ describe('private shopper screens', () => {
 
     const action = await screen.findByRole('link', { name: 'Add Oak Antiques to a trip' })
     expect(action).toHaveTextContent('Add to Trip')
-    expect(action).toHaveAttribute(
-      'href',
-      '/trips/new?addStoreId=store-1&returnTo=%2Fsaved',
-    )
+    expect(action).toHaveAttribute('href', '/trips/new?addStoreId=store-1&returnTo=%2Fsaved')
   })
 
   it('removes a saved store and can undo the removal', async () => {
