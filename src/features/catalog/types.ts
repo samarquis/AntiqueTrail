@@ -117,6 +117,7 @@ export interface CatalogMapPoint {
   openState: CatalogHoursStatus
   categoryLabel: string
   distanceMiles: number
+  deviceDistanceMiles?: number
   claimed: boolean
   saved: boolean | null
   visited: boolean | null
@@ -183,4 +184,10 @@ export interface CatalogClient {
   nearbyList?(filters: CatalogFilters, nearby: CatalogNearbySearch): Promise<CatalogListResult>
   details(slug: string): Promise<CatalogStore | null>
   map?(filters: CatalogFilters, bounds: CatalogMapBounds, zoom: number): Promise<CatalogMapResult>
+  nearbyMap?(
+    filters: CatalogFilters,
+    bounds: CatalogMapBounds,
+    zoom: number,
+    nearby: CatalogNearbySearch,
+  ): Promise<CatalogMapResult>
 }
