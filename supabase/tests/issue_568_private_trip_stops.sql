@@ -419,6 +419,10 @@ select set_config('test.visit_memory_id',(select m.memory_id::text from trip_pri
   where m.trip_id='56800000-0000-4000-8000-000000000103'),true);
 reset role;
 set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"56800000-0000-4000-8000-000000000002","role":"authenticated","session_id":"56800000-0000-4000-8000-000000000012"}',true);
+select throws_ok($$select app_public.save_trip_visit_memory(
+  '56800000-0000-4000-8000-000000000103',current_setting('test.completed_stop_id'),5,'yes','not a member')$$,
+  'P0001','validation_failed','nonmember cannot author another trip visit memory');
 select set_config('request.jwt.claims','{"sub":"56800000-0000-4000-8000-000000000001","role":"authenticated","session_id":"56800000-0000-4000-8000-000000000011"}',true);
 select is((app_public.save_trip_visit_memory(
   '56800000-0000-4000-8000-000000000103',current_setting('test.completed_stop_id'),5,'yes','Visited private shop'
@@ -463,10 +467,6 @@ select set_config('test.catalog_stop_b',(select s.stop_id::text from trip_privat
   where s.trip_id='56800000-0000-4000-8000-000000000102' and s.position=1),true);
 reset role;
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"56800000-0000-4000-8000-000000000002","role":"authenticated","session_id":"56800000-0000-4000-8000-000000000012"}',true);
-select throws_ok($$select app_public.save_trip_visit_memory(
-  '56800000-0000-4000-8000-000000000102',current_setting('test.catalog_stop_a'),5,'yes','not a member')$$,
-  'P0001','validation_failed','nonmember cannot author another trip visit memory');
 select set_config('request.jwt.claims','{"sub":"56800000-0000-4000-8000-000000000001","role":"authenticated","session_id":"56800000-0000-4000-8000-000000000011"}',true);
 select throws_ok($$select app_public.save_trip_visit_memory(
   '56800000-0000-4000-8000-000000000103',current_setting('test.catalog_stop_a'),5,'yes','cross trip')$$,
@@ -530,10 +530,8 @@ delete from auth.sessions where id in
   ('56800000-0000-4000-8000-000000000311','56800000-0000-4000-8000-000000000312');
 delete from auth.users where id in
   ('56800000-0000-4000-8000-000000000301','56800000-0000-4000-8000-000000000302');
-set local role trip_email_key_manager;
 delete from trip_private.email_hmac_keys
  where environment='shared_alpha' and purpose='trip_invitation' and key_version=569;
-reset role;
 commit;
 
 begin;
