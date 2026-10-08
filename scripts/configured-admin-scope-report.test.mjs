@@ -65,12 +65,11 @@ test('configured Administrator reports exact allowlisted HTTP status categories 
   failed.suites[0].specs[0].tests[0].results = [
     {
       status: 'failed',
+      annotations: [{ type: 'safe-http-status', description: 'http_403' }],
       errors: [
         {
-          message:
-            'Error: expect(received).toBe(expected)\nprivate-owner@example.invalid',
+          message: 'Error: expect(received).toBe(expected)\nprivate-owner@example.invalid',
           stack: 'Error\n at /runner/e2e/configured-admin-scope.spec.ts:457:18',
-          matcherResult: { expected: 200, actual: 403 },
         },
       ],
     },

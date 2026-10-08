@@ -6,6 +6,21 @@ export function configuredAdminScopeReport(parsed, expected = 8) {
       throw new Error('Malformed browser counts')
 
   const specs = parsed.suites.flatMap((suite) => suite.specs ?? [])
+  const safeHttpCategories = new Set([
+    'http_400',
+    'http_401',
+    'http_403',
+    'http_404',
+    'http_409',
+    'http_422',
+    'http_429',
+    'http_4xx',
+    'http_500',
+    'http_502',
+    'http_503',
+    'http_5xx',
+    'http_status',
+  ])
   const assertions = [
     'toHaveText',
     'toHaveURL',
@@ -28,21 +43,15 @@ export function configuredAdminScopeReport(parsed, expected = 8) {
       const error = final?.errors?.[0] ?? final?.error
       const message = typeof error?.message === 'string' ? error.message : ''
       const assertion = assertions.find((name) => message.includes(name)) ?? null
-      const actualStatus = error?.matcherResult?.actual
-      const isHttpStatusMismatch =
-        error?.matcherResult?.expected === 200 &&
-        Number.isSafeInteger(actualStatus) &&
-        actualStatus >= 100 &&
-        actualStatus <= 599
-      const httpFailureCategory = isHttpStatusMismatch
-        ? [400, 401, 403, 404, 409, 422, 429, 500, 502, 503].includes(actualStatus)
-          ? `http_${actualStatus}`
-          : actualStatus >= 500
-            ? 'http_5xx'
-            : actualStatus >= 400
-              ? 'http_4xx'
-              : 'http_status'
-        : null
+      const annotations = [
+        ...(Array.isArray(test.annotations) ? test.annotations : []),
+        ...(Array.isArray(final?.annotations) ? final.annotations : []),
+      ]
+      const httpFailureCategory = annotations.find(
+        (annotation) =>
+          annotation?.type === 'safe-http-status' &&
+          safeHttpCategories.has(annotation.description),
+      )?.description
       const stackLine = String(error?.stack ?? '').match(
         /configured-admin-scope\.spec\.ts:(\d+):\d+/,
       )
