@@ -223,6 +223,12 @@ select is((select result->'context'->>'kind' from issue580_case),'gallery',
   'Admin sees derived target kind in immutable review context');
 select is((select result->'context'->>'replacementTargetId' from issue580_case),
   '58000000-0000-4000-8000-000000000012','Admin sees the exact approved slot targeted by the candidate');
+select is((select result->'context'->>'replacementKind' from issue580_case),'gallery',
+  'Admin sees the approved slot kind');
+select is((select result->'context'->>'replacementAltText' from issue580_case),'Approved gallery image one',
+  'Admin sees the approved slot alt text');
+select is((select result->'context'->>'replacementDisplayOrder' from issue580_case),'1',
+  'Admin sees the approved slot display order');
 select is((select result->'context'->>'replacementExpectedVersion' from issue580_case),'1',
   'Admin sees the expected slot version');
 select is((select result->'context'->>'replacementCurrentVersion' from issue580_case),'1',

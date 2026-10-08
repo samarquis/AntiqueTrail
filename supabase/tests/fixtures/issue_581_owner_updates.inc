@@ -20,9 +20,9 @@ insert into auth.users(id,email,email_confirmed_at) values
  ('58100000-0000-4000-8000-000000000001','owner581@example.test',statement_timestamp()),
  ('58100000-0000-4000-8000-000000000002','admin581@example.test',statement_timestamp()),
  ('58100000-0000-4000-8000-000000000013','shopper581@example.test',statement_timestamp());
-insert into partner_private.partner_invitations(invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at)
+insert into partner_private.partner_invitations(invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at,synthetic)
 values ('58100000-0000-4000-8000-000000000020',decode(repeat('61',32),'hex'),decode(repeat('62',32),'hex'),
-  '58100000-0000-4000-8000-000000000001','consumed',statement_timestamp());
+  '58100000-0000-4000-8000-000000000001','consumed',statement_timestamp(),true);
 insert into partner_private.pending_partner_identities(
   pending_identity_id,invitation_id,email_hmac,auth_user_id,state,verified_email_at,mfa_verified_at,bound_at
 ) values ('58100000-0000-4000-8000-000000000021','58100000-0000-4000-8000-000000000020',
