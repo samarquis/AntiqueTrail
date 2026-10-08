@@ -212,30 +212,61 @@ test('visible Details Add to Trip preserves store through cancel, auth failure, 
   expect(await ownedTripCount()).toBe(tripsBefore + 1)
 })
 
-test('visible Saved-row Add to Trip uses the saved store ID and adds one dated stop', async ({
-  page,
-}) => {
+test('visible Saved-row chooser cancels, retries, and reads back one dated stop', async ({ page }) => {
   await login(page, 0, '/stores/clockwork-cabinet')
   await page.getByRole('button', { name: 'Save store Clockwork Cabinet', exact: true }).click()
   await expect.poll(saved).toBe(1)
+
+  const id = crypto.randomUUID()
+  const tripName = 'Saved entry retry trip'
+  await service.sql(
+    `insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date) values ('${id}','${owner}','00000000-0000-4000-8000-000000000001','${tripName}','2026-10-11'); insert into trip_private.trip_participants(trip_id,user_id,participant_role) values ('${id}','${owner}','creator');`,
+  )
+
   await page.goto('/saved')
   await expect(page.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toBeVisible()
 
-  const tripsBefore = await ownedTripCount()
   await page.getByRole('link', { name: 'Add Clockwork Cabinet to a trip' }).click()
   await expect(page).toHaveURL(new RegExp(`/trips/new\\?addStoreId=${A}&returnTo=%2Fsaved`))
+  await expect(page.getByRole('button', { name: `Add to ${tripName}`, exact: true })).toBeVisible()
 
-  const name = `Saved outing ${crypto.randomUUID().slice(0, 8)}`
-  await page.getByLabel('Trip name', { exact: true }).fill(name)
-  await page.getByLabel('Date', { exact: true }).fill('2026-10-11')
-  await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
+  await page.getByRole('link', { name: 'Back to saved stores', exact: true }).click()
+  await expect(page).toHaveURL(/\/saved$/)
+  expect((await read(id)).stops).toEqual([])
+
+  await page.getByRole('link', { name: 'Add Clockwork Cabinet to a trip' }).click()
+  await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+
+  let addAttempts = 0
+  await page.route('**/rest/v1/rpc/add_trip_store_stop', async (route) => {
+    if (route.request().method() === 'POST') {
+      addAttempts++
+      if (addAttempts === 1) {
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'Temporary local test failure' }),
+        })
+        return
+      }
+    }
+    await route.continue()
+  })
+  await page.getByRole('button', { name: `Add to ${tripName}`, exact: true }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  expect(addAttempts).toBe(1)
+  expect((await read(id)).stops).toEqual([])
+
+  await page.getByRole('button', { name: `Add to ${tripName}`, exact: true }).click()
+  await expect(page.getByRole('heading', { name: `Added to ${tripName}`, exact: true })).toBeVisible()
+  expect(addAttempts).toBe(2)
+  await page.unroute('**/rest/v1/rpc/add_trip_store_stop')
   await page.getByRole('link', { name: 'View Trip', exact: true }).click()
-  const id = uuid(page.url().split('/trips/')[1].split('/')[0])
+  await expect(page).toHaveURL(new RegExp(`/trips/${id}/plan$`))
   const trip = await read(id)
-  expect(trip.name).toBe(name)
+  expect(trip.name).toBe(tripName)
   expect(trip.date).toBe('2026-10-11')
   expect(trip.stops.map((stop: { store: string }) => stop.store)).toEqual([A])
-  expect(await ownedTripCount()).toBe(tripsBefore + 1)
 })
 
 test('JIT trip entry, authenticated catalog, photo, save and two-store creation', async ({

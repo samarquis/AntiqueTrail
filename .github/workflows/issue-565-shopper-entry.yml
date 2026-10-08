@@ -1,0 +1,241 @@
+name: Issue 565 configured shopper entry
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/issue-565-shopper-entry.yml'
+      - '.github/workflows/ci.yml'
+      - '.nvmrc'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'e2e/configured-free-shopper.spec.ts'
+      - 'e2e/configured-free-shopper-playwright.config.ts'
+      - 'scripts/configured-free-shopper*'
+      - 'scripts/configured-shopper-*'
+      - 'src/app/App*'
+      - 'src/app/configuredComposition*'
+      - 'src/features/shopper/components*'
+      - 'src/features/trips/**'
+      - 'supabase/config.toml'
+      - 'supabase/functions/**'
+      - 'supabase/migrations/**'
+      - 'supabase/seed.sql'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/issue-565-shopper-entry.yml'
+      - '.github/workflows/ci.yml'
+      - '.nvmrc'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'e2e/configured-free-shopper.spec.ts'
+      - 'e2e/configured-free-shopper-playwright.config.ts'
+      - 'scripts/configured-free-shopper*'
+      - 'scripts/configured-shopper-*'
+      - 'src/app/App*'
+      - 'src/app/configuredComposition*'
+      - 'src/features/shopper/components*'
+      - 'src/features/trips/**'
+      - 'supabase/config.toml'
+      - 'supabase/functions/**'
+      - 'supabase/migrations/**'
+      - 'supabase/seed.sql'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue-565-shopper-entry-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  configured-shopper-entry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Confirm required criteria tests remain present
+        id: criteria_presence
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          const required = [
+            ['e2e/configured-free-shopper.spec.ts', 'visible Details Add to Trip preserves store through cancel, auth failure, and sign-in'],
+            ['e2e/configured-free-shopper.spec.ts', 'visible Saved-row chooser cancels, retries, and reads back one dated stop'],
+            ['src/app/configuredComposition.test.ts', 'requires configured credentials, literal browser origin, and local mode'],
+            ['src/app/App.test.tsx', 'keeps the Details chooser hidden in catalog-only public mode'],
+            ['src/app/App.test.tsx', 'blocks direct trip routes in the public test without removing local review fixtures'],
+          ]
+          for (const [file, criterion] of required) {
+            if (!fs.readFileSync(file, 'utf8').includes(criterion))
+              throw new Error(`Missing required Issue 565 test: ${file}`)
+          }
+          NODE
+      - name: Run direct admission denial tests
+        id: admission_tests
+        run: |
+          mkdir -p artifacts
+          npx vitest run src/app/App.test.tsx src/app/configuredComposition.test.ts --reporter=junit --outputFile=artifacts/issue-565-admission-tests.xml
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run real configured shopper acceptance
+        id: browser_acceptance
+        run: npm run test:e2e:configured-shopper
+      - name: Prepare allowlisted proof receipt
+        if: always()
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CRITERIA_STEP: ${{ steps.criteria_presence.outcome }}
+          ADMISSION_STEP: ${{ steps.admission_tests.outcome }}
+          BROWSER_STEP: ${{ steps.browser_acceptance.outcome }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import path from 'node:path'
+
+          const output = 'artifacts/issue-565-shopper-proof.json'
+          fs.mkdirSync('artifacts', { recursive: true })
+          const failures = []
+          const roots = fs.existsSync('artifacts')
+            ? fs.readdirSync('artifacts').filter((name) => name.startsWith('configured-shopper-'))
+            : []
+          let report
+          if (roots.length === 1) {
+            try {
+              report = JSON.parse(fs.readFileSync(path.join('artifacts', roots[0], 'report.json'), 'utf8'))
+            } catch {
+              failures.push('configured report missing or malformed')
+            }
+          } else {
+            failures.push('expected one configured report')
+          }
+
+          const expectedNames = [
+            'visible Details Add to Trip preserves store through cancel, auth failure, and sign-in',
+            'visible Saved-row chooser cancels, retries, and reads back one dated stop',
+          ]
+          const projects = ['desktop', 'phone']
+          const checks = Array.isArray(report?.checks) ? report.checks : []
+          for (const name of expectedNames)
+            for (const project of projects) {
+              const matches = checks.filter((check) => check.name === name && check.project === project)
+              if (matches.length !== 1 || matches[0]?.status !== 'passed')
+                failures.push(`required browser criterion absent or failed: ${project}`)
+            }
+
+          const stats = report?.stats
+          const browserPassed =
+            report?.scope === 'connected-shopper' &&
+            report?.evidenceClass === 'real-local-browser' &&
+            report?.status === 'passed' &&
+            report?.sourceSha === process.env.EXPECTED_SOURCE_SHA &&
+            checks.length === 26 &&
+            stats?.expected === 26 &&
+            stats?.unexpected === 0 &&
+            stats?.skipped === 0 &&
+            stats?.flaky === 0 &&
+            checks.every((check) => check.status === 'passed')
+          if (!browserPassed) failures.push('configured browser report failed closed')
+
+          const junitPath = 'artifacts/issue-565-admission-tests.xml'
+          let admissionPassed = false
+          try {
+            const junit = fs.readFileSync(junitPath, 'utf8')
+            const attributes = junit.match(/<testsuites\b([^>]*)>/)?.[1] ?? ''
+            const count = (source, name) => {
+              const value = source.match(new RegExp(`\\b${name}="(\\d+)"`))?.[1]
+              return value === undefined ? null : Number(value)
+            }
+            const suites = [...junit.matchAll(/<testsuite\b([^>]*)>/g)].map((match) => match[1])
+            admissionPassed =
+              process.env.ADMISSION_STEP === 'success' &&
+              (count(attributes, 'tests') ?? 0) > 0 &&
+              count(attributes, 'failures') === 0 &&
+              (count(attributes, 'errors') ?? 0) === 0 &&
+              suites.length > 0 &&
+              suites.every((suite) => count(suite, 'skipped') === 0) &&
+              junit.includes('requires configured credentials, literal browser origin, and local mode') &&
+              junit.includes('keeps the Details chooser hidden in catalog-only public mode') &&
+              junit.includes('blocks direct trip routes in the public test without removing local review fixtures')
+          } catch {
+            admissionPassed = false
+          }
+          if (process.env.CRITERIA_STEP !== 'success') failures.push('required test definitions missing')
+          if (!admissionPassed) failures.push('direct admission denial proof unavailable or incomplete')
+          if (process.env.BROWSER_STEP !== 'success') failures.push('configured shopper command failed')
+
+          const safeFailure = (failure) => ({
+            ...(Number.isSafeInteger(failure?.sourceLine) && failure.sourceLine > 0 && { sourceLine: failure.sourceLine }),
+            ...(['toHaveText', 'toHaveURL', 'toHaveCount', 'toBeVisible', 'toBe', 'toThrow', 'locator.click'].includes(failure?.assertion) && { assertion: failure.assertion }),
+            timeout: failure?.timeout === true,
+            strictLocator: failure?.strictLocator === true,
+          })
+          const errorText = Array.isArray(report?.errors)
+            ? report.errors.filter((error) => typeof error === 'string').join('\n')
+            : ''
+          const sqlStates = [...new Set(
+            [...errorText.matchAll(/\bSQLSTATE\s*[:=]?\s*([0-9A-Z]{5})\b/gi)].map((match) => match[1].toUpperCase()),
+          )]
+          const allowedStages = ['preflight', 'local-services', 'fixtures', 'build', 'preview', 'browser-tests', 'cleanup-provider']
+          const safeStage = (value) => allowedStages.includes(value) ? value : 'unknown'
+          const stage = safeStage(report?.stage)
+          const failedAt = report?.failedAt ? safeStage(report.failedAt) : null
+          const errorStage = failedAt ?? stage
+          const diagnosticCategory = sqlStates.length
+            ? 'postgres-sqlstate'
+            : /postgrest/i.test(errorText)
+              ? 'postgrest-startup'
+              : /\b(?:HTTP\s*)?(?:500|502|503)\b/i.test(errorText)
+                ? 'service-http-5xx'
+                : errorStage === 'local-services'
+                  ? 'service-startup-unclassified'
+                  : errorStage === 'preview'
+                    ? 'preview-readiness'
+                    : errorText
+                      ? 'redacted-runner-error'
+                      : 'none'
+          const receipt = {
+            environment: 'github-actions-disposable-runner',
+            evidenceClass: report?.evidenceClass ?? 'unavailable',
+            sourceSha: /^[a-f0-9]{40}$/.test(report?.sourceSha ?? '') ? report.sourceSha : null,
+            scope: report?.scope ?? 'connected-shopper',
+            status: failures.length === 0 ? 'passed' : 'failed',
+            stage,
+            failedAt,
+            diagnosticCategory,
+            sqlStates,
+            cleanup: report?.cleanup ?? 'unavailable',
+            admissionDenials: admissionPassed ? 'passed' : 'failed',
+            stats: stats && Object.fromEntries(
+              ['expected', 'unexpected', 'skipped', 'flaky'].map((key) => [key, stats[key]]),
+            ),
+            checks: checks.map(({ name, project, status, failure }) => ({
+              name,
+              project,
+              status,
+              ...(status !== 'passed' && { failure: safeFailure(failure) }),
+            })),
+            failures,
+          }
+          fs.writeFileSync(output, `${JSON.stringify(receipt, null, 2)}\n`)
+          if (process.env.GITHUB_STEP_SUMMARY)
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n\`\`\`json\n${JSON.stringify(receipt, null, 2)}\n\`\`\`\n`)
+          if (failures.length) process.exitCode = 1
+          NODE
+      - name: Upload sanitized proof receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: issue-565-shopper-proof
+          path: artifacts/issue-565-shopper-proof.json
+          if-no-files-found: error
