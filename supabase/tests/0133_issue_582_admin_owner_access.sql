@@ -148,14 +148,14 @@ reset role;
 select is((select count(*) from app_private.role_grants where subject_user_id='58200000-0000-4000-8000-000000000012' and role='representative' and store_id='00000000-0000-4000-8000-000000000007' and state='active'),1::bigint,'Representative approval creates no Owner authority');
 select is((select count(*) from partner_private.owner_claim_approvals where claim_id='58200000-0000-4000-8000-00000000000b'),0::bigint,'Representative claim has no Owner approval marker');
 
-select pg_temp.seed_claim582('58200000-0000-4000-8000-000000000009','76000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000007');
-insert into review_cases582 select '58200000-0000-4000-8000-000000000009',case_id,null from admin_private.admin_review_cases where target_id='58200000-0000-4000-8000-000000000009' and case_type='listing_claim';
+-- Reuse the already-denied Owner-intake claim; active claimant/store pairs are unique.
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
 set local role authenticated;
-update review_cases582 r set version=(app_public.admin_get_review_case(r.case_id::text)->>'version')::bigint where r.claim_id='58200000-0000-4000-8000-000000000009';
-select is((app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-000000000009'),'reject','authority not verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-000000000009'),'582-review-reject-c')->>'state'),'rejected','Owner request rejection uses existing claim lifecycle without granting Owner access');
+update review_cases582 r set version=(app_public.admin_get_review_case(r.case_id::text)->>'version')::bigint where r.claim_id='58200000-0000-4000-8000-00000000000c';
+select is((app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000c'),'reject','authority not verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000c'),'582-review-reject-c')->>'state'),'rejected','Owner request rejection uses existing claim lifecycle without granting Owner access');
 reset role;
-select is((select count(*) from partner_private.owner_claim_approvals where claim_id='58200000-0000-4000-8000-000000000009'),0::bigint,'rejected Owner request has no Owner approval marker');
+select is((select state from partner_private.listing_claims where claim_id='58200000-0000-4000-8000-00000000000c'),'rejected','rejected Owner-intake claim uses the existing claim lifecycle');
+select is((select count(*) from partner_private.owner_claim_approvals where claim_id='58200000-0000-4000-8000-00000000000c'),0::bigint,'rejected Owner request has no Owner approval marker');
 
 create temporary table owner_versions582 as
  select claim_id,version from partner_private.listing_claims where claim_id in
