@@ -283,10 +283,7 @@ function siblingRow(page: Page, scope: ReturnType<typeof scopeFor>) {
     .filter({ hasText: scope.siblingSubjectName })
 }
 function ownerRow(page: Page, storeName: string) {
-  return page
-    .getByLabel('Store Owner scopes')
-    .getByRole('listitem')
-    .filter({ hasText: storeName })
+  return page.getByLabel('Store Owner scopes').getByRole('listitem').filter({ hasText: storeName })
 }
 
 test('actual Auth MFA Administrator identity cannot read populated shopper-private data', async ({
@@ -545,19 +542,23 @@ test('exact Owner claim revoke removes Store A access while Store B remains acti
   const row = ownerRow(page, scope.storeAName)
   const baselineA = await readOwner(scope.storeA, scope.ownerId, scope.claimA)
   const baselineB = await readOwner(scope.storeB, scope.ownerId, scope.claimB)
-  expect(baselineA).toMatchObject({ partnerState: 'active', roleState: 'active', claimState: 'approved' })
-  expect(baselineB).toMatchObject({ partnerState: 'active', roleState: 'active', claimState: 'approved' })
+  expect(baselineA).toMatchObject({
+    partnerState: 'active',
+    roleState: 'active',
+    claimState: 'approved',
+  })
+  expect(baselineB).toMatchObject({
+    partnerState: 'active',
+    roleState: 'active',
+    claimState: 'approved',
+  })
   await expect(row).toContainText(scope.ownerId)
-  await row
-    .getByRole('button', { name: `Preview revoke ${scope.storeAName} Owner scope` })
-    .click()
+  await row.getByRole('button', { name: `Preview revoke ${scope.storeAName} Owner scope` }).click()
   await expect(
     row.getByText(new RegExp(`Confirm exact Store Owner scope: ${scope.storeAName}`)),
   ).toBeVisible()
   await row.getByLabel('Owner administrative reason code').fill('authority_withdrawn')
-  await row
-    .getByRole('button', { name: `Confirm revoke ${scope.storeAName} Owner scope` })
-    .click()
+  await row.getByRole('button', { name: `Confirm revoke ${scope.storeAName} Owner scope` }).click()
   await expect
     .poll(() => readOwner(scope.storeA, scope.ownerId, scope.claimA))
     .toMatchObject({
