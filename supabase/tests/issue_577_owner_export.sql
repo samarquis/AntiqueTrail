@@ -20,9 +20,9 @@ where user_id in ('57700000-0000-4000-8000-000000000001','57700000-0000-4000-800
 insert into shopper_private.private_store_memories(user_id,store_id,rating,note,last_visit_month)
 values ('57700000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000001001',4,'OWNER-A-STORE-SUMMARY-NOTE','2026-09-01');
 
-insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date,state) values
-  ('57700000-0000-4000-8000-000000000010','57700000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','OWNER-A-TRIP','2026-10-07','completed'),
-  ('57700000-0000-4000-8000-000000000011','57700000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000001','OWNER-B-TRIP','2026-10-07','completed');
+insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date,state,started_at,completed_at) values
+  ('57700000-0000-4000-8000-000000000010','57700000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','OWNER-A-TRIP','2026-10-07','completed',statement_timestamp()-interval '1 hour',statement_timestamp()),
+  ('57700000-0000-4000-8000-000000000011','57700000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000001','OWNER-B-TRIP','2026-10-07','completed',statement_timestamp()-interval '1 hour',statement_timestamp());
 insert into trip_private.trip_participants(trip_id,user_id,participant_role,state) values
   ('57700000-0000-4000-8000-000000000010','57700000-0000-4000-8000-000000000001','creator','active'),
   ('57700000-0000-4000-8000-000000000010','57700000-0000-4000-8000-000000000002','partner','active'),
