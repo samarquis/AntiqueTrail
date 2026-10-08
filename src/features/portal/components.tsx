@@ -676,7 +676,9 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [refreshFailed, setRefreshFailed] = useState(false)
+  const [refreshPending, setRefreshPending] = useState(false)
   useEffect(() => {
+    setRefreshPending(true)
     client
       .listUpdates()
       .then((items) => {
@@ -684,8 +686,11 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
         setRefreshFailed(false)
       })
       .catch(() => setRefreshFailed(true))
+      .finally(() => setRefreshPending(false))
   }, [client])
   function retryUpdatesRefresh() {
+    if (refreshPending) return
+    setRefreshPending(true)
     client
       .listUpdates()
       .then((items) => {
@@ -693,6 +698,7 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
         setRefreshFailed(false)
       })
       .catch(() => setRefreshFailed(true))
+      .finally(() => setRefreshPending(false))
   }
   function beginEdit(update: StoreUpdate) {
     setError(null)
@@ -763,6 +769,7 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
       })
       .catch((failure: unknown) => {
         if (failure instanceof PortalUpdateConflictError) {
+          setRefreshPending(true)
           void client
             .listUpdates()
             .then((items) => {
@@ -770,6 +777,7 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
               setRefreshFailed(false)
             })
             .catch(() => setRefreshFailed(true))
+            .finally(() => setRefreshPending(false))
           setError(
             failure.latestVersion
               ? `This update is now version ${failure.latestVersion}. Your edit is still here; cancel and reopen the update to review the latest text.`
@@ -798,10 +806,16 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
       <PortalNav />
       {error && <p role="alert">{error}</p>}
       {status && <p role="status">{status}</p>}
+      {refreshPending && <p role="status">Refreshing saved updates…</p>}
       {refreshFailed && (
         <div role="alert">
           <p>We couldn't refresh saved updates. The list may be out of date.</p>
-          <button type="button" className="button button--secondary" onClick={retryUpdatesRefresh}>
+          <button
+            type="button"
+            className="button button--secondary"
+            disabled={refreshPending}
+            onClick={retryUpdatesRefresh}
+          >
             Retry refresh
           </button>
         </div>

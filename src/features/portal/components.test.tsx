@@ -624,11 +624,15 @@ describe('provider-neutral Store Portal boundary', () => {
       publishedAt: '2026-10-01T12:00:00Z',
     }
     const latest = { ...existing, headline: 'Latest saved headline', version: 8 }
+    let resolveRetry!: (items: (typeof existing)[]) => void
+    const retryRead = new Promise<(typeof existing)[]>((resolve) => {
+      resolveRetry = resolve
+    })
     const listUpdates = vi
       .fn()
       .mockResolvedValueOnce([existing])
       .mockRejectedValueOnce(new Error('readback unavailable'))
-      .mockResolvedValueOnce([latest])
+      .mockReturnValueOnce(retryRead)
     const editUpdate = vi.fn(async () => {
       throw new PortalUpdateConflictError(8)
     })
@@ -646,7 +650,12 @@ describe('provider-neutral Store Portal boundary', () => {
 
     expect(await screen.findByText(/we couldn't refresh saved updates/i)).toBeInTheDocument()
     expect(screen.getByLabelText('Edit headline')).toHaveValue('My unsent text')
-    await user.click(screen.getByRole('button', { name: 'Retry refresh' }))
+    const retryButton = screen.getByRole('button', { name: 'Retry refresh' })
+    await user.click(retryButton)
+
+    expect(retryButton).toBeDisabled()
+    expect(screen.getByText(/refreshing saved updates/i)).toHaveAttribute('role', 'status')
+    resolveRetry([latest])
 
     expect(await screen.findByText('Latest saved headline')).toBeInTheDocument()
     expect(screen.queryByText(/we couldn't refresh saved updates/i)).not.toBeInTheDocument()
