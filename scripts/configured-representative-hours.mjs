@@ -333,6 +333,7 @@ async function runOwnerListing() {
       signal: controller.signal,
       browserOrigin: origin,
       includeServiceRoleKey: true,
+      partnerEnvironment: { emailHmacSecret, evidenceHmacSecret },
     })
     report.temporaryProject = service.run.directory
     const local = await service.start()

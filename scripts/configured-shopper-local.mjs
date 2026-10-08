@@ -401,9 +401,18 @@ export function createLocalService({
   signupJourney = false,
   createTestUsers = true,
   includeServiceRoleKey = false,
+  partnerEnvironment,
 } = {}) {
   if (browserOrigin && !/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(browserOrigin))
     throw new Error('Browser origin must use literal loopback')
+  if (
+    partnerEnvironment !== undefined &&
+    (typeof partnerEnvironment?.emailHmacSecret !== 'string' ||
+      !/^[A-Za-z0-9_-]{43}$/.test(partnerEnvironment.emailHmacSecret) ||
+      typeof partnerEnvironment?.evidenceHmacSecret !== 'string' ||
+      !/^[A-Za-z0-9_-]{43}$/.test(partnerEnvironment.evidenceHmacSecret))
+  )
+    throw new Error('Malformed local partner environment')
   const exclusions = localServiceExclusions(disableStorage)
   let run
   if (resumeDirectory) {
@@ -585,6 +594,14 @@ export function createLocalService({
       `PUBLIC_CATALOG_RATE_SALT=${crypto.randomBytes(32).toString('hex')}`,
       `APP_ORIGIN=${run.origin}`,
       `PUBLIC_APP_ORIGIN=${run.origin}`,
+      ...(partnerEnvironment
+        ? [
+            'PARTNER_SYNTHETIC_ENABLED=true',
+            `PARTNER_EMAIL_HMAC_SECRET=${partnerEnvironment.emailHmacSecret}`,
+            'PARTNER_EMAIL_HMAC_KEY_VERSION=1',
+            `PARTNER_EVIDENCE_HMAC_SECRET=${partnerEnvironment.evidenceHmacSecret}`,
+          ]
+        : []),
       ...(signupJourney ? [registrationSettings] : []),
     ].join('\n')
     fs.writeFileSync(path.join(directory, 'supabase/functions/.env'), `${functionEnv}\n`, {
