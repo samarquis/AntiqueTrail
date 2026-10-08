@@ -148,7 +148,41 @@ test('configured Owner edits text through selected-store context and shoppers se
   const anonymousContext = await browser.newContext({ baseURL: input.origin })
   const anonymousPage = await anonymousContext.newPage()
   try {
+    const detailResponsePromise = anonymousPage.waitForResponse((response) => {
+      const request = response.request()
+      if (
+        request.method() !== 'POST' ||
+        !new URL(response.url()).pathname.endsWith('/functions/v1/public-catalog')
+      )
+        return false
+      return (request.postDataJSON() as { operation?: string }).operation === 'details'
+    })
     await anonymousPage.goto(`/stores/${encodeURIComponent(input.storeSlug)}`)
+    const detailResponse = await detailResponsePromise
+    const detailPayload = (await detailResponse.json()) as {
+      data?: unknown
+      error?: { code?: unknown }
+    }
+    if (!detailResponse.ok()) {
+      const allowedCodes = [
+        'GATEWAY_UNAVAILABLE',
+        'CATALOG_UNAVAILABLE',
+        'ALPHA_AUTH_REQUIRED',
+        'RATE_LIMITED',
+      ]
+      const code =
+        typeof detailPayload.error?.code === 'string' &&
+        allowedCodes.includes(detailPayload.error.code)
+          ? detailPayload.error.code
+          : 'unknown'
+      throw new Error(`Public catalog detail failed (${detailResponse.status()}; ${code})`)
+    }
+    const rowCount = Array.isArray(detailPayload.data)
+      ? detailPayload.data.length
+      : detailPayload.data !== null && typeof detailPayload.data === 'object'
+        ? 1
+        : 0
+    if (rowCount !== 1) throw new Error(`Public catalog detail returned ${rowCount} rows`)
     await expect(anonymousPage.getByRole('heading', { name: 'Latest updates' })).toBeVisible()
     const latest = anonymousPage.locator('.store-updates h3')
     await expect(latest).toHaveText(orderedUpdates.slice(0, 3).map((update) => update.headline))
