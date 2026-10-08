@@ -97,6 +97,37 @@ describe('browser trip offline runtime', () => {
     ).resolves.toMatchObject({ state: 'available', trip })
   })
 
+  it('retains queued mutations when online Start refreshes the encrypted trip envelope', async () => {
+    const database = new InMemoryOfflineDatabase()
+    const runtime = createTripOfflineRuntime({
+      database,
+      installId: 'install-a',
+      verifier,
+      deviceKeyId: 'device-key-a',
+    })
+    await runtime.start('shopper-a', 'trip-1', {
+      async startTripWithOfflineGrant() {
+        return { trip, grant: await grant() }
+      },
+    })
+    const queuedTrip = { ...trip, version: trip.version + 1 }
+    await runtime.queueMutation?.('shopper-a', queuedTrip, {
+      kind: 'mark_arrived',
+      stopId: 'stop-1',
+    })
+
+    const refreshedTrip = { ...trip, version: trip.version + 2 }
+    await runtime.start('shopper-a', 'trip-1', {
+      async startTripWithOfflineGrant() {
+        return { trip: refreshedTrip, grant: await grant() }
+      },
+    })
+
+    await expect(
+      runtime.recover('shopper-a', 'trip-1', new Date('2026-08-04T12:00:00Z')),
+    ).resolves.toMatchObject({ state: 'available', trip: refreshedTrip, pendingCount: 1 })
+  })
+
   it('rejects a valid grant for a different authenticated account and purges on sign-out', async () => {
     const database = new InMemoryOfflineDatabase()
     const runtime = createTripOfflineRuntime({

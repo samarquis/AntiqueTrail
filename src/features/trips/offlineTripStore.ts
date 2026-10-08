@@ -350,12 +350,28 @@ async function sha256(value: string): Promise<string> {
 }
 
 export class EncryptedTripOfflineStore {
+  private operationTail: Promise<void> = Promise.resolve()
+
   constructor(
     private readonly database: OfflineTripDatabase = new IndexedDbOfflineDatabase(),
     private readonly installId: string,
     private readonly grantVerifier: OfflineGrantVerifier = new RejectOfflineGrantVerifier(),
     private readonly deviceKeyId: string = installId,
   ) {}
+
+  private async serialize<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.operationTail
+    let release!: () => void
+    this.operationTail = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await previous
+    try {
+      return await operation()
+    } finally {
+      release()
+    }
+  }
 
   private async binding(accountId: string) {
     return sha256(`${this.installId}\u0000${accountId}`)
@@ -455,22 +471,48 @@ export class EncryptedTripOfflineStore {
       reauthorizeBy - issuedAt > maximumReauthorizationMs
     )
       throw new Error('Offline grant verification failed.')
-    const keys = new Set<string>()
-    const sequences = new Set<number>()
-    for (const mutation of input.mutations) {
-      if (mutation.tripId !== input.trip.id)
-        throw new Error('Offline mutation belongs to another trip.')
-      if (mutation.deviceId !== claims.deviceId)
-        throw new Error('Offline mutation does not match the active Navigator device.')
-      if (keys.has(mutation.idempotencyKey) || sequences.has(mutation.localSequence))
-        throw new Error('Offline mutation identity or sequence is duplicated.')
-      keys.add(mutation.idempotencyKey)
-      sequences.add(mutation.localSequence)
-    }
-    const mutations = [...input.mutations].sort(
-      (left, right) => left.localSequence - right.localSequence,
-    )
-    await this.write({ ...input, mutations, lastObservedAt: new Date().toISOString() })
+    await this.serialize(async () => {
+      const existingRecord = await this.database.getRecord(
+        recordId(this.installId, input.trip.id),
+      )
+      let mutations = [...input.mutations]
+      if (existingRecord) {
+        const accountBinding = await this.binding(claims.accountId)
+        if (existingRecord.accountBinding !== accountBinding)
+          throw new Error('Offline trip belongs to another account.')
+        if (existingRecord.installId !== this.installId || existingRecord.tripId !== input.trip.id)
+          throw new Error('Offline trip record identity does not match.')
+        const existing = await this.decrypt(existingRecord)
+        const existingClaims = existing.grant.claims
+        if (
+          !(await this.grantVerifier.verify(existing.grant)) ||
+          existing.trip.id !== input.trip.id ||
+          existingClaims.accountId !== claims.accountId ||
+          existingClaims.tripId !== input.trip.id ||
+          existingClaims.installId !== this.installId ||
+          existingClaims.deviceKeyId !== this.deviceKeyId
+        )
+          throw new Error('Stored offline trip identity could not be verified.')
+        if (existingClaims.deviceId !== claims.deviceId)
+          throw new Error('Stored offline trip belongs to another Navigator device.')
+        mutations = [...existing.mutations, ...mutations]
+      }
+
+      const keys = new Set<string>()
+      const sequences = new Set<number>()
+      for (const mutation of mutations) {
+        if (mutation.tripId !== input.trip.id)
+          throw new Error('Offline mutation belongs to another trip.')
+        if (mutation.deviceId !== claims.deviceId)
+          throw new Error('Offline mutation does not match the active Navigator device.')
+        if (keys.has(mutation.idempotencyKey) || sequences.has(mutation.localSequence))
+          throw new Error('Offline mutation identity or sequence is duplicated.')
+        keys.add(mutation.idempotencyKey)
+        sequences.add(mutation.localSequence)
+      }
+      mutations.sort((left, right) => left.localSequence - right.localSequence)
+      await this.write({ ...input, mutations, lastObservedAt: new Date().toISOString() })
+    })
   }
 
   private async payload(
@@ -489,17 +531,25 @@ export class EncryptedTripOfflineStore {
     tripId: string,
     now = new Date(),
   ): Promise<OfflineRestoreResult> {
+    return this.serialize(() => this.restoreUnlocked(accountId, tripId, now))
+  }
+
+  private async restoreUnlocked(
+    accountId: string,
+    tripId: string,
+    now: Date,
+  ): Promise<OfflineRestoreResult> {
     const record = await this.database.getRecord(recordId(this.installId, tripId))
     if (!record) return { state: 'absent' }
     if (record.accountBinding !== (await this.binding(accountId)))
       return { state: 'account_mismatch' }
     const payload = await this.decrypt(record)
     if (!(await this.grantVerifier.verify(payload.grant))) {
-      await this.purgeAccount(accountId, 'authorization_lost')
+      await this.purgeAccountUnlocked(accountId)
       return { state: 'absent' }
     }
     if (now.getTime() > new Date(payload.grant.claims.reauthorizeBy).getTime()) {
-      await this.purgeAccount(accountId, 'expired')
+      await this.purgeAccountUnlocked(accountId)
       return { state: 'absent' }
     }
     const pendingCount = payload.mutations.length
@@ -517,31 +567,41 @@ export class EncryptedTripOfflineStore {
     trip: Trip,
     action: Pick<OfflineMutation, 'kind' | 'stopId'>,
   ): Promise<{ trip: Trip; pendingCount: number }> {
-    const payload = await this.payload(accountId, trip.id)
-    if (!payload) throw new Error('Offline trip unavailable.')
-    const restored = await this.restore(accountId, trip.id)
-    if (restored.state !== 'available') throw new Error('Offline trip unavailable.')
-    const localSequence =
-      payload.mutations.reduce(
-        (highest, mutation) => Math.max(highest, mutation.localSequence),
-        0,
-      ) + 1
-    payload.trip = trip
-    payload.mutations.push({
-      idempotencyKey: `${payload.grant.claims.deviceId}:${crypto.randomUUID()}`,
-      tripId: trip.id,
-      baseVersion: payload.trip.version,
-      deviceId: payload.grant.claims.deviceId,
-      localSequence,
-      kind: action.kind,
-      stopId: action.stopId,
+    return this.serialize(async () => {
+      const payload = await this.payload(accountId, trip.id)
+      if (!payload) throw new Error('Offline trip unavailable.')
+      const restored = await this.restoreUnlocked(accountId, trip.id, new Date())
+      if (restored.state !== 'available') throw new Error('Offline trip unavailable.')
+      const localSequence =
+        payload.mutations.reduce(
+          (highest, mutation) => Math.max(highest, mutation.localSequence),
+          0,
+        ) + 1
+      payload.trip = trip
+      payload.mutations.push({
+        idempotencyKey: `${payload.grant.claims.deviceId}:${crypto.randomUUID()}`,
+        tripId: trip.id,
+        baseVersion: payload.trip.version,
+        deviceId: payload.grant.claims.deviceId,
+        localSequence,
+        kind: action.kind,
+        stopId: action.stopId,
+      })
+      payload.lastObservedAt = new Date().toISOString()
+      await this.write(payload)
+      return { trip, pendingCount: payload.mutations.length }
     })
-    payload.lastObservedAt = new Date().toISOString()
-    await this.write(payload)
-    return { trip, pendingCount: payload.mutations.length }
   }
 
   async replay(
+    accountId: string,
+    tripId: string,
+    submit: (mutation: OfflineMutation) => Promise<ReplaySubmissionResult>,
+  ): Promise<OfflineReplayResult> {
+    return this.serialize(() => this.replayUnlocked(accountId, tripId, submit))
+  }
+
+  private async replayUnlocked(
     accountId: string,
     tripId: string,
     submit: (mutation: OfflineMutation) => Promise<ReplaySubmissionResult>,
@@ -553,7 +613,7 @@ export class EncryptedTripOfflineStore {
       const mutation = payload.mutations[0]
       const result = await submit(mutation)
       if (result.state === 'unauthorized') {
-        await this.purgeAccount(accountId, 'authorization_lost')
+        await this.purgeAccountUnlocked(accountId)
         return { state: 'purged', pendingCount: 0, purgeReason: 'authorization_lost' }
       }
       if (result.state === 'conflict') {
@@ -576,11 +636,13 @@ export class EncryptedTripOfflineStore {
   }
 
   async recordCompleted(accountId: string, trip: Trip): Promise<void> {
-    if (trip.state !== 'completed') throw new Error('trip_not_completed')
-    const payload = await this.payload(accountId, trip.id)
-    if (!payload) return
-    payload.trip = trip
-    await this.purgeTrip(payload)
+    await this.serialize(async () => {
+      if (trip.state !== 'completed') throw new Error('trip_not_completed')
+      const payload = await this.payload(accountId, trip.id)
+      if (!payload) return
+      payload.trip = trip
+      await this.purgeTrip(payload)
+    })
   }
 
   async resolveConflict(
@@ -588,24 +650,28 @@ export class EncryptedTripOfflineStore {
     tripId: string,
     choice: 'phone' | 'saved',
   ): Promise<void> {
-    const payload = await this.payload(accountId, tripId)
-    if (!payload || payload.mutations.length === 0) return
-    if (choice === 'saved') payload.mutations.shift()
-    else payload.mutations[0] = { ...payload.mutations[0], conflictResolution: 'phone' }
-    await this.write(payload)
+    await this.serialize(async () => {
+      const payload = await this.payload(accountId, tripId)
+      if (!payload || payload.mutations.length === 0) return
+      if (choice === 'saved') payload.mutations.shift()
+      else payload.mutations[0] = { ...payload.mutations[0], conflictResolution: 'phone' }
+      await this.write(payload)
+    })
   }
 
   async prepareLogout(accountId: string): Promise<{
     requiresConfirmation: boolean
     pendingCount: number
   }> {
-    const binding = await this.binding(accountId)
-    let pendingCount = 0
-    for (const record of await this.database.listRecords()) {
-      if (record.installId !== this.installId || record.accountBinding !== binding) continue
-      pendingCount += (await this.decrypt(record)).mutations.length
-    }
-    return { requiresConfirmation: pendingCount > 0, pendingCount }
+    return this.serialize(async () => {
+      const binding = await this.binding(accountId)
+      let pendingCount = 0
+      for (const record of await this.database.listRecords()) {
+        if (record.installId !== this.installId || record.accountBinding !== binding) continue
+        pendingCount += (await this.decrypt(record)).mutations.length
+      }
+      return { requiresConfirmation: pendingCount > 0, pendingCount }
+    })
   }
 
   async purgeAccount(
@@ -613,6 +679,10 @@ export class EncryptedTripOfflineStore {
     reason: 'confirmed_logout' | 'account_switch' | 'authorization_lost' | 'expired',
   ): Promise<void> {
     void reason
+    await this.serialize(() => this.purgeAccountUnlocked(accountId))
+  }
+
+  private async purgeAccountUnlocked(accountId: string): Promise<void> {
     const binding = await this.binding(accountId)
     for (const record of await this.database.listRecords()) {
       if (record.installId === this.installId && record.accountBinding === binding)

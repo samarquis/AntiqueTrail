@@ -95,6 +95,35 @@ function store(database = new InMemoryOfflineDatabase()) {
   return new EncryptedTripOfflineStore(database, 'install-a', verifier, 'device-key-a')
 }
 
+class PausedOfflineDatabase extends InMemoryOfflineDatabase {
+  private pauseRead = false
+  private notifyRead: () => void = () => {}
+  private releaseRead: () => void = () => {}
+  private readStarted: Promise<void> = Promise.resolve()
+  private readGate: Promise<void> = Promise.resolve()
+
+  pauseNextRead() {
+    this.readStarted = new Promise((resolve) => {
+      this.notifyRead = resolve
+    })
+    this.readGate = new Promise((resolve) => {
+      this.releaseRead = resolve
+    })
+    this.pauseRead = true
+    return { started: this.readStarted, release: () => this.releaseRead() }
+  }
+
+  override async getRecord(id: string) {
+    const record = await super.getRecord(id)
+    if (this.pauseRead) {
+      this.pauseRead = false
+      this.notifyRead()
+      await this.readGate
+    }
+    return record
+  }
+}
+
 describe('encrypted active-trip recovery', () => {
   it('creates different per-install identities and reloads the persisted non-extractable key', async () => {
     const firstDatabase = new InMemoryOfflineDatabase()
@@ -182,6 +211,113 @@ describe('encrypted active-trip recovery', () => {
     expect(
       await restarted.restore('shopper-b', 'trip-1', new Date('2026-08-04T12:00:00Z')),
     ).toEqual({ state: 'account_mismatch' })
+  })
+
+  it('preserves queued mutation identities and stale base versions across repeated grant refreshes', async () => {
+    const offline = store()
+    const first = {
+      ...mutation(1),
+      privateValue: 'Private appointment note',
+      conflictResolution: 'phone' as const,
+    }
+    const second = mutation(2)
+    await offline.save(await signedInput([second, first]))
+    const refreshedTrip = { ...activeTrip, version: 5 }
+    const refreshed = {
+      ...(await signedInput([], { nonce: 'grant-nonce-2', sessionSecurityVersion: 4 })),
+      trip: refreshedTrip,
+    }
+
+    await offline.save(refreshed)
+    await offline.save(refreshed)
+    const seen: OfflineMutation[] = []
+    const result = await offline.replay('shopper-a', 'trip-1', async (item) => {
+      seen.push(item)
+      return item.localSequence === 1
+        ? { state: 'accepted', trip: refreshedTrip }
+        : { state: 'conflict', summary: 'The retained mutation has a stale version.' }
+    })
+
+    expect(seen).toEqual([first, second])
+    expect(seen.map((item) => item.baseVersion)).toEqual([4, 4])
+    expect(result).toMatchObject({ state: 'conflict', pendingCount: 1 })
+  })
+
+  it('keeps the previous encrypted record when a refreshed account or device does not match', async () => {
+    const database = new InMemoryOfflineDatabase()
+    const offline = store(database)
+    await offline.save(await signedInput([mutation(1)]))
+    const previous = await database.getRecord('install-a:trip-1')
+
+    await expect(
+      offline.save(await signedInput([], { accountId: 'shopper-b', nonce: 'wrong-account' })),
+    ).rejects.toThrow(/account/i)
+    await expect(
+      offline.save(await signedInput([], { deviceId: 'device-b', nonce: 'wrong-device' })),
+    ).rejects.toThrow(/device/i)
+    expect(await database.getRecord('install-a:trip-1')).toEqual(previous)
+
+    const seen: OfflineMutation[] = []
+    await offline.replay('shopper-a', 'trip-1', async (item) => {
+      seen.push(item)
+      return { state: 'conflict', summary: 'Keep the queued mutation.' }
+    })
+    expect(seen).toEqual([mutation(1)])
+  })
+
+  it('keeps unreadable existing ciphertext intact when a refreshed grant cannot be saved', async () => {
+    const database = new InMemoryOfflineDatabase()
+    const offline = store(database)
+    await offline.save(await signedInput([mutation(1)]))
+    const existing = await database.getRecord('install-a:trip-1')
+    if (!existing) throw new Error('Expected the encrypted trip record.')
+    const ciphertext = existing.ciphertext.slice(0)
+    new Uint8Array(ciphertext)[0] ^= 1
+    const unreadable = { ...existing, ciphertext }
+    await database.putRecord(unreadable)
+
+    await expect(offline.save(await signedInput([], { nonce: 'fresh-grant' }))).rejects.toThrow()
+    expect(await database.getRecord('install-a:trip-1')).toEqual(unreadable)
+  })
+
+  it('serializes grant refresh with a concurrent queue write for the same store', async () => {
+    const database = new PausedOfflineDatabase()
+    const offline = store(database)
+    await offline.save(await signedInput([mutation(1)]))
+    const refreshedTrip = { ...activeTrip, version: 5 }
+    const refreshed = {
+      ...(await signedInput([], { nonce: 'grant-nonce-2', sessionSecurityVersion: 4 })),
+      trip: refreshedTrip,
+    }
+    const gate = database.pauseNextRead()
+    const starting = offline.save(refreshed)
+    await gate.started
+    const queueing = offline.queueMutation('shopper-a', refreshedTrip, {
+      kind: 'mark_arrived',
+      stopId: 'stop-2',
+    })
+    gate.release()
+    await Promise.all([starting, queueing])
+
+    const seen: OfflineMutation[] = []
+    const result = await offline.replay('shopper-a', 'trip-1', async (item) => {
+      seen.push(item)
+      return item.localSequence === 1
+        ? { state: 'accepted', trip: refreshedTrip }
+        : { state: 'conflict', summary: 'Keep the newly queued mutation.' }
+    })
+    expect(seen).toHaveLength(2)
+    expect(seen[0]).toEqual(mutation(1))
+    expect(seen[1]).toMatchObject({
+      tripId: 'trip-1',
+      baseVersion: 5,
+      deviceId: 'device-a',
+      localSequence: 2,
+      kind: 'mark_arrived',
+      stopId: 'stop-2',
+    })
+    expect(seen[1].idempotencyKey).not.toBe(mutation(1).idempotencyKey)
+    expect(result).toMatchObject({ state: 'conflict', pendingCount: 1 })
   })
 
   it('replays mutations once in sequence and preserves a stale private conflict for user choice', async () => {
