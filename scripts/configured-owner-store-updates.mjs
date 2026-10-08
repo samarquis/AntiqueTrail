@@ -346,13 +346,24 @@ async function provisionOwner(local) {
     update partner_private.listing_claims set state='verification_pending' where claim_id='${claimId}';
     insert into partner_private.store_owner_intake_roots(applicant_id,active_kind,active_id)
       values('${owner.id}','claim','${claimId}');
+    commit;
+  `)
+
+  const claimVersion = (
+    await service.sql(
+      `select version from partner_private.listing_claims where claim_id='${claimId}';`,
+    )
+  ).trim()
+  if (!/^[1-9]\d{0,18}$/.test(claimVersion))
+    throw new Error('Synthetic Owner claim version unavailable')
+  await service.sql(`
+    begin;
     select set_config('request.jwt.claims',jsonb_build_object(
       'sub','${adminId}','session_id','${adminSessionId}','role','authenticated','aal','aal2','amr',jsonb_build_array(
         jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp())::bigint),
         jsonb_build_object('method','totp','timestamp',extract(epoch from statement_timestamp())::bigint)))::text,true);
     set local role authenticated;
-    select app_public.owner_admin_approve_claim('${claimId}','${storeId}',
-      (select version from partner_private.listing_claims where claim_id='${claimId}'),'issue581-local-${claimId}');
+    select app_public.owner_admin_approve_claim('${claimId}','${storeId}',${claimVersion},'issue581-local-${claimId}');
     reset role;
     commit;
   `)
