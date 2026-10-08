@@ -46,6 +46,76 @@ test('failure diagnostics expose only source line and fixed classifications', ()
   })
   assert.doesNotMatch(JSON.stringify(report.checks), /private-token|private.invalid|Bearer/)
 })
+
+test('Details route diagnostics retain only approved local route shapes', () => {
+  const report = browserReport(
+    JSON.stringify({
+      ...good,
+      suites: [
+        {
+          specs: [
+            {
+              title: 'Details sign-in return',
+              tests: [
+                {
+                  projectName: 'desktop',
+                  annotations: [
+                    {
+                      type: 'issue-565-actual-route',
+                      description: '/auth/sign-in?returnTo=/trips/new?addStoreId=<store-id>',
+                    },
+                  ],
+                  results: [
+                    {
+                      status: 'failed',
+                      error: {
+                        message: 'expect.toHaveURL',
+                        stack: 'at /workspace/e2e/configured-free-shopper.spec.ts:179:4',
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+  )
+  assert.equal(
+    report.checks[0].failure.actualRoute,
+    '/auth/sign-in?returnTo=/trips/new?addStoreId=<store-id>',
+  )
+
+  const unsafe = browserReport(
+    JSON.stringify({
+      ...good,
+      suites: [
+        {
+          specs: [
+            {
+              title: 'Details sign-in return',
+              tests: [
+                {
+                  projectName: 'desktop',
+                  annotations: [
+                    {
+                      type: 'issue-565-actual-route',
+                      description: '/auth/sign-in?token=private-token&email=person@private.invalid',
+                    },
+                  ],
+                  results: [{ status: 'failed', error: { message: 'expect.toHaveURL' } }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+  )
+  assert.equal(unsafe.checks[0].failure.actualRoute, undefined)
+  assert.doesNotMatch(JSON.stringify(unsafe.checks), /private-token|private.invalid|token=/)
+})
 test('browser reporting rejects malformed, absent, incomplete, skipped, flaky and failed evidence', () => {
   for (const input of ['{', 'null', '{}', JSON.stringify({ ...good, stats: { expected: 16 } })])
     assert.throws(() => browserReport(input))

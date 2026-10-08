@@ -405,22 +405,37 @@ describe('implicit-actor TripClient transport', () => {
   })
 
   it('uses the authoritative Check My Day request and suggestion commands', async () => {
-    const wire = transport({ requestId: 'request-1', state: 'blocked', reason: 'r01_blocked' })
+    const wire = transport({
+      requestId: 'request-1',
+      state: 'blocked',
+      reason: 'r01_blocked',
+      tripVersion: 4,
+    })
     const api = createTripApi(wire)
     await expect(api.requestCheckMyDay?.('trip-1')).resolves.toEqual({
       requestId: 'request-1',
       state: 'blocked',
       reason: 'r01_blocked',
+      tripVersion: 4,
     })
     await expect(api.getCheckMyDaySuggestion?.('request-1')).resolves.toEqual({
       requestId: 'request-1',
       state: 'blocked',
       reason: 'r01_blocked',
+      tripVersion: 4,
     })
     expect(wire.invoke.mock.calls).toEqual([
       ['request_check_my_day', { trip_id: 'trip-1' }],
       ['get_check_my_day_suggestion', { request_id: 'request-1' }],
     ])
+
+    const useWire = transport(trip)
+    await createTripApi(useWire).useCheckMyDaySuggestion?.('trip-1', 'request-1', 4)
+    expect(useWire.invoke).toHaveBeenCalledWith('use_check_my_day_suggestion', {
+      trip_id: 'trip-1',
+      request_id: 'request-1',
+      expected_version: 4,
+    })
   })
 
   it('covers private planning, observed-closed, completion, and visit memory commands', async () => {

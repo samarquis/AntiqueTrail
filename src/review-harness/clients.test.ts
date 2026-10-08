@@ -948,11 +948,52 @@ describe('scenario-aware review clients', () => {
     await expect(trips.leaveTrip('trip-a')).rejects.toThrow(/creator cannot leave/i)
 
     const suggestion = await trips.requestCheckMyDay!('trip-a')
-    expect(suggestion).toMatchObject({ state: 'suggested' })
+    expect(suggestion).toMatchObject({ state: 'suggested', tripVersion: expect.any(Number) })
     expect(suggestion.orderedStopIds).toEqual(['stop-a', 'stop-b', cedarStopId, restStopId])
-    const reversed = [...suggestion.orderedStopIds!].reverse()
-    const reordered = await trips.saveCheckMyDayChoice!('trip-a', 'suggested', reversed)
-    expect(reordered.stops.map((stop) => stop.id)).toEqual(reversed)
+    const reordered = await trips.useCheckMyDaySuggestion!(
+      'trip-a',
+      suggestion.requestId,
+      suggestion.tripVersion!,
+    )
+    expect(reordered.stops.map((stop) => stop.id)).toEqual(suggestion.orderedStopIds)
+    const immediateReplay = await trips.useCheckMyDaySuggestion!(
+      'trip-a',
+      suggestion.requestId,
+      suggestion.tripVersion!,
+    )
+    expect(immediateReplay).toEqual(reordered)
+    immediateReplay.stops[0]!.position = -1
+    await expect(trips.get('trip-a')).resolves.toEqual(reordered)
+
+    await trips.reorderStop('trip-a', 'stop-b', 0)
+    const afterLaterReorder = await trips.get('trip-a')
+    const replayAfterLaterReorder = await trips.useCheckMyDaySuggestion!(
+      'trip-a',
+      suggestion.requestId,
+      suggestion.tripVersion!,
+    )
+    expect(replayAfterLaterReorder).toEqual(afterLaterReorder)
+    replayAfterLaterReorder.stops[0]!.position = -1
+    await expect(trips.get('trip-a')).resolves.toEqual(afterLaterReorder)
+    await expect(
+      trips.useCheckMyDaySuggestion!('trip-b', suggestion.requestId, suggestion.tripVersion!),
+    ).rejects.toThrow(/couldn't update this trip/i)
+    await expect(
+      trips.useCheckMyDaySuggestion!('trip-a', suggestion.requestId, suggestion.tripVersion! + 1),
+    ).rejects.toThrow(/couldn't update this trip/i)
+    await expect(trips.get('trip-a')).resolves.toEqual(afterLaterReorder)
+
+    const staleSuggestion = await trips.requestCheckMyDay!('trip-a')
+    await trips.reorderStop('trip-a', 'stop-a', 2)
+    const beforeDeniedUse = await trips.get('trip-a')
+    await expect(
+      trips.useCheckMyDaySuggestion!(
+        'trip-a',
+        staleSuggestion.requestId,
+        staleSuggestion.tripVersion!,
+      ),
+    ).rejects.toThrow(/couldn't update this trip/i)
+    await expect(trips.get('trip-a')).resolves.toEqual(beforeDeniedUse)
 
     const fresh = await trips.create({ name: 'Blank slate', localDate: '2026-08-09' })
     expect(fresh.state).toBe('draft')
@@ -965,6 +1006,27 @@ describe('scenario-aware review clients', () => {
       state: 'empty',
       pendingCount: 0,
     })
+  })
+
+  it('replays a concurrent Check My Day Use from the current trip with isolated snapshots', async () => {
+    const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!
+    const suggestion = await trips.requestCheckMyDay!('trip-a')
+    expect(suggestion.state).toBe('suggested')
+
+    const [applied, replayed] = await Promise.all([
+      trips.useCheckMyDaySuggestion!('trip-a', suggestion.requestId, suggestion.tripVersion!),
+      trips.useCheckMyDaySuggestion!('trip-a', suggestion.requestId, suggestion.tripVersion!),
+    ])
+
+    expect(applied.version).toBe(suggestion.tripVersion! + 1)
+    expect(replayed).toEqual(applied)
+    const currentTrip = await trips.get('trip-a')
+    expect(currentTrip).toEqual(applied)
+
+    applied.stops[0]!.position = -1
+    expect(replayed.stops[0]!.position).not.toBe(-1)
+    replayed.stops[0]!.position = -2
+    await expect(trips.get('trip-a')).resolves.toEqual(currentTrip)
   })
 
   it('replays a real offline queue and resolves conflicts for review', async () => {

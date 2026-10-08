@@ -473,9 +473,11 @@ function MoreMenuLock() {
 function MorePage({
   ownConsentClient,
   ownerAvailable,
+  localShopperTripEntry,
 }: {
   ownConsentClient: OwnConsentClient
   ownerAvailable: boolean
+  localShopperTripEntry: boolean
 }) {
   const { session } = useAuth()
   const signedIn = Boolean(session)
@@ -503,6 +505,9 @@ function MorePage({
         : []),
       ...(!session || session.role === 'Shopper'
         ? [{ to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true }]
+        : []),
+      ...(session?.role === 'Shopper' && localShopperTripEntry
+        ? [{ to: '/trips', label: 'My trips', requiresSignIn: true }]
         : []),
       ...(!session
         ? [{ to: '/auth/register', label: 'Create account', requiresSignIn: false }]
@@ -1191,26 +1196,23 @@ function TripGoRoute({
 
 function TripCheckMyDayRoute({ client }: { client: TripClient }) {
   const { tripId = '' } = useParams()
-  const persist = async (choice: 'suggested' | 'manual', stopIds: string[]) => {
-    if (!client.saveCheckMyDayChoice) throw new Error('Trip choice persistence is unavailable.')
-    await client.saveCheckMyDayChoice(tripId, choice, stopIds)
+  const useSuggestion = async (requestId: string, expectedVersion: number) => {
+    if (!client.useCheckMyDaySuggestion)
+      throw new Error('Suggested order persistence is unavailable.')
+    await client.useCheckMyDaySuggestion(tripId, requestId, expectedVersion)
   }
-  if (!client.requestCheckMyDay || !client.getCheckMyDaySuggestion)
+  if (
+    !client.requestCheckMyDay ||
+    !client.getCheckMyDaySuggestion ||
+    !client.useCheckMyDaySuggestion
+  )
     return <CheckMyDayPage request={null} provider={blockedCheckMyDayProvider} />
   return (
     <AuthoritativeCheckMyDayPage
       requestServer={() => client.requestCheckMyDay!(tripId)}
       pollServer={(requestId) => client.getCheckMyDaySuggestion!(requestId)}
       loadTrip={() => client.get(tripId)}
-      onUseSuggestedOrder={(ids) => persist('suggested', ids)}
-      onKeepMyOrder={async () => {
-        const trip = await client.get(tripId)
-        if (trip)
-          await persist(
-            'manual',
-            trip.stops.map((stop) => stop.id),
-          )
-      }}
+      onUseSuggestedOrder={useSuggestion}
     />
   )
 }
@@ -1286,6 +1288,8 @@ export interface AppClients {
 
 export interface AppRuntime {
   tripOffline?: TripOfflineRuntime
+  /** Local configured-shopper provenance only; grants no account or trip authority. */
+  configuredLocalShopperReview?: true
   authStore?: AuthStore
   authProvider?: AuthProviderAdapter
   sessionRegistry?: SessionRegistryClient
@@ -1317,6 +1321,13 @@ export default function App({
   runtime?: AppRuntime
 }) {
   const location = useLocation()
+  const localShopperTripEntry =
+    !isCatalogOnlyPublicTest() &&
+    (runtime.configuredLocalShopperReview === true ||
+      (import.meta.env.DEV &&
+        runtime.reviewHarness?.active === true &&
+        typeof window !== 'undefined' &&
+        ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)))
   const capabilityOnlyRoute = [
     '/reviewer/setup',
     '/reviewer/credentials',
@@ -1478,6 +1489,7 @@ export default function App({
               <MorePage
                 ownConsentClient={ownConsentClient}
                 ownerAvailable={Boolean(clients.owner)}
+                localShopperTripEntry={localShopperTripEntry}
               />
             }
           />
@@ -1517,13 +1529,7 @@ export default function App({
               <StoreDetails
                 shopperClient={shopperClient}
                 catalog={clients.catalog}
-                localTripEvaluation={
-                  import.meta.env.DEV &&
-                  runtime.reviewHarness?.active === true &&
-                  typeof window !== 'undefined' &&
-                  ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
-                  !isCatalogOnlyPublicTest()
-                }
+                localTripEvaluation={localShopperTripEntry}
               />
             }
           />
@@ -1642,7 +1648,7 @@ export default function App({
             path="/saved"
             element={
               <RequireSession requiredRole="Shopper">
-                <SavedPage client={shopperClient} />
+                <SavedPage client={shopperClient} allowAddToTrip={localShopperTripEntry} />
               </RequireSession>
             }
           />

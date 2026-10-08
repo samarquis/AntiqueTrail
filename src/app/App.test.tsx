@@ -590,6 +590,125 @@ describe('app shell', () => {
     ).not.toBeInTheDocument()
   })
 
+  describe('My trips in More', () => {
+    afterEach(() => {
+      cleanup()
+      vi.unstubAllEnvs()
+    })
+
+    function sessionStore(role: AuthSession['role']) {
+      const authStore = new InMemoryAuthStore()
+      authStore.setSession({
+        userId: 'more-session',
+        accessToken: 'memory-only-token',
+        expiresAt: Date.now() + 60_000,
+        role,
+        mfaRequired: false,
+        mfaEnrolled: false,
+        mfaVerified: false,
+      })
+      return authStore
+    }
+
+    it('shows My trips for a configured-local Shopper without changing primary navigation', () => {
+      vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
+      render(
+        <MemoryRouter initialEntries={['/more']}>
+          <App
+            runtime={{
+              authStore: sessionStore('Shopper'),
+              configuredLocalShopperReview: true,
+            }}
+          />
+        </MemoryRouter>,
+      )
+
+      expect(screen.getByRole('link', { name: 'My trips' })).toHaveAttribute('href', '/trips')
+      expect(
+        within(screen.getByRole('navigation', { name: 'Primary navigation' }))
+          .getAllByRole('link')
+          .map((link) => link.textContent?.trim()),
+      ).toEqual(['Browse', 'Saved stores', 'More'])
+    })
+
+    it('shows My trips for the selected in-memory Shopper fixture', async () => {
+      vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
+      const url = '/more?reviewAs=shopper-a&reviewState=success'
+      const harness = await createReviewHarness({
+        dev: true,
+        mode: 'review',
+        enabled: 'true',
+        url: `http://127.0.0.1:4173${url}`,
+      })
+      expect(harness).not.toBeNull()
+
+      render(
+        <MemoryRouter initialEntries={[url]}>
+          <App
+            clients={createReviewHarnessClients(harness!.scenario, harness!.state)}
+            runtime={{
+              authStore: harness!.authStore,
+              sessionRegistry: harness!.sessionRegistry,
+              authProvider: createReviewHarnessAuthProvider(harness!.state),
+              reviewHarness: harness!,
+            }}
+          />
+        </MemoryRouter>,
+      )
+
+      expect(await screen.findByRole('link', { name: 'My trips' })).toHaveAttribute(
+        'href',
+        '/trips',
+      )
+    })
+
+    it('hides My trips when a Shopper has neither local admission', () => {
+      vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
+      render(
+        <MemoryRouter initialEntries={['/more']}>
+          <App runtime={{ authStore: sessionStore('Shopper') }} />
+        </MemoryRouter>,
+      )
+
+      expect(screen.queryByRole('link', { name: 'My trips' })).not.toBeInTheDocument()
+    })
+
+    it.each(['Store Owner', 'Representative', 'Administrator'] as const)(
+      'hides My trips for %s even when configured-local admission is present',
+      (role) => {
+        vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
+        render(
+          <MemoryRouter initialEntries={['/more']}>
+            <App
+              runtime={{
+                authStore: sessionStore(role),
+                configuredLocalShopperReview: true,
+              }}
+            />
+          </MemoryRouter>,
+        )
+
+        expect(screen.queryByRole('link', { name: 'My trips' })).not.toBeInTheDocument()
+      },
+    )
+
+    it('hides My trips in catalog-only public mode even with configured-local admission', () => {
+      vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
+      render(
+        <MemoryRouter initialEntries={['/more']}>
+          <App
+            runtime={{
+              authStore: sessionStore('Shopper'),
+              configuredLocalShopperReview: true,
+            }}
+          />
+        </MemoryRouter>,
+      )
+
+      expect(screen.queryByRole('link', { name: 'My trips' })).not.toBeInTheDocument()
+    })
+  })
+
   it('provides actionable public help without inventing a support channel', () => {
     render(
       <MemoryRouter initialEntries={['/help']}>
@@ -1595,5 +1714,82 @@ describe('app shell', () => {
     )
     expect(screen.getByRole('heading', { name: /check my day/i })).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent(/not available yet/i)
+  })
+
+  describe('configured-local shopper trip entry', () => {
+    afterEach(() => {
+      cleanup()
+      vi.unstubAllEnvs()
+    })
+
+    it('shows the existing Details chooser only when local trip entry is admitted', async () => {
+      vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
+      const admitted = render(
+        <MemoryRouter initialEntries={['/stores/blue-finch-curios']}>
+          <App
+            clients={{ catalog: demoCatalogClient }}
+            runtime={{ configuredLocalShopperReview: true }}
+          />
+        </MemoryRouter>,
+      )
+      const addToTrip = await screen.findByRole('link', { name: /^Add to Trip$/ })
+      expect(addToTrip).toHaveAttribute(
+        'href',
+        '/trips/new?addStoreId=00000000-0000-4000-8000-000000000001',
+      )
+      admitted.unmount()
+
+      render(
+        <MemoryRouter initialEntries={['/stores/blue-finch-curios']}>
+          <App clients={{ catalog: demoCatalogClient }} />
+        </MemoryRouter>,
+      )
+      await screen.findByRole('heading', { name: 'Blue Finch Curios' })
+      expect(screen.queryByRole('link', { name: /^Add to Trip$/ })).toBeNull()
+    })
+
+    it('routes the admitted Details chooser through the session guard', async () => {
+      vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
+      const user = userEvent.setup()
+      function CurrentLocation() {
+        const location = useLocation()
+        return (
+          <output data-testid="current-location">{`${location.pathname}${location.search}`}</output>
+        )
+      }
+      render(
+        <MemoryRouter initialEntries={['/stores/blue-finch-curios']}>
+          <CurrentLocation />
+          <App
+            clients={{ catalog: demoCatalogClient }}
+            runtime={{ configuredLocalShopperReview: true }}
+          />
+        </MemoryRouter>,
+      )
+
+      const addToTrip = await screen.findByRole('link', { name: /^Add to Trip$/ })
+      const tripPath = '/trips/new?addStoreId=00000000-0000-4000-8000-000000000001'
+      expect(addToTrip).toHaveAttribute('href', tripPath)
+      await user.click(addToTrip)
+      await waitFor(() =>
+        expect(screen.getByTestId('current-location')).toHaveTextContent(
+          `/auth/sign-in?returnTo=${encodeURIComponent(tripPath)}`,
+        ),
+      )
+    })
+
+    it('keeps the Details chooser hidden in catalog-only public mode', async () => {
+      vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
+      render(
+        <MemoryRouter initialEntries={['/stores/blue-finch-curios']}>
+          <App
+            clients={{ catalog: demoCatalogClient }}
+            runtime={{ configuredLocalShopperReview: true }}
+          />
+        </MemoryRouter>,
+      )
+      await screen.findByRole('heading', { name: 'Blue Finch Curios' })
+      expect(screen.queryByRole('link', { name: /^Add to Trip$/ })).toBeNull()
+    })
   })
 })

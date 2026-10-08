@@ -8,6 +8,36 @@ const input = JSON.parse(fs.readFileSync(process.env.CONFIGURED_SHOPPER_INPUT!, 
 const service = createLocalService({ resumeDirectory: input.directory })
 const A = '00000000-0000-4000-8000-000000001001'
 const B = '00000000-0000-4000-8000-000000001002'
+function issue565ActualRoute(value: string) {
+  const actual = new URL(value)
+  if (actual.pathname === '/auth/sign-in') {
+    const returnTo = actual.searchParams.get('returnTo')
+    if (returnTo === null) return '/auth/sign-in'
+    const target = new URL(returnTo, actual.origin)
+    if (target.origin !== actual.origin) return '/auth/sign-in?returnTo=<other-route>'
+    if (target.pathname === '/trips/new')
+      return `/auth/sign-in?returnTo=/trips/new${target.searchParams.has('addStoreId') ? '?addStoreId=<store-id>' : ''}`
+    if (target.pathname === '/stores/clockwork-cabinet' && !target.search)
+      return '/auth/sign-in?returnTo=/stores/clockwork-cabinet'
+    return '/auth/sign-in?returnTo=<other-route>'
+  }
+  if (actual.pathname === '/trips/new')
+    return `/trips/new${actual.searchParams.has('addStoreId') ? '?addStoreId=<store-id>' : ''}`
+  if (actual.pathname === '/stores/clockwork-cabinet') return actual.pathname
+  return '<other-route>'
+}
+async function expectDetailsSignIn(page: Page) {
+  try {
+    await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+    await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=/)
+  } catch (error) {
+    test.info().annotations.push({
+      type: 'issue-565-actual-route',
+      description: issue565ActualRoute(page.url()),
+    })
+    throw error
+  }
+}
 const uuid = (value: string) => {
   if (!/^[a-f0-9-]{36}$/.test(value)) throw new Error('Invalid fixture UUID')
   return value
@@ -25,6 +55,10 @@ const saved = () =>
     .sql(
       `select count(*) from shopper_private.saved_stores where user_id='${owner}' and store_id='${A}';`,
     )
+    .then((s: string) => Number(s.trim()))
+const ownedTripCount = () =>
+  service
+    .sql(`select count(*) from trip_private.trips where owner_id='${owner}';`)
     .then((s: string) => Number(s.trim()))
 const read = (id: string) =>
   service
@@ -165,6 +199,106 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
   await submitLogin(page)
   await expect.poll(saved).toBe(1)
   await expect(page).toHaveURL(/\/stores\/clockwork-cabinet$/)
+})
+
+test('visible Details Add to Trip preserves store through cancel, auth failure, and sign-in', async ({
+  page,
+}) => {
+  const tripsBefore = await ownedTripCount()
+  await page.goto('/stores/clockwork-cabinet')
+  await expectDetailsSignIn(page)
+
+  await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
+  await expect(page).toHaveURL(/\/stores\/clockwork-cabinet$/)
+  expect(await ownedTripCount()).toBe(tripsBefore)
+
+  await expectDetailsSignIn(page)
+  const failedLogin = page.waitForResponse((response) =>
+    response.url().includes('/auth/v1/token?grant_type=password'),
+  )
+  await page.getByLabel('Email', { exact: true }).fill(input.users[0].email)
+  await page.getByLabel('Password', { exact: true }).fill('incorrect-local-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  expect((await failedLogin).ok()).toBe(false)
+  await expect(page.getByRole('alert')).toBeVisible()
+  expect(await ownedTripCount()).toBe(tripsBefore)
+
+  await submitLogin(page)
+  await expect(page).toHaveURL(new RegExp(`/trips/new\\?addStoreId=${A}`))
+  await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+
+  const name = `Details outing ${crypto.randomUUID().slice(0, 8)}`
+  await page.getByLabel('Trip name', { exact: true }).fill(name)
+  await page.getByLabel('Date', { exact: true }).fill('2026-10-10')
+  await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
+  await page.getByRole('link', { name: 'View Trip', exact: true }).click()
+  const id = uuid(page.url().split('/trips/')[1].split('/')[0])
+  const trip = await read(id)
+  expect(trip.name).toBe(name)
+  expect(trip.date).toBe('2026-10-10')
+  expect(trip.stops.map((stop: { store: string }) => stop.store)).toEqual([A])
+  expect(await ownedTripCount()).toBe(tripsBefore + 1)
+})
+
+test('visible Saved-row chooser cancels, retries, and reads back one dated stop', async ({
+  page,
+}) => {
+  await login(page, 0, '/stores/clockwork-cabinet')
+  await page.getByRole('button', { name: 'Save store Clockwork Cabinet', exact: true }).click()
+  await expect.poll(saved).toBe(1)
+
+  const id = crypto.randomUUID()
+  const tripName = 'Saved entry retry trip'
+  await service.sql(
+    `insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date) values ('${id}','${owner}','00000000-0000-4000-8000-000000000001','${tripName}','2026-10-11'); insert into trip_private.trip_participants(trip_id,user_id,participant_role) values ('${id}','${owner}','creator');`,
+  )
+
+  await page.goto('/saved')
+  await expect(page.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Add Clockwork Cabinet to a trip' }).click()
+  await expect(page).toHaveURL(new RegExp(`/trips/new\\?addStoreId=${A}&returnTo=%2Fsaved`))
+  await expect(page.getByRole('button', { name: `Add to ${tripName}`, exact: true })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Back to saved stores', exact: true }).click()
+  await expect(page).toHaveURL(/\/saved$/)
+  expect((await read(id)).stops).toEqual([])
+
+  await page.getByRole('link', { name: 'Add Clockwork Cabinet to a trip' }).click()
+  await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+
+  let addAttempts = 0
+  await page.route('**/rest/v1/rpc/add_trip_store_stop', async (route) => {
+    if (route.request().method() === 'POST') {
+      addAttempts++
+      if (addAttempts === 1) {
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'Temporary local test failure' }),
+        })
+        return
+      }
+    }
+    await route.continue()
+  })
+  await page.getByRole('button', { name: `Add to ${tripName}`, exact: true }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  expect(addAttempts).toBe(1)
+  expect((await read(id)).stops).toEqual([])
+
+  await page.getByRole('button', { name: `Add to ${tripName}`, exact: true }).click()
+  await expect(
+    page.getByRole('heading', { name: `Added to ${tripName}`, exact: true }),
+  ).toBeVisible()
+  expect(addAttempts).toBe(2)
+  await page.unroute('**/rest/v1/rpc/add_trip_store_stop')
+  await page.getByRole('link', { name: 'View Trip', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`/trips/${id}/plan$`))
+  const trip = await read(id)
+  expect(trip.name).toBe(tripName)
+  expect(trip.date).toBe('2026-10-11')
+  expect(trip.stops.map((stop: { store: string }) => stop.store)).toEqual([A])
 })
 
 test('JIT trip entry, authenticated catalog, photo, save and two-store creation', async ({
