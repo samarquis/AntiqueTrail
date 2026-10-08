@@ -24,19 +24,80 @@ const report = {
   sourceDirty: null,
   cliVersion: null,
   cleanup: 'not-started',
+  edgeRuntimeVolume: { name: null, prepared: false, cleanup: 'not-started' },
   database: { status: 'not-started', plan: null, assertions: 0, skipped: 0, failed: 0, cases: [] },
   browser: { status: 'not-started' },
   errors: [],
 }
 const uuid = () => crypto.randomUUID()
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
-let service, server, secretFile
+let service, server, secretFile, edgeRuntimeVolume
 
 for (const signal of ['SIGINT', 'SIGTERM'])
   process.once(signal, () => controller.abort(new Error(signal)))
 
 function sqlText(value) {
   return `'${String(value).replaceAll("'", "''")}'`
+}
+
+async function removeOwnedEdgeRuntimeVolume(volume) {
+  if (
+    !/^probe-[a-f0-9]{24}$/.test(volume.projectId) ||
+    volume.name !== `supabase_edge_runtime_${volume.projectId}`
+  )
+    throw new Error('Issue 581 Edge Runtime volume identity malformed')
+
+  const names = (
+    await command('docker', ['volume', 'ls', '-q', '--filter', `name=${volume.name}`], {
+      signal: controller.signal,
+    })
+  )
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (!names.includes(volume.name)) return
+
+  const inspected = JSON.parse(
+    await command('docker', ['volume', 'inspect', volume.name], { signal: controller.signal }),
+  )
+  if (
+    inspected.length !== 1 ||
+    inspected[0].Name !== volume.name ||
+    inspected[0].Labels?.['com.supabase.cli.project'] !== volume.projectId
+  )
+    throw new Error('Issue 581 Edge Runtime volume ownership mismatch')
+
+  const containerIds = (
+    await command(
+      'docker',
+      ['ps', '-aq', '--filter', `label=com.supabase.cli.project=${volume.projectId}`],
+      { signal: controller.signal },
+    )
+  )
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (containerIds.length) {
+    const containers = JSON.parse(
+      await command('docker', ['inspect', ...containerIds], { signal: controller.signal }),
+    )
+    if (
+      containers.some((container) => container.Mounts?.some((mount) => mount.Name === volume.name))
+    )
+      throw new Error('Issue 581 Edge Runtime volume remains attached to an owned container')
+  }
+
+  await command('docker', ['volume', 'rm', volume.name], { signal: controller.signal })
+  const remaining = (
+    await command('docker', ['volume', 'ls', '-q', '--filter', `name=${volume.name}`], {
+      signal: controller.signal,
+    })
+  )
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (remaining.includes(volume.name))
+    throw new Error('Issue 581 Edge Runtime volume remains after cleanup')
 }
 
 function chicagoYesterday() {
@@ -305,6 +366,31 @@ try {
 
   service = createLocalService({ signal: controller.signal, disableStorage: true })
   report.temporaryProject = service.run.directory
+  report.projectId = service.run.projectId
+  if (!/^probe-[a-f0-9]{24}$/.test(service.run.projectId))
+    throw new Error('Issue 581 local project identity malformed')
+  edgeRuntimeVolume = {
+    projectId: service.run.projectId,
+    name: `supabase_edge_runtime_${service.run.projectId}`,
+  }
+  report.edgeRuntimeVolume.name = edgeRuntimeVolume.name
+  // Preflight the exact volume Supabase CLI uses so Docker's creation failure stays diagnosable.
+  const preparedVolume = await command(
+    'docker',
+    [
+      'volume',
+      'create',
+      '--label',
+      `com.supabase.cli.project=${edgeRuntimeVolume.projectId}`,
+      '--label',
+      `com.docker.compose.project=${edgeRuntimeVolume.projectId}`,
+      edgeRuntimeVolume.name,
+    ],
+    { signal: controller.signal },
+  )
+  if (preparedVolume.trim() !== edgeRuntimeVolume.name)
+    throw new Error('Issue 581 Edge Runtime volume creation returned an unexpected name')
+  report.edgeRuntimeVolume.prepared = true
   const local = await service.start()
   report.sourceDirty = Boolean(local.sourceDirty)
   report.cliVersion = local.cliVersion
@@ -430,6 +516,8 @@ try {
   report.errors.push(redact(String(error?.message ?? 'unknown_error')))
 } finally {
   let cleanupFailed = false
+  let serviceCleanupError
+  let volumeCleanupError
   try {
     if (server) await stopChild(server)
   } catch (error) {
@@ -441,10 +529,52 @@ try {
   try {
     if (service) report.cleanup = await service.cleanup()
   } catch (error) {
-    cleanupFailed = true
+    serviceCleanupError = error
     report.cleanup = 'failed'
+  }
+  try {
+    if (edgeRuntimeVolume) {
+      await removeOwnedEdgeRuntimeVolume(edgeRuntimeVolume)
+      report.edgeRuntimeVolume.cleanup = 'removed'
+    } else {
+      report.edgeRuntimeVolume.cleanup = 'not-created'
+    }
+  } catch (error) {
+    volumeCleanupError = error
+    report.edgeRuntimeVolume.cleanup = 'failed'
+  }
+  if ((serviceCleanupError || volumeCleanupError) && service) {
+    try {
+      report.cleanup = await service.cleanup()
+      serviceCleanupError = undefined
+    } catch (error) {
+      serviceCleanupError = error
+    }
+    try {
+      if (edgeRuntimeVolume) {
+        await removeOwnedEdgeRuntimeVolume(edgeRuntimeVolume)
+        report.edgeRuntimeVolume.cleanup = 'removed'
+        volumeCleanupError = undefined
+      }
+    } catch (error) {
+      volumeCleanupError = error
+      report.edgeRuntimeVolume.cleanup = 'failed'
+    }
+  }
+  if (serviceCleanupError) {
+    cleanupFailed = true
     report.errors.push(
-      redact(`local_service_cleanup_failed: ${String(error?.message ?? 'unknown_error')}`),
+      redact(
+        `local_service_cleanup_failed: ${String(serviceCleanupError?.message ?? 'unknown_error')}`,
+      ),
+    )
+  }
+  if (volumeCleanupError) {
+    cleanupFailed = true
+    report.errors.push(
+      redact(
+        `edge_runtime_volume_cleanup_failed: ${String(volumeCleanupError?.message ?? 'unknown_error')}`,
+      ),
     )
   }
   try {
