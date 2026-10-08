@@ -612,6 +612,48 @@ describe('provider-neutral Store Portal boundary', () => {
     expect(await screen.findByText('Latest saved headline')).toBeInTheDocument()
   })
 
+  it('shows and retries a failed readback after an edit conflict without losing the draft', async () => {
+    const user = userEvent.setup()
+    const existing = {
+      id: 'update-1',
+      type: 'announcement' as const,
+      headline: 'Existing announcement',
+      details: 'Saved body',
+      state: 'live' as const,
+      version: 7,
+      publishedAt: '2026-10-01T12:00:00Z',
+    }
+    const latest = { ...existing, headline: 'Latest saved headline', version: 8 }
+    const listUpdates = vi
+      .fn()
+      .mockResolvedValueOnce([existing])
+      .mockRejectedValueOnce(new Error('readback unavailable'))
+      .mockResolvedValueOnce([latest])
+    const editUpdate = vi.fn(async () => {
+      throw new PortalUpdateConflictError(8)
+    })
+    render(
+      <MemoryRouter>
+        <PortalUpdatesPage client={client({ listUpdates, editUpdate })} />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Edit Existing announcement' }))
+    const editHeadline = screen.getByLabelText('Edit headline')
+    await user.clear(editHeadline)
+    await user.type(editHeadline, 'My unsent text')
+    await user.click(screen.getByRole('button', { name: 'Save update' }))
+
+    expect(await screen.findByText(/we couldn't refresh saved updates/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Edit headline')).toHaveValue('My unsent text')
+    await user.click(screen.getByRole('button', { name: 'Retry refresh' }))
+
+    expect(await screen.findByText('Latest saved headline')).toBeInTheDocument()
+    expect(screen.queryByText(/we couldn't refresh saved updates/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Edit headline')).toHaveValue('My unsent text')
+    expect(screen.getByRole('alert')).toHaveTextContent('version 8')
+  })
+
   it('uploads official media through M-01 and leaves publication pending review', async () => {
     const user = userEvent.setup()
     const uploadOfficialMedia = vi.fn(async () => ({

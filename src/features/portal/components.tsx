@@ -675,12 +675,25 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
   const [editPending, setEditPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
+  const [refreshFailed, setRefreshFailed] = useState(false)
   useEffect(() => {
     client
       .listUpdates()
-      .then(setUpdates)
-      .catch(() => setError(GENERIC_PORTAL_ERROR))
+      .then((items) => {
+        setUpdates(items)
+        setRefreshFailed(false)
+      })
+      .catch(() => setRefreshFailed(true))
   }, [client])
+  function retryUpdatesRefresh() {
+    client
+      .listUpdates()
+      .then((items) => {
+        setUpdates(items)
+        setRefreshFailed(false)
+      })
+      .catch(() => setRefreshFailed(true))
+  }
   function beginEdit(update: StoreUpdate) {
     setError(null)
     setStatus(null)
@@ -752,8 +765,11 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
         if (failure instanceof PortalUpdateConflictError) {
           void client
             .listUpdates()
-            .then(setUpdates)
-            .catch(() => undefined)
+            .then((items) => {
+              setUpdates(items)
+              setRefreshFailed(false)
+            })
+            .catch(() => setRefreshFailed(true))
           setError(
             failure.latestVersion
               ? `This update is now version ${failure.latestVersion}. Your edit is still here; cancel and reopen the update to review the latest text.`
@@ -782,6 +798,14 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
       <PortalNav />
       {error && <p role="alert">{error}</p>}
       {status && <p role="status">{status}</p>}
+      {refreshFailed && (
+        <div role="alert">
+          <p>We couldn't refresh saved updates. The list may be out of date.</p>
+          <button type="button" className="button button--secondary" onClick={retryUpdatesRefresh}>
+            Retry refresh
+          </button>
+        </div>
+      )}
       <form onSubmit={submit}>
         <fieldset>
           <legend>New Store Update</legend>
