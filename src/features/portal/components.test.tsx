@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -733,7 +733,9 @@ describe('provider-neutral Store Portal boundary', () => {
     await user.clear(altInput)
     await user.type(altInput, 'New front entrance')
     await user.click(screen.getByLabelText(/confirm.*rights.*replacement/i))
-    await user.click(screen.getByRole('button', { name: 'Submit replacement for review' }))
+    const submitButton = screen.getByRole('button', { name: 'Submit replacement for review' })
+    await waitFor(() => expect(submitButton).toBeEnabled())
+    await user.click(submitButton)
 
     expect(uploadOfficialMedia).toHaveBeenCalledWith(
       expect.objectContaining({

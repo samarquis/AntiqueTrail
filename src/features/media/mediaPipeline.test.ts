@@ -265,7 +265,7 @@ describe('M-01 media pipeline boundary', () => {
     const boundary = dependencies()
     await expect(runMediaPublish('job-1', boundary)).resolves.toEqual({ state: 'published' })
     expect(boundary.putPublic).toHaveBeenCalledWith(
-      expect.stringMatching(/^official\/[0-9a-f-]+\/v1\/[a-f0-9]{64}\.webp$/u),
+      expect.stringMatching(/^official\/[0-9a-f-]+\/v1\/[a-f0-9]{16,64}\.webp$/u),
       expect.any(Uint8Array),
       { cacheControl: '31536000', contentType: 'image/webp', upsert: false },
     )

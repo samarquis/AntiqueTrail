@@ -17,13 +17,13 @@ create index media_upload_replacement_target_idx
 
 grant media_automation to postgres;
 grant create on schema app_public,media_private,partner_private to media_automation;
-grant usage on schema auth to media_automation;
 set role media_automation;
 
 create or replace function partner_private.check_store_media_cap(
   p_store_id uuid,p_kind text,p_idempotency_key uuid
 ) returns jsonb language plpgsql security definer set search_path='' as $$
 declare
+  v_actor uuid:=app_public.request_user_id();
   v_cap integer;
   v_approved_count bigint;
   v_is_cover boolean;
@@ -35,9 +35,9 @@ begin
   if p_store_id is null or p_kind is null or p_kind not in ('cover','gallery') or p_idempotency_key is null then
     raise exception using errcode='22023',message='media_intake_invalid_input';
   end if;
-  if auth.uid() is not null and exists(
+  if v_actor is not null and exists(
     select 1 from media_private.media_uploads u
-    where u.actor_user_id=auth.uid() and u.store_id=p_store_id
+    where u.actor_user_id=v_actor and u.store_id=p_store_id
       and u.kind=p_kind and u.idempotency_key=p_idempotency_key
   ) then
     return jsonb_build_object('allowed',true,'remaining',0,'replayed',true);

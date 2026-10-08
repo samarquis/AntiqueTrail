@@ -34,7 +34,7 @@ describe('M-01 Edge wiring contract', () => {
     expect(lifecycleSource).not.toContain('SUPABASE_SERVICE_ROLE_KEY')
   })
 
-  it('derives store and kind from the server-locked rejected original for resubmission', () => {
+  it('derives store and kind from server-locked records for resubmission and replacement', () => {
     expect(uploadSource).toContain("const originalUploadId = form.get('originalUploadId')")
     expect(uploadSource).toContain("const resubmitting = typeof originalUploadId === 'string'")
     expect(uploadSource).not.toContain("'media_get_upload'")
@@ -47,7 +47,14 @@ describe('M-01 Edge wiring contract', () => {
     )
     expect(uploadSource).toContain('async function sha256Hex')
     expect(uploadSource).toContain(
-      "if (typeof storeId === 'string' || typeof kind === 'string') return unavailable(headers)",
+      "const replacing = form.has('targetMediaId') || form.has('expectedVersion')",
     )
+    expect(uploadSource).toContain('if (resubmitting || replacing)')
+    expect(uploadSource).toContain("userClient, 'media_reserve_replacement'")
+    expect(uploadSource).toContain('p_target_media_id: input.targetMediaId')
+    expect(uploadSource).toContain('p_expected_media_version: input.expectedVersion')
+    expect(uploadSource).toContain("form.has('storeId')")
+    expect(uploadSource).toContain("form.has('kind')")
+    expect(uploadSource).toContain("typeof storeId !== 'string'")
   })
 })
