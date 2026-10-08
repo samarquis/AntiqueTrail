@@ -3,22 +3,23 @@ import { createPartnerAdminClient } from './partnerAdmin'
 
 describe('partner administrator boundary', () => {
   it('confirms the exact Owner store through the synthetic Owner approval RPC', async () => {
+    const storeId = '00000000-0000-4000-8000-000000000009'
     const rpc = vi
       .fn()
-      .mockResolvedValueOnce({ role: 'Store Owner', storeId: 'store-1', claimId: 'claim-1' })
-      .mockResolvedValueOnce({ claimId: 'claim-1', state: 'approved' })
+      .mockResolvedValueOnce({ role: 'Store Owner', storeId, claimId: 'claim-1' })
+      .mockResolvedValueOnce({ claimId: 'claim-1', state: 'approved', ownerIntent: false })
     const client = createPartnerAdminClient({ rpc, ownerApprovalAvailable: true })
     await client.decide({
       operation: 'approve_owner',
       claimId: 'claim-1',
-      confirmedStoreId: 'store-1',
+      confirmedStoreId: storeId,
       expectedVersion: 3,
       idempotencyKey: 'owner-approval',
       reasonCode: 'owner_boundary_confirmed',
     })
     expect(rpc).toHaveBeenNthCalledWith(1, 'owner_admin_approve_claim', {
       p_claim_id: 'claim-1',
-      p_store_id: 'store-1',
+      p_store_id: storeId,
       p_expected_version: 3,
       p_idempotency_key: 'owner-approval',
     })
@@ -31,7 +32,7 @@ describe('partner administrator boundary', () => {
       client.decide({
         operation: 'approve_owner',
         claimId: 'claim-1',
-        confirmedStoreId: 'store-1',
+        confirmedStoreId: '00000000-0000-4000-8000-000000000009',
         expectedVersion: 3,
         idempotencyKey: 'owner-approval',
         reasonCode: 'owner_boundary_confirmed',
@@ -39,11 +40,29 @@ describe('partner administrator boundary', () => {
     ).rejects.toThrow()
     expect(rpc).not.toHaveBeenCalled()
   })
+  it.each([undefined, 'synthetic-store'])(
+    'rejects Owner approval without a UUID store ID (%s) before any RPC',
+    async (confirmedStoreId) => {
+      const rpc = vi.fn()
+      const client = createPartnerAdminClient({ rpc, ownerApprovalAvailable: true })
+      await expect(
+        client.decide({
+          operation: 'approve_owner',
+          claimId: '11111111-1111-4111-8111-111111111111',
+          confirmedStoreId,
+          expectedVersion: 3,
+          idempotencyKey: 'owner-approval',
+          reasonCode: 'owner_boundary_confirmed',
+        }),
+      ).rejects.toThrow('partner_administration_unavailable')
+      expect(rpc).not.toHaveBeenCalled()
+    },
+  )
   it('uses one exact claim per read and never exposes a bulk operation', async () => {
     const rpc = vi.fn(async (command: string, payload: Readonly<Record<string, unknown>>) => {
       void command
       void payload
-      return { claimId: 'claim-1', state: 'verification_pending' }
+      return { claimId: 'claim-1', state: 'verification_pending', ownerIntent: false }
     })
     const client = createPartnerAdminClient({ rpc })
 
@@ -51,6 +70,15 @@ describe('partner administrator boundary', () => {
 
     expect(rpc).toHaveBeenCalledWith('partner_admin_claim_case', { p_claim_id: 'claim-1' })
     expect('listCases' in client).toBe(false)
+  })
+
+  it.each([
+    { claimId: 'claim-1', state: 'verification_pending' },
+    { claimId: 'claim-1', state: 'verification_pending', ownerIntent: 'false' },
+  ])('rejects a case response without a boolean Owner-intent flag', async (value) => {
+    const client = createPartnerAdminClient({ rpc: vi.fn().mockResolvedValue(value) })
+
+    await expect(client.getCase('claim-1')).rejects.toThrow('partner_administration_unavailable')
   })
 
   it('lists and revokes exact-store team grants without returning recipient email', async () => {
@@ -129,7 +157,7 @@ describe('partner administrator boundary', () => {
     const rpc = vi.fn(async (command: string, payload: Readonly<Record<string, unknown>>) => {
       void command
       void payload
-      return { claimId: 'claim-1', state: 'changes_requested' }
+      return { claimId: 'claim-1', state: 'changes_requested', ownerIntent: false }
     })
     const client = createPartnerAdminClient({ rpc })
 
@@ -155,7 +183,7 @@ describe('partner administrator boundary', () => {
     const rpc = vi.fn(async (command: string, payload: Readonly<Record<string, unknown>>) => {
       void command
       void payload
-      return { claimId: 'claim-new', state: 'approved' }
+      return { claimId: 'claim-new', state: 'approved', ownerIntent: false }
     })
     const client = createPartnerAdminClient({ rpc })
 
@@ -201,7 +229,7 @@ describe('partner administrator boundary', () => {
     const rpc = vi.fn(async (command: string, payload: Readonly<Record<string, unknown>>) => {
       void command
       void payload
-      return { claimId: 'claim-1', state: 'verification_pending' }
+      return { claimId: 'claim-1', state: 'verification_pending', ownerIntent: false }
     })
     const client = createPartnerAdminClient({ rpc })
 

@@ -139,6 +139,64 @@ describe('admin RPC client', () => {
     ])
   })
 
+  it('binds Owner revocation to the exact claim, expected claim version, reason, key, and preview', async () => {
+    const calls: Array<{ name: string; args?: Record<string, unknown> }> = []
+    const client = createAdminClient({
+      rpc: async (name, args) => {
+        calls.push({ name, args })
+        if (name === 'admin_list_owner_access')
+          return { data: [{ claimId: 'claim-a', ownerUserId: 'owner-a' }], error: null }
+        if (name === 'admin_preview_owner_claim_revoke')
+          return {
+            data: {
+              claimId: 'claim-a',
+              ownerUserId: 'owner-a',
+              storeId: 'store-a',
+              grantId: 'grant-a',
+              claimVersion: 4,
+              grantVersion: 2,
+              previewId: 'preview-a',
+              previewHash: 'hash-a',
+              expiresAt: '2026-10-07T12:10:00Z',
+            },
+            error: null,
+          }
+        return {
+          data: {
+            claimId: 'claim-a',
+            claimState: 'revoked',
+            claimVersion: 5,
+            accessState: 'revoked',
+          },
+          error: null,
+        }
+      },
+    })
+
+    await expect(client.listOwnerAccess()).resolves.toMatchObject([
+      { claimId: 'claim-a', ownerUserId: 'owner-a' },
+    ])
+    await client.previewOwnerClaimRevoke('claim-a', 4)
+    await client.revokeOwnerClaim('claim-a', 4, 'authority_withdrawn', 'owner-a-v4', 'preview-a')
+    expect(calls).toEqual([
+      { name: 'admin_list_owner_access', args: undefined },
+      {
+        name: 'admin_preview_owner_claim_revoke',
+        args: { p_claim_id: 'claim-a', p_expected_claim_version: 4 },
+      },
+      {
+        name: 'admin_revoke_owner_claim',
+        args: {
+          p_claim_id: 'claim-a',
+          p_expected_claim_version: 4,
+          p_reason_code: 'authority_withdrawn',
+          p_idempotency_key: 'owner-a-v4',
+          p_preview_id: 'preview-a',
+        },
+      },
+    ])
+  })
+
   it('uses one generic failure for denied or malformed server responses', async () => {
     const denied = createAdminClient({
       rpc: async () => ({ data: null, error: { message: 'secret database detail' } }),

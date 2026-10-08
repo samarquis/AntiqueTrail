@@ -22,6 +22,22 @@ const readinessResponseCodes = new Set([
   'MAP_UNAVAILABLE',
   'RATE_LIMITED',
 ])
+const readinessFailureCategories = new Set([
+  'fetchFailure',
+  'responseParseFailure',
+  'httpFailure',
+  'invalidResponse',
+])
+
+export function getReadinessFailureMetadata(error) {
+  if (error === null || (typeof error !== 'object' && typeof error !== 'function')) return null
+  const metadata = readinessFailureMetadata.get(error)
+  if (!metadata || !readinessFailureCategories.has(metadata.category)) return null
+  return {
+    category: metadata.category,
+    status: isReadinessHttpStatus(metadata.status) ? metadata.status : null,
+  }
+}
 
 function tagReadinessFailure(error, category, status, responseCode) {
   if (error !== null && (typeof error === 'object' || typeof error === 'function'))
@@ -409,11 +425,17 @@ export async function waitForLocalServiceReadiness(
         /* Diagnostics must not replace the fixed readiness failure. */
       }
     }
-    throw new Error(
+    const error = new Error(
       run.users.length
         ? 'Local catalog function did not become ready'
         : 'Local registration function did not become ready',
     )
+    const [category] =
+      Object.entries(categoryCounts)
+        .filter(([, count]) => count > 0)
+        .sort((left, right) => right[1] - left[1])[0] ?? []
+    if (readinessFailureCategories.has(category)) tagReadinessFailure(error, category)
+    throw error
   }
 }
 export function createLocalService({

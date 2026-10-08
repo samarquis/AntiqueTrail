@@ -216,7 +216,10 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
     await page.getByRole('button', { name: 'Confirm verify signal' }).click()
     await expect(page.getByText('Verified signals: 2.')).toBeVisible()
     await expect(page.getByRole('status')).toContainText('Signal verified and added')
-    await page.getByLabel('Decision', { exact: true }).selectOption('approve')
+    const decision = page.getByLabel('Decision', { exact: true })
+    await expect(decision.locator('option[value="approve"]')).toHaveCount(1)
+    await expect(decision.locator('option[value="approve_owner"]')).toHaveCount(0)
+    await decision.selectOption('approve')
     await page.getByLabel('Reason code').fill('verified_authority')
     await page.getByLabel('Decision key').fill('decision-1')
     await page.getByRole('button', { name: 'Apply decision' }).click()
@@ -296,7 +299,9 @@ test.describe('UI-09 administrator, moderation, and operational review', () => {
     await expect(page.locator('.review-queue__workspace')).toBeVisible()
     await expect(page.getByText('No assigned review cases.')).toHaveCount(0)
     await page.goto(reviewUrl('/admin/access', 'administrator', 'loading'))
-    await expect(page.getByRole('status')).toContainText('Loading Store Representative scopes')
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Loading Store Representative scopes' }),
+    ).toContainText('Loading Store Representative scopes')
     await expect(page.getByText('No Store Representative scopes.')).toHaveCount(0)
     await page.goto(reviewUrl('/admin', 'administrator', 'empty'))
     await expect(page.getByText('No assigned review cases.')).toBeVisible()
