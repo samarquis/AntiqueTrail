@@ -112,7 +112,7 @@ begin
 
   select * into receipt from portal_private.store_update_edit_receipts
     where actor_user_id=actor and store_id=target and operation='text_update_edit'
-      and idempotency_key=p_idempotency_key for update;
+      and idempotency_key=p_idempotency_key;
   if found then
     if receipt.request_digest=request_digest then return receipt.result; end if;
     return jsonb_build_object('state','conflict');
