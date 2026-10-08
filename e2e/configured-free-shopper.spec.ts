@@ -212,7 +212,9 @@ test('visible Details Add to Trip preserves store through cancel, auth failure, 
   expect(await ownedTripCount()).toBe(tripsBefore + 1)
 })
 
-test('visible Saved-row chooser cancels, retries, and reads back one dated stop', async ({ page }) => {
+test('visible Saved-row chooser cancels, retries, and reads back one dated stop', async ({
+  page,
+}) => {
   await login(page, 0, '/stores/clockwork-cabinet')
   await page.getByRole('button', { name: 'Save store Clockwork Cabinet', exact: true }).click()
   await expect.poll(saved).toBe(1)
@@ -258,7 +260,9 @@ test('visible Saved-row chooser cancels, retries, and reads back one dated stop'
   expect((await read(id)).stops).toEqual([])
 
   await page.getByRole('button', { name: `Add to ${tripName}`, exact: true }).click()
-  await expect(page.getByRole('heading', { name: `Added to ${tripName}`, exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: `Added to ${tripName}`, exact: true }),
+  ).toBeVisible()
   expect(addAttempts).toBe(2)
   await page.unroute('**/rest/v1/rpc/add_trip_store_stop')
   await page.getByRole('link', { name: 'View Trip', exact: true }).click()
