@@ -332,7 +332,8 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
           <dl>
             {Object.entries(selected.context)
               .filter(
-                ([label]) => selected.caseType !== 'image_review' || !label.startsWith('replacement'),
+                ([label]) =>
+                  selected.caseType !== 'image_review' || !label.startsWith('replacement'),
               )
               .map(([label, value]) => (
                 <div key={label}>
@@ -386,11 +387,16 @@ export function ReviewQueuePage({ client = unavailableAdminClient }: { client?: 
               ) : (
                 <>
                   <p>This candidate adds a new {String(selected.context.kind ?? 'photo')} photo.</p>
-                  <p>The new photo stays private until it is approved and published successfully.</p>
+                  <p>
+                    The new photo stays private until it is approved and published successfully.
+                  </p>
                 </>
               )}
               {typeof selected.context.replacementTargetId === 'string' && (
-                <p>The current approved photo remains public until a replacement publishes successfully.</p>
+                <p>
+                  The current approved photo remains public until a replacement publishes
+                  successfully.
+                </p>
               )}
             </section>
           ) : (

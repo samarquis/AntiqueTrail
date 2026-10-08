@@ -59,7 +59,9 @@ async function openOwnerPhotos(page: Page) {
   await page.getByRole('button', { name: `Open ${input.storeName}` }).click()
   await page.getByRole('link', { name: 'Official photos', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Official photos' })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Replace.*Approved gallery image one/i })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: /Replace.*Approved gallery image one/i }),
+  ).toBeVisible()
 }
 
 function localSql(sql: string) {
@@ -92,7 +94,11 @@ function localSql(sql: string) {
 
 function scalar(sql: string) {
   const output = localSql(sql)
-  const value = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).at(-1)
+  const value = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .at(-1)
   if (!value) throw new Error('Local synthetic media worker returned no result')
   return value
 }
@@ -195,7 +201,11 @@ test('Owner replaces exact full-cap slot; separate Admin decision gates rendered
       receipt = {}
     }
     if (!response.ok || typeof receipt.uploadId !== 'string') {
-      await route.fulfill({ status: 409, contentType: 'application/json', body: '{"error":"media_unavailable"}' })
+      await route.fulfill({
+        status: 409,
+        contentType: 'application/json',
+        body: '{"error":"media_unavailable"}',
+      })
       return
     }
     processReplacement(receipt.uploadId)
@@ -224,7 +234,9 @@ test('Owner replaces exact full-cap slot; separate Admin decision gates rendered
 
   // Simulate another accepted update between slot render and submit. The stale
   // request reaches the local RPC but never advances to the synthetic worker stage.
-  localSql(`update app_public.store_media set version=version+1 where id='${input.target.mediaId}';`)
+  localSql(
+    `update app_public.store_media set version=version+1 where id='${input.target.mediaId}';`,
+  )
   await page.getByRole('button', { name: /Replace.*Approved gallery image one/i }).click()
   await page.getByLabel('Official image file').setInputFiles({
     name: 'stale-replacement.png',
@@ -237,11 +249,15 @@ test('Owner replaces exact full-cap slot; separate Admin decision gates rendered
   await expect(page.getByRole('alert')).toContainText("couldn't update this store portal")
   expect(workerStages).toBe(0)
   expect(
-    scalar(`select count(*) from media_private.media_uploads where store_id='${input.storeId}' and alt_text='Stale replacement attempt';`),
+    scalar(
+      `select count(*) from media_private.media_uploads where store_id='${input.storeId}' and alt_text='Stale replacement attempt';`,
+    ),
   ).toBe('0')
 
   await page.reload()
-  await expect(page.getByRole('button', { name: /Replace.*Approved gallery image one/i })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: /Replace.*Approved gallery image one/i }),
+  ).toBeVisible()
   await page.getByRole('button', { name: /Replace.*Approved gallery image one/i }).click()
   await page.getByLabel('Official image file').setInputFiles({
     name: 'rejected-replacement.png',
@@ -280,7 +296,9 @@ test('Owner replaces exact full-cap slot; separate Admin decision gates rendered
     mimeType: 'image/png',
     buffer: imagePng,
   })
-  await retryOwner.getByLabel('Alternative text', { exact: true }).fill('Approved gallery replacement')
+  await retryOwner
+    .getByLabel('Alternative text', { exact: true })
+    .fill('Approved gallery replacement')
   await retryOwner.getByLabel(/I confirm that I have rights to publish this image/i).check()
   await retryOwner.getByRole('button', { name: 'Submit replacement for review' }).click()
   await expect(retryOwner.getByRole('status')).toContainText(/awaiting Administrator review/i)
@@ -304,7 +322,9 @@ test('Owner replaces exact full-cap slot; separate Admin decision gates rendered
   ).toBe(`/assets/issue580-current-gallery-1.webp`)
   publishReplacement(approvedUploadId)
   expect(
-    scalar(`select id::text||':'||version::text from app_public.store_media where id='${input.target.mediaId}';`),
+    scalar(
+      `select id::text||':'||version::text from app_public.store_media where id='${input.target.mediaId}';`,
+    ),
   ).toBe(`${input.target.mediaId}:3`)
   expect(submittedVersions).toEqual([1, 2, 2])
 

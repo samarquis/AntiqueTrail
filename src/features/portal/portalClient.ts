@@ -379,7 +379,10 @@ export function decodePortalMediaUploadHistory(value: unknown): PortalMediaUploa
 export function decodePortalPreview(value: unknown): PortalPreview {
   if (!isRecord(value) || !Array.isArray(value.media)) throw new Error(GENERIC_PORTAL_ERROR)
   const media: PortalMediaSlot[] = value.media.map((slot) => {
-    if (!isRecord(slot) || !hasExactKeys(slot, ['altText', 'displayOrder', 'id', 'kind', 'version']))
+    if (
+      !isRecord(slot) ||
+      !hasExactKeys(slot, ['altText', 'displayOrder', 'id', 'kind', 'version'])
+    )
       throw new Error(GENERIC_PORTAL_ERROR)
     if (
       typeof slot.id !== 'string' ||

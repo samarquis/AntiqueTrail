@@ -1628,7 +1628,9 @@ function PortalMediaHistorySection({
                   <li key={slot.id}>
                     <p>
                       <strong>
-                        {slot.kind === 'cover' ? 'Cover photo' : `Gallery photo ${slot.displayOrder + 1}`}
+                        {slot.kind === 'cover'
+                          ? 'Cover photo'
+                          : `Gallery photo ${slot.displayOrder + 1}`}
                       </strong>
                       {' · '}
                       {slot.altText}

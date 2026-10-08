@@ -17,8 +17,8 @@ describe('production portal client', () => {
           ? { removed: true }
           : name === 'portal_list_media_uploads'
             ? { uploads: [] }
-          : name === 'portal_edit_update'
-            ? {
+            : name === 'portal_edit_update'
+              ? {
                   state: 'saved',
                   update: {
                     id: 'update-1',
@@ -38,7 +38,7 @@ describe('production portal client', () => {
                     freshness: { state: 'verified', label: 'Verified' },
                     media: [],
                   }
-              : { name, args },
+                : { name, args },
       error: null,
     }))
     const client = createPortalClient(

@@ -110,7 +110,8 @@ async function createActor(local, role) {
     body: { challenge_id: challenge.id, code: totp(secret) },
   })
   const claims = decodeJwt(verified.access_token ?? passwordSession.access_token)
-  if (typeof claims.session_id !== 'string') throw new Error(`Local ${role} session id is unavailable`)
+  if (typeof claims.session_id !== 'string')
+    throw new Error(`Local ${role} session id is unavailable`)
   return { id, email, password, totpSecret: secret, sessionId: claims.session_id }
 }
 
@@ -126,7 +127,8 @@ async function runDatabaseAcceptance() {
   const output = await service.sql(source)
   const assertions = (output.match(/^ok \d+/gm) ?? []).length
   const failures = (output.match(/^not ok \d+/gm) ?? []).length
-  if (!assertions || failures || /^not ok/m.test(output)) throw new Error('Issue #580 local database acceptance failed')
+  if (!assertions || failures || /^not ok/m.test(output))
+    throw new Error('Issue #580 local database acceptance failed')
   report.database = { assertions, failures, status: 'passed' }
 }
 
@@ -138,14 +140,22 @@ async function provisionBrowserFixtures(local) {
   const areaId = '00000000-0000-4000-8000-000000000001'
   const categoryId = uuid()
   const slug = `issue-580-${uuid().replaceAll('-', '').slice(0, 16)}`
-  const eventA = uuid(), eventB = uuid()
-  const releaseId = uuid(), gateId = uuid()
+  const eventA = uuid(),
+    eventB = uuid()
+  const releaseId = uuid(),
+    gateId = uuid()
   const mediaIds = {
     cover: uuid(),
     gallery: Array.from({ length: 5 }, () => uuid()),
   }
   const uploads = [
-    { mediaId: mediaIds.cover, uploadId: uuid(), kind: 'cover', alt: 'Approved cover before replacement', order: 0 },
+    {
+      mediaId: mediaIds.cover,
+      uploadId: uuid(),
+      kind: 'cover',
+      alt: 'Approved cover before replacement',
+      order: 0,
+    },
     ...mediaIds.gallery.map((mediaId, index) => ({
       mediaId,
       uploadId: uuid(),
@@ -155,8 +165,9 @@ async function provisionBrowserFixtures(local) {
     })),
   ]
   const mediaRows = uploads
-    .map(({ mediaId, kind, alt, order }) =>
-      `(${sqlText(mediaId)},${sqlText(storeId)},${sqlText(`/assets/issue580-current-${kind}-${order}.webp`)},${sqlText(kind)},${sqlText(alt)},${order})`,
+    .map(
+      ({ mediaId, kind, alt, order }) =>
+        `(${sqlText(mediaId)},${sqlText(storeId)},${sqlText(`/assets/issue580-current-${kind}-${order}.webp`)},${sqlText(kind)},${sqlText(alt)},${order})`,
     )
     .join(',\n')
   const uploadRows = uploads
@@ -166,7 +177,10 @@ async function provisionBrowserFixtures(local) {
     })
     .join(',\n')
   const verifications = ['identity_location', 'contact', 'hours', 'categories_attributes']
-    .map((group) => `(${sqlText(storeId)},${sqlText(group)}::app_public.verification_group,statement_timestamp(),'Synthetic #580 browser fixture')`)
+    .map(
+      (group) =>
+        `(${sqlText(storeId)},${sqlText(group)}::app_public.verification_group,statement_timestamp(),'Synthetic #580 browser fixture')`,
+    )
     .join(',\n')
   const signals = `
     (${sqlText(claimId)},'published_business_contact','domain_response','verified',${sqlText(admin.id)},statement_timestamp(),decode(repeat('41',32),'hex'),decode(repeat('42',32),'hex'),${sqlText(eventA)}),
@@ -292,7 +306,17 @@ try {
   const port = new URL(origin).port
   preview = spawn(
     process.execPath,
-    ['node_modules/vite/bin/vite.js', 'preview', '--outDir', build, '--host', '127.0.0.1', '--port', port, '--strictPort'],
+    [
+      'node_modules/vite/bin/vite.js',
+      'preview',
+      '--outDir',
+      build,
+      '--host',
+      '127.0.0.1',
+      '--port',
+      port,
+      '--strictPort',
+    ],
     { cwd: ROOT, env, stdio: 'ignore', windowsHide: true },
   )
   let ready = false
@@ -310,7 +334,8 @@ try {
     }
     await pause(500)
   }
-  if (!ready) throw new Error('Configured Owner media preview did not start: ' + previewStartupError)
+  if (!ready)
+    throw new Error('Configured Owner media preview did not start: ' + previewStartupError)
   report.phase = 'running exact-store Owner/Admin/public media browser flow'
   await command(
     process.execPath,
@@ -323,7 +348,9 @@ try {
     { env, timeout: 900_000, signal: controller.signal },
   )
   report.status = 'passed'
-  report.browser = JSON.parse(fs.readFileSync(path.join(output.directory, 'playwright.json'), 'utf8')).stats
+  report.browser = JSON.parse(
+    fs.readFileSync(path.join(output.directory, 'playwright.json'), 'utf8'),
+  ).stats
 } catch (error) {
   report.status = interruptSignal ? 'interrupted' : 'failed'
   report.errors.push(redact(error instanceof Error ? error.message : String(error)))
@@ -352,7 +379,9 @@ try {
   report.errors.push(...cleanupErrors)
   const reportPath = path.join(output.directory, 'issue-580-report.json')
   fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`)
-  console.log(`Issue #580 status: ${report.status}; cleanup: ${report.cleanup}; report: ${reportPath}`)
+  console.log(
+    `Issue #580 status: ${report.status}; cleanup: ${report.cleanup}; report: ${reportPath}`,
+  )
 }
 
 if (report.status !== 'passed' || report.cleanup !== 'completed') process.exitCode = 1

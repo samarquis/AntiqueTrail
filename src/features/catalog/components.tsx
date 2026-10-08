@@ -44,12 +44,10 @@ function newestFirstUpdates<T extends { id: string; publishedAt: string }>(
   return [...updates].sort((a, b) => {
     const byMilliseconds = Date.parse(b.publishedAt) - Date.parse(a.publishedAt)
     if (Number.isFinite(byMilliseconds) && byMilliseconds !== 0) return byMilliseconds
-    const aFraction = /T\d{2}:\d{2}:\d{2}\.(\d+)(?=Z|[+-]\d{2}:\d{2}$)/u.exec(
-      a.publishedAt,
-    )?.[1] ?? ''
-    const bFraction = /T\d{2}:\d{2}:\d{2}\.(\d+)(?=Z|[+-]\d{2}:\d{2}$)/u.exec(
-      b.publishedAt,
-    )?.[1] ?? ''
+    const aFraction =
+      /T\d{2}:\d{2}:\d{2}\.(\d+)(?=Z|[+-]\d{2}:\d{2}$)/u.exec(a.publishedAt)?.[1] ?? ''
+    const bFraction =
+      /T\d{2}:\d{2}:\d{2}\.(\d+)(?=Z|[+-]\d{2}:\d{2}$)/u.exec(b.publishedAt)?.[1] ?? ''
     const precision = Math.max(aFraction.length, bFraction.length)
     const aPrecise = aFraction.padEnd(precision, '0')
     const bPrecise = bFraction.padEnd(precision, '0')
