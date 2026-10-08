@@ -1,7 +1,9 @@
+set role identity_service;
 alter function app_public.build_account_export_canonical_json(uuid,uuid)
   rename to build_account_export_before_private_stops;
 revoke all on function app_public.build_account_export_before_private_stops(uuid,uuid)
   from public,anon,authenticated;
+reset role;
 
 create or replace function app_public.build_account_export_canonical_json(p_job_id uuid,p_claim_token uuid)
 returns text language plpgsql stable security definer set search_path='' as $$
@@ -72,7 +74,9 @@ begin
   return canonical::text;
 end; $$;
 
+grant create on schema app_public to identity_service;
 alter function app_public.build_account_export_canonical_json(uuid,uuid) owner to identity_service;
+revoke create on schema app_public from identity_service;
 revoke all on function app_public.build_account_export_canonical_json(uuid,uuid)
   from public,anon,authenticated;
 grant execute on function app_public.build_account_export_canonical_json(uuid,uuid) to identity_service;
