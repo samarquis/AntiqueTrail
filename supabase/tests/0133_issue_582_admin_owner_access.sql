@@ -28,6 +28,12 @@ insert into partner_private.partner_invitations(invitation_id,token_hash,recipie
 insert into partner_private.pending_partner_identities(pending_identity_id,invitation_id,email_hmac,auth_user_id,state,verified_email_at,mfa_verified_at,bound_at)
  values('58200000-0000-4000-8000-000000000019','58200000-0000-4000-8000-000000000018',decode(repeat('85',32),'hex'),'58200000-0000-4000-8000-000000000001','bound',statement_timestamp(),statement_timestamp(),statement_timestamp());
 insert into partner_private.provisional_partner_consents(provisional_consent_id,invitation_id,pending_identity_id,policy_version,typed_name,business_title,store_name,owner_email_hmac,authority_ack,voluntary_ack,permitted_data_ack,no_payment_endorsement_ack,withdrawal_ack,idempotency_key)
+select '58200000-0000-4000-8000-000000000020','58200000-0000-4000-8000-000000000018','58200000-0000-4000-8000-000000000019',policy_version,'Issue 582 Administrator','Store Owner','Owner Store C',decode(repeat('85',32),'hex'),true,true,true,true,true,'issue582-admin-owner-bound-consent'
+from partner_private.partner_material_terms where is_current;
+insert into partner_private.pilot_consent_receipts(consent_receipt_id,provisional_consent_id,pending_identity_id,invitation_id,auth_user_id,verified_email_hmac,policy_version,receipt_checksum)
+select '58200000-0000-4000-8000-000000000021','58200000-0000-4000-8000-000000000020','58200000-0000-4000-8000-000000000019','58200000-0000-4000-8000-000000000018','58200000-0000-4000-8000-000000000001',decode(repeat('85',32),'hex'),policy_version,decode(repeat('86',32),'hex')
+from partner_private.partner_material_terms where is_current;
+insert into partner_private.provisional_partner_consents(provisional_consent_id,invitation_id,pending_identity_id,policy_version,typed_name,business_title,store_name,owner_email_hmac,authority_ack,voluntary_ack,permitted_data_ack,no_payment_endorsement_ack,withdrawal_ack,idempotency_key)
 select '58200000-0000-4000-8000-000000000016','58200000-0000-4000-8000-000000000014','58200000-0000-4000-8000-000000000015',policy_version,'Issue 582 Representative','Representative','Owner Store C',decode(repeat('82',32),'hex'),true,true,true,true,true,'issue582-rep-bound-consent'
 from partner_private.partner_material_terms where is_current;
 insert into partner_private.pilot_consent_receipts(consent_receipt_id,provisional_consent_id,pending_identity_id,invitation_id,auth_user_id,verified_email_hmac,policy_version,receipt_checksum)
@@ -41,6 +47,8 @@ insert into app_private.profiles(user_id,public_display_name,age_18_attested_at)
  ('58200000-0000-4000-8000-000000000010','Issue 582 Shopper',statement_timestamp()),
  ('58200000-0000-4000-8000-000000000012','Issue 582 Representative',statement_timestamp())
 on conflict (user_id) do update set public_display_name=excluded.public_display_name;
+update app_private.profiles set status='active',verified_email_snapshot='admin582@example.test'
+ where user_id='58200000-0000-4000-8000-000000000001';
 update app_private.profiles set status='active',verified_email_snapshot='rep582@example.test'
  where user_id='58200000-0000-4000-8000-000000000012';
 insert into app_private.role_grants(subject_user_id,role,state) values

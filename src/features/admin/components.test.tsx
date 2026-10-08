@@ -453,11 +453,12 @@ describe('Administrator workspace', () => {
       expect.stringMatching(/^admin-owner-revoke-claim-owner-a-4-/),
       'owner-preview-1',
     )
-    expect(
-      await within(screen.getByRole('list', { name: 'Store Owner scopes' })).findByText('revoked', {
-        exact: true,
-      }),
-    ).toBeInTheDocument()
+    const revokedOwnerRow = await within(
+      screen.getByRole('list', { name: 'Store Owner scopes' }),
+    ).findByRole('listitem')
+    expect(revokedOwnerRow).toHaveTextContent('claim-owner-a, version 5.')
+    expect(revokedOwnerRow).toHaveTextContent('Store Owner — revoked')
+    expect(within(revokedOwnerRow).queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /regrant.*owner/i })).not.toBeInTheDocument()
   })
 
