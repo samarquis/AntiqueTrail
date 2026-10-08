@@ -165,7 +165,24 @@ async function signIn(page: Page, user: User, returnTo: string, mark: MarkOperat
     mark('sign_in_submit_mfa', page)
     await page.getByRole('button', { name: 'Verify code', exact: true }).click()
   }
-  await expect(page).toHaveURL(new RegExp(`${returnTo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
+  const returnUrl = new RegExp(`${returnTo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
+  try {
+    await expect(page).toHaveURL(returnUrl)
+  } catch (error) {
+    const mfaVisible = await page
+      .getByRole('heading', { name: 'Verify your sign-in' })
+      .isVisible()
+      .catch(() => false)
+    const mfaErrorVisible = await page
+      .getByRole('alert')
+      .isVisible()
+      .catch(() => false)
+    if (!user.totpSecret || !mfaVisible || !mfaErrorVisible) throw error
+    await page.getByLabel('Authentication code', { exact: true }).fill(totp(user.totpSecret))
+    mark('sign_in_submit_mfa', page)
+    await page.getByRole('button', { name: 'Verify code', exact: true }).click()
+    await expect(page).toHaveURL(returnUrl)
+  }
   mark('sign_in_wait_return_url', page, returnTo)
 }
 
