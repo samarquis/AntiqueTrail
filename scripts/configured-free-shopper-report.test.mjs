@@ -233,6 +233,58 @@ test('Issue 565 probes retain safe route and revocation classes only', () => {
   )
 })
 
+test('Issue 565 probes retain only the configured browse-ready state and route', () => {
+  const report = browserReport(
+    JSON.stringify({
+      ...good,
+      stats: { expected: 1, unexpected: 1, skipped: 0, flaky: 0 },
+      suites: [
+        {
+          specs: [
+            {
+              title: 'Issue 565 browse readiness',
+              tests: [
+                {
+                  projectName: 'desktop',
+                  annotations: [
+                    {
+                      type: 'issue-565-add-to-trip-probe',
+                      description: JSON.stringify({ stage: 'details-ready', accessToken: 'drop' }),
+                    },
+                    {
+                      type: 'issue-565-discovery-probe',
+                      description: JSON.stringify({
+                        stage: 'store-link',
+                        path: '/stores',
+                        viewState: 'browse-empty',
+                        cookie: 'drop',
+                      }),
+                    },
+                  ],
+                  results: [{ status: 'failed' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+    1,
+  )
+
+  assert.equal(report.checks[0].diagnostics.addToTrip.stage, 'details-ready')
+  assert.deepEqual(report.checks[0].diagnostics.discovery, {
+    stage: 'store-link',
+    path: '/stores',
+    viewState: 'browse-empty',
+    coverHttpStatus: null,
+    coverRequestFailed: false,
+    imageState: 'other',
+    imageErrors: 0,
+  })
+  assert.doesNotMatch(JSON.stringify(report.checks), /accessToken|cookie|drop/)
+})
+
 test('browser reporting rejects malformed, absent, incomplete, skipped, flaky and failed evidence', () => {
   for (const input of ['{', 'null', '{}', JSON.stringify({ ...good, stats: { expected: 16 } })])
     assert.throws(() => browserReport(input))

@@ -95,7 +95,11 @@ async function issue565DiscoveryProbe(page: Page, coverStatuses: number[], cover
           ? 'catalog-error'
           : (await page.getByRole('heading', { name: 'Finding stores' }).count()) > 0
             ? 'loading'
-            : 'other'
+            : (await page
+                  .getByRole('heading', { name: /^(No matching stores|The trail is quiet for now)$/ })
+                  .count()) > 0
+              ? 'browse-empty'
+              : 'other'
   const image = page
     .getByRole('img', { name: /Illustrated synthetic cover for Clockwork Cabinet/ })
     .first()
@@ -194,6 +198,14 @@ async function expectDetailsSignIn(page: Page) {
         pathnameAtFailure: issue565Path(page.url()),
       }),
     })
+    if (stage === 'before-click')
+      test.info().annotations.push({
+        type: 'issue-565-discovery-probe',
+        description: JSON.stringify({
+          stage: 'details-heading',
+          ...(await issue565DiscoveryProbe(page, [], false)),
+        }),
+      })
     throw error
   }
 }
@@ -373,7 +385,18 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
   })
   await page.goto('/stores')
   const storeLink = page.getByRole('link', { name: 'Clockwork Cabinet', exact: true }).first()
-  await expect(storeLink).toBeVisible()
+  try {
+    await expect(storeLink).toBeVisible()
+  } catch (error) {
+    test.info().annotations.push({
+      type: 'issue-565-discovery-probe',
+      description: JSON.stringify({
+        stage: 'store-link',
+        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed)),
+      }),
+    })
+    throw error
+  }
   await storeLink.click()
   try {
     await expect(page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' })).toBeVisible()

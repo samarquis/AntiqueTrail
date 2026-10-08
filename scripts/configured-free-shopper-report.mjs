@@ -1,6 +1,7 @@
 const allowedRoutePaths = new Set([
   '/auth/sign-in',
   '/trips/new',
+  '/stores',
   '/stores/clockwork-cabinet',
   '<other-route>',
   '<missing>',
@@ -43,7 +44,9 @@ export function safeIssue565Diagnostics(value) {
       }),
       ...(typeof addToTrip.previewGuard === 'boolean' && { previewGuard: addToTrip.previewGuard }),
       ...(typeof addToTrip.stage === 'string' &&
-        ['before-click', 'click-resolved', 'assert-route'].includes(addToTrip.stage) && {
+        ['before-click', 'details-ready', 'click-resolved', 'assert-route'].includes(
+          addToTrip.stage,
+        ) && {
           stage: addToTrip.stage,
         }),
       ...(locatorCount !== undefined && { locatorCount }),
@@ -70,11 +73,15 @@ export function safeIssue565Diagnostics(value) {
   if (discovery) {
     diagnostics.discovery = {
       ...(typeof discovery.stage === 'string' &&
-        ['details-heading', 'cover-image'].includes(discovery.stage) && { stage: discovery.stage }),
+        ['details-heading', 'store-link', 'cover-image'].includes(discovery.stage) && {
+          stage: discovery.stage,
+        }),
       path: safeRoutePath(discovery.path),
       viewState:
         typeof discovery.viewState === 'string' &&
-        ['details', 'not-found', 'catalog-error', 'loading', 'other'].includes(discovery.viewState)
+        ['details', 'not-found', 'catalog-error', 'loading', 'browse-empty', 'other'].includes(
+          discovery.viewState,
+        )
           ? discovery.viewState
           : 'other',
       coverHttpStatus:
