@@ -17,9 +17,40 @@ insert into app_public.stores(
 on conflict (id) do nothing;
 
 insert into auth.users(id,email,email_confirmed_at) values
- ('58100000-0000-4000-8000-000000000001','owner581@example.test',statement_timestamp()),
- ('58100000-0000-4000-8000-000000000002','admin581@example.test',statement_timestamp()),
- ('58100000-0000-4000-8000-000000000013','shopper581@example.test',statement_timestamp());
+  ('58100000-0000-4000-8000-000000000001','owner581@example.test',statement_timestamp()),
+  ('58100000-0000-4000-8000-000000000002','admin581@example.test',statement_timestamp()),
+  ('58100000-0000-4000-8000-000000000013','shopper581@example.test',statement_timestamp());
+insert into partner_private.partner_invitations(
+  invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at
+) values (
+  '58100000-0000-4000-8000-000000000020',decode(repeat('58',32),'hex'),decode(repeat('59',32),'hex'),
+  '58100000-0000-4000-8000-000000000002','consumed',statement_timestamp()
+);
+insert into partner_private.pending_partner_identities(
+  pending_identity_id,invitation_id,email_hmac,auth_user_id,state,verified_email_at,mfa_verified_at,bound_at
+) values (
+  '58100000-0000-4000-8000-000000000021','58100000-0000-4000-8000-000000000020',decode(repeat('59',32),'hex'),
+  '58100000-0000-4000-8000-000000000001','bound',statement_timestamp(),statement_timestamp(),statement_timestamp()
+);
+insert into partner_private.provisional_partner_consents(
+  provisional_consent_id,invitation_id,pending_identity_id,policy_version,typed_name,business_title,store_name,
+  owner_email_hmac,authority_ack,voluntary_ack,permitted_data_ack,no_payment_endorsement_ack,withdrawal_ack,idempotency_key
+) values (
+  '58100000-0000-4000-8000-000000000022','58100000-0000-4000-8000-000000000020',
+  '58100000-0000-4000-8000-000000000021','synthetic-v3','Owner 581','Owner','Issue 581 Store A',
+  decode(repeat('59',32),'hex'),true,true,true,true,true,'issue581-pilot-consent'
+);
+insert into partner_private.pilot_consent_receipts(
+  consent_receipt_id,provisional_consent_id,pending_identity_id,invitation_id,auth_user_id,verified_email_hmac,
+  policy_version,receipt_checksum
+) values (
+  '58100000-0000-4000-8000-000000000023','58100000-0000-4000-8000-000000000022',
+  '58100000-0000-4000-8000-000000000021','58100000-0000-4000-8000-000000000020',
+  '58100000-0000-4000-8000-000000000001',decode(repeat('59',32),'hex'),'synthetic-v3',decode(repeat('5a',32),'hex')
+);
+update partner_private.partner_invitations set synthetic=true,issuance_idempotency_key='issue581-owner-invitation',
+  raw_returned_at=created_at,expires_at=created_at+interval '30 minutes'
+where invitation_id='58100000-0000-4000-8000-000000000020';
 update app_private.profiles set verified_email_snapshot=case user_id
   when '58100000-0000-4000-8000-000000000001' then 'owner581@example.test'
   when '58100000-0000-4000-8000-000000000002' then 'admin581@example.test'

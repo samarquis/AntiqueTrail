@@ -4,6 +4,16 @@ create extension if not exists pgtap with schema extensions;
 select no_plan();
 \ir fixtures/issue_581_owner_updates.inc
 
+select is((select count(*) from app_private.role_grants
+  where subject_user_id='58100000-0000-4000-8000-000000000001' and store_id='58100000-0000-4000-8000-000000000011'
+    and role='store_owner' and state='active'),1::bigint,'fixture grants Owner A only on Store A');
+select is((select count(*) from app_private.role_grants
+  where subject_user_id='58100000-0000-4000-8000-000000000001' and role='representative' and state='active'),0::bigint,
+  'Owner A has no active Representative overlap');
+select is((select count(*) from app_private.role_grants
+  where subject_user_id='58100000-0000-4000-8000-000000000001' and store_id='58100000-0000-4000-8000-000000000012'
+    and role='store_owner' and state='active'),0::bigint,'Owner A receives no Store B authority');
+
 select has_function('app_public','portal_edit_update',array['text','jsonb','bigint','text'],
   'Owner update edit RPC accepts target, draft, version and idempotency key');
 select has_function('portal_private','expire_store_sales',array['timestamp with time zone','integer'],
