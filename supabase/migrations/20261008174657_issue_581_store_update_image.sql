@@ -1,6 +1,31 @@
 -- #581: bind one separately-moderated image receipt to one Store Update.
 -- Image-bearing updates stay private until their approved derivative publishes.
 
+-- Ownership transfers need target-owner CREATE and role membership. Preserve
+-- pre-existing privileges; migration-local grants are revoked before commit.
+do $$
+declare
+  identity_membership_added boolean:=not pg_has_role(session_user,'identity_service','member');
+  media_membership_added boolean:=not pg_has_role(session_user,'media_automation','member');
+  identity_portal_create_added boolean:=not has_schema_privilege('identity_service','portal_private','CREATE');
+  identity_app_create_added boolean:=not has_schema_privilege('identity_service','app_public','CREATE');
+  media_private_create_added boolean:=not has_schema_privilege('media_automation','media_private','CREATE');
+  media_app_create_added boolean:=not has_schema_privilege('media_automation','app_public','CREATE');
+begin
+  perform set_config('antiquetrail.issue581_image_identity_membership_added',identity_membership_added::text,true);
+  perform set_config('antiquetrail.issue581_image_media_membership_added',media_membership_added::text,true);
+  perform set_config('antiquetrail.issue581_image_identity_portal_create_added',identity_portal_create_added::text,true);
+  perform set_config('antiquetrail.issue581_image_identity_app_create_added',identity_app_create_added::text,true);
+  perform set_config('antiquetrail.issue581_image_media_private_create_added',media_private_create_added::text,true);
+  perform set_config('antiquetrail.issue581_image_media_app_create_added',media_app_create_added::text,true);
+  if identity_membership_added then execute format('grant identity_service to %I',session_user); end if;
+  if media_membership_added then execute format('grant media_automation to %I',session_user); end if;
+  if identity_portal_create_added then execute 'grant create on schema portal_private to identity_service'; end if;
+  if identity_app_create_added then execute 'grant create on schema app_public to identity_service'; end if;
+  if media_private_create_added then execute 'grant create on schema media_private to media_automation'; end if;
+  if media_app_create_added then execute 'grant create on schema app_public to media_automation'; end if;
+end $$;
+
 alter table portal_private.store_updates
   alter column published_at drop not null;
 alter table portal_private.store_updates
@@ -164,6 +189,7 @@ revoke all on function portal_private.publish_store_update_image(uuid)
   from public,anon,authenticated,service_role,catalog_reader,store_update_expiry_service;
 grant execute on function portal_private.publish_store_update_image(uuid) to media_automation;
 
+set role identity_service;
 create or replace function app_public.portal_create_update(p_update jsonb)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare
@@ -422,6 +448,8 @@ begin
 end $$;
 alter function app_public.portal_edit_update(text,jsonb,bigint,text) owner to identity_service;
 
+reset role;
+set role media_automation;
 create or replace function app_public.media_reserve_upload(
   p_store_id uuid,p_kind text,p_alt_text text,p_idempotency_key uuid,p_rights_confirmed boolean,
   p_source_mime text,p_source_bytes bigint,p_source_width integer,p_source_height integer
@@ -610,3 +638,25 @@ end $$;
 alter function app_public.media_complete_publish_job(uuid,uuid,text) owner to media_automation;
 
 reset role;
+
+do $$
+begin
+  if current_setting('antiquetrail.issue581_image_identity_portal_create_added',true)='true' then
+    execute 'revoke create on schema portal_private from identity_service';
+  end if;
+  if current_setting('antiquetrail.issue581_image_identity_app_create_added',true)='true' then
+    execute 'revoke create on schema app_public from identity_service';
+  end if;
+  if current_setting('antiquetrail.issue581_image_media_private_create_added',true)='true' then
+    execute 'revoke create on schema media_private from media_automation';
+  end if;
+  if current_setting('antiquetrail.issue581_image_media_app_create_added',true)='true' then
+    execute 'revoke create on schema app_public from media_automation';
+  end if;
+  if current_setting('antiquetrail.issue581_image_identity_membership_added',true)='true' then
+    execute format('revoke identity_service from %I',session_user);
+  end if;
+  if current_setting('antiquetrail.issue581_image_media_membership_added',true)='true' then
+    execute format('revoke media_automation from %I',session_user);
+  end if;
+end $$;

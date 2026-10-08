@@ -47,6 +47,11 @@ select ok(not has_table_privilege('authenticated','portal_private.store_update_i
   and not has_table_privilege('catalog_reader','portal_private.store_update_image_bindings','SELECT')
   and not has_table_privilege('service_role','portal_private.store_update_image_bindings','SELECT'),
   'image bindings remain private from browser, catalog and generic service roles');
+select ok(not has_schema_privilege('identity_service','portal_private','CREATE')
+  and not has_schema_privilege('identity_service','app_public','CREATE')
+  and not has_schema_privilege('media_automation','media_private','CREATE')
+  and not has_schema_privilege('media_automation','app_public','CREATE'),
+  'ownership-only schema CREATE grants are not retained');
 
 create temporary table issue581_image_created(value jsonb);
 create temporary table issue581_image_create_replay(value jsonb);
