@@ -3,7 +3,8 @@
 -- the local media_worker test role; no provider endpoint or account is used.
 \ir media_resubmission.inc
 
-update partner_private.partner_invitations set synthetic=true
+update partner_private.partner_invitations set synthetic=true,
+  issuance_idempotency_key='issue580-owner-invitation',raw_returned_at=statement_timestamp()
 where invitation_id='76000000-0000-4000-8000-000000000002';
 update app_private.environment_stage
 set stage='synthetic_alpha',version=version+1 where id=1;
