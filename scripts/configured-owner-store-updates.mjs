@@ -587,6 +587,8 @@ try {
   if (!ready) throw new Error('Configured Owner Store Updates preview unavailable')
 
   report.status = 'running'
+  const reportFile = path.join(output.directory, 'playwright.json')
+  report.browser.status = 'running'
   const browserResult = await command(
     process.execPath,
     [
@@ -597,8 +599,6 @@ try {
     ],
     { cwd: ROOT, env, timeout: 900_000, signal: controller.signal },
   )
-  report.browser.status = 'passed'
-  const reportFile = path.join(output.directory, 'playwright.json')
   if (!fs.existsSync(reportFile))
     throw new Error('Missing configured Owner updates Playwright report')
   const playwrightReport = JSON.parse(fs.readFileSync(reportFile, 'utf8'))
@@ -607,9 +607,45 @@ try {
   report.browser.testName =
     'configured Owner edits text through selected-store context and shoppers see newest live updates'
   report.browser.commandExit = browserResult.exitCode ?? 0
+  report.browser.status = 'passed'
   report.status = 'passed'
 } catch (error) {
   report.status = 'failed'
+  if (report.browser.status === 'running') {
+    report.browser.status = 'failed'
+    const reportFile = path.join(output.directory, 'playwright.json')
+    if (fs.existsSync(reportFile)) {
+      try {
+        const playwrightReport = JSON.parse(fs.readFileSync(reportFile, 'utf8'))
+        report.browser.stats = playwrightReport.stats ?? null
+        const failures = []
+        const visitSuites = (suites) => {
+          for (const suite of suites ?? []) {
+            for (const spec of suite.specs ?? []) {
+              for (const test of spec.tests ?? []) {
+                for (const result of test.results ?? []) {
+                  if (result.status === 'passed') continue
+                  failures.push({
+                    test: String(spec.title ?? 'unknown').slice(0, 180),
+                    status: String(result.status ?? 'unknown').slice(0, 40),
+                    message: redact(String(result.error?.message ?? 'No failure message.')).slice(
+                      0,
+                      800,
+                    ),
+                  })
+                }
+              }
+            }
+            visitSuites(suite.suites)
+          }
+        }
+        visitSuites(playwrightReport.suites)
+        if (failures.length) report.browser.failures = failures.slice(0, 10)
+      } catch {
+        report.browser.failureReport = 'unavailable'
+      }
+    }
+  }
   report.errors.push(redact(String(error?.message ?? 'unknown_error')))
   if (service?.run) {
     report.cliVersion = service.run.cliVersion ?? null
