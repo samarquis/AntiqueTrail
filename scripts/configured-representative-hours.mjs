@@ -36,7 +36,7 @@ const ownerListingMode =
 const ownerListingFirstPhase = modeArgs[0] === '--owner-listing-first-phase'
 const ownerListingPhase = ownerListingFirstPhase
   ? 'first'
-  : ownerListingPhaseArgument ?? (ownerListingMode ? 'full' : undefined)
+  : (ownerListingPhaseArgument ?? (ownerListingMode ? 'full' : undefined))
 if (modeArgs.length && !ownerListingMode)
   throw new Error(
     'Supported invocation is no arguments, --owner-listing, --owner-listing-first-phase, or --owner-listing-phase=<phase>',

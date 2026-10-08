@@ -486,13 +486,13 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       await expectDenied(await rpc(token, 'owner_list_stores'), 'Cancelled Owner')
     })
 
-    await step('Site Admin approves the exact Store A claim separately', async () => {
-      await signIn(ownerA, input.ownerA, '/owner/stores', () => {})
+    await step('Site Admin approves the exact Store A claim separately', async (mark) => {
+      await signIn(ownerA, input.ownerA, '/owner/stores', mark)
       const ownerToken = ownerAToken()
       if (!ownerToken) throw new Error('Established Owner A session token was not observed')
       await expectDenied(await rpc(ownerToken, 'owner_list_stores'), 'Owner A before approval')
 
-      await signIn(admin, input.admin, '/admin/partners', () => {})
+      await signIn(admin, input.admin, '/admin/partners', mark)
       const token = adminToken()
       if (!token) throw new Error('Site Admin session token was not observed')
       await expectDenied(await rpc(token, 'owner_list_stores'), 'Site Admin as Owner')
