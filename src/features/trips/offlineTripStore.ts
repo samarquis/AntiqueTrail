@@ -472,9 +472,7 @@ export class EncryptedTripOfflineStore {
     )
       throw new Error('Offline grant verification failed.')
     await this.serialize(async () => {
-      const existingRecord = await this.database.getRecord(
-        recordId(this.installId, input.trip.id),
-      )
+      const existingRecord = await this.database.getRecord(recordId(this.installId, input.trip.id))
       let mutations = [...input.mutations]
       if (existingRecord) {
         const accountBinding = await this.binding(claims.accountId)
