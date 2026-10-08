@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -64,6 +64,44 @@ function rpcRequest(request: import('@playwright/test').Request, name: string) {
   return request.method() === 'POST' && new URL(request.url()).pathname.endsWith(`/rpc/${name}`)
 }
 
+const visualStates = [
+  { name: 'wide-light', width: 1440, height: 1000, colorScheme: 'light' },
+  { name: 'wide-dark', width: 1440, height: 1000, colorScheme: 'dark' },
+  { name: 'narrow-light', width: 390, height: 844, colorScheme: 'light' },
+  { name: 'narrow-dark', width: 390, height: 844, colorScheme: 'dark' },
+] as const
+
+async function captureResponsiveMatrix(page: Page, surface: string) {
+  for (const state of visualStates) {
+    await page.setViewportSize({ width: state.width, height: state.height })
+    await page.emulateMedia({ colorScheme: state.colorScheme })
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true)
+    const screenshotName =
+      surface === 'store-detail' && state.name === 'wide-light'
+        ? 'issue-581-store-detail-desktop.png'
+        : surface === 'store-updates' && state.name === 'narrow-dark'
+          ? 'issue-581-store-updates-narrow-dark.png'
+          : null
+    if (screenshotName)
+      await page.screenshot({ path: path.join(input.output, screenshotName), fullPage: true })
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.emulateMedia({ colorScheme: 'light' })
+}
+
+async function focusByTab(page: Page, target: Locator) {
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  })
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    await page.keyboard.press('Tab')
+    if (await target.evaluate((element) => element === document.activeElement)) return
+  }
+  throw new Error('Keyboard focus target was not reachable')
+}
+
 test('configured Owner edits text through selected-store context and shoppers see newest live updates', async ({
   page,
   browser,
@@ -111,20 +149,49 @@ test('configured Owner edits text through selected-store context and shoppers se
   page.on('request', (request) => {
     if (rpcRequest(request, 'portal_edit_update')) editRequests += 1
   })
-  await page.getByRole('button', { name: 'Edit Issue 581 update 3', exact: true }).click()
+  const editButton = page.getByRole('button', { name: 'Edit Issue 581 update 3', exact: true })
+  await focusByTab(page, editButton)
+  await expect(editButton).toBeFocused()
+  expect(await editButton.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+  await page.keyboard.press('Enter')
+  const editType = page.getByLabel('Edit type', { exact: true })
+  await expect(editType).toBeVisible()
   await page.getByLabel('Edit headline', { exact: true }).fill('Unsent Issue 581 edit')
   await page.getByLabel('Edit details', { exact: true }).fill('This edit is cancelled.')
-  await page.getByRole('button', { name: 'Cancel edit', exact: true }).click()
+  await captureResponsiveMatrix(page, 'owner-editor')
+  const cancelEdit = page.getByRole('button', { name: 'Cancel edit', exact: true })
+  for (const next of [
+    page.getByLabel('Edit vendor or booth label (optional)', { exact: true }),
+    page.getByLabel('Edit official source link (optional)', { exact: true }),
+    page.getByRole('button', { name: 'Save update', exact: true }),
+    cancelEdit,
+  ]) {
+    await page.keyboard.press('Tab')
+    await expect(next).toBeFocused()
+  }
+  expect(await cancelEdit.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+  await page.keyboard.press('Space')
   expect(editRequests).toBe(0)
   await expect(page.getByText('Issue 581 update 3', { exact: true })).toBeVisible()
 
   const editResponsePromise = page.waitForResponse((response) =>
     rpcRequest(response.request(), 'portal_edit_update'),
   )
-  await page.getByRole('button', { name: 'Edit Issue 581 update 3', exact: true }).click()
+  await focusByTab(page, editButton)
+  await page.keyboard.press('Enter')
   await page.getByLabel('Edit headline', { exact: true }).fill('Edited Issue 581 update 3')
   await page.getByLabel('Edit details', { exact: true }).fill('Edited public text body.')
-  await page.getByRole('button', { name: 'Save update', exact: true }).click()
+  const saveEdit = page.getByRole('button', { name: 'Save update', exact: true })
+  for (const next of [
+    page.getByLabel('Edit vendor or booth label (optional)', { exact: true }),
+    page.getByLabel('Edit official source link (optional)', { exact: true }),
+    saveEdit,
+  ]) {
+    await page.keyboard.press('Tab')
+    await expect(next).toBeFocused()
+  }
+  expect(await saveEdit.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+  await page.keyboard.press('Enter')
   const editResponse = await editResponsePromise
   expect(editResponse.status()).toBe(200)
   const editHeaders = await editResponse.request().allHeaders()
@@ -157,6 +224,7 @@ test('configured Owner edits text through selected-store context and shoppers se
     index === 2 ? { ...item, headline: 'Edited Issue 581 update 3' } : item,
   )
   const orderedUpdates = newestFirst(editedUpdates)
+  await captureResponsiveMatrix(page, 'owner-updates')
 
   const shopperContext = await browser.newContext({ baseURL: input.origin })
   const shopperPage = await shopperContext.newPage()
@@ -202,26 +270,20 @@ test('configured Owner edits text through selected-store context and shoppers se
     await expect(latest).toHaveText(orderedUpdates.slice(0, 3).map((update) => update.headline))
     await expect(shopperPage.getByText('Expired sale fixture', { exact: true })).toHaveCount(0)
     await expect(shopperPage.getByRole('link', { name: 'See all store updates' })).toBeVisible()
-    await shopperPage.screenshot({
-      path: path.join(input.output, 'issue-581-store-detail-desktop.png'),
-      fullPage: true,
-    })
+    await captureResponsiveMatrix(shopperPage, 'store-detail')
 
-    await shopperPage.getByRole('link', { name: 'See all store updates' }).click()
+    const seeAll = shopperPage.getByRole('link', { name: 'See all store updates' })
+    await focusByTab(shopperPage, seeAll)
+    await expect(seeAll).toBeFocused()
+    expect(await seeAll.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+    await shopperPage.keyboard.press('Enter')
     await expect(shopperPage).toHaveURL(new RegExp(`/stores/${input.storeSlug}/updates$`))
     await expect(shopperPage.locator('.store-updates h3')).toHaveText(
       orderedUpdates.map((update) => update.headline),
     )
     await expect(shopperPage.getByText('Expired sale fixture', { exact: true })).toHaveCount(0)
-    await shopperPage.setViewportSize({ width: 390, height: 844 })
-    await shopperPage.emulateMedia({ colorScheme: 'dark' })
-    expect(
-      await shopperPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).toBe(true)
-    await shopperPage.screenshot({
-      path: path.join(input.output, 'issue-581-store-updates-narrow-dark.png'),
-      fullPage: true,
-    })
+    await expect(shopperPage.locator('.store-updates h3').first()).toBeVisible()
+    await captureResponsiveMatrix(shopperPage, 'store-updates')
 
     const archiveResponsePromise = page.waitForResponse((response) =>
       rpcRequest(response.request(), 'portal_archive_update'),

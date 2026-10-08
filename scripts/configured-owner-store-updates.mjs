@@ -35,6 +35,20 @@ const report = {
   },
   database: { status: 'not-started', plan: null, assertions: 0, skipped: 0, failed: 0, cases: [] },
   browser: { status: 'not-started' },
+  expiry: {
+    status: 'not-started',
+    fixtureRows: 0,
+    missingHeaderStatus: null,
+    wrongHeaderStatus: null,
+    authorizedStatus: null,
+    expiredRows: null,
+    repeatStatus: null,
+    repeatExpiredRows: null,
+    archivedDueRows: 0,
+    liveFutureRows: 0,
+    portalAuditEvents: 0,
+    privilegedAuditEvents: 0,
+  },
   errors: [],
 }
 const uuid = () => crypto.randomUUID()
@@ -46,6 +60,203 @@ for (const signal of ['SIGINT', 'SIGTERM'])
 
 function sqlText(value) {
   return `'${String(value).replaceAll("'", "''")}'`
+}
+
+function requireExpiry(condition, message) {
+  if (!condition) throw new Error(`Issue 581 expiry proof ${message}`)
+}
+
+function chicagoDateOffset(dayOffset) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .formatToParts(new Date())
+      .map(({ type, value }) => [type, value]),
+  )
+  return new Date(
+    Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day) + dayOffset),
+  )
+    .toISOString()
+    .slice(0, 10)
+}
+
+async function expiryRowsSnapshot(ids) {
+  const idList = ids.map(sqlText).join(',')
+  const output = await service.sql(`
+    select coalesce(json_agg(json_build_object(
+      'id',u.update_id::text,
+      'state',u.state,
+      'version',u.version,
+      'archivedAt',u.archived_at,
+      'portalAuditCount',(select count(*)::integer from portal_private.portal_audit_events e
+        where e.resource_id=u.update_id and e.event_kind='text_update_sale_expired'),
+      'privilegedAuditCount',(select count(*)::integer from app_private.privileged_audit_events e
+        where e.resource_id=u.update_id and e.action='portal_text_update_sale_expired')
+    ) order by u.update_id),'[]'::json)::text
+    from portal_private.store_updates u
+    where u.update_id in (${idList});
+  `)
+  return JSON.parse(output.trim())
+}
+
+async function requestExpiryEdge(local, schedulerToken) {
+  const headers = {
+    apikey: local.anonKey,
+    Authorization: `Bearer ${local.anonKey}`,
+    'Content-Type': 'application/json',
+  }
+  if (schedulerToken) headers['x-antique-trail-scheduler'] = schedulerToken
+  const response = await fetch(`${local.endpoint}/functions/v1/store-update-expiry`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ p_now: '2050-01-01T00:00:00.000Z', p_limit: 1 }),
+    redirect: 'error',
+    signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]),
+  })
+  const body = await response.text()
+  let payload = null
+  if (response.ok) {
+    try {
+      payload = JSON.parse(body)
+    } catch {
+      throw new Error('Issue 581 expiry proof returned malformed JSON')
+    }
+  }
+  return { status: response.status, payload }
+}
+
+async function runExpiryEdgeProof(local, storeId, schedulerToken) {
+  report.expiry.status = 'running'
+  requireExpiry(/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(local.endpoint), 'endpoint is not loopback')
+
+  const knownDueId = (
+    await service.sql(`
+      select update_id::text from portal_private.store_updates
+      where store_id=${sqlText(storeId)}::uuid and headline='Expired sale fixture'
+        and update_type='sale' and state='live';
+    `)
+  ).trim()
+  requireExpiry(/^[a-f0-9-]{36}$/.test(knownDueId), 'baseline sale fixture is unavailable')
+  const preexistingOverdue = (
+    await service.sql(`
+      select u.update_id::text
+      from portal_private.store_updates u join app_public.stores s on s.id=u.store_id
+      where u.update_type='sale' and u.state='live'
+        and u.end_date < (statement_timestamp() at time zone s.timezone_name)::date
+      order by u.update_id;
+    `)
+  )
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean)
+  requireExpiry(
+    preexistingOverdue.length === 1 && preexistingOverdue[0] === knownDueId,
+    'found an unexpected overdue sale in the disposable fixture',
+  )
+
+  const rows = [
+    { id: knownDueId, due: true },
+    { id: uuid(), due: true, endDate: chicagoDateOffset(-2), headline: 'Issue 581 expiry due fixture' },
+    { id: uuid(), due: false, endDate: chicagoDateOffset(3), headline: 'Issue 581 expiry future fixture' },
+  ]
+  const values = rows.slice(1).map((row) => {
+    const digest = `decode(md5(${sqlText(row.id)}) || md5(${sqlText(`${row.id}:issue581-expiry`)}),'hex')`
+    return `(${sqlText(row.id)}::uuid,${sqlText(storeId)}::uuid,'sale',${sqlText(row.headline)},'Synthetic expiry proof fixture',${sqlText(row.endDate)}::date,${digest})`
+  })
+  await service.sql(`
+    insert into portal_private.store_updates(
+      update_id,store_id,update_type,headline,details,end_date,content_digest
+    ) values ${values.join(',\n')};
+  `)
+
+  const ids = rows.map((row) => row.id)
+  const before = await expiryRowsSnapshot(ids)
+  requireExpiry(
+    before.length === 3 &&
+      before.every(
+        (row) =>
+          row.state === 'live' &&
+          row.version === 1 &&
+          row.archivedAt === null &&
+          row.portalAuditCount === 0 &&
+          row.privilegedAuditCount === 0,
+      ),
+    'fixture rows did not start live and unaudited',
+  )
+
+  const missing = await requestExpiryEdge(local)
+  report.expiry.missingHeaderStatus = missing.status
+  requireExpiry(missing.status === 401, 'missing scheduler header was not rejected')
+  const afterMissing = await expiryRowsSnapshot(ids)
+  requireExpiry(JSON.stringify(afterMissing) === JSON.stringify(before), 'missing header changed rows')
+
+  const wrong = await requestExpiryEdge(local, crypto.randomBytes(32).toString('hex'))
+  report.expiry.wrongHeaderStatus = wrong.status
+  requireExpiry(wrong.status === 401, 'wrong scheduler header was not rejected')
+  const afterWrong = await expiryRowsSnapshot(ids)
+  requireExpiry(JSON.stringify(afterWrong) === JSON.stringify(before), 'wrong header changed rows')
+
+  const authorized = await requestExpiryEdge(local, schedulerToken)
+  report.expiry.authorizedStatus = authorized.status
+  report.expiry.expiredRows = authorized.payload?.expired ?? null
+  requireExpiry(
+    authorized.status === 200 && authorized.payload?.expired === 2,
+    'authorized handler did not expire exactly two due rows with fixed server parameters',
+  )
+  const afterAuthorized = await expiryRowsSnapshot(ids)
+  const byId = new Map(afterAuthorized.map((row) => [row.id, row]))
+  const dueRows = rows.filter((row) => row.due).map((row) => byId.get(row.id))
+  const futureRow = byId.get(rows.find((row) => !row.due)?.id)
+  requireExpiry(
+    dueRows.length === 2 &&
+      dueRows.every(
+        (row) =>
+          row?.state === 'archived' &&
+          row.version === 2 &&
+          row.archivedAt !== null &&
+          row.portalAuditCount === 1 &&
+          row.privilegedAuditCount === 1,
+      ),
+    'due rows did not produce one durable versioned expiry audit each',
+  )
+  requireExpiry(
+    futureRow?.state === 'live' &&
+      futureRow.version === 1 &&
+      futureRow.archivedAt === null &&
+      futureRow.portalAuditCount === 0 &&
+      futureRow.privilegedAuditCount === 0,
+    'caller-supplied future clock expired the future sale',
+  )
+
+  const repeated = await requestExpiryEdge(local, schedulerToken)
+  report.expiry.repeatStatus = repeated.status
+  report.expiry.repeatExpiredRows = repeated.payload?.expired ?? null
+  requireExpiry(
+    repeated.status === 200 && repeated.payload?.expired === 0,
+    'repeated authorized handler call was not a no-op',
+  )
+  const afterRepeated = await expiryRowsSnapshot(ids)
+  requireExpiry(
+    JSON.stringify(afterRepeated) === JSON.stringify(afterAuthorized),
+    'repeated handler call changed rows or audit counts',
+  )
+
+  report.expiry = {
+    ...report.expiry,
+    status: 'passed',
+    fixtureRows: 3,
+    archivedDueRows: dueRows.length,
+    liveFutureRows: futureRow?.state === 'live' ? 1 : 0,
+    portalAuditEvents: dueRows.reduce((count, row) => count + (row?.portalAuditCount ?? 0), 0),
+    privilegedAuditEvents: dueRows.reduce(
+      (count, row) => count + (row?.privilegedAuditCount ?? 0),
+      0,
+    ),
+  }
 }
 
 async function removeOwnedEdgeRuntimeVolume(volume) {
@@ -456,7 +667,13 @@ try {
     throw new Error('External endpoint selection is forbidden')
 
   const browserOrigin = `http://127.0.0.1:${await freePort()}`
-  service = createLocalService({ signal: controller.signal, browserOrigin, disableStorage: true })
+  const schedulerToken = crypto.randomBytes(32).toString('hex')
+  service = createLocalService({
+    signal: controller.signal,
+    browserOrigin,
+    disableStorage: true,
+    storeUpdateExpirySchedulerToken: schedulerToken,
+  })
   report.temporaryProject = service.run.directory
   report.projectId = service.run.projectId
   if (!/^probe-[a-f0-9]{24}$/.test(service.run.projectId))
@@ -612,9 +829,11 @@ try {
     'configured Owner edits text through selected-store context and shoppers see newest live updates'
   report.browser.commandExit = browserResult.exitCode ?? 0
   report.browser.status = 'passed'
+  await runExpiryEdgeProof(local, fixture.storeId, schedulerToken)
   report.status = 'passed'
 } catch (error) {
   report.status = 'failed'
+  if (report.expiry.status === 'running') report.expiry.status = 'failed'
   if (report.browser.status === 'running') {
     report.browser.status = 'failed'
     const reportFile = path.join(output.directory, 'playwright.json')

@@ -424,9 +424,16 @@ export function createLocalService({
   signupJourney = false,
   createTestUsers = true,
   includeServiceRoleKey = false,
+  storeUpdateExpirySchedulerToken,
 } = {}) {
   if (browserOrigin && !/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(browserOrigin))
     throw new Error('Browser origin must use literal loopback')
+  if (
+    storeUpdateExpirySchedulerToken !== undefined &&
+    (typeof storeUpdateExpirySchedulerToken !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(storeUpdateExpirySchedulerToken))
+  )
+    throw new Error('Store Update expiry scheduler token is malformed')
   const exclusions = localServiceExclusions(disableStorage)
   let run
   if (resumeDirectory) {
@@ -603,10 +610,22 @@ export function createLocalService({
     const enc = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
     const unsigned = `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc({ role: 'public_catalog_gateway', iss: 'supabase', exp: Math.floor(Date.now() / 1000) + 3600 })}`
     const gateway = `${unsigned}.${crypto.createHmac('sha256', status.JWT_SECRET).update(unsigned).digest('base64url')}`
+    const expiryWorkerJwt = storeUpdateExpirySchedulerToken
+      ? (() => {
+          const expiryClaims = `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc({ role: 'store_update_expiry_service', iss: 'supabase', exp: Math.floor(Date.now() / 1000) + 1800 })}`
+          return `${expiryClaims}.${crypto.createHmac('sha256', status.JWT_SECRET).update(expiryClaims).digest('base64url')}`
+        })()
+      : null
     const functionEnv = [
       `PUBLIC_CATALOG_GATEWAY_JWT=${gateway}`,
       `PUBLIC_CATALOG_RATE_SALT=${crypto.randomBytes(32).toString('hex')}`,
       `PUBLIC_APP_ORIGIN=${run.origin}`,
+      ...(expiryWorkerJwt
+        ? [
+            `STORE_UPDATE_EXPIRY_JWT=${expiryWorkerJwt}`,
+            `STORE_UPDATE_EXPIRY_SCHEDULER_TOKEN=${storeUpdateExpirySchedulerToken}`,
+          ]
+        : []),
       ...(signupJourney ? [registrationSettings] : []),
     ].join('\n')
     fs.writeFileSync(path.join(directory, 'supabase/functions/.env'), `${functionEnv}\n`, {
