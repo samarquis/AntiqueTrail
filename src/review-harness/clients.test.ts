@@ -1008,6 +1008,27 @@ describe('scenario-aware review clients', () => {
     })
   })
 
+  it('replays a concurrent Check My Day Use from the current trip with isolated snapshots', async () => {
+    const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!
+    const suggestion = await trips.requestCheckMyDay!('trip-a')
+    expect(suggestion.state).toBe('suggested')
+
+    const [applied, replayed] = await Promise.all([
+      trips.useCheckMyDaySuggestion!('trip-a', suggestion.requestId, suggestion.tripVersion!),
+      trips.useCheckMyDaySuggestion!('trip-a', suggestion.requestId, suggestion.tripVersion!),
+    ])
+
+    expect(applied.version).toBe(suggestion.tripVersion! + 1)
+    expect(replayed).toEqual(applied)
+    const currentTrip = await trips.get('trip-a')
+    expect(currentTrip).toEqual(applied)
+
+    applied.stops[0]!.position = -1
+    expect(replayed.stops[0]!.position).not.toBe(-1)
+    replayed.stops[0]!.position = -2
+    await expect(trips.get('trip-a')).resolves.toEqual(currentTrip)
+  })
+
   it('replays a real offline queue and resolves conflicts for review', async () => {
     const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!
 

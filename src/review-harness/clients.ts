@@ -1987,8 +1987,9 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
         return structuredClone(findTrip(tripId))
       }
       await fixture(state, true, true)
-      if (request.useReceipt) {
-        if (request.useReceipt.expectedVersion !== expectedVersion)
+      const replayReceipt = checkMyDay.get(requestId)?.useReceipt
+      if (replayReceipt) {
+        if (replayReceipt.expectedVersion !== expectedVersion)
           throw new Error(GENERIC_TRIP_ERROR)
         return structuredClone(findTrip(tripId))
       }

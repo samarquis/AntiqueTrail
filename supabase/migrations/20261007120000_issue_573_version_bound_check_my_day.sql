@@ -48,7 +48,6 @@ begin
     'tripVersion',v_version
   );
 end $$;
-alter function app_public.request_check_my_day(text) owner to identity_service;
 
 create or replace function app_public.get_check_my_day_suggestion(request_id text)
 returns jsonb language plpgsql stable security definer set search_path='' as $$
@@ -85,7 +84,6 @@ begin
     'tripVersion',v_row.trip_version
   );
 end $$;
-alter function app_public.get_check_my_day_suggestion(text) owner to identity_service;
 
 revoke all on function app_public.save_check_my_day_choice(text,text,text[]) from public,anon,authenticated;
 drop function app_public.save_check_my_day_choice(text,text,text[]);
@@ -195,6 +193,39 @@ begin
   v_result:=trip_private.trip_command_json(v_request.trip_id);
   return v_result;
 end $$;
-alter function app_public.use_check_my_day_suggestion(text,text,bigint) owner to identity_service;
-revoke all on function app_public.use_check_my_day_suggestion(text,text,bigint) from public,anon,authenticated;
-grant execute on function app_public.use_check_my_day_suggestion(text,text,bigint) to authenticated;
+
+-- Transfer ownership with only the temporary privileges the executor lacks.
+-- Restore their prior state so migrations do not leave a new schema or role grant.
+do $owner_transfer$
+declare
+  v_migration_role name := current_user;
+  v_had_identity_service_membership boolean :=
+    pg_has_role(current_user,'identity_service','MEMBER');
+  v_had_app_public_create boolean :=
+    has_schema_privilege('identity_service','app_public','CREATE');
+begin
+  if not v_had_identity_service_membership then
+    execute format('grant identity_service to %I',v_migration_role);
+  end if;
+  if not v_had_app_public_create then
+    execute 'grant create on schema app_public to identity_service';
+  end if;
+
+  execute 'alter function app_public.request_check_my_day(text) owner to identity_service';
+  execute 'alter function app_public.get_check_my_day_suggestion(text) owner to identity_service';
+  execute 'alter function app_public.use_check_my_day_suggestion(text,text,bigint) owner to identity_service';
+  execute 'revoke all on function app_public.request_check_my_day(text) from public,anon';
+  execute 'revoke all on function app_public.get_check_my_day_suggestion(text) from public,anon';
+  execute 'grant execute on function app_public.request_check_my_day(text) to authenticated';
+  execute 'grant execute on function app_public.get_check_my_day_suggestion(text) to authenticated';
+  execute 'revoke all on function app_public.use_check_my_day_suggestion(text,text,bigint) from public,anon,authenticated';
+  execute 'grant execute on function app_public.use_check_my_day_suggestion(text,text,bigint) to authenticated';
+
+  if not v_had_app_public_create then
+    execute 'revoke create on schema app_public from identity_service';
+  end if;
+  if not v_had_identity_service_membership then
+    execute format('revoke identity_service from %I',v_migration_role);
+  end if;
+end;
+$owner_transfer$;
