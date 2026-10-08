@@ -473,9 +473,11 @@ function MoreMenuLock() {
 function MorePage({
   ownConsentClient,
   ownerAvailable,
+  localShopperTripEntry,
 }: {
   ownConsentClient: OwnConsentClient
   ownerAvailable: boolean
+  localShopperTripEntry: boolean
 }) {
   const { session } = useAuth()
   const signedIn = Boolean(session)
@@ -503,6 +505,9 @@ function MorePage({
         : []),
       ...(!session || session.role === 'Shopper'
         ? [{ to: '/account/privacy', label: 'Account & Privacy', requiresSignIn: true }]
+        : []),
+      ...(session?.role === 'Shopper' && localShopperTripEntry
+        ? [{ to: '/trips', label: 'My trips', requiresSignIn: true }]
         : []),
       ...(!session
         ? [{ to: '/auth/register', label: 'Create account', requiresSignIn: false }]
@@ -1487,6 +1492,7 @@ export default function App({
               <MorePage
                 ownConsentClient={ownConsentClient}
                 ownerAvailable={Boolean(clients.owner)}
+                localShopperTripEntry={localShopperTripEntry}
               />
             }
           />
