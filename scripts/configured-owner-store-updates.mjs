@@ -160,8 +160,18 @@ async function runExpiryEdgeProof(local, storeId, schedulerToken) {
 
   const rows = [
     { id: knownDueId, due: true },
-    { id: uuid(), due: true, endDate: chicagoDateOffset(-2), headline: 'Issue 581 expiry due fixture' },
-    { id: uuid(), due: false, endDate: chicagoDateOffset(3), headline: 'Issue 581 expiry future fixture' },
+    {
+      id: uuid(),
+      due: true,
+      endDate: chicagoDateOffset(-2),
+      headline: 'Issue 581 expiry due fixture',
+    },
+    {
+      id: uuid(),
+      due: false,
+      endDate: chicagoDateOffset(3),
+      headline: 'Issue 581 expiry future fixture',
+    },
   ]
   const values = rows.slice(1).map((row) => {
     const digest = `decode(md5(${sqlText(row.id)}) || md5(${sqlText(`${row.id}:issue581-expiry`)}),'hex')`
@@ -192,7 +202,10 @@ async function runExpiryEdgeProof(local, storeId, schedulerToken) {
   report.expiry.missingHeaderStatus = missing.status
   requireExpiry(missing.status === 401, 'missing scheduler header was not rejected')
   const afterMissing = await expiryRowsSnapshot(ids)
-  requireExpiry(JSON.stringify(afterMissing) === JSON.stringify(before), 'missing header changed rows')
+  requireExpiry(
+    JSON.stringify(afterMissing) === JSON.stringify(before),
+    'missing header changed rows',
+  )
 
   const wrong = await requestExpiryEdge(local, crypto.randomBytes(32).toString('hex'))
   report.expiry.wrongHeaderStatus = wrong.status
