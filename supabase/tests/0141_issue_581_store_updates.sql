@@ -48,6 +48,8 @@ select ok(not has_table_privilege('authenticated','portal_private.store_update_e
   and not has_table_privilege('store_update_expiry_service','portal_private.store_update_edit_receipts','SELECT')
   and not has_table_privilege('service_role','portal_private.store_update_edit_receipts','SELECT'),
   'edit receipts remain private from browser, catalog and expiry roles');
+select ok(not has_table_privilege('identity_service','portal_private.store_update_edit_receipts','UPDATE'),
+  'edit replay uses no receipt UPDATE privilege');
 
 create temporary table issue581_created(value jsonb);
 create temporary table issue581_saved(value jsonb);
@@ -93,12 +95,14 @@ select app_public.portal_edit_update(
   1,'issue581-edit-a-v1');
 select is((select value from issue581_replay),(select value from issue581_saved),
   'same-key same-payload retry replays the acknowledged result');
+reset role;
 select is((select version::text from portal_private.store_updates where update_id=(select (value->>'id')::uuid from issue581_created)),'2',
   'successful replay does not increment version again');
 select is((select count(*)::integer from portal_private.portal_audit_events
   where resource_id=(select (value->>'id')::uuid from issue581_created) and event_kind='text_update_edited'),1,
   'successful replay adds no second edit audit');
 
+set local role authenticated;
 insert into issue581_second
 select app_public.portal_create_update(
   '{"type":"announcement","headline":"Second headline","details":"Second body","imageRequested":false}'::jsonb);
@@ -162,9 +166,11 @@ select app_public.portal_edit_update(
   1,'issue581-edit-a-v1');
 select is((select value->>'state' from issue581_changed_key),'conflict',
   'same key with changed payload conflicts');
+reset role;
 select is((select headline from portal_private.store_updates where update_id=(select (value->>'id')::uuid from issue581_created)),
   'Edited headline','changed-payload replay leaves content unchanged');
 
+set local role authenticated;
 insert into issue581_stale
 select app_public.portal_edit_update(
   (select value->>'id' from issue581_created),
