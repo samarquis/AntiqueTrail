@@ -39,7 +39,7 @@ select is(has_function_privilege('anon','app_public.update_private_trip_stop(tex
 select is(has_function_privilege('authenticated','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE'),true,'authenticated can execute private-stop confirmation');
 select is(has_function_privilege('anon','app_public.confirm_trip_stop_destination(text,text,text,bigint,text)','EXECUTE'),false,'anon cannot execute private-stop confirmation');
 select ok(
-  (select count(*)=15 and bool_and(proowner='identity_service'::regrole)
+  (select count(*)=16 and bool_and(proowner='identity_service'::regrole)
    from pg_catalog.pg_proc where oid in (
      'trip_private.private_stop_capability_enabled()'::regprocedure,
      'trip_private.enforce_private_stop_capability()'::regprocedure,
@@ -50,6 +50,7 @@ select ok(
      'trip_private.private_stop_receipt_replay(uuid,bigint,text,text,text,bigint,jsonb,uuid)'::regprocedure,
      'app_public.remove_trip_stop(text,text,bigint)'::regprocedure,
      'app_public.complete_trip(text)'::regprocedure,
+     'trip_private.project_completed_private_stops(uuid)'::regprocedure,
      'app_public.save_trip_visit_memory(text,text,integer,text,text)'::regprocedure,
      'app_public.accept_trip_invitation(text)'::regprocedure,
      'trip_private.trip_command_json(uuid)'::regprocedure,
@@ -57,6 +58,11 @@ select ok(
      'app_public.update_private_trip_stop(text,text,text,text,text,jsonb,text,integer,bigint,text)'::regprocedure,
      'app_public.confirm_trip_stop_destination(text,text,text,bigint,text)'::regprocedure)),
   'all migration-owned capability, receipt, lifecycle, and private-stop functions remain identity-service-owned');
+select ok(
+  not has_function_privilege('anon','trip_private.project_completed_private_stops(uuid)','EXECUTE')
+  and not has_function_privilege('authenticated','trip_private.project_completed_private_stops(uuid)','EXECUTE')
+  and not has_function_privilege('service_role','trip_private.project_completed_private_stops(uuid)','EXECUTE'),
+  'private completion projection remains internal to its guarded callers');
 select ok(
   (select pg_get_functiondef('app_public.add_private_trip_stop(text,text,text,text,jsonb,text,integer,bigint,text)'::regprocedure) like '%lock_private_stop_trip%'
      and pg_get_functiondef('app_public.accept_trip_invitation(text)'::regprocedure) like '%for update%'
