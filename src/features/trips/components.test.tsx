@@ -770,6 +770,127 @@ describe('manual trips', () => {
     )
   })
 
+  it('blocks a private-stop draft opened before priority and dwell change elsewhere', async () => {
+    const user = userEvent.setup()
+    const initialTrip: Trip = { ...trip, stops: [privateStop] }
+    const priorityTrip: Trip = {
+      ...initialTrip,
+      version: 2,
+      stops: [{ ...privateStop, priority: 'flexible' }],
+    }
+    const dwellTrip: Trip = {
+      ...priorityTrip,
+      version: 3,
+      stops: [{ ...privateStop, priority: 'flexible', plannedDwellMinutes: 75 }],
+    }
+    const setStopPriority = vi
+      .fn<NonNullable<TripClient['setStopPriority']>>()
+      .mockResolvedValue(priorityTrip)
+    const setStopDwell = vi
+      .fn<NonNullable<TripClient['setStopDwell']>>()
+      .mockResolvedValue(dwellTrip)
+    const updatePrivateTripStop = vi.fn<NonNullable<TripClient['updatePrivateTripStop']>>()
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <PlanPage
+                client={client({
+                  get: vi.fn(async () => initialTrip),
+                  setStopPriority,
+                  setStopDwell,
+                  updatePrivateTripStop,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: /^edit private shop: hidden finds$/i }),
+    )
+    const address = await screen.findByLabelText(/^private shop address for hidden finds$/i)
+    await user.clear(address)
+    await user.type(address, '456 Draft St')
+    await user.selectOptions(screen.getByLabelText(/^priority for hidden finds$/i), 'flexible')
+    await waitFor(() =>
+      expect(setStopPriority).toHaveBeenCalledWith('trip-1', 'private-stop-1', 'flexible', 1),
+    )
+
+    const dwell = screen.getByLabelText(/^dwell minutes for hidden finds$/i)
+    await user.clear(dwell)
+    await user.type(dwell, '75')
+    await user.tab()
+    await waitFor(() =>
+      expect(setStopDwell).toHaveBeenCalledWith('trip-1', 'private-stop-1', 75, 2),
+    )
+
+    expect(screen.getByText(/trip changed while this private shop was being edited/i)).toBeVisible()
+    expect(screen.getByLabelText(/^priority for hidden finds$/i)).toHaveValue('flexible')
+    expect(dwell).toHaveValue(75)
+    expect(address).toHaveValue('456 Draft St')
+    expect(screen.getByRole('button', { name: /^save changes to hidden finds$/i })).toBeDisabled()
+    expect(updatePrivateTripStop).not.toHaveBeenCalled()
+  })
+
+  it('disables private-stop fields while a save is pending', async () => {
+    const user = userEvent.setup()
+    const savedStop: Trip['stops'][number] = { ...privateStop, address: '456 New St' }
+    const savedTrip: Trip = { ...trip, version: 2, stops: [savedStop] }
+    let settle!: (result: Trip) => void
+    const pending = new Promise<Trip>((resolve) => {
+      settle = resolve
+    })
+    const updatePrivateTripStop = vi
+      .fn<NonNullable<TripClient['updatePrivateTripStop']>>()
+      .mockReturnValue(pending)
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <PlanPage
+                client={client({
+                  get: vi.fn(async () => ({ ...trip, stops: [privateStop] })),
+                  updatePrivateTripStop,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: /^edit private shop: hidden finds$/i }),
+    )
+    const address = await screen.findByLabelText(/^private shop address for hidden finds$/i)
+    await user.clear(address)
+    await user.type(address, '456 New St')
+    await user.click(screen.getByRole('button', { name: /^save changes to hidden finds$/i }))
+    await waitFor(() => expect(updatePrivateTripStop).toHaveBeenCalledTimes(1))
+
+    expect(address).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^cancel editing hidden finds$/i })).toBeDisabled()
+    await user.type(address, ' overwritten')
+    expect(address).toHaveValue('456 New St')
+
+    await act(async () => settle(savedTrip))
+    expect(await screen.findByText('Address: 456 New St')).toBeVisible()
+    expect(updatePrivateTripStop).toHaveBeenCalledWith(
+      'trip-1',
+      'private-stop-1',
+      expect.objectContaining({ address: '456 New St' }),
+      1,
+      expect.stringMatching(/^update_private_trip_stop:/),
+    )
+  })
+
   it('provides keyboard-accessible move controls and queues offline changes as state', async () => {
     const user = userEvent.setup()
     const orderedTrip: Trip = {

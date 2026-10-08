@@ -1,0 +1,57 @@
+name: Issue 568 private-stop Auth RPC proof
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/issue-568-private-stop-auth-rpc-proof.yml
+      - .github/workflows/ci.yml
+      - e2e/issue-568-private-stop-auth-rpc-proof.spec.ts
+      - playwright.issue-568-private-stop-auth-rpc-proof.config.ts
+      - scripts/issue-568-private-stop-auth-rpc-proof.mjs
+      - scripts/configured-shopper-local.mjs
+      - scripts/configured-shopper-probe.mjs
+      - scripts/configured-free-shopper-report.mjs
+      - package.json
+      - package-lock.json
+      - src/app/App.tsx
+      - src/features/auth/**
+      - src/features/trips/**
+      - supabase/migrations/20261007150000_issue_568_private_trip_stops.sql
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue-568-private-stop-proof-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  real-auth-rpc-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact pull request head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run isolated private-stop proof
+        run: node scripts/issue-568-private-stop-auth-rpc-proof.mjs
+      - name: Upload redacted metadata report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: issue-568-private-stop-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/issue-568-private-stop-auth-rpc-proof-*/report.json
+          if-no-files-found: error
+          retention-days: 14

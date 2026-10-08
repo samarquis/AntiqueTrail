@@ -392,6 +392,8 @@ function PrivateHoursEditor({
 
 function PrivateTripStopEditor({
   trip,
+  version,
+  pending,
   client,
   stop,
   runAction,
@@ -399,6 +401,8 @@ function PrivateTripStopEditor({
   onTrip,
 }: {
   trip: Trip
+  version: number
+  pending: boolean
   client: TripClient
   stop?: PrivateTripStop
   runAction: TripActionRunner
@@ -414,8 +418,10 @@ function PrivateTripStopEditor({
   )
   const [priority, setPriority] = useState<StopPriority>(stop?.priority ?? 'prefer')
   const [dwell, setDwell] = useState(stop?.plannedDwellMinutes ?? 60)
+  const [editVersion, setEditVersion] = useState(version)
   const saveKey = useRef<{ signature: string; key: string } | null>(null)
   const confirmKey = useRef<{ signature: string; key: string } | null>(null)
+  const versionChanged = editVersion !== version
   const nameLabel = stop ? `Private shop name for ${stop.label}` : 'Private shop name'
   const addressLabel = stop ? `Private shop address for ${stop.label}` : 'Private shop address'
   const urlLabel = stop ? `Private shop source URL for ${stop.label}` : 'Private shop source URL'
@@ -438,8 +444,16 @@ function PrivateTripStopEditor({
     onCancel()
   }
 
+  function beginEditing() {
+    if (pending) return
+    resetFields()
+    setEditVersion(version)
+    setEditing(true)
+  }
+
   async function save(event: FormEvent) {
     event.preventDefault()
+    if (pending || versionChanged) return
     const input = {
       name,
       address: address || null,
@@ -455,13 +469,13 @@ function PrivateTripStopEditor({
     const key = tripCommandKey(saveKey, command, {
       tripId: trip.id,
       stopId: stop?.id,
-      version: trip.version,
+      version: editVersion,
       input,
     })
     await runAction(stop ? `save changes to ${stop.label}` : 'save private shop', async () => {
       const next = stop
-        ? await update!(trip.id, stop.id, input, trip.version, key)
-        : await add!(trip.id, input, trip.version, key)
+        ? await update!(trip.id, stop.id, input, editVersion, key)
+        : await add!(trip.id, input, editVersion, key)
       onTrip(next)
       saveKey.current = null
       if (stop) {
@@ -490,7 +504,7 @@ function PrivateTripStopEditor({
 
   async function confirmAddress() {
     const exactAddress = stop?.address?.trim()
-    if (!stop || !exactAddress || !client.confirmPrivateTripStopDestination) return
+    if (pending || !stop || !exactAddress || !client.confirmPrivateTripStopDestination) return
     const key = tripCommandKey(confirmKey, 'confirm_trip_stop_destination', {
       tripId: trip.id,
       stopId: stop.id,
@@ -531,14 +545,20 @@ function PrivateTripStopEditor({
               <button
                 className="button button--secondary"
                 type="button"
-                onClick={() => setEditing(true)}
+                disabled={pending}
+                onClick={beginEditing}
               >
                 Edit private shop: {stop.label}
               </button>
               {stop.destination === 'draft' &&
                 stop.address &&
                 client.confirmPrivateTripStopDestination && (
-                  <button className="button" type="button" onClick={() => void confirmAddress()}>
+                  <button
+                    className="button"
+                    type="button"
+                    disabled={pending}
+                    onClick={() => void confirmAddress()}
+                  >
                     Confirm exact address for {stop.label}
                   </button>
                 )}
@@ -547,7 +567,8 @@ function PrivateTripStopEditor({
             <button
               className="button button--secondary"
               type="button"
-              onClick={() => setEditing(true)}
+              disabled={pending}
+              onClick={beginEditing}
             >
               Add a private shop
             </button>
@@ -555,67 +576,76 @@ function PrivateTripStopEditor({
         </>
       ) : (
         <form onSubmit={(event) => void save(event)}>
-          {stop && (
-            <p role="status">
-              {stop.destination === 'confirmed_by_organizer'
-                ? 'Address confirmed by you.'
-                : 'Address is a draft until you confirm the exact text.'}
-            </p>
-          )}
-          <label htmlFor={`${prefix}-name`}>{nameLabel}</label>
-          <input
-            id={`${prefix}-name`}
-            value={name}
-            maxLength={160}
-            required
-            onChange={(event) => setName(event.target.value)}
-          />
-          <label htmlFor={`${prefix}-address`}>{addressLabel}</label>
-          <input
-            id={`${prefix}-address`}
-            value={address}
-            maxLength={320}
-            onChange={(event) => setAddress(event.target.value)}
-          />
-          <label htmlFor={`${prefix}-source-url`}>{urlLabel}</label>
-          <input
-            id={`${prefix}-source-url`}
-            type="url"
-            value={sourceUrl}
-            maxLength={2_048}
-            onChange={(event) => setSourceUrl(event.target.value)}
-          />
-          <PrivateHoursEditor value={shopperHours} prefix={prefix} onChange={setShopperHours} />
-          <label htmlFor={`${prefix}-priority`}>Private shop priority</label>
-          <select
-            id={`${prefix}-priority`}
-            value={priority}
-            onChange={(event) => setPriority(event.target.value as StopPriority)}
-          >
-            <option value="must">Must</option>
-            <option value="prefer">Prefer</option>
-            <option value="flexible">Flexible</option>
-          </select>
-          <label htmlFor={`${prefix}-dwell`}>Private shop dwell minutes</label>
-          <input
-            id={`${prefix}-dwell`}
-            type="number"
-            min={5}
-            max={720}
-            step={1}
-            value={dwell}
-            onChange={(event) => setDwell(Number(event.target.value))}
-          />
-          <button
-            className="button"
-            type="submit"
-            disabled={trip.stops.length >= MAX_ACTIVE_STOPS && !stop}
-          >
-            {stop ? `Save changes to ${stop.label}` : 'Save private shop'}
-          </button>
-          <button className="button button--secondary" type="button" onClick={cancel}>
-            {stop ? `Cancel editing ${stop.label}` : 'Cancel adding private shop'}
-          </button>
+          <fieldset disabled={pending}>
+            <legend>Private shop details</legend>
+            {stop && (
+              <p role="status">
+                {stop.destination === 'confirmed_by_organizer'
+                  ? 'Address confirmed by you.'
+                  : 'Address is a draft until you confirm the exact text.'}
+              </p>
+            )}
+            {versionChanged && (
+              <p role="alert">
+                Trip changed while this private shop was being edited. Cancel and reopen it to load
+                current values.
+              </p>
+            )}
+            <label htmlFor={`${prefix}-name`}>{nameLabel}</label>
+            <input
+              id={`${prefix}-name`}
+              value={name}
+              maxLength={160}
+              required
+              onChange={(event) => setName(event.target.value)}
+            />
+            <label htmlFor={`${prefix}-address`}>{addressLabel}</label>
+            <input
+              id={`${prefix}-address`}
+              value={address}
+              maxLength={320}
+              onChange={(event) => setAddress(event.target.value)}
+            />
+            <label htmlFor={`${prefix}-source-url`}>{urlLabel}</label>
+            <input
+              id={`${prefix}-source-url`}
+              type="url"
+              value={sourceUrl}
+              maxLength={2_048}
+              onChange={(event) => setSourceUrl(event.target.value)}
+            />
+            <PrivateHoursEditor value={shopperHours} prefix={prefix} onChange={setShopperHours} />
+            <label htmlFor={`${prefix}-priority`}>Private shop priority</label>
+            <select
+              id={`${prefix}-priority`}
+              value={priority}
+              onChange={(event) => setPriority(event.target.value as StopPriority)}
+            >
+              <option value="must">Must</option>
+              <option value="prefer">Prefer</option>
+              <option value="flexible">Flexible</option>
+            </select>
+            <label htmlFor={`${prefix}-dwell`}>Private shop dwell minutes</label>
+            <input
+              id={`${prefix}-dwell`}
+              type="number"
+              min={5}
+              max={720}
+              step={1}
+              value={dwell}
+              onChange={(event) => setDwell(Number(event.target.value))}
+            />
+            <button
+              className="button"
+              type="submit"
+              disabled={versionChanged || (trip.stops.length >= MAX_ACTIVE_STOPS && !stop)}
+            >
+              {stop ? `Save changes to ${stop.label}` : 'Save private shop'}
+            </button>
+            <button className="button button--secondary" type="button" onClick={cancel}>
+              {stop ? `Cancel editing ${stop.label}` : 'Cancel adding private shop'}
+            </button>
+          </fieldset>
         </form>
       )}
     </section>
@@ -1581,6 +1611,8 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
             <PrivateTripStopEditor
               key={stop.id}
               trip={trip}
+              version={trip.version}
+              pending={actionPending !== null}
               client={client}
               stop={stop}
               runAction={runAction}
@@ -1591,6 +1623,8 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
         {client.addPrivateTripStop && trip.stops.length < MAX_ACTIVE_STOPS && (
           <PrivateTripStopEditor
             trip={trip}
+            version={trip.version}
+            pending={actionPending !== null}
             client={client}
             runAction={runAction}
             onCancel={() => setActionError(null)}
