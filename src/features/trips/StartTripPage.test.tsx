@@ -53,10 +53,9 @@ function renderPage(
   options: {
     offlineRuntime?: TripOfflineRuntime
     offlineGrantSource?: TripOfflineGrantSource
-    onStarted?: ReturnType<typeof vi.fn>
   } = {},
 ) {
-  const onStarted = options.onStarted ?? vi.fn()
+  const onStarted = vi.fn((_trip: Trip, _options: { offlineReady: boolean }) => undefined)
   render(
     <StartTripPage
       tripId={readyTrip.id}

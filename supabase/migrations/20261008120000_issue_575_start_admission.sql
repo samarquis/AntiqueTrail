@@ -1,3 +1,5 @@
+grant create on schema app_public to identity_service;
+
 create or replace function app_public.verify_initial_navigator_device(
   trip_id text,
   device_key_id text
@@ -151,3 +153,4 @@ $$;
 alter function app_public.prepare_initial_navigator(text,bigint,text) owner to identity_service;
 revoke all on function app_public.prepare_initial_navigator(text,bigint,text) from public, anon;
 grant execute on function app_public.prepare_initial_navigator(text,bigint,text) to authenticated;
+revoke create on schema app_public from identity_service;
