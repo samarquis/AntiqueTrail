@@ -72,6 +72,8 @@ export interface OfflineTripDatabase {
   putInstallationIdentity(identity: TripInstallationIdentity): Promise<void>
 }
 
+const databaseOperationTails = new WeakMap<OfflineTripDatabase, Promise<void>>()
+
 export interface TripInstallationIdentity {
   installId: string
   deviceKeyId: string
@@ -350,8 +352,6 @@ async function sha256(value: string): Promise<string> {
 }
 
 export class EncryptedTripOfflineStore {
-  private operationTail: Promise<void> = Promise.resolve()
-
   constructor(
     private readonly database: OfflineTripDatabase = new IndexedDbOfflineDatabase(),
     private readonly installId: string,
@@ -360,16 +360,28 @@ export class EncryptedTripOfflineStore {
   ) {}
 
   private async serialize<T>(operation: () => Promise<T>): Promise<T> {
-    const previous = this.operationTail
+    const previous = databaseOperationTails.get(this.database) ?? Promise.resolve()
     let release!: () => void
-    this.operationTail = new Promise<void>((resolve) => {
+    const tail = new Promise<void>((resolve) => {
       release = resolve
     })
+    databaseOperationTails.set(this.database, tail)
     await previous
     try {
+      const locks = typeof navigator === 'undefined' ? undefined : navigator.locks
+      if (locks)
+        return await locks.request(
+          `antique-trail-offline-trip:${this.installId}`,
+          { mode: 'exclusive' },
+          operation,
+        )
+      if (!(this.database instanceof InMemoryOfflineDatabase))
+        throw new Error('Cross-tab offline trip lock is unavailable.')
       return await operation()
     } finally {
       release()
+      if (databaseOperationTails.get(this.database) === tail)
+        databaseOperationTails.delete(this.database)
     }
   }
 

@@ -280,9 +280,10 @@ describe('encrypted active-trip recovery', () => {
     expect(await database.getRecord('install-a:trip-1')).toEqual(unreadable)
   })
 
-  it('serializes grant refresh with a concurrent queue write for the same store', async () => {
+  it('serializes grant refresh with a concurrent queue write across store instances', async () => {
     const database = new PausedOfflineDatabase()
     const offline = store(database)
+    const queueingStore = store(database)
     await offline.save(await signedInput([mutation(1)]))
     const refreshedTrip = { ...activeTrip, version: 5 }
     const refreshed = {
@@ -292,7 +293,7 @@ describe('encrypted active-trip recovery', () => {
     const gate = database.pauseNextRead()
     const starting = offline.save(refreshed)
     await gate.started
-    const queueing = offline.queueMutation('shopper-a', refreshedTrip, {
+    const queueing = queueingStore.queueMutation('shopper-a', refreshedTrip, {
       kind: 'mark_arrived',
       stopId: 'stop-2',
     })
