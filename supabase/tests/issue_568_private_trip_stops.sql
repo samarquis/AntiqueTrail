@@ -354,6 +354,29 @@ select set_config('test.completion_version',(
   select t.version::text from trip_private.trips as t
   where t.trip_id='56800000-0000-4000-8000-000000000103'
 ),true);
+reset role;
+set local role trip_go_gateway;
+select set_config('request.jwt.claims','{"sub":"56800000-0000-4000-8000-000000000001","role":"authenticated","session_id":"56800000-0000-4000-8000-000000000011"}',true);
+select set_config('test.skipped',app_public.execute_verified_go_command(
+  '56800000-0000-4000-8000-000000000001','56800000-0000-4000-8000-000000000011',
+  '56800000-0000-4000-8000-000000000103','skip_stop',
+  current_setting('test.completion_stop')::jsonb #>> '{stops,0,id}',
+  current_setting('test.completion_version')::bigint,current_setting('test.device_key_id'),
+  '56800000-0000-4000-8000-000000000233',statement_timestamp())::text,true);
+select is(current_setting('test.skipped')::jsonb #>> '{stops,0,state}','skipped',
+  'navigator can skip a private stop before restoring it');
+select set_config('test.restored',app_public.execute_verified_go_command(
+  '56800000-0000-4000-8000-000000000001','56800000-0000-4000-8000-000000000011',
+  '56800000-0000-4000-8000-000000000103','restore_stop',
+  current_setting('test.completion_stop')::jsonb #>> '{stops,0,id}',
+  (current_setting('test.skipped')::jsonb->>'version')::bigint,current_setting('test.device_key_id'),
+  '56800000-0000-4000-8000-000000000234',statement_timestamp())::text,true);
+select is(current_setting('test.restored')::jsonb #>> '{stops,0,state}','planned',
+  'restore_stop restores a skipped stop to planned');
+select set_config('test.completion_version',
+  current_setting('test.restored')::jsonb->>'version',true);
+reset role;
+set local role identity_service;
 update trip_private.private_stop_capability set enabled=false where singleton;
 reset role;
 set local role trip_go_gateway;
@@ -401,7 +424,9 @@ select is((app_public.save_trip_visit_memory(
   '56800000-0000-4000-8000-000000000103',current_setting('test.completed_stop_id'),5,'yes','Visited private shop'
   ) #>> '{stops,0,memoryStatus}'),'saved','owner can add a private note to the stop-scoped snapshot');
 select is((app_public.remove_trip_stop('56800000-0000-4000-8000-000000000103',
-  current_setting('test.completed_stop_id'),12)->>'version')::bigint,13::bigint,
+  current_setting('test.completed_stop_id'),
+  (current_setting('test.completed')::jsonb->>'version')::bigint)->>'version')::bigint,
+  (current_setting('test.completed')::jsonb->>'version')::bigint+1,
   'owner can remove completed private stop while retaining its saved visit');
 reset role;
 set local role identity_service;

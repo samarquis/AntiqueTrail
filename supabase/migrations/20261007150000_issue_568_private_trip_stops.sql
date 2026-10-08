@@ -610,7 +610,7 @@ begin
     when 'skip_stop' then 'skipped' when 'mark_observed_closed' then 'observed_closed' else 'planned' end;
   v_allowed:=(v_state='planned' and v_target in ('arrived','skipped','observed_closed'))
     or (v_state='arrived' and v_target in ('completed','skipped','observed_closed'))
-    or (v_state='observed_closed' and v_target='planned');
+    or (v_state in ('skipped','observed_closed') and v_target='planned');
   if not coalesce(v_allowed,false) then raise exception 'conflict'; end if;
   update trip_private.trip_stops as s set state=v_target,
     arrived_at=case when v_target='arrived' then statement_timestamp() when v_target='planned' then null else s.arrived_at end,
