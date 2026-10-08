@@ -391,7 +391,11 @@ describe('Administrator workspace', () => {
       approvedAt: '2026-10-01T12:00:00Z',
       revokedAt: null,
       history: [
-        { action: 'owner_claim_approved', outcome: 'completed', occurredAt: '2026-10-01T12:00:00Z' },
+        {
+          action: 'owner_claim_approved',
+          outcome: 'completed',
+          occurredAt: '2026-10-01T12:00:00Z',
+        },
       ],
     }
     const previewOwnerClaimRevoke = vi.fn(client().previewOwnerClaimRevoke)
@@ -403,28 +407,45 @@ describe('Administrator workspace', () => {
       revokedAt: '2026-10-07T12:01:00Z',
       history: [
         ...ownerScope.history,
-        { action: 'partner_claim_revoke', outcome: 'completed', occurredAt: '2026-10-07T12:01:00Z' },
+        {
+          action: 'partner_claim_revoke',
+          outcome: 'completed',
+          occurredAt: '2026-10-07T12:01:00Z',
+        },
       ],
     }))
     const user = userEvent.setup()
     render(
       <MemoryRouter>
         <AccessSafetyPage
-          client={client({ listOwnerAccess: async () => [ownerScope], previewOwnerClaimRevoke, revokeOwnerClaim })}
+          client={client({
+            listOwnerAccess: async () => [ownerScope],
+            previewOwnerClaimRevoke,
+            revokeOwnerClaim,
+          })}
         />
       </MemoryRouter>,
     )
 
     expect(await screen.findByText('Clockwork Cabinet')).toBeInTheDocument()
     expect(screen.getByText(/owner claim approved \(completed\)/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /preview revoke clockwork cabinet owner scope/i }))
+    await user.click(
+      screen.getByRole('button', { name: /preview revoke clockwork cabinet owner scope/i }),
+    )
     expect(previewOwnerClaimRevoke).toHaveBeenCalledWith('claim-owner-a', 4)
     expect(revokeOwnerClaim).not.toHaveBeenCalled()
     expect(
-      screen.getByText(/Confirm exact Store Owner scope: Clockwork Cabinet for Owner account owner-user-a/i),
+      screen.getByText(
+        /Confirm exact Store Owner scope: Clockwork Cabinet for Owner account owner-user-a/i,
+      ),
     ).toBeInTheDocument()
-    await user.type(screen.getByLabelText('Owner administrative reason code'), 'authority_withdrawn')
-    await user.click(screen.getByRole('button', { name: /confirm revoke clockwork cabinet owner scope/i }))
+    await user.type(
+      screen.getByLabelText('Owner administrative reason code'),
+      'authority_withdrawn',
+    )
+    await user.click(
+      screen.getByRole('button', { name: /confirm revoke clockwork cabinet owner scope/i }),
+    )
     expect(revokeOwnerClaim).toHaveBeenCalledWith(
       'claim-owner-a',
       4,

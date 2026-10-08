@@ -756,8 +756,8 @@ export function AccessSafetyPage({ client = unavailableAdminClient }: { client?:
                       <>
                         <p>
                           Confirm exact Store Owner scope: {scope.storeLabel} for Owner account{' '}
-                          {scope.ownerUserId}. This claim will be revoked for this store only. Preview
-                          expires {new Date(ownerPreview.expiresAt).toLocaleTimeString()}.
+                          {scope.ownerUserId}. This claim will be revoked for this store only.
+                          Preview expires {new Date(ownerPreview.expiresAt).toLocaleTimeString()}.
                         </p>
                         <label>
                           Owner administrative reason code

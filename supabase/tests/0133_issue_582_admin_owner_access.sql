@@ -16,6 +16,9 @@ insert into auth.users(id,email,email_confirmed_at) values
  ('58200000-0000-4000-8000-000000000001','admin582@example.test',statement_timestamp()),
  ('58200000-0000-4000-8000-000000000010','shopper582@example.test',statement_timestamp()),
  ('58200000-0000-4000-8000-000000000012','rep582@example.test',statement_timestamp());
+insert into partner_private.public_claim_consent_receipts(auth_user_id,policy_version,reviewed_ack,voluntary_ack,idempotency_key,receipt_checksum)
+select '58200000-0000-4000-8000-000000000012',policy_version,true,true,'issue582-public-claim-consent',decode(repeat('58',32),'hex')
+from partner_private.partner_material_terms where is_current;
 insert into auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at) values
  ('58200000-0000-4000-8000-000000000002','58200000-0000-4000-8000-000000000001','totp','verified',statement_timestamp(),statement_timestamp());
 insert into app_private.profiles(user_id,public_display_name,age_18_attested_at) values

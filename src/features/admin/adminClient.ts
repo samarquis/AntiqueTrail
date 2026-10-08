@@ -64,7 +64,10 @@ export interface AdminClient {
     idempotencyKey: string,
     previewId: string | null,
   ): Promise<AdminScopeResult>
-  previewOwnerClaimRevoke(claimId: string, expectedClaimVersion: number): Promise<AdminOwnerClaimPreview>
+  previewOwnerClaimRevoke(
+    claimId: string,
+    expectedClaimVersion: number,
+  ): Promise<AdminOwnerClaimPreview>
   revokeOwnerClaim(
     claimId: string,
     expectedClaimVersion: number,

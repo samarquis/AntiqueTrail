@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(77);
+select plan(79);
 
 select has_table('admin_private','admin_command_receipts','Administrator commands have durable idempotency receipts');
 select has_table('admin_private','admin_break_glass_gate','break-glass has an explicit named gate');
@@ -49,40 +49,48 @@ select ok(exists(select 1 from pg_trigger where tgname='enqueue_pilot_admin_revi
 select ok(position('''immutablesubmission'',true' in replace(lower(pg_get_functiondef('admin_private.review_case_json(uuid)'::regprocedure)),' ',''))>0,'submitted fields are explicitly immutable');
 select ok(position('shopper_private' in lower(pg_get_functiondef('admin_private.review_case_json(uuid)'::regprocedure)))=0,'review context cannot browse shopper-private records');
 
-select ok(position('p_action not in (''approve'',''return'',''reject'')' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0,'case decisions are type-specific approve, return, or reject only');
-select ok(position('p_expected_version' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0
-  and position('admin_command_receipts' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0,'case decisions are optimistic and idempotent');
-select ok(position('requested_by=actor' in replace(lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)),' ',''))>0
-  or position('opened_by=actor' in replace(lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)),' ',''))>0,'self-approval is denied');
-select ok(position('requested_value=' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))=0,'Administrator commands never edit submitted owner values');
-select ok(position('update portal_private.controlled_changes' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0
-  and position('update portal_private.support_tickets' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0,'typed Package 6B decision states are durable');
-select ok(position('media_approve_upload' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0,'image approval remains behind the M-01 approval command');
-select ok(position('approve_pilot_onboarding_exact' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0
+select ok(position('p_action not in (''approve'',''return'',''reject'')' in lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)))>0,'case decisions are type-specific approve, return, or reject only');
+select ok(position('p_expected_version' in lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)))>0
+  and position('admin_command_receipts' in lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)))>0,'case decisions are optimistic and idempotent');
+select ok(position('requested_by=actor' in replace(lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)),' ',''))>0
+  or position('opened_by=actor' in replace(lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)),' ',''))>0,'self-approval is denied');
+select ok(position('requested_value=' in lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)))=0,'Administrator commands never edit submitted owner values');
+select ok(position('update portal_private.controlled_changes' in lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)))>0
+  and position('update portal_private.support_tickets' in lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)))>0,'typed Package 6B decision states are durable');
+select ok(position('media_approve_upload' in lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)))>0,'image approval remains behind the M-01 approval command');
+select ok(position('approve_pilot_onboarding_exact' in lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)))>0
   and position('pilot_approval_snapshots' in lower(pg_get_functiondef('partner_private.approve_pilot_onboarding_exact(uuid,uuid,bytea)'::regprocedure)))>0
   and position('insert into app_public.stores' in lower(pg_get_functiondef('partner_private.approve_pilot_onboarding_exact(uuid,uuid,bytea)'::regprocedure)))>0
   and position('store_partner_grants' in lower(pg_get_functiondef('partner_private.approve_pilot_onboarding_exact(uuid,uuid,bytea)'::regprocedure)))>0,
   'onboarding approval freezes the exact preview and atomically creates the Pilot Store Record and exact grant');
 select ok(not exists(select 1 from information_schema.routines where routine_schema='app_public' and routine_name like 'admin%bulk%'),'no bulk approval command exists');
 
-select ok(position('partner_private.store_partner_grants' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
-  and position('app_private.role_grants' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'scope commands keep both exact grant authorities aligned');
-select ok(position('p_operation not in (''revoke'',''regrant'')' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
-  and position('p_operation=''grant''' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))=0,
+select ok(position('partner_private.store_partner_grants' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('app_private.role_grants' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'scope commands keep both exact grant authorities aligned');
+select ok(position('p_operation not in (''revoke'',''regrant'')' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('p_operation=''grant''' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))=0,
   'Package 7 cannot bypass Package 6 onboarding or claim approval to create an initial grant');
-select ok(position('partner_access_revocations' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'revocation immediately denies an already-open Portal session');
-select ok(position('partner_consent_is_current' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'regrant requires current material consent');
-select ok(position('provider_user_is_confirmed' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+select ok(position('partner_access_revocations' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'revocation immediately denies an already-open Portal session');
+select ok(position('partner_consent_is_current' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'regrant requires current material consent');
+select ok(position('provider_user_is_confirmed' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0
   and position('email_confirmed_at' in lower(pg_get_functiondef('app_private.provider_user_is_confirmed(uuid)'::regprocedure)))>0
-  and position('provider_user_has_verified_mfa' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
-  and position('partner_authority_checks' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
-  and position('listing_claims' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,
+  and position('provider_user_has_verified_mfa' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('partner_authority_checks' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('listing_claims' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0,
   'regrant verifies subject email/MFA, current authority evidence, and approved onboarding or claim state');
-select ok(position('pg_advisory_xact_lock' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'scope changes serialize per subject and exact store');
-select ok(position('admin_scope_actions' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
-  and position('record_operational_admin_event' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+select ok(position('pg_advisory_xact_lock' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0,'scope changes serialize per subject and exact store');
+select ok(position('admin_scope_actions' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('record_operational_admin_event' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0
   and position('privileged_audit_events' in lower(pg_get_functiondef('admin_private.record_operational_admin_event(text,uuid,uuid,bytea,text)'::regprocedure)))>0,
   'scope changes write narrow local and privileged audit evidence');
+select ok(position('g.role=''representative''' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)))>0
+  and position('representative_grant.grant_id is distinct from' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)))>0
+  and position('admin_preview_store_scope_change_representative_base' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)))>0,
+  'Representative preview wrapper rejects Owner grants and delegates exact scope');
+select ok(position('g.role=''representative''' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('representative_grant.grant_id is distinct from' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('admin_change_store_scope_representative_base' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,
+  'Representative commit wrapper rejects Owner grants and delegates exact scope');
 
 select ok(position('authorityreparented' in replace(lower(pg_get_functiondef('admin_private.merge_plan_json(uuid)'::regprocedure)),' ',''))>0
   and position('false' in lower(pg_get_functiondef('admin_private.merge_plan_json(uuid)'::regprocedure)))>0,'merge plans never reparent representative authority');
@@ -142,16 +150,16 @@ select ok(
   'Access & Safety list exposes exact assurance, scope dates, and privileged activity minimized to the last five events in a 90-day window without private content');
 
 select ok(
-  position('p_operation text' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)))>0
-  and position('p_operation=''revoke'' and g.state not in (''active'',''reconsent_required'')' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)))>0
-  and position('concat_ws(''|'',p_operation' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change(text,text,text,bigint)'::regprocedure)))>0,
+  position('p_operation text' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change_representative_base(text,text,text,bigint)'::regprocedure)))>0
+  and position('p_operation=''revoke'' and g.state not in (''active'',''reconsent_required'')' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change_representative_base(text,text,text,bigint)'::regprocedure)))>0
+  and position('concat_ws(''|'',p_operation' in lower(pg_get_functiondef('app_public.admin_preview_store_scope_change_representative_base(text,text,text,bigint)'::regprocedure)))>0,
   'active scope preview permits revoke and hashes the requested operation');
 select ok(
-  position('admin_scope_previews' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
-  and position('preview.expires_at<=statement_timestamp()' in replace(lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)),' ',''))>0
-  and position('preview.consumed_at is not null' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0
-  and position('preview.preview_hash<>extensions.digest' in replace(lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)),' ',''))>0
-  and position('update admin_private.admin_scope_previews set consumed_at=statement_timestamp()' in lower(pg_get_functiondef('app_public.admin_change_store_scope(text,text,text,bigint,text,text,text)'::regprocedure)))>0,
+  position('admin_scope_previews' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('preview.expires_at<=statement_timestamp()' in replace(lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)),' ',''))>0
+  and position('preview.consumed_at is not null' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0
+  and position('preview.preview_hash<>extensions.digest' in replace(lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)),' ',''))>0
+  and position('update admin_private.admin_scope_previews set consumed_at=statement_timestamp()' in lower(pg_get_functiondef('app_public.admin_change_store_scope_representative_base(text,text,text,bigint,text,text,text)'::regprocedure)))>0,
   'expired, replayed, or operation-mismatched scope previews deny revoke and regrant');
 select ok(position('onconflict(case_type,target_id)' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0
   and position('snapshot_hash=excluded.snapshot_hash' in replace(lower(pg_get_functiondef('admin_private.enqueue_typed_review()'::regprocedure)),' ',''))>0,'resubmission refreshes and unlocks the exact review snapshot');
@@ -208,9 +216,9 @@ select ok(position('consentstatus' in replace(lower(pg_get_functiondef('admin_pr
   and position('authoritystatus' in replace(lower(pg_get_functiondef('admin_private.review_case_json(uuid)'::regprocedure)),' ',''))>0
   and position('exactpreviewhash' in lower(pg_get_functiondef('admin_private.review_case_json(uuid)'::regprocedure)))=0,
   'onboarding context exposes decision statuses without raw evidence or preview hashes');
-select ok(position('onboardingoutcome' in replace(lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)),' ',''))>0
-  and position('approve_pilot_onboarding_exact' in lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)))>0
-  and position('unrelatedauthoritychanged' in replace(lower(pg_get_functiondef('app_public.admin_decide_review_case(text,text,text,bigint,text)'::regprocedure)),' ',''))>0,
+select ok(position('onboardingoutcome' in replace(lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)),' ',''))>0
+  and position('approve_pilot_onboarding_exact' in lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)))>0
+  and position('unrelatedauthoritychanged' in replace(lower(pg_get_functiondef('app_public.admin_decide_review_case_representative_base(text,text,text,bigint,text)'::regprocedure)),' ',''))>0,
   'onboarding approval returns the atomic Pilot Store and exact-scope outcome only');
 
 select * from finish();

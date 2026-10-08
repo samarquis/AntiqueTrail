@@ -315,10 +315,6 @@ begin
   claim_digest:=extensions.digest(convert_to(concat_ws('|','revoke',claim.claim_id,
     p_expected_claim_version,p_idempotency_key,p_reason_code,null,actor),'utf8'),'sha256');
   perform partner_private.revoke_exact_claim_scope(claim.claim_id,actor,p_reason_code,p_idempotency_key||'-scope');
-  update app_private.role_grants set state='revoked',revoked_by=actor,revoked_at=statement_timestamp(),
-    revocation_reason=p_reason_code,version=version+1
-    where grant_id=owner_role_grant.grant_id and state='active';
-  if not found then raise exception using errcode='40001',message='admin_unavailable'; end if;
   select c.* into claim from partner_private.listing_claims c where c.claim_id=claim.claim_id;
   update admin_private.admin_scope_previews set consumed_at=statement_timestamp() where preview_id=p_preview_id;
   insert into partner_private.claim_events(claim_id,actor_user_id,event_kind,from_state,to_state,idempotency_key)
