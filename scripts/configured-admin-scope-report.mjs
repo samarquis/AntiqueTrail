@@ -48,7 +48,8 @@ export function configuredAdminScopeReport(parsed, expected = 8) {
       const error = final?.errors?.[0] ?? final?.error
       const message = typeof error?.message === 'string' ? error.message : ''
       const assertion = assertions.find((name) => message.includes(name)) ?? null
-      const failureCode = message.match(/safe-failure:([a-z0-9_]+)\b/)?.[1]
+      const failureText = `${message}\n${String(error?.stack ?? '')}`
+      const failureCode = failureText.match(/safe-failure:([a-z0-9_]+)\b/)?.[1]
       const safeFailureCategory = safeFailureCategories.has(failureCode) ? failureCode : null
       const stackLine = String(error?.stack ?? '').match(
         /configured-admin-scope\.spec\.ts:(\d+):\d+/,

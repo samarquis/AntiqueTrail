@@ -67,8 +67,9 @@ test('configured Administrator reports exact allowlisted HTTP status categories 
       status: 'failed',
       errors: [
         {
-          message: 'Error: safe-failure:http_403\nprivate-owner@example.invalid',
-          stack: 'Error\n at /runner/e2e/configured-admin-scope.spec.ts:457:18',
+          message: 'Error: expect(received).toBe(expected)\nprivate-owner@example.invalid',
+          stack:
+            'Error: safe-failure:http_403\n at /runner/e2e/configured-admin-scope.spec.ts:457:18',
         },
       ],
     },
@@ -77,7 +78,7 @@ test('configured Administrator reports exact allowlisted HTTP status categories 
   assert.deepEqual(report.checks[0].failure, {
     category: 'http_403',
     sourceLine: 457,
-    assertion: null,
+    assertion: 'toBe',
   })
   assert.equal(JSON.stringify(report).includes('private-owner@example.invalid'), false)
   assert.equal(JSON.stringify(report).includes('Received'), false)

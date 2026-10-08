@@ -503,11 +503,7 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   const preview = await response.json()
   expectPreviewValue(preview.subjectUserId, scope.targetSubjectId, 'preview_subject_mismatch')
   expectPreviewValue(preview.storeId, scope.target, 'preview_store_mismatch')
-  expectPreviewValue(
-    preview.grantVersion,
-    current.version,
-    'preview_current_version_mismatch',
-  )
+  expectPreviewValue(preview.grantVersion, current.version, 'preview_current_version_mismatch')
   const token = response
     .request()
     .headers()
