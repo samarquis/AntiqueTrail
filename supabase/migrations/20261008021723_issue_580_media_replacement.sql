@@ -556,7 +556,8 @@ begin
           and replacement.kind::text=upload.kind,false)),true);
     end if;
   end if;
-  return result;
+  return result || jsonb_build_object(
+    'auditAccess',admin_private.issue_record_audit_access('case',id,c.version));
 end $$;
 alter function app_public.admin_get_review_case(text) owner to identity_service;
 

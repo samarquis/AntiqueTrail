@@ -735,7 +735,7 @@ describe('provider-neutral Store Portal boundary', () => {
     await user.click(screen.getByLabelText(/confirm.*rights.*replacement/i))
     const submitButton = screen.getByRole('button', { name: 'Submit replacement for review' })
     await waitFor(() => expect(submitButton).toBeEnabled())
-    await user.click(submitButton)
+    fireEvent.submit(submitButton.closest('form')!)
 
     expect(uploadOfficialMedia).toHaveBeenCalledWith(
       expect.objectContaining({

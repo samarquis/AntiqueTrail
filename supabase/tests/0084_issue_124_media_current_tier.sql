@@ -26,6 +26,9 @@ set local role authenticated;
 select ok((app_public.media_reserve_resubmission('80000000-0000-4000-8000-000000000001','Gallery room',gen_random_uuid(),true,'image/png',1000,640,480,repeat('a',64))->>'uploadId') is not null,'current Gallery tier permits resubmission above Free capacity');
 reset role;
 update media_private.media_uploads set state='published' where upload_id in(select id from approved_fixture);
+insert into app_public.store_media(id,store_id,asset_path,kind,alt_text,display_order)
+select id,'00000000-0000-4000-8000-000000000001','/assets/issue-124-'||n||'.svg','gallery','Approved fixture',n
+from approved_fixture where n>5;
 set local role authenticated;
 select is(app_public.portal_get_media_capacity(),'{"currentTier":"gallery","approvedCount":15,"cap":15}'::jsonb,'Gallery reports exact fifteen-image boundary');
 select is(app_public.media_reserve_resubmission('80000000-0000-4000-8000-000000000001','Gallery cap',gen_random_uuid(),true,'image/png',1000,640,480,repeat('a',64))->>'error','media_cap_exceeded','Gallery denies sixteenth reservation');

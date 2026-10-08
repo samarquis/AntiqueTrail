@@ -3,6 +3,8 @@
 -- the local media_worker test role; no provider endpoint or account is used.
 \ir media_resubmission.inc
 
+update app_private.environment_stage
+set stage='synthetic_alpha',version=version+1 where id=1;
 update app_private.audit_anchor_capability set deployment_environment='private_beta',state='open',
   provider_key='test_sink',provider_version='contract-v1',contract_receipt_id='receipt:l01:test',
   watchdog_state='disabled',last_ack_sequence=0,last_ack_root=null,last_ack_at=null,
