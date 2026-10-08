@@ -152,6 +152,7 @@ export type CheckMyDayServerState = 'blocked' | 'ready' | 'running' | 'suggested
 export interface CheckMyDayServerResult {
   requestId: string
   state: CheckMyDayServerState
+  tripVersion?: number
   reason?: 'r01_blocked' | 'departure_required' | 'coordinates_required' | 'trip_changed'
   orderedStopIds?: string[]
   explanation?: string[]
@@ -283,10 +284,10 @@ export interface TripClient {
   ): Promise<TripPartnerRemovalResult>
   assignNavigator(tripId: string, participantUserId: string): Promise<TripCollaboration>
   leaveTrip(tripId: string): Promise<void>
-  saveCheckMyDayChoice?(
+  useCheckMyDaySuggestion?(
     tripId: string,
-    choice: 'suggested' | 'manual',
-    stopIds: string[],
+    requestId: string,
+    expectedVersion: number,
   ): Promise<Trip>
   requestCheckMyDay?(tripId: string): Promise<CheckMyDayServerResult>
   getCheckMyDaySuggestion?(requestId: string): Promise<CheckMyDayServerResult>

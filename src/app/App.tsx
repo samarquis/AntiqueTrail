@@ -1196,26 +1196,23 @@ function TripGoRoute({
 
 function TripCheckMyDayRoute({ client }: { client: TripClient }) {
   const { tripId = '' } = useParams()
-  const persist = async (choice: 'suggested' | 'manual', stopIds: string[]) => {
-    if (!client.saveCheckMyDayChoice) throw new Error('Trip choice persistence is unavailable.')
-    await client.saveCheckMyDayChoice(tripId, choice, stopIds)
+  const useSuggestion = async (requestId: string, expectedVersion: number) => {
+    if (!client.useCheckMyDaySuggestion)
+      throw new Error('Suggested order persistence is unavailable.')
+    await client.useCheckMyDaySuggestion(tripId, requestId, expectedVersion)
   }
-  if (!client.requestCheckMyDay || !client.getCheckMyDaySuggestion)
+  if (
+    !client.requestCheckMyDay ||
+    !client.getCheckMyDaySuggestion ||
+    !client.useCheckMyDaySuggestion
+  )
     return <CheckMyDayPage request={null} provider={blockedCheckMyDayProvider} />
   return (
     <AuthoritativeCheckMyDayPage
       requestServer={() => client.requestCheckMyDay!(tripId)}
       pollServer={(requestId) => client.getCheckMyDaySuggestion!(requestId)}
       loadTrip={() => client.get(tripId)}
-      onUseSuggestedOrder={(ids) => persist('suggested', ids)}
-      onKeepMyOrder={async () => {
-        const trip = await client.get(tripId)
-        if (trip)
-          await persist(
-            'manual',
-            trip.stops.map((stop) => stop.id),
-          )
-      }}
+      onUseSuggestedOrder={useSuggestion}
     />
   )
 }

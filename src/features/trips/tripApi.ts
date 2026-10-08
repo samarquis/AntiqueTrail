@@ -65,7 +65,7 @@ export type TripApiCommand =
   | 'remove_trip_partner'
   | 'assign_navigator'
   | 'leave_trip'
-  | 'save_check_my_day_choice'
+  | 'use_check_my_day_suggestion'
   | 'request_check_my_day'
   | 'get_check_my_day_suggestion'
 
@@ -542,6 +542,7 @@ function parseCheckMyDayServerResult(value: unknown): CheckMyDayServerResult {
   return {
     requestId: boundedId(string(source.requestId, 128)),
     state,
+    tripVersion: source.tripVersion == null ? undefined : integer(source.tripVersion, 1),
     reason,
     orderedStopIds,
     explanation,
@@ -1036,13 +1037,13 @@ export function createTripApi(
         () => undefined,
       )
     },
-    saveCheckMyDayChoice(tripId, choice, stopIds) {
+    useCheckMyDaySuggestion(tripId, requestId, expectedVersion) {
       return execute(
-        'save_check_my_day_choice',
+        'use_check_my_day_suggestion',
         () => ({
           trip_id: boundedId(tripId),
-          choice: enumValue(choice, new Set(['suggested', 'manual'])),
-          stop_ids: stopIds.map(boundedId),
+          request_id: boundedId(requestId),
+          expected_version: integer(expectedVersion, 1),
         }),
         parseTrip,
       )

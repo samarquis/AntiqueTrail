@@ -53,11 +53,13 @@ describe('authoritative suggested order', () => {
         requestServer={async () => ({
           requestId: 'r1',
           state: 'suggested',
+          tripVersion: 3,
           orderedStopIds: ['c', 'a', 'b'],
         })}
         pollServer={async () => ({
           requestId: 'r1',
           state: 'suggested',
+          tripVersion: 3,
           orderedStopIds: ['c', 'a', 'b'],
         })}
         onUseSuggestedOrder={apply}
@@ -68,7 +70,7 @@ describe('authoritative suggested order', () => {
       'Cedar HouseAlpha AntiquesBlue Finch Curios',
     )
     await user.click(screen.getByRole('button', { name: /use suggested order/i }))
-    expect(apply).toHaveBeenCalledWith(['c', 'a', 'b'])
+    expect(apply).toHaveBeenCalledWith(['c', 'a', 'b'], 'r1', 3)
   })
 
   it('rejects incomplete server order without offering a false choice', async () => {
@@ -79,11 +81,13 @@ describe('authoritative suggested order', () => {
         requestServer={async () => ({
           requestId: 'r1',
           state: 'suggested',
+          tripVersion: 3,
           orderedStopIds: ['c', 'a'],
         })}
         pollServer={async () => ({
           requestId: 'r1',
           state: 'suggested',
+          tripVersion: 3,
           orderedStopIds: ['c', 'a'],
         })}
       />,
@@ -91,5 +95,112 @@ describe('authoritative suggested order', () => {
     await user.click(screen.getByRole('button', { name: /^check my day$/i }))
     expect(await screen.findByRole('status')).toHaveTextContent(/stale or incomplete/i)
     expect(screen.queryByRole('button', { name: /use suggested order/i })).not.toBeInTheDocument()
+  })
+
+  it('denies Use when the refreshed trip revision differs from the request snapshot', async () => {
+    const user = userEvent.setup()
+    const apply = vi.fn()
+    render(
+      <AuthoritativeCheckMyDayPage
+        loadTrip={async () => ({ ...trip, version: 4 })}
+        requestServer={async () => ({
+          requestId: 'r1',
+          state: 'suggested',
+          tripVersion: 3,
+          orderedStopIds: ['c', 'a', 'b'],
+        })}
+        pollServer={async () => ({
+          requestId: 'r1',
+          state: 'suggested',
+          tripVersion: 3,
+          orderedStopIds: ['c', 'a', 'b'],
+        })}
+        onUseSuggestedOrder={apply}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /^check my day$/i }))
+    expect(await screen.findByRole('status')).toHaveTextContent(/stale or incomplete/i)
+    expect(screen.queryByRole('button', { name: /use suggested order/i })).not.toBeInTheDocument()
+    expect(apply).not.toHaveBeenCalled()
+  })
+
+  it('rejects a poll response bound to another request or trip revision', async () => {
+    const user = userEvent.setup()
+    const apply = vi.fn()
+    render(
+      <AuthoritativeCheckMyDayPage
+        loadTrip={async () => trip}
+        requestServer={async () => ({ requestId: 'r1', state: 'ready', tripVersion: 3 })}
+        pollServer={async () => ({
+          requestId: 'r2',
+          state: 'suggested',
+          tripVersion: 4,
+          orderedStopIds: ['c', 'a', 'b'],
+        })}
+        onUseSuggestedOrder={apply}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /^check my day$/i }))
+    expect(await screen.findByRole('status')).toHaveTextContent(/trip changed/i)
+    expect(screen.queryByRole('button', { name: /use suggested order/i })).not.toBeInTheDocument()
+    expect(apply).not.toHaveBeenCalled()
+  })
+
+  it('keeps the saved order without invoking the write callback', async () => {
+    const user = userEvent.setup()
+    const write = vi.fn()
+    render(
+      <AuthoritativeCheckMyDayPage
+        loadTrip={async () => trip}
+        requestServer={async () => ({
+          requestId: 'r1',
+          state: 'suggested',
+          tripVersion: 3,
+          orderedStopIds: ['c', 'a', 'b'],
+        })}
+        pollServer={async () => ({
+          requestId: 'r1',
+          state: 'suggested',
+          tripVersion: 3,
+          orderedStopIds: ['c', 'a', 'b'],
+        })}
+        onUseSuggestedOrder={write}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /^check my day$/i }))
+    await user.click(await screen.findByRole('button', { name: /keep my order/i }))
+    expect(await screen.findByRole('status')).toHaveTextContent(/manual order remains unchanged/i)
+    expect(write).not.toHaveBeenCalled()
+  })
+
+  it('reports an uncertain Use result without claiming the order stayed unchanged', async () => {
+    const user = userEvent.setup()
+    const use = vi.fn(async () => {
+      throw new Error('trip changed')
+    })
+    render(
+      <AuthoritativeCheckMyDayPage
+        loadTrip={async () => trip}
+        requestServer={async () => ({
+          requestId: 'r1',
+          state: 'suggested',
+          tripVersion: 3,
+          orderedStopIds: ['c', 'a', 'b'],
+        })}
+        pollServer={async () => ({
+          requestId: 'r1',
+          state: 'suggested',
+          tripVersion: 3,
+          orderedStopIds: ['c', 'a', 'b'],
+        })}
+        onUseSuggestedOrder={use}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /^check my day$/i }))
+    await user.click(await screen.findByRole('button', { name: /use suggested order/i }))
+
+    expect(use).toHaveBeenCalledWith('r1', 3)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not confirm whether the suggestion was applied/i)
+    expect(screen.getByRole('button', { name: /use suggested order/i })).toBeDisabled()
   })
 })

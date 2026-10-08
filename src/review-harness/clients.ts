@@ -1241,7 +1241,15 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
   const trips = new Map<string, Trip>()
   const collaborations = new Map<string, TripCollaboration>()
   const offlineQueues = new Map<string, OfflineQueueSnapshot>()
-  const checkMyDay = new Map<string, CheckMyDayServerResult>()
+  const checkMyDay = new Map<
+    string,
+    {
+      tripId: string
+      actorUserId: string
+      result: CheckMyDayServerResult
+      useReceipt?: { expectedVersion: number }
+    }
+  >()
   const invitationTokens = new Map(tripInvitationFixtures)
   const partnerRemovalAttempts = new Map<
     string,
@@ -1964,20 +1972,49 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
           : {}),
       })
     },
-    async saveCheckMyDayChoice(tripId, _choice, stopIds) {
+    async useCheckMyDaySuggestion(tripId, requestId, expectedVersion) {
       allowed()
+      const request = checkMyDay.get(requestId)
+      if (
+        !request ||
+        request.actorUserId !== currentUserId ||
+        request.tripId !== tripId
+      )
+        throw new Error(GENERIC_TRIP_ERROR)
+      if (request.useReceipt) {
+        if (request.useReceipt.expectedVersion !== expectedVersion)
+          throw new Error(GENERIC_TRIP_ERROR)
+        return structuredClone(findTrip(tripId))
+      }
       await fixture(state, true, true)
+      if (request.useReceipt) {
+        if (request.useReceipt.expectedVersion !== expectedVersion)
+          throw new Error(GENERIC_TRIP_ERROR)
+        return structuredClone(findTrip(tripId))
+      }
       const trip = findTrip(tripId)
+      const stopIds = request.result.orderedStopIds
+      if (
+        request.result.state !== 'suggested' ||
+        request.result.tripVersion !== expectedVersion ||
+        trip.version !== expectedVersion ||
+        !stopIds ||
+        stopIds.length !== trip.stops.length ||
+        new Set(stopIds).size !== stopIds.length ||
+        stopIds.some((stopId) => !trip.stops.some((stop) => stop.id === stopId))
+      )
+        throw new Error(GENERIC_TRIP_ERROR)
       const chosen = stopIds
         .map((stopId) => trip.stops.find((stop) => stop.id === stopId))
         .filter((stop): stop is TripStop => stop !== undefined)
-      const rest = trip.stops.filter((stop) => !stopIds.includes(stop.id))
-      return persistTrip(
+      const saved = persistTrip(
         bumpVersion({
           ...trip,
-          stops: [...chosen, ...rest].map((stop, slot) => ({ ...stop, position: slot })),
+          stops: chosen.map((stop, slot) => ({ ...stop, position: slot })),
         }),
       )
+      request.useReceipt = { expectedVersion }
+      return saved
     },
     async requestCheckMyDay(tripId) {
       allowed()
@@ -1988,6 +2025,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
           requestId: `check-my-day-${nextCheckMyDayNumber++}`,
           state: 'blocked' as const,
           reason: 'departure_required' as const,
+          tripVersion: trip.version,
         }
       const ranks: Record<StopPriority, number> = { must: 0, prefer: 1, flexible: 2 }
       const sorted = [...trip.stops].sort((a, b) => {
@@ -2001,17 +2039,26 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
       const result: CheckMyDayServerResult = {
         requestId: `check-my-day-${nextCheckMyDayNumber++}`,
         state: 'suggested',
+        tripVersion: trip.version,
         orderedStopIds: sorted.map((stop) => stop.id),
         explanation: ['Suggested order prioritizes must-see stops, then earlier opening times.'],
       }
-      checkMyDay.set(result.requestId, result)
+      checkMyDay.set(result.requestId, { tripId, actorUserId: currentUserId, result })
       return structuredClone(result)
     },
     async getCheckMyDaySuggestion(requestId) {
       allowed()
-      const result = checkMyDay.get(requestId)
-      if (!result) return { requestId, state: 'failed' as const }
-      return fixture(state, result, { requestId, state: 'failed' as const })
+      const request = checkMyDay.get(requestId)
+      if (!request || request.actorUserId !== currentUserId)
+        return { requestId, state: 'failed' as const, reason: 'trip_changed' as const }
+      const trip = findTrip(request.tripId)
+      if (trip.version !== request.result.tripVersion)
+        return { ...request.result, state: 'failed' as const, reason: 'trip_changed' as const }
+      return fixture(state, request.result, {
+        requestId,
+        state: 'failed' as const,
+        reason: 'trip_changed' as const,
+      })
     },
   }
 }
