@@ -70,7 +70,7 @@ describe('authoritative suggested order', () => {
       'Cedar HouseAlpha AntiquesBlue Finch Curios',
     )
     await user.click(screen.getByRole('button', { name: /use suggested order/i }))
-    expect(apply).toHaveBeenCalledWith(['c', 'a', 'b'], 'r1', 3)
+    expect(apply).toHaveBeenCalledWith('r1', 3)
   })
 
   it('rejects incomplete server order without offering a false choice', async () => {
