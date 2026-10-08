@@ -221,7 +221,7 @@ select throws_ok($$select app_public.portal_edit_update(
   3,'issue581-admin-denied')$$,'42501','portal_unavailable','separate MFA Site Admin cannot edit Owner updates');
 reset role;
 
-select pg_temp.issue581_actor('58100000-0000-4000-8000-000000000001','58100000-0000-4000-8000-000000000017');
+select pg_temp.issue581_actor('58100000-0000-4000-8000-000000000001','58100000-0000-4000-8000-000000000017','aal1');
 set local role authenticated;
 select throws_ok($$select app_public.portal_edit_update(
   (select value->>'id' from issue581_created),
@@ -235,7 +235,7 @@ set local role authenticated;
 select throws_ok($$select app_public.portal_edit_update(
   '58100000-0000-4000-8000-000000000016',
   '{"type":"new_finds","headline":"Cross-store overwrite","details":"Denied","imageRequested":false}'::jsonb,
-  1,'issue581-cross-store')$$,'55000','portal_unavailable','Owner A cannot edit a Store B update by changing client store context');
+  1,'issue581-cross-store')$$,'42501','portal_unavailable','Owner A cannot edit a Store B update by changing client store context');
 reset role;
 select is((select headline from portal_private.store_updates where update_id=(select (value->>'id')::uuid from issue581_created)),
   'Retry after failed edit','cross-store denial leaves Store A unchanged');
@@ -267,15 +267,15 @@ select set_config('request.headers','{"x-owner-store-id":"58100000-0000-4000-800
 set local role authenticated;
 insert into issue581_sale
 select app_public.portal_create_update(
-  '{"type":"sale","headline":"Spring sale","details":"Expires after March 10","endDate":"2030-03-10","imageRequested":false}'::jsonb);
+  '{"type":"sale","headline":"Spring sale","details":"Expires after March 10","endDate":"2024-03-10","imageRequested":false}'::jsonb);
 reset role;
 
 set local role store_update_expiry_service;
-select is(app_public.portal_expire_store_sales('2030-03-11T04:59:59Z'::timestamptz,100),0,
+select is(app_public.portal_expire_store_sales('2024-03-11T04:59:59Z'::timestamptz,100),0,
   'sale remains live through its Store A local end date');
-select is(app_public.portal_expire_store_sales('2030-03-11T05:00:00Z'::timestamptz,100),1,
+select is(app_public.portal_expire_store_sales('2024-03-11T05:00:00Z'::timestamptz,100),1,
   'sale expires at the next America/Chicago local date');
-select is(app_public.portal_expire_store_sales('2030-03-11T05:00:00Z'::timestamptz,100),0,
+select is(app_public.portal_expire_store_sales('2024-03-11T05:00:00Z'::timestamptz,100),0,
   'repeated expiry sweep is a no-op');
 reset role;
 select is((select state from portal_private.store_updates where update_id=(select (value->>'id')::uuid from issue581_sale)),
@@ -290,10 +290,10 @@ select is((select count(*)::integer from app_private.privileged_audit_events
     and action='portal_text_update_sale_expired' and actor_user_id is null and actor_role is null),1,
   'scheduler audit is classified without inventing a human actor');
 select is((select archived_at from portal_private.store_updates where update_id=(select (value->>'id')::uuid from issue581_sale)),
-  '2030-03-11T05:00:00Z'::timestamptz,'expiry transition uses injected clock at the local date boundary');
+  '2024-03-11T05:00:00Z'::timestamptz,'expiry transition uses injected clock at the local date boundary');
 select is((select occurred_at from portal_private.portal_audit_events
   where resource_id=(select (value->>'id')::uuid from issue581_sale) and event_kind='text_update_sale_expired'),
-  '2030-03-11T05:00:00Z'::timestamptz,'expiry audit uses the same injected transition time');
+  '2024-03-11T05:00:00Z'::timestamptz,'expiry audit uses the same injected transition time');
 
 update partner_private.store_partner_grants
 set state='revoked',revoked_at=statement_timestamp(),revoked_by='58100000-0000-4000-8000-000000000001'

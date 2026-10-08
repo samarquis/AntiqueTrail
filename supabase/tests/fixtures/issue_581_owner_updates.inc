@@ -111,9 +111,11 @@ create function pg_temp.issue581_actor(actor uuid,session_id uuid,assurance text
 returns void language plpgsql as $$
 begin
   perform set_config('request.jwt.claims',jsonb_build_object(
-    'sub',actor,'session_id',session_id,'role','authenticated','aal',assurance,'amr',jsonb_build_array(
-      jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp())::bigint),
-      jsonb_build_object('method','totp','timestamp',extract(epoch from statement_timestamp())::bigint)))::text,true);
+    'sub',actor,'session_id',session_id,'role','authenticated','aal',assurance,'amr',
+    jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp())::bigint)) ||
+      case when assurance='aal2' then jsonb_build_array(
+        jsonb_build_object('method','totp','timestamp',extract(epoch from statement_timestamp())::bigint)
+      ) else '[]'::jsonb end)::text,true);
 end
 $$;
 
