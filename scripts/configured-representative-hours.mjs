@@ -206,10 +206,10 @@ async function provisionOwner(local, fixture) {
   }
 }
 
-async function createOwnerListingIdentity(local, alias) {
+async function createOwnerListingIdentity(local, request, alias) {
   const email = `${alias}-${uuid()}@probe.invalid`
   const password = crypto.randomBytes(32).toString('base64url')
-  const created = await local.request('/auth/v1/admin/users', {
+  const created = await request('/auth/v1/admin/users', {
     key: local.anonKey,
     token: local.serviceRoleKey,
     body: { email, password, email_confirm: true },
@@ -219,8 +219,8 @@ async function createOwnerListingIdentity(local, alias) {
   return { id: created.id, email, password }
 }
 
-async function enrollOwnerListingTotp(local, user, friendlyName) {
-  const session = await local.request('/auth/v1/token?grant_type=password', {
+async function enrollOwnerListingTotp(local, request, user, friendlyName) {
+  const session = await request('/auth/v1/token?grant_type=password', {
     key: local.anonKey,
     body: { email: user.email, password: user.password },
   })
@@ -326,14 +326,18 @@ async function runOwnerListing() {
     restorePartnerEnvironment()
     report.status = 'running'
 
-    const ownerA = await createOwnerListingIdentity(local, 'issue579-owner-a')
-    const ownerCancel = await createOwnerListingIdentity(local, 'issue579-owner-cancel')
-    const admin = await createOwnerListingIdentity(local, 'issue579-site-admin')
+    const ownerA = await createOwnerListingIdentity(local, service.request, 'issue579-owner-a')
+    const ownerCancel = await createOwnerListingIdentity(
+      local,
+      service.request,
+      'issue579-owner-cancel',
+    )
+    const admin = await createOwnerListingIdentity(local, service.request, 'issue579-site-admin')
     const shopper = local.users[0]
     const [ownerATotp, ownerCancelTotp, adminTotp] = await Promise.all([
-      enrollOwnerListingTotp(local, ownerA, 'issue-579-owner-a'),
-      enrollOwnerListingTotp(local, ownerCancel, 'issue-579-owner-cancel'),
-      enrollOwnerListingTotp(local, admin, 'issue-579-site-admin'),
+      enrollOwnerListingTotp(local, service.request, ownerA, 'issue-579-owner-a'),
+      enrollOwnerListingTotp(local, service.request, ownerCancel, 'issue-579-owner-cancel'),
+      enrollOwnerListingTotp(local, service.request, admin, 'issue-579-site-admin'),
     ])
 
     const storeA = { id: uuid(), slug: 'issue-579-clockwork-cabinet' }
@@ -375,10 +379,12 @@ async function runOwnerListing() {
     const fixtureIdentity = sha256(`${local.fixtureIdentity}\n${fixtureSource}\n${fixtureSql}`)
     report.fixtureIdentity = fixtureIdentity
     report.fixtureSourceIdentity = sha256(fixtureSource)
+    report.ownerMaintenanceSetup =
+      'Synthetic established Owner fixture: separate exact Store A claim, followed by Site Admin approval.'
     report.localClaimIntake = {
-      status: 'blocked',
+      status: 'missing-owned-work',
       reason:
-        'Synthetic alpha has no regional_public claims capability, so /partner/claim is unavailable. The invited draft does not create a listing claim. The fixture seeds a separate exact claim for Site Admin approval, so this run cannot prove claim creation through the invited flow.',
+        'The invited draft does not create a listing claim, and local synthetic-alpha does not expose the guided claim-intake path. The separate established Owner fixture proves maintenance only; it does not prove invitation-to-claim acceptance. This is missing issue work, not an external service blocker.',
     }
     report.localInvitationSetup = 'synthetic fixture token; no email provider used'
     report.ownerIdentityIds = { ownerA: ownerA.id, ownerCancel: ownerCancel.id, admin: admin.id }
@@ -476,7 +482,7 @@ async function runOwnerListing() {
       report.stats = results.stats
       report.checks = results.checks
       if (results.status !== 'passed' || report.status !== 'passed') report.status = 'failed'
-      else if (report.localClaimIntake.status === 'blocked') report.status = 'blocked'
+      else if (report.localClaimIntake.status === 'missing-owned-work') report.status = 'blocked'
     }
     report.screenshots = screenshotArtifacts(path.join(output.directory, 'browser'))
     report.browserOrigin = origin
