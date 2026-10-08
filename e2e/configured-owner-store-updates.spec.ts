@@ -60,7 +60,9 @@ test('configured Owner edits text through selected-store context and shoppers se
   await expect(page.getByRole('button', { name: 'Open Issue 581 Store A' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Open Issue 581 Store B' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Open Issue 581 Store A' }).click()
-  await page.goto('/store-portal/updates')
+  await expect(page).toHaveURL(/\/store-portal$/)
+  await page.getByRole('link', { name: 'Store Updates', exact: true }).click()
+  await expect(page).toHaveURL(/\/store-portal\/updates$/)
   await expect(page.getByRole('heading', { name: 'Store Updates' })).toBeVisible()
 
   const created: { headline: string; id: string; publishedAt: string }[] = []
