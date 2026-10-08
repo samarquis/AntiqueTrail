@@ -522,6 +522,111 @@ $$;
 grant create on schema app_public to identity_service;
 alter function app_public.remove_trip_stop(text,text,bigint) owner to identity_service;
 
+set role identity_service;
+create function trip_private.project_completed_private_stops(target_trip_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if exists(select 1 from trip_private.trip_stops as s
+    where s.trip_id=target_trip_id and s.kind='private')
+    and not trip_private.private_stop_capability_enabled() then
+    raise exception using errcode='55000',message='private_trip_stops_disabled';
+  end if;
+  insert into trip_private.trip_visit_memories(
+    author_user_id,trip_id,stop_id,private_stop_id,private_stop_name,private_stop_address
+  )
+  select t.owner_id,t.trip_id,s.stop_id,s.stop_id,s.private_name,s.private_address
+    from trip_private.trips as t
+    join trip_private.trip_stops as s on s.trip_id=t.trip_id
+   where t.trip_id=target_trip_id and s.kind='private' and s.state='completed'
+  on conflict(author_user_id,trip_id,stop_id) where stop_id is not null
+  do update set private_stop_id=excluded.private_stop_id,
+    private_stop_name=excluded.private_stop_name,private_stop_address=excluded.private_stop_address,
+    version=trip_private.trip_visit_memories.version+1,updated_at=statement_timestamp();
+  update trip_private.trip_stops as s set private_address=null,location_purged_at=statement_timestamp()
+   where s.trip_id=target_trip_id and s.kind='private';
+end;
+$$;
+revoke all on function trip_private.project_completed_private_stops(uuid) from public,anon,authenticated,service_role;
+
+create or replace function app_public.execute_verified_go_command(
+  target_user_id text,target_session_id text,trip_id text,action text,stop_id text,
+  base_version bigint,device_key_id text,proof_nonce text,proof_issued_at timestamptz
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  v_user uuid; v_session uuid; v_trip uuid; v_stop uuid; v_nonce uuid;
+  v_state text; v_allowed boolean; v_target text; v_trip_version bigint;
+begin
+  begin
+    v_user:=target_user_id::uuid; v_session:=target_session_id::uuid;
+    v_trip:=trip_id::uuid; v_nonce:=proof_nonce::uuid;
+    if stop_id is not null then v_stop:=stop_id::uuid; end if;
+  exception when others then raise exception 'device_proof_invalid'; end;
+  if action not in ('mark_arrived','complete_stop','skip_stop','mark_observed_closed','restore_stop','complete_trip')
+     or proof_issued_at not between statement_timestamp()-interval '5 minutes' and statement_timestamp()+interval '5 minutes' then
+    raise exception 'device_proof_invalid';
+  end if;
+  if not exists(
+    select 1 from app_private.profiles as p
+    join app_private.active_sessions as s on s.user_id=p.user_id and s.session_epoch=p.session_epoch
+    where p.user_id=v_user and p.status='active' and s.session_id=v_session and s.state='active'
+      and s.provider_created_at is not null
+      and (s.access_token_expires_at is null or s.access_token_expires_at>statement_timestamp())
+      and (p.sessions_revoked_before is null or s.provider_created_at>p.sessions_revoked_before)
+  ) then raise exception 'not_allowed'; end if;
+  select t.version into v_trip_version from trip_private.trips as t
+   where t.trip_id=v_trip and t.state='active' and t.version=base_version
+     and t.navigator_user_id=v_user
+     and t.navigator_device_hash=extensions.digest(convert_to(device_key_id,'utf8'),'sha256')
+   for update;
+  if v_trip_version is null then raise exception 'not_allowed'; end if;
+  begin
+    insert into trip_private.trip_device_proof_nonces(
+      device_key_id,nonce,trip_id,user_id,purpose,action,issued_at
+    ) values (device_key_id,v_nonce,v_trip,v_user,'go',action,proof_issued_at);
+  exception when unique_violation then raise exception 'device_proof_replayed'; end;
+  if action='complete_trip' then
+    if exists(select 1 from trip_private.trip_stops as s
+      where s.trip_id=v_trip and s.state not in ('completed','skipped','observed_closed')) then
+      raise exception 'conflict';
+    end if;
+    perform trip_private.project_completed_private_stops(v_trip);
+    update trip_private.trips as t set state='completed',start_kind=null,private_start_label=null,
+      private_start_latitude=null,private_start_longitude=null,private_return_label=null,
+      private_return_latitude=null,private_return_longitude=null,location_purged_at=statement_timestamp(),
+      navigator_user_id=null,navigator_device_hash=null,version=t.version+1,updated_at=statement_timestamp()
+     where t.trip_id=v_trip;
+    update trip_private.trip_stops as s set rest_address=null,rest_latitude=null,rest_longitude=null,
+      location_purged_at=statement_timestamp() where s.trip_id=v_trip and s.kind='rest';
+    update trip_private.trip_device_bindings as b set state='revoked',revoked_at=statement_timestamp(),
+      revocation_reason='trip_completed' where b.trip_id=v_trip and b.state='active';
+    update trip_private.trip_offline_grants as g set state='revoked',revoked_at=statement_timestamp()
+     where g.trip_id=v_trip and g.state='active';
+    return trip_private.trip_command_json(v_trip);
+  end if;
+  select s.state into v_state from trip_private.trip_stops as s
+   where s.trip_id=v_trip and s.stop_id=v_stop for update;
+  v_target:=case action when 'mark_arrived' then 'arrived' when 'complete_stop' then 'completed'
+    when 'skip_stop' then 'skipped' when 'mark_observed_closed' then 'observed_closed' else 'planned' end;
+  v_allowed:=(v_state='planned' and v_target in ('arrived','skipped','observed_closed'))
+    or (v_state='arrived' and v_target in ('completed','skipped','observed_closed'))
+    or (v_state in ('skipped','observed_closed') and v_target='planned');
+  if not coalesce(v_allowed,false) then raise exception 'conflict'; end if;
+  update trip_private.trip_stops as s set state=v_target,
+    arrived_at=case when v_target='arrived' then statement_timestamp() when v_target='planned' then null else s.arrived_at end,
+    completed_at=case when v_target='completed' then statement_timestamp() when v_target='planned' then null else s.completed_at end,
+    closed_observed_at=case when v_target='observed_closed' then statement_timestamp() when v_target='planned' then null else s.closed_observed_at end,
+    version=s.version+1 where s.trip_id=v_trip and s.stop_id=v_stop;
+  update trip_private.trips as t set version=t.version+1,updated_at=statement_timestamp() where t.trip_id=v_trip;
+  return trip_private.trip_command_json(v_trip);
+end;
+$$;
+reset role;
+revoke all on function app_public.execute_verified_go_command(text,text,text,text,text,bigint,text,text,timestamptz)
+  from public,anon,authenticated;
+grant execute on function app_public.execute_verified_go_command(text,text,text,text,text,bigint,text,text,timestamptz)
+  to trip_go_gateway;
+
 create or replace function app_public.complete_trip(trip_id text)
 returns jsonb
 language plpgsql
@@ -540,17 +645,7 @@ begin
      and not trip_private.private_stop_capability_enabled() then
     raise exception using errcode='55000',message='private_trip_stops_disabled';
   end if;
-  insert into trip_private.trip_visit_memories(
-    author_user_id,trip_id,stop_id,private_stop_id,private_stop_name,private_stop_address
-  )
-  select t.owner_id,t.trip_id,s.stop_id,s.stop_id,s.private_name,s.private_address
-    from trip_private.trips as t
-    join trip_private.trip_stops as s on s.trip_id=t.trip_id
-   where t.trip_id=v_trip and s.kind='private' and s.state='completed'
-  on conflict(author_user_id,trip_id,stop_id) where stop_id is not null
-  do update set private_stop_id=excluded.private_stop_id,
-    private_stop_name=excluded.private_stop_name,private_stop_address=excluded.private_stop_address,
-    version=trip_private.trip_visit_memories.version+1,updated_at=statement_timestamp();
+  perform trip_private.project_completed_private_stops(v_trip);
 
   update trip_private.trips as t set state='completed',start_kind=null,private_start_label=null,
     private_start_latitude=null,private_start_longitude=null,private_return_label=null,
@@ -558,8 +653,8 @@ begin
     navigator_user_id=null,navigator_device_hash=null,version=t.version+1,updated_at=statement_timestamp()
    where t.trip_id=v_trip;
   update trip_private.trip_stops as s set rest_address=null,rest_latitude=null,rest_longitude=null,
-    private_address=null,location_purged_at=statement_timestamp()
-   where s.trip_id=v_trip and s.kind in ('rest','private');
+    location_purged_at=statement_timestamp()
+   where s.trip_id=v_trip and s.kind='rest';
   update trip_private.trip_device_bindings as b set state='revoked',revoked_at=statement_timestamp(),
     revocation_reason='trip_completed'
    where b.trip_id=v_trip and b.state='active';
@@ -577,6 +672,7 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+#variable_conflict use_column
 declare v_trip uuid; v_stop uuid; v_store uuid; v_kind text; v_name text; v_address text;
 begin
   begin v_trip:=trip_id::uuid; v_stop:=stop_id::uuid;
