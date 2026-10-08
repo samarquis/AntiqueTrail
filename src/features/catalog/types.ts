@@ -43,6 +43,7 @@ export interface CatalogStore {
   town: string
   state: string
   address: string
+  deviceDistanceMiles?: number
   area: { slug: string; label: string }
   categories: Array<{ slug: string; label: string }>
   summary?: string | null

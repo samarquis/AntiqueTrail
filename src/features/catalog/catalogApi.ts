@@ -203,6 +203,29 @@ type LooseRow = Record<string, unknown>
 
 function toStore(value: unknown): CatalogStore {
   const row = asRow(value)
+  const hasSnakeDeviceDistance = Object.prototype.hasOwnProperty.call(row, 'device_distance_miles')
+  const hasCamelDeviceDistance = Object.prototype.hasOwnProperty.call(row, 'deviceDistanceMiles')
+  const snakeDeviceDistance = row.device_distance_miles
+  const camelDeviceDistance = row.deviceDistanceMiles
+  if (
+    (hasSnakeDeviceDistance &&
+      (typeof snakeDeviceDistance !== 'number' ||
+        !Number.isFinite(snakeDeviceDistance) ||
+        snakeDeviceDistance < 0)) ||
+    (hasCamelDeviceDistance &&
+      (typeof camelDeviceDistance !== 'number' ||
+        !Number.isFinite(camelDeviceDistance) ||
+        camelDeviceDistance < 0)) ||
+    (hasSnakeDeviceDistance &&
+      hasCamelDeviceDistance &&
+      snakeDeviceDistance !== camelDeviceDistance)
+  )
+    throw new Error('Invalid nearby distance')
+  const deviceDistanceMiles = hasSnakeDeviceDistance
+    ? (snakeDeviceDistance as number)
+    : hasCamelDeviceDistance
+      ? (camelDeviceDistance as number)
+      : undefined
   const area = asRow(row.area ?? { slug: row.area_slug, label: row.area_label })
   const categories = asArray(row.categories ?? row.category_labels)
   const media = asArray(row.media)
@@ -214,6 +237,7 @@ function toStore(value: unknown): CatalogStore {
     town: String(row.town ?? row.city ?? ''),
     state: String(row.state ?? row.state_code ?? ''),
     address: String(row.address ?? ''),
+    ...(deviceDistanceMiles === undefined ? {} : { deviceDistanceMiles }),
     area: { slug: String(area.slug ?? ''), label: String(area.label ?? '') },
     categories: categories.map((item) => {
       const category = asRow(item)

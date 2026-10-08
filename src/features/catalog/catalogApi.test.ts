@@ -425,6 +425,77 @@ describe('catalog RPC client', () => {
   })
 
   it.each([
+    ['snake case zero', { device_distance_miles: 0 }, 0],
+    ['camel case positive', { deviceDistanceMiles: 2.4 }, 2.4],
+    ['equal aliases', { device_distance_miles: 1.25, deviceDistanceMiles: 1.25 }, 1.25],
+  ] as const)('maps %s through list, nearby list, and details', async (_case, fields, expected) => {
+    for (const method of ['list', 'nearbyList', 'details'] as const) {
+      const rpc = vi.fn().mockResolvedValue({ data: [{ id: '1', ...fields }], error: null })
+      const client = createCatalogClient({ rpc })
+      const stores =
+        method === 'list'
+          ? (await client.list({})).stores
+          : method === 'details'
+            ? [await client.details('public-store')]
+            : (
+                (await nearbyList(client, {}, { latitude: 0, longitude: 0 })) as {
+                  stores: Array<{ deviceDistanceMiles?: number }>
+                }
+              ).stores
+
+      expect(stores[0]?.deviceDistanceMiles).toBe(expected)
+    }
+  })
+
+  it.each(['list', 'nearbyList', 'details'] as const)(
+    'does not infer device distance from centroid distance through %s',
+    async (method) => {
+      const rpc = vi.fn().mockResolvedValue({
+        data: [{ id: '1', distance_miles: 2.4 }],
+        error: null,
+      })
+      const client = createCatalogClient({ rpc })
+      const store =
+        method === 'list'
+          ? (await client.list({})).stores[0]
+          : method === 'details'
+            ? await client.details('public-store')
+            : (
+                (await nearbyList(client, {}, { latitude: 0, longitude: 0 })) as {
+                  stores: Array<{ deviceDistanceMiles?: number }>
+                }
+              ).stores[0]
+
+      expect(store).not.toHaveProperty('deviceDistanceMiles')
+    },
+  )
+
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['string', '2.4'],
+    ['boolean', true],
+    ['negative', -1],
+    ['NaN', Number.NaN],
+    ['infinity', Number.POSITIVE_INFINITY],
+  ])('rejects a present %s device distance', async (_case, distance) => {
+    for (const key of ['device_distance_miles', 'deviceDistanceMiles'] as const) {
+      const rpc = vi.fn().mockResolvedValue({ data: [{ id: '1', [key]: distance }], error: null })
+
+      await expect(createCatalogClient({ rpc }).list({})).rejects.toThrow('Invalid nearby distance')
+    }
+  })
+
+  it('rejects conflicting device distance aliases', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{ id: '1', device_distance_miles: 2, deviceDistanceMiles: 3 }],
+      error: null,
+    })
+
+    await expect(createCatalogClient({ rpc }).list({})).rejects.toThrow('Invalid nearby distance')
+  })
+
+  it.each([
     ['zero coordinates and the default radius', { latitude: 0, longitude: 0 }, undefined, 25],
     ['the north/east boundary and radius 5', { latitude: 90, longitude: 180 }, 5, 5],
     ['the south/west boundary and radius 10', { latitude: -90, longitude: -180 }, 10, 10],
