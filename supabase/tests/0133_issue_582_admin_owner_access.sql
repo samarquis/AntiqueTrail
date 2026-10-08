@@ -2,6 +2,18 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select no_plan();
+select ok(not has_function_privilege('anon','partner_private.is_owner_intent_claim(uuid)','execute')
+  and not has_function_privilege('authenticated','partner_private.is_owner_intent_claim(uuid)','execute')
+  and not has_function_privilege('service_role','partner_private.is_owner_intent_claim(uuid)','execute'),
+  'Owner-intent classifier is not executable by application roles');
+select ok(not has_function_privilege('anon','partner_private.partner_admin_claim_command_core(text,uuid,bigint,text,text,uuid,boolean)','execute')
+  and not has_function_privilege('authenticated','partner_private.partner_admin_claim_command_core(text,uuid,bigint,text,text,uuid,boolean)','execute')
+  and not has_function_privilege('service_role','partner_private.partner_admin_claim_command_core(text,uuid,bigint,text,text,uuid,boolean)','execute'),
+  'private claim-command guard is not executable by application roles');
+select ok(not has_function_privilege('anon','partner_private.partner_admin_claim_command_core_unchecked(text,uuid,bigint,text,text,uuid)','execute')
+  and not has_function_privilege('authenticated','partner_private.partner_admin_claim_command_core_unchecked(text,uuid,bigint,text,text,uuid)','execute')
+  and not has_function_privilege('service_role','partner_private.partner_admin_claim_command_core_unchecked(text,uuid,bigint,text,text,uuid)','execute'),
+  'unchecked Representative mutation is not executable by application roles');
 \ir fixtures/media_resubmission.inc
 
 update app_private.environment_stage set stage='synthetic_alpha',version=version+1 where id=1;
@@ -263,6 +275,7 @@ select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-40
 set local role authenticated;
 select throws_ok($$select app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000b'),'approve','Representative authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000b'),'582-review-owner-a')$$,'22023',null,'Owner receipt cannot replay as a Representative decision');
 select is((app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000b'),'approve','Representative authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000b'),'582-review-rep-c')->>'state'),'approved','public listing claim retains Representative decision path');
+-- The preserved Admin base appends '-claim'; this direct call replays that exact command receipt after approval clears the intake root.
 select is((app_public.partner_admin_claim_command('approve','58200000-0000-4000-8000-00000000000b',(select version from claim_versions582 where claim_id='58200000-0000-4000-8000-00000000000b'),'582-review-rep-c-claim','administrator_decision',null)->>'ownerIntent')::boolean,false,'public Representative generic replay returns a boolean false Owner-intent DTO');
 reset role;
 select is((select count(*) from app_private.role_grants where subject_user_id='58200000-0000-4000-8000-000000000012' and role='representative' and store_id='00000000-0000-4000-8000-000000000007' and state='active'),1::bigint,'Representative approval creates no Owner authority');
