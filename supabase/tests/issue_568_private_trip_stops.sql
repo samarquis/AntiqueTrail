@@ -177,7 +177,9 @@ select throws_ok($$select app_public.add_private_trip_stop(
   '56800000-0000-4000-8000-000000000101','Different Name','123 Main St','https://example.com/shop',
   current_setting('test.private_hours')::jsonb,'must',60,10,'add_private_trip_stop:first')$$,
   'P0001','conflict','changed-payload retry conflicts');
+reset role;
 select is((select version from trip_private.trips where trip_id='56800000-0000-4000-8000-000000000101'),11::bigint,'conflicting replay does not change version');
+set local role authenticated;
 select throws_ok($$select app_public.update_private_trip_stop(
   'not-a-trip-uuid',current_setting('test.created')::jsonb #>> '{stops,0,id}',
   'Hidden Finds','123 Main St','https://example.com/shop',current_setting('test.private_hours')::jsonb,
@@ -417,18 +419,20 @@ select set_config('test.catalog_memory_a',app_public.save_trip_visit_memory(
   '56800000-0000-4000-8000-000000000102',current_setting('test.catalog_stop_a'),5,'yes','first visit')::text,true);
 select app_public.save_trip_visit_memory(
   '56800000-0000-4000-8000-000000000102',current_setting('test.catalog_stop_b'),4,'maybe','second visit');
+reset role;
 select is((select count(*) from trip_private.trip_visit_memories as m
   where m.trip_id='56800000-0000-4000-8000-000000000102' and m.stop_id is not null),2::bigint,
   'the real writer creates one visit row for each same-store stop');
+set local role authenticated;
 select is((current_setting('test.catalog_memory_a')::jsonb #>> '{stops,0,memoryStatus}'),'saved',
   'writer projection marks the first stop memory saved');
 select is((app_public.save_trip_visit_memory(
   '56800000-0000-4000-8000-000000000102',current_setting('test.catalog_stop_a'),3,'no','updated first visit'
   ) #>> '{stops,0,memoryStatus}'),'saved','same-stop writer replay keeps its stop-scoped row');
+reset role;
 select is((select count(distinct m.memory_id) from trip_private.trip_visit_memories as m
   where m.trip_id='56800000-0000-4000-8000-000000000102' and m.stop_id is not null),2::bigint,
   'replaying a visit update does not create a duplicate row');
-reset role;
 set local role identity_service;
 insert into trip_private.trip_visit_memories(author_user_id,trip_id,store_id,rating)
 select '56800000-0000-4000-8000-000000000001','56800000-0000-4000-8000-000000000102',s.id,4
