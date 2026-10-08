@@ -250,6 +250,10 @@ try {
       'OWNER_DESKTOP_GRANT_B',
       'OWNER_PHONE_GRANT_A',
       'OWNER_PHONE_GRANT_B',
+      'OWNER_DESKTOP_STORE_A',
+      'OWNER_DESKTOP_STORE_B',
+      'OWNER_PHONE_STORE_A',
+      'OWNER_PHONE_STORE_B',
       'OWNER_DESKTOP_CLAIM_A',
       'OWNER_DESKTOP_CLAIM_B',
       'OWNER_PHONE_CLAIM_A',
@@ -273,7 +277,15 @@ try {
     }),
   )
   const fixtureAuthority = await service.sql(
-    `select (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and role='representative' and state='active'),(select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and role='representative' and state='active'),(select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.ownerDesktop.id}' and store_id in ('00000000-0000-4000-8000-000000001003','00000000-0000-4000-8000-000000001004') and role='store_owner' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.ownerDesktop.id}' and store_id in ('00000000-0000-4000-8000-000000001003','00000000-0000-4000-8000-000000001004') and role='store_owner' and state='active'),(select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.ownerPhone.id}' and store_id in ('00000000-0000-4000-8000-000000001005','00000000-0000-4000-8000-000000001006') and role='store_owner' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.ownerPhone.id}' and store_id in ('00000000-0000-4000-8000-000000001005','00000000-0000-4000-8000-000000001006') and role='store_owner' and state='active');`,
+    `select
+      (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and state='active'),
+      (select count(*) from app_private.role_grants where subject_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and role='representative' and state='active'),
+      (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and state='active'),
+      (select count(*) from app_private.role_grants where subject_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and role='representative' and state='active'),
+      (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.ownerDesktop.id}' and store_id in ('${ids.OWNER_DESKTOP_STORE_A}','${ids.OWNER_DESKTOP_STORE_B}') and role='store_owner' and state='active'),
+      (select count(*) from app_private.role_grants where subject_user_id='${actors.ownerDesktop.id}' and store_id in ('${ids.OWNER_DESKTOP_STORE_A}','${ids.OWNER_DESKTOP_STORE_B}') and role='store_owner' and state='active'),
+      (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.ownerPhone.id}' and store_id in ('${ids.OWNER_PHONE_STORE_A}','${ids.OWNER_PHONE_STORE_B}') and role='store_owner' and state='active'),
+      (select count(*) from app_private.role_grants where subject_user_id='${actors.ownerPhone.id}' and store_id in ('${ids.OWNER_PHONE_STORE_A}','${ids.OWNER_PHONE_STORE_B}') and role='store_owner' and state='active');`,
   )
   if (fixtureAuthority.trim() !== '1|1|1|1|2|2|2|2')
     throw new Error(`Configured scope fixture authority is incomplete: ${fixtureAuthority.trim()}`)
@@ -302,16 +314,16 @@ try {
         sibling: '00000000-0000-4000-8000-000000001002',
         owners: {
           desktop: {
-            a: '00000000-0000-4000-8000-000000001003',
-            b: '00000000-0000-4000-8000-000000001004',
+            a: ids.OWNER_DESKTOP_STORE_A,
+            b: ids.OWNER_DESKTOP_STORE_B,
             claimA: ids.OWNER_DESKTOP_CLAIM_A,
             claimB: ids.OWNER_DESKTOP_CLAIM_B,
             nameA: 'Owner Clockwork',
             nameB: 'Owner Prairie',
           },
           phone: {
-            a: '00000000-0000-4000-8000-000000001005',
-            b: '00000000-0000-4000-8000-000000001006',
+            a: ids.OWNER_PHONE_STORE_A,
+            b: ids.OWNER_PHONE_STORE_B,
             claimA: ids.OWNER_PHONE_CLAIM_A,
             claimB: ids.OWNER_PHONE_CLAIM_B,
             nameA: 'Owner Walnut',

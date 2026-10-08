@@ -374,9 +374,13 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
   await expect(
     regranted.getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` }),
   ).toBeVisible()
+  const previewResponse = page.waitForResponse((response) =>
+    response.url().includes('/rest/v1/rpc/admin_preview_store_scope_change'),
+  )
   await regranted
     .getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` })
     .click()
+  expect((await previewResponse).status()).toBe(200)
   await expect(regranted.getByText(`Confirm exact scope: ${scope.targetStoreName}`)).toBeVisible()
   await regranted.getByRole('button', { name: 'Cancel scope change', exact: true }).click()
 })
@@ -453,11 +457,9 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   expect(response.status()).toBe(200)
   expect(response.request().postDataJSON()).toEqual(previewInput)
   const preview = await response.json()
-  expect(preview).toMatchObject({
-    subjectUserId: scope.targetSubjectId,
-    storeId: scope.target,
-    grantVersion: current.version,
-  })
+  expect(preview.subjectUserId).toBe(scope.targetSubjectId)
+  expect(preview.storeId).toBe(scope.target)
+  expect(preview.grantVersion).toBe(current.version)
   const token = response
     .request()
     .headers()

@@ -1,9 +1,9 @@
 -- #323/#582: run-owned fictional Administrator, Representative and Owner scopes.
 insert into app_public.stores(id,slug,name,town,state_code,address,area_id,summary,description,synthetic,audience) values
-  ('00000000-0000-4000-8000-000000001003','scope-owner-desktop-a','Owner Clockwork','Topeka','KS','103 Synthetic Way','00000000-0000-4000-8000-000000000001','Synthetic Owner store','Fixture only',true,'synthetic'),
-  ('00000000-0000-4000-8000-000000001004','scope-owner-desktop-b','Owner Prairie','Topeka','KS','104 Synthetic Way','00000000-0000-4000-8000-000000000001','Synthetic Owner store','Fixture only',true,'synthetic'),
-  ('00000000-0000-4000-8000-000000001005','scope-owner-phone-a','Owner Walnut','Topeka','KS','105 Synthetic Way','00000000-0000-4000-8000-000000000001','Synthetic Owner store','Fixture only',true,'synthetic'),
-  ('00000000-0000-4000-8000-000000001006','scope-owner-phone-b','Owner Maple','Topeka','KS','106 Synthetic Way','00000000-0000-4000-8000-000000000001','Synthetic Owner store','Fixture only',true,'synthetic')
+  ('__OWNER_DESKTOP_STORE_A__','scope-owner-desktop-a','Owner Clockwork','Topeka','KS','103 Synthetic Way','00000000-0000-4000-8000-000000000001','Synthetic Owner store','Fixture only',true,'synthetic'),
+  ('__OWNER_DESKTOP_STORE_B__','scope-owner-desktop-b','Owner Prairie','Topeka','KS','104 Synthetic Way','00000000-0000-4000-8000-000000000001','Synthetic Owner store','Fixture only',true,'synthetic'),
+  ('__OWNER_PHONE_STORE_A__','scope-owner-phone-a','Owner Walnut','Topeka','KS','105 Synthetic Way','00000000-0000-4000-8000-000000000001','Synthetic Owner store','Fixture only',true,'synthetic'),
+  ('__OWNER_PHONE_STORE_B__','scope-owner-phone-b','Owner Maple','Topeka','KS','106 Synthetic Way','00000000-0000-4000-8000-000000000001','Synthetic Owner store','Fixture only',true,'synthetic')
 on conflict (id) do update set synthetic=true,audience='synthetic';
 
 insert into app_private.profiles(user_id,public_display_name,age_18_attested_at) values
@@ -74,28 +74,28 @@ values
   ('__OWNER_PHONE_RECEIPT__','__OWNER_PHONE_CONSENT__','__OWNER_PHONE_PENDING__','__OWNER_PHONE_INVITE__','__OWNER_PHONE__',decode(repeat('24',32),'hex'),'synthetic-v3',decode(repeat('26',32),'hex'));
 insert into partner_private.store_partnerships(partnership_id,pending_identity_id,auth_user_id,store_id,consent_receipt_id,state,started_at,consent_policy_version)
 values
-  ('__OWNER_DESKTOP_PARTNERSHIP_A__','__OWNER_DESKTOP_PENDING__','__OWNER_DESKTOP__','00000000-0000-4000-8000-000000001003','__OWNER_DESKTOP_RECEIPT__','active',statement_timestamp(),'synthetic-v3'),
-  ('__OWNER_DESKTOP_PARTNERSHIP_B__','__OWNER_DESKTOP_PENDING__','__OWNER_DESKTOP__','00000000-0000-4000-8000-000000001004','__OWNER_DESKTOP_RECEIPT__','active',statement_timestamp(),'synthetic-v3'),
-  ('__OWNER_PHONE_PARTNERSHIP_A__','__OWNER_PHONE_PENDING__','__OWNER_PHONE__','00000000-0000-4000-8000-000000001005','__OWNER_PHONE_RECEIPT__','active',statement_timestamp(),'synthetic-v3'),
-  ('__OWNER_PHONE_PARTNERSHIP_B__','__OWNER_PHONE_PENDING__','__OWNER_PHONE__','00000000-0000-4000-8000-000000001006','__OWNER_PHONE_RECEIPT__','active',statement_timestamp(),'synthetic-v3');
+  ('__OWNER_DESKTOP_PARTNERSHIP_A__','__OWNER_DESKTOP_PENDING__','__OWNER_DESKTOP__','__OWNER_DESKTOP_STORE_A__','__OWNER_DESKTOP_RECEIPT__','active',statement_timestamp(),'synthetic-v3'),
+  ('__OWNER_DESKTOP_PARTNERSHIP_B__','__OWNER_DESKTOP_PENDING__','__OWNER_DESKTOP__','__OWNER_DESKTOP_STORE_B__','__OWNER_DESKTOP_RECEIPT__','active',statement_timestamp(),'synthetic-v3'),
+  ('__OWNER_PHONE_PARTNERSHIP_A__','__OWNER_PHONE_PENDING__','__OWNER_PHONE__','__OWNER_PHONE_STORE_A__','__OWNER_PHONE_RECEIPT__','active',statement_timestamp(),'synthetic-v3'),
+  ('__OWNER_PHONE_PARTNERSHIP_B__','__OWNER_PHONE_PENDING__','__OWNER_PHONE__','__OWNER_PHONE_STORE_B__','__OWNER_PHONE_RECEIPT__','active',statement_timestamp(),'synthetic-v3');
 insert into partner_private.store_partner_grants(grant_id,partnership_id,auth_user_id,store_id,consent_policy_version,role)
 values
-  ('__OWNER_DESKTOP_GRANT_A__','__OWNER_DESKTOP_PARTNERSHIP_A__','__OWNER_DESKTOP__','00000000-0000-4000-8000-000000001003','synthetic-v3','store_owner'),
-  ('__OWNER_DESKTOP_GRANT_B__','__OWNER_DESKTOP_PARTNERSHIP_B__','__OWNER_DESKTOP__','00000000-0000-4000-8000-000000001004','synthetic-v3','store_owner'),
-  ('__OWNER_PHONE_GRANT_A__','__OWNER_PHONE_PARTNERSHIP_A__','__OWNER_PHONE__','00000000-0000-4000-8000-000000001005','synthetic-v3','store_owner'),
-  ('__OWNER_PHONE_GRANT_B__','__OWNER_PHONE_PARTNERSHIP_B__','__OWNER_PHONE__','00000000-0000-4000-8000-000000001006','synthetic-v3','store_owner');
+  ('__OWNER_DESKTOP_GRANT_A__','__OWNER_DESKTOP_PARTNERSHIP_A__','__OWNER_DESKTOP__','__OWNER_DESKTOP_STORE_A__','synthetic-v3','store_owner'),
+  ('__OWNER_DESKTOP_GRANT_B__','__OWNER_DESKTOP_PARTNERSHIP_B__','__OWNER_DESKTOP__','__OWNER_DESKTOP_STORE_B__','synthetic-v3','store_owner'),
+  ('__OWNER_PHONE_GRANT_A__','__OWNER_PHONE_PARTNERSHIP_A__','__OWNER_PHONE__','__OWNER_PHONE_STORE_A__','synthetic-v3','store_owner'),
+  ('__OWNER_PHONE_GRANT_B__','__OWNER_PHONE_PARTNERSHIP_B__','__OWNER_PHONE__','__OWNER_PHONE_STORE_B__','synthetic-v3','store_owner');
 insert into app_private.role_grants(subject_user_id,role,store_id,state,granted_by)
 values
-  ('__OWNER_DESKTOP__','store_owner','00000000-0000-4000-8000-000000001003','active','__ADMIN__'),
-  ('__OWNER_DESKTOP__','store_owner','00000000-0000-4000-8000-000000001004','active','__ADMIN__'),
-  ('__OWNER_PHONE__','store_owner','00000000-0000-4000-8000-000000001005','active','__PHONE_ADMIN__'),
-  ('__OWNER_PHONE__','store_owner','00000000-0000-4000-8000-000000001006','active','__PHONE_ADMIN__');
+  ('__OWNER_DESKTOP__','store_owner','__OWNER_DESKTOP_STORE_A__','active','__ADMIN__'),
+  ('__OWNER_DESKTOP__','store_owner','__OWNER_DESKTOP_STORE_B__','active','__ADMIN__'),
+  ('__OWNER_PHONE__','store_owner','__OWNER_PHONE_STORE_A__','active','__PHONE_ADMIN__'),
+  ('__OWNER_PHONE__','store_owner','__OWNER_PHONE_STORE_B__','active','__PHONE_ADMIN__');
 insert into partner_private.listing_claims(claim_id,claimant_id,store_id,relationship,authority_statement)
 values
-  ('__OWNER_DESKTOP_CLAIM_A__','__OWNER_DESKTOP__','00000000-0000-4000-8000-000000001003','store owner','Synthetic exact-store Owner claim.'),
-  ('__OWNER_DESKTOP_CLAIM_B__','__OWNER_DESKTOP__','00000000-0000-4000-8000-000000001004','store owner','Synthetic exact-store Owner claim.'),
-  ('__OWNER_PHONE_CLAIM_A__','__OWNER_PHONE__','00000000-0000-4000-8000-000000001005','store owner','Synthetic exact-store Owner claim.'),
-  ('__OWNER_PHONE_CLAIM_B__','__OWNER_PHONE__','00000000-0000-4000-8000-000000001006','store owner','Synthetic exact-store Owner claim.');
+  ('__OWNER_DESKTOP_CLAIM_A__','__OWNER_DESKTOP__','__OWNER_DESKTOP_STORE_A__','store owner','Synthetic exact-store Owner claim.'),
+  ('__OWNER_DESKTOP_CLAIM_B__','__OWNER_DESKTOP__','__OWNER_DESKTOP_STORE_B__','store owner','Synthetic exact-store Owner claim.'),
+  ('__OWNER_PHONE_CLAIM_A__','__OWNER_PHONE__','__OWNER_PHONE_STORE_A__','store owner','Synthetic exact-store Owner claim.'),
+  ('__OWNER_PHONE_CLAIM_B__','__OWNER_PHONE__','__OWNER_PHONE_STORE_B__','store owner','Synthetic exact-store Owner claim.');
 insert into partner_private.claim_authority_signals(claim_id,channel_class,signal_type,status,verified_by,verified_at,evidence_ref_hmac,authority_object_hmac,verification_event_id)
 values
   ('__OWNER_DESKTOP_CLAIM_A__','published_business_contact','domain_response','verified','__ADMIN__',statement_timestamp(),decode(repeat('31',32),'hex'),decode(repeat('32',32),'hex'),'__OWNER_DESKTOP_CLAIM_A__'),
