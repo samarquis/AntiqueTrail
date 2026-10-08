@@ -164,18 +164,13 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
     await expect(page.getByRole('link', { name: "Avery's antique day" })).toHaveCount(0)
   })
 
-  test('a selected shopper reaches their existing plan through visible More navigation', async (
-    { page },
-    testInfo,
-  ) => {
+  test('a selected shopper reaches their existing plan through visible More navigation', async ({
+    page,
+  }, testInfo) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto(reviewUrl('/stores', 'shopper-a'))
     const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' })
-    await expect(primaryNavigation.getByRole('link')).toHaveText([
-      'Browse',
-      'Saved stores',
-      'More',
-    ])
+    await expect(primaryNavigation.getByRole('link')).toHaveText(['Browse', 'Saved stores', 'More'])
     await primaryNavigation.getByRole('link', { name: 'More', exact: true }).click()
     await expect(page.getByRole('heading', { level: 1, name: 'More' })).toBeFocused()
     const moreDestinations = page.getByRole('navigation', { name: 'More destinations' })
@@ -188,11 +183,7 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
     await expect(myTrips).toBeVisible()
     await assertMinimumTargets(page)
     await page.screenshot({ path: testInfo.outputPath('more-dark.png'), fullPage: true })
-    await expect(primaryNavigation.getByRole('link')).toHaveText([
-      'Browse',
-      'Saved stores',
-      'More',
-    ])
+    await expect(primaryNavigation.getByRole('link')).toHaveText(['Browse', 'Saved stores', 'More'])
 
     await myTrips.click()
     await expect(page.getByRole('heading', { level: 1, name: 'My trips' })).toBeFocused()
@@ -200,15 +191,21 @@ test.describe('UI-07 trip planning, Go, and collaboration', () => {
     const row = list.locator('li').filter({ hasText: "Avery's antique day" })
     await expect(row).toContainText('2026-08-08')
     await assertMinimumTargets(page)
+    await page.screenshot({ path: testInfo.outputPath('trips-dark.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Switch to light theme' }).click()
+    await assertMinimumTargets(page)
+    await page.screenshot({ path: testInfo.outputPath('trips-light.png'), fullPage: true })
     const trip = row.getByRole('link', { name: "Avery's antique day", exact: true })
     await expect(trip).toHaveAttribute('href', '/trips/trip-a/plan')
     await trip.click()
     await expect(page).toHaveURL(/\/trips\/trip-a\/plan$/)
-    await expect(
-      page.getByRole('heading', { level: 1, name: "Avery's antique day" }),
-    ).toBeFocused()
+    await expect(page.getByRole('heading', { level: 1, name: "Avery's antique day" })).toBeFocused()
     await expect(page.getByText('Trip date: 2026-08-08')).toBeVisible()
     await assertMinimumTargets(page)
+    await page.screenshot({ path: testInfo.outputPath('plan-light.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Switch to dark theme' }).click()
+    await assertMinimumTargets(page)
+    await page.screenshot({ path: testInfo.outputPath('plan-dark.png'), fullPage: true })
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true)

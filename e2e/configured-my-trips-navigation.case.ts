@@ -9,11 +9,7 @@ type ConfiguredTrip = {
 async function openMyTripsThroughMore(page: Page) {
   await page.goto('/stores')
   const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' })
-  await expect(primaryNavigation.getByRole('link')).toHaveText([
-    'Browse',
-    'Saved stores',
-    'More',
-  ])
+  await expect(primaryNavigation.getByRole('link')).toHaveText(['Browse', 'Saved stores', 'More'])
   await primaryNavigation.getByRole('link', { name: 'More', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'More' })).toBeFocused()
   const myTrips = page
@@ -30,10 +26,7 @@ export async function verifyConfiguredMyTripsVisibleNavigation(
   trip: ConfiguredTrip,
 ) {
   await openMyTripsThroughMore(shopperA)
-  const row = shopperA
-    .getByLabel('My trips')
-    .locator('li')
-    .filter({ hasText: trip.name })
+  const row = shopperA.getByLabel('My trips').locator('li').filter({ hasText: trip.name })
   await expect(row).toHaveCount(1)
   await expect(row).toContainText(trip.localDate)
   const tripLink = row.getByRole('link', { name: trip.name, exact: true })
@@ -46,7 +39,5 @@ export async function verifyConfiguredMyTripsVisibleNavigation(
   await expect(shopperA.getByText(`Trip date: ${trip.localDate}`)).toBeVisible()
 
   await openMyTripsThroughMore(shopperB)
-  await expect(
-    shopperB.getByRole('link', { name: trip.name, exact: true }),
-  ).toHaveCount(0)
+  await expect(shopperB.getByRole('link', { name: trip.name, exact: true })).toHaveCount(0)
 }
