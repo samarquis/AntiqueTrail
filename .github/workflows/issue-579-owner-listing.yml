@@ -35,7 +35,14 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run configured Owner listing proof
-        run: node scripts/configured-representative-hours.mjs --owner-listing
+        env:
+          OWNER_LISTING_PHASE: ${{ contains(github.event.head_commit.message, '[owner-first-phase]') && 'first' || 'full' }}
+        run: |
+          if [ "$OWNER_LISTING_PHASE" = first ]; then
+            node scripts/configured-representative-hours.mjs --owner-listing-first-phase
+          else
+            node scripts/configured-representative-hours.mjs --owner-listing
+          fi
 
       - name: Upload sanitized Owner listing evidence
         if: always()

@@ -12,21 +12,33 @@ import {
   stopChild,
 } from './configured-shopper-local.mjs'
 import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
-import { representativeHoursReport } from './configured-representative-hours-report.mjs'
+import {
+  ownerListingStepResults,
+  representativeHoursReport,
+} from './configured-representative-hours-report.mjs'
 import { runLocalOwnerCancellation } from './owner-cancellation-local.mjs'
 
 const modeArgs = process.argv.slice(2)
-const ownerListingMode = modeArgs.length === 1 && modeArgs[0] === '--owner-listing'
+const ownerListingMode =
+  modeArgs.length === 1 && ['--owner-listing', '--owner-listing-first-phase'].includes(modeArgs[0])
+const ownerListingFirstPhase = modeArgs[0] === '--owner-listing-first-phase'
 if (modeArgs.length && !ownerListingMode)
-  throw new Error('Supported invocation is no arguments or --owner-listing')
+  throw new Error(
+    'Supported invocation is no arguments, --owner-listing, or --owner-listing-first-phase',
+  )
 const output = createRunDirectory(
   path.join(ROOT, ownerListingMode ? '.codex/issue-579/runs' : 'artifacts'),
 )
 const controller = new AbortController()
 const report = {
   scope: ownerListingMode
-    ? 'configured-owner-listing-isolated-local-proof'
+    ? ownerListingFirstPhase
+      ? 'configured-owner-listing-first-phase-diagnostic'
+      : 'configured-owner-listing-isolated-local-proof'
     : 'representative-hours-and-owner-exact-store-billing-status',
+  ...(ownerListingMode
+    ? { phase: ownerListingFirstPhase ? 'first-phase-diagnostic' : 'full-acceptance' }
+    : {}),
   ...(ownerListingMode
     ? {
         stepResults: [],
@@ -438,6 +450,7 @@ async function runOwnerListing() {
       },
       shopper: { email: shopper.email, password: shopper.password },
       admin: { email: admin.email, password: admin.password, totpSecret: adminTotp },
+      ...(ownerListingFirstPhase ? { diagnosticPhase: 'first' } : {}),
     }
     ownerSecretFile = path.join(local.directory, 'owner-listing-browser-input.json')
     fs.writeFileSync(ownerSecretFile, JSON.stringify(input), { mode: 0o600, flag: 'wx' })
@@ -502,29 +515,13 @@ async function runOwnerListing() {
       report.status = 'passed'
     } catch (error) {
       report.status = 'failed'
-      report.errors.push(redact(error.message))
+      report.errors.push(
+        ownerListingFirstPhase ? 'Configured Owner first phase failed' : redact(error.message),
+      )
     }
     const stepPath = path.join(output.directory, 'steps.json')
-    if (fs.existsSync(stepPath)) {
-      const steps = JSON.parse(fs.readFileSync(stepPath, 'utf8'))
-      report.stepResults = Array.isArray(steps)
-        ? steps.map((step) => ({
-            name: typeof step?.name === 'string' ? step.name : 'unavailable',
-            status:
-              step?.status === 'running'
-                ? 'incomplete'
-                : ['pending', 'passed', 'failed'].includes(step?.status)
-                  ? step.status
-                  : 'unavailable',
-            durationMs:
-              step?.status === 'running' && Number.isFinite(step?.startedAtMs)
-                ? Math.max(0, Date.now() - step.startedAtMs)
-                : Number.isFinite(step?.durationMs) && step.durationMs >= 0
-                  ? Math.round(step.durationMs)
-                  : 0,
-          }))
-        : []
-    }
+    if (fs.existsSync(stepPath))
+      report.stepResults = ownerListingStepResults(fs.readFileSync(stepPath, 'utf8'))
     const resultPath = path.join(output.directory, 'playwright.json')
     if (!fs.existsSync(resultPath)) {
       report.status = 'unavailable'
@@ -534,7 +531,8 @@ async function runOwnerListing() {
       report.stats = results.stats
       report.checks = results.checks
       if (results.status !== 'passed' || report.status !== 'passed') report.status = 'failed'
-      else if (report.localClaimIntake.status === 'missing-owned-work') report.status = 'blocked'
+      else if (!ownerListingFirstPhase && report.localClaimIntake.status === 'missing-owned-work')
+        report.status = 'blocked'
     }
     report.screenshots = screenshotArtifacts(path.join(output.directory, 'browser'))
     report.browserOrigin = origin

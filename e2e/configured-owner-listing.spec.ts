@@ -2,6 +2,10 @@ import { expect, test, type Browser, type Page } from '@playwright/test'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import {
+  ownerListingFailure,
+  ownerListingPathname,
+} from '../scripts/configured-representative-hours-report.mjs'
 
 type User = { email: string; password: string; totpSecret?: string }
 type Input = {
@@ -19,6 +23,7 @@ type Input = {
   ownerCancel: User
   shopper: User
   admin: User
+  diagnosticPhase?: 'first' | 'full'
 }
 
 const inputPath = process.env.CONFIGURED_OWNER_LISTING_INPUT
@@ -95,32 +100,56 @@ async function rpc(
   return { status: response.status, data: (await response.json()) as unknown }
 }
 
-async function signIn(page: Page, user: User, returnTo: string) {
+type MarkOperation = (operation: string, page: Page, pathname?: string) => void
+
+async function signIn(page: Page, user: User, returnTo: string, mark: MarkOperation) {
+  mark('sign_in_open_page', page, '/auth/sign-in')
   await page.goto(`/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`)
+  mark('sign_in_fill_email', page)
   await page.getByLabel('Email', { exact: true }).fill(user.email)
+  mark('sign_in_fill_password', page)
   await page.getByLabel('Password', { exact: true }).fill(user.password)
+  mark('sign_in_submit_password', page)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   if (user.totpSecret) {
+    mark('sign_in_expect_mfa', page)
     await expect(page.getByRole('heading', { name: 'Verify your sign-in' })).toBeVisible()
+    mark('sign_in_fill_mfa', page)
     await page.getByLabel('Authentication code', { exact: true }).fill(totp(user.totpSecret))
+    mark('sign_in_submit_mfa', page)
     await page.getByRole('button', { name: 'Verify code', exact: true }).click()
   }
+  mark('sign_in_wait_return_url', page, returnTo)
   await expect(page).toHaveURL(new RegExp(`${returnTo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
 }
 
-async function acceptInvitation(page: Page, invitationToken: string, user: User, name: string) {
+async function acceptInvitation(
+  page: Page,
+  invitationToken: string,
+  user: User,
+  name: string,
+  mark: MarkOperation,
+) {
+  mark('accept_invitation_open', page, '/partner/join')
   await page.goto(`/partner/join#token=${invitationToken}`)
+  mark('accept_invitation_expect_form', page)
   await expect(page.getByLabel('Your name', { exact: true })).toBeVisible()
+  mark('accept_invitation_fill_form', page)
   await page.getByLabel('Your name', { exact: true }).fill(name)
   await page.getByLabel('Your title or role', { exact: true }).fill('Store Owner')
   await page.getByLabel('Store name', { exact: true }).fill('Clockwork Cabinet')
   await page.getByLabel('Owner-controlled email', { exact: true }).fill(user.email)
   for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check()
+  mark('accept_invitation_submit_form', page)
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  mark('accept_invitation_expect_result', page)
   await expect(page.getByRole('alert')).toHaveCount(0)
 
+  mark('open_partner_verification', page, '/partner/verify')
   await page.goto('/partner/verify')
+  mark('bind_partner_identity', page)
   await page.getByRole('button', { name: 'Check verification', exact: true }).click()
+  mark('verify_partner_binding', page)
   await expect(page.getByRole('alert')).toHaveCount(0)
 }
 
@@ -177,23 +206,38 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
     'Wrong-store direct write is denied and does not change Store B',
     'Site Admin revocation denies the next request in Owner A’s same session',
   ]
-  const stepReceipts = stepTitles.map((name) => ({ name, status: 'pending', durationMs: 0 }))
+  const firstPhase = input.diagnosticPhase === 'first'
+  const stepReceipts: Array<Record<string, unknown>> = (
+    firstPhase ? stepTitles.slice(0, 1) : stepTitles
+  ).map((name) => ({
+    name,
+    status: 'pending',
+    durationMs: 0,
+    operation: 'unknown',
+    pathname: 'unknown',
+  }))
   const stepReceiptPath = path.join(input.output, 'steps.json')
   let stepIndex = 0
   const writeStepReceipts = () => fs.writeFileSync(stepReceiptPath, JSON.stringify(stepReceipts))
   writeStepReceipts()
-  const step = async (name: string, action: () => Promise<void>) => {
+  const step = async (name: string, action: (mark: MarkOperation) => Promise<void>) => {
     const receipt = stepReceipts[stepIndex]
     if (!receipt || receipt.name !== name) throw new Error('Owner listing step manifest drift')
     const startedAtMs = Date.now()
     receipt.status = 'running'
     Object.assign(receipt, { startedAtMs })
     writeStepReceipts()
+    const mark: MarkOperation = (operation, page, pathname) => {
+      receipt.operation = operation
+      receipt.pathname = ownerListingPathname(pathname ?? page.url())
+      writeStepReceipts()
+    }
     try {
-      await test.step(name, action)
+      await test.step(name, () => action(mark))
       receipt.status = 'passed'
-    } catch {
+    } catch (error) {
       receipt.status = 'failed'
+      receipt.failure = ownerListingFailure(error)
       failures.push(name)
     } finally {
       receipt.durationMs = Date.now() - startedAtMs
@@ -221,21 +265,43 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
   let anonymousContext: Awaited<ReturnType<typeof openPublicStore>>['context'] | undefined
 
   try {
-    await step('Invited applicant accepts setup without receiving Owner authority', async () => {
-      await signIn(invitedOwner, input.ownerApplicant, '/owner/stores')
-      await invitedOwner.screenshot({
-        path: testInfo.outputPath('owner-before-approval.png'),
-        fullPage: true,
-      })
-      await expect(invitedOwner.getByRole('alert')).toBeVisible()
-      const token = invitedOwnerToken()
-      if (!token) throw new Error('Invited applicant session token was not observed')
-      await expectDenied(await rpc(token, 'owner_list_stores'), 'invited applicant before approval')
+    await step(
+      'Invited applicant accepts setup without receiving Owner authority',
+      async (mark) => {
+        await signIn(invitedOwner, input.ownerApplicant, '/owner/stores', mark)
+        mark('capture_before_approval_screenshot', invitedOwner)
+        await invitedOwner.screenshot({
+          path: testInfo.outputPath('owner-before-approval.png'),
+          fullPage: true,
+        })
+        mark('expect_unapproved_owner_access_alert', invitedOwner)
+        await expect(invitedOwner.getByRole('alert')).toBeVisible()
+        mark('read_unapproved_owner_list', invitedOwner)
+        const token = invitedOwnerToken()
+        if (!token) throw new Error('Invited applicant session token was not observed')
+        await expectDenied(
+          await rpc(token, 'owner_list_stores'),
+          'invited applicant before approval',
+        )
 
-      await acceptInvitation(invitedOwner, input.invitationA, input.ownerApplicant, 'Applicant A')
-      await invitedOwner.goto('/partner/draft')
-      await expect(invitedOwner.getByLabel('Store name', { exact: true })).toBeVisible()
-    })
+        await acceptInvitation(
+          invitedOwner,
+          input.invitationA,
+          input.ownerApplicant,
+          'Applicant A',
+          mark,
+        )
+        mark('open_partner_draft', invitedOwner, '/partner/draft')
+        await invitedOwner.goto('/partner/draft')
+        mark('expect_partner_draft_form', invitedOwner)
+        await expect(invitedOwner.getByLabel('Store name', { exact: true })).toBeVisible()
+      },
+    )
+
+    if (firstPhase) {
+      if (failures.length) throw new Error('Configured Owner first phase failed')
+      return
+    }
 
     await step('Unsent invited draft survives ordinary navigation', async () => {
       await invitedOwner.goto('/partner/draft')
@@ -287,13 +353,14 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
     })
 
     await step('Canceled invited setup creates no claim or grant', async () => {
-      await signIn(cancelledOwner, input.ownerCancel, '/owner/stores')
+      await signIn(cancelledOwner, input.ownerCancel, '/owner/stores', () => {})
       await expect(cancelledOwner.getByRole('alert')).toBeVisible()
       await acceptInvitation(
         cancelledOwner,
         input.invitationCancel,
         input.ownerCancel,
         'Cancelled Owner',
+        () => {},
       )
       await cancelledOwner.goto('/partner/draft')
       await fillPartnerDraft(
@@ -317,12 +384,12 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
     })
 
     await step('Site Admin approves the exact Store A claim separately', async () => {
-      await signIn(ownerA, input.ownerA, '/owner/stores')
+      await signIn(ownerA, input.ownerA, '/owner/stores', () => {})
       const ownerToken = ownerAToken()
       if (!ownerToken) throw new Error('Established Owner A session token was not observed')
       await expectDenied(await rpc(ownerToken, 'owner_list_stores'), 'Owner A before approval')
 
-      await signIn(admin, input.admin, '/admin/partners')
+      await signIn(admin, input.admin, '/admin/partners', () => {})
       const token = adminToken()
       if (!token) throw new Error('Site Admin session token was not observed')
       await expectDenied(await rpc(token, 'owner_list_stores'), 'Site Admin as Owner')
@@ -375,7 +442,7 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
         'wrong account',
       )
 
-      await signIn(shopper, input.shopper, '/owner/stores')
+      await signIn(shopper, input.shopper, '/owner/stores', () => {})
       const shopperBearer = shopperToken()
       if (!shopperBearer) throw new Error('Shopper session token was not observed')
       await expectDenied(await rpc(shopperBearer, 'owner_list_stores'), 'Shopper as Owner')
