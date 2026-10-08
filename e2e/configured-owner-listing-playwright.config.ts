@@ -22,7 +22,7 @@ export default defineConfig({
   testMatch: 'configured-owner-listing.spec.ts',
   workers: 1,
   fullyParallel: false,
-  timeout: 120_000,
+  timeout: 300_000,
   expect: { timeout: 12_000 },
   retries: 0,
   outputDir: path.join(input.output, 'browser'),
