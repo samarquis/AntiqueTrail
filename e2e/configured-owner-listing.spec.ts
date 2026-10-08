@@ -100,7 +100,44 @@ async function rpc(
   return { status: response.status, data: (await response.json()) as unknown }
 }
 
-type MarkOperation = (operation: string, page: Page, pathname?: string) => void
+type InvitationUiState =
+  | 'form_visible'
+  | 'generic_error'
+  | 'invitation_checking'
+  | 'invitation_inactive'
+  | 'join_shell_only'
+  | 'join_shell_missing'
+  | 'unexpected_route'
+  | 'unknown'
+type MarkOperation = (
+  operation: string,
+  page: Page,
+  pathname?: string,
+  invitationUiState?: InvitationUiState,
+) => void
+
+async function invitationUiState(page: Page): Promise<InvitationUiState> {
+  try {
+    if (ownerListingPathname(page.url()) !== '/partner/join') return 'unexpected_route'
+    if (await page.getByLabel('Your name', { exact: true }).isVisible()) return 'form_visible'
+    if (await page.getByRole('alert').isVisible()) return 'generic_error'
+    const status = page.getByRole('status')
+    if ((await status.count()) > 0) {
+      const text = (await status.first().textContent())?.trim()
+      if (text === 'Checking invitation…') return 'invitation_checking'
+      if (text === 'This invitation is no longer available.') return 'invitation_inactive'
+    }
+    if (
+      await page
+        .getByRole('heading', { name: 'Review invitation & consent', exact: true })
+        .isVisible()
+    )
+      return 'join_shell_only'
+    return 'join_shell_missing'
+  } catch {
+    return 'unknown'
+  }
+}
 
 async function signIn(page: Page, user: User, returnTo: string, mark: MarkOperation) {
   mark('sign_in_open_page', page, '/auth/sign-in')
@@ -132,7 +169,7 @@ async function acceptInvitation(
 ) {
   mark('accept_invitation_open', page, '/partner/join')
   await page.goto(`/partner/join#token=${invitationToken}`)
-  mark('accept_invitation_expect_form', page)
+  mark('accept_invitation_expect_form', page, undefined, await invitationUiState(page))
   await expect(page.getByLabel('Your name', { exact: true })).toBeVisible()
   mark('accept_invitation_fill_form', page)
   await page.getByLabel('Your name', { exact: true }).fill(name)
@@ -227,9 +264,10 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
     receipt.status = 'running'
     Object.assign(receipt, { startedAtMs })
     writeStepReceipts()
-    const mark: MarkOperation = (operation, page, pathname) => {
+    const mark: MarkOperation = (operation, page, pathname, uiState) => {
       receipt.operation = operation
       receipt.pathname = ownerListingPathname(pathname ?? page.url())
+      if (uiState) receipt.invitationUiState = uiState
       writeStepReceipts()
     }
     try {

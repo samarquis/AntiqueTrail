@@ -47,6 +47,16 @@ const ownerListingAssertions = [
   'locator.uncheck',
 ]
 const ownerListingCategories = new Set(['timeout', 'strict_locator', 'assertion', 'operation'])
+const ownerListingInvitationUiStates = new Set([
+  'form_visible',
+  'generic_error',
+  'invitation_checking',
+  'invitation_inactive',
+  'join_shell_only',
+  'join_shell_missing',
+  'unexpected_route',
+  'unknown',
+])
 
 export function ownerListingPathname(value) {
   if (typeof value !== 'string') return 'unknown'
@@ -103,6 +113,9 @@ export function ownerListingStepResults(text) {
             : 0,
       operation: ownerListingOperations.has(step?.operation) ? step.operation : 'unknown',
       pathname: ownerListingPathname(step?.pathname),
+      ...(ownerListingInvitationUiStates.has(step?.invitationUiState)
+        ? { invitationUiState: step.invitationUiState }
+        : {}),
     }
     if (step?.failure && typeof step.failure === 'object') {
       const failure = step.failure

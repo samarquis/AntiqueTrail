@@ -95,6 +95,7 @@ test('Owner failure diagnostics retain only allowlisted operation data', () => {
         durationMs: 12000,
         operation: 'expect_unapproved_owner_access_alert',
         pathname: '/owner/stores?claimStore=private-id#token=private-token',
+        invitationUiState: 'person@private.invalid private-token',
         failure: { ...failure, message: 'private-token', email: 'person@private.invalid' },
       },
     ]),
@@ -113,4 +114,5 @@ test('Owner failure diagnostics retain only allowlisted operation data', () => {
     },
   })
   assert.doesNotMatch(JSON.stringify(steps), /private-token|private-id|private\.invalid|Bearer/)
+  assert.equal('invitationUiState' in steps[0], false)
 })
