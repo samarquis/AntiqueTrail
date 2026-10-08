@@ -14,6 +14,7 @@ type Input = {
   invitationA: string
   invitationCancel: string
   ownerA: User
+  ownerApplicant: User
   ownerCancel: User
   shopper: User
   admin: User
@@ -170,6 +171,9 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
   const ownerAContext = await browser.newContext({ baseURL: input.origin })
   const ownerA = await ownerAContext.newPage()
   const ownerAToken = bearerFor(ownerA)
+  const invitedOwnerContext = await browser.newContext({ baseURL: input.origin })
+  const invitedOwner = await invitedOwnerContext.newPage()
+  const invitedOwnerToken = bearerFor(invitedOwner)
   const cancelledOwnerContext = await browser.newContext({ baseURL: input.origin })
   const cancelledOwner = await cancelledOwnerContext.newPage()
   const cancelledOwnerToken = bearerFor(cancelledOwner)
@@ -182,62 +186,66 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
   let anonymousContext: Awaited<ReturnType<typeof openPublicStore>>['context'] | undefined
 
   try {
-    await step('Owner A starts without a grant and completes invited setup', async () => {
-      await signIn(ownerA, input.ownerA, '/owner/stores')
-      await ownerA.screenshot({
+    await step('Invited applicant accepts setup without receiving Owner authority', async () => {
+      await signIn(invitedOwner, input.ownerApplicant, '/owner/stores')
+      await invitedOwner.screenshot({
         path: testInfo.outputPath('owner-before-approval.png'),
         fullPage: true,
       })
-      await expect(ownerA.getByRole('alert')).toBeVisible()
-      const token = ownerAToken()
-      if (!token) throw new Error('Owner session token was not observed')
-      await expectDenied(await rpc(token, 'owner_list_stores'), 'Owner A before approval')
+      await expect(invitedOwner.getByRole('alert')).toBeVisible()
+      const token = invitedOwnerToken()
+      if (!token) throw new Error('Invited applicant session token was not observed')
+      await expectDenied(await rpc(token, 'owner_list_stores'), 'invited applicant before approval')
 
-      await acceptInvitation(ownerA, input.invitationA, input.ownerA, 'Owner A')
-      await ownerA.goto('/partner/draft')
-      await expect(ownerA.getByLabel('Store name', { exact: true })).toBeVisible()
+      await acceptInvitation(invitedOwner, input.invitationA, input.ownerApplicant, 'Applicant A')
+      await invitedOwner.goto('/partner/draft')
+      await expect(invitedOwner.getByLabel('Store name', { exact: true })).toBeVisible()
     })
 
     await step('Unsent invited draft survives ordinary navigation', async () => {
-      await ownerA.goto('/partner/draft')
+      await invitedOwner.goto('/partner/draft')
       await fillPartnerDraft(
-        ownerA,
+        invitedOwner,
         'Clockwork Cabinet',
-        'Unsent Owner A draft retained across navigation.',
+        'Unsent invited applicant draft retained across navigation.',
       )
-      const browse = ownerA.locator('a[href="/stores"]').first()
+      const browse = invitedOwner.locator('a[href="/stores"]').first()
       await browse.click()
-      await ownerA.goBack()
-      await expect(ownerA.getByLabel('Description', { exact: true })).toHaveValue(
-        'Unsent Owner A draft retained across navigation.',
+      await invitedOwner.goBack()
+      await expect(invitedOwner.getByLabel('Description', { exact: true })).toHaveValue(
+        'Unsent invited applicant draft retained across navigation.',
       )
     })
 
-    await step('Owner A submits invited draft without receiving Owner authority', async () => {
-      await ownerA.goto('/partner/draft')
+    await step('Invited applicant submits draft without receiving Owner authority', async () => {
+      await invitedOwner.goto('/partner/draft')
       await fillPartnerDraft(
-        ownerA,
+        invitedOwner,
         'Clockwork Cabinet',
         'Synthetic guided listing draft for Store A.',
       )
-      await ownerA.getByRole('button', { name: 'Save draft', exact: true }).click()
-      await expect(ownerA.getByRole('status')).toContainText('Draft status: draft.')
-      await ownerA.getByRole('button', { name: 'Submit draft for review', exact: true }).click()
-      await expect(ownerA.getByRole('status')).toContainText('submitted')
-      const token = ownerAToken()
-      if (!token) throw new Error('Owner session token was not observed')
+      await invitedOwner.getByRole('button', { name: 'Save draft', exact: true }).click()
+      await expect(invitedOwner.getByRole('status')).toContainText('Draft status: draft.')
+      await invitedOwner
+        .getByRole('button', { name: 'Submit draft for review', exact: true })
+        .click()
+      await expect(invitedOwner.getByRole('status')).toContainText('submitted')
+      const token = invitedOwnerToken()
+      if (!token) throw new Error('Invited applicant session token was not observed')
       await expectDenied(
         await rpc(token, 'owner_list_stores'),
-        'Owner A before Site Admin approval',
+        'invited applicant before Site Admin approval',
       )
     })
 
     await step('Local synthetic stage keeps public claim activation unavailable', async () => {
-      await ownerA.goto(`/partner/claim?claimStore=${encodeURIComponent(input.storeA.id)}`)
+      await invitedOwner.goto(`/partner/claim?claimStore=${encodeURIComponent(input.storeA.id)}`)
       await expect(
-        ownerA.getByRole('heading', { name: 'Owner intake is not available in this public test' }),
+        invitedOwner.getByRole('heading', {
+          name: 'Owner intake is not available in this public test',
+        }),
       ).toBeVisible()
-      await ownerA.screenshot({
+      await invitedOwner.screenshot({
         path: testInfo.outputPath('owner-intake-gate.png'),
         fullPage: true,
       })
@@ -274,6 +282,11 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
     })
 
     await step('Site Admin approves the exact Store A claim separately', async () => {
+      await signIn(ownerA, input.ownerA, '/owner/stores')
+      const ownerToken = ownerAToken()
+      if (!ownerToken) throw new Error('Established Owner A session token was not observed')
+      await expectDenied(await rpc(ownerToken, 'owner_list_stores'), 'Owner A before approval')
+
       await signIn(admin, input.admin, '/admin/partners')
       const token = adminToken()
       if (!token) throw new Error('Site Admin session token was not observed')
@@ -311,6 +324,9 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       const token = ownerAToken()
       if (!token) throw new Error('Owner session token was not observed')
       await expectSingleOwnerStore(await rpc(token, 'owner_list_stores'))
+      const invitedBearer = invitedOwnerToken()
+      if (!invitedBearer) throw new Error('Invited applicant session token was not observed')
+      await expectDenied(await rpc(invitedBearer, 'owner_list_stores'), 'invited applicant')
       await expectDenied(
         await rpc(token, 'owner_select_store', { p_store_id: input.storeB.id }),
         'Owner selecting Store B',
@@ -604,6 +620,7 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
     await anonymousContext?.close()
     await Promise.all([
       ownerAContext.close(),
+      invitedOwnerContext.close(),
       cancelledOwnerContext.close(),
       adminContext.close(),
       shopperContext.close(),

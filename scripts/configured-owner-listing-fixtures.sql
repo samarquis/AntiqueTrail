@@ -20,6 +20,7 @@ insert into app_public.stores(
 insert into app_private.profiles(user_id,verified_email_snapshot,age_18_attested_at)
 values
   ('--OWNER_A--','--OWNER_A_EMAIL--',statement_timestamp()),
+  ('--OWNER_APPLICANT--','--OWNER_APPLICANT_EMAIL--',statement_timestamp()),
   ('--OWNER_CANCEL--','--OWNER_CANCEL_EMAIL--',statement_timestamp()),
   ('--ADMIN--','--ADMIN_EMAIL--',statement_timestamp())
 on conflict(user_id) do update set
@@ -28,6 +29,7 @@ on conflict(user_id) do update set
 
 insert into app_private.role_grants(subject_user_id,role,state) values
   ('--OWNER_A--','shopper','active'),
+  ('--OWNER_APPLICANT--','shopper','active'),
   ('--OWNER_CANCEL--','shopper','active'),
   ('--ADMIN--','administrator','active');
 
@@ -53,12 +55,40 @@ from (values ('--STORE_A--'::uuid),('--STORE_B--'::uuid)) stores(store_id)
 cross join generate_series(1,7) weekday;
 
 insert into partner_private.partner_invitations(
-  invitation_id,token_hash,recipient_email_hmac,created_by,state,synthetic,issuance_idempotency_key,raw_returned_at
+  invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at,synthetic,
+  issuance_idempotency_key,raw_returned_at
 ) values
-  ('--INVITE_A_ID--',decode('--INVITE_A_HASH--','hex'),decode('--OWNER_A_EMAIL_HMAC--','hex'),
-   '--ADMIN--','active',true,'issue579-owner-a',statement_timestamp()),
+  ('--INVITE_A_ID--',decode('--INVITE_A_HASH--','hex'),decode('--OWNER_APPLICANT_EMAIL_HMAC--','hex'),
+   '--ADMIN--','active',null,true,'issue579-invited-applicant',statement_timestamp()),
   ('--INVITE_CANCEL_ID--',decode('--INVITE_CANCEL_HASH--','hex'),decode('--OWNER_CANCEL_EMAIL_HMAC--','hex'),
-   '--ADMIN--','active',true,'issue579-owner-cancel',statement_timestamp());
+   '--ADMIN--','active',null,true,'issue579-owner-cancel',statement_timestamp()),
+  ('--MAINT_INVITE_ID--',decode('--MAINT_INVITE_HASH--','hex'),decode('--OWNER_A_EMAIL_HMAC--','hex'),
+   '--ADMIN--','consumed',statement_timestamp(),true,'issue579-established-owner',statement_timestamp());
+
+insert into partner_private.pending_partner_identities(
+  pending_identity_id,invitation_id,email_hmac,auth_user_id,state,verified_email_at,mfa_verified_at,bound_at
+) values (
+  '--MAINT_PENDING_ID--','--MAINT_INVITE_ID--',decode('--OWNER_A_EMAIL_HMAC--','hex'),
+  '--OWNER_A--','bound',statement_timestamp(),statement_timestamp(),statement_timestamp()
+);
+
+insert into partner_private.provisional_partner_consents(
+  provisional_consent_id,invitation_id,pending_identity_id,policy_version,typed_name,business_title,
+  store_name,owner_email_hmac,authority_ack,voluntary_ack,permitted_data_ack,
+  no_payment_endorsement_ack,withdrawal_ack,idempotency_key
+) values (
+  '--MAINT_CONSENT_ID--','--MAINT_INVITE_ID--','--MAINT_PENDING_ID--','synthetic-v3',
+  'Established Owner A','Store Owner','Clockwork Cabinet',decode('--OWNER_A_EMAIL_HMAC--','hex'),
+  true,true,true,true,true,'issue579-established-owner-consent'
+);
+
+insert into partner_private.pilot_consent_receipts(
+  consent_receipt_id,provisional_consent_id,pending_identity_id,invitation_id,auth_user_id,
+  verified_email_hmac,policy_version,receipt_checksum
+) values (
+  '--MAINT_RECEIPT_ID--','--MAINT_CONSENT_ID--','--MAINT_PENDING_ID--','--MAINT_INVITE_ID--',
+  '--OWNER_A--',decode('--OWNER_A_EMAIL_HMAC--','hex'),'synthetic-v3',decode(repeat('55',32),'hex')
+);
 
 -- Match the existing configured Owner billing fixture's synthetic authority signals.
 insert into partner_private.listing_claims(claim_id,claimant_id,store_id,relationship,authority_statement)

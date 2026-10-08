@@ -327,6 +327,11 @@ async function runOwnerListing() {
     report.status = 'running'
 
     const ownerA = await createOwnerListingIdentity(local, service.request, 'issue579-owner-a')
+    const ownerApplicant = await createOwnerListingIdentity(
+      local,
+      service.request,
+      'issue579-owner-applicant',
+    )
     const ownerCancel = await createOwnerListingIdentity(
       local,
       service.request,
@@ -334,8 +339,9 @@ async function runOwnerListing() {
     )
     const admin = await createOwnerListingIdentity(local, service.request, 'issue579-site-admin')
     const shopper = local.users[0]
-    const [ownerATotp, ownerCancelTotp, adminTotp] = await Promise.all([
+    const [ownerATotp, ownerApplicantTotp, ownerCancelTotp, adminTotp] = await Promise.all([
       enrollOwnerListingTotp(local, service.request, ownerA, 'issue-579-owner-a'),
+      enrollOwnerListingTotp(local, service.request, ownerApplicant, 'issue-579-owner-applicant'),
       enrollOwnerListingTotp(local, service.request, ownerCancel, 'issue-579-owner-cancel'),
       enrollOwnerListingTotp(local, service.request, admin, 'issue-579-site-admin'),
     ])
@@ -345,8 +351,13 @@ async function runOwnerListing() {
     const claimId = uuid()
     const invitationAId = uuid()
     const invitationCancelId = uuid()
+    const maintenanceInvitationId = uuid()
+    const maintenancePendingId = uuid()
+    const maintenanceConsentId = uuid()
+    const maintenanceReceiptId = uuid()
     const invitationA = crypto.randomBytes(32).toString('hex')
     const invitationCancel = crypto.randomBytes(32).toString('hex')
+    const maintenanceInvitationHash = sha256(crypto.randomBytes(32))
     const authorityEventA = uuid()
     const authorityEventB = uuid()
     const emailHmac = (email) =>
@@ -361,16 +372,24 @@ async function runOwnerListing() {
       STORE_B: storeB.id,
       OWNER_A: ownerA.id,
       OWNER_A_EMAIL: ownerA.email,
+      OWNER_APPLICANT: ownerApplicant.id,
+      OWNER_APPLICANT_EMAIL: ownerApplicant.email,
       OWNER_CANCEL: ownerCancel.id,
       OWNER_CANCEL_EMAIL: ownerCancel.email,
       ADMIN: admin.id,
       ADMIN_EMAIL: admin.email,
       OWNER_A_EMAIL_HMAC: emailHmac(ownerA.email),
+      OWNER_APPLICANT_EMAIL_HMAC: emailHmac(ownerApplicant.email),
       OWNER_CANCEL_EMAIL_HMAC: emailHmac(ownerCancel.email),
       INVITE_A_ID: invitationAId,
       INVITE_A_HASH: sha256(Buffer.from(invitationA, 'hex')),
       INVITE_CANCEL_ID: invitationCancelId,
       INVITE_CANCEL_HASH: sha256(Buffer.from(invitationCancel, 'hex')),
+      MAINT_INVITE_ID: maintenanceInvitationId,
+      MAINT_INVITE_HASH: maintenanceInvitationHash,
+      MAINT_PENDING_ID: maintenancePendingId,
+      MAINT_CONSENT_ID: maintenanceConsentId,
+      MAINT_RECEIPT_ID: maintenanceReceiptId,
       CLAIM_ID: claimId,
       SIGNAL_EVENT_A: authorityEventA,
       SIGNAL_EVENT_B: authorityEventB,
@@ -386,8 +405,14 @@ async function runOwnerListing() {
       reason:
         'The invited draft does not create a listing claim, and local synthetic-alpha does not expose the guided claim-intake path. The separate established Owner fixture proves maintenance only; it does not prove invitation-to-claim acceptance. This is missing issue work, not an external service blocker.',
     }
-    report.localInvitationSetup = 'synthetic fixture token; no email provider used'
-    report.ownerIdentityIds = { ownerA: ownerA.id, ownerCancel: ownerCancel.id, admin: admin.id }
+    report.localInvitationSetup =
+      'synthetic applicant and cancellation tokens; no email provider used'
+    report.ownerIdentityIds = {
+      ownerA: ownerA.id,
+      ownerApplicant: ownerApplicant.id,
+      ownerCancel: ownerCancel.id,
+      admin: admin.id,
+    }
 
     const input = {
       endpoint: local.endpoint,
@@ -400,6 +425,11 @@ async function runOwnerListing() {
       invitationA,
       invitationCancel,
       ownerA: { email: ownerA.email, password: ownerA.password, totpSecret: ownerATotp },
+      ownerApplicant: {
+        email: ownerApplicant.email,
+        password: ownerApplicant.password,
+        totpSecret: ownerApplicantTotp,
+      },
       ownerCancel: {
         email: ownerCancel.email,
         password: ownerCancel.password,
