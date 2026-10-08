@@ -173,7 +173,10 @@ test('Issue 565 probes retain safe route and revocation classes only', () => {
                   results: [
                     {
                       status: 'failed',
-                      error: { message: 'expect.toHaveURL', stack: 'configured-free-shopper.spec.ts:1:1' },
+                      error: {
+                        message: 'expect.toHaveURL',
+                        stack: 'configured-free-shopper.spec.ts:1:1',
+                      },
                     },
                   ],
                 },

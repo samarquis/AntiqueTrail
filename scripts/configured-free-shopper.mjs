@@ -66,8 +66,7 @@ process.on('SIGTERM', interrupt)
 let service, server
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
-  if (scopes.length > 1)
-    throw new Error('Choose one configured acceptance scope')
+  if (scopes.length > 1) throw new Error('Choose one configured acceptance scope')
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
     throw new Error('External endpoint selection is forbidden')
   const origin = `http://127.0.0.1:${await freePort()}`
@@ -234,7 +233,12 @@ try {
       fs.readFileSync(resultPath, 'utf8'),
       sessionSignout
         ? 4
-        : mediaOnly || partnerRemoval || accountSettings || detailsAddToTrip || anonymousDiscovery || myTripsVisuals
+        : mediaOnly ||
+            partnerRemoval ||
+            accountSettings ||
+            detailsAddToTrip ||
+            anonymousDiscovery ||
+            myTripsVisuals
           ? 2
           : 26,
     )

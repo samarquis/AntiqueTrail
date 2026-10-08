@@ -42,8 +42,7 @@ async function issue565AddToTripProbe(page: Page, link: ReturnType<Page['getByRo
     locatorCount,
     hrefPath: issue565Path(href, page.url()),
     disabled,
-    ariaDisabled:
-      ariaDisabled === 'true' || ariaDisabled === 'false' ? ariaDisabled : 'unset',
+    ariaDisabled: ariaDisabled === 'true' || ariaDisabled === 'false' ? ariaDisabled : 'unset',
     pointerEvents: pointerEvents === 'auto' || pointerEvents === 'none' ? pointerEvents : 'other',
   }
 }
@@ -295,10 +294,7 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
       'error',
       (event) => {
         const image = event.target
-        if (
-          image instanceof HTMLImageElement &&
-          new URL(image.src).pathname === coverPath
-        )
+        if (image instanceof HTMLImageElement && new URL(image.src).pathname === coverPath)
           target.__issue565CoverErrors = (target.__issue565CoverErrors ?? 0) + 1
       },
       true,
@@ -490,9 +486,7 @@ test('visible Saved-row chooser cancels, retries, and reads back one dated stop'
     const tripLink = tripRow.getByRole('link', { name: tripName, exact: true })
     await tripLink.click()
     await expect(page).toHaveURL(new RegExp(`/trips/${id}/plan$`))
-    await expect(
-      page.getByRole('heading', { level: 1, name: tripName, exact: true }),
-    ).toBeFocused()
+    await expect(page.getByRole('heading', { level: 1, name: tripName, exact: true })).toBeFocused()
     await expect(page.getByText(`Trip date: ${trip.date}`)).toBeVisible()
     await page.screenshot({ path: test.info().outputPath('plan-light.png'), fullPage: true })
     await page.getByRole('button', { name: 'Switch to dark theme' }).click()
@@ -1130,9 +1124,11 @@ test('two local accounts keep settings private across save, fresh login, and rev
     expect(claims?.matchesSibling).toBe(true)
 
     const siblingVersion = Number(
-      (await service.sql(
-        `select version::text from app_private.profiles where user_id='${siblingId}';`,
-      )).trim(),
+      (
+        await service.sql(
+          `select version::text from app_private.profiles where user_id='${siblingId}';`,
+        )
+      ).trim(),
     )
     const sessionState = claims
       ? await service.sql(

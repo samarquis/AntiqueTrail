@@ -63,9 +63,7 @@ export function safeIssue565Diagnostics(value) {
       path: safeRoutePath(discovery.path),
       viewState:
         typeof discovery.viewState === 'string' &&
-        ['details', 'not-found', 'catalog-error', 'loading', 'other'].includes(
-          discovery.viewState,
-        )
+        ['details', 'not-found', 'catalog-error', 'loading', 'other'].includes(discovery.viewState)
           ? discovery.viewState
           : 'other',
       coverHttpStatus:
