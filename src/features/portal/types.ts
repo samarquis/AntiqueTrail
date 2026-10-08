@@ -176,9 +176,17 @@ export interface StoreUpdateDraft {
 
 export interface StoreUpdate extends StoreUpdateDraft {
   id: string
+  version: number
   state: StoreUpdateState
   publishedAt?: string
   archivedAt?: string
+}
+
+export interface StoreUpdateEdit {
+  id: string
+  update: StoreUpdateDraft
+  expectedVersion: number
+  idempotencyKey: string
 }
 
 export type OfficialLinkPlatform = 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'tiktok'
@@ -269,6 +277,7 @@ export interface PortalClient {
   resubmitMedia(input: PortalMediaResubmitInput): Promise<PortalMediaResubmitReceipt>
   listUpdates(): Promise<StoreUpdate[]>
   createUpdate(draft: StoreUpdateDraft): Promise<StoreUpdate>
+  editUpdate(command: StoreUpdateEdit): Promise<StoreUpdate>
   archiveUpdate(id: string): Promise<StoreUpdate>
   restoreUpdate(id: string): Promise<StoreUpdate>
   listOfficialLinks(): Promise<OfficialLink[]>

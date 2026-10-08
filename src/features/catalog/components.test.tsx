@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { BrowsePage, DetailsPage } from './components'
+import { BrowsePage, DetailsPage, StoreUpdatesPage } from './components'
 import { StorePhotosPage } from './StorePhotosPage'
 import { syntheticStores } from './demoClient'
 import type { CatalogClient, CatalogStore } from './types'
@@ -911,6 +911,59 @@ describe('trustworthy Store Details contract', () => {
     expect(screen.getByText(/has not published any updates/i)).toBeVisible()
     expect(screen.getByText(/source information unavailable/i)).toBeVisible()
     expect(screen.getAllByText(/verification date unavailable/i)).toHaveLength(2)
+  })
+
+  it('orders latest and See All updates by publish time, then descending id', async () => {
+    const updates = [
+      {
+        id: 'update-001',
+        title: 'Oldest update',
+        body: 'Oldest body',
+        publishedAt: '2026-01-01T00:00:00Z',
+      },
+      {
+        id: 'update-002',
+        title: 'Earlier tie',
+        body: 'Tie body',
+        publishedAt: '2026-02-01T00:00:00Z',
+      },
+      {
+        id: 'update-003',
+        title: 'Later tie',
+        body: 'Tie body',
+        publishedAt: '2026-02-01T00:00:00Z',
+      },
+      {
+        id: 'update-004',
+        title: 'Newer update',
+        body: 'Newer body',
+        publishedAt: '2026-03-01T00:00:00Z',
+      },
+    ]
+    const store = { ...syntheticStores[0]!, updates }
+    const catalog = client()
+    catalog.details = vi.fn(async () => store)
+
+    render(<DetailsPage client={catalog} slug={store.slug} />)
+    const latestHeading = await screen.findByRole('heading', { name: 'Latest updates' })
+    const latestSection = latestHeading.closest('section')
+    expect(latestSection).not.toBeNull()
+    expect(
+      Array.from(latestSection!.querySelectorAll('h3'), (heading) => heading.textContent),
+    ).toEqual(['Newer update', 'Later tie', 'Earlier tie'])
+    expect(screen.getByRole('link', { name: 'See all store updates' })).toHaveAttribute(
+      'href',
+      `/stores/${store.slug}/updates`,
+    )
+
+    cleanup()
+    render(<StoreUpdatesPage client={catalog} slug={store.slug} />)
+    const allHeading = await screen.findByRole('heading', { name: 'All store updates' })
+    const allSection = allHeading.closest('section')
+    expect(allSection).not.toBeNull()
+    expect(
+      Array.from(allSection!.querySelectorAll('h3'), (heading) => heading.textContent),
+    ).toEqual(['Newer update', 'Later tie', 'Earlier tie', 'Oldest update'])
   })
 
   it('restores the exact Browse query, scroll position, and originating store focus', async () => {

@@ -8,6 +8,7 @@ import {
   MEDIA_GATE_MESSAGE,
   PORTAL_ACCESS_ERROR,
   PortalMediaCapError,
+  PortalUpdateConflictError,
   copyHoursDay,
   unavailablePortalClient,
   validateHours,
@@ -31,6 +32,7 @@ import type {
   PortalPreview,
   StoreUpdate,
   StoreUpdateDraft,
+  StoreUpdateEdit,
   SupportCategory,
   SupportTicket,
 } from './types'
@@ -669,6 +671,8 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
     headline: '',
     details: '',
   })
+  const [editing, setEditing] = useState<StoreUpdateEdit | null>(null)
+  const [editPending, setEditPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   useEffect(() => {
@@ -677,6 +681,38 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
       .then(setUpdates)
       .catch(() => setError(GENERIC_PORTAL_ERROR))
   }, [client])
+  function beginEdit(update: StoreUpdate) {
+    setError(null)
+    setStatus(null)
+    setEditing({
+      id: update.id,
+      update: {
+        type: update.type,
+        headline: update.headline,
+        details: update.details,
+        vendorLabel: update.vendorLabel,
+        sourceUrl: update.sourceUrl,
+        endDate: update.endDate,
+        imageRequested: false,
+      },
+      expectedVersion: update.version,
+      idempotencyKey: crypto.randomUUID(),
+    })
+  }
+  function changeEdit<K extends Exclude<keyof StoreUpdateDraft, 'imageRequested'>>(
+    field: K,
+    value: StoreUpdateDraft[K],
+  ) {
+    setEditing((current) =>
+      current
+        ? {
+            ...current,
+            update: { ...current.update, [field]: value },
+            idempotencyKey: crypto.randomUUID(),
+          }
+        : current,
+    )
+  }
   function submit(event: FormEvent) {
     event.preventDefault()
     const errors = validateUpdateDraft(draft)
@@ -694,6 +730,41 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
       })
       .catch(() => setError(GENERIC_PORTAL_ERROR))
   }
+  function submitEdit(event: FormEvent) {
+    event.preventDefault()
+    if (!editing || editPending) return
+    const errors = validateUpdateDraft(editing.update)
+    if (errors.length) {
+      setError(errors.join(' '))
+      return
+    }
+    setError(null)
+    setStatus(null)
+    setEditPending(true)
+    client
+      .editUpdate(editing)
+      .then((saved) => {
+        setUpdates((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+        setEditing(null)
+        setStatus('Store Update saved.')
+      })
+      .catch((failure: unknown) => {
+        if (failure instanceof PortalUpdateConflictError) {
+          void client
+            .listUpdates()
+            .then(setUpdates)
+            .catch(() => undefined)
+          setError(
+            failure.latestVersion
+              ? `This update is now version ${failure.latestVersion}. Your edit is still here; cancel and reopen the update to review the latest text.`
+              : 'This edit conflicts with a saved update. Your edit is still here; cancel and reopen the update to review the latest text.',
+          )
+          return
+        }
+        setError(GENERIC_PORTAL_ERROR)
+      })
+      .finally(() => setEditPending(false))
+  }
   function changeState(update: StoreUpdate, action: 'archive' | 'restore') {
     const request =
       action === 'archive' ? client.archiveUpdate(update.id) : client.restoreUpdate(update.id)
@@ -709,6 +780,8 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
       description="Text-only updates publish immediately; images remain blocked until M-01."
     >
       <PortalNav />
+      {error && <p role="alert">{error}</p>}
+      {status && <p role="status">{status}</p>}
       <form onSubmit={submit}>
         <fieldset>
           <legend>New Store Update</legend>
@@ -769,8 +842,6 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
           )}
           <p role="status">{MEDIA_GATE_MESSAGE}</p>
         </fieldset>
-        {error && <p role="alert">{error}</p>}
-        {status && <p role="status">{status}</p>}
         <button className="button" type="submit">
           Publish text update
         </button>
@@ -784,14 +855,97 @@ export function PortalUpdatesPage({ client = unavailablePortalClient }: { client
             {updates.map((update) => (
               <li key={update.id}>
                 <strong>{update.headline}</strong> — {update.state}{' '}
-                <button
-                  type="button"
-                  onClick={() =>
-                    changeState(update, update.state === 'archived' ? 'restore' : 'archive')
-                  }
-                >
-                  {update.state === 'archived' ? 'Restore' : 'Archive'}
-                </button>
+                {editing?.id === update.id ? (
+                  <form onSubmit={submitEdit}>
+                    <fieldset disabled={editPending}>
+                      <legend>Edit Store Update</legend>
+                      <label htmlFor={`edit-update-type-${update.id}`}>Edit type</label>
+                      <select
+                        id={`edit-update-type-${update.id}`}
+                        value={editing.update.type}
+                        onChange={(event) =>
+                          changeEdit('type', event.target.value as StoreUpdateDraft['type'])
+                        }
+                      >
+                        {UPDATE_TYPES.map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
+                      <label htmlFor={`edit-update-headline-${update.id}`}>Edit headline</label>
+                      <input
+                        id={`edit-update-headline-${update.id}`}
+                        maxLength={160}
+                        value={editing.update.headline}
+                        onChange={(event) => changeEdit('headline', event.target.value)}
+                        required
+                      />
+                      <label htmlFor={`edit-update-details-${update.id}`}>Edit details</label>
+                      <textarea
+                        id={`edit-update-details-${update.id}`}
+                        maxLength={4000}
+                        value={editing.update.details}
+                        onChange={(event) => changeEdit('details', event.target.value)}
+                        required
+                      />
+                      <label htmlFor={`edit-update-vendor-${update.id}`}>
+                        Edit vendor or booth label (optional)
+                      </label>
+                      <input
+                        id={`edit-update-vendor-${update.id}`}
+                        value={editing.update.vendorLabel ?? ''}
+                        onChange={(event) => changeEdit('vendorLabel', event.target.value)}
+                      />
+                      <label htmlFor={`edit-update-source-${update.id}`}>
+                        Edit official source link (optional)
+                      </label>
+                      <input
+                        id={`edit-update-source-${update.id}`}
+                        type="url"
+                        value={editing.update.sourceUrl ?? ''}
+                        onChange={(event) => changeEdit('sourceUrl', event.target.value)}
+                      />
+                      {editing.update.type === 'sale' && (
+                        <>
+                          <label htmlFor={`edit-update-end-${update.id}`}>Edit sale end date</label>
+                          <input
+                            id={`edit-update-end-${update.id}`}
+                            type="date"
+                            value={editing.update.endDate ?? ''}
+                            onChange={(event) => changeEdit('endDate', event.target.value)}
+                            required
+                          />
+                        </>
+                      )}
+                      <button className="button" type="submit">
+                        {editPending ? 'Saving…' : 'Save update'}
+                      </button>
+                      <button
+                        className="button button--secondary"
+                        type="button"
+                        onClick={() => setEditing(null)}
+                      >
+                        Cancel edit
+                      </button>
+                    </fieldset>
+                  </form>
+                ) : (
+                  <>
+                    <button type="button" disabled={!!editing} onClick={() => beginEdit(update)}>
+                      Edit {update.headline}
+                    </button>{' '}
+                    <button
+                      type="button"
+                      disabled={!!editing}
+                      onClick={() =>
+                        changeState(update, update.state === 'archived' ? 'restore' : 'archive')
+                      }
+                    >
+                      {update.state === 'archived' ? 'Restore' : 'Archive'}
+                    </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>
