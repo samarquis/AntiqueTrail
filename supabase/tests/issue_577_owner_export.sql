@@ -1,5 +1,6 @@
 begin;
 select plan(21);
+update trip_private.private_stop_capability set enabled=true where singleton;
 
 insert into auth.users(id) values
   ('57700000-0000-4000-8000-000000000001'),
@@ -13,7 +14,7 @@ values ('57700000-0000-4000-8000-000000000001','00000000-0000-4000-8000-00000000
 
 insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date,state) values
   ('57700000-0000-4000-8000-000000000010','57700000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','OWNER-A-TRIP','2026-10-07','completed'),
-  ('57700000-0000-4000-8000-000000000011','57700000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000001','OWNER-B-TRIP','2026-10-07','draft');
+  ('57700000-0000-4000-8000-000000000011','57700000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000001','OWNER-B-TRIP','2026-10-07','completed');
 insert into trip_private.trip_participants(trip_id,user_id,participant_role,state) values
   ('57700000-0000-4000-8000-000000000010','57700000-0000-4000-8000-000000000001','creator','active'),
   ('57700000-0000-4000-8000-000000000010','57700000-0000-4000-8000-000000000002','partner','active'),
@@ -25,7 +26,7 @@ insert into trip_private.trip_stops(
   private_source_url,private_hours,destination_status,position,priority,
   planned_dwell_minutes,state,completed_at,version
 ) values
-  ('57700000-0000-4000-8000-000000000020','57700000-0000-4000-8000-000000000010','private',null,null,null,'OWNER-A-PRIVATE-STOP',null,'https://example.test/a',
+  ('57700000-0000-4000-8000-000000000020','57700000-0000-4000-8000-000000000010','private',null,null,null,'OWNER-A-PRIVATE-STOP','OWNER-A-MEMORY-ADDRESS-SNAPSHOT','https://example.test/a',
     jsonb_build_object('timeZone','America/Chicago','weekly',jsonb_build_array(
       jsonb_build_object('weekday',0,'label','Sunday','isClosed',true,'intervals','[]'::jsonb),
       jsonb_build_object('weekday',1,'label','Monday','isClosed',false,'intervals',jsonb_build_array(jsonb_build_object('opensAt','09:00','closesAt','17:00'))),
@@ -35,11 +36,11 @@ insert into trip_private.trip_stops(
       jsonb_build_object('weekday',5,'label','Friday','isClosed',false,'intervals','[]'::jsonb),
       jsonb_build_object('weekday',6,'label','Saturday','isClosed',false,'intervals','[]'::jsonb)),
       'holidays','[]'::jsonb,'version',1),'draft',0,'must',60,'completed',statement_timestamp(),1),
-  ('57700000-0000-4000-8000-000000000021','57700000-0000-4000-8000-000000000010','private',null,null,null,'DETACHED-PRIVATE-STOP',null,'https://example.test/detached',null,'draft',1,'flexible',60,'completed',statement_timestamp(),1),
-  ('57700000-0000-4000-8000-000000000022','57700000-0000-4000-8000-000000000011','private',null,null,null,'OWNER-B-PRIVATE-STOP','OWNER-B-ADDRESS','https://example.test/b',null,'draft',0,'prefer',60,'planned',null,1),
+  ('57700000-0000-4000-8000-000000000021','57700000-0000-4000-8000-000000000010','private',null,null,null,'DETACHED-PRIVATE-STOP','DETACHED-ADDRESS-SNAPSHOT','https://example.test/detached',null,'draft',1,'flexible',60,'completed',statement_timestamp(),1),
+  ('57700000-0000-4000-8000-000000000022','57700000-0000-4000-8000-000000000011','private',null,null,null,'OWNER-B-PRIVATE-STOP','OWNER-B-ADDRESS','https://example.test/b',null,'draft',0,'prefer',60,'completed',statement_timestamp(),1),
   ('57700000-0000-4000-8000-000000000025','57700000-0000-4000-8000-000000000010','store','00000000-0000-4000-8000-000000001001',null,null,null,null,null,null,null,2,'flexible',60,'completed',statement_timestamp(),1),
   ('57700000-0000-4000-8000-000000000026','57700000-0000-4000-8000-000000000010','rest',null,'OWNER-A-REST','OWNER-A-REST-ADDRESS',null,null,null,null,null,3,'flexible',60,'completed',statement_timestamp(),1),
-  ('57700000-0000-4000-8000-000000000027','57700000-0000-4000-8000-000000000011','store','00000000-0000-4000-8000-000000001001',null,null,null,null,null,null,null,1,'flexible',60,'planned',null,1);
+  ('57700000-0000-4000-8000-000000000027','57700000-0000-4000-8000-000000000011','store','00000000-0000-4000-8000-000000001001',null,null,null,null,null,null,null,1,'flexible',60,'completed',statement_timestamp(),1);
 
 insert into trip_private.trip_visit_memories(
   memory_id,author_user_id,trip_id,stop_id,store_id,private_stop_id,
@@ -53,6 +54,12 @@ insert into trip_private.trip_visit_memories(
   ('57700000-0000-4000-8000-000000000036','57700000-0000-4000-8000-000000000001','57700000-0000-4000-8000-000000000011','57700000-0000-4000-8000-000000000027','00000000-0000-4000-8000-000000001001',null,null,null,5,'yes','OWNER-A-REPEAT-CATALOG-VISIT-NOTE',1);
 
 delete from trip_private.trip_stops where stop_id='57700000-0000-4000-8000-000000000021';
+update trip_private.trip_stops
+   set private_address=null,location_purged_at=statement_timestamp()
+ where stop_id in (
+   '57700000-0000-4000-8000-000000000020',
+   '57700000-0000-4000-8000-000000000022'
+ );
 
 insert into app_private.account_export_jobs(export_job_id,user_id,state,claim_token,claimed_at,lease_expires_at,attempt_count)
 values

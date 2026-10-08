@@ -217,7 +217,7 @@ function csv(value: unknown): string {
       typeof cell === 'object' && cell !== null
         ? JSON.stringify(cell) ?? ''
         : String(cell ?? '')
-    const safe = /^[=+\-@\t\r]/u.test(raw) ? `'${raw}` : raw
+    const safe = /^[=+\-@\t\r\n]/u.test(raw) ? `'${raw}` : raw
     return `"${safe.replaceAll('"', '""')}"`
   }
   return `${keys.map(quote).join(',')}\r\n${rows.map((row) => keys.map((key) => quote((row as Record<string, unknown>)[key])).join(',')).join('\r\n')}\r\n`

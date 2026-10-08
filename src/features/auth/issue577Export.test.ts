@@ -30,6 +30,7 @@ describe('issue #577 portable private-stop export', () => {
           shopper: {
             memories: [
               { storeId: 'store-1', rating: 4, note: 'STORE-SUMMARY-NOTE' },
+              { storeId: 'store-2', rating: 3, note: String.fromCharCode(10) + '=1+1' },
             ],
             privateStops: [
               {
@@ -112,6 +113,7 @@ describe('issue #577 portable private-stop export', () => {
 
     expect(entries.has('tables/memories.csv')).toBe(true)
     expect(summaryCsv).toContain('STORE-SUMMARY-NOTE')
+    expect(summaryCsv).toContain("'" + String.fromCharCode(10) + '=1+1')
     expect(summaryCsv).not.toContain('VISIT-MEMORY-NOTE')
     expect(privateStopsCsv).toContain('PRIVATE-STOP-NAME')
     expect(privateStopsCsv).toContain('America/Chicago')
