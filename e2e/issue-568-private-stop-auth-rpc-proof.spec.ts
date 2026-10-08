@@ -86,6 +86,34 @@ async function addPrivateStop(page: Page, name: string) {
   ).toBeVisible()
 }
 
+async function expectSavedPrivateShopFields(page: Page) {
+  await expect(
+    page.getByLabel('Private shop name for Local Cabinet Shop', { exact: true }),
+  ).toHaveValue('Local Cabinet Shop')
+  await expect(
+    page.getByLabel('Private shop address for Local Cabinet Shop', { exact: true }),
+  ).toHaveValue('123 Local Example St')
+  await expect(
+    page.getByLabel('Private shop source URL for Local Cabinet Shop', { exact: true }),
+  ).toHaveValue('https://private-shop.example.invalid/info')
+  await expect(page.getByLabel('Hours time zone', { exact: true })).toHaveValue('America/Chicago')
+  for (const day of ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Friday', 'Saturday'])
+    await expect(page.getByLabel(`Closed on ${day}`, { exact: true })).toBeChecked()
+  await expect(page.getByLabel('Closed on Thursday', { exact: true })).not.toBeChecked()
+  await expect(page.getByLabel('Thursday opens', { exact: true })).toHaveValue('09:00')
+  await expect(page.getByLabel('Thursday closes', { exact: true })).toHaveValue('17:00')
+  await expect(page.getByLabel('Holiday date', { exact: true })).toHaveValue('2099-12-25')
+  await expect(page.getByLabel('Holiday name', { exact: true })).toHaveValue(
+    'Winter Market Holiday',
+  )
+  await expect(page.getByLabel('Closed for this holiday', { exact: true })).toBeChecked()
+  await expect(page.getByLabel('Closure start date', { exact: true })).toHaveValue('2099-12-31')
+  await expect(page.getByLabel('Closure end date', { exact: true })).toHaveValue('2100-01-02')
+  await expect(page.getByLabel('Closure note', { exact: true })).toHaveValue('Annual inventory')
+  await expect(page.getByLabel('Private shop priority', { exact: true })).toHaveValue('must')
+  await expect(page.getByLabel('Private shop dwell minutes', { exact: true })).toHaveValue('75')
+}
+
 test.beforeEach(async ({ page }) => {
   await installSourceProbe(page)
 })
@@ -172,7 +200,17 @@ test('owner-save-reopen', async ({ page }) => {
   await expect(page.getByText('Address confirmed by you.', { exact: true })).toBeVisible()
   expect((await readPrivateStop(tripId)).id).toBe(stopId)
 
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   await page.getByRole('button', { name: 'Edit private shop: Local Cabinet Shop' }).click()
+  await expectSavedPrivateShopFields(page)
+
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.getByRole('button', { name: 'Switch to dark theme', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectSavedPrivateShopFields(page)
+
   await page
     .getByLabel('Private shop address for Local Cabinet Shop', { exact: true })
     .fill('456 Local Example St')

@@ -366,8 +366,27 @@ select set_config('test.completion_stop',app_public.add_private_trip_stop(
   '56800000-0000-4000-8000-000000000103','Visited Private Shop','789 Visit St',null,null,
   'prefer',45,10,'add_private_trip_stop:completion'
 )::text,true);
+select set_config('test.completion_stop',app_public.confirm_trip_stop_destination(
+  '56800000-0000-4000-8000-000000000103',
+  current_setting('test.completion_stop')::jsonb #>> '{stops,0,id}',
+  '789 Visit St',(current_setting('test.completion_stop')::jsonb->>'version')::bigint,
+  'confirm_trip_stop_destination:completion'
+)::text,true);
+select is(current_setting('test.completion_stop')::jsonb #>> '{stops,0,destination}',
+  'confirmed_by_organizer','completion fixture has a confirmed private destination');
+select set_config('test.observed_stop',app_public.add_private_trip_stop(
+  '56800000-0000-4000-8000-000000000103','Observed Closed Shop','321 Closed St',null,null,
+  'prefer',45,(current_setting('test.completion_stop')::jsonb->>'version')::bigint,
+  'add_private_trip_stop:observed-closed-completion'
+)::text,true);
 reset role;
 set local role identity_service;
+select set_config('test.completed_stop_id',
+  current_setting('test.completion_stop')::jsonb #>> '{stops,0,id}',true);
+select set_config('test.observed_stop_id',(
+  select s.stop_id::text from trip_private.trip_stops as s
+  where s.trip_id='56800000-0000-4000-8000-000000000103'
+    and s.kind='private' and s.private_name='Observed Closed Shop'),true);
 select throws_ok($$insert into trip_private.trip_stops(
   trip_id,kind,private_name,destination_status,position
 ) values ('56800000-0000-4000-8000-000000000101','private','Missing Address',
@@ -427,8 +446,16 @@ select throws_ok($$select app_public.execute_verified_go_command(
 reset role;
 set local role identity_service;
 update trip_private.private_stop_capability set enabled=true where singleton;
-update trip_private.trip_stops as s set state='completed',completed_at=statement_timestamp()
-where s.trip_id='56800000-0000-4000-8000-000000000103' and s.kind='private';
+update trip_private.trip_stops as s set
+  state=case when s.stop_id=current_setting('test.completed_stop_id')::uuid
+    then 'completed' else 'observed_closed' end,
+  completed_at=case when s.stop_id=current_setting('test.completed_stop_id')::uuid
+    then statement_timestamp() else null end,
+  closed_observed_at=case when s.stop_id=current_setting('test.observed_stop_id')::uuid
+    then statement_timestamp() else null end
+where s.trip_id='56800000-0000-4000-8000-000000000103' and s.kind='private'
+  and s.stop_id in (current_setting('test.completed_stop_id')::uuid,
+    current_setting('test.observed_stop_id')::uuid);
 reset role;
 set local role trip_go_gateway;
 select set_config('request.jwt.claims','{"sub":"56800000-0000-4000-8000-000000000001","role":"authenticated","session_id":"56800000-0000-4000-8000-000000000011"}',true);
@@ -440,19 +467,70 @@ select set_config('test.completed',app_public.execute_verified_go_command(
 select is(current_setting('test.completed')::jsonb->>'state','completed','trip completion reaches its final state');
 reset role;
 set local role identity_service;
-select is((select s.private_address from trip_private.trip_stops as s
-  where s.trip_id='56800000-0000-4000-8000-000000000103' and s.kind='private'),null::text,
-  'completion clears transient address from private trip stop');
-select ok((select m.memory_id is not null and m.stop_id=s.stop_id and m.private_stop_id=s.stop_id
-  and m.private_stop_name='Visited Private Shop' and m.private_stop_address='789 Visit St'
-  from trip_private.trip_visit_memories as m join trip_private.trip_stops as s
-    on s.trip_id=m.trip_id and s.stop_id=m.stop_id
-  where m.trip_id='56800000-0000-4000-8000-000000000103'),
-  'completion retains private name and address on durable stop-scoped visit row');
-select set_config('test.completed_stop_id',(select s.stop_id::text from trip_private.trip_stops as s
-  where s.trip_id='56800000-0000-4000-8000-000000000103' and s.kind='private'),true);
-select set_config('test.visit_memory_id',(select m.memory_id::text from trip_private.trip_visit_memories as m
+select is((select count(*) from trip_private.trip_stops as s
+  where s.trip_id='56800000-0000-4000-8000-000000000103' and s.kind='private'
+    and s.private_address is null),2::bigint,
+  'completion clears transient addresses for completed and observed-closed private stops');
+select ok(exists(select 1 from trip_private.trip_visit_memories as m
+  where m.trip_id='56800000-0000-4000-8000-000000000103'
+    and m.stop_id=current_setting('test.completed_stop_id')::uuid
+    and m.private_stop_id=m.stop_id and m.private_stop_name='Visited Private Shop'
+    and m.private_stop_address='789 Visit St'),
+  'completion retains completed private-stop name and address snapshot');
+select is((select s.destination_status from trip_private.trip_stops as s
+  where s.trip_id='56800000-0000-4000-8000-000000000103'
+    and s.stop_id=current_setting('test.completed_stop_id')::uuid),
+  'confirmed_by_organizer','transient-address purge preserves exact-destination confirmation state');
+select ok(exists(select 1 from trip_private.trip_visit_memories as m
+  where m.trip_id='56800000-0000-4000-8000-000000000103'
+    and m.stop_id=current_setting('test.observed_stop_id')::uuid
+    and m.private_stop_id=m.stop_id and m.private_stop_name='Observed Closed Shop'
+    and m.private_stop_address='321 Closed St'),
+  'completion retains observed-closed private-stop name and address snapshot');
+select is((select count(*) from trip_private.trip_visit_memories as m
+  where m.trip_id='56800000-0000-4000-8000-000000000103'),2::bigint,
+  'completion creates one durable visit row for each completed or observed-closed private stop');
+select set_config('test.completion_memory_snapshot',(
+  select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'stopId',m.stop_id,'memoryId',m.memory_id,'version',m.version,
+    'name',m.private_stop_name,'address',m.private_stop_address
+  ) order by m.stop_id)::text
+  from trip_private.trip_visit_memories as m
   where m.trip_id='56800000-0000-4000-8000-000000000103'),true);
+select set_config('test.private_address_purge_markers',(
+  select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'stopId',s.stop_id,'purgedAt',s.location_purged_at
+  ) order by s.stop_id)::text
+  from trip_private.trip_stops as s
+  where s.trip_id='56800000-0000-4000-8000-000000000103' and s.kind='private'),true);
+select lives_ok($$select trip_private.project_completed_private_stops(
+  '56800000-0000-4000-8000-000000000103')$$,
+  'repeating completion projection after transient address purge succeeds');
+select is((select count(*) from trip_private.trip_visit_memories as m
+  where m.trip_id='56800000-0000-4000-8000-000000000103'),2::bigint,
+  'repeated completion projection does not duplicate visit rows');
+select is((select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'stopId',m.stop_id,'memoryId',m.memory_id,'version',m.version,
+    'name',m.private_stop_name,'address',m.private_stop_address
+  ) order by m.stop_id)
+  from trip_private.trip_visit_memories as m
+  where m.trip_id='56800000-0000-4000-8000-000000000103'),
+  current_setting('test.completion_memory_snapshot')::jsonb,
+  'repeated completion projection preserves snapshot identity, version, name, and purged address');
+select is((select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'stopId',s.stop_id,'purgedAt',s.location_purged_at
+  ) order by s.stop_id)
+  from trip_private.trip_stops as s
+  where s.trip_id='56800000-0000-4000-8000-000000000103' and s.kind='private'),
+  current_setting('test.private_address_purge_markers')::jsonb,
+  'repeated completion projection leaves transient-address purge markers unchanged');
+select is((select count(*) from trip_private.trip_stops as s
+  where s.trip_id='56800000-0000-4000-8000-000000000103' and s.kind='private'
+    and s.private_address is not null),0::bigint,
+  'repeated completion projection never restores a purged transient address');
+select set_config('test.visit_memory_id',(select m.memory_id::text from trip_private.trip_visit_memories as m
+  where m.trip_id='56800000-0000-4000-8000-000000000103'
+    and m.stop_id=current_setting('test.completed_stop_id')::uuid),true);
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"56800000-0000-4000-8000-000000000002","role":"authenticated","session_id":"56800000-0000-4000-8000-000000000012"}',true);
@@ -474,7 +552,8 @@ select ok((select m.private_stop_id is null and m.stop_id=current_setting('test.
   and m.memory_id=current_setting('test.visit_memory_id')::uuid
   and m.private_stop_name='Visited Private Shop' and m.private_stop_address='789 Visit St'
   and m.rating=5 and m.return_choice='yes' and m.note='Visited private shop'
-  from trip_private.trip_visit_memories as m where m.trip_id='56800000-0000-4000-8000-000000000103'),
+  from trip_private.trip_visit_memories as m where m.trip_id='56800000-0000-4000-8000-000000000103'
+    and m.stop_id=current_setting('test.completed_stop_id')::uuid),
   'stop removal detaches linkage but preserves memory identity and snapshots');
 reset role;
 set local role authenticated;
@@ -485,7 +564,8 @@ select throws_ok($$select app_public.add_private_trip_stop(
 reset role;
 set local role identity_service;
 select is((select count(*) from trip_private.trip_stops as s
-  where s.trip_id='56800000-0000-4000-8000-000000000103' and s.kind='private'),0::bigint,
+  where s.trip_id='56800000-0000-4000-8000-000000000103' and s.kind='private'
+    and s.stop_id=current_setting('test.completed_stop_id')::uuid),0::bigint,
   'removed private stop remains absent after receipt replay');
 
 -- Same-store catalog stops remain distinct for new stop-scoped visits; legacy rows keep store uniqueness.

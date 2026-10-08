@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/issue-568-private-stop-auth-rpc-proof.yml
       - .github/workflows/ci.yml
+      - .nvmrc
       - e2e/issue-568-private-stop-auth-rpc-proof.spec.ts
       - playwright.issue-568-private-stop-auth-rpc-proof.config.ts
       - scripts/issue-568-private-stop-auth-rpc-proof.mjs

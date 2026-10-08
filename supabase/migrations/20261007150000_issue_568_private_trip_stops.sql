@@ -545,13 +545,20 @@ begin
   select t.owner_id,t.trip_id,s.stop_id,s.stop_id,s.private_name,s.private_address
     from trip_private.trips as t
     join trip_private.trip_stops as s on s.trip_id=t.trip_id
-   where t.trip_id=target_trip_id and s.kind='private' and s.state='completed'
+   where t.trip_id=target_trip_id and s.kind='private'
+     and s.state in ('completed','observed_closed')
   on conflict(author_user_id,trip_id,stop_id) where stop_id is not null
   do update set private_stop_id=excluded.private_stop_id,
-    private_stop_name=excluded.private_stop_name,private_stop_address=excluded.private_stop_address,
-    version=trip_private.trip_visit_memories.version+1,updated_at=statement_timestamp();
+    private_stop_name=excluded.private_stop_name,
+    private_stop_address=coalesce(excluded.private_stop_address,
+      trip_private.trip_visit_memories.private_stop_address),
+    version=trip_private.trip_visit_memories.version+1,updated_at=statement_timestamp()
+  where trip_private.trip_visit_memories.private_stop_id is distinct from excluded.private_stop_id
+    or trip_private.trip_visit_memories.private_stop_name is distinct from excluded.private_stop_name
+    or (excluded.private_stop_address is not null
+      and trip_private.trip_visit_memories.private_stop_address is distinct from excluded.private_stop_address);
   update trip_private.trip_stops as s set private_address=null,location_purged_at=statement_timestamp()
-   where s.trip_id=target_trip_id and s.kind='private';
+   where s.trip_id=target_trip_id and s.kind='private' and s.private_address is not null;
 end;
 $$;
 revoke all on function trip_private.project_completed_private_stops(uuid) from public,anon,authenticated,service_role;
