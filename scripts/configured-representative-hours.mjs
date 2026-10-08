@@ -29,6 +29,7 @@ const report = {
     : 'representative-hours-and-owner-exact-store-billing-status',
   ...(ownerListingMode
     ? {
+        stepResults: [],
         executionEnvironment:
           process.env.GITHUB_ACTIONS === 'true'
             ? 'hosted-ci-ephemeral-loopback-service'
@@ -502,6 +503,27 @@ async function runOwnerListing() {
     } catch (error) {
       report.status = 'failed'
       report.errors.push(redact(error.message))
+    }
+    const stepPath = path.join(output.directory, 'steps.json')
+    if (fs.existsSync(stepPath)) {
+      const steps = JSON.parse(fs.readFileSync(stepPath, 'utf8'))
+      report.stepResults = Array.isArray(steps)
+        ? steps.map((step) => ({
+            name: typeof step?.name === 'string' ? step.name : 'unavailable',
+            status:
+              step?.status === 'running'
+                ? 'incomplete'
+                : ['pending', 'passed', 'failed'].includes(step?.status)
+                  ? step.status
+                  : 'unavailable',
+            durationMs:
+              Number.isFinite(step?.durationMs) && step.durationMs >= 0
+                ? Math.round(step.durationMs)
+                : step?.status === 'running' && Number.isFinite(step?.startedAtMs)
+                  ? Math.max(0, Date.now() - step.startedAtMs)
+                  : 0,
+          }))
+        : []
     }
     const resultPath = path.join(output.directory, 'playwright.json')
     if (!fs.existsSync(resultPath)) {

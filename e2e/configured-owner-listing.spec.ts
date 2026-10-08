@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type Page } from '@playwright/test'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
+import path from 'node:path'
 
 type User = { email: string; password: string; totpSecret?: string }
 type Input = {
@@ -160,11 +161,45 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
 }, testInfo) => {
   test.skip(!inputPath, 'Run through the isolated configured Owner listing runner')
   const failures: string[] = []
+  const stepTitles = [
+    'Invited applicant accepts setup without receiving Owner authority',
+    'Unsent invited draft survives ordinary navigation',
+    'Invited applicant submits draft without receiving Owner authority',
+    'Local synthetic stage keeps public claim activation unavailable',
+    'Canceled invited setup creates no claim or grant',
+    'Site Admin approves the exact Store A claim separately',
+    'Owner A selects only Store A and other identities cannot select it',
+    'Unsent Portal drafts survive navigation and explicit cancel clears them',
+    'Direct facts publish only after successful acknowledgement',
+    'Hours save, reopen, timezone, exception, and public projection match',
+    'Stale hours save keeps the draft and last acknowledged schedule',
+    'Controlled change remains private, retries idempotently, then Admin publishes',
+    'Wrong-store direct write is denied and does not change Store B',
+    'Site Admin revocation denies the next request in Owner A’s same session',
+  ]
+  const stepReceipts = stepTitles.map((name) => ({ name, status: 'pending', durationMs: 0 }))
+  const stepReceiptPath = path.join(input.output, 'steps.json')
+  let stepIndex = 0
+  const writeStepReceipts = () => fs.writeFileSync(stepReceiptPath, JSON.stringify(stepReceipts))
+  writeStepReceipts()
   const step = async (name: string, action: () => Promise<void>) => {
+    const receipt = stepReceipts[stepIndex]
+    if (!receipt || receipt.name !== name) throw new Error('Owner listing step manifest drift')
+    const startedAtMs = Date.now()
+    receipt.status = 'running'
+    Object.assign(receipt, { startedAtMs })
+    writeStepReceipts()
     try {
       await test.step(name, action)
+      receipt.status = 'passed'
     } catch {
+      receipt.status = 'failed'
       failures.push(name)
+    } finally {
+      receipt.durationMs = Date.now() - startedAtMs
+      delete (receipt as { startedAtMs?: number }).startedAtMs
+      stepIndex += 1
+      writeStepReceipts()
     }
   }
 
@@ -627,5 +662,6 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
     ])
   }
 
+  if (stepIndex !== stepReceipts.length) throw new Error('Owner listing step manifest incomplete')
   if (failures.length) throw new Error(`Configured Owner acceptance failed: ${failures.join('; ')}`)
 })
