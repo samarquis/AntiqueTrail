@@ -1748,6 +1748,38 @@ describe('app shell', () => {
       expect(screen.queryByRole('link', { name: /^Add to Trip$/ })).toBeNull()
     })
 
+    it('routes the admitted Details chooser through the session guard', async () => {
+      vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
+      const user = userEvent.setup()
+      function CurrentLocation() {
+        const location = useLocation()
+        return (
+          <output data-testid="current-location">
+            {`${location.pathname}${location.search}`}
+          </output>
+        )
+      }
+      render(
+        <MemoryRouter initialEntries={['/stores/blue-finch-curios']}>
+          <CurrentLocation />
+          <App
+            clients={{ catalog: demoCatalogClient }}
+            runtime={{ configuredLocalShopperReview: true }}
+          />
+        </MemoryRouter>,
+      )
+
+      const addToTrip = await screen.findByRole('link', { name: /^Add to Trip$/ })
+      const tripPath = '/trips/new?addStoreId=00000000-0000-4000-8000-000000000001'
+      expect(addToTrip).toHaveAttribute('href', tripPath)
+      await user.click(addToTrip)
+      await waitFor(() =>
+        expect(screen.getByTestId('current-location')).toHaveTextContent(
+          `/auth/sign-in?returnTo=${encodeURIComponent(tripPath)}`,
+        ),
+      )
+    })
+
     it('keeps the Details chooser hidden in catalog-only public mode', async () => {
       vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
       render(
