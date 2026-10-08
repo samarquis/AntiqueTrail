@@ -9,7 +9,12 @@ const input = JSON.parse(fs.readFileSync(process.env.CONFIGURED_SHOPPER_INPUT!, 
 const service = createLocalService({ resumeDirectory: input.directory })
 const A = '00000000-0000-4000-8000-000000001001'
 const B = '00000000-0000-4000-8000-000000001002'
-const issue565RoutePaths = new Set(['/auth/sign-in', '/trips/new', '/stores/clockwork-cabinet'])
+const issue565RoutePaths = new Set([
+  '/auth/sign-in',
+  '/trips/new',
+  '/stores',
+  '/stores/clockwork-cabinet',
+])
 const issue565CoverPath = '/images/synthetic-stores/1280w/blue-finch-curios-cover.webp'
 
 function issue565Path(value: string | null, base = 'http://127.0.0.1/') {
@@ -96,7 +101,9 @@ async function issue565DiscoveryProbe(page: Page, coverStatuses: number[], cover
           : (await page.getByRole('heading', { name: 'Finding stores' }).count()) > 0
             ? 'loading'
             : (await page
-                  .getByRole('heading', { name: /^(No matching stores|The trail is quiet for now)$/ })
+                  .getByRole('heading', {
+                    name: /^(No matching stores|The trail is quiet for now)$/,
+                  })
                   .count()) > 0
               ? 'browse-empty'
               : 'other'
