@@ -9,6 +9,12 @@ select has_function(
   'app_public','verify_initial_navigator_device',array['text','text'],
   'read-only initial-device verification exists');
 select ok(
+  has_function_privilege('authenticated','app_public.verify_initial_navigator_device(text,text)','EXECUTE'),
+  'authenticated callers can verify the current Navigator device');
+select ok(
+  not has_function_privilege('anon','app_public.verify_initial_navigator_device(text,text)','EXECUTE'),
+  'anonymous callers cannot verify the Navigator device');
+select ok(
   has_function_privilege('authenticated','app_public.prepare_initial_navigator(text,bigint,text)','EXECUTE'),
   'authenticated callers can request guarded admission');
 select ok(
