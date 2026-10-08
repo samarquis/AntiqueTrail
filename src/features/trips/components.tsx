@@ -1132,10 +1132,9 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     state: 'empty',
     pendingCount: 0,
   })
-  const currentActionError =
-    actionError?.context && !actionError.context.isCurrent()
-      ? null
-      : actionError
+  const currentActionError = actionError?.context && !actionError.context.isCurrent()
+    ? null
+    : actionError
   async function runAction(
     label: string,
     action: () => Promise<void>,
