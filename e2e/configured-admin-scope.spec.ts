@@ -139,12 +139,9 @@ const safeHttpStatusCategory = (status: number) =>
         ? 'http_4xx'
         : 'http_status'
 
-const reportSafeHttpStatus = (status: number) => {
-  if (status !== 200)
-    test.info().annotations.push({
-      type: 'safe-http-status',
-      description: safeHttpStatusCategory(status),
-    })
+const expectPreviewStatus = (status: number) => {
+  if (status !== 200) throw new Error(`safe-http-status:${safeHttpStatusCategory(status)}`)
+  expect(status).toBe(200)
 }
 const read = (store: string, subjectId: string) =>
   command(
@@ -405,8 +402,7 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
     .click()
   const previewResponseValue = await previewResponse
   const previewStatus = previewResponseValue.status()
-  reportSafeHttpStatus(previewStatus)
-  expect(previewStatus).toBe(200)
+  expectPreviewStatus(previewStatus)
   const preview = await previewResponseValue.json()
   expect(preview.grantId).toBe(regrantReadback.grantId)
   expect(preview.grantVersion).toBe(regrantReadback.version)
@@ -484,8 +480,7 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
     .press('Enter')
   const response = await previewResponse
   const previewStatus = response.status()
-  reportSafeHttpStatus(previewStatus)
-  expect(previewStatus).toBe(200)
+  expectPreviewStatus(previewStatus)
   expect(response.request().postDataJSON()).toEqual(previewInput)
   const preview = await response.json()
   expect(preview.subjectUserId).toBe(scope.targetSubjectId)
