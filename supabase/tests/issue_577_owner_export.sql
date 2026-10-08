@@ -89,7 +89,11 @@ select is(jsonb_array_length(app_public.build_account_export('57700000-0000-4000
 select ok(app_public.build_account_export('57700000-0000-4000-8000-000000000042','57700000-0000-4000-8000-000000000043')::jsonb #> '{canonical,shopper,privateStops}' @> '[{"stopId":"57700000-0000-4000-8000-000000000022","label":"OWNER-B-PRIVATE-STOP"}]'::jsonb,'owner B export includes their private stop');
 select ok(not (app_public.build_account_export('57700000-0000-4000-8000-000000000042','57700000-0000-4000-8000-000000000043')::jsonb #> '{canonical,shopper,privateStops}') @> '[{"stopId":"57700000-0000-4000-8000-000000000020"}]'::jsonb,'partner access does not export owner A private stops');
 select is(jsonb_array_length(app_public.build_account_export('57700000-0000-4000-8000-000000000042','57700000-0000-4000-8000-000000000043')::jsonb #> '{canonical,shopper,visitMemories}'),2,'owner B gets all and only their authored visit memories');
-select ok(app_public.build_account_export('57700000-0000-4000-8000-000000000042','57700000-0000-4000-8000-000000000043')::jsonb #> '{canonical,shopper,visitMemories}' @> '[{"memoryId":"57700000-0000-4000-8000-000000000031","note":"OWNER-B-AUTHORED-ON-A-TRIP"}]'::jsonb,'author scope includes owner B memory on partner trip');
+select ok(
+  app_public.build_account_export('57700000-0000-4000-8000-000000000042','57700000-0000-4000-8000-000000000043')::jsonb #> '{canonical,shopper,visitMemories}' @> '[{"memoryId":"57700000-0000-4000-8000-000000000031","note":"OWNER-B-AUTHORED-ON-A-TRIP"}]'::jsonb
+  and app_public.build_account_export('57700000-0000-4000-8000-000000000042','57700000-0000-4000-8000-000000000043')::jsonb #> '{canonical,shopper,visitMemories}' @> '[{"memoryId":"57700000-0000-4000-8000-000000000033","privateStopId":"57700000-0000-4000-8000-000000000022","privateStopName":"OWNER-B-PRIVATE-STOP","note":"OWNER-B-AUTHORED-NOTE"}]'::jsonb
+  and not (app_public.build_account_export('57700000-0000-4000-8000-000000000042','57700000-0000-4000-8000-000000000043')::jsonb #> '{canonical,shopper,visitMemories}') @> '[{"memoryId":"57700000-0000-4000-8000-000000000030"}]'::jsonb,
+  'owner B export includes their private and partner-trip memories, excluding owner A content');
 select ok(not (app_public.build_account_export('57700000-0000-4000-8000-000000000042','57700000-0000-4000-8000-000000000043')::jsonb #> '{canonical,shopper,visitMemories}') @> '[{"memoryId":"57700000-0000-4000-8000-000000000036"}]'::jsonb,'owner B export excludes partner-authored memory on same trip');
 
 reset role;
