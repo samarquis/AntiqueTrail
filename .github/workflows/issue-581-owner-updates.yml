@@ -108,6 +108,10 @@ jobs:
             report.sourceDirty !== false ||
             report.cleanup !== 'removed' ||
             report.edgeRuntimeVolume?.prepared !== true ||
+            report.edgeRuntimeVolume?.mounted !== true ||
+            report.edgeRuntimeVolume?.mount?.type !== 'volume' ||
+            typeof report.edgeRuntimeVolume?.mount?.destination !== 'string' ||
+            !report.edgeRuntimeVolume.mount.destination.startsWith('/') ||
             report.edgeRuntimeVolume?.cleanup !== 'removed' ||
             report.cliVersion !== '2.115.0' ||
             report.database?.status !== 'passed' ||
@@ -165,7 +169,7 @@ jobs:
             `- Browser test: ${stats.expected} passed, ${stats.unexpected} failed, ${stats.skipped} skipped, ${stats.flaky} flaky`,
             `- Executed case: ${report.browser.testName}`,
             '- Covered: verified Owner MFA and current consent, Store A-only scope, five text creates, cancel without request, versioned edit, latest-three and See All ordering, expired-sale suppression, archive visibility, Store B isolation, narrow dark overflow.',
-            '- Edge Runtime volume: exact project-scoped volume prepared and removed; scheduler-expiry handler authorization was not exercised by this UI/database leaf.',
+            '- Edge Runtime volume: exact project-scoped mount confirmed, volume removed; scheduler-expiry handler authorization was not exercised by this UI/database leaf.',
             `- Service cleanup: ${report.cleanup}; Supabase CLI: ${report.cliVersion}`,
           ].join('\n')
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`)

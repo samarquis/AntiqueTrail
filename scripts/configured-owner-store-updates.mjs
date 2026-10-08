@@ -24,7 +24,13 @@ const report = {
   sourceDirty: null,
   cliVersion: null,
   cleanup: 'not-started',
-  edgeRuntimeVolume: { name: null, prepared: false, cleanup: 'not-started' },
+  edgeRuntimeVolume: {
+    name: null,
+    prepared: false,
+    mounted: false,
+    mount: null,
+    cleanup: 'not-started',
+  },
   database: { status: 'not-started', plan: null, assertions: 0, skipped: 0, failed: 0, cases: [] },
   browser: { status: 'not-started' },
   errors: [],
@@ -41,6 +47,7 @@ function sqlText(value) {
 }
 
 async function removeOwnedEdgeRuntimeVolume(volume) {
+  const cleanupSignal = new AbortController().signal
   if (
     !/^probe-[a-f0-9]{24}$/.test(volume.projectId) ||
     volume.name !== `supabase_edge_runtime_${volume.projectId}`
@@ -49,7 +56,7 @@ async function removeOwnedEdgeRuntimeVolume(volume) {
 
   const names = (
     await command('docker', ['volume', 'ls', '-q', '--filter', `name=${volume.name}`], {
-      signal: controller.signal,
+      signal: cleanupSignal,
     })
   )
     .trim()
@@ -58,12 +65,57 @@ async function removeOwnedEdgeRuntimeVolume(volume) {
   if (!names.includes(volume.name)) return
 
   const inspected = JSON.parse(
-    await command('docker', ['volume', 'inspect', volume.name], { signal: controller.signal }),
+    await command('docker', ['volume', 'inspect', volume.name], { signal: cleanupSignal }),
   )
   if (
     inspected.length !== 1 ||
     inspected[0].Name !== volume.name ||
     inspected[0].Labels?.['com.supabase.cli.project'] !== volume.projectId
+  )
+    throw new Error('Issue 581 Edge Runtime volume ownership mismatch')
+
+  const containerIds = (
+    await command(
+      'docker',
+      ['ps', '-aq', '--filter', `label=com.supabase.cli.project=${volume.projectId}`],
+      { signal: cleanupSignal },
+    )
+  )
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (containerIds.length) {
+    const containers = JSON.parse(
+      await command('docker', ['inspect', ...containerIds], { signal: cleanupSignal }),
+    )
+    if (
+      containers.some((container) => container.Mounts?.some((mount) => mount.Name === volume.name))
+    )
+      throw new Error('Issue 581 Edge Runtime volume remains attached to an owned container')
+  }
+
+  await command('docker', ['volume', 'rm', volume.name], { signal: cleanupSignal })
+  const remaining = (
+    await command('docker', ['volume', 'ls', '-q', '--filter', `name=${volume.name}`], {
+      signal: cleanupSignal,
+    })
+  )
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (remaining.includes(volume.name))
+    throw new Error('Issue 581 Edge Runtime volume remains after cleanup')
+}
+
+async function confirmEdgeRuntimeVolumeMount(volume, workdir) {
+  const volumes = JSON.parse(
+    await command('docker', ['volume', 'inspect', volume.name], { signal: controller.signal }),
+  )
+  if (
+    volumes.length !== 1 ||
+    volumes[0].Name !== volume.name ||
+    volumes[0].Labels?.['com.supabase.cli.project'] !== volume.projectId ||
+    volumes[0].Labels?.['com.docker.compose.project'] !== volume.projectId
   )
     throw new Error('Issue 581 Edge Runtime volume ownership mismatch')
 
@@ -77,27 +129,30 @@ async function removeOwnedEdgeRuntimeVolume(volume) {
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-  if (containerIds.length) {
-    const containers = JSON.parse(
-      await command('docker', ['inspect', ...containerIds], { signal: controller.signal }),
-    )
-    if (
-      containers.some((container) => container.Mounts?.some((mount) => mount.Name === volume.name))
-    )
-      throw new Error('Issue 581 Edge Runtime volume remains attached to an owned container')
-  }
+  if (!containerIds.length) throw new Error('Issue 581 Edge Runtime container unavailable')
 
-  await command('docker', ['volume', 'rm', volume.name], { signal: controller.signal })
-  const remaining = (
-    await command('docker', ['volume', 'ls', '-q', '--filter', `name=${volume.name}`], {
-      signal: controller.signal,
-    })
+  const containers = JSON.parse(
+    await command('docker', ['inspect', ...containerIds], { signal: controller.signal }),
   )
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-  if (remaining.includes(volume.name))
-    throw new Error('Issue 581 Edge Runtime volume remains after cleanup')
+  const mountDestinations = containers.flatMap((container) => {
+    const labels = container.Config?.Labels ?? {}
+    if (
+      labels['com.supabase.cli.project'] !== volume.projectId ||
+      labels['com.supabase.cli.workdir'] !== workdir
+    )
+      throw new Error('Issue 581 Edge Runtime container ownership mismatch')
+    return (container.Mounts ?? [])
+      .filter((mount) => mount.Type === 'volume' && mount.Name === volume.name)
+      .map((mount) => mount.Destination)
+  })
+  if (
+    mountDestinations.length !== 1 ||
+    typeof mountDestinations[0] !== 'string' ||
+    !mountDestinations[0].startsWith('/')
+  )
+    throw new Error('Issue 581 Edge Runtime volume mount not confirmed')
+
+  return { type: 'volume', destination: mountDestinations[0] }
 }
 
 function chicagoYesterday() {
@@ -392,6 +447,11 @@ try {
     throw new Error('Issue 581 Edge Runtime volume creation returned an unexpected name')
   report.edgeRuntimeVolume.prepared = true
   const local = await service.start()
+  report.edgeRuntimeVolume.mount = await confirmEdgeRuntimeVolumeMount(
+    edgeRuntimeVolume,
+    service.run.directory,
+  )
+  report.edgeRuntimeVolume.mounted = true
   report.sourceDirty = Boolean(local.sourceDirty)
   report.cliVersion = local.cliVersion
   if (local.sourceSha !== report.sourceSha || local.sourceDirty)
