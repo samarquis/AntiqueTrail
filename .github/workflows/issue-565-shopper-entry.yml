@@ -174,9 +174,21 @@ jobs:
           if (!admissionPassed) failures.push('direct admission denial proof unavailable or incomplete')
           if (process.env.BROWSER_STEP !== 'success') failures.push('configured shopper command failed')
 
+          const allowedActualRoutes = new Set([
+            '/auth/sign-in',
+            '/auth/sign-in?returnTo=/trips/new',
+            '/auth/sign-in?returnTo=/trips/new?addStoreId=<store-id>',
+            '/auth/sign-in?returnTo=/stores/clockwork-cabinet',
+            '/auth/sign-in?returnTo=<other-route>',
+            '/trips/new',
+            '/trips/new?addStoreId=<store-id>',
+            '/stores/clockwork-cabinet',
+            '<other-route>',
+          ])
           const safeFailure = (failure) => ({
             ...(Number.isSafeInteger(failure?.sourceLine) && failure.sourceLine > 0 && { sourceLine: failure.sourceLine }),
             ...(['toHaveText', 'toHaveURL', 'toHaveCount', 'toBeVisible', 'toBe', 'toThrow', 'locator.click'].includes(failure?.assertion) && { assertion: failure.assertion }),
+            ...(allowedActualRoutes.has(failure?.actualRoute) && { actualRoute: failure.actualRoute }),
             timeout: failure?.timeout === true,
             strictLocator: failure?.strictLocator === true,
           })

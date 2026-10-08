@@ -7,6 +7,17 @@ export function browserReport(text, expected = 18) {
     if (!Number.isSafeInteger(stats[key]) || stats[key] < 0)
       throw new Error('Malformed browser counts')
   const checks = []
+  const allowedActualRoutes = new Set([
+    '/auth/sign-in',
+    '/auth/sign-in?returnTo=/trips/new',
+    '/auth/sign-in?returnTo=/trips/new?addStoreId=<store-id>',
+    '/auth/sign-in?returnTo=/stores/clockwork-cabinet',
+    '/auth/sign-in?returnTo=<other-route>',
+    '/trips/new',
+    '/trips/new?addStoreId=<store-id>',
+    '/stores/clockwork-cabinet',
+    '<other-route>',
+  ])
   function visit(suites) {
     for (const suite of suites) {
       for (const spec of suite.specs ?? [])
@@ -17,6 +28,13 @@ export function browserReport(text, expected = 18) {
           const line = String(error?.stack ?? '').match(
             /configured-free-shopper\.spec\.ts:(\d+):\d+/,
           )
+          const annotations = [
+            ...(Array.isArray(test.annotations) ? test.annotations : []),
+            ...(Array.isArray(final?.annotations) ? final.annotations : []),
+          ]
+          const actualRoute = annotations.find(
+            (annotation) => annotation?.type === 'issue-565-actual-route',
+          )?.description
           checks.push({
             name: spec.title,
             project: test.projectName,
@@ -41,6 +59,7 @@ export function browserReport(text, expected = 18) {
                 ].find((name) => message.includes(name)),
                 timeout: final?.status === 'timedOut' || /Timeout.*exceeded/.test(message),
                 strictLocator: message.includes('strict mode violation'),
+                ...(allowedActualRoutes.has(actualRoute) && { actualRoute }),
               },
             }),
           })

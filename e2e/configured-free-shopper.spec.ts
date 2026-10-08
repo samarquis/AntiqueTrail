@@ -8,6 +8,35 @@ const input = JSON.parse(fs.readFileSync(process.env.CONFIGURED_SHOPPER_INPUT!, 
 const service = createLocalService({ resumeDirectory: input.directory })
 const A = '00000000-0000-4000-8000-000000001001'
 const B = '00000000-0000-4000-8000-000000001002'
+function issue565ActualRoute(value: string) {
+  const actual = new URL(value)
+  if (actual.pathname === '/auth/sign-in') {
+    const returnTo = actual.searchParams.get('returnTo')
+    if (returnTo === null) return '/auth/sign-in'
+    const target = new URL(returnTo, actual.origin)
+    if (target.origin !== actual.origin) return '/auth/sign-in?returnTo=<other-route>'
+    if (target.pathname === '/trips/new')
+      return `/auth/sign-in?returnTo=/trips/new${target.searchParams.has('addStoreId') ? '?addStoreId=<store-id>' : ''}`
+    if (target.pathname === '/stores/clockwork-cabinet' && !target.search)
+      return '/auth/sign-in?returnTo=/stores/clockwork-cabinet'
+    return '/auth/sign-in?returnTo=<other-route>'
+  }
+  if (actual.pathname === '/trips/new')
+    return `/trips/new${actual.searchParams.has('addStoreId') ? '?addStoreId=<store-id>' : ''}`
+  if (actual.pathname === '/stores/clockwork-cabinet') return actual.pathname
+  return '<other-route>'
+}
+async function expectDetailsSignIn(page: Page) {
+  try {
+    await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=/)
+  } catch (error) {
+    test.info().annotations.push({
+      type: 'issue-565-actual-route',
+      description: issue565ActualRoute(page.url()),
+    })
+    throw error
+  }
+}
 const uuid = (value: string) => {
   if (!/^[a-f0-9-]{36}$/.test(value)) throw new Error('Invalid fixture UUID')
   return value
@@ -177,14 +206,14 @@ test('visible Details Add to Trip preserves store through cancel, auth failure, 
   const tripsBefore = await ownedTripCount()
   await page.goto('/stores/clockwork-cabinet')
   await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
-  await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=/)
+  await expectDetailsSignIn(page)
 
   await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
   await expect(page).toHaveURL(/\/stores\/clockwork-cabinet$/)
   expect(await ownedTripCount()).toBe(tripsBefore)
 
   await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
-  await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=/)
+  await expectDetailsSignIn(page)
   const failedLogin = page.waitForResponse((response) =>
     response.url().includes('/auth/v1/token?grant_type=password'),
   )
