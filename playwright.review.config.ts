@@ -5,6 +5,7 @@ export default defineConfig({
   testMatch: [
     'catalog.spec.ts',
     'store-details.spec.ts',
+    'store-sharing.spec.ts',
     'review-harness.spec.ts',
     'ui05-auth-shopper.spec.ts',
     'ui06-candidate-flows.spec.ts',
