@@ -13,10 +13,19 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export const CLI_VERSION = '2.115.0'
 const readinessFailureMetadata = new WeakMap()
 const readinessRequestMetadata = new WeakMap()
+const readinessResponseCodes = new Set([
+  'ALPHA_AUTH_REQUIRED',
+  'CATALOG_UNAVAILABLE',
+  'GATEWAY_UNAVAILABLE',
+  'INVALID_OPERATION',
+  'INVALID_REQUEST',
+  'MAP_UNAVAILABLE',
+  'RATE_LIMITED',
+])
 
-function tagReadinessFailure(error, category, status) {
+function tagReadinessFailure(error, category, status, responseCode) {
   if (error !== null && (typeof error === 'object' || typeof error === 'function'))
-    readinessFailureMetadata.set(error, { category, status })
+    readinessFailureMetadata.set(error, { category, status, responseCode })
 }
 
 function isReadinessHttpStatus(status) {
@@ -256,14 +265,20 @@ async function performLoopbackRequest(
   }
   if (!response.ok) {
     // Whitelist server diagnostic fields; never echo arbitrary request/response bodies.
-    const code = String(data?.error?.code ?? data?.code ?? response.status)
+    const rawCode = data?.error?.code ?? data?.code
+    const code = String(rawCode ?? response.status)
       .replace(/[^A-Za-z0-9_]/g, '')
       .slice(0, 80)
     const message = String(data?.message ?? '')
       .replace(/[^A-Za-z0-9_ .]/g, '')
       .slice(0, 160)
     const error = new Error(`HTTP ${response.status} ${code} ${message}`)
-    tagReadinessFailure(error, 'httpFailure', status)
+    tagReadinessFailure(
+      error,
+      'httpFailure',
+      status,
+      readinessResponseCodes.has(rawCode) ? rawCode : 'other',
+    )
     throw error
   }
   return data
@@ -316,6 +331,7 @@ export async function waitForLocalServiceReadiness(
     unclassifiedFailure: 0,
   }
   const httpStatusCounts = new Map()
+  const responseCodeCounts = new Map()
   for (let attempt = 0; attempt < 60; attempt++) {
     signal?.throwIfAborted()
     attempts++
@@ -358,6 +374,10 @@ export async function waitForLocalServiceReadiness(
       const category = metadata?.category
       if (Object.hasOwn(categoryCounts, category)) categoryCounts[category]++
       else categoryCounts.unclassifiedFailure++
+      if (category === 'httpFailure' && typeof metadata?.responseCode === 'string') {
+        const code = metadata.responseCode
+        responseCodeCounts.set(code, (responseCodeCounts.get(code) ?? 0) + 1)
+      }
       const status = metadata?.status
       if (
         (category === 'httpFailure' || category === 'responseParseFailure') &&
@@ -378,6 +398,9 @@ export async function waitForLocalServiceReadiness(
         attempts,
         categoryCounts,
         httpStatusCounts: httpStatuses,
+        responseCodeCounts: [...responseCodeCounts]
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([code, count]) => ({ code, count })),
       }
       // Fixed fields and at most 60 attempts keep this record below 2 KiB.
       try {

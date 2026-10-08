@@ -29,6 +29,7 @@ const report = {
     prepared: false,
     mounted: false,
     mount: null,
+    mountCheck: 'not-run',
     cleanup: 'not-started',
   },
   database: { status: 'not-started', plan: null, assertions: 0, skipped: 0, failed: 0, cases: [] },
@@ -157,11 +158,16 @@ async function confirmEdgeRuntimeVolumeMount(volume, workdir) {
   )
     throw new Error('Issue 581 Edge Runtime volume mount not confirmed')
 
+  const runtimeStatus = runtime.State?.Status
+  const knownStatuses = ['created', 'dead', 'exited', 'paused', 'removing', 'restarting', 'running']
   return {
     service: 'edge_runtime',
     container: expectedContainer.slice(1),
     type: 'volume',
     destination: mounts[0].Destination,
+    running: runtime.State?.Running === true,
+    status: knownStatuses.includes(runtimeStatus) ? runtimeStatus : 'unknown',
+    restartCount: Number.isInteger(runtime.RestartCount) ? runtime.RestartCount : null,
   }
 }
 
@@ -462,6 +468,7 @@ try {
     service.run.directory,
   )
   report.edgeRuntimeVolume.mounted = true
+  report.edgeRuntimeVolume.mountCheck = 'confirmed'
   report.sourceDirty = Boolean(local.sourceDirty)
   report.cliVersion = local.cliVersion
   if (local.sourceSha !== report.sourceSha || local.sourceDirty)
@@ -584,6 +591,32 @@ try {
 } catch (error) {
   report.status = 'failed'
   report.errors.push(redact(String(error?.message ?? 'unknown_error')))
+  if (service?.run) {
+    report.cliVersion = service.run.cliVersion ?? null
+    report.sourceDirty = service.run.sourceDirty ?? null
+    if (edgeRuntimeVolume) {
+      try {
+        report.edgeRuntimeVolume.mount = await confirmEdgeRuntimeVolumeMount(
+          edgeRuntimeVolume,
+          service.run.directory,
+        )
+        report.edgeRuntimeVolume.mounted = true
+        report.edgeRuntimeVolume.mountCheck = 'confirmed'
+      } catch (diagnosticError) {
+        const diagnosticMessage = String(diagnosticError?.message ?? '')
+        const diagnosticCodes = {
+          'Issue 581 Edge Runtime container unavailable': 'container-unavailable',
+          'Issue 581 Edge Runtime container identity not confirmed':
+            'container-identity-not-confirmed',
+          'Issue 581 Edge Runtime container ownership mismatch': 'container-ownership-mismatch',
+          'Issue 581 Edge Runtime volume ownership mismatch': 'volume-ownership-mismatch',
+          'Issue 581 Edge Runtime volume mount not confirmed': 'volume-mount-not-confirmed',
+        }
+        report.edgeRuntimeVolume.mountCheck =
+          diagnosticCodes[diagnosticMessage] ?? 'inspection-failed'
+      }
+    }
+  }
 } finally {
   let cleanupFailed = false
   let serviceCleanupError

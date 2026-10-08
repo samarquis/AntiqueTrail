@@ -109,9 +109,12 @@ jobs:
             report.cleanup !== 'removed' ||
             report.edgeRuntimeVolume?.prepared !== true ||
             report.edgeRuntimeVolume?.mounted !== true ||
+            report.edgeRuntimeVolume?.mountCheck !== 'confirmed' ||
             report.edgeRuntimeVolume?.mount?.service !== 'edge_runtime' ||
             report.edgeRuntimeVolume?.mount?.container !== `supabase_edge_runtime_${report.projectId}` ||
             report.edgeRuntimeVolume?.mount?.type !== 'volume' ||
+            report.edgeRuntimeVolume?.mount?.running !== true ||
+            report.edgeRuntimeVolume?.mount?.status !== 'running' ||
             typeof report.edgeRuntimeVolume?.mount?.destination !== 'string' ||
             !report.edgeRuntimeVolume.mount.destination.startsWith('/') ||
             report.edgeRuntimeVolume?.cleanup !== 'removed' ||
