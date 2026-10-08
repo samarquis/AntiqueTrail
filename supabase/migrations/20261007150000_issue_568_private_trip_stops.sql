@@ -393,7 +393,15 @@ begin
    where s.stop_id=new.private_stop_id and s.trip_id=new.trip_id;
   if not found or v_stop.kind <> 'private' or new.stop_id <> v_stop.stop_id
      or new.private_stop_name is distinct from v_stop.private_name
-     or new.private_stop_address is distinct from v_stop.private_address then
+     or (new.private_stop_address is distinct from v_stop.private_address and not (
+       v_stop.private_address is null and v_stop.location_purged_at is not null
+       and tg_op = 'UPDATE'
+       and old.trip_id is not distinct from new.trip_id
+       and old.stop_id is not distinct from new.stop_id
+       and old.private_stop_id is not distinct from v_stop.stop_id
+       and old.private_stop_name is not distinct from new.private_stop_name
+       and old.private_stop_address is not distinct from new.private_stop_address
+     )) then
     raise exception 'private_visit_snapshot_invalid';
   end if;
   return new;

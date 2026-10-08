@@ -915,10 +915,18 @@ describe('scenario-aware review clients', () => {
 
     const remembered = await trips.saveVisitMemory!(
       'trip-a',
-      '00000000-0000-4000-8000-000000000001',
+      'stop-a',
       { rating: 5, note: 'Walnut secretary', returnChoice: 'yes' },
     )
-    expect(remembered.stops[0]).toMatchObject({ memoryStatus: 'saved' })
+    expect(remembered.stops.find((stop) => stop.id === 'stop-a')).toMatchObject({
+      memoryStatus: 'saved',
+    })
+    expect(remembered.stops.find((stop) => stop.id === 'stop-b')).toMatchObject({
+      memoryStatus: 'missing',
+    })
+    expect(remembered.stops.find((stop) => stop.id === cedarStopId)).toMatchObject({
+      memoryStatus: 'missing',
+    })
 
     const collaboration = await trips.getCollaboration('trip-a')
     expect(collaboration.participants).toEqual([
@@ -991,7 +999,7 @@ describe('scenario-aware review clients', () => {
     })
   })
 
-  it('orders check-my-day by opening hours and persists private visit memory', async () => {
+  it('orders check-my-day by opening hours and persists stop-scoped visit memory', async () => {
     const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!
     const fresh = await trips.create({ name: 'Hours demo', localDate: '2026-08-11' })
     await trips.updateSchedule(fresh.id, { localDate: '2026-08-11', departureMinute: 480 }, 1)
@@ -1009,10 +1017,43 @@ describe('scenario-aware review clients', () => {
 
     const remembered = await trips.saveVisitMemory!(
       fresh.id,
-      '00000000-0000-4000-8000-000000000001',
+      blueFinchStop.id,
       { rating: 5, note: 'Walnut secretary', returnChoice: 'yes' },
     )
-    expect(remembered.stops[0]).toMatchObject({ memoryStatus: 'saved' })
+    expect(remembered.stops).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: blueFinchStop.id, memoryStatus: 'saved' }),
+        expect.objectContaining({ id: cedarStop.id, memoryStatus: 'missing' }),
+      ]),
+    )
+  })
+
+  it('keeps repeated catalog visit memories scoped to separate stops', async () => {
+    const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!
+    const fresh = await trips.create({ name: 'Repeated visits', localDate: '2026-08-12' })
+    const storeId = '00000000-0000-4000-8000-000000000001'
+    const first = (await trips.addStoreStop(fresh.id, storeId)).stops.at(-1)!
+    const second = (await trips.addStoreStop(fresh.id, storeId)).stops.at(-1)!
+    expect(first.id).not.toBe(second.id)
+
+    const firstSaved = await trips.saveVisitMemory!(fresh.id, first.id, { note: 'First visit' })
+    expect(firstSaved.stops.find((stop) => stop.id === first.id)).toMatchObject({
+      memoryStatus: 'saved',
+    })
+    expect(firstSaved.stops.find((stop) => stop.id === second.id)).toMatchObject({
+      memoryStatus: 'missing',
+    })
+
+    const bothSaved = await trips.saveVisitMemory!(fresh.id, second.id, { note: 'Second visit' })
+    expect(bothSaved.stops.find((stop) => stop.id === first.id)).toMatchObject({
+      memoryStatus: 'saved',
+    })
+    expect(bothSaved.stops.find((stop) => stop.id === second.id)).toMatchObject({
+      memoryStatus: 'saved',
+    })
+    await expect(
+      trips.saveVisitMemory!(fresh.id, storeId, { note: 'Store-wide fallback' }),
+    ).rejects.toThrow(/synthetic visit stop unavailable/i)
   })
 
   it('seeds one recipient-bound invitation without exposing the trip before acceptance', async () => {
