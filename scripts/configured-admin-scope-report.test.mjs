@@ -2,22 +2,22 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { configuredAdminScopeReport } from './configured-admin-scope-report.mjs'
 
-const stats = { expected: 6, unexpected: 0, skipped: 0, flaky: 0 }
+const stats = { expected: 8, unexpected: 0, skipped: 0, flaky: 0 }
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const complete = {
   stats,
   errors: [],
   suites: [
     {
-      specs: Array.from({ length: 6 }, (_, index) => ({
+      specs: Array.from({ length: 8 }, (_, index) => ({
         title: `scenario ${index}`,
-        tests: [{ projectName: index < 3 ? 'desktop' : 'phone', results: [{ status: 'passed' }] }],
+        tests: [{ projectName: index < 4 ? 'desktop' : 'phone', results: [{ status: 'passed' }] }],
       })),
     },
   ],
 }
 
-test('configured Administrator report passes only six completed cases with no skips or flakes', () => {
+test('configured Administrator report passes only eight completed cases with no skips or flakes', () => {
   assert.equal(configuredAdminScopeReport(complete).status, 'passed')
   const skipped = clone(complete)
   skipped.stats = { ...stats, expected: 2, skipped: 3, unexpected: 1 }
