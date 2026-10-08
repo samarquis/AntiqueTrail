@@ -8,32 +8,135 @@ const input = JSON.parse(fs.readFileSync(process.env.CONFIGURED_SHOPPER_INPUT!, 
 const service = createLocalService({ resumeDirectory: input.directory })
 const A = '00000000-0000-4000-8000-000000001001'
 const B = '00000000-0000-4000-8000-000000001002'
-function issue565ActualRoute(value: string) {
-  const actual = new URL(value)
-  if (actual.pathname === '/auth/sign-in') {
-    const returnTo = actual.searchParams.get('returnTo')
-    if (returnTo === null) return '/auth/sign-in'
-    const target = new URL(returnTo, actual.origin)
-    if (target.origin !== actual.origin) return '/auth/sign-in?returnTo=<other-route>'
-    if (target.pathname === '/trips/new')
-      return `/auth/sign-in?returnTo=/trips/new${target.searchParams.has('addStoreId') ? '?addStoreId=<store-id>' : ''}`
-    if (target.pathname === '/stores/clockwork-cabinet' && !target.search)
-      return '/auth/sign-in?returnTo=/stores/clockwork-cabinet'
-    return '/auth/sign-in?returnTo=<other-route>'
+const issue565RoutePaths = new Set(['/auth/sign-in', '/trips/new', '/stores/clockwork-cabinet'])
+const issue565CoverPath = '/images/synthetic-stores/1280w/blue-finch-curios-cover.webp'
+
+function issue565Path(value: string | null, base = 'http://127.0.0.1/') {
+  if (value === null) return '<missing>'
+  try {
+    const path = new URL(value, base).pathname
+    return issue565RoutePaths.has(path) ? path : '<other-route>'
+  } catch {
+    return '<other-route>'
   }
-  if (actual.pathname === '/trips/new')
-    return `/trips/new${actual.searchParams.has('addStoreId') ? '?addStoreId=<store-id>' : ''}`
-  if (actual.pathname === '/stores/clockwork-cabinet') return actual.pathname
-  return '<other-route>'
+}
+
+async function issue565AddToTripProbe(page: Page, link: ReturnType<Page['getByRole']>) {
+  const locatorCount = await link.count().catch(() => 0)
+  if (locatorCount !== 1)
+    return {
+      locatorCount,
+      hrefPath: '<missing>',
+      disabled: null,
+      ariaDisabled: 'unset',
+      pointerEvents: 'unknown',
+    }
+  const [href, disabled, ariaDisabled, pointerEvents] = await Promise.all([
+    link.getAttribute('href').catch(() => null),
+    link.isDisabled().catch(() => null),
+    link.getAttribute('aria-disabled').catch(() => null),
+    link.evaluate((element) => getComputedStyle(element).pointerEvents).catch(() => 'unknown'),
+  ])
+  return {
+    locatorCount,
+    hrefPath: issue565Path(href, page.url()),
+    disabled,
+    ariaDisabled:
+      ariaDisabled === 'true' || ariaDisabled === 'false' ? ariaDisabled : 'unset',
+    pointerEvents: pointerEvents === 'auto' || pointerEvents === 'none' ? pointerEvents : 'other',
+  }
+}
+
+async function issue565DiscoveryProbe(page: Page, coverStatuses: number[], coverFailed: boolean) {
+  const viewState =
+    (await page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' }).count()) > 0
+      ? 'details'
+      : (await page.getByRole('heading', { name: 'Store not found', exact: true }).count()) > 0
+        ? 'not-found'
+        : (await page.getByRole('heading', { name: 'We couldn’t load the stores' }).count()) > 0
+          ? 'catalog-error'
+          : (await page.getByRole('heading', { name: 'Finding stores' }).count()) > 0
+            ? 'loading'
+            : 'other'
+  const image = page
+    .getByRole('img', { name: /Illustrated synthetic cover for Clockwork Cabinet/ })
+    .first()
+  const imageCount = await image.count()
+  const imageState =
+    imageCount === 0
+      ? 'not-rendered'
+      : await image
+          .evaluate((element: HTMLImageElement) =>
+            element.complete ? (element.naturalWidth > 0 ? 'loaded' : 'broken') : 'loading',
+          )
+          .catch(() => 'other')
+  const imageErrors = await page
+    .evaluate(() =>
+      Number((window as Window & { __issue565CoverErrors?: number }).__issue565CoverErrors ?? 0),
+    )
+    .catch(() => 0)
+  return {
+    path: issue565Path(page.url()),
+    viewState,
+    coverHttpStatus: coverStatuses.at(-1) ?? null,
+    coverRequestFailed: coverFailed,
+    imageState,
+    imageErrors: imageErrors === 0 ? 0 : 1,
+  }
+}
+
+async function tokenSessionClaims(token: string) {
+  try {
+    const encoded = token.split('.')[1]
+    if (!encoded || !/^[A-Za-z0-9_-]+$/.test(encoded)) return null
+    const claims = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as {
+      sub?: unknown
+      session_id?: unknown
+    }
+    const sessionId = typeof claims.session_id === 'string' ? claims.session_id : ''
+    if (!/^[a-f0-9-]{36}$/i.test(sessionId)) return null
+    return { matchesSibling: claims.sub === input.users[1].id, sessionId: uuid(sessionId) }
+  } catch {
+    return null
+  }
+}
+
+async function safeRpcOutcome(token: string, name: string, body: object) {
+  try {
+    await rpc(token, name, body)
+    return 'returned'
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    const match = /^HTTP ([1-5]\d\d) ([A-Za-z0-9_]+)/.exec(message)
+    if (!match) return 'transport-error'
+    const code = ['P0001', '42501', 'PGRST202', '401', '403'].includes(match[2])
+      ? match[2]
+      : 'other'
+    return `http-${match[1]}-${code}`
+  }
 }
 async function expectDetailsSignIn(page: Page) {
+  const link = page.getByRole('link', { name: 'Add to Trip', exact: true })
+  let stage = 'before-click'
+  let beforeClick = await issue565AddToTripProbe(page, link)
+  let pathnameAfterClick = '<missing>'
   try {
-    await page.getByRole('link', { name: 'Add to Trip', exact: true }).click()
+    await expect(link).toHaveCount(1)
+    beforeClick = await issue565AddToTripProbe(page, link)
+    await link.click()
+    stage = 'click-resolved'
+    pathnameAfterClick = issue565Path(page.url())
+    stage = 'assert-route'
     await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=/)
   } catch (error) {
     test.info().annotations.push({
-      type: 'issue-565-actual-route',
-      description: issue565ActualRoute(page.url()),
+      type: 'issue-565-add-to-trip-probe',
+      description: JSON.stringify({
+        stage,
+        ...beforeClick,
+        pathnameAfterClick,
+        pathnameAtFailure: issue565Path(page.url()),
+      }),
     })
     throw error
   }
@@ -182,16 +285,78 @@ test('creator removes an accepted partner through configured transport', async (
 })
 
 test('anonymous discovery, permitted photo and JIT save context return', async ({ page }) => {
+  const coverStatuses: number[] = []
+  let coverFailed = false
+  await page.addInitScript((coverPath) => {
+    const target = window as Window & { __issue565CoverErrors?: number }
+    target.__issue565CoverErrors = 0
+    window.addEventListener(
+      'error',
+      (event) => {
+        const image = event.target
+        if (
+          image instanceof HTMLImageElement &&
+          new URL(image.src).pathname === coverPath
+        )
+          target.__issue565CoverErrors = (target.__issue565CoverErrors ?? 0) + 1
+      },
+      true,
+    )
+  }, issue565CoverPath)
+  page.on('response', (response) => {
+    try {
+      if (new URL(response.url()).pathname === issue565CoverPath)
+        coverStatuses.push(response.status())
+    } catch {
+      /* Ignore unrelated or malformed URLs. */
+    }
+  })
+  page.on('requestfailed', (request) => {
+    try {
+      if (new URL(request.url()).pathname === issue565CoverPath) coverFailed = true
+    } catch {
+      /* Ignore unrelated or malformed URLs. */
+    }
+  })
   await page.goto('/stores')
   await page.getByRole('link', { name: 'Clockwork Cabinet', exact: true }).first().click()
-  await expect(page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' })).toBeVisible()
+  try {
+    await expect(page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' })).toBeVisible()
+  } catch (error) {
+    test.info().annotations.push({
+      type: 'issue-565-discovery-probe',
+      description: JSON.stringify({
+        stage: 'details-heading',
+        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed)),
+      }),
+    })
+    throw error
+  }
   const photo = page
     .getByRole('img', { name: /Illustrated synthetic cover for Clockwork Cabinet/ })
     .first()
-  await expect(photo).toBeVisible()
-  expect(
-    await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
-  ).toBe(true)
+  try {
+    await expect(photo).toBeVisible()
+    expect(
+      await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+    ).toBe(true)
+    expect(coverStatuses).toContain(200)
+    expect(coverFailed).toBe(false)
+    expect(
+      await page.evaluate(
+        () => (window as Window & { __issue565CoverErrors?: number }).__issue565CoverErrors ?? 0,
+      ),
+    ).toBe(0)
+  } catch (error) {
+    test.info().annotations.push({
+      type: 'issue-565-discovery-probe',
+      description: JSON.stringify({
+        stage: 'cover-image',
+        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed)),
+      }),
+    })
+    throw error
+  }
   await page.getByRole('link', { name: /save clockwork cabinet.*requires sign-in/i }).click()
   await expect(page).toHaveURL(/\/auth\/sign-in/)
   expect(await saved()).toBe(0)
@@ -897,16 +1062,81 @@ test('two local accounts keep settings private across save, fresh login, and rev
     await expect(siblingPage.getByLabel('Signed in as Issue 420 Sibling')).toHaveCount(0)
     expect(await storeAccess()).toEqual(storeAccessBefore)
 
+    const revocationProbe = {
+      tokenSubjectMatchesSibling: false,
+      tokenSessionActive: false,
+      activeSessionAfter: 'not-checked',
+      readOutcome: 'not-run',
+      writeOutcome: 'not-run',
+      profileUnchanged: null as boolean | null,
+    }
+    const revocationAnnotation = { type: 'issue-565-session-revocation', description: '' }
+    const annotateRevocation = () => {
+      revocationAnnotation.description = JSON.stringify(revocationProbe)
+    }
+    test.info().annotations.push(revocationAnnotation)
+
+    const claims = await tokenSessionClaims(freshSiblingToken)
+    revocationProbe.tokenSubjectMatchesSibling = claims?.matchesSibling === true
+    annotateRevocation()
+    expect(claims?.matchesSibling).toBe(true)
+
+    const siblingVersion = Number(
+      (await service.sql(
+        `select version::text from app_private.profiles where user_id='${siblingId}';`,
+      )).trim(),
+    )
+    const sessionState = claims
+      ? await service.sql(
+          `select coalesce((select state::text from app_private.active_sessions where session_id='${claims.sessionId}' and user_id='${siblingId}'), 'missing');`,
+        )
+      : 'missing'
+    revocationProbe.tokenSessionActive = sessionState.trim() === 'active'
+    annotateRevocation()
+    expect(revocationProbe.tokenSessionActive).toBe(true)
+
     await service.sql(
-      `update app_private.active_sessions set state='revoked',revoked_at=statement_timestamp(),revocation_reason='issue_420_test_revocation' where user_id='${siblingId}' and state='active';`,
+      `update app_private.active_sessions set state='revoked',revoked_at=statement_timestamp(),revocation_reason='issue_565_test_revocation' where session_id='${claims!.sessionId}' and user_id='${siblingId}' and state='active';`,
     )
-    await expect(rpc(freshSiblingToken, 'account_get_settings', {})).rejects.toThrow(
-      /401|403|42501|account_settings_access_denied/,
+    const revokedState = await service.sql(
+      `select coalesce((select state::text from app_private.active_sessions where session_id='${claims!.sessionId}' and user_id='${siblingId}'), 'missing');`,
     )
+    const knownSessionStates = ['active', 'revoked', 'expired', 'missing']
+    revocationProbe.activeSessionAfter = knownSessionStates.includes(revokedState.trim())
+      ? revokedState.trim()
+      : 'other'
+    annotateRevocation()
+    expect(revocationProbe.activeSessionAfter).toBe('revoked')
+
+    const isAuthenticationDenial = (outcome: string) =>
+      /^http-(?:400-P0001|401-(?:401|403)|403-(?:42501|403))$/.test(outcome)
+    revocationProbe.readOutcome = await safeRpcOutcome(
+      freshSiblingToken,
+      'account_get_settings',
+      {},
+    )
+    annotateRevocation()
+    expect(isAuthenticationDenial(revocationProbe.readOutcome)).toBe(true)
+
+    revocationProbe.writeOutcome = await safeRpcOutcome(
+      freshSiblingToken,
+      'account_update_settings',
+      {
+        p_display_name: 'Issue 565 denied write probe',
+        p_location_address: '420 Sibling Private Address',
+        p_expected_version: siblingVersion + 1,
+        p_idempotency_key: 'issue565-revoked-write-probe',
+      },
+    )
+    annotateRevocation()
+    expect(isAuthenticationDenial(revocationProbe.writeOutcome)).toBe(true)
+
     const unchanged = await service.sql(
-      `select private_location_address from app_private.profiles where user_id='${siblingId}';`,
+      `select count(*)::text from app_private.profiles where user_id='${siblingId}' and version=${siblingVersion} and private_location_address='420 Sibling Private Address';`,
     )
-    expect(unchanged.trim()).toBe('420 Sibling Private Address')
+    revocationProbe.profileUnchanged = unchanged.trim() === '1'
+    annotateRevocation()
+    expect(revocationProbe.profileUnchanged).toBe(true)
   } finally {
     await siblingContext.close()
   }

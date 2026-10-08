@@ -19,9 +19,19 @@ const sessionSignout = process.argv.includes('--session-signout')
 const mediaOnly = process.argv.includes('--media-only')
 const partnerRemoval = process.argv.includes('--partner-removal')
 const accountSettings = process.argv.includes('--account-settings')
+const detailsAddToTrip = process.argv.includes('--details-add-to-trip')
+const anonymousDiscovery = process.argv.includes('--anonymous-discovery')
+const scopes = [
+  sessionSignout,
+  mediaOnly,
+  partnerRemoval,
+  accountSettings,
+  detailsAddToTrip,
+  anonymousDiscovery,
+].filter(Boolean)
 const report = {
   scope:
-    [sessionSignout, mediaOnly, partnerRemoval, accountSettings].filter(Boolean).length > 1
+    scopes.length > 1
       ? 'invalid'
       : sessionSignout
         ? 'session-signout'
@@ -31,7 +41,11 @@ const report = {
             ? 'accepted-partner-removal'
             : accountSettings
               ? 'two-user-account-settings'
-              : 'connected-shopper',
+              : detailsAddToTrip
+                ? 'details-add-to-trip'
+                : anonymousDiscovery
+                  ? 'anonymous-discovery'
+                  : 'connected-shopper',
   status: 'unavailable',
   stage: 'preflight',
   failedAt: undefined,
@@ -48,7 +62,7 @@ process.on('SIGTERM', interrupt)
 let service, server
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
-  if ([sessionSignout, mediaOnly, partnerRemoval, accountSettings].filter(Boolean).length > 1)
+  if (scopes.length > 1)
     throw new Error('Choose one configured acceptance scope')
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
     throw new Error('External endpoint selection is forbidden')
@@ -181,7 +195,17 @@ try {
                     '--grep',
                     'two local accounts keep settings private across save, fresh login, and revocation$',
                   ]
-                : []),
+                : detailsAddToTrip
+                  ? [
+                      '--grep',
+                      'visible Details Add to Trip preserves store through cancel, auth failure, and sign-in$',
+                    ]
+                  : anonymousDiscovery
+                    ? [
+                        '--grep',
+                        'anonymous discovery, permitted photo and JIT save context return$',
+                      ]
+                    : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
@@ -198,7 +222,11 @@ try {
   } else {
     const results = browserReport(
       fs.readFileSync(resultPath, 'utf8'),
-      sessionSignout ? 4 : mediaOnly || partnerRemoval || accountSettings ? 2 : 26,
+      sessionSignout
+        ? 4
+        : mediaOnly || partnerRemoval || accountSettings || detailsAddToTrip || anonymousDiscovery
+          ? 2
+          : 26,
     )
     report.stats = results.stats
     report.checks = results.checks

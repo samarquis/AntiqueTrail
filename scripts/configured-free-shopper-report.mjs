@@ -1,3 +1,126 @@
+const allowedRoutePaths = new Set([
+  '/auth/sign-in',
+  '/trips/new',
+  '/stores/clockwork-cabinet',
+  '<other-route>',
+  '<missing>',
+])
+
+function safeRoutePath(value) {
+  return typeof value === 'string' && allowedRoutePaths.has(value) ? value : '<other-route>'
+}
+
+function safeCount(value) {
+  return Number.isSafeInteger(value) && value >= 0 && value <= 20 ? value : undefined
+}
+
+function safeAnnotation(annotations, type) {
+  const annotation = [...annotations].reverse().find((item) => item?.type === type)
+  if (typeof annotation?.description !== 'string') return null
+  try {
+    const value = JSON.parse(annotation.description)
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+export function safeIssue565Diagnostics(value) {
+  const diagnostics = {}
+  const addToTrip = value?.addToTrip
+  if (addToTrip) {
+    const locatorCount = safeCount(addToTrip.locatorCount)
+    diagnostics.addToTrip = {
+      ...(typeof addToTrip.stage === 'string' &&
+        ['before-click', 'click-resolved', 'assert-route'].includes(addToTrip.stage) && {
+          stage: addToTrip.stage,
+        }),
+      ...(locatorCount !== undefined && { locatorCount }),
+      hrefPath: safeRoutePath(addToTrip.hrefPath),
+      ...(typeof addToTrip.disabled === 'boolean' || addToTrip.disabled === null
+        ? { disabled: addToTrip.disabled }
+        : {}),
+      ariaDisabled:
+        typeof addToTrip.ariaDisabled === 'string' &&
+        ['true', 'false', 'unset'].includes(addToTrip.ariaDisabled)
+          ? addToTrip.ariaDisabled
+          : 'unset',
+      pointerEvents:
+        typeof addToTrip.pointerEvents === 'string' &&
+        ['auto', 'none', 'other', 'unknown'].includes(addToTrip.pointerEvents)
+          ? addToTrip.pointerEvents
+          : 'unknown',
+      pathnameAfterClick: safeRoutePath(addToTrip.pathnameAfterClick),
+      pathnameAtFailure: safeRoutePath(addToTrip.pathnameAtFailure),
+    }
+  }
+
+  const discovery = value?.discovery
+  if (discovery) {
+    diagnostics.discovery = {
+      ...(typeof discovery.stage === 'string' &&
+        ['details-heading', 'cover-image'].includes(discovery.stage) && { stage: discovery.stage }),
+      path: safeRoutePath(discovery.path),
+      viewState:
+        typeof discovery.viewState === 'string' &&
+        ['details', 'not-found', 'catalog-error', 'loading', 'other'].includes(
+          discovery.viewState,
+        )
+          ? discovery.viewState
+          : 'other',
+      coverHttpStatus:
+        Number.isSafeInteger(discovery.coverHttpStatus) &&
+        discovery.coverHttpStatus >= 100 &&
+        discovery.coverHttpStatus <= 599
+          ? discovery.coverHttpStatus
+          : null,
+      coverRequestFailed: discovery.coverRequestFailed === true,
+      imageState:
+        typeof discovery.imageState === 'string' &&
+        ['not-rendered', 'loading', 'loaded', 'broken'].includes(discovery.imageState)
+          ? discovery.imageState
+          : 'other',
+      imageErrors: discovery.imageErrors === 1 ? 1 : 0,
+    }
+  }
+
+  const session = value?.sessionRevocation
+  if (session) {
+    const safeOutcome = (value) =>
+      typeof value === 'string' &&
+      /^(?:not-run|returned|transport-error|http-(?:400|401|403|5\d\d)-(?:P0001|42501|PGRST202|401|403|other))$/.test(
+        value,
+      )
+        ? value
+        : 'unclassified'
+    diagnostics.sessionRevocation = {
+      tokenSubjectMatchesSibling: session.tokenSubjectMatchesSibling === true,
+      tokenSessionActive: session.tokenSessionActive === true,
+      activeSessionAfter:
+        typeof session.activeSessionAfter === 'string' &&
+        ['not-checked', 'active', 'revoked', 'expired', 'missing', 'other'].includes(
+          session.activeSessionAfter,
+        )
+          ? session.activeSessionAfter
+          : 'other',
+      readOutcome: safeOutcome(session.readOutcome),
+      writeOutcome: safeOutcome(session.writeOutcome),
+      ...(typeof session.profileUnchanged === 'boolean' || session.profileUnchanged === null
+        ? { profileUnchanged: session.profileUnchanged }
+        : {}),
+    }
+  }
+  return Object.keys(diagnostics).length ? diagnostics : undefined
+}
+
+function safeAnnotationDiagnostics(annotations) {
+  return safeIssue565Diagnostics({
+    addToTrip: safeAnnotation(annotations, 'issue-565-add-to-trip-probe'),
+    discovery: safeAnnotation(annotations, 'issue-565-discovery-probe'),
+    sessionRevocation: safeAnnotation(annotations, 'issue-565-session-revocation'),
+  })
+}
+
 export function browserReport(text, expected = 18) {
   const result = JSON.parse(text)
   const stats = result?.stats
@@ -35,10 +158,12 @@ export function browserReport(text, expected = 18) {
           const actualRoute = annotations.find(
             (annotation) => annotation?.type === 'issue-565-actual-route',
           )?.description
+          const diagnostics = safeAnnotationDiagnostics(annotations)
           checks.push({
             name: spec.title,
             project: test.projectName,
             status: final?.status ?? 'unavailable',
+            ...(diagnostics && { diagnostics }),
             ...(final?.status !== 'passed' && {
               failure: {
                 sourceLine: line

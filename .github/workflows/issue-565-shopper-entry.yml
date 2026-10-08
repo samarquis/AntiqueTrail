@@ -40,6 +40,19 @@ on:
       - 'supabase/functions/**'
       - 'supabase/migrations/**'
       - 'supabase/seed.sql'
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Focused local acceptance scope
+        required: true
+        type: choice
+        default: full
+        options:
+          - full
+          - details-add-to-trip
+          - anonymous-discovery
+          - account-settings
+          - media-only
 
 permissions:
   contents: read
@@ -72,6 +85,8 @@ jobs:
           const required = [
             ['e2e/configured-free-shopper.spec.ts', 'visible Details Add to Trip preserves store through cancel, auth failure, and sign-in'],
             ['e2e/configured-free-shopper.spec.ts', 'visible Saved-row chooser cancels, retries, and reads back one dated stop'],
+            ['e2e/configured-free-shopper.spec.ts', 'anonymous discovery, permitted photo and JIT save context return'],
+            ['e2e/configured-free-shopper.spec.ts', 'two local accounts keep settings private across save, fresh login, and revocation'],
             ['src/app/configuredComposition.test.ts', 'requires configured credentials, literal browser origin, and local mode'],
             ['src/app/App.test.tsx', 'keeps the Details chooser hidden in catalog-only public mode'],
             ['src/app/App.test.tsx', 'blocks direct trip routes in the public test without removing local review fixtures'],
@@ -90,7 +105,17 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run real configured shopper acceptance
         id: browser_acceptance
-        run: npm run test:e2e:configured-shopper
+        env:
+          ISSUE_565_SCOPE: ${{ github.event.inputs.scope || 'full' }}
+        run: |
+          case "$ISSUE_565_SCOPE" in
+            full) npm run test:e2e:configured-shopper ;;
+            details-add-to-trip) npm run test:e2e:configured-shopper -- --details-add-to-trip ;;
+            anonymous-discovery) npm run test:e2e:configured-shopper -- --anonymous-discovery ;;
+            account-settings) npm run test:e2e:configured-shopper -- --account-settings ;;
+            media-only) npm run test:e2e:configured-shopper -- --media-only ;;
+            *) echo "Unsupported Issue 565 scope"; exit 2 ;;
+          esac
       - name: Prepare allowlisted proof receipt
         if: always()
         env:
@@ -98,10 +123,12 @@ jobs:
           CRITERIA_STEP: ${{ steps.criteria_presence.outcome }}
           ADMISSION_STEP: ${{ steps.admission_tests.outcome }}
           BROWSER_STEP: ${{ steps.browser_acceptance.outcome }}
+          ISSUE_565_SCOPE: ${{ github.event.inputs.scope || 'full' }}
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs'
           import path from 'node:path'
+          import { safeIssue565Diagnostics } from './scripts/configured-free-shopper-report.mjs'
 
           const output = 'artifacts/issue-565-shopper-proof.json'
           fs.mkdirSync('artifacts', { recursive: true })
@@ -120,13 +147,42 @@ jobs:
             failures.push('expected one configured report')
           }
 
-          const expectedNames = [
-            'visible Details Add to Trip preserves store through cancel, auth failure, and sign-in',
-            'visible Saved-row chooser cancels, retries, and reads back one dated stop',
-          ]
+          const scopeDefinitions = {
+            full: {
+              reportScope: 'connected-shopper',
+              expected: 26,
+              names: [
+                'visible Details Add to Trip preserves store through cancel, auth failure, and sign-in',
+                'visible Saved-row chooser cancels, retries, and reads back one dated stop',
+              ],
+            },
+            'details-add-to-trip': {
+              reportScope: 'details-add-to-trip',
+              expected: 2,
+              names: ['visible Details Add to Trip preserves store through cancel, auth failure, and sign-in'],
+            },
+            'anonymous-discovery': {
+              reportScope: 'anonymous-discovery',
+              expected: 2,
+              names: ['anonymous discovery, permitted photo and JIT save context return'],
+            },
+            'account-settings': {
+              reportScope: 'two-user-account-settings',
+              expected: 2,
+              names: ['two local accounts keep settings private across save, fresh login, and revocation'],
+            },
+            'media-only': {
+              reportScope: 'seed-media-desktop-phone',
+              expected: 2,
+              names: ['JIT trip entry, authenticated catalog, photo, save and two-store creation'],
+            },
+          }
+          const selectedScope = scopeDefinitions[process.env.ISSUE_565_SCOPE]
+          if (!selectedScope) failures.push('unsupported browser acceptance scope')
+          const scope = selectedScope ?? scopeDefinitions.full
           const projects = ['desktop', 'phone']
           const checks = Array.isArray(report?.checks) ? report.checks : []
-          for (const name of expectedNames)
+          for (const name of scope.names)
             for (const project of projects) {
               const matches = checks.filter((check) => check.name === name && check.project === project)
               if (matches.length !== 1 || matches[0]?.status !== 'passed')
@@ -135,12 +191,12 @@ jobs:
 
           const stats = report?.stats
           const browserPassed =
-            report?.scope === 'connected-shopper' &&
+            report?.scope === scope.reportScope &&
             report?.evidenceClass === 'real-local-browser' &&
             report?.status === 'passed' &&
             report?.sourceSha === process.env.EXPECTED_SOURCE_SHA &&
-            checks.length === 26 &&
-            stats?.expected === 26 &&
+            checks.length === scope.expected &&
+            stats?.expected === scope.expected &&
             stats?.unexpected === 0 &&
             stats?.skipped === 0 &&
             stats?.flaky === 0 &&
@@ -231,12 +287,16 @@ jobs:
             stats: stats && Object.fromEntries(
               ['expected', 'unexpected', 'skipped', 'flaky'].map((key) => [key, stats[key]]),
             ),
-            checks: checks.map(({ name, project, status, failure }) => ({
-              name,
-              project,
-              status,
-              ...(status !== 'passed' && { failure: safeFailure(failure) }),
-            })),
+            checks: checks.map((check) => {
+              const diagnostics = safeIssue565Diagnostics(check?.diagnostics)
+              return {
+                name: check?.name,
+                project: check?.project,
+                status: check?.status,
+                ...(diagnostics && { diagnostics }),
+                ...(check?.status !== 'passed' && { failure: safeFailure(check?.failure) }),
+              }
+            }),
             failures,
           }
           fs.writeFileSync(output, `${JSON.stringify(receipt, null, 2)}\n`)
