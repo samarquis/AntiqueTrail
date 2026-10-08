@@ -913,11 +913,11 @@ describe('scenario-aware review clients', () => {
       }),
     ).resolves.toEqual({ state: 'unauthorized' })
 
-    const remembered = await trips.saveVisitMemory!(
-      'trip-a',
-      'stop-a',
-      { rating: 5, note: 'Walnut secretary', returnChoice: 'yes' },
-    )
+    const remembered = await trips.saveVisitMemory!('trip-a', 'stop-a', {
+      rating: 5,
+      note: 'Walnut secretary',
+      returnChoice: 'yes',
+    })
     expect(remembered.stops.find((stop) => stop.id === 'stop-a')).toMatchObject({
       memoryStatus: 'saved',
     })
@@ -1015,11 +1015,11 @@ describe('scenario-aware review clients', () => {
       expect(suggestion.orderedStopIds).toEqual([cedarStop.id, blueFinchStop.id])
     }
 
-    const remembered = await trips.saveVisitMemory!(
-      fresh.id,
-      blueFinchStop.id,
-      { rating: 5, note: 'Walnut secretary', returnChoice: 'yes' },
-    )
+    const remembered = await trips.saveVisitMemory!(fresh.id, blueFinchStop.id, {
+      rating: 5,
+      note: 'Walnut secretary',
+      returnChoice: 'yes',
+    })
     expect(remembered.stops).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: blueFinchStop.id, memoryStatus: 'saved' }),
