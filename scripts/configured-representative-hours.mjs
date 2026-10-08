@@ -517,10 +517,10 @@ async function runOwnerListing() {
                   ? step.status
                   : 'unavailable',
             durationMs:
-              Number.isFinite(step?.durationMs) && step.durationMs >= 0
-                ? Math.round(step.durationMs)
-                : step?.status === 'running' && Number.isFinite(step?.startedAtMs)
-                  ? Math.max(0, Date.now() - step.startedAtMs)
+              step?.status === 'running' && Number.isFinite(step?.startedAtMs)
+                ? Math.max(0, Date.now() - step.startedAtMs)
+                : Number.isFinite(step?.durationMs) && step.durationMs >= 0
+                  ? Math.round(step.durationMs)
                   : 0,
           }))
         : []
