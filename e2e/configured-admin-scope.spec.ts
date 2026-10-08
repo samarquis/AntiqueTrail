@@ -149,7 +149,13 @@ const read = (store: string, subjectId: string) =>
       'ON_ERROR_STOP=1',
     ],
     {
-      input: `select json_build_object('partnerState',(select g.state from partner_private.store_partner_grants g where g.auth_user_id='${subjectId}' and g.store_id='${store}' and g.role='representative' order by g.granted_at desc, g.grant_id desc limit 1),'roleState',(select r.state from app_private.role_grants r where r.subject_user_id='${subjectId}' and r.store_id='${store}' and r.role='representative' order by r.granted_at desc, r.grant_id desc limit 1),'actions',(select count(*) from admin_private.admin_scope_actions a where a.subject_user_id='${subjectId}' and a.store_id='${store}' and a.role='representative'),'audit',(select count(*) from app_private.privileged_audit_events e join partner_private.store_partner_grants g on g.grant_id=e.resource_id where e.action in ('admin_scope_revoke','admin_scope_regrant') and g.auth_user_id='${subjectId}' and g.store_id='${store}'));`,
+      input: `select json_build_object(
+        'partnerState',(select g.state from partner_private.store_partner_grants g where g.auth_user_id='${subjectId}' and g.store_id='${store}' and g.role='representative' order by g.granted_at desc,g.grant_id desc limit 1),
+        'roleState',(select r.state from app_private.role_grants r where r.subject_user_id='${subjectId}' and r.store_id='${store}' and r.role='representative' order by r.granted_at desc,r.grant_id desc limit 1),
+        'grantId',(select g.grant_id from partner_private.store_partner_grants g where g.auth_user_id='${subjectId}' and g.store_id='${store}' and g.role='representative' order by g.granted_at desc,g.grant_id desc limit 1),
+        'version',(select g.version from partner_private.store_partner_grants g where g.auth_user_id='${subjectId}' and g.store_id='${store}' and g.role='representative' order by g.granted_at desc,g.grant_id desc limit 1),
+        'actions',(select count(*) from admin_private.admin_scope_actions a where a.subject_user_id='${subjectId}' and a.store_id='${store}' and a.role='representative'),
+        'audit',(select count(*) from app_private.privileged_audit_events e join partner_private.store_partner_grants g on g.grant_id=e.resource_id where e.action in ('admin_scope_revoke','admin_scope_regrant') and g.auth_user_id='${subjectId}' and g.store_id='${store}'));`,
     },
   ).then((text: string) => {
     const record = text
@@ -369,6 +375,7 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
       actions: input.wrongReadback ? 99 : baseline.actions + 2,
       audit: baseline.audit + 2,
     })
+  const regrantReadback = await read(scope.target, scope.targetSubjectId)
   await expect(siblingRow(page, scope)).toContainText('active')
   const regranted = targetRow(page, scope)
   await expect(
@@ -380,7 +387,11 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
   await regranted
     .getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` })
     .click()
-  expect((await previewResponse).status()).toBe(200)
+  const previewResponseValue = await previewResponse
+  expect(previewResponseValue.status()).toBe(200)
+  const preview = await previewResponseValue.json()
+  expect(preview.grantId).toBe(regrantReadback.grantId)
+  expect(preview.grantVersion).toBe(regrantReadback.version)
   await expect(regranted.getByText(`Confirm exact scope: ${scope.targetStoreName}`)).toBeVisible()
   await regranted.getByRole('button', { name: 'Cancel scope change', exact: true }).click()
 })

@@ -28,6 +28,18 @@ export function configuredAdminScopeReport(parsed, expected = 8) {
       const error = final?.errors?.[0] ?? final?.error
       const message = typeof error?.message === 'string' ? error.message : ''
       const assertion = assertions.find((name) => message.includes(name)) ?? null
+      const receivedStatus = message.match(/Expected:\s*200[\s\S]{0,120}?Received:\s*(\d{3})/)?.[1]
+      const httpFailureCategory = receivedStatus
+        ? ['400', '401', '403', '404', '409', '422', '429', '500', '502', '503'].includes(
+            receivedStatus,
+          )
+          ? `http_${receivedStatus}`
+          : Number(receivedStatus) >= 500
+            ? 'http_5xx'
+            : Number(receivedStatus) >= 400
+              ? 'http_4xx'
+              : 'http_status'
+        : null
       const stackLine = String(error?.stack ?? '').match(
         /configured-admin-scope\.spec\.ts:(\d+):\d+/,
       )
@@ -44,11 +56,13 @@ export function configuredAdminScopeReport(parsed, expected = 8) {
             ? 'timeout'
             : message.includes('strict mode violation')
               ? 'strict_locator'
-              : assertion
-                ? 'assertion'
-                : error
-                  ? 'test_error'
-                  : 'unclassified'
+              : httpFailureCategory
+                ? httpFailureCategory
+                : assertion
+                  ? 'assertion'
+                  : error
+                    ? 'test_error'
+                    : 'unclassified'
 
       return {
         title: `${test.projectName ?? 'unknown'}: ${spec.title}`,

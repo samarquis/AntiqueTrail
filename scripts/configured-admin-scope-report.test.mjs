@@ -59,6 +59,31 @@ test('configured Administrator failures expose only allowlisted assertion metada
   assert.equal(JSON.stringify(report).includes('Expected '), false)
 })
 
+test('configured Administrator reports exact allowlisted HTTP status categories without assertion text', () => {
+  const failed = clone(complete)
+  failed.stats = { ...stats, expected: 7, unexpected: 1 }
+  failed.suites[0].specs[0].tests[0].results = [
+    {
+      status: 'failed',
+      errors: [
+        {
+          message:
+            'Error: expect(received).toBe(expected)\nExpected: 200\nReceived: 403\nprivate-owner@example.invalid',
+          stack: 'Error\n at /runner/e2e/configured-admin-scope.spec.ts:457:18',
+        },
+      ],
+    },
+  ]
+  const report = configuredAdminScopeReport(failed)
+  assert.deepEqual(report.checks[0].failure, {
+    category: 'http_403',
+    sourceLine: 457,
+    assertion: 'toBe',
+  })
+  assert.equal(JSON.stringify(report).includes('private-owner@example.invalid'), false)
+  assert.equal(JSON.stringify(report).includes('Received'), false)
+})
+
 test('configured Administrator report rejects malformed or incomplete acceptance data', () => {
   assert.throws(() => configuredAdminScopeReport({}), /Malformed browser report/)
   const malformed = clone(complete)
