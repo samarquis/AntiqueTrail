@@ -168,11 +168,18 @@ reset role;
 select is((select count(*) from app_private.role_grants where subject_user_id='58200000-0000-4000-8000-000000000001' and role in ('representative','store_owner') and store_id='00000000-0000-4000-8000-000000000007' and state='active'),0::bigint,'self-approval denial creates no store authority');
 select is((select count(*) from partner_private.owner_claim_approvals where claim_id='58200000-0000-4000-8000-00000000000d'),0::bigint,'self-approval denial creates no Owner approval marker');
 
--- An unrelated bound synthetic invitation and a different active Owner claim keep the public claim on the Representative path.
+-- Probe direct Owner rejection with an unrelated synthetic root, then restore the public Representative fixture.
 select pg_temp.seed_claim582('58200000-0000-4000-8000-00000000000b','58200000-0000-4000-8000-000000000012','00000000-0000-4000-8000-000000000007');
 insert into review_cases582 select '58200000-0000-4000-8000-00000000000b',case_id,null from admin_private.admin_review_cases where target_id='58200000-0000-4000-8000-00000000000b' and case_type='listing_claim';
+create temporary table representative_root_before_owner_probe582 as
+ select applicant_id,active_kind,active_id,version from partner_private.store_owner_intake_roots
+ where applicant_id='58200000-0000-4000-8000-000000000012';
+select ok((select active_kind='claim' and active_id='58200000-0000-4000-8000-00000000000b' from representative_root_before_owner_probe582),'public claim starts with a valid exact active root');
 update partner_private.partner_invitations set synthetic=true where invitation_id='58200000-0000-4000-8000-000000000014';
 select pg_temp.seed_claim582('58200000-0000-4000-8000-00000000000f','58200000-0000-4000-8000-000000000012','00000000-0000-4000-8000-000000000008');
+select ok(exists(select 1 from partner_private.store_owner_intake_roots r join partner_private.listing_claims c on c.claim_id=r.active_id
+ where r.applicant_id='58200000-0000-4000-8000-000000000012' and r.active_kind='claim' and r.active_id='58200000-0000-4000-8000-00000000000f'
+ and c.claimant_id=r.applicant_id and c.store_id='00000000-0000-4000-8000-000000000008' and c.state='verification_pending'),'synthetic invitation probe uses another real pending claim for the same claimant');
 insert into claim_versions582
  select claim_id,version from partner_private.listing_claims
  where claim_id='58200000-0000-4000-8000-00000000000b'
@@ -189,6 +196,14 @@ select is((select count(*) from partner_private.owner_claim_approvals where idem
 select is((select count(*) from partner_private.claim_command_receipts where idempotency_key='582-direct-owner-wrong-root'),0::bigint,'wrong-root denial writes no claim command receipt');
 select is((select count(*) from admin_private.admin_command_receipts where idempotency_key='582-direct-owner-wrong-root'),0::bigint,'wrong-root denial writes no Admin command receipt');
 select is((select count(*) from app_private.privileged_audit_events where action='owner_claim_approved' and resource_kind='listing_claim' and resource_id='58200000-0000-4000-8000-00000000000b'),0::bigint,'wrong-root denial writes no Owner approval audit event');
+update partner_private.partner_invitations set synthetic=false where invitation_id='58200000-0000-4000-8000-000000000014';
+update partner_private.store_owner_intake_roots r
+ set active_kind=prior.active_kind,active_id=prior.active_id,version=r.version+1,updated_at=statement_timestamp()
+ from representative_root_before_owner_probe582 prior where r.applicant_id=prior.applicant_id;
+select ok((select r.active_kind=prior.active_kind and r.active_id is not distinct from prior.active_id and r.version>prior.version
+ from partner_private.store_owner_intake_roots r join representative_root_before_owner_probe582 prior using(applicant_id)),
+ 'Representative fixture restores the original root pair and keeps its version monotonic');
+select is((select synthetic from partner_private.partner_invitations where invitation_id='58200000-0000-4000-8000-000000000014'),false,'Representative fixture restores its original non-synthetic invitation');
 select pg_temp.actor582('58200000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000003');
 set local role authenticated;
 select throws_ok($$select app_public.admin_decide_review_case((select case_id::text from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000b'),'approve','Representative authority verified',(select version from review_cases582 where claim_id='58200000-0000-4000-8000-00000000000b'),'582-review-owner-a')$$,'22023',null,'Owner receipt cannot replay as a Representative decision');
@@ -215,7 +230,8 @@ set local role authenticated;
 select is(jsonb_array_length(app_public.admin_list_owner_access()),2,'Owner list includes only approved Owner claims');
 select ok(exists(select 1 from jsonb_array_elements(app_public.admin_list_owner_access()) r where r->>'claimId'='58200000-0000-4000-8000-000000000004' and r->>'ownerUserId'='76000000-0000-4000-8000-000000000001' and r->>'storeId'='00000000-0000-4000-8000-000000000009' and r->>'accessState'='active' and jsonb_typeof(r->'history')='array'),'Owner list binds exact claim, account, store and minimized history');
 select ok(not exists(select 1 from jsonb_array_elements(app_public.admin_list_owner_access()) r where r ?| array['shopperActivity','privateNotes','savedStores','authorityStatement','evidence']),'Owner list omits Shopper-private data and raw authority evidence');
-select is(jsonb_array_length(app_public.admin_list_store_scopes()),2,'Representative list remains Representative-only');
+select is(jsonb_array_length(app_public.admin_list_store_scopes()),2,'Representative list includes the approved public claim and remains Representative-only');
+select ok(exists(select 1 from jsonb_array_elements(app_public.admin_list_store_scopes()) r where r->>'subjectUserId'='58200000-0000-4000-8000-000000000012' and r->>'storeId'='00000000-0000-4000-8000-000000000007' and r->>'state'='active'),'public claim appears as the exact Representative store scope');
 select ok(not exists(select 1 from jsonb_array_elements(app_public.admin_list_store_scopes()) r where r->>'subjectUserId'='76000000-0000-4000-8000-000000000001' and r->>'storeId' in ('00000000-0000-4000-8000-000000000009','00000000-0000-4000-8000-000000000008')),'Owner grants never appear in Representative list');
 select pg_temp.actor582('76000000-0000-4000-8000-000000000001','58200000-0000-4000-8000-000000000011');
 select throws_ok('select app_public.admin_list_owner_access()','42501',null,'Owner cannot read Site Admin access list');
