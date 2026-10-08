@@ -268,7 +268,7 @@ select throws_ok($$select app_public.update_private_trip_stop(
   'P0001','authorization_lost','nonmember cannot update owner private stop fields');
 select throws_ok($$select app_public.remove_trip_stop(
   '56800000-0000-4000-8000-000000000101',current_setting('test.created')::jsonb #>> '{stops,0,id}',14)$$,
-  'P0001','authorization_lost','nonmember cannot remove owner private stop');
+  'P0001','not_allowed','nonmember cannot remove owner private stop');
 reset role;
 set local role identity_service;
 insert into trip_private.trip_participants(trip_id,user_id,participant_role,state,left_at)
@@ -286,7 +286,7 @@ select throws_ok($$select app_public.update_private_trip_stop(
   'P0001','authorization_lost','revoked former partner cannot update owner private stop fields');
 select throws_ok($$select app_public.remove_trip_stop(
   '56800000-0000-4000-8000-000000000101',current_setting('test.created')::jsonb #>> '{stops,0,id}',14)$$,
-  'P0001','authorization_lost','revoked former partner cannot remove owner private stop');
+  'P0001','not_allowed','revoked former partner cannot remove owner private stop');
 select throws_ok($$select app_public.add_private_trip_stop(
   '56800000-0000-4000-8000-000000000101','Foreign','1 Other St',null,null,'must',60,14,'add_private_trip_stop:foreign')$$,
   'P0001','authorization_lost','nonowner cannot add private fields');
@@ -295,7 +295,8 @@ select throws_ok($$select app_public.accept_trip_invitation(repeat('i',32))$$,
 reset role;
 set local role identity_service;
 select is((select count(*) from trip_private.trip_participants as p
-  where p.trip_id='56800000-0000-4000-8000-000000000101' and p.participant_role='partner'),0::bigint,
+  where p.trip_id='56800000-0000-4000-8000-000000000101'
+    and p.participant_role='partner' and p.state='active'),0::bigint,
   'blocked invitation acceptance creates no membership');
 reset role;
 
@@ -322,14 +323,19 @@ select throws_ok($$insert into trip_private.trip_stops(
   trip_id,kind,private_name,destination_status,position
 ) values ('56800000-0000-4000-8000-000000000101','private','Missing Address',
   'confirmed_by_organizer',7)$$,
-  '23514','stop_kind_shape','confirmed destination cannot exist without its exact address');
+  '23514','new row for relation "trip_stops" violates check constraint "stop_kind_shape"',
+  'confirmed destination cannot exist without its exact address');
 insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version)
 select '56800000-0000-4000-8000-000000000103','56800000-0000-4000-8000-000000000001',
   extensions.digest(convert_to('issue568-device','utf8'),'sha256'),p.session_epoch
 from app_private.profiles as p where p.user_id='56800000-0000-4000-8000-000000000001';
 update trip_private.trips as t set state='active',navigator_user_id=t.owner_id,
   navigator_device_hash=extensions.digest(convert_to('issue568-device','utf8'),'sha256'),
-  start_kind='manual',private_start_label='Home',departure_local_time=time '09:00'
+  start_kind='manual',private_start_label='Home',departure_local_time=time '09:00',
+  hours_reviewed_at=statement_timestamp(),
+  hours_review_has_unresolved=trip_private.trip_has_unresolved_hours(t.trip_id),
+  hours_warnings_acknowledged_at=case when trip_private.trip_has_unresolved_hours(t.trip_id)
+    then statement_timestamp() else null end
 where t.trip_id='56800000-0000-4000-8000-000000000103';
 update trip_private.private_stop_capability set enabled=false where singleton;
 reset role;

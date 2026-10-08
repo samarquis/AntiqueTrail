@@ -490,7 +490,7 @@ declare v_trip uuid; v_stop uuid; v_version bigint; v_state text; v_kind text; v
 begin
   begin v_trip:=trip_id::uuid; v_stop:=stop_id::uuid;
   exception when others then raise exception 'validation_failed'; end;
-  if not trip_private.trip_member_can_access(v_trip) then raise exception 'authorization_lost'; end if;
+  if not trip_private.trip_member_can_access(v_trip) then raise exception 'not_allowed'; end if;
   select t.version,t.state into v_version,v_state from trip_private.trips as t
    where t.trip_id=v_trip for update;
   if not found then raise exception 'authorization_lost'; end if;
