@@ -1613,7 +1613,7 @@ describe('app shell', () => {
           />
         </MemoryRouter>,
       )
-      const addToTrip = await screen.findByRole('link', { name: 'Add to Trip', exact: true })
+      const addToTrip = await screen.findByRole('link', { name: /^Add to Trip$/ })
       expect(addToTrip).toHaveAttribute(
         'href',
         '/trips/new?addStoreId=00000000-0000-4000-8000-000000000001',
@@ -1626,7 +1626,7 @@ describe('app shell', () => {
         </MemoryRouter>,
       )
       await screen.findByRole('heading', { name: 'Blue Finch Curios' })
-      expect(screen.queryByRole('link', { name: 'Add to Trip', exact: true })).toBeNull()
+      expect(screen.queryByRole('link', { name: /^Add to Trip$/ })).toBeNull()
     })
 
     it('keeps the Details chooser hidden in catalog-only public mode', async () => {
@@ -1640,7 +1640,7 @@ describe('app shell', () => {
         </MemoryRouter>,
       )
       await screen.findByRole('heading', { name: 'Blue Finch Curios' })
-      expect(screen.queryByRole('link', { name: 'Add to Trip', exact: true })).toBeNull()
+      expect(screen.queryByRole('link', { name: /^Add to Trip$/ })).toBeNull()
     })
   })
 })
