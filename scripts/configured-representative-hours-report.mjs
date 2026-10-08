@@ -116,6 +116,11 @@ export function ownerListingStepResults(text) {
       ...(ownerListingInvitationUiStates.has(step?.invitationUiState)
         ? { invitationUiState: step.invitationUiState }
         : {}),
+      ...(Number.isSafeInteger(step?.invitationExchangeHttpStatus) &&
+      step.invitationExchangeHttpStatus >= 100 &&
+      step.invitationExchangeHttpStatus <= 599
+        ? { invitationExchangeHttpStatus: step.invitationExchangeHttpStatus }
+        : {}),
     }
     if (step?.failure && typeof step.failure === 'object') {
       const failure = step.failure

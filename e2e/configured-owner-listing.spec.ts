@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page } from '@playwright/test'
+import { expect, test, type Browser, type Page, type Response } from '@playwright/test'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -114,6 +114,7 @@ type MarkOperation = (
   page: Page,
   pathname?: string,
   invitationUiState?: InvitationUiState,
+  invitationExchangeHttpStatus?: number,
 ) => void
 
 async function invitationUiState(page: Page): Promise<InvitationUiState> {
@@ -167,14 +168,39 @@ async function acceptInvitation(
   name: string,
   mark: MarkOperation,
 ) {
+  let invitationExchangeHttpStatus: number | undefined
+  const captureInvitationExchangeStatus = (response: Response) => {
+    if (invitationExchangeHttpStatus !== undefined) return
+    try {
+      const { pathname } = new URL(response.url())
+      if (
+        pathname === '/functions/v1/partner-provider-command' &&
+        response.request().method() === 'POST'
+      )
+        invitationExchangeHttpStatus = response.status()
+    } catch {
+      // Ignore unparseable response URLs; never retain or emit a URL.
+    }
+  }
+  page.on('response', captureInvitationExchangeStatus)
   mark('accept_invitation_open', page, '/partner/join')
-  await page.goto(`/partner/join#token=${invitationToken}`)
-  mark('accept_invitation_expect_form', page)
   try {
-    await expect(page.getByLabel('Your name', { exact: true })).toBeVisible()
-  } catch (error) {
-    mark('accept_invitation_expect_form', page, undefined, await invitationUiState(page))
-    throw error
+    await page.goto(`/partner/join#token=${invitationToken}`)
+    mark('accept_invitation_expect_form', page)
+    try {
+      await expect(page.getByLabel('Your name', { exact: true })).toBeVisible()
+    } catch (error) {
+      mark(
+        'accept_invitation_expect_form',
+        page,
+        undefined,
+        await invitationUiState(page),
+        invitationExchangeHttpStatus,
+      )
+      throw error
+    }
+  } finally {
+    page.off('response', captureInvitationExchangeStatus)
   }
   mark('accept_invitation_fill_form', page)
   await page.getByLabel('Your name', { exact: true }).fill(name)
@@ -269,10 +295,17 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
     receipt.status = 'running'
     Object.assign(receipt, { startedAtMs })
     writeStepReceipts()
-    const mark: MarkOperation = (operation, page, pathname, uiState) => {
+    const mark: MarkOperation = (operation, page, pathname, uiState, exchangeHttpStatus) => {
       receipt.operation = operation
       receipt.pathname = ownerListingPathname(pathname ?? page.url())
       if (uiState) receipt.invitationUiState = uiState
+      if (
+        typeof exchangeHttpStatus === 'number' &&
+        Number.isSafeInteger(exchangeHttpStatus) &&
+        exchangeHttpStatus >= 100 &&
+        exchangeHttpStatus <= 599
+      )
+        receipt.invitationExchangeHttpStatus = exchangeHttpStatus
       writeStepReceipts()
     }
     try {
