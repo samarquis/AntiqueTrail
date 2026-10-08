@@ -169,8 +169,13 @@ async function acceptInvitation(
 ) {
   mark('accept_invitation_open', page, '/partner/join')
   await page.goto(`/partner/join#token=${invitationToken}`)
-  mark('accept_invitation_expect_form', page, undefined, await invitationUiState(page))
-  await expect(page.getByLabel('Your name', { exact: true })).toBeVisible()
+  mark('accept_invitation_expect_form', page)
+  try {
+    await expect(page.getByLabel('Your name', { exact: true })).toBeVisible()
+  } catch (error) {
+    mark('accept_invitation_expect_form', page, undefined, await invitationUiState(page))
+    throw error
+  }
   mark('accept_invitation_fill_form', page)
   await page.getByLabel('Your name', { exact: true }).fill(name)
   await page.getByLabel('Your title or role', { exact: true }).fill('Store Owner')
@@ -307,11 +312,13 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       'Invited applicant accepts setup without receiving Owner authority',
       async (mark) => {
         await signIn(invitedOwner, input.ownerApplicant, '/owner/stores', mark)
-        mark('capture_before_approval_screenshot', invitedOwner)
-        await invitedOwner.screenshot({
-          path: testInfo.outputPath('owner-before-approval.png'),
-          fullPage: true,
-        })
+        if (!firstPhase) {
+          mark('capture_before_approval_screenshot', invitedOwner)
+          await invitedOwner.screenshot({
+            path: testInfo.outputPath('owner-before-approval.png'),
+            fullPage: true,
+          })
+        }
         mark('expect_unapproved_owner_access_alert', invitedOwner)
         await expect(invitedOwner.getByRole('alert')).toBeVisible()
         mark('read_unapproved_owner_list', invitedOwner)
