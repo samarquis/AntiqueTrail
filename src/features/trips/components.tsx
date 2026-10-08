@@ -69,7 +69,12 @@ const PRIVATE_WEEKDAYS = [
   'Saturday',
 ]
 
-type TripActionRunner = (label: string, action: () => Promise<void>) => Promise<boolean>
+type TripActionContext = { scope: 'private-stop'; isCurrent: () => boolean }
+type TripActionRunner = (
+  label: string,
+  action: () => Promise<void>,
+  context?: TripActionContext,
+) => Promise<boolean>
 type PrivateTripStop = Extract<TripStop, { kind: 'private' }>
 type TripCommandKeyRef = { current: { signature: string; key: string } | null }
 
@@ -394,20 +399,24 @@ function PrivateTripStopEditor({
   trip,
   version,
   pending,
+  retryBlocked,
   client,
   stop,
   runAction,
   onCancel,
   onTrip,
+  isTripCurrent,
 }: {
   trip: Trip
   version: number
   pending: boolean
+  retryBlocked: boolean
   client: TripClient
   stop?: PrivateTripStop
   runAction: TripActionRunner
   onCancel: () => void
   onTrip: (trip: Trip) => void
+  isTripCurrent: (tripId: string) => boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(stop?.label ?? '')
@@ -421,11 +430,28 @@ function PrivateTripStopEditor({
   const [editVersion, setEditVersion] = useState(version)
   const saveKey = useRef<{ signature: string; key: string } | null>(null)
   const confirmKey = useRef<{ signature: string; key: string } | null>(null)
+  const actionGeneration = useRef(0)
   const versionChanged = editVersion !== version
+  const controlsDisabled = pending || retryBlocked
   const nameLabel = stop ? `Private shop name for ${stop.label}` : 'Private shop name'
   const addressLabel = stop ? `Private shop address for ${stop.label}` : 'Private shop address'
   const urlLabel = stop ? `Private shop source URL for ${stop.label}` : 'Private shop source URL'
   const prefix = `private-${stop?.id ?? 'new'}`
+
+  useEffect(
+    () => () => {
+      actionGeneration.current += 1
+    },
+    [],
+  )
+
+  function createActionContext(): TripActionContext {
+    const generation = ++actionGeneration.current
+    return {
+      scope: 'private-stop',
+      isCurrent: () => actionGeneration.current === generation && isTripCurrent(trip.id),
+    }
+  }
 
   function resetFields() {
     setName(stop?.label ?? '')
@@ -437,6 +463,8 @@ function PrivateTripStopEditor({
   }
 
   function cancel() {
+    if (controlsDisabled) return
+    actionGeneration.current += 1
     resetFields()
     saveKey.current = null
     confirmKey.current = null
@@ -445,7 +473,8 @@ function PrivateTripStopEditor({
   }
 
   function beginEditing() {
-    if (pending) return
+    if (controlsDisabled) return
+    actionGeneration.current += 1
     resetFields()
     setEditVersion(version)
     setEditing(true)
@@ -453,7 +482,7 @@ function PrivateTripStopEditor({
 
   async function save(event: FormEvent) {
     event.preventDefault()
-    if (pending || versionChanged) return
+    if (controlsDisabled || versionChanged) return
     const input = {
       name,
       address: address || null,
@@ -472,57 +501,71 @@ function PrivateTripStopEditor({
       version: editVersion,
       input,
     })
-    await runAction(stop ? `save changes to ${stop.label}` : 'save private shop', async () => {
-      const next = stop
-        ? await update!(trip.id, stop.id, input, editVersion, key)
-        : await add!(trip.id, input, editVersion, key)
-      onTrip(next)
-      saveKey.current = null
-      if (stop) {
-        const saved = next.stops.find(
-          (item): item is PrivateTripStop => item.id === stop.id && item.kind === 'private',
-        )
-        if (saved) {
-          setName(saved.label)
-          setAddress(saved.address ?? '')
-          setSourceUrl(saved.sourceUrl ?? '')
-          setShopperHours(saved.shopperHours ?? null)
-          setPriority(saved.priority)
-          setDwell(saved.plannedDwellMinutes)
+    const context = createActionContext()
+    await runAction(
+      stop ? `save changes to ${stop.label}` : 'save private shop',
+      async () => {
+        if (!context.isCurrent()) return
+        const next = stop
+          ? await update!(trip.id, stop.id, input, editVersion, key)
+          : await add!(trip.id, input, editVersion, key)
+        if (!context.isCurrent()) return
+        onTrip(next)
+        saveKey.current = null
+        if (stop) {
+          const saved = next.stops.find(
+            (item): item is PrivateTripStop => item.id === stop.id && item.kind === 'private',
+          )
+          if (saved) {
+            setName(saved.label)
+            setAddress(saved.address ?? '')
+            setSourceUrl(saved.sourceUrl ?? '')
+            setShopperHours(saved.shopperHours ?? null)
+            setPriority(saved.priority)
+            setDwell(saved.plannedDwellMinutes)
+          }
+        } else {
+          setName('')
+          setAddress('')
+          setSourceUrl('')
+          setShopperHours(null)
+          setPriority('prefer')
+          setDwell(60)
         }
-      } else {
-        setName('')
-        setAddress('')
-        setSourceUrl('')
-        setShopperHours(null)
-        setPriority('prefer')
-        setDwell(60)
-      }
-      setEditing(false)
-    })
+        setEditing(false)
+      },
+      context,
+    )
   }
 
   async function confirmAddress() {
     const exactAddress = stop?.address?.trim()
-    if (pending || !stop || !exactAddress || !client.confirmPrivateTripStopDestination) return
+    if (controlsDisabled || !stop || !exactAddress || !client.confirmPrivateTripStopDestination)
+      return
     const key = tripCommandKey(confirmKey, 'confirm_trip_stop_destination', {
       tripId: trip.id,
       stopId: stop.id,
       version: trip.version,
       exactAddress,
     })
-    await runAction(`confirm the address for ${stop.label}`, async () => {
-      onTrip(
-        await client.confirmPrivateTripStopDestination!(
+    const context = createActionContext()
+    await runAction(
+      `confirm the address for ${stop.label}`,
+      async () => {
+        if (!context.isCurrent()) return
+        const next = await client.confirmPrivateTripStopDestination!(
           trip.id,
           stop.id,
           exactAddress,
           trip.version,
           key,
-        ),
-      )
-      confirmKey.current = null
-    })
+        )
+        if (!context.isCurrent()) return
+        onTrip(next)
+        confirmKey.current = null
+      },
+      context,
+    )
   }
 
   return (
@@ -530,6 +573,13 @@ function PrivateTripStopEditor({
       <h3 id={`${prefix}-heading`}>
         {stop ? `Private shop: ${stop.label}` : 'Add a private shop'}
       </h3>
+      {controlsDisabled && (
+        <p role="status">
+          {pending
+            ? 'A trip update is in progress. Private shop controls are temporarily disabled.'
+            : 'Retry or dismiss the private shop change before editing or cancelling.'}
+        </p>
+      )}
       {!editing ? (
         <>
           {stop ? (
@@ -545,7 +595,7 @@ function PrivateTripStopEditor({
               <button
                 className="button button--secondary"
                 type="button"
-                disabled={pending}
+                disabled={controlsDisabled}
                 onClick={beginEditing}
               >
                 Edit private shop: {stop.label}
@@ -556,7 +606,7 @@ function PrivateTripStopEditor({
                   <button
                     className="button"
                     type="button"
-                    disabled={pending}
+                    disabled={controlsDisabled}
                     onClick={() => void confirmAddress()}
                   >
                     Confirm exact address for {stop.label}
@@ -567,7 +617,7 @@ function PrivateTripStopEditor({
             <button
               className="button button--secondary"
               type="button"
-              disabled={pending}
+              disabled={controlsDisabled}
               onClick={beginEditing}
             >
               Add a private shop
@@ -576,7 +626,7 @@ function PrivateTripStopEditor({
         </>
       ) : (
         <form onSubmit={(event) => void save(event)}>
-          <fieldset disabled={pending}>
+          <fieldset disabled={controlsDisabled}>
             <legend>Private shop details</legend>
             {stop && (
               <p role="status">
@@ -1052,12 +1102,15 @@ export function AddToTripPage({
 
 export function PlanPage({ client = unavailableTripClient }: { client?: TripClient }) {
   const { tripId = '' } = useParams()
+  const currentTripId = useRef(tripId)
+  currentTripId.current = tripId
   const [trip, setTrip] = useState<Trip | null>(null)
   const [error, setError] = useState(false)
   const [actionPending, setActionPending] = useState<string | null>(null)
   const [actionError, setActionError] = useState<{
     label: string
     retry: () => Promise<void>
+    context?: TripActionContext
   } | null>(null)
   const [label, setLabel] = useState('')
   const [priority, setPriority] = useState<StopPriority>('prefer')
@@ -1079,7 +1132,11 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
     state: 'empty',
     pendingCount: 0,
   })
-  async function runAction(label: string, action: () => Promise<void>): Promise<boolean> {
+  async function runAction(
+    label: string,
+    action: () => Promise<void>,
+    context?: TripActionContext,
+  ): Promise<boolean> {
     if (actionPending) return false
     setActionPending(label)
     setActionError(null)
@@ -1087,7 +1144,7 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
       await action()
       return true
     } catch {
-      setActionError({ label, retry: action })
+      if (!context || context.isCurrent()) setActionError({ label, retry: action, context })
       return false
     } finally {
       setActionPending(null)
@@ -1256,6 +1313,8 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
         <p role="status">Loading…</p>
       </TripCard>
     )
+  const privateStopRetryBlocked =
+    actionError?.context?.scope === 'private-stop' && actionError.context.isCurrent()
   return (
     <TripCard
       title={trip.name}
@@ -1269,7 +1328,13 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
             className="button"
             type="button"
             disabled={actionPending !== null}
-            onClick={() => void runAction(actionError.label, actionError.retry)}
+            onClick={() => {
+              if (actionError.context && !actionError.context.isCurrent()) {
+                setActionError(null)
+                return
+              }
+              void runAction(actionError.label, actionError.retry, actionError.context)
+            }}
           >
             {actionPending ? 'Retrying…' : 'Retry'}
           </button>
@@ -1609,26 +1674,31 @@ export function PlanPage({ client = unavailableTripClient }: { client?: TripClie
           .filter((stop): stop is PrivateTripStop => stop.kind === 'private')
           .map((stop) => (
             <PrivateTripStopEditor
-              key={stop.id}
+              key={`${trip.id}:${stop.id}`}
               trip={trip}
               version={trip.version}
               pending={actionPending !== null}
+              retryBlocked={privateStopRetryBlocked}
               client={client}
               stop={stop}
               runAction={runAction}
               onCancel={() => setActionError(null)}
               onTrip={setTrip}
+              isTripCurrent={(expectedTripId) => currentTripId.current === expectedTripId}
             />
           ))}
         {client.addPrivateTripStop && trip.stops.length < MAX_ACTIVE_STOPS && (
           <PrivateTripStopEditor
+            key={`${trip.id}:new-private-stop`}
             trip={trip}
             version={trip.version}
             pending={actionPending !== null}
+            retryBlocked={privateStopRetryBlocked}
             client={client}
             runAction={runAction}
             onCancel={() => setActionError(null)}
             onTrip={setTrip}
+            isTripCurrent={(expectedTripId) => currentTripId.current === expectedTripId}
           />
         )}
       </section>
