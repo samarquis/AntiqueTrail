@@ -176,3 +176,49 @@ test('Owner MFA diagnostics retain only allowlisted verification evidence', () =
     /private-jwt|private-response-body|private-header|private-user-input/,
   )
 })
+
+test('Owner approval diagnostics retain only allowlisted RPC evidence', () => {
+  const steps = ownerListingStepResults(
+    JSON.stringify([
+      {
+        ownerApproval: {
+          approvalRpc: {
+            httpStatus: 403,
+            responseOk: false,
+            errorCode: '42501',
+            errorIdentifier: 'owner_access_unavailable',
+            accessToken: 'private-jwt',
+          },
+          caseReadRpc: {
+            httpStatus: '500 private-header',
+            responseOk: 'private-result',
+            errorCode: 'private-code',
+            errorIdentifier: 'private-message',
+            claimApproved: true,
+            rawBody: 'private-response-body',
+          },
+        },
+      },
+    ]),
+  )
+
+  assert.deepEqual(steps[0].ownerApproval, {
+    approvalRpc: {
+      httpStatus: 403,
+      responseOk: false,
+      errorCode: '42501',
+      errorIdentifier: 'owner_access_unavailable',
+    },
+    caseReadRpc: {
+      httpStatus: null,
+      responseOk: false,
+      errorCode: 'other',
+      errorIdentifier: 'other',
+      claimApproved: true,
+    },
+  })
+  assert.doesNotMatch(
+    JSON.stringify(steps),
+    /private-jwt|private-header|private-result|private-code|private-message|private-response-body/,
+  )
+})

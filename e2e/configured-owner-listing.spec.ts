@@ -4,11 +4,24 @@ import fs from 'node:fs'
 import path from 'node:path'
 import {
   ownerListingFailure,
+  ownerListingApprovalErrorCode,
+  ownerListingApprovalErrorIdentifier,
   ownerListingMfaErrorCode,
   ownerListingPathname,
 } from '../scripts/configured-representative-hours-report.mjs'
 
 type User = { email: string; password: string; totpSecret?: string }
+type OwnerApprovalRpcOutcome = {
+  httpStatus: number
+  responseOk: boolean
+  errorCode: string | null
+  errorIdentifier: string | null
+  claimApproved?: boolean
+}
+type OwnerApprovalEvidence = {
+  approvalRpc: OwnerApprovalRpcOutcome | null
+  caseReadRpc: OwnerApprovalRpcOutcome | null
+}
 type OwnerListingPhase =
   | 'first'
   | 'full'
@@ -177,7 +190,36 @@ type MarkOperation = (
   invitationUiState?: InvitationUiState,
   invitationExchangeHttpStatus?: number,
   mfaVerification?: MfaVerificationEvidence,
+  ownerApproval?: OwnerApprovalEvidence,
 ) => void
+
+async function ownerApprovalRpcOutcome(
+  response: Response,
+  includeClaimState = false,
+): Promise<OwnerApprovalRpcOutcome> {
+  const outcome: OwnerApprovalRpcOutcome = {
+    httpStatus: response.status(),
+    responseOk: response.ok(),
+    errorCode: null,
+    errorIdentifier: null,
+    ...(includeClaimState ? { claimApproved: false } : {}),
+  }
+  if (response.ok() && !includeClaimState) return outcome
+  try {
+    const body: unknown = await response.json()
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return outcome
+    const value = body as Record<string, unknown>
+    if (response.ok()) {
+      if (includeClaimState) outcome.claimApproved = value.state === 'approved'
+      return outcome
+    }
+    outcome.errorCode = ownerListingApprovalErrorCode(value.code)
+    outcome.errorIdentifier = ownerListingApprovalErrorIdentifier(value.message)
+  } catch {
+    // Report status only when the response body is unavailable.
+  }
+  return outcome
+}
 
 async function invitationUiState(page: Page): Promise<InvitationUiState> {
   try {
@@ -434,6 +476,7 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       )
         receipt.invitationExchangeHttpStatus = exchangeHttpStatus
       if (mfaVerification) receipt.mfaVerification = mfaVerification
+      if (ownerApproval) receipt.ownerApproval = ownerApproval
       writeStepReceipts()
     }
     try {
@@ -613,9 +656,49 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       await expect(admin.getByRole('heading', { name: 'Claim case' })).toBeVisible()
       await admin.getByLabel('Decision', { exact: true }).selectOption('approve_owner')
       await admin.getByLabel('Decision key', { exact: true }).fill('issue579-owner-approval')
-      await admin.getByRole('button', { name: /Apply decision/ }).click()
-      await admin.getByRole('button', { name: /Confirm approve owner decision/ }).click()
-      await expect(admin.getByText(/approved/).first()).toBeVisible()
+      const ownerApproval: OwnerApprovalEvidence = { approvalRpc: null, caseReadRpc: null }
+      let approvalResponseObserved = false
+      const responseTasks: Promise<void>[] = []
+      const recordApprovalResponse = (response: Response) => {
+        const pathname = new URL(response.url()).pathname
+        if (pathname.endsWith('/rest/v1/rpc/owner_admin_approve_claim')) {
+          approvalResponseObserved = true
+          responseTasks.push(
+            ownerApprovalRpcOutcome(response).then((outcome) => {
+              ownerApproval.approvalRpc = outcome
+            }),
+          )
+          return
+        }
+        if (
+          approvalResponseObserved &&
+          pathname.endsWith('/rest/v1/rpc/partner_admin_claim_case')
+        ) {
+          responseTasks.push(
+            ownerApprovalRpcOutcome(response, true).then((outcome) => {
+              ownerApproval.caseReadRpc = outcome
+            }),
+          )
+        }
+      }
+      admin.on('response', recordApprovalResponse)
+      try {
+        await admin.getByRole('button', { name: /Apply decision/ }).click()
+        await admin.getByRole('button', { name: /Confirm approve owner decision/ }).click()
+        await expect(admin.getByText(/approved/).first()).toBeVisible()
+      } finally {
+        admin.off('response', recordApprovalResponse)
+        await Promise.all(responseTasks)
+        mark(
+          'apply_owner_claim_approval',
+          admin,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          ownerApproval,
+        )
+      }
       if (phase === 'full')
         await admin.screenshot({
           path: testInfo.outputPath('owner-admin-approval.png'),

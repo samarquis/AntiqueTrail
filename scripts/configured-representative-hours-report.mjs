@@ -11,6 +11,7 @@ const ownerListingOperations = new Set([
   'sign_in_mfa_result',
   'sign_in_submit_mfa',
   'sign_in_wait_return_url',
+  'apply_owner_claim_approval',
   'capture_before_approval_screenshot',
   'expect_unapproved_owner_access_alert',
   'read_unapproved_owner_list',
@@ -76,6 +77,19 @@ const ownerListingMfaErrorCodes = new Set([
   'no_authorization',
   'over_request_rate_limit',
 ])
+const ownerListingApprovalErrorCodes = new Set(['22023', '23505', '40001', '42501', '55000'])
+const ownerListingApprovalErrorIdentifiers = new Set([
+  'owner_access_unavailable',
+  'owner_command_invalid',
+  'owner_idempotency_mismatch',
+  'partner_admin_command_invalid',
+  'partner_bound_identity_required',
+  'partner_claim_approval_denied',
+  'partner_claim_case_unavailable',
+  'partner_claim_state_invalid',
+  'partner_claim_unavailable_or_stale',
+  'privileged_anchor_stale',
+])
 
 export function ownerListingPathname(value) {
   if (typeof value !== 'string') return 'unknown'
@@ -92,6 +106,16 @@ export function ownerListingPathname(value) {
 export function ownerListingMfaErrorCode(value) {
   if (typeof value !== 'string') return null
   return ownerListingMfaErrorCodes.has(value) ? value : 'other'
+}
+
+export function ownerListingApprovalErrorCode(value) {
+  if (typeof value !== 'string') return null
+  return ownerListingApprovalErrorCodes.has(value) ? value : 'other'
+}
+
+export function ownerListingApprovalErrorIdentifier(value) {
+  if (typeof value !== 'string') return null
+  return ownerListingApprovalErrorIdentifiers.has(value) ? value : 'other'
 }
 
 export function ownerListingFailure(error) {
@@ -162,6 +186,27 @@ export function ownerListingStepResults(text) {
         factorVerified: mfaVerification.factorVerified === true,
         aal2Session: mfaVerification.aal2Session === true,
         retryExecuted: mfaVerification.retryExecuted === true,
+      }
+    }
+    if (step?.ownerApproval && typeof step.ownerApproval === 'object') {
+      const approvalOutcome = (value, includeClaimState = false) => {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+        return {
+          httpStatus:
+            Number.isSafeInteger(value.httpStatus) &&
+            value.httpStatus >= 100 &&
+            value.httpStatus <= 599
+              ? value.httpStatus
+              : null,
+          responseOk: value.responseOk === true,
+          errorCode: ownerListingApprovalErrorCode(value.errorCode),
+          errorIdentifier: ownerListingApprovalErrorIdentifier(value.errorIdentifier),
+          ...(includeClaimState ? { claimApproved: value.claimApproved === true } : {}),
+        }
+      }
+      result.ownerApproval = {
+        approvalRpc: approvalOutcome(step.ownerApproval.approvalRpc),
+        caseReadRpc: approvalOutcome(step.ownerApproval.caseReadRpc, true),
       }
     }
     if (step?.failure && typeof step.failure === 'object') {
