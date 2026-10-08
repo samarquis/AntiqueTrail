@@ -201,10 +201,15 @@ begin
   select * into existing from media_private.media_uploads
     where actor_user_id=actor and idempotency_key=p_idempotency_key;
   if found then
+    -- require_owner_media_scope can fall through without a header or Owner role.
     begin
       perform portal_private.require_owner_media_scope(existing.store_id);
+      if not exists(select 1 from portal_private.owner_stores() s where s.store_id=existing.store_id) then
+        raise exception using errcode='42501',message='media_unavailable';
+      end if;
     exception when insufficient_privilege then
       perform portal_private.log_owner_access_denial('owner_media_replacement_scope',existing.store_id);
+      perform media_private.append_audit('media_reservation',actor,existing.store_id,existing.upload_id,'denied');
       return jsonb_build_object('error','media_unavailable');
     end;
     if existing.target_media_id is distinct from p_target_media_id
@@ -228,17 +233,14 @@ begin
   target_store:=target.store_id;
   begin
     perform portal_private.require_owner_media_scope(target_store);
+    if not exists(select 1 from portal_private.owner_stores() s where s.store_id=target_store) then
+      raise exception using errcode='42501',message='media_unavailable';
+    end if;
   exception when insufficient_privilege then
     perform portal_private.log_owner_access_denial('owner_media_replacement_scope',target_store);
     perform media_private.append_audit('media_reservation',actor,target_store,null,'denied');
     return jsonb_build_object('error','media_unavailable');
   end;
-  if not exists(select 1 from partner_private.store_partner_grants g
-    where g.auth_user_id=actor and g.store_id=target_store and g.state='active') then
-    perform portal_private.log_owner_access_denial('owner_media_replacement_scope',target_store);
-    perform media_private.append_audit('media_reservation',actor,target_store,null,'denied');
-    return jsonb_build_object('error','media_unavailable');
-  end if;
   perform pg_advisory_xact_lock(hashtextextended(target_store::text,0));
   select * into target from app_public.store_media
     where id=p_target_media_id and store_id=target_store for update;

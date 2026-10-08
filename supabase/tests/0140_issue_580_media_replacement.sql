@@ -82,6 +82,45 @@ select is((app_public.media_reserve_replacement(
   '58000000-0000-4000-8000-000000000021',true,'image/png',1000,640,480,decode(repeat('11',32),'hex'))->>'uploadId'),
   (select result->>'uploadId' from issue580_first),
   'same target/version/input replay returns one reservation');
+reset role;
+update app_private.role_grants set state='revoked',revoked_by='58000000-0000-4000-8000-000000000001',
+  revoked_at=statement_timestamp(),revocation_reason='issue580_test_revocation',version=version+1
+  where subject_user_id='76000000-0000-4000-8000-000000000001'
+    and store_id='00000000-0000-4000-8000-000000000009' and role='store_owner' and state='active';
+select set_config('request.headers','{}',true);
+set local role authenticated;
+select is(app_public.media_reserve_replacement(
+  '58000000-0000-4000-8000-000000000012',1,'Replacement gallery image one',
+  '58000000-0000-4000-8000-000000000021',true,'image/png',1000,640,480,decode(repeat('11',32),'hex'))->>'error',
+  'media_unavailable','revoked Owner role cannot replay a pending replacement without a scope header');
+select is(app_public.media_reserve_replacement(
+  '58000000-0000-4000-8000-000000000013',1,'New replacement after role revocation',
+  '58000000-0000-4000-8000-000000000040',true,'image/png',1000,640,480,decode(repeat('40',32),'hex'))->>'error',
+  'media_unavailable','active partnership row alone cannot reserve without Owner role');
+reset role;
+select is((select state::text from media_private.media_uploads
+  where idempotency_key='58000000-0000-4000-8000-000000000021'),'reserved',
+  'denied replay leaves private upload state unchanged');
+select is((select count(*)::integer from media_private.media_uploads
+  where idempotency_key='58000000-0000-4000-8000-000000000040'),0,
+  'denied fresh reservation creates no private upload');
+select is((select count(*)::integer from media_private.media_purge_jobs
+  where upload_id=(select upload_id from media_private.media_uploads
+    where idempotency_key='58000000-0000-4000-8000-000000000021')),1,
+  'denied replay leaves the existing cleanup job unchanged');
+select is((select state from media_private.media_purge_jobs
+  where upload_id=(select upload_id from media_private.media_uploads
+    where idempotency_key='58000000-0000-4000-8000-000000000021')),'queued',
+  'denied replay does not claim or complete cleanup');
+select is((select version from app_public.store_media where id='58000000-0000-4000-8000-000000000012'),1::bigint,
+  'denied replay leaves public slot version unchanged');
+select is((select asset_path from app_public.store_media where id='58000000-0000-4000-8000-000000000012'),
+  '/assets/issue580-current-gallery-1.webp','denied replay leaves published image unchanged');
+update app_private.role_grants set state='active',revoked_by=null,revoked_at=null,revocation_reason=null,version=version+1
+  where subject_user_id='76000000-0000-4000-8000-000000000001'
+    and store_id='00000000-0000-4000-8000-000000000009' and role='store_owner' and state='revoked';
+select set_config('request.headers','{"x-owner-store-id":"00000000-0000-4000-8000-000000000009"}',true);
+set local role authenticated;
 select is((app_public.media_reserve_replacement(
   '58000000-0000-4000-8000-000000000012',1,'Changed replay alt text',
   '58000000-0000-4000-8000-000000000021',true,'image/png',1000,640,480,decode(repeat('11',32),'hex'))->>'error'),
@@ -118,7 +157,7 @@ select is((select count(*)::integer from media_private.media_uploads
   where idempotency_key='58000000-0000-4000-8000-000000000021'),1,
   'idempotency mismatches never create a second upload');
 select is((select count(*)::integer from media_private.media_provider_operations),
-  0,'rejected target/version checks occur before provider processing');
+  0,'rejected authorization, target, and version checks occur before provider processing');
 select is((select asset_path from app_public.store_media
   where id='58000000-0000-4000-8000-000000000012'),
   '/assets/issue580-current-gallery-1.webp','reservation keeps approved public media live');
