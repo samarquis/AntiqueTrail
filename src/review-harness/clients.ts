@@ -2495,6 +2495,7 @@ function partnerAdminClient(scenario: ReviewScenario, state: ReviewStateId): Par
     claimId: 'claim-synthetic',
     storeId: '00000000-0000-4000-8000-000000000009',
     state: 'verification_pending',
+    ownerIntent: false,
     version: 2,
     exactStoreScope: 'Blue Finch Curios',
     verifiedSignals: [{ channelClass: 'published_business_contact', signalType: 'email' }],
