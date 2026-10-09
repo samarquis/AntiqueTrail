@@ -2,6 +2,8 @@
 
 Use before assigning or running local provider/database/browser acceptance. The integrator owns shared infrastructure; a behavior worker consumes a proven runner. This is an operational gate, not a claim that Docker or a provider is currently healthy.
 
+Choose the required proof route before diagnosing the worker's PC. The existing `.github/workflows/ci.yml` job `database` runs disposable Supabase migration replay and pgTAP on GitHub runners. An admitted exact-candidate CI run can provide that database evidence without local Docker; absence of a local engine blocks only the local route. Preserve separate Auth/RPC/browser, hosted and production requirements. Never substitute a reset of the hosted project for a disposable test database.
+
 ## Admit the run
 
 1. Pin source SHA and fixture mode. Confirm required scripts exist in that exact package.json and the locked installation completed. Record Node/npm versions and the pinned CLI version. A missing command or partial installation is an environment blocker, not a product failure.
