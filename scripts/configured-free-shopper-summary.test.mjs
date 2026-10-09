@@ -173,6 +173,31 @@ test('setup category inspects string errors only and never emits error text', ()
   assert.doesNotMatch(JSON.stringify(result.summary), /private-token|private\.invalid|Bearer|message/)
 })
 
+test('non-array setup errors do not throw or escape the summary allowlist', () => {
+  for (const [name, errors] of [
+    ['missing', undefined],
+    ['null', null],
+    ['object', { message: secret }],
+    ['string', secret],
+    ['number', 42],
+  ]) {
+    const report = {
+      ...metadata,
+      stage: 'local-services',
+      failedAt: 'local-services',
+    }
+    if (errors !== undefined) report.errors = errors
+
+    const result = summarize(report)
+    assert.equal(result.status, 0, `${name} errors must not make the projection throw`)
+    assert.equal(result.summary.stage, 'local-services')
+    assert.equal(result.summary.failedAt, 'local-services')
+    assert.equal(result.summary.setupFailureCategory, 'unknown')
+    assert.equal(Object.hasOwn(result.summary, 'errors'), false)
+    assert.doesNotMatch(JSON.stringify(result.summary), /private-token|private\.invalid|Bearer|secret|message/)
+  }
+})
+
 for (const [name, status, error, expected] of [
   [
     'timeout',
