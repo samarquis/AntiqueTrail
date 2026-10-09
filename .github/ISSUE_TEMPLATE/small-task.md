@@ -20,6 +20,7 @@ assignees: ''
 
 - Exact files/symbols and direct tests:
 - Frozen API/input/output/error contract, if applicable:
+- Latest SQL definition/grant references and legacy-entry-point/caller migration, if applicable:
 - Real caller-shaped success example and source/type reference; distinguish intentionally malformed fixtures:
 - Exclusions:
 - Shared-file owner and resource lease (port, browser, database, installer):
@@ -35,6 +36,8 @@ assignees: ''
 
 Evidence classes: unit, database, real local service, browser, hosted, production. Delete only inapplicable rows. Name new test files as deliverables; do not present them as existing commands before they exist.
 
+Use deterministic fixture inputs and expected results derived from the actual source/caller. READY requires this executable answer key and an admitted runner; passing new behavior tests gates completion, not the start of implementation. Name local or CI execution explicitly; Docker on the worker's PC is not required when the admitted CI route provides the required database proof.
+
 ## Execution and completion
 
 1. Verify the owned checkout/base and run the preflight command: [command and expected result].
@@ -49,5 +52,7 @@ Missing contract, conflicting policy, unavailable infrastructure, or an out-of-s
 ## Admission receipt
 
 Planner: [owner]. Baseline/preflight: [receipt]. Dependencies satisfied: [SHAs]. Remaining decisions: [must be none for READY]. Separate release/hosted/human gates: [issue links].
+
+Can the worker execute without inventing a product rule or interface? [yes, or the exact gap]. Estimate only this leaf. At handoff, report observed wall time and waits; active effort is unknown unless measured. Keep contract preparation separate from implementation throughput.
 
 Keep the worker handoff in this issue: exact paths, caller example, commands, predecessor SHA, owner and completion boundary. Include only the immediate predecessor's relevant correction; do not require reconstructing old chats.
