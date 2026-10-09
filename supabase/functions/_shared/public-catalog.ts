@@ -89,6 +89,9 @@ export function createPublicCatalogHandler(
       body.operation !== 'nearby-map'
     )
       return Response.json({ error: { code: 'INVALID_OPERATION' } }, { status: 400, headers })
+    const isInvalidNearbyInput = (message?: string | null) =>
+      (body.operation === 'nearby-list' || body.operation === 'nearby-map') &&
+      message?.includes('invalid_nearby_input') === true
     const requestArgs = body.args === undefined ? {} : body.args
     const safeArgs = { ...requestArgs }
     delete safeArgs.p_actor_user_id
@@ -180,6 +183,8 @@ export function createPublicCatalogHandler(
             headers: { ...headers, 'Retry-After': '300' },
           },
         )
+      if (isInvalidNearbyInput(result.error?.message))
+        return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
       if (result.error)
         return Response.json({ error: { code: 'CATALOG_UNAVAILABLE' } }, { status: 503, headers })
       return Response.json({ data: result.data }, { headers })
@@ -201,6 +206,8 @@ export function createPublicCatalogHandler(
       return Response.json({ error: { code: 'ALPHA_AUTH_REQUIRED' } }, { status: 403, headers })
     if (syntheticResult.error.message.includes('synthetic_catalog_map_disabled'))
       return Response.json({ error: { code: 'MAP_UNAVAILABLE' } }, { status: 503, headers })
+    if (isInvalidNearbyInput(syntheticResult.error.message))
+      return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
     if (!syntheticResult.error.message.includes('synthetic_catalog_outside_stage'))
       return Response.json({ error: { code: 'CATALOG_UNAVAILABLE' } }, { status: 503, headers })
     const result = await gatewayClient.rpc('public_catalog_gateway_request', {
@@ -213,6 +220,8 @@ export function createPublicCatalogHandler(
         { error: { code: 'RATE_LIMITED' } },
         { status: 429, headers: { ...headers, 'Retry-After': '300' } },
       )
+    if (isInvalidNearbyInput(result.error?.message))
+      return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
     if (result.error)
       return Response.json({ error: { code: 'CATALOG_UNAVAILABLE' } }, { status: 503, headers })
     return Response.json({ data: result.data }, { headers })
