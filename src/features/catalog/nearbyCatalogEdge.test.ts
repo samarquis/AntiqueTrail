@@ -16,6 +16,10 @@ function setup({
   publicTest = false,
   user = null,
   result = { data: [{ id: 'nearby-store' }], error: null },
+}: {
+  publicTest?: boolean
+  user?: { id: string } | null
+  result?: { data: unknown; error: { message: string } | null }
 } = {}) {
   const rpc = vi.fn().mockResolvedValue(result)
   const gateway = vi.fn(() => ({ rpc }))
@@ -34,7 +38,7 @@ function setup({
   return { handler, gateway, verify, rpc }
 }
 
-function request(args = nearbyArgs(), token?: string) {
+function request(args: Record<string, unknown> = nearbyArgs(), token?: string) {
   return new Request('https://uaupykgpegbseboklubv.supabase.co/functions/v1/public-catalog', {
     method: 'POST',
     headers: {
