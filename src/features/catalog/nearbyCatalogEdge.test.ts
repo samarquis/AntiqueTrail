@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 import { createPublicCatalogHandler } from '../../../supabase/functions/_shared/public-catalog'
+import { createCatalogClient } from './catalogApi'
+import type { CatalogFilters } from './types'
 
 const origin = 'https://antique-trail.vercel.app'
 const nearbyArgs = () => ({
@@ -17,7 +19,7 @@ const nearbyMapArgs = () => ({
   p_category: 'lighting',
   p_area: null,
   p_open_now: false,
-  p_visited: 'visited',
+  p_visited: 'visited' satisfies CatalogFilters['visited'],
   p_saved: false,
   p_claimed: true,
   p_max_area_centroid_miles: null,
@@ -239,6 +241,40 @@ describe('nearby list Edge transport', () => {
 })
 
 describe('nearby map Edge transport', () => {
+  it('accepts the real client request and keeps the positive fixture aligned', async () => {
+    const { handler, rpc } = setup({ result: { data: [], error: null } })
+    const client = createCatalogClient({
+      async rpc(name, args) {
+        expect(name).toBe('get_browse_map_nearby_v1')
+        expect(args).toEqual(nearbyMapArgs())
+        const response = await handler(request(args, undefined, 'nearby-map'), connection)
+        expect(response.status).toBe(200)
+        return { data: (await response.json()).data, error: null }
+      },
+    })
+    if (!client.nearbyMap) throw new Error('Nearby map client is required')
+    await expect(
+      client.nearbyMap(
+        {
+          q: 'lamp',
+          category: 'lighting',
+          openNow: false,
+          visited: 'visited',
+          saved: false,
+          claimed: true,
+          state: 'ON',
+        },
+        { north: 44, south: 43, east: -78, west: -80 },
+        10,
+        { latitude: 43.6532, longitude: -79.3832, radiusMiles: 25 },
+      ),
+    ).resolves.toEqual({ points: [], asOfUtc: null })
+    expect(rpc).toHaveBeenCalledExactlyOnceWith(
+      'synthetic_catalog_gateway_request',
+      expect.objectContaining({ p_operation: 'nearby-map', p_args: nearbyMapArgs() }),
+    )
+  })
+
   it('forwards exact map filters and the separate validated device tuple', async () => {
     const { handler, rpc } = setup()
     const response = await handler(request(nearbyMapArgs(), undefined, 'nearby-map'), connection)

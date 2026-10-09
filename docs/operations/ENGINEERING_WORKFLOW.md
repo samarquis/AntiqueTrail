@@ -106,6 +106,8 @@ Run only applicable layers, but never merge them into one claim:
 
 Use `npm run check` from a clean worktree for repository-wide web validation. Use `npm run verify:web` when full browser coverage is required. CI remains final clean-environment proof.
 
+For catalog Edge changes, run `npm run check:catalog-edge` before committing: it checks types, owned-file formatting, the source-text release contract in `scripts/shared-alpha-catalog-gate.test.mjs`, and focused Edge tests. That release test reads source strings and is not represented by call-graph edges. The nearby map positive fixture is compared with a real `createCatalogClient` request; malformed-input fixtures remain separate. This fast check supplements the required full check and CI, without repeating them on an unchanged candidate.
+
 Completion: applicable layers pass against same candidate, and unavailable layers are named as unverified.
 
 ## 7. Pin and review candidate
