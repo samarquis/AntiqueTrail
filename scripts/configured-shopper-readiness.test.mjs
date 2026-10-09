@@ -30,6 +30,7 @@ function readReadinessDiagnostic(writes) {
     'event',
     'httpStatusCounts',
     'probeKind',
+    'responseCodeCounts',
   ])
   assert.equal(diagnostic.event, 'readiness-exhausted')
   assert.equal(diagnostic.probeKind, 'public-catalog')
@@ -61,6 +62,28 @@ function readReadinessDiagnostic(writes) {
   )
   assert.equal(
     diagnostic.httpStatusCounts.reduce((total, entry) => total + entry.count, 0) <=
+      diagnostic.attempts,
+    true,
+  )
+  const responseCodes = new Set([
+    'ALPHA_AUTH_REQUIRED',
+    'CATALOG_UNAVAILABLE',
+    'GATEWAY_UNAVAILABLE',
+    'INVALID_OPERATION',
+    'INVALID_REQUEST',
+    'MAP_UNAVAILABLE',
+    'RATE_LIMITED',
+    'other',
+  ])
+  assert.ok(Array.isArray(diagnostic.responseCodeCounts))
+  assert.ok(
+    diagnostic.responseCodeCounts.every(
+      ({ code, count }) =>
+        responseCodes.has(code) && Number.isInteger(count) && count > 0 && count <= 60,
+    ),
+  )
+  assert.equal(
+    diagnostic.responseCodeCounts.reduce((total, entry) => total + entry.count, 0) <=
       diagnostic.attempts,
     true,
   )
@@ -141,7 +164,7 @@ test('catalog exhaustion emits bounded counts and keeps its fixed safe error', a
   assert.equal(writes.join('').includes(sentinel), false)
 })
 
-test('catalog HTTP exhaustion emits one bounded status-only diagnostic', async (t) => {
+test('catalog HTTP exhaustion emits bounded status and allowlisted response code counts', async (t) => {
   const writes = captureStderr(t)
   const sentinel = 'PRIVATE_SENTINEL_HTTP_BODY_9401'
   let calls = 0
@@ -153,7 +176,7 @@ test('catalog HTTP exhaustion emits one bounded status-only diagnostic', async (
         return {
           ok: false,
           status: 503,
-          json: async () => ({ message: sentinel }),
+          json: async () => ({ error: { code: 'GATEWAY_UNAVAILABLE' }, message: sentinel }),
         }
       },
     })
@@ -173,6 +196,7 @@ test('catalog HTTP exhaustion emits one bounded status-only diagnostic', async (
     unclassifiedFailure: 0,
   })
   assert.deepEqual(diagnostic.httpStatusCounts, [{ status: 503, count: 60 }])
+  assert.deepEqual(diagnostic.responseCodeCounts, [{ code: 'GATEWAY_UNAVAILABLE', count: 60 }])
   assert.equal(writes.join('').includes(sentinel), false)
 })
 
@@ -260,6 +284,7 @@ test('catalog diagnostics stay bounded with one distinct status per attempt', as
   assert.equal(diagnostic.httpStatusCounts.length, 60)
   assert.equal(diagnostic.httpStatusCounts[0].status, 400)
   assert.equal(diagnostic.httpStatusCounts[59].status, 459)
+  assert.deepEqual(diagnostic.responseCodeCounts, [{ code: 'other', count: 60 }])
 })
 
 test('non-array catalog payloads never admit startup or expose response content', async (t) => {

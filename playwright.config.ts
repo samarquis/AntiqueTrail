@@ -8,6 +8,7 @@ export default defineConfig({
     'configured-free-shopper.spec.ts',
     'configured-representative-hours.spec.ts',
     'configured-owner-billing-status.spec.ts',
+    'configured-owner-store-updates.spec.ts',
     'issue-568-private-stop-auth-rpc-proof.spec.ts',
     'local-signup.spec.ts',
     'issue-468-correction-draft.spec.ts',

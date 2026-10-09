@@ -2104,6 +2104,7 @@ function portalClient(
       headline: 'Fresh walnut furniture',
       details: 'A synthetic shipment for local review.',
       state: 'live',
+      version: 1,
       publishedAt: FIXED_NOW,
     },
   ]
@@ -2272,6 +2273,7 @@ function portalClient(
           ...draft,
           id: 'update-' + (updates.length + 1),
           state: 'live',
+          version: 1,
           publishedAt: FIXED_NOW,
         }
         updates = [created, ...updates]

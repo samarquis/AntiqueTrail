@@ -13,6 +13,15 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export const CLI_VERSION = '2.115.0'
 const readinessFailureMetadata = new WeakMap()
 const readinessRequestMetadata = new WeakMap()
+const readinessResponseCodes = new Set([
+  'ALPHA_AUTH_REQUIRED',
+  'CATALOG_UNAVAILABLE',
+  'GATEWAY_UNAVAILABLE',
+  'INVALID_OPERATION',
+  'INVALID_REQUEST',
+  'MAP_UNAVAILABLE',
+  'RATE_LIMITED',
+])
 const readinessFailureCategories = new Set([
   'fetchFailure',
   'responseParseFailure',
@@ -30,9 +39,9 @@ export function getReadinessFailureMetadata(error) {
   }
 }
 
-function tagReadinessFailure(error, category, status) {
+function tagReadinessFailure(error, category, status, responseCode) {
   if (error !== null && (typeof error === 'object' || typeof error === 'function'))
-    readinessFailureMetadata.set(error, { category, status })
+    readinessFailureMetadata.set(error, { category, status, responseCode })
 }
 
 function isReadinessHttpStatus(status) {
@@ -272,14 +281,20 @@ async function performLoopbackRequest(
   }
   if (!response.ok) {
     // Whitelist server diagnostic fields; never echo arbitrary request/response bodies.
-    const code = String(data?.error?.code ?? data?.code ?? response.status)
+    const rawCode = data?.error?.code ?? data?.code
+    const code = String(rawCode ?? response.status)
       .replace(/[^A-Za-z0-9_]/g, '')
       .slice(0, 80)
     const message = String(data?.message ?? '')
       .replace(/[^A-Za-z0-9_ .]/g, '')
       .slice(0, 160)
     const error = new Error(`HTTP ${response.status} ${code} ${message}`)
-    tagReadinessFailure(error, 'httpFailure', status)
+    tagReadinessFailure(
+      error,
+      'httpFailure',
+      status,
+      readinessResponseCodes.has(rawCode) ? rawCode : 'other',
+    )
     throw error
   }
   return data
@@ -332,6 +347,7 @@ export async function waitForLocalServiceReadiness(
     unclassifiedFailure: 0,
   }
   const httpStatusCounts = new Map()
+  const responseCodeCounts = new Map()
   for (let attempt = 0; attempt < 60; attempt++) {
     signal?.throwIfAborted()
     attempts++
@@ -374,6 +390,10 @@ export async function waitForLocalServiceReadiness(
       const category = metadata?.category
       if (Object.hasOwn(categoryCounts, category)) categoryCounts[category]++
       else categoryCounts.unclassifiedFailure++
+      if (category === 'httpFailure' && typeof metadata?.responseCode === 'string') {
+        const code = metadata.responseCode
+        responseCodeCounts.set(code, (responseCodeCounts.get(code) ?? 0) + 1)
+      }
       const status = metadata?.status
       if (
         (category === 'httpFailure' || category === 'responseParseFailure') &&
@@ -394,6 +414,9 @@ export async function waitForLocalServiceReadiness(
         attempts,
         categoryCounts,
         httpStatusCounts: httpStatuses,
+        responseCodeCounts: [...responseCodeCounts]
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([code, count]) => ({ code, count })),
       }
       // Fixed fields and at most 60 attempts keep this record below 2 KiB.
       try {
@@ -423,9 +446,16 @@ export function createLocalService({
   signupJourney = false,
   createTestUsers = true,
   includeServiceRoleKey = false,
+  storeUpdateExpirySchedulerToken,
 } = {}) {
   if (browserOrigin && !/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(browserOrigin))
     throw new Error('Browser origin must use literal loopback')
+  if (
+    storeUpdateExpirySchedulerToken !== undefined &&
+    (typeof storeUpdateExpirySchedulerToken !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(storeUpdateExpirySchedulerToken))
+  )
+    throw new Error('Store Update expiry scheduler token is malformed')
   const exclusions = localServiceExclusions(disableStorage)
   let run
   if (resumeDirectory) {
@@ -602,10 +632,22 @@ export function createLocalService({
     const enc = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
     const unsigned = `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc({ role: 'public_catalog_gateway', iss: 'supabase', exp: Math.floor(Date.now() / 1000) + 3600 })}`
     const gateway = `${unsigned}.${crypto.createHmac('sha256', status.JWT_SECRET).update(unsigned).digest('base64url')}`
+    const expiryWorkerJwt = storeUpdateExpirySchedulerToken
+      ? (() => {
+          const expiryClaims = `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc({ role: 'store_update_expiry_service', iss: 'supabase', exp: Math.floor(Date.now() / 1000) + 1800 })}`
+          return `${expiryClaims}.${crypto.createHmac('sha256', status.JWT_SECRET).update(expiryClaims).digest('base64url')}`
+        })()
+      : null
     const functionEnv = [
       `PUBLIC_CATALOG_GATEWAY_JWT=${gateway}`,
       `PUBLIC_CATALOG_RATE_SALT=${crypto.randomBytes(32).toString('hex')}`,
       `PUBLIC_APP_ORIGIN=${run.origin}`,
+      ...(expiryWorkerJwt
+        ? [
+            `STORE_UPDATE_EXPIRY_JWT=${expiryWorkerJwt}`,
+            `STORE_UPDATE_EXPIRY_SCHEDULER_TOKEN=${storeUpdateExpirySchedulerToken}`,
+          ]
+        : []),
       ...(signupJourney ? [registrationSettings] : []),
     ].join('\n')
     fs.writeFileSync(path.join(directory, 'supabase/functions/.env'), `${functionEnv}\n`, {

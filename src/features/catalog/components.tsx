@@ -38,6 +38,25 @@ import {
   MediaPosition,
 } from './mediaOverlay'
 
+function newestFirstUpdates<T extends { id: string; publishedAt: string }>(
+  updates: readonly T[],
+): T[] {
+  return [...updates].sort((a, b) => {
+    const byMilliseconds = Date.parse(b.publishedAt) - Date.parse(a.publishedAt)
+    if (Number.isFinite(byMilliseconds) && byMilliseconds !== 0) return byMilliseconds
+    const aFraction =
+      /T\d{2}:\d{2}:\d{2}\.(\d+)(?=Z|[+-]\d{2}:\d{2}$)/u.exec(a.publishedAt)?.[1] ?? ''
+    const bFraction =
+      /T\d{2}:\d{2}:\d{2}\.(\d+)(?=Z|[+-]\d{2}:\d{2}$)/u.exec(b.publishedAt)?.[1] ?? ''
+    const precision = Math.max(aFraction.length, bFraction.length)
+    const aPrecise = aFraction.padEnd(precision, '0')
+    const bPrecise = bFraction.padEnd(precision, '0')
+    const bySubmillisecond = bPrecise > aPrecise ? 1 : bPrecise < aPrecise ? -1 : 0
+    if (bySubmillisecond) return bySubmillisecond
+    return b.id > a.id ? 1 : b.id < a.id ? -1 : 0
+  })
+}
+
 const stageRank: Record<CatalogBrowseStage, number> = {
   'package-1': 1,
   'package-3': 3,
@@ -1286,6 +1305,7 @@ export function DetailsPage({
       </main>
     )
   const store = state.store!
+  const latestUpdates = newestFirstUpdates(store.updates ?? [])
   const browseReturn = readBrowseReturn()
   const backHref = browseReturn?.href ?? '/stores'
   const verifiedDate = formatCatalogDate(store.freshness?.verifiedAt)
@@ -1497,7 +1517,7 @@ export function DetailsPage({
           {store.updates?.length ? (
             <>
               <ol className="store-updates">
-                {store.updates.slice(0, 3).map((update) => (
+                {latestUpdates.slice(0, 3).map((update) => (
                   <li key={update.id}>
                     <article>
                       <h3>{update.title}</h3>
@@ -1510,7 +1530,7 @@ export function DetailsPage({
                   </li>
                 ))}
               </ol>
-              {store.updates.length > 3 && (
+              {latestUpdates.length > 3 && (
                 <CatalogLink
                   to={catalogAppHref(`/stores/${encodeURIComponent(store.slug)}/updates`)}
                   onClick={() => rememberStoreReturn(store.id, 'updates')}
@@ -1611,9 +1631,7 @@ export function StoreUpdatesPage({ client, slug }: { client: CatalogClient; slug
       </main>
     )
   const store = state.store!
-  const updates = [...(store.updates ?? [])].sort((a, b) =>
-    a.publishedAt.localeCompare(b.publishedAt),
-  )
+  const updates = newestFirstUpdates(store.updates ?? [])
   return (
     <main className="store-detail">
       <CatalogLink

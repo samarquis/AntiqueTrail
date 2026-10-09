@@ -1,0 +1,989 @@
+#!/usr/bin/env node
+/* global process, fetch, URL, AbortController, AbortSignal, Buffer, setTimeout */
+import crypto from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
+import { spawn } from 'node:child_process'
+import {
+  command,
+  createLocalService,
+  freePort,
+  ROOT,
+  stopChild,
+} from './configured-shopper-local.mjs'
+import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
+
+const controller = new AbortController()
+const output = createRunDirectory(path.join(ROOT, 'artifacts'))
+const report = {
+  scope: 'issue-581-owner-store-updates',
+  evidenceClass: 'real-local-database-and-browser',
+  status: 'unavailable',
+  sourceSha: null,
+  expectedSourceSha: null,
+  sourceDirty: null,
+  cliVersion: null,
+  cleanup: 'not-started',
+  edgeRuntimeVolume: {
+    name: null,
+    prepared: false,
+    mounted: false,
+    mount: null,
+    mountCheck: 'not-run',
+    createRequests: [],
+    cleanup: 'not-started',
+  },
+  database: { status: 'not-started', plan: null, assertions: 0, skipped: 0, failed: 0, cases: [] },
+  browser: { status: 'not-started' },
+  expiry: {
+    status: 'not-started',
+    fixtureRows: 0,
+    missingHeaderStatus: null,
+    wrongHeaderStatus: null,
+    authorizedStatus: null,
+    expiredRows: null,
+    repeatStatus: null,
+    repeatExpiredRows: null,
+    archivedDueRows: 0,
+    liveFutureRows: 0,
+    portalAuditEvents: 0,
+    privilegedAuditEvents: 0,
+  },
+  errors: [],
+}
+const uuid = () => crypto.randomUUID()
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+let service, server, secretFile, edgeRuntimeVolume
+
+for (const signal of ['SIGINT', 'SIGTERM'])
+  process.once(signal, () => controller.abort(new Error(signal)))
+
+function sqlText(value) {
+  return `'${String(value).replaceAll("'", "''")}'`
+}
+
+function requireExpiry(condition, message) {
+  if (!condition) throw new Error(`Issue 581 expiry proof ${message}`)
+}
+
+function chicagoDateOffset(dayOffset) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .formatToParts(new Date())
+      .map(({ type, value }) => [type, value]),
+  )
+  return new Date(
+    Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day) + dayOffset),
+  )
+    .toISOString()
+    .slice(0, 10)
+}
+
+async function expiryRowsSnapshot(ids) {
+  const idList = ids.map(sqlText).join(',')
+  const output = await service.sql(`
+    select coalesce(json_agg(json_build_object(
+      'id',u.update_id::text,
+      'state',u.state,
+      'version',u.version,
+      'archivedAt',u.archived_at,
+      'portalAuditCount',(select count(*)::integer from portal_private.portal_audit_events e
+        where e.resource_id=u.update_id and e.event_kind='text_update_sale_expired'),
+      'privilegedAuditCount',(select count(*)::integer from app_private.privileged_audit_events e
+        where e.resource_id=u.update_id and e.action='portal_text_update_sale_expired')
+    ) order by u.update_id),'[]'::json)::text
+    from portal_private.store_updates u
+    where u.update_id in (${idList});
+  `)
+  return JSON.parse(output.trim())
+}
+
+async function requestExpiryEdge(local, schedulerToken) {
+  const headers = {
+    apikey: local.anonKey,
+    Authorization: `Bearer ${local.anonKey}`,
+    'Content-Type': 'application/json',
+  }
+  if (schedulerToken) headers['x-antique-trail-scheduler'] = schedulerToken
+  const response = await fetch(`${local.endpoint}/functions/v1/store-update-expiry`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ p_now: '2050-01-01T00:00:00.000Z', p_limit: 1 }),
+    redirect: 'error',
+    signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]),
+  })
+  const body = await response.text()
+  let payload = null
+  if (response.ok) {
+    try {
+      payload = JSON.parse(body)
+    } catch {
+      throw new Error('Issue 581 expiry proof returned malformed JSON')
+    }
+  }
+  return { status: response.status, payload }
+}
+
+async function runExpiryEdgeProof(local, storeId, schedulerToken) {
+  report.expiry.status = 'running'
+  requireExpiry(/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(local.endpoint), 'endpoint is not loopback')
+
+  const knownDueId = (
+    await service.sql(`
+      select update_id::text from portal_private.store_updates
+      where store_id=${sqlText(storeId)}::uuid and headline='Expired sale fixture'
+        and update_type='sale' and state='live';
+    `)
+  ).trim()
+  requireExpiry(/^[a-f0-9-]{36}$/.test(knownDueId), 'baseline sale fixture is unavailable')
+  const preexistingOverdue = (
+    await service.sql(`
+      select u.update_id::text
+      from portal_private.store_updates u join app_public.stores s on s.id=u.store_id
+      where u.update_type='sale' and u.state='live'
+        and u.end_date < (statement_timestamp() at time zone s.timezone_name)::date
+      order by u.update_id;
+    `)
+  )
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean)
+  requireExpiry(
+    preexistingOverdue.length === 1 && preexistingOverdue[0] === knownDueId,
+    'found an unexpected overdue sale in the disposable fixture',
+  )
+
+  const rows = [
+    { id: knownDueId, due: true },
+    {
+      id: uuid(),
+      due: true,
+      endDate: chicagoDateOffset(-2),
+      headline: 'Issue 581 expiry due fixture',
+    },
+    {
+      id: uuid(),
+      due: false,
+      endDate: chicagoDateOffset(3),
+      headline: 'Issue 581 expiry future fixture',
+    },
+  ]
+  const values = rows.slice(1).map((row) => {
+    const digest = `decode(md5(${sqlText(row.id)}) || md5(${sqlText(`${row.id}:issue581-expiry`)}),'hex')`
+    return `(${sqlText(row.id)}::uuid,${sqlText(storeId)}::uuid,'sale',${sqlText(row.headline)},'Synthetic expiry proof fixture',${sqlText(row.endDate)}::date,${digest})`
+  })
+  await service.sql(`
+    insert into portal_private.store_updates(
+      update_id,store_id,update_type,headline,details,end_date,content_digest
+    ) values ${values.join(',\n')};
+  `)
+
+  const ids = rows.map((row) => row.id)
+  const before = await expiryRowsSnapshot(ids)
+  requireExpiry(
+    before.length === 3 &&
+      before.every(
+        (row) =>
+          row.state === 'live' &&
+          row.version === 1 &&
+          row.archivedAt === null &&
+          row.portalAuditCount === 0 &&
+          row.privilegedAuditCount === 0,
+      ),
+    'fixture rows did not start live and unaudited',
+  )
+
+  const missing = await requestExpiryEdge(local)
+  report.expiry.missingHeaderStatus = missing.status
+  requireExpiry(missing.status === 401, 'missing scheduler header was not rejected')
+  const afterMissing = await expiryRowsSnapshot(ids)
+  requireExpiry(
+    JSON.stringify(afterMissing) === JSON.stringify(before),
+    'missing header changed rows',
+  )
+
+  const wrong = await requestExpiryEdge(local, crypto.randomBytes(32).toString('hex'))
+  report.expiry.wrongHeaderStatus = wrong.status
+  requireExpiry(wrong.status === 401, 'wrong scheduler header was not rejected')
+  const afterWrong = await expiryRowsSnapshot(ids)
+  requireExpiry(JSON.stringify(afterWrong) === JSON.stringify(before), 'wrong header changed rows')
+
+  const authorized = await requestExpiryEdge(local, schedulerToken)
+  report.expiry.authorizedStatus = authorized.status
+  report.expiry.expiredRows = authorized.payload?.expired ?? null
+  requireExpiry(
+    authorized.status === 200 && authorized.payload?.expired === 2,
+    'authorized handler did not expire exactly two due rows with fixed server parameters',
+  )
+  const afterAuthorized = await expiryRowsSnapshot(ids)
+  const byId = new Map(afterAuthorized.map((row) => [row.id, row]))
+  const dueRows = rows.filter((row) => row.due).map((row) => byId.get(row.id))
+  const futureRow = byId.get(rows.find((row) => !row.due)?.id)
+  requireExpiry(
+    dueRows.length === 2 &&
+      dueRows.every(
+        (row) =>
+          row?.state === 'archived' &&
+          row.version === 2 &&
+          row.archivedAt !== null &&
+          row.portalAuditCount === 1 &&
+          row.privilegedAuditCount === 1,
+      ),
+    'due rows did not produce one durable versioned expiry audit each',
+  )
+  requireExpiry(
+    futureRow?.state === 'live' &&
+      futureRow.version === 1 &&
+      futureRow.archivedAt === null &&
+      futureRow.portalAuditCount === 0 &&
+      futureRow.privilegedAuditCount === 0,
+    'caller-supplied future clock expired the future sale',
+  )
+
+  const repeated = await requestExpiryEdge(local, schedulerToken)
+  report.expiry.repeatStatus = repeated.status
+  report.expiry.repeatExpiredRows = repeated.payload?.expired ?? null
+  requireExpiry(
+    repeated.status === 200 && repeated.payload?.expired === 0,
+    'repeated authorized handler call was not a no-op',
+  )
+  const afterRepeated = await expiryRowsSnapshot(ids)
+  requireExpiry(
+    JSON.stringify(afterRepeated) === JSON.stringify(afterAuthorized),
+    'repeated handler call changed rows or audit counts',
+  )
+
+  report.expiry = {
+    ...report.expiry,
+    status: 'passed',
+    fixtureRows: 3,
+    archivedDueRows: dueRows.length,
+    liveFutureRows: futureRow?.state === 'live' ? 1 : 0,
+    portalAuditEvents: dueRows.reduce((count, row) => count + (row?.portalAuditCount ?? 0), 0),
+    privilegedAuditEvents: dueRows.reduce(
+      (count, row) => count + (row?.privilegedAuditCount ?? 0),
+      0,
+    ),
+  }
+}
+
+async function removeOwnedEdgeRuntimeVolume(volume) {
+  const cleanupSignal = new AbortController().signal
+  if (
+    !/^probe-[a-f0-9]{24}$/.test(volume.projectId) ||
+    volume.name !== `supabase_edge_runtime_${volume.projectId}`
+  )
+    throw new Error('Issue 581 Edge Runtime volume identity malformed')
+
+  const names = (
+    await command('docker', ['volume', 'ls', '-q', '--filter', `name=${volume.name}`], {
+      signal: cleanupSignal,
+    })
+  )
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (!names.includes(volume.name)) return
+
+  const inspected = JSON.parse(
+    await command('docker', ['volume', 'inspect', volume.name], { signal: cleanupSignal }),
+  )
+  if (
+    inspected.length !== 1 ||
+    inspected[0].Name !== volume.name ||
+    inspected[0].Labels?.['com.supabase.cli.project'] !== volume.projectId
+  )
+    throw new Error('Issue 581 Edge Runtime volume ownership mismatch')
+
+  const containerIds = (
+    await command(
+      'docker',
+      ['ps', '-aq', '--filter', `label=com.supabase.cli.project=${volume.projectId}`],
+      { signal: cleanupSignal },
+    )
+  )
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (containerIds.length) {
+    const containers = JSON.parse(
+      await command('docker', ['inspect', ...containerIds], { signal: cleanupSignal }),
+    )
+    if (
+      containers.some((container) => container.Mounts?.some((mount) => mount.Name === volume.name))
+    )
+      throw new Error('Issue 581 Edge Runtime volume remains attached to an owned container')
+  }
+
+  await command('docker', ['volume', 'rm', volume.name], { signal: cleanupSignal })
+  const remaining = (
+    await command('docker', ['volume', 'ls', '-q', '--filter', `name=${volume.name}`], {
+      signal: cleanupSignal,
+    })
+  )
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (remaining.includes(volume.name))
+    throw new Error('Issue 581 Edge Runtime volume remains after cleanup')
+}
+
+async function confirmEdgeRuntimeVolumeMount(volume, workdir) {
+  const volumes = JSON.parse(
+    await command('docker', ['volume', 'inspect', volume.name], { signal: controller.signal }),
+  )
+  if (
+    volumes.length !== 1 ||
+    volumes[0].Name !== volume.name ||
+    volumes[0].Labels?.['com.supabase.cli.project'] !== volume.projectId ||
+    volumes[0].Labels?.['com.docker.compose.project'] !== volume.projectId
+  )
+    throw new Error('Issue 581 Edge Runtime volume ownership mismatch')
+
+  const containerIds = (
+    await command(
+      'docker',
+      ['ps', '-aq', '--filter', `label=com.supabase.cli.project=${volume.projectId}`],
+      { signal: controller.signal },
+    )
+  )
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (!containerIds.length) throw new Error('Issue 581 Edge Runtime container unavailable')
+
+  const containers = JSON.parse(
+    await command('docker', ['inspect', ...containerIds], { signal: controller.signal }),
+  )
+  const expectedContainer = `/supabase_edge_runtime_${volume.projectId}`
+  const runtimeContainers = containers.filter((container) => container.Name === expectedContainer)
+  if (runtimeContainers.length !== 1)
+    throw new Error('Issue 581 Edge Runtime container identity not confirmed')
+
+  const runtime = runtimeContainers[0]
+  const labels = runtime.Config?.Labels ?? {}
+  if (
+    labels['com.supabase.cli.project'] !== volume.projectId ||
+    labels['com.supabase.cli.workdir'] !== workdir
+  )
+    throw new Error('Issue 581 Edge Runtime container ownership mismatch')
+
+  const mounts = (runtime.Mounts ?? []).filter(
+    (mount) => mount.Type === 'volume' && mount.Name === volume.name,
+  )
+  if (
+    mounts.length !== 1 ||
+    typeof mounts[0].Destination !== 'string' ||
+    !mounts[0].Destination.startsWith('/')
+  )
+    throw new Error('Issue 581 Edge Runtime volume mount not confirmed')
+
+  const runtimeStatus = runtime.State?.Status
+  const knownStatuses = ['created', 'dead', 'exited', 'paused', 'removing', 'restarting', 'running']
+  return {
+    service: 'edge_runtime',
+    container: expectedContainer.slice(1),
+    type: 'volume',
+    destination: mounts[0].Destination,
+    running: runtime.State?.Running === true,
+    status: knownStatuses.includes(runtimeStatus) ? runtimeStatus : 'unknown',
+    restartCount: Number.isInteger(runtime.RestartCount) ? runtime.RestartCount : null,
+  }
+}
+
+function chicagoYesterday() {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .formatToParts(new Date())
+      .map(({ type, value }) => [type, value]),
+  )
+  return new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day) - 1))
+    .toISOString()
+    .slice(0, 10)
+    .slice(0, 10)
+}
+
+function expandSql(file) {
+  return fs
+    .readFileSync(file, 'utf8')
+    .replace(/^\\ir\s+(.+)$/gm, (_, child) =>
+      expandSql(path.resolve(path.dirname(file), child.trim())),
+    )
+}
+
+async function localAuth(local, token, route, body) {
+  const response = await fetch(`${local.endpoint}${route}`, {
+    method: 'POST',
+    headers: {
+      apikey: local.anonKey,
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    redirect: 'error',
+    signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]),
+  })
+  const data = await response.json()
+  if (!response.ok) {
+    const code = String(data?.code ?? data?.error_code ?? 'unavailable')
+      .replace(/[^A-Za-z0-9_]/g, '')
+      .slice(0, 80)
+    throw new Error(`Local Auth ${route} failed with ${response.status} ${code}`)
+  }
+  return data
+}
+
+function totp(secret) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+  let bits = ''
+  for (const character of secret.replaceAll('=', '').toUpperCase()) {
+    const index = alphabet.indexOf(character)
+    if (index < 0) throw new Error('Malformed local TOTP secret')
+    bits += index.toString(2).padStart(5, '0')
+  }
+  const bytes = Buffer.from(bits.match(/.{8}/g)?.map((chunk) => Number.parseInt(chunk, 2)) ?? [])
+  const counter = Buffer.alloc(8)
+  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)))
+  const digest = crypto.createHmac('sha1', bytes).update(counter).digest()
+  const offset = digest[digest.length - 1] & 15
+  return String((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, '0')
+}
+
+async function provisionOwner(local) {
+  const owner = local.users[0]
+  if (!owner || typeof owner.id !== 'string' || typeof owner.email !== 'string')
+    throw new Error('Local Owner identity is unavailable')
+  const shopper = local.users[1]
+  if (!shopper || typeof shopper.email !== 'string' || typeof shopper.password !== 'string')
+    throw new Error('Local catalog Shopper identity is unavailable')
+
+  const areaId = uuid()
+  const storeId = uuid()
+  const siblingStoreId = uuid()
+  const storeSlug = `issue-581-${uuid().replaceAll('-', '').slice(0, 12)}`
+  const siblingSlug = `${storeSlug}-sibling`
+  const claimId = uuid()
+  const invitationId = uuid()
+  const pendingIdentityId = uuid()
+  const provisionalConsentId = uuid()
+  const pilotConsentReceiptId = uuid()
+  const adminId = '58100000-0000-4000-8000-000000000002'
+  const adminSessionId = '58100000-0000-4000-8000-000000000003'
+  const authorityEventA = uuid()
+  const authorityEventB = uuid()
+
+  const enrolled = await localAuth(local, owner.token, '/auth/v1/factors', {
+    factor_type: 'totp',
+    friendly_name: 'issue-581-local',
+  })
+  if (typeof enrolled.id !== 'string' || typeof enrolled.totp?.secret !== 'string')
+    throw new Error('Local MFA enrollment response malformed')
+  const challenge = await localAuth(
+    local,
+    owner.token,
+    `/auth/v1/factors/${enrolled.id}/challenge`,
+    {},
+  )
+  if (typeof challenge.id !== 'string') throw new Error('Local MFA challenge malformed')
+  await localAuth(local, owner.token, `/auth/v1/factors/${enrolled.id}/verify`, {
+    challenge_id: challenge.id,
+    code: totp(enrolled.totp.secret),
+  })
+
+  await service.sql(`
+    begin;
+    update app_private.environment_stage set stage='synthetic_alpha',version=version+1 where id=1;
+    update app_private.audit_anchor_capability set deployment_environment='local',state='disabled' where id=1;
+    insert into app_public.catalog_areas(id,slug,label,state_code,sort_order)
+      values('${areaId}','${storeSlug}-area','Issue 581 local area','KS',0);
+    insert into app_public.stores(id,slug,name,town,state_code,address,area_id,summary,description,timezone_name,synthetic,audience,publication_state)
+      values
+        ('${storeId}','${storeSlug}','Issue 581 Store A','Topeka','KS','1 Synthetic Way','${areaId}',
+          'Local Owner update fixture','Synthetic Owner A store','America/Chicago',true,'synthetic','active'),
+        ('${siblingStoreId}','${siblingSlug}','Issue 581 Store B','Topeka','KS','2 Synthetic Way','${areaId}',
+          'Local Owner update fixture','Unowned sibling store','America/Chicago',true,'synthetic','active');
+    insert into app_public.store_category_assignments(store_id,category_id)
+      select fixtures.store_id,category.id
+      from (values ('${storeId}'::uuid),('${siblingStoreId}'::uuid)) fixtures(store_id)
+      join app_public.store_categories category on category.slug='antique-mall';
+    insert into app_public.store_fact_verifications(store_id,verification_group,verified_at,provenance_label)
+      select stores.store_id,groups.verification_group,statement_timestamp(),'Issue 581 local synthetic catalog fixture'
+      from (values ('${storeId}'::uuid),('${siblingStoreId}'::uuid)) stores(store_id)
+      cross join unnest(array['identity_location','contact','hours','categories_attributes']::app_public.verification_group[]) groups(verification_group);
+    update app_private.profiles set verified_email_snapshot=${sqlText(owner.email)} where user_id='${owner.id}';
+    insert into auth.users(id,email,email_confirmed_at)
+      values('${adminId}','admin581@example.test',statement_timestamp());
+    update app_private.profiles set verified_email_snapshot='admin581@example.test'
+      where user_id='${adminId}';
+    insert into auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at)
+      values('58100000-0000-4000-8000-000000000009','${adminId}','totp','verified',statement_timestamp(),statement_timestamp());
+    insert into app_private.role_grants(subject_user_id,role) values('${adminId}','administrator');
+    set local role identity_service;
+    insert into app_private.active_sessions(session_id,user_id,provider_created_at,session_epoch,last_authenticated_at,mfa_verified_at,access_token_expires_at)
+      values('${adminSessionId}','${adminId}',statement_timestamp(),1,statement_timestamp(),statement_timestamp(),statement_timestamp()+interval '30 minutes');
+    reset role;
+    insert into partner_private.partner_invitations(
+      invitation_id,token_hash,recipient_email_hmac,created_by,state,consumed_at
+    ) values (
+      '${invitationId}',decode(repeat('58',32),'hex'),decode(repeat('59',32),'hex'),
+      '${adminId}','consumed',statement_timestamp()
+    );
+    insert into partner_private.pending_partner_identities(
+      pending_identity_id,invitation_id,email_hmac,auth_user_id,state,verified_email_at,mfa_verified_at,bound_at
+    ) values (
+      '${pendingIdentityId}','${invitationId}',decode(repeat('59',32),'hex'),'${owner.id}',
+      'bound',statement_timestamp(),statement_timestamp(),statement_timestamp()
+    );
+    insert into partner_private.provisional_partner_consents(
+      provisional_consent_id,invitation_id,pending_identity_id,policy_version,typed_name,business_title,store_name,
+      owner_email_hmac,authority_ack,voluntary_ack,permitted_data_ack,no_payment_endorsement_ack,withdrawal_ack,idempotency_key
+    ) values (
+      '${provisionalConsentId}','${invitationId}','${pendingIdentityId}','synthetic-v3','Owner 581','Owner',
+      'Issue 581 Store A',decode(repeat('59',32),'hex'),true,true,true,true,true,'issue581-pilot-${claimId}'
+    );
+    insert into partner_private.pilot_consent_receipts(
+      consent_receipt_id,provisional_consent_id,pending_identity_id,invitation_id,auth_user_id,verified_email_hmac,
+      policy_version,receipt_checksum
+    ) values (
+      '${pilotConsentReceiptId}','${provisionalConsentId}','${pendingIdentityId}','${invitationId}',
+      '${owner.id}',decode(repeat('59',32),'hex'),'synthetic-v3',decode(repeat('5a',32),'hex')
+    );
+    update partner_private.partner_invitations set synthetic=true,
+      issuance_idempotency_key='issue581-owner-${claimId}',raw_returned_at=created_at,
+      expires_at=created_at+interval '30 minutes'
+    where invitation_id='${invitationId}';
+    insert into partner_private.public_claim_consent_receipts(
+      auth_user_id,policy_version,reviewed_ack,voluntary_ack,idempotency_key,receipt_checksum
+    )
+    select '${owner.id}',policy_version,true,true,'issue581-public-${claimId}',decode(repeat('58',32),'hex')
+    from partner_private.partner_material_terms where is_current;
+    insert into partner_private.listing_claims(claim_id,claimant_id,store_id,relationship,authority_statement)
+      values('${claimId}','${owner.id}','${storeId}','store owner','Synthetic Owner authority for local proof.');
+    insert into partner_private.claim_authority_signals(claim_id,channel_class,signal_type,status,verified_by,verified_at,evidence_ref_hmac,authority_object_hmac,verification_event_id)
+      values
+        ('${claimId}','published_business_contact','domain_response','verified','${adminId}',statement_timestamp(),decode(repeat('61',32),'hex'),decode(repeat('62',32),'hex'),'${authorityEventA}'),
+        ('${claimId}','callback','callback','verified','${adminId}',statement_timestamp(),decode(repeat('63',32),'hex'),decode(repeat('64',32),'hex'),'${authorityEventB}');
+    update partner_private.listing_claims set state='submitted',submitted_at=statement_timestamp() where claim_id='${claimId}';
+    update partner_private.listing_claims set state='verification_pending' where claim_id='${claimId}';
+    insert into partner_private.store_owner_intake_roots(applicant_id,active_kind,active_id)
+      values('${owner.id}','claim','${claimId}');
+    commit;
+  `)
+
+  const claimVersion = (
+    await service.sql(
+      `select version from partner_private.listing_claims where claim_id='${claimId}';`,
+    )
+  ).trim()
+  if (!/^[1-9]\d{0,18}$/.test(claimVersion))
+    throw new Error('Synthetic Owner claim version unavailable')
+  await service.sql(`
+    begin;
+    select set_config('request.jwt.claims',jsonb_build_object(
+      'sub','${adminId}','session_id','${adminSessionId}','role','authenticated','aal','aal2','amr',jsonb_build_array(
+        jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp())::bigint),
+        jsonb_build_object('method','totp','timestamp',extract(epoch from statement_timestamp())::bigint)))::text,true);
+    set local role authenticated;
+    select app_public.owner_admin_approve_claim('${claimId}','${storeId}',${claimVersion},'issue581-local-${claimId}');
+    reset role;
+    commit;
+  `)
+
+  const ownerFixture = await service.sql(`
+    select case when
+      exists(
+        select 1 from partner_private.pending_partner_identities p
+        join partner_private.partner_invitations i using (invitation_id)
+        where p.auth_user_id='${owner.id}' and p.state='bound' and i.synthetic
+      )
+      and exists(
+        select 1 from partner_private.pilot_consent_receipts r
+        where r.auth_user_id='${owner.id}' and r.policy_version='synthetic-v3'
+      )
+      and exists(
+        select 1 from partner_private.public_claim_consent_receipts r
+        join partner_private.partner_material_terms t using (policy_version)
+        where r.auth_user_id='${owner.id}' and t.is_current
+      )
+      and exists(
+        select 1 from auth.mfa_factors
+        where user_id='${owner.id}' and factor_type='totp' and status='verified'
+      )
+      and (select count(*) from app_private.role_grants
+        where subject_user_id='${owner.id}' and store_id='${storeId}' and role='store_owner' and state='active')=1
+      and not exists(select 1 from app_private.role_grants
+        where subject_user_id='${owner.id}' and store_id='${siblingStoreId}' and role='store_owner' and state='active')
+      and (select count(*) from partner_private.store_partner_grants
+        where auth_user_id='${owner.id}' and store_id='${storeId}' and role='store_owner' and state='active')=1
+      and not exists(select 1 from partner_private.store_partner_grants
+        where auth_user_id='${owner.id}' and store_id='${siblingStoreId}' and role='store_owner' and state='active')
+      then 'complete' else 'incomplete' end;
+  `)
+  if (ownerFixture.trim() !== 'complete')
+    throw new Error('Synthetic current-consent Owner/MFA/store-scope fixture incomplete')
+
+  const expiredSaleEndDate = chicagoYesterday()
+  const expiredSaleId = uuid()
+  const expiredSale = {
+    type: 'sale',
+    headline: 'Expired sale fixture',
+    details: 'This expired sale must stay out of public results.',
+    endDate: expiredSaleEndDate,
+    imageRequested: false,
+  }
+  await service.sql(`
+    insert into portal_private.store_updates(
+      update_id,store_id,author_user_id,update_type,headline,details,end_date,content_digest
+    ) values (
+      '${expiredSaleId}','${storeId}','${owner.id}','sale',
+      'Expired sale fixture','This expired sale must stay out of public results.',
+      '${expiredSaleEndDate}'::date,
+      extensions.digest(convert_to(jsonb_strip_nulls(${sqlText(JSON.stringify(expiredSale))}::jsonb)::text,'utf8'),'sha256')
+    );
+  `)
+
+  return {
+    endpoint: local.endpoint,
+    anonKey: local.anonKey,
+    origin: local.origin,
+    storeId,
+    siblingStoreId,
+    storeSlug,
+    siblingSlug,
+    storeName: 'Issue 581 Store A',
+    owner: { email: owner.email, password: owner.password, totpSecret: enrolled.totp.secret },
+    shopper: { email: shopper.email, password: shopper.password },
+  }
+}
+
+try {
+  report.sourceSha = (await command('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).trim()
+  const expectedSourceSha = process.env.ISSUE_581_EXPECTED_SOURCE_SHA
+  if (process.env.GITHUB_ACTIONS === 'true' && !/^[0-9a-f]{40}$/.test(expectedSourceSha ?? ''))
+    throw new Error('Expected candidate SHA is required in hosted verification')
+  if (expectedSourceSha && !/^[0-9a-f]{40}$/.test(expectedSourceSha))
+    throw new Error('Expected candidate SHA is malformed')
+  report.expectedSourceSha = expectedSourceSha ?? null
+  if (expectedSourceSha && report.sourceSha !== expectedSourceSha)
+    throw new Error('Checked-out source does not match expected candidate SHA')
+  if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
+    throw new Error('External endpoint selection is forbidden')
+
+  const browserOrigin = `http://127.0.0.1:${await freePort()}`
+  const schedulerToken = crypto.randomBytes(32).toString('hex')
+  service = createLocalService({
+    signal: controller.signal,
+    browserOrigin,
+    disableStorage: true,
+    storeUpdateExpirySchedulerToken: schedulerToken,
+  })
+  report.temporaryProject = service.run.directory
+  report.projectId = service.run.projectId
+  if (!/^probe-[a-f0-9]{24}$/.test(service.run.projectId))
+    throw new Error('Issue 581 local project identity malformed')
+  edgeRuntimeVolume = {
+    projectId: service.run.projectId,
+    name: `supabase_edge_runtime_${service.run.projectId}`,
+  }
+  report.edgeRuntimeVolume.name = edgeRuntimeVolume.name
+  // Preflight the exact volume Supabase CLI uses so Docker's creation failure stays diagnosable.
+  const preparedVolume = await command(
+    'docker',
+    [
+      'volume',
+      'create',
+      '--label',
+      `com.supabase.cli.project=${edgeRuntimeVolume.projectId}`,
+      '--label',
+      `com.docker.compose.project=${edgeRuntimeVolume.projectId}`,
+      edgeRuntimeVolume.name,
+    ],
+    { signal: controller.signal },
+  )
+  if (preparedVolume.trim() !== edgeRuntimeVolume.name)
+    throw new Error('Issue 581 Edge Runtime volume creation returned an unexpected name')
+  report.edgeRuntimeVolume.prepared = true
+  const local = await service.start()
+  report.edgeRuntimeVolume.mount = await confirmEdgeRuntimeVolumeMount(
+    edgeRuntimeVolume,
+    service.run.directory,
+  )
+  report.edgeRuntimeVolume.mounted = true
+  report.edgeRuntimeVolume.mountCheck = 'confirmed'
+  report.edgeRuntimeVolume.createRequests = [...(service.run.edgeVolumeCreateResults ?? [])]
+  report.sourceDirty = Boolean(local.sourceDirty)
+  report.cliVersion = local.cliVersion
+  if (local.sourceSha !== report.sourceSha || local.sourceDirty)
+    throw new Error('Source changed during hosted fixture preparation')
+  report.projectId = local.projectId
+  report.database.source = 'supabase/tests/0141_issue_581_store_updates.sql'
+  const dbResult = await service.sql(
+    expandSql(path.join(ROOT, 'supabase/tests/0141_issue_581_store_updates.sql')),
+  )
+  const databaseCases = dbResult
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^(?:ok|not ok) \d+(?:\s|$)/.test(line))
+    .map((line) => {
+      const match = line.match(/^(ok|not ok) (\d+)(?: - (.*?))?(?: # (SKIP.*))?$/)
+      if (!match)
+        return {
+          number: Number(line.match(/\d+/)?.[0] ?? 0),
+          status: 'unparsed',
+          name: 'Unparsed pgTAP result',
+          skip: null,
+        }
+      return {
+        number: Number(match[2]),
+        status: match[1] === 'ok' ? 'passed' : 'failed',
+        name: redact(match[3] ?? 'Unlabeled pgTAP result')
+          .replace(/[\r\n]/g, ' ')
+          .trim(),
+        skip: match[4] ? redact(match[4]) : null,
+      }
+    })
+  const plan = dbResult.match(/^1\.\.(\d+)$/m)
+  report.database.plan = plan ? Number(plan[1]) : null
+  report.database.assertions = databaseCases.length
+  report.database.skipped = databaseCases.filter((test) => test.skip !== null).length
+  report.database.failed = databaseCases.filter((test) => test.status !== 'passed').length
+  report.database.cases = databaseCases
+  if (!plan || Number(plan[1]) !== databaseCases.length || databaseCases.length === 0)
+    throw new Error('Issue 581 Owner update pgTAP result count did not match its plan')
+  if (databaseCases.some((test) => test.status !== 'passed'))
+    throw new Error('Issue 581 Owner update pgTAP failed or returned an unparsed case')
+  report.database.status = 'passed'
+
+  const fixture = await provisionOwner(local)
+  if (local.origin !== browserOrigin || fixture.origin !== browserOrigin)
+    throw new Error('Configured Owner browser and catalog origins do not match')
+  report.schemaIdentity = local.schemaIdentity
+  report.functionIdentity = local.functionIdentity
+  report.fixtureIdentity = crypto
+    .createHash('sha256')
+    .update(`${fixture.storeId}|${fixture.siblingStoreId}|${fixture.storeSlug}`)
+    .digest('hex')
+  report.browser.origin = fixture.origin
+
+  const secretPath = path.join(local.directory, 'issue-581-browser-input.json')
+  secretFile = secretPath
+  fs.writeFileSync(secretPath, JSON.stringify({ ...local, ...fixture, output: output.directory }), {
+    flag: 'wx',
+    mode: 0o600,
+  })
+  const env = {
+    ...process.env,
+    VITE_SUPABASE_URL: local.endpoint,
+    VITE_SUPABASE_ANON_KEY: local.anonKey,
+    VITE_REVIEW_HARNESS: 'false',
+    VITE_STORE_OWNER_INTERNAL_ENABLED: 'true',
+    VITE_PARTNER_EMAIL_PROVIDER_ENABLED: 'false',
+    VITE_PARTNER_MEDIA_PROVIDER_ENABLED: 'false',
+    GITHUB_PAGES: 'false',
+    CONFIGURED_OWNER_STORE_UPDATES_INPUT: secretPath,
+  }
+  const port = Number(new URL(fixture.origin).port)
+  server = spawn(
+    process.execPath,
+    [
+      'node_modules/vite/bin/vite.js',
+      '--host',
+      '127.0.0.1',
+      '--port',
+      String(port),
+      '--strictPort',
+    ],
+    { cwd: ROOT, env, stdio: 'ignore', windowsHide: true },
+  )
+  let ready = false
+  for (let attempt = 0; attempt < 60 && !controller.signal.aborted; attempt += 1) {
+    try {
+      const response = await fetch(fixture.origin, { signal: AbortSignal.timeout(2_000) })
+      if (response.ok) {
+        ready = true
+        break
+      }
+    } catch {
+      /* bounded readiness */
+    }
+    await sleep(500)
+  }
+  if (!ready) throw new Error('Configured Owner Store Updates preview unavailable')
+
+  report.status = 'running'
+  const reportFile = path.join(output.directory, 'playwright.json')
+  report.browser.status = 'running'
+  const browserResult = await command(
+    process.execPath,
+    [
+      'node_modules/@playwright/test/cli.js',
+      'test',
+      '--config',
+      'e2e/configured-owner-store-updates-playwright.config.ts',
+    ],
+    { cwd: ROOT, env, timeout: 900_000, signal: controller.signal },
+  )
+  if (!fs.existsSync(reportFile))
+    throw new Error('Missing configured Owner updates Playwright report')
+  const playwrightReport = JSON.parse(fs.readFileSync(reportFile, 'utf8'))
+  report.browser.stats = playwrightReport.stats ?? null
+  report.browser.testFile = 'e2e/configured-owner-store-updates.spec.ts'
+  report.browser.testName =
+    'configured Owner edits text through selected-store context and shoppers see newest live updates'
+  report.browser.commandExit = browserResult.exitCode ?? 0
+  report.browser.status = 'passed'
+  await runExpiryEdgeProof(local, fixture.storeId, schedulerToken)
+  report.status = 'passed'
+} catch (error) {
+  report.status = 'failed'
+  if (report.expiry.status === 'running') report.expiry.status = 'failed'
+  if (report.browser.status === 'running') {
+    report.browser.status = 'failed'
+    const reportFile = path.join(output.directory, 'playwright.json')
+    if (fs.existsSync(reportFile)) {
+      try {
+        const playwrightReport = JSON.parse(fs.readFileSync(reportFile, 'utf8'))
+        report.browser.stats = playwrightReport.stats ?? null
+        const failures = []
+        const visitSuites = (suites) => {
+          for (const suite of suites ?? []) {
+            for (const spec of suite.specs ?? []) {
+              for (const test of spec.tests ?? []) {
+                for (const result of test.results ?? []) {
+                  if (result.status === 'passed') continue
+                  failures.push({
+                    test: String(spec.title ?? 'unknown').slice(0, 180),
+                    status: String(result.status ?? 'unknown').slice(0, 40),
+                    message: redact(String(result.error?.message ?? 'No failure message.')).slice(
+                      0,
+                      800,
+                    ),
+                  })
+                }
+              }
+            }
+            visitSuites(suite.suites)
+          }
+        }
+        visitSuites(playwrightReport.suites)
+        if (failures.length) report.browser.failures = failures.slice(0, 10)
+      } catch {
+        report.browser.failureReport = 'unavailable'
+      }
+    }
+  }
+  report.errors.push(redact(String(error?.message ?? 'unknown_error')))
+  if (service?.run) {
+    report.cliVersion = service.run.cliVersion ?? null
+    report.sourceDirty = service.run.sourceDirty ?? null
+    report.edgeRuntimeVolume.createRequests = [...(service.run.edgeVolumeCreateResults ?? [])]
+    if (edgeRuntimeVolume) {
+      try {
+        report.edgeRuntimeVolume.mount = await confirmEdgeRuntimeVolumeMount(
+          edgeRuntimeVolume,
+          service.run.directory,
+        )
+        report.edgeRuntimeVolume.mounted = true
+        report.edgeRuntimeVolume.mountCheck = 'confirmed'
+      } catch (diagnosticError) {
+        const diagnosticMessage = String(diagnosticError?.message ?? '')
+        const diagnosticCodes = {
+          'Issue 581 Edge Runtime container unavailable': 'container-unavailable',
+          'Issue 581 Edge Runtime container identity not confirmed':
+            'container-identity-not-confirmed',
+          'Issue 581 Edge Runtime container ownership mismatch': 'container-ownership-mismatch',
+          'Issue 581 Edge Runtime volume ownership mismatch': 'volume-ownership-mismatch',
+          'Issue 581 Edge Runtime volume mount not confirmed': 'volume-mount-not-confirmed',
+        }
+        report.edgeRuntimeVolume.mountCheck =
+          diagnosticCodes[diagnosticMessage] ?? 'inspection-failed'
+      }
+    }
+  }
+} finally {
+  let cleanupFailed = false
+  let serviceCleanupError
+  let volumeCleanupError
+  try {
+    if (server) await stopChild(server)
+  } catch (error) {
+    cleanupFailed = true
+    report.errors.push(
+      redact(`local_preview_cleanup_failed: ${String(error?.message ?? 'unknown_error')}`),
+    )
+  }
+  try {
+    if (service) report.cleanup = await service.cleanup()
+  } catch (error) {
+    serviceCleanupError = error
+    report.cleanup = 'failed'
+  }
+  try {
+    if (edgeRuntimeVolume) {
+      await removeOwnedEdgeRuntimeVolume(edgeRuntimeVolume)
+      report.edgeRuntimeVolume.cleanup = 'removed'
+    } else {
+      report.edgeRuntimeVolume.cleanup = 'not-created'
+    }
+  } catch (error) {
+    volumeCleanupError = error
+    report.edgeRuntimeVolume.cleanup = 'failed'
+  }
+  if ((serviceCleanupError || volumeCleanupError) && service) {
+    try {
+      report.cleanup = await service.cleanup()
+      serviceCleanupError = undefined
+    } catch (error) {
+      serviceCleanupError = error
+    }
+    try {
+      if (edgeRuntimeVolume) {
+        await removeOwnedEdgeRuntimeVolume(edgeRuntimeVolume)
+        report.edgeRuntimeVolume.cleanup = 'removed'
+        volumeCleanupError = undefined
+      }
+    } catch (error) {
+      volumeCleanupError = error
+      report.edgeRuntimeVolume.cleanup = 'failed'
+    }
+  }
+  if (serviceCleanupError) {
+    cleanupFailed = true
+    report.errors.push(
+      redact(
+        `local_service_cleanup_failed: ${String(serviceCleanupError?.message ?? 'unknown_error')}`,
+      ),
+    )
+  }
+  if (volumeCleanupError) {
+    cleanupFailed = true
+    report.errors.push(
+      redact(
+        `edge_runtime_volume_cleanup_failed: ${String(volumeCleanupError?.message ?? 'unknown_error')}`,
+      ),
+    )
+  }
+  try {
+    if (secretFile && fs.existsSync(secretFile)) fs.rmSync(secretFile, { force: true })
+  } catch (error) {
+    cleanupFailed = true
+    report.errors.push(
+      redact(`temporary_input_cleanup_failed: ${String(error?.message ?? 'unknown_error')}`),
+    )
+  }
+  if (cleanupFailed) report.status = 'failed'
+  fs.writeFileSync(path.join(output.directory, 'issue-581.json'), JSON.stringify(report, null, 2))
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
+}
+
+if (report.status !== 'passed') process.exitCode = 1

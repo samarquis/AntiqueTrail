@@ -8,7 +8,9 @@ import type {
   PortalFreshness,
   PortalHours,
   PortalDiagnostic,
+  StoreUpdate,
   StoreUpdateDraft,
+  StoreUpdateEdit,
   PortalControlledChangeDraft,
   PortalManagedFields,
   PortalMediaUploadInput,
@@ -35,6 +37,13 @@ export class PortalMediaCapError extends Error {
   }
 }
 
+export class PortalUpdateConflictError extends Error {
+  constructor(readonly latestVersion?: number) {
+    super('This Store Update changed before the edit was saved.')
+    this.name = 'PortalUpdateConflictError'
+  }
+}
+
 type PortalRpcName =
   | 'portal_get_home'
   | 'portal_get_hours'
@@ -43,6 +52,7 @@ type PortalRpcName =
   | 'portal_submit_controlled_change'
   | 'portal_list_updates'
   | 'portal_create_update'
+  | 'portal_edit_update'
   | 'portal_archive_update'
   | 'portal_restore_update'
   | 'portal_list_official_links'
@@ -225,6 +235,45 @@ export function createPortalClient(
     },
     listUpdates: () => call('portal_list_updates'),
     createUpdate: (draft: StoreUpdateDraft) => call('portal_create_update', { p_update: draft }),
+    editUpdate: async ({ id, update, expectedVersion, idempotencyKey }: StoreUpdateEdit) => {
+      const result = await call<unknown>('portal_edit_update', {
+        p_update_id: id,
+        p_update: update,
+        p_expected_version: expectedVersion,
+        p_idempotency_key: idempotencyKey,
+      })
+      if (result === null || typeof result !== 'object' || Array.isArray(result))
+        throw new Error(GENERIC_PORTAL_ERROR)
+      const response = result as Record<string, unknown>
+      if (response.state === 'conflict') {
+        const latest = response.latest
+        const latestVersion =
+          latest !== null && typeof latest === 'object' && !Array.isArray(latest)
+            ? (latest as Record<string, unknown>).version
+            : undefined
+        throw new PortalUpdateConflictError(
+          typeof latestVersion === 'number' &&
+          Number.isSafeInteger(latestVersion) &&
+          latestVersion > 0
+            ? latestVersion
+            : undefined,
+        )
+      }
+      const value = response.update
+      if (
+        response.state !== 'saved' ||
+        value === null ||
+        typeof value !== 'object' ||
+        Array.isArray(value) ||
+        typeof (value as Record<string, unknown>).id !== 'string' ||
+        typeof (value as Record<string, unknown>).headline !== 'string' ||
+        typeof (value as Record<string, unknown>).details !== 'string' ||
+        !Number.isSafeInteger((value as Record<string, unknown>).version) ||
+        ((value as Record<string, unknown>).version as number) < 1
+      )
+        throw new Error(GENERIC_PORTAL_ERROR)
+      return value as StoreUpdate
+    },
     archiveUpdate: (id) => call('portal_archive_update', { p_update_id: id }),
     restoreUpdate: (id) => call('portal_restore_update', { p_update_id: id }),
     listOfficialLinks: () => call('portal_list_official_links'),
@@ -327,6 +376,7 @@ export const unavailablePortalClient: PortalClient = {
   resubmitMedia: unavailable,
   listUpdates: unavailable,
   createUpdate: unavailable,
+  editUpdate: unavailable,
   archiveUpdate: unavailable,
   restoreUpdate: unavailable,
   listOfficialLinks: unavailable,

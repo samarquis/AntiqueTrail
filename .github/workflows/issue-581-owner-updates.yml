@@ -1,0 +1,202 @@
+name: Issue 581 Owner Updates
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/issue-581-owner-updates.yml'
+      - '.nvmrc'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/configured-owner-store-updates.mjs'
+      - 'scripts/configured-shopper-fixtures.sql'
+      - 'scripts/configured-shopper-local.mjs'
+      - 'scripts/configured-shopper-probe.mjs'
+      - 'src/app/**'
+      - 'src/features/catalog/**'
+      - 'src/features/auth/**'
+      - 'src/features/owner/**'
+      - 'src/features/portal/**'
+      - 'src/main.tsx'
+      - 'supabase/config.toml'
+      - 'supabase/functions/store-update-expiry/**'
+      - 'supabase/migrations/**'
+      - 'supabase/seed.sql'
+      - 'supabase/tests/0141_issue_581_store_updates.sql'
+      - 'supabase/tests/fixtures/issue_581_owner_updates.inc'
+      - 'e2e/configured-owner-store-updates-playwright.config.ts'
+      - 'e2e/configured-owner-store-updates.spec.ts'
+      - 'vite.config.ts'
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Full 40-character commit SHA to verify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue-581-owner-updates-${{ github.event.pull_request.number || inputs.candidate_sha }}
+  cancel-in-progress: false
+
+jobs:
+  configured-owner-updates:
+    name: Hosted disposable Owner Updates proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
+          persist-credentials: false
+
+      - name: Verify candidate binding
+        shell: bash
+        run: |
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$CANDIDATE_SHA" ]]
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install Chromium dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Run isolated Owner Updates database and browser proof
+        env:
+          ISSUE_581_EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
+        run: |
+          test -z "${ANTIQUE_TRAIL_LOCAL_URL:-}"
+          node scripts/configured-owner-store-updates.mjs
+
+      - name: Validate safe report and write executed counts
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          const directories = fs
+            .readdirSync('artifacts')
+            .filter((name) => /^configured-shopper-[0-9a-f-]{36}$/.test(name))
+          if (directories.length !== 1) throw new Error('Expected one owned Issue 581 run directory')
+          const report = JSON.parse(
+            fs.readFileSync(`artifacts/${directories[0]}/issue-581.json`, 'utf8'),
+          )
+          const stats = report.browser?.stats
+          const databaseCases = report.database?.cases
+          const screenshotNames = [
+            'issue-581-store-detail-desktop.png',
+            'issue-581-store-updates-narrow-dark.png',
+          ]
+          if (
+            report.scope !== 'issue-581-owner-store-updates' ||
+            report.status !== 'passed' ||
+            report.sourceSha !== process.env.CANDIDATE_SHA ||
+            report.expectedSourceSha !== process.env.CANDIDATE_SHA ||
+            report.sourceDirty !== false ||
+            report.cleanup !== 'removed' ||
+            report.edgeRuntimeVolume?.prepared !== true ||
+            report.edgeRuntimeVolume?.mounted !== true ||
+            report.edgeRuntimeVolume?.mountCheck !== 'confirmed' ||
+            report.edgeRuntimeVolume?.mount?.service !== 'edge_runtime' ||
+            report.edgeRuntimeVolume?.mount?.container !== `supabase_edge_runtime_${report.projectId}` ||
+            report.edgeRuntimeVolume?.mount?.type !== 'volume' ||
+            report.edgeRuntimeVolume?.mount?.running !== true ||
+            report.edgeRuntimeVolume?.mount?.status !== 'running' ||
+            typeof report.edgeRuntimeVolume?.mount?.destination !== 'string' ||
+            !report.edgeRuntimeVolume.mount.destination.startsWith('/') ||
+            report.edgeRuntimeVolume?.cleanup !== 'removed' ||
+            report.cliVersion !== '2.115.0' ||
+            report.database?.status !== 'passed' ||
+            report.database?.source !== 'supabase/tests/0141_issue_581_store_updates.sql' ||
+            !Number.isInteger(report.database.assertions) ||
+            report.database.assertions < 1 ||
+            report.database.plan !== report.database.assertions ||
+            report.database.skipped !== 0 ||
+            report.database.failed !== 0 ||
+            !Array.isArray(databaseCases) ||
+            databaseCases.length !== report.database.assertions ||
+            databaseCases.some(
+              (test, index) =>
+                test.number !== index + 1 ||
+                test.status !== 'passed' ||
+                test.skip !== null ||
+                typeof test.name !== 'string' ||
+                test.name.trim() === '',
+            ) ||
+            !/^[0-9a-f]{64}$/.test(report.schemaIdentity ?? '') ||
+            !/^[0-9a-f]{64}$/.test(report.functionIdentity ?? '') ||
+            !/^[0-9a-f]{64}$/.test(report.fixtureIdentity ?? '') ||
+            report.browser?.status !== 'passed' ||
+            report.browser?.testFile !== 'e2e/configured-owner-store-updates.spec.ts' ||
+            report.browser?.testName !== 'configured Owner edits text through selected-store context and shoppers see newest live updates' ||
+            report.browser?.commandExit !== 0 ||
+            !Array.isArray(report.errors) ||
+            report.errors.length !== 0 ||
+            stats?.expected !== 1 ||
+            stats?.unexpected !== 0 ||
+            stats?.skipped !== 0 ||
+            stats?.flaky !== 0
+          ) {
+            throw new Error('Issue 581 report failed exact-candidate or result checks')
+          }
+          for (const filename of screenshotNames) {
+            if (!fs.existsSync(`artifacts/${directories[0]}/${filename}`))
+              throw new Error(`Missing expected synthetic screenshot: ${filename}`)
+          }
+          const summary = [
+            '## Issue 581 configured Owner Updates proof',
+            `- Candidate SHA: \`${report.sourceSha}\``,
+            `- Database cases: ${report.database.assertions} passed, ${report.database.skipped} skipped, ${report.database.failed} failed (plan ${report.database.plan})`,
+            ...databaseCases.map(
+              (test) => {
+                const escapedName = test.name
+                  .replaceAll('&', '&amp;')
+                  .replaceAll('<', '&lt;')
+                  .replaceAll('>', '&gt;')
+                  .replaceAll('"', '&quot;')
+                  .replaceAll("'", '&#39;')
+                return `  - #${test.number}: <code>${escapedName}</code>`
+              },
+            ),
+            `- Browser test: ${stats.expected} passed, ${stats.unexpected} failed, ${stats.skipped} skipped, ${stats.flaky} flaky`,
+            `- Executed case: ${report.browser.testName}`,
+            '- Covered: verified Owner MFA and current consent, Store A-only scope, five text creates, cancel without request, versioned edit, latest-three and See All ordering, expired-sale suppression, archive visibility, Store B isolation, narrow dark overflow.',
+            '- Edge Runtime volume: exact project-scoped mount confirmed, volume removed; scheduler-expiry handler authorization was not exercised by this UI/database leaf.',
+            `- Service cleanup: ${report.cleanup}; Supabase CLI: ${report.cliVersion}`,
+          ].join('\n')
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`)
+          process.stdout.write(`${summary}\n`)
+          NODE
+
+      - name: Upload sanitized proof report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: issue-581-owner-updates-report-${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
+          path: artifacts/configured-shopper-*/issue-581.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload synthetic public UI captures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: issue-581-owner-updates-ui-${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
+          path: |
+            artifacts/configured-shopper-*/issue-581-store-detail-desktop.png
+            artifacts/configured-shopper-*/issue-581-store-updates-narrow-dark.png
+          if-no-files-found: ignore
+          retention-days: 14
