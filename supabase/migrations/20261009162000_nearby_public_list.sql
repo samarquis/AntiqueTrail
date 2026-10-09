@@ -91,8 +91,8 @@ begin
 end
 $$;
 
-revoke create on schema app_public from catalog_reader;
 alter function app_public.catalog_list_nearby(text,text,text,double precision,double precision,integer) owner to catalog_reader;
+revoke create on schema app_public from catalog_reader;
 revoke catalog_reader from postgres;
 revoke all on type app_public.catalog_nearby_list_row from public,anon,authenticated;
 grant usage on type app_public.catalog_nearby_list_row to release_automation;
