@@ -41,8 +41,7 @@ begin
     pg_catalog.hashtextextended(v_actor::text||':'||v_key::text,0));
 
   select * into v_receipt from trip_private.trip_create_receipts
-    where actor_user_id=v_actor and trip_create_receipts.idempotency_key=v_key
-    for update;
+    where actor_user_id=v_actor and trip_create_receipts.idempotency_key=v_key;
   if found then
     if v_receipt.payload_digest is distinct from v_digest then
       raise exception 'trip_create_idempotency_conflict';

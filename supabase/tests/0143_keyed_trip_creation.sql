@@ -93,16 +93,20 @@ select has_function('app_public','create_trip',array['text','text'],'legacy crea
 select has_function('app_public','create_trip',array['text','text','uuid'],'keyed create overload exists');
 select is(pg_get_function_arguments('app_public.create_trip(text,text,uuid)'::regprocedure),
   'name text, local_date text, idempotency_key uuid','PostgREST argument names remain exact');
-select ok(has_function_privilege('authenticated','app_public.create_trip(text,text)','EXECUTE')
-  and has_function_privilege('authenticated','app_public.create_trip(text,text,uuid)','EXECUTE')
-  and not has_function_privilege('anon','app_public.create_trip(text,text,uuid)','EXECUTE')
-  and not exists(select 1 from pg_proc p cross join lateral
+select ok(has_function_privilege('authenticated','app_public.create_trip(text,text)','EXECUTE'),
+  'legacy overload remains executable by authenticated');
+select ok(has_function_privilege('authenticated','app_public.create_trip(text,text,uuid)','EXECUTE'),
+  'keyed overload is executable by authenticated');
+select ok(not has_function_privilege('anon','app_public.create_trip(text,text,uuid)','EXECUTE'),
+  'anon cannot execute the keyed overload');
+select ok(not exists(select 1 from pg_proc p cross join lateral
     aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
     where p.oid='app_public.create_trip(text,text,uuid)'::regprocedure
-      and a.grantee=0 and a.privilege_type='EXECUTE')
-  and (select proowner='identity_service'::regrole from pg_proc
+      and a.grantee=0 and a.privilege_type='EXECUTE'),
+  'PUBLIC has no execute grant on the keyed overload');
+select ok((select proowner='identity_service'::regrole from pg_proc
     where oid='app_public.create_trip(text,text,uuid)'::regprocedure),
-  'legacy authenticated access remains and keyed overload is authenticated-only');
+  'identity service owns the keyed overload');
 select ok(not has_schema_privilege('identity_service','app_public','CREATE'),
   'temporary function-owner schema privilege is revoked');
 select ok((select relrowsecurity and relforcerowsecurity from pg_class
