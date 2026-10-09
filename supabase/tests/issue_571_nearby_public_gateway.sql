@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(26);
 grant public_catalog_gateway,identity_service to postgres;
 grant usage on schema extensions to public_catalog_gateway;
 
@@ -16,6 +16,11 @@ select ok(has_function_privilege('public_catalog_gateway','app_public.synthetic_
   and not has_function_privilege('anon','app_public.synthetic_catalog_gateway_request(text,uuid,uuid,text,jsonb)','EXECUTE')
   and not has_function_privilege('authenticated','app_public.synthetic_catalog_gateway_request(text,uuid,uuid,text,jsonb)','EXECUTE'),
   'synthetic gateway remains server-only');
+select ok(not pg_has_role('postgres','release_automation','MEMBER')
+  and not pg_has_role('postgres','synthetic_catalog_automation','MEMBER')
+  and not has_schema_privilege('release_automation','app_public','CREATE')
+  and not has_schema_privilege('synthetic_catalog_automation','app_public','CREATE'),
+  'temporary migration owner memberships and schema create grants are removed');
 select ok((select pg_get_userbyid(proowner) from pg_proc where oid='app_public.public_test_catalog_gateway_request(text,text,jsonb)'::regprocedure)='public_test_catalog_composer'
   and has_function_privilege('public_catalog_gateway','app_public.public_test_catalog_gateway_request(text,text,jsonb)','EXECUTE')
   and not has_function_privilege('anon','app_public.public_test_catalog_gateway_request(text,text,jsonb)','EXECUTE')
