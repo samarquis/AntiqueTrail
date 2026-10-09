@@ -66,7 +66,7 @@ create or replace function partner_private.partner_admin_claim_command_core_unch
 declare
   actor uuid:=partner_private.require_claim_admin(); c partner_private.listing_claims%rowtype;
   old partner_private.listing_claims%rowtype; root partner_private.store_owner_intake_roots%rowtype;
-  prior partner_private.claim_command_receipts%rowtype; d bytea; prior_state text;
+  prior partner_private.claim_command_receipts%rowtype; d bytea; prior_state text; case_result jsonb;
 begin
   if p_operation not in ('changes','conflict','approve','reject','revoke','recheck','transfer')
     or p_claim_id is null or p_expected_version<1 or p_idempotency_key !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
@@ -117,11 +117,12 @@ begin
     values(c.claim_id,actor,case p_operation when 'changes' then 'changes_requested' when 'conflict' then 'conflict_opened' when 'approve' then 'approved' when 'reject' then 'rejected' when 'transfer' then 'transferred' else 'revoked' end,prior_state,c.state,p_idempotency_key);
   insert into partner_private.claim_command_receipts(idempotency_key,operation,claim_id,actor_user_id,input_digest,result_state)
     values(p_idempotency_key,p_operation,c.claim_id,actor,d,c.state);
+  case_result:=app_public.partner_admin_claim_case(c.claim_id);
   if coalesce(current_setting('antique.owner_approval_defer_audit',true),'off')<>'on' then
     insert into app_private.privileged_audit_events(actor_user_id,actor_role,action,outcome,resource_kind,resource_id,reason_code,payload_hash,event_hash)
       values(actor,'administrator','partner_claim_'||p_operation,'completed','listing_claim',c.claim_id,p_reason_code,d,decode(repeat('00',32),'hex'));
   end if;
-  return app_public.partner_admin_claim_case(c.claim_id);
+  return case_result;
 end $$;
 alter function partner_private.partner_admin_claim_command_core_unchecked(text,uuid,bigint,text,text,uuid)
   owner to identity_service;
