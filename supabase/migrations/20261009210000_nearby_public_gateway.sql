@@ -1,5 +1,10 @@
 begin;
 
+alter table release_private.public_catalog_rate_windows
+  drop constraint public_catalog_rate_windows_operation_check;
+alter table release_private.public_catalog_rate_windows
+  add constraint public_catalog_rate_windows_operation_check check(operation in ('list','details','map','nearby-list'));
+
 grant release_automation, synthetic_catalog_automation to postgres;
 grant create on schema app_public to release_automation, synthetic_catalog_automation;
 alter function app_public.public_catalog_gateway_request(text,text,jsonb) owner to postgres;
