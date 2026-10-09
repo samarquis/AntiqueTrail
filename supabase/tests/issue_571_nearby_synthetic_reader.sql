@@ -137,5 +137,8 @@ select throws_ok($$select * from app_public.synthetic_catalog_list_nearby(null,n
 select throws_ok($$select * from app_public.synthetic_catalog_list_nearby(null,'INVALID',null,0,0,5)$$,'P0001','invalid_catalog_filter','malformed category keeps catalog validation error');
 select throws_ok($$select * from app_public.synthetic_catalog_list_nearby(E'bad\nquery',null,null,0,0,5)$$,'P0001','invalid_catalog_filter','malformed query keeps catalog validation error');
 
+select ok(not exists(select 1 from pg_auth_members where roleid=(select oid from pg_roles where rolname='catalog_reader') and member=(select oid from pg_roles where rolname='postgres')),'migration revokes temporary catalog_reader membership from postgres');
+select ok(not has_schema_privilege('catalog_reader','app_public','CREATE'),'catalog_reader has no persistent CREATE grant on app_public');
+
 select * from finish();
 rollback;

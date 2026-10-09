@@ -1,4 +1,5 @@
 -- Synthetic Nearby reader. Device coordinates are request-scoped inputs only.
+grant catalog_reader to postgres;
 grant create on schema app_public to catalog_reader;
 
 create function app_public.synthetic_catalog_list_nearby(
@@ -87,3 +88,4 @@ revoke all on function app_public.synthetic_catalog_list_nearby(text,text,text,d
   from public,anon,authenticated,public_catalog_gateway,release_automation;
 grant execute on function app_public.synthetic_catalog_list_nearby(text,text,text,double precision,double precision,integer)
   to synthetic_catalog_automation;
+revoke catalog_reader from postgres;
