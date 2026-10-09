@@ -4,6 +4,18 @@ Scope applicability: [PRD](PRD.md) owns the 2026-10-06 shopper-first target. Com
 
 `DESIGN.md` controls behavior and journey intent. This file controls exact visual tokens, recurring component states, responsive behavior, and screen-level acceptance.
 
+## Approved existing look and feel
+
+On 2026-10-07, the Product Owner supplied the [current Browse screenshot](docs/design/approved-browse-baseline.png) and explicitly asked to maintain its look and feel. This is the composition reference for the existing desktop dark-theme Browse screen.
+
+Preserve full-width antique-shop photography with a readable dark overlay; charcoal/slate surfaces, cream text and muted blue-gray accents; serif display headlines with readable interface text; rounded pill navigation and search/filter panels; and spacious, clear controls. Preserve the desktop hero composition: messaging on the left, search/filter panel on the right. The warm photograph does not replace the semantic palette with sepia or decorative antique textures.
+
+Favorites, public sharing, Add to Trip and basic owner tools must extend existing components and this visual language. Their implementation is not permission to redesign Browse, replace its hero, recolor the site or rebuild navigation. Preserve the current light theme and responsive adaptations; this desktop screenshot is not a fixed-width mobile layout or a replacement for the tokens and accessibility requirements below.
+
+For each visible change, compare the affected screen before/after at the same viewport and theme. Confirm readable type/contrast, keyboard focus, touch targets and narrow-screen behavior; preserve Browse composition unless a separate approved change specifically requires it. The first local Add to Trip connection must reuse existing controls and chooser styling while preserving catalog-only public behavior.
+
+The reference is documentation only, not a new public image asset. Screenshot branding/copy and visible locks record the current view; naming, content truthfulness, behavior and feature availability retain their existing owners. This approval does not freeze incidental rendering defects or authorize activation, deployment or a product rename.
+
 ## Visual tokens
 
 ### Color
