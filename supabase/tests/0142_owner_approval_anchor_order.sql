@@ -7,10 +7,11 @@ update app_private.environment_stage set stage='synthetic_alpha',version=version
 update app_private.audit_anchor_capability set deployment_environment='local',state='disabled',
   watchdog_state='disabled',provider_key=null,provider_version=null,contract_receipt_id=null,
   last_ack_sequence=0,last_ack_root=null,last_ack_at=null,version=version+1 where id=1;
-update app_public.stores set synthetic=true,audience='synthetic' where id='00000000-0000-4000-8000-000000000009';
 insert into app_public.catalog_areas(id,slug,label,state_code,sort_order)
  values('00000000-0000-4000-8000-000000000001','owner629-area','Owner test area','KS',0)
  on conflict(id) do nothing;
+insert into app_public.stores(id,slug,name,town,state_code,address,area_id,summary,description,synthetic,audience) values
+ ('00000000-0000-4000-8000-000000000009','owner629-store-a','Owner Store A','Topeka','KS','628 Test Way','00000000-0000-4000-8000-000000000001','Synthetic test store','Synthetic fixture',true,'synthetic');
 insert into app_public.stores(id,slug,name,town,state_code,address,area_id,summary,description,synthetic,audience) values
  ('62900000-0000-4000-8000-000000000001','owner629-store-b','Owner Store B','Topeka','KS','629 Test Way','00000000-0000-4000-8000-000000000001','Synthetic test store','Synthetic fixture',true,'synthetic'),
  ('62900000-0000-4000-8000-000000000002','owner629-store-c','Owner Store C','Topeka','KS','630 Test Way','00000000-0000-4000-8000-000000000001','Synthetic test store','Synthetic fixture',true,'synthetic')
