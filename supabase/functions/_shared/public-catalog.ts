@@ -16,6 +16,10 @@ export interface CatalogDependencies {
   verify(bearer: string): Promise<{ id: string } | null>
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function sessionIdFromVerifiedJwt(token: string) {
   try {
     const encoded = token.split('.')[1]
@@ -69,12 +73,14 @@ export function createPublicCatalogHandler(
           allowedOrigin !== 'https://antique-trail.vercel.app'))
     )
       return Response.json({ error: { code: 'GATEWAY_UNAVAILABLE' } }, { status: 503, headers })
-    let body: { operation?: string; args?: Record<string, unknown> }
+    let body: unknown
     try {
       body = await request.json()
     } catch {
       return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
     }
+    if (!isRecord(body) || (body.args !== undefined && !isRecord(body.args)))
+      return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
     if (body.operation !== 'list' && body.operation !== 'details' && body.operation !== 'map')
       return Response.json({ error: { code: 'INVALID_OPERATION' } }, { status: 400, headers })
     const gatewayClient = dependencies.gateway()
@@ -85,7 +91,8 @@ export function createPublicCatalogHandler(
     const sessionId = actor && bearer ? sessionIdFromVerifiedJwt(bearer) : null
     // The actor binding is derived from a provider-verified token. A caller can
     // never inject another shopper id into saved/visited map filters.
-    const safeArgs = { ...(body.args ?? {}) }
+    const requestArgs = body.args === undefined ? {} : body.args
+    const safeArgs = { ...requestArgs }
     delete safeArgs.p_actor_user_id
     if (body.operation === 'map' && actor) safeArgs.p_actor_user_id = actor
     const digest = await crypto.subtle.digest(
