@@ -67,7 +67,7 @@ union all select 'public',('99000000-0000-4000-8000-'||lpad((8400+n)::text,12,'0
 insert into app_public.stores(id,synthetic,audience,publication_state,slug,name,town,state_code,address,area_id,latitude,longitude,summary,description)
 select id,kind<>'public',case when kind='public' then 'public' else 'synthetic' end,
  case when kind='inactive' then 'hidden'::app_public.publication_state else 'active'::app_public.publication_state end,
- 'nearby-many-'||kind||'-'||id::text,
+ 'nearby-many-'||replace(kind,'_','-')||'-'||id::text,
  case kind when 'remote' then 'Nearby Bulk Remote '||id::text when 'wrong_category' then 'Nearby Bulk Wrong Category '||id::text when 'wrong_query' then 'Other Bulk Query '||id::text when 'inactive' then 'Nearby Bulk Inactive '||id::text when 'stale' then 'Nearby Bulk Stale '||id::text when 'public' then 'Nearby Bulk Public '||id::text else 'Nearby Bulk Overflow '||id::text end,
  'Fixture Town','KS','1 Test Street','99000000-0000-4000-8000-000000006350',case when kind='remote' then 1 else 0 end,0,
  'Issue 635 generated fixture','Transaction-isolated synthetic Nearby SQL test fixture.' from nearby_many;
