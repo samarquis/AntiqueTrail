@@ -90,6 +90,8 @@ select ok(app_public.acknowledge_audit_anchor(current_setting('test.owner_anchor
 reset role;
 select ok(app_private.privileged_anchor_is_current(),'genuine acknowledgement makes private_beta anchor current');
 
+update partner_private.store_owner_intake_roots set active_kind='claim',active_id='62900000-0000-4000-8000-000000000012',version=version+1,updated_at=statement_timestamp()
+ where applicant_id='62900000-0000-4000-8000-000000000002';
 create temporary table owner_current_before629 as
  select version as claim_version from partner_private.listing_claims
  where claim_id='62900000-0000-4000-8000-000000000012';
