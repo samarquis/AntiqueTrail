@@ -207,6 +207,34 @@ describe('nearby list Edge transport', () => {
     )
   })
 
+  it('maps invalid nearby input to a generic 400 without falling back', async () => {
+    const { handler, rpc } = setup({
+      result: { data: null, error: { message: 'invalid_nearby_input: latitude out of range' } },
+    })
+    const response = await handler(request(), connection)
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: { code: 'INVALID_REQUEST' } })
+    expect(rpc).toHaveBeenCalledExactlyOnceWith(
+      'synthetic_catalog_gateway_request',
+      expect.objectContaining({ p_operation: 'nearby-list', p_args: nearbyArgs() }),
+    )
+  })
+
+  it('keeps legacy catalog operations on the existing unavailable mapping', async () => {
+    const { handler, rpc } = setup({
+      result: { data: null, error: { message: 'invalid_nearby_input' } },
+    })
+    const response = await handler(request({}, undefined, 'list'), connection)
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: { code: 'CATALOG_UNAVAILABLE' } })
+    expect(rpc).toHaveBeenCalledExactlyOnceWith(
+      'synthetic_catalog_gateway_request',
+      expect.objectContaining({ p_operation: 'list', p_args: {} }),
+    )
+  })
+
   it('preserves forbidden and rate-limit responses without fallback', async () => {
     for (const [message, expectedStatus] of [
       ['synthetic_catalog_forbidden', 403],
@@ -236,6 +264,35 @@ describe('nearby list Edge transport', () => {
     expect(rpc.mock.calls[1]?.[0]).toBe('public_catalog_gateway_request')
     expect(rpc.mock.calls[1]?.[1]).toEqual(
       expect.objectContaining({ p_operation: 'nearby-list', p_args: nearbyArgs() }),
+    )
+  })
+
+  it.each([
+    ['nearby-list', nearbyArgs()],
+    ['nearby-map', nearbyMapArgs()],
+  ] as const)('maps public %s invalid input to generic 400', async (operation, args) => {
+    const { handler, rpc } = setup()
+    rpc
+      .mockResolvedValueOnce({ data: null, error: { message: 'synthetic_catalog_outside_stage' } })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'invalid_nearby_input: internal SQL detail' },
+      })
+
+    const response = await handler(request(args, undefined, operation), connection)
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: { code: 'INVALID_REQUEST' } })
+    expect(rpc).toHaveBeenCalledTimes(2)
+    expect(rpc).toHaveBeenNthCalledWith(
+      1,
+      'synthetic_catalog_gateway_request',
+      expect.objectContaining({ p_operation: operation, p_args: args }),
+    )
+    expect(rpc).toHaveBeenNthCalledWith(
+      2,
+      'public_catalog_gateway_request',
+      expect.objectContaining({ p_operation: operation, p_args: args }),
     )
   })
 })
