@@ -20,6 +20,7 @@ assignees: ''
 
 - Exact files/symbols and direct tests:
 - Frozen API/input/output/error contract, if applicable:
+- Real caller-shaped success example and source/type reference; distinguish intentionally malformed fixtures:
 - Exclusions:
 - Shared-file owner and resource lease (port, browser, database, installer):
 
@@ -38,7 +39,7 @@ Evidence classes: unit, database, real local service, browser, hosted, productio
 
 1. Verify the owned checkout/base and run the preflight command: [command and expected result].
 2. Reproduce the supplied failure, implement inside the boundary, and pass the answer key.
-3. Freeze the candidate; record SHA, commands/results, limits, and evidence links.
+3. Run [fast pre-commit command, including typecheck and applicable focused/release/format checks]; freeze the candidate and record SHA, results, limits, and evidence links. For the catalog Edge seam use `npm run check:catalog-edge`.
 4. Complete [required checks/review] and hand off to [integrator/order] at [authorized completion boundary].
 
 ## Stop conditions
@@ -48,3 +49,5 @@ Missing contract, conflicting policy, unavailable infrastructure, or an out-of-s
 ## Admission receipt
 
 Planner: [owner]. Baseline/preflight: [receipt]. Dependencies satisfied: [SHAs]. Remaining decisions: [must be none for READY]. Separate release/hosted/human gates: [issue links].
+
+Keep the worker handoff in this issue: exact paths, caller example, commands, predecessor SHA, owner and completion boundary. Include only the immediate predecessor's relevant correction; do not require reconstructing old chats.

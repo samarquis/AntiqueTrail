@@ -16,6 +16,7 @@
     "verify:owner-research-artifacts": "node scripts/verify-owner-research-artifacts.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
+    "check:catalog-edge": "npm run typecheck && prettier --check package.json supabase/functions/_shared/public-catalog.ts src/features/catalog/nearbyCatalogEdge.test.ts src/features/catalog/internalCatalogEdge.test.ts src/features/shopper/publicTestCatalog.test.ts && node --test scripts/shared-alpha-catalog-gate.test.mjs && vitest run src/features/catalog/nearbyCatalogEdge.test.ts src/features/catalog/internalCatalogEdge.test.ts src/features/shopper/publicTestCatalog.test.ts --maxWorkers=1 --no-file-parallelism",
     "lint": "eslint .",
     "format": "prettier --check \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"scripts/**/*.mjs\" \"*.{js,ts,json,html}\"",
     "format:write": "prettier --write \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"scripts/**/*.mjs\" \"*.{js,ts,json,html}\"",
