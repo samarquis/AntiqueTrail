@@ -81,8 +81,44 @@ export function createPublicCatalogHandler(
     }
     if (!isRecord(body) || (body.args !== undefined && !isRecord(body.args)))
       return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
-    if (body.operation !== 'list' && body.operation !== 'details' && body.operation !== 'map')
+    if (
+      body.operation !== 'list' &&
+      body.operation !== 'details' &&
+      body.operation !== 'map' &&
+      body.operation !== 'nearby-list'
+    )
       return Response.json({ error: { code: 'INVALID_OPERATION' } }, { status: 400, headers })
+    const requestArgs = body.args === undefined ? {} : body.args
+    const safeArgs = { ...requestArgs }
+    delete safeArgs.p_actor_user_id
+    if (body.operation === 'nearby-list') {
+      const latitude = safeArgs.p_device_latitude
+      const longitude = safeArgs.p_device_longitude
+      const radius = safeArgs.p_device_radius_miles
+      const allowedArgs = [
+        'p_q',
+        'p_category',
+        'p_area',
+        'p_device_latitude',
+        'p_device_longitude',
+        'p_device_radius_miles',
+      ]
+      if (
+        Object.keys(safeArgs).some((key) => !allowedArgs.includes(key)) ||
+        (safeArgs.p_area !== undefined && safeArgs.p_area !== null) ||
+        typeof latitude !== 'number' ||
+        !Number.isFinite(latitude) ||
+        latitude < -90 ||
+        latitude > 90 ||
+        typeof longitude !== 'number' ||
+        !Number.isFinite(longitude) ||
+        longitude < -180 ||
+        longitude > 180 ||
+        typeof radius !== 'number' ||
+        ![5, 10, 25, 50].includes(radius)
+      )
+        return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
+    }
     const gatewayClient = dependencies.gateway()
     const authorization = request.headers.get('authorization')
     const bearer = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]
@@ -91,9 +127,6 @@ export function createPublicCatalogHandler(
     const sessionId = actor && bearer ? sessionIdFromVerifiedJwt(bearer) : null
     // The actor binding is derived from a provider-verified token. A caller can
     // never inject another shopper id into saved/visited map filters.
-    const requestArgs = body.args === undefined ? {} : body.args
-    const safeArgs = { ...requestArgs }
-    delete safeArgs.p_actor_user_id
     if (body.operation === 'map' && actor) safeArgs.p_actor_user_id = actor
     const digest = await crypto.subtle.digest(
       'SHA-256',
