@@ -24,7 +24,9 @@ export function configuredCatalogClient(
               ? 'details'
               : name === 'get_browse_map_v2'
                 ? 'map'
-                : null
+                : name === 'get_browse_map_nearby_v1'
+                  ? 'nearby-map'
+                  : null
       if (!operation) return { data: null, error: { code: 'INVALID_OPERATION' } }
       try {
         const response = await fetch(`${url}/functions/v1/public-catalog`, {

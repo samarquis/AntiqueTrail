@@ -92,17 +92,53 @@ export function createCatalogClient(client: RpcClient): CatalogClient {
         p_limit: MAX_BROWSE_MAP_RESULTS,
       })
       if (error) throw catalogError(error)
-      const payload = Array.isArray(data) ? { points: data } : asRow(data)
-      const rawPoints = asArray(payload.points ?? payload.results)
-      if (rawPoints.length > MAX_BROWSE_MAP_RESULTS) throw new Error('Invalid map response.')
-      const points = rawPoints.map((value) => toMapPoint(value, bounds))
-      if (new Set(points.map((point) => point.storeId)).size !== points.length)
-        throw new Error('Invalid map response.')
-      return {
-        points,
-        asOfUtc: stringOrNull(payload.as_of_utc),
-      }
+      return toMapResult(data, bounds)
     },
+    async nearbyMap(
+      filters: CatalogFilters,
+      bounds: CatalogMapBounds,
+      zoom: number,
+      nearby: CatalogNearbySearch,
+    ): Promise<CatalogMapResult> {
+      if (!validNearbySearch(filters, nearby)) throw new Error('Invalid nearby search')
+      if (!validMapBounds(bounds) || !Number.isInteger(zoom) || zoom < 0 || zoom > 22)
+        throw new Error('Invalid map viewport.')
+      const { data, error } = await client.rpc('get_browse_map_nearby_v1', {
+        p_q: filters.q ?? null,
+        p_category: filters.category ?? null,
+        p_area: null,
+        p_open_now: filters.openNow ?? null,
+        p_visited: filters.visited ?? null,
+        p_saved: filters.saved ?? null,
+        p_claimed: filters.claimed ?? null,
+        p_max_area_centroid_miles: null,
+        p_state: filters.state ?? null,
+        p_north: bounds.north,
+        p_south: bounds.south,
+        p_east: bounds.east,
+        p_west: bounds.west,
+        p_zoom: zoom,
+        p_limit: MAX_BROWSE_MAP_RESULTS,
+        p_device_latitude: nearby.latitude,
+        p_device_longitude: nearby.longitude,
+        p_device_radius_miles: nearby.radiusMiles ?? 25,
+      })
+      if (error) throw catalogError(error)
+      return toMapResult(data, bounds)
+    },
+  }
+}
+
+function toMapResult(data: unknown, bounds: CatalogMapBounds): CatalogMapResult {
+  const payload = Array.isArray(data) ? { points: data } : asRow(data)
+  const rawPoints = asArray(payload.points ?? payload.results)
+  if (rawPoints.length > MAX_BROWSE_MAP_RESULTS) throw new Error('Invalid map response.')
+  const points = rawPoints.map((value) => toMapPoint(value, bounds))
+  if (new Set(points.map((point) => point.storeId)).size !== points.length)
+    throw new Error('Invalid map response.')
+  return {
+    points,
+    asOfUtc: stringOrNull(payload.as_of_utc),
   }
 }
 
@@ -153,13 +189,17 @@ function toMapPoint(value: unknown, bounds: CatalogMapBounds): CatalogMapPoint {
   const row = asRow(value)
   const latitude = Number(row.latitude)
   const longitude = Number(row.longitude)
+  const store = toStore(row)
   const point: CatalogMapPoint = {
     storeId: String(row.store_id ?? row.storeId ?? ''),
     slug: String(row.slug ?? ''),
     name: String(row.name ?? ''),
     latitude,
     longitude,
-    store: toStore(row),
+    store,
+    ...(store.deviceDistanceMiles === undefined
+      ? {}
+      : { deviceDistanceMiles: store.deviceDistanceMiles }),
     rating:
       typeof row.rating === 'number' ? row.rating : row.rating == null ? null : Number(row.rating),
     ratingCount: Number(row.rating_count ?? row.ratingCount ?? 0),
