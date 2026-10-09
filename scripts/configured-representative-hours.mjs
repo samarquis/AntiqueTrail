@@ -562,7 +562,11 @@ async function runOwnerListing() {
       report.stats = results.stats
       report.checks = results.checks
       if (results.status !== 'passed' || report.status !== 'passed') report.status = 'failed'
-      else if (!ownerListingFirstPhase && report.localClaimIntake.status === 'missing-owned-work')
+      else if (
+        !ownerListingFirstPhase &&
+        ownerListingPhase !== 'owner-identity' &&
+        report.localClaimIntake.status === 'missing-owned-work'
+      )
         report.status = 'blocked'
     }
     report.screenshots = screenshotArtifacts(path.join(output.directory, 'browser'))
