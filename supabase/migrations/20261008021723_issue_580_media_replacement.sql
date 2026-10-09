@@ -271,7 +271,6 @@ end $$;
 
 reset role;
 alter function partner_private.check_store_media_cap(uuid,text,uuid) owner to media_automation;
-grant execute on function portal_private.owner_stores() to media_automation;
 revoke all on function app_public.media_reserve_replacement(uuid,bigint,text,uuid,boolean,text,bigint,integer,integer,bytea)
   from public,anon,service_role;
 grant execute on function app_public.media_reserve_replacement(uuid,bigint,text,uuid,boolean,text,bigint,integer,integer,bytea)
@@ -477,6 +476,7 @@ grant identity_service to postgres;
 grant create on schema app_public to identity_service;
 grant select on app_public.store_media to identity_service;
 set role identity_service;
+grant execute on function portal_private.owner_stores() to media_automation;
 
 create or replace function app_public.portal_preview_public_listing()
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
