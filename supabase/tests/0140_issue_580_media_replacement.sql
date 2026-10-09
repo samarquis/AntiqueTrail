@@ -5,6 +5,19 @@ create extension if not exists pgtap with schema extensions;
 select no_plan();
 \ir fixtures/issue_580_media_replacement.inc
 
+select ok(has_function_privilege('media_automation',
+  'portal_private.owner_stores()','EXECUTE'),
+  'media automation can read Owner store scope');
+select ok(not has_function_privilege('anon',
+  'portal_private.owner_stores()','EXECUTE'),
+  'anonymous callers cannot read Owner store scope');
+select ok(not has_function_privilege('authenticated',
+  'portal_private.owner_stores()','EXECUTE'),
+  'authenticated callers cannot read Owner store scope');
+select ok(not has_function_privilege('service_role',
+  'portal_private.owner_stores()','EXECUTE'),
+  'service role cannot read Owner store scope');
+
 select has_column('app_public','store_media','version','public media slots carry a CAS version');
 select has_function('app_public','media_reserve_replacement',
   array['uuid','bigint','text','uuid','boolean','text','bigint','integer','integer','bytea'],
