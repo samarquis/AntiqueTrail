@@ -85,27 +85,53 @@ export function createPublicCatalogHandler(
       body.operation !== 'list' &&
       body.operation !== 'details' &&
       body.operation !== 'map' &&
-      body.operation !== 'nearby-list'
+      body.operation !== 'nearby-list' &&
+      body.operation !== 'nearby-map'
     )
       return Response.json({ error: { code: 'INVALID_OPERATION' } }, { status: 400, headers })
     const requestArgs = body.args === undefined ? {} : body.args
     const safeArgs = { ...requestArgs }
     delete safeArgs.p_actor_user_id
-    if (body.operation === 'nearby-list') {
+    if (body.operation === 'nearby-list' || body.operation === 'nearby-map') {
       const latitude = safeArgs.p_device_latitude
       const longitude = safeArgs.p_device_longitude
       const radius = safeArgs.p_device_radius_miles
-      const allowedArgs = [
-        'p_q',
-        'p_category',
-        'p_area',
-        'p_device_latitude',
-        'p_device_longitude',
-        'p_device_radius_miles',
-      ]
+      const allowedArgs =
+        body.operation === 'nearby-map'
+          ? [
+              'p_q',
+              'p_category',
+              'p_area',
+              'p_open_now',
+              'p_visited',
+              'p_saved',
+              'p_claimed',
+              'p_max_area_centroid_miles',
+              'p_state',
+              'p_north',
+              'p_south',
+              'p_east',
+              'p_west',
+              'p_zoom',
+              'p_limit',
+              'p_device_latitude',
+              'p_device_longitude',
+              'p_device_radius_miles',
+            ]
+          : [
+              'p_q',
+              'p_category',
+              'p_area',
+              'p_device_latitude',
+              'p_device_longitude',
+              'p_device_radius_miles',
+            ]
       if (
         Object.keys(safeArgs).some((key) => !allowedArgs.includes(key)) ||
         (safeArgs.p_area !== undefined && safeArgs.p_area !== null) ||
+        (body.operation === 'nearby-map' &&
+          safeArgs.p_max_area_centroid_miles !== undefined &&
+          safeArgs.p_max_area_centroid_miles !== null) ||
         typeof latitude !== 'number' ||
         !Number.isFinite(latitude) ||
         latitude < -90 ||
@@ -127,7 +153,8 @@ export function createPublicCatalogHandler(
     const sessionId = actor && bearer ? sessionIdFromVerifiedJwt(bearer) : null
     // The actor binding is derived from a provider-verified token. A caller can
     // never inject another shopper id into saved/visited map filters.
-    if (body.operation === 'map' && actor) safeArgs.p_actor_user_id = actor
+    if ((body.operation === 'map' || body.operation === 'nearby-map') && actor)
+      safeArgs.p_actor_user_id = actor
     const digest = await crypto.subtle.digest(
       'SHA-256',
       new TextEncoder().encode(`${rateSalt}|${platformAddress}`),
@@ -138,7 +165,7 @@ export function createPublicCatalogHandler(
     if (publicTest) {
       // This server setting selects a separately admitted scope. Errors must never
       // fall through to another stage's catalog or an old assessment receipt.
-      if (body.operation === 'map')
+      if (body.operation === 'map' || body.operation === 'nearby-map')
         return Response.json({ error: { code: 'MAP_UNAVAILABLE' } }, { status: 503, headers })
       const result = await gatewayClient.rpc('public_test_catalog_gateway_request', {
         p_key_hash: keyHash,

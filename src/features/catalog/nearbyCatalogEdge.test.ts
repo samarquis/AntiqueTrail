@@ -12,6 +12,27 @@ const nearbyArgs = () => ({
   p_device_radius_miles: 25,
 })
 
+const nearbyMapArgs = () => ({
+  p_q: 'lamp',
+  p_category: 'lighting',
+  p_area: null,
+  p_open_now: false,
+  p_visited: true,
+  p_saved: false,
+  p_claimed: true,
+  p_max_area_centroid_miles: null,
+  p_state: 'ON',
+  p_north: 44,
+  p_south: 43,
+  p_east: -78,
+  p_west: -80,
+  p_zoom: 10,
+  p_limit: 40,
+  p_device_latitude: 43.6532,
+  p_device_longitude: -79.3832,
+  p_device_radius_miles: 25,
+})
+
 function setup({
   publicTest = false,
   user = null,
@@ -38,7 +59,11 @@ function setup({
   return { handler, gateway, verify, rpc }
 }
 
-function request(args: Record<string, unknown> = nearbyArgs(), token?: string) {
+function request(
+  args: Record<string, unknown> = nearbyArgs(),
+  token?: string,
+  operation: string = 'nearby-list',
+) {
   return new Request('https://uaupykgpegbseboklubv.supabase.co/functions/v1/public-catalog', {
     method: 'POST',
     headers: {
@@ -46,7 +71,7 @@ function request(args: Record<string, unknown> = nearbyArgs(), token?: string) {
       'content-type': 'application/json',
       ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ operation: 'nearby-list', args }),
+    body: JSON.stringify({ operation, args }),
   })
 }
 
@@ -209,6 +234,151 @@ describe('nearby list Edge transport', () => {
     expect(rpc.mock.calls[1]?.[0]).toBe('public_catalog_gateway_request')
     expect(rpc.mock.calls[1]?.[1]).toEqual(
       expect.objectContaining({ p_operation: 'nearby-list', p_args: nearbyArgs() }),
+    )
+  })
+})
+
+describe('nearby map Edge transport', () => {
+  it('forwards exact map filters and the separate validated device tuple', async () => {
+    const { handler, rpc } = setup()
+    const response = await handler(request(nearbyMapArgs(), undefined, 'nearby-map'), connection)
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ data: [{ id: 'nearby-store' }] })
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('synthetic_catalog_gateway_request', {
+      p_key_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      p_user_id: null,
+      p_session_id: null,
+      p_operation: 'nearby-map',
+      p_args: nearbyMapArgs(),
+    })
+  })
+
+  it('binds the map actor only from a verified user and strips forged actor input', async () => {
+    const args = { ...nearbyMapArgs(), p_actor_user_id: 'forged-user' }
+    const unsigned = setup()
+    await unsigned.handler(request(args, undefined, 'nearby-map'), connection)
+
+    expect(unsigned.rpc).toHaveBeenCalledWith(
+      'synthetic_catalog_gateway_request',
+      expect.objectContaining({ p_user_id: null, p_args: nearbyMapArgs() }),
+    )
+
+    const unverified = setup()
+    await unverified.handler(request(args, 'unverified-token', 'nearby-map'), connection)
+
+    expect(unverified.verify).toHaveBeenCalledExactlyOnceWith('unverified-token')
+    expect(unverified.rpc).toHaveBeenCalledWith(
+      'synthetic_catalog_gateway_request',
+      expect.objectContaining({ p_user_id: null, p_args: nearbyMapArgs() }),
+    )
+
+    const token = `header.${btoa(JSON.stringify({ session_id: '99000000-0000-4000-8000-000000000011' }))}.signature`
+    const verified = setup({ user: { id: 'verified-user' } })
+    await verified.handler(request(args, token, 'nearby-map'), connection)
+
+    expect(verified.rpc).toHaveBeenCalledWith(
+      'synthetic_catalog_gateway_request',
+      expect.objectContaining({
+        p_user_id: 'verified-user',
+        p_session_id: '99000000-0000-4000-8000-000000000011',
+        p_args: { ...nearbyMapArgs(), p_actor_user_id: 'verified-user' },
+      }),
+    )
+  })
+
+  it('binds map actor input only from a verified user', async () => {
+    const token = `header.${btoa(JSON.stringify({ session_id: '99000000-0000-4000-8000-000000000011' }))}.signature`
+    const { handler, rpc } = setup({ user: { id: 'verified-user' } })
+    const response = await handler(
+      request({ p_visited: true, p_actor_user_id: 'forged-user' }, token, 'map'),
+      connection,
+    )
+
+    expect(response.status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith(
+      'synthetic_catalog_gateway_request',
+      expect.objectContaining({
+        p_operation: 'map',
+        p_user_id: 'verified-user',
+        p_session_id: '99000000-0000-4000-8000-000000000011',
+        p_args: { p_visited: true, p_actor_user_id: 'verified-user' },
+      }),
+    )
+  })
+
+  it('denies public-test nearby maps before any RPC', async () => {
+    const { handler, rpc } = setup({ publicTest: true })
+    const response = await handler(request(nearbyMapArgs(), undefined, 'nearby-map'), connection)
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: { code: 'MAP_UNAVAILABLE' } })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['missing latitude', { ...nearbyMapArgs(), p_device_latitude: undefined }],
+    ['null longitude', { ...nearbyMapArgs(), p_device_longitude: null }],
+    ['invalid latitude', { ...nearbyMapArgs(), p_device_latitude: 90.01 }],
+    ['invalid longitude', { ...nearbyMapArgs(), p_device_longitude: -180.01 }],
+    ['unsupported radius', { ...nearbyMapArgs(), p_device_radius_miles: 20 }],
+  ])('rejects malformed device tuple: %s', async (_name: string, args: Record<string, unknown>) => {
+    const { handler, gateway, verify, rpc } = setup()
+    const response = await handler(request(args, undefined, 'nearby-map'), connection)
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: { code: 'INVALID_REQUEST' } })
+    expect(gateway).not.toHaveBeenCalled()
+    expect(verify).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['manual area', { ...nearbyMapArgs(), p_area: 'Toronto' }],
+    ['manual centroid radius', { ...nearbyMapArgs(), p_max_area_centroid_miles: 10 }],
+    ['unknown argument', { ...nearbyMapArgs(), p_unexpected: true }],
+  ])('rejects %s before gateway access', async (_name: string, args: Record<string, unknown>) => {
+    const { handler, gateway, verify, rpc } = setup()
+    const response = await handler(request(args, undefined, 'nearby-map'), connection)
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: { code: 'INVALID_REQUEST' } })
+    expect(gateway).not.toHaveBeenCalled()
+    expect(verify).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['synthetic_catalog_map_disabled', 503, 'MAP_UNAVAILABLE'],
+    ['synthetic_catalog_forbidden', 403, 'ALPHA_AUTH_REQUIRED'],
+    ['catalog_rate_limited', 429, 'RATE_LIMITED'],
+    ['PGRST202', 503, 'CATALOG_UNAVAILABLE'],
+  ])('keeps %s denial in the synthetic stage without fallback', async (message, status, code) => {
+    const { handler, rpc } = setup({ result: { data: null, error: { message } } })
+    const response = await handler(request(nearbyMapArgs(), undefined, 'nearby-map'), connection)
+
+    expect(response.status).toBe(status)
+    expect(await response.json()).toEqual({ error: { code } })
+    expect(rpc).toHaveBeenCalledExactlyOnceWith(
+      'synthetic_catalog_gateway_request',
+      expect.objectContaining({ p_operation: 'nearby-map', p_args: nearbyMapArgs() }),
+    )
+  })
+
+  it('falls back unchanged only for the explicit outside-stage error', async () => {
+    const { handler, rpc } = setup()
+    rpc
+      .mockResolvedValueOnce({ data: null, error: { message: 'synthetic_catalog_outside_stage' } })
+      .mockResolvedValueOnce({ data: [{ id: 'regional-store' }], error: null })
+
+    const response = await handler(request(nearbyMapArgs(), undefined, 'nearby-map'), connection)
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ data: [{ id: 'regional-store' }] })
+    expect(rpc).toHaveBeenCalledTimes(2)
+    expect(rpc.mock.calls[1]?.[0]).toBe('public_catalog_gateway_request')
+    expect(rpc.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ p_operation: 'nearby-map', p_args: nearbyMapArgs() }),
     )
   })
 })
