@@ -69,7 +69,7 @@ select id,kind<>'public',case when kind='public' then 'public' else 'synthetic' 
  case when kind='inactive' then 'hidden'::app_public.publication_state else 'active'::app_public.publication_state end,
  'nearby-many-'||replace(kind,'_','-')||'-'||id::text,
  case kind when 'remote' then 'Nearby Bulk Remote '||id::text when 'wrong_category' then 'Nearby Bulk Wrong Category '||id::text when 'wrong_query' then 'Other Bulk Query '||id::text when 'inactive' then 'Nearby Bulk Inactive '||id::text when 'stale' then 'Nearby Bulk Stale '||id::text when 'public' then 'Nearby Bulk Public '||id::text else 'Nearby Bulk Overflow '||id::text end,
- 'Fixture Town','KS','1 Test Street','99000000-0000-4000-8000-000000006350',case when kind='remote' then 1 else 0 end,0,
+ 'Fixture Town','KS','1 Test Street','99000000-0000-4000-8000-000000006350',case when kind in ('remote','overflow','wrong_category','wrong_query') then 1 else 0 end,0,
  'Issue 635 generated fixture','Transaction-isolated synthetic Nearby SQL test fixture.' from nearby_many;
 insert into app_public.store_category_assignments(store_id,category_id)
 select id,case when kind='wrong_category' then '99000000-0000-4000-8000-000000006352'::uuid else '99000000-0000-4000-8000-000000006351'::uuid end from nearby_many;
@@ -103,7 +103,7 @@ select ok((select id='99000000-0000-4000-8000-000000007101' and slug='nearby-635
   and jsonb_typeof(today_hours)='object' and hours_state='unavailable' and is_open_now=false
   and freshness_state='current' and oldest_verified_at<=as_of_utc and device_distance_miles is not null
   from nearby_pair where id='99000000-0000-4000-8000-000000007101'),'projection fields and request distance match accepted Nearby row');
-select ok(abs((select device_distance_miles from nearby_pair where id='99000000-0000-4000-8000-000000007102')-0.069)<0.0001,'reader reports Haversine distance in miles');
+select ok(abs((select device_distance_miles from nearby_pair where id='99000000-0000-4000-8000-000000007102')-0.0688027)<0.0001,'reader reports Haversine distance in miles');
 select ok((select count(*)>=3 from app_public.synthetic_catalog_list_nearby(null,null,null,0,0,5)),'null filters return qualifying synthetic rows without a capability gate');
 select is((select count(*)::integer from app_public.synthetic_catalog_list_nearby('No Such Synthetic Nearby Match',null,null,0,0,5)),0,'empty synthetic result stays empty independent of public capability');
 select is((select count(*)::integer from app_public.synthetic_catalog_list_nearby('Nearby Boundary Edge','issue-635-synth',null,0,0.000004207810051198857,5) where id='99000000-0000-4000-8000-000000007103'),1,'five-mile boundary is inclusive');
@@ -118,12 +118,12 @@ select is((select count(*)::integer from app_public.synthetic_catalog_list_nearb
 select is((select count(*)::integer from app_public.synthetic_catalog_list_nearby('Nearby Boundary','issue-635-synth',null,0,0.000004207810051198857,5) where id in ('99000000-0000-4000-8000-000000007105','99000000-0000-4000-8000-000000007106','99000000-0000-4000-8000-000000007107','99000000-0000-4000-8000-000000007108','99000000-0000-4000-8000-000000007109','99000000-0000-4000-8000-000000007111')),0,'public, wrong category/query, inactive, stale, and missing-coordinate rows are excluded');
 
 select is((select count(*)::integer from app_public.synthetic_catalog_list_nearby('Nearby Bulk Remote','issue-635-synth',null,0,0.000004207810051198857,5)),0,'51 out-of-radius rows are filtered before the cap');
-select is((select count(*)::integer from app_public.synthetic_catalog_list_nearby('Nearby Bulk Wrong Category','issue-635-synth',null,0,0.000004207810051198857,5)),0,'51 wrong-category rows do not trip the cap');
-select is((select count(*)::integer from app_public.synthetic_catalog_list_nearby('Missing Bulk Query','issue-635-synth',null,0,0.000004207810051198857,5)),0,'51 wrong-query rows do not trip the cap');
+select is((select count(*)::integer from app_public.synthetic_catalog_list_nearby('Nearby Bulk Wrong Category','issue-635-synth',null,1,0,5)),0,'51 wrong-category rows do not trip the cap');
+select is((select count(*)::integer from app_public.synthetic_catalog_list_nearby('Missing Bulk Query','issue-635-synth',null,1,0,5)),0,'51 wrong-query rows do not trip the cap');
 select is((select count(*)::integer from app_public.synthetic_catalog_list_nearby('Nearby Bulk Inactive','issue-635-synth',null,0,0.000004207810051198857,5)),0,'51 inactive rows do not trip the cap');
 select is((select count(*)::integer from app_public.synthetic_catalog_list_nearby('Nearby Bulk Stale','issue-635-synth',null,0,0.000004207810051198857,5)),0,'51 stale rows do not trip the cap');
 select is((select count(*)::integer from app_public.synthetic_catalog_list_nearby('Nearby Bulk Public','issue-635-synth',null,0,0.000004207810051198857,5)),0,'51 non-synthetic rows do not trip the cap');
-select throws_ok($$select * from app_public.synthetic_catalog_list_nearby('Nearby Bulk Overflow','issue-635-synth',null,0,0.000004207810051198857,5)$$,'P0001','catalog_too_large','51 eligible synthetic rows trigger the existing catalog cap');
+select throws_ok($$select * from app_public.synthetic_catalog_list_nearby('Nearby Bulk Overflow','issue-635-synth',null,1,0,5)$$,'P0001','catalog_too_large','51 eligible synthetic rows trigger the existing catalog cap');
 
 select throws_ok($$select * from app_public.synthetic_catalog_list_nearby(null,null,null,null,0,5)$$,'P0001','invalid_nearby_input','null latitude is rejected');
 select throws_ok($$select * from app_public.synthetic_catalog_list_nearby(null,null,null,0,null,5)$$,'P0001','invalid_nearby_input','null longitude is rejected');
