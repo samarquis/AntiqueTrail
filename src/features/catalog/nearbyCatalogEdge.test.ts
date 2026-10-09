@@ -17,7 +17,7 @@ const nearbyMapArgs = () => ({
   p_category: 'lighting',
   p_area: null,
   p_open_now: false,
-  p_visited: true,
+  p_visited: 'visited',
   p_saved: false,
   p_claimed: true,
   p_max_area_centroid_miles: null,
@@ -27,7 +27,7 @@ const nearbyMapArgs = () => ({
   p_east: -78,
   p_west: -80,
   p_zoom: 10,
-  p_limit: 40,
+  p_limit: 500,
   p_device_latitude: 43.6532,
   p_device_longitude: -79.3832,
   p_device_radius_miles: 25,
@@ -291,7 +291,7 @@ describe('nearby map Edge transport', () => {
     const token = `header.${btoa(JSON.stringify({ session_id: '99000000-0000-4000-8000-000000000011' }))}.signature`
     const { handler, rpc } = setup({ user: { id: 'verified-user' } })
     const response = await handler(
-      request({ p_visited: true, p_actor_user_id: 'forged-user' }, token, 'map'),
+      request({ p_visited: 'visited', p_actor_user_id: 'forged-user' }, token, 'map'),
       connection,
     )
 
@@ -302,7 +302,7 @@ describe('nearby map Edge transport', () => {
         p_operation: 'map',
         p_user_id: 'verified-user',
         p_session_id: '99000000-0000-4000-8000-000000000011',
-        p_args: { p_visited: true, p_actor_user_id: 'verified-user' },
+        p_args: { p_visited: 'visited', p_actor_user_id: 'verified-user' },
       }),
     )
   })
