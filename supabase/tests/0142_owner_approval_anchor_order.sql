@@ -83,10 +83,12 @@ select ok(app_private.privileged_anchor_is_current(),'genuine acknowledgement ma
 create temporary table owner_current_before629 as
  select version as claim_version from partner_private.listing_claims
  where claim_id='62900000-0000-4000-8000-000000000012';
+select version as owner_expected_version629 from partner_private.listing_claims
+ where claim_id='62900000-0000-4000-8000-000000000012' \gset
 select pg_temp.actor629('62900000-0000-4000-8000-000000000001','62900000-0000-4000-8000-000000000006');
 set local role authenticated;
-select lives_ok($$select app_public.owner_admin_approve_claim('62900000-0000-4000-8000-000000000012','00000000-0000-4000-8000-000000000009',
- (select version from partner_private.listing_claims where claim_id='62900000-0000-4000-8000-000000000012'),'629-owner-current')$$,
+select lives_ok(format('select app_public.owner_admin_approve_claim(%L::uuid,%L::uuid,%s::bigint,%L)',
+ '62900000-0000-4000-8000-000000000012','00000000-0000-4000-8000-000000000009',:owner_expected_version629,'629-owner-current'),
  'valid Owner approval converts both protected grants while the acknowledged private_beta anchor is current');
 reset role;
 select is((select state from partner_private.listing_claims where claim_id='62900000-0000-4000-8000-000000000012'),'approved','current-anchor approval commits claim state');
@@ -120,10 +122,12 @@ set local role service_role;
 select ok(app_public.acknowledge_audit_anchor(current_setting('test.owner_anchor629_second')::jsonb->'payload'->>'idempotencyKey',
  (current_setting('test.owner_anchor629_second')::jsonb->>'leaseToken')::uuid,statement_timestamp()),'worker acknowledges the second root through the real lease API');
 reset role;
+select version as generic_expected_version629 from partner_private.listing_claims
+ where claim_id='62900000-0000-4000-8000-000000000014' \gset
 select pg_temp.actor629('62900000-0000-4000-8000-000000000001','62900000-0000-4000-8000-000000000006');
 set local role authenticated;
-select lives_ok($$select app_public.partner_admin_claim_command('changes','62900000-0000-4000-8000-000000000014',
- (select version from partner_private.listing_claims where claim_id='62900000-0000-4000-8000-000000000014'),'629-stale-maker','documentation_requested',null)$$,
+select lives_ok(format('select app_public.partner_admin_claim_command(%L,%L::uuid,%s::bigint,%L,%L,null)',
+ 'changes','62900000-0000-4000-8000-000000000014',:generic_expected_version629,'629-stale-maker','documentation_requested'),
  'a current generic Administrator command appends a real privileged audit event');
 reset role;
 select ok(not app_private.privileged_anchor_is_current(),'post-acknowledgement generic command makes the anchor stale');
@@ -138,10 +142,12 @@ create temporary table owner_stale_before629 as
   (select count(*) from partner_private.owner_claim_approvals where idempotency_key='629-owner-stale') owner_receipts,
  (select count(*) from app_private.privileged_audit_events where resource_kind='listing_claim' and resource_id=c.claim_id and action in ('partner_claim_approve','owner_claim_approved')) approval_audits
  from partner_private.listing_claims c where c.claim_id='62900000-0000-4000-8000-000000000013';
+select version as stale_expected_version629 from partner_private.listing_claims
+ where claim_id='62900000-0000-4000-8000-000000000013' \gset
 select pg_temp.actor629('62900000-0000-4000-8000-000000000001','62900000-0000-4000-8000-000000000006');
 set local role authenticated;
-select throws_ok($$select app_public.owner_admin_approve_claim('62900000-0000-4000-8000-000000000013','62900000-0000-4000-8000-000000000001',
- (select version from partner_private.listing_claims where claim_id='62900000-0000-4000-8000-000000000013'),'629-owner-stale')$$,
+select throws_ok(format('select app_public.owner_admin_approve_claim(%L::uuid,%L::uuid,%s::bigint,%L)',
+ '62900000-0000-4000-8000-000000000013','62900000-0000-4000-8000-000000000001',:stale_expected_version629,'629-owner-stale'),
  '42501','privileged_anchor_stale','stale private_beta anchor denies Owner approval before mutation');
 reset role;
 select ok((select c.state=b.state and c.version=b.version
