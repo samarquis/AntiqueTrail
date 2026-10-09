@@ -463,6 +463,7 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       uiState,
       exchangeHttpStatus,
       mfaVerification,
+      ownerApproval,
     ) => {
       receipt.operation = operation
       receipt.pathname = ownerListingPathname(pathname ?? page.url())
