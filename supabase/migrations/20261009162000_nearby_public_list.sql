@@ -93,10 +93,10 @@ $$;
 
 alter function app_public.catalog_list_nearby(text,text,text,double precision,double precision,integer) owner to catalog_reader;
 revoke create on schema app_public from catalog_reader;
-revoke catalog_reader from postgres;
 revoke all on type app_public.catalog_nearby_list_row from public,anon,authenticated;
 grant usage on type app_public.catalog_nearby_list_row to release_automation;
 revoke all on function app_public.catalog_list_nearby(text,text,text,double precision,double precision,integer)
   from public,anon,authenticated,public_catalog_gateway;
 grant execute on function app_public.catalog_list_nearby(text,text,text,double precision,double precision,integer)
   to release_automation;
+revoke catalog_reader from postgres;

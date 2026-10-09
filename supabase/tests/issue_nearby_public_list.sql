@@ -61,7 +61,7 @@ union all select 'wrong_category',('99000000-0000-4000-8000-'||lpad((7400+n)::te
 union all select 'wrong_keyword',('99000000-0000-4000-8000-'||lpad((7500+n)::text,12,'0'))::uuid from generate_series(1,51)n
 union all select 'synthetic',('99000000-0000-4000-8000-'||lpad((7600+n)::text,12,'0'))::uuid from generate_series(1,51)n;
 insert into app_public.stores(id,synthetic,audience,publication_state,slug,name,town,state_code,address,area_id,latitude,longitude,summary,description)
-select id,kind='synthetic',case when kind='synthetic' then 'synthetic' else 'public' end,'active','nearby-many-'||kind||'-'||id::text,
+select id,kind='synthetic',case when kind='synthetic' then 'synthetic' else 'public' end,'active','nearby-many-'||replace(kind,'_','-')||'-'||id::text,
  case kind when 'remote' then 'Nearby Boundary Remote '||id::text when 'wrong_category' then 'Nearby Boundary Wrong Category Bulk '||id::text when 'wrong_keyword' then 'Other Query Bulk '||id::text when 'synthetic' then 'Nearby Boundary Synthetic Bulk '||id::text else 'Overflow Fixture '||id::text end,
  'Fixture Town','KS','1 Test Street','99000000-0000-4000-8000-000000006230',case when kind='remote' then 1 else 0 end,0,
  'Issue 623 generated fixture','Transaction-isolated Nearby SQL test fixture.' from nearby_many;
