@@ -103,6 +103,8 @@ select ok(has_function_privilege('authenticated','app_public.create_trip(text,te
   and (select proowner='identity_service'::regrole from pg_proc
     where oid='app_public.create_trip(text,text,uuid)'::regprocedure),
   'legacy authenticated access remains and keyed overload is authenticated-only');
+select ok(not has_schema_privilege('identity_service','app_public','CREATE'),
+  'temporary function-owner schema privilege is revoked');
 select ok((select relrowsecurity and relforcerowsecurity from pg_class
   where oid='trip_private.trip_create_receipts'::regclass),'receipt table forces RLS');
 select ok(exists(select 1 from pg_constraint where conrelid='trip_private.trip_create_receipts'::regclass

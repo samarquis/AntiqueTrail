@@ -63,6 +63,8 @@ begin
 end;
 $$;
 
+grant create on schema app_public to identity_service;
 alter function app_public.create_trip(text,text,uuid) owner to identity_service;
+revoke create on schema app_public from identity_service;
 revoke all on function app_public.create_trip(text,text,uuid) from public,anon,authenticated,service_role;
 grant execute on function app_public.create_trip(text,text,uuid) to authenticated;
