@@ -105,6 +105,74 @@ test('passing checks contain no failure diagnostics', () => {
   ])
 })
 
+test('setup failures retain only allowlisted stage fields and fixed readiness categories', () => {
+  for (const [error, category] of [
+    ['Local catalog function did not become ready', 'catalog-readiness'],
+    ['Local registration function did not become ready', 'registration-readiness'],
+    ['Unclassified setup failure', 'unknown'],
+  ]) {
+    const result = summarize({
+      ...metadata,
+      stage: `private ${secret}`,
+      failedAt: 'local-services',
+      errors: [`${error}; ${secret}`],
+    })
+    assert.equal(result.status, 0)
+    assert.deepEqual(
+      {
+        stage: result.summary.stage,
+        failedAt: result.summary.failedAt,
+        setupFailureCategory: result.summary.setupFailureCategory,
+      },
+      { stage: undefined, failedAt: 'local-services', setupFailureCategory: category },
+    )
+    assert.doesNotMatch(JSON.stringify(result.summary), /private-token|private\.invalid|Bearer|private /)
+  }
+})
+
+test('stage and failedAt project only exact known enum values', () => {
+  const stages = ['preflight', 'local-services', 'fixtures', 'build', 'preview', 'browser-tests', 'cleanup-provider']
+  for (const stage of stages) {
+    const result = summarize({ ...metadata, stage, failedAt: stage, errors: [] })
+    assert.equal(result.status, 0)
+    assert.equal(result.summary.stage, stage)
+    assert.equal(result.summary.failedAt, stage)
+  }
+
+  for (const stage of [secret, 'unknown-stage', null, {}, 5]) {
+    const result = summarize({ ...metadata, stage, failedAt: stage, errors: [] })
+    assert.equal(result.status, 0)
+    assert.equal(Object.hasOwn(result.summary, 'stage'), false)
+    assert.equal(Object.hasOwn(result.summary, 'failedAt'), false)
+  }
+})
+
+test('setup category requires failed status and a known setup failedAt stage', () => {
+  const readinessError = ['Local catalog function did not become ready']
+  for (const [status, failedAt] of [
+    ['passed', 'local-services'],
+    ['failed', 'browser-tests'],
+    ['failed', 'cleanup-provider'],
+    ['failed', 'unknown-stage'],
+  ]) {
+    const result = summarize({ ...metadata, status, failedAt, errors: readinessError })
+    assert.equal(result.status, 0)
+    assert.equal(Object.hasOwn(result.summary, 'setupFailureCategory'), false)
+  }
+})
+
+test('setup category inspects string errors only and never emits error text', () => {
+  const result = summarize({
+    ...metadata,
+    stage: 'local-services',
+    failedAt: 'local-services',
+    errors: [null, { message: 'Local catalog function did not become ready' }, 3, secret],
+  })
+  assert.equal(result.status, 0)
+  assert.equal(result.summary.setupFailureCategory, 'unknown')
+  assert.doesNotMatch(JSON.stringify(result.summary), /private-token|private\.invalid|Bearer|message/)
+})
+
 for (const [name, status, error, expected] of [
   [
     'timeout',
