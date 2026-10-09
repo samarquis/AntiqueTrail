@@ -128,7 +128,12 @@ select lives_ok($$select app_public.partner_admin_claim_command('changes','62900
 reset role;
 select ok(not app_private.privileged_anchor_is_current(),'post-acknowledgement generic command makes the anchor stale');
 create temporary table owner_stale_before629 as
- select c.state,c.version,(select count(*) from partner_private.claim_events e where e.claim_id=c.claim_id) event_count,
+ select c.state,c.version,
+  (select coalesce(jsonb_agg(to_jsonb(g) order by g.grant_id),'[]'::jsonb) from app_private.role_grants g
+   where g.subject_user_id=c.claimant_id and g.store_id=c.store_id) app_grants,
+  (select coalesce(jsonb_agg(to_jsonb(g) order by g.grant_id),'[]'::jsonb) from partner_private.store_partner_grants g
+   where g.auth_user_id=c.claimant_id and g.store_id=c.store_id) partner_grants,
+  (select count(*) from partner_private.claim_events e where e.claim_id=c.claim_id) event_count,
   (select count(*) from partner_private.claim_command_receipts where idempotency_key='629-owner-stale') claim_receipts,
   (select count(*) from partner_private.owner_claim_approvals where idempotency_key='629-owner-stale') owner_receipts,
  (select count(*) from app_private.privileged_audit_events where resource_kind='listing_claim' and resource_id=c.claim_id and action in ('partner_claim_approve','owner_claim_approved')) approval_audits
@@ -137,15 +142,17 @@ select pg_temp.actor629('62900000-0000-4000-8000-000000000001','62900000-0000-40
 set local role authenticated;
 select throws_ok($$select app_public.owner_admin_approve_claim('62900000-0000-4000-8000-000000000013','62900000-0000-4000-8000-000000000001',
  (select version from partner_private.listing_claims where claim_id='62900000-0000-4000-8000-000000000013'),'629-owner-stale')$$,
- '42501',null,'stale private_beta anchor denies Owner approval before mutation');
+ '42501','privileged_anchor_stale','stale private_beta anchor denies Owner approval before mutation');
 reset role;
 select ok((select c.state=b.state and c.version=b.version
+ and b.app_grants=(select coalesce(jsonb_agg(to_jsonb(g) order by g.grant_id),'[]'::jsonb) from app_private.role_grants g
+   where g.subject_user_id=c.claimant_id and g.store_id=c.store_id)
+ and b.partner_grants=(select coalesce(jsonb_agg(to_jsonb(g) order by g.grant_id),'[]'::jsonb) from partner_private.store_partner_grants g
+   where g.auth_user_id=c.claimant_id and g.store_id=c.store_id)
  and (select count(*) from partner_private.claim_events e where e.claim_id=c.claim_id)=b.event_count
  and (select count(*) from partner_private.claim_command_receipts where idempotency_key='629-owner-stale')=b.claim_receipts
  and (select count(*) from partner_private.owner_claim_approvals where idempotency_key='629-owner-stale')=b.owner_receipts
  and (select count(*) from app_private.privileged_audit_events where resource_kind='listing_claim' and resource_id=c.claim_id and action in ('partner_claim_approve','owner_claim_approved'))=b.approval_audits
- and not exists(select 1 from app_private.role_grants where subject_user_id=c.claimant_id and store_id=c.store_id and role='store_owner' and state='active')
- and not exists(select 1 from partner_private.store_partner_grants where auth_user_id=c.claimant_id and store_id=c.store_id and role='store_owner' and state='active')
  from partner_private.listing_claims c cross join owner_stale_before629 b where c.claim_id='62900000-0000-4000-8000-000000000013'),
  'stale-anchor denial preserves claim, grants, receipts, and approval audits');
 
