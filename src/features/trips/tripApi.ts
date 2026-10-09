@@ -19,6 +19,7 @@ import type {
   TripPartnerRemovalResult,
   TripRenameResult,
   CheckMyDayServerResult,
+  TripStartDeviceCheck,
 } from './types'
 
 export type TripApiCommand =
@@ -34,6 +35,9 @@ export type TripApiCommand =
   | 'set_trip_stop_priority'
   | 'set_trip_stop_dwell'
   | 'update_trip_schedule'
+  | 'prepare_initial_navigator'
+  | 'verify_initial_navigator_device'
+  | 'prepare_go_device_command'
   | 'bind_navigator_device'
   | 'transfer_navigator_device'
   | 'review_trip_hours'
@@ -478,6 +482,19 @@ function parseCollaboration(value: unknown): TripCollaboration {
   }
 }
 
+function parseTripStartDeviceCheck(value: unknown): TripStartDeviceCheck {
+  const source = record(value)
+  if (typeof source.currentDeviceBound !== 'boolean') throw genericFailure()
+  return {
+    tripVersion: integer(source.tripVersion, 1),
+    currentDeviceBound: source.currentDeviceBound,
+  }
+}
+
+function parseGoDeviceCommandVersion(value: unknown): number {
+  return integer(record(value).baseVersion, 1)
+}
+
 function parsePartnerRemovalResult(value: unknown): TripPartnerRemovalResult {
   const source = record(value)
   if (source.state === 'conflict') {
@@ -730,6 +747,48 @@ export function createTripApi(
           expected_version: integer(expectedVersion, 1),
         }),
         parseTrip,
+      )
+    },
+    prepareInitialNavigator(tripId, expectedVersion) {
+      return execute(
+        'prepare_initial_navigator',
+        () => {
+          if (!deviceIdentity) throw genericFailure()
+          return {
+            trip_id: boundedId(tripId),
+            expected_version: integer(expectedVersion, 1),
+            device_key_id: boundedId(deviceIdentity.deviceKeyId),
+          }
+        },
+        parseCollaboration,
+      )
+    },
+    verifyInitialNavigatorDevice(tripId) {
+      return execute(
+        'verify_initial_navigator_device',
+        () => {
+          if (!deviceIdentity) throw genericFailure()
+          return {
+            trip_id: boundedId(tripId),
+            device_key_id: boundedId(deviceIdentity.deviceKeyId),
+          }
+        },
+        parseTripStartDeviceCheck,
+      )
+    },
+    confirmCurrentNavigatorDevice(tripId) {
+      return execute(
+        'prepare_go_device_command',
+        () => {
+          if (!deviceIdentity) throw genericFailure()
+          return {
+            trip_id: boundedId(tripId),
+            action: 'complete_trip',
+            stop_id: null,
+            device_key_id: boundedId(deviceIdentity.deviceKeyId),
+          }
+        },
+        parseGoDeviceCommandVersion,
       )
     },
     bindNavigatorDevice(tripId) {

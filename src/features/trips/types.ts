@@ -128,6 +128,11 @@ export interface TripCollaboration {
   invitation?: TripInvitation
 }
 
+export interface TripStartDeviceCheck {
+  tripVersion: number
+  currentDeviceBound: boolean
+}
+
 export type TripPartnerRemovalResult =
   | { state: 'applied'; collaboration: TripCollaboration }
   | { state: 'conflict'; latest: { tripVersion: number } }
@@ -217,6 +222,9 @@ export interface TripClient {
     input: { localDate: string; departureMinute?: number },
     expectedVersion: number,
   ): Promise<Trip>
+  prepareInitialNavigator?(tripId: string, expectedVersion: number): Promise<TripCollaboration>
+  verifyInitialNavigatorDevice?(tripId: string): Promise<TripStartDeviceCheck>
+  confirmCurrentNavigatorDevice?(tripId: string): Promise<number>
   bindNavigatorDevice(tripId: string): Promise<TripCollaboration>
   transferNavigatorDevice(tripId: string): Promise<Trip>
   reviewHours(tripId: string, acknowledgeWarnings?: boolean): Promise<Trip>

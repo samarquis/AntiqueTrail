@@ -513,6 +513,89 @@ describe('implicit-actor TripClient transport', () => {
     })
   })
 
+  it('exposes Start admission and current-device proof through the named RPCs', async () => {
+    const deviceKeyId = `device-key-${'A'.repeat(43)}`
+    const wire = transport(null)
+    wire.invoke
+      .mockResolvedValueOnce(collaboration)
+      .mockResolvedValueOnce({ tripVersion: 12, currentDeviceBound: true })
+      .mockResolvedValueOnce({ baseVersion: 13 })
+    const api = createTripApi(wire, { installId: 'install-a', deviceKeyId })
+
+    await expect(api.prepareInitialNavigator!('trip-1', 11)).resolves.toEqual(collaboration)
+    await expect(api.verifyInitialNavigatorDevice!('trip-1')).resolves.toEqual({
+      tripVersion: 12,
+      currentDeviceBound: true,
+    })
+    await expect(api.confirmCurrentNavigatorDevice!('trip-1')).resolves.toBe(13)
+
+    expect(wire.invoke.mock.calls).toEqual([
+      [
+        'prepare_initial_navigator',
+        { trip_id: 'trip-1', expected_version: 11, device_key_id: deviceKeyId },
+      ],
+      ['verify_initial_navigator_device', { trip_id: 'trip-1', device_key_id: deviceKeyId }],
+      [
+        'prepare_go_device_command',
+        {
+          trip_id: 'trip-1',
+          action: 'complete_trip',
+          stop_id: null,
+          device_key_id: deviceKeyId,
+        },
+      ],
+    ])
+  })
+
+  it('requires device identity and rejects malformed Start proof responses', async () => {
+    const missingIdentity = transport(null)
+    const apiWithoutIdentity = createTripApi(missingIdentity)
+    await expect(apiWithoutIdentity.prepareInitialNavigator!('trip-1', 11)).rejects.toThrow(
+      GENERIC_TRIP_ERROR,
+    )
+    await expect(apiWithoutIdentity.verifyInitialNavigatorDevice!('trip-1')).rejects.toThrow(
+      GENERIC_TRIP_ERROR,
+    )
+    await expect(apiWithoutIdentity.confirmCurrentNavigatorDevice!('trip-1')).rejects.toThrow(
+      GENERIC_TRIP_ERROR,
+    )
+    expect(missingIdentity.invoke).not.toHaveBeenCalled()
+
+    const deviceKeyId = `device-key-${'A'.repeat(43)}`
+    const invalidExpectedVersion = transport(collaboration)
+    await expect(
+      createTripApi(invalidExpectedVersion, {
+        installId: 'install-a',
+        deviceKeyId,
+      }).prepareInitialNavigator!('trip-1', 0),
+    ).rejects.toThrow(GENERIC_TRIP_ERROR)
+    expect(invalidExpectedVersion.invoke).not.toHaveBeenCalled()
+
+    const invalidVersion = transport({ tripVersion: 0, currentDeviceBound: true })
+    await expect(
+      createTripApi(invalidVersion, {
+        installId: 'install-a',
+        deviceKeyId,
+      }).verifyInitialNavigatorDevice!('trip-1'),
+    ).rejects.toThrow(GENERIC_TRIP_ERROR)
+
+    const invalidBoundState = transport({ tripVersion: 12, currentDeviceBound: 'true' })
+    await expect(
+      createTripApi(invalidBoundState, {
+        installId: 'install-a',
+        deviceKeyId,
+      }).verifyInitialNavigatorDevice!('trip-1'),
+    ).rejects.toThrow(GENERIC_TRIP_ERROR)
+
+    const invalidCommandVersion = transport({ baseVersion: 0 })
+    await expect(
+      createTripApi(invalidCommandVersion, {
+        installId: 'install-a',
+        deviceKeyId,
+      }).confirmCurrentNavigatorDevice!('trip-1'),
+    ).rejects.toThrow(GENERIC_TRIP_ERROR)
+  })
+
   it('preserves a typed rename conflict with only the latest shared name', async () => {
     const wire = transport({ state: 'conflict', latest: { name: 'Server Name', version: 7 } })
     await expect(
