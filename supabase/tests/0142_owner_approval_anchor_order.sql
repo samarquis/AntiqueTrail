@@ -23,10 +23,15 @@ insert into auth.users(id,email,email_confirmed_at) values
 insert into auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at) values
  ('62900000-0000-4000-8000-000000000004','62900000-0000-4000-8000-000000000001','totp','verified',statement_timestamp(),statement_timestamp()),
  ('62900000-0000-4000-8000-000000000005','62900000-0000-4000-8000-000000000002','totp','verified',statement_timestamp(),statement_timestamp());
-insert into app_private.profiles(user_id,public_display_name,age_18_attested_at,status,verified_email_snapshot) values
- ('62900000-0000-4000-8000-000000000001','Issue 629 Administrator',statement_timestamp(),'active','admin629@example.test'),
- ('62900000-0000-4000-8000-000000000002','Issue 629 Owner',statement_timestamp(),'active','owner629@example.test'),
- ('62900000-0000-4000-8000-000000000003','Issue 629 Other',statement_timestamp(),'active','other629@example.test');
+update app_private.profiles as profile
+set public_display_name=fixture.public_display_name,
+ age_18_attested_at=statement_timestamp(),status='active',verified_email_snapshot=fixture.verified_email_snapshot
+from (values
+ ('62900000-0000-4000-8000-000000000001'::uuid,'Issue 629 Administrator','admin629@example.test'),
+ ('62900000-0000-4000-8000-000000000002'::uuid,'Issue 629 Owner','owner629@example.test'),
+ ('62900000-0000-4000-8000-000000000003'::uuid,'Issue 629 Other','other629@example.test')
+) as fixture(user_id,public_display_name,verified_email_snapshot)
+where profile.user_id=fixture.user_id;
 insert into app_private.role_grants(subject_user_id,role,state) values
  ('62900000-0000-4000-8000-000000000001','administrator','active');
 insert into app_private.active_sessions(session_id,user_id,provider_created_at,session_epoch,last_authenticated_at,access_token_expires_at) values
