@@ -59,17 +59,17 @@ where s.id in ('99000000-0000-4000-8000-000000007001','99000000-0000-4000-8000-0
 set local role public_catalog_gateway;
 select is((select array_agg(x->>'id' order by x->>'id') from jsonb_array_elements(app_public.public_catalog_gateway_request(
   repeat('a',64),'nearby-list',jsonb_build_object('p_q','Nearby Boundary','p_category','issue-623','p_area',null,
-    'p_device_latitude',0,'p_device_longitude',0.000004207810051198857,'p_device_radius_miles',5)) x),
+    'p_device_latitude',0,'p_device_longitude',0.000004207810051198857,'p_device_radius_miles',5))) x),
   array['99000000-0000-4000-8000-000000007001','99000000-0000-4000-8000-000000007002']::text[],
   'public wrapper returns only the two accepted #623 fixtures');
 select ok(abs((select (x->>'device_distance_miles')::double precision from jsonb_array_elements(app_public.public_catalog_gateway_request(
   repeat('b',64),'nearby-list',jsonb_build_object('p_q','Nearby Boundary','p_category','issue-623','p_area',null,
-    'p_device_latitude',0,'p_device_longitude',0.000004207810051198857,'p_device_radius_miles',5)) x
+    'p_device_latitude',0,'p_device_longitude',0.000004207810051198857,'p_device_radius_miles',5))) x
   where x->>'id'='99000000-0000-4000-8000-000000007001')-0.00029073198287901127)<0.0001,
   'nearby-7001 distance matches the #623 answer key');
 select ok(abs((select (x->>'device_distance_miles')::double precision from jsonb_array_elements(app_public.public_catalog_gateway_request(
   repeat('c',64),'nearby-list',jsonb_build_object('p_q','Nearby Boundary','p_category','issue-623','p_area',null,
-    'p_device_latitude',0,'p_device_longitude',0.000004207810051198857,'p_device_radius_miles',5)) x
+    'p_device_latitude',0,'p_device_longitude',0.000004207810051198857,'p_device_radius_miles',5))) x
   where x->>'id'='99000000-0000-4000-8000-000000007002')-5.0)<0.0001,
   'nearby-7002 boundary distance matches the #623 answer key');
 select throws_ok($$select app_public.public_catalog_gateway_request(repeat('d',64),'nearby-list','{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5,"extra":true}')$$,'P0001','gateway_request_invalid','Nearby rejects unknown arguments');
