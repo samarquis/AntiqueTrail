@@ -1,26 +1,55 @@
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
--- Keep the committed dblink fixtures repeatable after an interrupted run.
+-- Recover prior committed fixtures through account purge before recreating them.
 begin;
 delete from app_private.account_deletion_requests
-where deletion_request_id='63400000-0000-4000-8000-000000000030';
-delete from app_private.role_grants
-where subject_user_id in ('63400000-0000-4000-8000-000000000001',
-  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003');
-delete from auth.sessions
-where id in ('63400000-0000-4000-8000-000000000011','63400000-0000-4000-8000-000000000016',
-  '63400000-0000-4000-8000-000000000017','63400000-0000-4000-8000-000000000012',
-  '63400000-0000-4000-8000-000000000013');
-delete from trip_private.trips
-where owner_id in ('63400000-0000-4000-8000-000000000001',
-  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003');
-delete from app_private.profiles
+where deletion_request_id in ('63400000-0000-4000-8000-000000000030',
+  '63400000-0000-4000-8000-000000000031','63400000-0000-4000-8000-000000000032',
+  '63400000-0000-4000-8000-000000000040');
+set local role identity_service;
+update app_private.profiles set status='deletion_scheduled',
+  deletion_due_at=statement_timestamp()-interval '1 day'
 where user_id in ('63400000-0000-4000-8000-000000000001',
-  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003');
-delete from auth.users
-where id in ('63400000-0000-4000-8000-000000000001',
-  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003');
+  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003',
+  '63400000-0000-4000-8000-000000000006');
+insert into app_private.account_deletion_requests(deletion_request_id,user_id,requested_at,due_at)
+select case user_id
+  when '63400000-0000-4000-8000-000000000001' then '63400000-0000-4000-8000-000000000030'::uuid
+  when '63400000-0000-4000-8000-000000000002' then '63400000-0000-4000-8000-000000000031'::uuid
+  when '63400000-0000-4000-8000-000000000003' then '63400000-0000-4000-8000-000000000032'::uuid
+  when '63400000-0000-4000-8000-000000000006' then '63400000-0000-4000-8000-000000000040'::uuid end,
+  user_id,statement_timestamp()-interval '8 days',statement_timestamp()-interval '1 day'
+from app_private.profiles where user_id in ('63400000-0000-4000-8000-000000000001',
+  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003',
+  '63400000-0000-4000-8000-000000000006');
+reset role;
+select set_config('test.issue634_cleanup_limit',(
+  select count(*)::text from app_private.account_deletion_requests
+  where deletion_request_id in ('63400000-0000-4000-8000-000000000030',
+    '63400000-0000-4000-8000-000000000031','63400000-0000-4000-8000-000000000032',
+    '63400000-0000-4000-8000-000000000040')),true);
+commit;
+begin;
+set local role account_lifecycle_service;
+create temp table issue634_prior_claim as
+select * from app_public.claim_due_account_deletions(statement_timestamp(),
+  current_setting('test.issue634_cleanup_limit')::integer);
+reset role;
+select app_public.prepare_account_deletion(deletion_request_id,claim_token,statement_timestamp())
+from issue634_prior_claim;
+commit;
+begin;
+delete from app_private.account_deletion_requests
+where deletion_request_id in ('63400000-0000-4000-8000-000000000030',
+  '63400000-0000-4000-8000-000000000031','63400000-0000-4000-8000-000000000032',
+  '63400000-0000-4000-8000-000000000040');
+delete from auth.sessions where user_id in ('63400000-0000-4000-8000-000000000001',
+  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003',
+  '63400000-0000-4000-8000-000000000006');
+delete from auth.users where id in ('63400000-0000-4000-8000-000000000001',
+  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003',
+  '63400000-0000-4000-8000-000000000006');
 commit;
 
 -- dblink sessions need committed auth/session fixtures visible on both connections.
@@ -28,25 +57,31 @@ begin;
 insert into auth.users(id,email,email_confirmed_at) values
  ('63400000-0000-4000-8000-000000000001','keyed-a@issue634.invalid',statement_timestamp()),
  ('63400000-0000-4000-8000-000000000002','keyed-b@issue634.invalid',statement_timestamp()),
- ('63400000-0000-4000-8000-000000000003','keyed-internal@issue634.invalid',statement_timestamp());
+ ('63400000-0000-4000-8000-000000000003','keyed-internal@issue634.invalid',statement_timestamp()),
+ ('63400000-0000-4000-8000-000000000006','keyed-lost-response@issue634.invalid',statement_timestamp());
 insert into auth.sessions(id,user_id,created_at,updated_at) values
  ('63400000-0000-4000-8000-000000000011','63400000-0000-4000-8000-000000000001',statement_timestamp(),statement_timestamp()),
  ('63400000-0000-4000-8000-000000000016','63400000-0000-4000-8000-000000000001',statement_timestamp(),statement_timestamp()),
  ('63400000-0000-4000-8000-000000000017','63400000-0000-4000-8000-000000000001',statement_timestamp(),statement_timestamp()),
  ('63400000-0000-4000-8000-000000000012','63400000-0000-4000-8000-000000000002',statement_timestamp(),statement_timestamp()),
- ('63400000-0000-4000-8000-000000000013','63400000-0000-4000-8000-000000000003',statement_timestamp(),statement_timestamp());
+ ('63400000-0000-4000-8000-000000000013','63400000-0000-4000-8000-000000000003',statement_timestamp(),statement_timestamp()),
+ ('63400000-0000-4000-8000-000000000061','63400000-0000-4000-8000-000000000006',statement_timestamp(),statement_timestamp()),
+ ('63400000-0000-4000-8000-000000000062','63400000-0000-4000-8000-000000000006',statement_timestamp(),statement_timestamp());
 set local role identity_service;
 update app_private.profiles set verified_email_snapshot=case user_id
   when '63400000-0000-4000-8000-000000000001' then 'keyed-a@issue634.invalid'
   when '63400000-0000-4000-8000-000000000002' then 'keyed-b@issue634.invalid'
-  when '63400000-0000-4000-8000-000000000003' then 'keyed-internal@issue634.invalid' end,
+  when '63400000-0000-4000-8000-000000000003' then 'keyed-internal@issue634.invalid'
+  when '63400000-0000-4000-8000-000000000006' then 'keyed-lost-response@issue634.invalid' end,
   age_18_attested_at=statement_timestamp()
 where user_id in ('63400000-0000-4000-8000-000000000001',
-  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003');
+  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003',
+  '63400000-0000-4000-8000-000000000006');
 insert into app_private.role_grants(subject_user_id,role,state) values
  ('63400000-0000-4000-8000-000000000001','shopper','active'),
  ('63400000-0000-4000-8000-000000000002','shopper','active'),
- ('63400000-0000-4000-8000-000000000003','shopper','active');
+ ('63400000-0000-4000-8000-000000000003','shopper','active'),
+ ('63400000-0000-4000-8000-000000000006','shopper','active');
 reset role;
 commit;
 
@@ -266,6 +301,54 @@ select is((select count(*)::integer from trip_private.trip_create_receipts
     and idempotency_key='63400000-0000-4000-8000-000000000103'),1,
   'concurrent requests create one receipt');
 
+-- Commit a create while discarding its response, then replay in a later transaction.
+select extensions.dblink_connect('issue634_lost_first','dbname=postgres application_name=issue634_lost_first');
+select extensions.dblink_connect('issue634_lost_replay','dbname=postgres application_name=issue634_lost_replay');
+select extensions.dblink_exec('issue634_lost_first',$remote$
+  begin; set local role authenticated;
+  set local request.method='POST'; set local request.path='rpc/register_current_session';
+  set local request.jwt.claims='{"sub":"63400000-0000-4000-8000-000000000006","role":"authenticated","session_id":"63400000-0000-4000-8000-000000000061"}';
+  do $$begin perform app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint); end$$;
+  set local request.path='rpc/create_trip';
+  do $$declare discarded jsonb; begin
+    discarded:=app_public.create_trip('Committed lost response','2030-10-12','63400000-0000-4000-8000-000000000107');
+  end$$;
+  commit;
+$remote$);
+set local role identity_service;
+select set_config('test.lost_expected',(
+  select trip_id::text from trip_private.trip_create_receipts
+  where actor_user_id='63400000-0000-4000-8000-000000000006'
+    and idempotency_key='63400000-0000-4000-8000-000000000107'),true);
+reset role;
+select extensions.dblink_exec('issue634_lost_replay',$remote$
+  begin; set local role authenticated;
+  set local request.method='POST'; set local request.path='rpc/register_current_session';
+  set local request.jwt.claims='{"sub":"63400000-0000-4000-8000-000000000006","role":"authenticated","session_id":"63400000-0000-4000-8000-000000000062"}';
+  do $$begin perform app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint); end$$;
+  set local request.path='rpc/create_trip';
+$remote$);
+select extensions.dblink_send_query('issue634_lost_replay',$query$
+  select app_public.create_trip('Committed lost response','2030-10-12','63400000-0000-4000-8000-000000000107')
+$query$);
+select set_config('test.lost_replay',(
+  select result.value::text from extensions.dblink_get_result('issue634_lost_replay') as result(value jsonb)),true);
+select extensions.dblink_exec('issue634_lost_replay','commit');
+select extensions.dblink_disconnect('issue634_lost_first');
+select extensions.dblink_disconnect('issue634_lost_replay');
+select is(current_setting('test.lost_replay')::jsonb->>'id',current_setting('test.lost_expected'),
+  'later independent request replays the persisted trip after the first response was discarded and committed');
+select is((select count(*)::integer from trip_private.trips
+  where owner_id='63400000-0000-4000-8000-000000000006' and trip_id=current_setting('test.lost_expected')::uuid
+    and name='Committed lost response'),1,'lost-response replay leaves one persisted trip');
+select is((select count(*)::integer from trip_private.trip_participants p
+  where p.trip_id=current_setting('test.lost_expected')::uuid and p.user_id='63400000-0000-4000-8000-000000000006'
+    and p.participant_role='creator'),1,'lost-response replay leaves one creator participant');
+select is((select count(*)::integer from trip_private.trip_create_receipts
+  where actor_user_id='63400000-0000-4000-8000-000000000006'
+    and idempotency_key='63400000-0000-4000-8000-000000000107'
+    and trip_id=current_setting('test.lost_expected')::uuid),1,'lost-response replay leaves one persisted receipt');
+
 -- Admit the same internal planning actor and session used by the existing 0120 fixture.
 insert into internal_review_private.identities(user_id,alias,fixture_namespace,controlled_address)
 values('63400000-0000-4000-8000-000000000003','issue634-planner','issue634-keyed-trip',
@@ -344,24 +427,46 @@ select ok(exists(select 1 from trip_private.trips
 select * from finish();
 rollback;
 
--- Remove the committed dblink fixtures and their committed race result.
+-- Purge every committed test actor and dblink result through account lifecycle.
 begin;
 delete from app_private.account_deletion_requests
-where deletion_request_id='63400000-0000-4000-8000-000000000030';
-delete from trip_private.trips
-where owner_id in ('63400000-0000-4000-8000-000000000001',
-  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003');
-delete from app_private.role_grants
-where subject_user_id in ('63400000-0000-4000-8000-000000000001',
-  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003');
-delete from auth.sessions
-where id in ('63400000-0000-4000-8000-000000000011','63400000-0000-4000-8000-000000000016',
-  '63400000-0000-4000-8000-000000000017','63400000-0000-4000-8000-000000000012',
-  '63400000-0000-4000-8000-000000000013');
-delete from app_private.profiles
+where deletion_request_id in ('63400000-0000-4000-8000-000000000030',
+  '63400000-0000-4000-8000-000000000031','63400000-0000-4000-8000-000000000032',
+  '63400000-0000-4000-8000-000000000033','63400000-0000-4000-8000-000000000040');
+set local role identity_service;
+update app_private.profiles set status='deletion_scheduled',
+  deletion_due_at=statement_timestamp()-interval '1 day'
 where user_id in ('63400000-0000-4000-8000-000000000001',
-  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003');
-delete from auth.users
-where id in ('63400000-0000-4000-8000-000000000001',
-  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003');
+  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003',
+  '63400000-0000-4000-8000-000000000006');
+insert into app_private.account_deletion_requests(deletion_request_id,user_id,requested_at,due_at) values
+ ('63400000-0000-4000-8000-000000000030','63400000-0000-4000-8000-000000000001',
+  statement_timestamp()-interval '8 days',statement_timestamp()-interval '1 day'),
+ ('63400000-0000-4000-8000-000000000031','63400000-0000-4000-8000-000000000002',
+  statement_timestamp()-interval '8 days',statement_timestamp()-interval '1 day'),
+ ('63400000-0000-4000-8000-000000000032','63400000-0000-4000-8000-000000000003',
+  statement_timestamp()-interval '8 days',statement_timestamp()-interval '1 day'),
+ ('63400000-0000-4000-8000-000000000040','63400000-0000-4000-8000-000000000006',
+  statement_timestamp()-interval '8 days',statement_timestamp()-interval '1 day');
+reset role;
+commit;
+begin;
+set local role account_lifecycle_service;
+create temp table issue634_cleanup_claim as
+select * from app_public.claim_due_account_deletions(statement_timestamp(),10);
+reset role;
+select app_public.prepare_account_deletion(deletion_request_id,claim_token,statement_timestamp())
+from issue634_cleanup_claim;
+commit;
+begin;
+delete from app_private.account_deletion_requests
+where deletion_request_id in ('63400000-0000-4000-8000-000000000030',
+  '63400000-0000-4000-8000-000000000031','63400000-0000-4000-8000-000000000032',
+  '63400000-0000-4000-8000-000000000040');
+delete from auth.sessions where user_id in ('63400000-0000-4000-8000-000000000001',
+  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003',
+  '63400000-0000-4000-8000-000000000006');
+delete from auth.users where id in ('63400000-0000-4000-8000-000000000001',
+  '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003',
+  '63400000-0000-4000-8000-000000000006');
 commit;
