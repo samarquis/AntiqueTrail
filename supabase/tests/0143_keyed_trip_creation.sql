@@ -28,7 +28,7 @@ select set_config('test.issue634_cleanup_limit',(
   select count(*)::text from app_private.account_deletion_requests
   where deletion_request_id in ('63400000-0000-4000-8000-000000000030',
     '63400000-0000-4000-8000-000000000031','63400000-0000-4000-8000-000000000032',
-    '63400000-0000-4000-8000-000000000040')),true);
+    '63400000-0000-4000-8000-000000000040')),false);
 commit;
 begin;
 set local role account_lifecycle_service;
@@ -36,6 +36,7 @@ create temp table issue634_prior_claim as
 select * from app_public.claim_due_account_deletions(statement_timestamp(),
   current_setting('test.issue634_cleanup_limit')::integer);
 reset role;
+reset test.issue634_cleanup_limit;
 select app_public.prepare_account_deletion(deletion_request_id,claim_token,statement_timestamp())
 from issue634_prior_claim;
 commit;
