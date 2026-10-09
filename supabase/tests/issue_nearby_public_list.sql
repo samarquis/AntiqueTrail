@@ -52,6 +52,13 @@ select f.id,c.id from nearby_fixtures f join app_public.store_categories c on c.
 insert into app_public.store_fact_verifications(store_id,verification_group,verified_at,provenance_label,verifier_kind)
 select f.id,g.group_name,statement_timestamp()-make_interval(days=>f.verified_days),'Nearby fixture','two_person_public_source'
 from nearby_fixtures f cross join (values('identity_location'::app_public.verification_group),('contact'),('hours'),('categories_attributes')) g(group_name);
+update app_public.stores set phone='555-555-0101',website='https://nearby-623.example'
+where id='99000000-0000-4000-8000-000000007001';
+insert into app_public.store_media(store_id,asset_path,kind,alt_text)
+values('99000000-0000-4000-8000-000000007001','/assets/nearby-623-cover.webp','cover','Nearby fixture cover');
+select ok(not exists(select 1 from app_public.catalog_list(null,null,null)
+  where id='99000000-0000-4000-8000-000000007001'),
+  'legacy catalog list does not expose public Nearby fixtures');
 
 create temporary table nearby_many(kind text,id uuid primary key);
 insert into nearby_many
@@ -91,8 +98,19 @@ select is((select array_agg(id order by id) from nearby_5),array['99000000-0000-
 select ok(abs((select device_distance_miles from nearby_5 where id='99000000-0000-4000-8000-000000007002')-5.0)<0.0001,'five-mile boundary distance is reported within tolerance');
 select is((select count(*)::integer from nearby_5 where id in ('99000000-0000-4000-8000-000000007003','99000000-0000-4000-8000-000000007004')),0,'distance tolerance does not widen radius inclusion');
 select is((select array_agg(id order by ordinality) from app_public.catalog_list_nearby(' Nearby   Boundary ','issue-623',null,0,0.000004207810051198857,5) with ordinality),array['99000000-0000-4000-8000-000000007001'::uuid,'99000000-0000-4000-8000-000000007002'::uuid],'reader preserves regional name and ID ordering');
-select ok((select name='Nearby Boundary 7001' and town='Fixture Town' and state_code='KS' and area_slug='issue-623' and area_label='Issue Region' and summary='Issue 623 public list fixture' and freshness_state='current' and device_distance_miles is not null from nearby_5 where id='99000000-0000-4000-8000-000000007001'),'projection retains normal public catalog fields and adds distance');
-select ok(not exists(select 1 from app_public.catalog_list('Nearby Boundary 7001',null,null) where id='99000000-0000-4000-8000-000000007001'),'legacy catalog list does not expose public Nearby fixtures');
+select ok((select id='99000000-0000-4000-8000-000000007001' and slug='nearby-623-7001'
+  and name='Nearby Boundary 7001' and town='Fixture Town' and state_code='KS'
+  and area_slug='issue-623' and area_label='Issue Region' and summary='Issue 623 public list fixture'
+  and phone='555-555-0101' and website='https://nearby-623.example' and timezone_name='America/Chicago'
+  and cover_asset_path='/assets/nearby-623-cover.webp' and cover_alt_text='Nearby fixture cover'
+  and media=jsonb_build_array(jsonb_build_object('src','/assets/nearby-623-cover.webp','alt','Nearby fixture cover','kind','cover'))
+  and categories=jsonb_build_array(jsonb_build_object('slug','issue-623','label','Nearby Fixture'))
+  and jsonb_typeof(today_hours)='object' and hours_state='unavailable' and is_open_now=false
+  and freshness_state='current' and oldest_verified_at<=as_of_utc
+  and as_of_utc-oldest_verified_at between interval '19 days' and interval '21 days'
+  and device_distance_miles is not null from nearby_5
+  where id='99000000-0000-4000-8000-000000007001'),
+  'projection retains public contact, media, category, hours, freshness and timestamps plus distance');
 
 create temporary table nearby_25 as select * from app_public.catalog_list_nearby('Nearby Boundary','issue-623',null,0,0.000004207810051198857,25);
 select is((select array_agg(id order by id) from nearby_25),array['99000000-0000-4000-8000-000000007001'::uuid,'99000000-0000-4000-8000-000000007002'::uuid,'99000000-0000-4000-8000-000000007003'::uuid,'99000000-0000-4000-8000-000000007004'::uuid],'twenty-five-mile radius includes all answer-key fixtures');
