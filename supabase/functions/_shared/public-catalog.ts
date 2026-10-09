@@ -16,6 +16,10 @@ export interface CatalogDependencies {
   verify(bearer: string): Promise<{ id: string } | null>
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function sessionIdFromVerifiedJwt(token: string) {
   try {
     const encoded = token.split('.')[1]
@@ -69,13 +73,16 @@ export function createPublicCatalogHandler(
           allowedOrigin !== 'https://antique-trail.vercel.app'))
     )
       return Response.json({ error: { code: 'GATEWAY_UNAVAILABLE' } }, { status: 503, headers })
-    let body: { operation?: string; args?: Record<string, unknown> }
+    let body: unknown
     try {
       body = await request.json()
     } catch {
       return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
     }
-    if (body.operation !== 'list' && body.operation !== 'details' && body.operation !== 'map')
+    if (!isRecord(body) || (body.args !== undefined && !isRecord(body.args)))
+      return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
+    const operation = body.operation
+    if (operation !== 'list' && operation !== 'details' && operation !== 'map')
       return Response.json({ error: { code: 'INVALID_OPERATION' } }, { status: 400, headers })
     const gatewayClient = dependencies.gateway()
     const authorization = request.headers.get('authorization')
@@ -85,9 +92,10 @@ export function createPublicCatalogHandler(
     const sessionId = actor && bearer ? sessionIdFromVerifiedJwt(bearer) : null
     // The actor binding is derived from a provider-verified token. A caller can
     // never inject another shopper id into saved/visited map filters.
-    const safeArgs = { ...(body.args ?? {}) }
+    const requestArgs = body.args === undefined ? {} : body.args
+    const safeArgs = { ...requestArgs }
     delete safeArgs.p_actor_user_id
-    if (body.operation === 'map' && actor) safeArgs.p_actor_user_id = actor
+    if (operation === 'map' && actor) safeArgs.p_actor_user_id = actor
     const digest = await crypto.subtle.digest(
       'SHA-256',
       new TextEncoder().encode(`${rateSalt}|${platformAddress}`),
@@ -98,11 +106,11 @@ export function createPublicCatalogHandler(
     if (publicTest) {
       // This server setting selects a separately admitted scope. Errors must never
       // fall through to another stage's catalog or an old assessment receipt.
-      if (body.operation === 'map')
+      if (operation === 'map')
         return Response.json({ error: { code: 'MAP_UNAVAILABLE' } }, { status: 503, headers })
       const result = await gatewayClient.rpc('public_test_catalog_gateway_request', {
         p_key_hash: keyHash,
-        p_operation: body.operation,
+        p_operation: operation,
         p_args: safeArgs,
       })
       if (result.error?.message?.includes('catalog_rate_limited'))
@@ -121,7 +129,7 @@ export function createPublicCatalogHandler(
       p_key_hash: keyHash,
       p_user_id: actor ?? null,
       p_session_id: sessionId,
-      p_operation: body.operation,
+      p_operation: operation,
       p_args: safeArgs,
     })
     if (!syntheticResult.error) return Response.json({ data: syntheticResult.data }, { headers })
@@ -138,7 +146,7 @@ export function createPublicCatalogHandler(
       return Response.json({ error: { code: 'CATALOG_UNAVAILABLE' } }, { status: 503, headers })
     const result = await gatewayClient.rpc('public_catalog_gateway_request', {
       p_key_hash: keyHash,
-      p_operation: body.operation,
+      p_operation: operation,
       p_args: safeArgs,
     })
     if (result.error?.message?.includes('catalog_rate_limited'))
