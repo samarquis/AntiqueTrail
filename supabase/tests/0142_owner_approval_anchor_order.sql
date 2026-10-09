@@ -160,7 +160,7 @@ select pg_temp.actor629('62900000-0000-4000-8000-000000000001','62900000-0000-40
 set local role authenticated;
 select throws_ok(format('select app_public.owner_admin_approve_claim(%L::uuid,%L::uuid,%s::bigint,%L)',
  '62900000-0000-4000-8000-000000000013','62900000-0000-4000-8000-000000000001',:stale_expected_version629,'629-owner-stale'),
- '42501','privileged_anchor_stale','stale private_beta anchor denies Owner approval before mutation');
+ '42501','partner_administrator_required','stale private_beta anchor denies Owner approval before mutation');
 reset role;
 select ok((select c.state=b.state and c.version=b.version
  and b.app_grants=(select coalesce(jsonb_agg(to_jsonb(g) order by g.grant_id),'[]'::jsonb) from app_private.role_grants g
