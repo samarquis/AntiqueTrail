@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* global process, console, AbortController, Buffer, URL, fetch, setTimeout */
-/* #323 local-only, redacted Administrator scope diagnostic. */
+/* #323/#582 local-only, redacted Administrator scope diagnostic. */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -9,11 +9,15 @@ import {
   createLocalService,
   command,
   freePort,
+  getReadinessFailureMetadata,
   ROOT,
   stopChild,
 } from './configured-shopper-local.mjs'
 import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
-import { configuredAdminScopeReport } from './configured-admin-scope-report.mjs'
+import {
+  configuredAdminScopeFailure,
+  configuredAdminScopeReport,
+} from './configured-admin-scope-report.mjs'
 
 const output = createRunDirectory(path.join(ROOT, 'artifacts'))
 const report = {
@@ -21,12 +25,23 @@ const report = {
   status: 'unavailable',
   cleanup: 'not-started',
   errors: [],
+  failure: null,
   evidenceClass: 'real-local-browser',
 }
 const controller = new AbortController()
 let service, server
 const uuid = () => crypto.randomUUID()
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+function recordFailure(error, operation) {
+  const message = error instanceof Error ? error.message : 'Configured Administrator scope failure'
+  report.errors.push(redact(message))
+  if (report.failure === null)
+    report.failure = configuredAdminScopeFailure(error, {
+      stage: report.phase,
+      operation,
+      readinessFailure: getReadinessFailureMetadata(error),
+    })
+}
 function totp(secret) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
   let bits = 0,
@@ -97,7 +112,15 @@ try {
   const password = crypto.randomBytes(24).toString('base64url')
   const actors = {}
   report.phase = 'creating local Auth fixture identities'
-  for (const alias of ['desktopAdmin', 'phoneAdmin', 'subject', 'sibling', 'shopper']) {
+  for (const alias of [
+    'desktopAdmin',
+    'phoneAdmin',
+    'subject',
+    'sibling',
+    'shopper',
+    'ownerDesktop',
+    'ownerPhone',
+  ]) {
     const created = await authRequest(
       local.endpoint,
       '/auth/v1/signup',
@@ -115,7 +138,7 @@ try {
     }
   }
   await service.sql(
-    `update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Administrator') where id in ('${actors.desktopAdmin.id}','${actors.phoneAdmin.id}'); update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Representative') where id in ('${actors.subject.id}','${actors.sibling.id}'); update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Shopper') where id='${actors.shopper.id}';`,
+    `update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Administrator') where id in ('${actors.desktopAdmin.id}','${actors.phoneAdmin.id}'); update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Representative') where id in ('${actors.subject.id}','${actors.sibling.id}'); update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Shopper') where id='${actors.shopper.id}'; update auth.users set email_confirmed_at=coalesce(email_confirmed_at,statement_timestamp()), raw_app_meta_data=jsonb_build_object('role','Store Owner') where id in ('${actors.ownerDesktop.id}','${actors.ownerPhone.id}');`,
   )
   report.phase = 'establishing Administrator MFA assurance'
   const enrollAdminMfa = async (actor, variant) => {
@@ -226,6 +249,30 @@ try {
       'GRANT_B',
       'CLAIM_A',
       'CLAIM_B',
+      'OWNER_DESKTOP_INVITE',
+      'OWNER_PHONE_INVITE',
+      'OWNER_DESKTOP_PENDING',
+      'OWNER_PHONE_PENDING',
+      'OWNER_DESKTOP_CONSENT',
+      'OWNER_PHONE_CONSENT',
+      'OWNER_DESKTOP_RECEIPT',
+      'OWNER_PHONE_RECEIPT',
+      'OWNER_DESKTOP_PARTNERSHIP_A',
+      'OWNER_DESKTOP_PARTNERSHIP_B',
+      'OWNER_PHONE_PARTNERSHIP_A',
+      'OWNER_PHONE_PARTNERSHIP_B',
+      'OWNER_DESKTOP_GRANT_A',
+      'OWNER_DESKTOP_GRANT_B',
+      'OWNER_PHONE_GRANT_A',
+      'OWNER_PHONE_GRANT_B',
+      'OWNER_DESKTOP_STORE_A',
+      'OWNER_DESKTOP_STORE_B',
+      'OWNER_PHONE_STORE_A',
+      'OWNER_PHONE_STORE_B',
+      'OWNER_DESKTOP_CLAIM_A',
+      'OWNER_DESKTOP_CLAIM_B',
+      'OWNER_PHONE_CLAIM_A',
+      'OWNER_PHONE_CLAIM_B',
     ].map((name) => [name, uuid()]),
   )
   const fixture = fs.readFileSync(
@@ -239,13 +286,23 @@ try {
       SUBJECT: actors.subject.id,
       SIBLING: actors.sibling.id,
       SHOPPER: actors.shopper.id,
+      OWNER_DESKTOP: actors.ownerDesktop.id,
+      OWNER_PHONE: actors.ownerPhone.id,
       ...ids,
     }),
   )
   const fixtureAuthority = await service.sql(
-    `select (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and role='representative' and state='active'),(select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and state='active'),(select count(*) from app_private.role_grants where subject_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and role='representative' and state='active');`,
+    `select
+      (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and state='active'),
+      (select count(*) from app_private.role_grants where subject_user_id='${actors.subject.id}' and store_id='00000000-0000-4000-8000-000000001001' and role='representative' and state='active'),
+      (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and state='active'),
+      (select count(*) from app_private.role_grants where subject_user_id='${actors.sibling.id}' and store_id='00000000-0000-4000-8000-000000001002' and role='representative' and state='active'),
+      (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.ownerDesktop.id}' and store_id in ('${ids.OWNER_DESKTOP_STORE_A}','${ids.OWNER_DESKTOP_STORE_B}') and role='store_owner' and state='active'),
+      (select count(*) from app_private.role_grants where subject_user_id='${actors.ownerDesktop.id}' and store_id in ('${ids.OWNER_DESKTOP_STORE_A}','${ids.OWNER_DESKTOP_STORE_B}') and role='store_owner' and state='active'),
+      (select count(*) from partner_private.store_partner_grants where auth_user_id='${actors.ownerPhone.id}' and store_id in ('${ids.OWNER_PHONE_STORE_A}','${ids.OWNER_PHONE_STORE_B}') and role='store_owner' and state='active'),
+      (select count(*) from app_private.role_grants where subject_user_id='${actors.ownerPhone.id}' and store_id in ('${ids.OWNER_PHONE_STORE_A}','${ids.OWNER_PHONE_STORE_B}') and role='store_owner' and state='active');`,
   )
-  if (fixtureAuthority.trim() !== '1|1|1|1')
+  if (fixtureAuthority.trim() !== '1|1|1|1|2|2|2|2')
     throw new Error(`Configured scope fixture authority is incomplete: ${fixtureAuthority.trim()}`)
   const fixtureIdentity = crypto
     .createHash('sha256')
@@ -262,10 +319,32 @@ try {
       output: output.directory,
       origin,
       wrongReadback: process.env.CONFIGURED_ADMIN_SCOPE_WRONG_READBACK === '1',
-      actors: { ...actors, admin },
+      actors: {
+        ...actors,
+        admin,
+        owner: { desktop: actors.ownerDesktop, phone: actors.ownerPhone },
+      },
       stores: {
         target: '00000000-0000-4000-8000-000000001001',
         sibling: '00000000-0000-4000-8000-000000001002',
+        owners: {
+          desktop: {
+            a: ids.OWNER_DESKTOP_STORE_A,
+            b: ids.OWNER_DESKTOP_STORE_B,
+            claimA: ids.OWNER_DESKTOP_CLAIM_A,
+            claimB: ids.OWNER_DESKTOP_CLAIM_B,
+            nameA: 'Owner Clockwork',
+            nameB: 'Owner Prairie',
+          },
+          phone: {
+            a: ids.OWNER_PHONE_STORE_A,
+            b: ids.OWNER_PHONE_STORE_B,
+            claimA: ids.OWNER_PHONE_CLAIM_A,
+            claimB: ids.OWNER_PHONE_CLAIM_B,
+            nameA: 'Owner Walnut',
+            nameB: 'Owner Maple',
+          },
+        },
       },
     }),
     { mode: 0o600, flag: 'wx' },
@@ -335,12 +414,12 @@ try {
     report.phase = 'validating configured browser report'
   } catch (error) {
     report.status = 'failed'
-    report.errors.push(redact(error.message))
+    recordFailure(error)
   }
   const resultPath = path.join(output.directory, 'playwright.json')
   if (!fs.existsSync(resultPath)) {
     report.status = 'unavailable'
-    report.errors.push('Missing Playwright report')
+    recordFailure(new Error('Missing Playwright report'), 'validate_browser_report')
   } else {
     const parsed = JSON.parse(fs.readFileSync(resultPath, 'utf8'))
     const result = configuredAdminScopeReport(parsed)
@@ -350,22 +429,28 @@ try {
   }
 } catch (error) {
   report.status = 'failed'
-  report.errors.push(redact(error.message))
+  recordFailure(error)
 } finally {
-  await stopChild(server)
+  report.phase = 'cleanup'
+  try {
+    await stopChild(server)
+  } catch (error) {
+    report.status = 'failed'
+    recordFailure(error, 'cleanup')
+  }
   if (service) {
     try {
       fs.rmSync(path.join(service.run.directory, 'admin-scope-input.json'), { force: true })
     } catch (error) {
       report.status = 'failed'
-      report.errors.push(redact(error.message))
+      recordFailure(error, 'cleanup')
     }
     try {
       report.cleanup = await service.cleanup()
     } catch (error) {
       report.cleanup = 'failed'
       report.status = 'failed'
-      report.errors.push(redact(error.message))
+      recordFailure(error, 'cleanup')
     }
   }
   fs.writeFileSync(

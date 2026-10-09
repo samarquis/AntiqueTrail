@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -56,6 +56,26 @@ function client(overrides: Partial<AdminClient> = {}): AdminClient {
         recentActivity: [],
       },
     ],
+    listOwnerAccess: async () => [],
+    previewOwnerClaimRevoke: async (claimId, claimVersion) => ({
+      claimId,
+      ownerUserId: 'owner-1',
+      storeId: 'store-owner-a',
+      grantId: 'owner-grant-a',
+      claimVersion,
+      grantVersion: 2,
+      previewId: 'owner-preview-1',
+      previewHash: 'owner-hash',
+      expiresAt: '2026-10-07T12:10:00Z',
+    }),
+    revokeOwnerClaim: async (claimId, claimVersion) => ({
+      claimId,
+      claimState: 'revoked',
+      claimVersion: claimVersion + 1,
+      accessState: 'revoked',
+      revokedAt: '2026-10-07T12:01:00Z',
+      history: [],
+    }),
     previewStoreScopeChange: async () => ({
       previewId: 'preview-1',
       subjectUserId: 'rep-1',
@@ -357,6 +377,89 @@ describe('Administrator workspace', () => {
       expect.stringMatching(/^admin-scope-grant-1-1-/),
       'preview-1',
     )
+  })
+
+  it('requires an exact preview to revoke one Owner claim and offers no Owner regrant', async () => {
+    const ownerScope = {
+      claimId: 'claim-owner-a',
+      ownerUserId: 'owner-user-a',
+      storeId: 'store-owner-a',
+      storeLabel: 'Clockwork Cabinet',
+      claimState: 'approved' as const,
+      claimVersion: 4,
+      accessState: 'active' as const,
+      approvedAt: '2026-10-01T12:00:00Z',
+      revokedAt: null,
+      history: [
+        {
+          action: 'owner_claim_approved',
+          outcome: 'completed',
+          occurredAt: '2026-10-01T12:00:00Z',
+        },
+      ],
+    }
+    const previewOwnerClaimRevoke = vi.fn(client().previewOwnerClaimRevoke)
+    const revokeOwnerClaim = vi.fn(async () => ({
+      claimId: ownerScope.claimId,
+      claimState: 'revoked' as const,
+      claimVersion: 5,
+      accessState: 'revoked' as const,
+      revokedAt: '2026-10-07T12:01:00Z',
+      history: [
+        ...ownerScope.history,
+        {
+          action: 'partner_claim_revoke',
+          outcome: 'completed',
+          occurredAt: '2026-10-07T12:01:00Z',
+        },
+      ],
+    }))
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <AccessSafetyPage
+          client={client({
+            listOwnerAccess: async () => [ownerScope],
+            previewOwnerClaimRevoke,
+            revokeOwnerClaim,
+          })}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Clockwork Cabinet')).toBeInTheDocument()
+    expect(screen.getByText(/owner claim approved \(completed\)/)).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: /preview revoke clockwork cabinet owner scope/i }),
+    )
+    expect(previewOwnerClaimRevoke).toHaveBeenCalledWith('claim-owner-a', 4)
+    expect(revokeOwnerClaim).not.toHaveBeenCalled()
+    expect(
+      screen.getByText(
+        /Confirm exact Store Owner scope: Clockwork Cabinet for Owner account owner-user-a/i,
+      ),
+    ).toBeInTheDocument()
+    await user.type(
+      screen.getByLabelText('Owner administrative reason code'),
+      'authority_withdrawn',
+    )
+    await user.click(
+      screen.getByRole('button', { name: /confirm revoke clockwork cabinet owner scope/i }),
+    )
+    expect(revokeOwnerClaim).toHaveBeenCalledWith(
+      'claim-owner-a',
+      4,
+      'authority_withdrawn',
+      expect.stringMatching(/^admin-owner-revoke-claim-owner-a-4-/),
+      'owner-preview-1',
+    )
+    const revokedOwnerRow = await within(
+      screen.getByRole('list', { name: 'Store Owner scopes' }),
+    ).findByRole('listitem')
+    expect(revokedOwnerRow).toHaveTextContent('claim-owner-a, version 5.')
+    expect(revokedOwnerRow).toHaveTextContent('Store Owner — revoked')
+    expect(within(revokedOwnerRow).queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /regrant.*owner/i })).not.toBeInTheDocument()
   })
 
   it('renders exact assurance, scope dates, and minimized recent privileged activity', async () => {

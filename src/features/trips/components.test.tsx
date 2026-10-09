@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StrictMode, type ReactNode } from 'react'
-import { BrowserRouter, MemoryRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../auth'
 import {
@@ -659,13 +659,23 @@ describe('manual trips', () => {
     fireEvent.change(screen.getByLabelText(/thursday closes/i), { target: { value: '17:00' } })
     await user.click(screen.getByRole('button', { name: /^save private shop$/i }))
     await screen.findByRole('alert')
-    expect(screen.getByLabelText(/^private shop name$/i)).toHaveValue('Hidden Finds')
-    expect(screen.getByLabelText(/^private shop address$/i)).toHaveValue('123 Main St')
+    const name = screen.getByLabelText(/^private shop name$/i)
+    const address = screen.getByLabelText(/^private shop address$/i)
+    expect(name).toHaveValue('Hidden Finds')
+    expect(address).toHaveValue('123 Main St')
     expect(screen.getByLabelText(/^hours time zone$/i)).toHaveValue('America/Chicago')
+    expect(name).toBeDisabled()
+    expect(address).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^cancel adding private shop$/i })).toBeDisabled()
+    await user.click(name)
+    await user.keyboard('Changed')
+    expect(name).toHaveValue('Hidden Finds')
 
     const firstSaveKey = addPrivateTripStop.mock.calls[0][3]
     await user.click(screen.getByRole('button', { name: /^retry$/i }))
     await waitFor(() => expect(addPrivateTripStop).toHaveBeenCalledTimes(2))
+    expect(await screen.findByRole('heading', { name: 'Private shop: Hidden Finds' })).toBeVisible()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(addPrivateTripStop.mock.calls[1][3]).toBe(firstSaveKey)
     expect(addPrivateTripStop).toHaveBeenLastCalledWith(
       'trip-1',
@@ -688,6 +698,129 @@ describe('manual trips', () => {
       1,
       expect.stringMatching(/^add_private_trip_stop:/),
     )
+  })
+
+  it('does not apply a private-stop retry after its editor unmounts', async () => {
+    const user = userEvent.setup()
+    const secondTrip: Trip = {
+      ...trip,
+      id: 'trip-2',
+      name: 'Second outing',
+      stops: [{ ...privateStop, id: 'private-stop-2', label: 'Second Shop' }],
+    }
+    const updatedFirstTrip: Trip = {
+      ...trip,
+      version: 2,
+      stops: [{ ...privateStop, address: '456 Updated St' }],
+    }
+    let resolveRetry!: (result: Trip) => void
+    const retryPending = new Promise<Trip>((resolve) => {
+      resolveRetry = resolve
+    })
+    const updatePrivateTripStop = vi
+      .fn<NonNullable<TripClient['updatePrivateTripStop']>>()
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockReturnValueOnce(retryPending)
+    function SwitchTrip() {
+      const navigate = useNavigate()
+      return <button onClick={() => navigate('/trips/trip-2/plan')}>Open second trip</button>
+    }
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <SwitchTrip />
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <PlanPage
+                client={client({
+                  get: vi.fn(async (tripId: string) =>
+                    tripId === 'trip-1' ? { ...trip, stops: [privateStop] } : secondTrip,
+                  ),
+                  updatePrivateTripStop,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: /^edit private shop: hidden finds$/i }),
+    )
+    const address = await screen.findByLabelText(/^private shop address for hidden finds$/i)
+    await user.clear(address)
+    await user.type(address, '456 Updated St')
+    await user.click(screen.getByRole('button', { name: /^save changes to hidden finds$/i }))
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: /^retry$/i }))
+    await waitFor(() => expect(updatePrivateTripStop).toHaveBeenCalledTimes(2))
+
+    await user.click(screen.getByRole('button', { name: 'Open second trip' }))
+    await waitFor(() => expect(screen.getByLabelText('Trip name')).toHaveValue('Second outing'))
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Second outing' })).toBeVisible())
+    await act(async () => resolveRetry(updatedFirstTrip))
+
+    expect(screen.getByLabelText('Trip name')).toHaveValue('Second outing')
+    expect(screen.getByRole('region', { name: 'Second outing' })).toBeVisible()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Private shop: Second Shop' })).toBeVisible()
+  })
+
+  it('clears a failed private-stop retry when its trip route changes', async () => {
+    const user = userEvent.setup()
+    const secondTrip: Trip = {
+      ...trip,
+      id: 'trip-2',
+      name: 'Second outing',
+      stops: [{ ...privateStop, id: 'private-stop-2', label: 'Second Shop' }],
+    }
+    const updatePrivateTripStop = vi
+      .fn<NonNullable<TripClient['updatePrivateTripStop']>>()
+      .mockRejectedValueOnce(new Error('transient'))
+    function SwitchTrip() {
+      const navigate = useNavigate()
+      return <button onClick={() => navigate('/trips/trip-2/plan')}>Open second trip</button>
+    }
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <SwitchTrip />
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <PlanPage
+                client={client({
+                  get: vi.fn(async (tripId: string) =>
+                    tripId === 'trip-1' ? { ...trip, stops: [privateStop] } : secondTrip,
+                  ),
+                  updatePrivateTripStop,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: /^edit private shop: hidden finds$/i }),
+    )
+    const address = await screen.findByLabelText(/^private shop address for hidden finds$/i)
+    await user.clear(address)
+    await user.type(address, '456 Updated St')
+    await user.click(screen.getByRole('button', { name: /^save changes to hidden finds$/i }))
+    await screen.findByRole('alert')
+    expect(screen.getByRole('button', { name: /^retry$/i })).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'Open second trip' }))
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Second outing' })).toBeVisible())
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^retry$/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^edit private shop: second shop$/i })).toBeEnabled()
+    expect(updatePrivateTripStop).toHaveBeenCalledTimes(1)
   })
 
   it('reopens private fields, resets address confirmation on edit, and confirms only the current address', async () => {
@@ -767,6 +900,133 @@ describe('manual trips', () => {
       '456 New St',
       2,
       expect.stringMatching(/^confirm_trip_stop_destination:/),
+    )
+  })
+
+  it('blocks a private-stop draft opened before priority and dwell change elsewhere', async () => {
+    const user = userEvent.setup()
+    const initialTrip: Trip = { ...trip, stops: [privateStop] }
+    const priorityTrip: Trip = {
+      ...initialTrip,
+      version: 2,
+      stops: [{ ...privateStop, priority: 'flexible' }],
+    }
+    const dwellTrip: Trip = {
+      ...priorityTrip,
+      version: 3,
+      stops: [{ ...privateStop, priority: 'flexible', plannedDwellMinutes: 75 }],
+    }
+    const setStopPriority = vi
+      .fn<NonNullable<TripClient['setStopPriority']>>()
+      .mockResolvedValue(priorityTrip)
+    const setStopDwell = vi
+      .fn<NonNullable<TripClient['setStopDwell']>>()
+      .mockResolvedValue(dwellTrip)
+    const updatePrivateTripStop = vi.fn<NonNullable<TripClient['updatePrivateTripStop']>>()
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <PlanPage
+                client={client({
+                  get: vi.fn(async () => initialTrip),
+                  setStopPriority,
+                  setStopDwell,
+                  updatePrivateTripStop,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: /^edit private shop: hidden finds$/i }),
+    )
+    const address = await screen.findByLabelText(/^private shop address for hidden finds$/i)
+    await user.clear(address)
+    await user.type(address, '456 Draft St')
+    await user.selectOptions(screen.getByLabelText(/^priority for hidden finds$/i), 'flexible')
+    await waitFor(() =>
+      expect(setStopPriority).toHaveBeenCalledWith('trip-1', 'private-stop-1', 'flexible', 1),
+    )
+
+    const dwell = screen.getByLabelText(/^dwell minutes for hidden finds$/i)
+    await user.clear(dwell)
+    await user.type(dwell, '75')
+    await user.tab()
+    await waitFor(() =>
+      expect(setStopDwell).toHaveBeenCalledWith('trip-1', 'private-stop-1', 75, 2),
+    )
+
+    expect(screen.getByText(/trip changed while this private shop was being edited/i)).toBeVisible()
+    expect(screen.getByLabelText(/^priority for hidden finds$/i)).toHaveValue('flexible')
+    expect(dwell).toHaveValue(75)
+    expect(address).toHaveValue('456 Draft St')
+    expect(screen.getByRole('button', { name: /^save changes to hidden finds$/i })).toBeDisabled()
+    expect(updatePrivateTripStop).not.toHaveBeenCalled()
+  })
+
+  it('disables private-stop fields while a save is pending', async () => {
+    const user = userEvent.setup()
+    const savedStop: Trip['stops'][number] = { ...privateStop, address: '456 New St' }
+    const savedTrip: Trip = { ...trip, version: 2, stops: [savedStop] }
+    let settle!: (result: Trip) => void
+    const pending = new Promise<Trip>((resolve) => {
+      settle = resolve
+    })
+    const updatePrivateTripStop = vi
+      .fn<NonNullable<TripClient['updatePrivateTripStop']>>()
+      .mockReturnValue(pending)
+    render(
+      <MemoryRouter initialEntries={['/trips/trip-1/plan']}>
+        <Routes>
+          <Route
+            path="/trips/:tripId/plan"
+            element={
+              <PlanPage
+                client={client({
+                  get: vi.fn(async () => ({ ...trip, stops: [privateStop] })),
+                  updatePrivateTripStop,
+                })}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: /^edit private shop: hidden finds$/i }),
+    )
+    const address = await screen.findByLabelText(/^private shop address for hidden finds$/i)
+    await user.clear(address)
+    await user.type(address, '456 New St')
+    await user.click(screen.getByRole('button', { name: /^save changes to hidden finds$/i }))
+    await waitFor(() => expect(updatePrivateTripStop).toHaveBeenCalledTimes(1))
+
+    expect(
+      screen.getByText(
+        'A trip update is in progress. Private shop controls are temporarily disabled.',
+        { exact: true },
+      ),
+    ).toBeVisible()
+    expect(address).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^cancel editing hidden finds$/i })).toBeDisabled()
+    await user.type(address, ' overwritten')
+    expect(address).toHaveValue('456 New St')
+
+    await act(async () => settle(savedTrip))
+    expect(await screen.findByText('Address: 456 New St')).toBeVisible()
+    expect(updatePrivateTripStop).toHaveBeenCalledWith(
+      'trip-1',
+      'private-stop-1',
+      expect.objectContaining({ address: '456 New St' }),
+      1,
+      expect.stringMatching(/^update_private_trip_stop:/),
     )
   })
 

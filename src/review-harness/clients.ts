@@ -1707,13 +1707,13 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
         throw new Error(GENERIC_TRIP_ERROR)
       return persistTrip(bumpVersion({ ...trip, state: 'completed' }))
     },
-    async saveVisitMemory(tripId, storeId, input) {
+    async saveVisitMemory(tripId, stopId, input) {
       allowed()
       await fixture(state, true, true)
       const trip = findTrip(tripId)
-      if (!trip.stops.some((stop) => stop.storeId === storeId))
-        throw new Error('Synthetic store stop unavailable.')
-      visitMemories.set(storeId, {
+      const stop = trip.stops.find((candidate) => candidate.id === stopId)
+      if (!stop || stop.kind === 'rest') throw new Error('Synthetic visit stop unavailable.')
+      visitMemories.set(stopId, {
         ...(input.rating !== undefined ? { rating: input.rating } : {}),
         ...(input.returnChoice !== undefined ? { returnChoice: input.returnChoice } : {}),
         ...(input.note !== undefined ? { note: input.note } : {}),
@@ -1722,7 +1722,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
         bumpVersion({
           ...trip,
           stops: trip.stops.map((stop) =>
-            stop.storeId === storeId ? { ...stop, memoryStatus: 'saved' as const } : stop,
+            stop.id === stopId ? { ...stop, memoryStatus: 'saved' as const } : stop,
           ),
         }),
       )
@@ -2495,6 +2495,7 @@ function partnerAdminClient(scenario: ReviewScenario, state: ReviewStateId): Par
     claimId: 'claim-synthetic',
     storeId: '00000000-0000-4000-8000-000000000009',
     state: 'verification_pending',
+    ownerIntent: false,
     version: 2,
     exactStoreScope: 'Blue Finch Curios',
     verifiedSignals: [{ channelClass: 'published_business_contact', signalType: 'email' }],

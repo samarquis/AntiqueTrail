@@ -6,6 +6,7 @@ import {
   formatHours,
   listingFreshness,
   normalizeQueryParams,
+  queryParams,
   todayHoursSummary,
   upcomingHoursExceptions,
 } from './query'
@@ -39,6 +40,13 @@ describe('catalog query normalization', () => {
     expect(canonicalQueryString(filters)).toBe(
       '?openNow=1&visited=unvisited&saved=1&claimed=1&distance=25&state=KS',
     )
+  })
+
+  it('does not accept or serialize device coordinates in catalog query parameters', () => {
+    expect(normalizeQueryParams('?latitude=37&longitude=-95&radiusMiles=25')).toEqual({})
+
+    const filters = { q: 'oak', latitude: 37, longitude: -95, radiusMiles: 25 }
+    expect(queryParams(filters).toString()).toBe('q=oak')
   })
 })
 
