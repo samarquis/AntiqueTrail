@@ -96,8 +96,8 @@ select ok(
   'the production command follows the guarded draft-to-submitted transition'
 );
 select ok(
-  position('ifnotfoundorc.version<>p_expected_version' in regexp_replace(lower(pg_get_functiondef('app_public.partner_admin_claim_command(text,uuid,bigint,text,text,uuid)'::regprocedure)),'[[:space:]]','','g'))
-    < position('perform1frompartner_private.store_partner_grants' in regexp_replace(lower(pg_get_functiondef('app_public.partner_admin_claim_command(text,uuid,bigint,text,text,uuid)'::regprocedure)),'[[:space:]]','','g')),
+  position('ifnotfoundorc.version<>p_expected_version' in regexp_replace(lower(pg_get_functiondef('partner_private.partner_admin_claim_command_core_unchecked(text,uuid,bigint,text,text,uuid)'::regprocedure)),'[[:space:]]','','g'))
+    < position('perform1frompartner_private.store_partner_grants' in regexp_replace(lower(pg_get_functiondef('partner_private.partner_admin_claim_command_core_unchecked(text,uuid,bigint,text,text,uuid)'::regprocedure)),'[[:space:]]','','g')),
   'claim existence and version are checked before a grant-lock PERFORM can overwrite FOUND'
 );
 select ok(

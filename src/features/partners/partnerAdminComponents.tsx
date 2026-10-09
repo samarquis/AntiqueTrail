@@ -1,12 +1,13 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { GENERIC_ADMIN_FAILURE } from '../admin'
-import type {
-  PartnerAdminCase,
-  PartnerAdminClient,
-  PartnerAdminOperation,
-  PartnerAdminTeamMember,
-  SyntheticPartnerInvitation,
+import {
+  isPartnerAdminStoreId,
+  type PartnerAdminCase,
+  type PartnerAdminClient,
+  type PartnerAdminOperation,
+  type PartnerAdminTeamMember,
+  type SyntheticPartnerInvitation,
 } from './partnerAdmin'
 import { ownerTeamRoleLabel } from '../owner/ownerClient'
 
@@ -19,6 +20,7 @@ const operations: PartnerAdminOperation[] = [
   'recheck',
   'transfer',
 ]
+const OWNER_APPROVAL_REASON_CODE = 'owner_boundary_confirmed'
 
 function labelState(state: string) {
   return state.replaceAll('_', ' ')
@@ -100,6 +102,7 @@ export function PartnerAdminPage({
     try {
       const next = await client.getCase(claimId.trim())
       setClaim(next)
+      setOperation('changes')
       if (next.storeId) await refreshTeam(next.storeId)
     } catch {
       setError(true)
@@ -134,6 +137,19 @@ export function PartnerAdminPage({
   async function decide(event: FormEvent) {
     event.preventDefault()
     if (!claim?.version) return
+    if (
+      operation === 'approve_owner' &&
+      (!claim.ownerIntent || !isPartnerAdminStoreId(claim.storeId) || !claim.exactStoreScope)
+    ) {
+      setError(true)
+      setConfirmDecision(false)
+      return
+    }
+    if ((operation === 'approve' || operation === 'transfer') && claim.ownerIntent !== false) {
+      setError(true)
+      setConfirmDecision(false)
+      return
+    }
     if (!confirmDecision) {
       setConfirmDecision(true)
       return
@@ -141,17 +157,17 @@ export function PartnerAdminPage({
     setPending(true)
     setError(false)
     try {
-      setClaim(
-        await client.decide({
-          operation,
-          claimId: claim.claimId,
-          expectedVersion: claim.version,
-          idempotencyKey: decisionKey.trim(),
-          reasonCode: reasonCode.trim(),
-          transferFromClaimId: operation === 'transfer' ? transferFromClaimId.trim() : undefined,
-          ...(operation === 'approve_owner' ? { confirmedStoreId: claim.exactStoreScope } : {}),
-        }),
-      )
+      const next = await client.decide({
+        operation,
+        claimId: claim.claimId,
+        expectedVersion: claim.version,
+        idempotencyKey: decisionKey.trim(),
+        reasonCode: operation === 'approve_owner' ? OWNER_APPROVAL_REASON_CODE : reasonCode.trim(),
+        transferFromClaimId: operation === 'transfer' ? transferFromClaimId.trim() : undefined,
+        ...(operation === 'approve_owner' ? { confirmedStoreId: claim.storeId } : {}),
+      })
+      setClaim(next)
+      setOperation('changes')
       setConfirmDecision(false)
     } catch {
       setError(true)
@@ -404,21 +420,30 @@ export function PartnerAdminPage({
                 value={operation}
                 onChange={(event) => setOperation(event.target.value as PartnerAdminOperation)}
               >
-                {operations.map((candidate) => (
-                  <option key={candidate} value={candidate}>
-                    {labelState(candidate)}
-                  </option>
-                ))}
-                {client.ownerApprovalAvailable && claim.exactStoreScope && (
-                  <option value="approve_owner">
-                    Approve Store Owner for this exact synthetic store
-                  </option>
-                )}
+                {operations
+                  .filter(
+                    (candidate) =>
+                      (candidate !== 'approve' && candidate !== 'transfer') ||
+                      claim.ownerIntent === false,
+                  )
+                  .map((candidate) => (
+                    <option key={candidate} value={candidate}>
+                      {labelState(candidate)}
+                    </option>
+                  ))}
+                {claim.ownerIntent &&
+                  client.ownerApprovalAvailable &&
+                  isPartnerAdminStoreId(claim.storeId) &&
+                  claim.exactStoreScope && (
+                    <option value="approve_owner">
+                      Approve Store Owner for this exact synthetic store
+                    </option>
+                  )}
               </select>
               <label htmlFor="partner-admin-reason">Reason code</label>
               <input
                 id="partner-admin-reason"
-                value={operation === 'approve_owner' ? 'owner_boundary_confirmed' : reasonCode}
+                value={operation === 'approve_owner' ? OWNER_APPROVAL_REASON_CODE : reasonCode}
                 readOnly={operation === 'approve_owner'}
                 onChange={(event) => setReasonCode(event.target.value)}
                 pattern="[a-z][a-z0-9_]{1,63}"

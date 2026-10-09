@@ -1,6 +1,7 @@
 export * from './types'
 export * from './tripClient'
 export * from './components'
+export * from './StartTripPage'
 export * from './offlineTripStore'
 export * from './tripApi'
 export * from './tripRuntime'

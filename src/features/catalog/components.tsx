@@ -30,6 +30,7 @@ import {
   responsiveCatalogImage,
 } from './shared'
 import { ErrorState, LoadingState } from './states'
+import { StoreShareControl } from './publicStoreShare'
 import {
   MEDIA_OVERLAY_CONTROL_CLASS,
   MEDIA_OVERLAY_SURFACE_CLASS,
@@ -1374,6 +1375,7 @@ export function DetailsPage({
               Add to Trip
             </CatalogLink>
           )}
+          {store.slug === slug && <StoreShareControl store={store} />}
           {renderPrivateActions?.(store)}
         </nav>
 

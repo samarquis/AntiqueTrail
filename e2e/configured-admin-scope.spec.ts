@@ -13,14 +13,37 @@ type ConfiguredInput = {
   anonKey: string
   output: string
   wrongReadback?: boolean
-  stores: { target: string; sibling: string }
+  stores: {
+    target: string
+    sibling: string
+    owners: Record<
+      string,
+      {
+        a: string
+        b: string
+        claimA: string
+        claimB: string
+        nameA: string
+        nameB: string
+      }
+    >
+  }
   actors: {
     admin: Record<string, { id: string; email: string; password: string; secret: string }>
+    owner: Record<string, { id: string; email: string; password: string }>
     subject: { id: string; email: string; password: string }
     sibling: { id: string; email: string; password: string }
     shopper: { id: string; email: string; password: string }
   }
 }
+
+type PreviewMismatch =
+  | 'preview_grant_id_mismatch'
+  | 'preview_grant_version_mismatch'
+  | 'preview_subject_mismatch'
+  | 'preview_store_mismatch'
+  | 'preview_current_version_mismatch'
+
 const inputPath = process.env.CONFIGURED_ADMIN_SCOPE_INPUT
 const input: ConfiguredInput = inputPath
   ? JSON.parse(fs.readFileSync(inputPath, 'utf8'))
@@ -29,9 +52,17 @@ const input: ConfiguredInput = inputPath
       endpoint: '',
       anonKey: '',
       output: '',
-      stores: { target: '', sibling: '' },
+      stores: {
+        target: '',
+        sibling: '',
+        owners: {
+          desktop: { a: '', b: '', claimA: '', claimB: '', nameA: '', nameB: '' },
+          phone: { a: '', b: '', claimA: '', claimB: '', nameA: '', nameB: '' },
+        },
+      },
       actors: {
         admin: { desktop: { id: '', email: '', password: '', secret: '' } },
+        owner: { desktop: { id: '', email: '', password: '' } },
         subject: { id: '', email: '', password: '' },
         sibling: { id: '', email: '', password: '' },
         shopper: { id: '', email: '', password: '' },
@@ -60,6 +91,21 @@ function scopeFor(projectName: string) {
     targetStoreName: 'Clockwork Cabinet',
     targetSubjectName: 'Clockwork Scope Subject',
     siblingSubjectName: 'Prairie Scope Subject',
+  }
+}
+function ownerScopeFor(projectName: string) {
+  const variant = projectName === 'phone' ? 'phone' : 'desktop'
+  const owner = input.actors.owner[variant]
+  const stores = input.stores.owners[variant]
+  if (!owner || !stores) throw new Error(`No Store Owner fixture for ${variant}`)
+  return {
+    ownerId: owner.id,
+    storeA: stores.a,
+    storeB: stores.b,
+    claimA: stores.claimA,
+    claimB: stores.claimB,
+    storeAName: stores.nameA,
+    storeBName: stores.nameB,
   }
 }
 const base32 = (value: string) => {
@@ -92,6 +138,43 @@ const totp = (secret: string, stepOffset = 0) => {
       1_000_000,
   ).padStart(6, '0')
 }
+const safeHttpStatusCategory = (status: number) =>
+  [400, 401, 403, 404, 409, 422, 429, 500, 502, 503].includes(status)
+    ? `http_${status}`
+    : status >= 500
+      ? 'http_5xx'
+      : status >= 400
+        ? 'http_4xx'
+        : 'http_status'
+
+const expectSafeHttpStatus = (status: number, expected: number) => {
+  if (status !== expected) {
+    const statusValue =
+      Number.isSafeInteger(status) && status >= 100 && status <= 599 ? status : null
+    throw new Error(
+      `safe-failure:${safeHttpStatusCategory(status)}${statusValue === null ? '' : ` status=${statusValue}`}`,
+    )
+  }
+  expect(status).toBe(expected)
+}
+
+type SafeSqlState = '22023' | '40001' | '42501' | '55000' | 'P0001'
+const safeSqlStates = new Set<SafeSqlState>(['22023', '40001', '42501', '55000', 'P0001'])
+
+const expectSqlState = (actual: unknown, expected: SafeSqlState) => {
+  if (actual !== expected) {
+    const code =
+      typeof actual === 'string' && safeSqlStates.has(actual as SafeSqlState) ? actual : null
+    throw new Error(`safe-failure:${code ? `sqlstate_${code}` : 'sqlstate_mismatch'}`)
+  }
+  expect(actual).toBe(expected)
+}
+
+const expectPreviewValue = (actual: unknown, expected: unknown, mismatch: PreviewMismatch) => {
+  if (actual !== expected) throw new Error(`safe-failure:${mismatch}`)
+  expect(actual).toBe(expected)
+}
+
 const read = (store: string, subjectId: string) =>
   command(
     'docker',
@@ -111,7 +194,13 @@ const read = (store: string, subjectId: string) =>
       'ON_ERROR_STOP=1',
     ],
     {
-      input: `select json_build_object('partnerState',(select g.state from partner_private.store_partner_grants g where g.auth_user_id='${subjectId}' and g.store_id='${store}' and g.role='representative' order by g.granted_at desc, g.grant_id desc limit 1),'roleState',(select r.state from app_private.role_grants r where r.subject_user_id='${subjectId}' and r.store_id='${store}' and r.role='representative' order by r.granted_at desc, r.grant_id desc limit 1),'actions',(select count(*) from admin_private.admin_scope_actions a where a.subject_user_id='${subjectId}' and a.store_id='${store}' and a.role='representative'),'audit',(select count(*) from app_private.privileged_audit_events e join partner_private.store_partner_grants g on g.grant_id=e.resource_id where e.action in ('admin_scope_revoke','admin_scope_regrant') and g.auth_user_id='${subjectId}' and g.store_id='${store}'));`,
+      input: `select json_build_object(
+        'partnerState',(select g.state from partner_private.store_partner_grants g where g.auth_user_id='${subjectId}' and g.store_id='${store}' and g.role='representative' order by g.granted_at desc,g.grant_id desc limit 1),
+        'roleState',(select r.state from app_private.role_grants r where r.subject_user_id='${subjectId}' and r.store_id='${store}' and r.role='representative' order by r.granted_at desc,r.grant_id desc limit 1),
+        'grantId',(select g.grant_id from partner_private.store_partner_grants g where g.auth_user_id='${subjectId}' and g.store_id='${store}' and g.role='representative' order by g.granted_at desc,g.grant_id desc limit 1),
+        'version',(select g.version from partner_private.store_partner_grants g where g.auth_user_id='${subjectId}' and g.store_id='${store}' and g.role='representative' order by g.granted_at desc,g.grant_id desc limit 1),
+        'actions',(select count(*) from admin_private.admin_scope_actions a where a.subject_user_id='${subjectId}' and a.store_id='${store}' and a.role='representative'),
+        'audit',(select count(*) from app_private.privileged_audit_events e join partner_private.store_partner_grants g on g.grant_id=e.resource_id where e.action in ('admin_scope_revoke','admin_scope_regrant') and g.auth_user_id='${subjectId}' and g.store_id='${store}'));`,
     },
   ).then((text: string) => {
     const record = text
@@ -120,6 +209,36 @@ const read = (store: string, subjectId: string) =>
       .find((line: string) => line.startsWith('{'))
     if (!record)
       throw new Error(`Independent scope readback returned no record: ${text.trim() || 'empty'}`)
+    return JSON.parse(record)
+  })
+const readOwner = (store: string, subjectId: string, claimId: string) =>
+  command(
+    'docker',
+    [
+      'exec',
+      '-i',
+      '-e',
+      'PGPASSWORD=postgres',
+      `supabase_db_${service!.run.projectId}`,
+      'psql',
+      '-U',
+      'supabase_admin',
+      '-d',
+      'postgres',
+      '-At',
+      '-v',
+      'ON_ERROR_STOP=1',
+    ],
+    {
+      input: `select json_build_object('partnerState',(select g.state from partner_private.store_partner_grants g where g.auth_user_id='${subjectId}' and g.store_id='${store}' and g.role='store_owner' order by g.granted_at desc,g.grant_id desc limit 1),'roleState',(select r.state from app_private.role_grants r where r.subject_user_id='${subjectId}' and r.store_id='${store}' and r.role='store_owner' order by r.granted_at desc,r.grant_id desc limit 1),'partnershipState',(select p.state from partner_private.store_partnerships p where p.auth_user_id='${subjectId}' and p.store_id='${store}' order by p.started_at desc,p.partnership_id desc limit 1),'claimState',(select c.state from partner_private.listing_claims c where c.claim_id='${claimId}'),'actions',(select count(*) from admin_private.admin_scope_actions a where a.subject_user_id='${subjectId}' and a.store_id='${store}' and a.role='store_owner'),'audit',(select count(*) from app_private.privileged_audit_events e where e.action='partner_claim_revoke' and e.resource_kind='listing_claim' and e.resource_id='${claimId}'));`,
+    },
+  ).then((text: string) => {
+    const record = text
+      .split(/\r?\n/)
+      .map((line: string) => line.trim())
+      .find((line: string) => line.startsWith('{'))
+    if (!record)
+      throw new Error(`Independent Owner readback returned no record: ${text.trim() || 'empty'}`)
     return JSON.parse(record)
   })
 async function login(page: Page, projectName: string) {
@@ -214,6 +333,9 @@ function siblingRow(page: Page, scope: ReturnType<typeof scopeFor>) {
     .getByRole('listitem')
     .filter({ hasText: scope.siblingSubjectName })
 }
+function ownerRow(page: Page, storeName: string) {
+  return page.getByLabel('Store Owner scopes').getByRole('listitem').filter({ hasText: storeName })
+}
 
 test('actual Auth MFA Administrator identity cannot read populated shopper-private data', async ({
   page,
@@ -298,14 +420,28 @@ test('preview cancel then exact revoke and regrant retain sibling scope with aud
       actions: input.wrongReadback ? 99 : baseline.actions + 2,
       audit: baseline.audit + 2,
     })
+  const regrantReadback = await read(scope.target, scope.targetSubjectId)
   await expect(siblingRow(page, scope)).toContainText('active')
   const regranted = targetRow(page, scope)
   await expect(
     regranted.getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` }),
   ).toBeVisible()
+  const previewResponse = page.waitForResponse((response) =>
+    response.url().includes('/rest/v1/rpc/admin_preview_store_scope_change'),
+  )
   await regranted
     .getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` })
     .click()
+  const previewResponseValue = await previewResponse
+  const previewStatus = previewResponseValue.status()
+  expectSafeHttpStatus(previewStatus, 200)
+  const preview = await previewResponseValue.json()
+  expectPreviewValue(preview.grantId, regrantReadback.grantId, 'preview_grant_id_mismatch')
+  expectPreviewValue(
+    preview.grantVersion,
+    regrantReadback.version,
+    'preview_grant_version_mismatch',
+  )
   await expect(regranted.getByText(`Confirm exact scope: ${scope.targetStoreName}`)).toBeVisible()
   await regranted.getByRole('button', { name: 'Cancel scope change', exact: true }).click()
 })
@@ -379,14 +515,13 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
     .getByRole('button', { name: `Preview revoke ${scope.targetStoreName} scope` })
     .press('Enter')
   const response = await previewResponse
-  expect(response.status()).toBe(200)
+  const previewStatus = response.status()
+  expectSafeHttpStatus(previewStatus, 200)
   expect(response.request().postDataJSON()).toEqual(previewInput)
   const preview = await response.json()
-  expect(preview).toMatchObject({
-    subjectUserId: scope.targetSubjectId,
-    storeId: scope.target,
-    grantVersion: current.version,
-  })
+  expectPreviewValue(preview.subjectUserId, scope.targetSubjectId, 'preview_subject_mismatch')
+  expectPreviewValue(preview.storeId, scope.target, 'preview_store_mismatch')
+  expectPreviewValue(preview.grantVersion, current.version, 'preview_current_version_mismatch')
   const token = response
     .request()
     .headers()
@@ -422,8 +557,18 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
   await confirm.focus()
   await confirm.press('Enter')
   const denied = await rejected
-  expect(denied.status()).toBe(500)
-  expect(await denied.json()).toMatchObject({ code: '40001', message: 'admin_unavailable' })
+  expectSafeHttpStatus(denied.status(), 500)
+  const deniedBody = await denied.json()
+  const deniedCode =
+    deniedBody && typeof deniedBody === 'object' && 'code' in deniedBody
+      ? deniedBody.code
+      : undefined
+  expectSqlState(deniedCode, '40001')
+  const deniedMessage =
+    deniedBody && typeof deniedBody === 'object' && 'message' in deniedBody
+      ? deniedBody.message
+      : undefined
+  expect(deniedMessage).toBe('admin_unavailable')
   await expect(page.getByRole('status')).toHaveText('This item is not available.')
   await expect(confirm).toBeFocused()
   await expect(row).toContainText(`Confirm exact scope: ${scope.targetStoreName}`)
@@ -461,4 +606,49 @@ test('stale replay and missing assurance fail closed while focus and scoped reco
       actions: baseline.actions + 2,
       audit: baseline.audit + 2,
     })
+})
+
+test('exact Owner claim revoke removes Store A access while Store B remains active', async ({
+  page,
+}, testInfo) => {
+  const scope = ownerScopeFor(testInfo.project.name)
+  await login(page, testInfo.project.name)
+  const row = ownerRow(page, scope.storeAName)
+  const baselineA = await readOwner(scope.storeA, scope.ownerId, scope.claimA)
+  const baselineB = await readOwner(scope.storeB, scope.ownerId, scope.claimB)
+  expect(baselineA).toMatchObject({
+    partnerState: 'active',
+    roleState: 'active',
+    claimState: 'approved',
+  })
+  expect(baselineB).toMatchObject({
+    partnerState: 'active',
+    roleState: 'active',
+    claimState: 'approved',
+  })
+  await expect(row).toContainText(scope.ownerId)
+  await row.getByRole('button', { name: `Preview revoke ${scope.storeAName} Owner scope` }).click()
+  await expect(
+    row.getByText(new RegExp(`Confirm exact Store Owner scope: ${scope.storeAName}`)),
+  ).toBeVisible()
+  await row.getByLabel('Owner administrative reason code').fill('authority_withdrawn')
+  await row.getByRole('button', { name: `Confirm revoke ${scope.storeAName} Owner scope` }).click()
+  await expect
+    .poll(() => readOwner(scope.storeA, scope.ownerId, scope.claimA))
+    .toMatchObject({
+      partnerState: 'revoked',
+      roleState: 'revoked',
+      partnershipState: 'revoked',
+      claimState: 'revoked',
+      actions: baselineA.actions + 1,
+      audit: baselineA.audit + 1,
+    })
+  expect(await readOwner(scope.storeB, scope.ownerId, scope.claimB)).toMatchObject(baselineB)
+  await page.reload()
+  const revoked = ownerRow(page, scope.storeAName)
+  await expect(revoked).toContainText('revoked')
+  await expect(revoked).toContainText('owner claim approved (completed)')
+  await expect(revoked).toContainText('partner claim revoke (completed)')
+  await expect(revoked.getByRole('button', { name: /regrant.*owner/i })).toHaveCount(0)
+  await expect(ownerRow(page, scope.storeBName)).toContainText('active')
 })

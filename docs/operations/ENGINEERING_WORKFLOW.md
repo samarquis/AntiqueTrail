@@ -44,6 +44,12 @@ Use SPECIFICATION for unresolved contracts, BLOCKED for missing decisions/enviro
 
 Completion: a fresh worker can execute without reconstructing decisions from chat history. An unchanged baseline that already passes calls for missing regression proof only, not a speculative rewrite.
 
+Before dispatch, ask: can the worker execute this answer key without choosing a missing product rule or interface? If not, resolve that specific gap first. Reuse existing mechanisms; ordinary technical choices do not automatically require a new Product Owner decision. Trace SQL functions and grants through later replacements/revocations, freeze proposed signatures and deterministic fixture inputs/results, and include caller migration plus retirement of legacy entry points when a new signature would otherwise leave a bypass.
+
+READY requires named runnable assertions (including explicitly NEW tests) and an admitted execution route, not passing tests for behavior that has not been implemented. Passing results gate completion. Local Docker availability gates only Docker-dependent local runs; the existing CI `database` job can supply migration replay and pgTAP proof on the exact candidate. It does not substitute for separately required browser, hosted or production proof.
+
+Estimate each admitted leaf, not a broad parent checklist. Record measured worker wall time, active effort only when measured, and setup/review/CI/merge waits separately. Contract preparation is not coding throughput. Put one demonstrated correction in the affected successor; do not turn every lesson into another checklist or repeat a passing suite without a relevant change.
+
 ## 2. Coordinate concurrent chats
 
 Before editing, check `git worktree list --porcelain`, relevant local/remote branches, and live issue/PR ownership. One chat owns one ticket worktree. If another chat already owns overlapping work, coordinate through its committed SHA or wait for its handoff; do not open a second implementation lane against the same seam.
@@ -105,6 +111,8 @@ Run only applicable layers, but never merge them into one claim:
 6. Canonical production route after authorized deployment.
 
 Use `npm run check` from a clean worktree for repository-wide web validation. Use `npm run verify:web` when full browser coverage is required. CI remains final clean-environment proof.
+
+For catalog Edge changes, run `npm run check:catalog-edge` before committing: it checks types, owned-file formatting, the source-text release contract in `scripts/shared-alpha-catalog-gate.test.mjs`, and focused Edge tests. That release test reads source strings and is not represented by call-graph edges. The nearby map positive fixture is compared with a real `createCatalogClient` request; malformed-input fixtures remain separate. This fast check supplements the required full check and CI, without repeating them on an unchanged candidate.
 
 Completion: applicable layers pass against same candidate, and unavailable layers are named as unverified.
 

@@ -43,6 +43,7 @@ export interface CatalogStore {
   town: string
   state: string
   address: string
+  deviceDistanceMiles?: number
   area: { slug: string; label: string }
   categories: Array<{ slug: string; label: string }>
   summary?: string | null
@@ -116,6 +117,7 @@ export interface CatalogMapPoint {
   openState: CatalogHoursStatus
   categoryLabel: string
   distanceMiles: number
+  deviceDistanceMiles?: number
   claimed: boolean
   saved: boolean | null
   visited: boolean | null
@@ -171,8 +173,21 @@ export interface CatalogError {
   retryable: boolean
 }
 
+export interface CatalogNearbySearch {
+  latitude: number
+  longitude: number
+  radiusMiles?: 5 | 10 | 25 | 50
+}
+
 export interface CatalogClient {
   list(filters: CatalogFilters): Promise<CatalogListResult>
+  nearbyList?(filters: CatalogFilters, nearby: CatalogNearbySearch): Promise<CatalogListResult>
   details(slug: string): Promise<CatalogStore | null>
   map?(filters: CatalogFilters, bounds: CatalogMapBounds, zoom: number): Promise<CatalogMapResult>
+  nearbyMap?(
+    filters: CatalogFilters,
+    bounds: CatalogMapBounds,
+    zoom: number,
+    nearby: CatalogNearbySearch,
+  ): Promise<CatalogMapResult>
 }

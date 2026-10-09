@@ -1,3 +1,5 @@
+import type { PortalHours } from '../portal/types'
+
 export type TripState = 'draft' | 'ready' | 'active' | 'completed' | 'cancelled'
 export type StopState = 'planned' | 'arrived' | 'completed' | 'skipped' | 'observed_closed'
 export type StopPriority = 'must' | 'prefer' | 'flexible'
@@ -11,13 +13,9 @@ export interface OfflineQueueSnapshot {
   purgeReason?: string
 }
 
-export interface TripStop {
+interface TripStopFields {
   id: string
-  /** Present only for store stops; used for owner-scoped private visit memory. */
-  storeId?: string
-  kind: 'store' | 'rest'
   label: string
-  /** Optional private address used only for an explicit external-map handoff. */
   address?: string
   position: number
   priority: StopPriority
@@ -32,6 +30,47 @@ export interface TripStop {
     closed?: boolean
     warning?: string
   }
+}
+
+export type TripPrivateHours = Omit<PortalHours, 'version'>
+export type TripPrivateDestination = 'draft' | 'confirmed_by_organizer'
+
+/** Store, rest, and private stops carry different authority and location data. */
+export type TripStop = TripStopFields &
+  (
+    | {
+        kind: 'store'
+        /** Present only for catalog stops; used for catalog visit memory. */
+        storeId?: string
+        sourceUrl?: never
+        shopperHours?: never
+        destination?: never
+      }
+    | {
+        kind: 'rest'
+        storeId?: never
+        sourceUrl?: never
+        shopperHours?: never
+        destination?: never
+      }
+    | {
+        kind: 'private'
+        coordinate?: never
+        hours?: never
+        storeId?: never
+        sourceUrl?: string
+        shopperHours?: TripPrivateHours
+        destination: TripPrivateDestination
+      }
+  )
+
+export interface PrivateTripStopInput {
+  name: string
+  address?: string | null
+  sourceUrl?: string | null
+  shopperHours?: TripPrivateHours | null
+  priority: StopPriority
+  plannedDwellMinutes: number
 }
 
 export interface Trip {
@@ -89,6 +128,11 @@ export interface TripCollaboration {
   invitation?: TripInvitation
 }
 
+export interface TripStartDeviceCheck {
+  tripVersion: number
+  currentDeviceBound: boolean
+}
+
 export type TripPartnerRemovalResult =
   | { state: 'applied'; collaboration: TripCollaboration }
   | { state: 'conflict'; latest: { tripVersion: number } }
@@ -126,11 +170,31 @@ export interface TripClient {
   addStop(
     tripId: string,
     input: {
-      kind: TripStop['kind']
+      kind: 'store' | 'rest'
       label: string
       priority: StopPriority
       plannedDwellMinutes: number
     },
+  ): Promise<Trip>
+  addPrivateTripStop?(
+    tripId: string,
+    input: PrivateTripStopInput,
+    expectedVersion: number,
+    idempotencyKey: string,
+  ): Promise<Trip>
+  updatePrivateTripStop?(
+    tripId: string,
+    stopId: string,
+    input: PrivateTripStopInput,
+    expectedVersion: number,
+    idempotencyKey: string,
+  ): Promise<Trip>
+  confirmPrivateTripStopDestination?(
+    tripId: string,
+    stopId: string,
+    exactAddress: string,
+    expectedVersion: number,
+    idempotencyKey: string,
   ): Promise<Trip>
   addStoreStop(tripId: string, storeId: string): Promise<Trip>
   reorderStop(tripId: string, stopId: string, position: number): Promise<Trip>
@@ -158,6 +222,9 @@ export interface TripClient {
     input: { localDate: string; departureMinute?: number },
     expectedVersion: number,
   ): Promise<Trip>
+  prepareInitialNavigator?(tripId: string, expectedVersion: number): Promise<TripCollaboration>
+  verifyInitialNavigatorDevice?(tripId: string): Promise<TripStartDeviceCheck>
+  confirmCurrentNavigatorDevice?(tripId: string): Promise<number>
   bindNavigatorDevice(tripId: string): Promise<TripCollaboration>
   transferNavigatorDevice(tripId: string): Promise<Trip>
   reviewHours(tripId: string, acknowledgeWarnings?: boolean): Promise<Trip>
@@ -199,7 +266,7 @@ export interface TripClient {
   completeTrip?(tripId: string): Promise<Trip>
   saveVisitMemory?(
     tripId: string,
-    storeId: string,
+    stopId: string,
     input: { rating?: number; returnChoice?: 'no' | 'maybe' | 'yes'; note?: string },
   ): Promise<Trip>
   replayOffline(tripId: string): Promise<Trip>
