@@ -537,7 +537,11 @@ async function runOwnerListing() {
           '--config',
           'e2e/configured-owner-listing-playwright.config.ts',
         ],
-        { env, timeout: 900_000, signal: controller.signal },
+        {
+          env,
+          timeout: ownerListingPhase === 'owner-identity' ? 120_000 : 900_000,
+          signal: controller.signal,
+        },
       )
       report.status = 'passed'
     } catch (error) {
