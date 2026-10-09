@@ -102,6 +102,8 @@ update partner_private.listing_claims set state='submitted',submitted_at=stateme
 where claim_id='--CLAIM_ID--';
 update partner_private.listing_claims set state='verification_pending'
 where claim_id='--CLAIM_ID--';
+insert into partner_private.store_owner_intake_roots(applicant_id,active_kind,active_id)
+values('--OWNER_A--','claim','--CLAIM_ID--');
 insert into partner_private.claim_authority_signals(
   claim_id,channel_class,signal_type,status,verified_by,verified_at,evidence_ref_hmac,authority_object_hmac,verification_event_id
 ) values
