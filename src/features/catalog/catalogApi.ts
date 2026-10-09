@@ -1,6 +1,7 @@
 import type {
   CatalogClient,
   CatalogFilters,
+  CatalogNearbySearch,
   CatalogListResult,
   CatalogMapBounds,
   CatalogMapPoint,
@@ -25,6 +26,28 @@ export function createCatalogClient(client: RpcClient): CatalogClient {
         p_q: filters.q ?? null,
         p_category: filters.category ?? null,
         p_area: filters.area ?? null,
+      })
+      if (error) throw catalogError(error)
+      const payload = Array.isArray(data)
+        ? { stores: data }
+        : ((data ?? {}) as Record<string, unknown>)
+      return {
+        stores: ((payload.stores ?? payload.results ?? []) as unknown[]).map(toStore),
+        asOfUtc: typeof payload.as_of_utc === 'string' ? payload.as_of_utc : undefined,
+      }
+    },
+    async nearbyList(
+      filters: CatalogFilters,
+      nearby: CatalogNearbySearch,
+    ): Promise<CatalogListResult> {
+      if (!validNearbySearch(filters, nearby)) throw new Error('Invalid nearby search')
+      const { data, error } = await client.rpc('catalog_list_nearby', {
+        p_q: filters.q ?? null,
+        p_category: filters.category ?? null,
+        p_area: null,
+        p_device_latitude: nearby.latitude,
+        p_device_longitude: nearby.longitude,
+        p_device_radius_miles: nearby.radiusMiles ?? 25,
       })
       if (error) throw catalogError(error)
       const payload = Array.isArray(data)
@@ -69,18 +92,82 @@ export function createCatalogClient(client: RpcClient): CatalogClient {
         p_limit: MAX_BROWSE_MAP_RESULTS,
       })
       if (error) throw catalogError(error)
-      const payload = Array.isArray(data) ? { points: data } : asRow(data)
-      const rawPoints = asArray(payload.points ?? payload.results)
-      if (rawPoints.length > MAX_BROWSE_MAP_RESULTS) throw new Error('Invalid map response.')
-      const points = rawPoints.map((value) => toMapPoint(value, bounds))
-      if (new Set(points.map((point) => point.storeId)).size !== points.length)
-        throw new Error('Invalid map response.')
-      return {
-        points,
-        asOfUtc: stringOrNull(payload.as_of_utc),
-      }
+      return toMapResult(data, bounds)
+    },
+    async nearbyMap(
+      filters: CatalogFilters,
+      bounds: CatalogMapBounds,
+      zoom: number,
+      nearby: CatalogNearbySearch,
+    ): Promise<CatalogMapResult> {
+      if (!validNearbySearch(filters, nearby)) throw new Error('Invalid nearby search')
+      if (!validMapBounds(bounds) || !Number.isInteger(zoom) || zoom < 0 || zoom > 22)
+        throw new Error('Invalid map viewport.')
+      const { data, error } = await client.rpc('get_browse_map_nearby_v1', {
+        p_q: filters.q ?? null,
+        p_category: filters.category ?? null,
+        p_area: null,
+        p_open_now: filters.openNow ?? null,
+        p_visited: filters.visited ?? null,
+        p_saved: filters.saved ?? null,
+        p_claimed: filters.claimed ?? null,
+        p_max_area_centroid_miles: null,
+        p_state: filters.state ?? null,
+        p_north: bounds.north,
+        p_south: bounds.south,
+        p_east: bounds.east,
+        p_west: bounds.west,
+        p_zoom: zoom,
+        p_limit: MAX_BROWSE_MAP_RESULTS,
+        p_device_latitude: nearby.latitude,
+        p_device_longitude: nearby.longitude,
+        p_device_radius_miles: nearby.radiusMiles ?? 25,
+      })
+      if (error) throw catalogError(error)
+      return toMapResult(data, bounds)
     },
   }
+}
+
+function toMapResult(data: unknown, bounds: CatalogMapBounds): CatalogMapResult {
+  const payload = Array.isArray(data) ? { points: data } : asRow(data)
+  const rawPoints = asArray(payload.points ?? payload.results)
+  if (rawPoints.length > MAX_BROWSE_MAP_RESULTS) throw new Error('Invalid map response.')
+  const points = rawPoints.map((value) => toMapPoint(value, bounds))
+  if (new Set(points.map((point) => point.storeId)).size !== points.length)
+    throw new Error('Invalid map response.')
+  return {
+    points,
+    asOfUtc: stringOrNull(payload.as_of_utc),
+  }
+}
+
+function validNearbySearch(filters: unknown, nearby: unknown): nearby is CatalogNearbySearch {
+  if (
+    !filters ||
+    typeof filters !== 'object' ||
+    Array.isArray(filters) ||
+    !nearby ||
+    typeof nearby !== 'object' ||
+    Array.isArray(nearby)
+  )
+    return false
+  const search = nearby as CatalogNearbySearch
+  return (
+    typeof search.latitude === 'number' &&
+    Number.isFinite(search.latitude) &&
+    search.latitude >= -90 &&
+    search.latitude <= 90 &&
+    typeof search.longitude === 'number' &&
+    Number.isFinite(search.longitude) &&
+    search.longitude >= -180 &&
+    search.longitude <= 180 &&
+    (search.radiusMiles === undefined ||
+      search.radiusMiles === 5 ||
+      search.radiusMiles === 10 ||
+      search.radiusMiles === 25 ||
+      search.radiusMiles === 50)
+  )
 }
 
 export function validMapBounds(bounds: CatalogMapBounds): boolean {
@@ -102,13 +189,17 @@ function toMapPoint(value: unknown, bounds: CatalogMapBounds): CatalogMapPoint {
   const row = asRow(value)
   const latitude = Number(row.latitude)
   const longitude = Number(row.longitude)
+  const store = toStore(row)
   const point: CatalogMapPoint = {
     storeId: String(row.store_id ?? row.storeId ?? ''),
     slug: String(row.slug ?? ''),
     name: String(row.name ?? ''),
     latitude,
     longitude,
-    store: toStore(row),
+    store,
+    ...(store.deviceDistanceMiles === undefined
+      ? {}
+      : { deviceDistanceMiles: store.deviceDistanceMiles }),
     rating:
       typeof row.rating === 'number' ? row.rating : row.rating == null ? null : Number(row.rating),
     ratingCount: Number(row.rating_count ?? row.ratingCount ?? 0),
@@ -152,6 +243,29 @@ type LooseRow = Record<string, unknown>
 
 function toStore(value: unknown): CatalogStore {
   const row = asRow(value)
+  const hasSnakeDeviceDistance = Object.prototype.hasOwnProperty.call(row, 'device_distance_miles')
+  const hasCamelDeviceDistance = Object.prototype.hasOwnProperty.call(row, 'deviceDistanceMiles')
+  const snakeDeviceDistance = row.device_distance_miles
+  const camelDeviceDistance = row.deviceDistanceMiles
+  if (
+    (hasSnakeDeviceDistance &&
+      (typeof snakeDeviceDistance !== 'number' ||
+        !Number.isFinite(snakeDeviceDistance) ||
+        snakeDeviceDistance < 0)) ||
+    (hasCamelDeviceDistance &&
+      (typeof camelDeviceDistance !== 'number' ||
+        !Number.isFinite(camelDeviceDistance) ||
+        camelDeviceDistance < 0)) ||
+    (hasSnakeDeviceDistance &&
+      hasCamelDeviceDistance &&
+      snakeDeviceDistance !== camelDeviceDistance)
+  )
+    throw new Error('Invalid nearby distance')
+  const deviceDistanceMiles = hasSnakeDeviceDistance
+    ? (snakeDeviceDistance as number)
+    : hasCamelDeviceDistance
+      ? (camelDeviceDistance as number)
+      : undefined
   const area = asRow(row.area ?? { slug: row.area_slug, label: row.area_label })
   const categories = asArray(row.categories ?? row.category_labels)
   const media = asArray(row.media)
@@ -163,6 +277,7 @@ function toStore(value: unknown): CatalogStore {
     town: String(row.town ?? row.city ?? ''),
     state: String(row.state ?? row.state_code ?? ''),
     address: String(row.address ?? ''),
+    ...(deviceDistanceMiles === undefined ? {} : { deviceDistanceMiles }),
     area: { slug: String(area.slug ?? ''), label: String(area.label ?? '') },
     categories: categories.map((item) => {
       const category = asRow(item)

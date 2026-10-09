@@ -1,6 +1,39 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createCatalogClient } from './catalogApi'
 
+function nearbyList(
+  client: ReturnType<typeof createCatalogClient>,
+  filters: unknown,
+  nearby: unknown,
+): Promise<unknown> {
+  return (
+    client as unknown as {
+      nearbyList(filters: unknown, nearby: unknown): Promise<unknown>
+    }
+  ).nearbyList(filters, nearby)
+}
+
+function nearbyMap(
+  client: ReturnType<typeof createCatalogClient>,
+  filters: unknown,
+  bounds: unknown,
+  zoom: unknown,
+  nearby: unknown,
+): Promise<unknown> {
+  return Promise.resolve().then(() =>
+    (
+      client as unknown as {
+        nearbyMap(
+          filters: unknown,
+          bounds: unknown,
+          zoom: unknown,
+          nearby: unknown,
+        ): Promise<unknown>
+      }
+    ).nearbyMap(filters, bounds, zoom, nearby),
+  )
+}
+
 describe('catalog RPC client', () => {
   it.each(['list', 'details'] as const)(
     'omits malformed media, URLs, and nontext optional fields through %s',
@@ -412,6 +445,133 @@ describe('catalog RPC client', () => {
     expect(result.asOfUtc).toBe('2026-01-01T00:00:00Z')
   })
 
+  it.each([
+    ['snake case zero', { device_distance_miles: 0 }, 0],
+    ['camel case positive', { deviceDistanceMiles: 2.4 }, 2.4],
+    ['equal aliases', { device_distance_miles: 1.25, deviceDistanceMiles: 1.25 }, 1.25],
+  ] as const)('maps %s through list, nearby list, and details', async (_case, fields, expected) => {
+    for (const method of ['list', 'nearbyList', 'details'] as const) {
+      const rpc = vi.fn().mockResolvedValue({ data: [{ id: '1', ...fields }], error: null })
+      const client = createCatalogClient({ rpc })
+      const stores =
+        method === 'list'
+          ? (await client.list({})).stores
+          : method === 'details'
+            ? [await client.details('public-store')]
+            : (
+                (await nearbyList(client, {}, { latitude: 0, longitude: 0 })) as {
+                  stores: Array<{ deviceDistanceMiles?: number }>
+                }
+              ).stores
+
+      expect(stores[0]?.deviceDistanceMiles).toBe(expected)
+    }
+  })
+
+  it.each(['list', 'nearbyList', 'details'] as const)(
+    'does not infer device distance from centroid distance through %s',
+    async (method) => {
+      const rpc = vi.fn().mockResolvedValue({
+        data: [{ id: '1', distance_miles: 2.4 }],
+        error: null,
+      })
+      const client = createCatalogClient({ rpc })
+      const store =
+        method === 'list'
+          ? (await client.list({})).stores[0]
+          : method === 'details'
+            ? await client.details('public-store')
+            : (
+                (await nearbyList(client, {}, { latitude: 0, longitude: 0 })) as {
+                  stores: Array<{ deviceDistanceMiles?: number }>
+                }
+              ).stores[0]
+
+      expect(store).not.toHaveProperty('deviceDistanceMiles')
+    },
+  )
+
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['string', '2.4'],
+    ['boolean', true],
+    ['negative', -1],
+    ['NaN', Number.NaN],
+    ['infinity', Number.POSITIVE_INFINITY],
+  ])('rejects a present %s device distance', async (_case, distance) => {
+    for (const key of ['device_distance_miles', 'deviceDistanceMiles'] as const) {
+      const rpc = vi.fn().mockResolvedValue({ data: [{ id: '1', [key]: distance }], error: null })
+
+      await expect(createCatalogClient({ rpc }).list({})).rejects.toThrow('Invalid nearby distance')
+    }
+  })
+
+  it('rejects conflicting device distance aliases', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{ id: '1', device_distance_miles: 2, deviceDistanceMiles: 3 }],
+      error: null,
+    })
+
+    await expect(createCatalogClient({ rpc }).list({})).rejects.toThrow('Invalid nearby distance')
+  })
+
+  it.each([
+    ['zero coordinates and the default radius', { latitude: 0, longitude: 0 }, undefined, 25],
+    ['the north/east boundary and radius 5', { latitude: 90, longitude: 180 }, 5, 5],
+    ['the south/west boundary and radius 10', { latitude: -90, longitude: -180 }, 10, 10],
+    ['radius 25', { latitude: 12, longitude: -45 }, 25, 25],
+    ['radius 50', { latitude: 0, longitude: 0 }, 50, 50],
+  ] as const)(
+    'sends a nearby catalog list for %s',
+    async (_case, coordinates, radiusMiles, radius) => {
+      const filters = { q: 'oak', category: 'vintage', area: 'topeka-ks' }
+      const originalFilters = { ...filters }
+      const rpc = vi.fn().mockResolvedValue({ data: { stores: [] }, error: null })
+      const client = createCatalogClient({ rpc })
+
+      await nearbyList(client, filters, {
+        ...coordinates,
+        ...(radiusMiles === undefined ? {} : { radiusMiles }),
+      })
+
+      expect(rpc).toHaveBeenCalledWith('catalog_list_nearby', {
+        p_q: 'oak',
+        p_category: 'vintage',
+        p_area: null,
+        p_device_latitude: coordinates.latitude,
+        p_device_longitude: coordinates.longitude,
+        p_device_radius_miles: radius,
+      })
+      expect(filters).toEqual(originalFilters)
+    },
+  )
+
+  it.each([
+    ['null filters', null, { latitude: 1, longitude: 2 }],
+    ['nonobject filters', 'private filters', { latitude: 1, longitude: 2 }],
+    ['null nearby input', {}, null],
+    ['nonobject nearby input', {}, []],
+    ['string nearby input', {}, 'private nearby input'],
+    ['partial coordinates', {}, { latitude: 1 }],
+    ['string latitude', {}, { latitude: '1', longitude: 2 }],
+    ['nonfinite latitude', {}, { latitude: Number.NaN, longitude: 2 }],
+    ['infinite longitude', {}, { latitude: 1, longitude: Number.POSITIVE_INFINITY }],
+    ['latitude below range', {}, { latitude: -90.01, longitude: 2 }],
+    ['latitude above range', {}, { latitude: 90.01, longitude: 2 }],
+    ['longitude below range', {}, { latitude: 1, longitude: -180.01 }],
+    ['longitude above range', {}, { latitude: 1, longitude: 180.01 }],
+    ['null radius', {}, { latitude: 1, longitude: 2, radiusMiles: null }],
+    ['string radius', {}, { latitude: 1, longitude: 2, radiusMiles: '5' }],
+    ['unsupported radius', {}, { latitude: 1, longitude: 2, radiusMiles: 15 }],
+  ])('rejects %s before transport with a generic error', async (_case, filters, nearby) => {
+    const rpc = vi.fn()
+    const client = createCatalogClient({ rpc })
+
+    await expect(nearbyList(client, filters, nearby)).rejects.toThrow('Invalid nearby search')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
   it('preserves the SQL timezone_name projection for local-hours rendering', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
@@ -576,6 +736,175 @@ describe('catalog RPC client', () => {
         },
       ],
     })
+  })
+
+  it('requests nearby map points with device distance separate from area distance', async () => {
+    const row = {
+      store_id: '00000000-0000-4000-8000-000000000001',
+      slug: 'public-store',
+      name: 'Public Store',
+      latitude: 39.05,
+      longitude: -95.68,
+      distance_miles: 2.4,
+      device_distance_miles: 3.8,
+    }
+    const rpc = vi.fn().mockResolvedValue({ data: [row], error: null })
+    const filters = {
+      q: 'public',
+      category: 'vintage',
+      area: 'topeka-ks',
+      openNow: true,
+      visited: 'visited' as const,
+      saved: true,
+      claimed: true,
+      maxAreaCentroidMiles: 10,
+      state: 'KS',
+    }
+    const originalFilters = structuredClone(filters)
+    const result = await nearbyMap(
+      createCatalogClient({ rpc }),
+      filters,
+      { north: 40, south: 39, east: -95, west: -96 },
+      13,
+      { latitude: 39.5, longitude: -95.5, radiusMiles: 50 },
+    )
+
+    expect(rpc).toHaveBeenCalledWith('get_browse_map_nearby_v1', {
+      p_q: 'public',
+      p_category: 'vintage',
+      p_area: null,
+      p_open_now: true,
+      p_visited: 'visited',
+      p_saved: true,
+      p_claimed: true,
+      p_max_area_centroid_miles: null,
+      p_state: 'KS',
+      p_north: 40,
+      p_south: 39,
+      p_east: -95,
+      p_west: -96,
+      p_zoom: 13,
+      p_limit: 500,
+      p_device_latitude: 39.5,
+      p_device_longitude: -95.5,
+      p_device_radius_miles: 50,
+    })
+    expect(filters).toEqual(originalFilters)
+    expect(result).toMatchObject({
+      points: [
+        {
+          distanceMiles: 2.4,
+          deviceDistanceMiles: 3.8,
+          store: { deviceDistanceMiles: 3.8 },
+        },
+      ],
+    })
+  })
+
+  it.each([
+    [
+      { latitude: 91, longitude: 0 },
+      { north: 40, south: 39, east: -95, west: -96 },
+      12,
+      /nearby search/i,
+    ],
+    [
+      { latitude: 0, longitude: -181 },
+      { north: 40, south: 39, east: -95, west: -96 },
+      12,
+      /nearby search/i,
+    ],
+    [
+      { latitude: 0, longitude: 0, radiusMiles: 0 },
+      { north: 40, south: 39, east: -95, west: -96 },
+      12,
+      /nearby search/i,
+    ],
+    [
+      { latitude: 0, longitude: 0 },
+      { north: 39, south: 40, east: -95, west: -96 },
+      12,
+      /map viewport/i,
+    ],
+    [
+      { latitude: 0, longitude: 0 },
+      { north: 40, south: 39, east: -95, west: -96 },
+      23,
+      /map viewport/i,
+    ],
+    [
+      { latitude: 0, longitude: 0 },
+      { north: 40, south: 39, east: -95, west: -96 },
+      12.5,
+      /map viewport/i,
+    ],
+  ])('rejects invalid nearby map inputs before transport', async (nearby, bounds, zoom, error) => {
+    const rpc = vi.fn()
+    await expect(nearbyMap(createCatalogClient({ rpc }), {}, bounds, zoom, nearby)).rejects.toThrow(
+      error,
+    )
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects duplicate store IDs in nearby map responses', async () => {
+    const row = {
+      store_id: 'duplicate',
+      slug: 'same-store',
+      name: 'Same Store',
+      latitude: 39.5,
+      longitude: -95.5,
+    }
+    const rpc = vi.fn().mockResolvedValue({ data: [row, row], error: null })
+    await expect(
+      nearbyMap(
+        createCatalogClient({ rpc }),
+        {},
+        { north: 40, south: 39, east: -95, west: -96 },
+        12,
+        { latitude: 39.5, longitude: -95.5 },
+      ),
+    ).rejects.toThrow(/map response/i)
+  })
+
+  it('rejects malformed nearby map device distance while preserving legacy rows', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          store_id: 'legacy',
+          slug: 'legacy',
+          name: 'Legacy Store',
+          latitude: 39.5,
+          longitude: -95.5,
+          distance_miles: 1.2,
+        },
+      ],
+      error: null,
+    })
+    const client = createCatalogClient({ rpc })
+    const bounds = { north: 40, south: 39, east: -95, west: -96 }
+    const nearby = { latitude: 39.5, longitude: -95.5 }
+    const legacy = (await nearbyMap(client, {}, bounds, 12, nearby)) as {
+      points: Array<Record<string, unknown>>
+    }
+    expect(legacy.points[0]).not.toHaveProperty('deviceDistanceMiles')
+    expect(legacy.points[0].store).not.toHaveProperty('deviceDistanceMiles')
+
+    rpc.mockResolvedValueOnce({
+      data: [
+        {
+          store_id: 'malformed',
+          slug: 'malformed',
+          name: 'Malformed Store',
+          latitude: 39.5,
+          longitude: -95.5,
+          device_distance_miles: '3.8',
+        },
+      ],
+      error: null,
+    })
+    await expect(nearbyMap(client, {}, bounds, 12, nearby)).rejects.toThrow(
+      'Invalid nearby distance',
+    )
   })
 
   it('fails closed on an invalid or oversized map projection', async () => {

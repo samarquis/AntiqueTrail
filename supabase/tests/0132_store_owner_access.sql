@@ -234,8 +234,11 @@ select pg_temp.actor422('42200000-0000-4000-8000-000000000001','42200000-0000-40
 create temporary table revocation422(version bigint);
 insert into revocation422 select version from partner_private.listing_claims where claim_id='42200000-0000-4000-8000-000000000004';
 grant select on revocation422 to authenticated;
+create temporary table owner_revoke_preview422(data jsonb);
+grant select,insert on owner_revoke_preview422 to authenticated;
 set local role authenticated;
-select lives_ok($$select app_public.partner_admin_claim_command('revoke','42200000-0000-4000-8000-000000000004',(select version from revocation422),'owner422-revoke','administrator_revoked')$$,'Site Admin revokes primary Owner claim');
+insert into owner_revoke_preview422 select app_public.admin_preview_owner_claim_revoke('42200000-0000-4000-8000-000000000004',(select version from revocation422));
+select lives_ok($$select app_public.admin_revoke_owner_claim('42200000-0000-4000-8000-000000000004',(select version from revocation422),'administrator_revoked','owner422-revoke',(select (data->>'previewId')::uuid from owner_revoke_preview422))$$,'Site Admin revokes primary Owner claim through its exact preview');
 reset role;
 select is((select count(*) from app_private.role_grants where role='store_owner' and state='active'),1::bigint,'one-store revocation preserves separately approved Owner scope');
 select pg_temp.actor422('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
@@ -264,8 +267,11 @@ select pg_temp.actor422('42200000-0000-4000-8000-000000000001','42200000-0000-40
 create temporary table revocation422_b(version bigint);
 insert into revocation422_b select version from partner_private.listing_claims where claim_id='42200000-0000-4000-8000-000000000007';
 grant select on revocation422_b to authenticated;
+create temporary table owner_revoke_preview422_b(data jsonb);
+grant select,insert on owner_revoke_preview422_b to authenticated;
 set local role authenticated;
-select lives_ok($$select app_public.partner_admin_claim_command('revoke','42200000-0000-4000-8000-000000000007',(select version from revocation422_b),'owner422-revoke-b','administrator_revoked')$$,'Site Admin removes remaining Owner scope through independently audited command');
+insert into owner_revoke_preview422_b select app_public.admin_preview_owner_claim_revoke('42200000-0000-4000-8000-000000000007',(select version from revocation422_b));
+select lives_ok($$select app_public.admin_revoke_owner_claim('42200000-0000-4000-8000-000000000007',(select version from revocation422_b),'administrator_revoked','owner422-revoke-b',(select (data->>'previewId')::uuid from owner_revoke_preview422_b))$$,'Site Admin removes remaining Owner scope through its exact preview and independently audited command');
 reset role;
 select pg_temp.actor422('76000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000008');
 set local role authenticated;

@@ -11,11 +11,15 @@ import type {
   TripCollaboration,
   TripInvitation,
   TripParticipant,
+  PrivateTripStopInput,
+  TripPrivateDestination,
+  TripPrivateHours,
   TripStop,
   TripMutationReplayResult,
   TripPartnerRemovalResult,
   TripRenameResult,
   CheckMyDayServerResult,
+  TripStartDeviceCheck,
 } from './types'
 
 export type TripApiCommand =
@@ -31,6 +35,9 @@ export type TripApiCommand =
   | 'set_trip_stop_priority'
   | 'set_trip_stop_dwell'
   | 'update_trip_schedule'
+  | 'prepare_initial_navigator'
+  | 'verify_initial_navigator_device'
+  | 'prepare_go_device_command'
   | 'bind_navigator_device'
   | 'transfer_navigator_device'
   | 'review_trip_hours'
@@ -42,6 +49,9 @@ export type TripApiCommand =
   | 'set_trip_return'
   | 'set_trip_limits'
   | 'add_rest_stop'
+  | 'add_private_trip_stop'
+  | 'update_private_trip_stop'
+  | 'confirm_trip_stop_destination'
   | 'mark_trip_stop_closed'
   | 'restore_trip_stop'
   | 'complete_trip'
@@ -79,6 +89,8 @@ const TRIP_STATES = new Set(['draft', 'ready', 'active', 'completed', 'cancelled
 const STOP_STATES = new Set(['planned', 'arrived', 'completed', 'skipped', 'observed_closed'])
 const PRIORITIES = new Set(['must', 'prefer', 'flexible'])
 const QUEUE_STATES = new Set(['empty', 'queued', 'replaying', 'conflict', 'purged', 'blocked'])
+const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/
+const DATE = /^\d{4}-\d{2}-\d{2}$/
 
 function genericFailure(): Error {
   return new Error(GENERIC_TRIP_ERROR)
@@ -87,6 +99,10 @@ function genericFailure(): Error {
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw genericFailure()
   return value as Record<string, unknown>
+}
+
+function onlyKeys(source: Record<string, unknown>, allowed: readonly string[]): void {
+  if (Object.keys(source).some((key) => !allowed.includes(key))) throw genericFailure()
 }
 
 function string(value: unknown, maximum = 2_000): string {
@@ -120,21 +136,168 @@ function parseCoordinate(value: unknown): { latitude: number; longitude: number 
   }
 }
 
+function privateText(value: unknown, maximum: number, optional: true): string | undefined
+function privateText(value: unknown, maximum: number): string
+function privateText(value: unknown, maximum: number, optional = false): string | undefined {
+  if (optional && (value == null || value === '')) return undefined
+  if (typeof value !== 'string') throw genericFailure()
+  const normalized = value.normalize('NFKC').trim()
+  if (!normalized || normalized.length > maximum || hasControlCharacters(normalized))
+    throw genericFailure()
+  return normalized
+}
+
+function normalizePrivateUrl(value: unknown): string | undefined {
+  if (value == null || value === '') return undefined
+  if (typeof value !== 'string' || value.trim().length > 2_048) throw genericFailure()
+  try {
+    const parsed = new URL(value.trim())
+    if (
+      !['http:', 'https:'].includes(parsed.protocol) ||
+      !parsed.hostname ||
+      parsed.username ||
+      parsed.password ||
+      parsed.port
+    )
+      throw genericFailure()
+    parsed.hostname = parsed.hostname.toLowerCase()
+    return parsed.toString()
+  } catch {
+    throw genericFailure()
+  }
+}
+
+function validDate(value: unknown): string {
+  const date = string(value, 10)
+  if (!DATE.test(date) || new Date(`${date}T00:00:00.000Z`).toISOString().slice(0, 10) !== date)
+    throw genericFailure()
+  return date
+}
+
+function parsePrivateIntervals(value: unknown): Array<{ opensAt: string; closesAt: string }> {
+  if (!Array.isArray(value) || value.length > 2) throw genericFailure()
+  let previousClose = ''
+  return value.map((item) => {
+    const source = record(item)
+    onlyKeys(source, ['opensAt', 'closesAt'])
+    const opensAt = string(source.opensAt, 5)
+    const closesAt = string(source.closesAt, 5)
+    if (
+      !TIME.test(opensAt) ||
+      !TIME.test(closesAt) ||
+      opensAt >= closesAt ||
+      (previousClose && previousClose > opensAt)
+    )
+      throw genericFailure()
+    previousClose = closesAt
+    return { opensAt, closesAt }
+  })
+}
+
+function parsePrivateHours(value: unknown): TripPrivateHours {
+  const source = record(value)
+  onlyKeys(source, ['timeZone', 'weekly', 'holidays', 'temporaryClosure'])
+  if ('version' in source) throw genericFailure()
+  const timeZone = privateText(source.timeZone, 128)
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone }).format(0)
+  } catch {
+    throw genericFailure()
+  }
+  if (!Array.isArray(source.weekly) || source.weekly.length !== 7) throw genericFailure()
+  const seenWeekdays = new Set<number>()
+  const weekly = source.weekly.map((item) => {
+    const day = record(item)
+    onlyKeys(day, ['weekday', 'label', 'isClosed', 'intervals'])
+    const weekday = integer(day.weekday, 0, 6)
+    if (seenWeekdays.has(weekday) || typeof day.isClosed !== 'boolean') throw genericFailure()
+    seenWeekdays.add(weekday)
+    const intervals = parsePrivateIntervals(day.intervals)
+    if (day.isClosed && intervals.length > 0) throw genericFailure()
+    return { weekday, label: privateText(day.label, 32), isClosed: day.isClosed, intervals }
+  })
+  if (seenWeekdays.size !== 7 || !Array.isArray(source.holidays) || source.holidays.length > 100)
+    throw genericFailure()
+  const holidays = source.holidays.map((item) => {
+    const holiday = record(item)
+    onlyKeys(holiday, ['localDate', 'label', 'isClosed', 'intervals'])
+    if (typeof holiday.isClosed !== 'boolean') throw genericFailure()
+    const intervals = parsePrivateIntervals(holiday.intervals)
+    if (holiday.isClosed && intervals.length > 0) throw genericFailure()
+    return {
+      localDate: validDate(holiday.localDate),
+      label: privateText(holiday.label, 80),
+      isClosed: holiday.isClosed,
+      intervals,
+    }
+  })
+  let temporaryClosure: TripPrivateHours['temporaryClosure']
+  if (source.temporaryClosure != null) {
+    const closure = record(source.temporaryClosure)
+    onlyKeys(closure, ['startDate', 'endDate', 'reason'])
+    const startDate = validDate(closure.startDate)
+    const endDate = validDate(closure.endDate)
+    if (startDate > endDate) throw genericFailure()
+    const reason = closure.reason == null ? undefined : privateText(closure.reason, 200, true)
+    temporaryClosure = {
+      startDate,
+      endDate,
+      ...(reason ? { reason } : {}),
+    }
+  }
+  return { timeZone, weekly, holidays, temporaryClosure }
+}
+
+function privateStopPayload(input: PrivateTripStopInput): Record<string, unknown> {
+  if (!validDwellMinutes(input.plannedDwellMinutes)) throw genericFailure()
+  return {
+    name: privateText(input.name, 160),
+    address: privateText(input.address, 320, true) ?? null,
+    source_url: normalizePrivateUrl(input.sourceUrl) ?? null,
+    hours: input.shopperHours == null ? null : parsePrivateHours(input.shopperHours),
+    priority: enumValue(input.priority, PRIORITIES),
+    planned_dwell_minutes: integer(input.plannedDwellMinutes, 5, 720),
+  }
+}
+
+function privateCommandKey(command: string, value: string): string {
+  const key = string(value, 128)
+  if (!key.startsWith(`${command}:`) || !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(key))
+    throw genericFailure()
+  return key
+}
+
 function enumValue<T extends string>(value: unknown, allowed: Set<string>): T {
   const parsed = string(value, 64)
   if (!allowed.has(parsed)) throw genericFailure()
   return parsed as T
 }
 
-function parseStop(value: unknown): TripStop {
+function parseStop(value: unknown, completedTrip = false): TripStop {
   const source = record(value)
   const hoursSource = source.hours == null ? undefined : record(source.hours)
-  return {
+  const kind = enumValue<TripStop['kind']>(source.kind, new Set(['store', 'rest', 'private']))
+  if (kind === 'private')
+    onlyKeys(source, [
+      'id',
+      'kind',
+      'storeId',
+      'label',
+      'address',
+      'coordinate',
+      'hours',
+      'position',
+      'priority',
+      'plannedDwellMinutes',
+      'state',
+      'memoryStatus',
+      'sourceUrl',
+      'shopperHours',
+      'destination',
+    ])
+  const common = {
     id: string(source.id, 128),
-    storeId: source.storeId == null ? undefined : string(source.storeId, 128),
-    kind: enumValue<TripStop['kind']>(source.kind, new Set(['store', 'rest'])),
     label: string(source.label, 160),
-    address: optionalString(source.address, 500),
     position: integer(source.position, 0, 7),
     priority: enumValue<TripStop['priority']>(source.priority, PRIORITIES),
     plannedDwellMinutes: integer(source.plannedDwellMinutes, 5, 720),
@@ -146,10 +309,15 @@ function parseStop(value: unknown): TripStop {
             source.memoryStatus,
             new Set(['saved', 'missing', 'not_applicable']),
           ),
+  }
+  const routeFields = {
     coordinate: parseCoordinate(source.coordinate),
     hours: hoursSource
       ? {
-          state: enumValue(hoursSource.state, new Set(['verified', 'unknown', 'stale'])),
+          state: enumValue<NonNullable<TripStop['hours']>['state']>(
+            hoursSource.state,
+            new Set(['verified', 'unknown', 'stale']),
+          ),
           opensAt: hoursSource.opensAt == null ? undefined : integer(hoursSource.opensAt, 0, 1_439),
           closesAt:
             hoursSource.closesAt == null ? undefined : integer(hoursSource.closesAt, 0, 1_439),
@@ -158,18 +326,56 @@ function parseStop(value: unknown): TripStop {
         }
       : undefined,
   }
+  if (kind === 'private') {
+    if (source.storeId != null || source.coordinate != null || source.hours != null)
+      throw genericFailure()
+    const address = privateText(source.address, 320, true)
+    const destination = enumValue<TripPrivateDestination>(
+      source.destination,
+      new Set(['draft', 'confirmed_by_organizer']),
+    )
+    if (destination === 'confirmed_by_organizer' && !address && !completedTrip)
+      throw genericFailure()
+    return {
+      ...common,
+      kind,
+      address,
+      sourceUrl: normalizePrivateUrl(source.sourceUrl),
+      shopperHours:
+        source.shopperHours == null ? undefined : parsePrivateHours(source.shopperHours),
+      destination,
+    }
+  }
+  if (source.sourceUrl != null || source.shopperHours != null || source.destination != null)
+    throw genericFailure()
+  if (kind === 'rest' && source.storeId != null) throw genericFailure()
+  if (kind === 'store')
+    return {
+      ...common,
+      ...routeFields,
+      kind,
+      ...(source.storeId != null ? { storeId: string(source.storeId, 128) } : {}),
+      address: optionalString(source.address, 500),
+    }
+  return {
+    ...common,
+    ...routeFields,
+    kind,
+    address: optionalString(source.address, 500),
+  }
 }
 
 const parseTrip: Parser<Trip> = (value) => {
   const source = record(value)
   const hoursReview = source.hoursReview == null ? undefined : record(source.hoursReview)
   if (!Array.isArray(source.stops) || source.stops.length > 8) throw genericFailure()
+  const state = enumValue<Trip['state']>(source.state, TRIP_STATES)
   return {
     id: string(source.id, 128),
     name: string(source.name, 80),
     localDate: boundedDate(string(source.localDate, 10)),
-    state: enumValue<Trip['state']>(source.state, TRIP_STATES),
-    stops: source.stops.map(parseStop),
+    state,
+    stops: source.stops.map((stop) => parseStop(stop, state === 'completed')),
     version: integer(source.version, 0),
     durationMinutes:
       source.durationMinutes == null ? undefined : integer(source.durationMinutes, 0, 525_600),
@@ -274,6 +480,19 @@ function parseCollaboration(value: unknown): TripCollaboration {
     navigatorUserId,
     invitation: source.invitation == null ? undefined : parseInvitation(source.invitation),
   }
+}
+
+function parseTripStartDeviceCheck(value: unknown): TripStartDeviceCheck {
+  const source = record(value)
+  if (typeof source.currentDeviceBound !== 'boolean') throw genericFailure()
+  return {
+    tripVersion: integer(source.tripVersion, 1),
+    currentDeviceBound: source.currentDeviceBound,
+  }
+}
+
+function parseGoDeviceCommandVersion(value: unknown): number {
+  return integer(record(value).baseVersion, 1)
 }
 
 function parsePartnerRemovalResult(value: unknown): TripPartnerRemovalResult {
@@ -439,7 +658,7 @@ export function createTripApi(
           if (!validDwellMinutes(input.plannedDwellMinutes)) throw genericFailure()
           return {
             trip_id: boundedId(tripId),
-            kind: enumValue<TripStop['kind']>(input.kind, new Set(['store', 'rest'])),
+            kind: enumValue<'store' | 'rest'>(input.kind, new Set(['store', 'rest'])),
             label: boundedLabel(input.label),
             priority: enumValue<TripStop['priority']>(input.priority, PRIORITIES),
             planned_dwell_minutes: input.plannedDwellMinutes,
@@ -528,6 +747,48 @@ export function createTripApi(
           expected_version: integer(expectedVersion, 1),
         }),
         parseTrip,
+      )
+    },
+    prepareInitialNavigator(tripId, expectedVersion) {
+      return execute(
+        'prepare_initial_navigator',
+        () => {
+          if (!deviceIdentity) throw genericFailure()
+          return {
+            trip_id: boundedId(tripId),
+            expected_version: integer(expectedVersion, 1),
+            device_key_id: boundedId(deviceIdentity.deviceKeyId),
+          }
+        },
+        parseCollaboration,
+      )
+    },
+    verifyInitialNavigatorDevice(tripId) {
+      return execute(
+        'verify_initial_navigator_device',
+        () => {
+          if (!deviceIdentity) throw genericFailure()
+          return {
+            trip_id: boundedId(tripId),
+            device_key_id: boundedId(deviceIdentity.deviceKeyId),
+          }
+        },
+        parseTripStartDeviceCheck,
+      )
+    },
+    confirmCurrentNavigatorDevice(tripId) {
+      return execute(
+        'prepare_go_device_command',
+        () => {
+          if (!deviceIdentity) throw genericFailure()
+          return {
+            trip_id: boundedId(tripId),
+            action: 'complete_trip',
+            stop_id: null,
+            device_key_id: boundedId(deviceIdentity.deviceKeyId),
+          }
+        },
+        parseGoDeviceCommandVersion,
       )
     },
     bindNavigatorDevice(tripId) {
@@ -642,6 +903,50 @@ export function createTripApi(
         parseTrip,
       )
     },
+    addPrivateTripStop(tripId, input, expectedVersion, idempotencyKey) {
+      return execute(
+        'add_private_trip_stop',
+        () => ({
+          trip_id: boundedId(tripId),
+          ...privateStopPayload(input),
+          expected_version: integer(expectedVersion, 1),
+          idempotency_key: privateCommandKey('add_private_trip_stop', idempotencyKey),
+        }),
+        parseTrip,
+      )
+    },
+    updatePrivateTripStop(tripId, stopId, input, expectedVersion, idempotencyKey) {
+      return execute(
+        'update_private_trip_stop',
+        () => ({
+          trip_id: boundedId(tripId),
+          stop_id: boundedId(stopId),
+          ...privateStopPayload(input),
+          expected_version: integer(expectedVersion, 1),
+          idempotency_key: privateCommandKey('update_private_trip_stop', idempotencyKey),
+        }),
+        parseTrip,
+      )
+    },
+    confirmPrivateTripStopDestination(
+      tripId,
+      stopId,
+      exactAddress,
+      expectedVersion,
+      idempotencyKey,
+    ) {
+      return execute(
+        'confirm_trip_stop_destination',
+        () => ({
+          trip_id: boundedId(tripId),
+          stop_id: boundedId(stopId),
+          exact_address: privateText(exactAddress, 320),
+          expected_version: integer(expectedVersion, 1),
+          idempotency_key: privateCommandKey('confirm_trip_stop_destination', idempotencyKey),
+        }),
+        parseTrip,
+      )
+    },
     markObservedClosed(tripId, stopId) {
       return execute(
         'mark_trip_stop_closed',
@@ -659,12 +964,12 @@ export function createTripApi(
     completeTrip(tripId) {
       return execute('complete_trip', () => ({ trip_id: boundedId(tripId) }), parseTrip)
     },
-    saveVisitMemory(tripId, storeId, input) {
+    saveVisitMemory(tripId, stopId, input) {
       return execute(
         'save_trip_visit_memory',
         () => ({
           trip_id: boundedId(tripId),
-          store_id: boundedId(storeId),
+          stop_id: boundedId(stopId),
           rating: input.rating == null ? null : integer(input.rating, 1, 5),
           return_choice: input.returnChoice ?? null,
           note: input.note == null ? null : string(input.note.normalize('NFKC').trim(), 2000),

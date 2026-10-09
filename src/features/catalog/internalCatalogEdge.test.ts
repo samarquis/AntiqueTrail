@@ -80,3 +80,92 @@ it('forwards only the configured allowed origin and provider-verified actor to t
     }),
   )
 })
+
+const invalidCatalogEnvelopes = [
+  { name: 'malformed JSON', body: '{', code: 'INVALID_REQUEST' },
+  { name: 'null envelope', body: 'null', code: 'INVALID_REQUEST' },
+  { name: 'array envelope', body: '[]', code: 'INVALID_REQUEST' },
+  { name: 'string envelope', body: '"request"', code: 'INVALID_REQUEST' },
+  { name: 'number envelope', body: '1', code: 'INVALID_REQUEST' },
+  { name: 'boolean envelope', body: 'true', code: 'INVALID_REQUEST' },
+  { name: 'null args', body: '{"operation":"list","args":null}', code: 'INVALID_REQUEST' },
+  { name: 'array args', body: '{"operation":"list","args":[]}', code: 'INVALID_REQUEST' },
+  { name: 'string args', body: '{"operation":"list","args":"args"}', code: 'INVALID_REQUEST' },
+  { name: 'number args', body: '{"operation":"list","args":1}', code: 'INVALID_REQUEST' },
+  { name: 'boolean args', body: '{"operation":"list","args":true}', code: 'INVALID_REQUEST' },
+  { name: 'omitted operation', body: '{}', code: 'INVALID_OPERATION' },
+  { name: 'unknown operation', body: '{"operation":"other"}', code: 'INVALID_OPERATION' },
+  { name: 'non-string operation', body: '{"operation":1}', code: 'INVALID_OPERATION' },
+]
+
+it.each(invalidCatalogEnvelopes)(
+  'rejects $name before calling backend dependencies',
+  async ({ body, code }) => {
+    const rpc = vi.fn(async () => ({ data: [], error: null }))
+    const gateway = vi.fn(() => ({ rpc }))
+    const verify = vi.fn(async () => null)
+    const handler = createPublicCatalogHandler(
+      {
+        url: 'https://backend.invalid',
+        anonKey: 'anon',
+        gatewayJwt: 'gateway',
+        allowedOrigin: 'https://review.invalid',
+        rateSalt: 'salt',
+        publicTest: false,
+      },
+      { gateway, verify },
+    )
+    const response = await handler(
+      new Request('https://backend.invalid/functions/v1/public-catalog', {
+        method: 'POST',
+        headers: { origin: 'https://review.invalid', 'content-type': 'application/json' },
+        body,
+      }),
+      { remoteAddr: { hostname: '127.0.0.1' } },
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: { code } })
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://review.invalid')
+    expect(gateway).not.toHaveBeenCalled()
+    expect(verify).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalled()
+  },
+)
+
+it('accepts omitted and object args through the handler', async () => {
+  const rpc = vi.fn(async () => ({ data: [], error: null }))
+  const gateway = vi.fn(() => ({ rpc }))
+  const verify = vi.fn(async () => null)
+  const handler = createPublicCatalogHandler(
+    {
+      url: 'https://backend.invalid',
+      anonKey: 'anon',
+      gatewayJwt: 'gateway',
+      allowedOrigin: 'https://review.invalid',
+      rateSalt: 'salt',
+      publicTest: false,
+    },
+    { gateway, verify },
+  )
+
+  for (const [body, args] of [
+    [{ operation: 'list' }, {}],
+    [{ operation: 'list', args: { p_limit: 5 } }, { p_limit: 5 }],
+  ] as const) {
+    const response = await handler(
+      new Request('https://backend.invalid/functions/v1/public-catalog', {
+        method: 'POST',
+        headers: { origin: 'https://review.invalid', 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+      { remoteAddr: { hostname: '127.0.0.1' } },
+    )
+    expect(response.status).toBe(200)
+    expect(rpc).toHaveBeenLastCalledWith(
+      'synthetic_catalog_gateway_request',
+      expect.objectContaining({ p_args: args }),
+    )
+  }
+})

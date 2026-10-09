@@ -16,6 +16,10 @@ export interface CatalogDependencies {
   verify(bearer: string): Promise<{ id: string } | null>
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function sessionIdFromVerifiedJwt(token: string) {
   try {
     const encoded = token.split('.')[1]
@@ -69,14 +73,81 @@ export function createPublicCatalogHandler(
           allowedOrigin !== 'https://antique-trail.vercel.app'))
     )
       return Response.json({ error: { code: 'GATEWAY_UNAVAILABLE' } }, { status: 503, headers })
-    let body: { operation?: string; args?: Record<string, unknown> }
+    let body: unknown
     try {
       body = await request.json()
     } catch {
       return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
     }
-    if (body.operation !== 'list' && body.operation !== 'details' && body.operation !== 'map')
+    if (!isRecord(body) || (body.args !== undefined && !isRecord(body.args)))
+      return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
+    if (
+      body.operation !== 'list' &&
+      body.operation !== 'details' &&
+      body.operation !== 'map' &&
+      body.operation !== 'nearby-list' &&
+      body.operation !== 'nearby-map'
+    )
       return Response.json({ error: { code: 'INVALID_OPERATION' } }, { status: 400, headers })
+    const isInvalidNearbyInput = (message?: string | null) =>
+      (body.operation === 'nearby-list' || body.operation === 'nearby-map') &&
+      message?.includes('invalid_nearby_input') === true
+    const requestArgs = body.args === undefined ? {} : body.args
+    const safeArgs = { ...requestArgs }
+    delete safeArgs.p_actor_user_id
+    if (body.operation === 'nearby-list' || body.operation === 'nearby-map') {
+      const latitude = safeArgs.p_device_latitude
+      const longitude = safeArgs.p_device_longitude
+      const radius = safeArgs.p_device_radius_miles
+      const allowedArgs =
+        body.operation === 'nearby-map'
+          ? [
+              'p_q',
+              'p_category',
+              'p_area',
+              'p_open_now',
+              'p_visited',
+              'p_saved',
+              'p_claimed',
+              'p_max_area_centroid_miles',
+              'p_state',
+              'p_north',
+              'p_south',
+              'p_east',
+              'p_west',
+              'p_zoom',
+              'p_limit',
+              'p_device_latitude',
+              'p_device_longitude',
+              'p_device_radius_miles',
+            ]
+          : [
+              'p_q',
+              'p_category',
+              'p_area',
+              'p_device_latitude',
+              'p_device_longitude',
+              'p_device_radius_miles',
+            ]
+      if (
+        Object.keys(safeArgs).some((key) => !allowedArgs.includes(key)) ||
+        (safeArgs.p_area !== undefined && safeArgs.p_area !== null) ||
+        (body.operation === 'nearby-map' &&
+          safeArgs.p_max_area_centroid_miles !== undefined &&
+          safeArgs.p_max_area_centroid_miles !== null) ||
+        typeof latitude !== 'number' ||
+        !Number.isFinite(latitude) ||
+        latitude < -90 ||
+        latitude > 90 ||
+        typeof longitude !== 'number' ||
+        !Number.isFinite(longitude) ||
+        longitude < -180 ||
+        longitude > 180 ||
+        typeof radius !== 'number' ||
+        ![5, 10, 25, 50].includes(radius)
+      )
+        return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
+    }
     const gatewayClient = dependencies.gateway()
     const authorization = request.headers.get('authorization')
     const bearer = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]
@@ -85,9 +156,8 @@ export function createPublicCatalogHandler(
     const sessionId = actor && bearer ? sessionIdFromVerifiedJwt(bearer) : null
     // The actor binding is derived from a provider-verified token. A caller can
     // never inject another shopper id into saved/visited map filters.
-    const safeArgs = { ...(body.args ?? {}) }
-    delete safeArgs.p_actor_user_id
-    if (body.operation === 'map' && actor) safeArgs.p_actor_user_id = actor
+    if ((body.operation === 'map' || body.operation === 'nearby-map') && actor)
+      safeArgs.p_actor_user_id = actor
     const digest = await crypto.subtle.digest(
       'SHA-256',
       new TextEncoder().encode(`${rateSalt}|${platformAddress}`),
@@ -98,7 +168,7 @@ export function createPublicCatalogHandler(
     if (publicTest) {
       // This server setting selects a separately admitted scope. Errors must never
       // fall through to another stage's catalog or an old assessment receipt.
-      if (body.operation === 'map')
+      if (body.operation === 'map' || body.operation === 'nearby-map')
         return Response.json({ error: { code: 'MAP_UNAVAILABLE' } }, { status: 503, headers })
       const result = await gatewayClient.rpc('public_test_catalog_gateway_request', {
         p_key_hash: keyHash,
@@ -113,6 +183,8 @@ export function createPublicCatalogHandler(
             headers: { ...headers, 'Retry-After': '300' },
           },
         )
+      if (isInvalidNearbyInput(result.error?.message))
+        return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
       if (result.error)
         return Response.json({ error: { code: 'CATALOG_UNAVAILABLE' } }, { status: 503, headers })
       return Response.json({ data: result.data }, { headers })
@@ -134,6 +206,8 @@ export function createPublicCatalogHandler(
       return Response.json({ error: { code: 'ALPHA_AUTH_REQUIRED' } }, { status: 403, headers })
     if (syntheticResult.error.message.includes('synthetic_catalog_map_disabled'))
       return Response.json({ error: { code: 'MAP_UNAVAILABLE' } }, { status: 503, headers })
+    if (isInvalidNearbyInput(syntheticResult.error.message))
+      return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
     if (!syntheticResult.error.message.includes('synthetic_catalog_outside_stage'))
       return Response.json({ error: { code: 'CATALOG_UNAVAILABLE' } }, { status: 503, headers })
     const result = await gatewayClient.rpc('public_catalog_gateway_request', {
@@ -146,6 +220,8 @@ export function createPublicCatalogHandler(
         { error: { code: 'RATE_LIMITED' } },
         { status: 429, headers: { ...headers, 'Retry-After': '300' } },
       )
+    if (isInvalidNearbyInput(result.error?.message))
+      return Response.json({ error: { code: 'INVALID_REQUEST' } }, { status: 400, headers })
     if (result.error)
       return Response.json({ error: { code: 'CATALOG_UNAVAILABLE' } }, { status: 503, headers })
     return Response.json({ data: result.data }, { headers })
