@@ -19,9 +19,22 @@ const sessionSignout = process.argv.includes('--session-signout')
 const mediaOnly = process.argv.includes('--media-only')
 const partnerRemoval = process.argv.includes('--partner-removal')
 const accountSettings = process.argv.includes('--account-settings')
+const detailsAddToTrip = process.argv.includes('--details-add-to-trip')
+const anonymousDiscovery = process.argv.includes('--anonymous-discovery')
+const myTripsVisuals = process.argv.includes('--my-trips-visuals')
+const fullShopperFixtureScope = !anonymousDiscovery
+const scopes = [
+  sessionSignout,
+  mediaOnly,
+  partnerRemoval,
+  accountSettings,
+  detailsAddToTrip,
+  anonymousDiscovery,
+  myTripsVisuals,
+].filter(Boolean)
 const report = {
   scope:
-    [sessionSignout, mediaOnly, partnerRemoval, accountSettings].filter(Boolean).length > 1
+    scopes.length > 1
       ? 'invalid'
       : sessionSignout
         ? 'session-signout'
@@ -31,7 +44,13 @@ const report = {
             ? 'accepted-partner-removal'
             : accountSettings
               ? 'two-user-account-settings'
-              : 'connected-shopper',
+              : detailsAddToTrip
+                ? 'details-add-to-trip'
+                : anonymousDiscovery
+                  ? 'anonymous-discovery'
+                  : myTripsVisuals
+                    ? 'my-trips-visuals'
+                    : 'connected-shopper',
   status: 'unavailable',
   stage: 'preflight',
   failedAt: undefined,
@@ -48,8 +67,7 @@ process.on('SIGTERM', interrupt)
 let service, server
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
-  if ([sessionSignout, mediaOnly, partnerRemoval, accountSettings].filter(Boolean).length > 1)
-    throw new Error('Choose one configured acceptance scope')
+  if (scopes.length > 1) throw new Error('Choose one configured acceptance scope')
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
     throw new Error('External endpoint selection is forbidden')
   const origin = `http://127.0.0.1:${await freePort()}`
@@ -105,6 +123,7 @@ try {
   })
   const env = {
     ...process.env,
+    ...(fullShopperFixtureScope ? { VITE_PUBLIC_TEST_CATALOG_ONLY: 'false' } : {}),
     VITE_SUPABASE_URL: local.endpoint,
     VITE_SUPABASE_ANON_KEY: local.anonKey,
     VITE_REVIEW_HARNESS: 'false',
@@ -115,7 +134,27 @@ try {
     VITE_BROWSE_MAP_ENABLED: 'false',
     CONFIGURED_SHOPPER_INPUT: secretFile,
     CONFIGURED_SHOPPER_OUTPUT: output.directory,
+    CONFIGURED_SHOPPER_MY_TRIPS_VISUALS: myTripsVisuals ? '1' : '0',
   }
+  const catalogOnlyPublicTest = env.VITE_PUBLIC_TEST_CATALOG_ONLY === 'true'
+  const isLiteralLoopbackHttpUrl = (value) => {
+    const match = /^http:\/\/127\.0\.0\.1:([1-9]\d{0,4})\/?$/.exec(value ?? '')
+    return Boolean(match) && Number(match[1]) <= 65535
+  }
+  const configuredLocalMarker =
+    env.VITE_REVIEW_HARNESS === 'false' &&
+    !catalogOnlyPublicTest &&
+    Boolean(env.VITE_SUPABASE_ANON_KEY?.trim()) &&
+    isLiteralLoopbackHttpUrl(env.VITE_SUPABASE_URL) &&
+    isLiteralLoopbackHttpUrl(origin)
+  const localTripEvaluation = !catalogOnlyPublicTest && configuredLocalMarker
+  if (
+    fullShopperFixtureScope &&
+    (!configuredLocalMarker || !localTripEvaluation || local.users?.length !== 2)
+  )
+    throw new Error('Configured local shopper fixture admission failed')
+  env.CONFIGURED_SHOPPER_LOCAL_MARKER = String(configuredLocalMarker)
+  env.CONFIGURED_SHOPPER_LOCAL_TRIP_EVALUATION = String(localTripEvaluation)
   const build = path.join(local.directory, 'browser-dist')
   await command(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', build], {
     env,
@@ -181,7 +220,22 @@ try {
                     '--grep',
                     'two local accounts keep settings private across save, fresh login, and revocation$',
                   ]
-                : []),
+                : detailsAddToTrip
+                  ? [
+                      '--grep',
+                      'visible Details Add to Trip preserves store through cancel, auth failure, and sign-in$',
+                    ]
+                  : anonymousDiscovery
+                    ? [
+                        '--grep',
+                        'anonymous discovery, permitted photo and JIT save context return$',
+                      ]
+                    : myTripsVisuals
+                      ? [
+                          '--grep',
+                          'visible Saved-row chooser cancels, retries, and reads back one dated stop$',
+                        ]
+                      : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
@@ -198,7 +252,16 @@ try {
   } else {
     const results = browserReport(
       fs.readFileSync(resultPath, 'utf8'),
-      sessionSignout ? 4 : mediaOnly || partnerRemoval || accountSettings ? 2 : 22,
+      sessionSignout
+        ? 4
+        : mediaOnly ||
+            partnerRemoval ||
+            accountSettings ||
+            detailsAddToTrip ||
+            anonymousDiscovery ||
+            myTripsVisuals
+          ? 2
+          : 26,
     )
     report.stats = results.stats
     report.checks = results.checks

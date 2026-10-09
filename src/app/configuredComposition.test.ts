@@ -74,7 +74,11 @@ const harness = vi.hoisted(() => {
 
 vi.mock('@supabase/supabase-js', () => ({ createClient: vi.fn(() => harness.supabase) }))
 
-import { configuredComposition, createAuthProvider } from './configuredComposition'
+import {
+  configuredComposition,
+  createAuthProvider,
+  isConfiguredLocalShopperReview,
+} from './configuredComposition'
 import {
   RECOVERY_ACCEPTED_BYTES,
   handleAuthRecoveryRequest,
@@ -122,6 +126,55 @@ function providerSessionFixture() {
     },
   }
 }
+
+describe('configured-local shopper review provenance', () => {
+  const allowed: Parameters<typeof isConfiguredLocalShopperReview>[0] = {
+    supabaseUrl: 'http://127.0.0.1:54321',
+    anonKey: 'local-anon-key',
+    browserOrigin: 'http://127.0.0.1:4174',
+    reviewHarness: 'false',
+    catalogOnlyPublicTest: false,
+  }
+  const admits = (overrides: Partial<typeof allowed> = {}) =>
+    isConfiguredLocalShopperReview({ ...allowed, ...overrides })
+
+  it('admits configured loopback service and browser on independent nonzero ports', () => {
+    expect(admits()).toBe(true)
+    expect(admits({ supabaseUrl: 'http://127.0.0.1:65535/' })).toBe(true)
+  })
+
+  it.each([
+    'https://127.0.0.1:54321',
+    'http://localhost:54321',
+    'http://[::1]:54321',
+    'http://2130706433:54321',
+    'http://127.0.0.1',
+    'http://127.0.0.1:0',
+    'http://127.0.0.1:65536',
+    'http://user:pass@127.0.0.1:54321',
+    'http://127.0.0.1:54321/path',
+    'http://127.0.0.1:54321?mode=local',
+    'http://127.0.0.1:54321#local',
+  ])('rejects a nonliteral or unsafe service URL: %s', (supabaseUrl) => {
+    expect(admits({ supabaseUrl })).toBe(false)
+  })
+
+  it.each([
+    { supabaseUrl: null },
+    { anonKey: null },
+    { anonKey: '   ' },
+    { browserOrigin: null },
+    { browserOrigin: 'http://localhost:4174' },
+    { browserOrigin: 'http://127.0.0.1:0' },
+    { browserOrigin: 'http://127.0.0.1:4174/path' },
+    { browserOrigin: 'http://user@127.0.0.1:4174' },
+    { reviewHarness: undefined },
+    { reviewHarness: 'true' },
+    { catalogOnlyPublicTest: true },
+  ])('requires configured credentials, literal browser origin, and local mode: %#', (override) => {
+    expect(admits(override)).toBe(false)
+  })
+})
 
 describe('social sign-in provider adapter', () => {
   beforeEach(() => vi.clearAllMocks())

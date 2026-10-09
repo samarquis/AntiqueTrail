@@ -3,11 +3,275 @@ import AxeBuilder from '@axe-core/playwright'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import { createLocalService, loopbackRequest } from '../scripts/configured-shopper-local.mjs'
+import { verifyConfiguredMyTripsVisibleNavigation } from './configured-my-trips-navigation.case'
 
 const input = JSON.parse(fs.readFileSync(process.env.CONFIGURED_SHOPPER_INPUT!, 'utf8'))
 const service = createLocalService({ resumeDirectory: input.directory })
 const A = '00000000-0000-4000-8000-000000001001'
 const B = '00000000-0000-4000-8000-000000001002'
+const issue565RoutePaths = new Set([
+  '/auth/sign-in',
+  '/trips/new',
+  '/stores',
+  '/stores/clockwork-cabinet',
+])
+const issue565CoverPath = '/images/synthetic-stores/1280w/blue-finch-curios-cover.webp'
+const issue565CatalogErrorCodes = new Set([
+  'GATEWAY_UNAVAILABLE',
+  'INVALID_REQUEST',
+  'INVALID_OPERATION',
+  'MAP_UNAVAILABLE',
+  'RATE_LIMITED',
+  'ALPHA_AUTH_REQUIRED',
+  'CATALOG_UNAVAILABLE',
+])
+
+type Issue565CatalogFailure = {
+  operation: 'list' | 'details'
+  status: number
+  errorCode: string
+}
+
+function issue565CatalogFailureProbe(page: Page) {
+  let firstFailure: Promise<Issue565CatalogFailure> | null = null
+  page.on('response', (response) => {
+    if (firstFailure || response.status() < 400 || response.status() > 599) return
+    try {
+      if (new URL(response.url()).pathname !== '/functions/v1/public-catalog') return
+      const request = response.request()
+      if (request.method() !== 'POST') return
+      const body = request.postDataJSON() as { operation?: unknown }
+      if (body.operation !== 'list' && body.operation !== 'details') return
+      const operation = body.operation
+      firstFailure = (async () => {
+        let errorCode = 'other'
+        try {
+          const payload = (await response.json()) as { error?: { code?: unknown } }
+          if (
+            typeof payload.error?.code === 'string' &&
+            issue565CatalogErrorCodes.has(payload.error.code)
+          )
+            errorCode = payload.error.code
+        } catch {
+          /* Keep only the fixed fallback when the response is not JSON. */
+        }
+        return { operation, status: response.status(), errorCode }
+      })()
+    } catch {
+      /* Ignore unrelated or malformed responses. */
+    }
+  })
+  return async () => (firstFailure ? await firstFailure : null)
+}
+
+function issue565Path(value: string | null, base = 'http://127.0.0.1/') {
+  if (value === null) return '<missing>'
+  try {
+    const path = new URL(value, base).pathname
+    return issue565RoutePaths.has(path) ? path : '<other-route>'
+  } catch {
+    return '<other-route>'
+  }
+}
+
+async function issue565AddToTripProbe(page: Page, link: ReturnType<Page['getByRole']>) {
+  const [detailsHeadingCount, publicViewCount, previewNoticeCount] = await Promise.all([
+    page
+      .getByRole('heading', { level: 1, name: 'Clockwork Cabinet', exact: true })
+      .count()
+      .catch(() => 0),
+    page
+      .getByText(
+        'Public directory view. Sign out and use a separate shopper account for private actions.',
+        { exact: true },
+      )
+      .count()
+      .catch(() => 0),
+    page
+      .getByText('Local preview only. Save and store claim actions are unavailable.', {
+        exact: true,
+      })
+      .count()
+      .catch(() => 0),
+  ])
+  const gates = {
+    catalogOnly: process.env.VITE_PUBLIC_TEST_CATALOG_ONLY === 'true',
+    configuredLocalMarker: process.env.CONFIGURED_SHOPPER_LOCAL_MARKER === 'true',
+    localTripEvaluation: process.env.CONFIGURED_SHOPPER_LOCAL_TRIP_EVALUATION === 'true',
+    shopperProjection: detailsHeadingCount === 1 && publicViewCount === 0,
+    previewGuard: detailsHeadingCount === 1 && previewNoticeCount > 0,
+  }
+  const locatorCount = await link.count().catch(() => 0)
+  if (locatorCount !== 1)
+    return {
+      ...gates,
+      locatorCount,
+      hrefPath: '<missing>',
+      disabled: null,
+      ariaDisabled: 'unset',
+      pointerEvents: 'unknown',
+    }
+  const [href, disabled, ariaDisabled, pointerEvents] = await Promise.all([
+    link.getAttribute('href').catch(() => null),
+    link.isDisabled().catch(() => null),
+    link.getAttribute('aria-disabled').catch(() => null),
+    link.evaluate((element) => getComputedStyle(element).pointerEvents).catch(() => 'unknown'),
+  ])
+  return {
+    ...gates,
+    locatorCount,
+    hrefPath: issue565Path(href, page.url()),
+    disabled,
+    ariaDisabled: ariaDisabled === 'true' || ariaDisabled === 'false' ? ariaDisabled : 'unset',
+    pointerEvents: pointerEvents === 'auto' || pointerEvents === 'none' ? pointerEvents : 'other',
+  }
+}
+
+function expectIssue565FixtureAdmission(
+  diagnostics: Awaited<ReturnType<typeof issue565AddToTripProbe>>,
+) {
+  expect(diagnostics.catalogOnly).toBe(false)
+  expect(diagnostics.configuredLocalMarker).toBe(true)
+  expect(diagnostics.localTripEvaluation).toBe(true)
+  expect(diagnostics.shopperProjection).toBe(true)
+  expect(diagnostics.previewGuard).toBe(false)
+}
+
+async function issue565DiscoveryProbe(
+  page: Page,
+  coverStatuses: number[],
+  coverFailed: boolean,
+  catalogFailure?: () => Promise<Issue565CatalogFailure | null>,
+) {
+  const viewState =
+    (await page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' }).count()) > 0
+      ? 'details'
+      : (await page.getByRole('heading', { name: 'Store not found', exact: true }).count()) > 0
+        ? 'not-found'
+        : (await page.getByRole('heading', { name: 'We couldn’t load the stores' }).count()) > 0
+          ? 'catalog-error'
+          : (await page.getByRole('heading', { name: 'Finding stores' }).count()) > 0
+            ? 'loading'
+            : (await page
+                  .getByRole('heading', {
+                    name: /^(No matching stores|The trail is quiet for now)$/,
+                  })
+                  .count()) > 0
+              ? 'browse-empty'
+              : 'other'
+  const image = page
+    .getByRole('img', { name: /Illustrated synthetic cover for Clockwork Cabinet/ })
+    .first()
+  const imageCount = await image.count()
+  const imageState =
+    imageCount === 0
+      ? 'not-rendered'
+      : await image
+          .evaluate((element: HTMLImageElement) =>
+            element.complete ? (element.naturalWidth > 0 ? 'loaded' : 'broken') : 'loading',
+          )
+          .catch(() => 'other')
+  const imageErrors = await page
+    .evaluate(() =>
+      Number((window as Window & { __issue565CoverErrors?: number }).__issue565CoverErrors ?? 0),
+    )
+    .catch(() => 0)
+  return {
+    path: issue565Path(page.url()),
+    viewState,
+    coverHttpStatus: coverStatuses.at(-1) ?? null,
+    coverRequestFailed: coverFailed,
+    imageState,
+    imageErrors: imageErrors === 0 ? 0 : 1,
+    ...(catalogFailure && { catalogFailure: await catalogFailure() }),
+  }
+}
+
+async function tokenSessionClaims(token: string) {
+  try {
+    const encoded = token.split('.')[1]
+    if (!encoded || !/^[A-Za-z0-9_-]+$/.test(encoded)) return null
+    const claims = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as {
+      sub?: unknown
+      session_id?: unknown
+    }
+    const sessionId = typeof claims.session_id === 'string' ? claims.session_id : ''
+    if (!/^[a-f0-9-]{36}$/i.test(sessionId)) return null
+    return { matchesSibling: claims.sub === input.users[1].id, sessionId: uuid(sessionId) }
+  } catch {
+    return null
+  }
+}
+
+async function safeRpcOutcome(token: string, name: string, body: object) {
+  try {
+    await rpc(token, name, body)
+    return 'returned'
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    const match = /^HTTP ([1-5]\d\d) ([A-Za-z0-9_]+)/.exec(message)
+    if (!match) return 'transport-error'
+    const code = ['P0001', '42501', 'PGRST202', '401', '403'].includes(match[2])
+      ? match[2]
+      : 'other'
+    return `http-${match[1]}-${code}`
+  }
+}
+async function expectDetailsSignIn(
+  page: Page,
+  catalogFailure: () => Promise<Issue565CatalogFailure | null>,
+) {
+  const link = page.getByRole('link', { name: 'Add to Trip', exact: true })
+  const detailsHeading = page.getByRole('heading', {
+    level: 1,
+    name: 'Clockwork Cabinet',
+    exact: true,
+  })
+  let stage = 'before-click'
+  let beforeClick = await issue565AddToTripProbe(page, link)
+  let pathnameAfterClick = '<missing>'
+  try {
+    await expect(detailsHeading).toBeVisible()
+    stage = 'details-ready'
+    beforeClick = await issue565AddToTripProbe(page, link)
+    expectIssue565FixtureAdmission(beforeClick)
+    await expect(link).toHaveCount(1)
+    beforeClick = await issue565AddToTripProbe(page, link)
+    expectIssue565FixtureAdmission(beforeClick)
+    await link.click()
+    stage = 'click-resolved'
+    pathnameAfterClick = issue565Path(page.url())
+    stage = 'assert-route'
+    test.info().annotations.push({
+      type: 'issue-565-add-to-trip-probe',
+      description: JSON.stringify({
+        stage,
+        ...beforeClick,
+        pathnameAfterClick,
+      }),
+    })
+    await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=/)
+  } catch (error) {
+    test.info().annotations.push({
+      type: 'issue-565-add-to-trip-probe',
+      description: JSON.stringify({
+        stage,
+        ...beforeClick,
+        pathnameAfterClick,
+        pathnameAtFailure: issue565Path(page.url()),
+      }),
+    })
+    if (stage === 'before-click')
+      test.info().annotations.push({
+        type: 'issue-565-discovery-probe',
+        description: JSON.stringify({
+          stage: 'details-heading',
+          ...(await issue565DiscoveryProbe(page, [], false, catalogFailure)),
+        }),
+      })
+    throw error
+  }
+}
 const uuid = (value: string) => {
   if (!/^[a-f0-9-]{36}$/.test(value)) throw new Error('Invalid fixture UUID')
   return value
@@ -25,6 +289,10 @@ const saved = () =>
     .sql(
       `select count(*) from shopper_private.saved_stores where user_id='${owner}' and store_id='${A}';`,
     )
+    .then((s: string) => Number(s.trim()))
+const ownedTripCount = () =>
+  service
+    .sql(`select count(*) from trip_private.trips where owner_id='${owner}';`)
     .then((s: string) => Number(s.trim()))
 const read = (id: string) =>
   service
@@ -148,16 +416,89 @@ test('creator removes an accepted partner through configured transport', async (
 })
 
 test('anonymous discovery, permitted photo and JIT save context return', async ({ page }) => {
+  const coverStatuses: number[] = []
+  const catalogFailure = issue565CatalogFailureProbe(page)
+  let coverFailed = false
+  await page.addInitScript((coverPath) => {
+    const target = window as Window & { __issue565CoverErrors?: number }
+    target.__issue565CoverErrors = 0
+    window.addEventListener(
+      'error',
+      (event) => {
+        const image = event.target
+        if (image instanceof HTMLImageElement && new URL(image.src).pathname === coverPath)
+          target.__issue565CoverErrors = (target.__issue565CoverErrors ?? 0) + 1
+      },
+      true,
+    )
+  }, issue565CoverPath)
+  page.on('response', (response) => {
+    try {
+      if (new URL(response.url()).pathname === issue565CoverPath)
+        coverStatuses.push(response.status())
+    } catch {
+      /* Ignore unrelated or malformed URLs. */
+    }
+  })
+  page.on('requestfailed', (request) => {
+    try {
+      if (new URL(request.url()).pathname === issue565CoverPath) coverFailed = true
+    } catch {
+      /* Ignore unrelated or malformed URLs. */
+    }
+  })
   await page.goto('/stores')
-  await page.getByRole('link', { name: 'Clockwork Cabinet', exact: true }).first().click()
-  await expect(page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' })).toBeVisible()
+  const storeLink = page.getByRole('link', { name: 'Clockwork Cabinet', exact: true }).first()
+  try {
+    await expect(storeLink).toBeVisible()
+  } catch (error) {
+    test.info().annotations.push({
+      type: 'issue-565-discovery-probe',
+      description: JSON.stringify({
+        stage: 'store-link',
+        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed, catalogFailure)),
+      }),
+    })
+    throw error
+  }
+  await storeLink.click()
+  try {
+    await expect(page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' })).toBeVisible()
+  } catch (error) {
+    test.info().annotations.push({
+      type: 'issue-565-discovery-probe',
+      description: JSON.stringify({
+        stage: 'details-heading',
+        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed, catalogFailure)),
+      }),
+    })
+    throw error
+  }
   const photo = page
     .getByRole('img', { name: /Illustrated synthetic cover for Clockwork Cabinet/ })
     .first()
-  await expect(photo).toBeVisible()
-  expect(
-    await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
-  ).toBe(true)
+  try {
+    await expect(photo).toBeVisible()
+    expect(
+      await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+    ).toBe(true)
+    expect(coverStatuses).toContain(200)
+    expect(coverFailed).toBe(false)
+    expect(
+      await page.evaluate(
+        () => (window as Window & { __issue565CoverErrors?: number }).__issue565CoverErrors ?? 0,
+      ),
+    ).toBe(0)
+  } catch (error) {
+    test.info().annotations.push({
+      type: 'issue-565-discovery-probe',
+      description: JSON.stringify({
+        stage: 'cover-image',
+        ...(await issue565DiscoveryProbe(page, coverStatuses, coverFailed, catalogFailure)),
+      }),
+    })
+    throw error
+  }
   await page.getByRole('link', { name: /save clockwork cabinet.*requires sign-in/i }).click()
   await expect(page).toHaveURL(/\/auth\/sign-in/)
   expect(await saved()).toBe(0)
@@ -165,6 +506,151 @@ test('anonymous discovery, permitted photo and JIT save context return', async (
   await submitLogin(page)
   await expect.poll(saved).toBe(1)
   await expect(page).toHaveURL(/\/stores\/clockwork-cabinet$/)
+})
+
+test('visible Details Add to Trip preserves store through cancel, auth failure, and sign-in', async ({
+  page,
+}) => {
+  const catalogFailure = issue565CatalogFailureProbe(page)
+  const tripsBefore = await ownedTripCount()
+  await page.goto('/stores/clockwork-cabinet')
+  await expectDetailsSignIn(page, catalogFailure)
+
+  await page.getByRole('link', { name: 'Cancel and return without saving' }).click()
+  await expect(page).toHaveURL(/\/stores\/clockwork-cabinet$/)
+  expect(await ownedTripCount()).toBe(tripsBefore)
+
+  await expectDetailsSignIn(page, catalogFailure)
+  const failedLogin = page.waitForResponse((response) =>
+    response.url().includes('/auth/v1/token?grant_type=password'),
+  )
+  await page.getByLabel('Email', { exact: true }).fill(input.users[0].email)
+  await page.getByLabel('Password', { exact: true }).fill('incorrect-local-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  expect((await failedLogin).ok()).toBe(false)
+  await expect(page.getByRole('alert')).toBeVisible()
+  expect(await ownedTripCount()).toBe(tripsBefore)
+
+  await submitLogin(page)
+  await expect(page).toHaveURL(new RegExp(`/trips/new\\?addStoreId=${A}`))
+  await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+
+  const name = `Details outing ${crypto.randomUUID().slice(0, 8)}`
+  await page.getByLabel('Trip name', { exact: true }).fill(name)
+  await page.getByLabel('Date', { exact: true }).fill('2026-10-10')
+  await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
+  await page.getByRole('link', { name: 'View Trip', exact: true }).click()
+  const id = uuid(page.url().split('/trips/')[1].split('/')[0])
+  const trip = await read(id)
+  expect(trip.name).toBe(name)
+  expect(trip.date).toBe('2026-10-10')
+  expect(trip.stops.map((stop: { store: string }) => stop.store)).toEqual([A])
+  expect(await ownedTripCount()).toBe(tripsBefore + 1)
+})
+
+test('visible Saved-row chooser cancels, retries, and reads back one dated stop', async ({
+  page,
+  browser,
+}) => {
+  await login(page, 0, '/stores/clockwork-cabinet')
+  await page.getByRole('button', { name: 'Save store Clockwork Cabinet', exact: true }).click()
+  await expect.poll(saved).toBe(1)
+
+  const id = crypto.randomUUID()
+  const tripName = 'Saved entry retry trip'
+  await service.sql(
+    `insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date) values ('${id}','${owner}','00000000-0000-4000-8000-000000000001','${tripName}','2026-10-11'); insert into trip_private.trip_participants(trip_id,user_id,participant_role) values ('${id}','${owner}','creator');`,
+  )
+
+  await page.goto('/saved')
+  await expect(page.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Add Clockwork Cabinet to a trip' }).click()
+  await expect(page).toHaveURL(new RegExp(`/trips/new\\?addStoreId=${A}&returnTo=%2Fsaved`))
+  await expect(page.getByRole('button', { name: `Add to ${tripName}`, exact: true })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Back to saved stores', exact: true }).click()
+  await expect(page).toHaveURL(/\/saved$/)
+  expect((await read(id)).stops).toEqual([])
+
+  await page.getByRole('link', { name: 'Add Clockwork Cabinet to a trip' }).click()
+  await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+
+  let addAttempts = 0
+  await page.route('**/rest/v1/rpc/add_trip_store_stop', async (route) => {
+    if (route.request().method() === 'POST') {
+      addAttempts++
+      if (addAttempts === 1) {
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'Temporary local test failure' }),
+        })
+        return
+      }
+    }
+    await route.continue()
+  })
+  await page.getByRole('button', { name: `Add to ${tripName}`, exact: true }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  expect(addAttempts).toBe(1)
+  expect((await read(id)).stops).toEqual([])
+
+  await page.getByRole('button', { name: `Add to ${tripName}`, exact: true }).click()
+  await expect(
+    page.getByRole('heading', { name: `Added to ${tripName}`, exact: true }),
+  ).toBeVisible()
+  expect(addAttempts).toBe(2)
+  await page.unroute('**/rest/v1/rpc/add_trip_store_stop')
+  await page.getByRole('link', { name: 'View Trip', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`/trips/${id}/plan$`))
+  const trip = await read(id)
+  expect(trip.name).toBe(tripName)
+  expect(trip.date).toBe('2026-10-11')
+  expect(trip.stops.map((stop: { store: string }) => stop.store)).toEqual([A])
+
+  if (process.env.CONFIGURED_SHOPPER_MY_TRIPS_VISUALS === '1') {
+    await page.emulateMedia({ colorScheme: 'light' })
+    await page.goto('/stores')
+    const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' })
+    await primaryNavigation.getByRole('link', { name: 'More', exact: true }).click()
+    await expect(page.getByRole('heading', { level: 1, name: 'More' })).toBeFocused()
+    await page.screenshot({ path: test.info().outputPath('more-light.png'), fullPage: true })
+    const myTrips = page
+      .getByRole('navigation', { name: 'More destinations' })
+      .getByRole('link', { name: 'My trips', exact: true })
+    await page.getByRole('button', { name: 'Switch to dark theme' }).click()
+    await page.screenshot({ path: test.info().outputPath('more-dark.png'), fullPage: true })
+    await expect(myTrips).toBeVisible()
+    await myTrips.click()
+    await expect(page.getByRole('heading', { level: 1, name: 'My trips' })).toBeFocused()
+    const tripRow = page.getByLabel('My trips').locator('li').filter({ hasText: tripName })
+    await expect(tripRow).toContainText(trip.date)
+    await page.screenshot({ path: test.info().outputPath('trips-dark.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Switch to light theme' }).click()
+    await page.screenshot({ path: test.info().outputPath('trips-light.png'), fullPage: true })
+    const tripLink = tripRow.getByRole('link', { name: tripName, exact: true })
+    await tripLink.click()
+    await expect(page).toHaveURL(new RegExp(`/trips/${id}/plan$`))
+    await expect(page.getByRole('heading', { level: 1, name: tripName, exact: true })).toBeFocused()
+    await expect(page.getByText(`Trip date: ${trip.date}`)).toBeVisible()
+    await page.screenshot({ path: test.info().outputPath('plan-light.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Switch to dark theme' }).click()
+    await page.screenshot({ path: test.info().outputPath('plan-dark.png'), fullPage: true })
+
+    const shopperBContext = await browser.newContext({ baseURL: input.origin })
+    try {
+      const shopperB = await shopperBContext.newPage()
+      await login(shopperB, 1, '/stores')
+      await verifyConfiguredMyTripsVisibleNavigation(page, shopperB, {
+        id,
+        name: trip.name,
+        localDate: trip.date,
+      })
+    } finally {
+      await shopperBContext.close()
+    }
+  }
 })
 
 test('JIT trip entry, authenticated catalog, photo, save and two-store creation', async ({
@@ -763,16 +1249,84 @@ test('two local accounts keep settings private across save, fresh login, and rev
     await expect(siblingPage.getByLabel('Signed in as Issue 420 Sibling')).toHaveCount(0)
     expect(await storeAccess()).toEqual(storeAccessBefore)
 
+    const revocationProbe = {
+      tokenSubjectMatchesSibling: false,
+      tokenSessionActive: false,
+      activeSessionAfter: 'not-checked',
+      readOutcome: 'not-run',
+      writeOutcome: 'not-run',
+      profileUnchanged: null as boolean | null,
+    }
+    const annotateRevocation = () => {
+      test.info().annotations.push({
+        type: 'issue-565-session-revocation',
+        description: JSON.stringify(revocationProbe),
+      })
+    }
+
+    const claims = await tokenSessionClaims(freshSiblingToken)
+    revocationProbe.tokenSubjectMatchesSibling = claims?.matchesSibling === true
+    annotateRevocation()
+    expect(claims?.matchesSibling).toBe(true)
+
+    const siblingVersion = Number(
+      (
+        await service.sql(
+          `select version::text from app_private.profiles where user_id='${siblingId}';`,
+        )
+      ).trim(),
+    )
+    const sessionState = claims
+      ? await service.sql(
+          `select coalesce((select state::text from app_private.active_sessions where session_id='${claims.sessionId}' and user_id='${siblingId}'), 'missing');`,
+        )
+      : 'missing'
+    revocationProbe.tokenSessionActive = sessionState.trim() === 'active'
+    annotateRevocation()
+    expect(revocationProbe.tokenSessionActive).toBe(true)
+
     await service.sql(
-      `update app_private.active_sessions set state='revoked',revoked_at=statement_timestamp(),revocation_reason='issue_420_test_revocation' where user_id='${siblingId}' and state='active';`,
+      `update app_private.active_sessions set state='revoked',revoked_at=statement_timestamp(),revocation_reason='issue_565_test_revocation' where session_id='${claims!.sessionId}' and user_id='${siblingId}' and state='active';`,
     )
-    await expect(rpc(freshSiblingToken, 'account_get_settings', {})).rejects.toThrow(
-      /401|403|42501|account_settings_access_denied/,
+    const revokedState = await service.sql(
+      `select coalesce((select state::text from app_private.active_sessions where session_id='${claims!.sessionId}' and user_id='${siblingId}'), 'missing');`,
     )
+    const knownSessionStates = ['active', 'revoked', 'expired', 'missing']
+    revocationProbe.activeSessionAfter = knownSessionStates.includes(revokedState.trim())
+      ? revokedState.trim()
+      : 'other'
+    annotateRevocation()
+    expect(revocationProbe.activeSessionAfter).toBe('revoked')
+
+    const isAuthenticationDenial = (outcome: string) =>
+      /^http-(?:400-P0001|401-(?:401|403)|403-(?:42501|403))$/.test(outcome)
+    revocationProbe.readOutcome = await safeRpcOutcome(
+      freshSiblingToken,
+      'account_get_settings',
+      {},
+    )
+    annotateRevocation()
+    expect(isAuthenticationDenial(revocationProbe.readOutcome)).toBe(true)
+
+    revocationProbe.writeOutcome = await safeRpcOutcome(
+      freshSiblingToken,
+      'account_update_settings',
+      {
+        p_display_name: 'Issue 565 denied write probe',
+        p_location_address: '420 Sibling Private Address',
+        p_expected_version: siblingVersion + 1,
+        p_idempotency_key: 'issue565-revoked-write-probe',
+      },
+    )
+    annotateRevocation()
+    expect(isAuthenticationDenial(revocationProbe.writeOutcome)).toBe(true)
+
     const unchanged = await service.sql(
-      `select private_location_address from app_private.profiles where user_id='${siblingId}';`,
+      `select count(*)::text from app_private.profiles where user_id='${siblingId}' and version=${siblingVersion} and private_location_address='420 Sibling Private Address';`,
     )
-    expect(unchanged.trim()).toBe('420 Sibling Private Address')
+    revocationProbe.profileUnchanged = unchanged.trim() === '1'
+    annotateRevocation()
+    expect(revocationProbe.profileUnchanged).toBe(true)
   } finally {
     await siblingContext.close()
   }
