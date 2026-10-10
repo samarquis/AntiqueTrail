@@ -593,6 +593,12 @@ function boundedDate(value: string): string {
   return value
 }
 
+function boundedUuid(value: string): string {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(value))
+    throw genericFailure()
+  return value
+}
+
 function boundedEmail(value: string): string {
   const normalized = normalizeTripPartnerEmail(value)
   if (
@@ -643,7 +649,11 @@ export function createTripApi(
         () => {
           const name = normalizeTripName(input.name)
           if (!name) throw genericFailure()
-          return { name, local_date: boundedDate(input.localDate) }
+          return {
+            name,
+            local_date: boundedDate(input.localDate),
+            idempotency_key: boundedUuid(input.idempotencyKey),
+          }
         },
         parseTrip,
       )

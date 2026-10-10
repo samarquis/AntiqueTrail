@@ -1239,6 +1239,7 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
   const currentDisplayName = scenario.id === 'shopper-b' ? 'Shopper B' : 'Avery'
 
   const trips = new Map<string, Trip>()
+  const createAttempts = new Map<string, { fingerprint: string; tripId: string }>()
   const collaborations = new Map<string, TripCollaboration>()
   const offlineQueues = new Map<string, OfflineQueueSnapshot>()
   const checkMyDay = new Map<string, CheckMyDayServerResult>()
@@ -1395,7 +1396,17 @@ function tripClient(scenario: ReviewScenario, state: ReviewStateId): TripClient 
     async create(input) {
       allowed()
       await fixture(state, true, true)
-      return registerTrip(input)
+      const fingerprint = JSON.stringify([normalizeTripName(input.name), input.localDate])
+      const prior = createAttempts.get(input.idempotencyKey)
+      if (prior) {
+        if (prior.fingerprint !== fingerprint) throw new Error('Synthetic trip creation conflict.')
+        const replay = trips.get(prior.tripId)
+        if (!replay) throw new Error('Synthetic trip creation result unavailable.')
+        return structuredClone(replay)
+      }
+      const created = registerTrip(input)
+      createAttempts.set(input.idempotencyKey, { fingerprint, tripId: created.id })
+      return created
     },
     async cloneCompleted(tripId) {
       allowed()

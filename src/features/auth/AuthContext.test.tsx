@@ -1,4 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
+import { useRef, useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
@@ -89,10 +90,110 @@ function DelayedNameSave({ pending }: { pending: Promise<void> }) {
   )
 }
 
+function AccountPredicateProbe() {
+  const auth = useAuth()
+  const saved = useRef<(() => boolean) | null>(null)
+  const [result, setResult] = useState('unchecked')
+  return (
+    <>
+      <span data-testid="current-account-status">
+        {auth.isCurrentAccount() ? 'current' : 'stale'}
+      </span>
+      <button type="button" onClick={() => (saved.current = auth.isCurrentAccount)}>
+        Capture account
+      </button>
+      <button type="button" onClick={() => void auth.signIn({ ...session, userId: 'user-2' })}>
+        Switch account
+      </button>
+      <button type="button" onClick={() => void auth.signIn(session)}>
+        Switch back
+      </button>
+      <button
+        type="button"
+        onClick={() => void auth.signIn({ ...session, accessToken: 'refreshed-token' })}
+      >
+        Refresh account
+      </button>
+      <button type="button" onClick={() => setResult(saved.current?.() ? 'current' : 'stale')}>
+        Check captured account
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void auth.signOut()
+          setResult(saved.current?.() ? 'current' : 'stale')
+        }}
+      >
+        Sign out and check
+      </button>
+      <span data-testid="captured-account-result">{result}</span>
+    </>
+  )
+}
+
 describe('auth local sign-out cleanup', () => {
   afterEach(() => {
     cleanup()
     vi.useRealTimers()
+  })
+  it('invalidates a captured account synchronously when sign-out starts', async () => {
+    const store = new InMemoryAuthStore()
+    store.setSession(session)
+    let finishProviderSignOut!: () => void
+    const provider: AuthProviderAdapter = {
+      oauthProviders: { google: false, facebook: false },
+      signIn: vi.fn(async () => ({ kind: 'error' as const })),
+      sendRecovery: vi.fn(async () => undefined),
+      verifyMfa: vi.fn(async () => null),
+      signOut: vi.fn(() => new Promise<void>((resolve) => (finishProviderSignOut = resolve))),
+    }
+    render(
+      <AuthProvider authStore={store} provider={provider}>
+        <AccountPredicateProbe />
+      </AuthProvider>,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Capture account' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out and check' }))
+    expect(screen.getByTestId('captured-account-result')).toHaveTextContent('stale')
+    await act(async () => finishProviderSignOut())
+  })
+
+  it('invalidates A to B to A while preserving a same-account refresh', async () => {
+    const store = new InMemoryAuthStore()
+    store.setSession(session)
+    render(
+      <AuthProvider authStore={store}>
+        <AccountPredicateProbe />
+      </AuthProvider>,
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Capture account' }))
+    await user.click(screen.getByRole('button', { name: 'Refresh account' }))
+    await user.click(screen.getByRole('button', { name: 'Check captured account' }))
+    expect(screen.getByTestId('captured-account-result')).toHaveTextContent('current')
+    await user.click(screen.getByRole('button', { name: 'Switch account' }))
+    await user.click(screen.getByRole('button', { name: 'Switch back' }))
+    await user.click(screen.getByRole('button', { name: 'Check captured account' }))
+    expect(screen.getByTestId('captured-account-result')).toHaveTextContent('stale')
+  })
+
+  it('fails the captured predicate after cancellation-only state or expiry', () => {
+    const store = new InMemoryAuthStore()
+    store.setSession({ ...session, accountState: 'deletion_scheduled' })
+    render(
+      <AuthProvider authStore={store}>
+        <AccountPredicateProbe />
+      </AuthProvider>,
+    )
+    expect(screen.getByTestId('current-account-status')).toHaveTextContent('stale')
+    cleanup()
+    store.setSession({ ...session, expiresAt: Date.now() - 1 })
+    render(
+      <AuthProvider authStore={store}>
+        <AccountPredicateProbe />
+      </AuthProvider>,
+    )
+    expect(screen.getByTestId('current-account-status')).toHaveTextContent('stale')
   })
   it.each(['Saved Name', null])(
     'hydrates the canonical settings name %s instead of stale provider metadata',

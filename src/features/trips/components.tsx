@@ -1,6 +1,15 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { RequireSession, safeReturnTo } from '../auth'
+import { RequireSession, safeReturnTo, useAuth } from '../auth'
 import {
   GENERIC_TRIP_ERROR,
   MAX_ACTIVE_STOPS,
@@ -776,25 +785,108 @@ export function TripsPage({ client = unavailableTripClient }: { client?: TripCli
   )
 }
 
+interface TripCreateAttempt {
+  name: string
+  localDate: string
+  idempotencyKey: string
+  isCurrent: () => boolean
+}
+
+function useTripActionScope(client: TripClient, scopeKey?: string) {
+  const { session, isCurrentAccount } = useAuth()
+  const location = useLocation()
+  const identity = useMemo(
+    () => ({
+      client,
+      scopeKey,
+      isCurrentAccount,
+      userId: session?.userId,
+      locationKey: location.key,
+      pathname: location.pathname,
+      search: location.search,
+    }),
+    [
+      client,
+      scopeKey,
+      isCurrentAccount,
+      session?.userId,
+      location.key,
+      location.pathname,
+      location.search,
+    ],
+  )
+  const generation = useRef(0)
+  useLayoutEffect(() => {
+    const current = ++generation.current
+    return () => {
+      if (generation.current === current) generation.current += 1
+    }
+  }, [identity])
+  const capture = useCallback(() => {
+    const current = generation.current
+    const isAccountCurrent = isCurrentAccount
+    return () => generation.current === current && isAccountCurrent()
+  }, [isCurrentAccount])
+  return { identity, capture, userId: session?.userId }
+}
+
 function NewTripForm({ client }: { client: TripClient }) {
+  const { identity, capture } = useTripActionScope(client)
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [date, setDate] = useState('')
   const [error, setError] = useState(false)
   const [pending, setPending] = useState(false)
+  const [attempt, setAttempt] = useState<TripCreateAttempt | null>(null)
+  const attemptRef = useRef<TripCreateAttempt | null>(null)
+  const inFlight = useRef(false)
+  useLayoutEffect(() => {
+    attemptRef.current = null
+    setAttempt(null)
+    setError(false)
+    setPending(false)
+  }, [identity])
   async function submit(event: FormEvent) {
     event.preventDefault()
-    const normalized = normalizeTripName(name)
-    if (!normalized || !date) return
+    if (inFlight.current) return
+    let currentAttempt = attemptRef.current
+    if (currentAttempt && !currentAttempt.isCurrent()) {
+      attemptRef.current = null
+      setAttempt(null)
+      setError(false)
+      return
+    }
+    if (!currentAttempt) {
+      const normalized = normalizeTripName(name)
+      if (!normalized || !date) return
+      currentAttempt = {
+        name: normalized,
+        localDate: date,
+        idempotencyKey: crypto.randomUUID(),
+        isCurrent: capture(),
+      }
+      attemptRef.current = currentAttempt
+      setAttempt(currentAttempt)
+    }
+    if (!currentAttempt.isCurrent()) return
+    inFlight.current = true
     setPending(true)
     setError(false)
     try {
-      const trip = await client.create({ name: normalized, localDate: date })
+      const trip = await client.create({
+        name: currentAttempt.name,
+        localDate: currentAttempt.localDate,
+        idempotencyKey: currentAttempt.idempotencyKey,
+      })
+      if (!currentAttempt.isCurrent()) return
+      attemptRef.current = null
+      setAttempt(null)
       navigate(`/trips/${trip.id}/plan`)
     } catch {
-      setError(true)
+      if (currentAttempt.isCurrent()) setError(true)
     } finally {
-      setPending(false)
+      inFlight.current = false
+      if (currentAttempt.isCurrent()) setPending(false)
     }
   }
   return (
@@ -809,6 +901,7 @@ function NewTripForm({ client }: { client: TripClient }) {
           id="trip-name"
           value={name}
           onChange={(event) => setName(event.target.value)}
+          disabled={attempt !== null}
           maxLength={80}
           required
         />
@@ -818,6 +911,7 @@ function NewTripForm({ client }: { client: TripClient }) {
           type="date"
           value={date}
           onChange={(event) => setDate(event.target.value)}
+          disabled={attempt !== null}
           required
         />
         {error && <TripError />}
@@ -831,9 +925,16 @@ function NewTripForm({ client }: { client: TripClient }) {
 
 export function NewTripPage({ client = unavailableTripClient }: { client?: TripClient }) {
   const location = useLocation()
+  const { session } = useAuth()
   const query = new URLSearchParams(location.search)
   const addStoreId = query.get('addStoreId')
-  if (!addStoreId) return <NewTripForm client={client} />
+  if (!addStoreId)
+    return (
+      <NewTripForm
+        key={JSON.stringify([session?.userId, location.key, location.pathname, location.search])}
+        client={client}
+      />
+    )
   return <AddToTripPage storeId={addStoreId} returnTo={query.get('returnTo')} client={client} />
 }
 
@@ -850,6 +951,7 @@ export function AddToTripPage({
   returnTo?: string | null
   client?: TripClient
 }) {
+  const { identity, capture } = useTripActionScope(client, storeId)
   const backTarget = safeReturnTo(returnTo ?? null)
   const [trips, setTrips] = useState<Trip[] | 'error' | null>(null)
   const [name, setName] = useState('')
@@ -862,27 +964,52 @@ export function AddToTripPage({
   const [result, setResult] = useState<{ trip: Trip; stop: Trip['stops'][number] } | null>(null)
   const [undoing, setUndoing] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [createAttempt, setCreateAttempt] = useState<TripCreateAttempt | null>(null)
+  const createAttemptRef = useRef<TripCreateAttempt | null>(null)
+  const inFlight = useRef(false)
+
+  useLayoutEffect(() => {
+    createAttemptRef.current = null
+    inFlight.current = false
+    setTrips(null)
+    setName('')
+    setDate('')
+    setActionError(false)
+    setCreatedTripForRetry(null)
+    setPendingAction(null)
+    setResult(null)
+    setUndoing(false)
+    setNotice(null)
+    setCreateAttempt(null)
+  }, [identity])
 
   useEffect(() => {
     let cancelled = false
+    const isCurrent = capture()
+    if (!isCurrent()) return
     client
       .list()
       .then((list) => {
-        if (!cancelled) setTrips(list)
+        if (!cancelled && isCurrent()) setTrips(list)
       })
       .catch(() => {
-        if (!cancelled) setTrips('error')
+        if (!cancelled && isCurrent()) setTrips('error')
       })
     return () => {
       cancelled = true
     }
-  }, [client])
+  }, [client, identity, capture])
 
-  function reload() {
+  function reload(isCurrent = capture()) {
+    if (!isCurrent()) return
     client
       .list()
-      .then(setTrips)
-      .catch(() => setTrips('error'))
+      .then((list) => {
+        if (isCurrent()) setTrips(list)
+      })
+      .catch(() => {
+        if (isCurrent()) setTrips('error')
+      })
   }
 
   const tripsList = Array.isArray(trips) ? trips : []
@@ -896,73 +1023,120 @@ export function AddToTripPage({
   )
   const backLabel = backTarget === '/saved' ? 'Back to saved stores' : 'Back to stores'
 
-  async function addStoreStopWithReconciliation(tripId: string): Promise<Trip> {
+  async function addStoreStopWithReconciliation(
+    tripId: string,
+    isCurrent: () => boolean,
+  ): Promise<Trip> {
     try {
-      return await client.addStoreStop(tripId, storeId)
+      const next = await client.addStoreStop(tripId, storeId)
+      if (!isCurrent()) throw new Error('stale trip action')
+      return next
     } catch (error) {
+      if (!isCurrent()) throw error
       // A committed write can lose its response. Re-read the authoritative trip
       // before offering a retry so the same stop is never submitted forever.
       const current = await client.get(tripId).catch(() => null)
+      if (!isCurrent()) throw error
       if (current?.stops.some((stop) => stop.storeId === storeId)) return current
       throw error
     }
   }
 
   async function addToTrip(trip: Trip) {
-    if (pendingAction) return
+    if (inFlight.current || pendingAction) return
+    const isCurrent = capture()
+    if (!isCurrent()) return
+    inFlight.current = true
     setPendingAction({ kind: 'existing', trip })
     setActionError(false)
     setNotice(null)
     try {
-      const next = await addStoreStopWithReconciliation(trip.id)
+      const next = await addStoreStopWithReconciliation(trip.id, isCurrent)
+      if (!isCurrent()) return
       const stop = next.stops.find((candidate) => candidate.storeId === storeId)
       if (!stop) throw new Error('missing added stop')
       setResult({ trip: next, stop })
     } catch {
-      setActionError(true)
+      if (isCurrent()) setActionError(true)
     } finally {
-      setPendingAction(null)
+      inFlight.current = false
+      if (isCurrent()) setPendingAction(null)
     }
   }
 
   async function createAndAdd(event: FormEvent) {
     event.preventDefault()
-    const normalized = normalizeTripName(name)
-    if (!normalized || !date || pendingAction) return
+    if (inFlight.current || pendingAction) return
+    let attempt = createAttemptRef.current
+    if (attempt && !attempt.isCurrent()) {
+      createAttemptRef.current = null
+      setCreateAttempt(null)
+      setCreatedTripForRetry(null)
+      setActionError(false)
+      return
+    }
+    if (!attempt) {
+      const normalized = normalizeTripName(name)
+      if (!normalized || !date) return
+      attempt = {
+        name: normalized,
+        localDate: date,
+        idempotencyKey: crypto.randomUUID(),
+        isCurrent: capture(),
+      }
+      if (!attempt.isCurrent()) return
+      createAttemptRef.current = attempt
+      setCreateAttempt(attempt)
+    }
+    if (!attempt.isCurrent()) return
+    inFlight.current = true
     setPendingAction({ kind: 'new' })
     setActionError(false)
     setNotice(null)
     try {
       const created =
-        createdTripForRetry ?? (await client.create({ name: normalized, localDate: date }))
+        createdTripForRetry ??
+        (await client.create({
+          name: attempt.name,
+          localDate: attempt.localDate,
+          idempotencyKey: attempt.idempotencyKey,
+        }))
+      if (!attempt.isCurrent()) return
       setCreatedTripForRetry(created)
-      const next = await addStoreStopWithReconciliation(created.id)
+      const next = await addStoreStopWithReconciliation(created.id, attempt.isCurrent)
+      if (!attempt.isCurrent()) return
       const stop = next.stops.find((candidate) => candidate.storeId === storeId)
       if (!stop) throw new Error('missing added stop')
       setName('')
       setDate('')
       setCreatedTripForRetry(null)
+      createAttemptRef.current = null
+      setCreateAttempt(null)
       setResult({ trip: next, stop })
     } catch {
-      setActionError(true)
+      if (attempt.isCurrent()) setActionError(true)
     } finally {
-      setPendingAction(null)
+      inFlight.current = false
+      if (attempt.isCurrent()) setPendingAction(null)
     }
   }
 
   async function undoAddition() {
     if (!result || undoing) return
+    const isCurrent = capture()
+    if (!isCurrent()) return
     setUndoing(true)
     setActionError(false)
     try {
       const next = await client.removeStop(result.trip.id, result.stop.id, result.trip.version)
+      if (!isCurrent()) return
       setResult(null)
       setNotice(`The store was removed from ${next.name}.`)
-      reload()
+      reload(isCurrent)
     } catch {
-      setActionError(true)
+      if (isCurrent()) setActionError(true)
     } finally {
-      setUndoing(false)
+      if (isCurrent()) setUndoing(false)
     }
   }
 
@@ -1007,7 +1181,7 @@ export function AddToTripPage({
       {trips === 'error' ? (
         <>
           <TripError />
-          <button className="button" type="button" onClick={reload}>
+          <button className="button" type="button" onClick={() => reload()}>
             Try again
           </button>
         </>
@@ -1062,7 +1236,7 @@ export function AddToTripPage({
               id="trip-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              disabled={createdTripForRetry !== null}
+              disabled={createAttempt !== null}
               maxLength={80}
               required
             />
@@ -1072,7 +1246,7 @@ export function AddToTripPage({
               type="date"
               value={date}
               onChange={(event) => setDate(event.target.value)}
-              disabled={createdTripForRetry !== null}
+              disabled={createAttempt !== null}
               required
             />
             {actionError &&

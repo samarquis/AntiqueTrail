@@ -954,7 +954,11 @@ describe('scenario-aware review clients', () => {
     const reordered = await trips.saveCheckMyDayChoice!('trip-a', 'suggested', reversed)
     expect(reordered.stops.map((stop) => stop.id)).toEqual(reversed)
 
-    const fresh = await trips.create({ name: 'Blank slate', localDate: '2026-08-09' })
+    const fresh = await trips.create({
+      name: 'Blank slate',
+      localDate: '2026-08-09',
+      idempotencyKey: '56500000-0000-4000-8000-000000000101',
+    })
     expect(fresh.state).toBe('draft')
     await expect(trips.start(fresh.id)).rejects.toThrow(/couldn't update this trip/i)
     await expect(trips.requestCheckMyDay!(fresh.id)).resolves.toMatchObject({
@@ -965,6 +969,30 @@ describe('scenario-aware review clients', () => {
       state: 'empty',
       pendingCount: 0,
     })
+  })
+
+  it('replays keyed creation only for the same actor and immutable payload', async () => {
+    const key = '56500000-0000-4000-8000-000000000105'
+    const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!
+    const first = await trips.create({
+      name: 'Retry trip',
+      localDate: '2026-08-10',
+      idempotencyKey: key,
+    })
+    await expect(
+      trips.create({ name: 'Retry trip', localDate: '2026-08-10', idempotencyKey: key }),
+    ).resolves.toEqual(first)
+    await expect(
+      trips.create({ name: 'Different trip', localDate: '2026-08-10', idempotencyKey: key }),
+    ).rejects.toThrow(/creation conflict/i)
+
+    const otherActor = createReviewHarnessClients(scenario('shopper-b'), 'success').trips!
+    const isolated = await otherActor.create({
+      name: 'Other actor trip',
+      localDate: '2026-08-10',
+      idempotencyKey: key,
+    })
+    expect(isolated.name).toBe('Other actor trip')
   })
 
   it('replays a real offline queue and resolves conflicts for review', async () => {
@@ -1001,7 +1029,11 @@ describe('scenario-aware review clients', () => {
 
   it('orders check-my-day by opening hours and persists stop-scoped visit memory', async () => {
     const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!
-    const fresh = await trips.create({ name: 'Hours demo', localDate: '2026-08-11' })
+    const fresh = await trips.create({
+      name: 'Hours demo',
+      localDate: '2026-08-11',
+      idempotencyKey: '56500000-0000-4000-8000-000000000102',
+    })
     await trips.updateSchedule(fresh.id, { localDate: '2026-08-11', departureMinute: 480 }, 1)
     const withBlueFinch = await trips.addStoreStop(fresh.id, '00000000-0000-4000-8000-000000000001')
     const withBoth = await trips.addStoreStop(fresh.id, '00000000-0000-4000-8000-000000000002')
@@ -1030,7 +1062,11 @@ describe('scenario-aware review clients', () => {
 
   it('keeps repeated catalog visit memories scoped to separate stops', async () => {
     const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!
-    const fresh = await trips.create({ name: 'Repeated visits', localDate: '2026-08-12' })
+    const fresh = await trips.create({
+      name: 'Repeated visits',
+      localDate: '2026-08-12',
+      idempotencyKey: '56500000-0000-4000-8000-000000000103',
+    })
     const storeId = '00000000-0000-4000-8000-000000000001'
     const first = (await trips.addStoreStop(fresh.id, storeId)).stops.at(-1)!
     const second = (await trips.addStoreStop(fresh.id, storeId)).stops.at(-1)!
@@ -1082,7 +1118,11 @@ describe('scenario-aware review clients', () => {
     await expect(trips.list()).resolves.toEqual([expect.objectContaining({ id: 'trip-a' })])
     await expect(trips.get('trip-a')).resolves.toMatchObject({ id: 'trip-a' })
     await expect(trips.get('trip-creator-private')).resolves.toBeNull()
-    const created = await trips.create({ name: 'B trip', localDate: '2026-08-10' })
+    const created = await trips.create({
+      name: 'B trip',
+      localDate: '2026-08-10',
+      idempotencyKey: '56500000-0000-4000-8000-000000000104',
+    })
     await expect(trips.list()).resolves.toEqual([
       expect.objectContaining({ id: 'trip-a' }),
       expect.objectContaining({ id: created.id }),

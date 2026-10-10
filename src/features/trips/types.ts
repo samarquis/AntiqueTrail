@@ -165,7 +165,7 @@ export interface CheckMyDayServerResult {
 export interface TripClient {
   list(): Promise<Trip[]>
   get(id: string): Promise<Trip | null>
-  create(input: { name: string; localDate: string }): Promise<Trip>
+  create(input: { name: string; localDate: string; idempotencyKey: string }): Promise<Trip>
   cloneCompleted(tripId: string): Promise<Trip>
   addStop(
     tripId: string,
