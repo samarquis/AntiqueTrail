@@ -312,7 +312,11 @@ test('catalog diagnostics stay bounded with one distinct status per attempt', as
       ...options,
       fetcher: async () => {
         const status = 400 + calls++
-        return { ok: false, status, json: async () => ({}) }
+        return {
+          ok: false,
+          status,
+          json: async () => ({ error: { code: 'ALPHA_AUTH_REQUIRED' } }),
+        }
       },
     })
 
@@ -326,6 +330,12 @@ test('catalog diagnostics stay bounded with one distinct status per attempt', as
   assert.equal(diagnostic.httpStatusCounts.length, 60)
   assert.equal(diagnostic.httpStatusCounts[0].status, 400)
   assert.equal(diagnostic.httpStatusCounts[59].status, 459)
+  for (const key of ['first', 'firstHttp', 'last']) {
+    assert.equal(diagnostic.failures[key].safeErrorCode, 'ALPHA_AUTH_REQUIRED')
+    assert.equal(diagnostic.failures[key].transportCode, null)
+    assert.equal(diagnostic.failures[key].servingState, 'unavailable')
+    assert.equal(diagnostic.failures[key].servingExitCode, null)
+  }
 })
 
 test('non-array catalog payloads never admit startup or expose response content', async (t) => {
