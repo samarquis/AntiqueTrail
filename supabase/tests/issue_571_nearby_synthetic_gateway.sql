@@ -672,6 +672,7 @@ select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array
  repeat('f',64),'99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
  '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0.000004207810051198857,"p_device_radius_miles":5}'::jsonb)) x),
  array['99000000-0000-4000-8000-000000007101'::uuid],'restored runtime binding preserves A positive');
+select set_config('request.jwt.claims','{"role":"public_catalog_gateway"}',true);
 select set_config('request.headers','{"origin":"https://foreign.invalid"}',true);
 select throws_ok($$select app_public.internal_review_pre_request()$$,
  '42501','internal_request_denied','foreign origin is denied by pre-request guard');
@@ -692,6 +693,7 @@ select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('f
  '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
  '42501','synthetic_catalog_forbidden','unsupported path is denied by wrapper session check');
 select set_config('request.path','rpc/synthetic_catalog_gateway_request',true);
+select set_config('request.jwt.claims','{"role":"public_catalog_gateway"}',true);
 select lives_ok($$select app_public.internal_review_pre_request()$$,'restored gateway request context passes pre-request guard');
 select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(
  repeat('f',64),'99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
@@ -734,8 +736,11 @@ update app_public.stores s set name=o.name,latitude=o.latitude,longitude=o.longi
 from issue_644_seed_store_snapshot o where s.id=o.id;
 delete from app_public.store_fact_verifications where store_id='00000000-0000-4000-8000-000000001001';
 insert into app_public.store_fact_verifications select * from issue_644_seed_facts_snapshot;
-delete from app_public.store_category_assignments where store_id='00000000-0000-4000-8000-000000001001';
-insert into app_public.store_category_assignments select * from issue_644_seed_categories_snapshot;
+delete from app_public.store_category_assignments
+where store_id='00000000-0000-4000-8000-000000001001'
+ and category_id='99000000-0000-4000-8000-000000006351'
+ and not exists(select 1 from issue_644_seed_categories_snapshot
+  where store_id='00000000-0000-4000-8000-000000001001' and category_id='99000000-0000-4000-8000-000000006351');
 
 update app_public.stores set synthetic=false,audience='public' where id='99000000-0000-4000-8000-000000007101';
 set local role public_catalog_gateway;
