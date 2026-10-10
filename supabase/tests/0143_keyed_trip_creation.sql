@@ -463,7 +463,9 @@ select throws_ok($$select app_public.create_trip('Wrong route fixture','2030-10-
   '63400000-0000-4000-8000-000000000105')$$,'42501','internal_fixture_denied',
   'wrong internal route is denied by existing trip fixture guard');
 reset role;
-set local role identity_service;
+select is((select count(*)::integer from trip_private.trips
+  where owner_id='63400000-0000-4000-8000-000000000003' and name='Internal keyed fixture'),1,
+  'test runner can observe the admitted internal trip');
 select is((select count(*)::integer from trip_private.trips
   where owner_id='63400000-0000-4000-8000-000000000003' and name='Wrong route fixture'),0,
   'wrong route denial writes no trip');
@@ -471,14 +473,12 @@ select is((select count(*)::integer from trip_private.trip_create_receipts
   where actor_user_id='63400000-0000-4000-8000-000000000003'
     and idempotency_key='63400000-0000-4000-8000-000000000105'),0,
   'wrong route denial writes no receipt');
-reset role;
 set local role authenticated;
 select set_config('request.path','',true);
 select throws_ok($$select app_public.create_trip('Missing route fixture','2030-10-12',
   '63400000-0000-4000-8000-000000000106')$$,'P0001','authorization_lost',
   'missing internal route is denied at the existing session boundary');
 reset role;
-set local role identity_service;
 select is((select count(*)::integer from trip_private.trips
   where owner_id='63400000-0000-4000-8000-000000000003' and name='Missing route fixture'),0,
   'missing route denial writes no trip');
@@ -512,9 +512,11 @@ reset role;
 do $$begin raise notice 'issue634.phase.account_purge_claim_query_complete'; end $$;
 select is((select count(*)::integer from issue634_claimed),1,
   'account purge fixture is claimed through normal due-deletion path');
+set local role account_lifecycle_service;
 select lives_ok($$select app_public.prepare_account_deletion(
   '63400000-0000-4000-8000-000000000030',(select claim_token from issue634_claimed),statement_timestamp())$$,
   'existing account preparation purges keyed-create data');
+reset role;
 select is((select count(*)::integer from trip_private.trip_create_receipts
   where actor_user_id='63400000-0000-4000-8000-000000000001'),0,
   'profile purge cascades target actor receipts');
