@@ -427,17 +427,17 @@ do $$begin raise notice 'issue634.phase.lost_response_complete'; end $$;
 -- Admit the same internal planning actor and session used by the existing 0120 fixture.
 do $$begin raise notice 'issue634.phase.internal_fixture_begin'; end $$;
 insert into internal_review_private.identities(user_id,alias,fixture_namespace,controlled_address)
-values('63400000-0000-4000-8000-000000000003','issue634-planner','issue634-keyed-trip',
-  'keyed-internal@issue634.invalid');
+values('63400000-0000-4000-8000-000000000003','shopper-a','review-reset-20260906',
+  'shopper-a@review-reset-20260906.invalid');
 insert into internal_review_private.runtime_binding values
  (1,'ykyrvqddgnfmgftjwpts',repeat('a',40),repeat('b',64),repeat('c',64),'dpl_Test',
- 'https://antique-trail-test-scott-marquis-projects.vercel.app','issue634-keyed-trip',statement_timestamp(),1);
+ 'https://antique-trail-test-scott-marquis-projects.vercel.app','product-reset-task',statement_timestamp(),1);
 insert into internal_review_private.authorizations(
  receipt_id,schema_version,context,owner_decision_reference,issuer_role,executor_task_id,teardown_owner,
  backend_project_ref,source_sha,artifact_digest,configuration_digest,deployment_id,exact_origin,runtime_version,
  fixture_manifest_digest,identity_allowlist,allowed_capabilities,excluded_provider_actions,issued_at,expires_at)
 values ('63400000-0000-4000-8000-000000000031',1,'internal_synthetic_assessment','ADR0008 owner approval',
- 'product_owner','01a07739-9f14-73c0-8253-2da0e5576afe','issue634-keyed-trip','ykyrvqddgnfmgftjwpts',
+ 'product_owner','01a07739-9f14-73c0-8253-2da0e5576afe','product-reset-task','ykyrvqddgnfmgftjwpts',
  repeat('a',40),repeat('b',64),repeat('c',64),'dpl_Test',
  'https://antique-trail-test-scott-marquis-projects.vercel.app',1,repeat('d',64),
  array['63400000-0000-4000-8000-000000000003']::uuid[],
