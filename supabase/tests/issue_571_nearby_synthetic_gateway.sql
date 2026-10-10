@@ -48,14 +48,15 @@ values('99000000-0000-4000-8000-000000006351','issue-644-synth','Nearby Fixture'
 insert into app_public.stores(id,synthetic,audience,publication_state,slug,name,town,state_code,address,area_id,latitude,longitude,summary,description)
 values
  ('99000000-0000-4000-8000-000000007101',true,'synthetic','active','nearby-644-7101','Nearby Boundary 7101','Fixture Town','KS','1 Test Street','99000000-0000-4000-8000-000000006350',0,0,'Issue 644 fixture','Synthetic gateway fixture.'),
- ('99000000-0000-4000-8000-000000007102',true,'synthetic','active','nearby-644-7102','Nearby Boundary 7102','Fixture Town','KS','2 Test Street','99000000-0000-4000-8000-000000006350',0,0.001,'Issue 644 fixture','Synthetic gateway fixture.');
+ ('99000000-0000-4000-8000-000000007102',true,'synthetic','active','nearby-644-7102','Nearby Boundary 7102','Fixture Town','KS','2 Test Street','99000000-0000-4000-8000-000000006350',0,0.001,'Issue 644 fixture','Synthetic gateway fixture.'),
+ ('99000000-0000-4000-8000-000000007105',false,'public','active','nearby-644-7105','Nearby Boundary Public','Fixture Town','KS','5 Test Street','99000000-0000-4000-8000-000000006350',0,0,'Issue 644 fixture','Transaction-isolated public Nearby fixture.');
 insert into app_public.store_category_assignments(store_id,category_id)
 select s.id,'99000000-0000-4000-8000-000000006351' from app_public.stores s where s.id in
- ('99000000-0000-4000-8000-000000007101','99000000-0000-4000-8000-000000007102');
+ ('99000000-0000-4000-8000-000000007101','99000000-0000-4000-8000-000000007102','99000000-0000-4000-8000-000000007105');
 insert into app_public.store_fact_verifications(store_id,verification_group,verified_at,provenance_label,verifier_kind)
 select s.id,g.group_name,statement_timestamp()-interval '20 days','Issue 644 synthetic fixture','two_person_public_source'
 from app_public.stores s cross join (values('identity_location'::app_public.verification_group),('contact'),('hours'),('categories_attributes'))g(group_name)
-where s.id in ('99000000-0000-4000-8000-000000007101','99000000-0000-4000-8000-000000007102');
+where s.id in ('99000000-0000-4000-8000-000000007101','99000000-0000-4000-8000-000000007102','99000000-0000-4000-8000-000000007105');
 
 select ok(has_schema_privilege('anon','app_public','USAGE')
  and has_schema_privilege('authenticated','app_public','USAGE')
@@ -106,10 +107,46 @@ select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array
  repeat('e',64),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
  '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0.000004207810051198857,"p_device_radius_miles":5}'::jsonb)) x),
  array['99000000-0000-4000-8000-000000007101'::uuid,'99000000-0000-4000-8000-000000007102'::uuid],'ordinary alpha shopper receives both qualifying rows');
-select ok((app_public.synthetic_catalog_gateway_request(repeat('d',64),
+with response as (select app_public.synthetic_catalog_gateway_request(repeat('71',32),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
- '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)) is not null,
- 'explicit null query/category/area dispatch');
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb) payload)
+select is((select array_agg(x->>'id' order by x->>'id') from response cross join lateral jsonb_array_elements(payload) x
+ where x->>'id' in ('99000000-0000-4000-8000-000000007101','99000000-0000-4000-8000-000000007102','99000000-0000-4000-8000-000000007105')),
+ array['99000000-0000-4000-8000-000000007101','99000000-0000-4000-8000-000000007102']::text[],
+ 'explicit-null filters return both synthetic fixtures and exclude public 7105');
+with response as (select app_public.synthetic_catalog_gateway_request(repeat('71',32),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb) payload)
+select ok(exists(select 1 from response cross join lateral jsonb_array_elements(payload) x where x->>'id'='99000000-0000-4000-8000-000000007101'
+ and jsonb_typeof(x->'device_distance_miles')='number' and abs((x->>'device_distance_miles')::numeric)<0.000000001)
+ and not exists(select 1 from response cross join lateral jsonb_array_elements(payload) x where x->>'id'='99000000-0000-4000-8000-000000007105'),
+ 'exact-center distance is numeric zero and the public row stays excluded');
+select is(jsonb_array_length(app_public.synthetic_catalog_gateway_request(repeat('72',32),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":"No Nearby Match","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)),0,
+ 'mismatched Nearby query returns no rows');
+select is(jsonb_array_length(app_public.synthetic_catalog_gateway_request(repeat('73',32),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"missing-644","p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)),0,
+ 'mismatched Nearby category returns no rows');
+with response as (select app_public.synthetic_catalog_gateway_request(repeat('74',32),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0.000004207810051198857,"p_device_radius_miles":5}'::jsonb) payload),
+result as (select x from response cross join lateral jsonb_array_elements(payload) x)
+select ok((select count(*)=2 from result)
+ and not exists(select 1 from result r where (select array_agg(keys.key order by keys.key) from jsonb_object_keys(r.x) keys(key))
+   is distinct from array['as_of_utc','area_label','area_slug','categories','cover_alt_text','cover_asset_path','device_distance_miles','freshness_state','hours_state','id','is_open_now','media','name','oldest_verified_at','phone','slug','state_code','summary','today_hours','town','timezone_name','website']::text[])
+ and exists(select 1 from result r where r.x->>'id'='99000000-0000-4000-8000-000000007101'
+   and r.x->>'slug'='nearby-644-7101' and r.x->>'name'='Nearby Boundary 7101' and r.x->>'town'='Fixture Town'
+   and r.x->>'state_code'='KS' and r.x->>'area_slug'='issue-644-synth' and r.x->>'area_label'='Issue 644 Region'
+   and r.x->>'summary'='Issue 644 fixture' and jsonb_typeof(r.x->'device_distance_miles')='number'
+   and abs((r.x->>'device_distance_miles')::numeric-0.00029073)<0.000001
+   and r.x->>'freshness_state'='current' and (r.x->>'oldest_verified_at')::timestamptz<=(r.x->>'as_of_utc')::timestamptz
+   and r.x->'categories'=jsonb_build_array(jsonb_build_object('slug','issue-644-synth','label','Nearby Fixture')))
+ and exists(select 1 from result r where r.x->>'id'='99000000-0000-4000-8000-000000007102'
+   and jsonb_typeof(r.x->'device_distance_miles')='number'
+   and abs((r.x->>'device_distance_miles')::numeric-0.0688027)<0.0001),
+ 'Nearby result has exact 22-key public projection and known seeded fields/distances');
 reset role;
 grant release_automation to postgres;
 select lives_ok($test$
@@ -672,12 +709,101 @@ select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('6
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
  '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0.000004207810051198857,"p_device_radius_miles":5}')$$,
  '42501','synthetic_catalog_forbidden','unlisted B cannot use A internal authorization');
-select is(jsonb_array_length(app_public.synthetic_catalog_gateway_request(repeat('8',64),
- '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','list','{}')),12,
- 'legacy internal list retains twelve seeded stores');
-select is(jsonb_array_length(app_public.synthetic_catalog_gateway_request(repeat('9',64),
+reset role;
+create temporary table issue_644_seed_store_snapshot on commit drop as
+select id,name,latitude,longitude from app_public.stores where id='00000000-0000-4000-8000-000000001001';
+create temporary table issue_644_seed_facts_snapshot on commit drop as
+select * from app_public.store_fact_verifications where store_id='00000000-0000-4000-8000-000000001001';
+create temporary table issue_644_seed_categories_snapshot on commit drop as
+select * from app_public.store_category_assignments where store_id='00000000-0000-4000-8000-000000001001';
+update app_public.stores set name='Nearby Boundary Seed',latitude=0,longitude=0
+where id='00000000-0000-4000-8000-000000001001';
+insert into app_public.store_category_assignments(store_id,category_id)
+select '00000000-0000-4000-8000-000000001001','99000000-0000-4000-8000-000000006351'
+where not exists(select 1 from app_public.store_category_assignments where store_id='00000000-0000-4000-8000-000000001001' and category_id='99000000-0000-4000-8000-000000006351');
+delete from app_public.store_fact_verifications where store_id='00000000-0000-4000-8000-000000001001';
+insert into app_public.store_fact_verifications(store_id,verification_group,verified_at,provenance_label,verifier_kind)
+select '00000000-0000-4000-8000-000000001001',g.group_name,statement_timestamp()-interval '20 days','Issue 644 seed fixture','two_person_public_source'
+from (values('identity_location'::app_public.verification_group),('contact'),('hours'),('categories_attributes'))g(group_name);
+set local role public_catalog_gateway;
+select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(
+ repeat('75',32),'99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)) x),
+ array['00000000-0000-4000-8000-000000001001'::uuid,'99000000-0000-4000-8000-000000007101'::uuid],
+ 'internal Nearby admits existing seed 1001 and fixture 7101 only');
+reset role;
+update app_public.stores s set name=o.name,latitude=o.latitude,longitude=o.longitude
+from issue_644_seed_store_snapshot o where s.id=o.id;
+delete from app_public.store_fact_verifications where store_id='00000000-0000-4000-8000-000000001001';
+insert into app_public.store_fact_verifications select * from issue_644_seed_facts_snapshot;
+delete from app_public.store_category_assignments where store_id='00000000-0000-4000-8000-000000001001';
+insert into app_public.store_category_assignments select * from issue_644_seed_categories_snapshot;
+
+update app_public.stores set synthetic=false,audience='public' where id='99000000-0000-4000-8000-000000007101';
+set local role public_catalog_gateway;
+select ok(not exists(select 1 from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(repeat('76',32),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)) x where x->>'id'='99000000-0000-4000-8000-000000007101'),
+ 'public-audience row is excluded from internal Nearby');
+reset role;
+update app_public.stores set synthetic=true,audience='synthetic',publication_state='hidden' where id='99000000-0000-4000-8000-000000007101';
+set local role public_catalog_gateway;
+select ok(not exists(select 1 from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(repeat('77',32),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)) x where x->>'id'='99000000-0000-4000-8000-000000007101'),
+ 'hidden publication row is excluded from internal Nearby');
+reset role;
+update app_public.stores set publication_state='active' where id='99000000-0000-4000-8000-000000007101';
+update app_public.store_fact_verifications set verified_at=statement_timestamp()-interval '400 days' where store_id='99000000-0000-4000-8000-000000007101';
+set local role public_catalog_gateway;
+select ok(not exists(select 1 from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(repeat('78',32),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)) x where x->>'id'='99000000-0000-4000-8000-000000007101'),
+ '400-day verification row is excluded from internal Nearby');
+reset role;
+update app_public.store_fact_verifications set verified_at=statement_timestamp()-interval '20 days' where store_id='99000000-0000-4000-8000-000000007101';
+set local role public_catalog_gateway;
+select is(jsonb_array_length(app_public.synthetic_catalog_gateway_request(repeat('79',32),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":"No Nearby Match","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)),0,
+ 'query mismatch excludes internal Nearby fixture');
+select is(jsonb_array_length(app_public.synthetic_catalog_gateway_request(repeat('7a',32),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"missing-644","p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)),0,
+ 'category mismatch excludes internal Nearby fixture');
+reset role;
+update app_public.stores set longitude=0.1 where id='99000000-0000-4000-8000-000000007101';
+set local role public_catalog_gateway;
+select ok(not exists(select 1 from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(repeat('7b',32),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)) x where x->>'id'='99000000-0000-4000-8000-000000007101'),
+ 'out-of-radius fixture is excluded from internal Nearby');
+reset role;
+update app_public.stores set longitude=0 where id='99000000-0000-4000-8000-000000007101';
+set local role public_catalog_gateway;
+select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(
+ repeat('7c',32),'99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)) x),
+ array['99000000-0000-4000-8000-000000007101'::uuid],'restored 7101 fixture returns after disqualification cases');
+reset role;
+set local role public_catalog_gateway;
+select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(repeat('8',64),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','list','{}')) x),
+ array['00000000-0000-4000-8000-000000001001'::uuid,'00000000-0000-4000-8000-000000001002'::uuid,'00000000-0000-4000-8000-000000001003'::uuid,
+ '00000000-0000-4000-8000-000000001004'::uuid,'00000000-0000-4000-8000-000000001005'::uuid,'00000000-0000-4000-8000-000000001006'::uuid,
+ '00000000-0000-4000-8000-000000001007'::uuid,'00000000-0000-4000-8000-000000001008'::uuid,'00000000-0000-4000-8000-000000001009'::uuid,
+ '00000000-0000-4000-8000-000000001010'::uuid,'00000000-0000-4000-8000-000000001011'::uuid,'00000000-0000-4000-8000-000000001012'::uuid],
+ 'legacy internal list returns exactly the twelve seeded IDs');
+select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(repeat('9',64),
  '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','details',
- '{"p_slug":"nearby-644-7101"}')),0,'legacy internal details still excludes Nearby fixture IDs');
+ jsonb_build_object('p_slug',(select slug from app_public.stores where id='00000000-0000-4000-8000-000000001001')))) x),
+ array['00000000-0000-4000-8000-000000001001'::uuid],'legacy internal details returns restored seed 1001');
+select is(jsonb_array_length(app_public.synthetic_catalog_gateway_request(repeat('9a',32),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','details','{"p_slug":"nearby-644-7101"}')),0,
+ 'legacy internal details excludes nearby 7101');
+select is(jsonb_array_length(app_public.synthetic_catalog_gateway_request(repeat('9b',32),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','details','{"p_slug":"nearby-644-7102"}')),0,
+ 'legacy internal details excludes nearby 7102');
 reset role;
 update internal_review_private.authorizations
 set revoked_at=statement_timestamp(),revocation_reason='issue-644 fixture'
