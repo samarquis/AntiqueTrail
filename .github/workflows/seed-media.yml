@@ -48,11 +48,26 @@ jobs:
           const runs = fs.readdirSync('artifacts').filter(name => name.startsWith('configured-shopper-'))
           if (runs.length !== 1) throw new Error('Expected one configured browser receipt')
           const report = JSON.parse(fs.readFileSync(path.join('artifacts', runs[0], 'report.json'), 'utf8'))
+          const stages = ['preflight', 'local-services', 'fixtures', 'build', 'preview', 'browser-tests', 'cleanup-provider']
+          const setupStages = ['preflight', 'local-services', 'fixtures', 'build', 'preview']
+          const setupErrors = Array.isArray(report.errors)
+            ? report.errors.filter(error => typeof error === 'string')
+            : []
+          const setupFailureCategory = report.status === 'failed' && setupStages.includes(report.failedAt)
+            ? setupErrors.some(error => error.includes('Local catalog function did not become ready'))
+              ? 'catalog-readiness'
+              : setupErrors.some(error => error.includes('Local registration function did not become ready'))
+                ? 'registration-readiness'
+                : 'unknown'
+            : undefined
           const summary = {
             sourceSha: report.sourceSha,
             sourceDirty: report.sourceDirty,
             scope: report.scope,
             status: report.status,
+            ...(stages.includes(report.stage) && { stage: report.stage }),
+            ...(stages.includes(report.failedAt) && { failedAt: report.failedAt }),
+            ...(setupFailureCategory && { setupFailureCategory }),
             cleanup: report.cleanup,
             stats: report.stats && Object.fromEntries(
               ['expected', 'unexpected', 'skipped', 'flaky'].map(key => [key, report.stats[key]])
