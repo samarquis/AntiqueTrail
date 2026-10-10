@@ -1125,7 +1125,12 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       const publicPage = await publicContext.newPage()
       const observation = observePublicStoreDetails(publicPage, input.storeB.slug)
       try {
-        await publicPage.goto(`/stores/${encodeURIComponent(input.storeB.slug)}`)
+        await signIn(
+          publicPage,
+          input.shopper,
+          `/stores/${encodeURIComponent(input.storeB.slug)}`,
+          () => {},
+        )
         try {
           await expect(publicPage.getByRole('heading', { name: 'Sibling Market' })).toBeVisible()
           await expect(publicPage.getByRole('link', { name: 'Call 785-555-0182' })).toBeVisible()
