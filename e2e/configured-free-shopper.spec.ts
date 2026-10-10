@@ -1406,9 +1406,13 @@ test('anonymous Details sign-in failure preserves store and private data before 
   expect([400, 401]).toContain(denied.status())
   const denialBody = await denied.json()
   expect(typeof denialBody.access_token === 'string').toBe(false)
-  await expect(page.getByRole('alert')).toHaveText(
-    "We couldn't sign you in. Check your details and try again.",
-  )
+  await expect(
+    page
+      .getByRole('alert')
+      .getByText("We couldn't sign you in. Check your details and try again.", {
+        exact: true,
+      }),
+  ).toBeVisible()
   await expect(page).toHaveURL(signInUrl)
   await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toHaveCount(0)
   expect(await privateState()).toEqual(before)
