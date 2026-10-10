@@ -59,6 +59,7 @@ jobs:
         run: |
           node --input-type=module <<'JS'
           import fs from 'node:fs'
+          import { projectSafeBrowserFailure } from './scripts/configured-free-shopper-report.mjs'
           const roots = fs.existsSync('artifacts') ? fs.readdirSync('artifacts') : []
           const reports = roots.filter(name => name.startsWith('configured-shopper-'))
             .map(name => `artifacts/${name}/report.json`).filter(file => fs.existsSync(file))
@@ -69,20 +70,13 @@ jobs:
           const allowedStages = new Set(['preflight', 'local-services', 'fixtures', 'build', 'preview', 'browser-tests'])
           const allowedFailedAt = new Set([...allowedStages, 'browser-report', 'cleanup-browser-input', 'cleanup-provider'])
           const allowedStatuses = new Set(['passed', 'failed', 'skipped', 'timedOut', 'interrupted', 'unavailable'])
-          const allowedAssertions = new Set(['toHaveText', 'toHaveURL', 'toHaveCount', 'toBeVisible', 'toBe', 'toThrow', 'locator.click'])
           const safeChecks = Array.isArray(report.checks) ? report.checks.map(check => {
             const known = check && typeof check === 'object'
             const name = known && check.name === title ? title : 'unexpected'
             const project = known && ['desktop', 'phone'].includes(check.project) ? check.project : 'unexpected'
             const status = known && allowedStatuses.has(check.status) ? check.status : 'unavailable'
-            const failure = known && check.failure && typeof check.failure === 'object' ? {
-              ...(Number.isSafeInteger(check.failure.sourceLine) && check.failure.sourceLine > 0
-                ? { sourceLine: check.failure.sourceLine } : {}),
-              ...(allowedAssertions.has(check.failure.assertion)
-                ? { assertion: check.failure.assertion } : {}),
-              timeout: check.failure.timeout === true,
-              strictLocator: check.failure.strictLocator === true,
-            } : undefined
+            const failure = known && status !== 'passed' && check.failure && typeof check.failure === 'object'
+              ? projectSafeBrowserFailure(check.failure, { name, project }) : undefined
             return { name, project, status, ...(failure ? { failure } : {}) }
           }) : []
           const counts = report.stats && Object.fromEntries(
