@@ -364,16 +364,26 @@ reset role;
 revoke delete on app_private.role_grants from identity_service;
 
 insert into internal_review_private.identities(user_id,alias,fixture_namespace,controlled_address)
-values ('99000000-0000-4000-8000-000000000001','shopper-a','issue-644','nearby-a@review.invalid');
+values ('99000000-0000-4000-8000-000000000001','shopper-a','review-reset-20260906','shopper-a@review-reset-20260906.invalid');
 insert into internal_review_private.runtime_binding values
  (1,'ykyrvqddgnfmgftjwpts',repeat('a',40),repeat('b',64),repeat('c',64),'dpl_Test',
- 'https://antique-trail-test-scott-marquis-projects.vercel.app','issue-644',statement_timestamp(),1);
+ 'https://antique-trail-test-scott-marquis-projects.vercel.app','product-reset-task',statement_timestamp(),1);
+select set_config('request.path','rpc/synthetic_catalog_gateway_request',true);
+select set_config('request.method','POST',true);
+select set_config('request.jwt.claims','{"role":"public_catalog_gateway"}',true);
+select set_config('request.headers','{"origin":"https://antique-trail-test-scott-marquis-projects.vercel.app"}',true);
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('f',64),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','missing internal receipt denies bound A');
+reset role;
 insert into internal_review_private.authorizations(
  receipt_id,schema_version,context,owner_decision_reference,issuer_role,executor_task_id,teardown_owner,
  backend_project_ref,source_sha,artifact_digest,configuration_digest,deployment_id,exact_origin,runtime_version,
  fixture_manifest_digest,identity_allowlist,allowed_capabilities,excluded_provider_actions,issued_at,expires_at)
 values ('99000000-0000-4000-8000-000000000021',1,'internal_synthetic_assessment','ADR0008 owner approval','product_owner',
- '01a07739-9f14-73c0-8253-2da0e5576afe','issue-644','ykyrvqddgnfmgftjwpts',repeat('a',40),repeat('b',64),repeat('c',64),'dpl_Test',
+ '01a07739-9f14-73c0-8253-2da0e5576afe','product-reset-task','ykyrvqddgnfmgftjwpts',repeat('a',40),repeat('b',64),repeat('c',64),'dpl_Test',
  'https://antique-trail-test-scott-marquis-projects.vercel.app',1,repeat('d',64),array['99000000-0000-4000-8000-000000000001']::uuid[],
  array['catalog','session'],array['email','external_participants','media','routing','payments','public_activation'],statement_timestamp(),statement_timestamp()+interval '20 minutes');
 select ok(internal_review_private.is_internal('99000000-0000-4000-8000-000000000002')
@@ -381,13 +391,54 @@ select ok(internal_review_private.is_internal('99000000-0000-4000-8000-000000000
  and not internal_review_private.session_allowed('99000000-0000-4000-8000-000000000002'),
  'B stays outside identities and is denied in the bound internal context');
 select set_config('request.path','rpc/synthetic_catalog_gateway_request',true);
+select set_config('request.method','POST',true);
 select set_config('request.jwt.claims','{"role":"public_catalog_gateway"}',true);
+select set_config('request.headers','{"origin":"https://antique-trail-test-scott-marquis-projects.vercel.app"}',true);
 set local role public_catalog_gateway;
 select lives_ok($$select app_public.internal_review_pre_request()$$,'internal gateway request context passes installed guard');
 select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(
  repeat('f',64),'99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
  '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0.000004207810051198857,"p_device_radius_miles":5}'::jsonb)) x),
  array['99000000-0000-4000-8000-000000007101'::uuid],'internal Nearby admits only frozen 7101 subset');
+reset role;
+update internal_review_private.runtime_binding set configuration_digest=repeat('e',64) where id=1;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('e',64),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0.000004207810051198857,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','mismatched runtime binding denies A receipt');
+reset role;
+update internal_review_private.runtime_binding set configuration_digest=repeat('c',64) where id=1;
+set local role public_catalog_gateway;
+select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(
+ repeat('f',64),'99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0.000004207810051198857,"p_device_radius_miles":5}'::jsonb)) x),
+ array['99000000-0000-4000-8000-000000007101'::uuid],'restored runtime binding preserves A positive');
+select set_config('request.headers','{"origin":"https://foreign.invalid"}',true);
+select throws_ok($$select app_public.internal_review_pre_request()$$,
+ '42501','internal_request_denied','foreign origin is denied by pre-request guard');
+select set_config('request.headers','{"origin":"https://antique-trail-test-scott-marquis-projects.vercel.app"}',true);
+select set_config('request.method','GET',true);
+select throws_ok($$select app_public.internal_review_pre_request()$$,
+ '42501','internal_request_denied','GET is denied by pre-request guard');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('f',64),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','GET context is denied by wrapper session check');
+select set_config('request.method','POST',true);
+select set_config('request.path','rpc/unsupported',true);
+select throws_ok($$select app_public.internal_review_pre_request()$$,
+ '42501','internal_request_denied','unsupported RPC is denied by pre-request guard');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('f',64),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','unsupported path is denied by wrapper session check');
+select set_config('request.path','rpc/synthetic_catalog_gateway_request',true);
+select lives_ok($$select app_public.internal_review_pre_request()$$,'restored gateway request context passes pre-request guard');
+select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(
+ repeat('f',64),'99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0.000004207810051198857,"p_device_radius_miles":5}'::jsonb)) x),
+ array['99000000-0000-4000-8000-000000007101'::uuid],'restored request context preserves A positive');
 select ok(exists(select 1 from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(
  repeat('7',64),'99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
  '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0.000004207810051198857,"p_device_radius_miles":5}'::jsonb)) x
@@ -404,6 +455,36 @@ select is(jsonb_array_length(app_public.synthetic_catalog_gateway_request(repeat
 select is(jsonb_array_length(app_public.synthetic_catalog_gateway_request(repeat('9',64),
  '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','details',
  '{"p_slug":"nearby-644-7101"}')),0,'legacy internal details still excludes Nearby fixture IDs');
+reset role;
+update internal_review_private.authorizations
+set revoked_at=statement_timestamp(),revocation_reason='issue-644 fixture'
+where receipt_id='99000000-0000-4000-8000-000000000021';
+select ok(exists(select 1 from app_private.active_sessions where user_id='99000000-0000-4000-8000-000000000001'
+ and session_id='99000000-0000-4000-8000-000000000011' and state='active'
+ and revoked_at is null and access_token_expires_at>statement_timestamp()),
+ 'revoked receipt fixture leaves A provider session active');
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('f',64),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','revoked internal receipt denies A with active session');
+reset role;
+insert into internal_review_private.authorizations
+select (jsonb_populate_record(null::internal_review_private.authorizations,
+ to_jsonb(a)||jsonb_build_object('receipt_id','99000000-0000-4000-8000-000000000022',
+ 'issued_at',statement_timestamp()-interval '2 hours','expires_at',statement_timestamp()-interval '1 hour',
+ 'revoked_at',null,'revocation_reason',null))).* from internal_review_private.authorizations a
+where receipt_id='99000000-0000-4000-8000-000000000021';
+select ok(internal_review_private.valid_until('99000000-0000-4000-8000-000000000001') is null
+ and exists(select 1 from app_private.active_sessions where user_id='99000000-0000-4000-8000-000000000001'
+ and session_id='99000000-0000-4000-8000-000000000011' and state='active'
+ and revoked_at is null and access_token_expires_at>statement_timestamp()),
+ 'expired receipt is invalid while A provider session stays active');
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('f',64),
+ '99000000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000011','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','expired internal receipt denies A with active session');
 reset role;
 set local role identity_service;
 update app_private.environment_stage set stage='private_beta' where id=1;
