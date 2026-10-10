@@ -307,12 +307,6 @@ do $$begin raise notice 'issue634.phase.concurrent_a_result_wait'; end $$;
 select set_config('test.concurrent_a',(
   select result.value::text from extensions.dblink_get_result('issue634_a') as result(value jsonb)),true);
 do $$begin raise notice 'issue634.phase.concurrent_a_result_ready'; end $$;
-select extensions.dblink_exec('issue634_b',$remote$
-  begin; set local role authenticated;
-  set local request.method='POST'; set local request.path='rpc/register_current_session';
-  set local request.jwt.claims='{"sub":"63400000-0000-4000-8000-000000000001","role":"authenticated","session_id":"63400000-0000-4000-8000-000000000017"}';
-  do $$begin perform app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint); end$$;
-$remote$);
 do $$begin raise notice 'issue634.phase.concurrent_b_ready'; end $$;
 select extensions.dblink_send_query('issue634_b',$query$
   select app_public.create_trip('Concurrent keyed create','2030-10-12','63400000-0000-4000-8000-000000000103')
