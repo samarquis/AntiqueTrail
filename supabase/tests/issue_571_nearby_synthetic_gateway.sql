@@ -3,6 +3,8 @@ create extension if not exists pgtap with schema extensions;
 select no_plan();
 grant identity_service, public_catalog_gateway to postgres;
 grant usage on schema extensions to authenticated, public_catalog_gateway;
+create function pg_temp.denied(p_sql text) returns boolean language plpgsql as $$
+begin execute p_sql;return false;exception when insufficient_privilege then return true;end $$;
 
 insert into auth.users(id) values
  ('99000000-0000-4000-8000-000000000001'),('99000000-0000-4000-8000-000000000002');
@@ -55,6 +57,32 @@ select s.id,g.group_name,statement_timestamp()-interval '20 days','Issue 644 syn
 from app_public.stores s cross join (values('identity_location'::app_public.verification_group),('contact'),('hours'),('categories_attributes'))g(group_name)
 where s.id in ('99000000-0000-4000-8000-000000007101','99000000-0000-4000-8000-000000007102');
 
+select ok(has_schema_privilege('anon','app_public','USAGE')
+ and has_schema_privilege('authenticated','app_public','USAGE')
+ and has_schema_privilege('service_role','app_public','USAGE')
+ and has_schema_privilege('public_catalog_gateway','app_public','USAGE'),
+ 'caller roles can resolve app_public for effective EXECUTE checks');
+set local role anon;
+select ok(pg_temp.denied($$select app_public.synthetic_catalog_gateway_request(repeat('0',64),null,null,'nearby-list','{}')$$),
+ 'actual anon wrapper call is denied');
+select ok(pg_temp.denied($$select * from app_public.synthetic_catalog_list_nearby(null,null,null,0,0,5)$$),
+ 'actual anon base-reader call is denied');
+reset role;
+set local role authenticated;
+select ok(pg_temp.denied($$select app_public.synthetic_catalog_gateway_request(repeat('0',64),null,null,'nearby-list','{}')$$),
+ 'actual authenticated wrapper call is denied');
+select ok(pg_temp.denied($$select * from app_public.synthetic_catalog_list_nearby(null,null,null,0,0,5)$$),
+ 'actual authenticated base-reader call is denied');
+reset role;
+set local role service_role;
+select ok(pg_temp.denied($$select app_public.synthetic_catalog_gateway_request(repeat('0',64),null,null,'nearby-list','{}')$$),
+ 'actual service_role wrapper call is denied');
+reset role;
+set local role public_catalog_gateway;
+select ok(pg_temp.denied($$select * from app_public.synthetic_catalog_list_nearby(null,null,null,0,0,5)$$),
+ 'actual public gateway base-reader call is denied');
+reset role;
+
 select ok(not has_function_privilege('anon','app_public.synthetic_catalog_gateway_request(text,uuid,uuid,text,jsonb)','EXECUTE')
  and not has_function_privilege('authenticated','app_public.synthetic_catalog_gateway_request(text,uuid,uuid,text,jsonb)','EXECUTE')
  and not has_function_privilege('service_role','app_public.synthetic_catalog_gateway_request(text,uuid,uuid,text,jsonb)','EXECUTE')
@@ -86,10 +114,92 @@ select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
  '{"p_q":"x","p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5,"extra":true}')$$,
  'P0001','gateway_request_invalid','unknown arguments fail closed');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(null,
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list','{}')$$,
+ 'P0001','gateway_request_invalid','null rate key is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012',null,'{}')$$,
+ 'P0001','gateway_request_invalid','null operation is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','other','{}')$$,
+ 'P0001','gateway_request_invalid','unknown operation is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list','null'::jsonb)$$,
+ 'P0001','gateway_request_invalid','null args are rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list','[]'::jsonb)$$,
+ 'P0001','gateway_request_invalid','array args are rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list','1'::jsonb)$$,
+ 'P0001','gateway_request_invalid','scalar args are rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5,"actor_id":"99000000-0000-4000-8000-000000000001"}')$$,
+ 'P0001','gateway_request_invalid','forged actor argument is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":180,"p_device_radius_miles":5}')$$,
+ 'P0001','invalid_nearby_input','longitude upper bound is denied');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":-180,"p_device_radius_miles":5}')$$,
+ 'P0001','invalid_nearby_input','longitude lower bound is denied');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":7,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','invalid_nearby_input','wrong query type is denied');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":7,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','invalid_nearby_input','wrong category type is denied');
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('b',64),
- '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000099','nearby-list',
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000011','nearby-list',
  '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
- '42501','synthetic_catalog_forbidden','mismatched active session is denied');
+ '42501','synthetic_catalog_forbidden','another registered actor session is denied');
+reset role;
+set local role identity_service;
+update app_private.active_sessions set state='revoked',revoked_at=statement_timestamp()
+where user_id='99000000-0000-4000-8000-000000000002' and session_id='99000000-0000-4000-8000-000000000012';
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('0',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','revoked registered session is denied');
+reset role;
+set local role identity_service;
+update app_private.active_sessions set state='active',revoked_at=null
+where user_id='99000000-0000-4000-8000-000000000002' and session_id='99000000-0000-4000-8000-000000000012';
+reset role;
+set local role identity_service;
+update app_private.active_sessions set state='expired',revoked_at=statement_timestamp()
+where user_id='99000000-0000-4000-8000-000000000002' and session_id='99000000-0000-4000-8000-000000000012';
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('1',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','expired registered session is denied');
+reset role;
+set local role identity_service;
+update app_private.active_sessions set state='active',revoked_at=null,
+ access_token_expires_at=statement_timestamp()+interval '1 hour'
+where user_id='99000000-0000-4000-8000-000000000002' and session_id='99000000-0000-4000-8000-000000000012';
+reset role;
+set local role identity_service;
+update app_private.active_sessions set access_token_expires_at=statement_timestamp()-interval '1 second'
+where user_id='99000000-0000-4000-8000-000000000002' and session_id='99000000-0000-4000-8000-000000000012';
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('2',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','expired access token on registered session is denied');
+reset role;
+set local role identity_service;
+update app_private.active_sessions set access_token_expires_at=statement_timestamp()+interval '1 hour'
+where user_id='99000000-0000-4000-8000-000000000002' and session_id='99000000-0000-4000-8000-000000000012';
+reset role;
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('a',64),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','map','{}')$$,
  '42501','synthetic_catalog_map_disabled','synthetic map remains disabled');
@@ -134,6 +244,45 @@ set local role identity_service;
 update app_private.account_registration_config set stage_receipt_id='99000000-0000-4000-8000-000000000031' where id=1;
 reset role;
 set local role identity_service;
+update app_private.environment_stage set receipt_id=null where id=1;
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('6',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_evidence_invalid','null ordinary stage receipt is denied');
+reset role;
+set local role identity_service;
+update app_private.environment_stage set receipt_id='99000000-0000-4000-8000-000000000031' where id=1;
+update app_private.environment_stage set capabilities=capabilities-'private_auth' where id=1;
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('7',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_evidence_invalid','absent private_auth capability is denied');
+reset role;
+set local role identity_service;
+update app_private.environment_stage set capabilities=capabilities||'{"private_auth":true}'::jsonb where id=1;
+update app_private.account_registration_config set mode='public' where id=1;
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('8',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_evidence_invalid','wrong ordinary registration mode is denied');
+reset role;
+set local role identity_service;
+update app_private.account_registration_config set mode='receipt_only' where id=1;
+reset role;
+set local role public_catalog_gateway;
+select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array_elements(app_public.synthetic_catalog_gateway_request(
+ repeat('1',64),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0.000004207810051198857,"p_device_radius_miles":5}'::jsonb)) x),
+ array['99000000-0000-4000-8000-000000007101'::uuid,'99000000-0000-4000-8000-000000007102'::uuid],
+ 'restored ordinary gate mutations preserve B positive');
+reset role;
+set local role identity_service;
 update app_private.registration_quarantine_latch set state='blocked',blocked_at=statement_timestamp() where id=1;
 reset role;
 set local role public_catalog_gateway;
@@ -155,6 +304,18 @@ select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c
 reset role;
 set local role identity_service;
 update app_private.profiles set status='active',deletion_due_at=null where user_id='99000000-0000-4000-8000-000000000002';
+delete from app_private.role_grants
+where subject_user_id='99000000-0000-4000-8000-000000000002' and role='shopper' and store_id is null;
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('3',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','absent global Shopper grant is denied');
+reset role;
+set local role identity_service;
+insert into app_private.role_grants(subject_user_id,role,state)
+values ('99000000-0000-4000-8000-000000000002','shopper','active');
 update app_private.role_grants set state='revoked',revoked_at=statement_timestamp()
 where subject_user_id='99000000-0000-4000-8000-000000000002' and role='shopper' and store_id is null;
 reset role;
@@ -162,11 +323,39 @@ set local role public_catalog_gateway;
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('d',64),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
  '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
- '42501','synthetic_catalog_forbidden','missing active global Shopper grant is denied');
+ '42501','synthetic_catalog_forbidden','inactive global Shopper grant is denied');
 reset role;
 set local role identity_service;
 update app_private.role_grants set state='active',revoked_at=null
 where subject_user_id='99000000-0000-4000-8000-000000000002' and role='shopper' and store_id is null;
+delete from app_private.role_grants
+where subject_user_id='99000000-0000-4000-8000-000000000002' and role='shopper' and store_id is null;
+insert into app_private.role_grants(subject_user_id,role,state)
+values ('99000000-0000-4000-8000-000000000002','administrator','active');
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('4',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','non-Shopper-only global grant is denied');
+reset role;
+set local role identity_service;
+delete from app_private.role_grants
+where subject_user_id='99000000-0000-4000-8000-000000000002' and role='administrator' and store_id is null;
+insert into app_private.role_grants(subject_user_id,role,store_id,state)
+values ('99000000-0000-4000-8000-000000000002','representative','99000000-0000-4000-8000-000000007101','active');
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('5',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','store-scoped Representative-only grant is denied');
+reset role;
+set local role identity_service;
+delete from app_private.role_grants
+where subject_user_id='99000000-0000-4000-8000-000000000002' and role='representative' and store_id='99000000-0000-4000-8000-000000007101';
+insert into app_private.role_grants(subject_user_id,role,state)
+values ('99000000-0000-4000-8000-000000000002','shopper','active');
 reset role;
 
 insert into internal_review_private.identities(user_id,alias,fixture_namespace,controlled_address)
@@ -214,6 +403,7 @@ reset role;
 set local role identity_service;
 update app_private.environment_stage set stage='private_beta' where id=1;
 reset role;
+set local role public_catalog_gateway;
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('4',64),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
  '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
