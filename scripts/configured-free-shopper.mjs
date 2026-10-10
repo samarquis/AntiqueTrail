@@ -12,16 +12,18 @@ import {
   stopChild,
 } from './configured-shopper-local.mjs'
 import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
-import { browserReport } from './configured-free-shopper-report.mjs'
+import { browserReport, recordCleanupFailure } from './configured-free-shopper-report.mjs'
 
 const output = createRunDirectory(path.join(ROOT, 'artifacts'))
 const sessionSignout = process.argv.includes('--session-signout')
 const mediaOnly = process.argv.includes('--media-only')
 const partnerRemoval = process.argv.includes('--partner-removal')
 const accountSettings = process.argv.includes('--account-settings')
+const keyedTripCreate = process.argv.includes('--keyed-trip-create')
 const report = {
   scope:
-    [sessionSignout, mediaOnly, partnerRemoval, accountSettings].filter(Boolean).length > 1
+    [sessionSignout, mediaOnly, partnerRemoval, accountSettings, keyedTripCreate].filter(Boolean)
+      .length > 1
       ? 'invalid'
       : sessionSignout
         ? 'session-signout'
@@ -31,12 +33,15 @@ const report = {
             ? 'accepted-partner-removal'
             : accountSettings
               ? 'two-user-account-settings'
-              : 'connected-shopper',
+              : keyedTripCreate
+                ? 'keyed-trip-create'
+                : 'connected-shopper',
   status: 'unavailable',
   stage: 'preflight',
   failedAt: undefined,
   sourceSha: '',
   cleanup: 'not-started',
+  cleanupFailures: [],
   errors: [],
   evidenceClass: 'real-local-browser',
   ownerFeedback: 'not-collected',
@@ -48,7 +53,12 @@ process.on('SIGTERM', interrupt)
 let service, server
 try {
   report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
-  if ([sessionSignout, mediaOnly, partnerRemoval, accountSettings].filter(Boolean).length > 1)
+  report.sourceDirty = Boolean((await command('git', ['status', '--porcelain'])).trim())
+  if (report.sourceDirty) throw new Error('Candidate source tree is dirty')
+  if (
+    [sessionSignout, mediaOnly, partnerRemoval, accountSettings, keyedTripCreate].filter(Boolean)
+      .length > 1
+  )
     throw new Error('Choose one configured acceptance scope')
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
     throw new Error('External endpoint selection is forbidden')
@@ -181,7 +191,9 @@ try {
                     '--grep',
                     'two local accounts keep settings private across save, fresh login, and revocation$',
                   ]
-                : []),
+                : keyedTripCreate
+                  ? ['--grep', 'keyed trip create replays after committed response loss$']
+                  : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
@@ -194,11 +206,22 @@ try {
   const resultPath = path.join(output.directory, 'playwright.json')
   if (!fs.existsSync(resultPath)) {
     report.status = 'unavailable'
+    report.failedAt ??= 'browser-report'
     report.errors.push('Missing Playwright report')
   } else {
     const results = browserReport(
       fs.readFileSync(resultPath, 'utf8'),
-      sessionSignout ? 4 : mediaOnly || partnerRemoval || accountSettings ? 2 : 22,
+      sessionSignout
+        ? 4
+        : mediaOnly || partnerRemoval || accountSettings || keyedTripCreate
+          ? 2
+          : 24,
+      keyedTripCreate
+        ? [
+            { name: 'keyed trip create replays after committed response loss', project: 'desktop' },
+            { name: 'keyed trip create replays after committed response loss', project: 'phone' },
+          ]
+        : [],
     )
     report.stats = results.stats
     report.checks = results.checks
@@ -209,7 +232,7 @@ try {
   }
 } catch (error) {
   report.status = 'failed'
-  report.failedAt = report.stage
+  report.failedAt ??= report.stage
   report.errors.push(redact(error.message))
 } finally {
   await stopChild(server)
@@ -217,15 +240,18 @@ try {
     try {
       fs.rmSync(path.join(service.run.directory, 'browser-input.json'), { force: true })
     } catch (error) {
-      report.status = 'failed'
+      recordCleanupFailure(report, 'browser-input-removal')
       report.errors.push(redact(error.message))
     }
     try {
-      report.cleanup = await service.cleanup()
+      const cleanup = await service.cleanup()
+      if (cleanup !== 'removed') {
+        recordCleanupFailure(report, 'service-cleanup')
+      } else if (report.cleanup !== 'failed') {
+        report.cleanup = cleanup
+      }
     } catch (error) {
-      report.cleanup = 'failed'
-      report.status = 'failed'
-      report.failedAt = 'cleanup-provider'
+      recordCleanupFailure(report, 'service-cleanup')
       report.errors.push(redact(error.message))
     }
   }

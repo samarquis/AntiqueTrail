@@ -42,6 +42,7 @@ jobs:
         run: |
           node --input-type=module <<'JS'
           import fs from 'node:fs'
+          import { projectSafeBrowserFailure } from './scripts/configured-free-shopper-report.mjs'
           const roots = fs.existsSync('artifacts') ? fs.readdirSync('artifacts') : []
           const reports = roots.filter(name => name.startsWith('configured-shopper-'))
             .map(name => `artifacts/${name}/report.json`).filter(file => fs.existsSync(file))
@@ -55,8 +56,15 @@ jobs:
             stats: report.stats && { expected: report.stats.expected,
               unexpected: report.stats.unexpected, skipped: report.stats.skipped,
               flaky: report.stats.flaky },
-            checks: report.checks?.map(({ name, project, status, failure }) =>
-              ({ name, project, status, failure })) }
+            checks: report.checks?.map(check => {
+              const name = typeof check?.name === 'string' ? check.name : 'unexpected'
+              const project = ['desktop', 'phone'].includes(check?.project) ? check.project : 'unexpected'
+              const status = ['passed', 'failed', 'skipped', 'timedOut', 'interrupted', 'unavailable'].includes(check?.status)
+                ? check.status : 'unavailable'
+              const failure = status !== 'passed' && check?.failure && typeof check.failure === 'object'
+                ? projectSafeBrowserFailure(check.failure, { name, project }) : undefined
+              return { name, project, status, ...(failure ? { failure } : {}) }
+            }) }
           fs.writeFileSync('artifacts/session-signout-receipt.json', JSON.stringify(receipt, null, 2))
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
             '```json\n' + JSON.stringify(receipt, null, 2) + '\n```\n')
