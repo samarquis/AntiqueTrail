@@ -424,6 +424,54 @@ select is((select count(*)::integer from trip_private.trip_create_receipts
     and trip_id=current_setting('test.lost_expected')::uuid),1,'lost-response replay leaves one persisted receipt');
 do $$begin raise notice 'issue634.phase.lost_response_complete'; end $$;
 
+-- Exercise the real due-claim and prepare path; deleting one actor removes their
+-- receipt tombstones and owned trips while preserving another actor's receipt.
+do $$begin raise notice 'issue634.phase.account_purge_assertions_begin'; end $$;
+set local role identity_service;
+update app_private.profiles set status='deletion_scheduled',deletion_due_at=statement_timestamp()-interval '1 day'
+where user_id='63400000-0000-4000-8000-000000000001';
+insert into app_private.account_deletion_requests(deletion_request_id,user_id,requested_at,due_at)
+values('63400000-0000-4000-8000-000000000030','63400000-0000-4000-8000-000000000001',
+  statement_timestamp()-interval '8 days',statement_timestamp()-interval '1 day');
+reset role;
+select set_config('request.jwt.claims','{}',true);
+select set_config('request.method','',true);
+select set_config('request.path','',true);
+select set_config('request.headers','{}',true);
+select is(app_public.request_user_id(),null::uuid,
+  'background account lifecycle runs without a request user');
+select ok(not internal_review_private.is_internal(null),
+  'background account lifecycle runs outside internal fixture mode');
+select is((select count(*)::integer from trip_private.trips
+  where owner_id='63400000-0000-4000-8000-000000000001'),3,
+  'test runner observes all target trips before ordinary account purge');
+set local role account_lifecycle_service;
+create temp table issue634_claimed as
+select * from app_public.claim_due_account_deletions(statement_timestamp(),10);
+reset role;
+do $$begin raise notice 'issue634.phase.account_purge_claim_query_complete'; end $$;
+select is((select count(*)::integer from issue634_claimed),1,
+  'account purge fixture is claimed through normal due-deletion path');
+set local role account_lifecycle_service;
+select lives_ok($$select app_public.prepare_account_deletion(
+  '63400000-0000-4000-8000-000000000030',(select claim_token from issue634_claimed),statement_timestamp())$$,
+  'existing account preparation purges keyed-create data');
+reset role;
+select is((select count(*)::integer from trip_private.trip_create_receipts
+  where actor_user_id='63400000-0000-4000-8000-000000000001'),0,
+  'profile purge cascades target actor receipts');
+select is((select count(*)::integer from trip_private.trips
+  where owner_id='63400000-0000-4000-8000-000000000001'),0,
+  'existing account purge removes target owned trips');
+select ok(exists(select 1 from trip_private.trip_create_receipts
+  where actor_user_id='63400000-0000-4000-8000-000000000002'
+    and idempotency_key='63400000-0000-4000-8000-000000000101'),
+  'another actor receipt survives target account purge');
+select ok(exists(select 1 from trip_private.trips
+  where owner_id='63400000-0000-4000-8000-000000000002'),
+  'another actor trip survives target account purge');
+do $$begin raise notice 'issue634.phase.account_purge_assertions_complete'; end $$;
+
 -- Admit the same internal planning actor and session used by the existing 0120 fixture.
 do $$begin raise notice 'issue634.phase.internal_fixture_begin'; end $$;
 insert into internal_review_private.identities(user_id,alias,fixture_namespace,controlled_address)
@@ -488,49 +536,6 @@ select is((select count(*)::integer from trip_private.trip_create_receipts
   'missing route denial writes no receipt');
 reset role;
 do $$begin raise notice 'issue634.phase.internal_fixture_complete'; end $$;
-
--- Exercise the real due-claim and prepare path; deleting one actor removes their
--- receipt tombstones and owned trips while preserving another actor's receipt.
-do $$begin raise notice 'issue634.phase.account_purge_assertions_begin'; end $$;
-set local role identity_service;
-update app_private.profiles set status='deletion_scheduled',deletion_due_at=statement_timestamp()-interval '1 day'
-where user_id='63400000-0000-4000-8000-000000000001';
-insert into app_private.account_deletion_requests(deletion_request_id,user_id,requested_at,due_at)
-values('63400000-0000-4000-8000-000000000030','63400000-0000-4000-8000-000000000001',
-  statement_timestamp()-interval '8 days',statement_timestamp()-interval '1 day');
-reset role;
-select set_config('request.jwt.claims','{}',true);
-select set_config('request.method','',true);
-select set_config('request.path','',true);
-select set_config('request.headers','{}',true);
-select is(app_public.request_user_id(),null::uuid,
-  'background account lifecycle runs without a request user');
-set local role account_lifecycle_service;
-create temp table issue634_claimed as
-select * from app_public.claim_due_account_deletions(statement_timestamp(),10);
-reset role;
-do $$begin raise notice 'issue634.phase.account_purge_claim_query_complete'; end $$;
-select is((select count(*)::integer from issue634_claimed),1,
-  'account purge fixture is claimed through normal due-deletion path');
-set local role account_lifecycle_service;
-select lives_ok($$select app_public.prepare_account_deletion(
-  '63400000-0000-4000-8000-000000000030',(select claim_token from issue634_claimed),statement_timestamp())$$,
-  'existing account preparation purges keyed-create data');
-reset role;
-select is((select count(*)::integer from trip_private.trip_create_receipts
-  where actor_user_id='63400000-0000-4000-8000-000000000001'),0,
-  'profile purge cascades target actor receipts');
-select is((select count(*)::integer from trip_private.trips
-  where owner_id='63400000-0000-4000-8000-000000000001'),0,
-  'existing account purge removes target owned trips');
-select ok(exists(select 1 from trip_private.trip_create_receipts
-  where actor_user_id='63400000-0000-4000-8000-000000000002'
-    and idempotency_key='63400000-0000-4000-8000-000000000101'),
-  'another actor receipt survives target account purge');
-select ok(exists(select 1 from trip_private.trips
-  where owner_id='63400000-0000-4000-8000-000000000002'),
-  'another actor trip survives target account purge');
-do $$begin raise notice 'issue634.phase.account_purge_assertions_complete'; end $$;
 
 select * from finish();
 rollback;
