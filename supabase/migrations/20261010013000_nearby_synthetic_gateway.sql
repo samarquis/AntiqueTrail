@@ -1,5 +1,8 @@
 begin;
 
+grant synthetic_catalog_automation to postgres;
+grant create on schema app_public to synthetic_catalog_automation;
+
 alter function app_public.synthetic_catalog_gateway_request(text,uuid,uuid,text,jsonb) owner to postgres;
 create or replace function app_public.synthetic_catalog_gateway_request(
   p_key_hash text,p_user_id uuid,p_session_id uuid,p_operation text,p_args jsonb
@@ -117,5 +120,7 @@ $$;
 alter function app_public.synthetic_catalog_gateway_request(text,uuid,uuid,text,jsonb) owner to synthetic_catalog_automation;
 revoke all on function app_public.synthetic_catalog_gateway_request(text,uuid,uuid,text,jsonb) from public,anon,authenticated,service_role;
 grant execute on function app_public.synthetic_catalog_gateway_request(text,uuid,uuid,text,jsonb) to public_catalog_gateway;
+revoke create on schema app_public from synthetic_catalog_automation;
+revoke synthetic_catalog_automation from postgres;
 
 commit;
