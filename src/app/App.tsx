@@ -1522,11 +1522,12 @@ export default function App({
                 shopperClient={shopperClient}
                 catalog={clients.catalog}
                 localTripEvaluation={
-                  import.meta.env.DEV &&
-                  runtime.reviewHarness?.active === true &&
-                  typeof window !== 'undefined' &&
-                  ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
-                  !isCatalogOnlyPublicTest()
+                  configuredLocalSavedEntry ||
+                  (import.meta.env.DEV &&
+                    runtime.reviewHarness?.active === true &&
+                    typeof window !== 'undefined' &&
+                    ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
+                    !isCatalogOnlyPublicTest())
                 }
               />
             }

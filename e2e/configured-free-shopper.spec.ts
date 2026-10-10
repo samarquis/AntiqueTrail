@@ -257,9 +257,9 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
     })
     .first()
   await expect(gallery).toBeVisible()
-  expect(
-    await gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
-  ).toBe(true)
+  await expect
+    .poll(() => gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
+    .toBe(true)
   const enlarge = page.getByRole('button', { name: /Enlarge image:/ })
   await enlarge.click()
   await expect(page.getByRole('dialog')).toBeVisible()
@@ -1225,6 +1225,128 @@ test('visible Saved-row chooser cancels, retries, and reads back one dated stop'
     expect(finalState).toMatchObject({ name, date: localDate, stops: [{ store: A }] })
     expect(await ownTrips()).toBe(tripBaseline + 1)
     expect(await ownStops()).toBe(stopBaseline + 1)
+    const otherContext = await browser.newContext({ baseURL: input.origin })
+    try {
+      const otherPage = await otherContext.newPage()
+      const token = await login(otherPage, 1, '/trips')
+      await expect(rpc(token, 'get_trip', { trip_id: tripId })).rejects.toThrow(
+        /\bauthorization_lost\b/,
+      )
+      expect(await read(tripId)).toEqual(finalState)
+    } finally {
+      await otherContext.close()
+    }
+  } finally {
+    await page.unroute('**/rest/v1/rpc/add_trip_store_stop', addRoute)
+  }
+})
+
+test('anonymous Details entry cancels sign-in, retains store, and retries one dated stop', async ({
+  page,
+  browser,
+}) => {
+  const name = `Details trip ${crypto.randomUUID()}`
+  const localDate = '2030-10-12'
+  const ownTrips = async () =>
+    Number(
+      (
+        await service.sql(`select count(*) from trip_private.trips where owner_id='${owner}';`)
+      ).trim(),
+    )
+  const ownStops = async () =>
+    Number(
+      (
+        await service.sql(
+          `select count(*) from trip_private.trip_stops s join trip_private.trips t on t.trip_id=s.trip_id where t.owner_id='${owner}';`,
+        )
+      ).trim(),
+    )
+  const tripBaseline = await ownTrips()
+  const stopBaseline = await ownStops()
+  const savedBaseline = await saved()
+  const target = `/trips/new?addStoreId=${A}`
+  const enterFromDetails = async () => {
+    await page.goto('/stores')
+    await page.getByRole('link', { name: 'Clockwork Cabinet', exact: true }).first().click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' })).toBeVisible()
+    const action = page.getByRole('link', { name: 'Add to Trip', exact: true })
+    await expect(action).toHaveAttribute('href', target)
+    await action.click()
+    await expect(page).toHaveURL(
+      `${input.origin}/auth/sign-in?returnTo=${encodeURIComponent(target)}`,
+    )
+    await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  }
+  await enterFromDetails()
+  await page.getByRole('link', { name: 'Cancel and return without saving', exact: true }).click()
+  await expect(page).toHaveURL(`${input.origin}/stores`)
+  expect(await ownTrips()).toBe(tripBaseline)
+  expect(await ownStops()).toBe(stopBaseline)
+  expect(await saved()).toBe(savedBaseline)
+  await enterFromDetails()
+  await submitLogin(page)
+  await expect(page).toHaveURL(`${input.origin}${target}`)
+  await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+  let attempts = 0
+  let tripId = ''
+  let firstSettled = false
+  let firstFailure = ''
+  const addRoute = async (route: import('@playwright/test').Route) => {
+    attempts += 1
+    try {
+      const request = route.request()
+      const body = request.postDataJSON()
+      expect(request.url()).toBe(`${input.endpoint}/rest/v1/rpc/add_trip_store_stop`)
+      expect(request.method()).toBe('POST')
+      expect(Object.keys(body).sort()).toEqual(['store_id', 'trip_id'])
+      expect(body.store_id).toBe(A)
+      if (attempts === 1) {
+        tripId = uuid(body.trip_id)
+        expect(await read(tripId)).toMatchObject({ name, date: localDate, stops: [] })
+        expect(await ownTrips()).toBe(tripBaseline + 1)
+        expect(await ownStops()).toBe(stopBaseline)
+        // Deliberately do not forward this first add: failure precedes its database write.
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'temporary_unavailable' }),
+        })
+      } else {
+        expect(attempts).toBe(2)
+        expect(body.trip_id).toBe(tripId)
+        await route.continue()
+      }
+    } catch {
+      firstFailure = 'add-request-or-readback-failed'
+      await route.abort('failed').catch(() => undefined)
+    } finally {
+      firstSettled = true
+    }
+  }
+  await page.route('**/rest/v1/rpc/add_trip_store_stop', addRoute)
+  try {
+    await page.getByLabel('Trip name', { exact: true }).fill(name)
+    await page.getByLabel('Date', { exact: true }).fill(localDate)
+    await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
+    await expect.poll(() => firstSettled).toBe(true)
+    expect(firstFailure).toBe('')
+    expect(attempts).toBe(1)
+    await expect(page.getByRole('alert')).toHaveText(
+      `${name} was created, but the store was not added. Retry to add it to that same trip.`,
+    )
+    expect(await read(tripId)).toMatchObject({ name, date: localDate, stops: [] })
+    await page.getByRole('button', { name: 'Retry adding store', exact: true }).click()
+    await expect(page.getByText(`Added to ${name}`, { exact: true })).toBeVisible()
+    expect(firstFailure).toBe('')
+    expect(attempts).toBe(2)
+    await page.getByRole('link', { name: 'View Trip', exact: true }).click()
+    await expect(page.getByText(name, { exact: true })).toBeVisible()
+    await expect(page.getByText(`Trip date: ${localDate}`, { exact: true })).toBeVisible()
+    const finalState = await read(tripId)
+    expect(finalState).toMatchObject({ name, date: localDate, stops: [{ store: A }] })
+    expect(await ownTrips()).toBe(tripBaseline + 1)
+    expect(await ownStops()).toBe(stopBaseline + 1)
+    expect(await saved()).toBe(savedBaseline)
     const otherContext = await browser.newContext({ baseURL: input.origin })
     try {
       const otherPage = await otherContext.newPage()
