@@ -233,8 +233,11 @@ describe('manual trips', () => {
   it('requires a date and creates a trip', async () => {
     const user = userEvent.setup()
     const create = vi.fn(async () => trip)
+    const authStore = authenticatedStore()
+    const registry = new InMemorySessionRegistry()
+    await registry.registerCurrentSession(authStore.getSession()!)
     renderPage(
-      <AuthProvider>
+      <AuthProvider authStore={authStore} registry={registry}>
         <Routes>
           <Route path="*" element={<NewTripPage client={client({ create })} />} />
         </Routes>
@@ -250,6 +253,76 @@ describe('manual trips', () => {
       localDate: '2026-08-10',
       idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/iu),
     })
+  })
+  it('keeps registered sessions current through the first registry validation', async () => {
+    vi.useFakeTimers()
+    try {
+      const session: AuthSession = {
+        userId: 'shopper-test',
+        accessToken: 'shopper-test-token',
+        expiresAt: Date.now() + 60_000,
+        role: 'Shopper',
+        mfaRequired: false,
+        mfaVerified: true,
+      }
+      const authStore = new InMemoryAuthStore()
+      authStore.setSession(session)
+
+      const unregisteredRegistry = new InMemorySessionRegistry()
+      const unregisteredIsActive = vi.spyOn(unregisteredRegistry, 'isActive')
+      const unregisteredCreate = vi.fn(async () => trip)
+      let unregisteredAuth!: ReturnType<typeof useAuth>
+      const unregistered = renderPage(
+        <AuthProvider authStore={authStore} registry={unregisteredRegistry}>
+          <AuthCapture onAuth={(auth) => (unregisteredAuth = auth)} />
+          <NewTripPage client={client({ create: unregisteredCreate })} />
+        </AuthProvider>,
+      )
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000)
+      })
+      expect(unregisteredIsActive).toHaveBeenCalledTimes(1)
+      expect(unregisteredIsActive).toHaveBeenCalledWith(session)
+      expect(authStore.getSession()).toBeNull()
+      expect(unregisteredAuth.isCurrentAccount()).toBe(false)
+      fireEvent.change(screen.getByLabelText(/trip name/i), { target: { value: 'Saturday finds' } })
+      fireEvent.change(screen.getByLabelText(/date/i), { target: { value: '2026-08-10' } })
+      fireEvent.submit(screen.getByRole('button', { name: /create trip/i }).closest('form')!)
+      expect(unregisteredCreate).not.toHaveBeenCalled()
+      unregistered.unmount()
+
+      authStore.setSession(session)
+      const registeredRegistry = new InMemorySessionRegistry()
+      await registeredRegistry.registerCurrentSession(session)
+      const registeredIsActive = vi.spyOn(registeredRegistry, 'isActive')
+      const registeredCreate = vi.fn(async () => trip)
+      let registeredAuth!: ReturnType<typeof useAuth>
+      renderPage(
+        <AuthProvider authStore={authStore} registry={registeredRegistry}>
+          <AuthCapture onAuth={(auth) => (registeredAuth = auth)} />
+          <NewTripPage client={client({ create: registeredCreate })} />
+        </AuthProvider>,
+      )
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000)
+      })
+      expect(registeredIsActive).toHaveBeenCalledTimes(1)
+      expect(registeredIsActive).toHaveBeenCalledWith(session)
+      expect(authStore.getSession()).toMatchObject(session)
+      expect(registeredAuth.isCurrentAccount()).toBe(true)
+      fireEvent.change(screen.getByLabelText(/trip name/i), { target: { value: 'Saturday finds' } })
+      fireEvent.change(screen.getByLabelText(/date/i), { target: { value: '2026-08-10' } })
+      fireEvent.submit(screen.getByRole('button', { name: /create trip/i }).closest('form')!)
+      expect(registeredCreate).toHaveBeenCalledTimes(1)
+      expect(registeredCreate).toHaveBeenCalledWith({
+        name: 'Saturday finds',
+        localDate: '2026-08-10',
+        idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/iu),
+      })
+    } finally {
+      cleanup()
+      vi.useRealTimers()
+    }
   })
   it('replays the same keyed new-trip create after commit and blocks same-tick submits', async () => {
     const user = userEvent.setup()

@@ -444,6 +444,7 @@ test('keyed trip create replays after committed response loss', async ({ page, b
     await expect(page.getByText(`Added to ${name}`, { exact: true })).toBeVisible()
     await page.getByRole('link', { name: 'View Trip', exact: true }).click()
     await expect(page.getByText(name, { exact: true })).toBeVisible()
+    await expect(page.getByText('Trip date: 2030-10-12', { exact: true })).toBeVisible()
     expect(await read(firstTripId)).toMatchObject({ name, date: localDate, stops: [{ store: A }] })
     expect(stopAttempts).toBe(1)
     const finalState = await proof(firstTripId)
