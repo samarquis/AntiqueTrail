@@ -1210,8 +1210,8 @@ test('visible Saved-row chooser cancels, retries, and reads back one dated stop'
     await expect.poll(() => firstSettled).toBe(true)
     expect(firstFailure).toBe('')
     expect(attempts).toBe(1)
-    await expect(page.getByRole('alert')).toContainText(
-      "We couldn't update this trip. Please try again.",
+    await expect(page.getByRole('alert')).toHaveText(
+      `${name} was created, but the store was not added. Retry to add it to that same trip.`,
     )
     expect(await read(tripId)).toMatchObject({ name, date: localDate, stops: [] })
     await page.getByRole('button', { name: 'Retry adding store', exact: true }).click()
