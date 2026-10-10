@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { StrictMode, type ComponentProps, type ReactNode } from 'react'
+import { StrictMode, useEffect, useState, type ComponentProps, type ReactNode } from 'react'
 import {
   BrowserRouter,
   MemoryRouter,
@@ -10,7 +10,12 @@ import {
   useNavigate,
 } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AuthProvider as BaseAuthProvider, InMemoryAuthStore, useAuth } from '../auth'
+import {
+  AuthProvider as BaseAuthProvider,
+  InMemoryAuthStore,
+  InMemorySessionRegistry,
+  useAuth,
+} from '../auth'
 import {
   AcceptTripInvitationPage,
   AddToTripPage,
@@ -21,6 +26,7 @@ import {
   SummaryPage,
 } from './components'
 import { normalizeTripName } from './tripClient'
+import { createTripApi, type TripTransport } from './tripApi'
 import type { Trip, TripClient, TripPrivateHours } from './types'
 import type { OfflineQueueSnapshot } from './types'
 import type { TripOfflineGrantSource, TripOfflineRuntime } from './tripRuntime'
@@ -167,15 +173,6 @@ function renderPage(page: ReactNode) {
   return render(<MemoryRouter>{page}</MemoryRouter>)
 }
 
-function SignOutButton() {
-  const { signOut } = useAuth()
-  return (
-    <button type="button" onClick={() => void signOut()}>
-      Sign out now
-    </button>
-  )
-}
-
 function PathProbe() {
   return <span data-testid="current-path">{useLocation().pathname}</span>
 }
@@ -186,6 +183,41 @@ function LeaveRouteButton() {
     <button type="button" onClick={() => navigate('/elsewhere')}>
       Leave route
     </button>
+  )
+}
+
+function AuthCapture({ onAuth }: { onAuth: (auth: ReturnType<typeof useAuth>) => void }) {
+  const auth = useAuth()
+  useEffect(() => {
+    onAuth(auth)
+  }, [auth, onAuth])
+  return null
+}
+
+function AddTripClientSwitch({ first, second }: { first: TripClient; second: TripClient }) {
+  const [current, setCurrent] = useState(first)
+  return (
+    <>
+      <button type="button" onClick={() => setCurrent(second)}>
+        Switch trip client
+      </button>
+      <AddToTripPage storeId="store-1" client={current} />
+    </>
+  )
+}
+
+function NewTripClientSwitch({ first, second }: { first: TripClient; second: TripClient }) {
+  const [current, setCurrent] = useState(first)
+  return (
+    <>
+      <button type="button" onClick={() => setCurrent(second)}>
+        Switch trip client
+      </button>
+      <Routes>
+        <Route path="/trips/new" element={<NewTripPage client={current} />} />
+        <Route path="/trips/:tripId/plan" element={<p>Created trip route</p>} />
+      </Routes>
+    </>
   )
 }
 
@@ -221,17 +253,25 @@ describe('manual trips', () => {
   })
   it('replays the same keyed new-trip create after commit and blocks same-tick submits', async () => {
     const user = userEvent.setup()
-    let committed: Trip | null = null
+    const attempts = new Map<string, { fingerprint: string; result: Trip }>()
+    let currentAuth!: ReturnType<typeof useAuth>
     let backendCreations = 0
     const create = vi.fn(async (input: Parameters<TripClient['create']>[0]) => {
-      if (committed) return committed
+      const fingerprint = JSON.stringify([input.name, input.localDate])
+      const prior = attempts.get(input.idempotencyKey)
+      if (prior) {
+        expect(prior.fingerprint).toBe(fingerprint)
+        return prior.result
+      }
       backendCreations += 1
-      committed = { ...trip, id: 'trip-created', name: input.name, localDate: input.localDate }
+      const result = { ...trip, id: 'trip-created', name: input.name, localDate: input.localDate }
+      attempts.set(input.idempotencyKey, { fingerprint, result })
       throw new Error('committed, response lost')
     })
     render(
       <MemoryRouter initialEntries={['/trips/new']}>
         <AuthProvider>
+          <AuthCapture onAuth={(auth) => (currentAuth = auth)} />
           <Routes>
             <Route path="/trips/new" element={<NewTripPage client={client({ create })} />} />
             <Route path="/trips/trip-created/plan" element={<p>Original trip opened</p>} />
@@ -251,24 +291,99 @@ describe('manual trips', () => {
     )
     expect(create).toHaveBeenCalledTimes(1)
     expect(screen.getByLabelText(/trip name/i)).toBeDisabled()
+    await act(async () =>
+      currentAuth.signIn({
+        userId: 'shopper-test',
+        accessToken: 'refreshed-token',
+        expiresAt: Date.now() + 60_000,
+        role: 'Shopper',
+        mfaRequired: false,
+        mfaVerified: true,
+      }),
+    )
     await user.click(screen.getByRole('button', { name: 'Create trip' }))
     expect(await screen.findByText('Original trip opened')).toBeVisible()
     expect(create).toHaveBeenCalledTimes(2)
     expect(create.mock.calls[1][0]).toEqual(create.mock.calls[0][0])
     expect(backendCreations).toBe(1)
   })
+  it.each([
+    ['server conflict', 'conflicting idempotency key'],
+    ['deleted-result tombstone', 'deleted trip result'],
+    ['revoked authorization', 'authentication required'],
+  ] as const)('keeps the same create tuple after a %s response', async (_kind, reason) => {
+    const user = userEvent.setup()
+    const create = vi.fn<TripClient['create']>(async () => {
+      if (create.mock.calls.length === 1) throw new Error(reason)
+      return trip
+    })
+    render(
+      <MemoryRouter initialEntries={['/trips/new']}>
+        <AuthProvider>
+          <Routes>
+            <Route path="/trips/new" element={<NewTripPage client={client({ create })} />} />
+            <Route path="/trips/:tripId/plan" element={<p>Created trip route</p>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await user.type(screen.getByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: 'Create trip' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "We couldn't update this trip. Please try again.",
+    )
+    await user.click(screen.getByRole('button', { name: 'Create trip' }))
+    expect(await screen.findByText('Created trip route')).toBeVisible()
+    expect(create).toHaveBeenCalledTimes(2)
+    expect(create.mock.calls[1][0]).toEqual(create.mock.calls[0][0])
+  })
+  it('keeps the same tuple when the real trip parser rejects a malformed response', async () => {
+    const user = userEvent.setup()
+    const payloads: Readonly<Record<string, unknown>>[] = []
+    const transport: TripTransport = {
+      invoke: vi.fn(async (command, payload) => {
+        expect(command).toBe('create_trip')
+        payloads.push(payload)
+        return payloads.length === 1 ? null : trip
+      }),
+    }
+    const api = createTripApi(transport)
+    render(
+      <MemoryRouter initialEntries={['/trips/new']}>
+        <AuthProvider>
+          <Routes>
+            <Route path="/trips/new" element={<NewTripPage client={api} />} />
+            <Route path="/trips/:tripId/plan" element={<p>Created trip route</p>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await user.type(screen.getByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: 'Create trip' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "We couldn't update this trip. Please try again.",
+    )
+    await user.click(screen.getByRole('button', { name: 'Create trip' }))
+    expect(await screen.findByText('Created trip route')).toBeVisible()
+    expect(payloads).toHaveLength(2)
+    expect(payloads[1]).toEqual(payloads[0])
+  })
   it('does not navigate when create resolves after sign-out starts', async () => {
     const user = userEvent.setup()
     let resolveCreate!: (value: Trip) => void
     const create = vi.fn(() => new Promise<Trip>((resolve) => (resolveCreate = resolve)))
     let finishLocalSignOut!: () => void
+    let signOutPromise!: Promise<void>
+    let currentAuth!: ReturnType<typeof useAuth>
     const onLocalSignOut = vi.fn(
       () => new Promise<void>((resolve) => (finishLocalSignOut = resolve)),
     )
     render(
       <MemoryRouter initialEntries={['/trips/new']}>
         <AuthProvider onLocalSignOut={onLocalSignOut}>
-          <SignOutButton />
+          <AuthCapture onAuth={(auth) => (currentAuth = auth)} />
           <Routes>
             <Route path="/trips/new" element={<NewTripPage client={client({ create })} />} />
             <Route path="/trips/:tripId/plan" element={<p>Created trip route</p>} />
@@ -280,12 +395,58 @@ describe('manual trips', () => {
     await user.type(screen.getByLabelText(/trip name/i), 'Saturday finds')
     await user.type(screen.getByLabelText(/date/i), '2026-08-10')
     await user.click(screen.getByRole('button', { name: 'Create trip' }))
-    await user.click(screen.getByRole('button', { name: 'Sign out now' }))
-    await waitFor(() => expect(onLocalSignOut).toHaveBeenCalled())
-    await act(async () => resolveCreate({ ...trip, id: 'trip-created' }))
+    await act(async () => {
+      signOutPromise = currentAuth.signOut()
+      resolveCreate({ ...trip, id: 'trip-created' })
+      await Promise.resolve()
+    })
+    expect(onLocalSignOut).toHaveBeenCalled()
     expect(screen.getByTestId('current-path')).toHaveTextContent('/trips/new')
     expect(create).toHaveBeenCalledTimes(1)
-    await act(async () => finishLocalSignOut())
+    await act(async () => {
+      finishLocalSignOut()
+      await signOutPromise
+    })
+  })
+  it('discards a pending create after A to B to A before the route rerenders', async () => {
+    const user = userEvent.setup()
+    let resolveCreate!: (value: Trip) => void
+    const create = vi.fn(() => new Promise<Trip>((resolve) => (resolveCreate = resolve)))
+    let currentAuth!: ReturnType<typeof useAuth>
+    const authStore = authenticatedStore()
+    const sessionA: AuthSession = {
+      userId: 'shopper-test',
+      accessToken: 'shopper-test-token',
+      expiresAt: Date.now() + 60_000,
+      role: 'Shopper',
+      mfaRequired: false,
+      mfaVerified: true,
+    }
+    const sessionB = { ...sessionA, userId: 'shopper-other', accessToken: 'other-token' }
+    render(
+      <MemoryRouter initialEntries={['/trips/new']}>
+        <AuthProvider authStore={authStore}>
+          <AuthCapture onAuth={(auth) => (currentAuth = auth)} />
+          <Routes>
+            <Route path="/trips/new" element={<NewTripPage client={client({ create })} />} />
+            <Route path="/trips/:tripId/plan" element={<p>Created trip route</p>} />
+          </Routes>
+        </AuthProvider>
+        <PathProbe />
+      </MemoryRouter>,
+    )
+    await user.type(screen.getByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: 'Create trip' }))
+    await act(async () => {
+      await currentAuth.signIn(sessionB)
+      await currentAuth.signIn(sessionA)
+      resolveCreate({ ...trip, id: 'trip-created' })
+      await Promise.resolve()
+    })
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/trips/new')
+    expect(screen.queryByText('Created trip route')).not.toBeInTheDocument()
+    expect(create).toHaveBeenCalledTimes(1)
   })
   it('does not navigate when create resolves after its route is abandoned', async () => {
     const user = userEvent.setup()
@@ -313,9 +474,55 @@ describe('manual trips', () => {
     expect(screen.getByTestId('current-path')).toHaveTextContent('/elsewhere')
     expect(screen.queryByText('Created trip route')).not.toBeInTheDocument()
   })
+  it('owns the in-flight lock across NewTripForm client replacement', async () => {
+    const user = userEvent.setup()
+    let rejectA!: (error: Error) => void
+    let resolveB!: (value: Trip) => void
+    const createA = vi.fn<TripClient['create']>(
+      () => new Promise<Trip>((_resolve, reject) => (rejectA = reject)),
+    )
+    const createB = vi.fn<TripClient['create']>(
+      () => new Promise<Trip>((resolve) => (resolveB = resolve)),
+    )
+    const clientA = client({ create: createA })
+    const clientB = client({ create: createB })
+    const authStore = authenticatedStore()
+    render(
+      <MemoryRouter initialEntries={['/trips/new']}>
+        <AuthProvider authStore={authStore}>
+          <NewTripClientSwitch first={clientA} second={clientB} />
+        </AuthProvider>
+        <PathProbe />
+      </MemoryRouter>,
+    )
+    await user.type(screen.getByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: 'Create trip' }))
+    expect(createA).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('button', { name: 'Switch trip client' }))
+    await user.click(screen.getByRole('button', { name: 'Create trip' }))
+    expect(createB).toHaveBeenCalledTimes(1)
+    expect(createB.mock.calls[0][0].idempotencyKey).not.toBe(
+      createA.mock.calls[0][0].idempotencyKey,
+    )
+    await act(async () => {
+      rejectA(new Error('old client failed'))
+      await Promise.resolve()
+    })
+    const form = screen.getByRole('button', { name: 'Creating…' }).closest('form')!
+    act(() => {
+      fireEvent.submit(form)
+      fireEvent.submit(form)
+    })
+    expect(createB).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/trips/new')
+    await act(async () => resolveB({ ...trip, id: 'trip-client-b' }))
+    expect(await screen.findByText('Created trip route')).toBeVisible()
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/trips/trip-client-b/plan')
+  })
   it('offers the explicit chooser and seeds a store into a newly created trip on success', async () => {
     const user = userEvent.setup()
-    const create = vi.fn(async () => trip)
+    const create = vi.fn<TripClient['create']>(async () => trip)
     const addStoreStop = vi.fn(async () => ({
       ...trip,
       stops: [
@@ -331,9 +538,12 @@ describe('manual trips', () => {
         },
       ],
     }))
+    const authStore = authenticatedStore()
+    const registry = new InMemorySessionRegistry()
+    await registry.registerCurrentSession(authStore.getSession()!)
     render(
       <MemoryRouter initialEntries={['/trips/new?addStoreId=store-1']}>
-        <AuthProvider>
+        <AuthProvider authStore={authStore} registry={registry}>
           <Routes>
             <Route
               path="/trips/new"
@@ -360,6 +570,16 @@ describe('manual trips', () => {
       'href',
       '/trips/trip-1/plan',
     )
+    const firstKey = create.mock.calls[0][0].idempotencyKey
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+    await user.type(await screen.findByLabelText(/trip name/i), 'Sunday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-11')
+    await screen.findByRole('button', { name: /create trip and add store/i })
+    expect(screen.getByRole('button', { name: /create trip and add store/i })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Create trip and add store' }))
+    expect(await screen.findByRole('heading', { name: 'Added to Antique Day' })).toBeVisible()
+    expect(create).toHaveBeenCalledTimes(2)
+    expect(create.mock.calls[1][0].idempotencyKey).not.toBe(firstKey)
     await user.click(screen.getByRole('link', { name: 'View Trip' }))
     expect(await screen.findByText('Trip seeded')).toBeInTheDocument()
   })
@@ -467,7 +687,7 @@ describe('manual trips', () => {
 
   it('replays the same keyed chooser create after the committed response is lost', async () => {
     const user = userEvent.setup()
-    const committed = new Map<string, Trip>()
+    const committed = new Map<string, { fingerprint: string; result: Trip }>()
     let backendCreations = 0
     const createdTrip: Trip = { ...trip, id: 'trip-created', name: 'Saturday finds' }
     const createdWithStop: Trip = {
@@ -486,11 +706,15 @@ describe('manual trips', () => {
       ],
     }
     const create = vi.fn(async (input: Parameters<TripClient['create']>[0]) => {
+      const fingerprint = JSON.stringify([input.name, input.localDate])
       const prior = committed.get(input.idempotencyKey)
-      if (prior) return prior
+      if (prior) {
+        expect(prior.fingerprint).toBe(fingerprint)
+        return prior.result
+      }
       backendCreations += 1
       const result = { ...createdTrip, name: input.name, localDate: input.localDate }
-      committed.set(input.idempotencyKey, result)
+      committed.set(input.idempotencyKey, { fingerprint, result })
       throw new Error('committed, response lost')
     })
     const addStoreStop = vi.fn(async () => createdWithStop)
@@ -520,25 +744,33 @@ describe('manual trips', () => {
     const addStoreStop = vi.fn(async () => trip)
     const get = vi.fn(async () => trip)
     let finishLocalSignOut!: () => void
+    let signOutPromise!: Promise<void>
+    let currentAuth!: ReturnType<typeof useAuth>
     const onLocalSignOut = vi.fn(
       () => new Promise<void>((resolve) => (finishLocalSignOut = resolve)),
     )
     renderPage(
       <AuthProvider onLocalSignOut={onLocalSignOut}>
-        <SignOutButton />
+        <AuthCapture onAuth={(auth) => (currentAuth = auth)} />
         <AddToTripPage storeId="store-1" client={client({ create, addStoreStop, get })} />
       </AuthProvider>,
     )
     await user.type(await screen.findByLabelText(/trip name/i), 'Saturday finds')
     await user.type(screen.getByLabelText(/date/i), '2026-08-10')
     await user.click(screen.getByRole('button', { name: 'Create trip and add store' }))
-    await user.click(screen.getByRole('button', { name: 'Sign out now' }))
-    await waitFor(() => expect(onLocalSignOut).toHaveBeenCalled())
-    await act(async () => resolveCreate({ ...trip, id: 'trip-created' }))
+    await act(async () => {
+      signOutPromise = currentAuth.signOut()
+      resolveCreate({ ...trip, id: 'trip-created' })
+      await Promise.resolve()
+    })
+    expect(onLocalSignOut).toHaveBeenCalled()
     expect(addStoreStop).not.toHaveBeenCalled()
     expect(get).not.toHaveBeenCalled()
     expect(screen.queryByRole('heading', { name: /added to/i })).not.toBeInTheDocument()
-    await act(async () => finishLocalSignOut())
+    await act(async () => {
+      finishLocalSignOut()
+      await signOutPromise
+    })
   })
   it('discards a pending direct chooser action when the store scope changes', async () => {
     const user = userEvent.setup()
@@ -562,6 +794,96 @@ describe('manual trips', () => {
     await act(async () => resolveCreate({ ...trip, id: 'trip-created' }))
     expect(addStoreStop).not.toHaveBeenCalled()
     expect(screen.queryByRole('heading', { name: /added to/i })).not.toBeInTheDocument()
+  })
+  it('owns the in-flight lock across direct chooser client replacement', async () => {
+    const user = userEvent.setup()
+    let rejectA!: (error: Error) => void
+    let resolveB!: (value: Trip) => void
+    const createA = vi.fn<TripClient['create']>(
+      () => new Promise<Trip>((_resolve, reject) => (rejectA = reject)),
+    )
+    const createB = vi.fn<TripClient['create']>(
+      () => new Promise<Trip>((resolve) => (resolveB = resolve)),
+    )
+    const added: Trip = {
+      ...trip,
+      stops: [
+        {
+          id: 'stop-b',
+          storeId: 'store-1',
+          kind: 'store',
+          label: 'Oak Antiques',
+          position: 0,
+          priority: 'prefer',
+          plannedDwellMinutes: 60,
+          state: 'planned',
+        },
+      ],
+    }
+    const addB = vi.fn(async () => added)
+    const listB = vi.fn(async () => [])
+    const authStore = authenticatedStore()
+    const registry = new InMemorySessionRegistry()
+    await registry.registerCurrentSession(authStore.getSession()!)
+    let currentAuth!: ReturnType<typeof useAuth>
+    const clientA = client({ create: createA })
+    const clientB = client({ create: createB, addStoreStop: addB, list: listB })
+    renderPage(
+      <AuthProvider authStore={authStore} registry={registry}>
+        <AuthCapture
+          onAuth={(auth) => {
+            currentAuth = auth
+          }}
+        />
+        <AddTripClientSwitch first={clientA} second={clientB} />
+      </AuthProvider>,
+    )
+    await user.type(await screen.findByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: 'Create trip and add store' }))
+    await user.click(screen.getByRole('button', { name: 'Switch trip client' }))
+    await waitFor(() => expect(listB).toHaveBeenCalled())
+    expect(currentAuth.isCurrentAccount()).toBe(true)
+    await screen.findByText('You have no trips yet.')
+    await user.type(await screen.findByLabelText(/trip name/i), 'Sunday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-11')
+    await screen.findByRole('button', { name: /create trip and add store/i })
+    expect(screen.getByRole('button', { name: /create trip and add store/i })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Create trip and add store' }))
+    expect(createB).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      rejectA(new Error('old chooser client failed'))
+      await Promise.resolve()
+    })
+    const form = screen.getByRole('button', { name: 'Creating trip…' }).closest('form')!
+    act(() => {
+      fireEvent.submit(form)
+      fireEvent.submit(form)
+    })
+    expect(createB).toHaveBeenCalledTimes(1)
+    expect(addB).not.toHaveBeenCalled()
+    await act(async () => resolveB({ ...trip, id: 'trip-client-b', name: 'Sunday finds' }))
+    expect(await screen.findByRole('heading', { name: 'Added to Antique Day' })).toBeVisible()
+    expect(addB).toHaveBeenCalledTimes(1)
+  })
+  it('does not continue a direct chooser create after unmount', async () => {
+    const user = userEvent.setup()
+    let resolveCreate!: (value: Trip) => void
+    const create = vi.fn(() => new Promise<Trip>((resolve) => (resolveCreate = resolve)))
+    const addStoreStop = vi.fn(async () => trip)
+    const get = vi.fn(async () => trip)
+    const view = renderPage(
+      <AuthProvider>
+        <AddToTripPage storeId="store-1" client={client({ create, addStoreStop, get })} />
+      </AuthProvider>,
+    )
+    await user.type(await screen.findByLabelText(/trip name/i), 'Saturday finds')
+    await user.type(screen.getByLabelText(/date/i), '2026-08-10')
+    await user.click(screen.getByRole('button', { name: 'Create trip and add store' }))
+    view.unmount()
+    await act(async () => resolveCreate({ ...trip, id: 'trip-created' }))
+    expect(addStoreStop).not.toHaveBeenCalled()
+    expect(get).not.toHaveBeenCalled()
   })
 
   it('reuses a created trip when adding the store must be retried', async () => {

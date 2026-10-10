@@ -839,16 +839,17 @@ function NewTripForm({ client }: { client: TripClient }) {
   const [pending, setPending] = useState(false)
   const [attempt, setAttempt] = useState<TripCreateAttempt | null>(null)
   const attemptRef = useRef<TripCreateAttempt | null>(null)
-  const inFlight = useRef(false)
+  const flightRef = useRef<object | null>(null)
   useLayoutEffect(() => {
     attemptRef.current = null
+    flightRef.current = null
     setAttempt(null)
     setError(false)
     setPending(false)
   }, [identity])
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (inFlight.current) return
+    if (flightRef.current) return
     let currentAttempt = attemptRef.current
     if (currentAttempt && !currentAttempt.isCurrent()) {
       attemptRef.current = null
@@ -869,7 +870,8 @@ function NewTripForm({ client }: { client: TripClient }) {
       setAttempt(currentAttempt)
     }
     if (!currentAttempt.isCurrent()) return
-    inFlight.current = true
+    const operation = {}
+    flightRef.current = operation
     setPending(true)
     setError(false)
     try {
@@ -885,8 +887,10 @@ function NewTripForm({ client }: { client: TripClient }) {
     } catch {
       if (currentAttempt.isCurrent()) setError(true)
     } finally {
-      inFlight.current = false
-      if (currentAttempt.isCurrent()) setPending(false)
+      if (flightRef.current === operation) {
+        flightRef.current = null
+        if (currentAttempt.isCurrent()) setPending(false)
+      }
     }
   }
   return (
@@ -966,12 +970,12 @@ export function AddToTripPage({
   const [notice, setNotice] = useState<string | null>(null)
   const [createAttempt, setCreateAttempt] = useState<TripCreateAttempt | null>(null)
   const createAttemptRef = useRef<TripCreateAttempt | null>(null)
-  const inFlight = useRef(false)
+  const flightRef = useRef<object | null>(null)
 
   useLayoutEffect(() => {
-    createAttemptRef.current = null
-    inFlight.current = false
     setTrips(null)
+    createAttemptRef.current = null
+    flightRef.current = null
     setName('')
     setDate('')
     setActionError(false)
@@ -1043,10 +1047,11 @@ export function AddToTripPage({
   }
 
   async function addToTrip(trip: Trip) {
-    if (inFlight.current || pendingAction) return
+    if (flightRef.current || pendingAction) return
     const isCurrent = capture()
     if (!isCurrent()) return
-    inFlight.current = true
+    const operation = {}
+    flightRef.current = operation
     setPendingAction({ kind: 'existing', trip })
     setActionError(false)
     setNotice(null)
@@ -1059,14 +1064,16 @@ export function AddToTripPage({
     } catch {
       if (isCurrent()) setActionError(true)
     } finally {
-      inFlight.current = false
-      if (isCurrent()) setPendingAction(null)
+      if (flightRef.current === operation) {
+        flightRef.current = null
+        if (isCurrent()) setPendingAction(null)
+      }
     }
   }
 
   async function createAndAdd(event: FormEvent) {
     event.preventDefault()
-    if (inFlight.current || pendingAction) return
+    if (flightRef.current || pendingAction) return
     let attempt = createAttemptRef.current
     if (attempt && !attempt.isCurrent()) {
       createAttemptRef.current = null
@@ -1089,7 +1096,8 @@ export function AddToTripPage({
       setCreateAttempt(attempt)
     }
     if (!attempt.isCurrent()) return
-    inFlight.current = true
+    const operation = {}
+    flightRef.current = operation
     setPendingAction({ kind: 'new' })
     setActionError(false)
     setNotice(null)
@@ -1116,8 +1124,10 @@ export function AddToTripPage({
     } catch {
       if (attempt.isCurrent()) setActionError(true)
     } finally {
-      inFlight.current = false
-      if (attempt.isCurrent()) setPendingAction(null)
+      if (flightRef.current === operation) {
+        flightRef.current = null
+        if (attempt.isCurrent()) setPendingAction(null)
+      }
     }
   }
 

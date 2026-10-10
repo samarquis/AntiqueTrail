@@ -987,6 +987,7 @@ describe('scenario-aware review clients', () => {
     ).rejects.toThrow(/creation conflict/i)
 
     const otherActor = createReviewHarnessClients(scenario('shopper-b'), 'success').trips!
+    await expect(otherActor.get(first.id)).resolves.toBeNull()
     const isolated = await otherActor.create({
       name: 'Other actor trip',
       localDate: '2026-08-10',
@@ -994,6 +995,41 @@ describe('scenario-aware review clients', () => {
     })
     expect(isolated.name).toBe('Other actor trip')
   })
+
+  it.each(['missing', 'revoked'] as const)(
+    'denies a keyed replay with a %s fixture session',
+    async (sessionState) => {
+      const key = '56500000-0000-4000-8000-000000000106'
+      const authStore = new InMemoryAuthStore()
+      const sessionRegistry = new InMemorySessionRegistry()
+      const session = {
+        userId: 'review-shopper-a',
+        accessToken: 'local-review-only:shopper-a',
+        expiresAt: Date.now() + 60_000,
+        role: 'Shopper' as const,
+        mfaRequired: false,
+        mfaVerified: true,
+      }
+      authStore.setSession(session)
+      await sessionRegistry.registerCurrentSession(session)
+      const trips = createReviewHarnessClients(scenario('shopper-a'), 'success', false, {
+        state: 'active',
+        authStore,
+        sessionRegistry,
+      }).trips!
+      const original = await trips.create({
+        name: 'Private retry',
+        localDate: '2026-08-10',
+        idempotencyKey: key,
+      })
+      if (sessionState === 'missing') authStore.clearSession()
+      else await sessionRegistry.revoke(session)
+      await expect(
+        trips.create({ name: 'Private retry', localDate: '2026-08-10', idempotencyKey: key }),
+      ).rejects.toThrow(/session is unavailable/i)
+      await expect(trips.get(original.id)).rejects.toThrow(/session is unavailable/i)
+    },
+  )
 
   it('replays a real offline queue and resolves conflicts for review', async () => {
     const trips = createReviewHarnessClients(scenario('shopper-a'), 'success').trips!

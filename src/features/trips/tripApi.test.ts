@@ -277,6 +277,10 @@ describe('implicit-actor TripClient transport', () => {
   it.each([
     ['malformed', 'not-a-uuid'],
     ['missing', undefined],
+    ['UUID array', ['56500000-0000-4000-8000-000000000001']],
+    ['UUID-coercible object', { toString: () => '56500000-0000-4000-8000-000000000001' }],
+    ['null', null],
+    ['number', 565],
   ])('rejects a %s create key before transport', async (_label, idempotencyKey) => {
     const wire = transport(trip)
     const input = {
