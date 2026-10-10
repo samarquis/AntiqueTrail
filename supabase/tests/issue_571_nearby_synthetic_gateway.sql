@@ -112,6 +112,58 @@ select ok((app_public.synthetic_catalog_gateway_request(repeat('d',64),
  'explicit null query/category/area dispatch');
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','gateway_request_invalid','missing p_q is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','gateway_request_invalid','missing p_category is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','gateway_request_invalid','missing p_area is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','gateway_request_invalid','missing latitude is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','gateway_request_invalid','missing longitude is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0}')$$,
+ 'P0001','gateway_request_invalid','missing radius is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5,"p_store_id":"99000000-0000-4000-8000-000000007101"}')$$,
+ 'P0001','gateway_request_invalid','forged p_store_id is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":null,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','invalid_nearby_input','explicit null latitude is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":null,"p_device_radius_miles":5}')$$,
+ 'P0001','invalid_nearby_input','explicit null longitude is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":"0","p_device_radius_miles":5}')$$,
+ 'P0001','invalid_nearby_input','string longitude is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":"5"}')$$,
+ 'P0001','invalid_nearby_input','string radius is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":"NaN","p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','invalid_nearby_input','string NaN coordinate is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":"Infinity","p_device_radius_miles":5}')$$,
+ 'P0001','invalid_nearby_input','string Infinity coordinate is rejected');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
  '{"p_q":"x","p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5,"extra":true}')$$,
  'P0001','gateway_request_invalid','unknown arguments fail closed');
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(null,
