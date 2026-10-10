@@ -133,9 +133,9 @@ export function finalizePrivateStopProof(report, input) {
     : 'failed'
   const cleanupRequired = Boolean(
     input.serviceAllocated ||
-    input.previewAllocated ||
-    input.inputPathAssigned ||
-    input.capabilityTouched,
+      input.previewAllocated ||
+      input.inputPathAssigned ||
+      input.capabilityTouched,
   )
   const cleanupSucceeded =
     (!input.serviceAllocated || input.serviceCleanup === 'removed') &&
