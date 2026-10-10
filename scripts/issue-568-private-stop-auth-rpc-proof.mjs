@@ -11,11 +11,19 @@ import {
   ROOT,
   command,
   createLocalService,
+  captureLocalStartupFailure,
   freePort,
+  runAtLocalStartupStep,
   stopChild,
+  tagLocalStartupFailure,
 } from './configured-shopper-local.mjs'
 import { browserReport } from './configured-free-shopper-report.mjs'
 import { redact } from './configured-shopper-probe.mjs'
+import {
+  cleanupInput,
+  finalizePrivateStopProof,
+  projectPrimaryFailure,
+} from './issue-568-private-stop-proof-report.mjs'
 
 const CASE_IDS = [
   'owner-save-reopen',
@@ -41,6 +49,8 @@ const report = {
   schema: 'issue-568-private-stop-auth-rpc-proof/v1',
   status: 'unavailable',
   failureStage: 'preflight',
+  primaryFailureStage: null,
+  startupFailure: null,
   sourceSha: null,
   workflowHeadSha: null,
   baseSha: null,
@@ -63,6 +73,7 @@ const report = {
   screenshot_count: 0,
   previewStopped: false,
   inputRemoved: false,
+  inputCleanupState: 'not_created',
   serviceCleanup: 'not-started',
   cleanup: 'not-started',
 }
@@ -72,10 +83,18 @@ let service
 let local
 let server
 let inputPath
+let inputCreated = false
 let rawReportPath
 let browserMetadataPath
 let capabilityTouched = false
 let testsPassed = false
+
+function rememberPrimaryFailure(failedStage, error) {
+  if (report.primaryFailureStage !== null) return
+  const startupFailure =
+    failedStage === 'local-services' ? captureLocalStartupFailure(service?.run, error) : null
+  Object.assign(report, projectPrimaryFailure(failedStage, startupFailure))
+}
 
 function sectionPort(source, section, key) {
   const rest = source.split(`[${section}]`)[1]
@@ -143,8 +162,13 @@ try {
   const origin = `http://127.0.0.1:${await freePort()}`
   service = createLocalService({ signal: controller.signal, browserOrigin: origin })
   local = await service.start()
-  if (local.sourceSha !== report.sourceSha || local.sourceDirty)
-    throw new Error('Local service source identity differs')
+  runAtLocalStartupStep(service.run, 'source-identity', () => {
+    if (local.sourceSha !== report.sourceSha || local.sourceDirty) {
+      const error = new Error('Local service source identity differs')
+      tagLocalStartupFailure(error, 'identity_mismatch')
+      throw error
+    }
+  })
   report.schemaIdentity = local.schemaIdentity
   report.functionIdentity = local.functionIdentity
   report.configIdentity = local.configIdentity
@@ -153,7 +177,9 @@ try {
     .update(local.fixtureIdentity)
     .update('issue-568-private-trip-fixture/v1')
     .digest('hex')
-  report.portMap = localPortMap(origin, local)
+  report.portMap = runAtLocalStartupStep(service.run, 'port-config', () =>
+    localPortMap(origin, local),
+  )
 
   stage = 'test-only-capability'
   const initialCapability = (
@@ -193,6 +219,7 @@ try {
     }),
     { mode: 0o600, flag: 'wx' },
   )
+  inputCreated = true
   const appEnvironment = {
     ...process.env,
     VITE_SUPABASE_URL: local.endpoint,
@@ -264,8 +291,9 @@ try {
       ],
       { env: browserEnvironment, signal: controller.signal, timeout: 900_000 },
     )
-  } catch {
+  } catch (error) {
     playwrightExit = false
+    rememberPrimaryFailure('browser-tests', error)
   }
 
   stage = 'browser-report'
@@ -305,9 +333,11 @@ try {
     report.externalSourceRequestCount === 0
   report.status = testsPassed ? 'passed' : 'failed'
   report.failureStage = testsPassed ? null : 'browser-tests'
-} catch {
+  if (!testsPassed) rememberPrimaryFailure('browser-tests', null)
+} catch (error) {
   report.status = stage === 'browser-tests' || stage === 'browser-report' ? 'failed' : 'unavailable'
   report.failureStage = stage
+  rememberPrimaryFailure(stage, error)
 } finally {
   stage = 'cleanup'
   try {
@@ -335,14 +365,13 @@ try {
     }
   }
 
-  if (inputPath && fs.existsSync(inputPath)) {
-    try {
-      fs.rmSync(inputPath, { force: true })
-    } catch {
-      report.inputRemoved = false
-    }
-  }
-  report.inputRemoved = Boolean(inputPath) && !fs.existsSync(inputPath)
+  report.inputCleanupState = cleanupInput({
+    path: inputPath,
+    created: inputCreated,
+    exists: fs.existsSync,
+    remove: (file) => fs.rmSync(file, { force: true }),
+  })
+  report.inputRemoved = report.inputCleanupState === 'removed'
 
   if (service) {
     try {
@@ -353,38 +382,30 @@ try {
       report.status = 'failed'
     }
   }
-  const cleanupRequired = Boolean(service || server || inputPath || capabilityTouched)
-  report.cleanup = !cleanupRequired
-    ? 'not-needed'
-    : report.serviceCleanup === 'removed' &&
-        report.previewStopped &&
-        report.inputRemoved &&
-        (!capabilityTouched || report.capabilityRestored)
-      ? 'removed'
-      : 'failed'
-
-  if (
-    testsPassed &&
-    report.cleanup === 'removed' &&
-    report.capabilityInitial === 'disabled' &&
-    report.capabilityEnabledForRun &&
-    report.capabilityRestored
-  ) {
-    report.status = 'passed'
-    report.failureStage = null
-  } else if (report.status === 'passed') {
-    report.status = 'failed'
-    report.failureStage = 'cleanup'
+  const ownedDirectory = local?.directory ?? service?.run?.directory
+  let localDirectoryExists = false
+  if (ownedDirectory) {
+    try {
+      localDirectoryExists = fs.existsSync(ownedDirectory)
+    } catch {
+      localDirectoryExists = true
+    }
   }
-
-  if (local?.directory && fs.existsSync(local.directory)) {
-    report.status = 'failed'
-    report.failureStage = 'cleanup'
-  }
-  if (report.cleanup === 'failed') {
-    report.status = 'failed'
-    report.failureStage = 'cleanup'
-  }
+  Object.assign(
+    report,
+    finalizePrivateStopProof(report, {
+      testsPassed,
+      serviceAllocated: Boolean(service),
+      serviceCleanup: report.serviceCleanup,
+      previewAllocated: Boolean(server),
+      previewStopped: report.previewStopped,
+      inputPathAssigned: Boolean(inputPath),
+      inputCleanupState: report.inputCleanupState,
+      capabilityTouched,
+      capabilityRestored: report.capabilityRestored,
+      localDirectoryExists,
+    }),
+  )
 
   process.off('SIGINT', interrupt)
   process.off('SIGTERM', interrupt)
@@ -393,8 +414,10 @@ try {
       mode: 0o600,
       flag: 'wx',
     })
-  } catch {
+  } catch (error) {
     report.status = 'failed'
+    report.failureStage = 'cleanup'
+    rememberPrimaryFailure('cleanup', error)
   }
 }
 console.log(

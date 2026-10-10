@@ -12,13 +12,69 @@ import {
   stopChild,
 } from './configured-shopper-local.mjs'
 import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
-import { representativeHoursReport } from './configured-representative-hours-report.mjs'
+import {
+  ownerListingStepResults,
+  representativeHoursReport,
+} from './configured-representative-hours-report.mjs'
 import { runLocalOwnerCancellation } from './owner-cancellation-local.mjs'
 
-const output = createRunDirectory(path.join(ROOT, 'artifacts'))
+const modeArgs = process.argv.slice(2)
+const ownerListingPhases = new Set([
+  'invited-lifecycle',
+  'owner-identity',
+  'portal-drafts',
+  'managed-hours',
+  'controlled-change',
+])
+const ownerListingPhaseArgument = modeArgs[0]?.startsWith('--owner-listing-phase=')
+  ? modeArgs[0].slice('--owner-listing-phase='.length)
+  : undefined
+const ownerListingMode =
+  modeArgs.length === 1 &&
+  (['--owner-listing', '--owner-listing-first-phase'].includes(modeArgs[0]) ||
+    ownerListingPhaseArgument !== undefined)
+const ownerListingFirstPhase = modeArgs[0] === '--owner-listing-first-phase'
+const ownerListingPhase = ownerListingFirstPhase
+  ? 'first'
+  : (ownerListingPhaseArgument ?? (ownerListingMode ? 'full' : undefined))
+if (modeArgs.length && !ownerListingMode)
+  throw new Error(
+    'Supported invocation is no arguments, --owner-listing, --owner-listing-first-phase, or --owner-listing-phase=<phase>',
+  )
+if (ownerListingPhaseArgument !== undefined && !ownerListingPhases.has(ownerListingPhaseArgument))
+  throw new Error(`Unknown Owner listing phase: ${ownerListingPhaseArgument}`)
+const output = createRunDirectory(
+  path.join(ROOT, ownerListingMode ? '.codex/issue-579/runs' : 'artifacts'),
+)
 const controller = new AbortController()
 const report = {
-  scope: 'representative-hours-and-owner-exact-store-billing-status',
+  scope: ownerListingMode
+    ? ownerListingPhase === 'first'
+      ? 'configured-owner-listing-first-phase-diagnostic'
+      : ownerListingPhase === 'full'
+        ? 'configured-owner-listing-isolated-local-proof'
+        : `configured-owner-listing-${ownerListingPhase}`
+    : 'representative-hours-and-owner-exact-store-billing-status',
+  ...(ownerListingMode
+    ? {
+        phase:
+          ownerListingPhase === 'first'
+            ? 'first-phase-diagnostic'
+            : ownerListingPhase === 'full'
+              ? 'full-acceptance'
+              : ownerListingPhase,
+      }
+    : {}),
+  ...(ownerListingMode
+    ? {
+        stepResults: [],
+        executionEnvironment:
+          process.env.GITHUB_ACTIONS === 'true'
+            ? 'hosted-ci-ephemeral-loopback-service'
+            : 'local-ephemeral-loopback-service',
+      }
+    : {}),
+  runId: output.runId,
   status: 'unavailable',
   cleanup: 'not-started',
   errors: [],
@@ -189,165 +245,540 @@ async function provisionOwner(local, fixture) {
   }
 }
 
-try {
-  report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
-  if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
-    throw new Error('External endpoint selection is forbidden')
-  const origin = `http://127.0.0.1:${await freePort()}`
-  service = createLocalService({ signal: controller.signal, browserOrigin: origin })
-  report.temporaryProject = service.run.directory
-  const local = await service.start()
-  function expandSql(file) {
-    return fs
-      .readFileSync(file, 'utf8')
-      .replace(/^\\ir\s+(.+)$/gm, (_, child) =>
-        expandSql(path.resolve(path.dirname(file), child.trim())),
-      )
-  }
-  report.ownerCancellationDatabase = []
-  for (const file of ['0132_store_owner_access.sql', '0133_issue_424_store_team_access.sql']) {
-    const result = await service.sql(expandSql(path.join(ROOT, 'supabase/tests', file)))
-    if (/^not ok/m.test(result)) throw new Error(`Owner cancellation pgTAP failed: ${file}`)
-    report.ownerCancellationDatabase.push({
-      file,
-      assertions: (result.match(/^ok \d+/gm) ?? []).length,
-      status: 'passed',
-    })
-  }
-  report.status = 'running'
-  const fixture = await provisionRepresentative(local)
-  local.fixtureIdentity = crypto
-    .createHash('sha256')
-    .update(local.fixtureIdentity)
-    .update(
-      fs.readFileSync(path.join(ROOT, 'scripts/configured-representative-hours-fixtures.sql')),
-    )
-    .digest('hex')
-  for (const key of [
-    'sourceSha',
-    'sourceDirty',
-    'schemaIdentity',
-    'functionIdentity',
-    'fixtureIdentity',
-    'configIdentity',
-    'endpoint',
-    'projectId',
-  ])
-    report[key] = local[key]
-  report.browserOrigin = origin
-  const input = {
-    ...local,
-    ...fixture,
-    directory: service.run.directory,
-    origin,
-    output: output.directory,
-  }
-  const secretFile = path.join(local.directory, 'representative-hours-browser-input.json')
-  fs.writeFileSync(secretFile, JSON.stringify(input), { mode: 0o600, flag: 'wx' })
-  const env = {
-    ...process.env,
-    VITE_SUPABASE_URL: local.endpoint,
-    VITE_SUPABASE_ANON_KEY: local.anonKey,
-    VITE_REVIEW_HARNESS: 'false',
-    VITE_STORE_OWNER_INTERNAL_ENABLED: 'true',
-    GITHUB_PAGES: 'false',
-    VITE_PARTNER_EMAIL_PROVIDER_ENABLED: 'false',
-    VITE_PARTNER_MEDIA_PROVIDER_ENABLED: 'false',
-    CONFIGURED_REPRESENTATIVE_HOURS_INPUT: secretFile,
-  }
-  const build = path.join(local.directory, 'representative-hours-dist')
-  await command(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', build], {
-    env,
-    signal: controller.signal,
+async function createOwnerListingIdentity(local, request, alias) {
+  const email = `${alias}-${uuid()}@probe.invalid`
+  const password = crypto.randomBytes(32).toString('base64url')
+  const created = await request('/auth/v1/admin/users', {
+    key: local.anonKey,
+    token: local.serviceRoleKey,
+    body: { email, password, email_confirm: true },
   })
-  server = spawn(
-    process.execPath,
-    [
-      'node_modules/vite/bin/vite.js',
-      'preview',
-      '--outDir',
-      build,
-      '--host',
-      '127.0.0.1',
-      '--port',
-      new URL(origin).port,
-      '--strictPort',
-    ],
-    { cwd: ROOT, env, windowsHide: true, stdio: 'ignore' },
+  if (!/^[a-f0-9-]{36}$/.test(created.id ?? ''))
+    throw new Error('Local Owner listing identity creation failed')
+  return { id: created.id, email, password }
+}
+
+async function enrollOwnerListingTotp(local, request, user, friendlyName) {
+  const session = await request('/auth/v1/token?grant_type=password', {
+    key: local.anonKey,
+    body: { email: user.email, password: user.password },
+  })
+  if (!session.access_token) throw new Error('Local Owner listing Auth session unavailable')
+  const enrolled = await auth(
+    local.endpoint,
+    local.anonKey,
+    session.access_token,
+    '/auth/v1/factors',
+    { factor_type: 'totp', friendly_name: friendlyName },
   )
-  let ready = false
-  for (let attempt = 0; attempt < 60; attempt++) {
-    try {
-      if ((await fetch(origin)).ok) {
-        ready = true
-        break
-      }
-    } catch {
-      /* bounded readiness */
+  const factorId = enrolled.id
+  const secret = enrolled.totp?.secret
+  if (typeof factorId !== 'string' || typeof secret !== 'string')
+    throw new Error('Local Owner listing MFA enrollment malformed')
+  const challenge = await auth(
+    local.endpoint,
+    local.anonKey,
+    session.access_token,
+    `/auth/v1/factors/${factorId}/challenge`,
+    {},
+  )
+  if (typeof challenge.id !== 'string')
+    throw new Error('Local Owner listing MFA challenge malformed')
+  await auth(
+    local.endpoint,
+    local.anonKey,
+    session.access_token,
+    `/auth/v1/factors/${factorId}/verify`,
+    { challenge_id: challenge.id, code: totp(secret) },
+  )
+  return secret
+}
+
+function replaceFixtureValues(source, values) {
+  let result = source
+  for (const [marker, value] of Object.entries(values))
+    result = result.replaceAll(`--${marker}--`, value)
+  if (/--[A-Z0-9_]+--/.test(result)) throw new Error('Owner listing fixture has unresolved values')
+  return result
+}
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest('hex')
+}
+
+function screenshotArtifacts(directory) {
+  const artifacts = []
+  const visit = (current) => {
+    if (!fs.existsSync(current)) return
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const file = path.join(current, entry.name)
+      if (entry.isDirectory()) visit(file)
+      else if (entry.isFile() && entry.name.endsWith('.png'))
+        artifacts.push({
+          path: path.relative(directory, file).replaceAll('\\', '/'),
+          sha256: sha256(fs.readFileSync(file)),
+        })
     }
-    await sleep(500)
   }
-  if (!ready) throw new Error('Configured Representative preview unavailable')
+  visit(directory)
+  return artifacts.sort((a, b) => a.path.localeCompare(b.path))
+}
+
+async function runOwnerListing() {
+  let restorePartnerEnvironment = () => {}
   try {
-    await command(
-      process.execPath,
-      [
-        'node_modules/@playwright/test/cli.js',
-        'test',
-        '--config',
-        'e2e/configured-representative-hours-playwright.config.ts',
-      ],
-      { env, timeout: 900_000, signal: controller.signal },
+    report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
+    report.sourceDirty = Boolean(
+      (await command('git', ['status', '--porcelain', '--untracked-files=all'])).trim(),
     )
-    report.status = 'passed'
-  } catch (error) {
-    report.status = 'failed'
-    report.errors.push(redact(error.message))
-  }
-  const resultPath = path.join(output.directory, 'playwright.json')
-  if (!fs.existsSync(resultPath)) {
-    report.status = 'unavailable'
-    report.errors.push('Missing Playwright report')
-  } else {
-    const results = representativeHoursReport(fs.readFileSync(resultPath, 'utf8'), 6)
-    report.stats = results.stats
-    report.checks = results.checks
-    if (results.status !== 'passed') report.status = 'failed'
-  }
-  if (report.status === 'passed') {
-    const ownerFixture = await provisionOwner(local, fixture)
-    const ownerOutput = path.join(output.directory, 'owner-billing')
-    fs.mkdirSync(ownerOutput, { recursive: true })
-    const ownerInput = { ...ownerFixture, origin, output: ownerOutput }
-    ownerSecretFile = path.join(local.directory, 'owner-billing-browser-input.json')
-    fs.writeFileSync(ownerSecretFile, JSON.stringify(ownerInput), { mode: 0o600, flag: 'wx' })
-    await command(
-      process.execPath,
-      [
-        'node_modules/@playwright/test/cli.js',
-        'test',
-        '--config',
-        'e2e/configured-owner-billing-status-playwright.config.ts',
-      ],
-      {
-        env: { ...env, CONFIGURED_OWNER_BILLING_INPUT: ownerSecretFile },
-        timeout: 900_000,
-        signal: controller.signal,
+    if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
+      throw new Error('External endpoint selection is forbidden')
+
+    const origin = `http://127.0.0.1:${await freePort()}`
+    const emailHmacSecret = crypto.randomBytes(32).toString('base64url')
+    const evidenceHmacSecret = crypto.randomBytes(32).toString('base64url')
+    const localPartnerEnvironment = {
+      PARTNER_SYNTHETIC_ENABLED: 'true',
+      PARTNER_EMAIL_HMAC_SECRET: emailHmacSecret,
+      PARTNER_EMAIL_HMAC_KEY_VERSION: '1',
+      PARTNER_EVIDENCE_HMAC_SECRET: evidenceHmacSecret,
+      APP_ORIGIN: origin,
+      PUBLIC_APP_ORIGIN: origin,
+    }
+    const priorEnvironment = new Map(
+      Object.keys(localPartnerEnvironment).map((key) => [key, process.env[key]]),
+    )
+    restorePartnerEnvironment = () => {
+      for (const [key, value] of priorEnvironment)
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+    }
+    Object.assign(process.env, localPartnerEnvironment)
+
+    service = createLocalService({
+      signal: controller.signal,
+      browserOrigin: origin,
+      includeServiceRoleKey: true,
+      partnerEnvironment: { emailHmacSecret, evidenceHmacSecret },
+    })
+    report.temporaryProject = service.run.directory
+    const local = await service.start()
+    restorePartnerEnvironment()
+    report.status = 'running'
+
+    const ownerA = await createOwnerListingIdentity(local, service.request, 'issue579-owner-a')
+    const ownerApplicant = await createOwnerListingIdentity(
+      local,
+      service.request,
+      'issue579-owner-applicant',
+    )
+    const ownerCancel = await createOwnerListingIdentity(
+      local,
+      service.request,
+      'issue579-owner-cancel',
+    )
+    const admin = await createOwnerListingIdentity(local, service.request, 'issue579-site-admin')
+    const shopper = local.users[0]
+    const [ownerATotp, ownerApplicantTotp, ownerCancelTotp, adminTotp] = await Promise.all([
+      enrollOwnerListingTotp(local, service.request, ownerA, 'issue-579-owner-a'),
+      enrollOwnerListingTotp(local, service.request, ownerApplicant, 'issue-579-owner-applicant'),
+      enrollOwnerListingTotp(local, service.request, ownerCancel, 'issue-579-owner-cancel'),
+      enrollOwnerListingTotp(local, service.request, admin, 'issue-579-site-admin'),
+    ])
+
+    const storeA = { id: uuid(), slug: 'issue-579-clockwork-cabinet' }
+    const storeB = { id: uuid(), slug: 'issue-579-sibling-market' }
+    const claimId = uuid()
+    const invitationAId = uuid()
+    const invitationCancelId = uuid()
+    const maintenanceInvitationId = uuid()
+    const maintenancePendingId = uuid()
+    const maintenanceConsentId = uuid()
+    const maintenanceReceiptId = uuid()
+    const invitationA = crypto.randomBytes(32).toString('hex')
+    const invitationCancel = crypto.randomBytes(32).toString('hex')
+    const maintenanceInvitationHash = sha256(crypto.randomBytes(32))
+    const authorityEventA = uuid()
+    const authorityEventB = uuid()
+    const emailHmac = (email) =>
+      crypto
+        .createHmac('sha256', emailHmacSecret)
+        .update(email.normalize('NFKC').trim().toLowerCase())
+        .digest('hex')
+    const fixturePath = path.join(ROOT, 'scripts/configured-owner-listing-fixtures.sql')
+    const fixtureSource = fs.readFileSync(fixturePath, 'utf8')
+    const fixtureSql = replaceFixtureValues(fixtureSource, {
+      STORE_A: storeA.id,
+      STORE_B: storeB.id,
+      OWNER_A: ownerA.id,
+      OWNER_A_EMAIL: ownerA.email,
+      OWNER_APPLICANT: ownerApplicant.id,
+      OWNER_APPLICANT_EMAIL: ownerApplicant.email,
+      OWNER_CANCEL: ownerCancel.id,
+      OWNER_CANCEL_EMAIL: ownerCancel.email,
+      ADMIN: admin.id,
+      ADMIN_EMAIL: admin.email,
+      OWNER_A_EMAIL_HMAC: emailHmac(ownerA.email),
+      OWNER_APPLICANT_EMAIL_HMAC: emailHmac(ownerApplicant.email),
+      OWNER_CANCEL_EMAIL_HMAC: emailHmac(ownerCancel.email),
+      INVITE_A_ID: invitationAId,
+      INVITE_A_HASH: sha256(Buffer.from(invitationA, 'hex')),
+      INVITE_CANCEL_ID: invitationCancelId,
+      INVITE_CANCEL_HASH: sha256(Buffer.from(invitationCancel, 'hex')),
+      MAINT_INVITE_ID: maintenanceInvitationId,
+      MAINT_INVITE_HASH: maintenanceInvitationHash,
+      MAINT_PENDING_ID: maintenancePendingId,
+      MAINT_CONSENT_ID: maintenanceConsentId,
+      MAINT_RECEIPT_ID: maintenanceReceiptId,
+      CLAIM_ID: claimId,
+      SIGNAL_EVENT_A: authorityEventA,
+      SIGNAL_EVENT_B: authorityEventB,
+    })
+    await service.sql(fixtureSql)
+    const fixtureIdentity = sha256(`${local.fixtureIdentity}\n${fixtureSource}\n${fixtureSql}`)
+    report.fixtureIdentity = fixtureIdentity
+    report.fixtureSourceIdentity = sha256(fixtureSource)
+    report.ownerMaintenanceSetup =
+      'Synthetic established Owner fixture: separate exact Store A claim, followed by Site Admin approval.'
+    report.localClaimIntake = {
+      status: 'missing-owned-work',
+      reason:
+        'The invited draft does not create a listing claim, and local synthetic-alpha does not expose the guided claim-intake path. The separate established Owner fixture proves maintenance only; it does not prove invitation-to-claim acceptance. This is missing issue work, not an external service blocker.',
+    }
+    report.localInvitationSetup =
+      'synthetic applicant and cancellation tokens; no email provider used'
+    report.ownerIdentityIds = {
+      ownerA: ownerA.id,
+      ownerApplicant: ownerApplicant.id,
+      ownerCancel: ownerCancel.id,
+      admin: admin.id,
+    }
+
+    const input = {
+      endpoint: local.endpoint,
+      anonKey: local.anonKey,
+      origin,
+      output: output.directory,
+      storeA,
+      storeB,
+      claimId,
+      invitationA,
+      invitationCancel,
+      ownerA: { email: ownerA.email, password: ownerA.password, totpSecret: ownerATotp },
+      ownerApplicant: {
+        email: ownerApplicant.email,
+        password: ownerApplicant.password,
+        totpSecret: ownerApplicantTotp,
       },
+      ownerCancel: {
+        email: ownerCancel.email,
+        password: ownerCancel.password,
+        totpSecret: ownerCancelTotp,
+      },
+      shopper: { email: shopper.email, password: shopper.password },
+      admin: { email: admin.email, password: admin.password, totpSecret: adminTotp },
+      phase: ownerListingPhase,
+    }
+    ownerSecretFile = path.join(local.directory, 'owner-listing-browser-input.json')
+    fs.writeFileSync(ownerSecretFile, JSON.stringify(input), { mode: 0o600, flag: 'wx' })
+
+    const env = {
+      ...process.env,
+      VITE_SUPABASE_URL: local.endpoint,
+      VITE_SUPABASE_ANON_KEY: local.anonKey,
+      VITE_REVIEW_HARNESS: 'false',
+      VITE_STORE_OWNER_INTERNAL_ENABLED: 'true',
+      VITE_PARTNER_SYNTHETIC_ENABLED: 'true',
+      GITHUB_PAGES: 'false',
+      VITE_PARTNER_EMAIL_PROVIDER_ENABLED: 'false',
+      VITE_PARTNER_MEDIA_PROVIDER_ENABLED: 'false',
+      CONFIGURED_OWNER_LISTING_INPUT: ownerSecretFile,
+    }
+    const build = path.join(local.directory, 'owner-listing-dist')
+    await command(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', build], {
+      env,
+      signal: controller.signal,
+    })
+    server = spawn(
+      process.execPath,
+      [
+        'node_modules/vite/bin/vite.js',
+        'preview',
+        '--outDir',
+        build,
+        '--host',
+        '127.0.0.1',
+        '--port',
+        new URL(origin).port,
+        '--strictPort',
+      ],
+      { cwd: ROOT, env, windowsHide: true, stdio: 'ignore' },
     )
-    const ownerResultPath = path.join(ownerOutput, 'playwright.json')
-    if (!fs.existsSync(ownerResultPath))
-      throw new Error('Missing configured Owner Playwright report')
-    const ownerResults = JSON.parse(fs.readFileSync(ownerResultPath, 'utf8'))
-    report.ownerStats = ownerResults.stats
-    if (
-      ownerResults.stats?.expected !== 1 ||
-      ownerResults.stats?.unexpected ||
-      ownerResults.stats?.skipped
+    let ready = false
+    for (let attempt = 0; attempt < 60; attempt++) {
+      try {
+        if ((await fetch(origin)).ok) {
+          ready = true
+          break
+        }
+      } catch {
+        /* bounded readiness */
+      }
+      await sleep(500)
+    }
+    if (!ready) throw new Error('Configured Owner listing preview unavailable')
+
+    try {
+      await command(
+        process.execPath,
+        [
+          'node_modules/@playwright/test/cli.js',
+          'test',
+          '--config',
+          'e2e/configured-owner-listing-playwright.config.ts',
+        ],
+        {
+          env,
+          timeout: ownerListingPhase === 'owner-identity' ? 120_000 : 900_000,
+          signal: controller.signal,
+        },
+      )
+      report.status = 'passed'
+    } catch (error) {
+      report.status = 'failed'
+      report.errors.push(
+        ownerListingFirstPhase ? 'Configured Owner first phase failed' : redact(error.message),
+      )
+    }
+    const stepPath = path.join(output.directory, 'steps.json')
+    if (fs.existsSync(stepPath))
+      report.stepResults = ownerListingStepResults(fs.readFileSync(stepPath, 'utf8'))
+    const resultPath = path.join(output.directory, 'playwright.json')
+    if (!fs.existsSync(resultPath)) {
+      report.status = 'unavailable'
+      report.errors.push('Missing configured Owner listing Playwright report')
+    } else {
+      const results = representativeHoursReport(fs.readFileSync(resultPath, 'utf8'), 1)
+      report.stats = results.stats
+      report.checks = results.checks
+      if (results.status !== 'passed' || report.status !== 'passed') report.status = 'failed'
+      else if (
+        !ownerListingFirstPhase &&
+        ownerListingPhase !== 'owner-identity' &&
+        report.localClaimIntake.status === 'missing-owned-work'
+      )
+        report.status = 'blocked'
+    }
+    report.screenshots = screenshotArtifacts(path.join(output.directory, 'browser'))
+    report.browserOrigin = origin
+    for (const key of [
+      'sourceSha',
+      'schemaIdentity',
+      'functionIdentity',
+      'configIdentity',
+      'endpoint',
+      'projectId',
+    ])
+      report[key] = local[key]
+    report.sourceDirty = Boolean(
+      (await command('git', ['status', '--porcelain', '--untracked-files=all'])).trim(),
     )
-      throw new Error('Configured Owner browser proof did not pass exactly one test')
-    // Separate local fake-provider scenario; deployed/default billing stays read-only.
-    await service.sql(`
+  } catch (error) {
+    if (report.status !== 'blocked') report.status = 'failed'
+    report.errors.push(redact(error.message))
+  } finally {
+    restorePartnerEnvironment()
+    await stopChild(server)
+    if (service) {
+      try {
+        if (ownerSecretFile) fs.rmSync(ownerSecretFile, { force: true })
+      } catch (error) {
+        report.status = 'failed'
+        report.errors.push(redact(error.message))
+      }
+      try {
+        report.cleanup = await service.cleanup()
+      } catch (error) {
+        report.cleanup = controller.signal.aborted
+          ? 'preserved-for-owner-checked-cleanup'
+          : 'failed'
+        report.status = 'failed'
+        if (controller.signal.aborted) {
+          report.ownerMarker = path.join(service.run.directory, '.owner.json')
+          report.errors.push(
+            'Interrupted run preserves its isolated Supabase project and owner marker.',
+          )
+        }
+        report.errors.push(redact(error.message))
+      }
+    }
+    fs.writeFileSync(
+      path.join(output.directory, 'report.json'),
+      JSON.stringify(redact(report), null, 2),
+    )
+  }
+}
+
+async function runDefault() {
+  try {
+    report.sourceSha = (await command('git', ['rev-parse', 'HEAD'])).trim()
+    if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
+      throw new Error('External endpoint selection is forbidden')
+    const origin = `http://127.0.0.1:${await freePort()}`
+    service = createLocalService({ signal: controller.signal, browserOrigin: origin })
+    report.temporaryProject = service.run.directory
+    const local = await service.start()
+    function expandSql(file) {
+      return fs
+        .readFileSync(file, 'utf8')
+        .replace(/^\\ir\s+(.+)$/gm, (_, child) =>
+          expandSql(path.resolve(path.dirname(file), child.trim())),
+        )
+    }
+    report.ownerCancellationDatabase = []
+    for (const file of ['0132_store_owner_access.sql', '0133_issue_424_store_team_access.sql']) {
+      const result = await service.sql(expandSql(path.join(ROOT, 'supabase/tests', file)))
+      if (/^not ok/m.test(result)) throw new Error(`Owner cancellation pgTAP failed: ${file}`)
+      report.ownerCancellationDatabase.push({
+        file,
+        assertions: (result.match(/^ok \d+/gm) ?? []).length,
+        status: 'passed',
+      })
+    }
+    report.status = 'running'
+    const fixture = await provisionRepresentative(local)
+    local.fixtureIdentity = crypto
+      .createHash('sha256')
+      .update(local.fixtureIdentity)
+      .update(
+        fs.readFileSync(path.join(ROOT, 'scripts/configured-representative-hours-fixtures.sql')),
+      )
+      .digest('hex')
+    for (const key of [
+      'sourceSha',
+      'sourceDirty',
+      'schemaIdentity',
+      'functionIdentity',
+      'fixtureIdentity',
+      'configIdentity',
+      'endpoint',
+      'projectId',
+    ])
+      report[key] = local[key]
+    report.browserOrigin = origin
+    const input = {
+      ...local,
+      ...fixture,
+      directory: service.run.directory,
+      origin,
+      output: output.directory,
+    }
+    const secretFile = path.join(local.directory, 'representative-hours-browser-input.json')
+    fs.writeFileSync(secretFile, JSON.stringify(input), { mode: 0o600, flag: 'wx' })
+    const env = {
+      ...process.env,
+      VITE_SUPABASE_URL: local.endpoint,
+      VITE_SUPABASE_ANON_KEY: local.anonKey,
+      VITE_REVIEW_HARNESS: 'false',
+      VITE_STORE_OWNER_INTERNAL_ENABLED: 'true',
+      GITHUB_PAGES: 'false',
+      VITE_PARTNER_EMAIL_PROVIDER_ENABLED: 'false',
+      VITE_PARTNER_MEDIA_PROVIDER_ENABLED: 'false',
+      CONFIGURED_REPRESENTATIVE_HOURS_INPUT: secretFile,
+    }
+    const build = path.join(local.directory, 'representative-hours-dist')
+    await command(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', build], {
+      env,
+      signal: controller.signal,
+    })
+    server = spawn(
+      process.execPath,
+      [
+        'node_modules/vite/bin/vite.js',
+        'preview',
+        '--outDir',
+        build,
+        '--host',
+        '127.0.0.1',
+        '--port',
+        new URL(origin).port,
+        '--strictPort',
+      ],
+      { cwd: ROOT, env, windowsHide: true, stdio: 'ignore' },
+    )
+    let ready = false
+    for (let attempt = 0; attempt < 60; attempt++) {
+      try {
+        if ((await fetch(origin)).ok) {
+          ready = true
+          break
+        }
+      } catch {
+        /* bounded readiness */
+      }
+      await sleep(500)
+    }
+    if (!ready) throw new Error('Configured Representative preview unavailable')
+    try {
+      await command(
+        process.execPath,
+        [
+          'node_modules/@playwright/test/cli.js',
+          'test',
+          '--config',
+          'e2e/configured-representative-hours-playwright.config.ts',
+        ],
+        { env, timeout: 900_000, signal: controller.signal },
+      )
+      report.status = 'passed'
+    } catch (error) {
+      report.status = 'failed'
+      report.errors.push(redact(error.message))
+    }
+    const resultPath = path.join(output.directory, 'playwright.json')
+    if (!fs.existsSync(resultPath)) {
+      report.status = 'unavailable'
+      report.errors.push('Missing Playwright report')
+    } else {
+      const results = representativeHoursReport(fs.readFileSync(resultPath, 'utf8'), 6)
+      report.stats = results.stats
+      report.checks = results.checks
+      if (results.status !== 'passed') report.status = 'failed'
+    }
+    if (report.status === 'passed') {
+      const ownerFixture = await provisionOwner(local, fixture)
+      const ownerOutput = path.join(output.directory, 'owner-billing')
+      fs.mkdirSync(ownerOutput, { recursive: true })
+      const ownerInput = { ...ownerFixture, origin, output: ownerOutput }
+      ownerSecretFile = path.join(local.directory, 'owner-billing-browser-input.json')
+      fs.writeFileSync(ownerSecretFile, JSON.stringify(ownerInput), { mode: 0o600, flag: 'wx' })
+      await command(
+        process.execPath,
+        [
+          'node_modules/@playwright/test/cli.js',
+          'test',
+          '--config',
+          'e2e/configured-owner-billing-status-playwright.config.ts',
+        ],
+        {
+          env: { ...env, CONFIGURED_OWNER_BILLING_INPUT: ownerSecretFile },
+          timeout: 900_000,
+          signal: controller.signal,
+        },
+      )
+      const ownerResultPath = path.join(ownerOutput, 'playwright.json')
+      if (!fs.existsSync(ownerResultPath))
+        throw new Error('Missing configured Owner Playwright report')
+      const ownerResults = JSON.parse(fs.readFileSync(ownerResultPath, 'utf8'))
+      report.ownerStats = ownerResults.stats
+      if (
+        ownerResults.stats?.expected !== 1 ||
+        ownerResults.stats?.unexpected ||
+        ownerResults.stats?.skipped
+      )
+        throw new Error('Configured Owner browser proof did not pass exactly one test')
+      // Separate local fake-provider scenario; deployed/default billing stays read-only.
+      await service.sql(`
       begin;
       insert into partner_private.photo_tier_commercial_configs(version,state) values(426,'draft');
       update partner_private.photo_tier_sales_control set state='servicing_only',commercial_config_version=426 where singleton;
@@ -358,112 +789,117 @@ try {
       update partner_private.owner_cancellation_test_control set enabled=true;
       commit;
     `)
-    const cancellationOutput = path.join(output.directory, 'owner-cancellation')
-    fs.mkdirSync(cancellationOutput, { recursive: true })
-    fs.writeFileSync(
-      ownerSecretFile,
-      JSON.stringify({ ...ownerInput, output: cancellationOutput, cancellation: true }),
-      { mode: 0o600 },
-    )
-    await command(
-      process.execPath,
-      [
-        'node_modules/@playwright/test/cli.js',
-        'test',
-        '--config',
-        'e2e/configured-owner-billing-status-playwright.config.ts',
-      ],
-      {
-        env: { ...env, CONFIGURED_OWNER_BILLING_INPUT: ownerSecretFile },
-        timeout: 900_000,
-        signal: controller.signal,
-      },
-    )
-    const cancellationResults = JSON.parse(
-      fs.readFileSync(path.join(cancellationOutput, 'playwright.json'), 'utf8'),
-    )
-    report.ownerCancellationStats = cancellationResults.stats
-    if (
-      cancellationResults.stats?.expected !== 1 ||
-      cancellationResults.stats?.unexpected ||
-      cancellationResults.stats?.skipped
-    )
-      throw new Error('Configured Owner cancellation proof did not pass exactly one test')
-    const workerResult = await runLocalOwnerCancellation(service)
-    if (!workerResult || workerResult.pending !== 0)
-      throw new Error('Local cancellation worker did not reconcile its durable obligation')
-    report.ownerCancellationWorker = workerResult
-    const verifiedOutput = path.join(output.directory, 'owner-cancellation-verified')
-    fs.mkdirSync(verifiedOutput, { recursive: true })
-    fs.writeFileSync(
-      ownerSecretFile,
-      JSON.stringify({
-        ...ownerInput,
-        output: verifiedOutput,
-        cancellation: true,
-        cancellationVerified: true,
-      }),
-      { mode: 0o600 },
-    )
-    await command(
-      process.execPath,
-      [
-        'node_modules/@playwright/test/cli.js',
-        'test',
-        '--config',
-        'e2e/configured-owner-billing-status-playwright.config.ts',
-      ],
-      {
-        env: { ...env, CONFIGURED_OWNER_BILLING_INPUT: ownerSecretFile },
-        timeout: 900_000,
-        signal: controller.signal,
-      },
-    )
-    const verifiedResults = JSON.parse(
-      fs.readFileSync(path.join(verifiedOutput, 'playwright.json'), 'utf8'),
-    )
-    report.ownerCancellationVerifiedStats = verifiedResults.stats
-    if (
-      verifiedResults.stats?.expected !== 1 ||
-      verifiedResults.stats?.unexpected ||
-      verifiedResults.stats?.skipped
-    )
-      throw new Error('Configured verified cancellation did not pass exactly one test')
-  }
-} catch (error) {
-  if (report.status !== 'unavailable') report.status = 'failed'
-  report.errors.push(redact(error.message))
-} finally {
-  await stopChild(server)
-  if (service) {
-    try {
-      fs.rmSync(path.join(service.run.directory, 'representative-hours-browser-input.json'), {
-        force: true,
-      })
-      if (ownerSecretFile) fs.rmSync(ownerSecretFile, { force: true })
-    } catch (error) {
-      report.status = 'failed'
-      report.errors.push(redact(error.message))
+      const cancellationOutput = path.join(output.directory, 'owner-cancellation')
+      fs.mkdirSync(cancellationOutput, { recursive: true })
+      fs.writeFileSync(
+        ownerSecretFile,
+        JSON.stringify({ ...ownerInput, output: cancellationOutput, cancellation: true }),
+        { mode: 0o600 },
+      )
+      await command(
+        process.execPath,
+        [
+          'node_modules/@playwright/test/cli.js',
+          'test',
+          '--config',
+          'e2e/configured-owner-billing-status-playwright.config.ts',
+        ],
+        {
+          env: { ...env, CONFIGURED_OWNER_BILLING_INPUT: ownerSecretFile },
+          timeout: 900_000,
+          signal: controller.signal,
+        },
+      )
+      const cancellationResults = JSON.parse(
+        fs.readFileSync(path.join(cancellationOutput, 'playwright.json'), 'utf8'),
+      )
+      report.ownerCancellationStats = cancellationResults.stats
+      if (
+        cancellationResults.stats?.expected !== 1 ||
+        cancellationResults.stats?.unexpected ||
+        cancellationResults.stats?.skipped
+      )
+        throw new Error('Configured Owner cancellation proof did not pass exactly one test')
+      const workerResult = await runLocalOwnerCancellation(service)
+      if (!workerResult || workerResult.pending !== 0)
+        throw new Error('Local cancellation worker did not reconcile its durable obligation')
+      report.ownerCancellationWorker = workerResult
+      const verifiedOutput = path.join(output.directory, 'owner-cancellation-verified')
+      fs.mkdirSync(verifiedOutput, { recursive: true })
+      fs.writeFileSync(
+        ownerSecretFile,
+        JSON.stringify({
+          ...ownerInput,
+          output: verifiedOutput,
+          cancellation: true,
+          cancellationVerified: true,
+        }),
+        { mode: 0o600 },
+      )
+      await command(
+        process.execPath,
+        [
+          'node_modules/@playwright/test/cli.js',
+          'test',
+          '--config',
+          'e2e/configured-owner-billing-status-playwright.config.ts',
+        ],
+        {
+          env: { ...env, CONFIGURED_OWNER_BILLING_INPUT: ownerSecretFile },
+          timeout: 900_000,
+          signal: controller.signal,
+        },
+      )
+      const verifiedResults = JSON.parse(
+        fs.readFileSync(path.join(verifiedOutput, 'playwright.json'), 'utf8'),
+      )
+      report.ownerCancellationVerifiedStats = verifiedResults.stats
+      if (
+        verifiedResults.stats?.expected !== 1 ||
+        verifiedResults.stats?.unexpected ||
+        verifiedResults.stats?.skipped
+      )
+        throw new Error('Configured verified cancellation did not pass exactly one test')
     }
-    try {
-      report.cleanup = await service.cleanup()
-    } catch (error) {
-      report.cleanup = controller.signal.aborted ? 'preserved-for-owner-checked-cleanup' : 'failed'
-      report.status = 'failed'
-      if (controller.signal.aborted) {
-        report.ownerMarker = path.join(service.run.directory, '.owner.json')
-        report.errors.push(
-          'Interrupted run preserves its isolated Supabase project and owner marker.',
-        )
+  } catch (error) {
+    if (report.status !== 'unavailable') report.status = 'failed'
+    report.errors.push(redact(error.message))
+  } finally {
+    await stopChild(server)
+    if (service) {
+      try {
+        fs.rmSync(path.join(service.run.directory, 'representative-hours-browser-input.json'), {
+          force: true,
+        })
+        if (ownerSecretFile) fs.rmSync(ownerSecretFile, { force: true })
+      } catch (error) {
+        report.status = 'failed'
+        report.errors.push(redact(error.message))
       }
-      report.errors.push(redact(error.message))
+      try {
+        report.cleanup = await service.cleanup()
+      } catch (error) {
+        report.cleanup = controller.signal.aborted
+          ? 'preserved-for-owner-checked-cleanup'
+          : 'failed'
+        report.status = 'failed'
+        if (controller.signal.aborted) {
+          report.ownerMarker = path.join(service.run.directory, '.owner.json')
+          report.errors.push(
+            'Interrupted run preserves its isolated Supabase project and owner marker.',
+          )
+        }
+        report.errors.push(redact(error.message))
+      }
     }
+    fs.writeFileSync(
+      path.join(output.directory, 'report.json'),
+      JSON.stringify(redact(report), null, 2),
+    )
   }
-  fs.writeFileSync(
-    path.join(output.directory, 'report.json'),
-    JSON.stringify(redact(report), null, 2),
-  )
 }
+
+await (ownerListingMode ? runOwnerListing() : runDefault())
 console.log(`${report.status}: ${output.directory}`)
 process.exitCode =
   interruptSignal === 'SIGINT'
