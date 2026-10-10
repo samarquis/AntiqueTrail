@@ -126,12 +126,23 @@ test('setup failures retain only allowlisted stage fields and fixed readiness ca
       },
       { stage: undefined, failedAt: 'local-services', setupFailureCategory: category },
     )
-    assert.doesNotMatch(JSON.stringify(result.summary), /private-token|private\.invalid|Bearer|private /)
+    assert.doesNotMatch(
+      JSON.stringify(result.summary),
+      /private-token|private\.invalid|Bearer|private /,
+    )
   }
 })
 
 test('stage and failedAt project only exact known enum values', () => {
-  const stages = ['preflight', 'local-services', 'fixtures', 'build', 'preview', 'browser-tests', 'cleanup-provider']
+  const stages = [
+    'preflight',
+    'local-services',
+    'fixtures',
+    'build',
+    'preview',
+    'browser-tests',
+    'cleanup-provider',
+  ]
   for (const stage of stages) {
     const result = summarize({ ...metadata, stage, failedAt: stage, errors: [] })
     assert.equal(result.status, 0)
@@ -170,7 +181,10 @@ test('setup category inspects string errors only and never emits error text', ()
   })
   assert.equal(result.status, 0)
   assert.equal(result.summary.setupFailureCategory, 'unknown')
-  assert.doesNotMatch(JSON.stringify(result.summary), /private-token|private\.invalid|Bearer|message/)
+  assert.doesNotMatch(
+    JSON.stringify(result.summary),
+    /private-token|private\.invalid|Bearer|message/,
+  )
 })
 
 test('non-array setup errors do not throw or escape the summary allowlist', () => {
@@ -194,7 +208,10 @@ test('non-array setup errors do not throw or escape the summary allowlist', () =
     assert.equal(result.summary.failedAt, 'local-services')
     assert.equal(result.summary.setupFailureCategory, 'unknown')
     assert.equal(Object.hasOwn(result.summary, 'errors'), false)
-    assert.doesNotMatch(JSON.stringify(result.summary), /private-token|private\.invalid|Bearer|secret|message/)
+    assert.doesNotMatch(
+      JSON.stringify(result.summary),
+      /private-token|private\.invalid|Bearer|secret|message/,
+    )
   }
 })
 
