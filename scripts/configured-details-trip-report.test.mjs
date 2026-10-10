@@ -90,3 +90,73 @@ for (const [name, change] of [
     assert.equal(inspect(value).status, 'failed')
   })
 }
+
+const authFailureTitle =
+  'anonymous Details sign-in failure preserves store and private data before retry'
+const combinedRequired = [title, authFailureTitle].flatMap((name) =>
+  ['desktop', 'phone'].map((project) => ({ name, project })),
+)
+function combinedFixture() {
+  const value = fixture()
+  value.stats.expected = 4
+  value.suites[0].specs.push({
+    title: authFailureTitle,
+    tests: ['desktop', 'phone'].map((projectName) => ({
+      projectName,
+      results: [{ status: 'passed' }],
+    })),
+  })
+  return value
+}
+const inspectCombined = (value) => browserReport(JSON.stringify(value), 4, combinedRequired)
+test('Details combined receipt requires both exact titles on desktop and phone', () => {
+  const result = inspectCombined(combinedFixture())
+  assert.equal(result.status, 'passed')
+  assert.deepEqual(
+    result.checks,
+    combinedRequired.map(({ name, project }) => ({ name, project, status: 'passed' })),
+  )
+})
+for (const titleIndex of [0, 1]) {
+  for (const projectIndex of [0, 1]) {
+    test(`Details combined receipt rejects missing pair ${titleIndex}/${projectIndex}`, () => {
+      const value = combinedFixture()
+      value.suites[0].specs[titleIndex].tests.splice(projectIndex, 1)
+      assert.equal(inspectCombined(value).status, 'failed')
+    })
+  }
+}
+for (const [name, change] of [
+  ['only original pair', (value) => value.suites[0].specs.pop()],
+  ['only authentication pair', (value) => value.suites[0].specs.shift()],
+  ['duplicate pair', (value) => (value.suites[0].specs[1].tests[1].projectName = 'desktop')],
+  ['wrong project', (value) => (value.suites[0].specs[1].tests[1].projectName = 'tablet')],
+  ['wrong title', (value) => (value.suites[0].specs[1].title = 'unrelated')],
+  [
+    'extra result',
+    (value) => value.suites[0].specs[1].tests.push(value.suites[0].specs[1].tests[0]),
+  ],
+  [
+    'skipped result',
+    (value) => {
+      value.suites[0].specs[1].tests[1].results[0].status = 'skipped'
+      value.stats.skipped = 1
+    },
+  ],
+  ['flaky result', (value) => (value.stats.flaky = 1)],
+  [
+    'failed result',
+    (value) => {
+      value.suites[0].specs[1].tests[1].results[0].status = 'failed'
+      value.stats.unexpected = 1
+    },
+  ],
+  ['global error', (value) => value.errors.push({ message: 'setup failed' })],
+  ['wrong count', (value) => (value.stats.expected = 2)],
+]) {
+  test(`Details combined receipt rejects ${name}`, () => {
+    const value = combinedFixture()
+    change(value)
+    assert.equal(inspectCombined(value).status, 'failed')
+  })
+}

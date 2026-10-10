@@ -229,7 +229,7 @@ try {
                     : detailsTripEntry
                       ? [
                           '--grep',
-                          'anonymous Details entry cancels sign-in, retains store, and retries one dated stop$',
+                          '(anonymous Details entry cancels sign-in, retains store, and retries one dated stop|anonymous Details sign-in failure preserves store and private data before retry)$',
                         ]
                       : []),
       ],
@@ -249,16 +249,11 @@ try {
   } else {
     const results = browserReport(
       fs.readFileSync(resultPath, 'utf8'),
-      sessionSignout
+      sessionSignout || detailsTripEntry
         ? 4
-        : mediaOnly ||
-            partnerRemoval ||
-            accountSettings ||
-            keyedTripCreate ||
-            savedRowTripEntry ||
-            detailsTripEntry
+        : mediaOnly || partnerRemoval || accountSettings || keyedTripCreate || savedRowTripEntry
           ? 2
-          : 28,
+          : 30,
       keyedTripCreate
         ? [
             { name: 'keyed trip create replays after committed response loss', project: 'desktop' },
@@ -270,10 +265,10 @@ try {
               project,
             }))
           : detailsTripEntry
-            ? ['desktop', 'phone'].map((project) => ({
-                name: 'anonymous Details entry cancels sign-in, retains store, and retries one dated stop',
-                project,
-              }))
+            ? [
+                'anonymous Details entry cancels sign-in, retains store, and retries one dated stop',
+                'anonymous Details sign-in failure preserves store and private data before retry',
+              ].flatMap((name) => ['desktop', 'phone'].map((project) => ({ name, project })))
             : [],
     )
     report.stats = results.stats

@@ -1362,3 +1362,63 @@ test('anonymous Details entry cancels sign-in, retains store, and retries one da
     await page.unroute('**/rest/v1/rpc/add_trip_store_stop', addRoute)
   }
 })
+
+test('anonymous Details sign-in failure preserves store and private data before retry', async ({
+  page,
+}) => {
+  const privateState = async () =>
+    JSON.parse(
+      (
+        await service.sql(
+          `select jsonb_build_object(
+            'trips',coalesce((select jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text) from trip_private.trips t where t.owner_id='${owner}'),'[]'::jsonb),
+            'stops',coalesce((select jsonb_agg(to_jsonb(s) order by to_jsonb(s)::text) from trip_private.trip_stops s join trip_private.trips t on t.trip_id=s.trip_id where t.owner_id='${owner}'),'[]'::jsonb),
+            'saved',coalesce((select jsonb_agg(to_jsonb(s) order by to_jsonb(s)::text) from shopper_private.saved_stores s where s.user_id='${owner}'),'[]'::jsonb));`,
+        )
+      ).trim(),
+    )
+  const before = await privateState()
+  const target = `/trips/new?addStoreId=${A}`
+  const signInUrl = `${input.origin}/auth/sign-in?returnTo=${encodeURIComponent(target)}`
+  await page.goto('/stores')
+  await page.getByRole('link', { name: 'Clockwork Cabinet', exact: true }).first().click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' })).toBeVisible()
+  const action = page.getByRole('link', { name: 'Add to Trip', exact: true })
+  await expect(action).toHaveAttribute('href', target)
+  await action.click()
+  await expect(page).toHaveURL(signInUrl)
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  const wrongPassword = `${input.users[0].password}-wrong`
+  expect(wrongPassword !== input.users[0].password).toBe(true)
+  await page.getByLabel('Email', { exact: true }).fill(input.users[0].email)
+  await page.getByLabel('Password', { exact: true }).fill(wrongPassword)
+  const deniedResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return (
+      url.origin === new URL(input.endpoint).origin &&
+      url.pathname === '/auth/v1/token' &&
+      url.searchParams.get('grant_type') === 'password' &&
+      response.request().method() === 'POST'
+    )
+  })
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  const denied = await deniedResponse
+  expect([400, 401]).toContain(denied.status())
+  const denialBody = await denied.json()
+  expect(typeof denialBody.access_token === 'string').toBe(false)
+  await expect(
+    page
+      .getByRole('alert')
+      .getByText("We couldn't sign you in. Check your details and try again.", {
+        exact: true,
+      }),
+  ).toBeVisible()
+  await expect(page).toHaveURL(signInUrl)
+  await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toHaveCount(0)
+  expect(await privateState()).toEqual(before)
+
+  await submitLogin(page, 0)
+  await expect(page).toHaveURL(`${input.origin}${target}`)
+  await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+  expect(await privateState()).toEqual(before)
+})

@@ -69,14 +69,14 @@ jobs:
             .map(name => `artifacts/${name}/report.json`).filter(file => fs.existsSync(file))
           if (reports.length !== 1) throw new Error('Expected one configured report')
           const report = JSON.parse(fs.readFileSync(reports[0], 'utf8'))
-          const title = 'anonymous Details entry cancels sign-in, retains store, and retries one dated stop'
-          const expectedPairs = new Set([`${title}\0desktop`, `${title}\0phone`])
+          const titles = ['anonymous Details entry cancels sign-in, retains store, and retries one dated stop', 'anonymous Details sign-in failure preserves store and private data before retry']
+          const expectedPairs = new Set(titles.flatMap(title => [`${title}\0desktop`, `${title}\0phone`]))
           const allowedStages = new Set(['preflight', 'local-services', 'fixtures', 'build', 'preview', 'browser-tests'])
           const allowedFailedAt = new Set([...allowedStages, 'browser-report', 'cleanup-browser-input', 'cleanup-provider'])
           const allowedStatuses = new Set(['passed', 'failed', 'skipped', 'timedOut', 'interrupted', 'unavailable'])
           const safeChecks = Array.isArray(report.checks) ? report.checks.map(check => {
             const known = check && typeof check === 'object'
-            const name = known && check.name === title ? title : 'unexpected'
+            const name = known && titles.includes(check.name) ? check.name : 'unexpected'
             const project = known && ['desktop', 'phone'].includes(check.project) ? check.project : 'unexpected'
             const status = known && allowedStatuses.has(check.status) ? check.status : 'unavailable'
             const failure = known && status !== 'passed' && check.failure && typeof check.failure === 'object'
@@ -87,9 +87,9 @@ jobs:
             ['expected', 'unexpected', 'skipped', 'flaky'].map(key => [key,
               Number.isSafeInteger(report.stats[key]) && report.stats[key] >= 0 ? report.stats[key] : null])
           )
-          const checksValid = Array.isArray(report.checks) && report.checks.length === 2 &&
-            safeChecks.every(check => check.name === title && check.status === 'passed') &&
-            new Set(safeChecks.map(check => `${check.name}\0${check.project}`)).size === 2 &&
+          const checksValid = Array.isArray(report.checks) && report.checks.length === 4 &&
+            safeChecks.every(check => titles.includes(check.name) && check.status === 'passed') &&
+            new Set(safeChecks.map(check => `${check.name}\0${check.project}`)).size === 4 &&
             safeChecks.every(check => expectedPairs.has(`${check.name}\0${check.project}`))
           const cleanupFailuresValid = Array.isArray(report.cleanupFailures) && report.cleanupFailures.length === 0
           const receipt = {
@@ -119,7 +119,7 @@ jobs:
             receipt.evidenceClass === 'real-local-browser' && receipt.status === 'passed' &&
             receipt.stage === 'browser-tests' && !report.failedAt && receipt.cleanup === 'removed' &&
             cleanupFailuresValid && receipt.cleanupFailures.length === 0 &&
-            counts?.expected === 2 && counts?.unexpected === 0 && counts?.skipped === 0 && counts?.flaky === 0 &&
+            counts?.expected === 4 && counts?.unexpected === 0 && counts?.skipped === 0 && counts?.flaky === 0 &&
             checksValid && report.errors?.length === 0
           if (!valid) throw new Error('Configured Details proof receipt rejected')
           JS
