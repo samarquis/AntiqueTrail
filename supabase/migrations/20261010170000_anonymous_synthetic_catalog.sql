@@ -54,7 +54,7 @@ begin
   if v_stage is distinct from 'synthetic_alpha' then
     raise exception 'synthetic_catalog_outside_stage';
   end if;
-  if p_operation='map' or (p_user_id is null and p_operation='nearby-list') then
+  if p_operation='map' then
     raise exception 'synthetic_catalog_map_disabled' using errcode='42501';
   end if;
 
@@ -74,19 +74,25 @@ begin
     join app_private.registration_quarantine_latch q on q.id=1
     where e.id=1 and e.stage='synthetic_alpha' and e.receipt_id is not null
       and e.capabilities @> '{"private_auth":true}'::jsonb
-      and (p_user_id is not null or e.capabilities @> '{"anonymous_catalog":true}'::jsonb)
+      and (p_user_id is not null or p_session_id is not null
+        or p_operation not in ('list','details')
+        or e.capabilities @> '{"anonymous_catalog":true}'::jsonb)
       and c.mode='receipt_only' and c.stage_receipt_id=e.receipt_id
       and q.state='open'
   ) then raise exception 'synthetic_catalog_evidence_invalid' using errcode='42501'; end if;
 
-  if p_user_id is not null and (
-    not app_private.gateway_session_is_active(p_user_id,p_session_id) or not exists(
+  if p_user_id is null and p_session_id is null then
+    if p_operation not in ('list','details') then
+      raise exception 'synthetic_catalog_forbidden' using errcode='42501';
+    end if;
+  elsif p_user_id is null or p_session_id is null
+    or not app_private.gateway_session_is_active(p_user_id,p_session_id) or not exists(
     select 1
     from app_private.profiles p
     join app_private.role_grants g
       on g.subject_user_id=p.user_id and g.role='shopper' and g.state='active' and g.store_id is null
     where p.user_id=p_user_id and p.status='active'
-  )) then raise exception 'synthetic_catalog_forbidden' using errcode='42501'; end if;
+  ) then raise exception 'synthetic_catalog_forbidden' using errcode='42501'; end if;
 
   v_hash:=decode(p_key_hash,'hex');
   v_window:=to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300);
