@@ -549,7 +549,6 @@ export function SavedPage({
                 <Link
                   className="button button--secondary"
                   to={`/trips/new?addStoreId=${encodeURIComponent(store.storeId)}&returnTo=%2Fsaved`}
-                  aria-label={`Add ${store.name} to a trip`}
                 >
                   Add to Trip
                 </Link>
