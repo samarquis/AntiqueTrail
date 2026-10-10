@@ -20,10 +20,17 @@ const mediaOnly = process.argv.includes('--media-only')
 const partnerRemoval = process.argv.includes('--partner-removal')
 const accountSettings = process.argv.includes('--account-settings')
 const keyedTripCreate = process.argv.includes('--keyed-trip-create')
+const savedRowTripEntry = process.argv.includes('--saved-row-trip-entry')
 const report = {
   scope:
-    [sessionSignout, mediaOnly, partnerRemoval, accountSettings, keyedTripCreate].filter(Boolean)
-      .length > 1
+    [
+      sessionSignout,
+      mediaOnly,
+      partnerRemoval,
+      accountSettings,
+      keyedTripCreate,
+      savedRowTripEntry,
+    ].filter(Boolean).length > 1
       ? 'invalid'
       : sessionSignout
         ? 'session-signout'
@@ -35,7 +42,9 @@ const report = {
               ? 'two-user-account-settings'
               : keyedTripCreate
                 ? 'keyed-trip-create'
-                : 'connected-shopper',
+                : savedRowTripEntry
+                  ? 'saved-row-trip-entry'
+                  : 'connected-shopper',
   status: 'unavailable',
   stage: 'preflight',
   failedAt: undefined,
@@ -56,8 +65,14 @@ try {
   report.sourceDirty = Boolean((await command('git', ['status', '--porcelain'])).trim())
   if (report.sourceDirty) throw new Error('Candidate source tree is dirty')
   if (
-    [sessionSignout, mediaOnly, partnerRemoval, accountSettings, keyedTripCreate].filter(Boolean)
-      .length > 1
+    [
+      sessionSignout,
+      mediaOnly,
+      partnerRemoval,
+      accountSettings,
+      keyedTripCreate,
+      savedRowTripEntry,
+    ].filter(Boolean).length > 1
   )
     throw new Error('Choose one configured acceptance scope')
   if (process.env.ANTIQUE_TRAIL_LOCAL_URL)
@@ -193,7 +208,12 @@ try {
                   ]
                 : keyedTripCreate
                   ? ['--grep', 'keyed trip create replays after committed response loss$']
-                  : []),
+                  : savedRowTripEntry
+                    ? [
+                        '--grep',
+                        'visible Saved-row chooser cancels, retries, and reads back one dated stop$',
+                      ]
+                    : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
@@ -213,15 +233,20 @@ try {
       fs.readFileSync(resultPath, 'utf8'),
       sessionSignout
         ? 4
-        : mediaOnly || partnerRemoval || accountSettings || keyedTripCreate
+        : mediaOnly || partnerRemoval || accountSettings || keyedTripCreate || savedRowTripEntry
           ? 2
-          : 24,
+          : 26,
       keyedTripCreate
         ? [
             { name: 'keyed trip create replays after committed response loss', project: 'desktop' },
             { name: 'keyed trip create replays after committed response loss', project: 'phone' },
           ]
-        : [],
+        : savedRowTripEntry
+          ? ['desktop', 'phone'].map((project) => ({
+              name: 'visible Saved-row chooser cancels, retries, and reads back one dated stop',
+              project,
+            }))
+          : [],
     )
     report.stats = results.stats
     report.checks = results.checks

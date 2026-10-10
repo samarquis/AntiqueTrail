@@ -486,8 +486,10 @@ export function CatalogPrivateActions({
 
 export function SavedPage({
   client = unavailableShopperClient,
+  allowAddToTrip = false,
 }: {
   client?: ShopperPrivateClient
+  allowAddToTrip?: boolean
 }) {
   const [stores, setStores] = useState<SavedStore[] | null>(null)
   const [error, setError] = useState(false)
@@ -543,6 +545,14 @@ export function SavedPage({
               timestamp={store.savedAt}
               sourceLabel="Your private saved-store record"
             >
+              {allowAddToTrip && (
+                <Link
+                  className="button button--secondary"
+                  to={`/trips/new?addStoreId=${encodeURIComponent(store.storeId)}&returnTo=%2Fsaved`}
+                >
+                  Add to Trip
+                </Link>
+              )}
               <SaveStoreAction
                 storeId={store.storeId}
                 initialSaved
